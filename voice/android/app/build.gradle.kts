@@ -5,11 +5,14 @@ plugins {
 }
 
 val voiceEngineDir = rootProject.file("../engine")
+val voiceCargoRunner = voiceEngineDir.resolve("scripts/run-cargo.sh")
+val voiceNdkVersion = providers.gradleProperty("voice.ndkVersion").get()
 val generatedRustJniLibsDir = layout.buildDirectory.dir("generated/rustJniLibs")
 val generatedRustJniLibsFile = layout.buildDirectory.asFile.get().resolve("generated/rustJniLibs")
 
 android {
     namespace = "com.sanogueralorenzo.voice"
+    ndkVersion = voiceNdkVersion
     compileSdk {
         version = release(37)
     }
@@ -34,6 +37,7 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -43,28 +47,35 @@ android {
     }
     sourceSets {
         named("main") {
-            jniLibs.setSrcDirs(listOf(generatedRustJniLibsFile))
+            jniLibs.directories.clear()
+            jniLibs.directories.add(generatedRustJniLibsFile.absolutePath)
         }
     }
 }
 
-val buildVoiceEngineHost by tasks.registering(Exec::class) {
+val buildVoiceEngineHost = tasks.register<Exec>("buildVoiceEngineHost") {
     workingDir = voiceEngineDir
-    commandLine("cargo", "build", "--manifest-path", voiceEngineDir.resolve("Cargo.toml").absolutePath)
+    commandLine(voiceCargoRunner.absolutePath, "build")
     inputs.dir(voiceEngineDir.resolve("src"))
     inputs.file(voiceEngineDir.resolve("Cargo.toml"))
+    inputs.file(voiceEngineDir.resolve("Cargo.lock"))
+    inputs.file(voiceEngineDir.resolve("rust-toolchain.toml"))
+    inputs.file(voiceCargoRunner)
     doNotTrackState("Cargo owns its incremental target directory.")
 }
 
-val buildVoiceEngineAndroid by tasks.registering(Exec::class) {
+val buildVoiceEngineAndroid = tasks.register<Exec>("buildVoiceEngineAndroid") {
     workingDir = voiceEngineDir
     commandLine(
-        "/bin/sh",
         voiceEngineDir.resolve("scripts/build-android.sh").absolutePath,
-        generatedRustJniLibsDir.get().asFile.absolutePath
+        generatedRustJniLibsDir.get().asFile.absolutePath,
+        voiceNdkVersion
     )
     inputs.dir(voiceEngineDir.resolve("src"))
     inputs.file(voiceEngineDir.resolve("Cargo.toml"))
+    inputs.file(voiceEngineDir.resolve("Cargo.lock"))
+    inputs.file(voiceEngineDir.resolve("rust-toolchain.toml"))
+    inputs.file(voiceCargoRunner)
     inputs.file(voiceEngineDir.resolve("scripts/build-android.sh"))
     outputs.dir(generatedRustJniLibsDir)
 }
@@ -83,6 +94,7 @@ tasks.matching { task ->
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -101,7 +113,7 @@ dependencies {
     implementation(libs.mavericks.compose)
     implementation(libs.moonshine.voice)
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260719")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

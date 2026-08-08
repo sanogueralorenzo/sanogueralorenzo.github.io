@@ -63,7 +63,9 @@ property, so the Kotlin binding tests read the same files as the Rust tests.
 Run the engine tests from the repository root:
 
 ```shell
-cargo test --manifest-path voice/engine/Cargo.toml
+./voice/engine/scripts/run-cargo.sh test
 ```
 
 Android builds compile and package the Rust JNI library through `voice/android/app/build.gradle.kts`. A local Android SDK and NDK are required; Gradle reads `ANDROID_HOME`, `ANDROID_SDK_ROOT`, or `voice/android/local.properties`.
+
+Rust `1.94.1` and the Android compilation targets are pinned in `rust-toolchain.toml`. All local, Gradle, and CI commands should use `scripts/run-cargo.sh` so Homebrew or system Rust versions cannot change the build. Android NDK `29.0.14206865` is pinned by `voice.ndkVersion` in `voice/android/gradle.properties`.

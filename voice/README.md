@@ -14,6 +14,8 @@ Android is the first supported platform. iOS, macOS, Linux, and Windows versions
 
 ## Development
 
+Install [rustup](https://rustup.rs/) and Android NDK `29.0.14206865`. The repository pins the Rust compiler and Android targets in `engine/rust-toolchain.toml`; the shared Cargo runner keeps builds independent of any Homebrew Rust installation.
+
 ```shell
 cd voice/android
 ./gradlew :app:installDebug
@@ -22,5 +24,5 @@ cd voice/android
 Run the shared engine tests from the repository root:
 
 ```shell
-cargo test --manifest-path voice/engine/Cargo.toml
+./voice/engine/scripts/run-cargo.sh test
 ```

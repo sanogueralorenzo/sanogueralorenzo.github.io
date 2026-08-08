@@ -33,6 +33,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
@@ -208,11 +209,12 @@ class OverlayAccessibilityService : AccessibilityService() {
             addAction(Intent.ACTION_SCREEN_OFF)
         }
         val registered = runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(systemDialogReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(systemDialogReceiver, filter)
-            }
+            ContextCompat.registerReceiver(
+                this,
+                systemDialogReceiver,
+                filter,
+                ContextCompat.RECEIVER_EXPORTED
+            )
         }.isSuccess
         systemDialogReceiverRegistered = registered
     }

@@ -35,6 +35,8 @@ fun BenchmarkScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val shareSubject = stringResource(R.string.benchmark_share_subject)
+    val shareChooserTitle = stringResource(R.string.benchmark_share_chooser)
     val viewModel = mavericksViewModel<BenchmarkViewModel, BenchmarkState>()
     val state by viewModel.collectAsStateWithLifecycle()
 
@@ -50,13 +52,13 @@ fun BenchmarkScreen(
         val reportText = BenchmarkReportFormatter.toPlainText(result)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.benchmark_share_subject))
+            putExtra(Intent.EXTRA_SUBJECT, shareSubject)
             putExtra(Intent.EXTRA_TEXT, reportText)
         }
         context.startActivity(
             Intent.createChooser(
                 shareIntent,
-                context.getString(R.string.benchmark_share_chooser)
+                shareChooserTitle
             )
         )
     }
