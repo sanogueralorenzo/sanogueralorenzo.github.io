@@ -5,6 +5,6 @@ Shared prompts, datasets, and runners for evaluating Voice cleanup and rewrite b
 - `dataset.jsonl` is the cross-platform benchmark dataset used by the apps.
 - `prompt_a.json` is the current runtime prompt; `prompt_b.json` is the challenger.
 - `prompt_eval_android.py` runs the source-of-truth benchmark on a connected Android device.
-- `prompt_eval.sh` provides an optional host smoke test.
+- `prompt_eval.sh` provides an optional host smoke test and downloads the canonical Gemma 3 INT4 LiteRT-LM artifact by default.
 
 Run tools from any directory; their default assets resolve from this folder.

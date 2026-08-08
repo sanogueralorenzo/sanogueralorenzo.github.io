@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL_URL_DEFAULT="https://huggingface.co/ANISH-j/models-for-echo-application/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm"
+MODEL_URL_DEFAULT="https://huggingface.co/sanogueralorenzo/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.litertlm"
 LITERT_REPO_URL="https://github.com/google-ai-edge/LiteRT-LM.git"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,7 +11,7 @@ CACHE_DIR="${ROOT_DIR}/.cache/prompt_eval"
 PROMPT_FILE=""
 CASES_FILE=""
 MODEL_URL="${MODEL_URL_DEFAULT}"
-MODEL_PATH="${CACHE_DIR}/models/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm"
+MODEL_PATH="${CACHE_DIR}/models/gemma3-1b-it-int4.litertlm"
 LITERTLM_DIR="${CACHE_DIR}/LiteRT-LM"
 BINARY_PATH=""
 BACKEND="auto"
