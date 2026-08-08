@@ -10,6 +10,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+EVALS_DIR = Path(__file__).resolve().parent
+VOICE_DIR = EVALS_DIR.parent
+
+
+def resolve_cli_path(raw_path: str) -> Path:
+    return Path(raw_path).expanduser().resolve()
+
 
 @dataclass
 class EvalSummary:
@@ -116,13 +123,13 @@ def main() -> int:
         "--prompt-a-url",
         default=(
             "https://raw.githubusercontent.com/sanogueralorenzo/"
-            "sanogueralorenzo.github.io/main/voice/scripts/prompt_a.json"
+            "sanogueralorenzo.github.io/main/voice/evals/prompt_a.json"
         ),
     )
-    parser.add_argument("--prompt-b-file", default="scripts/prompt_b.json")
-    parser.add_argument("--dataset-file", default="scripts/dataset.jsonl")
-    parser.add_argument("--eval-script", default="scripts/prompt_eval_android.py")
-    parser.add_argument("--run-root", default=".cache/prompt_ab_android")
+    parser.add_argument("--prompt-b-file", default=str(EVALS_DIR / "prompt_b.json"))
+    parser.add_argument("--dataset-file", default=str(EVALS_DIR / "dataset.jsonl"))
+    parser.add_argument("--eval-script", default=str(EVALS_DIR / "prompt_eval_android.py"))
+    parser.add_argument("--run-root", default=str(VOICE_DIR / ".cache/prompt_ab_android"))
     parser.add_argument("--serial", default="")
     parser.add_argument("--timeout-sec", type=int, default=900)
     parser.add_argument("--min-improvement-pass-rate-pp", type=float, default=1.0)
@@ -134,10 +141,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    repo_root = Path.cwd()
-    prompt_b_path = (repo_root / args.prompt_b_file).resolve()
-    dataset_path = (repo_root / args.dataset_file).resolve()
-    eval_script = (repo_root / args.eval_script).resolve()
+    prompt_b_path = resolve_cli_path(args.prompt_b_file)
+    dataset_path = resolve_cli_path(args.dataset_file)
+    eval_script = resolve_cli_path(args.eval_script)
     if not prompt_b_path.exists():
         raise FileNotFoundError("Prompt B file not found.")
     if not dataset_path.exists():
@@ -148,7 +154,7 @@ def main() -> int:
     prompt_a_text = fetch_remote_prompt_json(args.prompt_a_url)
     prompt_b_text = load_local_prompt_json(prompt_b_path)
 
-    run_root = (repo_root / args.run_root).resolve()
+    run_root = resolve_cli_path(args.run_root)
     run_dir = run_root / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir.mkdir(parents=True, exist_ok=True)
 

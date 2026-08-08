@@ -9,6 +9,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+EVALS_DIR = Path(__file__).resolve().parent
+VOICE_DIR = EVALS_DIR.parent
+REPO_ROOT = VOICE_DIR.parent
+
+
+def resolve_cli_path(raw_path: str) -> Path:
+    return Path(raw_path).expanduser().resolve()
+
 
 @dataclass
 class EvalSummary:
@@ -300,11 +308,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description='A/B prompt evaluator: recommendation-only by default.'
     )
-    parser.add_argument('--prompt-a-file', default='scripts/prompt_a.json')
-    parser.add_argument('--prompt-b-file', default='scripts/prompt_b.json')
-    parser.add_argument('--dataset-file', default='scripts/dataset.jsonl')
-    parser.add_argument('--eval-script', default='scripts/prompt_eval.sh')
-    parser.add_argument('--run-root', default='.cache/prompt_ab')
+    parser.add_argument('--prompt-a-file', default=str(EVALS_DIR / 'prompt_a.json'))
+    parser.add_argument('--prompt-b-file', default=str(EVALS_DIR / 'prompt_b.json'))
+    parser.add_argument('--dataset-file', default=str(EVALS_DIR / 'dataset.jsonl'))
+    parser.add_argument('--eval-script', default=str(EVALS_DIR / 'prompt_eval.sh'))
+    parser.add_argument('--run-root', default=str(VOICE_DIR / '.cache/prompt_ab'))
 
     parser.add_argument('--max-rounds', type=int, default=1)
     parser.add_argument('--patience', type=int, default=1)
@@ -330,18 +338,18 @@ def main() -> int:
     args = parser.parse_args()
     print(
         "[NOTE] Host/Mac A/B results are not source-of-truth. "
-        "Use scripts/prompt_ab_optimize_android.py for promotion decisions.",
+        "Use voice/evals/prompt_ab_optimize_android.py for promotion decisions.",
         flush=True,
     )
 
     if args.max_rounds <= 0:
         raise ValueError('max-rounds must be > 0')
 
-    repo_root = Path.cwd()
-    prompt_a_path = (repo_root / args.prompt_a_file).resolve()
-    prompt_b_path = (repo_root / args.prompt_b_file).resolve()
-    dataset_path = (repo_root / args.dataset_file).resolve()
-    eval_script = (repo_root / args.eval_script).resolve()
+    repo_root = REPO_ROOT
+    prompt_a_path = resolve_cli_path(args.prompt_a_file)
+    prompt_b_path = resolve_cli_path(args.prompt_b_file)
+    dataset_path = resolve_cli_path(args.dataset_file)
+    eval_script = resolve_cli_path(args.eval_script)
 
     if not prompt_a_path.exists() or not prompt_b_path.exists():
         raise FileNotFoundError('Prompt files not found.')
@@ -350,7 +358,7 @@ def main() -> int:
     if not eval_script.exists():
         raise FileNotFoundError(f'Eval script not found: {eval_script}')
 
-    run_root = (repo_root / args.run_root).resolve()
+    run_root = resolve_cli_path(args.run_root)
     run_dir = run_root / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -648,9 +656,9 @@ def main() -> int:
         f'- holdout enabled: `{args.use_holdout}`',
         '',
         '## How To Apply',
-        '1. If recommendation is `PROMOTE_B`, copy `scripts/prompt_b.json` into `scripts/prompt_a.json` manually.',
+        '1. If recommendation is `PROMOTE_B`, copy `voice/evals/prompt_b.json` into `voice/evals/prompt_a.json` manually.',
         '2. Use `round_*/suggested_next_prompt_b.txt` as the next challenger.',
-        '3. Run `scripts/prompt_ab_optimize.sh` again.',
+        '3. Run `voice/evals/prompt_ab_optimize.sh` again.',
         '',
         '## Key Artifacts',
         f'- round log: `{log_path}`',
