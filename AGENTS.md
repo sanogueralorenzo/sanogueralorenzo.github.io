@@ -2,6 +2,7 @@
 
 - Prefer simple, direct solutions. Optimize for clarity, not cleverness.
 - Inspect the relevant code before changing it; do not guess at behavior.
+- Prefer a shallow, feature-oriented structure with clear ownership: colocate related code and tests, keep entry points thin, and add shared layers only when concrete reuse justifies them.
 - Make the smallest complete change. Update affected call sites, tests, and docs, and remove replaced code.
 - Avoid speculative abstractions, compatibility layers, and unrelated refactors.
 - Keep state, control flow, side effects, and failure handling explicit.
