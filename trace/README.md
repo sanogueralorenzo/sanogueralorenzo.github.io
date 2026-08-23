@@ -36,6 +36,11 @@ Every agent adapter sends the same lifecycle events through `trace ingest`:
 `session-start`, `turn-start`, `turn-end`, and `session-end`. Agent-specific
 code is limited to installing hooks and making its transcript readable.
 
+At session and turn start, Trace records the current `HEAD`. A commit is linked
+only when exactly one pending session in that worktree is anchored to the
+commit's first parent. The anchor advances after every linked commit, so one
+turn can produce multiple commits. Ambiguous commits are left unlinked.
+
 ## Read sessions
 
 ```sh

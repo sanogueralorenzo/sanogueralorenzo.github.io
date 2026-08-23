@@ -144,7 +144,7 @@ func TestSessionSpansMultipleCheckpoints(t *testing.T) {
 	assertOutputContains(t, sessionOut.String(), sessionID, firstSHA, secondSHA, "add the parser", "handle empty input")
 }
 
-func TestCommitCanLinkMultipleSessions(t *testing.T) {
+func TestCommitRejectsAmbiguousSessions(t *testing.T) {
 	repo := testRepo(t)
 	for _, item := range []struct {
 		source string
@@ -164,24 +164,62 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "model.go"), "package model\n")
 	git(t, repo, "add", "model.go")
 	git(t, repo, "commit", "-m", "change model")
-	record, err := checkpointSessions(repo)
-	if err != nil {
-		t.Fatalf("link commit: %v", err)
-	}
-	if len(record.Sessions) != 2 {
-		t.Fatalf("expected two linked sessions, got %#v", record.Sessions)
+	_, err := checkpointSessions(repo)
+	if err == nil || !strings.Contains(err.Error(), "multiple sessions match commit parent") {
+		t.Fatalf("expected ambiguous session error, got %v", err)
 	}
 	refs := strings.Fields(git(t, repo, "for-each-ref", "--format=%(refname)", sessionRefPrefix+"/"))
 	if len(refs) != 2 || refs[0] == refs[1] {
 		t.Fatalf("expected an independent ref per session, got %v", refs)
 	}
-
-	t.Chdir(repo)
-	var out bytes.Buffer
-	if err := showCommitConversation("HEAD", false, &out); err != nil {
-		t.Fatalf("show commit: %v", err)
+	if _, err := readCommitLink(repo, "HEAD"); err == nil {
+		t.Fatal("ambiguous commit should not have a session link")
 	}
-	assertOutputContains(t, out.String(), "codex-session-full-id", "claude-session-full-id", "change the model", "review the model")
+}
+
+func TestCommitSelectsSessionByBaseCommit(t *testing.T) {
+	repo := testRepo(t)
+	if err := captureSessionEvent(repo, "codex", "turn-start", []byte(`{"session_id":"stale-session","prompt":"old work"}`)); err != nil {
+		t.Fatalf("capture stale session: %v", err)
+	}
+	writeFile(t, filepath.Join(repo, "unrelated.txt"), "unrelated\n")
+	git(t, repo, "add", "unrelated.txt")
+	git(t, repo, "commit", "-m", "unrelated commit")
+	if err := captureSessionEvent(repo, "claude-code", "turn-start", []byte(`{"session_id":"current-session","prompt":"current work"}`)); err != nil {
+		t.Fatalf("capture current session: %v", err)
+	}
+	writeFile(t, filepath.Join(repo, "current.txt"), "current\n")
+	git(t, repo, "add", "current.txt")
+	git(t, repo, "commit", "-m", "current commit")
+
+	record, err := checkpointSessions(repo)
+	if err != nil {
+		t.Fatalf("link current session: %v", err)
+	}
+	if len(record.Sessions) != 1 || record.Sessions[0].SessionID != "current-session" {
+		t.Fatalf("expected only current session, got %#v", record.Sessions)
+	}
+}
+
+func TestFirstCommitLinksFromUnbornHead(t *testing.T) {
+	repo := t.TempDir()
+	git(t, repo, "init")
+	git(t, repo, "config", "user.email", "trace@example.com")
+	git(t, repo, "config", "user.name", "Trace Test")
+	if err := captureSessionEvent(repo, "codex", "turn-start", []byte(`{"session_id":"first-session","prompt":"start project"}`)); err != nil {
+		t.Fatalf("capture first session: %v", err)
+	}
+	writeFile(t, filepath.Join(repo, "README.md"), "first\n")
+	git(t, repo, "add", "README.md")
+	git(t, repo, "commit", "-m", "first commit")
+
+	record, err := checkpointSessions(repo)
+	if err != nil {
+		t.Fatalf("link first commit: %v", err)
+	}
+	if len(record.Sessions) != 1 || record.Sessions[0].SessionID != "first-session" {
+		t.Fatalf("expected first session, got %#v", record.Sessions)
+	}
 }
 
 func TestCommitOnlyLinksSessionsFromItsWorktree(t *testing.T) {
@@ -196,7 +234,7 @@ func TestCommitOnlyLinksSessionsFromItsWorktree(t *testing.T) {
 		{root: worktree, id: "other-session"},
 	} {
 		payload := []byte(`{"session_id":"` + item.id + `","prompt":"change it"}`)
-		if err := captureSessionEvent(item.root, "custom-ai", "turn", payload); err != nil {
+		if err := captureSessionEvent(item.root, "custom-ai", "turn-start", payload); err != nil {
 			t.Fatalf("capture %s: %v", item.id, err)
 		}
 	}

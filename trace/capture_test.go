@@ -13,7 +13,14 @@ func TestCodexCapture(t *testing.T) {
 	if err := captureSessionEvent(repo, "codex", "turn-start", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	assertContainsFile(t, mustTraceDataPath(t, repo, "sessions", "codex", "codex-1.jsonl"), "turn-start")
+	events, err := readSessionLines(mustTraceDataPath(t, repo, "sessions", "codex", "codex-1.jsonl"))
+	if err != nil {
+		t.Fatalf("read session events: %v", err)
+	}
+	wantBase := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	if len(events) != 1 || events[0].Event != "turn-start" || events[0].BaseCommit != wantBase {
+		t.Fatalf("unexpected captured event: %#v", events)
+	}
 }
 
 func TestCaptureRequiresSessionID(t *testing.T) {

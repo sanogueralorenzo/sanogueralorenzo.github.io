@@ -16,6 +16,7 @@ import (
 )
 
 const schemaVersion = 3
+const unbornCommit = "unborn"
 
 type conversationMessage struct {
 	Role string `json:"role"`
@@ -66,8 +67,9 @@ type commitLink struct {
 }
 
 type sessionCursor struct {
-	Messages int `json:"messages"`
-	Events   int `json:"events"`
+	Messages   int    `json:"messages"`
+	Events     int    `json:"events"`
+	BaseCommit string `json:"base_commit,omitempty"`
 }
 
 type traceState struct {
@@ -122,6 +124,16 @@ func checkpointSessions(root string) (*commitLink, error) {
 	if err != nil {
 		return nil, err
 	}
+	parent, err := firstParent(root, commit.SHA)
+	if err != nil {
+		return nil, err
+	}
+	type candidate struct {
+		record   sessionRecord
+		key      string
+		previous sessionCursor
+	}
+	var candidates []candidate
 	result := &commitLink{SchemaVersion: schemaVersion}
 	for _, current := range records {
 		stored, found, err := readSessionRecord(root, current.Source, current.ID)
@@ -136,25 +148,35 @@ func checkpointSessions(root string) (*commitLink, error) {
 		if current.MessageCount <= previous.Messages && current.EventCount <= previous.Events {
 			continue
 		}
-		link := checkpoint{
-			Commit:       commit,
-			EventFrom:    previous.Events + 1,
-			EventThrough: current.EventCount,
+		if sessionBaseCommit(current.Events, previous) != parent {
+			continue
 		}
-		if current.MessageCount > previous.Messages {
-			link.MessageFrom = previous.Messages + 1
-			link.MessageThrough = current.MessageCount
-		}
-		current.Checkpoints = upsertCheckpoint(current.Checkpoints, link)
-		if err := writeSessionRecord(root, current); err != nil {
-			return nil, err
-		}
-		result.Sessions = append(result.Sessions, sessionPointer{SessionID: current.ID, Source: current.Source})
-		state.Sessions[key] = sessionCursor{Messages: current.MessageCount, Events: current.EventCount}
+		candidates = append(candidates, candidate{record: current, key: key, previous: previous})
 	}
-	if len(result.Sessions) == 0 {
+	if len(candidates) == 0 {
 		return result, nil
 	}
+	if len(candidates) > 1 {
+		return nil, fmt.Errorf("multiple sessions match commit parent %s; commit was not linked", parent)
+	}
+	item := candidates[0]
+	current := item.record
+	previous := item.previous
+	link := checkpoint{
+		Commit:       commit,
+		EventFrom:    previous.Events + 1,
+		EventThrough: current.EventCount,
+	}
+	if current.MessageCount > previous.Messages {
+		link.MessageFrom = previous.Messages + 1
+		link.MessageThrough = current.MessageCount
+	}
+	current.Checkpoints = upsertCheckpoint(current.Checkpoints, link)
+	if err := writeSessionRecord(root, current); err != nil {
+		return nil, err
+	}
+	result.Sessions = append(result.Sessions, sessionPointer{SessionID: current.ID, Source: current.Source})
+	state.Sessions[item.key] = sessionCursor{Messages: current.MessageCount, Events: current.EventCount, BaseCommit: commit.SHA}
 	if err := writeCommitLink(root, commit.SHA, *result); err != nil {
 		return nil, err
 	}
@@ -162,6 +184,34 @@ func checkpointSessions(root string) (*commitLink, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+func firstParent(root string, commit string) (string, error) {
+	out, err := command(root, "git", "rev-list", "--parents", "-n", "1", commit)
+	if err != nil {
+		return "", fmt.Errorf("read first parent for commit %s: %w", commit, err)
+	}
+	parts := strings.Fields(out)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("read first parent for commit %s: unexpected git output", commit)
+	}
+	if len(parts) == 1 {
+		return unbornCommit, nil
+	}
+	return parts[1], nil
+}
+
+func sessionBaseCommit(events []eventRecord, previous sessionCursor) string {
+	start := previous.Events
+	if start < 0 || start > len(events) {
+		start = 0
+	}
+	for i := len(events) - 1; i >= start; i-- {
+		if events[i].BaseCommit != "" {
+			return events[i].BaseCommit
+		}
+	}
+	return previous.BaseCommit
 }
 
 func persistCapturedSession(root string, source string, sessionID string) error {

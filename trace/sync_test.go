@@ -14,7 +14,7 @@ func TestPushAndFetchSurviveFreshClone(t *testing.T) {
 	source := testRepo(t)
 	git(t, source, "branch", "-M", "main")
 	git(t, source, "remote", "add", "origin", remote)
-	if err := captureSessionEvent(source, "test-ai", "turn", []byte(`{"session_id":"clone-session","prompt":"keep this conversation"}`)); err != nil {
+	if err := captureSessionEvent(source, "test-ai", "turn-start", []byte(`{"session_id":"clone-session","prompt":"keep this conversation"}`)); err != nil {
 		t.Fatalf("capture session: %v", err)
 	}
 	writeFile(t, filepath.Join(source, "change.txt"), "change\n")

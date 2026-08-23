@@ -17,6 +17,7 @@ type eventRecord struct {
 	Source         string          `json:"source"`
 	Event          string          `json:"event"`
 	SessionID      string          `json:"session_id"`
+	BaseCommit     string          `json:"base_commit,omitempty"`
 	TranscriptPath string          `json:"transcript_path,omitempty"`
 	Timestamp      string          `json:"timestamp"`
 	Payload        json.RawMessage `json:"payload"`
@@ -50,10 +51,15 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 			_ = exportOpenCodeTranscriptFn(root, sessionID)
 		}
 	}
+	baseCommit, err := eventBaseCommit(root, event)
+	if err != nil {
+		return err
+	}
 	record := eventRecord{
 		Source:         source,
 		Event:          event,
 		SessionID:      sessionID,
+		BaseCommit:     baseCommit,
 		TranscriptPath: transcriptPath,
 		Timestamp:      time.Now().UTC().Format(time.RFC3339Nano),
 		Payload:        json.RawMessage(bytes.TrimSpace(payload)),
@@ -85,6 +91,20 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 		return fmt.Errorf("close session log: %w", err)
 	}
 	return persistCapturedSession(root, source, sessionID)
+}
+
+func eventBaseCommit(root string, event string) (string, error) {
+	if event != "session-start" && event != "turn-start" {
+		return "", nil
+	}
+	sha, err := command(root, "git", "rev-parse", "--verify", "HEAD")
+	if err == nil {
+		return strings.TrimSpace(sha), nil
+	}
+	if _, symbolicErr := command(root, "git", "symbolic-ref", "--quiet", "HEAD"); symbolicErr == nil {
+		return unbornCommit, nil
+	}
+	return "", fmt.Errorf("resolve session base commit: %w", err)
 }
 
 func prepareTranscriptForCheckpoint(root string, events []eventRecord) {
