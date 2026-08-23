@@ -1,16 +1,12 @@
 # Trace
 
-Trace keeps local history for AI coding sessions and connects that history to
-Git commits.
+Trace stores AI coding conversations in hidden Git refs and links them to
+commits without changing normal branches or commit messages.
 
 ```text
-AI session -> hidden Git ref
-Git commit -> session + message/event range
+session    = one complete conversation
+checkpoint = the part of that session linked to one commit
 ```
-
-It stores complete redacted sessions, not generated summaries or copied diffs.
-Session data stays off normal branches, and nothing is uploaded unless you
-explicitly push the Trace refs.
 
 ## Install
 
@@ -20,28 +16,22 @@ Requires Git and Go 1.26 or newer.
 go install .
 ```
 
-macOS already ships an unrelated `/usr/bin/trace`. Put Go's binary directory
-first in `PATH`, then verify that `trace help` shows this CLI.
+macOS ships an unrelated `/usr/bin/trace`. Put Go's binary directory first in
+`PATH` and check that `trace help` shows this CLI.
 
-## Start tracing
+## Enable capture
 
-Run once inside a Git repository:
+Run once in a Git repository:
 
 ```sh
 trace enable
 ```
 
-Trace installs a managed `post-commit` block without removing existing hook
-content and configures its Codex, Claude Code, and OpenCode adapters. Sessions
-are saved locally as events arrive. Each commit is automatically linked to the
-new part of every active session.
+This installs a managed `post-commit` hook and configures Codex, Claude Code,
+and OpenCode capture. Existing Git hook content is preserved. Live state stays
+outside the worktree in Git's common directory and is isolated per worktree.
 
-Adapter setup may create or update `.codex/`, `.claude/`, and `.opencode/`
-project files. Live session state is kept inside Git's common directory, so it
-stays out of the worktree. It is scoped per worktree to prevent a commit in one
-worktree from claiming another worktree's active session.
-
-## CLI
+## Read sessions
 
 ```sh
 trace sessions
@@ -49,90 +39,63 @@ trace session <session-id>
 trace show <commit>
 ```
 
-- `trace sessions` lists stored sessions, newest first.
-- `trace session <session-id>` shows the complete session, its metadata, and all
-  linked commits.
-- `trace show <commit>` shows only the part of each session linked to that Git
-  revision. `HEAD`, branches, and commit SHAs work.
-- `trace init` creates storage without installing hooks.
+- `sessions` lists complete sessions.
+- `session` shows one conversation and all of its checkpoints.
+- `show` shows only the conversation range linked to a commit. Git revisions
+  such as `HEAD`, branch names, and commit SHAs work.
 
-Add `--json` to the three read commands for stable, machine-readable output:
+Add `--json` to any read command for machine-readable output. Records include a
+`schema_version`.
+
+## Push and fetch
+
+Normal Git pushes and clones do not include custom refs. Push Trace history
+explicitly:
 
 ```sh
-trace sessions --json
-trace session <session-id> --json
-trace show HEAD --json
+trace push origin
 ```
 
-JSON records include `schema_version` so agents and skills can evolve with the
-format.
+After a fresh clone, fetch it and inspect the stored conversations:
+
+```sh
+trace fetch origin
+trace sessions
+```
+
+`push` and `fetch` transfer both the session refs and commit-note links. They
+fail on conflicting histories instead of silently overwriting either side.
 
 ## Other AI tools
 
-Any tool can write a session event as JSON on standard input:
+Any tool can send a JSON event on standard input:
 
 ```sh
 printf '%s\n' '{
   "session_id": "full-stable-id",
   "model": "model-name",
-  "messages": [
-    {"role": "user", "text": "Add validation"},
-    {"role": "assistant", "text": "Validation added"}
-  ]
-}' | trace ingest my-tool snapshot
+  "prompt": "Add validation",
+  "response": "Validation added"
+}' | trace ingest my-tool turn
 ```
 
-`session_id` is required. A payload may provide:
+`session_id` is required. Payloads may contain ordered `messages`, a
+`prompt`/`response` pair, a `transcript_path`, and model metadata. Reusing the
+same source and session ID extends that session.
 
-- `messages`: ordered user/assistant messages
-- `prompt` and `response` or `output`: one exchange
-- `transcript_path`: a JSON or JSONL transcript to read
-- `model`, `model_id`, or `modelID`: model metadata
+## Stored data
 
-The source and event names are free-form. In the example they are `my-tool` and
-`snapshot`. Reusing the same session ID appends to that session.
-
-## Session metadata
-
-Each durable session records the context needed for later analysis:
-
-- stable session ID, source, and schema version
-- repository name, sanitized origin URL, and current branch
-- start and update times
-- models, message count, event count, and event kinds
-- transcript status (`captured`, `not_provided`, or `unavailable`) and a reason
-  when a supplied transcript cannot be read
-- complete redacted messages and source events
-- linked commit SHA, subject, branch, time, changed files, and message/event range
-
-This makes `trace session <id> --json` suitable as input when reviewing agent
-behavior or improving prompts, agents, and skills.
-
-## Local storage
-
-- `refs/trace/sessions/v3/<shard>/<key>`: one durable, self-contained record per
-  session
+- `refs/trace/sessions/v4/<shard>/<key>`: one self-contained record per session
 - `refs/notes/trace`: commit-to-session pointers
-- `$GIT_COMMON_DIR/trace/worktrees/<key>/sessions/`: raw hook events
-- `$GIT_COMMON_DIR/trace/worktrees/<key>/state.json`: commit cursors
+- `$GIT_COMMON_DIR/trace/worktrees/<key>/`: private live capture state
 
-Durable records redact common secret patterns. Raw hook events are not redacted
-at capture time, so keep the common-directory `trace/` data private. Independent
-session refs avoid a shared write bottleneck, and ref updates fail instead of
-silently overwriting a concurrent change.
+A session record contains its stable ID, source, branch, timestamps, models,
+transcript availability, redacted messages/events, and checkpoints. Each
+checkpoint contains commit metadata and the exact message/event range assigned
+to that commit.
 
-Trace refs are local by default and are not included in a normal push. Sharing
-is optional:
+Durable records redact common secret patterns. Raw live events are not redacted,
+so keep the common-directory `trace/` data private.
 
-```sh
-git push origin 'refs/trace/sessions/v3/*:refs/trace/sessions/v3/*' refs/notes/trace
-```
-
-## Design scope
-
-Trace borrows the durable, self-contained records and independent-ref approach
-described by [Entire's session/checkpoint design](https://github.com/entireio/cli/blob/main/docs/architecture/sessions-and-checkpoints.md)
-and [ref backend](https://github.com/entireio/cli/blob/main/docs/architecture/ref-checkpoint-backend.md).
-It deliberately remains session-first: no shadow code snapshots, checkpoint
-duplication, commit trailers, rewind/resume system, cloud queue, or token
-analytics.
+Trace intentionally has no code snapshots, rewind system, cloud service, or
+token analytics.

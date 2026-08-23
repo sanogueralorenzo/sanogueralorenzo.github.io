@@ -148,3 +148,23 @@ func currentRefCommit(root string, ref string) (string, bool) {
 	}
 	return strings.TrimSpace(out), true
 }
+
+func pushTraceRefs(root string, remote string) error {
+	_, err := command(root, "git", "push", "--", remote, sessionRefspec(), noteRef+":"+noteRef)
+	if err != nil {
+		return fmt.Errorf("push Trace refs to %s: %w", remote, err)
+	}
+	return nil
+}
+
+func fetchTraceRefs(root string, remote string) error {
+	_, err := command(root, "git", "fetch", "--", remote, sessionRefspec(), noteRef+":"+noteRef)
+	if err != nil {
+		return fmt.Errorf("fetch Trace refs from %s: %w", remote, err)
+	}
+	return nil
+}
+
+func sessionRefspec() string {
+	return sessionRefPrefix + "/*:" + sessionRefPrefix + "/*"
+}

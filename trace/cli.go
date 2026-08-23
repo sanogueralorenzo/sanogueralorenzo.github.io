@@ -20,16 +20,6 @@ func (a app) run(args []string) error {
 	switch args[0] {
 	case "help", "--help", "-h":
 		return usage(a.stdout)
-	case "init":
-		root, err := gitRoot(".")
-		if err != nil {
-			return err
-		}
-		if err := initTrace(root); err != nil {
-			return err
-		}
-		fmt.Fprintln(a.stdout, "trace initialized")
-		return nil
 	case "enable":
 		root, err := gitRoot(".")
 		if err != nil {
@@ -37,6 +27,28 @@ func (a app) run(args []string) error {
 		}
 		if err := enableTrace(root, a.stdout); err != nil {
 			return err
+		}
+		return nil
+	case "push", "fetch":
+		if len(args) != 2 {
+			return fmt.Errorf("usage: trace %s <remote>", args[0])
+		}
+		root, err := gitRoot(".")
+		if err != nil {
+			return err
+		}
+		if args[0] == "push" {
+			err = pushTraceRefs(root, args[1])
+		} else {
+			err = fetchTraceRefs(root, args[1])
+		}
+		if err != nil {
+			return err
+		}
+		if args[0] == "push" {
+			fmt.Fprintf(a.stdout, "trace refs pushed to %s\n", args[1])
+		} else {
+			fmt.Fprintf(a.stdout, "trace refs fetched from %s\n", args[1])
 		}
 		return nil
 	case "hooks":
@@ -78,7 +90,8 @@ commands:
   show <commit> [--json]         show sessions linked to a commit
   session <session-id> [--json]  show one complete session
   ingest <source> <event>        ingest a JSON event from stdin
-  init                           initialize storage only`)
+  push <remote>                  push sessions and checkpoints
+  fetch <remote>                 fetch sessions and checkpoints`)
 	return err
 }
 
@@ -113,7 +126,7 @@ func (a app) runHook(args []string) error {
 		if err != nil {
 			return err
 		}
-		_, err = linkCommitSessions(root)
+		_, err = checkpointSessions(root)
 		return err
 	}
 	return a.capture(args[0], args[1])

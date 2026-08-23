@@ -8,30 +8,18 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 type conversationMessage struct {
 	Role string `json:"role"`
 	Text string `json:"text"`
-}
-
-type repositoryMetadata struct {
-	Name   string `json:"name"`
-	Remote string `json:"remote,omitempty"`
-}
-
-type eventKind struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
 }
 
 type commitMetadata struct {
@@ -42,9 +30,8 @@ type commitMetadata struct {
 	Files       []string `json:"files,omitempty"`
 }
 
-type sessionCommit struct {
+type checkpoint struct {
 	Commit         commitMetadata `json:"commit"`
-	LinkedAt       string         `json:"linked_at"`
 	MessageFrom    int            `json:"message_from,omitempty"`
 	MessageThrough int            `json:"message_through,omitempty"`
 	EventFrom      int            `json:"event_from"`
@@ -55,7 +42,6 @@ type sessionRecord struct {
 	SchemaVersion               int                   `json:"schema_version"`
 	ID                          string                `json:"session_id"`
 	Source                      string                `json:"source"`
-	Repository                  repositoryMetadata    `json:"repository"`
 	Branch                      string                `json:"branch"`
 	StartedAt                   string                `json:"started_at"`
 	UpdatedAt                   string                `json:"updated_at"`
@@ -64,8 +50,7 @@ type sessionRecord struct {
 	TranscriptUnavailableReason string                `json:"transcript_unavailable_reason,omitempty"`
 	MessageCount                int                   `json:"message_count"`
 	EventCount                  int                   `json:"event_count"`
-	EventKinds                  []eventKind           `json:"event_kinds"`
-	Commits                     []sessionCommit       `json:"commits"`
+	Checkpoints                 []checkpoint          `json:"checkpoints"`
 	Messages                    []conversationMessage `json:"messages,omitempty"`
 	Events                      []eventRecord         `json:"events"`
 }
@@ -75,10 +60,8 @@ type sessionPointer struct {
 	Source    string `json:"source"`
 }
 
-type commitConversation struct {
+type commitLink struct {
 	SchemaVersion int              `json:"schema_version"`
-	Commit        commitMetadata   `json:"commit"`
-	LinkedAt      string           `json:"linked_at"`
 	Sessions      []sessionPointer `json:"sessions"`
 }
 
@@ -95,8 +78,6 @@ type commitSessionView struct {
 	SessionID      string                `json:"session_id"`
 	Source         string                `json:"source"`
 	Models         []string              `json:"models,omitempty"`
-	StartedAt      string                `json:"started_at"`
-	UpdatedAt      string                `json:"updated_at"`
 	MessageFrom    int                   `json:"message_from,omitempty"`
 	MessageThrough int                   `json:"message_through,omitempty"`
 	EventFrom      int                   `json:"event_from"`
@@ -108,30 +89,28 @@ type commitSessionView struct {
 type commitView struct {
 	SchemaVersion int                 `json:"schema_version"`
 	Commit        commitMetadata      `json:"commit"`
-	LinkedAt      string              `json:"linked_at"`
 	Sessions      []commitSessionView `json:"sessions"`
 }
 
 type sessionSummary struct {
-	SchemaVersion    int                `json:"schema_version"`
-	SessionID        string             `json:"session_id"`
-	Source           string             `json:"source"`
-	Repository       repositoryMetadata `json:"repository"`
-	Branch           string             `json:"branch"`
-	StartedAt        string             `json:"started_at"`
-	UpdatedAt        string             `json:"updated_at"`
-	Models           []string           `json:"models,omitempty"`
-	TranscriptStatus string             `json:"transcript_status"`
-	MessageCount     int                `json:"message_count"`
-	EventCount       int                `json:"event_count"`
-	CommitCount      int                `json:"commit_count"`
+	SchemaVersion    int      `json:"schema_version"`
+	SessionID        string   `json:"session_id"`
+	Source           string   `json:"source"`
+	Branch           string   `json:"branch"`
+	StartedAt        string   `json:"started_at"`
+	UpdatedAt        string   `json:"updated_at"`
+	Models           []string `json:"models,omitempty"`
+	TranscriptStatus string   `json:"transcript_status"`
+	MessageCount     int      `json:"message_count"`
+	EventCount       int      `json:"event_count"`
+	CheckpointCount  int      `json:"checkpoint_count"`
 }
 
-func linkCommitSessions(root string) (*commitConversation, error) {
+func checkpointSessions(root string) (*commitLink, error) {
 	if err := initTrace(root); err != nil {
 		return nil, err
 	}
-	commit, err := currentCommitMetadata(root)
+	commit, err := commitMetadataFor(root, "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +122,7 @@ func linkCommitSessions(root string) (*commitConversation, error) {
 	if err != nil {
 		return nil, err
 	}
-	linkedAt := time.Now().UTC().Format(time.RFC3339Nano)
-	result := &commitConversation{SchemaVersion: schemaVersion, Commit: commit, LinkedAt: linkedAt}
+	result := &commitLink{SchemaVersion: schemaVersion}
 	for _, current := range records {
 		stored, found, err := readSessionRecord(root, current.Source, current.ID)
 		if err != nil {
@@ -158,9 +136,8 @@ func linkCommitSessions(root string) (*commitConversation, error) {
 		if current.MessageCount <= previous.Messages && current.EventCount <= previous.Events {
 			continue
 		}
-		link := sessionCommit{
+		link := checkpoint{
 			Commit:       commit,
-			LinkedAt:     linkedAt,
 			EventFrom:    previous.Events + 1,
 			EventThrough: current.EventCount,
 		}
@@ -168,7 +145,7 @@ func linkCommitSessions(root string) (*commitConversation, error) {
 			link.MessageFrom = previous.Messages + 1
 			link.MessageThrough = current.MessageCount
 		}
-		current.Commits = upsertSessionCommit(current.Commits, link)
+		current.Checkpoints = upsertCheckpoint(current.Checkpoints, link)
 		if err := writeSessionRecord(root, current); err != nil {
 			return nil, err
 		}
@@ -178,7 +155,7 @@ func linkCommitSessions(root string) (*commitConversation, error) {
 	if len(result.Sessions) == 0 {
 		return result, nil
 	}
-	if err := writeCommitConversation(root, *result); err != nil {
+	if err := writeCommitLink(root, commit.SHA, *result); err != nil {
 		return nil, err
 	}
 	if err := writeTraceState(root, state); err != nil {
@@ -248,7 +225,6 @@ func buildSessionRecord(root string, events []eventRecord) sessionRecord {
 		SchemaVersion:               schemaVersion,
 		ID:                          events[0].SessionID,
 		Source:                      events[0].Source,
-		Repository:                  repositoryFor(root),
 		Branch:                      currentBranch(root),
 		StartedAt:                   events[0].Timestamp,
 		UpdatedAt:                   events[len(events)-1].Timestamp,
@@ -257,7 +233,6 @@ func buildSessionRecord(root string, events []eventRecord) sessionRecord {
 		TranscriptUnavailableReason: unavailableReason,
 		MessageCount:                len(messages),
 		EventCount:                  len(events),
-		EventKinds:                  summarizeEvents(events),
 		Messages:                    messages,
 		Events:                      durableEvents,
 	}
@@ -268,7 +243,7 @@ func mergeSessionRecords(stored sessionRecord, current sessionRecord) sessionRec
 	current.Messages = mergeMessages(stored.Messages, current.Messages)
 	current.MessageCount = len(current.Messages)
 	current.Models = uniqueSorted(append(stored.Models, current.Models...))
-	current.Commits = stored.Commits
+	current.Checkpoints = stored.Checkpoints
 	if current.TranscriptStatus != "captured" && stored.TranscriptStatus == "captured" {
 		current.TranscriptStatus = stored.TranscriptStatus
 		current.TranscriptUnavailableReason = ""
@@ -469,23 +444,6 @@ func collectMetadataValues(value any, keys map[string]bool, values *[]string) {
 	}
 }
 
-func summarizeEvents(events []eventRecord) []eventKind {
-	counts := map[string]int{}
-	for _, event := range events {
-		counts[event.Event]++
-	}
-	names := make([]string, 0, len(counts))
-	for name := range counts {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	summary := make([]eventKind, 0, len(names))
-	for _, name := range names {
-		summary = append(summary, eventKind{Name: name, Count: counts[name]})
-	}
-	return summary
-}
-
 func uniqueSorted(values []string) []string {
 	seen := map[string]bool{}
 	var unique []string
@@ -499,23 +457,6 @@ func uniqueSorted(values []string) []string {
 	return unique
 }
 
-func repositoryFor(root string) repositoryMetadata {
-	repository := repositoryMetadata{Name: filepath.Base(root)}
-	if remote, err := command(root, "git", "remote", "get-url", "origin"); err == nil {
-		repository.Remote = sanitizeRemote(strings.TrimSpace(remote))
-	}
-	return repository
-}
-
-func sanitizeRemote(remote string) string {
-	parsed, err := url.Parse(remote)
-	if err == nil && parsed.Scheme != "" {
-		parsed.User = nil
-		return parsed.String()
-	}
-	return remote
-}
-
 func currentBranch(root string) string {
 	branch, err := command(root, "git", "branch", "--show-current")
 	if err != nil || strings.TrimSpace(branch) == "" {
@@ -524,14 +465,14 @@ func currentBranch(root string) string {
 	return strings.TrimSpace(branch)
 }
 
-func currentCommitMetadata(root string) (commitMetadata, error) {
-	out, err := command(root, "git", "show", "-s", "--format=%H%n%s%n%cI", "HEAD")
+func commitMetadataFor(root string, revision string) (commitMetadata, error) {
+	out, err := command(root, "git", "show", "-s", "--format=%H%n%s%n%cI", revision)
 	if err != nil {
-		return commitMetadata{}, fmt.Errorf("read HEAD: %w", err)
+		return commitMetadata{}, fmt.Errorf("read commit %s: %w", revision, err)
 	}
 	parts := strings.SplitN(strings.TrimSpace(out), "\n", 3)
 	if len(parts) != 3 {
-		return commitMetadata{}, errors.New("read HEAD: unexpected git output")
+		return commitMetadata{}, fmt.Errorf("read commit %s: unexpected git output", revision)
 	}
 	files, err := commitFiles(root, parts[0])
 	if err != nil {
@@ -555,14 +496,14 @@ func commitFiles(root string, sha string) ([]string, error) {
 	return files, nil
 }
 
-func upsertSessionCommit(commits []sessionCommit, next sessionCommit) []sessionCommit {
-	for i := range commits {
-		if commits[i].Commit.SHA == next.Commit.SHA {
-			commits[i] = next
-			return commits
+func upsertCheckpoint(checkpoints []checkpoint, next checkpoint) []checkpoint {
+	for i := range checkpoints {
+		if checkpoints[i].Commit.SHA == next.Commit.SHA {
+			checkpoints[i] = next
+			return checkpoints
 		}
 	}
-	return append(commits, next)
+	return append(checkpoints, next)
 }
 
 func writeSessionRecord(root string, record sessionRecord) error {
@@ -636,41 +577,45 @@ func findSessionRecord(root string, sessionID string) (sessionRecord, error) {
 	return matches[0], nil
 }
 
-func writeCommitConversation(root string, record commitConversation) error {
+func writeCommitLink(root string, sha string, record commitLink) error {
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal commit conversation: %w", err)
+		return fmt.Errorf("marshal commit link: %w", err)
 	}
 	data = append(data, '\n')
-	if _, err := commandEnv(root, nil, data, "git", "notes", "--ref="+noteRef, "add", "-f", "-F", "-", record.Commit.SHA); err != nil {
-		return fmt.Errorf("link sessions to commit %s: %w", record.Commit.SHA, err)
+	if _, err := commandEnv(root, nil, data, "git", "notes", "--ref="+noteRef, "add", "-f", "-F", "-", sha); err != nil {
+		return fmt.Errorf("link sessions to commit %s: %w", sha, err)
 	}
 	return nil
 }
 
-func readCommitConversation(root string, revision string) (commitConversation, error) {
+func readCommitLink(root string, revision string) (commitLink, error) {
 	sha, err := command(root, "git", "rev-parse", revision)
 	if err != nil {
-		return commitConversation{}, fmt.Errorf("resolve commit %q: %w", revision, err)
+		return commitLink{}, fmt.Errorf("resolve commit %q: %w", revision, err)
 	}
 	sha = strings.TrimSpace(sha)
 	data, err := command(root, "git", "notes", "--ref="+noteRef, "show", sha)
 	if err != nil {
-		return commitConversation{}, fmt.Errorf("no sessions linked to %s", revision)
+		return commitLink{}, fmt.Errorf("no sessions linked to %s", revision)
 	}
-	var record commitConversation
+	var record commitLink
 	if err := json.Unmarshal([]byte(data), &record); err != nil {
-		return commitConversation{}, fmt.Errorf("parse session links for %s: %w", revision, err)
+		return commitLink{}, fmt.Errorf("parse session links for %s: %w", revision, err)
 	}
 	return record, nil
 }
 
 func buildCommitView(root string, revision string) (commitView, error) {
-	record, err := readCommitConversation(root, revision)
+	record, err := readCommitLink(root, revision)
 	if err != nil {
 		return commitView{}, err
 	}
-	view := commitView{SchemaVersion: record.SchemaVersion, Commit: record.Commit, LinkedAt: record.LinkedAt}
+	commit, err := commitMetadataFor(root, revision)
+	if err != nil {
+		return commitView{}, err
+	}
+	view := commitView{SchemaVersion: record.SchemaVersion, Commit: commit}
 	for _, pointer := range record.Sessions {
 		session, found, err := readSessionRecord(root, pointer.Source, pointer.SessionID)
 		if err != nil {
@@ -679,16 +624,14 @@ func buildCommitView(root string, revision string) (commitView, error) {
 		if !found {
 			return commitView{}, fmt.Errorf("session %q not found", pointer.SessionID)
 		}
-		link, found := sessionCommitFor(session, record.Commit.SHA)
+		link, found := checkpointFor(session, commit.SHA)
 		if !found {
-			return commitView{}, fmt.Errorf("session %q has no range for commit %s", pointer.SessionID, record.Commit.SHA)
+			return commitView{}, fmt.Errorf("session %q has no checkpoint for commit %s", pointer.SessionID, commit.SHA)
 		}
 		item := commitSessionView{
 			SessionID:      session.ID,
 			Source:         session.Source,
 			Models:         session.Models,
-			StartedAt:      session.StartedAt,
-			UpdatedAt:      session.UpdatedAt,
 			MessageFrom:    link.MessageFrom,
 			MessageThrough: link.MessageThrough,
 			EventFrom:      link.EventFrom,
@@ -704,13 +647,13 @@ func buildCommitView(root string, revision string) (commitView, error) {
 	return view, nil
 }
 
-func sessionCommitFor(session sessionRecord, sha string) (sessionCommit, bool) {
-	for _, commit := range session.Commits {
+func checkpointFor(session sessionRecord, sha string) (checkpoint, bool) {
+	for _, commit := range session.Checkpoints {
 		if commit.Commit.SHA == sha {
 			return commit, true
 		}
 	}
-	return sessionCommit{}, false
+	return checkpoint{}, false
 }
 
 func showCommitConversation(revision string, asJSON bool, w io.Writer) error {
@@ -757,27 +700,19 @@ func showSessionConversation(sessionID string, asJSON bool, w io.Writer) error {
 	if asJSON {
 		return writeJSONOutput(w, session)
 	}
-	fmt.Fprintf(w, "Session: %s\nSource: %s\nRepository: %s\nBranch: %s\nStarted: %s\nUpdated: %s\n", session.ID, session.Source, session.Repository.Name, session.Branch, session.StartedAt, session.UpdatedAt)
+	fmt.Fprintf(w, "Session: %s\nSource: %s\nBranch: %s\nStarted: %s\nUpdated: %s\n", session.ID, session.Source, session.Branch, session.StartedAt, session.UpdatedAt)
 	if len(session.Models) > 0 {
 		fmt.Fprintf(w, "Models: %s\n", strings.Join(session.Models, ", "))
 	}
-	fmt.Fprintf(w, "Messages: %d\nEvents: %d", session.MessageCount, session.EventCount)
-	if len(session.EventKinds) > 0 {
-		var kinds []string
-		for _, event := range session.EventKinds {
-			kinds = append(kinds, fmt.Sprintf("%s:%d", event.Name, event.Count))
-		}
-		fmt.Fprintf(w, " (%s)", strings.Join(kinds, ", "))
-	}
-	fmt.Fprintln(w)
+	fmt.Fprintf(w, "Messages: %d\nEvents: %d\n", session.MessageCount, session.EventCount)
 	fmt.Fprintf(w, "Transcript: %s", session.TranscriptStatus)
 	if session.TranscriptUnavailableReason != "" {
 		fmt.Fprintf(w, " (%s)", session.TranscriptUnavailableReason)
 	}
 	fmt.Fprintln(w)
-	if len(session.Commits) > 0 {
-		fmt.Fprintln(w, "Commits:")
-		for _, link := range session.Commits {
+	if len(session.Checkpoints) > 0 {
+		fmt.Fprintln(w, "Checkpoints:")
+		for _, link := range session.Checkpoints {
 			fmt.Fprintf(w, "- %s %s", link.Commit.SHA, link.Commit.Subject)
 			if link.MessageFrom > 0 {
 				fmt.Fprintf(w, " (messages %d-%d)", link.MessageFrom, link.MessageThrough)
@@ -808,11 +743,11 @@ func listSessions(asJSON bool, w io.Writer) error {
 	summaries := make([]sessionSummary, 0, len(records))
 	for _, record := range records {
 		summaries = append(summaries, sessionSummary{
-			SchemaVersion: record.SchemaVersion, SessionID: record.ID, Source: record.Source, Repository: record.Repository,
+			SchemaVersion: record.SchemaVersion, SessionID: record.ID, Source: record.Source,
 			Branch: record.Branch, StartedAt: record.StartedAt, UpdatedAt: record.UpdatedAt,
 			Models: record.Models, TranscriptStatus: record.TranscriptStatus,
 			MessageCount: record.MessageCount, EventCount: record.EventCount,
-			CommitCount: len(record.Commits),
+			CheckpointCount: len(record.Checkpoints),
 		})
 	}
 	if asJSON {
@@ -823,7 +758,7 @@ func listSessions(asJSON bool, w io.Writer) error {
 		return nil
 	}
 	for _, summary := range summaries {
-		fmt.Fprintf(w, "%s  source=%s  updated=%s  commits=%d  messages=%d\n", summary.SessionID, summary.Source, summary.UpdatedAt, summary.CommitCount, summary.MessageCount)
+		fmt.Fprintf(w, "%s  source=%s  updated=%s  checkpoints=%d  messages=%d\n", summary.SessionID, summary.Source, summary.UpdatedAt, summary.CheckpointCount, summary.MessageCount)
 	}
 	return nil
 }
@@ -891,6 +826,7 @@ func redactEventRecords(events []eventRecord) []eventRecord {
 	redacted := make([]eventRecord, len(events))
 	copy(redacted, events)
 	for i := range redacted {
+		redacted[i].TranscriptPath = ""
 		redacted[i].Payload = redactPayload(redacted[i].Payload)
 	}
 	return redacted
@@ -918,6 +854,10 @@ func redactJSONValue(value any) any {
 		}
 	case map[string]any:
 		for key, child := range typed {
+			if key == "transcript_path" || key == "transcriptPath" {
+				delete(typed, key)
+				continue
+			}
 			if secretKey.MatchString(key) {
 				typed[key] = "[REDACTED]"
 				continue

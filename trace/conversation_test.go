@@ -10,7 +10,6 @@ import (
 
 func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	repo := testRepo(t)
-	git(t, repo, "remote", "add", "origin", "https://user:secret@example.com/org/project.git")
 	payload := []byte(`{
   "session_id":"generic-session-id",
   "model":"model-a",
@@ -28,11 +27,8 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	if err != nil || !found {
 		t.Fatalf("read durable session: found=%v err=%v", found, err)
 	}
-	if record.SchemaVersion != schemaVersion || record.Source != "cursor" || record.Repository.Name != filepath.Base(repo) {
+	if record.SchemaVersion != schemaVersion || record.Source != "cursor" || record.Branch == "" {
 		t.Fatalf("unexpected identity metadata: %#v", record)
-	}
-	if record.Repository.Remote != "https://example.com/org/project.git" || record.Branch == "" {
-		t.Fatalf("unexpected repository metadata: %#v", record.Repository)
 	}
 	if record.StartedAt == "" || record.UpdatedAt == "" || record.MessageCount != 2 || record.EventCount != 1 {
 		t.Fatalf("unexpected session metadata: %#v", record)
@@ -43,10 +39,7 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	if len(record.Models) != 1 || record.Models[0] != "model-a" {
 		t.Fatalf("unexpected models: %v", record.Models)
 	}
-	if len(record.EventKinds) != 1 || record.EventKinds[0] != (eventKind{Name: "snapshot", Count: 1}) {
-		t.Fatalf("unexpected event kinds: %#v", record.EventKinds)
-	}
-	if len(record.Commits) != 0 || strings.Contains(record.Messages[0].Text, "hidden") || !strings.Contains(record.Messages[0].Text, "[REDACTED]") {
+	if len(record.Checkpoints) != 0 || strings.Contains(record.Messages[0].Text, "hidden") || !strings.Contains(record.Messages[0].Text, "[REDACTED]") {
 		t.Fatalf("unexpected durable content: %#v", record)
 	}
 	durableEvents, err := json.Marshal(record.Events)
@@ -61,7 +54,7 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	}
 }
 
-func TestSessionSpansMultipleCommits(t *testing.T) {
+func TestSessionSpansMultipleCheckpoints(t *testing.T) {
 	repo := testRepo(t)
 	transcript := filepath.Join(t.TempDir(), "session.json")
 	sessionID := "019d2a5f-5e87-7a31-9f8b-4c29c7de1024"
@@ -74,10 +67,11 @@ func TestSessionSpansMultipleCommits(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "parser.go"), "package parser\n")
 	git(t, repo, "add", "parser.go")
 	git(t, repo, "commit", "-m", "add parser")
-	first, err := linkCommitSessions(repo)
+	first, err := checkpointSessions(repo)
 	if err != nil {
 		t.Fatalf("link first commit: %v", err)
 	}
+	firstSHA := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
 
 	writeTranscript(t, transcript,
 		conversationMessage{Role: "user", Text: "add the parser token=hidden"},
@@ -89,56 +83,57 @@ func TestSessionSpansMultipleCommits(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "empty.go"), "package parser\n")
 	git(t, repo, "add", "empty.go")
 	git(t, repo, "commit", "-m", "handle empty input")
-	second, err := linkCommitSessions(repo)
+	second, err := checkpointSessions(repo)
 	if err != nil {
 		t.Fatalf("link second commit: %v", err)
 	}
+	secondSHA := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
 
 	if len(first.Sessions) != 1 || first.Sessions[0].SessionID != sessionID || len(second.Sessions) != 1 {
-		t.Fatalf("unexpected commit pointers: first=%#v second=%#v", first.Sessions, second.Sessions)
+		t.Fatalf("unexpected checkpoint pointers: first=%#v second=%#v", first.Sessions, second.Sessions)
 	}
-	note := git(t, repo, "notes", "--ref="+noteRef, "show", first.Commit.SHA)
-	if strings.Contains(note, "message_from") || !strings.Contains(note, sessionID) {
+	note := git(t, repo, "notes", "--ref="+noteRef, "show", firstSHA)
+	if strings.Contains(note, "message_from") || strings.Contains(note, "add parser") || !strings.Contains(note, sessionID) {
 		t.Fatalf("commit note should contain only session pointers: %s", note)
 	}
 	session, found, err := readSessionRecord(repo, "codex", sessionID)
 	if err != nil || !found {
 		t.Fatalf("read session: found=%v err=%v", found, err)
 	}
-	if len(session.Commits) != 2 {
-		t.Fatalf("expected two commit links: %#v", session.Commits)
+	if len(session.Checkpoints) != 2 {
+		t.Fatalf("expected two checkpoints: %#v", session.Checkpoints)
 	}
-	if got := session.Commits[0]; got.Commit.Subject != "add parser" || len(got.Commit.Files) != 1 || got.Commit.Files[0] != "parser.go" || got.MessageFrom != 1 || got.MessageThrough != 2 {
+	if got := session.Checkpoints[0]; got.Commit.Subject != "add parser" || len(got.Commit.Files) != 1 || got.Commit.Files[0] != "parser.go" || got.MessageFrom != 1 || got.MessageThrough != 2 {
 		t.Fatalf("unexpected first range: %#v", got)
 	}
-	if got := session.Commits[1]; got.Commit.Subject != "handle empty input" || got.MessageFrom != 3 || got.MessageThrough != 4 {
+	if got := session.Checkpoints[1]; got.Commit.Subject != "handle empty input" || got.MessageFrom != 3 || got.MessageThrough != 4 {
 		t.Fatalf("unexpected second range: %#v", got)
 	}
 
 	t.Chdir(repo)
 	var firstOut bytes.Buffer
-	if err := showCommitConversation(first.Commit.SHA, false, &firstOut); err != nil {
+	if err := showCommitConversation(firstSHA, false, &firstOut); err != nil {
 		t.Fatalf("show first commit: %v", err)
 	}
 	assertOutputContains(t, firstOut.String(), sessionID, "add the parser", "[REDACTED]", "model-a")
 	assertOutputExcludes(t, firstOut.String(), "handle empty input", "hidden")
 
 	var secondOut bytes.Buffer
-	if err := showCommitConversation(second.Commit.SHA, false, &secondOut); err != nil {
+	if err := showCommitConversation(secondSHA, false, &secondOut); err != nil {
 		t.Fatalf("show second commit: %v", err)
 	}
 	assertOutputContains(t, secondOut.String(), sessionID, "handle empty input", "empty input handled")
 	assertOutputExcludes(t, secondOut.String(), "add the parser")
 
 	var commitJSON bytes.Buffer
-	if err := showCommitConversation(second.Commit.SHA, true, &commitJSON); err != nil {
+	if err := showCommitConversation(secondSHA, true, &commitJSON); err != nil {
 		t.Fatalf("show second commit JSON: %v", err)
 	}
 	var view commitView
 	if err := json.Unmarshal(commitJSON.Bytes(), &view); err != nil {
 		t.Fatalf("parse commit JSON: %v\n%s", err, commitJSON.String())
 	}
-	if view.Commit.SHA != second.Commit.SHA || len(view.Sessions) != 1 || view.Sessions[0].SessionID != sessionID {
+	if view.Commit.SHA != secondSHA || len(view.Sessions) != 1 || view.Sessions[0].SessionID != sessionID {
 		t.Fatalf("unexpected commit JSON: %#v", view)
 	}
 
@@ -146,7 +141,7 @@ func TestSessionSpansMultipleCommits(t *testing.T) {
 	if err := showSessionConversation(sessionID, false, &sessionOut); err != nil {
 		t.Fatalf("show full session: %v", err)
 	}
-	assertOutputContains(t, sessionOut.String(), sessionID, first.Commit.SHA, second.Commit.SHA, "add the parser", "handle empty input")
+	assertOutputContains(t, sessionOut.String(), sessionID, firstSHA, secondSHA, "add the parser", "handle empty input")
 }
 
 func TestCommitCanLinkMultipleSessions(t *testing.T) {
@@ -169,7 +164,7 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "model.go"), "package model\n")
 	git(t, repo, "add", "model.go")
 	git(t, repo, "commit", "-m", "change model")
-	record, err := linkCommitSessions(repo)
+	record, err := checkpointSessions(repo)
 	if err != nil {
 		t.Fatalf("link commit: %v", err)
 	}
@@ -183,7 +178,7 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 
 	t.Chdir(repo)
 	var out bytes.Buffer
-	if err := showCommitConversation(record.Commit.SHA, false, &out); err != nil {
+	if err := showCommitConversation("HEAD", false, &out); err != nil {
 		t.Fatalf("show commit: %v", err)
 	}
 	assertOutputContains(t, out.String(), "codex-session-full-id", "claude-session-full-id", "change the model", "review the model")
@@ -208,7 +203,7 @@ func TestCommitOnlyLinksSessionsFromItsWorktree(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "main.go"), "package main\n")
 	git(t, repo, "add", "main.go")
 	git(t, repo, "commit", "-m", "change main worktree")
-	record, err := linkCommitSessions(repo)
+	record, err := checkpointSessions(repo)
 	if err != nil {
 		t.Fatalf("link commit: %v", err)
 	}
@@ -275,6 +270,13 @@ func TestTranscriptAvailabilityIsExplicit(t *testing.T) {
 	}
 	if len(record.Messages) != 1 || record.Messages[0].Text != "keep the fallback" {
 		t.Fatalf("expected fallback prompt, got %#v", record.Messages)
+	}
+	data, err := json.Marshal(record.Events)
+	if err != nil {
+		t.Fatalf("marshal events: %v", err)
+	}
+	if strings.Contains(string(data), "/does/not/exist") {
+		t.Fatalf("durable events contain a local transcript path: %s", data)
 	}
 }
 
