@@ -1,31 +1,14 @@
-## Intro
+# sanogueralorenzo
 
-**Hello 👋** continuing with the spirit of this repo, this is an AI-tools-first orchestration playground.
+A small collection of things I'm building and experimenting with.
 
-## Quickstart
+- [Aeolian](./games/aeolian) — a Godot game.
+- [Voice](./tools/voice/README.md) — local-first voice input.
+- [Overlay](./overlay/README.md) — a small Android screen overlay.
+- [Trace](./trace/README.md) — a repository-memory experiment.
+- [Codex Core](./codex/codex-core/README.md) — local Codex utilities.
+- [Codex Remote](./codex/codex-remote/README.md) — remote access to local Codex workflows.
+- [Codex Menubar](./codex/codex-menubar/README.md) — a macOS menu bar companion.
+- [Site](./site/README.md) — this website.
 
-```shell
-./install.sh
-```
-
-This installs:
-- `codex/codex-core`
-- `codex/codex-remote`
-- `codex/codex-menubar`
-
-It does not install `overlay`, `tools/voice`, or `site`.
-
-## Index
-
-- [Codex Core](./codex/codex-core/README.md)
-- [Codex Remote](./codex/codex-remote/README.md)
-- [Codex Menubar](./codex/codex-menubar/README.md)
-- [Precedent](./precedent/README.md)
-- [Overlay](./overlay/README.md)
-- [Voice](./tools/voice/README.md)
-- [Site](./site/README.md)
-
-## Model
-
-Harness-first engineering with explicit contracts, deterministic checks, and resumable workflows.
-Reference: [Harness Engineering](https://openai.com/index/harness-engineering/).
+Each project has its own setup notes.
