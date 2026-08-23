@@ -10,10 +10,15 @@ preset, route/seed, and sample duration.
 
 | Tier | Target | Expected result |
 | --- | --- | --- |
-| Minimum Windows | Windows 10 64-bit; 4-core Intel i5-6600 / Ryzen 3 1200 class; 8 GB RAM; GTX 1050 Ti / RX 570 class with Vulkan 1.2; SSD | 1920×1080 Low, stable 60 fps target with rare 1% lows no worse than 45 fps |
+| Minimum Windows | Windows 10 64-bit; 4-core Intel i5-6600 / Ryzen 3 1200 class; 8 GB RAM; GTX 1050 Ti / RX 570 class with DirectX 12 support; SSD | 1920×1080 Low, stable 60 fps target with rare 1% lows no worse than 45 fps |
 | Recommended Windows | Windows 11 64-bit; 6-core i5-10400 / Ryzen 5 3600 class; 16 GB; GTX 1660 / RX 5600 XT class; SSD | 1920×1080 High, stable 60 fps; 1440p Medium 60 fps |
 | Development smoke | macOS development machine, editor and local exports where supported | correctness and profiling only; not a promised launch target |
 | Steam Deck evaluation | current SteamOS / 16 GB APU handheld, native Linux or Proton | 1280×800 Medium-derived preset at stable 40 fps only if later retained in scope |
+
+The current Windows renderer is D3D12, matching project configuration. Linux and
+Steam Deck builds use Vulkan. D3D12 retention versus Vulkan parity is a Phase 3
+profiling decision and must be tested on the declared minimum GPU before support is
+claimed.
 
 Minimum GPU/CPU names are provisional until representative vertical-slice builds
 are profiled; raising them requires a recorded product decision.

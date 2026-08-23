@@ -13,6 +13,13 @@ terms. “Free” is not a license. Unknown provenance is release-blocking.
 | --- | --- | --- | --- | --- |
 | `icon.svg` | Probable Godot project-template default; exact creator/source unverified | Unverified; repository MIT license does not establish this asset's provenance | None observed | Development placeholder; replace before branding lock |
 
+## Runtime/toolchain dependencies
+
+| Dependency | Pinned version / source | License | Shipping action |
+| --- | --- | --- | --- |
+| Godot Engine | 4.7.2 stable official `ed1daf0bf`, official editor and checksum-verified standard export templates | MIT; copyright Godot Engine contributors | Include required engine copyright/license text in third-party notices |
+| Jolt Physics integration | Godot 4.7.2 built-in module; upstream Jolt Physics | MIT | Verify bundled notice wording against the final exported engine and include if required |
+
 There are no other art, audio, font, model, texture, shader, or third-party plugin
 assets in the project as of the review date.
 

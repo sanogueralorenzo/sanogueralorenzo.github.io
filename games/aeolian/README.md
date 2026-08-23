@@ -7,9 +7,12 @@ wind-rebuilt mountain on an all-terrain windboard.
 
 ## Production status
 
-The project is in **Phase 0 — Project audit and preproduction**. The repository
-started as a blank Godot 4.7 Forward+ project on 2026-08-23. Current stage-gate
-status and the prioritized backlog live in [docs/production.md](docs/production.md).
+Phases 0 and 1 passed on 2026-08-23. The project is in **Phase 2 — Movement
+validation**. The foundation boots, persists settings/profile data, separates
+seeded RNG domains, diagnoses failures, runs focused tests, and cross-packages for
+Windows/Linux. No movement controller exists yet, so this is not a gameplay
+prototype or vertical slice. Current stage-gate status and the prioritized backlog
+live in [docs/production.md](docs/production.md).
 
 No prototype, vertical slice, or content-complete build is considered the
 finished game. The release-candidate definition is recorded in
@@ -29,6 +32,10 @@ Headless project validation:
 godot --headless --path games/aeolian --editor --quit-after 2
 ```
 
+From this folder, run the complete foundation suite with `./scripts/check.sh` and
+cross-export packaging with `./scripts/export-smoke.sh` (exact-version Godot export
+templates are required).
+
 ## Living documentation
 
 - [Game design](docs/game-design.md)
@@ -38,4 +45,4 @@ godot --headless --path games/aeolian --editor --quit-after 2
 - [Asset, licensing, and placeholder register](docs/assets-and-licenses.md)
 - [Release-candidate checklist](docs/release.md)
 - [Initial project audit](docs/phase-0-audit.md)
-
+- [Phase 1 foundation gate record](docs/phase-1-foundation.md)

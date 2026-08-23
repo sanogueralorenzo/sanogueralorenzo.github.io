@@ -1,0 +1,102 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://levels/foundation_course.gd" id="1"]
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.23, 0.34, 0.43, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.54, 0.65, 0.72, 1)
+ambient_light_energy = 0.7
+tonemap_mode = 2
+
+[sub_resource type="BoxMesh" id="BoxMesh_slope"]
+size = Vector3(24, 0.5, 80)
+
+[sub_resource type="BoxShape3D" id="BoxShape_slope"]
+size = Vector3(24, 0.5, 80)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bank"]
+size = Vector3(10, 0.4, 24)
+
+[sub_resource type="BoxShape3D" id="BoxShape_bank"]
+size = Vector3(10, 0.4, 24)
+
+[sub_resource type="StandardMaterial3D" id="Material_snow"]
+albedo_color = Color(0.72, 0.84, 0.9, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="Material_bank"]
+albedo_color = Color(0.35, 0.55, 0.66, 1)
+roughness = 0.75
+
+[sub_resource type="CylinderMesh" id="Cylinder_marker"]
+top_radius = 0.08
+bottom_radius = 0.15
+height = 2.5
+
+[sub_resource type="StandardMaterial3D" id="Material_marker"]
+albedo_color = Color(0.95, 0.35, 0.16, 1)
+
+[node name="FoundationCourse" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-52, -28, 0)
+light_color = Color(0.88, 0.94, 1, 1)
+light_energy = 1.15
+shadow_enabled = true
+
+[node name="Course" type="Node3D" parent="."]
+
+[node name="MainSlope" type="StaticBody3D" parent="Course"]
+rotation_degrees = Vector3(-10, 0, 0)
+position = Vector3(0, -3, -26)
+
+[node name="Mesh" type="MeshInstance3D" parent="Course/MainSlope"]
+mesh = SubResource("BoxMesh_slope")
+material_override = SubResource("Material_snow")
+
+[node name="Collision" type="CollisionShape3D" parent="Course/MainSlope"]
+shape = SubResource("BoxShape_slope")
+
+[node name="Bank" type="StaticBody3D" parent="Course"]
+position = Vector3(8, -6, -50)
+rotation_degrees = Vector3(-10, 0, 22)
+
+[node name="Mesh" type="MeshInstance3D" parent="Course/Bank"]
+mesh = SubResource("BoxMesh_bank")
+material_override = SubResource("Material_bank")
+
+[node name="Collision" type="CollisionShape3D" parent="Course/Bank"]
+shape = SubResource("BoxShape_bank")
+
+[node name="Markers" type="Node3D" parent="."]
+
+[node name="Left" type="MeshInstance3D" parent="Markers"]
+position = Vector3(-5, 0.8, -10)
+mesh = SubResource("Cylinder_marker")
+material_override = SubResource("Material_marker")
+
+[node name="Right" type="MeshInstance3D" parent="Markers"]
+position = Vector3(5, 0.8, -10)
+mesh = SubResource("Cylinder_marker")
+material_override = SubResource("Material_marker")
+
+[node name="Camera" type="Camera3D" parent="."]
+position = Vector3(0, 9, 15)
+rotation_degrees = Vector3(-22, 0, 0)
+current = true
+
+[node name="FoundationLabel" type="Label" parent="."]
+offset_left = 28.0
+offset_top = 28.0
+offset_right = 620.0
+offset_bottom = 92.0
+theme_override_colors/font_color = Color(0.92, 0.97, 1, 1)
+theme_override_font_sizes/font_size = 19
+text = "HANDCRAFTED MOVEMENT COURSE · FOUNDATION\nNo movement controller is implemented yet · Esc / Menu to pause"
+

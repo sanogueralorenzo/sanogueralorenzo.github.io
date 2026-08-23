@@ -17,7 +17,7 @@ Last reviewed: 2026-08-23 · Owner: engineering · Status: approved Phase 0 dire
 Planned source layout (created only as systems become concrete):
 
 ```text
-autoload/       game flow, settings/save ownership, deterministic run context
+autoload/       settings/save/input/log ownership
 core/           small shared utilities with proven cross-system use
 player/         controller, board presentation, camera rig, player tests
 mountain/       chunk definitions, generation, streaming, validation, tests
@@ -39,7 +39,7 @@ colocated when that makes ownership clearer.
 
 | Owner | Responsibility | Must not own |
 | --- | --- | --- |
-| `GameApp` autoload | top-level boot/state transitions, pause policy, fatal recovery | player physics or procedural rules |
+| `GameApp` main-scene coordinator | top-level boot/state transitions, screen/session host, pause policy, fatal recovery | player physics or procedural rules |
 | `SettingsStore` autoload | versioned user preferences, apply/validate settings | run progression |
 | `SaveStore` autoload | versioned profile and biome-checkpoint persistence, migrations | UI presentation |
 | `RunContext` | immutable root seed, domain RNG creation, run facts | global entropy or scene loading |

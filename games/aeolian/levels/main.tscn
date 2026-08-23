@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://levels/game_app.gd" id="1"]
+[ext_resource type="PackedScene" path="res://ui/title_screen.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://ui/pause_menu.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://tools/performance_overlay.tscn" id="4"]
+
+[node name="GameApp" type="Node"]
+process_mode = 3
+script = ExtResource("1")
+
+[node name="SessionRoot" type="Node" parent="."]
+unique_name_in_owner = true
+
+[node name="TitleScreen" parent="." instance=ExtResource("2")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("3")]
+
+[node name="PerformanceOverlay" parent="." instance=ExtResource("4")]
+

@@ -1,14 +1,14 @@
 # Production state
 
-Last reviewed: 2026-08-23 · Current phase: **0 — Project audit and preproduction**
+Last reviewed: 2026-08-23 · Current phase: **2 — Movement validation**
 
 ## Stage-gate roadmap
 
 | Phase | Exit evidence | Status |
 | --- | --- | --- |
 | 0. Audit and preproduction | audit, coherent scope/decisions, risks, budgets, roadmap, backlog, definition of done | Passed 2026-08-23 |
-| 1. Technical foundation | reliable boot/state flow, inputs/settings/save seams, diagnostics, tests, export validation, test level | Not started |
-| 2. Movement validation | handcrafted course passes stability/feel gate and focused human playtest | Not started |
+| 1. Technical foundation | reliable boot/state flow, inputs/settings/save seams, diagnostics, tests, export validation, test level | Passed 2026-08-23 |
+| 2. Movement validation | handcrafted course passes stability/feel gate and focused human playtest | In progress |
 | 3. Frost vertical slice | representative polished section proves fun/readability/feasibility/quality | Not started |
 | 4. Procedural mountain | deterministic valid streamed route batches, reproduced seeds, stable performance | Not started |
 | 5. Biome/surface framework | definitions change simulation and presentation without controller duplication; Frost complete | Not started |
@@ -39,24 +39,50 @@ work. “Implemented” is not exit evidence.
   CI gap, unverified icon provenance, and pre-content binary policy decision).
 - [x] Record Phase 0 gate outcome and create the validated Phase 1 work breakdown.
 
-### P1 — Phase 1 foundation (ordered; not active until Phase 0 gate)
+### P1 — Phase 1 foundation (active)
 
-- [ ] Add boot/main scenes and an explicit top-level state coordinator with a
+- [x] Add boot/main scenes and an explicit top-level state coordinator with a
   minimal title-to-test-level flow and recoverable loading errors.
-- [ ] Define gameplay/UI input actions and typed intent adapter; support keyboard
+- [x] Define gameplay/UI input actions and typed intent adapter; support keyboard
   and common gamepad defaults plus active-device observation.
-- [ ] Add versioned settings ownership and persistence with validation and tests.
-- [ ] Establish save/profile schema ownership and migration test fixtures without
+- [x] Add versioned settings ownership and crash-resistant persistence with
+  validation, backup recovery, future-schema protection, and smoke coverage.
+- [x] Establish save/profile schema ownership and migration test fixtures without
   inventing progression content.
-- [ ] Add root-seed parsing and domain-separated deterministic RNG with tests.
-- [ ] Add a lightweight headless test runner and CI-friendly exit codes.
-- [ ] Add structured logging, debug overlay seam, frame-time instrumentation, and
+- [x] Add versioned root-seed parsing and domain-separated deterministic RNG with
+  pinned derivation vectors and sequence tests.
+- [x] Add a lightweight headless test runner, explicit suites, leak-free teardown,
+  CI-friendly exit codes, and a shell guard for Godot's zero-exit parse failures.
+- [x] Add structured logging, debug-only overlay, frame-time instrumentation, and
   development/release feature guards.
-- [ ] Build a reusable handcrafted test level shell; do not tune movement yet.
-- [ ] Add Windows/Linux debug export presets and validate available templates;
-  document any environment gap.
-- [ ] Run launch, state, settings, save, seed, pause, input, and export checks;
-  record the Phase 1 gate.
+- [x] Build a reusable handcrafted test-level shell; no movement controller exists.
+- [x] Add Windows/Linux debug/release export presets, install checksum-verified
+  Godot 4.7.2 templates, and validate PE/ELF x86_64 packaging.
+- [x] Reconcile the independent Phase 1 code review; no unresolved verified defect.
+- [x] Inspect native Forward+ title/course/pause captures and exercise focused
+  Start/Pause/Resume actions through the real UI input path.
+- [x] Record the Phase 1 pass. Target-OS execution, physical controller coverage,
+  and target GPU performance remain later required evidence; cross-export proves
+  packaging only.
+
+### P2 — Phase 2 movement validation (active, ordered)
+
+- [ ] Define measurable windboard motion states, units, tuning boundaries, contact
+  probes, crash inputs, and initial Frost surface behavior before scene coupling.
+- [ ] Implement the smallest fixed-tick `CharacterBody3D` ground/air controller
+  with explicit input intent and telemetry; keep camera/presentation independent.
+- [ ] Expand the handcrafted course to cover gentle/steep slopes, banks, sharp
+  transitions, jumps, uneven contact, high speed, and a controlled crash case.
+- [ ] Add follow-camera look-ahead/FOV/damping with comfort multipliers, board
+  presentation, contact trail/particles, and placeholder surface/speed audio.
+- [ ] Add restart/crash flow, recoverable instability, landing classification,
+  keyboard filtering, and bounded gamepad vibration.
+- [ ] Add calculation/contact/state regression tests and run 30/60/120 fps plus
+  low/high input and tunneling/jitter probes on the course.
+- [ ] Request focused human playtest feedback using the questions in
+  `quality-plan.md`; at least one non-implementer must test keyboard and gamepad.
+- [ ] Record Phase 2 harden/refactor/replace decision and gate outcome. Do not begin
+  procedural generation or declare the game complete at this gate.
 
 Later work stays in the stage rows above until the preceding gate supplies enough
 evidence for a concrete backlog. This prevents speculative content production.
