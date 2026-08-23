@@ -202,6 +202,7 @@ func collectSessionRecords(root string) ([]sessionRecord, error) {
 			return err
 		}
 		if len(events) > 0 {
+			prepareTranscriptForCheckpoint(root, events)
 			records = append(records, buildSessionRecord(root, events))
 		}
 		return nil

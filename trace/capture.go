@@ -22,6 +22,8 @@ type eventRecord struct {
 	Payload        json.RawMessage `json:"payload"`
 }
 
+var exportOpenCodeTranscriptFn = exportOpenCodeTranscript
+
 func captureSessionEvent(root string, source string, event string, payload []byte) error {
 	if err := initTrace(root); err != nil {
 		return err
@@ -35,7 +37,7 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 	if sessionID == "" {
 		return errors.New("hook payload requires session_id")
 	}
-	if source == "claude-code" && event == "stop" && transcriptPath != "" {
+	if source == "claude-code" && event == "turn-end" && transcriptPath != "" {
 		waitForClaudeTranscriptFlush(transcriptPath, time.Now())
 	}
 	if source == "opencode" {
@@ -45,7 +47,7 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 		}
 		transcriptPath = path
 		if shouldExportOpenCode(event) {
-			_ = exportOpenCodeTranscript(root, sessionID)
+			_ = exportOpenCodeTranscriptFn(root, sessionID)
 		}
 	}
 	record := eventRecord{
@@ -83,6 +85,13 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 		return fmt.Errorf("close session log: %w", err)
 	}
 	return persistCapturedSession(root, source, sessionID)
+}
+
+func prepareTranscriptForCheckpoint(root string, events []eventRecord) {
+	if len(events) == 0 || events[0].Source != "opencode" || events[len(events)-1].Event == "session-end" {
+		return
+	}
+	_ = exportOpenCodeTranscriptFn(root, events[0].SessionID)
 }
 
 func shouldExportOpenCode(event string) bool {
@@ -201,6 +210,7 @@ func waitForClaudeTranscriptFlush(path string, started time.Time) {
 	const (
 		maxWait        = 3 * time.Second
 		pollInterval   = 50 * time.Millisecond
+		quietWindow    = 500 * time.Millisecond
 		staleThreshold = 2 * time.Minute
 	)
 	info, err := os.Stat(path)
@@ -208,9 +218,19 @@ func waitForClaudeTranscriptFlush(path string, started time.Time) {
 		return
 	}
 	deadline := time.Now().Add(maxWait)
+	lastSize := int64(-1)
+	var stableSince time.Time
 	for time.Now().Before(deadline) {
 		if hasClaudeStopSentinel(path, started) {
 			return
+		}
+		if current, statErr := os.Stat(path); statErr == nil {
+			if current.Size() != lastSize {
+				lastSize = current.Size()
+				stableSince = time.Now()
+			} else if time.Since(stableSince) >= quietWindow {
+				return
+			}
 		}
 		time.Sleep(pollInterval)
 	}
@@ -225,7 +245,7 @@ func hasClaudeStopSentinel(path string, started time.Time) bool {
 		data = data[len(data)-4096:]
 	}
 	for _, raw := range strings.Split(string(data), "\n") {
-		if !strings.Contains(raw, "hooks claude-code stop") {
+		if !strings.Contains(raw, "trace ingest claude-code turn-end") {
 			continue
 		}
 		var entry struct {

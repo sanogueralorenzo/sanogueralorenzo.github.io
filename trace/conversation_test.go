@@ -63,7 +63,7 @@ func TestSessionSpansMultipleCheckpoints(t *testing.T) {
 		conversationMessage{Role: "user", Text: "add the parser token=hidden"},
 		conversationMessage{Role: "assistant", Text: "parser added"},
 	)
-	captureSession(t, repo, sessionID, transcript, "user-prompt-submit")
+	captureSession(t, repo, sessionID, transcript, "turn-start")
 	writeFile(t, filepath.Join(repo, "parser.go"), "package parser\n")
 	git(t, repo, "add", "parser.go")
 	git(t, repo, "commit", "-m", "add parser")
@@ -79,7 +79,7 @@ func TestSessionSpansMultipleCheckpoints(t *testing.T) {
 		conversationMessage{Role: "user", Text: "handle empty input"},
 		conversationMessage{Role: "assistant", Text: "empty input handled"},
 	)
-	captureSession(t, repo, sessionID, transcript, "post-tool-use")
+	captureSession(t, repo, sessionID, transcript, "turn-end")
 	writeFile(t, filepath.Join(repo, "empty.go"), "package parser\n")
 	git(t, repo, "add", "empty.go")
 	git(t, repo, "commit", "-m", "handle empty input")
@@ -157,7 +157,7 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 		transcript := filepath.Join(t.TempDir(), item.id+".json")
 		writeTranscript(t, transcript, conversationMessage{Role: "user", Text: item.text})
 		payload, _ := json.Marshal(map[string]string{"session_id": item.id, "transcript_path": transcript})
-		if err := captureSessionEvent(repo, item.source, "user-prompt-submit", payload); err != nil {
+		if err := captureSessionEvent(repo, item.source, "turn-start", payload); err != nil {
 			t.Fatalf("capture %s: %v", item.source, err)
 		}
 	}

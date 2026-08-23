@@ -32,6 +32,10 @@ OpenCode, Pi, and Oh My Pi capture. Existing Git hook content is preserved.
 Live state stays outside the worktree in Git's common directory and is isolated
 per worktree.
 
+Every agent adapter sends the same lifecycle events through `trace ingest`:
+`session-start`, `turn-start`, `turn-end`, and `session-end`. Agent-specific
+code is limited to installing hooks and making its transcript readable.
+
 ## Read sessions
 
 ```sh
@@ -77,7 +81,7 @@ printf '%s\n' '{
   "model": "model-name",
   "prompt": "Add validation",
   "response": "Validation added"
-}' | trace ingest my-tool turn
+}' | trace ingest my-tool turn-start
 ```
 
 `session_id` is required. Payloads may contain ordered `messages`, a

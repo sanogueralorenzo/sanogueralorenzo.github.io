@@ -115,21 +115,15 @@ func outputArgs(args []string, expected int) ([]string, bool, error) {
 }
 
 func (a app) runHook(args []string) error {
-	if len(args) != 2 {
-		return errors.New("usage: trace hooks <source> <event>")
+	if len(args) != 2 || args[0] != "git" || args[1] != "post-commit" {
+		return errors.New("usage: trace hooks git post-commit")
 	}
-	if args[0] == "git" {
-		if args[1] != "post-commit" {
-			return nil
-		}
-		root, err := gitRoot(".")
-		if err != nil {
-			return err
-		}
-		_, err = checkpointSessions(root)
+	root, err := gitRoot(".")
+	if err != nil {
 		return err
 	}
-	return a.capture(args[0], args[1])
+	_, err = checkpointSessions(root)
+	return err
 }
 
 func (a app) capture(source string, event string) error {
