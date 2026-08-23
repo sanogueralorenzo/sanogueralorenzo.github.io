@@ -1,110 +1,123 @@
 # Trace
 
-Trace links each Git commit to the agent conversation that produced it.
+Trace keeps local history for AI coding sessions and connects that history to
+Git commits.
 
 ```text
-commit -> full session_id + conversation range
+AI session -> hidden Git ref
+Git commit -> session + message/event range
 ```
 
-A session can span multiple commits, and a commit can link to multiple
-sessions. Trace stores the complete redacted session once, then uses Git notes
-to record which messages and events belong to each commit.
-
-## Requirements
-
-- Git
-- Go 1.26 or newer
-- Codex, Claude Code, or OpenCode for conversation capture
-
-Trace does not install or manage agent runtimes. A commit made without captured
-session activity remains unlinked.
+It stores complete redacted sessions, not generated summaries or copied diffs.
+Session data stays off normal branches, and nothing is uploaded unless you
+explicitly push the Trace refs.
 
 ## Install
 
-From this directory:
+Requires Git and Go 1.26 or newer.
 
 ```sh
 go install .
 ```
 
-Make sure Go's binary directory is in `PATH`. macOS already ships a different
-`/usr/bin/trace`, so the Go binary directory must appear first. Verify with:
+macOS already ships an unrelated `/usr/bin/trace`. Put Go's binary directory
+first in `PATH`, then verify that `trace help` shows this CLI.
 
-```sh
-command -v trace
-trace
-```
+## Start tracing
 
-The second command should print:
-
-```text
-usage: trace <init|enable|hooks|show|session>
-```
-
-## Quick start
-
-Inside the Git repository you want to trace:
+Run once inside a Git repository:
 
 ```sh
 trace enable
 ```
 
-Then work and commit normally. To inspect the conversation linked to the latest
-commit:
+Trace installs a managed `post-commit` block without removing existing hook
+content and configures its Codex, Claude Code, and OpenCode adapters. Sessions
+are saved locally as events arrive. Each commit is automatically linked to the
+new part of every active session.
+
+Adapter setup may create or update `.codex/`, `.claude/`, and `.opencode/`
+project files. Trace session data under `.trace/` is excluded through Git's
+local `info/exclude` file.
+
+## CLI
 
 ```sh
-trace show HEAD
-```
-
-The output includes the full session ID and only the conversation range linked
-to that commit. To see the complete session and every commit it produced:
-
-```sh
+trace sessions
 trace session <session-id>
+trace show <commit>
 ```
 
-## Commands
+- `trace sessions` lists stored sessions, newest first.
+- `trace session <session-id>` shows the complete session, its metadata, and all
+  linked commits.
+- `trace show <commit>` shows only the part of each session linked to that Git
+  revision. `HEAD`, branches, and commit SHAs work.
+- `trace init` creates storage without installing hooks.
 
-- `trace enable` initializes Trace and installs the Git and agent hooks. This is
-  the recommended setup command.
-- `trace init` creates `.trace/` storage without installing hooks.
-- `trace show <commit>` shows the conversation range for any Git revision, such
-  as `HEAD`, a branch, or a commit SHA.
-- `trace session <session-id>` shows the complete session and all linked
-  commits. Use the full ID printed by `trace show`.
-- `trace hooks ...` is an internal entry point used by installed integrations.
-
-`trace enable` writes project hook configuration for Codex, Claude Code, and
-OpenCode, and installs `.git/hooks/post-commit`. Review generated repository
-files before committing them.
-
-## Storage
-
-Local working data is ignored by Git:
-
-- `.trace/sessions/<agent>/<session>.jsonl`: raw hook events
-- `.trace/tmp/`: temporary transcript exports
-- `.trace/state.json`: per-session commit cursors
-
-Durable history lives outside the current branch:
-
-- `refs/trace/sessions/v1`: complete redacted session records
-- `refs/notes/trace`: commit links and message/event ranges
-
-Normal pushes and fetches do not include these refs. To share Trace history:
+Add `--json` to the three read commands for stable, machine-readable output:
 
 ```sh
-git push origin refs/trace/sessions/v1 refs/notes/trace
+trace sessions --json
+trace session <session-id> --json
+trace show HEAD --json
 ```
 
-Fetch it with:
+JSON records include `schema_version` so agents and skills can evolve with the
+format.
+
+## Other AI tools
+
+Any tool can write a session event as JSON on standard input:
 
 ```sh
-git fetch origin \
-  refs/trace/sessions/v1:refs/trace/sessions/v1 \
-  refs/notes/trace:refs/notes/trace
+printf '%s\n' '{
+  "session_id": "full-stable-id",
+  "model": "model-name",
+  "messages": [
+    {"role": "user", "text": "Add validation"},
+    {"role": "assistant", "text": "Validation added"}
+  ]
+}' | trace ingest my-tool snapshot
 ```
 
-Trace redacts common secret patterns before writing durable records. Raw local
-hook events are not redacted at capture time, so keep `.trace/sessions/`
-private.
+`session_id` is required. A payload may provide:
+
+- `messages`: ordered user/assistant messages
+- `prompt` and `response` or `output`: one exchange
+- `transcript_path`: a JSON or JSONL transcript to read
+- `model`, `model_id`, or `modelID`: model metadata
+
+The source and event names are free-form. In the example they are `my-tool` and
+`snapshot`. Reusing the same session ID appends to that session.
+
+## Session metadata
+
+Each durable session records the context needed for later analysis:
+
+- stable session ID, source, and schema version
+- repository name, sanitized origin URL, and current branch
+- start and update times
+- models, message count, event count, and event kinds
+- complete redacted messages and source events
+- linked commit SHA, subject, branch, time, changed files, and message/event range
+
+This makes `trace session <id> --json` suitable as input when reviewing agent
+behavior or improving prompts, agents, and skills.
+
+## Local storage
+
+- `refs/trace/sessions/v2`: durable session records
+- `refs/notes/trace`: commit-to-session pointers
+- `.trace/sessions/`: ignored raw hook events
+- `.trace/state.json`: ignored commit cursors
+
+Durable records redact common secret patterns. Raw hook events are not redacted
+at capture time, so keep `.trace/sessions/` private.
+
+Trace refs are local by default and are not included in a normal push. Sharing
+is optional:
+
+```sh
+git push origin refs/trace/sessions/v2 refs/notes/trace
+```

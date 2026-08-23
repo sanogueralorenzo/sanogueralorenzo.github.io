@@ -14,7 +14,7 @@ import (
 )
 
 type eventRecord struct {
-	Agent          string          `json:"agent"`
+	Source         string          `json:"source"`
 	Event          string          `json:"event"`
 	SessionID      string          `json:"session_id"`
 	TranscriptPath string          `json:"transcript_path,omitempty"`
@@ -22,22 +22,30 @@ type eventRecord struct {
 	Payload        json.RawMessage `json:"payload"`
 }
 
-func captureAgentHook(root string, agent string, event string, payload []byte) error {
+func captureSessionEvent(root string, source string, event string, payload []byte) error {
+	if err := initTrace(root); err != nil {
+		return err
+	}
+	source = strings.TrimSpace(source)
+	event = strings.TrimSpace(event)
+	if source == "" || event == "" {
+		return errors.New("source and event are required")
+	}
 	sessionID, transcriptPath := hookIDs(payload)
 	if sessionID == "" {
-		sessionID = "unknown"
+		return errors.New("hook payload requires session_id")
 	}
-	if agent == "claude-code" && event == "stop" && transcriptPath != "" {
+	if source == "claude-code" && event == "stop" && transcriptPath != "" {
 		waitForClaudeTranscriptFlush(transcriptPath, time.Now())
 	}
-	if agent == "opencode" && sessionID != "unknown" {
+	if source == "opencode" {
 		transcriptPath = openCodeTranscriptPath(root, sessionID)
 		if shouldExportOpenCode(event) {
 			_ = exportOpenCodeTranscript(root, sessionID)
 		}
 	}
 	record := eventRecord{
-		Agent:          agent,
+		Source:         source,
 		Event:          event,
 		SessionID:      sessionID,
 		TranscriptPath: transcriptPath,
@@ -47,7 +55,7 @@ func captureAgentHook(root string, agent string, event string, payload []byte) e
 	if len(record.Payload) == 0 {
 		record.Payload = json.RawMessage(`{}`)
 	}
-	dir := filepath.Join(root, traceDir, "sessions", safeName(agent))
+	dir := filepath.Join(root, traceDir, "sessions", safeName(source))
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create session dir: %w", err)
 	}
@@ -60,11 +68,14 @@ func captureAgentHook(root string, agent string, event string, payload []byte) e
 	if err != nil {
 		return fmt.Errorf("open session log: %w", err)
 	}
-	defer f.Close()
 	if _, err := f.Write(append(line, '\n')); err != nil {
+		_ = f.Close()
 		return fmt.Errorf("write session log: %w", err)
 	}
-	return nil
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close session log: %w", err)
+	}
+	return persistCapturedSession(root, source, sessionID)
 }
 
 func shouldExportOpenCode(event string) bool {

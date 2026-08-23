@@ -8,6 +8,48 @@ import (
 	"testing"
 )
 
+func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
+	repo := testRepo(t)
+	git(t, repo, "remote", "add", "origin", "https://user:secret@example.com/org/project.git")
+	payload := []byte(`{
+  "session_id":"generic-session-id",
+  "model":"model-a",
+  "messages":[
+    {"role":"user","text":"inspect token=hidden"},
+    {"role":"assistant","text":"done"}
+  ]
+}`)
+	if err := captureSessionEvent(repo, "cursor", "snapshot", payload); err != nil {
+		t.Fatalf("captureSessionEvent: %v", err)
+	}
+
+	record, found, err := readSessionRecord(repo, "cursor", "generic-session-id")
+	if err != nil || !found {
+		t.Fatalf("read durable session: found=%v err=%v", found, err)
+	}
+	if record.SchemaVersion != schemaVersion || record.Source != "cursor" || record.Repository.Name != filepath.Base(repo) {
+		t.Fatalf("unexpected identity metadata: %#v", record)
+	}
+	if record.Repository.Remote != "https://example.com/org/project.git" || record.Branch == "" {
+		t.Fatalf("unexpected repository metadata: %#v", record.Repository)
+	}
+	if record.StartedAt == "" || record.UpdatedAt == "" || record.MessageCount != 2 || record.EventCount != 1 {
+		t.Fatalf("unexpected session metadata: %#v", record)
+	}
+	if len(record.Models) != 1 || record.Models[0] != "model-a" {
+		t.Fatalf("unexpected models: %v", record.Models)
+	}
+	if len(record.EventKinds) != 1 || record.EventKinds[0] != (eventKind{Name: "snapshot", Count: 1}) {
+		t.Fatalf("unexpected event kinds: %#v", record.EventKinds)
+	}
+	if len(record.Commits) != 0 || strings.Contains(record.Messages[0].Text, "hidden") || !strings.Contains(record.Messages[0].Text, "[REDACTED]") {
+		t.Fatalf("unexpected durable content: %#v", record)
+	}
+	if status := strings.TrimSpace(git(t, repo, "status", "--porcelain")); status != "" {
+		t.Fatalf("session storage dirtied the branch: %s", status)
+	}
+}
+
 func TestSessionSpansMultipleCommits(t *testing.T) {
 	repo := testRepo(t)
 	transcript := filepath.Join(t.TempDir(), "session.json")
@@ -21,7 +63,7 @@ func TestSessionSpansMultipleCommits(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "parser.go"), "package parser\n")
 	git(t, repo, "add", "parser.go")
 	git(t, repo, "commit", "-m", "add parser")
-	first, err := linkCommitConversations(repo)
+	first, err := linkCommitSessions(repo)
 	if err != nil {
 		t.Fatalf("link first commit: %v", err)
 	}
@@ -36,66 +78,87 @@ func TestSessionSpansMultipleCommits(t *testing.T) {
 	writeFile(t, filepath.Join(repo, "empty.go"), "package parser\n")
 	git(t, repo, "add", "empty.go")
 	git(t, repo, "commit", "-m", "handle empty input")
-	second, err := linkCommitConversations(repo)
+	second, err := linkCommitSessions(repo)
 	if err != nil {
 		t.Fatalf("link second commit: %v", err)
 	}
 
-	if got := first.Sessions[0]; got.SessionID != sessionID || got.MessageFrom != 1 || got.MessageThrough != 2 {
-		t.Fatalf("unexpected first link: %#v", got)
+	if len(first.Sessions) != 1 || first.Sessions[0].SessionID != sessionID || len(second.Sessions) != 1 {
+		t.Fatalf("unexpected commit pointers: first=%#v second=%#v", first.Sessions, second.Sessions)
 	}
-	if got := second.Sessions[0]; got.SessionID != sessionID || got.MessageFrom != 3 || got.MessageThrough != 4 {
-		t.Fatalf("unexpected second link: %#v", got)
+	note := git(t, repo, "notes", "--ref="+noteRef, "show", first.Commit.SHA)
+	if strings.Contains(note, "message_from") || !strings.Contains(note, sessionID) {
+		t.Fatalf("commit note should contain only session pointers: %s", note)
+	}
+	session, found, err := readSessionRecord(repo, "codex", sessionID)
+	if err != nil || !found {
+		t.Fatalf("read session: found=%v err=%v", found, err)
+	}
+	if len(session.Commits) != 2 {
+		t.Fatalf("expected two commit links: %#v", session.Commits)
+	}
+	if got := session.Commits[0]; got.Commit.Subject != "add parser" || len(got.Commit.Files) != 1 || got.Commit.Files[0] != "parser.go" || got.MessageFrom != 1 || got.MessageThrough != 2 {
+		t.Fatalf("unexpected first range: %#v", got)
+	}
+	if got := session.Commits[1]; got.Commit.Subject != "handle empty input" || got.MessageFrom != 3 || got.MessageThrough != 4 {
+		t.Fatalf("unexpected second range: %#v", got)
 	}
 
 	t.Chdir(repo)
 	var firstOut bytes.Buffer
-	if err := showCommitConversation(first.Commit, &firstOut); err != nil {
+	if err := showCommitConversation(first.Commit.SHA, false, &firstOut); err != nil {
 		t.Fatalf("show first commit: %v", err)
 	}
-	assertOutputContains(t, firstOut.String(), sessionID, "add the parser", "[REDACTED]")
+	assertOutputContains(t, firstOut.String(), sessionID, "add the parser", "[REDACTED]", "model-a")
 	assertOutputExcludes(t, firstOut.String(), "handle empty input", "hidden")
 
 	var secondOut bytes.Buffer
-	if err := showCommitConversation(second.Commit, &secondOut); err != nil {
+	if err := showCommitConversation(second.Commit.SHA, false, &secondOut); err != nil {
 		t.Fatalf("show second commit: %v", err)
 	}
 	assertOutputContains(t, secondOut.String(), sessionID, "handle empty input", "empty input handled")
 	assertOutputExcludes(t, secondOut.String(), "add the parser")
 
+	var commitJSON bytes.Buffer
+	if err := showCommitConversation(second.Commit.SHA, true, &commitJSON); err != nil {
+		t.Fatalf("show second commit JSON: %v", err)
+	}
+	var view commitView
+	if err := json.Unmarshal(commitJSON.Bytes(), &view); err != nil {
+		t.Fatalf("parse commit JSON: %v\n%s", err, commitJSON.String())
+	}
+	if view.Commit.SHA != second.Commit.SHA || len(view.Sessions) != 1 || view.Sessions[0].SessionID != sessionID {
+		t.Fatalf("unexpected commit JSON: %#v", view)
+	}
+
 	var sessionOut bytes.Buffer
-	if err := showSessionConversation(sessionID, &sessionOut); err != nil {
+	if err := showSessionConversation(sessionID, false, &sessionOut); err != nil {
 		t.Fatalf("show full session: %v", err)
 	}
-	assertOutputContains(t, sessionOut.String(), sessionID, first.Commit, second.Commit, "add the parser", "handle empty input")
-
-	paths := strings.Fields(git(t, repo, "ls-tree", "-r", "--name-only", sessionRef))
-	if len(paths) != 1 {
-		t.Fatalf("expected one durable session record, got %v", paths)
-	}
+	assertOutputContains(t, sessionOut.String(), sessionID, first.Commit.SHA, second.Commit.SHA, "add the parser", "handle empty input")
 }
 
 func TestCommitCanLinkMultipleSessions(t *testing.T) {
 	repo := testRepo(t)
 	for _, item := range []struct {
-		agent string
-		id    string
-		text  string
+		source string
+		id     string
+		text   string
 	}{
-		{agent: "codex", id: "codex-session-full-id", text: "change the model"},
-		{agent: "claude-code", id: "claude-session-full-id", text: "review the model"},
+		{source: "codex", id: "codex-session-full-id", text: "change the model"},
+		{source: "claude-code", id: "claude-session-full-id", text: "review the model"},
 	} {
 		transcript := filepath.Join(t.TempDir(), item.id+".json")
 		writeTranscript(t, transcript, conversationMessage{Role: "user", Text: item.text})
 		payload, _ := json.Marshal(map[string]string{"session_id": item.id, "transcript_path": transcript})
-		if err := captureAgentHook(repo, item.agent, "user-prompt-submit", payload); err != nil {
-			t.Fatalf("capture %s: %v", item.agent, err)
+		if err := captureSessionEvent(repo, item.source, "user-prompt-submit", payload); err != nil {
+			t.Fatalf("capture %s: %v", item.source, err)
 		}
 	}
 	writeFile(t, filepath.Join(repo, "model.go"), "package model\n")
 	git(t, repo, "add", "model.go")
 	git(t, repo, "commit", "-m", "change model")
-	record, err := linkCommitConversations(repo)
+	record, err := linkCommitSessions(repo)
 	if err != nil {
 		t.Fatalf("link commit: %v", err)
 	}
@@ -105,10 +168,45 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 
 	t.Chdir(repo)
 	var out bytes.Buffer
-	if err := showCommitConversation(record.Commit, &out); err != nil {
+	if err := showCommitConversation(record.Commit.SHA, false, &out); err != nil {
 		t.Fatalf("show commit: %v", err)
 	}
 	assertOutputContains(t, out.String(), "codex-session-full-id", "claude-session-full-id", "change the model", "review the model")
+}
+
+func TestGenericIngestAndJSONViews(t *testing.T) {
+	repo := testRepo(t)
+	t.Chdir(repo)
+	payload := `{"session_id":"tool-session","model":"model-z","prompt":"improve the skill","response":"recorded"}`
+	var output bytes.Buffer
+	a := app{stdin: strings.NewReader(payload), stdout: &output, stderr: &output}
+	if err := a.run([]string{"ingest", "my-ai", "turn"}); err != nil {
+		t.Fatalf("ingest: %v", err)
+	}
+
+	output.Reset()
+	if err := a.run([]string{"sessions", "--json"}); err != nil {
+		t.Fatalf("list sessions: %v", err)
+	}
+	var summaries []sessionSummary
+	if err := json.Unmarshal(output.Bytes(), &summaries); err != nil {
+		t.Fatalf("parse session list: %v\n%s", err, output.String())
+	}
+	if len(summaries) != 1 || summaries[0].SchemaVersion != schemaVersion || summaries[0].SessionID != "tool-session" || summaries[0].Source != "my-ai" {
+		t.Fatalf("unexpected summaries: %#v", summaries)
+	}
+
+	output.Reset()
+	if err := a.run([]string{"session", "tool-session", "--json"}); err != nil {
+		t.Fatalf("show session JSON: %v", err)
+	}
+	var session sessionRecord
+	if err := json.Unmarshal(output.Bytes(), &session); err != nil {
+		t.Fatalf("parse session JSON: %v\n%s", err, output.String())
+	}
+	if session.ID != "tool-session" || session.Source != "my-ai" || session.MessageCount != 2 {
+		t.Fatalf("unexpected session JSON: %#v", session)
+	}
 }
 
 func TestParseCodexTranscriptMessage(t *testing.T) {
@@ -121,11 +219,11 @@ func TestParseCodexTranscriptMessage(t *testing.T) {
 
 func captureSession(t *testing.T, repo string, sessionID string, transcript string, event string) {
 	t.Helper()
-	payload, err := json.Marshal(map[string]string{"session_id": sessionID, "transcript_path": transcript})
+	payload, err := json.Marshal(map[string]string{"session_id": sessionID, "transcript_path": transcript, "model": "model-a"})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	if err := captureAgentHook(repo, "codex", event, payload); err != nil {
+	if err := captureSessionEvent(repo, "codex", event, payload); err != nil {
 		t.Fatalf("capture session: %v", err)
 	}
 }
