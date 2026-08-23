@@ -28,8 +28,9 @@ trace enable
 ```
 
 This installs a managed `post-commit` hook and configures Codex, Claude Code,
-and OpenCode capture. Existing Git hook content is preserved. Live state stays
-outside the worktree in Git's common directory and is isolated per worktree.
+OpenCode, Pi, and Oh My Pi capture. Existing Git hook content is preserved.
+Live state stays outside the worktree in Git's common directory and is isolated
+per worktree.
 
 ## Read sessions
 

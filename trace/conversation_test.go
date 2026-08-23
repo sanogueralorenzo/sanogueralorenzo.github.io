@@ -255,6 +255,29 @@ func TestParseCodexTranscriptMessage(t *testing.T) {
 	}
 }
 
+func TestParsePiTranscriptUsesActiveBranch(t *testing.T) {
+	data := []byte(strings.Join([]string{
+		`{"type":"session","version":3,"id":"session-id"}`,
+		`{"type":"message","id":"root","parentId":null,"message":{"role":"user","content":"start"}}`,
+		`{"type":"message","id":"answer","parentId":"root","message":{"role":"assistant","content":[{"type":"text","text":"first answer"}]}}`,
+		`{"type":"message","id":"abandoned","parentId":"answer","message":{"role":"user","content":"abandoned branch"}}`,
+		`{"type":"message","id":"current","parentId":"answer","message":{"role":"user","content":"current branch"}}`,
+		`{"type":"message","id":"done","parentId":"current","message":{"role":"assistant","content":"done"}}`,
+	}, "\n"))
+	messages := parseTranscriptMessages(data)
+	if len(messages) != 4 {
+		t.Fatalf("expected four active-branch messages, got %#v", messages)
+	}
+	if messages[0].Text != "start" || messages[1].Text != "first answer" || messages[2].Text != "current branch" || messages[3].Text != "done" {
+		t.Fatalf("unexpected active branch: %#v", messages)
+	}
+	for _, message := range messages {
+		if message.Text == "abandoned branch" {
+			t.Fatalf("abandoned branch leaked into conversation: %#v", messages)
+		}
+	}
+}
+
 func TestTranscriptAvailabilityIsExplicit(t *testing.T) {
 	repo := testRepo(t)
 	payload := []byte(`{"session_id":"missing-transcript","transcript_path":"/does/not/exist","prompt":"keep the fallback"}`)

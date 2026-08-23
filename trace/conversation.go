@@ -318,15 +318,73 @@ func parseTranscriptMessages(data []byte) []conversationMessage {
 	if json.Unmarshal(data, &document) == nil {
 		collectRoleMessages(document, &messages)
 	} else {
+		var documents []any
 		for _, raw := range bytes.Split(data, []byte("\n")) {
 			raw = bytes.TrimSpace(raw)
 			if len(raw) == 0 || json.Unmarshal(raw, &document) != nil {
 				continue
 			}
-			collectRoleMessages(document, &messages)
+			documents = append(documents, document)
+		}
+		if branch := piSessionBranch(documents); branch != nil {
+			for _, entry := range branch {
+				collectRoleMessages(entry, &messages)
+			}
+		} else {
+			for _, item := range documents {
+				collectRoleMessages(item, &messages)
+			}
 		}
 	}
 	return uniqueMessages(messages)
+}
+
+func piSessionBranch(documents []any) []any {
+	headerAt := -1
+	for i, document := range documents {
+		entry, ok := document.(map[string]any)
+		if ok && entry["type"] == "session" {
+			headerAt = i
+			break
+		}
+	}
+	if headerAt < 0 {
+		return nil
+	}
+
+	entries := map[string]map[string]any{}
+	var leaf map[string]any
+	for _, document := range documents[headerAt+1:] {
+		entry, ok := document.(map[string]any)
+		id, hasID := entry["id"].(string)
+		_, hasParent := entry["parentId"]
+		if !ok || !hasID || id == "" || !hasParent {
+			continue
+		}
+		entries[id] = entry
+		leaf = entry
+	}
+	if leaf == nil {
+		return nil
+	}
+
+	var reversed []any
+	seen := map[string]bool{}
+	for leaf != nil {
+		id, _ := leaf["id"].(string)
+		if id == "" || seen[id] {
+			break
+		}
+		seen[id] = true
+		reversed = append(reversed, leaf)
+		parentID, _ := leaf["parentId"].(string)
+		leaf = entries[parentID]
+	}
+	branch := make([]any, len(reversed))
+	for i := range reversed {
+		branch[len(reversed)-1-i] = reversed[i]
+	}
+	return branch
 }
 
 func collectRoleMessages(value any, messages *[]conversationMessage) {

@@ -51,6 +51,8 @@ func TestEnableInstallsGitAndAgentHooks(t *testing.T) {
 	assertContainsFile(t, filepath.Join(repo, ".codex", "hooks.json"), "trace hooks codex user-prompt-submit")
 	assertContainsFile(t, filepath.Join(repo, ".claude", "settings.json"), "trace hooks claude-code session-start")
 	assertContainsFile(t, filepath.Join(repo, ".opencode", "plugins", "trace.ts"), "TracePlugin")
+	assertContainsFile(t, filepath.Join(repo, ".pi", "extensions", "trace", "index.ts"), `"pi"`)
+	assertContainsFile(t, filepath.Join(repo, ".omp", "extensions", "trace", "index.ts"), `"omp"`)
 }
 
 func TestEnablePreservesExistingGitHook(t *testing.T) {

@@ -44,8 +44,14 @@ func enableTrace(root string, w io.Writer) error {
 	if err := installOpenCodePlugin(root); err != nil {
 		return err
 	}
+	if err := installPiExtension(root); err != nil {
+		return err
+	}
+	if err := installOMPExtension(root); err != nil {
+		return err
+	}
 	fmt.Fprintln(w, "trace enabled")
-	for _, runtime := range []string{"codex", "claude", "opencode"} {
+	for _, runtime := range []string{"codex", "claude", "opencode", "pi", "omp"} {
 		if _, err := exec.LookPath(runtime); err != nil {
 			fmt.Fprintf(w, "%s not found in PATH; Trace will not capture %s sessions until it is installed\n", runtime, runtime)
 		}

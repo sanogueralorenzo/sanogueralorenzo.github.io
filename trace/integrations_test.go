@@ -83,6 +83,30 @@ func TestOpenCodePluginConfig(t *testing.T) {
 	assertContainsFile(t, filepath.Join(repo, ".opencode", "plugins", "trace.ts"), "trace hooks opencode turn-end")
 }
 
+func TestPiExtensionConfig(t *testing.T) {
+	repo := testRepo(t)
+	if err := installPiExtension(repo); err != nil {
+		t.Fatalf("installPiExtension: %v", err)
+	}
+	path := filepath.Join(repo, ".pi", "extensions", "trace", "index.ts")
+	assertContainsFile(t, path, `from "@earendil-works/pi-coding-agent"`)
+	assertContainsFile(t, path, `["ingest", "pi", event]`)
+	assertContainsFile(t, path, "TRACE_PI_NESTED")
+	assertContainsFile(t, path, `agent.on("before_agent_start"`)
+	assertContainsFile(t, path, `agent.on("agent_end"`)
+}
+
+func TestOMPExtensionConfig(t *testing.T) {
+	repo := testRepo(t)
+	if err := installOMPExtension(repo); err != nil {
+		t.Fatalf("installOMPExtension: %v", err)
+	}
+	path := filepath.Join(repo, ".omp", "extensions", "trace", "index.ts")
+	assertContainsFile(t, path, `from "@oh-my-pi/pi-coding-agent"`)
+	assertContainsFile(t, path, `["ingest", "omp", event]`)
+	assertContainsFile(t, path, "TRACE_OMP_NESTED")
+}
+
 func hasMatcherCommand(groups []hookMatcher, matcher string, command string) bool {
 	for _, group := range groups {
 		if group.Matcher == nil || *group.Matcher != matcher {
