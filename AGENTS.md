@@ -30,7 +30,7 @@
 - MUST | Run repository root `./install.sh` as the final validation step only when install-gate paths change.
 - MUST | Install gate is active when any changed path matches `codex-*/**` and does not match `codex-*/README.md`.
 - MUST | Skip `./install.sh` when the change set is docs-only (`AGENTS.md`, top-level `README.md`, or only `*/README.md` updates).
-- MUST_NOT | Run repository root `./install.sh` for Android app-only changes (`voice/**`, `overlay/**`); validate via Android install/launch flow instead.
+- MUST_NOT | Run repository root `./install.sh` for Android app-only changes (`tools/voice/**`, `overlay/**`); validate via Android install/launch flow instead.
 - MUST | `install` means install + launch for runnable apps; for CLI/scripts it means install only.
 
 ## Tooling

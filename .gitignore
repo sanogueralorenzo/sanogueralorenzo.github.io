@@ -15,7 +15,7 @@ Desktop.ini
 # -------------------- Local Project Artifacts --------------------
 .precedent/
 .jury/
-voice/.cache/
+tools/voice/.cache/
 codex/codex-*/target/
 ekkzo/cli/codex-*/target/
 ekkzo/cli/*/target/

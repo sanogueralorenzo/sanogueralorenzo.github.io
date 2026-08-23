@@ -123,7 +123,7 @@ def main() -> int:
         "--prompt-a-url",
         default=(
             "https://raw.githubusercontent.com/sanogueralorenzo/"
-            "sanogueralorenzo.github.io/main/voice/evals/prompt_a.json"
+            "sanogueralorenzo.github.io/main/tools/voice/evals/prompt_a.json"
         ),
     )
     parser.add_argument("--prompt-b-file", default=str(EVALS_DIR / "prompt_b.json"))

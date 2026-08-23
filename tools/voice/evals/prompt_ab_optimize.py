@@ -11,7 +11,7 @@ from typing import Any
 
 EVALS_DIR = Path(__file__).resolve().parent
 VOICE_DIR = EVALS_DIR.parent
-REPO_ROOT = VOICE_DIR.parent
+REPO_ROOT = VOICE_DIR.parent.parent
 
 
 def resolve_cli_path(raw_path: str) -> Path:
@@ -338,7 +338,7 @@ def main() -> int:
     args = parser.parse_args()
     print(
         "[NOTE] Host/Mac A/B results are not source-of-truth. "
-        "Use voice/evals/prompt_ab_optimize_android.py for promotion decisions.",
+        "Use tools/voice/evals/prompt_ab_optimize_android.py for promotion decisions.",
         flush=True,
     )
 
@@ -656,9 +656,9 @@ def main() -> int:
         f'- holdout enabled: `{args.use_holdout}`',
         '',
         '## How To Apply',
-        '1. If recommendation is `PROMOTE_B`, copy `voice/evals/prompt_b.json` into `voice/evals/prompt_a.json` manually.',
+        '1. If recommendation is `PROMOTE_B`, copy `tools/voice/evals/prompt_b.json` into `tools/voice/evals/prompt_a.json` manually.',
         '2. Use `round_*/suggested_next_prompt_b.txt` as the next challenger.',
-        '3. Run `voice/evals/prompt_ab_optimize.sh` again.',
+        '3. Run `tools/voice/evals/prompt_ab_optimize.sh` again.',
         '',
         '## Key Artifacts',
         f'- round log: `{log_path}`',

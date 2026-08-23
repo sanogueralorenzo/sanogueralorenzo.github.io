@@ -13,7 +13,7 @@ This installs:
 - `codex/codex-remote`
 - `codex/codex-menubar`
 
-It does not install `overlay`, `voice`, or `site`.
+It does not install `overlay`, `tools/voice`, or `site`.
 
 ## Index
 
@@ -22,7 +22,7 @@ It does not install `overlay`, `voice`, or `site`.
 - [Codex Menubar](./codex/codex-menubar/README.md)
 - [Precedent](./precedent/README.md)
 - [Overlay](./overlay/README.md)
-- [Voice](./voice/README.md)
+- [Voice](./tools/voice/README.md)
 - [Site](./site/README.md)
 
 ## Model

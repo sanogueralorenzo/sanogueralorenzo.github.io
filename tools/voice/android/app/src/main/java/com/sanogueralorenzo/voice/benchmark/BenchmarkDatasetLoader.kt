@@ -11,10 +11,10 @@ internal object BenchmarkDatasetLoader {
     private const val READ_TIMEOUT_MS = 20_000
 
     const val SOURCE_BLOB_URL: String =
-        "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/main/voice/evals/dataset.jsonl"
+        "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/blob/main/tools/voice/evals/dataset.jsonl"
 
     const val SOURCE_RAW_URL: String =
-        "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/voice/evals/dataset.jsonl"
+        "https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/voice/evals/dataset.jsonl"
 
     suspend fun loadCases(): List<BenchmarkCase> = withContext(Dispatchers.IO) {
         val connection = (URL(SOURCE_RAW_URL).openConnection() as HttpURLConnection).apply {

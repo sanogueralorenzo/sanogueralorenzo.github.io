@@ -26,7 +26,7 @@ NO_UPDATE=0
 usage() {
   cat <<EOF
 Usage:
-  voice/evals/prompt_eval.sh --prompt-file <path> --cases-file <path> [options]
+  tools/voice/evals/prompt_eval.sh --prompt-file <path> --cases-file <path> [options]
 
 Required:
   --prompt-file <path>       Prompt template/system instruction file.
@@ -146,7 +146,7 @@ if [[ ! -f "${CASES_FILE}" ]]; then
   exit 1
 fi
 
-echo "[NOTE] Host/Mac prompt_eval is smoke-only. Use voice/evals/prompt_eval_android.py for source-of-truth comparisons." >&2
+echo "[NOTE] Host/Mac prompt_eval is smoke-only. Use tools/voice/evals/prompt_eval_android.py for source-of-truth comparisons." >&2
 
 if [[ "${BACKEND}" != "auto" && "${BACKEND}" != "cpu" && "${BACKEND}" != "gpu" ]]; then
   echo "Invalid --backend value: ${BACKEND}. Use auto|cpu|gpu" >&2
