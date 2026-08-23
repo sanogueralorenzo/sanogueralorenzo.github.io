@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 type app struct {
@@ -43,19 +42,19 @@ func (a app) run(args []string) error {
 		if len(args) != 2 {
 			return errors.New("usage: trace show <commit>")
 		}
-		return showMemory(args[1], a.stdout)
-	case "recall":
-		if len(args) < 2 {
-			return errors.New("usage: trace recall <query>")
+		return showCommitConversation(args[1], a.stdout)
+	case "session":
+		if len(args) != 2 {
+			return errors.New("usage: trace session <session-id>")
 		}
-		return recallMemory(strings.Join(args[1:], " "), a.stdout)
+		return showSessionConversation(args[1], a.stdout)
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
 
 func usage(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "usage: trace <init|enable|hooks|show|recall>")
+	_, err := fmt.Fprintln(w, "usage: trace <init|enable|hooks|show|session>")
 	return err
 }
 
@@ -71,7 +70,7 @@ func (a app) runHook(args []string) error {
 		if err != nil {
 			return err
 		}
-		_, err = commitTrace(root)
+		_, err = linkCommitConversations(root)
 		return err
 	}
 	root, err := gitRoot(".")

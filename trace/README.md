@@ -1,20 +1,17 @@
 # Trace
 
-![Trace intro flow](assets/trace_intro.png)
+Trace connects each Git commit to the agent conversation that produced it.
 
-Trace is a Go CLI prototype for repository memory. It records why a commit
-changed, not just what changed.
-
-The core workflow is:
+One session can span many commits, and one commit can include work from many
+sessions:
 
 ```text
-conversation + diff -> raw checkpoint on refs/trace/checkpoints/v1 + concise memory on refs/trace/memory/v1 -> recall
+commit -> session_id + conversation range
 ```
 
-Trace captures agent hook events locally while you work. When you commit, it
-writes a full redacted checkpoint record to a Trace-owned Git ref and a concise
-memory note to a separate Trace-owned memory ref. Your normal branch stays
-focused on product code.
+Trace stores each full, redacted session once. A Git note on each commit records
+the exact message and event range associated with that commit. The full
+`session_id` stays visible in both views.
 
 ## Install
 
@@ -34,41 +31,48 @@ trace enable
 Git `post-commit` hook, and wires supported agent hooks where possible.
 
 Trace does not install, wrap, or manage agent runtimes. Codex, Claude Code, and
-OpenCode must already be installed for rich conversation capture. If one is
-missing, Trace reports the limitation and keeps the commit-message/diff fallback
-active.
+OpenCode must already be installed for their sessions to be captured. Commits
+without a captured session remain unlinked.
 
 OpenCode transcript export uses the installed `opencode` CLI and caches the
-export under `.trace/tmp/opencode/` before the commit checkpoint is written.
+export under `.trace/tmp/opencode/`.
 
 ## Usage
 
 1. Run `trace enable` once in a repository.
-2. Work normally with Codex, Claude Code, OpenCode, or no agent at all.
+2. Work normally with Codex, Claude Code, or OpenCode.
 3. Commit normally with `git commit`.
-4. Trace writes:
-   - full checkpoint JSON to `refs/trace/checkpoints/v1`
-   - concise memory markdown to `refs/trace/memory/v1`
-5. Recover context later:
+4. Inspect the conversation for a commit or its complete session:
 
 ```sh
 trace show HEAD
-trace recall "why did we change auth"
+trace session 019d2a5f-5e87-7a31-9f8b-4c29c7de1024
 ```
+
+`trace show` prints only the part of each session linked to that commit. `trace
+session` prints the complete conversation and every linked commit.
 
 ## Command Reference
 
 - `trace init` creates `.trace/` storage in the current Git repository.
 - `trace enable` runs `init`, installs the `post-commit` Git hook, and writes hook config for Codex, Claude Code, and OpenCode.
-- `trace show <commit>` prints the memory note from `refs/trace/memory/v1`.
-- `trace recall <query>` searches committed memory notes.
+- `trace show <commit>` prints the commit-scoped conversation.
+- `trace session <session-id>` prints the full session and its linked commits.
 
 ## Layout
 
 - `.trace/sessions/<agent>/<session>.jsonl`: local raw agent hook events before commit.
 - `.trace/tmp/opencode/<session>.json`: temporary OpenCode transcript export cache.
-- `refs/trace/checkpoints/v1:<checkpoint>/checkpoint.json`: full redacted checkpoint record, including diff and captured sessions/transcripts.
-- `refs/trace/memory/v1:<sha>.md`: concise reviewable memory note for a commit.
+- `.trace/state.json`: local cursors that separate one session across commits.
+- `refs/trace/sessions/v1`: durable full-session records.
+- `refs/notes/trace`: commit-to-session links and message/event ranges.
+
+The two refs are separate from the current branch. Push them explicitly when
+you want to share Trace history:
+
+```sh
+git push origin refs/trace/sessions/v1 refs/notes/trace
+```
 
 ## Hook Surface
 
@@ -77,4 +81,4 @@ Trace keeps the integration surface intentionally small:
 - Codex project hooks in `.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, `Stop`, and `PostToolUse`.
 - Claude Code project hooks in `.claude/settings.json` for `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, and Task `PreToolUse`/`PostToolUse`.
 - OpenCode plugin hook events in `.opencode/plugins/trace.ts`.
-- Git `post-commit` writes checkpoint data and memory notes.
+- Git `post-commit` links the new commit to captured session ranges.

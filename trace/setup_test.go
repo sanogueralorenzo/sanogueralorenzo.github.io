@@ -13,6 +13,18 @@ func TestInit(t *testing.T) {
 	}
 	assertExists(t, filepath.Join(repo, ".trace", "config.json"))
 	assertExists(t, filepath.Join(repo, ".trace", "sessions"))
+	assertContainsFile(t, filepath.Join(repo, ".trace", "config.json"), `"version": 2`)
+	assertContainsFile(t, filepath.Join(repo, ".trace", "config.json"), sessionRef)
+	assertContainsFile(t, filepath.Join(repo, ".trace", ".gitignore"), "state.json")
+}
+
+func TestInitMigratesOldConfig(t *testing.T) {
+	repo := testRepo(t)
+	writeFile(t, filepath.Join(repo, ".trace", "config.json"), `{"version":1}`)
+	if err := initTrace(repo); err != nil {
+		t.Fatalf("initTrace: %v", err)
+	}
+	assertContainsFile(t, filepath.Join(repo, ".trace", "config.json"), `"version": 2`)
 }
 
 func TestEnableInstallsGitAndAgentHooks(t *testing.T) {

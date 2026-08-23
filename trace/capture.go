@@ -175,3 +175,54 @@ func readSessionLines(path string) ([]eventRecord, error) {
 	}
 	return records, nil
 }
+
+func waitForClaudeTranscriptFlush(path string, started time.Time) {
+	const (
+		maxWait        = 3 * time.Second
+		pollInterval   = 50 * time.Millisecond
+		staleThreshold = 2 * time.Minute
+	)
+	info, err := os.Stat(path)
+	if err != nil || time.Since(info.ModTime()) > staleThreshold {
+		return
+	}
+	deadline := time.Now().Add(maxWait)
+	for time.Now().Before(deadline) {
+		if hasClaudeStopSentinel(path, started) {
+			return
+		}
+		time.Sleep(pollInterval)
+	}
+}
+
+func hasClaudeStopSentinel(path string, started time.Time) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	if len(data) > 4096 {
+		data = data[len(data)-4096:]
+	}
+	for _, raw := range strings.Split(string(data), "\n") {
+		if !strings.Contains(raw, "hooks claude-code stop") {
+			continue
+		}
+		var entry struct {
+			Timestamp string `json:"timestamp"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(raw)), &entry) != nil || entry.Timestamp == "" {
+			continue
+		}
+		ts, err := time.Parse(time.RFC3339Nano, entry.Timestamp)
+		if err != nil {
+			ts, err = time.Parse(time.RFC3339, entry.Timestamp)
+			if err != nil {
+				continue
+			}
+		}
+		if ts.After(started.Add(-2*time.Second)) && ts.Before(started.Add(2*time.Second)) {
+			return true
+		}
+	}
+	return false
+}

@@ -1,7 +1,7 @@
 package main
 
 const (
-	traceDir      = ".trace"
-	checkpointRef = "refs/trace/checkpoints/v1"
-	memoryRef     = "refs/trace/memory/v1"
+	traceDir   = ".trace"
+	sessionRef = "refs/trace/sessions/v1"
+	noteRef    = "trace"
 )

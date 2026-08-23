@@ -15,7 +15,6 @@ func initTrace(root string) error {
 		filepath.Join(root, traceDir),
 		filepath.Join(root, traceDir, "sessions"),
 		filepath.Join(root, traceDir, "tmp"),
-		filepath.Join(root, traceDir, "archive"),
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -23,13 +22,17 @@ func initTrace(root string) error {
 		}
 	}
 	configPath := filepath.Join(root, traceDir, "config.json")
-	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
-		cfg := []byte("{\n  \"version\": 1,\n  \"checkpoint_ref\": \"" + checkpointRef + "\",\n  \"memory_ref\": \"" + memoryRef + "\"\n}\n")
+	cfg := []byte("{\n  \"version\": 2,\n  \"session_ref\": \"" + sessionRef + "\",\n  \"note_ref\": \"refs/notes/" + noteRef + "\"\n}\n")
+	existing, err := os.ReadFile(configPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("read %s: %w", configPath, err)
+	}
+	if string(existing) != string(cfg) {
 		if err := os.WriteFile(configPath, cfg, 0o600); err != nil {
 			return fmt.Errorf("write %s: %w", configPath, err)
 		}
 	}
-	ignore := "sessions/\ntmp/\narchive/\n"
+	ignore := "sessions/\ntmp/\nstate.json\n"
 	if err := os.WriteFile(filepath.Join(root, traceDir, ".gitignore"), []byte(ignore), 0o600); err != nil {
 		return fmt.Errorf("write .trace/.gitignore: %w", err)
 	}
@@ -55,7 +58,7 @@ func enableTrace(root string, w io.Writer) error {
 	fmt.Fprintln(w, "trace enabled")
 	for _, runtime := range []string{"codex", "claude", "opencode"} {
 		if _, err := exec.LookPath(runtime); err != nil {
-			fmt.Fprintf(w, "%s not found in PATH; rich %s capture requires the user-installed runtime, commit/diff fallback remains active\n", runtime, runtime)
+			fmt.Fprintf(w, "%s not found in PATH; Trace will not capture %s sessions until it is installed\n", runtime, runtime)
 		}
 	}
 	return nil

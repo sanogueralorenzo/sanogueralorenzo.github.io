@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
 	"strings"
 )
 
@@ -49,22 +48,6 @@ func commandEnv(dir string, env []string, input []byte, name string, args ...str
 		return "", err
 	}
 	return string(out), nil
-}
-
-func changedFiles(root string, commit string) ([]string, error) {
-	out, err := command(root, "git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit)
-	if err != nil {
-		return nil, fmt.Errorf("read changed files: %w", err)
-	}
-	var files []string
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			files = append(files, line)
-		}
-	}
-	sort.Strings(files)
-	return files, nil
 }
 
 func writeRefFile(root string, ref string, path string, data []byte, message string) error {
