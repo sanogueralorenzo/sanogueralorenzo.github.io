@@ -12,26 +12,32 @@ func TestInit(t *testing.T) {
 	if err := initTrace(repo); err != nil {
 		t.Fatalf("initTrace: %v", err)
 	}
-	assertExists(t, filepath.Join(repo, ".trace", "sessions"))
-	assertContainsFile(t, filepath.Join(repo, ".git", "info", "exclude"), ".trace/")
-	if got := strings.TrimSpace(git(t, repo, "check-ignore", ".trace/state.json")); got != ".trace/state.json" {
-		t.Fatalf("expected Trace state to be ignored, got %q", got)
+	assertExists(t, mustTraceDataPath(t, repo, "sessions"))
+	if got := strings.TrimSpace(git(t, repo, "status", "--porcelain")); got != "" {
+		t.Fatalf("Trace storage dirtied the branch: %s", got)
 	}
 }
 
-func TestInitPreservesLocalExcludes(t *testing.T) {
+func TestInitUsesGitCommonDirAcrossWorktrees(t *testing.T) {
 	repo := testRepo(t)
-	exclude := filepath.Join(repo, ".git", "info", "exclude")
-	writeFile(t, exclude, "local-only.txt\n")
-	if err := initTrace(repo); err != nil {
-		t.Fatalf("initTrace: %v", err)
+	worktree := filepath.Join(t.TempDir(), "worktree")
+	git(t, repo, "worktree", "add", "-b", "trace-worktree", worktree)
+	if err := initTrace(worktree); err != nil {
+		t.Fatalf("initTrace worktree: %v", err)
 	}
-	if err := initTrace(repo); err != nil {
-		t.Fatalf("initTrace again: %v", err)
+	gotCommon, err := gitCommonDir(worktree)
+	if err != nil {
+		t.Fatalf("worktree common dir: %v", err)
 	}
-	assertContainsFile(t, exclude, "local-only.txt")
-	if got := strings.Count(readFile(t, exclude), ".trace/"); got != 1 {
-		t.Fatalf("expected one Trace exclude, got %d", got)
+	wantCommon, err := gitCommonDir(repo)
+	if err != nil {
+		t.Fatalf("repository common dir: %v", err)
+	}
+	if gotCommon != wantCommon {
+		t.Fatalf("worktrees should share the Git common dir: got %s want %s", gotCommon, wantCommon)
+	}
+	if got, other := mustTraceDataPath(t, worktree), mustTraceDataPath(t, repo); got == other {
+		t.Fatalf("worktrees should isolate live Trace state: %s", got)
 	}
 }
 

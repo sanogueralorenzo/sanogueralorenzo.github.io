@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 	"time"
 )
 
-const schemaVersion = 1
+const schemaVersion = 2
 
 type conversationMessage struct {
 	Role string `json:"role"`
@@ -51,20 +52,22 @@ type sessionCommit struct {
 }
 
 type sessionRecord struct {
-	SchemaVersion int                   `json:"schema_version"`
-	ID            string                `json:"session_id"`
-	Source        string                `json:"source"`
-	Repository    repositoryMetadata    `json:"repository"`
-	Branch        string                `json:"branch"`
-	StartedAt     string                `json:"started_at"`
-	UpdatedAt     string                `json:"updated_at"`
-	Models        []string              `json:"models,omitempty"`
-	MessageCount  int                   `json:"message_count"`
-	EventCount    int                   `json:"event_count"`
-	EventKinds    []eventKind           `json:"event_kinds"`
-	Commits       []sessionCommit       `json:"commits"`
-	Messages      []conversationMessage `json:"messages,omitempty"`
-	Events        []eventRecord         `json:"events"`
+	SchemaVersion               int                   `json:"schema_version"`
+	ID                          string                `json:"session_id"`
+	Source                      string                `json:"source"`
+	Repository                  repositoryMetadata    `json:"repository"`
+	Branch                      string                `json:"branch"`
+	StartedAt                   string                `json:"started_at"`
+	UpdatedAt                   string                `json:"updated_at"`
+	Models                      []string              `json:"models,omitempty"`
+	TranscriptStatus            string                `json:"transcript_status"`
+	TranscriptUnavailableReason string                `json:"transcript_unavailable_reason,omitempty"`
+	MessageCount                int                   `json:"message_count"`
+	EventCount                  int                   `json:"event_count"`
+	EventKinds                  []eventKind           `json:"event_kinds"`
+	Commits                     []sessionCommit       `json:"commits"`
+	Messages                    []conversationMessage `json:"messages,omitempty"`
+	Events                      []eventRecord         `json:"events"`
 }
 
 type sessionPointer struct {
@@ -110,17 +113,18 @@ type commitView struct {
 }
 
 type sessionSummary struct {
-	SchemaVersion int                `json:"schema_version"`
-	SessionID     string             `json:"session_id"`
-	Source        string             `json:"source"`
-	Repository    repositoryMetadata `json:"repository"`
-	Branch        string             `json:"branch"`
-	StartedAt     string             `json:"started_at"`
-	UpdatedAt     string             `json:"updated_at"`
-	Models        []string           `json:"models,omitempty"`
-	MessageCount  int                `json:"message_count"`
-	EventCount    int                `json:"event_count"`
-	CommitCount   int                `json:"commit_count"`
+	SchemaVersion    int                `json:"schema_version"`
+	SessionID        string             `json:"session_id"`
+	Source           string             `json:"source"`
+	Repository       repositoryMetadata `json:"repository"`
+	Branch           string             `json:"branch"`
+	StartedAt        string             `json:"started_at"`
+	UpdatedAt        string             `json:"updated_at"`
+	Models           []string           `json:"models,omitempty"`
+	TranscriptStatus string             `json:"transcript_status"`
+	MessageCount     int                `json:"message_count"`
+	EventCount       int                `json:"event_count"`
+	CommitCount      int                `json:"commit_count"`
 }
 
 func linkCommitSessions(root string) (*commitConversation, error) {
@@ -184,7 +188,10 @@ func linkCommitSessions(root string) (*commitConversation, error) {
 }
 
 func persistCapturedSession(root string, source string, sessionID string) error {
-	path := filepath.Join(root, traceDir, "sessions", safeName(source), safeName(sessionID)+".jsonl")
+	path, err := traceDataPath(root, "sessions", safeName(source), safeName(sessionID)+".jsonl")
+	if err != nil {
+		return err
+	}
 	events, err := readSessionLines(path)
 	if err != nil {
 		return err
@@ -201,9 +208,12 @@ func persistCapturedSession(root string, source string, sessionID string) error 
 }
 
 func collectSessionRecords(root string) ([]sessionRecord, error) {
-	base := filepath.Join(root, traceDir, "sessions")
+	base, err := traceDataPath(root, "sessions")
+	if err != nil {
+		return nil, err
+	}
 	var records []sessionRecord
-	err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(base, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -232,21 +242,24 @@ func collectSessionRecords(root string) ([]sessionRecord, error) {
 }
 
 func buildSessionRecord(root string, events []eventRecord) sessionRecord {
-	messages := sessionTranscriptMessages(events)
+	messages, transcriptStatus, unavailableReason := sessionTranscriptMessages(events)
+	durableEvents := redactEventRecords(events)
 	record := sessionRecord{
-		SchemaVersion: schemaVersion,
-		ID:            events[0].SessionID,
-		Source:        events[0].Source,
-		Repository:    repositoryFor(root),
-		Branch:        currentBranch(root),
-		StartedAt:     events[0].Timestamp,
-		UpdatedAt:     events[len(events)-1].Timestamp,
-		Models:        modelsFromEvents(events),
-		MessageCount:  len(messages),
-		EventCount:    len(events),
-		EventKinds:    summarizeEvents(events),
-		Messages:      messages,
-		Events:        events,
+		SchemaVersion:               schemaVersion,
+		ID:                          events[0].SessionID,
+		Source:                      events[0].Source,
+		Repository:                  repositoryFor(root),
+		Branch:                      currentBranch(root),
+		StartedAt:                   events[0].Timestamp,
+		UpdatedAt:                   events[len(events)-1].Timestamp,
+		Models:                      modelsFromEvents(events),
+		TranscriptStatus:            transcriptStatus,
+		TranscriptUnavailableReason: unavailableReason,
+		MessageCount:                len(messages),
+		EventCount:                  len(events),
+		EventKinds:                  summarizeEvents(events),
+		Messages:                    messages,
+		Events:                      durableEvents,
 	}
 	return record
 }
@@ -256,6 +269,10 @@ func mergeSessionRecords(stored sessionRecord, current sessionRecord) sessionRec
 	current.MessageCount = len(current.Messages)
 	current.Models = uniqueSorted(append(stored.Models, current.Models...))
 	current.Commits = stored.Commits
+	if current.TranscriptStatus != "captured" && stored.TranscriptStatus == "captured" {
+		current.TranscriptStatus = stored.TranscriptStatus
+		current.TranscriptUnavailableReason = ""
+	}
 	if stored.StartedAt != "" {
 		current.StartedAt = stored.StartedAt
 	}
@@ -293,21 +310,31 @@ func messagesEqual(a []conversationMessage, b []conversationMessage) bool {
 	return true
 }
 
-func sessionTranscriptMessages(events []eventRecord) []conversationMessage {
+func sessionTranscriptMessages(events []eventRecord) ([]conversationMessage, string, string) {
+	hasTranscript := false
+	unavailableReason := ""
 	for i := len(events) - 1; i >= 0; i-- {
 		path := events[i].TranscriptPath
 		if path == "" {
 			continue
 		}
+		hasTranscript = true
 		data, err := os.ReadFile(path)
 		if err != nil {
+			unavailableReason = "unreadable"
 			continue
 		}
 		if messages := parseTranscriptMessages(data); len(messages) > 0 {
-			return messages
+			return messages, "captured", ""
+		}
+		if unavailableReason == "" {
+			unavailableReason = "empty"
 		}
 	}
-	return messagesFromEvents(events)
+	if hasTranscript {
+		return messagesFromEvents(events), "unavailable", unavailableReason
+	}
+	return messagesFromEvents(events), "not_provided", ""
 }
 
 func parseTranscriptMessages(data []byte) []conversationMessage {
@@ -544,16 +571,16 @@ func writeSessionRecord(root string, record sessionRecord) error {
 		return fmt.Errorf("marshal session %s: %w", record.ID, err)
 	}
 	data = append(data, '\n')
-	path := sessionRecordPath(record.Source, record.ID)
-	return writeRefFile(root, sessionRef, path, data, "trace session "+record.ID)
+	return writeRefFile(root, sessionRefFor(record.Source, record.ID), "session.json", data, "trace session "+record.ID)
 }
 
-func sessionRecordPath(source string, sessionID string) string {
-	return filepath.ToSlash(filepath.Join(safeName(source), safeName(sessionID)+".json"))
+func sessionRefFor(source string, sessionID string) string {
+	key := fmt.Sprintf("%x", sha256.Sum256([]byte(source+"\x00"+sessionID)))
+	return sessionRefPrefix + "/" + key[:2] + "/" + key
 }
 
 func readSessionRecord(root string, source string, sessionID string) (sessionRecord, bool, error) {
-	data, err := command(root, "git", "show", sessionRef+":"+sessionRecordPath(source, sessionID))
+	data, err := command(root, "git", "show", sessionRefFor(source, sessionID)+":session.json")
 	if err != nil {
 		return sessionRecord{}, false, nil
 	}
@@ -565,23 +592,23 @@ func readSessionRecord(root string, source string, sessionID string) (sessionRec
 }
 
 func listSessionRecords(root string) ([]sessionRecord, error) {
-	out, err := command(root, "git", "ls-tree", "-r", "--name-only", sessionRef)
+	out, err := command(root, "git", "for-each-ref", "--format=%(refname)", sessionRefPrefix+"/")
 	if err != nil {
 		return nil, nil
 	}
 	var records []sessionRecord
-	for _, path := range strings.Split(out, "\n") {
-		path = strings.TrimSpace(path)
-		if path == "" || !strings.HasSuffix(path, ".json") {
+	for _, ref := range strings.Split(out, "\n") {
+		ref = strings.TrimSpace(ref)
+		if ref == "" {
 			continue
 		}
-		data, err := command(root, "git", "show", sessionRef+":"+path)
+		data, err := command(root, "git", "show", ref+":session.json")
 		if err != nil {
-			return nil, fmt.Errorf("read session at %s: %w", path, err)
+			return nil, fmt.Errorf("read session at %s: %w", ref, err)
 		}
 		var record sessionRecord
 		if err := json.Unmarshal([]byte(data), &record); err != nil {
-			return nil, fmt.Errorf("parse session at %s: %w", path, err)
+			return nil, fmt.Errorf("parse session at %s: %w", ref, err)
 		}
 		records = append(records, record)
 	}
@@ -743,6 +770,11 @@ func showSessionConversation(sessionID string, asJSON bool, w io.Writer) error {
 		fmt.Fprintf(w, " (%s)", strings.Join(kinds, ", "))
 	}
 	fmt.Fprintln(w)
+	fmt.Fprintf(w, "Transcript: %s", session.TranscriptStatus)
+	if session.TranscriptUnavailableReason != "" {
+		fmt.Fprintf(w, " (%s)", session.TranscriptUnavailableReason)
+	}
+	fmt.Fprintln(w)
 	if len(session.Commits) > 0 {
 		fmt.Fprintln(w, "Commits:")
 		for _, link := range session.Commits {
@@ -778,7 +810,8 @@ func listSessions(asJSON bool, w io.Writer) error {
 		summaries = append(summaries, sessionSummary{
 			SchemaVersion: record.SchemaVersion, SessionID: record.ID, Source: record.Source, Repository: record.Repository,
 			Branch: record.Branch, StartedAt: record.StartedAt, UpdatedAt: record.UpdatedAt,
-			Models: record.Models, MessageCount: record.MessageCount, EventCount: record.EventCount,
+			Models: record.Models, TranscriptStatus: record.TranscriptStatus,
+			MessageCount: record.MessageCount, EventCount: record.EventCount,
 			CommitCount: len(record.Commits),
 		})
 	}
@@ -815,7 +848,11 @@ func renderEvents(w io.Writer, events []eventRecord) {
 
 func readTraceState(root string) (traceState, error) {
 	state := traceState{Sessions: map[string]sessionCursor{}}
-	data, err := os.ReadFile(filepath.Join(root, traceDir, "state.json"))
+	path, err := traceDataPath(root, "state.json")
+	if err != nil {
+		return traceState{}, err
+	}
+	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return state, nil
 	}
@@ -832,7 +869,11 @@ func readTraceState(root string) (traceState, error) {
 }
 
 func writeTraceState(root string, state traceState) error {
-	return writeJSON(filepath.Join(root, traceDir, "state.json"), state)
+	path, err := traceDataPath(root, "state.json")
+	if err != nil {
+		return err
+	}
+	return writeJSON(path, state)
 }
 
 func sessionStateKey(source string, sessionID string) string {
@@ -840,7 +881,49 @@ func sessionStateKey(source string, sessionID string) string {
 }
 
 var secretLine = regexp.MustCompile(`(?i)(api[_-]?key|token|password|secret|authorization)(["'\s:=]+)([^"',\s}]+)`)
+var secretKey = regexp.MustCompile(`(?i)^(api[_-]?key|access[_-]?token|token|password|secret|authorization)$`)
 
 func redactText(value string) string {
 	return secretLine.ReplaceAllString(value, "$1$2[REDACTED]")
+}
+
+func redactEventRecords(events []eventRecord) []eventRecord {
+	redacted := make([]eventRecord, len(events))
+	copy(redacted, events)
+	for i := range redacted {
+		redacted[i].Payload = redactPayload(redacted[i].Payload)
+	}
+	return redacted
+}
+
+func redactPayload(payload json.RawMessage) json.RawMessage {
+	var value any
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return json.RawMessage(redactText(string(payload)))
+	}
+	data, err := json.Marshal(redactJSONValue(value))
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return data
+}
+
+func redactJSONValue(value any) any {
+	switch typed := value.(type) {
+	case string:
+		return redactText(typed)
+	case []any:
+		for i := range typed {
+			typed[i] = redactJSONValue(typed[i])
+		}
+	case map[string]any:
+		for key, child := range typed {
+			if secretKey.MatchString(key) {
+				typed[key] = "[REDACTED]"
+				continue
+			}
+			typed[key] = redactJSONValue(child)
+		}
+	}
+	return value
 }

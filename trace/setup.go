@@ -11,47 +11,19 @@ import (
 )
 
 func initTrace(root string) error {
+	dataDir, err := traceDataPath(root)
+	if err != nil {
+		return err
+	}
 	dirs := []string{
-		filepath.Join(root, traceDir),
-		filepath.Join(root, traceDir, "sessions"),
-		filepath.Join(root, traceDir, "tmp"),
+		dataDir,
+		filepath.Join(dataDir, "sessions"),
+		filepath.Join(dataDir, "tmp"),
 	}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("create %s: %w", dir, err)
 		}
-	}
-	return addLocalExclude(root, traceDir+"/")
-}
-
-func addLocalExclude(root string, pattern string) error {
-	path, err := command(root, "git", "rev-parse", "--git-path", "info/exclude")
-	if err != nil {
-		return fmt.Errorf("resolve local Git exclude: %w", err)
-	}
-	path = strings.TrimSpace(path)
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(root, path)
-	}
-	existing, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("read local Git exclude: %w", err)
-	}
-	for _, line := range strings.Split(string(existing), "\n") {
-		if strings.TrimSpace(line) == pattern {
-			return nil
-		}
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("create local Git info directory: %w", err)
-	}
-	content := string(existing)
-	if content != "" && !strings.HasSuffix(content, "\n") {
-		content += "\n"
-	}
-	content += pattern + "\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		return fmt.Errorf("write local Git exclude: %w", err)
 	}
 	return nil
 }
@@ -82,13 +54,9 @@ func enableTrace(root string, w io.Writer) error {
 }
 
 func installGitHook(root string) error {
-	gitDir, err := command(root, "git", "rev-parse", "--git-common-dir")
+	gitDir, err := gitCommonDir(root)
 	if err != nil {
-		return fmt.Errorf("resolve git dir: %w", err)
-	}
-	gitDir = strings.TrimSpace(gitDir)
-	if !filepath.IsAbs(gitDir) {
-		gitDir = filepath.Join(root, gitDir)
+		return err
 	}
 	hooksDir := filepath.Join(gitDir, "hooks")
 	if err := os.MkdirAll(hooksDir, 0o750); err != nil {

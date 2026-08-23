@@ -79,8 +79,7 @@ func enableCodexFeature(root string) error {
 }
 
 type claudeSettings struct {
-	Hooks       map[string][]hookMatcher `json:"hooks,omitempty"`
-	Permissions map[string][]string      `json:"permissions,omitempty"`
+	Hooks map[string][]hookMatcher `json:"hooks,omitempty"`
 }
 
 func installClaudeHooks(root string) error {
@@ -109,24 +108,11 @@ func installClaudeHooks(root string) error {
 		hooks[item.event] = removeTraceHooks(hooks[item.event], "trace hooks claude-code ")
 		hooks[item.event] = addCommandHook(hooks[item.event], item.matcher, "trace hooks claude-code "+item.name, 0)
 	}
-	var permissions map[string][]string
-	if raw, ok := top["permissions"]; ok {
-		_ = json.Unmarshal(raw, &permissions)
-	}
-	if permissions == nil {
-		permissions = map[string][]string{}
-	}
-	permissions["deny"] = appendMissing(permissions["deny"], "Read(./.trace/sessions/**)")
 	rawHooks, err := json.Marshal(hooks)
 	if err != nil {
 		return fmt.Errorf("marshal Claude hooks: %w", err)
 	}
-	rawPermissions, err := json.Marshal(permissions)
-	if err != nil {
-		return fmt.Errorf("marshal Claude permissions: %w", err)
-	}
 	top["hooks"] = rawHooks
-	top["permissions"] = rawPermissions
 	return writeJSON(path, top)
 }
 

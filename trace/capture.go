@@ -39,7 +39,11 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 		waitForClaudeTranscriptFlush(transcriptPath, time.Now())
 	}
 	if source == "opencode" {
-		transcriptPath = openCodeTranscriptPath(root, sessionID)
+		path, err := openCodeTranscriptPath(root, sessionID)
+		if err != nil {
+			return err
+		}
+		transcriptPath = path
 		if shouldExportOpenCode(event) {
 			_ = exportOpenCodeTranscript(root, sessionID)
 		}
@@ -55,7 +59,10 @@ func captureSessionEvent(root string, source string, event string, payload []byt
 	if len(record.Payload) == 0 {
 		record.Payload = json.RawMessage(`{}`)
 	}
-	dir := filepath.Join(root, traceDir, "sessions", safeName(source))
+	dir, err := traceDataPath(root, "sessions", safeName(source))
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create session dir: %w", err)
 	}
@@ -82,12 +89,15 @@ func shouldExportOpenCode(event string) bool {
 	return event == "turn-end" || event == "session-end"
 }
 
-func openCodeTranscriptPath(root string, sessionID string) string {
-	return filepath.Join(root, traceDir, "tmp", "opencode", safeName(sessionID)+".json")
+func openCodeTranscriptPath(root string, sessionID string) (string, error) {
+	return traceDataPath(root, "tmp", "opencode", safeName(sessionID)+".json")
 }
 
 func exportOpenCodeTranscript(root string, sessionID string) error {
-	outPath := openCodeTranscriptPath(root, sessionID)
+	outPath, err := openCodeTranscriptPath(root, sessionID)
+	if err != nil {
+		return err
+	}
 	if os.Getenv("TRACE_TEST_OPENCODE_MOCK_EXPORT") != "" {
 		if _, err := os.Stat(outPath); err == nil {
 			return nil

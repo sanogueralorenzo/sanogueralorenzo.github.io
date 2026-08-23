@@ -66,6 +66,15 @@ func assertContainsFile(t *testing.T, path string, want string) {
 	}
 }
 
+func mustTraceDataPath(t *testing.T, repo string, elements ...string) string {
+	t.Helper()
+	path, err := traceDataPath(repo, elements...)
+	if err != nil {
+		t.Fatalf("traceDataPath: %v", err)
+	}
+	return path
+}
+
 func readTestJSON(t *testing.T, path string, v any) {
 	t.Helper()
 	data := readFile(t, path)

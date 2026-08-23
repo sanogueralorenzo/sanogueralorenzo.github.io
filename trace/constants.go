@@ -1,7 +1,7 @@
 package main
 
 const (
-	traceDir   = ".trace"
-	sessionRef = "refs/trace/sessions/v2"
-	noteRef    = "trace"
+	traceDataDir     = "trace"
+	sessionRefPrefix = "refs/trace/sessions/v3"
+	noteRef          = "trace"
 )

@@ -14,6 +14,7 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	payload := []byte(`{
   "session_id":"generic-session-id",
   "model":"model-a",
+  "token":"top-secret",
   "messages":[
     {"role":"user","text":"inspect token=hidden"},
     {"role":"assistant","text":"done"}
@@ -36,6 +37,9 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	if record.StartedAt == "" || record.UpdatedAt == "" || record.MessageCount != 2 || record.EventCount != 1 {
 		t.Fatalf("unexpected session metadata: %#v", record)
 	}
+	if record.TranscriptStatus != "not_provided" || record.TranscriptUnavailableReason != "" {
+		t.Fatalf("unexpected transcript status: %#v", record)
+	}
 	if len(record.Models) != 1 || record.Models[0] != "model-a" {
 		t.Fatalf("unexpected models: %v", record.Models)
 	}
@@ -44,6 +48,13 @@ func TestCapturedSessionPersistsMetadataBeforeCommit(t *testing.T) {
 	}
 	if len(record.Commits) != 0 || strings.Contains(record.Messages[0].Text, "hidden") || !strings.Contains(record.Messages[0].Text, "[REDACTED]") {
 		t.Fatalf("unexpected durable content: %#v", record)
+	}
+	durableEvents, err := json.Marshal(record.Events)
+	if err != nil {
+		t.Fatalf("marshal durable events: %v", err)
+	}
+	if strings.Contains(string(durableEvents), "top-secret") || strings.Contains(string(durableEvents), "hidden") {
+		t.Fatalf("durable events contain secrets: %s", durableEvents)
 	}
 	if status := strings.TrimSpace(git(t, repo, "status", "--porcelain")); status != "" {
 		t.Fatalf("session storage dirtied the branch: %s", status)
@@ -165,6 +176,10 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 	if len(record.Sessions) != 2 {
 		t.Fatalf("expected two linked sessions, got %#v", record.Sessions)
 	}
+	refs := strings.Fields(git(t, repo, "for-each-ref", "--format=%(refname)", sessionRefPrefix+"/"))
+	if len(refs) != 2 || refs[0] == refs[1] {
+		t.Fatalf("expected an independent ref per session, got %v", refs)
+	}
 
 	t.Chdir(repo)
 	var out bytes.Buffer
@@ -172,6 +187,34 @@ func TestCommitCanLinkMultipleSessions(t *testing.T) {
 		t.Fatalf("show commit: %v", err)
 	}
 	assertOutputContains(t, out.String(), "codex-session-full-id", "claude-session-full-id", "change the model", "review the model")
+}
+
+func TestCommitOnlyLinksSessionsFromItsWorktree(t *testing.T) {
+	repo := testRepo(t)
+	worktree := filepath.Join(t.TempDir(), "worktree")
+	git(t, repo, "worktree", "add", "-b", "other-worktree", worktree)
+	for _, item := range []struct {
+		root string
+		id   string
+	}{
+		{root: repo, id: "main-session"},
+		{root: worktree, id: "other-session"},
+	} {
+		payload := []byte(`{"session_id":"` + item.id + `","prompt":"change it"}`)
+		if err := captureSessionEvent(item.root, "custom-ai", "turn", payload); err != nil {
+			t.Fatalf("capture %s: %v", item.id, err)
+		}
+	}
+	writeFile(t, filepath.Join(repo, "main.go"), "package main\n")
+	git(t, repo, "add", "main.go")
+	git(t, repo, "commit", "-m", "change main worktree")
+	record, err := linkCommitSessions(repo)
+	if err != nil {
+		t.Fatalf("link commit: %v", err)
+	}
+	if len(record.Sessions) != 1 || record.Sessions[0].SessionID != "main-session" {
+		t.Fatalf("expected only the main worktree session, got %#v", record.Sessions)
+	}
 }
 
 func TestGenericIngestAndJSONViews(t *testing.T) {
@@ -214,6 +257,24 @@ func TestParseCodexTranscriptMessage(t *testing.T) {
 	messages := parseTranscriptMessages(data)
 	if len(messages) != 1 || messages[0].Role != "user" || messages[0].Text != "please add parser" {
 		t.Fatalf("unexpected messages: %#v", messages)
+	}
+}
+
+func TestTranscriptAvailabilityIsExplicit(t *testing.T) {
+	repo := testRepo(t)
+	payload := []byte(`{"session_id":"missing-transcript","transcript_path":"/does/not/exist","prompt":"keep the fallback"}`)
+	if err := captureSessionEvent(repo, "custom-ai", "turn", payload); err != nil {
+		t.Fatalf("captureSessionEvent: %v", err)
+	}
+	record, found, err := readSessionRecord(repo, "custom-ai", "missing-transcript")
+	if err != nil || !found {
+		t.Fatalf("read session: found=%v err=%v", found, err)
+	}
+	if record.TranscriptStatus != "unavailable" || record.TranscriptUnavailableReason != "unreadable" {
+		t.Fatalf("unexpected transcript availability: %#v", record)
+	}
+	if len(record.Messages) != 1 || record.Messages[0].Text != "keep the fallback" {
+		t.Fatalf("expected fallback prompt, got %#v", record.Messages)
 	}
 }
 

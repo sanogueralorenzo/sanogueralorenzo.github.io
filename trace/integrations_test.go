@@ -42,9 +42,6 @@ func TestClaudeHookConfig(t *testing.T) {
 	if !hasMatcherCommand(settings.Hooks["PostToolUse"], "Task", "trace hooks claude-code post-task") {
 		t.Fatalf("missing Claude Task post hook: %#v", settings.Hooks["PostToolUse"])
 	}
-	if got := strings.Join(settings.Permissions["deny"], "\n"); !strings.Contains(got, ".trace/sessions") {
-		t.Fatalf("missing Claude deny rule: %s", got)
-	}
 }
 
 func TestCodexTraceOwnedHooksAreReplaced(t *testing.T) {

@@ -13,7 +13,7 @@ func TestCodexCapture(t *testing.T) {
 	if err := captureSessionEvent(repo, "codex", "user-prompt-submit", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	assertContainsFile(t, filepath.Join(repo, ".trace", "sessions", "codex", "codex-1.jsonl"), "user-prompt-submit")
+	assertContainsFile(t, mustTraceDataPath(t, repo, "sessions", "codex", "codex-1.jsonl"), "user-prompt-submit")
 }
 
 func TestCaptureRequiresSessionID(t *testing.T) {
@@ -30,7 +30,7 @@ func TestClaudeCapture(t *testing.T) {
 	if err := captureSessionEvent(repo, "claude-code", "user-prompt-submit", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	assertContainsFile(t, filepath.Join(repo, ".trace", "sessions", "claude-code", "claude-1.jsonl"), "claude-code")
+	assertContainsFile(t, mustTraceDataPath(t, repo, "sessions", "claude-code", "claude-1.jsonl"), "claude-code")
 }
 
 func TestClaudeStopCaptureUsesTranscriptSentinel(t *testing.T) {
@@ -42,7 +42,7 @@ func TestClaudeStopCaptureUsesTranscriptSentinel(t *testing.T) {
 	if err := captureSessionEvent(repo, "claude-code", "stop", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	assertContainsFile(t, filepath.Join(repo, ".trace", "sessions", "claude-code", "claude-2.jsonl"), "stop")
+	assertContainsFile(t, mustTraceDataPath(t, repo, "sessions", "claude-code", "claude-2.jsonl"), "stop")
 }
 
 func TestOpenCodeCapture(t *testing.T) {
@@ -51,19 +51,23 @@ func TestOpenCodeCapture(t *testing.T) {
 	if err := captureSessionEvent(repo, "opencode", "turn-start", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	assertContainsFile(t, filepath.Join(repo, ".trace", "sessions", "opencode", "open-1.jsonl"), "turn-start")
+	assertContainsFile(t, mustTraceDataPath(t, repo, "sessions", "opencode", "open-1.jsonl"), "turn-start")
 }
 
 func TestOpenCodeCaptureExportsTranscript(t *testing.T) {
 	repo := testRepo(t)
 	t.Setenv("TRACE_TEST_OPENCODE_MOCK_EXPORT", "1")
-	writeFile(t, openCodeTranscriptPath(repo, "open-2"), `{"messages":[{"role":"user","text":"change it"}]}`)
+	transcript, err := openCodeTranscriptPath(repo, "open-2")
+	if err != nil {
+		t.Fatalf("openCodeTranscriptPath: %v", err)
+	}
+	writeFile(t, transcript, `{"messages":[{"role":"user","text":"change it"}]}`)
 	payload := []byte(`{"session_id":"open-2","prompt":"change it"}`)
 	if err := captureSessionEvent(repo, "opencode", "turn-end", payload); err != nil {
 		t.Fatalf("captureSessionEvent: %v", err)
 	}
-	got := readFile(t, filepath.Join(repo, ".trace", "sessions", "opencode", "open-2.jsonl"))
-	if !strings.Contains(got, "turn-end") || !strings.Contains(got, filepath.ToSlash(openCodeTranscriptPath(repo, "open-2"))) {
+	got := readFile(t, mustTraceDataPath(t, repo, "sessions", "opencode", "open-2.jsonl"))
+	if !strings.Contains(got, "turn-end") || !strings.Contains(got, filepath.ToSlash(transcript)) {
 		t.Fatalf("missing OpenCode transcript capture: %s", got)
 	}
 }
