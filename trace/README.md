@@ -1,84 +1,110 @@
 # Trace
 
-Trace connects each Git commit to the agent conversation that produced it.
-
-One session can span many commits, and one commit can include work from many
-sessions:
+Trace links each Git commit to the agent conversation that produced it.
 
 ```text
-commit -> session_id + conversation range
+commit -> full session_id + conversation range
 ```
 
-Trace stores each full, redacted session once. A Git note on each commit records
-the exact message and event range associated with that commit. The full
-`session_id` stays visible in both views.
+A session can span multiple commits, and a commit can link to multiple
+sessions. Trace stores the complete redacted session once, then uses Git notes
+to record which messages and events belong to each commit.
+
+## Requirements
+
+- Git
+- Go 1.26 or newer
+- Codex, Claude Code, or OpenCode for conversation capture
+
+Trace does not install or manage agent runtimes. A commit made without captured
+session activity remains unlinked.
 
 ## Install
 
-Build or install the CLI from this directory:
+From this directory:
 
 ```sh
 go install .
 ```
 
-Then run Trace inside any Git repository you want to remember:
+Make sure Go's binary directory is in `PATH`. macOS already ships a different
+`/usr/bin/trace`, so the Go binary directory must appear first. Verify with:
+
+```sh
+command -v trace
+trace
+```
+
+The second command should print:
+
+```text
+usage: trace <init|enable|hooks|show|session>
+```
+
+## Quick start
+
+Inside the Git repository you want to trace:
 
 ```sh
 trace enable
 ```
 
-`trace enable` is the main setup command. It initializes `.trace/`, installs the
-Git `post-commit` hook, and wires supported agent hooks where possible.
-
-Trace does not install, wrap, or manage agent runtimes. Codex, Claude Code, and
-OpenCode must already be installed for their sessions to be captured. Commits
-without a captured session remain unlinked.
-
-OpenCode transcript export uses the installed `opencode` CLI and caches the
-export under `.trace/tmp/opencode/`.
-
-## Usage
-
-1. Run `trace enable` once in a repository.
-2. Work normally with Codex, Claude Code, or OpenCode.
-3. Commit normally with `git commit`.
-4. Inspect the conversation for a commit or its complete session:
+Then work and commit normally. To inspect the conversation linked to the latest
+commit:
 
 ```sh
 trace show HEAD
-trace session 019d2a5f-5e87-7a31-9f8b-4c29c7de1024
 ```
 
-`trace show` prints only the part of each session linked to that commit. `trace
-session` prints the complete conversation and every linked commit.
+The output includes the full session ID and only the conversation range linked
+to that commit. To see the complete session and every commit it produced:
 
-## Command Reference
+```sh
+trace session <session-id>
+```
 
-- `trace init` creates `.trace/` storage in the current Git repository.
-- `trace enable` runs `init`, installs the `post-commit` Git hook, and writes hook config for Codex, Claude Code, and OpenCode.
-- `trace show <commit>` prints the commit-scoped conversation.
-- `trace session <session-id>` prints the full session and its linked commits.
+## Commands
 
-## Layout
+- `trace enable` initializes Trace and installs the Git and agent hooks. This is
+  the recommended setup command.
+- `trace init` creates `.trace/` storage without installing hooks.
+- `trace show <commit>` shows the conversation range for any Git revision, such
+  as `HEAD`, a branch, or a commit SHA.
+- `trace session <session-id>` shows the complete session and all linked
+  commits. Use the full ID printed by `trace show`.
+- `trace hooks ...` is an internal entry point used by installed integrations.
 
-- `.trace/sessions/<agent>/<session>.jsonl`: local raw agent hook events before commit.
-- `.trace/tmp/opencode/<session>.json`: temporary OpenCode transcript export cache.
-- `.trace/state.json`: local cursors that separate one session across commits.
-- `refs/trace/sessions/v1`: durable full-session records.
-- `refs/notes/trace`: commit-to-session links and message/event ranges.
+`trace enable` writes project hook configuration for Codex, Claude Code, and
+OpenCode, and installs `.git/hooks/post-commit`. Review generated repository
+files before committing them.
 
-The two refs are separate from the current branch. Push them explicitly when
-you want to share Trace history:
+## Storage
+
+Local working data is ignored by Git:
+
+- `.trace/sessions/<agent>/<session>.jsonl`: raw hook events
+- `.trace/tmp/`: temporary transcript exports
+- `.trace/state.json`: per-session commit cursors
+
+Durable history lives outside the current branch:
+
+- `refs/trace/sessions/v1`: complete redacted session records
+- `refs/notes/trace`: commit links and message/event ranges
+
+Normal pushes and fetches do not include these refs. To share Trace history:
 
 ```sh
 git push origin refs/trace/sessions/v1 refs/notes/trace
 ```
 
-## Hook Surface
+Fetch it with:
 
-Trace keeps the integration surface intentionally small:
+```sh
+git fetch origin \
+  refs/trace/sessions/v1:refs/trace/sessions/v1 \
+  refs/notes/trace:refs/notes/trace
+```
 
-- Codex project hooks in `.codex/hooks.json` for `SessionStart`, `UserPromptSubmit`, `Stop`, and `PostToolUse`.
-- Claude Code project hooks in `.claude/settings.json` for `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Stop`, and Task `PreToolUse`/`PostToolUse`.
-- OpenCode plugin hook events in `.opencode/plugins/trace.ts`.
-- Git `post-commit` links the new commit to captured session ranges.
+Trace redacts common secret patterns before writing durable records. Raw local
+hook events are not redacted at capture time, so keep `.trace/sessions/`
+private.
