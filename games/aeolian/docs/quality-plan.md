@@ -90,6 +90,13 @@ repeatable tunneling/accidental launch, or material behavior change across teste
 frame rates. At least one tester other than the implementer must complete the
 course on keyboard and gamepad before the gate closes.
 
+Current automated checkpoint (2026-08-23): pure movement/input/course calculations
+and the integrated scene matrix pass through the normal boot/session path. The
+scene matrix includes a true terrain gap, smooth crest/compression, banks, bounded
+roughness, 42 m/s terrain contact, and 30/42 m/s wall impacts. Native Forward+
+layout capture passes on the development Mac. This does not satisfy the required
+30/60/120 rendered-frame replay, physical-controller, comfort, or human-feel rows.
+
 ### Later focused questions
 
 - Slice: route choices readable at speed; reward/hazard value understood; visual

@@ -46,6 +46,7 @@ func sample_intent() -> InputIntent:
 	intent.tuck = Input.get_action_strength(&"tuck")
 	intent.brake = Input.get_action_strength(&"brake")
 	intent.jump_pressed = Input.is_action_just_pressed(&"jump_recover")
+	intent.jump_held = Input.is_action_pressed(&"jump_recover")
 	intent.restart_pressed = Input.is_action_just_pressed(&"restart_run")
 	return intent
 
@@ -90,4 +91,3 @@ func _on_joy_connection_changed(device_id: int, connected: bool) -> void:
 		Input.stop_joy_vibration(device_id)
 		_set_active_device(DeviceKind.KEYBOARD_MOUSE, -1)
 		controller_disconnected.emit(device_id)
-

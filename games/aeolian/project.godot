@@ -89,6 +89,7 @@ toggle_debug={
 [physics]
 
 common/physics_ticks_per_second=60
+common/physics_interpolation=true
 3d/physics_engine="Jolt Physics"
 
 [rendering]

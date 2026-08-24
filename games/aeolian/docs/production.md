@@ -39,7 +39,7 @@ work. “Implemented” is not exit evidence.
   CI gap, unverified icon provenance, and pre-content binary policy decision).
 - [x] Record Phase 0 gate outcome and create the validated Phase 1 work breakdown.
 
-### P1 — Phase 1 foundation (active)
+### P1 — Phase 1 foundation (passed)
 
 - [x] Add boot/main scenes and an explicit top-level state coordinator with a
   minimal title-to-test-level flow and recoverable loading errors.
@@ -67,16 +67,17 @@ work. “Implemented” is not exit evidence.
 
 ### P2 — Phase 2 movement validation (active, ordered)
 
-- [ ] Define measurable windboard motion states, units, tuning boundaries, contact
+- [x] Define measurable windboard motion states, units, tuning boundaries, contact
   probes, crash inputs, and initial Frost surface behavior before scene coupling.
-- [ ] Implement the smallest fixed-tick `CharacterBody3D` ground/air controller
+- [x] Implement the smallest fixed-tick `CharacterBody3D` ground/air controller
   with explicit input intent and telemetry; keep camera/presentation independent.
-- [ ] Expand the handcrafted course to cover gentle/steep slopes, banks, sharp
+- [x] Expand the handcrafted course to cover gentle/steep slopes, banks, sharp
   transitions, jumps, uneven contact, high speed, and a controlled crash case.
 - [ ] Add follow-camera look-ahead/FOV/damping with comfort multipliers, board
   presentation, contact trail/particles, and placeholder surface/speed audio.
-- [ ] Add restart/crash flow, recoverable instability, landing classification,
-  keyboard filtering, and bounded gamepad vibration.
+- [x] Add restart/crash flow, recoverable instability, landing classification,
+  keyboard filtering, held recovery, and bounded gamepad vibration. Feedback and
+  feel remain part of the unchecked presentation/playtest work.
 - [ ] Add calculation/contact/state regression tests and run 30/60/120 fps plus
   low/high input and tunneling/jitter probes on the course.
 - [ ] Request focused human playtest feedback using the questions in

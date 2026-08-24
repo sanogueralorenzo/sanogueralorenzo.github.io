@@ -7,6 +7,9 @@ const SUITES := [
 	preload("res://tests/test_game_state_machine.gd"),
 	preload("res://tests/test_profile_schema.gd"),
 	preload("res://tests/test_safe_config_file.gd"),
+	preload("res://tests/test_windboard_motion_model.gd"),
+	preload("res://tests/test_movement_course_geometry.gd"),
+	preload("res://tests/test_windboard_input_filter.gd"),
 ]
 const TEST_CASE := preload("res://tests/test_case.gd")
 

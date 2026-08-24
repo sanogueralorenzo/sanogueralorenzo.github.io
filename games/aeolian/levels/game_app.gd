@@ -25,7 +25,11 @@ func _ready() -> void:
 	AppLog.info(&"app", "Application ready", {
 		"version": ProjectSettings.get_setting("application/config/version", "unknown"),
 	})
-	if "--smoke-test" in OS.get_cmdline_user_args():
+	if "--movement-scene-test" in OS.get_cmdline_user_args():
+		var movement_test := preload("res://tests/test_windboard_scene_runner.gd").new()
+		add_child(movement_test)
+		movement_test.run.call_deferred(self)
+	elif "--smoke-test" in OS.get_cmdline_user_args():
 		_smoke_test_running = true
 		call_deferred("_run_smoke_test")
 	elif OS.is_debug_build() and "--capture-smoke" in OS.get_cmdline_user_args():

@@ -10,8 +10,8 @@ script = ExtResource("1")
 unique_name_in_owner = true
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 240.0
-offset_bottom = 176.0
+offset_right = 330.0
+offset_bottom = 380.0
 mouse_filter = 2
 
 [node name="Readout" type="Label" parent="Panel"]
@@ -19,4 +19,3 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "Performance telemetry"
-

@@ -1,0 +1,137 @@
+# Phase 2 movement specification and gate record
+
+Last updated: 2026-08-23 · Status: **in progress** · Owner: gameplay
+
+## Objective and boundary
+
+Validate that descending a handcrafted course on the windboard is stable,
+predictable, responsive, comfortable, and enjoyable before procedural terrain or
+production content depends on it. Phase 2 may use intentional primitive visuals
+and audio, but the integrated main project must remain runnable. Passing this gate
+does not make a vertical slice or completed game.
+
+## Coordinate system, units, and states
+
+- Godot units are metres; velocity and acceleration are m/s and m/s²; angles shown
+  to tuners are degrees; simulation remains at the pinned 60 physics ticks/second.
+- Global up is `+Y`; the initial fall line is `-Z`. The collision body remains
+  upright for stable capsule contact while its presentation aligns to the filtered
+  surface normal and travel heading.
+- Motion states are `GROUNDED`, `COYOTE`, `AIRBORNE`, and `CRASHED`. Landing emits
+  `CLEAN`, `RECOVERABLE`, or `CRASH`; speed alone is never a crash condition.
+- `CharacterBody3D` owns collision queries, floor/wall classification, motion, and
+  respawn. `WindboardMotionModel` owns heading, velocity, grip/drag, stability,
+  jumping, air control, and impact classification. Camera, mesh/VFX, audio, and UI
+  observe controller state and never write simulation velocity.
+
+## Initial measurable tuning contract
+
+The initial hardpack target is deliberately bounded, not claimed as final feel:
+
+| Property | Initial value / rule |
+| --- | --- |
+| Gravity | 9.8 m/s² × 1.1, projected along the contact plane while grounded |
+| Ground / air cap | 42 / 48 m/s (151 / 173 km/h); caps are safety rails, not acceleration sources |
+| Steering | 76°/s near rest → 34°/s by 32 m/s; tuck retains 62% authority |
+| Input response | Keyboard steer attacks at 7/s and releases/reverses at 10/s; analog uses a 1.15 signed-power curve and configured sensitivity |
+| Grip | lateral velocity moves toward zero at 15 m/s²; braking raises grip ×1.4 |
+| Drag | 0.22 m/s² base; tuck ×0.28; carve up to +3.2; brake up to +11 m/s² |
+| Jump | 7 m/s along surface normal; 0.12 s coyote time; 0.14 s recontact grace |
+| Contact | 58° maximum floor; 0.28 m snap; 0.45 m current-support cast; separate velocity look-ahead cast; 0.02 m safe margin |
+| Clean landing | normal impact ≤7.5 m/s and velocity/heading alignment ≥0.65 |
+| Terminal landing | normal impact ≥16 m/s, or alignment ≤0.2 with impact ≥6 m/s |
+| Wall crash | incoming normal speed ≥14 m/s; glancing/slow contact scrubs speed instead |
+| Stability | 0–1; drains only above 0.28 lateral-slip ratio, recovers 0.34/s (×1.75 while recover is held), and must remain empty for 0.35 s before a posture crash |
+
+All values live in `WindboardTuning` with units/ranges. Frost hardpack multipliers
+live in one `SurfaceProfile`; additional surfaces are not introduced until a
+specific course test requires them.
+
+## Contact and movement rules
+
+1. A short downward `ShapeCast3D` supplies close current-support evidence; a
+   separate velocity-directed cast observes upcoming transitions without declaring
+   an airborne rider grounded. `move_and_slide()` remains authoritative for actual
+   collision response, landing, and floor/wall slide data.
+2. Ground normals are filtered exponentially but never used to manufacture floor
+   contact. The heading and velocity are projected onto the accepted contact plane.
+3. Gravity projected along the plane creates acceleration. Floor snap is the sole
+   positional adhesion mechanism; no persistent inward velocity or manual position
+   correction is combined with it. Steering rotates the desired heading; bounded
+   lateral grip redirects existing momentum. No arbitrary forward motor accelerates
+   the board.
+4. Rolling, carve, and brake drag remove speed without reversing velocity. Tucking
+   reduces base drag and steering authority, creating an explicit speed/control
+   tradeoff.
+5. Jumping removes inward normal velocity, adds the surface-scaled jump impulse,
+   disables snap during recontact grace, then enters air integration. Air steering
+   redirects horizontal velocity at a bounded acceleration and cannot add energy.
+   The shared jump/recover action jumps from composed ground, braces instead when
+   grounded stability is below 0.75, and aligns heading toward travel while held
+   in air.
+6. On landing, pre-collision velocity is classified against the new floor normal
+   and heading. Recoverable landings reduce stability and momentum with feedback;
+   terminal landings enter `CRASHED`. Sustained severe slip can also exhaust
+   stability, but a transient wobble must remain recoverable.
+7. Wall crashes use incoming normal speed. A collision normal within the floor
+   angle is never reclassified as a wall merely because the board is fast.
+8. Restart restores the authored spawn transform, heading, stability, camera, and
+   transient effects in place; target input-to-control time is under 0.5 seconds in
+   this local course and under 3 seconds for the eventual run flow.
+
+## Required telemetry
+
+Debug overlay fields: motion state, scalar speed, tangent/lateral speed, slip ratio,
+stability, grounded/probe contact, raw/filtered normal, slope degrees, heading,
+surface ID, coyote/recontact timers, last landing impact/alignment/severity, last
+wall impact, crash cause, physics FPS, rendered FPS, and respawn count. A fixed-size
+event history records only state/contact/landing/crash transitions, not per-frame
+spam.
+
+## Automated acceptance evidence
+
+- Pure model tests: flat drag, downhill acceleration, tuck/brake tradeoffs,
+  steering/grip, no energy-gaining air control, jump impulse, finite input guards,
+  landing bands, wall impact, stability drain/recovery, speed caps, and 30/60/120 Hz
+  convergence over equal simulated time.
+- Scene tests: no sustained grounded jitter, snap survives small seams, jumping
+  leaves/reacquires floor, landing signals once, slow wall glances do not crash,
+  terminal impacts do, respawn is clean, and state does not depend on rendered FPS.
+- Course/runtime matrix and human questions remain canonical in `quality-plan.md`.
+
+## Implementation checkpoint — 2026-08-23
+
+- Production seams now exist as `WindboardMotionModel`, `WindboardController`,
+  `WindboardInputFilter`, `WindboardTuning`, and the first concrete Frost hardpack
+  `SurfaceProfile`. Simulation, collision, presentation, camera, and overlay remain
+  separately owned.
+- The integrated course is a deterministic 486 m diagnostic descent with a flat
+  calibration deck, 8° and 24° slopes, Hermite crest/compression, ±18° bank ribbon,
+  bounded roughness, a true 8 m jump gap, landing slope, 22° high-speed runway,
+  recovery mound, safe lane, and 1 m-thick wall target. The two sides of the jump
+  are each one welded concave collision mesh; render and collision share vertices.
+- Pure tests cover gravity/drag/grip/steer, tuck/brake, air energy, jump, landing
+  bands, wall closure, stability/recovery, caps, finite guards, equal-time
+  30/60/120 Hz calculations, input response, and analytic course continuity.
+- Real-scene tests boot through `GameApp` and the actual autoload/session path.
+  They cover the start deck, gentle acceleration, analog response, tuck/brake,
+  explicit jump/landing, crest, compression, banks, rough contact, authored gap,
+  a 42 m/s runway, 30 and 42 m/s wall impacts, and input-driven reset.
+- The course exposed and now guards a critical integration defect: feeding
+  `CharacterBody3D.velocity` back after slope resolution discarded the downhill
+  component every tick. Supported motion now consumes `get_real_velocity()`, while
+  collision classification still uses stored pre-move velocity.
+- Independent review also exposed two resolved edge cases: forceful impacts inside
+  coyote grace now pass through landing classification, and exactly backward travel
+  now drains stability instead of appearing perfectly composed. Controller-level
+  regressions cover contextual bracing and the hard-coyote-recontact crash path.
+- A native Metal Forward+ smoke capture verifies current spawn/camera/course
+  visibility. It is graphical integration evidence, not movement-feel approval.
+
+## Gate outcome
+
+Still in progress. Camera comfort/FOV behavior, terrain-contact VFX, trail, surface
+and speed audio, explicit recovery feedback, render-cap replays, physical-controller
+evidence, and focused non-implementer keyboard/gamepad playtesting remain. At exit,
+record whether the movement code is hardened, refactored, or replaced before Phase
+3 depends on it.

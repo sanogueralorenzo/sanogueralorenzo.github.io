@@ -35,3 +35,24 @@ func _process(delta: float) -> void:
 		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 		InputService.device_label(),
 	]
+	var players := get_tree().get_nodes_in_group(&"windboard_player")
+	if not players.is_empty() and players[0] is WindboardController:
+		var telemetry: Dictionary = players[0].get_telemetry()
+		readout.text += "\n\nState %s · tick %d\nSpeed %.1f m/s · %.0f km/h\nTangent %.1f · lateral %.1f · slip %.2f\nStability %.2f · slope %.1f°\nFloor %s · casts %s/%s\nCoyote %.2f · recontact %.2f\nSurface %s · crash %s" % [
+			telemetry.state,
+			telemetry.physics_tick,
+			telemetry.speed_mps,
+			telemetry.speed_mps * 3.6,
+			telemetry.tangent_speed_mps,
+			telemetry.lateral_speed_mps,
+			telemetry.slip_ratio,
+			telemetry.stability,
+			telemetry.slope_degrees,
+			telemetry.is_on_floor,
+			telemetry.support_now,
+			telemetry.support_ahead,
+			telemetry.coyote_seconds,
+			telemetry.recontact_seconds,
+			telemetry.surface,
+			telemetry.crash_cause,
+		]

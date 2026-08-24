@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="WindboardTuning" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://player/windboard_tuning.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+

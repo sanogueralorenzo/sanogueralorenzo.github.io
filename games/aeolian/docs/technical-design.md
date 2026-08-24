@@ -63,11 +63,16 @@ make exact steering and recovery difficult; a hybrid visual rigid body is deferr
 unless animation tests prove it necessary.
 
 Simulation runs in `_physics_process` at 60 Hz initially. Input is captured as an
-intent snapshot. Ground probes derive a filtered contact normal and surface ID.
+intent snapshot; digital steering is rate-filtered while analog steering retains
+proportional low input. A short support cast and separate velocity look-ahead cast
+derive contact evidence and a filtered normal without grounding airborne riders.
 Velocity is decomposed into tangent/downhill/lateral components, then affected by
 gravity, tuck drag, carve force, surface profile, wind, and bounded assistance.
-Presentation interpolates independently. Crash classification consumes relative
-impact speed, contact angle, posture, hazard flags, and grace windows.
+`move_and_slide()` remains the only collision resolver; supported model feedback
+uses `get_real_velocity()` so slope displacement is not discarded, while landing
+and wall classification consume stored pre-move velocity. Presentation interpolates
+independently. Crash classification consumes relative impact speed, contact angle,
+posture, hazard flags, and grace windows.
 
 Required debug telemetry: speed, slope, contact state/normal, surface, lateral
 slip, stability, crash cause, physics tick rate, and frame time. All tuning values

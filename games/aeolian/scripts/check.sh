@@ -17,7 +17,7 @@ run_godot_check() {
 
 run_godot_check --headless --path "$aeolian_root" --editor --quit-after 3
 run_godot_check --headless --path "$aeolian_root" --script res://tests/test_runner.gd
+run_godot_check --headless --fixed-fps 60 --path "$aeolian_root" -- --movement-scene-test
 run_godot_check --headless --path "$aeolian_root" -- --smoke-test
 
 echo "AEOLIAN foundation checks passed."
-
