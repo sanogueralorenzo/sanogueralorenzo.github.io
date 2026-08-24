@@ -9,6 +9,7 @@ const FOUNDATION_COURSE_PATH := "res://levels/foundation_course.tscn"
 var _state := GameStateMachine.new()
 var _active_session: Node
 var _smoke_test_running := false
+var _cadence_probe_running := false
 
 
 func _ready() -> void:
@@ -26,6 +27,10 @@ func _ready() -> void:
 		"version": ProjectSettings.get_setting("application/config/version", "unknown"),
 	})
 	if "--cadence-probe" in OS.get_cmdline_user_args():
+		_cadence_probe_running = true
+		# Native cadence evidence must not depend on which desktop window owns
+		# focus or receives incidental local input during the automated run.
+		InputService.set_process_input(false)
 		var cadence_probe := preload("res://tools/render_cadence_probe.gd").new()
 		add_child(cadence_probe)
 		cadence_probe.run.call_deferred(self)
@@ -120,6 +125,8 @@ func _on_transition_rejected(previous: GameStateMachine.State, requested: GameSt
 
 
 func _on_pause_requested() -> void:
+	if _cadence_probe_running:
+		return
 	if _state.current == GameStateMachine.State.DESCENT:
 		pause_game()
 	elif _state.current == GameStateMachine.State.PAUSED:
@@ -127,6 +134,8 @@ func _on_pause_requested() -> void:
 
 
 func _on_controller_disconnected(_device_id: int) -> void:
+	if _cadence_probe_running:
+		return
 	if _state.current == GameStateMachine.State.DESCENT:
 		pause_game()
 		pause_menu.set_notice("Controller disconnected. Keyboard controls remain available.")
@@ -134,6 +143,7 @@ func _on_controller_disconnected(_device_id: int) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_node_ready() \
+			and not _cadence_probe_running \
 			and _state.current == GameStateMachine.State.DESCENT:
 		pause_game()
 

@@ -179,7 +179,8 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   stayed at 60 Hz. Endpoint position, speed, motion/crash state, and ordered event
   signatures matched exactly across all three runs; the verifier also enforces
   5 cm / 0.1 m/s numeric ceilings. The harness isolates renderer cadence with
-  Godot's Dummy audio driver and retains JSON evidence under ignored `reports/`.
+  Godot's Dummy audio driver, suppresses real desktop focus/input pause events only
+  during the diagnostic process, and retains JSON evidence under ignored `reports/`.
 - CoreAudio on the development Mac can emit Godot ObjectDB playback warnings when
   a diagnostic process quits immediately after active audio. Normal session
   teardown is explicit and the cadence harness is clean, but exported-build quit
@@ -191,8 +192,9 @@ Still in progress. Automated calculation, contact, low/high-input, tunneling,
 jitter, restart, and native render-cadence evidence now passes. Camera, contact
 VFX/trail, speed/surface audio, recovery feedback, and comfort still require human
 tuning; physical-controller evidence and focused non-implementer keyboard/gamepad
-playtesting remain. The post-HUD-and-endpoint 120 FPS native rerun also requires an
-unlocked display because the locked development session is externally capped at
-60 FPS; 30/60 outcomes still match and no acceptance ceiling was weakened. At
-exit, record whether the movement code is hardened,
+playtesting remain. The post-HUD-and-endpoint 120 FPS native rerun also requires a
+development display session that actually presents above 60 Hz. On 2026-08-24 the
+focus/input-isolated 120 request completed every scenario but measured exactly
+60 FPS, so the strict verifier rejected it; 30/60 outcomes still match and no
+acceptance ceiling was weakened. At exit, record whether the movement code is hardened,
 refactored, or replaced before Phase 3 depends on it.

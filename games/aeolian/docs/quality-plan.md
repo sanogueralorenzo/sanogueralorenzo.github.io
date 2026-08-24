@@ -107,11 +107,13 @@ leaks, and missing frames. Native Metal Forward+ replays at measured 30/60/121
 rendered fps produced exact matching endpoint position, speed,
 state, crash result, and event signatures for crest, bank, terrain-jump, and fatal
 wall scenarios at fixed 60 Hz physics. The cadence harness uses Dummy audio to
-isolate rendering/physics. This closes the development-machine render-cadence row,
-but not physical-controller, target-PC, comfort, or human-feel rows. After the
-current HUD and endpoint changes, an unlocked-display 120 FPS rerun is pending: the
-locked macOS session held a 120 request at 60 rendered FPS, and the verifier
-correctly refused to accept that row rather than weakening its precondition.
+isolate rendering/physics and suppresses desktop focus/input pause events only in
+the diagnostic process. This closes the earlier development-machine render-cadence
+row, but not physical-controller, target-PC, comfort, or human-feel rows. After the
+current HUD and endpoint changes, a true high-refresh 120 FPS rerun is pending. A
+focus-isolated 2026-08-24 request completed every scenario but measured exactly
+60 rendered FPS, and the verifier correctly rejected that row rather than weakening
+its precondition.
 
 ### Later focused questions
 
