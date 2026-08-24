@@ -94,8 +94,12 @@ Current automated checkpoint (2026-08-23): pure movement/input/course calculatio
 and the integrated scene matrix pass through the normal boot/session path. The
 scene matrix includes a true terrain gap, smooth crest/compression, banks, bounded
 roughness, 42 m/s terrain contact, and 30/42 m/s wall impacts. Native Forward+
-layout capture passes on the development Mac. This does not satisfy the required
-30/60/120 rendered-frame replay, physical-controller, comfort, or human-feel rows.
+layout capture passes on the development Mac. Native Metal Forward+ replays at
+measured 30/60/121 rendered fps produced exact matching endpoint position, speed,
+state, crash result, and event signatures for crest, bank, terrain-jump, and fatal
+wall scenarios at fixed 60 Hz physics. The cadence harness uses Dummy audio to
+isolate rendering/physics. This closes the development-machine render-cadence row,
+but not physical-controller, target-PC, comfort, or human-feel rows.
 
 ### Later focused questions
 

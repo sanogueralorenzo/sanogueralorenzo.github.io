@@ -1,7 +1,9 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://player/windboard_controller.gd" id="1_controller"]
 [ext_resource type="Script" path="res://player/windboard_presentation.gd" id="2_presentation"]
+[ext_resource type="Script" path="res://player/windboard_feedback.gd" id="3_feedback"]
+[ext_resource type="Script" path="res://audio/windboard_audio.gd" id="4_audio"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_body"]
 radius = 0.35
@@ -30,6 +32,38 @@ roughness = 0.58
 material = SubResource("Material_rider")
 radius = 0.28
 height = 1.15
+
+[sub_resource type="StandardMaterial3D" id="Material_trail"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.72, 0.93, 1, 0.36)
+
+[sub_resource type="BoxMesh" id="BoxMesh_trail"]
+material = SubResource("Material_trail")
+size = Vector3(0.22, 0.015, 1)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleMaterial_snow"]
+emission_shape = 3
+emission_box_extents = Vector3(0.34, 0.04, 0.12)
+direction = Vector3(0, 0.55, 1)
+spread = 28.0
+gravity = Vector3(0, -3.5, 0)
+initial_velocity_min = 1.2
+initial_velocity_max = 4.8
+scale_min = 0.035
+scale_max = 0.11
+color = Color(0.8, 0.94, 1, 0.72)
+
+[sub_resource type="StandardMaterial3D" id="Material_snow_particle"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 1
+albedo_color = Color(0.86, 0.96, 1, 0.75)
+
+[sub_resource type="QuadMesh" id="QuadMesh_snow_particle"]
+material = SubResource("Material_snow_particle")
+size = Vector2(0.1, 0.1)
 
 [node name="Windboard" type="CharacterBody3D"]
 script = ExtResource("1_controller")
@@ -65,3 +99,41 @@ mesh = SubResource("BoxMesh_board")
 [node name="Rider" type="MeshInstance3D" parent="Presentation"]
 position = Vector3(0, -0.05, 0)
 mesh = SubResource("CapsuleMesh_rider")
+
+[node name="ContactTrail" type="MeshInstance3D" parent="Presentation"]
+unique_name_in_owner = true
+position = Vector3(0, -0.81, 1)
+mesh = SubResource("BoxMesh_trail")
+
+[node name="SnowSpray" type="GPUParticles3D" parent="Presentation"]
+unique_name_in_owner = true
+position = Vector3(0, -0.76, 0.72)
+emitting = false
+amount = 72
+amount_ratio = 0.5
+lifetime = 0.7
+randomness = 0.35
+visibility_aabb = AABB(-4, -2, -2, 8, 5, 9)
+process_material = SubResource("ParticleMaterial_snow")
+draw_pass_1 = SubResource("QuadMesh_snow_particle")
+
+[node name="Feedback" type="Node" parent="."]
+script = ExtResource("3_feedback")
+
+[node name="Audio" type="Node" parent="."]
+script = ExtResource("4_audio")
+
+[node name="WindLoop" type="AudioStreamPlayer" parent="Audio"]
+unique_name_in_owner = true
+volume_db = -36.0
+bus = &"Effects"
+
+[node name="SurfaceLoop" type="AudioStreamPlayer" parent="Audio"]
+unique_name_in_owner = true
+volume_db = -40.0
+bus = &"Effects"
+
+[node name="ImpactPlayer" type="AudioStreamPlayer" parent="Audio"]
+unique_name_in_owner = true
+volume_db = -24.0
+bus = &"Effects"

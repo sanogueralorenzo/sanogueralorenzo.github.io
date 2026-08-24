@@ -10,6 +10,7 @@ const SUITES := [
 	preload("res://tests/test_windboard_motion_model.gd"),
 	preload("res://tests/test_movement_course_geometry.gd"),
 	preload("res://tests/test_windboard_input_filter.gd"),
+	preload("res://tests/test_camera_response.gd"),
 ]
 const TEST_CASE := preload("res://tests/test_case.gd")
 

@@ -160,6 +160,13 @@ are not included in user-facing diagnostics.
 
 ## Presentation and performance architecture
 
+Camera, board posture, contact VFX, and player audio observe the controller through
+state/signals and read-only snapshots; none writes velocity or movement state.
+Precomputed deterministic Phase 2 wind/contact PCM loops prove the mixing seam
+through `Effects` without per-frame sample generation and must be replaced or
+intentionally retained at the later content gates. Session scenes expose explicit
+shutdown for active audio and future streamed resources before deferred deletion.
+
 Use one directional light, baked/probe lighting where helpful, selective local
 lights, bounded volumetric fog, shared materials, shader variants kept explicit,
 MultiMesh for repeated props, LOD/visibility ranges, opaque effects when possible,

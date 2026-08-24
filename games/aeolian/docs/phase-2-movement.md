@@ -127,11 +127,32 @@ spam.
   regressions cover contextual bracing and the hard-coyote-recontact crash path.
 - A native Metal Forward+ smoke capture verifies current spawn/camera/course
   visibility. It is graphical integration evidence, not movement-feel approval.
+- Camera look-ahead now expands with speed, FOV eases from 72° to a bounded 82°,
+  impact shake respects the existing 0–1 comfort setting, and restart resets camera
+  transients. Board lean, instability wobble, crash pose, hardpack trail, and snow
+  spray remain presentation observers and cannot mutate simulation.
+- Placeholder generated wind, hardpack-contact, and impact audio route through the
+  `Effects` bus; `Music` and `Effects` settings now apply to concrete buses. These
+  deterministic PCM loops intentionally prove runtime ownership/mixing only and
+  remain on the Phase 3/9 replacement register. They are precomputed at session
+  load rather than mixed sample-by-sample in gameplay, and session shutdown stops
+  and releases their streams explicitly.
+- A native Metal Forward+ cadence harness replayed crest, bank, terrain-jump, and
+  42 m/s wall scenarios at measured 30, 60, and 121 rendered fps while physics
+  stayed at 60 Hz. Endpoint position, speed, motion/crash state, and ordered event
+  signatures matched exactly across all three runs; the verifier also enforces
+  5 cm / 0.1 m/s numeric ceilings. The harness isolates renderer cadence with
+  Godot's Dummy audio driver and retains JSON evidence under ignored `reports/`.
+- CoreAudio on the development Mac can emit Godot ObjectDB playback warnings when
+  a diagnostic process quits immediately after active audio. Normal session
+  teardown is explicit and the cadence harness is clean, but exported-build quit
+  behavior remains a later platform QA row rather than being silently accepted.
 
 ## Gate outcome
 
-Still in progress. Camera comfort/FOV behavior, terrain-contact VFX, trail, surface
-and speed audio, explicit recovery feedback, render-cap replays, physical-controller
-evidence, and focused non-implementer keyboard/gamepad playtesting remain. At exit,
-record whether the movement code is hardened, refactored, or replaced before Phase
-3 depends on it.
+Still in progress. Automated calculation, contact, low/high-input, tunneling,
+jitter, restart, and native render-cadence evidence now passes. Camera, contact
+VFX/trail, speed/surface audio, recovery feedback, and comfort still require human
+tuning; physical-controller evidence and focused non-implementer keyboard/gamepad
+playtesting remain. At exit, record whether the movement code is hardened,
+refactored, or replaced before Phase 3 depends on it.

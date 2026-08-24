@@ -73,12 +73,12 @@ work. “Implemented” is not exit evidence.
   with explicit input intent and telemetry; keep camera/presentation independent.
 - [x] Expand the handcrafted course to cover gentle/steep slopes, banks, sharp
   transitions, jumps, uneven contact, high speed, and a controlled crash case.
-- [ ] Add follow-camera look-ahead/FOV/damping with comfort multipliers, board
+- [x] Add follow-camera look-ahead/FOV/damping with comfort multipliers, board
   presentation, contact trail/particles, and placeholder surface/speed audio.
 - [x] Add restart/crash flow, recoverable instability, landing classification,
   keyboard filtering, held recovery, and bounded gamepad vibration. Feedback and
   feel remain part of the unchecked presentation/playtest work.
-- [ ] Add calculation/contact/state regression tests and run 30/60/120 fps plus
+- [x] Add calculation/contact/state regression tests and run 30/60/120 fps plus
   low/high input and tunneling/jitter probes on the course.
 - [ ] Request focused human playtest feedback using the questions in
   `quality-plan.md`; at least one non-implementer must test keyboard and gamepad.

@@ -162,6 +162,10 @@ func _apply_setting(section: StringName, key: StringName, value: Variant) -> voi
 	match "%s/%s" % [section, key]:
 		"audio/master_db":
 			AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Master"), float(value))
+		"audio/music_db":
+			_set_bus_volume(&"Music", float(value))
+		"audio/effects_db":
+			_set_bus_volume(&"Effects", float(value))
 		"controls/gamepad_deadzone":
 			for action: StringName in InputService.REMAPPABLE_ACTIONS:
 				InputMap.action_set_deadzone(action, float(value))
@@ -170,6 +174,12 @@ func _apply_setting(section: StringName, key: StringName, value: Variant) -> voi
 				DisplayServer.window_set_vsync_mode(
 					DisplayServer.VSYNC_ENABLED if value else DisplayServer.VSYNC_DISABLED
 				)
+
+
+func _set_bus_volume(bus_name: StringName, volume_db: float) -> void:
+	var index := AudioServer.get_bus_index(bus_name)
+	if index >= 0:
+		AudioServer.set_bus_volume_db(index, volume_db)
 
 
 func _capture_default_bindings() -> void:

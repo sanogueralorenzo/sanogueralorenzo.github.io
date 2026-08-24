@@ -28,6 +28,19 @@ func run(game_app: Node) -> void:
 	if _capture("course.png") != OK:
 		get_tree().quit(7)
 		return
+	var course := game_app.get_node("SessionRoot").get_child(0)
+	var player := course.get_node("Windboard") as WindboardController
+	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
+	var normal := geometry.surface_normal(0.0, 102.0)
+	var heading := Vector3.FORWARD.slide(normal).normalized()
+	var origin := Vector3(0.0, geometry.surface_height(0.0, 102.0), -102.0) \
+		+ Vector3.UP * 0.86
+	player.place_for_test(Transform3D(Basis.IDENTITY, origin), heading, 28.0, normal)
+	course.get_node("CameraRig")._snap_to_target()
+	await _settle_frames(8)
+	if _capture("course-speed.png") != OK:
+		get_tree().quit(13)
+		return
 	await _press_action(&"pause")
 	await _settle_frames(2)
 	if not game_app.get_node("PauseMenu").visible \
@@ -46,6 +59,7 @@ func run(game_app: Node) -> void:
 		get_tree().quit(12)
 		return
 	game_app.return_to_title()
+	await _settle_frames(3)
 	AppLog.info(&"visual_smoke", "Rendered smoke frames captured", {
 		"directory": REPORT_DIRECTORY,
 	})

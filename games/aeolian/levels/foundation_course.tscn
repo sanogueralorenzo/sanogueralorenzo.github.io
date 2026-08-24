@@ -38,6 +38,7 @@ script = ExtResource("4_camera")
 target = NodePath("../Windboard")
 
 [node name="Camera" type="Camera3D" parent="CameraRig"]
+unique_name_in_owner = true
 current = true
 fov = 72.0
 

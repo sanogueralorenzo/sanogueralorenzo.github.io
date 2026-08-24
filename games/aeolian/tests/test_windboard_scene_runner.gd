@@ -297,6 +297,8 @@ func _test_high_speed_runway(
 		suite.assert_equal(air_ticks, 0)
 		suite.assert_true(-player.global_position.z > 420.0)
 		suite.assert_true(player.global_position.is_finite())
+		suite.assert_true(player.get_node("Presentation/ContactTrail").visible)
+		suite.assert_true(player.get_node("Presentation/SnowSpray").emitting)
 	)
 
 

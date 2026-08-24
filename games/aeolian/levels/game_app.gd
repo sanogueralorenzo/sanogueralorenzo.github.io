@@ -25,7 +25,11 @@ func _ready() -> void:
 	AppLog.info(&"app", "Application ready", {
 		"version": ProjectSettings.get_setting("application/config/version", "unknown"),
 	})
-	if "--movement-scene-test" in OS.get_cmdline_user_args():
+	if "--cadence-probe" in OS.get_cmdline_user_args():
+		var cadence_probe := preload("res://tools/render_cadence_probe.gd").new()
+		add_child(cadence_probe)
+		cadence_probe.run.call_deferred(self)
+	elif "--movement-scene-test" in OS.get_cmdline_user_args():
 		var movement_test := preload("res://tests/test_windboard_scene_runner.gd").new()
 		add_child(movement_test)
 		movement_test.run.call_deferred(self)
@@ -94,6 +98,8 @@ func return_to_title() -> void:
 
 func _clear_active_session() -> void:
 	if is_instance_valid(_active_session):
+		if _active_session.has_method(&"shutdown"):
+			_active_session.call(&"shutdown")
 		_active_session.queue_free()
 	_active_session = null
 
@@ -179,6 +185,17 @@ func _run_foundation_service_smoke_tests() -> bool:
 		AppLog.error(&"smoke", "Settings smoke round trip failed")
 		return false
 	SettingsStore.set_setting(&"controls", &"steer_sensitivity", original_sensitivity, false)
+	if AudioServer.get_bus_index(&"Music") < 0 or AudioServer.get_bus_index(&"Effects") < 0:
+		AppLog.error(&"smoke", "Required audio buses are missing")
+		return false
+	var original_effects_db := float(SettingsStore.get_setting(&"audio", &"effects_db"))
+	SettingsStore.set_setting(&"audio", &"effects_db", -7.0, false)
+	if not is_equal_approx(
+		AudioServer.get_bus_volume_db(AudioServer.get_bus_index(&"Effects")), -7.0
+	):
+		AppLog.error(&"smoke", "Effects bus setting was not applied")
+		return false
+	SettingsStore.set_setting(&"audio", &"effects_db", original_effects_db, false)
 
 	var original_profile := SaveStore.profile.duplicate(true)
 	SaveStore.profile = ProfileSchema.defaults()
