@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
 	var players := get_tree().get_nodes_in_group(&"windboard_player")
 	if not players.is_empty() and players[0] is WindboardController:
 		var telemetry: Dictionary = players[0].get_telemetry()
-		readout.text += "\n\nState %s · tick %d\nSpeed %.1f m/s · %.0f km/h\nTangent %.1f · lateral %.1f · slip %.2f\nStability %.2f · slope %.1f°\nFloor %s · casts %s/%s\nCoyote %.2f · recontact %.2f\nSurface %s · crash %s" % [
+		readout.text += "\n\nState %s · tick %d\nSpeed %.1f m/s · %.0f km/h\nTangent %.1f · lateral %.1f · slip %.2f\nStability %.2f · terrain stress %.3f · slope %.1f°\nFloor %s · casts %s/%s\nCoyote %.2f · recontact %.2f\nSurface %s · crash %s" % [
 			telemetry.state,
 			telemetry.physics_tick,
 			telemetry.speed_mps,
@@ -47,6 +47,7 @@ func _process(delta: float) -> void:
 			telemetry.lateral_speed_mps,
 			telemetry.slip_ratio,
 			telemetry.stability,
+			telemetry.last_terrain_stress_damage,
 			telemetry.slope_degrees,
 			telemetry.is_on_floor,
 			telemetry.support_now,

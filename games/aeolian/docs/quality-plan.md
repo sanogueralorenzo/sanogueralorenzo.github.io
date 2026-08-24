@@ -93,7 +93,8 @@ course on keyboard and gamepad before the gate closes.
 Current automated checkpoint (2026-08-23): pure movement/input/course calculations
 and the integrated scene matrix pass through the normal boot/session path. The
 scene matrix includes a true terrain gap, smooth crest/compression, banks, bounded
-roughness, 42 m/s terrain contact, and 30/42 m/s wall impacts. Native Forward+
+roughness, recoverable terrain-normal stress, pause/resume invariants, twenty
+in-place restarts, 42 m/s terrain contact, and 30/42 m/s wall impacts. Native Forward+
 layout capture passes on the development Mac. Native Metal Forward+ replays at
 measured 30/60/121 rendered fps produced exact matching endpoint position, speed,
 state, crash result, and event signatures for crest, bank, terrain-jump, and fatal

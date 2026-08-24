@@ -118,6 +118,24 @@ func apply_landing_damage(result: Dictionary) -> void:
 	stability = maxf(0.0, stability - float(result.get("stability_damage", 0.0)))
 
 
+func apply_terrain_normal_stress(
+		normal_change_degrees: float,
+		delta: float,
+		tuning: WindboardTuning,
+		surface: SurfaceProfile
+	) -> float:
+	if not is_finite(normal_change_degrees) or not is_finite(delta) or delta <= 0.0:
+		return 0.0
+	var threshold_degrees := tuning.terrain_normal_stress_start_deg_per_second * delta
+	var excess_degrees := maxf(0.0, absf(normal_change_degrees) - threshold_degrees)
+	var damage := excess_degrees \
+		* tuning.terrain_normal_stability_damage_per_excess_degree \
+		/ maxf(surface.stability_multiplier, 0.001)
+	damage = clampf(damage, 0.0, 1.0)
+	stability = maxf(0.0, stability - damage)
+	return damage
+
+
 static func classify_landing(
 		incoming_velocity: Vector3,
 		ground_normal: Vector3,

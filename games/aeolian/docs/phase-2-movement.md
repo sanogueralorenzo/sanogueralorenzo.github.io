@@ -41,7 +41,7 @@ The initial hardpack target is deliberately bounded, not claimed as final feel:
 | Clean landing | normal impact ≤7.5 m/s and velocity/heading alignment ≥0.65 |
 | Terminal landing | normal impact ≥16 m/s, or alignment ≤0.2 with impact ≥6 m/s |
 | Wall crash | incoming normal speed ≥14 m/s; glancing/slow contact scrubs speed instead |
-| Stability | 0–1; drains only above 0.28 lateral-slip ratio, recovers 0.34/s (×1.75 while recover is held), and must remain empty for 0.35 s before a posture crash |
+| Stability | 0–1; drains above 0.28 lateral-slip ratio or when accepted terrain normals change faster than 300°/s, recovers 0.34/s (×1.75 while recover is held), and must remain empty for 0.35 s before a posture crash |
 
 All values live in `WindboardTuning` with units/ranges. Frost hardpack multipliers
 live in one `SurfaceProfile`; additional surfaces are not introduced until a
@@ -72,7 +72,11 @@ specific course test requires them.
 6. On landing, pre-collision velocity is classified against the new floor normal
    and heading. Recoverable landings reduce stability and momentum with feedback;
    terminal landings enter `CRASHED`. Sustained severe slip can also exhaust
-   stability, but a transient wobble must remain recoverable.
+   stability. Rapid terrain-normal changes above the data-driven threshold apply
+   bounded, surface-scaled instability with wobble, audio, camera, and haptic
+   feedback. Stability damage remains continuous while observer transients are
+   rate-limited to one every 0.20 seconds; ordinary authored roughness remains
+   below the activation threshold.
 7. Wall crashes use incoming normal speed. A collision normal within the floor
    angle is never reclassified as a wall merely because the board is fast.
 8. Restart restores the authored spawn transform, heading, stability, camera, and
@@ -84,16 +88,16 @@ specific course test requires them.
 Debug overlay fields: motion state, scalar speed, tangent/lateral speed, slip ratio,
 stability, grounded/probe contact, raw/filtered normal, slope degrees, heading,
 surface ID, coyote/recontact timers, last landing impact/alignment/severity, last
-wall impact, crash cause, physics FPS, rendered FPS, and respawn count. A fixed-size
-event history records only state/contact/landing/crash transitions, not per-frame
-spam.
+wall impact, last terrain-normal stress, crash cause, physics FPS, rendered FPS,
+and respawn count. A fixed-size event history records only meaningful
+state/contact/landing/stress/crash transitions, not per-frame spam.
 
 ## Automated acceptance evidence
 
 - Pure model tests: flat drag, downhill acceleration, tuck/brake tradeoffs,
   steering/grip, no energy-gaining air control, jump impulse, finite input guards,
-  landing bands, wall impact, stability drain/recovery, speed caps, and 30/60/120 Hz
-  convergence over equal simulated time.
+  landing bands, wall impact, slip/terrain-normal stability drain and recovery,
+  speed caps, and 30/60/120 Hz convergence over equal simulated time.
 - Scene tests: no sustained grounded jitter, snap survives small seams, jumping
   leaves/reacquires floor, landing signals once, slow wall glances do not crash,
   terminal impacts do, respawn is clean, and state does not depend on rendered FPS.
@@ -116,7 +120,9 @@ spam.
 - Real-scene tests boot through `GameApp` and the actual autoload/session path.
   They cover the start deck, gentle acceleration, analog response, tuck/brake,
   explicit jump/landing, crest, compression, banks, rough contact, authored gap,
-  a 42 m/s runway, 30 and 42 m/s wall impacts, and input-driven reset.
+  a 42 m/s runway, pause/resume without an impulse, a nonterminal recovery mound,
+  30 and 42 m/s wall impacts, and twenty input-driven resets without session or
+  player duplication.
 - The course exposed and now guards a critical integration defect: feeding
   `CharacterBody3D.velocity` back after slope resolution discarded the downhill
   component every tick. Supported motion now consumes `get_real_velocity()`, while
@@ -125,6 +131,12 @@ spam.
   coyote grace now pass through landing classification, and exactly backward travel
   now drains stability instead of appearing perfectly composed. Controller-level
   regressions cover contextual bracing and the hard-coyote-recontact crash path.
+- An expanded pause/recovery/restart matrix exposed two resolved integration
+  defects: the always-processing application root allowed gameplay to continue
+  under the pause menu, and the authored recovery mound launched the rider without
+  producing stability feedback. `SessionRoot` is now explicitly pausable, while
+  bounded terrain-normal stress makes the mound recoverable and leaves ordinary
+  roughness below its activation threshold.
 - A native Metal Forward+ smoke capture verifies current spawn/camera/course
   visibility. It is graphical integration evidence, not movement-feel approval.
 - Camera look-ahead now expands with speed, FOV eases from 72° to a bounded 82°,

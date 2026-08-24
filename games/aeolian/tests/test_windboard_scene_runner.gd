@@ -28,9 +28,12 @@ func run(game_app: Node) -> void:
 	await _test_bank_and_rough_contact(suite, course, player)
 	await _test_authored_gap(suite, course, player)
 	await _test_high_speed_runway(suite, course, player)
+	await _test_pause_resume(suite, game_app, course, player)
+	_test_terrain_stress_feedback_rate(suite, course, player)
+	await _test_recovery_mound(suite, course, player)
 	await _test_coyote_hard_recontact(suite, course, player)
 	await _test_fatal_wall(suite, course, player)
-	await _test_restart(suite, player)
+	await _test_repeated_restart(suite, game_app, player)
 
 	game_app.return_to_title()
 	await get_tree().process_frame
@@ -177,16 +180,26 @@ func _test_contextual_recovery(
 	)
 
 
-func _test_restart(suite: RefCounted, player: WindboardController) -> void:
+func _test_repeated_restart(
+		suite: RefCounted,
+		game_app: Node,
+		player: WindboardController
+	) -> void:
 	var before_count := player.respawn_count
-	_pending_restart = true
-	await get_tree().physics_frame
-	suite.run_test("restart input restores a clean controllable state", func() -> void:
-		suite.assert_equal(player.respawn_count, before_count + 1)
+	var player_id := player.get_instance_id()
+	var session_count := game_app.get_node("SessionRoot").get_child_count()
+	for attempt in 20:
+		_pending_restart = true
+		await get_tree().physics_frame
+	suite.run_test("twenty input restarts preserve one clean controllable session", func() -> void:
+		suite.assert_equal(player.respawn_count, before_count + 20)
 		suite.assert_true(player.global_position.distance_to(Vector3(0.0, 45.86, -4.0)) < 0.1)
 		suite.assert_equal(player.motion_state, WindboardController.MotionState.GROUNDED)
 		suite.assert_near(player.motion_model.stability, 1.0, 0.001)
 		suite.assert_equal(player.crash_cause, &"")
+		suite.assert_equal(player.get_instance_id(), player_id)
+		suite.assert_equal(game_app.get_node("SessionRoot").get_child_count(), session_count)
+		suite.assert_true(player.event_history.size() <= WindboardController.EVENT_HISTORY_LIMIT)
 	)
 
 
@@ -240,15 +253,33 @@ func _test_bank_and_rough_contact(
 	)
 
 	_place_at(player, geometry, 0.0, 240.0, 12.0)
+	player.event_history.clear()
 	var rough_air_ticks := 0
+	var rough_previous_normal := player.raw_ground_normal
+	var rough_maximum_normal_delta := 0.0
 	for frame in 150:
 		await get_tree().physics_frame
+		rough_maximum_normal_delta = maxf(
+			rough_maximum_normal_delta,
+			rad_to_deg(rough_previous_normal.angle_to(player.raw_ground_normal))
+		)
+		rough_previous_normal = player.raw_ground_normal
 		if player.motion_state == WindboardController.MotionState.AIRBORNE:
 			rough_air_ticks += 1
 	suite.run_test("controlled roughness does not invent a jump", func() -> void:
+		var terrain_stress_count := 0
+		for event: Dictionary in player.event_history:
+			if event.kind == &"terrain_stress":
+				terrain_stress_count += 1
 		suite.assert_not_equal(player.motion_state, WindboardController.MotionState.CRASHED)
 		suite.assert_true(rough_air_ticks <= 5)
 		suite.assert_true(player.global_position.is_finite())
+		suite.assert_equal(terrain_stress_count, 0)
+		suite.assert_equal(player.last_terrain_stress_damage, 0.0)
+		suite.assert_true(
+			rough_maximum_normal_delta * 60.0 \
+				< player.tuning.terrain_normal_stress_start_deg_per_second
+		)
 	)
 
 
@@ -302,6 +333,121 @@ func _test_high_speed_runway(
 	)
 
 
+func _test_pause_resume(
+		suite: RefCounted,
+		game_app: Node,
+		course: Node,
+		player: WindboardController
+	) -> void:
+	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
+	_place_at(player, geometry, 0.0, 18.0, 10.0)
+	for frame in 12:
+		await get_tree().physics_frame
+	var paused_position := player.global_position
+	var paused_velocity := player.motion_model.velocity
+	var paused_tick := player.physics_tick
+	game_app.pause_game()
+	for frame in 12:
+		await get_tree().physics_frame
+	var position_while_paused := player.global_position
+	var velocity_while_paused := player.motion_model.velocity
+	var tick_while_paused := player.physics_tick
+	game_app.resume_game()
+	await get_tree().physics_frame
+	suite.run_test("pause freezes movement and resume adds no impulse", func() -> void:
+		suite.assert_equal(position_while_paused, paused_position)
+		suite.assert_equal(velocity_while_paused, paused_velocity)
+		suite.assert_equal(tick_while_paused, paused_tick)
+		suite.assert_equal(player.physics_tick, paused_tick + 1)
+		suite.assert_true(player.motion_model.velocity.distance_to(paused_velocity) < 1.0)
+		suite.assert_false(get_tree().paused)
+	)
+
+
+func _test_terrain_stress_feedback_rate(
+		suite: RefCounted,
+		course: Node,
+		player: WindboardController
+	) -> void:
+	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
+	_place_at(player, geometry, 0.0, 454.0, 0.0)
+	player.event_history.clear()
+	var normal_a := Vector3.UP
+	var normal_b := Vector3.UP.rotated(Vector3.RIGHT, deg_to_rad(12.0))
+	player._stress_reference_normal = normal_a
+	player._normal_stress_tick = player.physics_tick
+	for sample in 12:
+		player.physics_tick += 1
+		player.raw_ground_normal = normal_b if sample % 2 == 0 else normal_a
+		player._filter_ground_normal(1.0 / 60.0)
+	var terrain_stress_count := 0
+	for event: Dictionary in player.event_history:
+		if event.kind == &"terrain_stress":
+			terrain_stress_count += 1
+	suite.run_test("sustained terrain stress rate-limits transient feedback", func() -> void:
+		suite.assert_true(player.motion_model.stability < 0.5)
+		suite.assert_equal(terrain_stress_count, 1)
+	)
+
+
+func _test_recovery_mound(
+		suite: RefCounted,
+		course: Node,
+		player: WindboardController
+	) -> void:
+	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
+	_place_at(player, geometry, 0.0, 454.0, 22.0)
+	player.event_history.clear()
+	var minimum_stability := player.motion_model.stability
+	var airborne_ticks := 0
+	var previous_normal := player.raw_ground_normal
+	var maximum_normal_delta_deg := 0.0
+	for frame in 60:
+		_scripted_recover_held = frame >= 24
+		await get_tree().physics_frame
+		minimum_stability = minf(minimum_stability, player.motion_model.stability)
+		maximum_normal_delta_deg = maxf(
+			maximum_normal_delta_deg,
+			rad_to_deg(previous_normal.angle_to(player.raw_ground_normal))
+		)
+		previous_normal = player.raw_ground_normal
+		if player.motion_state == WindboardController.MotionState.AIRBORNE:
+			airborne_ticks += 1
+	_scripted_recover_held = false
+	var landing_count := 0
+	var landing_impact := 0.0
+	var terrain_stress_count := 0
+	var landing_ticks: Dictionary = {}
+	var stress_ticks: Dictionary = {}
+	for event: Dictionary in player.event_history:
+		if event.kind == &"landing":
+			landing_count += 1
+			landing_impact = maxf(landing_impact, float(event.data.impact_speed_mps))
+			landing_ticks[int(event.tick)] = true
+		elif event.kind == &"terrain_stress":
+			terrain_stress_count += 1
+			stress_ticks[int(event.tick)] = true
+	suite.run_test("recovery mound causes readable nonterminal instability", func() -> void:
+		suite.assert_not_equal(player.motion_state, WindboardController.MotionState.CRASHED)
+		suite.assert_true(-player.global_position.z > 466.0)
+		suite.assert_true(
+			minimum_stability < 0.99,
+			"Expected mound stability loss; min=%.3f air=%d landings=%d impact=%.3f normal=%.2f" % [
+				minimum_stability,
+				airborne_ticks,
+				landing_count,
+				landing_impact,
+				maximum_normal_delta_deg,
+			]
+		)
+		suite.assert_true(player.motion_model.stability > minimum_stability)
+		suite.assert_true(airborne_ticks > 0 or landing_count > 0)
+		suite.assert_true(terrain_stress_count > 0)
+		for tick: int in landing_ticks:
+			suite.assert_false(stress_ticks.has(tick))
+	)
+
+
 func _test_fatal_wall(
 		suite: RefCounted,
 		course: Node,
@@ -338,14 +484,20 @@ func _test_coyote_hard_recontact(
 	player.velocity = player.motion_model.velocity
 	player.motion_state = WindboardController.MotionState.COYOTE
 	player._coyote_timer = player.tuning.coyote_time_seconds
+	player.event_history.clear()
 	for frame in 12:
 		await get_tree().physics_frame
 		if player.motion_state == WindboardController.MotionState.CRASHED:
 			break
 	suite.run_test("hard coyote-window recontact is still classified", func() -> void:
+		var terrain_stress_count := 0
+		for event: Dictionary in player.event_history:
+			if event.kind == &"terrain_stress":
+				terrain_stress_count += 1
 		suite.assert_equal(player.motion_state, WindboardController.MotionState.CRASHED)
 		suite.assert_equal(player.crash_cause, &"terminal_landing")
 		suite.assert_true(float(player.last_landing.impact_speed_mps) >= 16.0)
+		suite.assert_equal(terrain_stress_count, 0)
 	)
 
 

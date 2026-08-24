@@ -5,6 +5,7 @@ signal motion_state_changed(previous: MotionState, current: MotionState)
 signal landed(result: Dictionary)
 signal crashed(cause: StringName, details: Dictionary)
 signal respawned(count: int)
+signal destabilized(amount: float, cause: StringName)
 
 enum MotionState {
 	GROUNDED,
@@ -32,6 +33,7 @@ var raw_ground_normal := Vector3.UP
 var filtered_ground_normal := Vector3.UP
 var last_landing: Dictionary = {}
 var last_wall_impact_mps := 0.0
+var last_terrain_stress_damage := 0.0
 var last_requested_velocity := Vector3.ZERO
 var raw_intent := InputIntent.new()
 var filtered_intent := InputIntent.new()
@@ -46,6 +48,9 @@ var _zero_stability_seconds := 0.0
 var _intent_provider := Callable()
 var _input_provider_is_gamepad := false
 var _ignore_cached_floor := true
+var _stress_reference_normal := Vector3.UP
+var _normal_stress_tick := -1
+var _terrain_stress_feedback_cooldown := 0.0
 
 
 func _ready() -> void:
@@ -183,6 +188,12 @@ func place_for_test(
 	motion_state = MotionState.GROUNDED
 	raw_ground_normal = ground_normal.normalized()
 	filtered_ground_normal = raw_ground_normal
+	last_landing.clear()
+	last_wall_impact_mps = 0.0
+	last_terrain_stress_damage = 0.0
+	_stress_reference_normal = raw_ground_normal
+	_normal_stress_tick = physics_tick
+	_terrain_stress_feedback_cooldown = 0.0
 	_coyote_timer = 0.0
 	_recontact_timer = 0.0
 	_airborne_seconds = 0.0
@@ -220,6 +231,7 @@ func get_telemetry() -> Dictionary:
 		"zero_stability_seconds": _zero_stability_seconds,
 		"last_landing": last_landing.duplicate(true),
 		"last_wall_impact_mps": last_wall_impact_mps,
+		"last_terrain_stress_damage": last_terrain_stress_damage,
 		"crash_cause": crash_cause,
 		"respawn_count": respawn_count,
 		"raw_steer": raw_intent.steer,
@@ -302,6 +314,35 @@ func _update_support_ahead() -> void:
 
 
 func _filter_ground_normal(delta: float) -> void:
+	if _stress_reference_normal.is_zero_approx():
+		_stress_reference_normal = raw_ground_normal
+		_normal_stress_tick = physics_tick
+	elif _normal_stress_tick != physics_tick:
+		_terrain_stress_feedback_cooldown = maxf(
+			0.0, _terrain_stress_feedback_cooldown - delta
+		)
+		var normal_change_degrees := rad_to_deg(
+			_stress_reference_normal.angle_to(raw_ground_normal)
+		)
+		_stress_reference_normal = raw_ground_normal
+		_normal_stress_tick = physics_tick
+		# Airborne/coyote recontacts are owned by landing classification; applying
+		# terrain stress there would double-charge the same impact.
+		if motion_state == MotionState.GROUNDED:
+			var damage := motion_model.apply_terrain_normal_stress(
+				normal_change_degrees, delta, tuning, surface
+			)
+			if damage > 0.001:
+				last_terrain_stress_damage = damage
+				if _terrain_stress_feedback_cooldown <= 0.0:
+					_record_event(&"terrain_stress", {
+						"damage": damage,
+						"normal_change_degrees": normal_change_degrees,
+					})
+					InputService.vibrate_impact(clampf(damage * 2.5, 0.0, 0.65), 0.12)
+					destabilized.emit(damage, &"terrain_normal_change")
+					_terrain_stress_feedback_cooldown = \
+						tuning.terrain_stress_feedback_cooldown_seconds
 	var blend := 1.0 - exp(-tuning.normal_smoothing_rate * delta)
 	filtered_ground_normal = filtered_ground_normal.lerp(raw_ground_normal, blend).normalized()
 
@@ -395,12 +436,16 @@ func _reset_motion(record_event: bool) -> void:
 	filtered_ground_normal = Vector3.UP
 	last_landing.clear()
 	last_wall_impact_mps = 0.0
+	last_terrain_stress_damage = 0.0
 	crash_cause = &""
 	_coyote_timer = 0.0
 	_recontact_timer = 0.0
 	_airborne_seconds = 0.0
 	_zero_stability_seconds = 0.0
 	_ignore_cached_floor = true
+	_stress_reference_normal = Vector3.ZERO
+	_normal_stress_tick = -1
+	_terrain_stress_feedback_cooldown = 0.0
 	floor_snap_length = tuning.floor_snap_length_m
 	if record_event:
 		_record_event(&"respawn", {"count": respawn_count})

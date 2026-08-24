@@ -145,6 +145,25 @@ static func run(suite: RefCounted) -> void:
 			held_recovery.velocity.length(), normal_recovery.velocity.length(), 0.001
 		)
 	)
+	suite.run_test("rapid terrain-normal change causes bounded stability stress", func() -> void:
+		var model := _model_at_speed(12.0)
+		var tuning := _tuning()
+		var surface := _surface()
+		var below_threshold := model.apply_terrain_normal_stress(
+			4.0, 1.0 / 60.0, tuning, surface
+		)
+		var abrupt_change := model.apply_terrain_normal_stress(
+			12.0, 1.0 / 60.0, tuning, surface
+		)
+		suite.assert_near(below_threshold, 0.0, 0.0001)
+		suite.assert_near(abrupt_change, 0.175, 0.001)
+		suite.assert_near(model.stability, 0.825, 0.001)
+		suite.assert_near(
+			model.apply_terrain_normal_stress(NAN, 1.0 / 60.0, tuning, surface),
+			0.0,
+			0.0001
+		)
+	)
 	suite.run_test("held air recovery aligns heading toward actual travel", func() -> void:
 		var neutral := WindboardMotionModel.new()
 		var recovering := WindboardMotionModel.new()

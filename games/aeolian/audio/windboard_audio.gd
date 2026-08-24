@@ -22,6 +22,7 @@ func _ready() -> void:
 	if controller != null:
 		controller.landed.connect(_on_landed)
 		controller.crashed.connect(_on_crashed)
+		controller.destabilized.connect(_on_destabilized)
 
 
 func _process(_delta: float) -> void:
@@ -113,4 +114,10 @@ func _on_landed(result: Dictionary) -> void:
 func _on_crashed(_cause: StringName, _details: Dictionary) -> void:
 	impact_player.volume_db = -5.0
 	impact_player.pitch_scale = 0.68
+	impact_player.play()
+
+
+func _on_destabilized(amount: float, _cause: StringName) -> void:
+	impact_player.volume_db = lerpf(-25.0, -11.0, clampf(amount * 4.0, 0.0, 1.0))
+	impact_player.pitch_scale = 1.12
 	impact_player.play()

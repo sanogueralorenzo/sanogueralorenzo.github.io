@@ -51,6 +51,11 @@ extends Resource
 @export_range(0.0, 1.0, 0.01) var grounded_recover_threshold := 0.75
 @export_range(0.0, 1.0, 0.01) var stable_slip_ratio := 0.28
 @export_range(0.0, 5.0, 0.05, "suffix:1/s") var slip_stability_drain_per_second := 1.1
+@export_range(0.0, 1440.0, 10.0, "suffix:°/s") \
+	var terrain_normal_stress_start_deg_per_second := 300.0
+@export_range(0.0, 0.1, 0.001, "suffix:stability/°") \
+	var terrain_normal_stability_damage_per_excess_degree := 0.025
+@export_range(0.05, 1.0, 0.01, "suffix:s") var terrain_stress_feedback_cooldown_seconds := 0.20
 @export_range(0.05, 1.0, 0.01, "suffix:s") var zero_stability_crash_delay_seconds := 0.35
 @export_range(0.0, 30.0, 0.1, "suffix:m/s") var clean_landing_impact_mps := 7.5
 @export_range(1.0, 40.0, 0.1, "suffix:m/s") var crash_landing_impact_mps := 16.0

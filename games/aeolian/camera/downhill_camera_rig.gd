@@ -24,6 +24,7 @@ func _ready() -> void:
 		target.respawned.connect(_on_target_respawned)
 		target.landed.connect(_on_target_landed)
 		target.crashed.connect(_on_target_crashed)
+		target.destabilized.connect(_on_target_destabilized)
 		_snap_to_target()
 
 
@@ -96,3 +97,8 @@ func _on_target_landed(result: Dictionary) -> void:
 func _on_target_crashed(_cause: StringName, _details: Dictionary) -> void:
 	_shake_seconds = 0.28
 	_shake_strength = 0.32
+
+
+func _on_target_destabilized(amount: float, _cause: StringName) -> void:
+	_shake_seconds = maxf(_shake_seconds, 0.10)
+	_shake_strength = maxf(_shake_strength, 0.035 + amount * 0.12)

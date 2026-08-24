@@ -153,10 +153,12 @@ focus navigation and standard `ui_*` actions. Keyboard and common gamepads ship
 with defaults. Runtime device changes update glyphs but never reset bindings.
 Disconnecting the active controller pauses and shows a keyboard-operable notice.
 
-Pause sets the gameplay tree paused while pause UI and audio transition run in
-always/process mode. Focus loss optionally auto-pauses during descent. Seeds,
-input events, and simulation errors are logged; raw personal paths and identifiers
-are not included in user-facing diagnostics.
+Pause sets the tree paused; `SessionRoot` is explicitly pausable even though the
+top-level coordinator, input service, pause UI, and debug overlay process always.
+This keeps menu/controller-disconnect handling alive without advancing gameplay.
+Focus loss optionally auto-pauses during descent. Seeds, input events, and
+simulation errors are logged; raw personal paths and identifiers are not included
+in user-facing diagnostics.
 
 ## Presentation and performance architecture
 
