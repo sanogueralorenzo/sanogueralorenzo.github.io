@@ -1,6 +1,6 @@
 # Production state
 
-Last reviewed: 2026-08-23 · Current phase: **2 — Movement validation**
+Last reviewed: 2026-08-24 · Current phase: **2 — Movement validation**
 
 ## Stage-gate roadmap
 
@@ -81,8 +81,9 @@ work. “Implemented” is not exit evidence.
 - [x] Add an authored finish gate, deterministic elapsed-time completion state,
   missed-finish boundary failure, and immediate input-driven replay from either
   outcome; keep this diagnostic endpoint separate from the later roguelite results.
-- [x] Add calculation/contact/state regression tests and run 30/60/120 fps plus
-  low/high input and tunneling/jitter probes on the course.
+- [x] Add calculation/contact/state regression tests, a continuous spawn-to-finish
+  controller traversal, and 30/60/120 fps plus low/high input and tunneling/jitter
+  probes on the course.
 - [ ] Request focused human playtest feedback using the questions in
   `quality-plan.md`; at least one non-implementer must test keyboard and gamepad.
 - [ ] Record Phase 2 harden/refactor/replace decision and gate outcome. Do not begin

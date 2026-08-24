@@ -1,6 +1,6 @@
 # Performance budgets and test plan
 
-Last reviewed: 2026-08-23 · Owner: engineering/QA · Status: initial measurable targets
+Last reviewed: 2026-08-24 · Owner: engineering/QA · Status: initial measurable targets
 
 ## Target hardware matrix
 
@@ -90,19 +90,20 @@ repeatable tunneling/accidental launch, or material behavior change across teste
 frame rates. At least one tester other than the implementer must complete the
 course on keyboard and gamepad before the gate closes.
 
-Current automated checkpoint (2026-08-23): pure movement/input/course calculations
+Current automated checkpoint (2026-08-24): pure movement/input/course calculations
 and the integrated scene matrix pass through the normal boot/session path. The
-scene matrix includes a true terrain gap, smooth crest/compression, banks, bounded
-roughness, recoverable terrain-normal stress, pause/resume invariants, twenty
-in-place restarts, successful and missed endpoint lanes, 42 m/s terrain contact,
-and 30/42 m/s wall impacts. Native Forward+ layout capture covers title, course,
-speed, recovery guidance, pause, finish-gate approach, deterministic completion,
-and crash/restart guidance on the development Mac. The capture waits on explicit
-UI state, a brief real-time settle, and five completed renderer draws so archived
-PNGs cannot precede the tested layout transition. `./scripts/visual-smoke.sh` also
-rejects engine errors, teardown leaks, and missing frames. Native Metal Forward+
-replays at
-measured 30/60/121 rendered fps produced exact matching endpoint position, speed,
+scene matrix includes a continuous 486 m spawn-to-finish traversal, true terrain
+gap, smooth crest/compression, banks, bounded roughness, recoverable terrain-normal
+stress, pause/resume invariants, twenty in-place restarts, successful and missed
+endpoint lanes, 42 m/s terrain contact, and 30/42 m/s wall impacts. The continuous
+traversal proves route viability with a conservative steering policy, not human
+feel. Native Forward+ layout capture covers title, course, speed, recovery guidance,
+pause, finish-gate approach, deterministic completion, and crash/restart guidance
+on the development Mac. The capture waits on explicit UI state, a brief real-time
+settle, and five completed renderer draws so archived PNGs cannot precede the tested
+layout transition. `./scripts/visual-smoke.sh` also rejects engine errors, teardown
+leaks, and missing frames. Native Metal Forward+ replays at measured 30/60/121
+rendered fps produced exact matching endpoint position, speed,
 state, crash result, and event signatures for crest, bank, terrain-jump, and fatal
 wall scenarios at fixed 60 Hz physics. The cadence harness uses Dummy audio to
 isolate rendering/physics. This closes the development-machine render-cadence row,

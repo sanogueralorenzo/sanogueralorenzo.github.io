@@ -1,6 +1,6 @@
 # Phase 2 movement specification and gate record
 
-Last updated: 2026-08-23 · Status: **in progress** · Owner: gameplay
+Last updated: 2026-08-24 · Status: **in progress** · Owner: gameplay
 
 ## Objective and boundary
 
@@ -106,11 +106,12 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   speed caps, and 30/60/120 Hz convergence over equal simulated time.
 - Scene tests: no sustained grounded jitter, snap survives small seams, jumping
   leaves/reacquires floor, landing signals once, slow wall glances do not crash,
-  terminal impacts do, finish/missed-finish resolve once, respawn is clean, and
-  state does not depend on rendered FPS.
+  terminal impacts do, one continuous real-controller traversal reaches the finish,
+  finish/missed-finish resolve once, respawn is clean, and state does not depend on
+  rendered FPS.
 - Course/runtime matrix and human questions remain canonical in `quality-plan.md`.
 
-## Implementation checkpoint — 2026-08-23
+## Implementation checkpoint — 2026-08-24
 
 - Production seams now exist as `WindboardMotionModel`, `WindboardController`,
   `WindboardInputFilter`, `WindboardTuning`, and the first concrete Frost hardpack
@@ -128,8 +129,11 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   They cover the start deck, gentle acceleration, analog response, tuck/brake,
   explicit jump/landing, crest, compression, banks, rough contact, authored gap,
   a 42 m/s runway, pause/resume without an impulse, a nonterminal recovery mound,
+  a continuous 486 m spawn-to-finish traversal through the authored terrain gap,
   successful and missed finish lanes, 30 and 42 m/s wall impacts, and twenty
-  input-driven resets without session or player duplication.
+  input-driven resets without session or player duplication. The traversal uses a
+  conservative position-feedback steering policy only to prove route viability;
+  it does not stand in for player feel, readability, or difficulty approval.
 - The course exposed and now guards a critical integration defect: feeding
   `CharacterBody3D.velocity` back after slope resolution discarded the downhill
   component every tick. Supported motion now consumes `get_real_velocity()`, while

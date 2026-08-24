@@ -31,6 +31,7 @@ func run(game_app: Node) -> void:
 	await _test_pause_resume(suite, game_app, course, player)
 	_test_terrain_stress_feedback_rate(suite, course, player)
 	await _test_recovery_mound(suite, course, player)
+	await _test_spawn_to_finish_viability(suite, course, player)
 	await _test_finish_and_missed_finish(suite, course, player)
 	await _test_coyote_hard_recontact(suite, course, player)
 	await _test_fatal_wall(suite, course, player)
@@ -454,6 +455,56 @@ func _test_recovery_mound(
 		suite.assert_true(saw_recovery_prompt)
 		for tick: int in landing_ticks:
 			suite.assert_false(stress_ticks.has(tick))
+	)
+
+
+func _test_spawn_to_finish_viability(
+		suite: RefCounted,
+		course: Node,
+		player: WindboardController
+	) -> void:
+	await _restart_and_wait(player)
+	var start_tick := player.physics_tick
+	var maximum_speed_mps := 0.0
+	var maximum_lateral_position_m := 0.0
+	var saw_authored_gap_airborne := false
+	for frame in 3600:
+		var downhill_distance := -player.global_position.z
+		var target_x := 8.0 if downhill_distance >= 410.0 else 0.0
+		_scripted_steer = clampf(
+			(target_x - player.global_position.x) * 0.12, -0.65, 0.65
+		)
+		await get_tree().physics_frame
+		maximum_speed_mps = maxf(maximum_speed_mps, player.motion_model.velocity.length())
+		maximum_lateral_position_m = maxf(
+			maximum_lateral_position_m, absf(player.global_position.x)
+		)
+		var current_distance := -player.global_position.z
+		if current_distance >= MovementCourseGeometry.GAP_START_D - 1.0 \
+				and current_distance <= MovementCourseGeometry.GAP_END_D + 8.0 \
+				and player.motion_state == WindboardController.MotionState.AIRBORNE:
+			saw_authored_gap_airborne = true
+		if player.motion_state == WindboardController.MotionState.FINISHED \
+				or player.motion_state == WindboardController.MotionState.CRASHED:
+			break
+	_scripted_steer = 0.0
+	var elapsed_ticks := player.physics_tick - start_tick
+	suite.run_test("real controller traverses continuously from spawn to finish", func() -> void:
+		suite.assert_equal(player.motion_state, WindboardController.MotionState.FINISHED)
+		suite.assert_equal(player.crash_cause, &"")
+		suite.assert_true(saw_authored_gap_airborne)
+		suite.assert_true(maximum_speed_mps > 20.0)
+		suite.assert_true(maximum_speed_mps <= player.tuning.max_air_speed_mps + 0.01)
+		suite.assert_true(maximum_lateral_position_m < 14.5)
+		suite.assert_true(elapsed_ticks < 3600)
+		suite.assert_true(
+			float(player.last_completion.get("lane_x", -INF)) \
+				>= MovementCourseGeometry.FINISH_MIN_X
+		)
+		suite.assert_true(
+			float(player.last_completion.get("lane_x", INF)) \
+				<= MovementCourseGeometry.FINISH_MAX_X
+		)
 	)
 
 
