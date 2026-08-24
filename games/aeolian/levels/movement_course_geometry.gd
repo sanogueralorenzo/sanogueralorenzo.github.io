@@ -2,6 +2,9 @@ class_name MovementCourseGeometry
 extends Node3D
 
 const COURSE_END_D := 486.0
+const FINISH_TRIGGER_D := 483.0
+const FINISH_MIN_X := 2.0
+const FINISH_MAX_X := 14.0
 const GAP_START_D := 316.0
 const GAP_END_D := 324.0
 const CROSS_INTERVALS := 16
@@ -9,6 +12,7 @@ const CROSS_INTERVALS := 16
 var snow_material := StandardMaterial3D.new()
 var marker_material := StandardMaterial3D.new()
 var hazard_material := StandardMaterial3D.new()
+var finish_material := StandardMaterial3D.new()
 
 
 func _ready() -> void:
@@ -20,10 +24,15 @@ func _ready() -> void:
 	hazard_material.albedo_color = Color(0.88, 0.08, 0.04)
 	hazard_material.emission_enabled = true
 	hazard_material.emission = Color(0.4, 0.015, 0.005)
+	finish_material.albedo_color = Color(0.12, 0.84, 0.72)
+	finish_material.roughness = 0.4
+	finish_material.emission_enabled = true
+	finish_material.emission = Color(0.015, 0.34, 0.24)
 	_build_surface(&"UpperCourse", _upper_rows())
 	_build_surface(&"LowerCourse", _lower_rows())
 	_build_station_markers()
 	_build_fatal_wall()
+	_build_finish_gate()
 
 
 func surface_height(x: float, d: float) -> float:
@@ -246,3 +255,35 @@ func _build_fatal_wall() -> void:
 	shape.size = size
 	collision.shape = shape
 	body.add_child(collision)
+
+
+func _build_finish_gate() -> void:
+	var gate := Node3D.new()
+	gate.name = "FinishGate"
+	add_child(gate)
+	var gate_d := FINISH_TRIGGER_D
+	var gate_center_x := (FINISH_MIN_X + FINISH_MAX_X) * 0.5
+	var gate_width := FINISH_MAX_X - FINISH_MIN_X
+	var gate_y := surface_height(gate_center_x, gate_d)
+	for x: float in [FINISH_MIN_X, FINISH_MAX_X]:
+		var post := MeshInstance3D.new()
+		var post_mesh := BoxMesh.new()
+		post_mesh.size = Vector3(0.24, 3.5, 0.24)
+		post_mesh.material = finish_material
+		post.mesh = post_mesh
+		post.position = Vector3(x, surface_height(x, gate_d) + 1.75, -gate_d)
+		gate.add_child(post)
+	var crossbar := MeshInstance3D.new()
+	var crossbar_mesh := BoxMesh.new()
+	crossbar_mesh.size = Vector3(gate_width + 0.24, 0.24, 0.24)
+	crossbar_mesh.material = finish_material
+	crossbar.mesh = crossbar_mesh
+	crossbar.position = Vector3(gate_center_x, gate_y + 3.38, -gate_d)
+	gate.add_child(crossbar)
+	var finish_strip := MeshInstance3D.new()
+	var strip_mesh := BoxMesh.new()
+	strip_mesh.size = Vector3(gate_width, 0.025, 0.55)
+	strip_mesh.material = finish_material
+	finish_strip.mesh = strip_mesh
+	finish_strip.position = Vector3(gate_center_x, gate_y + 0.025, -gate_d)
+	gate.add_child(finish_strip)

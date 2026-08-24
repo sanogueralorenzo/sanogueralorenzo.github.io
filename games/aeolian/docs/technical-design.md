@@ -49,9 +49,10 @@ colocated when that makes ownership clearer.
 | `FollowCameraRig` | look-ahead, FOV, damping, comfort settings | changing controller velocity |
 | `MountainStream` | route plan, chunk lifecycle, ahead/behind windows | choosing presentation settings |
 
-Signals publish meaningful state transitions (`landed`, `crashed`,
-`surface_changed`, `speed_band_changed`) rather than per-frame copies of all
-state. Critical state changes remain direct typed calls so ownership is visible.
+Signals publish meaningful state transitions (`landed`, `crashed`, `destabilized`,
+`descent_finished`, `surface_changed`, `speed_band_changed`) rather than per-frame
+copies of all state. Critical state changes remain direct typed calls so ownership
+is visible.
 
 ## Movement architecture decision
 
@@ -73,6 +74,12 @@ uses `get_real_velocity()` so slope displacement is not discarded, while landing
 and wall classification consume stored pre-move velocity. Presentation interpolates
 independently. Crash classification consumes relative impact speed, contact angle,
 posture, hazard flags, and grace windows.
+
+The controller also owns terminal `CRASHED` and `FINISHED` motion states. Course or
+future hazard owners may request a named external crash through the bounded public
+hazard entry point, while only the controller freezes velocity, records the event,
+and emits presentation signals. Restart remains sampled in both terminal states and
+publishes the terminal-to-grounded transition before the `respawned` notification.
 
 Required debug telemetry: speed, slope, contact state/normal, surface, lateral
 slip, stability, crash cause, physics tick rate, and frame time. All tuning values

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://levels/foundation_course.gd" id="1_course"]
 [ext_resource type="Script" path="res://levels/movement_course_geometry.gd" id="2_geometry"]
@@ -20,6 +20,18 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.82, 0.91, 0.96, 0.86)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_complete"]
+bg_color = Color(0.018, 0.052, 0.055, 0.94)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.22, 0.92, 0.78, 0.9)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -136,4 +148,46 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.97, 1, 1)
 theme_override_font_sizes/font_size = 20
 text = "PRESS R / Y TO RESTART"
+horizontal_alignment = 1
+
+[node name="CompletionCenter" type="CenterContainer" parent="CourseHud/HudRoot"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="CourseHud/HudRoot/CompletionCenter"]
+custom_minimum_size = Vector2(520, 154)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_complete")
+
+[node name="Content" type="VBoxContainer" parent="CourseHud/HudRoot/CompletionCenter/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Heading" type="Label" parent="CourseHud/HudRoot/CompletionCenter/Panel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 1, 0.82, 1)
+theme_override_font_sizes/font_size = 36
+text = "DESCENT COMPLETE"
+horizontal_alignment = 1
+
+[node name="CompletionSummary" type="Label" parent="CourseHud/HudRoot/CompletionCenter/Panel/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.9, 0.92, 1)
+theme_override_font_sizes/font_size = 16
+text = "MOVEMENT COURSE CLEARED"
+horizontal_alignment = 1
+
+[node name="RestartPrompt" type="Label" parent="CourseHud/HudRoot/CompletionCenter/Panel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.98, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "PRESS R / Y TO RIDE AGAIN"
 horizontal_alignment = 1

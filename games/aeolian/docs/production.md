@@ -78,6 +78,9 @@ work. “Implemented” is not exit evidence.
 - [x] Add restart/crash flow, recoverable instability, landing classification,
   keyboard filtering, held recovery, and bounded gamepad vibration. Feedback and
   feel remain part of the unchecked presentation/playtest work.
+- [x] Add an authored finish gate, deterministic elapsed-time completion state,
+  missed-finish boundary failure, and immediate input-driven replay from either
+  outcome; keep this diagnostic endpoint separate from the later roguelite results.
 - [x] Add calculation/contact/state regression tests and run 30/60/120 fps plus
   low/high input and tunneling/jitter probes on the course.
 - [ ] Request focused human playtest feedback using the questions in

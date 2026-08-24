@@ -31,6 +31,7 @@ func run(game_app: Node) -> void:
 	await _test_pause_resume(suite, game_app, course, player)
 	_test_terrain_stress_feedback_rate(suite, course, player)
 	await _test_recovery_mound(suite, course, player)
+	await _test_finish_and_missed_finish(suite, course, player)
 	await _test_coyote_hard_recontact(suite, course, player)
 	await _test_fatal_wall(suite, course, player)
 	await _test_repeated_restart(suite, game_app, player)
@@ -202,6 +203,8 @@ func _test_repeated_restart(
 		suite.assert_true(player.event_history.size() <= WindboardController.EVENT_HISTORY_LIMIT)
 		suite.assert_false(game_app.get_node("SessionRoot").get_child(0) \
 			.get_node("CourseHud/HudRoot/CrashCenter").visible)
+		suite.assert_false(game_app.get_node("SessionRoot").get_child(0) \
+			.get_node("CourseHud/HudRoot/CompletionCenter").visible)
 	)
 
 
@@ -479,11 +482,99 @@ func _test_fatal_wall(
 		)
 
 
+func _test_finish_and_missed_finish(
+		suite: RefCounted,
+		course: Node,
+		player: WindboardController
+	) -> void:
+	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
+	await _restart_and_wait(player)
+	var run_start_tick: int = course._run_start_tick
+	var state_transitions: Array[Vector2i] = []
+	var record_transition := func(previous: WindboardController.MotionState, current: WindboardController.MotionState) -> void:
+		state_transitions.append(Vector2i(previous, current))
+	player.motion_state_changed.connect(record_transition)
+	_place_at(player, geometry, 6.0, 478.0, 12.0)
+	player.event_history.clear()
+	for frame in 90:
+		await get_tree().physics_frame
+		if player.motion_state == WindboardController.MotionState.FINISHED:
+			break
+	var finish_events := 0
+	var finish_tick := -1
+	for event: Dictionary in player.event_history:
+		if event.kind == &"finish":
+			finish_events += 1
+			finish_tick = int(event.tick)
+	suite.run_test("authored finish lane ends the course exactly once", func() -> void:
+		suite.assert_equal(player.motion_state, WindboardController.MotionState.FINISHED)
+		suite.assert_equal(player.get_telemetry().state, &"finished")
+		suite.assert_near(player.motion_model.velocity.length(), 0.0, 0.001)
+		suite.assert_equal(finish_events, 1)
+		var expected_elapsed := float(finish_tick - run_start_tick) \
+			/ float(Engine.physics_ticks_per_second)
+		suite.assert_near(
+			float(player.last_completion.elapsed_seconds), expected_elapsed, 0.000001
+		)
+		suite.assert_true(course.get_node("CourseHud/HudRoot/CompletionCenter").visible)
+		suite.assert_false(course.get_node("CourseHud/HudRoot/CrashCenter").visible)
+	)
+	await _restart_and_wait(player)
+	suite.run_test("finish restart returns to a clean controllable descent", func() -> void:
+		suite.assert_equal(player.motion_state, WindboardController.MotionState.GROUNDED)
+		suite.assert_true(player.last_completion.is_empty())
+		suite.assert_false(course.get_node("CourseHud/HudRoot/CompletionCenter").visible)
+		suite.assert_equal(
+			state_transitions.count(Vector2i(
+				WindboardController.MotionState.FINISHED,
+				WindboardController.MotionState.GROUNDED
+			)),
+			1
+		)
+	)
+
+	_place_at(player, geometry, 0.0, 482.0, 12.0)
+	for frame in 45:
+		await get_tree().physics_frame
+		if -player.global_position.z > MovementCourseGeometry.FINISH_TRIGGER_D + 0.2:
+			break
+	_place_at(player, geometry, 6.0, 484.0, 12.0)
+	await get_tree().physics_frame
+	suite.run_test("entering the lane after crossing the gate cannot finish", func() -> void:
+		suite.assert_not_equal(player.motion_state, WindboardController.MotionState.FINISHED)
+	)
+	for frame in 90:
+		await get_tree().physics_frame
+		if player.motion_state == WindboardController.MotionState.CRASHED:
+			break
+	suite.run_test("missing the authored gate ends instead of falling forever", func() -> void:
+		suite.assert_equal(player.motion_state, WindboardController.MotionState.CRASHED)
+		suite.assert_equal(player.crash_cause, &"missed_finish")
+		suite.assert_equal(
+			course.get_node("CourseHud/HudRoot/CrashCenter/Panel/Content/CrashReason").text,
+			"MISSED FINISH GATE"
+		)
+		suite.assert_true(course.get_node("CourseHud/HudRoot/CrashCenter").visible)
+	)
+	await _restart_and_wait(player)
+	suite.run_test("crash restart publishes the terminal state exit", func() -> void:
+		suite.assert_equal(
+			state_transitions.count(Vector2i(
+				WindboardController.MotionState.CRASHED,
+				WindboardController.MotionState.GROUNDED
+			)),
+			1
+		)
+	)
+	player.motion_state_changed.disconnect(record_transition)
+
+
 func _test_coyote_hard_recontact(
 		suite: RefCounted,
 		course: Node,
 		player: WindboardController
 	) -> void:
+	_pending_restart = false
 	var geometry := course.get_node("CourseGeometry") as MovementCourseGeometry
 	var d := 340.0
 	var normal := geometry.surface_normal(0.0, d)
@@ -507,8 +598,29 @@ func _test_coyote_hard_recontact(
 				terrain_stress_count += 1
 		suite.assert_equal(player.motion_state, WindboardController.MotionState.CRASHED)
 		suite.assert_equal(player.crash_cause, &"terminal_landing")
-		suite.assert_true(float(player.last_landing.impact_speed_mps) >= 16.0)
+		suite.assert_true(float(player.last_landing.get("impact_speed_mps", 0.0)) >= 16.0)
 		suite.assert_equal(terrain_stress_count, 0)
+	)
+
+	await _restart_and_wait(player)
+	var lateral := normal.cross(heading).normalized()
+	player.place_for_test(Transform3D(Basis.IDENTITY, origin), heading, 0.0, normal)
+	player.motion_model.velocity = lateral * 10.0 - normal * 7.0
+	player.velocity = player.motion_model.velocity
+	player.motion_state = WindboardController.MotionState.COYOTE
+	player._coyote_timer = player.tuning.coyote_time_seconds
+	for frame in 12:
+		await get_tree().physics_frame
+		if player.motion_state == WindboardController.MotionState.CRASHED:
+			break
+	suite.run_test("misaligned low-closure coyote recontact cannot bypass landing", func() -> void:
+		suite.assert_equal(player.motion_state, WindboardController.MotionState.CRASHED)
+		suite.assert_equal(player.crash_cause, &"terminal_landing")
+		suite.assert_true(float(player.last_landing.get("impact_speed_mps", 0.0)) < 8.0)
+		suite.assert_true(
+			float(player.last_landing.get("alignment", 1.0)) \
+				<= player.tuning.crash_landing_alignment
+		)
 	)
 
 
@@ -523,6 +635,17 @@ func _place_at(
 	var heading := Vector3.FORWARD.slide(normal).normalized()
 	var origin := Vector3(x, geometry.surface_height(x, d), -d) + Vector3.UP * 0.86
 	player.place_for_test(Transform3D(Basis.IDENTITY, origin), heading, speed_mps, normal)
+
+
+func _restart_and_wait(player: WindboardController) -> void:
+	var previous_count := player.respawn_count
+	_pending_restart = true
+	for frame in 4:
+		await get_tree().physics_frame
+		if player.respawn_count > previous_count:
+			_pending_restart = false
+			return
+	_pending_restart = false
 
 
 func _scripted_intent(_physics_tick: int) -> InputIntent:

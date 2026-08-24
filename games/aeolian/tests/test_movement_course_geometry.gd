@@ -36,6 +36,20 @@ static func run(suite: RefCounted) -> void:
 		suite.assert_near(course.half_width(300.0), 12.0, 0.001)
 		suite.assert_near(course.half_width(330.0), 15.0, 0.001)
 	)
+	suite.run_test("finish lane is bounded inside the authored runout", func() -> void:
+		suite.assert_true(MovementCourseGeometry.FINISH_TRIGGER_D < MovementCourseGeometry.COURSE_END_D)
+		suite.assert_true(MovementCourseGeometry.FINISH_MIN_X < MovementCourseGeometry.FINISH_MAX_X)
+		suite.assert_true(
+			MovementCourseGeometry.FINISH_MIN_X > -course.half_width(
+				MovementCourseGeometry.FINISH_TRIGGER_D
+			)
+		)
+		suite.assert_true(
+			MovementCourseGeometry.FINISH_MAX_X < course.half_width(
+				MovementCourseGeometry.FINISH_TRIGGER_D
+			)
+		)
+	)
 	suite.run_test("analytic anchor transform is finite and seated", func() -> void:
 		var anchor := course.surface_transform(0.0, 110.0)
 		suite.assert_true(anchor.origin.is_finite())

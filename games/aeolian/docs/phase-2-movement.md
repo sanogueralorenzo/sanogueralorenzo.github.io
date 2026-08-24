@@ -17,8 +17,9 @@ does not make a vertical slice or completed game.
 - Global up is `+Y`; the initial fall line is `-Z`. The collision body remains
   upright for stable capsule contact while its presentation aligns to the filtered
   surface normal and travel heading.
-- Motion states are `GROUNDED`, `COYOTE`, `AIRBORNE`, and `CRASHED`. Landing emits
-  `CLEAN`, `RECOVERABLE`, or `CRASH`; speed alone is never a crash condition.
+- Motion states are `GROUNDED`, `COYOTE`, `AIRBORNE`, `CRASHED`, and `FINISHED`.
+  Landing emits `CLEAN`, `RECOVERABLE`, or `CRASH`; speed alone is never a crash
+  condition. `FINISHED` freezes motion but continues sampling immediate restart.
 - `CharacterBody3D` owns collision queries, floor/wall classification, motion, and
   respawn. `WindboardMotionModel` owns heading, velocity, grip/drag, stability,
   jumping, air control, and impact classification. Camera, mesh/VFX, audio, and UI
@@ -82,14 +83,19 @@ specific course test requires them.
 8. Restart restores the authored spawn transform, heading, stability, camera, and
    transient effects in place; target input-to-control time is under 0.5 seconds in
    this local course and under 3 seconds for the eventual run flow.
+9. Crossing the authored teal gate inside its bounded lane enters `FINISHED` once,
+   records elapsed fixed-tick time, stops movement, and exposes restart. The course
+   resolves the interpolated crossing point once, so entering the lane after missing
+   the gate cannot become a completion. Crossing beyond the terrain end after a miss
+   produces `missed_finish`; the rider never falls indefinitely past the endpoint.
 
 ## Required telemetry
 
 Debug overlay fields: motion state, scalar speed, tangent/lateral speed, slip ratio,
 stability, grounded/probe contact, raw/filtered normal, slope degrees, heading,
 surface ID, coyote/recontact timers, last landing impact/alignment/severity, last
-wall impact, last terrain-normal stress, crash cause, physics FPS, rendered FPS,
-and respawn count. A fixed-size event history records only meaningful
+wall impact, last terrain-normal stress, crash cause, last completion data, physics
+FPS, rendered FPS, and respawn count. A fixed-size event history records only meaningful
 state/contact/landing/stress/crash transitions, not per-frame spam.
 
 ## Automated acceptance evidence
@@ -100,7 +106,8 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   speed caps, and 30/60/120 Hz convergence over equal simulated time.
 - Scene tests: no sustained grounded jitter, snap survives small seams, jumping
   leaves/reacquires floor, landing signals once, slow wall glances do not crash,
-  terminal impacts do, respawn is clean, and state does not depend on rendered FPS.
+  terminal impacts do, finish/missed-finish resolve once, respawn is clean, and
+  state does not depend on rendered FPS.
 - Course/runtime matrix and human questions remain canonical in `quality-plan.md`.
 
 ## Implementation checkpoint — 2026-08-23
@@ -121,8 +128,8 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   They cover the start deck, gentle acceleration, analog response, tuck/brake,
   explicit jump/landing, crest, compression, banks, rough contact, authored gap,
   a 42 m/s runway, pause/resume without an impulse, a nonterminal recovery mound,
-  30 and 42 m/s wall impacts, and twenty input-driven resets without session or
-  player duplication.
+  successful and missed finish lanes, 30 and 42 m/s wall impacts, and twenty
+  input-driven resets without session or player duplication.
 - The course exposed and now guards a critical integration defect: feeding
   `CharacterBody3D.velocity` back after slope resolution discarded the downhill
   component every tick. Supported motion now consumes `get_real_velocity()`, while
@@ -151,7 +158,17 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   and releases their streams explicitly.
 - Low stability shows a concise keyboard/gamepad recovery cue. A terminal crash
   names the failure class and presents the immediate restart binding. Native
-  visual-smoke capture guards both states alongside title, course, speed, and pause.
+  visual-smoke capture guards both states plus deterministic course completion
+  alongside title, course, speed, and pause.
+- The endpoint flow exposed and now guards a coyote-contact defect: a hard surface
+  recontact first seen by the support probe could previously bypass landing severity
+  as ordinary contact recovery. Probe-supported coyote recontacts now classify
+  both impact and travel alignment before grounded integration, matching
+  physical-floor recontacts; a low-closure sideways impact is a regression case.
+- Finish resolution uses the rider segment that crosses the gate plane and latches
+  that result for the run. Re-entering the lane downstream cannot convert a miss,
+  completion timing is derived from fixed physics ticks, and terminal restarts
+  publish explicit `FINISHED`/`CRASHED` to `GROUNDED` state transitions.
 - A native Metal Forward+ cadence harness replayed crest, bank, terrain-jump, and
   42 m/s wall scenarios at measured 30, 60, and 121 rendered fps while physics
   stayed at 60 Hz. Endpoint position, speed, motion/crash state, and ordered event
@@ -169,8 +186,8 @@ Still in progress. Automated calculation, contact, low/high-input, tunneling,
 jitter, restart, and native render-cadence evidence now passes. Camera, contact
 VFX/trail, speed/surface audio, recovery feedback, and comfort still require human
 tuning; physical-controller evidence and focused non-implementer keyboard/gamepad
-playtesting remain. The post-HUD 120 FPS native rerun also requires an unlocked
-display because the locked development session is externally capped at 60 FPS;
-30/60 outcomes still match and no acceptance ceiling was weakened. At exit, record
-whether the movement code is hardened,
+playtesting remain. The post-HUD-and-endpoint 120 FPS native rerun also requires an
+unlocked display because the locked development session is externally capped at
+60 FPS; 30/60 outcomes still match and no acceptance ceiling was weakened. At
+exit, record whether the movement code is hardened,
 refactored, or replaced before Phase 3 depends on it.

@@ -94,20 +94,22 @@ Current automated checkpoint (2026-08-23): pure movement/input/course calculatio
 and the integrated scene matrix pass through the normal boot/session path. The
 scene matrix includes a true terrain gap, smooth crest/compression, banks, bounded
 roughness, recoverable terrain-normal stress, pause/resume invariants, twenty
-in-place restarts, 42 m/s terrain contact, and 30/42 m/s wall impacts. Native Forward+
-layout capture covers title, course, speed, recovery guidance, pause, and crash
-restart guidance on the development Mac. The capture waits on explicit UI state
-and three completed renderer draws so archived PNGs cannot precede the tested
-layout transition. `./scripts/visual-smoke.sh` also rejects engine errors, teardown
-leaks, and missing frames. Native Metal Forward+ replays at
+in-place restarts, successful and missed endpoint lanes, 42 m/s terrain contact,
+and 30/42 m/s wall impacts. Native Forward+ layout capture covers title, course,
+speed, recovery guidance, pause, finish-gate approach, deterministic completion,
+and crash/restart guidance on the development Mac. The capture waits on explicit
+UI state, a brief real-time settle, and five completed renderer draws so archived
+PNGs cannot precede the tested layout transition. `./scripts/visual-smoke.sh` also
+rejects engine errors, teardown leaks, and missing frames. Native Metal Forward+
+replays at
 measured 30/60/121 rendered fps produced exact matching endpoint position, speed,
 state, crash result, and event signatures for crest, bank, terrain-jump, and fatal
 wall scenarios at fixed 60 Hz physics. The cadence harness uses Dummy audio to
 isolate rendering/physics. This closes the development-machine render-cadence row,
-but not physical-controller, target-PC, comfort, or human-feel rows. After the HUD
-feedback change, an unlocked-display 120 FPS rerun is pending: the locked macOS
-session held a 120 request at 60 rendered FPS, and the verifier correctly refused
-to accept that row rather than weakening its precondition.
+but not physical-controller, target-PC, comfort, or human-feel rows. After the
+current HUD and endpoint changes, an unlocked-display 120 FPS rerun is pending: the
+locked macOS session held a 120 request at 60 rendered FPS, and the verifier
+correctly refused to accept that row rather than weakening its precondition.
 
 ### Later focused questions
 

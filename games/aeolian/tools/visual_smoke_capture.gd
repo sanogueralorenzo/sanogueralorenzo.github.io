@@ -70,6 +70,57 @@ func run(game_app: Node) -> void:
 		AppLog.error(&"visual_smoke", "Focused resume action did not resume")
 		get_tree().quit(12)
 		return
+	var finish_approach_d := 465.0
+	var finish_approach_normal := geometry.surface_normal(6.0, finish_approach_d)
+	var finish_approach_heading := Vector3.FORWARD.slide(
+		finish_approach_normal
+	).normalized()
+	var finish_approach_origin := Vector3(
+		6.0, geometry.surface_height(6.0, finish_approach_d), -finish_approach_d
+	) + Vector3.UP * 0.86
+	player.place_for_test(
+		Transform3D(Basis.IDENTITY, finish_approach_origin),
+		finish_approach_heading,
+		0.0,
+		finish_approach_normal
+	)
+	course.get_node("CameraRig")._snap_to_target()
+	await _settle_frames(4)
+	if await _capture("finish-approach.png") != OK:
+		get_tree().quit(22)
+		return
+	var finish_d := 478.0
+	var finish_normal := geometry.surface_normal(6.0, finish_d)
+	var finish_heading := Vector3.FORWARD.slide(finish_normal).normalized()
+	var finish_origin := Vector3(
+		6.0, geometry.surface_height(6.0, finish_d), -finish_d
+	) + Vector3.UP * 0.86
+	player.place_for_test(
+		Transform3D(Basis.IDENTITY, finish_origin), finish_heading, 12.0, finish_normal
+	)
+	for frame in 90:
+		await get_tree().physics_frame
+		if player.motion_state == WindboardController.MotionState.FINISHED:
+			break
+	var completion_center := course.get_node(
+		"CourseHud/HudRoot/CompletionCenter"
+	) as Control
+	var completion_visible := await _wait_for_visibility(completion_center, true, 8)
+	if player.motion_state != WindboardController.MotionState.FINISHED \
+			or not completion_visible:
+		AppLog.error(&"visual_smoke", "Finish gate did not show completion guidance")
+		get_tree().quit(19)
+		return
+	if await _capture("complete.png") != OK:
+		get_tree().quit(20)
+		return
+	await _press_action(&"restart_run")
+	await get_tree().physics_frame
+	if player.motion_state != WindboardController.MotionState.GROUNDED \
+			or completion_center.visible:
+		AppLog.error(&"visual_smoke", "Completion restart did not clear guidance")
+		get_tree().quit(21)
+		return
 	var fatal_d := 462.0
 	var fatal_normal := geometry.surface_normal(-7.0, fatal_d)
 	var fatal_heading := Vector3.FORWARD.slide(fatal_normal).normalized()
@@ -112,9 +163,11 @@ func run(game_app: Node) -> void:
 
 func _capture(file_name: String) -> Error:
 	# Native rendering can have multiple submitted frames in flight. Waiting for
-	# three completed draws prevents the archived texture from preceding a recent
-	# visibility/layout transition even when process frames run much faster.
-	for frame in 3:
+	# a short real-time settle and five completed draws prevents the archived
+	# texture from preceding a recent visibility/layout transition during cold
+	# shader/font warm-up, even when process frames run much faster.
+	await get_tree().create_timer(0.10, true, false, false).timeout
+	for frame in 5:
 		await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
 	var path := "%s/%s" % [REPORT_DIRECTORY, file_name]

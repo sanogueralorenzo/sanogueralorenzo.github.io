@@ -6,12 +6,14 @@ signal landed(result: Dictionary)
 signal crashed(cause: StringName, details: Dictionary)
 signal respawned(count: int)
 signal destabilized(amount: float, cause: StringName)
+signal descent_finished(details: Dictionary)
 
 enum MotionState {
 	GROUNDED,
 	COYOTE,
 	AIRBORNE,
 	CRASHED,
+	FINISHED,
 }
 
 const EVENT_HISTORY_LIMIT := 24
@@ -34,6 +36,7 @@ var filtered_ground_normal := Vector3.UP
 var last_landing: Dictionary = {}
 var last_wall_impact_mps := 0.0
 var last_terrain_stress_damage := 0.0
+var last_completion: Dictionary = {}
 var last_requested_velocity := Vector3.ZERO
 var raw_intent := InputIntent.new()
 var filtered_intent := InputIntent.new()
@@ -73,7 +76,7 @@ func _ready() -> void:
 		if probe_sphere != null:
 			probe_sphere.radius = tuning.probe_shape_radius_m
 	add_to_group(&"windboard_player")
-	_reset_motion(false)
+	_reset_motion()
 
 
 func _physics_process(delta: float) -> void:
@@ -82,7 +85,7 @@ func _physics_process(delta: float) -> void:
 	if intent.restart_pressed:
 		respawn()
 		return
-	if motion_state == MotionState.CRASHED:
+	if motion_state == MotionState.CRASHED or motion_state == MotionState.FINISHED:
 		return
 
 	_coyote_timer = maxf(0.0, _coyote_timer - delta)
@@ -107,7 +110,20 @@ func _physics_process(delta: float) -> void:
 				motion_model.step_air(delta, intent, tuning)
 		MotionState.COYOTE:
 			if has_supported_contact:
-				_set_motion_state(MotionState.GROUNDED, &"contact_recovered")
+				var probe_landing := WindboardMotionModel.classify_landing(
+					motion_model.velocity,
+					raw_ground_normal,
+					motion_model.heading,
+					tuning,
+					surface
+				)
+				if int(probe_landing.severity) != WindboardMotionModel.LandingSeverity.CLEAN \
+						or motion_model.stability < tuning.grounded_recover_threshold:
+					_process_landing(motion_model.velocity, raw_ground_normal)
+					if motion_state == MotionState.CRASHED:
+						return
+				else:
+					_set_motion_state(MotionState.GROUNDED, &"contact_recovered")
 				motion_model.step_ground(delta, filtered_ground_normal, intent, tuning, surface)
 			elif intent.jump_pressed and _coyote_timer > 0.0:
 				motion_model.step_air(delta, intent, tuning)
@@ -135,8 +151,14 @@ func _physics_process(delta: float) -> void:
 		if motion_state == MotionState.AIRBORNE:
 			_process_landing(incoming_velocity, raw_ground_normal)
 		elif motion_state == MotionState.COYOTE:
-			var closure_speed := maxf(0.0, -incoming_velocity.dot(raw_ground_normal))
-			if closure_speed > tuning.clean_landing_impact_mps \
+			var coyote_landing := WindboardMotionModel.classify_landing(
+				incoming_velocity,
+				raw_ground_normal,
+				motion_model.heading,
+				tuning,
+				surface
+			)
+			if int(coyote_landing.severity) != WindboardMotionModel.LandingSeverity.CLEAN \
 					or motion_model.stability < tuning.grounded_recover_threshold:
 				_process_landing(incoming_velocity, raw_ground_normal)
 			else:
@@ -154,10 +176,37 @@ func _physics_process(delta: float) -> void:
 
 func respawn() -> void:
 	respawn_count += 1
+	var previous_state := motion_state
 	global_transform = _spawn_transform
 	reset_physics_interpolation()
-	_reset_motion(true)
+	_reset_motion()
+	if previous_state != MotionState.GROUNDED:
+		_record_event(&"state", {
+			"from": state_label(previous_state),
+			"to": state_label(MotionState.GROUNDED),
+			"reason": &"respawn",
+		})
+		motion_state_changed.emit(previous_state, MotionState.GROUNDED)
+	_record_event(&"respawn", {"count": respawn_count})
 	respawned.emit(respawn_count)
+
+
+func finish_descent(details: Dictionary = {}) -> void:
+	if motion_state == MotionState.CRASHED or motion_state == MotionState.FINISHED:
+		return
+	last_completion = details.duplicate(true)
+	motion_model.velocity = Vector3.ZERO
+	velocity = Vector3.ZERO
+	_set_motion_state(MotionState.FINISHED, &"course_complete")
+	_record_event(&"finish", last_completion)
+	descent_finished.emit(last_completion.duplicate(true))
+
+
+func crash_from_hazard(cause: StringName, details: Dictionary = {}) -> void:
+	if cause.is_empty():
+		AppLog.error(&"movement", "External crash requires a non-empty cause")
+		return
+	_crash(cause, details)
 
 
 func set_spawn_transform(value: Transform3D) -> void:
@@ -191,6 +240,7 @@ func place_for_test(
 	last_landing.clear()
 	last_wall_impact_mps = 0.0
 	last_terrain_stress_damage = 0.0
+	last_completion.clear()
 	_stress_reference_normal = raw_ground_normal
 	_normal_stress_tick = physics_tick
 	_terrain_stress_feedback_cooldown = 0.0
@@ -232,6 +282,7 @@ func get_telemetry() -> Dictionary:
 		"last_landing": last_landing.duplicate(true),
 		"last_wall_impact_mps": last_wall_impact_mps,
 		"last_terrain_stress_damage": last_terrain_stress_damage,
+		"last_completion": last_completion.duplicate(true),
 		"crash_cause": crash_cause,
 		"respawn_count": respawn_count,
 		"raw_steer": raw_intent.steer,
@@ -249,6 +300,8 @@ static func state_label(value: MotionState) -> StringName:
 			return &"airborne"
 		MotionState.CRASHED:
 			return &"crashed"
+		MotionState.FINISHED:
+			return &"finished"
 	return &"unknown"
 
 
@@ -405,7 +458,7 @@ func _classify_wall_collisions(incoming_velocity: Vector3) -> bool:
 
 
 func _crash(cause: StringName, details: Dictionary) -> void:
-	if motion_state == MotionState.CRASHED:
+	if motion_state == MotionState.CRASHED or motion_state == MotionState.FINISHED:
 		return
 	crash_cause = cause
 	motion_model.velocity = Vector3.ZERO
@@ -421,7 +474,7 @@ func _crash(cause: StringName, details: Dictionary) -> void:
 	crashed.emit(cause, details.duplicate(true))
 
 
-func _reset_motion(record_event: bool) -> void:
+func _reset_motion() -> void:
 	var initial_heading := -global_basis.z
 	initial_heading.y = 0.0
 	if initial_heading.is_zero_approx():
@@ -437,6 +490,7 @@ func _reset_motion(record_event: bool) -> void:
 	last_landing.clear()
 	last_wall_impact_mps = 0.0
 	last_terrain_stress_damage = 0.0
+	last_completion.clear()
 	crash_cause = &""
 	_coyote_timer = 0.0
 	_recontact_timer = 0.0
@@ -447,8 +501,6 @@ func _reset_motion(record_event: bool) -> void:
 	_normal_stress_tick = -1
 	_terrain_stress_feedback_cooldown = 0.0
 	floor_snap_length = tuning.floor_snap_length_m
-	if record_event:
-		_record_event(&"respawn", {"count": respawn_count})
 
 
 func _set_motion_state(next: MotionState, reason: StringName) -> void:
