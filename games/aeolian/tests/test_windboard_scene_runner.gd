@@ -200,6 +200,8 @@ func _test_repeated_restart(
 		suite.assert_equal(player.get_instance_id(), player_id)
 		suite.assert_equal(game_app.get_node("SessionRoot").get_child_count(), session_count)
 		suite.assert_true(player.event_history.size() <= WindboardController.EVENT_HISTORY_LIMIT)
+		suite.assert_false(game_app.get_node("SessionRoot").get_child(0) \
+			.get_node("CourseHud/HudRoot/CrashCenter").visible)
 	)
 
 
@@ -400,6 +402,7 @@ func _test_recovery_mound(
 	player.event_history.clear()
 	var minimum_stability := player.motion_model.stability
 	var airborne_ticks := 0
+	var saw_recovery_prompt := false
 	var previous_normal := player.raw_ground_normal
 	var maximum_normal_delta_deg := 0.0
 	for frame in 60:
@@ -413,6 +416,8 @@ func _test_recovery_mound(
 		previous_normal = player.raw_ground_normal
 		if player.motion_state == WindboardController.MotionState.AIRBORNE:
 			airborne_ticks += 1
+		saw_recovery_prompt = saw_recovery_prompt \
+			or course.get_node("CourseHud/HudRoot/RecoveryPrompt").visible
 	_scripted_recover_held = false
 	var landing_count := 0
 	var landing_impact := 0.0
@@ -443,6 +448,7 @@ func _test_recovery_mound(
 		suite.assert_true(player.motion_model.stability > minimum_stability)
 		suite.assert_true(airborne_ticks > 0 or landing_count > 0)
 		suite.assert_true(terrain_stress_count > 0)
+		suite.assert_true(saw_recovery_prompt)
 		for tick: int in landing_ticks:
 			suite.assert_false(stress_ticks.has(tick))
 	)
@@ -465,6 +471,11 @@ func _test_fatal_wall(
 			suite.assert_equal(player.crash_cause, &"wall_impact")
 			suite.assert_true(-player.global_position.z < 478.0)
 			suite.assert_true(player.last_wall_impact_mps >= player.tuning.wall_crash_impact_mps)
+			suite.assert_true(course.get_node("CourseHud/HudRoot/CrashCenter").visible)
+			suite.assert_equal(
+				course.get_node("CourseHud/HudRoot/CrashCenter/Panel/Content/CrashReason").text,
+				"IMPACT TOO HARD"
+			)
 		)
 
 

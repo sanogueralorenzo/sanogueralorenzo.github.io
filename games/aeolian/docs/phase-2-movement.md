@@ -149,6 +149,9 @@ state/contact/landing/stress/crash transitions, not per-frame spam.
   remain on the Phase 3/9 replacement register. They are precomputed at session
   load rather than mixed sample-by-sample in gameplay, and session shutdown stops
   and releases their streams explicitly.
+- Low stability shows a concise keyboard/gamepad recovery cue. A terminal crash
+  names the failure class and presents the immediate restart binding. Native
+  visual-smoke capture guards both states alongside title, course, speed, and pause.
 - A native Metal Forward+ cadence harness replayed crest, bank, terrain-jump, and
   42 m/s wall scenarios at measured 30, 60, and 121 rendered fps while physics
   stayed at 60 Hz. Endpoint position, speed, motion/crash state, and ordered event
@@ -166,5 +169,8 @@ Still in progress. Automated calculation, contact, low/high-input, tunneling,
 jitter, restart, and native render-cadence evidence now passes. Camera, contact
 VFX/trail, speed/surface audio, recovery feedback, and comfort still require human
 tuning; physical-controller evidence and focused non-implementer keyboard/gamepad
-playtesting remain. At exit, record whether the movement code is hardened,
+playtesting remain. The post-HUD 120 FPS native rerun also requires an unlocked
+display because the locked development session is externally capped at 60 FPS;
+30/60 outcomes still match and no acceptance ceiling was weakened. At exit, record
+whether the movement code is hardened,
 refactored, or replaced before Phase 3 depends on it.
