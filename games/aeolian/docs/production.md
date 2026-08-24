@@ -81,9 +81,9 @@ work. “Implemented” is not exit evidence.
 - [x] Add an authored finish gate, deterministic elapsed-time completion state,
   missed-finish boundary failure, and immediate input-driven replay from either
   outcome; keep this diagnostic endpoint separate from the later roguelite results.
-- [x] Add calculation/contact/state regression tests, a continuous spawn-to-finish
-  controller traversal, and 30/60/120 fps plus low/high input and tunneling/jitter
-  probes on the course.
+- [x] Add calculation/contact/state regression tests, continuous analog and keyboard
+  spawn-to-finish controller traversals, and 30/60/120 fps plus low/high input and
+  tunneling/jitter probes on the course.
 - [ ] Request focused human playtest feedback using the questions in
   `quality-plan.md`; at least one non-implementer must test keyboard and gamepad.
 - [ ] Record Phase 2 harden/refactor/replace decision and gate outcome. Do not begin
@@ -132,7 +132,7 @@ Probability/impact use Low, Medium, High. Owners are roles until staffing exists
 | R-02 | Authored chunks show seams/repetition or invalid routes | H/H | Socket contract, safe-corridor metadata, full-plan validator, seed soak, content metrics | Generation |
 | R-03 | Three biomes exceed small-team content capacity | H/H | Finish Frost before expansion, shared framework, per-biome minimum matrix, fixed macro-order | Product/art |
 | R-04 | Forward+ effects miss minimum GPU frame budget | M/H | low/medium/high presets from first representative slice, bounded streaming/fog/shadows, GPU captures | Tech art |
-| R-05 | Keyboard steering is materially worse than analog | M/H | filtered digital intent, keyboard-only gate tests, separate sensitivity curve | Gameplay/UX |
+| R-05 | Keyboard steering is materially worse than analog | M/H | filtered digital intent, separate sensitivity curve, continuous analog/digital viability regressions, human comparison at gate | Gameplay/UX |
 | R-06 | Upgrades create dominant/exploit combinations | M/M | modifier order/caps/conflicts, property tests, combination matrix, sidegrades only | Systems |
 | R-07 | Procedural determinism changes with refactors | M/H | domain RNG streams, stable IDs, plan snapshots, version/signature and failed-seed corpus | Generation/QA |
 | R-08 | Camera motion causes discomfort | M/H | reduced shake/speed VFX, tunable look-ahead/FOV/distance, focused comfort playtests | Camera/UX |

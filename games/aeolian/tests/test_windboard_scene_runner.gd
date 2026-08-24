@@ -463,6 +463,18 @@ func _test_spawn_to_finish_viability(
 		course: Node,
 		player: WindboardController
 	) -> void:
+	var analog_result := await _run_spawn_to_finish_policy(course, player, true)
+	_assert_spawn_to_finish_result(suite, analog_result, "analog")
+	var keyboard_result := await _run_spawn_to_finish_policy(course, player, false)
+	_assert_spawn_to_finish_result(suite, keyboard_result, "keyboard")
+	player.set_input_provider(_scripted_intent, true)
+
+
+func _run_spawn_to_finish_policy(
+		course: Node,
+		player: WindboardController,
+		use_analog_filter: bool
+	) -> Dictionary:
 	await _restart_and_wait(player)
 	var start_tick := player.physics_tick
 	var maximum_speed_mps := 0.0
@@ -471,9 +483,16 @@ func _test_spawn_to_finish_viability(
 	for frame in 3600:
 		var downhill_distance := -player.global_position.z
 		var target_x := 8.0 if downhill_distance >= 410.0 else 0.0
-		_scripted_steer = clampf(
-			(target_x - player.global_position.x) * 0.12, -0.65, 0.65
-		)
+		if not use_analog_filter:
+			target_x = 8.0 * clampf(inverse_lerp(370.0, 450.0, downhill_distance), 0.0, 1.0)
+		var target_error := target_x - player.global_position.x
+		if use_analog_filter:
+			_scripted_steer = clampf(target_error * 0.12, -0.65, 0.65)
+		else:
+			var digital_correction := target_error * 0.35 \
+				- player.motion_model.velocity.x * 0.8
+			_scripted_steer = signf(digital_correction) \
+				if absf(digital_correction) > 0.25 else 0.0
 		await get_tree().physics_frame
 		maximum_speed_mps = maxf(maximum_speed_mps, player.motion_model.velocity.length())
 		maximum_lateral_position_m = maxf(
@@ -488,23 +507,44 @@ func _test_spawn_to_finish_viability(
 				or player.motion_state == WindboardController.MotionState.CRASHED:
 			break
 	_scripted_steer = 0.0
-	var elapsed_ticks := player.physics_tick - start_tick
-	suite.run_test("real controller traverses continuously from spawn to finish", func() -> void:
-		suite.assert_equal(player.motion_state, WindboardController.MotionState.FINISHED)
-		suite.assert_equal(player.crash_cause, &"")
-		suite.assert_true(saw_authored_gap_airborne)
-		suite.assert_true(maximum_speed_mps > 20.0)
-		suite.assert_true(maximum_speed_mps <= player.tuning.max_air_speed_mps + 0.01)
-		suite.assert_true(maximum_lateral_position_m < 14.5)
-		suite.assert_true(elapsed_ticks < 3600)
-		suite.assert_true(
-			float(player.last_completion.get("lane_x", -INF)) \
-				>= MovementCourseGeometry.FINISH_MIN_X
-		)
-		suite.assert_true(
-			float(player.last_completion.get("lane_x", INF)) \
-				<= MovementCourseGeometry.FINISH_MAX_X
-		)
+	return {
+		"motion_state": player.motion_state,
+		"crash_cause": player.crash_cause,
+		"saw_authored_gap_airborne": saw_authored_gap_airborne,
+		"maximum_speed_mps": maximum_speed_mps,
+		"maximum_lateral_position_m": maximum_lateral_position_m,
+		"elapsed_ticks": player.physics_tick - start_tick,
+		"lane_x": float(player.last_completion.get("lane_x", NAN)),
+		"maximum_air_speed_mps": player.tuning.max_air_speed_mps,
+	}
+
+
+func _assert_spawn_to_finish_result(
+		suite: RefCounted,
+		result: Dictionary,
+		input_label: String
+	) -> void:
+	suite.run_test(
+		"%s input traverses continuously from spawn to finish" % input_label,
+		func() -> void:
+			suite.assert_equal(
+				int(result.motion_state), WindboardController.MotionState.FINISHED
+			)
+			suite.assert_equal(StringName(result.crash_cause), &"")
+			suite.assert_true(bool(result.saw_authored_gap_airborne))
+			suite.assert_true(float(result.maximum_speed_mps) > 20.0)
+			suite.assert_true(
+				float(result.maximum_speed_mps) \
+					<= float(result.maximum_air_speed_mps) + 0.01
+			)
+			suite.assert_true(float(result.maximum_lateral_position_m) < 14.5)
+			suite.assert_true(int(result.elapsed_ticks) < 3600)
+			suite.assert_true(
+				float(result.lane_x) >= MovementCourseGeometry.FINISH_MIN_X
+			)
+			suite.assert_true(
+				float(result.lane_x) <= MovementCourseGeometry.FINISH_MAX_X
+			)
 	)
 
 

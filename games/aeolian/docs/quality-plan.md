@@ -92,12 +92,13 @@ course on keyboard and gamepad before the gate closes.
 
 Current automated checkpoint (2026-08-24): pure movement/input/course calculations
 and the integrated scene matrix pass through the normal boot/session path. The
-scene matrix includes a continuous 486 m spawn-to-finish traversal, true terrain
-gap, smooth crest/compression, banks, bounded roughness, recoverable terrain-normal
-stress, pause/resume invariants, twenty in-place restarts, successful and missed
-endpoint lanes, 42 m/s terrain contact, and 30/42 m/s wall impacts. The continuous
-traversal proves route viability with a conservative steering policy, not human
-feel. Native Forward+ layout capture covers title, course, speed, recovery guidance,
+scene matrix includes separate continuous analog and keyboard-filtered 486 m
+spawn-to-finish traversals, a true terrain gap, smooth crest/compression, banks,
+bounded roughness, recoverable terrain-normal stress, pause/resume invariants,
+twenty in-place restarts, successful and missed endpoint lanes, 42 m/s terrain
+contact, and 30/42 m/s wall impacts. The continuous traversals prove route and
+input-path viability with conservative steering policies, not human feel or parity.
+Native Forward+ layout capture covers title, course, speed, recovery guidance,
 pause, finish-gate approach, deterministic completion, and crash/restart guidance
 on the development Mac. The capture waits on explicit UI state, a brief real-time
 settle, and five completed renderer draws so archived PNGs cannot precede the tested
