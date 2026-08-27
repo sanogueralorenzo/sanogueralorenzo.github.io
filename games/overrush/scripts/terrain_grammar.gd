@@ -163,6 +163,11 @@ func get_region_name(z: float) -> String:
 	return "PRISM HIGHLANDS"
 
 
+func get_region_weights(z: float) -> Vector3:
+	var progress := clampf(-z / maxf(route_length, 1.0), 0.0, 1.0)
+	return _region_weights(progress)
+
+
 func get_layout_fingerprint() -> String:
 	return _route_generator.get_layout_fingerprint()
 

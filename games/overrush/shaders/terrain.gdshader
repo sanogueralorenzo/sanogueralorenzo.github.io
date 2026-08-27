@@ -62,9 +62,9 @@ void fragment() {
 	vec3 verdant_rock = mix(vec3(0.19, 0.035, 0.38), vec3(0.94, 0.12, 0.34), fine_pattern);
 
 	// Ember Basin: warm ochre ground, coral strata, and plum rock faces.
-	vec3 ember_ground = mix(vec3(0.32, 0.065, 0.025), vec3(0.93, 0.43, 0.045), broad_pattern);
-	ember_ground = mix(ember_ground, vec3(0.92, 0.12, 0.20), smoothstep(0.62, 0.86, fine_pattern) * 0.45);
-	vec3 ember_rock = mix(vec3(0.24, 0.018, 0.25), vec3(1.0, 0.52, 0.13), fine_pattern);
+	vec3 ember_ground = mix(vec3(0.24, 0.038, 0.022), vec3(0.68, 0.25, 0.035), broad_pattern);
+	ember_ground = mix(ember_ground, vec3(0.66, 0.065, 0.13), smoothstep(0.62, 0.86, fine_pattern) * 0.48);
+	vec3 ember_rock = mix(vec3(0.19, 0.016, 0.24), vec3(0.86, 0.38, 0.08), fine_pattern);
 
 	// Prism Highlands: cool cyan flats with luminous lime and violet faces.
 	vec3 prism_ground = mix(vec3(0.015, 0.21, 0.32), vec3(0.26, 0.68, 0.47), broad_pattern);

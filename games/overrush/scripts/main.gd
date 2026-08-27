@@ -22,6 +22,7 @@ const VELOCITY_TIER_COLORS: Array[Color] = [
 @onready var combat: CombatDirector = $CombatDirector
 @onready var audio: OverrushAudioDirector = $AudioDirector
 @onready var boundary: WorldBoundary = $WorldBoundary
+@onready var atmosphere = $WorldAtmosphere
 @onready var info: Label = $HUD/Info
 @onready var run_stats: Label = $HUD/RunStats
 @onready var controls: Label = $HUD/Controls
@@ -145,6 +146,7 @@ var _feedback_stage := &"intent"
 var _feedback_tag_options: Array[String] = []
 var _control_reminder_remaining := 0.0
 var _archive_page := 0
+var _pending_region_reveal: Array[String] = []
 
 
 func _enter_tree() -> void:
@@ -175,6 +177,7 @@ func _ready() -> void:
 	combat.integrity_collected_feedback.connect(audio.play_repair)
 	combat.attack_warning_feedback.connect(audio.play_attack_warning)
 	combat.velocity_tier_changed.connect(audio.play_velocity_tier)
+	atmosphere.region_revealed.connect(_on_region_revealed)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
 	reroll_button.pressed.connect(_reroll_upgrade_options)
@@ -549,10 +552,12 @@ func _choose_upgrade(index: int) -> void:
 	audio.play_upgrade_choice(milestone_choice)
 	combat.choose_upgrade(index)
 	_restore_contextual_learning_hud()
+	call_deferred("_show_pending_region_reveal_if_ready")
 
 
 func _on_runner_defeated() -> void:
 	audio.play_defeat()
+	_pending_region_reveal.clear()
 	combat.stop_run()
 	level_up_overlay.visible = false
 	_hide_contextual_learning_hud()
@@ -583,7 +588,27 @@ func _on_event_announced(title: String, subtitle: String) -> void:
 		_event_tween.parallel().tween_property(event_banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_event_tween.tween_interval(2.2)
 	_event_tween.tween_property(event_banner, "modulate:a", 0.0, 0.5)
-	_event_tween.tween_callback(func() -> void: event_banner.visible = false)
+	_event_tween.tween_callback(_finish_event_banner)
+
+
+func _on_region_revealed(title: String, subtitle: String) -> void:
+	if event_banner.visible:
+		_pending_region_reveal = [title, subtitle]
+		return
+	_on_event_announced(title, subtitle)
+
+
+func _finish_event_banner() -> void:
+	event_banner.visible = false
+	_show_pending_region_reveal_if_ready()
+
+
+func _show_pending_region_reveal_if_ready() -> void:
+	if _pending_region_reveal.size() != 2 or event_banner.visible or level_up_overlay.visible or game_over_overlay.visible or victory_overlay.visible:
+		return
+	var pending := _pending_region_reveal.duplicate()
+	_pending_region_reveal.clear()
+	call_deferred("_on_event_announced", pending[0], pending[1])
 
 
 func _on_apex_health_changed(current: float, maximum: float) -> void:
@@ -599,6 +624,7 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 
 func _on_run_victory() -> void:
 	audio.play_victory()
+	_pending_region_reveal.clear()
 	level_up_overlay.visible = false
 	_hide_contextual_learning_hud()
 	var result := _record_run_progress(true)
@@ -611,6 +637,7 @@ func _on_run_victory() -> void:
 
 func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
+	_pending_region_reveal.clear()
 	level_up_overlay.visible = false
 	_hide_contextual_learning_hud()
 	var result := _record_run_progress(false)

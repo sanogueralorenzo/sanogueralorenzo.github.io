@@ -7,7 +7,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A newly randomized 3.2 km × 3.2 km terrain on every run.
 - A route graph generated before the terrain, with occasional alternate paths that split and merge.
 - Authored terrain features: broad valleys, banked turns, gradual launch hills, smooth landing zones, and gently shouldered narrow passes.
-- Three blended regions per run: Verdant Reach, Ember Basin, and Prism Highlands.
+- Three smoothly blended regions per run—Verdant Reach, Ember Basin, and Prism Highlands—now coordinate terrain, sky, fog, ambient light, and sunlight instead of recoloring the ground beneath one static atmosphere.
+- Rate-limited atmosphere updates preserve performance and long sightlines, while each later region receives one concise discovery reveal that queues behind higher-priority combat messages and never spams during backtracking.
 - Original rock spires, boulder fields, distant ridges, and procedural materials.
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
 - Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
@@ -73,6 +74,7 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 - `route_generator.gd` owns deterministic route topology and authored feature samples.
 - `route_lookup.gd` converts route samples into packed Z buckets for allocation-free height queries.
 - `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
+- `world_atmosphere.gd` maps the terrain's exact region weights into deterministic sky, fog, ambient, and sun palettes with gradual, rate-limited runtime transitions.
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
 - `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, deterministic experience and integrity rewards, and the distinct geometry of movement-triggered combat effects.
 - `experience_pickup.gd` owns high-speed pursuit, stale-reward recovery, distinct experience/integrity silhouettes, and full-integrity banking behavior.
@@ -111,6 +113,8 @@ Run the deterministic 20-seed terrain and formation gate with:
 
 ```sh
 godot --headless --path games/overrush --script res://tests/validate_worlds.gd
+godot --headless --path games/overrush --script res://tests/test_world_atmosphere.gd
+godot --headless --path games/overrush --script res://tests/validate_world_atmosphere.gd
 ```
 
 The gate checks required terrain shapes, route continuity and slopes, local corridor gradients, sightline curvature, alternate-route frequency, formation clearance, finite terrain heights, three-region coverage, and layout uniqueness.
