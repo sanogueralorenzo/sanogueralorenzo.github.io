@@ -48,11 +48,19 @@ func _validate_launch_and_glass_velocity() -> void:
 	_expect(paused, "The world should wait at the launch screen before a run begins.")
 	_expect(overlay.visible, "The launch screen should be visible before a run begins.")
 	_expect(not director._run_active, "Combat should remain inactive behind the launch screen.")
+	_expect("BUILD MASTERY  •  0 / 12" in scene.mastery_summary.text, "A new profile should expose finite non-power mastery goals without claiming progress.")
 
 	scene._profile.momentum = 1000
+	scene._profile.record_run(1200.0, 100, true, {
+		"evolution_id": "ramjet",
+		"arsenal_id": "hunter_array",
+		"catalyst_id": "redline_core",
+	})
 	scene._available_protocols = scene._profile.get_unlocked_protocols()
 	scene._protocol_index = scene._available_protocols.find(RunProtocolCatalog.GLASS_VELOCITY)
 	scene._refresh_launch_screen()
+	_expect("3 / 12" in scene.mastery_summary.text and "1 / 1 WINS" in scene.mastery_summary.text, "Launch should summarize durable mastery and recent playtest outcomes.")
+	_expect("GRAVITY KNOT" in scene.mastery_summary.text, "Launch should recommend an unmastered build instead of permanent power.")
 	scene.get_node("HUD/StartOverlay/LaunchPanel/Content/Launch").pressed.emit()
 	await process_frame
 

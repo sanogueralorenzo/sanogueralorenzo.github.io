@@ -179,6 +179,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"banishes_used": banishes_used,
 		"catalyst_id": str(build.catalyst_id),
 		"arsenal_id": str(build.arsenal_id),
+		"core_path": str(build.core_path),
+		"evolution_id": str(build.evolution_id),
 		"catalyst_uptime": snappedf(catalyst_active_seconds / maxf(catalyst_total_seconds, 0.001), 0.001),
 		"phase_reached": str(phase_reached),
 		"apex_id": str(apex_id),

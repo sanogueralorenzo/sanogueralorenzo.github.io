@@ -40,6 +40,7 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var victory_retry: Button = $HUD/VictoryOverlay/Retry
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
+@onready var mastery_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/MasterySummary
 @onready var protocol_name: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolName
 @onready var protocol_description: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolDescription
 @onready var protocol_reward: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolReward
@@ -479,6 +480,14 @@ func _refresh_launch_screen() -> void:
 		best_total_seconds % 60,
 		_profile.best_clear_count,
 	]
+	var recent_count := _profile.get_recent_run_count()
+	var recent_text := "NO RECORDED RUNS" if recent_count == 0 else "RECENT  •  %d / %d WINS" % [_profile.get_recent_win_count(), recent_count]
+	mastery_summary.text = "BUILD MASTERY  •  %d / %d   •   %s\nNEXT CLEAR  •  %s" % [
+		_profile.get_mastery_count(),
+		ProgressProfileModel.MASTERY_IDS.size(),
+		recent_text,
+		_profile.get_next_mastery_goal(),
+	]
 	protocol_name.text = str(definition.name)
 	protocol_description.text = str(definition.description)
 	protocol_reward.text = "MOMENTUM REWARD  ×%.2f" % float(definition.reward_multiplier)
@@ -516,6 +525,11 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		unlock_names.append(str(RunProtocolCatalog.get_definition(StringName(protocol_id)).name))
 	if not unlock_names.is_empty():
 		progress_text += "  •  UNLOCKED %s" % ", ".join(unlock_names)
+	var mastery_names: Array[String] = []
+	for mastery_id in result.get("new_masteries", []):
+		mastery_names.append(combat.build.get_upgrade_name(StringName(mastery_id)))
+	if not mastery_names.is_empty():
+		progress_text += "\nNEW MASTERY  •  %s" % " / ".join(mastery_names)
 	var record_names: Array[String] = []
 	for record_id in result.get("new_records", []):
 		match StringName(record_id):

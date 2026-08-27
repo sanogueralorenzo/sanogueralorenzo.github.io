@@ -2,9 +2,16 @@ class_name ProgressProfile
 extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
-const SCHEMA_VERSION := 4
+const RunBuildModel = preload("res://scripts/run_build.gd")
+const SCHEMA_VERSION := 5
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
+const RUN_HISTORY_LIMIT := 20
+const MASTERY_IDS: Array[StringName] = [
+	&"ramjet", &"gravity_knot", &"twin_current", &"tempest_anchor", &"storm_lance", &"arc_orbit",
+	RunBuildModel.HUNTER_ARRAY, RunBuildModel.DRIFT_BLADES, RunBuildModel.BACKDRAFT_MINE,
+	RunBuildModel.REDLINE_CORE, RunBuildModel.AIRFRAME_CORE, RunBuildModel.PULSE_CORE,
+]
 
 var momentum := 0
 var completed_runs := 0
@@ -14,6 +21,8 @@ var best_clear_count := 0
 var best_damage := 0.0
 var best_distance_meters := 0.0
 var last_run_summary: Dictionary = {}
+var run_history: Array[Dictionary] = []
+var mastered_build_ids: Array[StringName] = []
 var selected_protocol: StringName = RunProtocolCatalog.STANDARD
 var reduced_motion := false
 var high_contrast_telegraphs := false
@@ -32,6 +41,8 @@ func reset() -> void:
 	best_damage = 0.0
 	best_distance_meters = 0.0
 	last_run_summary.clear()
+	run_history.clear()
+	mastered_build_ids.clear()
 	selected_protocol = RunProtocolCatalog.STANDARD
 	reduced_motion = false
 	high_contrast_telegraphs = false
@@ -83,6 +94,16 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 	last_run_summary["enemies_defeated"] = safe_clears
 	last_run_summary["victory"] = victory
 	last_run_summary["protocol_id"] = str(selected_protocol)
+	run_history.push_front(last_run_summary.duplicate(true))
+	if run_history.size() > RUN_HISTORY_LIMIT:
+		run_history.resize(RUN_HISTORY_LIMIT)
+	var new_masteries: Array[StringName] = []
+	if victory:
+		for field_name in ["evolution_id", "arsenal_id", "catalyst_id"]:
+			var mastery_id := StringName(str(last_run_summary.get(field_name, "")))
+			if mastery_id in MASTERY_IDS and mastery_id not in mastered_build_ids:
+				mastered_build_ids.append(mastery_id)
+				new_masteries.append(mastery_id)
 	var new_unlocks: Array[StringName] = []
 	for protocol_id in get_unlocked_protocols():
 		if protocol_id not in unlocked_before:
@@ -92,7 +113,31 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 		"momentum_total": momentum,
 		"new_unlocks": new_unlocks,
 		"new_records": new_records,
+		"new_masteries": new_masteries,
 	}
+
+
+func get_mastery_count() -> int:
+	return mastered_build_ids.size()
+
+
+func get_next_mastery_goal() -> String:
+	for mastery_id in MASTERY_IDS:
+		if mastery_id not in mastered_build_ids:
+			return "BREAK THE APEX WITH %s" % RunBuildModel.UPGRADE_NAMES[mastery_id]
+	return "ALL BUILD MASTERIES COMPLETE"
+
+
+func get_recent_win_count(limit: int = 5) -> int:
+	var wins := 0
+	for index in range(mini(limit, run_history.size())):
+		if bool(run_history[index].get("victory", false)):
+			wins += 1
+	return wins
+
+
+func get_recent_run_count(limit: int = 5) -> int:
+	return mini(limit, run_history.size())
 
 
 func save(path: String = DEFAULT_PATH) -> bool:
@@ -153,6 +198,8 @@ func _load_absolute_path(absolute_path: String) -> bool:
 	best_distance_meters = maxf(0.0, float(data.get("best_distance_meters", 0.0)))
 	var saved_summary = data.get("last_run_summary", {})
 	last_run_summary = _sanitize_run_summary(saved_summary if saved_summary is Dictionary else {})
+	run_history = _sanitize_run_history(data.get("run_history", []))
+	mastered_build_ids = _sanitize_mastery_ids(data.get("mastered_build_ids", []))
 	var saved_protocol := StringName(str(data.get("selected_protocol", RunProtocolCatalog.STANDARD)))
 	selected_protocol = saved_protocol if saved_protocol in get_unlocked_protocols() else RunProtocolCatalog.STANDARD
 	reduced_motion = bool(data.get("reduced_motion", false))
@@ -175,6 +222,8 @@ func _to_dictionary() -> Dictionary:
 		"best_damage": best_damage,
 		"best_distance_meters": best_distance_meters,
 		"last_run_summary": last_run_summary,
+		"run_history": run_history,
+		"mastered_build_ids": mastered_build_ids.map(func(id: StringName) -> String: return str(id)),
 		"selected_protocol": str(selected_protocol),
 		"reduced_motion": reduced_motion,
 		"high_contrast_telegraphs": high_contrast_telegraphs,
@@ -199,6 +248,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"banishes_used": maxi(0, int(summary.get("banishes_used", 0))),
 		"catalyst_id": str(summary.get("catalyst_id", "")).left(48),
 		"arsenal_id": str(summary.get("arsenal_id", "")).left(48),
+		"core_path": str(summary.get("core_path", "")).left(48),
+		"evolution_id": str(summary.get("evolution_id", "")).left(48),
 		"catalyst_uptime": clampf(float(summary.get("catalyst_uptime", 0.0)), 0.0, 1.0),
 		"phase_reached": str(summary.get("phase_reached", "breakaway")).left(32),
 		"apex_id": str(summary.get("apex_id", "")).left(48),
@@ -212,6 +263,29 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 	safe["damage_by_source"] = _sanitize_numeric_dictionary(summary.get("damage_by_source", {}), 16)
 	safe["hits_by_source"] = _sanitize_numeric_dictionary(summary.get("hits_by_source", {}), 16)
 	safe["defeats_by_archetype"] = _sanitize_numeric_dictionary(summary.get("defeats_by_archetype", {}), 16)
+	return safe
+
+
+func _sanitize_run_history(value) -> Array[Dictionary]:
+	var safe: Array[Dictionary] = []
+	if not (value is Array):
+		return safe
+	for item in value:
+		if safe.size() >= RUN_HISTORY_LIMIT:
+			break
+		if item is Dictionary:
+			safe.append(_sanitize_run_summary(item))
+	return safe
+
+
+func _sanitize_mastery_ids(value) -> Array[StringName]:
+	var safe: Array[StringName] = []
+	if not (value is Array):
+		return safe
+	for item in value:
+		var mastery_id := StringName(str(item))
+		if mastery_id in MASTERY_IDS and mastery_id not in safe:
+			safe.append(mastery_id)
 	return safe
 
 

@@ -14,6 +14,8 @@ func _init() -> void:
 	_test_schema_one_migration()
 	_test_schema_two_audio_migration()
 	_test_schema_three_recap_migration()
+	_test_schema_four_history_migration()
+	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
 	if _failures.is_empty():
@@ -35,6 +37,8 @@ func _test_unlock_progression_without_permanent_power() -> void:
 		"banishes_used": 1,
 		"apex_id": "velocity_reaver",
 		"catalyst_id": "redline_core",
+		"arsenal_id": "hunter_array",
+		"evolution_id": "ramjet",
 		"catalyst_uptime": 0.64,
 	})
 	_expect(int(first_result.momentum_earned) == 200, "A baseline full victory should award deterministic Momentum.")
@@ -44,6 +48,8 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect(int(profile.last_run_summary.rerolls_used) == 2 and int(profile.last_run_summary.banishes_used) == 1, "Persisted balance evidence should distinguish draft agency from favorable rolls.")
 	_expect(str(profile.last_run_summary.apex_id) == "velocity_reaver", "Persisted recaps should retain the encountered Apex identity.")
 	_expect(str(profile.last_run_summary.catalyst_id) == "redline_core" and is_equal_approx(float(profile.last_run_summary.catalyst_uptime), 0.64), "Persisted balance evidence should retain catalyst choice and empowered uptime.")
+	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
+	_expect("GRAVITY KNOT" in profile.get_next_mastery_goal(), "The next mastery goal should direct the player toward an unexplored build.")
 	_expect(RunProtocolCatalog.GLASS_VELOCITY not in profile.get_unlocked_protocols(), "Later protocols should require additional runs.")
 	_expect(profile.select_protocol(RunProtocolCatalog.REDLINE), "An unlocked challenge protocol should be selectable.")
 	var second_result := profile.record_run(1200.0, 100, true)
@@ -73,6 +79,8 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.onboarding_completed = true
 	profile.master_volume = 0.35
 	profile.music_volume = 0.4
+	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE"}]
+	profile.mastered_build_ids = [&"storm_lance", &"drift_blades"]
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
 	var loaded := ProgressProfileModel.new()
 	_expect(loaded.load(_test_path), "A saved profile should load.")
@@ -82,6 +90,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
 	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4), "Audio mix preferences should survive a save/load round trip.")
+	_expect(loaded.run_history.size() == 1 and loaded.get_mastery_count() == 2, "Bounded run history and non-power mastery should survive a save/load round trip.")
 
 	var absolute_path := ProjectSettings.globalize_path(_test_path)
 	profile.momentum = 520
@@ -165,6 +174,40 @@ func _test_schema_three_recap_migration() -> void:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):
 			DirAccess.remove_absolute(target)
+
+
+func _test_schema_four_history_migration() -> void:
+	var legacy_path := _test_path + ".legacy4"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 4,
+		"momentum": 800,
+		"completed_runs": 8,
+		"victories": 4,
+		"selected_protocol": "elite_hunt",
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-four profile should migrate when run history and mastery are introduced.")
+	_expect(migrated.run_history.is_empty() and migrated.get_mastery_count() == 0, "Older profiles should receive safe empty mastery evidence without inventing clears.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_bounded_history_and_mastery() -> void:
+	var profile := ProgressProfileModel.new()
+	for index in range(ProgressProfileModel.RUN_HISTORY_LIMIT + 5):
+		profile.record_run(60.0 + index, index, index % 4 == 0, {
+			"evolution_id": "ramjet",
+			"arsenal_id": "hunter_array",
+			"catalyst_id": "pulse_core",
+			"build_name": "DASHBREAKER • RAMJET",
+		})
+	_expect(profile.run_history.size() == ProgressProfileModel.RUN_HISTORY_LIMIT, "Run history should retain a useful balance window without growing save files forever.")
+	_expect(profile.get_recent_run_count() == 5 and profile.get_recent_win_count() == 2, "Recent form should use the latest five sanitized outcomes.")
+	_expect(profile.get_mastery_count() == 3, "Repeated clears with one loadout should not inflate mastery progress.")
 
 
 func _test_corrupt_profile_falls_back_safely() -> void:
