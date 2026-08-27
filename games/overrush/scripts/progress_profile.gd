@@ -21,6 +21,9 @@ const PLAYTEST_TAG_NAMES := {
 	"terrain_issue": "TERRAIN",
 	"difficulty_issue": "DIFFICULTY",
 }
+const EVOLUTION_MASTERY_IDS: Array[StringName] = [&"ramjet", &"gravity_knot", &"twin_current", &"tempest_anchor", &"storm_lance", &"arc_orbit"]
+const ARSENAL_MASTERY_IDS: Array[StringName] = [RunBuildModel.HUNTER_ARRAY, RunBuildModel.DRIFT_BLADES, RunBuildModel.BACKDRAFT_MINE]
+const DRIVE_MASTERY_IDS: Array[StringName] = [RunBuildModel.REDLINE_CORE, RunBuildModel.AIRFRAME_CORE, RunBuildModel.PULSE_CORE]
 const MASTERY_IDS: Array[StringName] = [
 	&"ramjet", &"gravity_knot", &"twin_current", &"tempest_anchor", &"storm_lance", &"arc_orbit",
 	RunBuildModel.HUNTER_ARRAY, RunBuildModel.DRIFT_BLADES, RunBuildModel.BACKDRAFT_MINE,
@@ -135,6 +138,18 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 
 func get_mastery_count() -> int:
 	return mastered_build_ids.size()
+
+
+func is_build_mastered(mastery_id: StringName) -> bool:
+	return mastery_id in mastered_build_ids
+
+
+func get_mastery_count_for(mastery_ids: Array[StringName]) -> int:
+	var count := 0
+	for mastery_id in mastery_ids:
+		if is_build_mastered(mastery_id):
+			count += 1
+	return count
 
 
 func get_next_mastery_goal() -> String:

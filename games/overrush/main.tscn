@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -203,6 +203,38 @@ corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="MasteryButtonStyle"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 2.0
+bg_color = Color(0.018, 0.055, 0.1, 0.72)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.66, 0.88, 0.34)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="MasteryButtonHoverStyle"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 2.0
+bg_color = Color(0.035, 0.11, 0.17, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2, 0.82, 1, 0.82)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="Overrush" type="Node3D"]
 script = ExtResource("1_main")
@@ -890,14 +922,19 @@ theme_override_font_sizes/font_size = 17
 text = "MOMENTUM 0   •   RUNS 0   •   WINS 0   •   SURVIVAL 00:00   •   CLEARS 0"
 horizontal_alignment = 1
 
-[node name="MasterySummary" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+[node name="MasterySummary" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.66, 0.84, 0.98, 1)
+theme_override_colors/font_hover_color = Color(0.82, 0.94, 1, 1)
+theme_override_colors/font_focus_color = Color(0.82, 0.94, 1, 1)
 theme_override_font_sizes/font_size = 14
-text = "BUILD MASTERY  •  0 / 12  •  NO RECORDED RUNS\nNEXT CLEAR  •  BREAK THE APEX WITH RAMJET"
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_styles/normal = SubResource("MasteryButtonStyle")
+theme_override_styles/hover = SubResource("MasteryButtonHoverStyle")
+theme_override_styles/focus = SubResource("MasteryButtonHoverStyle")
+theme_override_styles/pressed = SubResource("MasteryButtonHoverStyle")
+text = "BUILD MASTERY  •  0 / 12  •  NO RECORDED RUNS\nOPEN RECORD  •  NEXT CLEAR  •  BREAK THE APEX WITH RAMJET"
+tooltip_text = "Open the non-power build mastery record"
 
 [node name="Divider" type="ColorRect" parent="HUD/StartOverlay/LaunchPanel/Content"]
 custom_minimum_size = Vector2(0, 1)
@@ -995,6 +1032,115 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.78, 0.9, 1)
 theme_override_font_sizes/font_size = 14
 text = "ACCESSIBILITY & GUIDANCE"
+
+[node name="MasteryOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.003, 0.012, 0.035, 0.94)
+
+[node name="MasteryPanel" type="PanelContainer" parent="HUD/MasteryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -460.0
+offset_top = -320.0
+offset_right = 460.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("LaunchPanelStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/MasteryOverlay/MasteryPanel"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="Kicker" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_constants/letter_spacing = 3
+theme_override_font_sizes/font_size = 14
+text = "NON-POWER PROGRESSION"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 36
+text = "BUILD MASTERY"
+horizontal_alignment = 1
+
+[node name="Introduction" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.82, 0.94, 1)
+theme_override_font_sizes/font_size = 15
+text = "Break the Apex with different endgame tools to fill this record.\nMastery grants no combat power; every clear still depends on execution and draft decisions."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Progress" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.7, 0.25, 1)
+theme_override_font_sizes/font_size = 17
+text = "0 / 12 MASTERED"
+horizontal_alignment = 1
+
+[node name="Groups" type="HBoxContainer" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+custom_minimum_size = Vector2(0, 270)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Evolutions" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content/Groups"]
+custom_minimum_size = Vector2(0, 270)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(1, 0.62, 0.3, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "EVOLUTIONS  •  0 / 6\n○  RAMJET\n○  GRAVITY KNOT\n○  TWIN CURRENT\n○  TEMPEST ANCHOR\n○  STORM LANCE\n○  ARC ORBIT"
+
+[node name="Arsenals" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content/Groups"]
+custom_minimum_size = Vector2(0, 270)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.48, 1, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "ARSENALS  •  0 / 3\n○  HUNTER ARRAY\n○  DRIFT BLADES\n○  BACKDRAFT MINE"
+
+[node name="Drives" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content/Groups"]
+custom_minimum_size = Vector2(0, 270)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.98, 0.78, 0.28, 1)
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "DRIVES  •  0 / 3\n○  REDLINE CORE\n○  AIRFRAME CORE\n○  PULSE CORE"
+
+[node name="NextGoal" type="Label" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "NEXT CLEAR  •  BREAK THE APEX WITH RAMJET"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Back" type="Button" parent="HUD/MasteryOverlay/MasteryPanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "BACK TO RUN SETUP"
 
 [node name="PauseOverlay" type="ColorRect" parent="HUD"]
 visible = false

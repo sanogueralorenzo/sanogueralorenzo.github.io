@@ -58,7 +58,7 @@ const CONTROL_REMINDER_SECONDS := 6.0
 ]
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
-@onready var mastery_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/MasterySummary
+@onready var mastery_summary: Button = $HUD/StartOverlay/LaunchPanel/Content/MasterySummary
 @onready var protocol_name: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolName
 @onready var protocol_description: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolDescription
 @onready var protocol_reward: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolReward
@@ -69,6 +69,13 @@ const CONTROL_REMINDER_SECONDS := 6.0
 @onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
 @onready var launch_hint: Label = $HUD/StartOverlay/LaunchPanel/Content/LaunchHint
 @onready var accessibility_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Accessibility
+@onready var mastery_overlay: Control = $HUD/MasteryOverlay
+@onready var mastery_progress: Label = $HUD/MasteryOverlay/MasteryPanel/Content/Progress
+@onready var mastery_evolutions: Label = $HUD/MasteryOverlay/MasteryPanel/Content/Groups/Evolutions
+@onready var mastery_arsenals: Label = $HUD/MasteryOverlay/MasteryPanel/Content/Groups/Arsenals
+@onready var mastery_drives: Label = $HUD/MasteryOverlay/MasteryPanel/Content/Groups/Drives
+@onready var mastery_next_goal: Label = $HUD/MasteryOverlay/MasteryPanel/Content/NextGoal
+@onready var mastery_back_button: Button = $HUD/MasteryOverlay/MasteryPanel/Content/Back
 @onready var pause_overlay: Control = $HUD/PauseOverlay
 @onready var pause_summary: Label = $HUD/PauseOverlay/PausePanel/Content/Summary
 @onready var pause_loadout: Label = $HUD/PauseOverlay/PausePanel/Content/Loadout
@@ -148,6 +155,8 @@ func _ready() -> void:
 	next_protocol.pressed.connect(_cycle_protocol.bind(1))
 	launch_button.pressed.connect(begin_run)
 	accessibility_button.pressed.connect(_open_settings.bind(false))
+	mastery_summary.pressed.connect(_open_mastery_board)
+	mastery_back_button.pressed.connect(_close_mastery_board)
 	pause_resume_button.pressed.connect(_resume_run)
 	pause_settings_button.pressed.connect(_open_settings.bind(true))
 	pause_restart_button.pressed.connect(_request_restart)
@@ -228,6 +237,11 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if mastery_overlay.visible:
+		if event.is_action_pressed(InputBindings.PAUSE):
+			_close_mastery_board()
+			get_viewport().set_input_as_handled()
+		return
 	if settings_overlay.visible:
 		if event.is_action_pressed(InputBindings.PAUSE):
 			_close_settings()
@@ -542,7 +556,7 @@ func _on_run_failed(reason: String) -> void:
 
 
 func begin_run(protocol_id: StringName = &"") -> void:
-	if _run_started:
+	if _run_started or mastery_overlay.visible:
 		return
 	var chosen_protocol := protocol_id
 	if chosen_protocol.is_empty():
@@ -599,7 +613,7 @@ func _refresh_launch_screen() -> void:
 			_profile.get_recent_playtest_tag_frequency(top_playtest_tag),
 			_profile.get_recent_playtest_tag_count(),
 		]
-	mastery_summary.text = "BUILD MASTERY  •  %d / %d   •   %s\nNEXT CLEAR  •  %s" % [
+	mastery_summary.text = "BUILD MASTERY  •  %d / %d   •   %s\nOPEN RECORD  •  NEXT CLEAR  •  %s" % [
 		_profile.get_mastery_count(),
 		ProgressProfileModel.MASTERY_IDS.size(),
 		recent_text,
@@ -612,6 +626,35 @@ func _refresh_launch_screen() -> void:
 	next_unlock.text = "ALL PROTOCOLS UNLOCKED" if upcoming.is_empty() else "NEXT UNLOCK  •  %s AT %d MOMENTUM" % [upcoming.name, upcoming.required]
 	previous_protocol.disabled = _available_protocols.size() <= 1
 	next_protocol.disabled = _available_protocols.size() <= 1
+	_refresh_mastery_board()
+
+
+func _open_mastery_board() -> void:
+	if _run_started or not start_overlay.visible:
+		return
+	_refresh_mastery_board()
+	mastery_overlay.visible = true
+	mastery_back_button.grab_focus()
+
+
+func _close_mastery_board() -> void:
+	mastery_overlay.visible = false
+	mastery_summary.grab_focus()
+
+
+func _refresh_mastery_board() -> void:
+	mastery_progress.text = "%d / %d MASTERED" % [_profile.get_mastery_count(), ProgressProfileModel.MASTERY_IDS.size()]
+	mastery_evolutions.text = _format_mastery_group("EVOLUTIONS", ProgressProfileModel.EVOLUTION_MASTERY_IDS)
+	mastery_arsenals.text = _format_mastery_group("ARSENALS", ProgressProfileModel.ARSENAL_MASTERY_IDS)
+	mastery_drives.text = _format_mastery_group("DRIVES", ProgressProfileModel.DRIVE_MASTERY_IDS)
+	mastery_next_goal.text = "NEXT CLEAR  •  %s" % _profile.get_next_mastery_goal()
+
+
+func _format_mastery_group(title: String, mastery_ids: Array[StringName]) -> String:
+	var lines: Array[String] = ["%s  •  %d / %d" % [title, _profile.get_mastery_count_for(mastery_ids), mastery_ids.size()]]
+	for mastery_id in mastery_ids:
+		lines.append("%s  %s" % ["✓" if _profile.is_build_mastered(mastery_id) else "○", str(RunBuild.UPGRADE_NAMES[mastery_id])])
+	return "\n".join(lines)
 
 
 func _on_feedback_choice(index: int) -> void:

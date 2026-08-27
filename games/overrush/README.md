@@ -50,6 +50,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
 - Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
 - Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
+- A launch-accessible mastery record separates all six evolutions, three arsenals, and three Drives into visible completed and unexplored checklists, explains that mastery grants no combat power, and returns controller focus safely to run setup.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles and combat flashes, and high-contrast attack zones with bright geometric boundaries while preserving directional damage information.
 - Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.

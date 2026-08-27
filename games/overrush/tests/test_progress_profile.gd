@@ -62,6 +62,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect(is_equal_approx(float(profile.last_run_summary.damage_taken_by_source.skimmer_charge), 42.0), "Persisted balance evidence should retain incoming damage attribution.")
 	_expect(is_equal_approx(float(profile.last_run_summary.integrity_recovered), 36.0) and int(profile.last_run_summary.recovery_pickups) == 3, "Persisted balance evidence should retain recovery economy usage.")
 	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
+	_expect(profile.get_mastery_count_for(ProgressProfileModel.EVOLUTION_MASTERY_IDS) == 1 and profile.get_mastery_count_for(ProgressProfileModel.ARSENAL_MASTERY_IDS) == 1 and profile.get_mastery_count_for(ProgressProfileModel.DRIVE_MASTERY_IDS) == 1, "Mastery progress should remain legible across evolution, arsenal, and Drive categories.")
 	_expect(profile.record_latest_replay_intent("yes"), "A completed run should accept optional replay-intent feedback.")
 	_expect(profile.get_recent_replay_feedback_count() == 1 and profile.get_recent_replay_yes_count() == 1, "Recent playtest sentiment should remain measurable beside run telemetry.")
 	_expect(profile.record_latest_playtest_tag("movement_highlight"), "A positive replay response should accept one actionable strength tag.")
