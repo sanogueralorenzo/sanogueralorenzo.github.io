@@ -551,7 +551,7 @@ anchor_bottom = 0.5
 offset_left = -440.0
 offset_top = -245.0
 offset_right = 440.0
-offset_bottom = 245.0
+offset_bottom = 165.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.34, 0.18, 1)
@@ -561,6 +561,21 @@ theme_override_font_sizes/font_size = 22
 text = "RUN ENDED\n\nPRESS R TO BREAK THROUGH AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Retry" type="Button" parent="HUD/GameOverOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = 185.0
+offset_right = 210.0
+offset_bottom = 237.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 18
+text = "RUN AGAIN  •  R"
 
 [node name="VictoryOverlay" type="ColorRect" parent="HUD"]
 visible = false
@@ -595,7 +610,7 @@ anchor_bottom = 0.5
 offset_left = -440.0
 offset_top = -245.0
 offset_right = 440.0
-offset_bottom = 245.0
+offset_bottom = 165.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.18, 0.94, 1, 1)
@@ -605,6 +620,21 @@ theme_override_font_sizes/font_size = 22
 text = "APEX BROKEN\n\nPRESS R TO OVERRUN AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="Retry" type="Button" parent="HUD/VictoryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = 185.0
+offset_right = 210.0
+offset_bottom = 237.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 18
+text = "RUN AGAIN  •  R"
 
 [node name="StartOverlay" type="ColorRect" parent="HUD"]
 process_mode = 3
@@ -760,6 +790,94 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.78, 0.9, 1)
 theme_override_font_sizes/font_size = 14
 text = "ACCESSIBILITY & GUIDANCE"
+
+[node name="PauseOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.004, 0.014, 0.045, 0.86)
+
+[node name="PausePanel" type="PanelContainer" parent="HUD/PauseOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -245.0
+offset_right = 340.0
+offset_bottom = 245.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("LaunchPanelStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/PauseOverlay/PausePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Kicker" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_constants/letter_spacing = 3
+theme_override_font_sizes/font_size = 14
+text = "RUN SUSPENDED"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 38
+text = "PAUSED"
+horizontal_alignment = 1
+
+[node name="Summary" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.86, 0.96, 1)
+theme_override_font_sizes/font_size = 16
+text = "00:00  •  BREAKAWAY\nUNCOMMITTED"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Resume" type="Button" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "RESUME RUN"
+
+[node name="Settings" type="Button" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "ACCESSIBILITY & AUDIO"
+
+[node name="Restart" type="Button" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.48, 0.3, 1)
+theme_override_font_sizes/font_size = 17
+text = "RESTART RUN"
+
+[node name="RestartWarning" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.58, 0.58, 1)
+theme_override_font_sizes/font_size = 14
+text = "Restart requires confirmation. The current run will not be recorded."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="Hint" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.66, 0.78, 1)
+theme_override_font_sizes/font_size = 13
+text = "ESC TO RESUME  •  ENTER TO SELECT"
+horizontal_alignment = 1
 
 [node name="SettingsOverlay" type="ColorRect" parent="HUD"]
 visible = false

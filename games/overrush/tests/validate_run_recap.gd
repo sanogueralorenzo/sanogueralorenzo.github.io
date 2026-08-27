@@ -67,7 +67,10 @@ func _run() -> void:
 	await process_frame
 	var overlay: Control = scene.get_node("HUD/GameOverOverlay")
 	var message: Label = scene.get_node("HUD/GameOverOverlay/Message")
+	var retry: Button = scene.get_node("HUD/GameOverOverlay/Retry")
 	_expect(overlay.visible and paused, "A completed run should pause behind a dedicated recap overlay.")
+	_expect(retry.visible and retry.text == "RUN AGAIN  •  R", "The recap should expose a focused, device-aware retry action.")
+	_expect(scene.get_viewport().gui_get_focus_owner() == retry, "Retry should own focus when an outcome appears.")
 	_expect(scene.has_node("HUD/GameOverOverlay/RecapPanel"), "The recap should use a framed panel rather than floating outcome text.")
 	_expect("DASHBREAKER • RAMJET" in message.text and "LEVEL 9" in message.text, "The recap should identify the demonstrated build and maturity.")
 	_expect("6 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")

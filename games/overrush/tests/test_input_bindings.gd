@@ -1,0 +1,71 @@
+extends SceneTree
+
+const InputBindings = preload("res://scripts/input_bindings.gd")
+
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	InputBindings.ensure_actions()
+	var original_event_counts := {}
+	for action in InputBindings.ALL_ACTIONS:
+		original_event_counts[action] = InputMap.action_get_events(action).size()
+	InputBindings.ensure_actions()
+
+	for action in InputBindings.ALL_ACTIONS:
+		_expect(InputMap.has_action(action), "The %s action should be registered at runtime." % action)
+		_expect(
+			InputMap.action_get_events(action).size() == int(original_event_counts[action]),
+			"Registering actions twice should not duplicate %s bindings." % action,
+		)
+	_expect(_has_key(InputBindings.MOVE_LEFT, KEY_A), "Keyboard steering should include A.")
+	_expect(_has_axis(InputBindings.MOVE_LEFT, JOY_AXIS_LEFT_X, -1.0), "Analog steering should include the left stick's negative X axis.")
+	_expect(_has_axis(InputBindings.BOOST, JOY_AXIS_LEFT_Y, -1.0), "Analog boost should include the left stick's forward axis.")
+	_expect(_has_button(InputBindings.HOP, JOY_BUTTON_A), "Gamepad hop should use the south face button.")
+	_expect(_has_button(InputBindings.DASH, JOY_BUTTON_LEFT_SHOULDER), "Gamepad dash should include the left shoulder.")
+	_expect(_has_button(InputBindings.PAUSE, JOY_BUTTON_START), "Gamepad pause should use Start.")
+	_expect(_has_button(InputBindings.REROLL, JOY_BUTTON_Y), "Gamepad reroll should use the north face button.")
+	_expect(_has_button(InputBindings.BANISH, JOY_BUTTON_X), "Gamepad banish should use the west face button.")
+
+	var joy_event := InputEventJoypadButton.new()
+	joy_event.button_index = JOY_BUTTON_A
+	joy_event.pressed = true
+	_expect(InputBindings.is_gamepad_event(joy_event), "Pressed controller buttons should switch prompt mode.")
+	var key_event := InputEventKey.new()
+	key_event.keycode = KEY_SPACE
+	key_event.pressed = true
+	_expect(InputBindings.is_keyboard_or_mouse_event(key_event), "Pressed keyboard keys should switch prompt mode.")
+
+	if _failures.is_empty():
+		print("Input binding validation passed — keyboard and controller actions are complete and idempotent.")
+		quit(0)
+	else:
+		for failure in _failures:
+			push_error(failure)
+		quit(1)
+
+
+func _has_key(action: StringName, keycode: Key) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventKey and event.keycode == keycode:
+			return true
+	return false
+
+
+func _has_button(action: StringName, button: JoyButton) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton and event.button_index == button:
+			return true
+	return false
+
+
+func _has_axis(action: StringName, axis: JoyAxis, value: float) -> bool:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadMotion and event.axis == axis and is_equal_approx(event.axis_value, value):
+			return true
+	return false
+
+
+func _expect(condition: bool, message: String) -> void:
+	if not condition:
+		_failures.append(message)

@@ -26,10 +26,13 @@ func _validate_onboarding_model() -> void:
 	var onboarding: RunOnboarding = RunOnboardingModel.new()
 	onboarding.reset()
 	_expect("STEER" in onboarding.get_message(), "Guidance should begin with the steering concept.")
+	_expect("LEFT STICK" in onboarding.get_message(true), "Controller guidance should teach steering with the left stick.")
 	onboarding.update(0.1, true, false, false)
 	_expect(onboarding.step == RunOnboardingModel.DASH, "Steering input should advance guidance to the dash concept.")
+	_expect("LB / RB" in onboarding.get_message(true), "Controller guidance should teach both dash shoulder buttons.")
 	onboarding.update(0.1, false, true, false)
 	_expect(onboarding.step == RunOnboardingModel.HOP, "A dash should advance guidance to hopping and automatic combat.")
+	_expect(" •  A" in onboarding.get_message(true), "Controller guidance should teach hopping with the south face button.")
 	onboarding.update(0.1, false, false, true)
 	_expect(onboarding.is_complete(), "Performing the three movement concepts should complete onboarding.")
 

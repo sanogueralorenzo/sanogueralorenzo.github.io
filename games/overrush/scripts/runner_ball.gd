@@ -6,6 +6,7 @@ signal defeated
 signal damaged(amount: float)
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
+const InputBindings = preload("res://scripts/input_bindings.gd")
 const AIRFRAME_COMMIT_TIME := 0.14
 
 @export var cruise_speed: float = 58.0
@@ -66,11 +67,7 @@ func _physics_process(delta: float) -> void:
 	elif dash_event == DashStateMachine.Event.ENDED:
 		_end_dash()
 
-	var steering := 0.0
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
-		steering += 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
-		steering -= 1.0
+	var steering := Input.get_action_strength(InputBindings.MOVE_LEFT) - Input.get_action_strength(InputBindings.MOVE_RIGHT)
 	if not _dash_state.is_active:
 		heading = heading.rotated(Vector3.UP, steering * turn_speed * delta).normalized()
 
@@ -87,9 +84,11 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var target_speed := cruise_speed
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+	var boost_strength := Input.get_action_strength(InputBindings.BOOST)
+	var brake_strength := Input.get_action_strength(InputBindings.BRAKE)
+	if boost_strength > brake_strength and boost_strength > 0.15:
 		target_speed = boost_speed
-	elif Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+	elif brake_strength > 0.15:
 		target_speed = brake_speed
 
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
@@ -110,7 +109,7 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor():
 		if velocity.y < 0.0:
 			velocity.y = -1.5
-		if Input.is_key_pressed(KEY_SPACE):
+		if Input.is_action_pressed(InputBindings.HOP):
 			velocity.y = jump_velocity
 	else:
 		velocity.y -= _gravity * 2.35 * delta
@@ -239,7 +238,7 @@ func _update_ball_material() -> void:
 
 
 func _is_dash_pressed() -> bool:
-	return Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_ALT)
+	return Input.is_action_pressed(InputBindings.DASH)
 
 
 func _check_fall() -> void:

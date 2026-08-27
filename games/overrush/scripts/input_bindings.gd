@@ -1,0 +1,91 @@
+class_name OverrushInputBindings
+extends RefCounted
+
+const MOVE_LEFT := &"overrush_move_left"
+const MOVE_RIGHT := &"overrush_move_right"
+const BOOST := &"overrush_boost"
+const BRAKE := &"overrush_brake"
+const HOP := &"overrush_hop"
+const DASH := &"overrush_dash"
+const PAUSE := &"overrush_pause"
+const CONFIRM := &"overrush_confirm"
+const RETRY := &"overrush_retry"
+const REROLL := &"overrush_reroll"
+const BANISH := &"overrush_banish"
+const MENU_LEFT := &"overrush_menu_left"
+const MENU_RIGHT := &"overrush_menu_right"
+
+const ALL_ACTIONS: Array[StringName] = [
+	MOVE_LEFT,
+	MOVE_RIGHT,
+	BOOST,
+	BRAKE,
+	HOP,
+	DASH,
+	PAUSE,
+	CONFIRM,
+	RETRY,
+	REROLL,
+	BANISH,
+	MENU_LEFT,
+	MENU_RIGHT,
+]
+
+
+static func ensure_actions() -> void:
+	_ensure_action(MOVE_LEFT, [_key(KEY_A), _key(KEY_LEFT), _joy_axis(JOY_AXIS_LEFT_X, -1.0), _joy_button(JOY_BUTTON_DPAD_LEFT)])
+	_ensure_action(MOVE_RIGHT, [_key(KEY_D), _key(KEY_RIGHT), _joy_axis(JOY_AXIS_LEFT_X, 1.0), _joy_button(JOY_BUTTON_DPAD_RIGHT)])
+	_ensure_action(BOOST, [_key(KEY_W), _key(KEY_UP), _joy_axis(JOY_AXIS_LEFT_Y, -1.0)])
+	_ensure_action(BRAKE, [_key(KEY_S), _key(KEY_DOWN), _joy_axis(JOY_AXIS_LEFT_Y, 1.0)])
+	_ensure_action(HOP, [_key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])
+	_ensure_action(DASH, [_key(KEY_SHIFT), _key(KEY_ALT), _joy_button(JOY_BUTTON_LEFT_SHOULDER), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
+	_ensure_action(PAUSE, [_key(KEY_ESCAPE), _joy_button(JOY_BUTTON_START)])
+	_ensure_action(CONFIRM, [_key(KEY_ENTER), _key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])
+	_ensure_action(RETRY, [_key(KEY_R), _joy_button(JOY_BUTTON_A)])
+	_ensure_action(REROLL, [_key(KEY_Q), _joy_button(JOY_BUTTON_Y)])
+	_ensure_action(BANISH, [_key(KEY_B), _joy_button(JOY_BUTTON_X)])
+	_ensure_action(MENU_LEFT, [_key(KEY_A), _key(KEY_LEFT), _joy_button(JOY_BUTTON_DPAD_LEFT)])
+	_ensure_action(MENU_RIGHT, [_key(KEY_D), _key(KEY_RIGHT), _joy_button(JOY_BUTTON_DPAD_RIGHT)])
+
+
+static func is_gamepad_event(event: InputEvent) -> bool:
+	if event is InputEventJoypadButton:
+		return event.pressed
+	if event is InputEventJoypadMotion:
+		return absf(event.axis_value) >= 0.35
+	return false
+
+
+static func is_keyboard_or_mouse_event(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	if event is InputEventMouseButton:
+		return event.pressed
+	return event is InputEventMouseMotion and event.relative.length_squared() > 16.0
+
+
+static func _ensure_action(action: StringName, events: Array[InputEvent], deadzone: float = 0.22) -> void:
+	if InputMap.has_action(action):
+		return
+	InputMap.add_action(action, deadzone)
+	for event in events:
+		InputMap.action_add_event(action, event)
+
+
+static func _key(keycode: Key) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.keycode = keycode
+	return event
+
+
+static func _joy_button(button_index: JoyButton) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.button_index = button_index
+	return event
+
+
+static func _joy_axis(axis: JoyAxis, value: float) -> InputEventJoypadMotion:
+	var event := InputEventJoypadMotion.new()
+	event.axis = axis
+	event.axis_value = value
+	return event

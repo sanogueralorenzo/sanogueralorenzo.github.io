@@ -4,6 +4,7 @@ const ProgressProfileModel = preload("res://scripts/progress_profile.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
+const InputBindings = preload("res://scripts/input_bindings.gd")
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -13,6 +14,7 @@ const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 @onready var boundary: WorldBoundary = $WorldBoundary
 @onready var info: Label = $HUD/Info
 @onready var run_stats: Label = $HUD/RunStats
+@onready var controls: Label = $HUD/Controls
 @onready var integrity_bar: ProgressBar = $HUD/IntegrityBar
 @onready var experience_bar: ProgressBar = $HUD/ExperienceBar
 @onready var level_label: Label = $HUD/LevelLabel
@@ -32,8 +34,10 @@ const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 @onready var banish_button: Button = $HUD/LevelUpOverlay/ChoicePanel/Choices/DraftControls/Banish
 @onready var game_over_overlay: Control = $HUD/GameOverOverlay
 @onready var game_over_message: Label = $HUD/GameOverOverlay/Message
+@onready var game_over_retry: Button = $HUD/GameOverOverlay/Retry
 @onready var victory_overlay: Control = $HUD/VictoryOverlay
 @onready var victory_message: Label = $HUD/VictoryOverlay/Message
+@onready var victory_retry: Button = $HUD/VictoryOverlay/Retry
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
 @onready var protocol_name: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolName
@@ -41,9 +45,18 @@ const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 @onready var protocol_reward: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolReward
 @onready var next_unlock: Label = $HUD/StartOverlay/LaunchPanel/Content/NextUnlock
 @onready var previous_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Previous
+@onready var select_hint: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/SelectHint
 @onready var next_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Next
 @onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
+@onready var launch_hint: Label = $HUD/StartOverlay/LaunchPanel/Content/LaunchHint
 @onready var accessibility_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Accessibility
+@onready var pause_overlay: Control = $HUD/PauseOverlay
+@onready var pause_summary: Label = $HUD/PauseOverlay/PausePanel/Content/Summary
+@onready var pause_resume_button: Button = $HUD/PauseOverlay/PausePanel/Content/Resume
+@onready var pause_settings_button: Button = $HUD/PauseOverlay/PausePanel/Content/Settings
+@onready var pause_restart_button: Button = $HUD/PauseOverlay/PausePanel/Content/Restart
+@onready var pause_restart_warning: Label = $HUD/PauseOverlay/PausePanel/Content/RestartWarning
+@onready var pause_hint: Label = $HUD/PauseOverlay/PausePanel/Content/Hint
 @onready var settings_overlay: Control = $HUD/SettingsOverlay
 @onready var reduced_motion_toggle: CheckButton = $HUD/SettingsOverlay/SettingsPanel/Content/ReducedMotion
 @onready var high_contrast_toggle: CheckButton = $HUD/SettingsOverlay/SettingsPanel/Content/HighContrast
@@ -69,6 +82,13 @@ var _run_result: Dictionary = {}
 var _onboarding: RunOnboarding = RunOnboardingModel.new()
 var _draft_prompt := ""
 var _banish_mode := false
+var _using_gamepad := false
+var _settings_return_to_pause := false
+var _restart_armed := false
+
+
+func _enter_tree() -> void:
+	InputBindings.ensure_actions()
 
 
 func _ready() -> void:
@@ -100,7 +120,12 @@ func _ready() -> void:
 	previous_protocol.pressed.connect(_cycle_protocol.bind(-1))
 	next_protocol.pressed.connect(_cycle_protocol.bind(1))
 	launch_button.pressed.connect(begin_run)
-	accessibility_button.pressed.connect(_open_settings)
+	accessibility_button.pressed.connect(_open_settings.bind(false))
+	pause_resume_button.pressed.connect(_resume_run)
+	pause_settings_button.pressed.connect(_open_settings.bind(true))
+	pause_restart_button.pressed.connect(_request_restart)
+	game_over_retry.pressed.connect(_restart_scene)
+	victory_retry.pressed.connect(_restart_scene)
 	settings_back_button.pressed.connect(_close_settings)
 	reduced_motion_toggle.toggled.connect(_on_visual_accessibility_changed)
 	high_contrast_toggle.toggled.connect(_on_visual_accessibility_changed)
@@ -119,6 +144,8 @@ func _ready() -> void:
 	_available_protocols = _profile.get_unlocked_protocols()
 	_protocol_index = maxi(0, _available_protocols.find(_profile.selected_protocol))
 	_refresh_launch_screen()
+	_refresh_input_prompts()
+	launch_button.grab_focus()
 	if DisplayServer.get_name() == "headless" and not has_meta("overrush_manual_start"):
 		call_deferred("begin_run", RunProtocolCatalog.STANDARD)
 
@@ -151,34 +178,55 @@ func _process(_delta: float) -> void:
 	_update_onboarding(_delta)
 
 
+func _input(event: InputEvent) -> void:
+	if InputBindings.is_gamepad_event(event) and not _using_gamepad:
+		_using_gamepad = true
+		_refresh_input_prompts()
+	elif InputBindings.is_keyboard_or_mouse_event(event) and _using_gamepad:
+		_using_gamepad = false
+		_refresh_input_prompts()
+	if start_overlay.visible and event.is_action_pressed(InputBindings.MENU_LEFT):
+		_cycle_protocol(-1)
+		get_viewport().set_input_as_handled()
+	elif start_overlay.visible and event.is_action_pressed(InputBindings.MENU_RIGHT):
+		_cycle_protocol(1)
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey and event.pressed and not event.echo):
-		return
 	if settings_overlay.visible:
-		if event.keycode == KEY_ESCAPE:
+		if event.is_action_pressed(InputBindings.PAUSE):
 			_close_settings()
+			get_viewport().set_input_as_handled()
+		return
+	if pause_overlay.visible:
+		if event.is_action_pressed(InputBindings.PAUSE):
+			_resume_run()
+			get_viewport().set_input_as_handled()
+		return
+	if game_over_overlay.visible or victory_overlay.visible:
+		if event.is_action_pressed(InputBindings.RETRY):
+			_restart_scene()
+			get_viewport().set_input_as_handled()
 		return
 	if start_overlay.visible:
-		if event.keycode == KEY_LEFT or event.keycode == KEY_A:
-			_cycle_protocol(-1)
-		elif event.keycode == KEY_RIGHT or event.keycode == KEY_D:
-			_cycle_protocol(1)
-		elif event.keycode == KEY_ENTER or event.keycode == KEY_SPACE:
+		if event.is_action_pressed(InputBindings.CONFIRM):
 			begin_run()
-		return
-	if event.keycode == KEY_R:
-		get_tree().paused = false
-		get_tree().reload_current_scene()
+			get_viewport().set_input_as_handled()
 		return
 	if level_up_overlay.visible:
-		if event.keycode == KEY_Q:
+		if event.is_action_pressed(InputBindings.REROLL):
 			_reroll_upgrade_options()
-		elif event.keycode == KEY_B:
+		elif event.is_action_pressed(InputBindings.BANISH):
 			_toggle_banish_mode()
-		elif event.keycode == KEY_ESCAPE and _banish_mode:
+		elif event.is_action_pressed(InputBindings.PAUSE) and _banish_mode:
 			_toggle_banish_mode()
-		elif event.keycode >= KEY_1 and event.keycode <= KEY_3:
+		elif event is InputEventKey and event.pressed and not event.echo and event.keycode >= KEY_1 and event.keycode <= KEY_3:
 			_choose_upgrade(event.keycode - KEY_1)
+		return
+	if _run_started and event.is_action_pressed(InputBindings.PAUSE):
+		_pause_run()
+		get_viewport().set_input_as_handled()
 
 
 func _on_integrity_changed(current: float, maximum: float) -> void:
@@ -256,14 +304,16 @@ func _refresh_draft_controls() -> void:
 		combat.rerolls_remaining > 0
 		and combat.build.has_alternative_upgrade_options(_current_upgrade_options)
 	)
-	reroll_button.text = "Q  REROLL  •  %d" % combat.rerolls_remaining
+	var reroll_key := "Y" if _using_gamepad else "Q"
+	var banish_key := "X" if _using_gamepad else "B"
+	reroll_button.text = "%s  REROLL  •  %d" % [reroll_key, combat.rerolls_remaining]
 	reroll_button.disabled = not can_reroll
 	var can_banish := false
 	for upgrade_id in _current_upgrade_options:
 		if combat.build.can_banish_upgrade(upgrade_id):
 			can_banish = true
 			break
-	banish_button.text = "B  CANCEL BANISH" if _banish_mode else "B  BANISH  •  %d" % combat.banishes_remaining
+	banish_button.text = "%s  CANCEL BANISH" % banish_key if _banish_mode else "%s  BANISH  •  %d" % [banish_key, combat.banishes_remaining]
 	banish_button.disabled = combat.banishes_remaining <= 0 or not can_banish
 
 
@@ -307,9 +357,10 @@ func _on_runner_defeated() -> void:
 	audio.play_defeat()
 	combat.stop_run()
 	var result := _record_run_progress(false)
-	game_over_message.text = _format_run_recap("RUN ENDED", result, "PRESS R TO BREAK THROUGH AGAIN")
+	game_over_message.text = _format_run_recap("RUN ENDED", result)
 	game_over_overlay.visible = true
 	get_tree().paused = true
+	game_over_retry.grab_focus()
 
 
 func _on_phase_changed(_phase_id: StringName, phase_name: String) -> void:
@@ -349,17 +400,19 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 func _on_run_victory() -> void:
 	audio.play_victory()
 	var result := _record_run_progress(true)
-	victory_message.text = _format_run_recap("APEX BROKEN", result, "PRESS R TO OVERRUN AGAIN")
+	victory_message.text = _format_run_recap("APEX BROKEN", result)
 	victory_overlay.visible = true
 	get_tree().paused = true
+	victory_retry.grab_focus()
 
 
 func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
 	var result := _record_run_progress(false)
-	game_over_message.text = _format_run_recap(reason, result, "PRESS R TO BREAK THROUGH AGAIN")
+	game_over_message.text = _format_run_recap(reason, result)
 	game_over_overlay.visible = true
 	get_tree().paused = true
+	game_over_retry.grab_focus()
 
 
 func begin_run(protocol_id: StringName = &"") -> void:
@@ -373,10 +426,13 @@ func begin_run(protocol_id: StringName = &"") -> void:
 		_profile.select_protocol(chosen_protocol)
 	_save_profile()
 	settings_overlay.visible = false
+	pause_overlay.visible = false
 	start_overlay.visible = false
 	_run_started = true
+	_settings_return_to_pause = false
+	_cancel_restart_confirmation()
 	_onboarding.reset(_profile.onboarding_completed or not _profile.guidance_enabled)
-	tutorial_card.text = _onboarding.get_message()
+	tutorial_card.text = _onboarding.get_message(_using_gamepad)
 	tutorial_card.visible = not _onboarding.is_complete()
 	combat.start_run(chosen_protocol)
 	get_tree().paused = false
@@ -426,7 +482,7 @@ func _record_run_progress(victory: bool) -> Dictionary:
 	return _run_result
 
 
-func _format_run_recap(headline: String, result: Dictionary, retry_text: String) -> String:
+func _format_run_recap(headline: String, result: Dictionary) -> String:
 	var summary: Dictionary = result.get("summary", {})
 	var elapsed_seconds := floori(float(summary.get("elapsed_seconds", 0.0)))
 	var phase_name := _get_recap_phase_name(StringName(str(summary.get("phase_reached", "breakaway"))))
@@ -468,7 +524,7 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 			combat.build.get_upgrade_name(catalyst_id),
 			roundi(float(summary.get("catalyst_uptime", 0.0)) * 100.0),
 		]
-	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -491,7 +547,6 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 		int(summary.get("dash_count", 0)),
 		progress_text,
 		record_text,
-		retry_text,
 	]
 
 
@@ -519,14 +574,95 @@ func _apply_audio_levels() -> void:
 	audio.set_levels(_profile.master_volume, _profile.music_volume)
 
 
-func _open_settings() -> void:
+func _pause_run() -> void:
+	if not _run_started or game_over_overlay.visible or victory_overlay.visible or level_up_overlay.visible:
+		return
+	var build_name := "UNCOMMITTED" if combat.build.core_path.is_empty() else combat.build.get_build_name()
+	pause_summary.text = "%s  •  %s\n%s  •  LEVEL %d\n%d CLEARED  •  %d M/S" % [
+		combat.get_formatted_time(),
+		_phase_name,
+		build_name,
+		combat.build.level,
+		combat.enemies_defeated,
+		roundi(ball.get_horizontal_speed()),
+	]
+	_cancel_restart_confirmation()
+	pause_overlay.visible = true
+	get_tree().paused = true
+	pause_resume_button.grab_focus()
+
+
+func _resume_run() -> void:
+	settings_overlay.visible = false
+	pause_overlay.visible = false
+	_settings_return_to_pause = false
+	_cancel_restart_confirmation()
+	get_tree().paused = false
+
+
+func _request_restart() -> void:
+	if not _restart_armed:
+		_restart_armed = true
+		pause_restart_button.text = "CONFIRM RESTART"
+		pause_restart_warning.text = "Press again to abandon this run. Progress from it will not be recorded."
+		pause_restart_warning.add_theme_color_override("font_color", Color(1.0, 0.48, 0.3))
+		pause_restart_button.grab_focus()
+		return
+	_restart_scene()
+
+
+func _cancel_restart_confirmation() -> void:
+	_restart_armed = false
+	if not is_instance_valid(pause_restart_button):
+		return
+	pause_restart_button.text = "RESTART RUN"
+	pause_restart_warning.text = "Restart requires confirmation. The current run will not be recorded."
+	pause_restart_warning.add_theme_color_override("font_color", Color(0.72, 0.58, 0.58))
+
+
+func _restart_scene() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func _open_settings(from_pause: bool = false) -> void:
+	_settings_return_to_pause = from_pause
+	if from_pause:
+		pause_overlay.visible = false
 	settings_overlay.visible = true
+	settings_back_button.text = "BACK TO PAUSE" if from_pause else "BACK TO LAUNCH"
 	reduced_motion_toggle.grab_focus()
 
 
 func _close_settings() -> void:
 	settings_overlay.visible = false
-	accessibility_button.grab_focus()
+	if _settings_return_to_pause:
+		pause_overlay.visible = true
+		_settings_return_to_pause = false
+		pause_resume_button.grab_focus()
+	else:
+		accessibility_button.grab_focus()
+
+
+func _refresh_input_prompts() -> void:
+	if _using_gamepad:
+		controls.text = "LEFT STICK steer / boost / brake   •   A hop   •   LB / RB dash   •   START pause"
+		select_hint.text = "D-PAD TO SELECT"
+		launch_hint.text = "A TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
+		game_over_retry.text = "RUN AGAIN  •  A"
+		victory_retry.text = "RUN AGAIN  •  A"
+		pause_hint.text = "START TO RESUME  •  A TO SELECT"
+	else:
+		controls.text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   Esc pause"
+		select_hint.text = "A / D OR ARROW KEYS"
+		launch_hint.text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
+		game_over_retry.text = "RUN AGAIN  •  R"
+		victory_retry.text = "RUN AGAIN  •  R"
+		pause_hint.text = "ESC TO RESUME  •  ENTER TO SELECT"
+	if level_up_overlay.visible:
+		_refresh_draft_controls()
+	if tutorial_card.visible:
+		tutorial_card.text = _onboarding.get_message(_using_gamepad)
 
 
 func _refresh_settings() -> void:
@@ -577,7 +713,10 @@ func _refresh_audio_labels() -> void:
 func _update_onboarding(delta: float) -> void:
 	if not _run_started or _onboarding.is_complete() or get_tree().paused:
 		return
-	var steering: bool = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_RIGHT)
+	var steering := (
+		Input.get_action_strength(InputBindings.MOVE_LEFT) > 0.2
+		or Input.get_action_strength(InputBindings.MOVE_RIGHT) > 0.2
+	)
 	var hopping: bool = not ball.is_on_floor() and ball.velocity.y > 2.0
 	if not _onboarding.update(delta, steering, ball.is_dashing(), hopping):
 		return
@@ -586,7 +725,7 @@ func _update_onboarding(delta: float) -> void:
 		_profile.onboarding_completed = true
 		_save_profile()
 	else:
-		tutorial_card.text = _onboarding.get_message()
+		tutorial_card.text = _onboarding.get_message(_using_gamepad)
 
 
 func _save_profile() -> void:

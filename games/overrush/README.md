@@ -39,6 +39,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, core pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.
+- Full keyboard and gamepad action mapping supports analog steering, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
+- A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
 
 This is not yet the complete target game. The 20-minute structure, two Apex encounters, six build evolutions with three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
@@ -58,6 +60,7 @@ This is not yet the complete target game. The 20-minute structure, two Apex enco
 - `progress_profile.gd` owns versioned progression state, deterministic run rewards, protocol selection, atomic writes, and backup recovery.
 - `run_onboarding.gd` owns the input-aware, time-bounded first-run guidance sequence independently of the HUD.
 - `audio_director.gd` synthesizes and pools the original music and feedback palette, controls phase intensity, rate-limits warnings, and owns runtime mixing.
+- `input_bindings.gd` owns the idempotent keyboard/gamepad action map and input-device detection used by movement, menus, prompts, and tests.
 
 ## Controls
 
@@ -66,12 +69,14 @@ This is not yet the complete target game. The 20-minute structure, two Apex enco
 - `S` or down: brake
 - `Space`: hop
 - `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
-- `R`: generate a new world
+- `Escape`: pause or return from settings; restarting an active run requires confirmation in the pause menu
 - `1` / `2` / `3` or mouse: choose a level-up upgrade
 - `Q` during a level-up: spend a reroll when the active pool can produce a different offer
 - `B` during a level-up: enter banish mode, then choose a removable standard upgrade with `1` / `2` / `3` or the mouse
 - At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
 - `Accessibility & Guidance` on the launch screen changes persistent comfort and audio preferences without affecting difficulty or rewards
+- Gamepad: left stick steers, boosts, and brakes; `A` hops or confirms; `LB` / `RB` dashes; D-pad changes protocol; `Y` rerolls; `X` enters banish mode; Start pauses
+- `R` retries only after a victory or defeat
 
 ## Map validation
 
@@ -138,6 +143,8 @@ Run the persistent-profile and challenge-protocol checks with:
 godot --headless --path games/overrush --script res://tests/test_progress_profile.gd
 godot --headless --path games/overrush --script res://tests/validate_run_protocols.gd
 godot --headless --path games/overrush --script res://tests/validate_accessibility.gd
+godot --headless --path games/overrush --script res://tests/test_input_bindings.gd
+godot --headless --path games/overrush --script res://tests/validate_controller_pause.gd
 ```
 
 Run the waveform headroom/performance and gameplay-audio connection checks with:

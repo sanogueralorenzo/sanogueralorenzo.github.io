@@ -39,14 +39,14 @@ func update(delta: float, steering: bool, dashing: bool, hopping: bool) -> bool:
 	return step != previous_step
 
 
-func get_message() -> String:
+func get_message(gamepad: bool = false) -> String:
 	match step:
 		STEER:
-			return "STEER THE RUN  •  A / D OR ← / →\nYou move automatically. Choose open ground and keep velocity."
+			return "STEER THE RUN  •  LEFT STICK\nYou move automatically. Choose open ground and keep velocity." if gamepad else "STEER THE RUN  •  A / D OR ← / →\nYou move automatically. Choose open ground and keep velocity."
 		DASH:
-			return "DASH THROUGH PRESSURE  •  SHIFT / ALT\nTap for a burst, hold for distance. Your air dash refreshes on landing."
+			return "DASH THROUGH PRESSURE  •  LB / RB\nTap for a burst, hold for distance. Your air dash refreshes on landing." if gamepad else "DASH THROUGH PRESSURE  •  SHIFT / ALT\nTap for a burst, hold for distance. Your air dash refreshes on landing."
 		HOP:
-			return "HOP THE TERRAIN  •  SPACE\nWeapons fire automatically. Collect bright cores to shape your engine."
+			return "HOP THE TERRAIN  •  A\nWeapons fire automatically. Collect bright cores to shape your engine." if gamepad else "HOP THE TERRAIN  •  SPACE\nWeapons fire automatically. Collect bright cores to shape your engine."
 		_:
 			return ""
 
