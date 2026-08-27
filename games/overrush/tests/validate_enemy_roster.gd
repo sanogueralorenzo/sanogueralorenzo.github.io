@@ -27,6 +27,7 @@ func _run() -> void:
 	runner.velocity = Vector3.ZERO
 
 	_validate_phase_roster(director)
+	_validate_role_contact_pressure(director)
 	_validate_rift_weaver(director, runner)
 	await process_frame
 	_validate_swarm_foundry(director, runner)
@@ -37,7 +38,7 @@ func _run() -> void:
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Enemy roster validation passed — phase gates, remote blast, and bounded foundry reinforcements are active.")
+		print("Enemy roster validation passed — phase gates, signature pressure, role-safe body contact, and bounded reinforcements are active.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -61,6 +62,18 @@ func _validate_phase_roster(director: CombatDirector) -> void:
 		counts[archetype] = int(counts.get(archetype, 0)) + 1
 	for archetype in [&"pursuer", &"skimmer", &"bulwark", &"rift_weaver", &"swarm_foundry"]:
 		_expect(int(counts.get(archetype, 0)) >= 35, "Redline sampling should retain the %s role instead of collapsing into a dominant roster." % archetype)
+
+
+func _validate_role_contact_pressure(director: CombatDirector) -> void:
+	var pursuer: EnemyAgent = director._spawn_enemy(&"pursuer")
+	var bulwark: EnemyAgent = director._spawn_enemy(&"bulwark")
+	var skimmer: EnemyAgent = director._spawn_enemy(&"skimmer")
+	_expect(is_equal_approx(pursuer.get_body_contact_damage(), pursuer.contact_damage), "Pursuer contact should remain its primary, fully legible threat.")
+	_expect(bulwark.get_body_contact_damage() < bulwark.contact_damage * 0.6, "Bulwark pressure should come from its telegraphed pulse rather than incidental body overlap.")
+	_expect(skimmer.get_body_contact_damage() < skimmer.contact_damage * 0.6, "Skimmer pressure should come from its telegraphed charge rather than incidental body overlap.")
+	for enemy in [pursuer, bulwark, skimmer]:
+		enemy.queue_free()
+		director._enemies.erase(enemy)
 
 
 func _validate_rift_weaver(director: CombatDirector, runner: CharacterBody3D) -> void:

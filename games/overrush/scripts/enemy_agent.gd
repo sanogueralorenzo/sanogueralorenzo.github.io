@@ -14,6 +14,12 @@ const CONTACT_DISTANCE_PADDING := 1.8
 const HEIGHT_SMOOTHING := 12.0
 const TELEGRAPH_ALPHA := 0.34
 const RIFT_PREDICTION_SECONDS := 0.9
+const BODY_CONTACT_MULTIPLIERS := {
+	&"skimmer": 0.55,
+	&"bulwark": 0.55,
+	&"rift_weaver": 0.6,
+	&"swarm_foundry": 0.45,
+}
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 
 var target: CharacterBody3D
@@ -151,6 +157,12 @@ func is_apex_enraged() -> bool:
 	return _apex_enraged
 
 
+func get_body_contact_damage() -> float:
+	if is_apex:
+		return contact_damage
+	return contact_damage * float(BODY_CONTACT_MULTIPLIERS.get(archetype, 1.0))
+
+
 func _configure_archetype(difficulty: float) -> void:
 	match archetype:
 		&"skimmer":
@@ -283,7 +295,7 @@ func _move_at_standoff(planar_offset: Vector3, distance: float, near_distance: f
 
 func _try_contact_damage(distance: float) -> void:
 	if distance <= body_radius + CONTACT_DISTANCE_PADDING and _contact_cooldown <= 0.0:
-		target.take_damage(contact_damage, global_position, StringName("%s_contact" % archetype))
+		target.take_damage(get_body_contact_damage(), global_position, StringName("%s_contact" % archetype))
 		_contact_cooldown = 0.85 if archetype != &"skimmer" else 1.15
 
 

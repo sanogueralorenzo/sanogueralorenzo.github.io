@@ -17,10 +17,10 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
 - Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
 - Fragile zero-reward Foundry drones add bounded pack pressure without creating an experience exploit or exceeding the global population cap.
-- Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning.
+- Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning, and specialist body overlap is deliberately weaker than each role's signature attack.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - Value-tiered crystal cores latch once approached, overtake maximum dash speed, and recover from distant terrain so fast traversal never discards earned progression or accumulates stale rewards.
-- Distinct coral integrity cores add a bounded recovery economy: every eighteenth rewarding defeat and every elite can drop repair, no more than three may wait in the world, and full-health runners bank rather than waste them.
+- Distinct coral integrity cores add a bounded recovery economy: a 14-point core is earned every eighteen rewarding defeats, elite cores repair 30, no more than three may wait in the world, and full-health runners bank rather than waste them.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: charged dash-entry and unconditional exit detonations, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
@@ -195,3 +195,11 @@ godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd
 ```
 
 Each gate requires at least 20 km of traversal, a viable clear envelope, the intended evolution and arsenal, and source-share guardrails where a single effect could otherwise erase the build's decision-making.
+
+Run the fixed-step, finite-integrity 20-minute survival budget audit with:
+
+```sh
+godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_survival_soak.gd -- 41001
+```
+
+The audit uses a threat-aware Arcstorm route plus a controlled execution mistake every 45 seconds. It requires the real enemy population, pickups, recovery cap, build cadence, traversal, Apex phase, and victory/deadline resolution to sustain one complete run. Controlled mistakes make the recovery budget reproducible; this is a balance guardrail, not a substitute for human playtesting.
