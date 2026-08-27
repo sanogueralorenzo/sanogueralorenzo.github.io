@@ -53,6 +53,7 @@ var _enemies: Array[EnemyAgent] = []
 var _spawn_timer := INITIAL_SPAWN_DELAY
 var _fire_timer := 0.4
 var _wake_timer := 0.0
+var _arsenal_timer := 0.0
 var _awaiting_upgrade := false
 var _run_active := false
 var _run_started := false
@@ -70,6 +71,7 @@ var _dash_hit_ids: Dictionary = {}
 var _wake_drop_count := 0
 var _pending_evolution_announcement := ""
 var _pending_catalyst_announcement := ""
+var _pending_arsenal_announcement := ""
 var _catalyst_dash_window := 0.0
 var _introduced_archetypes: Dictionary = {}
 
@@ -105,6 +107,7 @@ func _physics_process(delta: float) -> void:
 	_update_spawning(delta)
 	_update_arc_weapon(delta)
 	_update_slipstream(delta)
+	_update_arsenal(delta)
 	_update_ramjet()
 
 
@@ -117,6 +120,7 @@ func choose_upgrade(option_index: int) -> void:
 	var chosen_upgrade := StringName(options[option_index])
 	var choosing_evolution := build.is_evolution_upgrade(chosen_upgrade)
 	var choosing_catalyst := build.is_catalyst_upgrade(chosen_upgrade)
+	var choosing_arsenal := build.is_arsenal_upgrade(chosen_upgrade)
 	var result := build.apply_upgrade(chosen_upgrade)
 	if result.is_empty():
 		return
@@ -124,6 +128,8 @@ func choose_upgrade(option_index: int) -> void:
 		_pending_evolution_announcement = build.get_upgrade_name(chosen_upgrade)
 	if choosing_catalyst:
 		_pending_catalyst_announcement = build.get_upgrade_name(chosen_upgrade)
+	if choosing_arsenal:
+		_pending_arsenal_announcement = build.get_upgrade_name(chosen_upgrade)
 	run_stats.record_upgrade(chosen_upgrade)
 	if float(result.maximum_integrity) > 0.0:
 		_runner.increase_maximum_integrity(float(result.maximum_integrity), float(result.repair))
@@ -147,6 +153,9 @@ func choose_upgrade(option_index: int) -> void:
 				"Your damage now follows this movement rhythm"
 			)
 			_pending_catalyst_announcement = ""
+		if not _pending_arsenal_announcement.is_empty():
+			event_announced.emit("%s ONLINE" % _pending_arsenal_announcement, "Secondary weapon locked for this run")
+			_pending_arsenal_announcement = ""
 
 
 func reroll_upgrade_options() -> bool:
@@ -195,6 +204,7 @@ func start_run(protocol_id: StringName) -> void:
 	rerolls_remaining = INITIAL_REROLLS
 	banishes_remaining = INITIAL_BANISHES
 	_catalyst_dash_window = 0.0
+	_arsenal_timer = 0.0
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -421,6 +431,24 @@ func _update_slipstream(delta: float) -> void:
 	_spawn_wake(wake_position, radius, damage, duration, 0.0, &"stormtrail")
 
 
+func _update_arsenal(delta: float) -> void:
+	if build.arsenal_id.is_empty() or build.arsenal_id == RunBuild.BACKDRAFT_MINE:
+		return
+	_arsenal_timer -= delta
+	if _arsenal_timer > 0.0:
+		return
+	if build.arsenal_id == RunBuild.HUNTER_ARRAY:
+		_arsenal_timer = build.get_hunter_interval()
+		for target in _find_targets(build.get_hunter_count()):
+			var projectile: ArcProjectile = ArcProjectileScript.new()
+			add_child(projectile)
+			projectile.global_position = _runner.global_position + Vector3.UP * 1.4
+			projectile.configure(target, build.get_hunter_damage() * _get_outgoing_damage_multiplier(), (_runner.heading + Vector3.UP * 0.15).normalized(), 0, &"hunter_array")
+	elif build.arsenal_id == RunBuild.DRIFT_BLADES:
+		_arsenal_timer = build.get_drift_interval()
+		_release_nova(_runner.global_position, build.get_drift_damage(), build.get_drift_radius(), Color(0.85, 0.28, 1.0, 0.32), &"drift_blades")
+
+
 func _on_dash_state_changed(active: bool) -> void:
 	if not _run_active:
 		return
@@ -449,6 +477,18 @@ func _on_dash_state_changed(active: bool) -> void:
 			)
 		if build.is_gravity_knot():
 			_release_gravity_knot(_runner.global_position)
+		if build.arsenal_id == RunBuild.BACKDRAFT_MINE:
+			_drop_backdraft_mine(_runner.global_position)
+
+
+func _drop_backdraft_mine(center: Vector3) -> void:
+	var radius := build.get_backdraft_radius()
+	var damage := build.get_backdraft_damage()
+	_spawn_pulse(center, Color(1.0, 0.36, 0.08, 0.24), radius, 0.42)
+	get_tree().create_timer(0.42, false).timeout.connect(func() -> void:
+		if is_inside_tree() and _run_active:
+			_release_nova(center, damage, radius, Color(1.0, 0.22, 0.04, 0.46), &"backdraft_mine")
+	)
 
 
 func _update_ramjet() -> void:

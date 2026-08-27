@@ -12,6 +12,9 @@ const SOURCE_NAMES := {
 	&"tempest_anchor": "TEMPEST ANCHOR",
 	&"storm_lance": "STORM LANCE",
 	&"arc_orbit": "ARC ORBIT",
+	&"hunter_array": "HUNTER ARRAY",
+	&"drift_blades": "DRIFT BLADES",
+	&"backdraft_mine": "BACKDRAFT MINE",
 	&"unattributed": "OTHER",
 }
 
@@ -175,6 +178,7 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"rerolls_used": rerolls_used,
 		"banishes_used": banishes_used,
 		"catalyst_id": str(build.catalyst_id),
+		"arsenal_id": str(build.arsenal_id),
 		"catalyst_uptime": snappedf(catalyst_active_seconds / maxf(catalyst_total_seconds, 0.001), 0.001),
 		"phase_reached": str(phase_reached),
 		"apex_id": str(apex_id),

@@ -33,6 +33,8 @@ func _run() -> void:
 	director.run_stats.record_upgrade(&"ramjet")
 	build.catalyst_id = RunBuild.REDLINE_CORE
 	director.run_stats.record_upgrade(RunBuild.REDLINE_CORE)
+	build.arsenal_id = RunBuild.HUNTER_ARRAY
+	director.run_stats.record_upgrade(RunBuild.HUNTER_ARRAY)
 	build.level = 9
 	director.build = build
 	director.elapsed_time = 743.2
@@ -73,7 +75,8 @@ func _run() -> void:
 	_expect(scene.get_viewport().gui_get_focus_owner() == retry, "Retry should own focus when an outcome appears.")
 	_expect(scene.has_node("HUD/GameOverOverlay/RecapPanel"), "The recap should use a framed panel rather than floating outcome text.")
 	_expect("DASHBREAKER • RAMJET" in message.text and "LEVEL 9" in message.text, "The recap should identify the demonstrated build and maturity.")
-	_expect("6 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
+	_expect("7 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
+	_expect("ARSENAL  •  HUNTER ARRAY" in message.text, "The recap should preserve the independent weapon choice for replay and balance review.")
 	_expect("REDLINE CORE" in message.text and "64% HOT" in message.text, "The recap should identify the movement catalyst and measured empowered uptime.")
 	_expect("VELOCITY REAVER" in message.text and "BROKEN" in message.text, "The recap should identify the climax encounter and its outcome.")
 	_expect("12:23" in message.text and "88 CLEARED" in message.text and "4 ELITES" in message.text, "The recap should summarize encounter progress at a glance.")

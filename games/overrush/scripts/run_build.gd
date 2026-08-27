@@ -5,6 +5,7 @@ const DASHBREAKER := &"dashbreaker"
 const STORMTRAIL := &"stormtrail"
 const ARCSTORM := &"arcstorm"
 const EVOLUTION_UNLOCK_RANK := 4
+const ARSENAL_UNLOCK_RANK := 5
 const CATALYST_UNLOCK_RANK := 7
 const PULSE_WINDOW_SECONDS := 0.42
 
@@ -31,6 +32,15 @@ const REDLINE_CORE := &"redline_core"
 const AIRFRAME_CORE := &"airframe_core"
 const PULSE_CORE := &"pulse_core"
 const CATALYST_IDS: Array[StringName] = [REDLINE_CORE, AIRFRAME_CORE, PULSE_CORE]
+const HUNTER_ARRAY := &"hunter_array"
+const DRIFT_BLADES := &"drift_blades"
+const BACKDRAFT_MINE := &"backdraft_mine"
+const ARSENAL_IDS: Array[StringName] = [HUNTER_ARRAY, DRIFT_BLADES, BACKDRAFT_MINE]
+const ARSENAL_SUPPORT := {
+	HUNTER_ARRAY: &"hunter_guidance",
+	DRIFT_BLADES: &"drift_edge",
+	BACKDRAFT_MINE: &"backdraft_charge",
+}
 
 const UPGRADE_NAMES := {
 	&"dash_nova": "DASHBREAKER",
@@ -61,6 +71,12 @@ const UPGRADE_NAMES := {
 	REDLINE_CORE: "REDLINE CORE",
 	AIRFRAME_CORE: "AIRFRAME CORE",
 	PULSE_CORE: "PULSE CORE",
+	HUNTER_ARRAY: "HUNTER ARRAY",
+	DRIFT_BLADES: "DRIFT BLADES",
+	BACKDRAFT_MINE: "BACKDRAFT MINE",
+	&"hunter_guidance": "PACK HUNTERS",
+	&"drift_edge": "RAZOR EDGE",
+	&"backdraft_charge": "VOLATILE CHARGE",
 }
 
 const UPGRADE_DESCRIPTIONS := {
@@ -92,6 +108,12 @@ const UPGRADE_DESCRIPTIONS := {
 	REDLINE_CORE: "-22% at cruise; scales to +50% at dash speed. Keep accelerating.",
 	AIRFRAME_CORE: "+40% to attacks created airborne; -20% grounded. Commit to hops and hills.",
 	PULSE_CORE: "+35% to attacks created during a dash and 0.42 seconds after; -25% otherwise.",
+	HUNTER_ARRAY: "Launches independent homing missiles at distant threats. Reliable reach with deliberate target coverage.",
+	DRIFT_BLADES: "Releases rapid close-range cutting fields. Thread through packs to keep every pulse productive.",
+	BACKDRAFT_MINE: "Plants a delayed blast whenever a dash ends. Shape pursuit lines and lead threats through the detonation.",
+	&"hunter_guidance": "Adds a missile, increases impact damage, and shortens the next launch cycle.",
+	&"drift_edge": "Expands each cutting field, raises damage, and sharpens its pulse rhythm.",
+	&"backdraft_charge": "Expands each mine and increases its delayed blast damage.",
 }
 
 const PATH_NAMES := {
@@ -107,6 +129,7 @@ var pending_levels := 0
 var core_path: StringName = &""
 var evolution_id: StringName = &""
 var catalyst_id: StringName = &""
+var arsenal_id: StringName = &""
 
 var weapon_damage := 18.0
 var fire_interval := 0.58
@@ -127,6 +150,9 @@ var parallel_flow_level := 0
 var storm_charge_level := 0
 var lance_focus_level := 0
 var orbit_flux_level := 0
+var hunter_guidance_level := 0
+var drift_edge_level := 0
+var backdraft_charge_level := 0
 var upgrade_ranks: Dictionary = {}
 var banished_upgrades: Dictionary = {}
 
@@ -156,6 +182,8 @@ func get_upgrade_options(rng: RandomNumberGenerator, avoid_options: Array[String
 			if not standard_options.is_empty():
 				evolution_options.append(standard_options[0])
 		return evolution_options
+	if not evolution_id.is_empty() and arsenal_id.is_empty() and get_specialization_rank() >= ARSENAL_UNLOCK_RANK:
+		return ARSENAL_IDS.duplicate()
 	if not evolution_id.is_empty() and catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK:
 		return CATALYST_IDS.duplicate()
 	return _draw_options(candidates, rng, avoid_options, 3)
@@ -210,6 +238,14 @@ func apply_upgrade(upgrade_id: StringName) -> Dictionary:
 			orbit_flux_level += 1
 		REDLINE_CORE, AIRFRAME_CORE, PULSE_CORE:
 			catalyst_id = upgrade_id
+		HUNTER_ARRAY, DRIFT_BLADES, BACKDRAFT_MINE:
+			arsenal_id = upgrade_id
+		&"hunter_guidance":
+			hunter_guidance_level += 1
+		&"drift_edge":
+			drift_edge_level += 1
+		&"backdraft_charge":
+			backdraft_charge_level += 1
 	return {
 		"id": upgrade_id,
 		"rank": int(upgrade_ranks[upgrade_id]),
@@ -279,6 +315,10 @@ func get_upgrade_kind_label(upgrade_id: StringName) -> String:
 		return "EVOLUTION FORK"
 	if upgrade_id in CATALYST_IDS:
 		return "DRIVE CATALYST"
+	if upgrade_id in ARSENAL_IDS:
+		return "ARSENAL FORK"
+	if upgrade_id in ARSENAL_SUPPORT.values():
+		return "ARSENAL SUPPORT"
 	if upgrade_id in EVOLUTION_SUPPORT.values():
 		return "EVOLUTION SUPPORT"
 	if upgrade_id == &"kinetic_repair":
@@ -287,12 +327,16 @@ func get_upgrade_kind_label(upgrade_id: StringName) -> String:
 
 
 func get_upgrade_family(upgrade_id: StringName) -> StringName:
+	if upgrade_id == &"kinetic_repair":
+		return &"utility"
 	if upgrade_id in PATH_UPGRADES[DASHBREAKER] or upgrade_id in PATH_EVOLUTIONS[DASHBREAKER] or upgrade_id == &"ramjet_mass" or upgrade_id == &"event_horizon":
 		return DASHBREAKER
 	if upgrade_id in PATH_UPGRADES[STORMTRAIL] or upgrade_id in PATH_EVOLUTIONS[STORMTRAIL] or upgrade_id == &"parallel_flow" or upgrade_id == &"storm_charge":
 		return STORMTRAIL
 	if upgrade_id in PATH_UPGRADES[ARCSTORM] or upgrade_id in PATH_EVOLUTIONS[ARCSTORM] or upgrade_id == &"lance_focus" or upgrade_id == &"orbit_flux":
 		return ARCSTORM
+	if upgrade_id in ARSENAL_IDS or upgrade_id in ARSENAL_SUPPORT.values():
+		return &"arsenal"
 	return &"catalyst" if upgrade_id in CATALYST_IDS else &"utility"
 
 
@@ -382,6 +426,18 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 			return "0.80× GROUNDED  •  1.40× AIRBORNE"
 		PULSE_CORE:
 			return "0.75× DOWNTIME  •  1.35× DURING DASH WINDOW"
+		HUNTER_ARRAY:
+			return "1 MISSILE  •  18 DAMAGE  •  1.05 S LAUNCH"
+		DRIFT_BLADES:
+			return "14 M CUTTING FIELD  •  10 DAMAGE  •  0.72 S"
+		BACKDRAFT_MINE:
+			return "DASH EXIT MINE  •  22 DAMAGE  •  17 M RADIUS"
+		&"hunter_guidance":
+			return "%d MISSILES  •  %d DAMAGE  •  %.2f S LAUNCH" % [1 + next_rank, 18 + next_rank * 4, maxf(0.55, 1.05 - next_rank * 0.12)]
+		&"drift_edge":
+			return "%.1f M FIELD  •  %d DAMAGE  •  %.2f S" % [14.0 + next_rank * 2.0, 10 + next_rank * 3, maxf(0.42, 0.72 - next_rank * 0.08)]
+		&"backdraft_charge":
+			return "%d DAMAGE  •  %.1f M RADIUS  •  0.42 S DELAY" % [22 + next_rank * 6, 17.0 + next_rank * 2.5]
 		_:
 			return ""
 
@@ -390,7 +446,7 @@ func get_loadout_summary() -> String:
 	if core_path.is_empty():
 		return "LOADOUT  •  NO ENGINE COMMITTED"
 	var lines: Array[String] = ["ENGINE  •  %s" % get_build_name()]
-	lines.append("DRIVE  •  %s" % get_catalyst_name())
+	lines.append("ARSENAL  •  %s  /  DRIVE  •  %s" % [get_arsenal_name(), get_catalyst_name()])
 	var ranked: Array[String] = []
 	for upgrade_id in PATH_UPGRADES[core_path]:
 		var rank := get_upgrade_rank(StringName(upgrade_id))
@@ -401,6 +457,11 @@ func get_loadout_summary() -> String:
 		var support_rank := get_upgrade_rank(support_id)
 		if support_rank > 0:
 			ranked.append("%s %d" % [get_upgrade_name(support_id), support_rank])
+	if not arsenal_id.is_empty():
+		var arsenal_support_id: StringName = ARSENAL_SUPPORT[arsenal_id]
+		var arsenal_support_rank := get_upgrade_rank(arsenal_support_id)
+		if arsenal_support_rank > 0:
+			ranked.append("%s %d" % [get_upgrade_name(arsenal_support_id), arsenal_support_rank])
 	lines.append("RANKS  •  %s" % "  /  ".join(ranked))
 	return "\n".join(lines)
 
@@ -417,6 +478,10 @@ func is_catalyst_upgrade(upgrade_id: StringName) -> bool:
 	return upgrade_id in CATALYST_IDS
 
 
+func is_arsenal_upgrade(upgrade_id: StringName) -> bool:
+	return upgrade_id in ARSENAL_IDS
+
+
 func _is_any_evolution(upgrade_id: StringName) -> bool:
 	for evolution_ids in PATH_EVOLUTIONS.values():
 		if upgrade_id in evolution_ids:
@@ -425,7 +490,7 @@ func _is_any_evolution(upgrade_id: StringName) -> bool:
 
 
 func can_banish_upgrade(upgrade_id: StringName) -> bool:
-	if core_path.is_empty() or is_evolution_upgrade(upgrade_id) or is_catalyst_upgrade(upgrade_id) or banished_upgrades.has(upgrade_id):
+	if core_path.is_empty() or is_evolution_upgrade(upgrade_id) or is_catalyst_upgrade(upgrade_id) or is_arsenal_upgrade(upgrade_id) or banished_upgrades.has(upgrade_id):
 		return false
 	var candidates := _get_available_path_upgrades()
 	if upgrade_id not in candidates:
@@ -445,7 +510,7 @@ func has_alternative_upgrade_options(current_options: Array[StringName]) -> bool
 	if core_path.is_empty():
 		return false
 	for upgrade_id in current_options:
-		if is_catalyst_upgrade(upgrade_id):
+		if is_catalyst_upgrade(upgrade_id) or is_arsenal_upgrade(upgrade_id):
 			return false
 	for upgrade_id in _get_available_path_upgrades():
 		if StringName(upgrade_id) not in current_options:
@@ -473,6 +538,42 @@ func get_specialization_rank() -> int:
 
 func get_catalyst_name() -> String:
 	return get_upgrade_name(catalyst_id) if not catalyst_id.is_empty() else "UNTUNED DRIVE"
+
+
+func get_arsenal_name() -> String:
+	return get_upgrade_name(arsenal_id) if not arsenal_id.is_empty() else "UNARMED AUXILIARY"
+
+
+func get_hunter_count() -> int:
+	return 1 + hunter_guidance_level
+
+
+func get_hunter_damage() -> float:
+	return 18.0 + hunter_guidance_level * 4.0
+
+
+func get_hunter_interval() -> float:
+	return maxf(0.55, 1.05 - hunter_guidance_level * 0.12)
+
+
+func get_drift_damage() -> float:
+	return 10.0 + drift_edge_level * 3.0
+
+
+func get_drift_radius() -> float:
+	return 14.0 + drift_edge_level * 2.0
+
+
+func get_drift_interval() -> float:
+	return maxf(0.42, 0.72 - drift_edge_level * 0.08)
+
+
+func get_backdraft_damage() -> float:
+	return 22.0 + backdraft_charge_level * 6.0
+
+
+func get_backdraft_radius() -> float:
+	return 17.0 + backdraft_charge_level * 2.5
 
 
 func get_catalyst_damage_multiplier(horizontal_speed: float, airborne: bool, pulse_active: bool) -> float:
@@ -601,9 +702,11 @@ func _is_upgrade_allowed(upgrade_id: StringName) -> bool:
 		return true
 	if evolution_id.is_empty():
 		return get_specialization_rank() >= EVOLUTION_UNLOCK_RANK and upgrade_id in PATH_EVOLUTIONS[core_path]
+	if arsenal_id.is_empty() and get_specialization_rank() >= ARSENAL_UNLOCK_RANK:
+		return upgrade_id in ARSENAL_IDS
 	if catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK and upgrade_id in CATALYST_IDS:
 		return true
-	return upgrade_id == EVOLUTION_SUPPORT[evolution_id]
+	return upgrade_id == EVOLUTION_SUPPORT[evolution_id] or (not arsenal_id.is_empty() and upgrade_id == ARSENAL_SUPPORT[arsenal_id])
 
 
 func _path_for_keystone(upgrade_id: StringName) -> StringName:
@@ -630,6 +733,8 @@ func _get_available_path_upgrades() -> Array:
 	var candidates: Array = PATH_UPGRADES[core_path].duplicate()
 	if not evolution_id.is_empty():
 		candidates.append(EVOLUTION_SUPPORT[evolution_id])
+	if not arsenal_id.is_empty():
+		candidates.append(ARSENAL_SUPPORT[arsenal_id])
 	_filter_capped_upgrades(candidates)
 	return candidates
 
@@ -662,6 +767,10 @@ func _draw_from_pool(pool: Array, rng: RandomNumberGenerator, options: Array[Str
 func _is_capped(upgrade_id: StringName) -> bool:
 	if upgrade_id in CATALYST_IDS:
 		return not catalyst_id.is_empty()
+	if upgrade_id in ARSENAL_IDS:
+		return not arsenal_id.is_empty()
+	if upgrade_id in ARSENAL_SUPPORT.values():
+		return get_upgrade_rank(upgrade_id) >= 3
 	if upgrade_id in PATH_EVOLUTIONS.get(core_path, []):
 		return not evolution_id.is_empty()
 	if upgrade_id in EVOLUTION_SUPPORT.values():

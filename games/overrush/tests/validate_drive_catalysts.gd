@@ -132,6 +132,7 @@ func _catalyst_ready_build() -> RunBuild:
 	build.apply_upgrade(&"ramjet")
 	while build.get_specialization_rank() < RunBuild.CATALYST_UNLOCK_RANK:
 		build.apply_upgrade(&"dash_nova")
+	build.apply_upgrade(RunBuild.HUNTER_ARRAY)
 	return build
 
 

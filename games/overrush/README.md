@@ -24,7 +24,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
 - Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
 - Mature evolved builds make a second protected commitment to one of three Drive Catalysts: Redline rewards dash velocity, Airframe rewards airtime, and Pulse rewards deliberate dash-timed attack windows.
-- Every catalyst carries visible downtime penalties, combines with all six evolution geometries for 18 endgame playstyles, and reports empowered uptime in the run recap for balance review.
+- Every evolved engine also chooses an independent arsenal: Hunter Array missiles cover distant targets, Drift Blades reward close pack threading, and Backdraft Mine turns dash exits into delayed pursuit traps; each has a dedicated three-rank support upgrade.
+- Every catalyst carries visible downtime penalties and combines with all six evolution geometries and three arsenals for 54 endgame playstyles; arsenal damage and empowered catalyst uptime remain visible in the run recap for balance review.
 - Each run grants three honest rerolls and one deliberate banish: rerolls only spend when a different offer exists, while banishment permanently removes one standard upgrade without consuming the level.
 - Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
@@ -32,7 +33,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
-- Framed victory and defeat recaps identify the build, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
+- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles, and high-contrast attack zones with bright geometric boundaries.
@@ -44,7 +45,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
 - The pause menu doubles as a compact loadout inspector, listing the current engine, evolution, Drive Catalyst, and every owned upgrade rank without interrupting or ending the run.
 
-This is not yet the complete target game. The 20-minute structure, two Apex encounters, six build evolutions with three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, two Apex encounters, six build evolutions with three independent arsenals and three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 
@@ -121,6 +122,7 @@ godot --headless --path games/overrush --script res://tests/validate_build_paths
 godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
 godot --headless --path games/overrush --script res://tests/validate_draft_agency.gd
 godot --headless --path games/overrush --script res://tests/validate_drive_catalysts.gd
+godot --headless --path games/overrush --script res://tests/validate_arsenal_weapons.gd
 godot --headless --path games/overrush --script res://tests/validate_apex_variants.gd
 godot --headless --path games/overrush --script res://tests/validate_run_recap.gd
 ```

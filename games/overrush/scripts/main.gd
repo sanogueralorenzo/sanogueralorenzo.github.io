@@ -251,17 +251,23 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 	level_up_overlay.visible = true
 	var offers_evolution := false
 	var offers_catalyst := false
+	var offers_arsenal := false
 	for upgrade_id in options:
 		if combat.build.is_evolution_upgrade(upgrade_id):
 			offers_evolution = true
 		if combat.build.is_catalyst_upgrade(upgrade_id):
 			offers_catalyst = true
+		if combat.build.is_arsenal_upgrade(upgrade_id):
+			offers_arsenal = true
 	if combat.build.core_path.is_empty():
 		level_up_title.text = "CHOOSE YOUR ENGINE"
 		_draft_prompt = "Commit to a combat geometry for this run"
 	elif offers_evolution:
 		level_up_title.text = "EVOLVE %s" % combat.build.get_build_name()
 		_draft_prompt = "Choose one exclusive geometry, or defer the fork with a standard upgrade"
+	elif offers_arsenal:
+		level_up_title.text = "CHOOSE YOUR ARSENAL"
+		_draft_prompt = "Lock one independent weapon that combines with your engine and Drive"
 	elif offers_catalyst:
 		level_up_title.text = "TUNE YOUR DRIVE"
 		_draft_prompt = "Choose one movement rhythm  •  Every catalyst has a real downside"
@@ -293,7 +299,7 @@ func _render_upgrade_options(options: Array[StringName]) -> void:
 		var rank_label := "RANK %d" % next_rank
 		if combat.build.core_path.is_empty():
 			rank_label = "COMMIT"
-		elif combat.build.is_evolution_upgrade(upgrade_id) or combat.build.is_catalyst_upgrade(upgrade_id):
+		elif combat.build.is_evolution_upgrade(upgrade_id) or combat.build.is_catalyst_upgrade(upgrade_id) or combat.build.is_arsenal_upgrade(upgrade_id):
 			rank_label = "EXCLUSIVE"
 		button.text = "%d   %s  •  %s\n%s  •  %s\n%s" % [
 			index + 1,
@@ -538,6 +544,11 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 			combat.build.get_upgrade_name(catalyst_id),
 			roundi(float(summary.get("catalyst_uptime", 0.0)) * 100.0),
 		]
+	var arsenal_id := StringName(str(summary.get("arsenal_id", "")))
+	var arsenal_text := "ARSENAL  •  NOT CHOSEN"
+	if arsenal_id in RunBuild.ARSENAL_IDS:
+		arsenal_text = "ARSENAL  •  %s" % combat.build.get_upgrade_name(arsenal_id)
+	drive_text = "%s\n%s" % [arsenal_text, drive_text]
 	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
@@ -688,6 +699,8 @@ func _get_upgrade_accent(family: StringName) -> Color:
 			return Color(0.32, 0.82, 1.0)
 		&"catalyst":
 			return Color(1.0, 0.76, 0.22)
+		&"arsenal":
+			return Color(0.96, 0.38, 1.0)
 		_:
 			return Color(0.92, 0.78, 1.0)
 

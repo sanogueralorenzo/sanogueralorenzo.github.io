@@ -13,6 +13,7 @@ func _init() -> void:
 	_test_exclusive_evolution_forks()
 	_test_draft_agency_and_repair_cap()
 	_test_drive_catalyst_forks()
+	_test_arsenal_fork_and_supports()
 	_test_player_facing_build_explanations()
 	if _failures.is_empty():
 		print("Run build validation passed.")
@@ -176,6 +177,22 @@ func _test_player_facing_build_explanations() -> void:
 	_expect("0.80× GROUNDED" in blank_build.get_upgrade_effect_preview(RunBuild.AIRFRAME_CORE), "Catalyst previews should state their downside as prominently as their payoff.")
 
 
+func _test_arsenal_fork_and_supports() -> void:
+	var build := RunBuildScript.new()
+	for _rank in range(RunBuild.ARSENAL_UNLOCK_RANK):
+		build.apply_upgrade(&"dash_nova")
+	build.apply_upgrade(&"ramjet")
+	var options := build.get_upgrade_options(RandomNumberGenerator.new())
+	_expect(options == RunBuild.ARSENAL_IDS, "An evolved engine should receive all three independent arsenal choices together.")
+	for arsenal_id in RunBuild.ARSENAL_IDS:
+		_expect(not build.can_banish_upgrade(arsenal_id), "Arsenal forks should be protected strategic commitments.")
+	_expect(not build.apply_upgrade(RunBuild.HUNTER_ARRAY).is_empty(), "A qualified build should lock one secondary weapon.")
+	_expect(build.apply_upgrade(RunBuild.DRIFT_BLADES).is_empty(), "An arsenal choice should reject its siblings for the run.")
+	_expect(not build.apply_upgrade(&"hunter_guidance").is_empty(), "The chosen arsenal should unlock only its dedicated support.")
+	_expect(build.apply_upgrade(&"drift_edge").is_empty(), "Unchosen arsenal support should remain unavailable.")
+	_expect(build.get_hunter_count() == 2 and build.get_hunter_damage() > 18.0, "Hunter support should change coverage and damage rather than only a hidden scalar.")
+
+
 func _catalyst_ready_build() -> RunBuild:
 	var build := RunBuildScript.new()
 	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
@@ -183,6 +200,7 @@ func _catalyst_ready_build() -> RunBuild:
 	build.apply_upgrade(&"ramjet")
 	while build.get_specialization_rank() < RunBuild.CATALYST_UNLOCK_RANK:
 		build.apply_upgrade(&"dash_nova")
+	build.apply_upgrade(RunBuild.HUNTER_ARRAY)
 	return build
 
 

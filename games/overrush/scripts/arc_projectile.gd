@@ -75,6 +75,7 @@ func _find_chain_target(origin: Vector3) -> EnemyAgent:
 
 
 func _build_visual() -> void:
+	var visual_color := Color(1.0, 0.28, 0.82) if _source_id == &"hunter_array" else Color(0.18, 0.95, 1.0)
 	var mesh_instance := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.52
@@ -84,14 +85,14 @@ func _build_visual() -> void:
 	mesh_instance.mesh = mesh
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = Color(0.18, 0.95, 1.0)
+	material.albedo_color = visual_color
 	material.emission_enabled = true
-	material.emission = Color(0.02, 0.72, 1.0)
+	material.emission = visual_color.darkened(0.18)
 	material.emission_energy_multiplier = 5.0
 	mesh_instance.material_override = material
 	add_child(mesh_instance)
 	var light := OmniLight3D.new()
-	light.light_color = Color(0.06, 0.75, 1.0)
+	light.light_color = visual_color
 	light.light_energy = 2.2
 	light.omni_range = 6.0
 	add_child(light)
