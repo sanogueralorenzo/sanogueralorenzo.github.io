@@ -1,21 +1,124 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
+[ext_resource type="Script" path="res://scripts/runner_ball.gd" id="3_ball"]
+[ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_overrush"]
+sky_top_color = Color(0.018, 0.12, 0.43, 1)
+sky_horizon_color = Color(0.18, 0.72, 0.98, 1)
+ground_bottom_color = Color(0.015, 0.025, 0.08, 1)
+ground_horizon_color = Color(0.12, 0.42, 0.52, 1)
+sun_angle_max = 18.0
+sun_curve = 0.08
+
+[sub_resource type="Sky" id="Sky_overrush"]
+sky_material = SubResource("ProceduralSkyMaterial_overrush")
+radiance_size = 3
 
 [sub_resource type="Environment" id="Environment_overrush"]
-background_mode = 1
-background_color = Color(0.035, 0.045, 0.065, 1)
+background_mode = 2
+sky = SubResource("Sky_overrush")
 ambient_light_source = 3
-ambient_light_color = Color(0.55, 0.62, 0.75, 1)
-ambient_light_energy = 0.35
+ambient_light_color = Color(0.42, 0.58, 0.78, 1)
+ambient_light_energy = 0.42
+reflected_light_source = 2
+tonemap_mode = 3
+glow_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.22, 0.58, 0.78, 1)
+fog_light_energy = 0.65
+fog_density = 0.00075
+fog_sky_affect = 0.5
+
+[sub_resource type="StandardMaterial3D" id="BallMaterial"]
+albedo_color = Color(1, 0.17, 0.055, 1)
+metallic = 0.18
+roughness = 0.24
+emission_enabled = true
+emission = Color(0.8, 0.035, 0.006, 1)
+emission_energy_multiplier = 1.35
+
+[sub_resource type="SphereMesh" id="BallMesh"]
+material = SubResource("BallMaterial")
+radius = 1.2
+height = 2.4
+radial_segments = 24
+rings = 12
+
+[sub_resource type="SphereShape3D" id="BallShape"]
+radius = 1.2
 
 [node name="Overrush" type="Node3D"]
+script = ExtResource("1_main")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_overrush")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-60, -30, 0)
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-48, -32, 0)
+light_color = Color(1, 0.78, 0.58, 1)
+light_energy = 0.92
 shadow_enabled = true
+directional_shadow_max_distance = 950.0
+directional_shadow_fade_start = 0.72
+
+[node name="World" type="StaticBody3D" parent="."]
+script = ExtResource("2_world")
+
+[node name="Terrain" type="MeshInstance3D" parent="World"]
+cast_shadow = 1
+
+[node name="TerrainCollision" type="CollisionShape3D" parent="World"]
+
+[node name="Landmarks" type="MultiMeshInstance3D" parent="World"]
+cast_shadow = 1
+
+[node name="RunnerBall" type="CharacterBody3D" parent="."]
+position = Vector3(0, 8, 0)
+script = ExtResource("3_ball")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RunnerBall"]
+shape = SubResource("BallShape")
+
+[node name="BallMesh" type="MeshInstance3D" parent="RunnerBall"]
+mesh = SubResource("BallMesh")
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 4, 8)
+position = Vector3(0, 10, 18)
 current = true
+fov = 82.0
+far = 5000.0
+script = ExtResource("4_camera")
+target_path = NodePath("../RunnerBall")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 430.0
+offset_bottom = 96.0
+theme_override_colors/font_color = Color(0.94, 0.98, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 19
+text = "OVER RUSH  •  GENERATING WORLD"
+
+[node name="Controls" type="Label" parent="HUD"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -58.0
+offset_right = 610.0
+offset_bottom = -22.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.82, 0.92, 1, 0.82)
+theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 16
+text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   R new world"
