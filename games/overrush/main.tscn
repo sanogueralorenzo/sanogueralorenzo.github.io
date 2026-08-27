@@ -45,8 +45,8 @@ emission_energy_multiplier = 1.35
 
 [sub_resource type="SphereMesh" id="BallMesh"]
 material = SubResource("BallMaterial")
-radius = 1.2
-height = 2.4
+radius = 0.88
+height = 1.76
 radial_segments = 24
 rings = 12
 

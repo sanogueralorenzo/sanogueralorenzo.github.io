@@ -9,6 +9,8 @@ const DashStateMachine = preload("res://scripts/dash_state.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
 const AIRFRAME_COMMIT_TIME := 0.14
 const BASE_DASH_IMMUNITY_SECONDS := 0.14
+const VISUAL_TURN_RESPONSE := 12.0
+const VISUAL_BANK_RADIANS := 0.3
 
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
@@ -44,12 +46,18 @@ var _damage_flash_remaining := 0.0
 var _dash_visual_active := false
 var _reduced_motion := false
 var _airborne_time := 0.0
+var _runner_frame: Node3D
+var _dash_ring: MeshInstance3D
+var _directional_fins: Array[MeshInstance3D] = []
+var _roll_bands: Array[MeshInstance3D] = []
+var _dash_ring_material: StandardMaterial3D
 
 
 func _ready() -> void:
 	_dash_state = DashStateMachine.new(dash_minimum_duration, dash_maximum_duration, dash_cooldown)
 	_ball_material = ball_mesh.get_active_material(0).duplicate()
 	ball_mesh.material_override = _ball_material
+	_build_runner_visuals()
 	integrity = maximum_integrity
 	integrity_changed.emit(integrity, maximum_integrity)
 
@@ -81,6 +89,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_preserve_collision_momentum(intended_dash_velocity)
 		_roll_visual(delta)
+		_update_runner_frame(delta, steering)
 		_check_fall()
 		return
 
@@ -119,6 +128,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_preserve_collision_momentum(intended_horizontal_velocity)
 	_roll_visual(delta)
+	_update_runner_frame(delta, steering)
 	_check_fall()
 
 
@@ -242,6 +252,7 @@ func _set_dash_visuals(active: bool) -> void:
 	_update_ball_material()
 	dash_trail.emitting = active and not _reduced_motion
 	dash_light.light_energy = (1.2 if _reduced_motion else 3.2) if active else 0.0
+	_update_dash_ring(1.0)
 
 
 func _update_ball_material() -> void:
@@ -276,11 +287,135 @@ func _check_fall() -> void:
 
 
 func _roll_visual(delta: float) -> void:
+	if _reduced_motion:
+		return
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	if horizontal_velocity.length_squared() < 0.01:
 		return
 	var roll_axis := horizontal_velocity.normalized().cross(Vector3.UP)
 	ball_mesh.rotate(roll_axis, horizontal_velocity.length() * delta / 1.2)
+
+
+func _build_runner_visuals() -> void:
+	var shell_material := StandardMaterial3D.new()
+	shell_material.albedo_color = Color(0.14, 0.88, 1.0, 1.0)
+	shell_material.metallic = 0.72
+	shell_material.roughness = 0.18
+	shell_material.emission_enabled = true
+	shell_material.emission = Color(0.02, 0.48, 0.78, 1.0)
+	shell_material.emission_energy_multiplier = 1.7
+	shell_material.no_depth_test = true
+
+	var band_mesh := TorusMesh.new()
+	band_mesh.inner_radius = 0.93
+	band_mesh.outer_radius = 1.1
+	band_mesh.rings = 18
+	band_mesh.ring_segments = 8
+	for rotation_degrees in [Vector3(90.0, 0.0, 0.0), Vector3(56.0, 0.0, 58.0)]:
+		var band := MeshInstance3D.new()
+		band.name = "GyroBand%d" % (_roll_bands.size() + 1)
+		band.mesh = band_mesh
+		band.material_override = shell_material
+		band.rotation_degrees = rotation_degrees
+		ball_mesh.add_child(band)
+		_roll_bands.append(band)
+
+	_runner_frame = Node3D.new()
+	_runner_frame.name = "RunnerFrame"
+	add_child(_runner_frame)
+
+	var nose_mesh := CylinderMesh.new()
+	nose_mesh.top_radius = 0.0
+	nose_mesh.bottom_radius = 0.34
+	nose_mesh.height = 0.72
+	nose_mesh.radial_segments = 12
+	var nose := MeshInstance3D.new()
+	nose.name = "DirectionNeedle"
+	nose.mesh = nose_mesh
+	nose.material_override = shell_material
+	nose.position = Vector3(0.0, 0.0, -1.18)
+	nose.rotation_degrees.x = -90.0
+	_runner_frame.add_child(nose)
+
+	var fin_mesh := BoxMesh.new()
+	fin_mesh.size = Vector3(0.18, 0.28, 1.1)
+	for side in [-1.0, 1.0]:
+		var fin := MeshInstance3D.new()
+		fin.name = "LeftVectorFin" if side < 0.0 else "RightVectorFin"
+		fin.mesh = fin_mesh
+		fin.material_override = shell_material
+		fin.position = Vector3(side * 1.03, 0.0, 0.16)
+		fin.rotation_degrees.z = side * -12.0
+		_runner_frame.add_child(fin)
+		_directional_fins.append(fin)
+
+	_dash_ring_material = StandardMaterial3D.new()
+	_dash_ring_material.albedo_color = Color(0.12, 0.82, 1.0, 1.0)
+	_dash_ring_material.metallic = 0.45
+	_dash_ring_material.roughness = 0.16
+	_dash_ring_material.emission_enabled = true
+	_dash_ring_material.emission = Color(0.02, 0.48, 0.9, 1.0)
+	_dash_ring_material.emission_energy_multiplier = 1.8
+	_dash_ring_material.no_depth_test = true
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = 1.2
+	ring_mesh.outer_radius = 1.38
+	ring_mesh.rings = 24
+	ring_mesh.ring_segments = 8
+	_dash_ring = MeshInstance3D.new()
+	_dash_ring.name = "DashChargeRing"
+	_dash_ring.mesh = ring_mesh
+	_dash_ring.material_override = _dash_ring_material
+	_dash_ring.position = Vector3(0.0, 0.0, 0.44)
+	_dash_ring.rotation_degrees.x = 90.0
+	_runner_frame.add_child(_dash_ring)
+	_update_runner_frame(1.0, 0.0)
+
+
+func _update_runner_frame(delta: float, steering: float) -> void:
+	if not is_instance_valid(_runner_frame):
+		return
+	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	var travel_direction := heading
+	if horizontal_velocity.length_squared() > 1.0:
+		travel_direction = horizontal_velocity.normalized()
+	var target_yaw := atan2(-travel_direction.x, -travel_direction.z)
+	var response := 1.0 - exp(-VISUAL_TURN_RESPONSE * maxf(delta, 0.0))
+	_runner_frame.rotation.y = lerp_angle(_runner_frame.rotation.y, target_yaw, response)
+	var target_bank := 0.0 if _reduced_motion else steering * VISUAL_BANK_RADIANS
+	_runner_frame.rotation.z = lerpf(_runner_frame.rotation.z, target_bank, response)
+	var speed_ratio := clampf(horizontal_velocity.length() / maxf(dash_speed, 1.0), 0.0, 1.0)
+	var fin_length := 1.0 if _reduced_motion else lerpf(0.88, 1.18, speed_ratio)
+	for fin in _directional_fins:
+		fin.scale.z = lerpf(fin.scale.z, fin_length, response)
+	_update_dash_ring(response)
+
+
+func _update_dash_ring(response: float) -> void:
+	if not is_instance_valid(_dash_ring) or not is_instance_valid(_dash_ring_material):
+		return
+	var charge := _get_dash_visual_charge()
+	var active_scale := 1.08 if _reduced_motion else 1.22
+	var target_scale := active_scale if _dash_visual_active else lerpf(0.82, 1.0, charge)
+	_dash_ring.scale = _dash_ring.scale.lerp(Vector3.ONE * target_scale, clampf(response, 0.0, 1.0))
+	if _dash_visual_active:
+		_dash_ring_material.albedo_color = Color(0.72, 0.98, 1.0, 1.0)
+		_dash_ring_material.emission = Color(0.06, 0.72, 1.0, 1.0)
+		_dash_ring_material.emission_energy_multiplier = 4.8 if not _reduced_motion else 2.2
+	else:
+		_dash_ring_material.albedo_color = Color(0.06, 0.22, 0.32, 1.0).lerp(Color(0.12, 0.82, 1.0, 1.0), charge)
+		_dash_ring_material.emission = Color(0.01, 0.06, 0.12, 1.0).lerp(Color(0.02, 0.48, 0.9, 1.0), charge)
+		_dash_ring_material.emission_energy_multiplier = lerpf(0.3, 1.8, charge)
+
+
+func _get_dash_visual_charge() -> float:
+	if not is_instance_valid(_dash_state) or _dash_state.is_active:
+		return 1.0
+	if not is_on_floor() and not _dash_state.air_dash_available:
+		return 0.0
+	if _dash_state.cooldown <= 0.0:
+		return 1.0
+	return 1.0 - clampf(_dash_state.cooldown_remaining / _dash_state.cooldown, 0.0, 1.0)
 
 
 func _preserve_collision_momentum(intended_velocity: Vector3) -> void:

@@ -12,6 +12,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
 - Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
 - A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
+- The runner now carries an original procedural gyro shell with a forward needle, speed-reactive vector fins, steering bank, and a local dash-charge ring, preserving the compact ball collision model while making direction, velocity, and dash state readable in-world.
 - A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
@@ -123,6 +124,7 @@ Run the dash timing and ground/air reset checks with:
 
 ```sh
 godot --headless --path games/overrush --script res://tests/test_dash_state.gd
+godot --headless --path games/overrush --script res://tests/validate_runner_presentation.gd
 ```
 
 Run the build rules and playable combat integration checks with:
