@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -97,6 +97,13 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="ApexFill"]
+bg_color = Color(0.08, 0.8, 1, 0.96)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 
 [node name="Overrush" type="Node3D"]
 script = ExtResource("1_main")
@@ -246,6 +253,54 @@ theme_override_font_sizes/font_size = 20
 text = "JETSTREAM  •  BANK LEFT"
 horizontal_alignment = 1
 
+[node name="ApexLabel" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 480.0
+offset_top = 78.0
+offset_right = -480.0
+offset_bottom = 104.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.84, 0.98, 1, 1)
+theme_override_colors/font_outline_color = Color(0.005, 0.025, 0.08, 0.9)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 18
+text = "THE APEX  •  100%"
+horizontal_alignment = 1
+
+[node name="ApexBar" type="ProgressBar" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 390.0
+offset_top = 106.0
+offset_right = -390.0
+offset_bottom = 118.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("ApexFill")
+value = 100.0
+show_percentage = false
+
+[node name="EventBanner" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 330.0
+offset_top = 136.0
+offset_right = -330.0
+offset_bottom = 212.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.92, 0.99, 1, 1)
+theme_override_colors/font_outline_color = Color(0.005, 0.02, 0.06, 0.94)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 23
+text = "PRESSURE RISES\nElite signatures are entering the landscape"
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="IntegrityBar" type="ProgressBar" parent="HUD"]
 anchors_preset = 7
 anchor_left = 0.5
@@ -366,5 +421,35 @@ grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.34, 0.18, 1)
 theme_override_font_sizes/font_size = 34
 text = "RUN ENDED\n\nPRESS R TO BREAK THROUGH AGAIN"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="VictoryOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.005, 0.075, 0.105, 0.86)
+
+[node name="Message" type="Label" parent="HUD/VictoryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -420.0
+offset_top = -125.0
+offset_right = 420.0
+offset_bottom = 125.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.18, 0.94, 1, 1)
+theme_override_colors/font_outline_color = Color(0.005, 0.025, 0.06, 0.95)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "APEX BROKEN\n\nPRESS R TO OVERRUN AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1

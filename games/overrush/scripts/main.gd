@@ -11,6 +11,9 @@ extends Node3D
 @onready var experience_bar: ProgressBar = $HUD/ExperienceBar
 @onready var level_label: Label = $HUD/LevelLabel
 @onready var boundary_warning: Label = $HUD/BoundaryWarning
+@onready var event_banner: Label = $HUD/EventBanner
+@onready var apex_bar: ProgressBar = $HUD/ApexBar
+@onready var apex_label: Label = $HUD/ApexLabel
 @onready var level_up_overlay: Control = $HUD/LevelUpOverlay
 @onready var level_up_buttons: Array[Button] = [
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option1,
@@ -18,8 +21,13 @@ extends Node3D
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option3,
 ]
 @onready var game_over_overlay: Control = $HUD/GameOverOverlay
+@onready var game_over_message: Label = $HUD/GameOverOverlay/Message
+@onready var victory_overlay: Control = $HUD/VictoryOverlay
+@onready var victory_message: Label = $HUD/VictoryOverlay/Message
 
 var _current_upgrade_options: Array[StringName] = []
+var _phase_name := "BREAKAWAY"
+var _event_tween: Tween
 
 
 func _ready() -> void:
@@ -30,6 +38,11 @@ func _ready() -> void:
 	ball.defeated.connect(_on_runner_defeated)
 	combat.build_changed.connect(_on_build_changed)
 	combat.level_up_requested.connect(_on_level_up_requested)
+	combat.phase_changed.connect(_on_phase_changed)
+	combat.event_announced.connect(_on_event_announced)
+	combat.apex_health_changed.connect(_on_apex_health_changed)
+	combat.run_victory.connect(_on_run_victory)
+	combat.run_failed.connect(_on_run_failed)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
 	_on_integrity_changed(ball.integrity, ball.maximum_integrity)
@@ -43,8 +56,9 @@ func _process(_delta: float) -> void:
 		roundi(ball.get_horizontal_speed()),
 		ball.get_dash_status(),
 	]
-	run_stats.text = "%s\n%d HOSTILES  •  %d CLEARED\nSEED %s" % [
+	run_stats.text = "%s  •  %s\n%d HOSTILES  •  %d CLEARED\nSEED %s" % [
 		combat.get_formatted_time(),
+		_phase_name,
 		combat.get_enemy_count(),
 		combat.enemies_defeated,
 		str(world.generated_seed),
@@ -107,5 +121,58 @@ func _choose_upgrade(index: int) -> void:
 
 func _on_runner_defeated() -> void:
 	combat.stop_run()
+	game_over_message.text = "RUN ENDED\n\n%s  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO BREAK THROUGH AGAIN" % [
+		combat.get_formatted_time(),
+		combat.build.level,
+		combat.enemies_defeated,
+	]
+	game_over_overlay.visible = true
+	get_tree().paused = true
+
+
+func _on_phase_changed(_phase_id: StringName, phase_name: String) -> void:
+	_phase_name = phase_name
+
+
+func _on_event_announced(title: String, subtitle: String) -> void:
+	if is_instance_valid(_event_tween):
+		_event_tween.kill()
+	event_banner.text = "%s\n%s" % [title, subtitle]
+	event_banner.visible = true
+	event_banner.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	event_banner.scale = Vector2(0.94, 0.94)
+	event_banner.pivot_offset = event_banner.size * 0.5
+	_event_tween = create_tween()
+	_event_tween.tween_property(event_banner, "modulate:a", 1.0, 0.22)
+	_event_tween.parallel().tween_property(event_banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_event_tween.tween_interval(2.2)
+	_event_tween.tween_property(event_banner, "modulate:a", 0.0, 0.5)
+	_event_tween.tween_callback(func() -> void: event_banner.visible = false)
+
+
+func _on_apex_health_changed(current: float, maximum: float) -> void:
+	apex_bar.max_value = maximum
+	apex_bar.value = current
+	apex_bar.visible = current > 0.0
+	apex_label.visible = current > 0.0
+	apex_label.text = "THE APEX  •  %d%%" % roundi(current / maxf(maximum, 1.0) * 100.0)
+
+
+func _on_run_victory() -> void:
+	victory_message.text = "APEX BROKEN\n\n%s  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO OVERRUN AGAIN" % [
+		combat.get_formatted_time(),
+		combat.build.level,
+		combat.enemies_defeated,
+	]
+	victory_overlay.visible = true
+	get_tree().paused = true
+
+
+func _on_run_failed(reason: String) -> void:
+	game_over_message.text = "%s\n\n20:00  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO BREAK THROUGH AGAIN" % [
+		reason,
+		combat.build.level,
+		combat.enemies_defeated,
+	]
 	game_over_overlay.visible = true
 	get_tree().paused = true

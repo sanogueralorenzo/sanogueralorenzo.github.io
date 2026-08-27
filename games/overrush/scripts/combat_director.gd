@@ -3,11 +3,17 @@ extends Node3D
 
 signal build_changed(build: RunBuild)
 signal level_up_requested(options: Array[StringName])
+signal phase_changed(phase_id: StringName, phase_name: String)
+signal event_announced(title: String, subtitle: String)
+signal apex_health_changed(current: float, maximum: float)
+signal run_victory
+signal run_failed(reason: String)
 
 const EnemyAgentScript = preload("res://scripts/enemy_agent.gd")
 const ArcProjectileScript = preload("res://scripts/arc_projectile.gd")
 const ExperiencePickupScript = preload("res://scripts/experience_pickup.gd")
 const RunBuildScript = preload("res://scripts/run_build.gd")
+const RunPacingModel = preload("res://scripts/run_pacing.gd")
 
 const INITIAL_SPAWN_DELAY := 1.25
 const MINIMUM_SPAWN_INTERVAL := 0.24
@@ -21,6 +27,7 @@ const WAKE_TICK_INTERVAL := 0.22
 @export var world_path: NodePath
 
 var build: RunBuild = RunBuildScript.new()
+var pacing: RunPacing = RunPacingModel.new()
 var elapsed_time := 0.0
 var enemies_defeated := 0
 
@@ -33,6 +40,8 @@ var _fire_timer := 0.4
 var _wake_timer := 0.0
 var _awaiting_upgrade := false
 var _run_active := true
+var _current_phase := &""
+var _apex: EnemyAgent
 
 
 func _ready() -> void:
@@ -41,13 +50,19 @@ func _ready() -> void:
 	_world = get_node(world_path)
 	_rng.seed = int(_world.generated_seed) ^ 0x4F564552
 	_runner.dash_state_changed.connect(_on_dash_state_changed)
+	_current_phase = pacing.get_phase_id(0.0)
 	build_changed.emit(build)
+	call_deferred("_announce_initial_phase")
 
 
 func _physics_process(delta: float) -> void:
 	if not _run_active or get_tree().paused:
 		return
+	var previous_time := elapsed_time
 	elapsed_time += delta
+	_update_run_pacing(previous_time)
+	if not _run_active:
+		return
 	_cleanup_enemies()
 	_update_spawning(delta)
 	_update_arc_weapon(delta)
@@ -93,26 +108,36 @@ func get_formatted_time() -> String:
 	return "%02d:%02d" % [total_seconds / 60, total_seconds % 60]
 
 
+func get_phase_name() -> String:
+	return pacing.get_phase_name(elapsed_time)
+
+
+func has_active_apex() -> bool:
+	return is_instance_valid(_apex) and not _apex.is_queued_for_deletion()
+
+
 func _update_spawning(delta: float) -> void:
 	_spawn_timer -= delta
-	var population_limit := mini(MAXIMUM_ENEMIES, 16 + floori(elapsed_time / 8.0))
+	var population_limit := mini(MAXIMUM_ENEMIES, pacing.get_population_limit(elapsed_time))
 	if _spawn_timer > 0.0 or _enemies.size() >= population_limit:
 		return
-	var spawn_interval := maxf(MINIMUM_SPAWN_INTERVAL, 1.05 - elapsed_time * 0.0014)
+	var spawn_interval := maxf(MINIMUM_SPAWN_INTERVAL, pacing.get_spawn_interval(elapsed_time))
 	_spawn_timer = spawn_interval
-	var pack_size := 1 + mini(3, floori(elapsed_time / 150.0))
+	var pack_size := pacing.get_pack_size(elapsed_time)
 	for index in range(pack_size):
 		if _enemies.size() >= population_limit:
 			break
 		_spawn_enemy()
 
 
-func _spawn_enemy() -> void:
+func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"standard") -> EnemyAgent:
 	var enemy: EnemyAgent = EnemyAgentScript.new()
-	var difficulty := 1.0 + elapsed_time / 210.0
-	var archetype := _choose_archetype()
-	enemy.configure(_runner, _world, archetype, difficulty)
+	var difficulty := 1.0 + elapsed_time / 240.0
+	var archetype := archetype_override if not archetype_override.is_empty() else _choose_archetype()
+	enemy.configure(_runner, _world, archetype, difficulty, rank)
 	enemy.defeated.connect(_on_enemy_defeated)
+	if rank == &"apex":
+		enemy.health_changed.connect(_on_apex_health_changed)
 	add_child(enemy)
 
 	var forward: Vector3 = _runner.heading.normalized()
@@ -125,13 +150,15 @@ func _spawn_enemy() -> void:
 	spawn_position.y = _world.get_surface_height(spawn_position.x, spawn_position.z) + enemy.body_radius
 	enemy.global_position = spawn_position
 	_enemies.append(enemy)
+	return enemy
 
 
 func _choose_archetype() -> StringName:
 	var roll := _rng.randf()
-	if elapsed_time > 75.0 and roll < 0.16:
+	var phase_index := pacing.get_phase_index(elapsed_time)
+	if phase_index >= 1 and roll < 0.16 + phase_index * 0.025:
 		return &"bulwark"
-	if elapsed_time > 20.0 and roll < 0.48:
+	if elapsed_time > 20.0 and roll < 0.46 + phase_index * 0.035:
 		return &"skimmer"
 	return &"pursuer"
 
@@ -197,6 +224,12 @@ func _on_dash_state_changed(active: bool) -> void:
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemies_defeated += 1
 	_enemies.erase(enemy)
+	if enemy.is_apex:
+		_apex = null
+		_run_active = false
+		apex_health_changed.emit(0.0, enemy.maximum_health)
+		run_victory.emit()
+		return
 	var pickup: ExperiencePickup = ExperiencePickupScript.new()
 	add_child(pickup)
 	pickup.global_position = enemy.global_position + Vector3.UP * 1.2
@@ -217,6 +250,67 @@ func _offer_level_up() -> void:
 	build.set_meta("current_options", options)
 	get_tree().paused = true
 	level_up_requested.emit(options)
+
+
+func _announce_initial_phase() -> void:
+	phase_changed.emit(_current_phase, pacing.get_phase_name(0.0))
+	event_announced.emit("BREAKAWAY", "Build velocity. Shape the run.")
+
+
+func _update_run_pacing(previous_time: float) -> void:
+	var phase_id := pacing.get_phase_id(elapsed_time)
+	if phase_id != _current_phase:
+		_current_phase = phase_id
+		var phase_name := pacing.get_phase_name(elapsed_time)
+		phase_changed.emit(phase_id, phase_name)
+		event_announced.emit(phase_name, _get_phase_subtitle(phase_id))
+	for elite_index in pacing.get_crossed_elite_indices(previous_time, elapsed_time):
+		_spawn_scheduled_elite(elite_index)
+	if pacing.crossed_apex_time(previous_time, elapsed_time) and not has_active_apex():
+		_spawn_apex()
+	if pacing.crossed_deadline(previous_time, elapsed_time) and has_active_apex():
+		_run_active = false
+		run_failed.emit("THE APEX HELD THE STORM")
+
+
+func _spawn_scheduled_elite(elite_index: int) -> void:
+	var elite_archetypes: Array[StringName] = [&"skimmer", &"bulwark", &"pursuer", &"skimmer"]
+	var elite := _spawn_enemy(elite_archetypes[elite_index % elite_archetypes.size()], &"elite")
+	event_announced.emit("ELITE INTERCEPT", "%s entered the jetstream" % _get_enemy_title(elite.archetype))
+
+
+func _spawn_apex() -> void:
+	_apex = _spawn_enemy(&"apex", &"apex")
+	apex_health_changed.emit(_apex.health, _apex.maximum_health)
+	event_announced.emit("THE APEX DESCENDS", "Break it before 20:00")
+
+
+func _on_apex_health_changed(_enemy: EnemyAgent, current: float, maximum: float) -> void:
+	apex_health_changed.emit(current, maximum)
+
+
+func _get_phase_subtitle(phase_id: StringName) -> String:
+	match phase_id:
+		&"pressure":
+			return "Elite signatures are entering the landscape"
+		&"redline":
+			return "Faster packs. Harder choices. Keep moving."
+		&"overrun":
+			return "The storm is saturating the route"
+		&"apex":
+			return "Two minutes to break the hunter"
+		_:
+			return "Build velocity. Shape the run."
+
+
+func _get_enemy_title(archetype: StringName) -> String:
+	match archetype:
+		&"skimmer":
+			return "Razor Skimmer"
+		&"bulwark":
+			return "Ember Bulwark"
+		_:
+			return "Overrun Pursuer"
 
 
 func _spawn_pulse(position: Vector3, color: Color, radius: float, duration: float) -> void:

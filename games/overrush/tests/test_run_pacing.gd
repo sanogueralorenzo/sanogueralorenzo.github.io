@@ -1,0 +1,33 @@
+extends SceneTree
+
+const RunPacingModel = preload("res://scripts/run_pacing.gd")
+
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	var pacing := RunPacingModel.new()
+	_expect(pacing.get_phase_id(0.0) == &"breakaway", "Runs should begin in Breakaway.")
+	_expect(pacing.get_phase_id(180.0) == &"pressure", "The first elite should begin Pressure Rises.")
+	_expect(pacing.get_phase_id(420.0) == &"redline", "Seven minutes should begin Redline.")
+	_expect(pacing.get_phase_id(720.0) == &"overrun", "Twelve minutes should begin Overrun.")
+	_expect(pacing.get_phase_id(1080.0) == &"apex", "Eighteen minutes should begin the Apex climax.")
+	_expect(pacing.get_crossed_elite_indices(179.0, 181.0) == PackedInt32Array([0]), "Crossing three minutes should schedule exactly the first elite.")
+	_expect(pacing.get_crossed_elite_indices(181.0, 419.0).is_empty(), "Elite events should not repeat between milestones.")
+	_expect(pacing.crossed_apex_time(1079.9, 1080.1), "Crossing eighteen minutes should schedule the Apex.")
+	_expect(pacing.crossed_deadline(1199.9, 1200.1), "Crossing twenty minutes should resolve an unfinished run.")
+	_expect(pacing.get_intensity(900.0) > pacing.get_intensity(300.0), "Run intensity should escalate materially over time.")
+	_expect(pacing.get_spawn_interval(900.0) < pacing.get_spawn_interval(300.0), "Later phases should spawn threats faster.")
+
+	if _failures.is_empty():
+		print("Run pacing validation passed — phases, elites, Apex, and deadline are scheduled.")
+		quit(0)
+	else:
+		for failure in _failures:
+			push_error(failure)
+		quit(1)
+
+
+func _expect(condition: bool, message: String) -> void:
+	if not condition:
+		_failures.append(message)
