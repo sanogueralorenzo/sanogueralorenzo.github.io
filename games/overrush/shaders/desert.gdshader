@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
 uniform vec2 seed_offset = vec2(0.0);
+uniform vec2 world_origin = vec2(0.0);
 
 varying vec3 world_position;
 varying vec3 world_normal;
@@ -27,7 +28,7 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 p = world_position.xz + seed_offset;
+	vec2 p = world_position.xz + world_origin + seed_offset;
 	float broad = noise(p * 0.0035);
 	float ripples = noise(p * 0.035 + vec2(31.0, -17.0));
 	float wind_lines = sin((p.x * 0.13 + p.y * 0.035) + ripples * 2.4) * 0.5 + 0.5;

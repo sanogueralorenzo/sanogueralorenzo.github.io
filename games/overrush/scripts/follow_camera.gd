@@ -114,3 +114,8 @@ func snap_to_target() -> void:
 	_smoothed_target_position = _target.global_position
 	global_position = _target.global_position - forward * follow_distance + Vector3.UP * tan(_pitch) * follow_distance
 	look_at(_target.global_position + forward * look_ahead + Vector3.UP * focus_height, Vector3.UP)
+
+
+func apply_world_rebase(shift: Vector3) -> void:
+	global_position -= shift
+	_smoothed_target_position -= shift

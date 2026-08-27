@@ -1,47 +1,83 @@
 class_name ProceduralDesert
 extends StaticBody3D
 
-@export_range(2400.0, 9600.0, 100.0) var map_size := 4800.0
-@export_range(129, 513, 2) var grid_resolution := 385
+@export var tracked_body_path: NodePath
+@export var tracked_camera_path: NodePath
+@export_range(192.0, 768.0, 32.0) var chunk_size := 384.0
+@export_range(25, 97, 8) var chunk_resolution := 49
+@export_range(1, 4, 1) var active_radius := 2
+@export_range(1, 4, 1) var chunks_per_frame := 2
+@export var rebase_distance := 1536.0
 @export var seed := 0
 @export var summit_height := 280.0
 @export var radial_grade := 0.145
 
-@onready var terrain: MeshInstance3D = $Terrain
-@onready var terrain_collision: CollisionShape3D = $TerrainCollision
-
 var generated_seed := 0
+var world_origin := Vector3.ZERO
+var loaded_chunks: Dictionary = {}
+
+var _tracked_body: Node3D
+var _tracked_camera: Node3D
+var _stream_center := Vector2i(2147483647, 2147483647)
+var _desired_chunks: Dictionary = {}
+var _pending_chunks: Array[Vector2i] = []
+var _sand_material: ShaderMaterial
 var _broad_noise := FastNoiseLite.new()
 var _ridge_noise := FastNoiseLite.new()
 var _dune_noise := FastNoiseLite.new()
 
 
 func _ready() -> void:
+	_tracked_body = get_node_or_null(tracked_body_path)
+	_tracked_camera = get_node_or_null(tracked_camera_path)
 	generate()
 
 
+func _physics_process(_delta: float) -> void:
+	maintain_streaming(false)
+
+
 func generate() -> void:
+	_clear_chunks()
+	world_origin = Vector3.ZERO
 	generated_seed = seed
 	if generated_seed == 0:
 		var random_seed := RandomNumberGenerator.new()
 		random_seed.randomize()
 		generated_seed = random_seed.randi()
 	_configure_noise()
-	var terrain_data := _build_terrain()
-	terrain.mesh = terrain_data.mesh
-	if DisplayServer.get_name() != "headless":
-		var material := ShaderMaterial.new()
-		material.shader = load("res://shaders/desert.gdshader")
-		material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
-		terrain.material_override = material
-	terrain_collision.shape = _build_collision(terrain_data.heights)
-	var spacing := map_size / float(grid_resolution - 1)
-	terrain_collision.scale = Vector3(spacing, 1.0, spacing)
-	print("Dune Drifter desert — seed %s, %.1f km radial freeride field" % [str(generated_seed), map_size / 1000.0])
+	_create_material()
+	_stream_center = Vector2i(2147483647, 2147483647)
+	_set_stream_focus(Vector2.ZERO, true)
+	print(
+		"Dune Drifter desert — seed %s, %d seamless chunks around an unbounded radial field"
+		% [str(generated_seed), loaded_chunks.size()]
+	)
+
+
+func begin_new_run() -> void:
+	generate()
+
+
+func maintain_streaming(immediate: bool = false) -> void:
+	if not is_instance_valid(_tracked_body):
+		return
+	var logical_position := get_world_position(_tracked_body.global_position)
+	if Vector2(_tracked_body.global_position.x, _tracked_body.global_position.z).length() >= rebase_distance:
+		_perform_origin_rebase(_tracked_body.global_position)
+	_set_stream_focus(Vector2(logical_position.x, logical_position.z), immediate)
 
 
 func get_spawn_position() -> Vector3:
-	return Vector3(0.0, get_surface_height(0.0, 0.0) + 0.45, 0.0)
+	return world_to_local_position(Vector3(0.0, get_surface_height(0.0, 0.0) + 0.45, 0.0))
+
+
+func get_world_position(local_position: Vector3) -> Vector3:
+	return local_position + world_origin
+
+
+func world_to_local_position(logical_position: Vector3) -> Vector3:
+	return logical_position - world_origin
 
 
 func get_surface_height(x: float, z: float) -> float:
@@ -56,6 +92,11 @@ func get_surface_height(x: float, z: float) -> float:
 	return summit_height - descent + feature_fade * (broad + folded_ridges + dunes)
 
 
+func get_local_surface_height(x: float, z: float) -> float:
+	var logical := get_world_position(Vector3(x, 0.0, z))
+	return get_surface_height(logical.x, logical.z) - world_origin.y
+
+
 func get_surface_normal(x: float, z: float, sample_distance := 3.0) -> Vector3:
 	var left := get_surface_height(x - sample_distance, z)
 	var right := get_surface_height(x + sample_distance, z)
@@ -64,8 +105,197 @@ func get_surface_normal(x: float, z: float, sample_distance := 3.0) -> Vector3:
 	return Vector3(left - right, sample_distance * 2.0, back - forward).normalized()
 
 
-func is_sand_shape(shape: Shape3D) -> bool:
-	return shape == terrain_collision.shape
+func is_sand_collider(collider: Object) -> bool:
+	return collider is StaticBody3D and collider.get_meta(&"dune_drifter_sand", false)
+
+
+func get_chunk_coordinate(logical_position: Vector2) -> Vector2i:
+	return Vector2i(
+		roundi(logical_position.x / chunk_size),
+		roundi(logical_position.y / chunk_size),
+	)
+
+
+func get_chunk(coord: Vector2i) -> StaticBody3D:
+	return loaded_chunks.get(coord) as StaticBody3D
+
+
+func flush_streaming() -> void:
+	while not _pending_chunks.is_empty():
+		_load_chunk(_pending_chunks.pop_front())
+
+
+func _set_stream_focus(logical_position: Vector2, immediate: bool) -> void:
+	var next_center := get_chunk_coordinate(logical_position)
+	if next_center != _stream_center:
+		_stream_center = next_center
+		_rebuild_stream_request()
+		_ensure_safety_chunks()
+		_retire_distant_chunks()
+	if immediate:
+		flush_streaming()
+	else:
+		for _index in range(chunks_per_frame):
+			if _pending_chunks.is_empty():
+				break
+			_load_chunk(_pending_chunks.pop_front())
+
+
+func _rebuild_stream_request() -> void:
+	_desired_chunks.clear()
+	_pending_chunks.clear()
+	for z_offset in range(-active_radius, active_radius + 1):
+		for x_offset in range(-active_radius, active_radius + 1):
+			var coord := _stream_center + Vector2i(x_offset, z_offset)
+			_desired_chunks[coord] = true
+			if not loaded_chunks.has(coord):
+				_pending_chunks.append(coord)
+	_pending_chunks.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return _chunk_distance_squared(a) < _chunk_distance_squared(b)
+	)
+
+
+func _ensure_safety_chunks() -> void:
+	for z_offset in range(-1, 2):
+		for x_offset in range(-1, 2):
+			var coord := _stream_center + Vector2i(x_offset, z_offset)
+			if not loaded_chunks.has(coord):
+				_load_chunk(coord)
+			_pending_chunks.erase(coord)
+
+
+func _retire_distant_chunks() -> void:
+	var retention_radius := active_radius + 1
+	for key in loaded_chunks.keys():
+		var coord: Vector2i = key
+		if absi(coord.x - _stream_center.x) <= retention_radius and absi(coord.y - _stream_center.y) <= retention_radius:
+			continue
+		var chunk: StaticBody3D = loaded_chunks[coord]
+		loaded_chunks.erase(coord)
+		chunk.queue_free()
+
+
+func _load_chunk(coord: Vector2i) -> void:
+	if loaded_chunks.has(coord) or not _desired_chunks.has(coord):
+		return
+	var chunk := StaticBody3D.new()
+	chunk.name = "Sand_%d_%d" % [coord.x, coord.y]
+	chunk.set_meta(&"dune_drifter_sand", true)
+	var center_x := float(coord.x) * chunk_size
+	var center_z := float(coord.y) * chunk_size
+	var reference_height := get_surface_height(center_x, center_z)
+	chunk.position = Vector3(
+		center_x - world_origin.x,
+		reference_height - world_origin.y,
+		center_z - world_origin.z,
+	)
+	var chunk_data := _build_chunk_mesh(coord, reference_height)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "Terrain"
+	mesh_instance.mesh = chunk_data.mesh
+	mesh_instance.material_override = _sand_material
+	chunk.add_child(mesh_instance)
+	var collision := CollisionShape3D.new()
+	collision.name = "TerrainCollision"
+	collision.shape = _build_chunk_collision(chunk_data.heights)
+	var spacing := chunk_size / float(chunk_resolution - 1)
+	collision.scale = Vector3(spacing, 1.0, spacing)
+	chunk.add_child(collision)
+	add_child(chunk)
+	loaded_chunks[coord] = chunk
+
+
+func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
+	var vertex_count := chunk_resolution * chunk_resolution
+	var spacing := chunk_size / float(chunk_resolution - 1)
+	var half_size := chunk_size * 0.5
+	var center_x := float(coord.x) * chunk_size
+	var center_z := float(coord.y) * chunk_size
+	var heights := PackedFloat32Array()
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	heights.resize(vertex_count)
+	vertices.resize(vertex_count)
+	normals.resize(vertex_count)
+	uvs.resize(vertex_count)
+
+	for z_index in range(chunk_resolution):
+		var local_z := -half_size + z_index * spacing
+		var logical_z := center_z + local_z
+		for x_index in range(chunk_resolution):
+			var local_x := -half_size + x_index * spacing
+			var logical_x := center_x + local_x
+			var index := z_index * chunk_resolution + x_index
+			var local_height := get_surface_height(logical_x, logical_z) - reference_height
+			heights[index] = local_height
+			vertices[index] = Vector3(local_x, local_height, local_z)
+			normals[index] = get_surface_normal(logical_x, logical_z, spacing)
+			uvs[index] = Vector2(logical_x, logical_z) * 0.002
+
+	var indices := PackedInt32Array()
+	indices.resize((chunk_resolution - 1) * (chunk_resolution - 1) * 6)
+	var write_index := 0
+	for z_index in range(chunk_resolution - 1):
+		for x_index in range(chunk_resolution - 1):
+			var top_left := z_index * chunk_resolution + x_index
+			var top_right := top_left + 1
+			var bottom_left := top_left + chunk_resolution
+			var bottom_right := bottom_left + 1
+			indices[write_index] = top_left
+			indices[write_index + 1] = top_right
+			indices[write_index + 2] = bottom_left
+			indices[write_index + 3] = top_right
+			indices[write_index + 4] = bottom_right
+			indices[write_index + 5] = bottom_left
+			write_index += 6
+
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return {"mesh": mesh, "heights": heights}
+
+
+func _build_chunk_collision(heights: PackedFloat32Array) -> HeightMapShape3D:
+	var heightmap := HeightMapShape3D.new()
+	heightmap.map_width = chunk_resolution
+	heightmap.map_depth = chunk_resolution
+	heightmap.map_data = heights
+	return heightmap
+
+
+func _perform_origin_rebase(local_focus: Vector3) -> void:
+	var shift := Vector3(
+		roundf(local_focus.x / chunk_size) * chunk_size,
+		local_focus.y,
+		roundf(local_focus.z / chunk_size) * chunk_size,
+	)
+	if shift.length_squared() < 0.001:
+		return
+	world_origin += shift
+	for chunk in loaded_chunks.values():
+		(chunk as StaticBody3D).position -= shift
+	if _tracked_body.has_method("apply_world_rebase"):
+		_tracked_body.call("apply_world_rebase", shift)
+	else:
+		_tracked_body.global_position -= shift
+	if is_instance_valid(_tracked_camera):
+		if _tracked_camera.has_method("apply_world_rebase"):
+			_tracked_camera.call("apply_world_rebase", shift)
+		else:
+			_tracked_camera.global_position -= shift
+	if is_instance_valid(_sand_material):
+		_sand_material.set_shader_parameter("world_origin", Vector2(world_origin.x, world_origin.z))
+
+
+func _chunk_distance_squared(coord: Vector2i) -> int:
+	var delta := coord - _stream_center
+	return delta.x * delta.x + delta.y * delta.y
 
 
 func _configure_noise() -> void:
@@ -91,69 +321,19 @@ func _configure_noise() -> void:
 	_dune_noise.fractal_gain = 0.34
 
 
-func _build_terrain() -> Dictionary:
-	var vertex_count := grid_resolution * grid_resolution
-	var spacing := map_size / float(grid_resolution - 1)
-	var half_size := map_size * 0.5
-	var heights := PackedFloat32Array()
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	heights.resize(vertex_count)
-	vertices.resize(vertex_count)
-	normals.resize(vertex_count)
-	uvs.resize(vertex_count)
-
-	for z_index in range(grid_resolution):
-		var z := -half_size + z_index * spacing
-		for x_index in range(grid_resolution):
-			var x := -half_size + x_index * spacing
-			var index := z_index * grid_resolution + x_index
-			var height := get_surface_height(x, z)
-			heights[index] = height
-			vertices[index] = Vector3(x, height, z)
-			uvs[index] = Vector2(x_index, z_index) / float(grid_resolution - 1)
-
-	for z_index in range(grid_resolution):
-		for x_index in range(grid_resolution):
-			var index := z_index * grid_resolution + x_index
-			var left := heights[z_index * grid_resolution + maxi(x_index - 1, 0)]
-			var right := heights[z_index * grid_resolution + mini(x_index + 1, grid_resolution - 1)]
-			var back := heights[maxi(z_index - 1, 0) * grid_resolution + x_index]
-			var forward := heights[mini(z_index + 1, grid_resolution - 1) * grid_resolution + x_index]
-			normals[index] = Vector3(left - right, spacing * 2.0, back - forward).normalized()
-
-	var indices := PackedInt32Array()
-	indices.resize((grid_resolution - 1) * (grid_resolution - 1) * 6)
-	var write_index := 0
-	for z_index in range(grid_resolution - 1):
-		for x_index in range(grid_resolution - 1):
-			var top_left := z_index * grid_resolution + x_index
-			var top_right := top_left + 1
-			var bottom_left := top_left + grid_resolution
-			var bottom_right := bottom_left + 1
-			indices[write_index] = top_left
-			indices[write_index + 1] = top_right
-			indices[write_index + 2] = bottom_left
-			indices[write_index + 3] = top_right
-			indices[write_index + 4] = bottom_right
-			indices[write_index + 5] = bottom_left
-			write_index += 6
-
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return {"mesh": mesh, "heights": heights}
+func _create_material() -> void:
+	_sand_material = null
+	if DisplayServer.get_name() == "headless":
+		return
+	_sand_material = ShaderMaterial.new()
+	_sand_material.shader = load("res://shaders/desert.gdshader")
+	_sand_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
+	_sand_material.set_shader_parameter("world_origin", Vector2.ZERO)
 
 
-func _build_collision(heights: PackedFloat32Array) -> HeightMapShape3D:
-	var heightmap := HeightMapShape3D.new()
-	heightmap.map_width = grid_resolution
-	heightmap.map_depth = grid_resolution
-	heightmap.map_data = heights
-	return heightmap
+func _clear_chunks() -> void:
+	for chunk in loaded_chunks.values():
+		(chunk as StaticBody3D).free()
+	loaded_chunks.clear()
+	_desired_chunks.clear()
+	_pending_chunks.clear()

@@ -126,11 +126,10 @@ shadow_enabled = true
 directional_shadow_max_distance = 520.0
 
 [node name="Desert" type="StaticBody3D" parent="."]
+process_mode = 1
 script = ExtResource("2_desert")
-
-[node name="Terrain" type="MeshInstance3D" parent="Desert"]
-
-[node name="TerrainCollision" type="CollisionShape3D" parent="Desert"]
+tracked_body_path = NodePath("../Sandboarder")
+tracked_camera_path = NodePath("../FollowCamera")
 
 [node name="Sandboarder" type="CharacterBody3D" parent="."]
 process_mode = 1

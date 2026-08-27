@@ -29,7 +29,7 @@ func _ready() -> void:
 	restart_button.pressed.connect(restart_run)
 	rider.respawn()
 	follow_camera.snap_to_target()
-	start_height = rider.global_position.y
+	start_height = desert.get_world_position(rider.global_position).y
 	_update_control_prompt()
 	_update_boost_status(true, false)
 	if DisplayServer.get_name() == "headless" and not get_meta(&"overrush_manual_start", false):
@@ -86,16 +86,17 @@ func resume_run() -> void:
 
 func restart_run() -> void:
 	elapsed_time = 0.0
+	desert.begin_new_run()
 	rider.respawn()
 	follow_camera.snap_to_target()
-	start_height = rider.global_position.y
+	start_height = desert.get_world_position(rider.global_position).y
 	resume_run()
 
 
 func _update_stats() -> void:
 	var minutes := int(elapsed_time) / 60
 	var seconds := int(elapsed_time) % 60
-	var descent := maxf(0.0, start_height - rider.global_position.y)
+	var descent := maxf(0.0, start_height - desert.get_world_position(rider.global_position).y)
 	stats_label.text = "%02d:%02d\n%03d km/h\n%.0f m descent\n%.2f km ridden" % [
 		minutes,
 		seconds,

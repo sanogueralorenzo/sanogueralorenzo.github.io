@@ -90,6 +90,11 @@ func respawn() -> void:
 	air_boost_state_changed.emit(true, false)
 
 
+func apply_world_rebase(shift: Vector3) -> void:
+	global_position -= shift
+	_last_position = global_position
+
+
 func try_air_boost(requested_direction: Vector3) -> bool:
 	if not air_boost_state.try_use():
 		return false
@@ -180,7 +185,7 @@ func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3) -> 
 func _has_valid_sand_floor_contact() -> bool:
 	for index in range(get_slide_collision_count()):
 		var collision := get_slide_collision(index)
-		if collision.get_collider() == _world and collision.get_normal().y >= valid_landing_normal_y:
+		if _world.is_sand_collider(collision.get_collider()) and collision.get_normal().y >= valid_landing_normal_y:
 			return true
 	return false
 

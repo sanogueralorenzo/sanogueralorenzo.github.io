@@ -2,8 +2,8 @@ extends SceneTree
 
 const DIRECTION_COUNT := 16
 const SAMPLE_STEP := 50.0
-const SAMPLE_RADIUS := 2000.0
-const MINIMUM_NET_DESCENT := 185.0
+const SAMPLE_RADIUS := 12000.0
+const MINIMUM_NET_DESCENT := 1600.0
 const MAXIMUM_LOCAL_RISE := 28.0
 
 var _failures: Array[String] = []
@@ -46,8 +46,14 @@ func _run() -> void:
 	_expect(greatest_local_rise <= MAXIMUM_LOCAL_RISE, "A 50 m terrain segment rises too abruptly: %.1f m." % greatest_local_rise)
 	var endpoint_range: float = endpoint_heights.max() - endpoint_heights.min()
 	_expect(endpoint_range >= 18.0, "Radial lines need meaningful seeded variation instead of identical cones.")
-	_expect(desert.terrain.mesh.get_surface_count() == 1, "The desert should be one watertight terrain surface without visual seams.")
-	_expect(desert.terrain_collision.shape is HeightMapShape3D, "The visible desert and collision should share heightmap generation.")
+	_expect(desert.loaded_chunks.size() == 25, "The initial stream should contain a bounded 5 by 5 chunk neighborhood.")
+	var center_chunk := desert.get_chunk(Vector2i.ZERO)
+	_expect(center_chunk != null, "The central summit chunk should be resident.")
+	if center_chunk != null:
+		var terrain: MeshInstance3D = center_chunk.get_node("Terrain")
+		var collision: CollisionShape3D = center_chunk.get_node("TerrainCollision")
+		_expect(terrain.mesh.get_surface_count() == 1, "Each desert chunk should use one continuous terrain surface.")
+		_expect(collision.shape is HeightMapShape3D, "Every visual chunk should carry matching heightmap collision.")
 
 	if _failures.is_empty():
 		print(
