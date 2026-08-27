@@ -29,7 +29,11 @@ func _run() -> void:
 
 	director.build = _catalyst_ready_build()
 	director.build.pending_levels = 1
-	director.event_announced.connect(func(title: String, _subtitle: String) -> void: _catalyst_announcement = title)
+	director.elapsed_time = director.pacing.BUILD_MILESTONE_WINDOWS[&"catalyst"].x
+	director.event_announced.connect(func(title: String, _subtitle: String) -> void:
+		if "TUNED" in title:
+			_catalyst_announcement = title
+	)
 	director._offer_level_up()
 	await process_frame
 	_expect(scene.level_up_title.text == "TUNE YOUR DRIVE", "The catalyst milestone should present a dedicated strategic fork instead of looking like a routine rank-up.")

@@ -21,7 +21,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - Value-tiered crystal cores latch once approached, overtake maximum dash speed, and recover from distant terrain so fast traversal never discards earned progression or accumulates stale rewards.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
-- Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
+- Path-specific follow-ups create different combat geometry: charged dash-entry and unconditional exit detonations, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
 - Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
 - Mature evolved builds make a second protected commitment to one of three Drive Catalysts: Redline rewards dash velocity, Airframe rewards airtime, and Pulse rewards deliberate dash-timed attack windows.
@@ -31,7 +31,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
-- Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; the first draft follows the opening guidance beat and the full identity arrives well before the Apex.
+- Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
+- Strategy-aware seven-minute balance soaks keep all three engines inside an overlapping clear envelope while rejecting stalled traversal: Dashbreaker alternates a recharging entry nova with setup effects, Stormtrail earns coverage through weaving, and Storm Lance retains one residual auto-arc only when its aimed lane misses completely.
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
@@ -63,7 +64,7 @@ This is not yet the complete target game. The 20-minute structure, two Apex enco
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
 - `run_stats.gd` owns applied-damage attribution, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
-- `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
+- `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
 - `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
 - `progress_profile.gd` owns versioned progression state, deterministic run rewards, bounded run history, optional replay-intent feedback, non-power build mastery, protocol selection, atomic writes, and backup recovery.
@@ -181,3 +182,13 @@ Run the accelerated fixed-seed full-system progression cadence gate with:
 ```sh
 godot --headless --path games/overrush --script res://tests/validate_progression_cadence.gd
 ```
+
+Run the fixed-seed, strategy-aware seven-minute engine balance gates sequentially with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd -- dashbreaker 41001
+godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd -- stormtrail 41001
+godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd -- arcstorm 41001
+```
+
+Each gate requires at least 20 km of traversal, a viable clear envelope, the intended evolution and arsenal, and source-share guardrails where a single effect could otherwise erase the build's decision-making.

@@ -7,7 +7,12 @@ const ARCSTORM := &"arcstorm"
 const EVOLUTION_UNLOCK_RANK := 4
 const ARSENAL_UNLOCK_RANK := 5
 const CATALYST_UNLOCK_RANK := 6
+const FORK_STAGE_STANDARD := 0
+const FORK_STAGE_EVOLUTION := 1
+const FORK_STAGE_ARSENAL := 2
+const FORK_STAGE_CATALYST := 3
 const PULSE_WINDOW_SECONDS := 0.42
+const DASH_NOVA_RECHARGE_SECONDS := 0.9
 const INITIAL_EXPERIENCE_REQUIREMENT := 18
 
 const KEYSTONE_IDS: Array[StringName] = [&"dash_nova", &"slipstream", &"velocity_coil"]
@@ -81,7 +86,7 @@ const UPGRADE_NAMES := {
 }
 
 const UPGRADE_DESCRIPTIONS := {
-	&"dash_nova": "Commit to dash combat. Dash entry detonates a shockwave; further ranks widen and strengthen it.",
+	&"dash_nova": "Commit to dash combat. Charged dash entries detonate a shockwave; further ranks widen and strengthen it.",
 	&"slipstream": "Commit to route control. Movement leaves persistent damaging wakes; further ranks strengthen them.",
 	&"velocity_coil": "Commit to ranged chaining. Arc damage scales with speed; further ranks amplify the scaling.",
 	&"dash_echo": "Dash exit detonates a second, smaller shockwave.",
@@ -98,7 +103,7 @@ const UPGRADE_DESCRIPTIONS := {
 	&"gravity_knot": "Evolve Dashbreaker into a setup engine. Dash exits pull threats inward before a delayed collapse.",
 	&"twin_current": "Evolve Stormtrail into two parallel wake lanes that reward weaving through enemy packs.",
 	&"tempest_anchor": "Evolve Stormtrail to periodically leave large storm zones that strike the same threats repeatedly.",
-	&"storm_lance": "Evolve Arcstorm into a forward piercing beam. Line up distant packs and keep your heading committed.",
+	&"storm_lance": "Evolve Arcstorm into a forward piercing beam. A missed lane retains one residual auto-arc, but lining up packs multiplies its output.",
 	&"arc_orbit": "Evolve Arcstorm into a close-range electrical orbit that rewards threading through dense threats.",
 	&"ramjet_mass": "Ramjet impacts gain damage and a wider collision corridor.",
 	&"event_horizon": "Gravity Knot pulls from farther away and its delayed collapse hits harder.",
@@ -170,11 +175,15 @@ func add_experience(amount: int) -> int:
 	return levels_gained
 
 
-func get_upgrade_options(rng: RandomNumberGenerator, avoid_options: Array[StringName] = []) -> Array[StringName]:
+func get_upgrade_options(
+	rng: RandomNumberGenerator,
+	avoid_options: Array[StringName] = [],
+	available_fork_stage: int = FORK_STAGE_CATALYST
+) -> Array[StringName]:
 	if core_path.is_empty():
 		return KEYSTONE_IDS.duplicate()
 	var candidates := _get_available_path_upgrades()
-	if evolution_id.is_empty() and get_specialization_rank() >= EVOLUTION_UNLOCK_RANK:
+	if evolution_id.is_empty() and get_specialization_rank() >= EVOLUTION_UNLOCK_RANK and available_fork_stage >= FORK_STAGE_EVOLUTION:
 		var evolution_options: Array[StringName] = []
 		for upgrade_id in PATH_EVOLUTIONS[core_path]:
 			evolution_options.append(StringName(upgrade_id))
@@ -183,9 +192,9 @@ func get_upgrade_options(rng: RandomNumberGenerator, avoid_options: Array[String
 			if not standard_options.is_empty():
 				evolution_options.append(standard_options[0])
 		return evolution_options
-	if not evolution_id.is_empty() and arsenal_id.is_empty() and get_specialization_rank() >= ARSENAL_UNLOCK_RANK:
+	if not evolution_id.is_empty() and arsenal_id.is_empty() and get_specialization_rank() >= ARSENAL_UNLOCK_RANK and available_fork_stage >= FORK_STAGE_ARSENAL:
 		return ARSENAL_IDS.duplicate()
-	if not evolution_id.is_empty() and catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK:
+	if not evolution_id.is_empty() and catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK and available_fork_stage >= FORK_STAGE_CATALYST:
 		return CATALYST_IDS.duplicate()
 	return _draw_options(candidates, rng, avoid_options, 3)
 
@@ -269,11 +278,11 @@ func is_arc_weapon_enabled() -> bool:
 
 
 func get_dash_nova_damage() -> float:
-	return 24.0 + dash_nova_level * 14.0
+	return 16.0 + dash_nova_level * 8.0
 
 
 func get_dash_nova_radius() -> float:
-	return 15.0 + dash_nova_level * 4.0
+	return 13.0 + dash_nova_level * 3.0
 
 
 func get_dash_echo_damage() -> float:
@@ -345,7 +354,11 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 	var next_rank := get_upgrade_rank(upgrade_id) + 1
 	match upgrade_id:
 		&"dash_nova":
-			return "ENTRY NOVA  •  %d DAMAGE  •  %d M RADIUS" % [24 + next_rank * 14, 15 + next_rank * 4]
+			return "CHARGED ENTRY NOVA  •  %d DAMAGE  •  %d M RADIUS  •  %.1f S" % [
+				16 + next_rank * 8,
+				13 + next_rank * 3,
+				DASH_NOVA_RECHARGE_SECONDS,
+			]
 		&"dash_echo":
 			return "EXIT NOVA  •  %d%% OF ENTRY DAMAGE" % roundi((0.5 + next_rank * 0.14) * 100.0)
 		&"phase_shell":
@@ -379,13 +392,13 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"ramjet":
 			return "DASH CONTACT  •  %.0f DAMAGE AT MAX SPEED  •  2.8 M" % get_ramjet_damage(126.0)
 		&"gravity_knot":
-			return "DASH EXIT  •  24 M PULL  •  18 COLLAPSE DAMAGE"
+			return "DASH EXIT  •  24 M PULL  •  24 COLLAPSE DAMAGE"
 		&"twin_current":
 			return "TWO WAKE LANES  •  9 M OFFSET  •  58% DAMAGE EACH"
 		&"tempest_anchor":
 			return "EVERY 5TH WAKE  •  REPEATING 0.58 S PULSES"
 		&"storm_lance":
-			return "FORWARD BEAM  •  115 M  •  5 TARGETS  •  2.0× DAMAGE"
+			return "FORWARD BEAM  •  115 M  •  2.4× DAMAGE  •  MISS: 1 ARC"
 		&"arc_orbit":
 			return "CLOSE NOVA  •  20 M RADIUS  •  0.72× ARC DAMAGE"
 		&"ramjet_mass":
@@ -396,7 +409,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"event_horizon":
 			return "KNOT  •  %d M  •  %d DAMAGE  •  %d%% PULL" % [
 				24 + next_rank * 3,
-				18 + next_rank * 6,
+				24 + next_rank * 8,
 				roundi(minf(0.66, 0.42 + next_rank * 0.06) * 100.0),
 			]
 		&"parallel_flow":
@@ -412,7 +425,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"lance_focus":
 			return "LANCE  •  %d M  •  %.1f M WIDE  •  %d TARGETS" % [
 				115 + next_rank * 10,
-				6.0 + next_rank * 1.2,
+				14.0 + next_rank * 2.0,
 				5 + next_rank * 2,
 			]
 		&"orbit_flux":
@@ -432,13 +445,13 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		DRIFT_BLADES:
 			return "14 M CUTTING FIELD  •  10 DAMAGE  •  0.72 S"
 		BACKDRAFT_MINE:
-			return "DASH EXIT MINE  •  22 DAMAGE  •  17 M RADIUS"
+			return "DASH EXIT MINE  •  28 DAMAGE  •  17 M RADIUS"
 		&"hunter_guidance":
 			return "%d MISSILES  •  %d DAMAGE  •  %.2f S LAUNCH" % [1 + next_rank, 18 + next_rank * 4, maxf(0.55, 1.05 - next_rank * 0.12)]
 		&"drift_edge":
 			return "%.1f M FIELD  •  %d DAMAGE  •  %.2f S" % [14.0 + next_rank * 2.0, 10 + next_rank * 3, maxf(0.42, 0.72 - next_rank * 0.08)]
 		&"backdraft_charge":
-			return "%d DAMAGE  •  %.1f M RADIUS  •  0.42 S DELAY" % [22 + next_rank * 6, 17.0 + next_rank * 2.5]
+			return "%d DAMAGE  •  %.1f M RADIUS  •  0.42 S DELAY" % [28 + next_rank * 8, 17.0 + next_rank * 2.5]
 		_:
 			return ""
 
@@ -570,7 +583,7 @@ func get_drift_interval() -> float:
 
 
 func get_backdraft_damage() -> float:
-	return 22.0 + backdraft_charge_level * 6.0
+	return 28.0 + backdraft_charge_level * 8.0
 
 
 func get_backdraft_radius() -> float:
@@ -611,7 +624,7 @@ func get_gravity_knot_radius() -> float:
 
 
 func get_gravity_knot_damage() -> float:
-	return 18.0 + event_horizon_level * 6.0
+	return 24.0 + event_horizon_level * 8.0
 
 
 func get_gravity_knot_pull_ratio() -> float:
@@ -667,11 +680,11 @@ func get_lance_range() -> float:
 
 
 func get_lance_width() -> float:
-	return 6.0 + lance_focus_level * 1.2
+	return 14.0 + lance_focus_level * 2.0
 
 
 func get_lance_damage(horizontal_speed: float) -> float:
-	return get_arc_damage(horizontal_speed) * (2.0 + lance_focus_level * 0.25)
+	return get_arc_damage(horizontal_speed) * (2.4 + lance_focus_level * 0.3)
 
 
 func get_lance_target_limit() -> int:

@@ -30,11 +30,15 @@ func _run() -> void:
 
 	var milestones := _director.run_stats.get_build_milestone_times()
 	var cadence_failures := _director.pacing.get_build_cadence_failures(milestones)
-	print("Cadence sample — elapsed %.1f, level %d, clears %d, milestones %s" % [
+	var total_damage := maxf(_director.run_stats.get_total_damage(), 1.0)
+	var lance_share := float(_director.run_stats.damage_by_source.get(&"storm_lance", 0.0)) / total_damage
+	var residual_share := float(_director.run_stats.damage_by_source.get(&"arc_bolt", 0.0)) / total_damage
+	print("Cadence sample — elapsed %.1f, level %d, clears %d, milestones %s, damage %s" % [
 		_director.elapsed_time,
 		_director.build.level,
 		_director.enemies_defeated,
 		str(milestones),
+		_director.run_stats.get_damage_breakdown_text(),
 	])
 	_expect(cadence_failures.is_empty(), "The fixed-seed full-system run should reach each build fork inside its authored cadence window; failed: %s." % str(cadence_failures))
 	_expect(_director.build.core_path == RunBuild.ARCSTORM, "The soak strategy should commit to Arcstorm rather than silently changing build identity.")
@@ -42,6 +46,9 @@ func _run() -> void:
 	_expect(_director.build.arsenal_id == RunBuild.HUNTER_ARRAY, "The soak should reach an independent arsenal fork.")
 	_expect(_director.build.catalyst_id == RunBuild.REDLINE_CORE, "The soak should reach a movement-conditioned Drive fork before the Overrun phase ends.")
 	_expect(_director.run_stats.upgrade_events.size() == _director.run_stats.upgrade_history.size(), "Every draft choice should retain timestamped balance evidence.")
+	_expect(lance_share <= 0.75, "The aimed evolution should not erase Arcstorm's residual coverage in the full-system sample.")
+	_expect(residual_share >= 0.15, "Missed Storm Lance lanes should preserve a meaningful automatic fallback contribution.")
+	_expect(float(_director.run_stats.damage_by_source.get(&"hunter_array", 0.0)) > 0.0, "The independent arsenal should contribute before the Drive fork arrives.")
 	_expect(float(milestones.get("engine", 0.0)) >= RunOnboarding.AUTOMATIC_ADVANCE_SECONDS, "The first engine decision should not interrupt the initial steering guidance beat.")
 	_expect(Time.get_ticks_msec() - _wall_start < 60000, "The accelerated cadence gate should remain practical for routine validation.")
 

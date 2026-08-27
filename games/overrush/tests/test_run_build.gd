@@ -11,6 +11,7 @@ func _init() -> void:
 	_test_paths_remain_mechanically_isolated()
 	_test_repeatable_upgrade_limits()
 	_test_exclusive_evolution_forks()
+	_test_timed_fork_protection()
 	_test_draft_agency_and_repair_cap()
 	_test_drive_catalyst_forks()
 	_test_arsenal_fork_and_supports()
@@ -108,6 +109,45 @@ func _test_exclusive_evolution_forks() -> void:
 		envelope_build.apply_upgrade(&"lance_focus")
 	_expect(envelope_build.get_lance_range() <= 145.0 and envelope_build.get_lance_target_limit() <= 11, "Storm Lance support should stay inside its authored range and target envelope.")
 	_expect(envelope_build.apply_upgrade(&"lance_focus").is_empty(), "Evolution support should cap after three meaningful ranks.")
+
+
+func _test_timed_fork_protection() -> void:
+	var build := RunBuildScript.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8183
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		build.apply_upgrade(&"dash_nova")
+	var early_evolution_options := build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_STANDARD)
+	_expect(
+		&"ramjet" not in early_evolution_options and &"gravity_knot" not in early_evolution_options,
+		"A rank-qualified engine should keep receiving standard upgrades until the evolution beat opens."
+	)
+	_expect(
+		&"ramjet" in build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_EVOLUTION),
+		"The protected evolution fork should appear as soon as its authored beat opens."
+	)
+	build.apply_upgrade(&"gravity_knot")
+	build.apply_upgrade(&"dash_nova")
+	var early_arsenal_options := build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_EVOLUTION)
+	_expect(
+		early_arsenal_options != RunBuild.ARSENAL_IDS,
+		"A rank-qualified evolved build should not receive its arsenal before the arsenal beat."
+	)
+	_expect(
+		build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_ARSENAL) == RunBuild.ARSENAL_IDS,
+		"All three protected arsenals should appear together when their beat opens."
+	)
+	build.apply_upgrade(RunBuild.BACKDRAFT_MINE)
+	build.apply_upgrade(&"dash_nova")
+	var early_catalyst_options := build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_ARSENAL)
+	_expect(
+		early_catalyst_options != RunBuild.CATALYST_IDS,
+		"A mature loadout should keep receiving branch upgrades until the Drive beat."
+	)
+	_expect(
+		build.get_upgrade_options(rng, [], RunBuild.FORK_STAGE_CATALYST) == RunBuild.CATALYST_IDS,
+		"All three protected Drives should appear together when the final identity beat opens."
+	)
 
 
 func _test_draft_agency_and_repair_cap() -> void:

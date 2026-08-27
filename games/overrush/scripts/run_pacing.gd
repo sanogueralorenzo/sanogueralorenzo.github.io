@@ -64,6 +64,13 @@ func crossed_deadline(previous_time: float, current_time: float) -> bool:
 	return previous_time < RUN_DURATION and current_time >= RUN_DURATION
 
 
+func is_build_milestone_available(milestone_id: StringName, elapsed_time: float) -> bool:
+	if not BUILD_MILESTONE_WINDOWS.has(milestone_id):
+		return false
+	var window: Vector2 = BUILD_MILESTONE_WINDOWS[milestone_id]
+	return elapsed_time >= window.x
+
+
 func get_build_cadence_failures(milestone_times: Dictionary) -> Array[StringName]:
 	var failures: Array[StringName] = []
 	for milestone_id in BUILD_MILESTONE_WINDOWS:

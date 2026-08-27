@@ -25,7 +25,13 @@ func _test_dashbreaker_envelopes() -> void:
 	_apply_support(ramjet, &"ramjet_mass")
 	var ramjet_peak := ramjet.get_ramjet_damage(126.0) * ramjet.get_ramjet_radius()
 	_expect_ratio(ramjet_peak, ramjet_base, 2.0, 2.7, "Ramjet support")
-	_expect(ramjet.get_ramjet_damage(126.0) < ramjet.get_dash_nova_damage(), "Ramjet contact damage should supplement, not replace, Dashbreaker's entry nova.")
+	_expect_ratio(
+		ramjet.get_ramjet_damage(126.0),
+		ramjet.get_dash_nova_damage(),
+		1.2,
+		2.0,
+		"Ramjet contact versus charged entry nova"
+	)
 
 	var knot := _evolved_build(&"dash_nova", &"gravity_knot")
 	var knot_base := knot.get_gravity_knot_damage() * knot.get_gravity_knot_radius() * knot.get_gravity_knot_pull_ratio()

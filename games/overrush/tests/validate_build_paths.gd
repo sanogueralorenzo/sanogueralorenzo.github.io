@@ -59,6 +59,21 @@ func _validate_dashbreaker() -> void:
 	director._on_dash_state_changed(true)
 	await process_frame
 	_expect(director.enemies_defeated > before_entry, "Dashbreaker entry should defeat a nearby threat.")
+	var recharge_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	recharge_target.health = 10.0
+	recharge_target.global_position = runner.global_position + Vector3.RIGHT * 8.0
+	recharge_target.global_position.y = runner.global_position.y
+	var before_recharge := director.enemies_defeated
+	director._on_dash_state_changed(true)
+	await process_frame
+	_expect(
+		director.enemies_defeated == before_recharge and is_instance_valid(recharge_target),
+		"Dashbreaker should not detonate a full entry nova on every rapid dash."
+	)
+	director._dash_nova_recharge = 0.0
+	director._on_dash_state_changed(true)
+	await process_frame
+	_expect(director.enemies_defeated > before_recharge, "Dashbreaker's entry nova should fire again once recharged.")
 	var integrity_before: float = runner.integrity
 	runner.take_damage(20.0)
 	_expect(is_equal_approx(runner.integrity, integrity_before), "Phase Shell should prevent damage during the dash window.")
@@ -211,6 +226,17 @@ func _validate_arcstorm_evolutions() -> void:
 	await process_frame
 	_expect(director.enemies_defeated >= lance_defeats_before + 3, "Storm Lance should pierce a lined-up pack in the runner's heading.")
 	_expect(is_instance_valid(behind_target) and behind_target.health > 0.0, "Storm Lance should reward facing instead of hitting enemies behind the runner.")
+	await _clear_director_children(director)
+	var residual_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	residual_target.health = 12.0
+	residual_target.movement_speed = 0.0
+	residual_target.global_position = runner.global_position + runner.heading.normalized() * 34.0 + Vector3.RIGHT * 32.0
+	residual_target.global_position.y = runner.global_position.y
+	var residual_defeats_before := director.enemies_defeated
+	director._fire_timer = 0.0
+	director._update_arc_weapon(1.0)
+	await create_timer(0.7).timeout
+	_expect(director.enemies_defeated > residual_defeats_before, "A missed Storm Lance lane should preserve one residual auto-arc instead of wasting its cycle.")
 	await _clear_director_children(director)
 
 	director.build = _evolved_build(&"velocity_coil", &"arc_orbit", &"orbit_flux")

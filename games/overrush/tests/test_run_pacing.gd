@@ -18,6 +18,8 @@ func _init() -> void:
 	_expect(pacing.crossed_deadline(1199.9, 1200.1), "Crossing twenty minutes should resolve an unfinished run.")
 	_expect(pacing.get_intensity(900.0) > pacing.get_intensity(300.0), "Run intensity should escalate materially over time.")
 	_expect(pacing.get_spawn_interval(900.0) < pacing.get_spawn_interval(300.0), "Later phases should spawn threats faster.")
+	_expect(not pacing.is_build_milestone_available(&"arsenal", 149.9) and pacing.is_build_milestone_available(&"arsenal", 150.0), "The arsenal beat should open exactly at its authored lower bound.")
+	_expect(not pacing.is_build_milestone_available(&"catalyst", 359.9) and pacing.is_build_milestone_available(&"catalyst", 360.0), "The Drive beat should remain protected until six minutes.")
 	var intentional_cadence := {
 		&"engine": 12.0,
 		&"evolution": 90.0,

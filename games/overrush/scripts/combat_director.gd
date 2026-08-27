@@ -73,6 +73,7 @@ var _pending_evolution_announcement := ""
 var _pending_catalyst_announcement := ""
 var _pending_arsenal_announcement := ""
 var _catalyst_dash_window := 0.0
+var _dash_nova_recharge := 0.0
 var _introduced_archetypes: Dictionary = {}
 
 
@@ -93,6 +94,7 @@ func _physics_process(delta: float) -> void:
 	var previous_time := elapsed_time
 	elapsed_time += delta
 	_catalyst_dash_window = maxf(0.0, _catalyst_dash_window - delta)
+	_dash_nova_recharge = maxf(0.0, _dash_nova_recharge - delta)
 	run_stats.record_traversal(_runner.global_position, _runner.get_horizontal_speed())
 	if not build.catalyst_id.is_empty():
 		run_stats.record_catalyst_state(delta, build.get_catalyst_damage_multiplier(
@@ -174,7 +176,7 @@ func reroll_upgrade_options() -> bool:
 	var current_options := _get_current_upgrade_options()
 	if not build.has_alternative_upgrade_options(current_options):
 		return false
-	var options := build.get_upgrade_options(_rng, current_options)
+	var options := build.get_upgrade_options(_rng, current_options, _get_available_fork_stage())
 	if _same_option_set(options, current_options):
 		return false
 	rerolls_remaining -= 1
@@ -194,7 +196,7 @@ func banish_upgrade_option(option_index: int) -> bool:
 		return false
 	banishes_remaining -= 1
 	run_stats.record_banish()
-	var options := build.get_upgrade_options(_rng, current_options)
+	var options := build.get_upgrade_options(_rng, current_options, _get_available_fork_stage())
 	_set_current_upgrade_options(options)
 	upgrade_options_refreshed.emit(options)
 	return true
@@ -214,6 +216,7 @@ func start_run(protocol_id: StringName) -> void:
 	rerolls_remaining = INITIAL_REROLLS
 	banishes_remaining = INITIAL_BANISHES
 	_catalyst_dash_window = 0.0
+	_dash_nova_recharge = 0.0
 	_arsenal_timer = 0.0
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
@@ -373,7 +376,8 @@ func _update_arc_weapon(delta: float) -> void:
 		return
 	if build.is_storm_lance():
 		_fire_timer += build.get_lance_interval()
-		_fire_storm_lance()
+		if _fire_storm_lance() == 0:
+			_fire_arc_bolts(1)
 		return
 	if build.is_arc_orbit():
 		_fire_timer += build.get_orbit_interval()
@@ -386,7 +390,11 @@ func _update_arc_weapon(delta: float) -> void:
 		)
 		return
 	_fire_timer += build.fire_interval
-	var targets := _find_targets(build.projectile_count)
+	_fire_arc_bolts(build.projectile_count)
+
+
+func _fire_arc_bolts(target_count: int) -> void:
+	var targets := _find_targets(target_count)
 	var damage := build.get_arc_damage(_runner.get_horizontal_speed()) * _get_outgoing_damage_multiplier()
 	for target in targets:
 		var projectile: ArcProjectile = ArcProjectileScript.new()
@@ -468,7 +476,8 @@ func _on_dash_state_changed(active: bool) -> void:
 		_dash_hit_ids.clear()
 		if build.phase_shell_level > 0:
 			_runner.grant_damage_immunity(build.get_phase_shell_duration())
-		if build.dash_nova_level > 0:
+		if build.dash_nova_level > 0 and _dash_nova_recharge <= 0.0:
+			_dash_nova_recharge = RunBuild.DASH_NOVA_RECHARGE_SECONDS
 			_release_nova(
 				_runner.global_position,
 				build.get_dash_nova_damage(),
@@ -555,7 +564,7 @@ func _spawn_wake(
 	wake.configure(radius, damage, duration, repeat_interval, source_id)
 
 
-func _fire_storm_lance() -> void:
+func _fire_storm_lance() -> int:
 	var heading: Vector3 = _runner.heading.normalized()
 	var lance_range := build.get_lance_range()
 	var lance_width := build.get_lance_width()
@@ -578,6 +587,7 @@ func _fire_storm_lance() -> void:
 	for target in targets:
 		target.take_damage(damage, &"storm_lance")
 	_spawn_lance_visual(_runner.global_position, heading, lance_range, lance_width)
+	return targets.size()
 
 
 func _spawn_lance_visual(origin: Vector3, heading: Vector3, lance_range: float, lance_width: float) -> void:
@@ -677,10 +687,20 @@ func _on_enemy_health_changed(enemy: EnemyAgent, _current: float, _maximum: floa
 
 func _offer_level_up() -> void:
 	_awaiting_upgrade = true
-	var options := build.get_upgrade_options(_rng)
+	var options := build.get_upgrade_options(_rng, [], _get_available_fork_stage())
 	_set_current_upgrade_options(options)
 	get_tree().paused = true
 	level_up_requested.emit(options)
+
+
+func _get_available_fork_stage() -> int:
+	if pacing.is_build_milestone_available(&"catalyst", elapsed_time):
+		return RunBuild.FORK_STAGE_CATALYST
+	if pacing.is_build_milestone_available(&"arsenal", elapsed_time):
+		return RunBuild.FORK_STAGE_ARSENAL
+	if pacing.is_build_milestone_available(&"evolution", elapsed_time):
+		return RunBuild.FORK_STAGE_EVOLUTION
+	return RunBuild.FORK_STAGE_STANDARD
 
 
 func _set_current_upgrade_options(options: Array[StringName]) -> void:
