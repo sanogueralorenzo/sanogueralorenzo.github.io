@@ -12,9 +12,10 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	info.text = "OVER RUSH  •  SEED %s\n%03d m/s  •  3.2 km PROCEDURAL WORLD" % [
+	info.text = "OVER RUSH  •  SEED %s\n%03d m/s  •  %s  •  ROUTE-GRAMMAR WORLD" % [
 		str(world.generated_seed),
 		roundi(ball.get_horizontal_speed()),
+		world.get_region_name(ball.global_position.z),
 	]
 
 

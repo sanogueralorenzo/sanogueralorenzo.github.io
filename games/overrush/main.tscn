@@ -72,8 +72,7 @@ cast_shadow = 1
 
 [node name="TerrainCollision" type="CollisionShape3D" parent="World"]
 
-[node name="Landmarks" type="MultiMeshInstance3D" parent="World"]
-cast_shadow = 1
+[node name="Formations" type="Node3D" parent="World"]
 
 [node name="RunnerBall" type="CharacterBody3D" parent="."]
 position = Vector3(0, 8, 0)
