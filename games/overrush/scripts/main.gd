@@ -16,6 +16,9 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var run_stats: Label = $HUD/RunStats
 @onready var controls: Label = $HUD/Controls
 @onready var integrity_bar: ProgressBar = $HUD/IntegrityBar
+@onready var integrity_label: Label = $HUD/IntegrityLabel
+@onready var damage_vignette: ColorRect = $HUD/DamageVignette
+@onready var damage_direction: Label = $HUD/DamageDirection
 @onready var experience_bar: ProgressBar = $HUD/ExperienceBar
 @onready var level_label: Label = $HUD/LevelLabel
 @onready var boundary_warning: Label = $HUD/BoundaryWarning
@@ -87,6 +90,7 @@ var _banish_mode := false
 var _using_gamepad := false
 var _settings_return_to_pause := false
 var _restart_armed := false
+var _damage_feedback_tween: Tween
 
 
 func _enter_tree() -> void:
@@ -101,7 +105,7 @@ func _ready() -> void:
 	ball.dash_state_changed.connect(camera.set_dash_active)
 	ball.dash_state_changed.connect(audio.play_dash)
 	ball.integrity_changed.connect(_on_integrity_changed)
-	ball.damaged.connect(audio.play_hurt)
+	ball.damaged.connect(_on_runner_damaged)
 	ball.defeated.connect(_on_runner_defeated)
 	combat.build_changed.connect(_on_build_changed)
 	combat.level_up_requested.connect(_on_level_up_requested)
@@ -235,6 +239,60 @@ func _on_integrity_changed(current: float, maximum: float) -> void:
 	integrity_bar.max_value = maximum
 	integrity_bar.value = current
 	integrity_bar.tooltip_text = "Integrity: %d / %d" % [roundi(current), roundi(maximum)]
+	integrity_label.text = "INTEGRITY  %d / %d" % [roundi(current), roundi(maximum)]
+	var ratio := current / maxf(maximum, 1.0)
+	if ratio <= 0.25:
+		integrity_label.add_theme_color_override("font_color", Color(1.0, 0.32, 0.2))
+	elif ratio <= 0.5:
+		integrity_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.24))
+	else:
+		integrity_label.add_theme_color_override("font_color", Color(0.76, 1.0, 0.96))
+
+
+func _on_runner_damaged(amount: float, source_direction: Vector3, integrity_ratio: float) -> void:
+	audio.play_hurt(amount)
+	_show_damage_feedback(amount, source_direction, integrity_ratio)
+
+
+func _show_damage_feedback(amount: float, source_direction: Vector3, integrity_ratio: float) -> void:
+	if is_instance_valid(_damage_feedback_tween):
+		_damage_feedback_tween.kill()
+	var forward := Vector3(ball.heading.x, 0.0, ball.heading.z).normalized()
+	if forward.length_squared() < 0.1:
+		forward = Vector3.FORWARD
+	var right := Vector3(-forward.z, 0.0, forward.x)
+	var screen_direction := Vector2(source_direction.dot(right), -source_direction.dot(forward))
+	if screen_direction.length_squared() < 0.01:
+		screen_direction = Vector2.UP
+	else:
+		screen_direction = screen_direction.normalized()
+	var screen_center := get_viewport().get_visible_rect().size * 0.5
+	damage_direction.position = screen_center + screen_direction * 170.0 - damage_direction.size * 0.5
+	damage_direction.text = "%s\n-%d" % [_get_damage_arrow(screen_direction), roundi(amount)]
+	damage_direction.visible = true
+	damage_direction.modulate = Color.WHITE
+	damage_direction.scale = Vector2.ONE if _profile.reduced_motion else Vector2.ONE * 0.82
+	damage_vignette.visible = true
+	var severity := clampf(amount / maxf(ball.maximum_integrity * 0.25, 1.0), 0.25, 1.0)
+	var danger := 1.0 - clampf(integrity_ratio, 0.0, 1.0)
+	damage_vignette.color = Color(0.82, 0.015, 0.025, lerpf(0.07, 0.17, maxf(severity, danger)))
+	_damage_feedback_tween = create_tween().set_parallel(true)
+	_damage_feedback_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	if not _profile.reduced_motion:
+		_damage_feedback_tween.tween_property(damage_direction, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_damage_feedback_tween.tween_property(damage_direction, "modulate:a", 0.0, 0.48).set_delay(0.16)
+	_damage_feedback_tween.tween_property(damage_vignette, "color:a", 0.0, 0.5).set_delay(0.1)
+	_damage_feedback_tween.chain().tween_callback(_hide_damage_feedback)
+
+
+func _hide_damage_feedback() -> void:
+	damage_direction.visible = false
+	damage_vignette.visible = false
+
+
+func _get_damage_arrow(screen_direction: Vector2) -> String:
+	var sector := wrapi(roundi(screen_direction.angle() / (PI / 4.0)), 0, 8)
+	return ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"][sector]
 
 
 func _on_build_changed(build: RunBuild) -> void:

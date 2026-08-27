@@ -641,7 +641,7 @@ func _on_enemy_damaged(_enemy: EnemyAgent, amount: float, source_id: StringName)
 	run_stats.record_damage(source_id, amount)
 
 
-func _on_runner_damaged(amount: float) -> void:
+func _on_runner_damaged(amount: float, _source_direction: Vector3, _integrity_ratio: float) -> void:
 	run_stats.record_damage_taken(amount)
 
 

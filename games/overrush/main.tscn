@@ -403,6 +403,26 @@ theme_override_styles/fill = SubResource("IntegrityFill")
 value = 100.0
 show_percentage = false
 
+[node name="IntegrityLabel" type="Label" parent="HUD"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -83.0
+offset_right = 180.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.76, 1, 0.96, 1)
+theme_override_colors/font_outline_color = Color(0.005, 0.02, 0.06, 0.94)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 16
+text = "INTEGRITY  100 / 100"
+horizontal_alignment = 1
+
 [node name="Controls" type="Label" parent="HUD"]
 anchors_preset = 2
 anchor_top = 1.0
@@ -437,6 +457,33 @@ theme_override_colors/font_outline_color = Color(0.004, 0.02, 0.06, 0.96)
 theme_override_constants/outline_size = 7
 theme_override_font_sizes/font_size = 18
 text = "STEER THE RUN  •  A / D OR ← / →\nYou move automatically. Choose open ground and keep velocity."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DamageVignette" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.82, 0.015, 0.025, 0)
+
+[node name="DamageDirection" type="Label" parent="HUD"]
+visible = false
+process_mode = 3
+custom_minimum_size = Vector2(96, 72)
+offset_right = 96.0
+offset_bottom = 72.0
+pivot_offset = Vector2(48, 36)
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.97, 0.92, 1)
+theme_override_colors/font_outline_color = Color(0.22, 0.005, 0.01, 0.98)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 25
+text = "▲\n-18"
 horizontal_alignment = 1
 vertical_alignment = 1
 

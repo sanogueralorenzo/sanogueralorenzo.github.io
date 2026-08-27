@@ -159,3 +159,9 @@ Run the waveform headroom/performance and gameplay-audio connection checks with:
 godot --headless --path games/overrush --script res://tests/test_audio_synthesis.gd
 godot --headless --path games/overrush --script res://tests/validate_audio_runtime.gd
 ```
+
+Run the directional hit, numeric integrity, and unobtrusive recovery feedback check with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/validate_damage_feedback.gd
+```

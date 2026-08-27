@@ -19,7 +19,7 @@ func _run() -> void:
 	var director: CombatDirector = scene.get_node("CombatDirector")
 	_expect(audio._effect_players.size() == audio.EFFECT_POOL_SIZE, "Runtime audio should pool enough players for overlapping combat cues.")
 	_expect(runner.dash_state_changed.is_connected(audio.play_dash), "Dash state should drive velocity audio feedback.")
-	_expect(runner.damaged.is_connected(audio.play_hurt), "Integrity damage should drive impact audio feedback.")
+	_expect(runner.damaged.is_connected(scene._on_runner_damaged), "Integrity damage should drive the combined audio and visual feedback path.")
 	_expect(director.enemy_defeated_feedback.is_connected(audio.play_enemy_defeat), "Enemy defeats should reach the audio director.")
 	_expect(director.enemy_hit_feedback.is_connected(audio.play_enemy_hit), "Weapon impacts should reach the rate-limited hit cue system.")
 	_expect(director.experience_collected_feedback.is_connected(audio.play_pickup), "Core pickups should reach the audio director.")

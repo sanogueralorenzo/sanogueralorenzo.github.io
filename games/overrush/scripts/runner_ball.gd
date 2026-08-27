@@ -3,7 +3,7 @@ extends CharacterBody3D
 signal dash_state_changed(active: bool)
 signal integrity_changed(current: float, maximum: float)
 signal defeated
-signal damaged(amount: float)
+signal damaged(amount: float, source_direction: Vector3, integrity_ratio: float)
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
@@ -145,14 +145,24 @@ func grant_damage_immunity(duration: float) -> void:
 	_damage_invulnerability_remaining = maxf(_damage_invulnerability_remaining, duration)
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, source_position: Vector3 = Vector3.INF) -> void:
 	if amount <= 0.0 or integrity <= 0.0 or _damage_invulnerability_remaining > 0.0:
 		return
 	var previous_integrity := integrity
 	integrity = maxf(0.0, integrity - amount)
 	_damage_invulnerability_remaining = damage_invulnerability
 	_damage_flash_remaining = 0.13
-	damaged.emit(previous_integrity - integrity)
+	var source_direction := Vector3.ZERO
+	if source_position.is_finite():
+		source_direction = source_position - global_position
+		source_direction.y = 0.0
+		if source_direction.length_squared() > 0.001:
+			source_direction = source_direction.normalized()
+	damaged.emit(
+		previous_integrity - integrity,
+		source_direction,
+		integrity / maxf(maximum_integrity, 1.0)
+	)
 	integrity_changed.emit(integrity, maximum_integrity)
 	if integrity <= 0.0:
 		defeated.emit()
