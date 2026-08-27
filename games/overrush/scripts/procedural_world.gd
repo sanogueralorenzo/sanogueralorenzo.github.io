@@ -28,7 +28,8 @@ func generate() -> void:
 		generated_seed = random_seed.randi()
 	grammar.configure(generated_seed, map_size)
 
-	var terrain_mesh := _build_terrain_mesh()
+	var terrain_data := _build_terrain()
+	var terrain_mesh: ArrayMesh = terrain_data.mesh
 	var terrain_material := ShaderMaterial.new()
 	terrain_material.shader = load("res://shaders/terrain.gdshader")
 	terrain_material.set_shader_parameter("map_size", map_size)
@@ -37,7 +38,9 @@ func generate() -> void:
 	terrain_material.set_shader_parameter("palette_phase", grammar.palette_phase)
 	terrain.mesh = terrain_mesh
 	terrain.material_override = terrain_material
-	terrain_collision.shape = terrain_mesh.create_trimesh_shape()
+	terrain_collision.shape = _build_terrain_collision(terrain_data.heights)
+	var terrain_spacing := map_size / float(grid_resolution - 1)
+	terrain_collision.scale = Vector3(terrain_spacing, 1.0, terrain_spacing)
 
 	formation_builder.plan_layout(generated_seed, grammar, map_size)
 	formation_builder.build(self, formations)
@@ -55,7 +58,7 @@ func get_region_name(z: float) -> String:
 	return grammar.get_region_name(z)
 
 
-func _build_terrain_mesh() -> ArrayMesh:
+func _build_terrain() -> Dictionary:
 	var resolution := grid_resolution
 	var vertex_count := resolution * resolution
 	var spacing := map_size / float(resolution - 1)
@@ -113,4 +116,12 @@ func _build_terrain_mesh() -> ArrayMesh:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	return {"mesh": mesh, "heights": heights}
+
+
+func _build_terrain_collision(heights: PackedFloat32Array) -> HeightMapShape3D:
+	var heightmap := HeightMapShape3D.new()
+	heightmap.map_width = grid_resolution
+	heightmap.map_depth = grid_resolution
+	heightmap.map_data = heights
+	return heightmap
