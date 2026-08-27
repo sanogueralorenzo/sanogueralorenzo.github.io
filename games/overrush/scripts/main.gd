@@ -4,11 +4,13 @@ extends Node3D
 @onready var ball = $RunnerBall
 @onready var camera = $Camera3D
 @onready var combat: CombatDirector = $CombatDirector
+@onready var boundary: WorldBoundary = $WorldBoundary
 @onready var info: Label = $HUD/Info
 @onready var run_stats: Label = $HUD/RunStats
 @onready var integrity_bar: ProgressBar = $HUD/IntegrityBar
 @onready var experience_bar: ProgressBar = $HUD/ExperienceBar
 @onready var level_label: Label = $HUD/LevelLabel
+@onready var boundary_warning: Label = $HUD/BoundaryWarning
 @onready var level_up_overlay: Control = $HUD/LevelUpOverlay
 @onready var level_up_buttons: Array[Button] = [
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option1,
@@ -47,6 +49,15 @@ func _process(_delta: float) -> void:
 		combat.enemies_defeated,
 		str(world.generated_seed),
 	]
+	var warning_text := boundary.get_warning_text()
+	boundary_warning.visible = not warning_text.is_empty()
+	if boundary_warning.visible:
+		boundary_warning.text = warning_text
+		boundary_warning.modulate = Color(1.0, 1.0, 1.0, lerpf(0.68, 1.0, boundary.pressure))
+		boundary_warning.add_theme_color_override(
+			"font_color",
+			Color(1.0, 0.58, 0.16) if boundary.pressure > 0.72 else Color(0.9, 1.0, 1.0)
+		)
 
 
 func _unhandled_input(event: InputEvent) -> void:

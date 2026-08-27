@@ -11,6 +11,8 @@ const DashStateMachine = preload("res://scripts/dash_state.gd")
 @export var brake_speed: float = 24.0
 @export var ground_acceleration: float = 52.0
 @export var air_control: float = 0.28
+@export var ground_traction: float = 11.0
+@export var air_traction: float = 3.2
 @export var turn_speed: float = 1.75
 @export var jump_velocity: float = 17.0
 @export var dash_speed: float = 126.0
@@ -72,7 +74,9 @@ func _physics_process(delta: float) -> void:
 		velocity.z = _dash_heading.z * dash_speed
 		if _dash_state.started_in_air:
 			velocity.y = 0.0
+		var intended_dash_velocity := Vector3(velocity.x, 0.0, velocity.z)
 		move_and_slide()
+		_preserve_collision_momentum(intended_dash_velocity)
 		_roll_visual(delta)
 		_check_fall()
 		return
@@ -85,7 +89,16 @@ func _physics_process(delta: float) -> void:
 
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	var acceleration := ground_acceleration if is_on_floor() else ground_acceleration * air_control
-	horizontal_velocity = horizontal_velocity.move_toward(heading * target_speed, acceleration * delta)
+	var current_speed := horizontal_velocity.length()
+	var adjusted_speed := move_toward(current_speed, target_speed, acceleration * delta)
+	var travel_direction := heading
+	if current_speed > 0.01:
+		var traction := ground_traction if is_on_floor() else air_traction
+		travel_direction = horizontal_velocity.normalized().slerp(
+			heading,
+			1.0 - exp(-traction * delta)
+		).normalized()
+	horizontal_velocity = travel_direction * adjusted_speed
 	velocity.x = horizontal_velocity.x
 	velocity.z = horizontal_velocity.z
 
@@ -97,7 +110,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y -= _gravity * 2.35 * delta
 
+	var intended_horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	move_and_slide()
+	_preserve_collision_momentum(intended_horizontal_velocity)
 	_roll_visual(delta)
 	_check_fall()
 
@@ -113,6 +128,12 @@ func respawn(at_position: Vector3) -> void:
 
 func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
+
+
+func apply_boundary_heading(guided_heading: Vector3) -> void:
+	heading = Vector3(guided_heading.x, 0.0, guided_heading.z).normalized()
+	if is_instance_valid(_dash_state) and _dash_state.is_active:
+		_dash_heading = heading
 
 
 func take_damage(amount: float) -> void:
@@ -205,3 +226,30 @@ func _roll_visual(delta: float) -> void:
 		return
 	var roll_axis := horizontal_velocity.normalized().cross(Vector3.UP)
 	ball_mesh.rotate(roll_axis, horizontal_velocity.length() * delta / 1.2)
+
+
+func _preserve_collision_momentum(intended_velocity: Vector3) -> void:
+	var intended_speed := intended_velocity.length()
+	if intended_speed < 1.0 or get_horizontal_speed() >= intended_speed * 0.74:
+		return
+	var blocking_normal := Vector3.ZERO
+	for index in range(get_slide_collision_count()):
+		var normal: Vector3 = get_slide_collision(index).get_normal()
+		var planar_normal := Vector3(normal.x, 0.0, normal.z)
+		if planar_normal.length_squared() > blocking_normal.length_squared():
+			blocking_normal = planar_normal
+	if blocking_normal.length_squared() < 0.16:
+		return
+	blocking_normal = blocking_normal.normalized()
+	var deflected := intended_velocity.slide(blocking_normal)
+	if deflected.length_squared() < intended_speed * intended_speed * 0.08:
+		deflected = blocking_normal.cross(Vector3.UP)
+		if deflected.dot(intended_velocity) < 0.0:
+			deflected = -deflected
+	deflected = deflected.normalized()
+	var preserved_speed := intended_speed * 0.9
+	velocity.x = deflected.x * preserved_speed
+	velocity.z = deflected.z * preserved_speed
+	heading = heading.slerp(deflected, 0.42).normalized()
+	if is_instance_valid(_dash_state) and _dash_state.is_active:
+		_dash_heading = heading

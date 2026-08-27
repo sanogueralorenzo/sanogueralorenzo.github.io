@@ -13,6 +13,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
 - A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
 - A short, hold-sensitive dash that is repeatable on the ground and available once per airtime.
+- A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
+- Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
 - Terrain-aware Pursuer, Skimmer, and Bulwark threats with escalating population and durability.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - Level-up choices that begin distinct movement-centric builds: Dash Nova, Slipstream, or speed-scaled arcs.
@@ -74,4 +76,11 @@ Run the build rules and playable combat integration checks with:
 ```sh
 godot --headless --path games/overrush --script res://tests/test_run_build.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
+```
+
+Run the simulated 20-minute and in-engine maximum-speed boundary traversal checks with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/test_boundary_current.gd
+godot --headless --path games/overrush --script res://tests/validate_boundary_runtime.gd
 ```

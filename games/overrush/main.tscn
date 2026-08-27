@@ -1,10 +1,11 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
 [ext_resource type="Script" path="res://scripts/runner_ball.gd" id="3_ball"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/combat_director.gd" id="5_combat"]
+[ext_resource type="Script" path="res://scripts/world_boundary.gd" id="6_boundary"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_overrush"]
 sky_top_color = Color(0.018, 0.12, 0.43, 1)
@@ -125,6 +126,11 @@ cast_shadow = 1
 
 [node name="Formations" type="Node3D" parent="World"]
 
+[node name="WorldBoundary" type="Node" parent="."]
+script = ExtResource("6_boundary")
+runner_path = NodePath("../RunnerBall")
+world_path = NodePath("../World")
+
 [node name="RunnerBall" type="CharacterBody3D" parent="."]
 position = Vector3(0, 8, 0)
 script = ExtResource("3_ball")
@@ -219,6 +225,25 @@ theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 16
 text = "LEVEL 1"
+horizontal_alignment = 1
+
+[node name="BoundaryWarning" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 430.0
+offset_top = 48.0
+offset_right = -430.0
+offset_bottom = 82.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.15, 0.9, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.005, 0.025, 0.08, 0.95)
+theme_override_colors/font_outline_color = Color(0.005, 0.025, 0.08, 0.88)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 20
+text = "JETSTREAM  •  BANK LEFT"
 horizontal_alignment = 1
 
 [node name="IntegrityBar" type="ProgressBar" parent="HUD"]
