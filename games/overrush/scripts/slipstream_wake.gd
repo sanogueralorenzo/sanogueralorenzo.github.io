@@ -10,6 +10,7 @@ var lifetime := 1.5
 var repeat_interval := 0.0
 var source_id := &"stormtrail"
 var hit_filter := Callable()
+var apex_damage_multiplier := 1.0
 
 var _total_lifetime := 1.5
 var _scan_timer := 0.0
@@ -24,7 +25,8 @@ func configure(
 	new_lifetime: float,
 	new_repeat_interval: float = 0.0,
 	new_source_id: StringName = &"stormtrail",
-	new_hit_filter: Callable = Callable()
+	new_hit_filter: Callable = Callable(),
+	new_apex_damage_multiplier: float = 1.0
 ) -> void:
 	radius = new_radius
 	damage = new_damage
@@ -34,6 +36,7 @@ func configure(
 	_repeat_timer = repeat_interval
 	source_id = new_source_id
 	hit_filter = new_hit_filter
+	apex_damage_multiplier = maxf(1.0, new_apex_damage_multiplier)
 	_build_visual()
 
 
@@ -70,7 +73,8 @@ func _damage_new_crossings() -> void:
 			if hit_filter.is_valid() and not bool(hit_filter.call(enemy)):
 				continue
 			_hit_enemy_ids[enemy.get_instance_id()] = true
-			enemy.take_damage(damage, source_id)
+			var resolved_damage := damage * (apex_damage_multiplier if enemy.is_apex else 1.0)
+			enemy.take_damage(resolved_damage, source_id)
 
 
 func _build_visual() -> void:

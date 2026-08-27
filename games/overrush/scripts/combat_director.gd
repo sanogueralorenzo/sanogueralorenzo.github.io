@@ -460,7 +460,8 @@ func _update_slipstream(delta: float) -> void:
 			damage * build.get_anchor_damage_multiplier(),
 			build.get_anchor_duration(),
 			build.get_anchor_repeat_interval(),
-			&"tempest_anchor"
+			&"tempest_anchor",
+			build.get_anchor_apex_damage_multiplier()
 		)
 		return
 	_spawn_wake(wake_position, radius, damage, duration, 0.0, &"stormtrail")
@@ -592,14 +593,15 @@ func _spawn_wake(
 	damage: float,
 	duration: float,
 	repeat_interval: float = 0.0,
-	source_id: StringName = &"stormtrail"
+	source_id: StringName = &"stormtrail",
+	apex_damage_multiplier: float = 1.0
 ) -> void:
 	position.y = _world.get_surface_height(position.x, position.z) + 0.14
 	var wake: SlipstreamWake = SlipstreamWakeScript.new()
 	add_child(wake)
 	wake.global_position = position
 	var hit_filter := _can_apply_anchor_hit if source_id == &"tempest_anchor" else Callable()
-	wake.configure(radius, damage, duration, repeat_interval, source_id, hit_filter)
+	wake.configure(radius, damage, duration, repeat_interval, source_id, hit_filter, apex_damage_multiplier)
 
 
 func _can_apply_anchor_hit(enemy: EnemyAgent) -> bool:

@@ -210,6 +210,7 @@ func _validate_stormtrail_evolutions() -> void:
 			break
 	_expect(anchor != null and anchor.repeat_interval > 0.0, "Tempest Anchor should periodically create a persistent, repeating damage zone.")
 	if anchor != null:
+		_expect(is_equal_approx(anchor.apex_damage_multiplier, RunBuild.ANCHOR_APEX_DAMAGE_MULTIPLIER), "Tempest Anchor should carry its explicit sustained Apex pressure into the runtime zone.")
 		var anchor_target: EnemyAgent = director._spawn_enemy(&"pursuer")
 		anchor_target.health = anchor.damage * 1.5
 		anchor_target.movement_speed = 0.0

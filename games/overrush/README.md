@@ -37,6 +37,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - The live HUD counts down to the Apex, then switches to its two-minute defeat deadline; reproducible seed information remains available from pause without competing with the immediate objective.
 - Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
 - Strategy-aware seven- and eighteen-minute balance soaks cover all six evolution branches inside overlapping early and late clear envelopes while rejecting stalled traversal. Their routes exercise distinct execution: setup dashes, direct Ramjet impacts, woven Twin Current lanes, bounded Tempest zones, aimed Storm Lances, and close Arc Orbit threading.
+- A deterministic 18-matchup climax matrix pairs every mature evolution with every Apex, requiring a meaningful second phase, high-speed counterplay, a victory inside the two-minute deadline, and measurable boss damage from the chosen evolution.
 - Three named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, the Rift Matriarch predicts the route and releases bounded zero-reward broods, and the Horizon Warden alternates transverse gates with longitudinal lane cuts.
 - Every Apex visibly escalates below half health with faster pursuit, wider geometry, or shorter route-denial cycles plus distinct procedural silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
@@ -209,6 +210,14 @@ godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audi
 ```
 
 The late gate requires every engine to complete its evolution, arsenal, and catalyst on schedule, traverse at least 48.6 km, remain inside the shared 500–1,000 clear envelope, and preserve measurable contributions outside its leading effect.
+
+After the six 18-minute maturation gates pass, run the focused climax matrix across all six mature evolutions and three deterministic Apex encounters with:
+
+```sh
+games/overrush/tests/audit_apex_matrix.sh
+```
+
+Every matchup uses the same mature loadout proven by the full spawning, pickup, and draft gates; preserves high-speed traversal; defeats the Apex inside its actual two-minute encounter; and attributes a meaningful share of boss damage to the chosen evolution.
 
 Run the fixed-step, finite-integrity 20-minute survival budget audit with:
 

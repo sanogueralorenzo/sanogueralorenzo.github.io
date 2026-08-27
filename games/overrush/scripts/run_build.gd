@@ -14,6 +14,7 @@ const FORK_STAGE_CATALYST := 3
 const PULSE_WINDOW_SECONDS := 0.42
 const DASH_NOVA_RECHARGE_SECONDS := 0.9
 const INITIAL_EXPERIENCE_REQUIREMENT := 18
+const ANCHOR_APEX_DAMAGE_MULTIPLIER := 1.55
 
 const KEYSTONE_IDS: Array[StringName] = [&"dash_nova", &"slipstream", &"velocity_coil"]
 const PATH_UPGRADES := {
@@ -102,7 +103,7 @@ const UPGRADE_DESCRIPTIONS := {
 	&"ramjet": "Evolve Dashbreaker into a direct-impact engine. Every dash can strike each enemy along its path once.",
 	&"gravity_knot": "Evolve Dashbreaker into a setup engine. Dash exits pull threats inward before a delayed collapse.",
 	&"twin_current": "Evolve Stormtrail into two parallel wake lanes that reward weaving through enemy packs.",
-	&"tempest_anchor": "Evolve Stormtrail to periodically leave large storm zones that strike the same threats repeatedly.",
+	&"tempest_anchor": "Evolve Stormtrail to periodically leave large repeating storm zones. Their sustained pressure deals 55% more damage to Apex targets.",
 	&"storm_lance": "Evolve Arcstorm into a forward piercing beam. A missed lane retains one residual auto-arc, but lining up packs multiplies its output.",
 	&"arc_orbit": "Evolve Arcstorm into a close-range electrical orbit that rewards threading through dense threats.",
 	&"ramjet_mass": "Ramjet impacts gain damage and a wider collision corridor.",
@@ -415,7 +416,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"twin_current":
 			return "TWO WAKE LANES  •  9 M OFFSET  •  58% DAMAGE EACH"
 		&"tempest_anchor":
-			return "EVERY 5TH WAKE  •  REPEATING 0.58 S PULSES"
+			return "EVERY 5TH WAKE  •  0.68 S PULSES  •  +55% APEX DAMAGE"
 		&"storm_lance":
 			return "FORWARD BEAM  •  115 M  •  2.4× DAMAGE  •  MISS: 1 ARC"
 		&"arc_orbit":
@@ -439,7 +440,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"storm_charge":
 			return "ANCHOR EVERY %d WAKES  •  %.2f S PULSES" % [
 				maxi(3, 5 - next_rank),
-				maxf(0.32, 0.58 - next_rank * 0.08),
+				maxf(0.5, 0.68 - next_rank * 0.06),
 			]
 		&"lance_focus":
 			return "LANCE  •  %d M  •  %.1f M WIDE  •  %d TARGETS" % [
@@ -692,6 +693,10 @@ func get_anchor_duration() -> float:
 
 func get_anchor_damage_multiplier() -> float:
 	return 0.65 + storm_charge_level * 0.05
+
+
+func get_anchor_apex_damage_multiplier() -> float:
+	return ANCHOR_APEX_DAMAGE_MULTIPLIER
 
 
 func is_storm_lance() -> bool:
