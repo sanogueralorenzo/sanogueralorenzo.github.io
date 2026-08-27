@@ -336,7 +336,7 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 	if is_instance_valid(_event_tween):
 		_event_tween.kill()
 	event_banner.visible = false
-	tutorial_card.visible = false
+	_hide_contextual_learning_hud()
 	level_up_overlay.visible = true
 	var offers_evolution := false
 	var offers_catalyst := false
@@ -402,6 +402,7 @@ func _render_upgrade_options(options: Array[StringName]) -> void:
 		button.add_theme_color_override("font_color", accent)
 		button.add_theme_color_override("font_hover_color", accent.lightened(0.16))
 		button.add_theme_color_override("font_focus_color", accent.lightened(0.16))
+		_apply_upgrade_card_style(button, accent)
 	_refresh_draft_controls()
 	if not options.is_empty():
 		level_up_buttons[0].grab_focus()
@@ -457,15 +458,24 @@ func _choose_upgrade(index: int) -> void:
 			level_up_prompt.text = "Keep at least three standard upgrades in the active pool"
 		_refresh_draft_controls()
 		return
+	var upgrade_id := _current_upgrade_options[index]
+	var milestone_choice := (
+		combat.build.core_path.is_empty()
+		or combat.build.is_evolution_upgrade(upgrade_id)
+		or combat.build.is_arsenal_upgrade(upgrade_id)
+		or combat.build.is_catalyst_upgrade(upgrade_id)
+	)
 	level_up_overlay.visible = false
+	audio.play_upgrade_choice(milestone_choice)
 	combat.choose_upgrade(index)
-	tutorial_card.visible = not _onboarding.is_complete()
+	_restore_contextual_learning_hud()
 
 
 func _on_runner_defeated() -> void:
 	audio.play_defeat()
 	combat.stop_run()
 	level_up_overlay.visible = false
+	_hide_contextual_learning_hud()
 	var result := _record_run_progress(false)
 	game_over_message.text = _format_run_recap("RUN ENDED", result)
 	game_over_overlay.visible = true
@@ -510,6 +520,7 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 func _on_run_victory() -> void:
 	audio.play_victory()
 	level_up_overlay.visible = false
+	_hide_contextual_learning_hud()
 	var result := _record_run_progress(true)
 	victory_message.text = _format_run_recap("APEX BROKEN", result)
 	_reset_replay_feedback(victory_feedback_prompt, victory_feedback_buttons)
@@ -521,6 +532,7 @@ func _on_run_victory() -> void:
 func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
 	level_up_overlay.visible = false
+	_hide_contextual_learning_hud()
 	var result := _record_run_progress(false)
 	game_over_message.text = _format_run_recap(reason, result)
 	_reset_replay_feedback(game_over_feedback_prompt, game_over_feedback_buttons)
@@ -547,10 +559,9 @@ func begin_run(protocol_id: StringName = &"") -> void:
 	_cancel_restart_confirmation()
 	_onboarding.reset(_profile.onboarding_completed or not _profile.guidance_enabled)
 	tutorial_card.text = _onboarding.get_message(_using_gamepad)
-	tutorial_card.visible = not _onboarding.is_complete()
 	_control_reminder_remaining = CONTROL_REMINDER_SECONDS if _onboarding.is_complete() else 0.0
-	controls.visible = _control_reminder_remaining > 0.0
 	controls.modulate.a = 1.0
+	_restore_contextual_learning_hud()
 	combat.start_run(chosen_protocol)
 	get_tree().paused = false
 
@@ -896,6 +907,32 @@ func _get_upgrade_accent(family: StringName) -> Color:
 			return Color(0.92, 0.78, 1.0)
 
 
+func _apply_upgrade_card_style(button: Button, accent: Color) -> void:
+	button.add_theme_stylebox_override("normal", _make_upgrade_card_style(accent, 0.07, 0.42, 4))
+	button.add_theme_stylebox_override("hover", _make_upgrade_card_style(accent, 0.14, 0.72, 5))
+	button.add_theme_stylebox_override("pressed", _make_upgrade_card_style(accent, 0.22, 0.9, 5))
+	button.add_theme_stylebox_override("focus", _make_upgrade_card_style(accent.lightened(0.22), 0.16, 1.0, 5))
+
+
+func _make_upgrade_card_style(accent: Color, tint: float, border_alpha: float, left_border: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.content_margin_left = 16.0
+	style.content_margin_top = 10.0
+	style.content_margin_right = 16.0
+	style.content_margin_bottom = 10.0
+	style.bg_color = Color(0.012, 0.02, 0.038, 0.96).lerp(accent, tint)
+	style.border_width_left = left_border
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(accent.r, accent.g, accent.b, border_alpha)
+	style.corner_radius_top_left = 7
+	style.corner_radius_top_right = 7
+	style.corner_radius_bottom_right = 7
+	style.corner_radius_bottom_left = 7
+	return style
+
+
 func _refresh_settings() -> void:
 	reduced_motion_toggle.set_pressed_no_signal(_profile.reduced_motion)
 	high_contrast_toggle.set_pressed_no_signal(_profile.high_contrast_telegraphs)
@@ -969,6 +1006,22 @@ func _update_control_reminder(delta: float) -> void:
 	controls.modulate.a = clampf(_control_reminder_remaining, 0.0, 1.0)
 	if is_zero_approx(_control_reminder_remaining):
 		controls.visible = false
+
+
+func _hide_contextual_learning_hud() -> void:
+	tutorial_card.visible = false
+	controls.visible = false
+
+
+func _restore_contextual_learning_hud() -> void:
+	var live_view_available := (
+		_run_started
+		and not level_up_overlay.visible
+		and not game_over_overlay.visible
+		and not victory_overlay.visible
+	)
+	tutorial_card.visible = live_view_available and not _onboarding.is_complete()
+	controls.visible = live_view_available and _onboarding.is_complete() and _control_reminder_remaining > 0.0
 
 
 func _save_profile() -> void:

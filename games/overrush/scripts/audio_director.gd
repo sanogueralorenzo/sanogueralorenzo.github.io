@@ -31,6 +31,7 @@ var _effect_cursor := 0
 var _defeat_sequence := 0
 var _pickup_sequence := 0
 var _repair_sequence := 0
+var _upgrade_choice_sequence := 0
 var _warning_cooldown := 0.0
 var _hit_cooldown := 0.0
 var _phase_drive_db := -24.0
@@ -140,6 +141,13 @@ func play_attack_warning(attack_kind: StringName, is_elite: bool, is_apex: bool)
 
 func play_level_up() -> void:
 	_play_effect(&"level_up", 0.0, 1.0)
+
+
+func play_upgrade_choice(milestone: bool) -> void:
+	var pitch_steps: Array[float] = [1.08, 1.14, 1.2]
+	var pitch := 1.28 if milestone else pitch_steps[_upgrade_choice_sequence % pitch_steps.size()]
+	_upgrade_choice_sequence += 1
+	_play_effect(&"level_up", -1.0 if milestone else -3.0, pitch)
 
 
 func play_phase_event() -> void:

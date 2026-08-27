@@ -33,6 +33,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Every catalyst carries visible downtime penalties and combines with all six evolution geometries and three arsenals for 54 endgame playstyles; arsenal damage and empowered catalyst uptime remain visible in the run recap for balance review.
 - Each run grants three honest rerolls and one deliberate banish: rerolls only spend when a different offer exists, while banishment permanently removes one standard upgrade without consuming the level.
 - Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
+- Family-colored card surfaces keep every unfocused draft option distinct, selection has its own confirmation cue, and engine commitments receive an in-world activation banner before control returns.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
 - The live HUD counts down to the Apex, then switches to its two-minute defeat deadline; reproducible seed information remains available from pause without competing with the immediate objective.

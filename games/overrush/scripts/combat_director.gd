@@ -76,6 +76,7 @@ var _dash_hit_ids: Dictionary = {}
 var _ramjet_previous_position := Vector3.ZERO
 var _ramjet_has_previous_position := false
 var _wake_drop_count := 0
+var _pending_engine_announcement := ""
 var _pending_evolution_announcement := ""
 var _pending_catalyst_announcement := ""
 var _pending_arsenal_announcement := ""
@@ -136,6 +137,8 @@ func choose_upgrade(option_index: int) -> void:
 	var result := build.apply_upgrade(chosen_upgrade)
 	if result.is_empty():
 		return
+	if choosing_engine:
+		_pending_engine_announcement = build.get_upgrade_name(chosen_upgrade)
 	if choosing_evolution:
 		_pending_evolution_announcement = build.get_upgrade_name(chosen_upgrade)
 	if choosing_catalyst:
@@ -162,6 +165,12 @@ func choose_upgrade(option_index: int) -> void:
 		_awaiting_upgrade = false
 		build.remove_meta("current_options")
 		get_tree().paused = false
+		if not _pending_engine_announcement.is_empty():
+			event_announced.emit(
+				"%s ENGAGED" % _pending_engine_announcement,
+				"Your movement now drives this combat geometry"
+			)
+			_pending_engine_announcement = ""
 		if not _pending_evolution_announcement.is_empty():
 			event_announced.emit(
 				"%s ONLINE" % _pending_evolution_announcement,
