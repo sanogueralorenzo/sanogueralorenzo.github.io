@@ -148,7 +148,6 @@ var phase_shell_level := 0
 var slipstream_level := 0
 var wake_duration_bonus := 0.0
 var wake_width_bonus := 0.0
-var wake_damage_bonus := 0.0
 var maximum_integrity_bonus := 0.0
 var ramjet_mass_level := 0
 var event_horizon_level := 0
@@ -218,8 +217,6 @@ func apply_upgrade(upgrade_id: StringName) -> Dictionary:
 			wake_duration_bonus += 0.7
 		&"wake_width":
 			wake_width_bonus += 2.6
-		&"wake_voltage":
-			wake_damage_bonus += 3.0
 		&"velocity_coil":
 			speed_damage_bonus += 0.006
 		&"arc_capacitor":
@@ -302,17 +299,26 @@ func get_wake_radius() -> float:
 
 
 func get_wake_drop_interval() -> float:
-	if not is_twin_current():
-		return 0.2
-	return minf(0.34, 0.2 + maxf(0.0, slipstream_level - 4) * 0.02)
+	var excess_ranks := maxf(0.0, slipstream_level - 4)
+	if is_twin_current():
+		return minf(0.38, 0.2 + excess_ranks * 0.03)
+	if is_tempest_anchor():
+		return minf(0.62, 0.26 + excess_ranks * 0.065)
+	return 0.2
 
 
 func get_wake_damage(horizontal_speed: float) -> float:
-	return (5.0 + slipstream_level * 2.5 + wake_damage_bonus) * maxf(1.0, horizontal_speed / 58.0)
+	return _get_slipstream_damage(slipstream_level, get_upgrade_rank(&"wake_voltage")) * maxf(1.0, horizontal_speed / 58.0)
 
 
 func _get_slipstream_radius(rank: int) -> float:
 	return 7.5 + mini(rank, 4) * 2.0 + maxi(0, rank - 4) * 0.5
+
+
+func _get_slipstream_damage(primary_rank: int, voltage_rank: int) -> float:
+	var primary_bonus := mini(primary_rank, 6) * 2.5 + maxi(0, primary_rank - 6) * 0.75
+	var voltage_bonus := mini(voltage_rank, 4) * 3.0 + maxi(0, voltage_rank - 4) * 0.75
+	return 5.0 + primary_bonus + voltage_bonus
 
 
 func get_build_name() -> String:
@@ -375,7 +381,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 			return "EXTENDED DASH IMMUNITY  •  %.2f S" % (0.16 + next_rank * 0.12)
 		&"slipstream":
 			return "WAKE  •  %.1f DAMAGE  •  %.1f M RADIUS  •  %.2f S" % [
-				5.0 + next_rank * 2.5 + wake_damage_bonus,
+				_get_slipstream_damage(next_rank, get_upgrade_rank(&"wake_voltage")),
 				_get_slipstream_radius(next_rank) + wake_width_bonus,
 				1.45 + next_rank * 0.15 + wake_duration_bonus,
 			]
@@ -384,7 +390,10 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"wake_width":
 			return "WAKE RADIUS  •  %.1f → %.1f M" % [get_wake_radius(), get_wake_radius() + 2.6]
 		&"wake_voltage":
-			return "CRUISE WAKE DAMAGE  •  %.1f → %.1f" % [get_wake_damage(58.0), get_wake_damage(58.0) + 3.0]
+			return "CRUISE WAKE DAMAGE  •  %.1f → %.1f" % [
+				get_wake_damage(58.0),
+				_get_slipstream_damage(slipstream_level, next_rank),
+			]
 		&"velocity_coil":
 			var next_dash_damage := weapon_damage * (1.0 + (126.0 - 45.0) * (speed_damage_bonus + 0.006))
 			return "DASH-SPEED ARC DAMAGE  •  %.1f → %.1f" % [get_arc_damage(126.0), next_dash_damage]
@@ -400,7 +409,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"kinetic_repair":
 			return "+20 MAX INTEGRITY  •  REPAIR 30 NOW"
 		&"ramjet":
-			return "DASH CONTACT  •  %.0f DAMAGE AT MAX SPEED  •  2.8 M" % get_ramjet_damage(126.0)
+			return "DASH CONTACT  •  %.0f DAMAGE AT MAX SPEED  •  %.1f M" % [get_ramjet_damage(126.0), get_ramjet_radius()]
 		&"gravity_knot":
 			return "DASH EXIT  •  24 M PULL  •  24 COLLAPSE DAMAGE"
 		&"twin_current":
@@ -622,7 +631,7 @@ func get_ramjet_damage(horizontal_speed: float) -> float:
 
 
 func get_ramjet_radius() -> float:
-	return 2.8 + ramjet_mass_level * 0.35
+	return 4.2 + ramjet_mass_level * 0.6
 
 
 func is_gravity_knot() -> bool:
@@ -650,7 +659,7 @@ func get_twin_current_offset() -> float:
 
 
 func get_twin_current_damage_multiplier() -> float:
-	return minf(0.86, 0.58 + parallel_flow_level * 0.09)
+	return minf(0.74, 0.5 + parallel_flow_level * 0.08)
 
 
 func is_tempest_anchor() -> bool:
@@ -662,19 +671,27 @@ func get_anchor_stride() -> int:
 
 
 func get_anchor_repeat_interval() -> float:
-	return maxf(0.32, 0.58 - storm_charge_level * 0.08)
+	return maxf(0.5, 0.68 - storm_charge_level * 0.06)
 
 
 func get_anchor_radius_multiplier() -> float:
-	return 1.6 + storm_charge_level * 0.1
+	return 1.3 + storm_charge_level * 0.07
+
+
+func get_anchor_radius() -> float:
+	return minf(30.0, get_wake_radius() * get_anchor_radius_multiplier())
 
 
 func get_anchor_duration_multiplier() -> float:
-	return 1.7 + storm_charge_level * 0.15
+	return 1.6 + storm_charge_level * 0.1
+
+
+func get_anchor_duration() -> float:
+	return minf(4.8, get_wake_duration() * get_anchor_duration_multiplier())
 
 
 func get_anchor_damage_multiplier() -> float:
-	return 1.05 + storm_charge_level * 0.12
+	return 0.65 + storm_charge_level * 0.05
 
 
 func is_storm_lance() -> bool:
@@ -694,7 +711,7 @@ func get_lance_width() -> float:
 
 
 func get_lance_damage(horizontal_speed: float) -> float:
-	return get_arc_damage(horizontal_speed) * (2.4 + lance_focus_level * 0.3)
+	return get_arc_damage(horizontal_speed) * (2.8 + lance_focus_level * 0.34)
 
 
 func get_lance_target_limit() -> int:
@@ -710,11 +727,11 @@ func get_orbit_interval() -> float:
 
 
 func get_orbit_radius() -> float:
-	return 20.0 + orbit_flux_level * 2.5
+	return 25.0 + orbit_flux_level * 2.5
 
 
 func get_orbit_damage(horizontal_speed: float) -> float:
-	return get_arc_damage(horizontal_speed) * (0.72 + orbit_flux_level * 0.1)
+	return get_arc_damage(horizontal_speed) * (0.86 + orbit_flux_level * 0.12)
 
 
 func _is_upgrade_allowed(upgrade_id: StringName) -> bool:

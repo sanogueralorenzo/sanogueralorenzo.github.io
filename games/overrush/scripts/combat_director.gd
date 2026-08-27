@@ -37,6 +37,7 @@ const RECOVERY_DROP_STRIDE := 18
 const STANDARD_RECOVERY_VALUE := 14
 const ELITE_RECOVERY_VALUE := 30
 const MAX_ACTIVE_RECOVERY_PICKUPS := 3
+const ANCHOR_SHARED_HIT_INTERVAL := 0.48
 
 @export var runner_path: NodePath
 @export var world_path: NodePath
@@ -72,6 +73,8 @@ var _protocol_elite_index := 0
 var _reduced_motion := false
 var _high_contrast_telegraphs := false
 var _dash_hit_ids: Dictionary = {}
+var _ramjet_previous_position := Vector3.ZERO
+var _ramjet_has_previous_position := false
 var _wake_drop_count := 0
 var _pending_evolution_announcement := ""
 var _pending_catalyst_announcement := ""
@@ -80,6 +83,7 @@ var _catalyst_dash_window := 0.0
 var _dash_nova_recharge := 0.0
 var _introduced_archetypes: Dictionary = {}
 var _rewarding_defeats_since_recovery := 0
+var _anchor_last_hit_times: Dictionary = {}
 
 
 func _ready() -> void:
@@ -224,6 +228,7 @@ func start_run(protocol_id: StringName) -> void:
 	_dash_nova_recharge = 0.0
 	_arsenal_timer = 0.0
 	_rewarding_defeats_since_recovery = 0
+	_anchor_last_hit_times.clear()
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -447,9 +452,9 @@ func _update_slipstream(delta: float) -> void:
 	if build.is_tempest_anchor() and _wake_drop_count % build.get_anchor_stride() == 0:
 		_spawn_wake(
 			wake_position,
-			radius * build.get_anchor_radius_multiplier(),
+			build.get_anchor_radius(),
 			damage * build.get_anchor_damage_multiplier(),
-			duration * build.get_anchor_duration_multiplier(),
+			build.get_anchor_duration(),
 			build.get_anchor_repeat_interval(),
 			&"tempest_anchor"
 		)
@@ -482,6 +487,8 @@ func _on_dash_state_changed(active: bool) -> void:
 	if active:
 		run_stats.record_dash()
 		_dash_hit_ids.clear()
+		_ramjet_previous_position = _runner.global_position
+		_ramjet_has_previous_position = true
 		if build.phase_shell_level > 0:
 			_runner.grant_damage_immunity(build.get_phase_shell_duration())
 		if build.dash_nova_level > 0 and _dash_nova_recharge <= 0.0:
@@ -494,6 +501,7 @@ func _on_dash_state_changed(active: bool) -> void:
 				&"dash_nova"
 			)
 	else:
+		_ramjet_has_previous_position = false
 		if build.dash_echo_level > 0:
 			_release_nova(
 				_runner.global_position,
@@ -521,14 +529,17 @@ func _drop_backdraft_mine(center: Vector3) -> void:
 func _update_ramjet() -> void:
 	if not _run_active or not _runner.is_dashing() or not build.is_ramjet():
 		return
+	var segment_end := _runner.global_position
+	var segment_start := _ramjet_previous_position if _ramjet_has_previous_position else segment_end
+	var segment_offset := segment_end - segment_start
+	segment_offset.y = 0.0
+	if segment_offset.length() > 5.0:
+		segment_start = segment_end - segment_offset.normalized() * 5.0
 	var hit_count := 0
 	for enemy in _enemies.duplicate():
 		if not is_instance_valid(enemy) or _dash_hit_ids.has(enemy.get_instance_id()):
 			continue
-		var planar_distance := Vector2(
-			enemy.global_position.x - _runner.global_position.x,
-			enemy.global_position.z - _runner.global_position.z
-		).length()
+		var planar_distance := _planar_distance_to_segment(enemy.global_position, segment_start, segment_end)
 		if planar_distance > build.get_ramjet_radius() + enemy.body_radius:
 			continue
 		_dash_hit_ids[enemy.get_instance_id()] = true
@@ -536,6 +547,20 @@ func _update_ramjet() -> void:
 		hit_count += 1
 	if hit_count > 0:
 		_spawn_pulse(_runner.global_position, Color(1.0, 0.42, 0.05, 0.42), build.get_ramjet_radius() * 1.6, 0.12)
+	_ramjet_previous_position = segment_end
+	_ramjet_has_previous_position = true
+
+
+func _planar_distance_to_segment(point: Vector3, segment_start: Vector3, segment_end: Vector3) -> float:
+	var start := Vector2(segment_start.x, segment_start.z)
+	var finish := Vector2(segment_end.x, segment_end.z)
+	var target := Vector2(point.x, point.z)
+	var segment := finish - start
+	var length_squared := segment.length_squared()
+	if length_squared <= 0.0001:
+		return target.distance_to(finish)
+	var progress := clampf((target - start).dot(segment) / length_squared, 0.0, 1.0)
+	return target.distance_to(start + segment * progress)
 
 
 func _release_gravity_knot(center: Vector3) -> void:
@@ -569,7 +594,17 @@ func _spawn_wake(
 	var wake: SlipstreamWake = SlipstreamWakeScript.new()
 	add_child(wake)
 	wake.global_position = position
-	wake.configure(radius, damage, duration, repeat_interval, source_id)
+	var hit_filter := _can_apply_anchor_hit if source_id == &"tempest_anchor" else Callable()
+	wake.configure(radius, damage, duration, repeat_interval, source_id, hit_filter)
+
+
+func _can_apply_anchor_hit(enemy: EnemyAgent) -> bool:
+	var enemy_id := enemy.get_instance_id()
+	var last_hit_time := float(_anchor_last_hit_times.get(enemy_id, -INF))
+	if elapsed_time - last_hit_time < ANCHOR_SHARED_HIT_INTERVAL:
+		return false
+	_anchor_last_hit_times[enemy_id] = elapsed_time
+	return true
 
 
 func _fire_storm_lance() -> int:
@@ -639,6 +674,7 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemies_defeated += 1
 	run_stats.record_defeat(enemy.archetype, enemy.is_elite)
 	_enemies.erase(enemy)
+	_anchor_last_hit_times.erase(enemy.get_instance_id())
 	enemy_defeated_feedback.emit(enemy.is_elite, enemy.is_apex)
 	if enemy.is_apex:
 		_apex = null

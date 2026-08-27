@@ -142,7 +142,10 @@ func _validate_dashbreaker_evolutions() -> void:
 	var ram_target: EnemyAgent = director._spawn_enemy(&"pursuer")
 	ram_target.health = 18.0
 	ram_target.movement_speed = 0.0
-	ram_target.global_position = runner.global_position + Vector3.RIGHT * 2.0
+	director._ramjet_previous_position = runner.global_position - Vector3.RIGHT * 4.0
+	director._ramjet_has_previous_position = true
+	runner.global_position += Vector3.RIGHT * 4.0
+	ram_target.global_position = runner.global_position - Vector3.RIGHT * 2.0
 	ram_target.global_position.y = runner.global_position.y
 	runner._dash_state.is_active = true
 	director._dash_hit_ids.clear()
@@ -150,6 +153,17 @@ func _validate_dashbreaker_evolutions() -> void:
 	director._update_ramjet()
 	await process_frame
 	_expect(director.enemies_defeated > defeats_before_ram, "Ramjet should turn the moving dash body into a once-per-target collision weapon.")
+	var teleport_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	teleport_target.health = 18.0
+	teleport_target.movement_speed = 0.0
+	director._ramjet_previous_position = runner.global_position
+	runner.global_position += Vector3.RIGHT * 100.0
+	teleport_target.global_position = runner.global_position - Vector3.RIGHT * 50.0
+	teleport_target.global_position.y = runner.global_position.y
+	var defeats_before_teleport := director.enemies_defeated
+	director._update_ramjet()
+	await process_frame
+	_expect(director.enemies_defeated == defeats_before_teleport, "Ramjet's swept corridor should reject discontinuities instead of damaging across teleports.")
 	runner._dash_state.is_active = false
 	await _clear_director_children(director)
 
@@ -185,6 +199,7 @@ func _validate_stormtrail_evolutions() -> void:
 	await _clear_director_children(director)
 
 	director.build = _evolved_build(&"slipstream", &"tempest_anchor", &"storm_charge")
+	director._run_active = true
 	director._wake_drop_count = director.build.get_anchor_stride() - 1
 	director._wake_timer = 0.0
 	director._update_slipstream(1.0)

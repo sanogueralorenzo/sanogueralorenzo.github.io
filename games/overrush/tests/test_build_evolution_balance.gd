@@ -53,13 +53,18 @@ func _test_stormtrail_envelopes() -> void:
 		twin.apply_upgrade(&"slipstream")
 	_expect(twin.get_wake_radius() <= 19.0, "Late Slipstream ranks should add punch without growing Twin Current into near-universal map coverage.")
 	_expect(twin.get_wake_drop_interval() >= 0.31, "Dense late Twin Current lanes should space out overlapping wake samples instead of scaling without bound.")
+	_expect(twin.get_wake_damage(58.0) <= 23.1, "Late Slipstream damage ranks should retain value without feeding an exponential clear loop.")
 
 	var anchor := _evolved_build(&"slipstream", &"tempest_anchor")
 	var anchor_base := _anchor_pressure_index(anchor)
 	_apply_support(anchor, &"storm_charge")
 	var anchor_peak := _anchor_pressure_index(anchor)
-	_expect_ratio(anchor_peak, anchor_base, 3.5, 5.0, "Tempest Anchor support")
-	_expect(anchor.get_anchor_repeat_interval() >= 0.32 and anchor.get_anchor_stride() >= 3, "Tempest Anchor must preserve its periodic identity and bounded pulse rate.")
+	_expect_ratio(anchor_peak, anchor_base, 3.0, 4.5, "Tempest Anchor support")
+	_expect(anchor.get_anchor_repeat_interval() >= 0.5 and anchor.get_anchor_stride() >= 3, "Tempest Anchor must preserve its periodic identity and bounded pulse rate.")
+	for _rank in range(6):
+		anchor.apply_upgrade(&"slipstream")
+	_expect(anchor.get_wake_drop_interval() >= 0.37, "Mature Tempest Anchors should space large repeating zones instead of stacking them every base wake tick.")
+	_expect(anchor.get_anchor_radius() <= 30.0 and anchor.get_anchor_duration() <= 4.8, "Tempest Anchor coverage should stay local and expire before it blankets later spawn waves.")
 
 
 func _test_arcstorm_envelopes() -> void:
@@ -113,11 +118,7 @@ func _apply_support(build: RunBuild, support: StringName) -> void:
 
 
 func _anchor_pressure_index(build: RunBuild) -> float:
-	var pulses_per_anchor := 1.0 + floorf(
-		build.get_wake_duration()
-		* build.get_anchor_duration_multiplier()
-		/ build.get_anchor_repeat_interval()
-	)
+	var pulses_per_anchor := 1.0 + floorf(build.get_anchor_duration() / build.get_anchor_repeat_interval())
 	return (
 		pulses_per_anchor
 		* build.get_anchor_damage_multiplier()

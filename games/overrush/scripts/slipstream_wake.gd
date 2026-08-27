@@ -9,6 +9,7 @@ var damage := 8.0
 var lifetime := 1.5
 var repeat_interval := 0.0
 var source_id := &"stormtrail"
+var hit_filter := Callable()
 
 var _total_lifetime := 1.5
 var _scan_timer := 0.0
@@ -22,7 +23,8 @@ func configure(
 	new_damage: float,
 	new_lifetime: float,
 	new_repeat_interval: float = 0.0,
-	new_source_id: StringName = &"stormtrail"
+	new_source_id: StringName = &"stormtrail",
+	new_hit_filter: Callable = Callable()
 ) -> void:
 	radius = new_radius
 	damage = new_damage
@@ -31,6 +33,7 @@ func configure(
 	repeat_interval = maxf(0.0, new_repeat_interval)
 	_repeat_timer = repeat_interval
 	source_id = new_source_id
+	hit_filter = new_hit_filter
 	_build_visual()
 
 
@@ -64,6 +67,8 @@ func _damage_new_crossings() -> void:
 			enemy.global_position.z - global_position.z
 		).length()
 		if planar_distance <= radius:
+			if hit_filter.is_valid() and not bool(hit_filter.call(enemy)):
+				continue
 			_hit_enemy_ids[enemy.get_instance_id()] = true
 			enemy.take_damage(damage, source_id)
 

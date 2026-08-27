@@ -6,6 +6,14 @@ var _world: Node3D
 var _failures: Array[String] = []
 var _strategy := "dashbreaker"
 var _next_dash_time := 0.0
+var _dash_end_time := 0.0
+var _ramjet_dash_started_at := 0.0
+var _ramjet_dash_start := Vector3.ZERO
+var _ramjet_dash_heading := Vector3.FORWARD
+var _close_route_position := Vector3.ZERO
+var _close_route_heading := Vector3.FORWARD
+var _close_route_initialized := false
+var _last_route_elapsed := -1.0
 var _audit_seed := 41001
 var _sample_duration := 420.0
 
@@ -39,7 +47,9 @@ func _run() -> void:
 	scene.begin_run()
 	while _director.elapsed_time < _sample_duration and _director._run_active:
 		_apply_audit_route()
-		if _strategy == "dashbreaker" and _director.elapsed_time >= _next_dash_time:
+		if _strategy == "ramjet":
+			_update_ramjet_dash_cycle()
+		elif _strategy == "dashbreaker" and _director.elapsed_time >= _next_dash_time:
 			_director._on_dash_state_changed(true)
 			_director._on_dash_state_changed(false)
 			_next_dash_time = _director.elapsed_time + 0.75
@@ -83,8 +93,11 @@ func _run() -> void:
 func _validate_result() -> void:
 	var expected_paths := {
 		"dashbreaker": [RunBuild.DASHBREAKER, &"gravity_knot", RunBuild.BACKDRAFT_MINE, RunBuild.PULSE_CORE],
+		"ramjet": [RunBuild.DASHBREAKER, &"ramjet", RunBuild.DRIFT_BLADES, RunBuild.PULSE_CORE],
 		"stormtrail": [RunBuild.STORMTRAIL, &"twin_current", RunBuild.HUNTER_ARRAY, RunBuild.REDLINE_CORE],
+		"tempest_anchor": [RunBuild.STORMTRAIL, &"tempest_anchor", RunBuild.DRIFT_BLADES, RunBuild.REDLINE_CORE],
 		"arcstorm": [RunBuild.ARCSTORM, &"storm_lance", RunBuild.HUNTER_ARRAY, RunBuild.REDLINE_CORE],
+		"arc_orbit": [RunBuild.ARCSTORM, &"arc_orbit", RunBuild.DRIFT_BLADES, RunBuild.REDLINE_CORE],
 	}
 	_expect(expected_paths.has(_strategy), "Unknown engine strategy '%s'." % _strategy)
 	if not expected_paths.has(_strategy):
@@ -110,12 +123,21 @@ func _validate_result() -> void:
 	if _strategy == "dashbreaker":
 		_expect(_source_share(&"dash_nova") <= 0.65, "Dashbreaker's charged entry nova should not dominate its mature loadout.")
 		_expect(_source_share(&"gravity_knot") + _source_share(&"backdraft_mine") >= 0.05, "Dashbreaker's evolution and arsenal should make a measurable contribution.")
+	elif _strategy == "ramjet" and is_late_sample:
+		_expect(_source_share(&"ramjet") >= 0.15, "Ramjet impacts should remain a meaningful reward for threading dash lines through threats.")
+		_expect(_source_share(&"dash_nova") <= 0.7, "Dash Nova should open Ramjet entries without erasing direct-impact play.")
 	elif _strategy == "arcstorm":
 		_expect(_source_share(&"storm_lance") <= 0.75, "Storm Lance should reward aim without erasing Arcstorm's residual coverage.")
 		_expect(_source_share(&"arc_bolt") >= 0.15, "Missed Storm Lance lanes should preserve meaningful residual Arcstorm output.")
-	elif is_late_sample:
+	elif _strategy == "stormtrail" and is_late_sample:
 		_expect(_source_share(&"twin_current") <= 0.9, "Twin Current should reward sustained weaving without erasing its arsenal and base engine.")
 		_expect(_source_share(&"hunter_array") >= 0.05, "Stormtrail's independent arsenal should remain measurable at late density.")
+	elif _strategy == "tempest_anchor" and is_late_sample:
+		_expect(_source_share(&"tempest_anchor") >= 0.15 and _source_share(&"tempest_anchor") <= 0.65, "Tempest Anchor should matter without replacing its continuous route-control wake.")
+		_expect(_source_share(&"drift_blades") >= 0.04, "Tempest Anchor's independent close arsenal should remain measurable.")
+	elif _strategy == "arc_orbit" and is_late_sample:
+		_expect(_source_share(&"arc_orbit") <= 0.93, "Arc Orbit should reward threading without erasing the rest of its loadout.")
+		_expect(_source_share(&"drift_blades") >= 0.04, "Arc Orbit's independent close arsenal should remain measurable.")
 
 
 func _source_share(source_id: StringName) -> float:
@@ -129,23 +151,107 @@ func _expect(condition: bool, message: String) -> void:
 
 func _apply_audit_route() -> void:
 	var elapsed := _director.elapsed_time
+	var route_delta := 0.0 if _last_route_elapsed < 0.0 else minf(0.1, elapsed - _last_route_elapsed)
+	_last_route_elapsed = elapsed
 	var angular_speed := 58.0 / 720.0
 	var angle := elapsed * angular_speed
 	var radius := 720.0
 	var radial_speed := 0.0
-	if _strategy == "stormtrail":
+	if _strategy in ["stormtrail", "tempest_anchor"]:
 		radius += sin(elapsed * 0.48) * 115.0
 		radial_speed = cos(elapsed * 0.48) * 115.0 * 0.48
+	elif _strategy == "ramjet":
+		radius += sin(elapsed * 0.36) * 72.0
+		radial_speed = cos(elapsed * 0.36) * 72.0 * 0.36
 	var position := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 	var route_heading := Vector3(
 		radial_speed * cos(angle) - radius * angular_speed * sin(angle),
 		0.0,
 		radial_speed * sin(angle) + radius * angular_speed * cos(angle)
 	).normalized()
+	var orbit_threading_window := _strategy == "arc_orbit" and fmod(elapsed, 10.0) < 6.5
+	var ramjet_threading_window := _strategy == "ramjet" and fmod(elapsed, 10.0) < 5.5
+	if (_strategy == "arc_orbit" and not orbit_threading_window) or (_strategy == "ramjet" and not ramjet_threading_window):
+		_close_route_initialized = false
+	if (ramjet_threading_window or orbit_threading_window) and not _runner.is_dashing():
+		if not _close_route_initialized:
+			_close_route_position = position
+			_close_route_heading = route_heading
+			_close_route_initialized = true
+		var desired_heading := route_heading
+		var target := _find_close_route_target(_close_route_position)
+		if target != null:
+			desired_heading = target.global_position - _close_route_position
+			desired_heading.y = 0.0
+			desired_heading = desired_heading.normalized()
+		if _close_route_position.length() > 1200.0:
+			desired_heading = desired_heading.slerp(-_close_route_position.normalized(), 0.45).normalized()
+		_close_route_heading = _close_route_heading.slerp(desired_heading, minf(1.0, 3.4 * route_delta)).normalized()
+		_close_route_position += _close_route_heading * 58.0 * route_delta
+		position = _close_route_position
+		route_heading = _close_route_heading
+	if _strategy == "ramjet" and _runner.is_dashing():
+		var dash_progress := clampf(elapsed - _ramjet_dash_started_at, 0.0, 0.2)
+		position = _ramjet_dash_start + _ramjet_dash_heading * _runner.dash_speed * dash_progress
+		route_heading = _ramjet_dash_heading
+		_close_route_position = position
+		_close_route_heading = route_heading
 	position.y = _world.get_surface_height(position.x, position.z) + 2.0
 	_runner.global_position = position
 	_runner.apply_boundary_heading(route_heading)
-	_runner.velocity = route_heading * 58.0
+	var route_speed := 126.0 if _strategy == "ramjet" and _runner.is_dashing() else 58.0
+	_runner.velocity = route_heading * route_speed
+
+
+func _find_close_route_target(from_position: Vector3) -> EnemyAgent:
+	var best_target: EnemyAgent
+	var best_distance := 135.0
+	for enemy in _director._enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var offset: Vector3 = enemy.global_position - from_position
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance < best_distance:
+			best_target = enemy
+			best_distance = distance
+	return best_target
+
+
+func _update_ramjet_dash_cycle() -> void:
+	var elapsed := _director.elapsed_time
+	if _runner.is_dashing() and elapsed >= _dash_end_time:
+		_runner._dash_state.is_active = false
+		_director._on_dash_state_changed(false)
+	if _runner.is_dashing() or elapsed < _next_dash_time:
+		return
+	_runner._dash_state.is_active = true
+	_runner._dash_state.elapsed = 0.0
+	_ramjet_dash_started_at = elapsed
+	_ramjet_dash_start = _runner.global_position
+	_ramjet_dash_heading = _get_ramjet_dash_heading()
+	_director._on_dash_state_changed(true)
+	_dash_end_time = elapsed + 0.2
+	_next_dash_time = elapsed + 0.75
+
+
+func _get_ramjet_dash_heading() -> Vector3:
+	var best_target: EnemyAgent
+	var best_distance := 42.0
+	for enemy in _director._enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var offset: Vector3 = enemy.global_position - _runner.global_position
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance > 4.0 and distance < best_distance:
+			best_target = enemy
+			best_distance = distance
+	if best_target == null:
+		return _runner.heading.normalized()
+	var direction: Vector3 = best_target.global_position - _runner.global_position
+	direction.y = 0.0
+	return direction.normalized()
 
 
 func _update_aim_heading() -> void:
@@ -186,11 +292,29 @@ func _choose_upgrade(options: Array[StringName]) -> void:
 			&"dash_nova", &"dash_echo", &"phase_shell", &"event_horizon",
 			&"backdraft_charge", &"kinetic_repair",
 		]
+	elif _strategy == "ramjet":
+		preference = [
+			&"ramjet", RunBuild.DRIFT_BLADES, RunBuild.PULSE_CORE,
+			&"dash_nova", &"ramjet_mass", &"phase_shell", &"dash_echo",
+			&"drift_edge", &"kinetic_repair",
+		]
 	elif _strategy == "stormtrail":
 		preference = [
 			&"twin_current", RunBuild.HUNTER_ARRAY, RunBuild.REDLINE_CORE,
 			&"slipstream", &"wake_voltage", &"wake_width", &"wake_duration",
 			&"parallel_flow", &"hunter_guidance", &"kinetic_repair",
+		]
+	elif _strategy == "tempest_anchor":
+		preference = [
+			&"tempest_anchor", RunBuild.DRIFT_BLADES, RunBuild.REDLINE_CORE,
+			&"slipstream", &"storm_charge", &"wake_voltage", &"wake_width",
+			&"wake_duration", &"drift_edge", &"kinetic_repair",
+		]
+	elif _strategy == "arc_orbit":
+		preference = [
+			&"arc_orbit", RunBuild.DRIFT_BLADES, RunBuild.REDLINE_CORE,
+			&"velocity_coil", &"orbit_flux", &"arc_payload", &"arc_capacitor",
+			&"drift_edge", &"kinetic_repair",
 		]
 	else:
 		preference = [
