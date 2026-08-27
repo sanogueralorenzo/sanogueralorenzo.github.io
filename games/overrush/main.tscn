@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/combat_director.gd" id="5_combat"]
 [ext_resource type="Script" path="res://scripts/world_boundary.gd" id="6_boundary"]
+[ext_resource type="Script" path="res://scripts/audio_director.gd" id="7_audio"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_overrush"]
 sky_top_color = Color(0.018, 0.12, 0.43, 1)
@@ -209,6 +210,9 @@ omni_range = 9.0
 script = ExtResource("5_combat")
 runner_path = NodePath("../RunnerBall")
 world_path = NodePath("../World")
+
+[node name="AudioDirector" type="Node" parent="."]
+script = ExtResource("7_audio")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 10, 18)
@@ -691,16 +695,16 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -360.0
-offset_top = -270.0
+offset_top = -310.0
 offset_right = 360.0
-offset_bottom = 270.0
+offset_bottom = 310.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("LaunchPanelStyle")
 
 [node name="Content" type="VBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 7
 
 [node name="Kicker" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 layout_mode = 2
@@ -725,6 +729,70 @@ text = "These preferences save immediately and never change run difficulty or re
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
+
+[node name="AudioLabel" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "AUDIO MIX"
+
+[node name="MasterAudio" type="HBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "MASTER"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio"]
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 5.0
+value = 80.0
+
+[node name="Value" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio"]
+custom_minimum_size = Vector2(54, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.86, 0.96, 1)
+theme_override_font_sizes/font_size = 15
+text = "80%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="MusicAudio" type="HBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "MUSIC"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio"]
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 5.0
+value = 55.0
+
+[node name="Value" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio"]
+custom_minimum_size = Vector2(54, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.86, 0.96, 1)
+theme_override_font_sizes/font_size = 15
+text = "55%"
+horizontal_alignment = 2
+vertical_alignment = 1
 
 [node name="ReducedMotion" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 custom_minimum_size = Vector2(0, 42)

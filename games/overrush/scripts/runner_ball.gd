@@ -3,6 +3,7 @@ extends CharacterBody3D
 signal dash_state_changed(active: bool)
 signal integrity_changed(current: float, maximum: float)
 signal defeated
+signal damaged(amount: float)
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
 
@@ -144,9 +145,11 @@ func grant_damage_immunity(duration: float) -> void:
 func take_damage(amount: float) -> void:
 	if amount <= 0.0 or integrity <= 0.0 or _damage_invulnerability_remaining > 0.0:
 		return
+	var previous_integrity := integrity
 	integrity = maxf(0.0, integrity - amount)
 	_damage_invulnerability_remaining = damage_invulnerability
 	_damage_flash_remaining = 0.13
+	damaged.emit(previous_integrity - integrity)
 	integrity_changed.emit(integrity, maximum_integrity)
 	if integrity <= 0.0:
 		defeated.emit()

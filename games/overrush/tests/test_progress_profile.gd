@@ -12,6 +12,7 @@ func _init() -> void:
 	_test_unlock_progression_without_permanent_power()
 	_test_atomic_round_trip_and_backup_recovery()
 	_test_schema_one_migration()
+	_test_schema_two_audio_migration()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
 	if _failures.is_empty():
@@ -46,12 +47,15 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.high_contrast_telegraphs = true
 	profile.guidance_enabled = false
 	profile.onboarding_completed = true
+	profile.master_volume = 0.35
+	profile.music_volume = 0.4
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
 	var loaded := ProgressProfileModel.new()
 	_expect(loaded.load(_test_path), "A saved profile should load.")
 	_expect(loaded.momentum == 470 and loaded.selected_protocol == RunProtocolCatalog.REDLINE, "Profile state should survive a save/load round trip.")
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
+	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4), "Audio mix preferences should survive a save/load round trip.")
 
 	var absolute_path := ProjectSettings.globalize_path(_test_path)
 	profile.momentum = 520
@@ -80,6 +84,33 @@ func _test_schema_one_migration() -> void:
 	_expect(migrated.load(legacy_path), "A schema-one profile should migrate without losing progression.")
 	_expect(migrated.momentum == 300 and migrated.selected_protocol == RunProtocolCatalog.GLASS_VELOCITY, "Schema migration should retain earned Momentum and protocol selection.")
 	_expect(not migrated.reduced_motion and not migrated.high_contrast_telegraphs and migrated.guidance_enabled, "Schema migration should apply safe accessibility defaults.")
+	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55), "Older profiles should receive balanced default audio levels.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_two_audio_migration() -> void:
+	var legacy_path := _test_path + ".legacy2"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 2,
+		"momentum": 550,
+		"completed_runs": 4,
+		"victories": 2,
+		"best_time_seconds": 1200.0,
+		"selected_protocol": "elite_hunt",
+		"reduced_motion": true,
+		"high_contrast_telegraphs": true,
+		"guidance_enabled": false,
+		"onboarding_completed": true,
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-two profile should migrate when audio preferences are introduced.")
+	_expect(migrated.reduced_motion and migrated.high_contrast_telegraphs and migrated.onboarding_completed, "Schema-two migration should retain existing comfort preferences.")
+	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55), "Schema-two profiles should receive balanced default audio levels.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):

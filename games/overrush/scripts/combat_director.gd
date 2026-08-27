@@ -8,6 +8,10 @@ signal event_announced(title: String, subtitle: String)
 signal apex_health_changed(current: float, maximum: float)
 signal run_victory
 signal run_failed(reason: String)
+signal enemy_defeated_feedback(is_elite: bool, is_apex: bool)
+signal enemy_hit_feedback(is_apex: bool)
+signal experience_collected_feedback(value: int)
+signal attack_warning_feedback(attack_kind: StringName, is_elite: bool, is_apex: bool)
 
 const EnemyAgentScript = preload("res://scripts/enemy_agent.gd")
 const ArcProjectileScript = preload("res://scripts/arc_projectile.gd")
@@ -174,6 +178,8 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	enemy.apply_health_multiplier(_enemy_health_multiplier)
 	enemy.apply_accessibility(_reduced_motion, _high_contrast_telegraphs)
 	enemy.defeated.connect(_on_enemy_defeated)
+	enemy.health_changed.connect(_on_enemy_health_changed)
+	enemy.attack_telegraphed.connect(_on_enemy_attack_telegraphed)
 	if rank == &"apex":
 		enemy.health_changed.connect(_on_apex_health_changed)
 	add_child(enemy)
@@ -282,6 +288,7 @@ func _release_nova(position: Vector3, damage: float, radius: float, color: Color
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemies_defeated += 1
 	_enemies.erase(enemy)
+	enemy_defeated_feedback.emit(enemy.is_elite, enemy.is_apex)
 	if enemy.is_apex:
 		_apex = null
 		_run_active = false
@@ -296,10 +303,19 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 
 
 func _on_experience_collected(value: int) -> void:
+	experience_collected_feedback.emit(value)
 	build.add_experience(value)
 	build_changed.emit(build)
 	if build.pending_levels > 0 and not _awaiting_upgrade:
 		_offer_level_up()
+
+
+func _on_enemy_attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName) -> void:
+	attack_warning_feedback.emit(attack_kind, enemy.is_elite, enemy.is_apex)
+
+
+func _on_enemy_health_changed(enemy: EnemyAgent, _current: float, _maximum: float) -> void:
+	enemy_hit_feedback.emit(enemy.is_apex)
 
 
 func _offer_level_up() -> void:

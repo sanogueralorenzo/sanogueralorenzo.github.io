@@ -2,7 +2,7 @@ class_name ProgressProfile
 extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
-const SCHEMA_VERSION := 2
+const SCHEMA_VERSION := 3
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 
@@ -15,6 +15,8 @@ var reduced_motion := false
 var high_contrast_telegraphs := false
 var guidance_enabled := true
 var onboarding_completed := false
+var master_volume := 0.8
+var music_volume := 0.55
 
 
 func reset() -> void:
@@ -27,6 +29,8 @@ func reset() -> void:
 	high_contrast_telegraphs = false
 	guidance_enabled = true
 	onboarding_completed = false
+	master_volume = 0.8
+	music_volume = 0.55
 
 
 func get_unlocked_protocols() -> Array[StringName]:
@@ -120,6 +124,8 @@ func _load_absolute_path(absolute_path: String) -> bool:
 	high_contrast_telegraphs = bool(data.get("high_contrast_telegraphs", false))
 	guidance_enabled = bool(data.get("guidance_enabled", true))
 	onboarding_completed = bool(data.get("onboarding_completed", false))
+	master_volume = clampf(float(data.get("master_volume", 0.8)), 0.0, 1.0)
+	music_volume = clampf(float(data.get("music_volume", 0.55)), 0.0, 1.0)
 	return true
 
 
@@ -135,4 +141,6 @@ func _to_dictionary() -> Dictionary:
 		"high_contrast_telegraphs": high_contrast_telegraphs,
 		"guidance_enabled": guidance_enabled,
 		"onboarding_completed": onboarding_completed,
+		"master_volume": master_volume,
+		"music_volume": music_volume,
 	}

@@ -8,6 +8,7 @@ const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 @onready var ball = $RunnerBall
 @onready var camera = $Camera3D
 @onready var combat: CombatDirector = $CombatDirector
+@onready var audio: OverrushAudioDirector = $AudioDirector
 @onready var boundary: WorldBoundary = $WorldBoundary
 @onready var info: Label = $HUD/Info
 @onready var run_stats: Label = $HUD/RunStats
@@ -47,6 +48,10 @@ const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 @onready var replay_guidance_button: Button = $HUD/SettingsOverlay/SettingsPanel/Content/ReplayGuidance
 @onready var settings_back_button: Button = $HUD/SettingsOverlay/SettingsPanel/Content/Back
 @onready var tutorial_card: Label = $HUD/TutorialCard
+@onready var master_volume_slider: HSlider = $HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Slider
+@onready var master_volume_label: Label = $HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Value
+@onready var music_volume_slider: HSlider = $HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Slider
+@onready var music_volume_label: Label = $HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Value
 
 var _current_upgrade_options: Array[StringName] = []
 var _phase_name := "BREAKAWAY"
@@ -63,10 +68,12 @@ var _onboarding: RunOnboarding = RunOnboardingModel.new()
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = true
-	_persistence_enabled = DisplayServer.get_name() != "headless"
+	_persistence_enabled = DisplayServer.get_name() != "headless" and not has_meta("overrush_disable_persistence")
 	ball.respawn(world.get_spawn_position())
 	ball.dash_state_changed.connect(camera.set_dash_active)
+	ball.dash_state_changed.connect(audio.play_dash)
 	ball.integrity_changed.connect(_on_integrity_changed)
+	ball.damaged.connect(audio.play_hurt)
 	ball.defeated.connect(_on_runner_defeated)
 	combat.build_changed.connect(_on_build_changed)
 	combat.level_up_requested.connect(_on_level_up_requested)
@@ -75,6 +82,10 @@ func _ready() -> void:
 	combat.apex_health_changed.connect(_on_apex_health_changed)
 	combat.run_victory.connect(_on_run_victory)
 	combat.run_failed.connect(_on_run_failed)
+	combat.enemy_defeated_feedback.connect(audio.play_enemy_defeat)
+	combat.enemy_hit_feedback.connect(audio.play_enemy_hit)
+	combat.experience_collected_feedback.connect(audio.play_pickup)
+	combat.attack_warning_feedback.connect(audio.play_attack_warning)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
 	previous_protocol.pressed.connect(_cycle_protocol.bind(-1))
@@ -86,17 +97,20 @@ func _ready() -> void:
 	high_contrast_toggle.toggled.connect(_on_visual_accessibility_changed)
 	guidance_toggle.toggled.connect(_on_guidance_toggled)
 	replay_guidance_button.pressed.connect(_replay_guidance)
+	master_volume_slider.value_changed.connect(_on_audio_levels_changed)
+	music_volume_slider.value_changed.connect(_on_audio_levels_changed)
 	_on_integrity_changed(ball.integrity, ball.maximum_integrity)
 	_on_build_changed(combat.build)
 	camera.snap_to_target()
 	if _persistence_enabled:
 		_profile.load()
 	_apply_accessibility()
+	_apply_audio_levels()
 	_refresh_settings()
 	_available_protocols = _profile.get_unlocked_protocols()
 	_protocol_index = maxi(0, _available_protocols.find(_profile.selected_protocol))
 	_refresh_launch_screen()
-	if not _persistence_enabled and not has_meta("overrush_manual_start"):
+	if DisplayServer.get_name() == "headless" and not has_meta("overrush_manual_start"):
 		call_deferred("begin_run", RunProtocolCatalog.STANDARD)
 
 
@@ -161,6 +175,7 @@ func _on_build_changed(build: RunBuild) -> void:
 
 
 func _on_level_up_requested(options: Array[StringName]) -> void:
+	audio.play_level_up()
 	_current_upgrade_options = options
 	if is_instance_valid(_event_tween):
 		_event_tween.kill()
@@ -192,6 +207,7 @@ func _choose_upgrade(index: int) -> void:
 
 
 func _on_runner_defeated() -> void:
+	audio.play_defeat()
 	combat.stop_run()
 	var progress_text := _record_run_progress(false)
 	game_over_message.text = "RUN ENDED\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
@@ -206,9 +222,11 @@ func _on_runner_defeated() -> void:
 
 func _on_phase_changed(_phase_id: StringName, phase_name: String) -> void:
 	_phase_name = phase_name
+	audio.set_phase(_phase_id)
 
 
 func _on_event_announced(title: String, subtitle: String) -> void:
+	audio.play_phase_event()
 	if is_instance_valid(_event_tween):
 		_event_tween.kill()
 	event_banner.text = "%s\n%s" % [title, subtitle]
@@ -234,6 +252,7 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 
 
 func _on_run_victory() -> void:
+	audio.play_victory()
 	var progress_text := _record_run_progress(true)
 	victory_message.text = "APEX BROKEN\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO OVERRUN AGAIN" % [
 		combat.get_formatted_time(),
@@ -246,6 +265,7 @@ func _on_run_victory() -> void:
 
 
 func _on_run_failed(reason: String) -> void:
+	audio.play_defeat()
 	var progress_text := _record_run_progress(false)
 	game_over_message.text = "%s\n\n20:00  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
 		reason,
@@ -327,6 +347,10 @@ func _apply_accessibility() -> void:
 	combat.set_accessibility(_profile.reduced_motion, _profile.high_contrast_telegraphs)
 
 
+func _apply_audio_levels() -> void:
+	audio.set_levels(_profile.master_volume, _profile.music_volume)
+
+
 func _open_settings() -> void:
 	settings_overlay.visible = true
 	reduced_motion_toggle.grab_focus()
@@ -342,6 +366,9 @@ func _refresh_settings() -> void:
 	high_contrast_toggle.set_pressed_no_signal(_profile.high_contrast_telegraphs)
 	guidance_toggle.set_pressed_no_signal(_profile.guidance_enabled)
 	replay_guidance_button.disabled = not _profile.onboarding_completed
+	master_volume_slider.set_value_no_signal(_profile.master_volume * 100.0)
+	music_volume_slider.set_value_no_signal(_profile.music_volume * 100.0)
+	_refresh_audio_labels()
 
 
 func _on_visual_accessibility_changed(_enabled: bool) -> void:
@@ -364,6 +391,19 @@ func _replay_guidance() -> void:
 	_profile.onboarding_completed = false
 	_refresh_settings()
 	_save_profile()
+
+
+func _on_audio_levels_changed(_value: float) -> void:
+	_profile.master_volume = float(master_volume_slider.value) / 100.0
+	_profile.music_volume = float(music_volume_slider.value) / 100.0
+	_apply_audio_levels()
+	_refresh_audio_labels()
+	_save_profile()
+
+
+func _refresh_audio_labels() -> void:
+	master_volume_label.text = "%d%%" % roundi(_profile.master_volume * 100.0)
+	music_volume_label.text = "%d%%" % roundi(_profile.music_volume * 100.0)
 
 
 func _update_onboarding(delta: float) -> void:
