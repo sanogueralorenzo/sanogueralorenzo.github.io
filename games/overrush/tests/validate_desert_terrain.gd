@@ -42,6 +42,32 @@ func _run() -> void:
 			net_descent >= MINIMUM_NET_DESCENT,
 			"Direction %d only descends %.1f m over %.0f m." % [direction_index, net_descent, SAMPLE_RADIUS],
 		)
+		var encountered_features := {}
+		var encountered_rock_chunks := {}
+		var rock_passage_count := 0
+		var lateral := Vector2(-direction.y, direction.x)
+		for feature_distance in range(512, int(SAMPLE_RADIUS) + 1, 64):
+			for lateral_offset in [-256.0, -192.0, -128.0, -64.0, 0.0, 64.0, 128.0, 192.0, 256.0]:
+				var feature_point: Vector2 = direction * feature_distance + lateral * float(lateral_offset)
+				if absf(desert.get_feature_height_offset(feature_point)) >= 0.75:
+					encountered_features[desert.get_feature_kind_at(feature_point)] = true
+			var rock_point: Vector2 = direction * feature_distance
+			var rock_coord := desert.get_chunk_coordinate(rock_point)
+			if not encountered_rock_chunks.has(rock_coord):
+				encountered_rock_chunks[rock_coord] = true
+				if desert.chunk_has_rock_passage(rock_coord):
+					rock_passage_count += 1
+		for required_kind in [
+			DesertFeatureGrammar.BOWL,
+			DesertFeatureGrammar.RIDGE,
+			DesertFeatureGrammar.KICKER,
+			DesertFeatureGrammar.SPLIT_LINE,
+		]:
+			_expect(
+				encountered_features.has(required_kind),
+				"Direction %d never encounters a %s feature over %.0f m." % [direction_index, required_kind, SAMPLE_RADIUS],
+			)
+		_expect(rock_passage_count >= 2, "Direction %d contains too few readable rock passages: %d." % [direction_index, rock_passage_count])
 
 	_expect(greatest_local_rise <= MAXIMUM_LOCAL_RISE, "A 50 m terrain segment rises too abruptly: %.1f m." % greatest_local_rise)
 	var endpoint_range: float = endpoint_heights.max() - endpoint_heights.min()
@@ -57,7 +83,7 @@ func _run() -> void:
 
 	if _failures.is_empty():
 		print(
-			"Desert terrain passed — 16 outward lines, shallowest descent %.1f m, max 50 m rise %.1f m, endpoint range %.1f m."
+			"Desert terrain passed — 16 outward line fans contain every feature family and rock gates; shallowest descent %.1f m, max 50 m rise %.1f m, endpoint range %.1f m."
 			% [shallowest_descent, greatest_local_rise, endpoint_range]
 		)
 		scene.queue_free()

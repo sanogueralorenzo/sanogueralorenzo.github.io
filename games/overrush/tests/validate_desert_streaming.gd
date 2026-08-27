@@ -22,6 +22,17 @@ func _run() -> void:
 	var desert: ProceduralDesert = scene.get_node("Desert")
 	var rider: Sandboarder = scene.get_node("Sandboarder")
 	var camera: Camera3D = scene.get_node("FollowCamera")
+	var initial_rocks := desert.get_loaded_rock_bodies()
+	_expect(initial_rocks.size() >= 8, "The opening stream should contain several readable rock passages beyond the summit.")
+	_expect(initial_rocks.size() <= 32, "Rock passages should remain sparse enough for alternate lines.")
+	for rock in initial_rocks:
+		_expect(desert.is_rock_collider(rock), "Rock bodies need an explicit non-sand collision identity.")
+		_expect(not desert.is_sand_collider(rock), "Rock collision must never qualify as a boost-refreshing sand landing.")
+		_expect(float(rock.get_meta(&"passage_clearance", 0.0)) >= 12.0, "Rock gates must retain at least 12 m of clear passage.")
+		var rock_shape: CollisionShape3D = rock.get_node("CollisionShape3D")
+		_expect(rock_shape.shape is SphereShape3D, "Every procedural rock needs dedicated solid collision.")
+		var logical_rock_position := desert.get_world_position(rock.global_position)
+		_expect(Vector2(logical_rock_position.x, logical_rock_position.z).length() >= 300.0, "Rocks must leave the central drop-in region unobstructed.")
 
 	_validate_shared_border(desert, Vector2i.ZERO, Vector2i.RIGHT)
 	await _validate_collision_seam(desert, rider)

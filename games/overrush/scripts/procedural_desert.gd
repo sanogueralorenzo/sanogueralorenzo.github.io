@@ -22,9 +22,12 @@ var _stream_center := Vector2i(2147483647, 2147483647)
 var _desired_chunks: Dictionary = {}
 var _pending_chunks: Array[Vector2i] = []
 var _sand_material: ShaderMaterial
+var _rock_material: StandardMaterial3D
+var _rock_mesh: SphereMesh
 var _broad_noise := FastNoiseLite.new()
 var _ridge_noise := FastNoiseLite.new()
 var _dune_noise := FastNoiseLite.new()
+var _feature_grammar := DesertFeatureGrammar.new()
 
 
 func _ready() -> void:
@@ -46,7 +49,8 @@ func generate() -> void:
 		random_seed.randomize()
 		generated_seed = random_seed.randi()
 	_configure_noise()
-	_create_material()
+	_feature_grammar.configure(generated_seed)
+	_create_materials()
 	_stream_center = Vector2i(2147483647, 2147483647)
 	_set_stream_focus(Vector2.ZERO, true)
 	print(
@@ -89,7 +93,8 @@ func get_surface_height(x: float, z: float) -> float:
 	var ridges := _ridge_noise.get_noise_2d(x, z)
 	var folded_ridges := signf(ridges) * ridges * ridges * 22.0
 	var dunes := _dune_noise.get_noise_2d(x, z) * 7.5
-	return summit_height - descent + feature_fade * (broad + folded_ridges + dunes)
+	var authored_feature := _feature_grammar.sample_height_offset(x, z)
+	return summit_height - descent + feature_fade * (broad + folded_ridges + dunes + authored_feature)
 
 
 func get_local_surface_height(x: float, z: float) -> float:
@@ -107,6 +112,32 @@ func get_surface_normal(x: float, z: float, sample_distance := 3.0) -> Vector3:
 
 func is_sand_collider(collider: Object) -> bool:
 	return collider is StaticBody3D and collider.get_meta(&"dune_drifter_sand", false)
+
+
+func is_rock_collider(collider: Object) -> bool:
+	return collider is StaticBody3D and collider.get_meta(&"dune_drifter_rock", false)
+
+
+func get_feature_kind_at(logical_position: Vector2) -> StringName:
+	return _feature_grammar.get_feature_kind_at(logical_position)
+
+
+func get_feature_height_offset(logical_position: Vector2) -> float:
+	return _feature_grammar.sample_height_offset(logical_position.x, logical_position.y)
+
+
+func chunk_has_rock_passage(coord: Vector2i) -> bool:
+	return Vector2(coord).length() * chunk_size >= 420.0 and _feature_grammar.get_cell_random(coord, 31) <= 0.38
+
+
+func get_loaded_rock_bodies() -> Array[StaticBody3D]:
+	var rocks: Array[StaticBody3D] = []
+	for chunk_value in loaded_chunks.values():
+		var chunk: StaticBody3D = chunk_value
+		for child in chunk.get_children():
+			if child is StaticBody3D and is_rock_collider(child):
+				rocks.append(child)
+	return rocks
 
 
 func get_chunk_coordinate(logical_position: Vector2) -> Vector2i:
@@ -201,6 +232,7 @@ func _load_chunk(coord: Vector2i) -> void:
 	var spacing := chunk_size / float(chunk_resolution - 1)
 	collision.scale = Vector3(spacing, 1.0, spacing)
 	chunk.add_child(collision)
+	_add_rock_passage(chunk, coord, reference_height)
 	add_child(chunk)
 	loaded_chunks[coord] = chunk
 
@@ -321,14 +353,68 @@ func _configure_noise() -> void:
 	_dune_noise.fractal_gain = 0.34
 
 
-func _create_material() -> void:
+func _create_materials() -> void:
 	_sand_material = null
-	if DisplayServer.get_name() == "headless":
+	_rock_material = null
+	_rock_mesh = SphereMesh.new()
+	_rock_mesh.radius = 1.0
+	_rock_mesh.height = 2.0
+	_rock_mesh.radial_segments = 12
+	_rock_mesh.rings = 6
+	if DisplayServer.get_name() != "headless":
+		_sand_material = ShaderMaterial.new()
+		_sand_material.shader = load("res://shaders/desert.gdshader")
+		_sand_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
+		_sand_material.set_shader_parameter("world_origin", Vector2.ZERO)
+		_rock_material = StandardMaterial3D.new()
+		_rock_material.albedo_color = Color("#4a2418")
+		_rock_material.roughness = 0.94
+
+
+func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
+	var chunk_center := Vector2(coord) * chunk_size
+	if not chunk_has_rock_passage(coord):
 		return
-	_sand_material = ShaderMaterial.new()
-	_sand_material.shader = load("res://shaders/desert.gdshader")
-	_sand_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
-	_sand_material.set_shader_parameter("world_origin", Vector2.ZERO)
+	var passage_center := chunk_center + Vector2(
+		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 32)),
+		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 33)),
+	)
+	var outward := chunk_center.normalized()
+	var angle_offset := deg_to_rad(lerpf(-26.0, 26.0, _feature_grammar.get_cell_random(coord, 34)))
+	var gate_axis := Vector2(-outward.y, outward.x).rotated(angle_offset)
+	var center_spacing := lerpf(21.0, 28.0, _feature_grammar.get_cell_random(coord, 35))
+	for rock_index in range(2):
+		var side := -1.0 if rock_index == 0 else 1.0
+		var logical_position := passage_center + gate_axis * center_spacing * 0.5 * side
+		var radius := lerpf(2.7, 4.1, _feature_grammar.get_cell_random(coord, 36 + rock_index))
+		var rock := StaticBody3D.new()
+		rock.name = "RockGate_%d_%d_%d" % [coord.x, coord.y, rock_index]
+		rock.set_meta(&"dune_drifter_rock", true)
+		rock.set_meta(&"passage_clearance", center_spacing - radius * 2.0)
+		rock.position = Vector3(
+			logical_position.x - chunk_center.x,
+			get_surface_height(logical_position.x, logical_position.y) - reference_height + radius * 0.55,
+			logical_position.y - chunk_center.y,
+		)
+		rock.rotation.y = _feature_grammar.get_cell_random(coord, 40 + rock_index) * TAU
+		var collision := CollisionShape3D.new()
+		collision.name = "CollisionShape3D"
+		var shape := SphereShape3D.new()
+		shape.radius = radius * 0.84
+		collision.shape = shape
+		rock.add_child(collision)
+		if DisplayServer.get_name() != "headless":
+			var visual := MeshInstance3D.new()
+			visual.name = "RockVisual"
+			visual.mesh = _rock_mesh
+			visual.material_override = _rock_material
+			visual.scale = Vector3(
+				radius * lerpf(0.9, 1.25, _feature_grammar.get_cell_random(coord, 42 + rock_index)),
+				radius * lerpf(0.72, 1.05, _feature_grammar.get_cell_random(coord, 44 + rock_index)),
+				radius * lerpf(0.9, 1.2, _feature_grammar.get_cell_random(coord, 46 + rock_index)),
+			)
+			rock.add_child(visual)
+		chunk.add_child(rock)
 
 
 func _clear_chunks() -> void:
