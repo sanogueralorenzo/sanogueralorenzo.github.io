@@ -27,6 +27,7 @@ var elite_defeats := 0
 var defeats_by_archetype: Dictionary = {}
 var upgrade_history: Array[StringName] = []
 var phase_reached := &"breakaway"
+var apex_id := &""
 
 var _last_position := Vector3.ZERO
 var _has_position := false
@@ -45,6 +46,7 @@ func reset(start_position: Vector3) -> void:
 	defeats_by_archetype.clear()
 	upgrade_history.clear()
 	phase_reached = &"breakaway"
+	apex_id = &""
 	_last_position = start_position
 	_has_position = true
 
@@ -97,6 +99,10 @@ func record_defeat(archetype: StringName, is_elite: bool) -> void:
 
 func set_phase(phase_id: StringName) -> void:
 	phase_reached = phase_id
+
+
+func set_apex_identity(new_apex_id: StringName) -> void:
+	apex_id = new_apex_id
 
 
 func get_total_damage() -> float:
@@ -158,6 +164,7 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"rerolls_used": rerolls_used,
 		"banishes_used": banishes_used,
 		"phase_reached": str(phase_reached),
+		"apex_id": str(apex_id),
 		"build_name": build.get_build_name(),
 		"level": build.level,
 		"upgrade_history": serialized_upgrades,

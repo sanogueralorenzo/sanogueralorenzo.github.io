@@ -22,6 +22,7 @@ const RunBuildScript = preload("res://scripts/run_build.gd")
 const RunStatsScript = preload("res://scripts/run_stats.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
+const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 
 const INITIAL_SPAWN_DELAY := 1.25
 const MINIMUM_SPAWN_INTERVAL := 0.24
@@ -217,6 +218,16 @@ func has_active_apex() -> bool:
 	return is_instance_valid(_apex) and not _apex.is_queued_for_deletion()
 
 
+func get_apex_archetype_for_run() -> StringName:
+	return ApexCatalogModel.get_for_seed(int(_world.generated_seed))
+
+
+func get_active_apex_title() -> String:
+	if not has_active_apex():
+		return "THE APEX"
+	return ApexCatalogModel.get_title(_apex.archetype)
+
+
 func _update_spawning(delta: float) -> void:
 	_spawn_timer -= delta
 	var population_limit := mini(MAXIMUM_ENEMIES, pacing.get_population_limit(elapsed_time))
@@ -245,6 +256,7 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	enemy.reinforcements_requested.connect(_on_reinforcements_requested)
 	if rank == &"apex":
 		enemy.health_changed.connect(_on_apex_health_changed)
+		enemy.apex_enraged.connect(_on_apex_enraged)
 	add_child(enemy)
 
 	var forward: Vector3 = _runner.heading.normalized()
@@ -559,8 +571,9 @@ func _on_reinforcements_requested(source: EnemyAgent, count: int) -> void:
 		return
 	var available_slots := maxi(0, MAXIMUM_ENEMIES - _enemies.size())
 	var spawn_count := mini(maxi(count, 0), available_slots)
+	var reinforcement_archetype := &"rift_spawn" if source.archetype == ApexCatalogModel.RIFT_MATRIARCH else &"drone"
 	for index in range(spawn_count):
-		var drone := _spawn_enemy(&"drone")
+		var drone := _spawn_enemy(reinforcement_archetype)
 		var angle := TAU * float(index) / float(maxi(spawn_count, 1)) + float(source.get_instance_id() % 17) * 0.21
 		var offset := Vector3(cos(angle), 0.0, sin(angle)) * (source.body_radius + drone.body_radius + 2.4)
 		drone.global_position = source.global_position + offset
@@ -617,7 +630,7 @@ func _update_run_pacing(previous_time: float) -> void:
 		_spawn_apex()
 	if pacing.crossed_deadline(previous_time, elapsed_time) and has_active_apex():
 		_run_active = false
-		run_failed.emit("THE APEX HELD THE STORM")
+		run_failed.emit("%s HELD THE STORM" % get_active_apex_title())
 
 
 func _spawn_scheduled_elite(elite_index: int) -> void:
@@ -626,14 +639,22 @@ func _spawn_scheduled_elite(elite_index: int) -> void:
 	event_announced.emit("ELITE INTERCEPT", "%s entered the jetstream" % _get_enemy_title(elite.archetype))
 
 
-func _spawn_apex() -> void:
-	_apex = _spawn_enemy(&"apex", &"apex")
+func _spawn_apex(apex_override: StringName = &"") -> void:
+	var apex_id := apex_override if ApexCatalogModel.is_valid(apex_override) else get_apex_archetype_for_run()
+	var definition := ApexCatalogModel.get_definition(apex_id)
+	_apex = _spawn_enemy(apex_id, &"apex")
+	run_stats.set_apex_identity(apex_id)
 	apex_health_changed.emit(_apex.health, _apex.maximum_health)
-	event_announced.emit("THE APEX DESCENDS", "Break it before 20:00")
+	event_announced.emit(str(definition.title), str(definition.arrival))
 
 
 func _on_apex_health_changed(_enemy: EnemyAgent, current: float, maximum: float) -> void:
 	apex_health_changed.emit(current, maximum)
+
+
+func _on_apex_enraged(enemy: EnemyAgent) -> void:
+	var definition := ApexCatalogModel.get_definition(enemy.archetype)
+	event_announced.emit(str(definition.enrage_title), str(definition.enrage_subtitle))
 
 
 func _get_phase_subtitle(phase_id: StringName) -> String:
@@ -662,6 +683,12 @@ func _get_enemy_title(archetype: StringName) -> String:
 			return "Swarm Foundry"
 		&"drone":
 			return "Foundry Drone"
+		&"rift_spawn":
+			return "Rift Spawn"
+		ApexCatalogModel.VELOCITY_REAVER:
+			return "Velocity Reaver"
+		ApexCatalogModel.RIFT_MATRIARCH:
+			return "Rift Matriarch"
 		_:
 			return "Overrun Pursuer"
 

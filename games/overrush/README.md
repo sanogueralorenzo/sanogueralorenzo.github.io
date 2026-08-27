@@ -25,7 +25,9 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
 - Each run grants three honest rerolls and one deliberate banish: rerolls only spend when a different offer exists, while banishment permanently removes one standard upgrade without consuming the level.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
-- A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute Apex climax with explicit victory or deadline failure.
+- A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
+- Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
+- Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Framed victory and defeat recaps identify the build, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
@@ -36,7 +38,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, core pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.
 
-This is not yet the complete target game. The 20-minute structure, first boss, six build evolutions, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, two Apex encounters, six build evolutions, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 
@@ -49,6 +51,7 @@ This is not yet the complete target game. The 20-minute structure, first boss, s
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution forks, capped support ranks, banishment filtering, alternate-offer detection, and branch tuning.
 - `run_stats.gd` owns applied-damage attribution, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
+- `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
 - `progress_profile.gd` owns versioned progression state, deterministic run rewards, protocol selection, atomic writes, and backup recovery.
 - `run_onboarding.gd` owns the input-aware, time-bounded first-run guidance sequence independently of the HUD.
@@ -108,6 +111,7 @@ godot --headless --path games/overrush --script res://tests/validate_combat_slic
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
 godot --headless --path games/overrush --script res://tests/validate_draft_agency.gd
+godot --headless --path games/overrush --script res://tests/validate_apex_variants.gd
 godot --headless --path games/overrush --script res://tests/validate_run_recap.gd
 ```
 

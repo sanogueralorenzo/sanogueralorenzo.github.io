@@ -27,6 +27,7 @@ func _init() -> void:
 	stats.record_banish()
 	stats.record_upgrade(&"dash_nova")
 	stats.record_upgrade(&"ramjet")
+	stats.set_apex_identity(&"velocity_reaver")
 	stats.record_defeat(&"rift_weaver", true)
 	stats.set_phase(&"overrun")
 	var top_sources := stats.get_top_damage_sources()
@@ -44,6 +45,7 @@ func _init() -> void:
 	_expect(int(summary.elite_defeats) == 1 and str(summary.phase_reached) == "overrun", "Run snapshots should preserve encounter progress.")
 	_expect(int(summary.dash_count) == 2 and is_equal_approx(float(summary.damage_taken), 22.0), "Run snapshots should preserve movement and survivability evidence.")
 	_expect(int(summary.rerolls_used) == 2 and int(summary.banishes_used) == 1, "Run snapshots should distinguish draft agency from favorable random rolls.")
+	_expect(str(summary.apex_id) == "velocity_reaver", "Run snapshots should retain which climax encounter the build faced.")
 	_expect((summary.upgrade_history as Array).size() == 2, "Run snapshots should retain the choice history used for balance review.")
 
 	if _failures.is_empty():

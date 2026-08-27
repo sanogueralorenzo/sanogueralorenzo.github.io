@@ -114,9 +114,9 @@ func play_attack_warning(attack_kind: StringName, is_elite: bool, is_apex: bool)
 	var pitch := 1.08
 	if "pulse" in str(attack_kind):
 		pitch = 0.72
-	elif attack_kind == &"rift_blast":
+	elif attack_kind in [&"rift_blast", &"apex_rift"]:
 		pitch = 1.28
-	elif attack_kind == &"foundry_bloom":
+	elif attack_kind in [&"foundry_bloom", &"apex_bloom"]:
 		pitch = 0.88
 	if is_apex:
 		pitch *= 0.78

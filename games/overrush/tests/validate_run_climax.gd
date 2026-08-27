@@ -67,6 +67,7 @@ func _validate_elite_telegraph_and_victory() -> void:
 	var apex: EnemyAgent = director._apex
 	_expect(is_instance_valid(apex) and apex.is_apex, "The climax should spawn a distinct Apex enemy.")
 	_expect(scene.get_node("HUD/ApexBar").visible, "The Apex should present a dedicated health bar.")
+	_expect("RIFT MATRIARCH" in scene.get_node("HUD/ApexLabel").text, "The boss HUD should identify the seed-selected encounter instead of using a generic Apex label.")
 	if is_instance_valid(apex):
 		apex.take_damage(apex.maximum_health * 0.5)
 		await process_frame
@@ -91,6 +92,7 @@ func _validate_deadline_failure() -> void:
 	_failure_seen = false
 	director.run_failed.connect(func(_reason: String) -> void: _failure_seen = true)
 	director._spawn_apex()
+	_expect(director._apex.archetype == &"velocity_reaver", "A different world seed should deterministically select the alternate Apex encounter.")
 	director.elapsed_time = director.pacing.RUN_DURATION + 0.1
 	director._update_run_pacing(director.pacing.RUN_DURATION - 0.1)
 	await process_frame

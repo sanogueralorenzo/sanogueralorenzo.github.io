@@ -3,6 +3,7 @@ extends Node3D
 const ProgressProfileModel = preload("res://scripts/progress_profile.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
+const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -331,7 +332,10 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 	apex_bar.value = current
 	apex_bar.visible = current > 0.0
 	apex_label.visible = current > 0.0
-	apex_label.text = "THE APEX  •  %d%%" % roundi(current / maxf(maximum, 1.0) * 100.0)
+	apex_label.text = "%s  •  %d%%" % [
+		combat.get_active_apex_title(),
+		roundi(current / maxf(maximum, 1.0) * 100.0),
+	]
 
 
 func _on_run_victory() -> void:
@@ -442,7 +446,14 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 	var record_text := "RUN LOGGED  •  CHASE THE NEXT RECORD" if record_names.is_empty() else "NEW BEST  •  %s" % " / ".join(record_names)
 	var banishes_used := int(summary.get("banishes_used", 0))
 	var banish_label := "BANISH" if banishes_used == 1 else "BANISHES"
-	return "%s\n\n%s  •  LEVEL %d\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
+	var apex_id := StringName(str(summary.get("apex_id", "")))
+	var apex_text := "APEX  •  NOT REACHED"
+	if ApexCatalogModel.is_valid(apex_id):
+		apex_text = "APEX  •  %s  •  %s" % [
+			ApexCatalogModel.get_title(apex_id),
+			"BROKEN" if bool(summary.get("victory", false)) else "UNBROKEN",
+		]
+	return "%s\n\n%s  •  LEVEL %d\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -455,6 +466,7 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 		int(summary.get("enemies_defeated", 0)),
 		int(summary.get("elite_defeats", 0)),
 		phase_name,
+		apex_text,
 		roundi(float(summary.get("damage_dealt", 0.0))),
 		roundi(float(summary.get("damage_taken", 0.0))),
 		combat.run_stats.get_damage_breakdown_text(),
