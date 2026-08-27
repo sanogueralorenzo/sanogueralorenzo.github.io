@@ -4,53 +4,123 @@ extends Node3D
 signal collected(value: int)
 
 const COLLECTION_RADIUS := 3.2
-const MAGNET_SPEED := 82.0
+const MAGNET_BASE_SPEED := 96.0
+const MAGNET_SPEED_MARGIN := 72.0
+const RECOVERY_DELAY := 8.0
+const RECOVERY_DISTANCE_ACCELERATION := 0.35
+const RECOVERY_SPEED_BONUS_LIMIT := 260.0
 
 var target: CharacterBody3D
 var value := 1
 var magnet_radius := 30.0
 var _phase := 0.0
+var _age := 0.0
+var _hover_origin_y := 0.0
+var _magnetized := false
+var _collected := false
 
 
 func configure(new_target: CharacterBody3D, new_value: int, new_magnet_radius: float) -> void:
 	target = new_target
-	value = new_value
+	value = maxi(1, new_value)
 	magnet_radius = new_magnet_radius
+	_hover_origin_y = global_position.y
 	_build_visual()
 
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(target):
 		return
+	_age += delta
 	_phase += delta
 	rotation.y += delta * 3.2
 	var offset := target.global_position - global_position
 	var distance := offset.length()
 	if distance <= COLLECTION_RADIUS:
-		collected.emit(value)
-		queue_free()
+		_collect()
 		return
-	if distance <= magnet_radius:
-		var pull_strength := lerpf(0.35, 1.0, 1.0 - distance / magnet_radius)
-		global_position += offset.normalized() * MAGNET_SPEED * pull_strength * delta
-	else:
-		global_position.y += sin(_phase * 4.0) * 0.006
+	if not _magnetized and (distance <= magnet_radius or _age >= RECOVERY_DELAY):
+		_magnetized = true
+	if not _magnetized:
+		global_position.y = _hover_origin_y + sin(_phase * 4.0) * 0.14
+		return
+	var target_speed := Vector2(target.velocity.x, target.velocity.z).length()
+	var pursuit_speed := maxf(MAGNET_BASE_SPEED, target_speed + MAGNET_SPEED_MARGIN)
+	if _age >= RECOVERY_DELAY:
+		pursuit_speed += minf(distance * RECOVERY_DISTANCE_ACCELERATION, RECOVERY_SPEED_BONUS_LIMIT)
+	var travel_distance := pursuit_speed * delta
+	if travel_distance + COLLECTION_RADIUS >= distance:
+		_collect()
+		return
+	global_position += offset / distance * travel_distance
+
+
+func is_magnetized() -> bool:
+	return _magnetized
+
+
+func get_visual_tier() -> int:
+	if value >= 15:
+		return 2
+	if value >= 5:
+		return 1
+	return 0
+
+
+func _collect() -> void:
+	if _collected:
+		return
+	_collected = true
+	collected.emit(value)
+	queue_free()
 
 
 func _build_visual() -> void:
 	var mesh_instance := MeshInstance3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.72
-	mesh.height = 1.44
-	mesh.radial_segments = 10
-	mesh.rings = 5
-	mesh_instance.mesh = mesh
-	mesh_instance.scale = Vector3(0.7, 1.25, 0.7)
+	mesh_instance.mesh = _create_crystal_mesh()
+	var tier := get_visual_tier()
+	var tier_scale: float = [1.0, 1.22, 1.48][tier]
+	mesh_instance.scale = Vector3(0.72, 1.2, 0.72) * tier_scale
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_color = Color(0.2, 1.0, 0.48)
+	var tier_colors: Array[Color] = [
+		Color(0.18, 1.0, 0.46),
+		Color(0.08, 0.88, 1.0),
+		Color(1.0, 0.72, 0.1),
+	]
+	material.albedo_color = tier_colors[tier]
 	material.emission_enabled = true
-	material.emission = Color(0.05, 0.9, 0.25)
-	material.emission_energy_multiplier = 4.0
+	material.emission = tier_colors[tier] * 0.88
+	material.emission_energy_multiplier = 4.6
 	mesh_instance.material_override = material
 	add_child(mesh_instance)
+	for ring_index in range(tier + 1):
+		var ring := MeshInstance3D.new()
+		var ring_mesh := TorusMesh.new()
+		ring_mesh.inner_radius = 0.82 + ring_index * 0.18
+		ring_mesh.outer_radius = 0.94 + ring_index * 0.18
+		ring_mesh.rings = 18
+		ring_mesh.ring_segments = 6
+		ring.mesh = ring_mesh
+		ring.rotation_degrees = Vector3(18.0 + ring_index * 42.0, ring_index * 31.0, 0.0)
+		ring.material_override = material
+		add_child(ring)
+
+
+func _create_crystal_mesh() -> ArrayMesh:
+	const SIDES := 6
+	var vertices := PackedVector3Array()
+	var top := Vector3(0.0, 0.95, 0.0)
+	var bottom := Vector3(0.0, -0.95, 0.0)
+	for side_index in range(SIDES):
+		var angle := TAU * float(side_index) / float(SIDES)
+		var next_angle := TAU * float(side_index + 1) / float(SIDES)
+		var current := Vector3(cos(angle) * 0.72, 0.0, sin(angle) * 0.72)
+		var next := Vector3(cos(next_angle) * 0.72, 0.0, sin(next_angle) * 0.72)
+		vertices.append_array(PackedVector3Array([top, current, next, bottom, next, current]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh

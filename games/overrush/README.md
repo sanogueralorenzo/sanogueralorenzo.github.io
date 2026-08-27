@@ -19,6 +19,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Fragile zero-reward Foundry drones add bounded pack pressure without creating an experience exploit or exceeding the global population cap.
 - Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
+- Value-tiered crystal cores latch once approached, overtake maximum dash speed, and recover from distant terrain so fast traversal never discards earned progression or accumulates stale rewards.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
@@ -164,4 +165,10 @@ Run the directional hit, numeric integrity, and unobtrusive recovery feedback ch
 
 ```sh
 godot --headless --path games/overrush --script res://tests/validate_damage_feedback.gd
+```
+
+Run the dash-speed pickup pursuit, stale-reward recovery, value-silhouette, and empty-drop check with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/validate_pickup_flow.gd
 ```

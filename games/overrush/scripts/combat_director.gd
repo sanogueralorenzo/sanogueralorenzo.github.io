@@ -618,6 +618,8 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 		apex_health_changed.emit(0.0, enemy.maximum_health)
 		run_victory.emit()
 		return
+	if experience_value <= 0:
+		return
 	var pickup: ExperiencePickup = ExperiencePickupScript.new()
 	add_child(pickup)
 	pickup.global_position = enemy.global_position + Vector3.UP * 1.2
