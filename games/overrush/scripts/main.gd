@@ -105,6 +105,8 @@ var _using_gamepad := false
 var _settings_return_to_pause := false
 var _restart_armed := false
 var _damage_feedback_tween: Tween
+var _feedback_stage := &"intent"
+var _feedback_tag_options: Array[String] = []
 
 
 func _enter_tree() -> void:
@@ -148,8 +150,8 @@ func _ready() -> void:
 	game_over_retry.pressed.connect(_restart_scene)
 	victory_retry.pressed.connect(_restart_scene)
 	for index in range(ProgressProfileModel.REPLAY_INTENTS.size()):
-		game_over_feedback_buttons[index].pressed.connect(_record_replay_intent.bind(ProgressProfileModel.REPLAY_INTENTS[index]))
-		victory_feedback_buttons[index].pressed.connect(_record_replay_intent.bind(ProgressProfileModel.REPLAY_INTENTS[index]))
+		game_over_feedback_buttons[index].pressed.connect(_on_feedback_choice.bind(index))
+		victory_feedback_buttons[index].pressed.connect(_on_feedback_choice.bind(index))
 	settings_back_button.pressed.connect(_close_settings)
 	reduced_motion_toggle.toggled.connect(_on_visual_accessibility_changed)
 	high_contrast_toggle.toggled.connect(_on_visual_accessibility_changed)
@@ -569,6 +571,13 @@ func _refresh_launch_screen() -> void:
 	var feedback_count := _profile.get_recent_replay_feedback_count()
 	if feedback_count > 0:
 		recent_text += "  •  REPLAY YES %d / %d" % [_profile.get_recent_replay_yes_count(), feedback_count]
+	var top_playtest_tag := _profile.get_top_recent_playtest_tag()
+	if not top_playtest_tag.is_empty():
+		recent_text += "  •  TOP NOTE %s %d / %d" % [
+			str(ProgressProfileModel.PLAYTEST_TAG_NAMES[top_playtest_tag]),
+			_profile.get_recent_playtest_tag_frequency(top_playtest_tag),
+			_profile.get_recent_playtest_tag_count(),
+		]
 	mastery_summary.text = "BUILD MASTERY  •  %d / %d   •   %s\nNEXT CLEAR  •  %s" % [
 		_profile.get_mastery_count(),
 		ProgressProfileModel.MASTERY_IDS.size(),
@@ -584,26 +593,60 @@ func _refresh_launch_screen() -> void:
 	next_protocol.disabled = _available_protocols.size() <= 1
 
 
+func _on_feedback_choice(index: int) -> void:
+	if index < 0 or index >= ProgressProfileModel.REPLAY_INTENTS.size():
+		return
+	if _feedback_stage == &"intent":
+		_record_replay_intent(ProgressProfileModel.REPLAY_INTENTS[index])
+	elif _feedback_stage == &"tag" and index < _feedback_tag_options.size():
+		_record_playtest_tag(_feedback_tag_options[index])
+
+
 func _record_replay_intent(intent: String) -> void:
 	if not _profile.record_latest_replay_intent(intent):
 		return
 	_save_profile()
-	_apply_replay_feedback(game_over_feedback_prompt, game_over_feedback_buttons, intent)
-	_apply_replay_feedback(victory_feedback_prompt, victory_feedback_buttons, intent)
+	_feedback_stage = &"tag"
+	_feedback_tag_options = (
+		ProgressProfileModel.POSITIVE_PLAYTEST_TAGS.duplicate()
+		if intent == "yes"
+		else ProgressProfileModel.ISSUE_PLAYTEST_TAGS.duplicate()
+	)
+	_show_playtest_tags(game_over_feedback_prompt, game_over_feedback_buttons)
+	_show_playtest_tags(victory_feedback_prompt, victory_feedback_buttons)
+
+
+func _record_playtest_tag(tag: String) -> void:
+	if not _profile.record_latest_playtest_tag(tag):
+		return
+	_save_profile()
+	_feedback_stage = &"complete"
+	_apply_playtest_tag_feedback(game_over_feedback_prompt, game_over_feedback_buttons, tag)
+	_apply_playtest_tag_feedback(victory_feedback_prompt, victory_feedback_buttons, tag)
 
 
 func _reset_replay_feedback(prompt: Label, buttons: Array[Button]) -> void:
+	_feedback_stage = &"intent"
+	_feedback_tag_options.clear()
 	prompt.text = "PLAYTEST  •  WOULD YOU RUN AGAIN?"
 	for index in range(buttons.size()):
 		buttons[index].text = ProgressProfileModel.REPLAY_INTENTS[index].to_upper()
 		buttons[index].disabled = false
 
 
-func _apply_replay_feedback(prompt: Label, buttons: Array[Button], intent: String) -> void:
+func _show_playtest_tags(prompt: Label, buttons: Array[Button]) -> void:
+	prompt.text = "PLAYTEST  •  WHAT STOOD OUT?  •  OPTIONAL"
+	for index in range(buttons.size()):
+		var tag := _feedback_tag_options[index]
+		buttons[index].text = str(ProgressProfileModel.PLAYTEST_TAG_NAMES[tag])
+		buttons[index].disabled = false
+
+
+func _apply_playtest_tag_feedback(prompt: Label, buttons: Array[Button], selected_tag: String) -> void:
 	prompt.text = "PLAYTEST LOGGED  •  THANK YOU"
 	for index in range(buttons.size()):
-		var option := ProgressProfileModel.REPLAY_INTENTS[index]
-		buttons[index].text = "%s%s" % ["✓  " if option == intent else "", option.to_upper()]
+		var tag := _feedback_tag_options[index]
+		buttons[index].text = "%s%s" % ["✓  " if tag == selected_tag else "", str(ProgressProfileModel.PLAYTEST_TAG_NAMES[tag])]
 		buttons[index].disabled = true
 
 

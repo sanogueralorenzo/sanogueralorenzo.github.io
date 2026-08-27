@@ -74,6 +74,7 @@ func _run() -> void:
 	var message: Label = scene.get_node("HUD/GameOverOverlay/Message")
 	var retry: Button = scene.get_node("HUD/GameOverOverlay/Retry")
 	var feedback_prompt: Label = scene.get_node("HUD/GameOverOverlay/FeedbackPrompt")
+	var feedback_first: Button = scene.get_node("HUD/GameOverOverlay/FeedbackChoices/No")
 	var feedback_yes: Button = scene.get_node("HUD/GameOverOverlay/FeedbackChoices/Yes")
 	_expect(overlay.visible and paused, "A completed run should pause behind a dedicated recap overlay.")
 	_expect(retry.visible and retry.text == "RUN AGAIN  •  R", "The recap should expose a focused, device-aware retry action.")
@@ -97,9 +98,12 @@ func _run() -> void:
 	_expect(feedback_prompt.text == "PLAYTEST  •  WOULD YOU RUN AGAIN?" and not feedback_yes.disabled, "Outcome feedback should remain optional and available without blocking retry.")
 	feedback_yes.pressed.emit()
 	_expect(str(scene._profile.last_run_summary.replay_intent) == "yes" and str(scene._profile.run_history[0].replay_intent) == "yes", "A replay response should attach to the exact measured run.")
-	_expect("THANK YOU" in feedback_prompt.text and feedback_yes.disabled and feedback_yes.text.begins_with("✓"), "Submitted feedback should acknowledge the response with text as well as state.")
+	_expect("WHAT STOOD OUT?" in feedback_prompt.text and feedback_first.text == "MOVEMENT" and feedback_yes.text == "CLIMAX", "Replay intent should reveal one optional, sentiment-aware follow-up without adding another screen.")
+	feedback_first.pressed.emit()
+	_expect(str(scene._profile.last_run_summary.playtest_tag) == "movement_highlight" and str(scene._profile.run_history[0].playtest_tag) == "movement_highlight", "The optional playtest tag should attach to the same measured run.")
+	_expect("THANK YOU" in feedback_prompt.text and feedback_first.disabled and feedback_first.text.begins_with("✓"), "Completed playtest feedback should acknowledge the selected tag with text as well as state.")
 	scene._refresh_launch_screen()
-	_expect("REPLAY YES 1 / 1" in scene.mastery_summary.text, "The launch summary should expose recent replay intent for playtest review.")
+	_expect("REPLAY YES 1 / 1" in scene.mastery_summary.text and "TOP NOTE MOVEMENT" in scene.mastery_summary.text, "The launch summary should expose recent intent and its most common actionable note.")
 	_expect(scene.get_viewport().gui_get_focus_owner() == retry, "Optional feedback should not steal the default one-more-run focus.")
 
 	paused = false

@@ -3,11 +3,22 @@ extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunBuildModel = preload("res://scripts/run_build.gd")
-const SCHEMA_VERSION := 10
+const SCHEMA_VERSION := 11
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
 const REPLAY_INTENTS: Array[String] = ["no", "maybe", "yes"]
+const POSITIVE_PLAYTEST_TAGS: Array[String] = ["movement_highlight", "build_highlight", "climax_highlight"]
+const ISSUE_PLAYTEST_TAGS: Array[String] = ["readability_issue", "terrain_issue", "difficulty_issue"]
+const PLAYTEST_TAGS: Array[String] = POSITIVE_PLAYTEST_TAGS + ISSUE_PLAYTEST_TAGS
+const PLAYTEST_TAG_NAMES := {
+	"movement_highlight": "MOVEMENT",
+	"build_highlight": "BUILD",
+	"climax_highlight": "CLIMAX",
+	"readability_issue": "READABILITY",
+	"terrain_issue": "TERRAIN",
+	"difficulty_issue": "DIFFICULTY",
+}
 const MASTERY_IDS: Array[StringName] = [
 	&"ramjet", &"gravity_knot", &"twin_current", &"tempest_anchor", &"storm_lance", &"arc_orbit",
 	RunBuildModel.HUNTER_ARRAY, RunBuildModel.DRIFT_BLADES, RunBuildModel.BACKDRAFT_MINE,
@@ -149,6 +160,21 @@ func record_latest_replay_intent(intent: String) -> bool:
 		return false
 	last_run_summary["replay_intent"] = safe_intent
 	run_history[0]["replay_intent"] = safe_intent
+	last_run_summary["playtest_tag"] = ""
+	run_history[0]["playtest_tag"] = ""
+	return true
+
+
+func record_latest_playtest_tag(tag: String) -> bool:
+	var safe_tag := tag.to_lower()
+	if safe_tag not in PLAYTEST_TAGS or last_run_summary.is_empty() or run_history.is_empty():
+		return false
+	var replay_intent := str(last_run_summary.get("replay_intent", ""))
+	var valid_tags := POSITIVE_PLAYTEST_TAGS if replay_intent == "yes" else ISSUE_PLAYTEST_TAGS
+	if replay_intent not in REPLAY_INTENTS or safe_tag not in valid_tags:
+		return false
+	last_run_summary["playtest_tag"] = safe_tag
+	run_history[0]["playtest_tag"] = safe_tag
 	return true
 
 
@@ -166,6 +192,40 @@ func get_recent_replay_yes_count(limit: int = 5) -> int:
 		if str(run_history[index].get("replay_intent", "")) == "yes":
 			count += 1
 	return count
+
+
+func get_recent_playtest_tag_count(limit: int = 10) -> int:
+	var count := 0
+	for index in range(mini(limit, run_history.size())):
+		if str(run_history[index].get("playtest_tag", "")) in PLAYTEST_TAGS:
+			count += 1
+	return count
+
+
+func get_recent_playtest_tag_frequency(tag: String, limit: int = 10) -> int:
+	if tag not in PLAYTEST_TAGS:
+		return 0
+	var count := 0
+	for index in range(mini(limit, run_history.size())):
+		if str(run_history[index].get("playtest_tag", "")) == tag:
+			count += 1
+	return count
+
+
+func get_top_recent_playtest_tag(limit: int = 10) -> String:
+	var counts := {}
+	for index in range(mini(limit, run_history.size())):
+		var tag := str(run_history[index].get("playtest_tag", ""))
+		if tag in PLAYTEST_TAGS:
+			counts[tag] = int(counts.get(tag, 0)) + 1
+	var top_tag := ""
+	var top_count := 0
+	for tag in PLAYTEST_TAGS:
+		var count := int(counts.get(tag, 0))
+		if count > top_count:
+			top_tag = tag
+			top_count = count
+	return top_tag
 
 
 func save(path: String = DEFAULT_PATH) -> bool:
@@ -268,6 +328,10 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 	var replay_intent := str(summary.get("replay_intent", "")).to_lower()
 	if replay_intent not in REPLAY_INTENTS:
 		replay_intent = ""
+	var playtest_tag := str(summary.get("playtest_tag", "")).to_lower()
+	var valid_tags := POSITIVE_PLAYTEST_TAGS if replay_intent == "yes" else ISSUE_PLAYTEST_TAGS
+	if replay_intent.is_empty() or playtest_tag not in valid_tags:
+		playtest_tag = ""
 	var safe := {
 		"elapsed_seconds": maxf(0.0, float(summary.get("elapsed_seconds", 0.0))),
 		"enemies_defeated": maxi(0, int(summary.get("enemies_defeated", 0))),
@@ -294,6 +358,7 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"world_seed": int(summary.get("world_seed", 0)),
 		"victory": bool(summary.get("victory", false)),
 		"replay_intent": replay_intent,
+		"playtest_tag": playtest_tag,
 	}
 	safe["upgrade_history"] = _sanitize_string_array(summary.get("upgrade_history", []), 64)
 	safe["upgrade_events"] = _sanitize_upgrade_events(summary.get("upgrade_events", []))

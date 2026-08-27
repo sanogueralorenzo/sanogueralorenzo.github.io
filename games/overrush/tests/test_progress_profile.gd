@@ -20,6 +20,7 @@ func _init() -> void:
 	_test_schema_seven_incoming_damage_migration()
 	_test_schema_eight_recovery_migration()
 	_test_schema_nine_effects_migration()
+	_test_schema_ten_playtest_tag_migration()
 	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
@@ -63,7 +64,14 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
 	_expect(profile.record_latest_replay_intent("yes"), "A completed run should accept optional replay-intent feedback.")
 	_expect(profile.get_recent_replay_feedback_count() == 1 and profile.get_recent_replay_yes_count() == 1, "Recent playtest sentiment should remain measurable beside run telemetry.")
+	_expect(profile.record_latest_playtest_tag("movement_highlight"), "A positive replay response should accept one actionable strength tag.")
+	_expect(profile.get_recent_playtest_tag_count() == 1 and profile.get_recent_playtest_tag_frequency("movement_highlight") == 1 and profile.get_top_recent_playtest_tag() == "movement_highlight", "Recent playtest tags should remain measurable beside the exact run telemetry.")
+	_expect(not profile.record_latest_playtest_tag("terrain_issue") and str(profile.last_run_summary.playtest_tag) == "movement_highlight", "A tag from the wrong sentiment branch should not corrupt the recorded response.")
 	_expect(not profile.record_latest_replay_intent("invalid") and str(profile.last_run_summary.replay_intent) == "yes", "Invalid feedback should not overwrite a valid playtest response.")
+	var issue_profile := ProgressProfileModel.new()
+	issue_profile.record_run(420.0, 80, false, {"build_name": "STORMTRAIL • TWIN CURRENT"})
+	_expect(issue_profile.record_latest_replay_intent("maybe") and issue_profile.record_latest_playtest_tag("terrain_issue"), "Maybe and No responses should accept one actionable issue tag.")
+	_expect(not issue_profile.record_latest_playtest_tag("build_highlight") and issue_profile.get_top_recent_playtest_tag() == "terrain_issue", "Issue feedback should reject an incompatible positive tag.")
 	_expect("GRAVITY KNOT" in profile.get_next_mastery_goal(), "The next mastery goal should direct the player toward an unexplored build.")
 	_expect(RunProtocolCatalog.GLASS_VELOCITY not in profile.get_unlocked_protocols(), "Later protocols should require additional runs.")
 	_expect(profile.select_protocol(RunProtocolCatalog.REDLINE), "An unlocked challenge protocol should be selectable.")
@@ -91,6 +99,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 		"upgrade_history": ["velocity_coil", "storm_lance"],
 		"upgrade_events": [{"id": "velocity_coil", "elapsed_seconds": 14.5, "level": 2, "kind": "engine"}],
 		"replay_intent": "yes",
+		"playtest_tag": "build_highlight",
 	}
 	profile.selected_protocol = RunProtocolCatalog.REDLINE
 	profile.reduced_motion = true
@@ -100,7 +109,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.master_volume = 0.35
 	profile.music_volume = 0.4
 	profile.effects_volume = 0.65
-	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes"}]
+	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes", "playtest_tag": "build_highlight"}]
 	profile.mastered_build_ids = [&"storm_lance", &"drift_blades"]
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
 	var loaded := ProgressProfileModel.new()
@@ -112,6 +121,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	_expect(is_equal_approx(float(loaded.last_run_summary.damage_taken_by_source.apex_rift), 33.0), "Incoming threat attribution should survive a save/load round trip.")
 	_expect(is_equal_approx(float(loaded.last_run_summary.integrity_recovered), 54.0) and int(loaded.last_run_summary.recovery_pickups) == 4, "Recovery economy evidence should survive a save/load round trip.")
 	_expect(str(loaded.last_run_summary.replay_intent) == "yes" and loaded.get_recent_replay_yes_count() == 1, "Optional replay intent should survive a save/load round trip.")
+	_expect(str(loaded.last_run_summary.playtest_tag) == "build_highlight" and loaded.get_top_recent_playtest_tag() == "build_highlight", "Actionable playtest tags should survive a save/load round trip.")
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
 	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4) and is_equal_approx(loaded.effects_volume, 0.65), "All three audio mix preferences should survive a save/load round trip.")
@@ -320,6 +330,27 @@ func _test_schema_nine_effects_migration() -> void:
 	_expect(migrated.load(legacy_path), "A schema-nine profile should migrate when independent effects volume is introduced.")
 	_expect(is_equal_approx(migrated.master_volume, 0.6) and is_equal_approx(migrated.music_volume, 0.35), "Effects migration should preserve the existing audio mix.")
 	_expect(is_equal_approx(migrated.effects_volume, 1.0), "Existing players should retain the prior full-strength effects mix by default.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_ten_playtest_tag_migration() -> void:
+	var legacy_path := _test_path + ".legacy10"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 10,
+		"momentum": 1850,
+		"completed_runs": 20,
+		"victories": 10,
+		"last_run_summary": {"build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes"},
+		"run_history": [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes"}],
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-ten profile should migrate when actionable playtest tags are introduced.")
+	_expect(str(migrated.last_run_summary.playtest_tag).is_empty() and migrated.get_recent_playtest_tag_count() == 0, "Existing replay responses should migrate without inventing a reason tag.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):
