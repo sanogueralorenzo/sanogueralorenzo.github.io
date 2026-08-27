@@ -4,12 +4,14 @@ extends Node3D
 signal defeated(enemy: EnemyAgent, experience_value: int)
 signal health_changed(enemy: EnemyAgent, current: float, maximum: float)
 signal attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName)
+signal reinforcements_requested(enemy: EnemyAgent, count: int)
 
 enum AttackState { CHASE, TELEGRAPH, CHARGE, RECOVER }
 
 const CONTACT_DISTANCE_PADDING := 1.8
 const HEIGHT_SMOOTHING := 12.0
 const TELEGRAPH_ALPHA := 0.34
+const RIFT_PREDICTION_SECONDS := 0.9
 
 var target: CharacterBody3D
 var world: Node3D
@@ -32,6 +34,7 @@ var _state_timer := 0.0
 var _state_duration := 1.0
 var _charge_direction := Vector3.FORWARD
 var _charge_connected := false
+var _attack_center := Vector3.ZERO
 var _special_sequence := 0
 var _body_material: StandardMaterial3D
 var _body_mesh: MeshInstance3D
@@ -146,6 +149,24 @@ func _configure_archetype(difficulty: float) -> void:
 			contact_damage = 18.0 * sqrt(difficulty)
 			experience_value = 7
 			body_radius = 3.5
+		&"rift_weaver":
+			maximum_health = 34.0 * difficulty
+			movement_speed = 48.0 + difficulty
+			contact_damage = 13.0 * sqrt(difficulty)
+			experience_value = 5
+			body_radius = 2.6
+		&"swarm_foundry":
+			maximum_health = 72.0 * difficulty
+			movement_speed = 35.0 + difficulty * 0.7
+			contact_damage = 9.0 * sqrt(difficulty)
+			experience_value = 9
+			body_radius = 3.8
+		&"drone":
+			maximum_health = 9.0 * difficulty
+			movement_speed = 84.0 + difficulty * 2.0
+			contact_damage = 5.0 * sqrt(difficulty)
+			experience_value = 0
+			body_radius = 1.25
 		_:
 			maximum_health = 24.0 * difficulty
 			movement_speed = 56.0 + difficulty * 1.5
@@ -158,7 +179,12 @@ func _update_chase(planar_offset: Vector3, distance: float, delta: float) -> voi
 	if _can_begin_special(distance):
 		_begin_special(planar_offset)
 		return
-	_move_toward(planar_offset, distance, movement_speed, delta)
+	if archetype == &"rift_weaver":
+		_move_at_standoff(planar_offset, distance, 54.0, 88.0, delta)
+	elif archetype == &"swarm_foundry":
+		_move_at_standoff(planar_offset, distance, 62.0, 96.0, delta)
+	else:
+		_move_toward(planar_offset, distance, movement_speed, delta)
 	_try_contact_damage(distance)
 
 
@@ -179,14 +205,18 @@ func _update_telegraph(delta: float) -> void:
 	_telegraph_mesh.visible = false
 	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
-	if _attack_kind == &"bulwark_pulse" or _attack_kind == &"apex_pulse":
-		_resolve_pulse()
-		_begin_recovery()
-	else:
-		_attack_state = AttackState.CHARGE
-		_state_duration = 0.82 if is_apex else 0.52
-		_state_timer = _state_duration
-		_charge_connected = false
+	match _attack_kind:
+		&"bulwark_pulse", &"apex_pulse", &"rift_blast":
+			_resolve_pulse()
+			_begin_recovery()
+		&"foundry_bloom":
+			reinforcements_requested.emit(self, 3 if is_elite else 2)
+			_begin_recovery()
+		_:
+			_attack_state = AttackState.CHARGE
+			_state_duration = 0.82 if is_apex else 0.52
+			_state_timer = _state_duration
+			_charge_connected = false
 
 
 func _update_charge(distance: float, delta: float) -> void:
@@ -212,6 +242,20 @@ func _move_toward(planar_offset: Vector3, distance: float, speed: float, delta: 
 		global_position += planar_offset / distance * speed * delta
 
 
+func _move_at_standoff(planar_offset: Vector3, distance: float, near_distance: float, far_distance: float, delta: float) -> void:
+	if distance <= 0.01:
+		return
+	var direction := planar_offset / distance
+	if distance > far_distance:
+		global_position += direction * movement_speed * delta
+	elif distance < near_distance:
+		global_position -= direction * movement_speed * 0.82 * delta
+	else:
+		var side := Vector3(-direction.z, 0.0, direction.x)
+		var strafe_sign := -1.0 if _special_sequence % 2 == 0 else 1.0
+		global_position += side * movement_speed * 0.34 * strafe_sign * delta
+
+
 func _try_contact_damage(distance: float) -> void:
 	if distance <= body_radius + CONTACT_DISTANCE_PADDING and _contact_cooldown <= 0.0:
 		target.take_damage(contact_damage)
@@ -227,6 +271,12 @@ func _can_begin_special(distance: float) -> bool:
 		return distance >= 16.0 and distance <= 66.0
 	if archetype == &"bulwark":
 		return distance <= (38.0 if is_elite else 30.0)
+	if archetype == &"rift_weaver":
+		return distance >= 28.0 and distance <= 112.0
+	if archetype == &"swarm_foundry":
+		return distance <= 118.0
+	if archetype == &"drone":
+		return false
 	return is_elite and distance <= 58.0
 
 
@@ -234,20 +284,38 @@ func _begin_special(planar_offset: Vector3) -> void:
 	_special_sequence += 1
 	if is_apex and _special_sequence % 3 == 0:
 		_attack_kind = &"apex_pulse"
+	elif archetype == &"rift_weaver":
+		_attack_kind = &"rift_blast"
+	elif archetype == &"swarm_foundry":
+		_attack_kind = &"foundry_bloom"
 	elif archetype == &"bulwark" or (is_elite and archetype == &"pursuer"):
 		_attack_kind = &"bulwark_pulse"
 	else:
 		_attack_kind = &"apex_charge" if is_apex else &"skimmer_charge"
 	var predicted_target := target.global_position + target.velocity * (0.3 if is_apex else 0.18)
-	_charge_direction = Vector3(
-		predicted_target.x - global_position.x,
-		0.0,
-		predicted_target.z - global_position.z
-	).normalized()
-	if _charge_direction.length_squared() < 0.1:
-		_charge_direction = planar_offset.normalized()
+	if _attack_kind == &"rift_blast":
+		predicted_target = target.global_position + target.velocity * RIFT_PREDICTION_SECONDS
+		_attack_center = Vector3(
+			predicted_target.x,
+			world.get_surface_height(predicted_target.x, predicted_target.z) + 0.16,
+			predicted_target.z
+		)
+		_place_remote_telegraph(_attack_center)
+	else:
+		_charge_direction = Vector3(
+			predicted_target.x - global_position.x,
+			0.0,
+			predicted_target.z - global_position.z
+		).normalized()
+		if _charge_direction.length_squared() < 0.1:
+			_charge_direction = planar_offset.normalized()
 	_attack_state = AttackState.TELEGRAPH
-	_state_duration = 0.82 if is_apex else (0.9 if _attack_kind == &"bulwark_pulse" else 0.58)
+	if _attack_kind == &"rift_blast":
+		_state_duration = 1.05
+	elif _attack_kind == &"foundry_bloom":
+		_state_duration = 0.88
+	else:
+		_state_duration = 0.82 if is_apex else (0.9 if _attack_kind == &"bulwark_pulse" else 0.58)
 	_state_timer = _state_duration
 	_telegraph_mesh.visible = true
 	_telegraph_outline_mesh.visible = true
@@ -260,6 +328,10 @@ func _begin_special(planar_offset: Vector3) -> void:
 		warning_color = Color(0.18, 0.95, 1.0, warning_alpha)
 	elif _high_contrast_telegraphs:
 		warning_color = Color(1.0, 0.86, 0.06, warning_alpha)
+	elif _attack_kind == &"rift_blast":
+		warning_color = Color(0.72, 0.16, 1.0, warning_alpha)
+	elif _attack_kind == &"foundry_bloom":
+		warning_color = Color(0.35, 1.0, 0.18, warning_alpha)
 	else:
 		warning_color = Color(1.0, 0.16, 0.05, warning_alpha)
 	_telegraph_material.albedo_color = warning_color
@@ -272,19 +344,28 @@ func _begin_special(planar_offset: Vector3) -> void:
 
 
 func _resolve_pulse() -> void:
+	var center := _attack_center if _attack_kind == &"rift_blast" else global_position
 	var planar_distance := Vector2(
-		target.global_position.x - global_position.x,
-		target.global_position.z - global_position.z
+		target.global_position.x - center.x,
+		target.global_position.z - center.z
 	).length()
 	if planar_distance <= _get_attack_radius():
-		target.take_damage(contact_damage * (1.25 if is_apex else 0.9))
+		var damage_multiplier := 1.1 if _attack_kind == &"rift_blast" else (1.25 if is_apex else 0.9)
+		target.take_damage(contact_damage * damage_multiplier)
 
 
 func _begin_recovery() -> void:
 	_attack_state = AttackState.RECOVER
 	_state_duration = 0.38 if is_apex else 0.5
 	_state_timer = _state_duration
-	_special_cooldown = 2.35 if is_apex and health <= maximum_health * 0.5 else (2.9 if is_apex else 3.4)
+	if is_apex:
+		_special_cooldown = 2.35 if health <= maximum_health * 0.5 else 2.9
+	elif archetype == &"swarm_foundry":
+		_special_cooldown = 5.6
+	elif archetype == &"rift_weaver":
+		_special_cooldown = 4.2
+	else:
+		_special_cooldown = 3.4
 	_telegraph_mesh.visible = false
 	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
@@ -295,7 +376,16 @@ func _get_attack_radius() -> float:
 		return 34.0
 	if _attack_kind == &"bulwark_pulse":
 		return 27.0 if is_elite else 21.0
+	if _attack_kind == &"rift_blast":
+		return 14.0 if is_elite else 12.0
+	if _attack_kind == &"foundry_bloom":
+		return 18.0
 	return body_radius * (2.4 if is_apex else 2.0)
+
+
+func _place_remote_telegraph(center: Vector3) -> void:
+	_telegraph_mesh.global_position = center + Vector3.UP * 0.04
+	_telegraph_outline_mesh.global_position = center
 
 
 func _get_telegraph_alpha() -> float:
@@ -320,6 +410,12 @@ func _build_visuals() -> void:
 		_body_mesh.scale = Vector3(1.0, 0.52, 1.45)
 	elif archetype == &"bulwark":
 		_body_mesh.scale = Vector3(1.2, 0.85, 1.2)
+	elif archetype == &"rift_weaver":
+		_body_mesh.scale = Vector3(0.72, 1.18, 0.72)
+	elif archetype == &"swarm_foundry":
+		_body_mesh.scale = Vector3(1.22, 0.8, 1.22)
+	elif archetype == &"drone":
+		_body_mesh.scale = Vector3(0.62, 0.62, 1.5)
 	elif is_apex:
 		_body_mesh.scale = Vector3(1.18, 0.78, 1.45)
 	add_child(_body_mesh)
@@ -333,9 +429,23 @@ func _build_visuals() -> void:
 	_core_mesh.mesh = core
 	var core_material := StandardMaterial3D.new()
 	core_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	core_material.albedo_color = Color(0.72, 0.96, 1.0) if is_apex else Color(1.0, 0.82, 0.18)
+	if is_apex:
+		core_material.albedo_color = Color(0.72, 0.96, 1.0)
+	elif archetype == &"rift_weaver":
+		core_material.albedo_color = Color(0.88, 0.58, 1.0)
+	elif archetype == &"swarm_foundry" or archetype == &"drone":
+		core_material.albedo_color = Color(0.62, 1.0, 0.28)
+	else:
+		core_material.albedo_color = Color(1.0, 0.82, 0.18)
 	core_material.emission_enabled = true
-	core_material.emission = Color(0.08, 0.78, 1.0) if is_apex else Color(1.0, 0.28, 0.025)
+	if is_apex:
+		core_material.emission = Color(0.08, 0.78, 1.0)
+	elif archetype == &"rift_weaver":
+		core_material.emission = Color(0.54, 0.05, 1.0)
+	elif archetype == &"swarm_foundry" or archetype == &"drone":
+		core_material.emission = Color(0.16, 0.82, 0.04)
+	else:
+		core_material.emission = Color(1.0, 0.28, 0.025)
 	core_material.emission_energy_multiplier = 5.0 if is_apex else 4.0
 	_core_mesh.material_override = core_material
 	add_child(_core_mesh)
@@ -356,6 +466,8 @@ func _build_visuals() -> void:
 	_telegraph_material.emission_energy_multiplier = 4.0
 	_telegraph_mesh.material_override = _telegraph_material
 	add_child(_telegraph_mesh)
+	if archetype == &"rift_weaver":
+		_telegraph_mesh.top_level = true
 
 	_telegraph_outline_mesh = MeshInstance3D.new()
 	_telegraph_outline_mesh.mesh = _create_warning_ring_mesh()
@@ -369,10 +481,64 @@ func _build_visuals() -> void:
 	_telegraph_outline_material.emission_energy_multiplier = 5.0
 	_telegraph_outline_mesh.material_override = _telegraph_outline_material
 	add_child(_telegraph_outline_mesh)
+	if archetype == &"rift_weaver":
+		_telegraph_outline_mesh.top_level = true
+
+	_build_role_silhouette()
 
 	if is_elite or is_apex:
 		_build_rank_shell()
 	_update_material()
+
+
+func _build_role_silhouette() -> void:
+	if archetype == &"rift_weaver":
+		for tilt in [-52.0, 52.0]:
+			var ring := MeshInstance3D.new()
+			var torus := TorusMesh.new()
+			torus.inner_radius = body_radius * 0.7
+			torus.outer_radius = body_radius * 0.94
+			torus.rings = 20
+			torus.ring_segments = 8
+			ring.mesh = torus
+			ring.rotation_degrees = Vector3(tilt, 0.0, 18.0)
+			ring.material_override = _create_role_material(Color(0.56, 0.08, 1.0))
+			add_child(ring)
+	elif archetype == &"swarm_foundry":
+		for tilt in [-24.0, 24.0]:
+			var foundry_ring := MeshInstance3D.new()
+			var foundry_torus := TorusMesh.new()
+			foundry_torus.inner_radius = body_radius * 0.86
+			foundry_torus.outer_radius = body_radius * 1.08
+			foundry_torus.rings = 20
+			foundry_torus.ring_segments = 8
+			foundry_ring.mesh = foundry_torus
+			foundry_ring.rotation_degrees = Vector3(tilt, 0.0, 0.0)
+			foundry_ring.material_override = _create_role_material(Color(0.58, 0.92, 0.06))
+			add_child(foundry_ring)
+		for index in range(3):
+			var pod := MeshInstance3D.new()
+			var pod_mesh := SphereMesh.new()
+			pod_mesh.radius = body_radius * 0.24
+			pod_mesh.height = body_radius * 0.48
+			pod_mesh.radial_segments = 10
+			pod_mesh.rings = 5
+			pod.mesh = pod_mesh
+			var angle := TAU * float(index) / 3.0
+			pod.position = Vector3(cos(angle), 0.18, sin(angle)) * body_radius * 0.82
+			pod.material_override = _create_role_material(Color(0.24, 0.9, 0.08))
+			add_child(pod)
+
+
+func _create_role_material(color: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.metallic = 0.42
+	material.roughness = 0.24
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color * 0.72
+	material.emission_energy_multiplier = 2.2
+	return material
 
 
 func _create_warning_ring_mesh() -> ArrayMesh:
@@ -439,6 +605,12 @@ func _update_material() -> void:
 		base_color = Color(0.78, 0.08, 0.72)
 	elif archetype == &"bulwark":
 		base_color = Color(0.92, 0.22, 0.035)
+	elif archetype == &"rift_weaver":
+		base_color = Color(0.42, 0.035, 0.78)
+	elif archetype == &"swarm_foundry":
+		base_color = Color(0.14, 0.5, 0.045)
+	elif archetype == &"drone":
+		base_color = Color(0.32, 0.74, 0.06)
 	elif is_apex:
 		base_color = Color(0.025, 0.32, 0.62)
 	if is_elite:

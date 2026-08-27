@@ -15,8 +15,9 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A short, hold-sensitive dash that is repeatable on the ground and available once per airtime.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
-- Terrain-aware Pursuer, Skimmer, and Bulwark threats with escalating population and durability.
-- Skimmer charges and Bulwark pulses use ground telegraphs before their damaging windows; scheduled elites amplify those patterns without removing the warning.
+- Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
+- Fragile zero-reward Foundry drones add bounded pack pressure without creating an experience exploit or exceeding the global population cap.
+- Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
@@ -32,7 +33,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, core pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.
 
-This is not yet the complete target game. The 20-minute structure, first boss, six build evolutions, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broad content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, first boss, six build evolutions, five-role enemy roster, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 
@@ -40,7 +41,8 @@ This is not yet the complete target game. The 20-minute structure, first boss, s
 - `route_lookup.gd` converts route samples into packed Z buckets for allocation-free height queries.
 - `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
-- `combat_director.gd` owns spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
+- `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
+- `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution forks, capped support ranks, and branch tuning.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
@@ -97,6 +99,7 @@ godot --headless --path games/overrush --script res://tests/test_run_build.gd
 godot --headless --path games/overrush --script res://tests/test_build_evolution_balance.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
+godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
 ```
 
 Run the simulated 20-minute and in-engine maximum-speed boundary traversal checks with:

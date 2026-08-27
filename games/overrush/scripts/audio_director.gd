@@ -111,7 +111,13 @@ func play_attack_warning(attack_kind: StringName, is_elite: bool, is_apex: bool)
 	if _warning_cooldown > 0.0:
 		return
 	_warning_cooldown = 0.1
-	var pitch := 0.72 if "pulse" in str(attack_kind) else 1.08
+	var pitch := 1.08
+	if "pulse" in str(attack_kind):
+		pitch = 0.72
+	elif attack_kind == &"rift_blast":
+		pitch = 1.28
+	elif attack_kind == &"foundry_bloom":
+		pitch = 0.88
 	if is_apex:
 		pitch *= 0.78
 	_play_effect(&"warning", 1.0 if is_elite or is_apex else -3.0, pitch)

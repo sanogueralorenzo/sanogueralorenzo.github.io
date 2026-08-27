@@ -61,6 +61,7 @@ var _high_contrast_telegraphs := false
 var _dash_hit_ids: Dictionary = {}
 var _wake_drop_count := 0
 var _pending_evolution_announcement := ""
+var _introduced_archetypes: Dictionary = {}
 
 
 func _ready() -> void:
@@ -194,6 +195,7 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	enemy.defeated.connect(_on_enemy_defeated)
 	enemy.health_changed.connect(_on_enemy_health_changed)
 	enemy.attack_telegraphed.connect(_on_enemy_attack_telegraphed)
+	enemy.reinforcements_requested.connect(_on_reinforcements_requested)
 	if rank == &"apex":
 		enemy.health_changed.connect(_on_apex_health_changed)
 	add_child(enemy)
@@ -208,17 +210,50 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	spawn_position.y = _world.get_surface_height(spawn_position.x, spawn_position.z) + enemy.body_radius
 	enemy.global_position = spawn_position
 	_enemies.append(enemy)
+	_announce_archetype_once(archetype)
 	return enemy
 
 
 func _choose_archetype() -> StringName:
-	var roll := _rng.randf()
 	var phase_index := pacing.get_phase_index(elapsed_time)
-	if phase_index >= 1 and roll < 0.16 + phase_index * 0.025:
-		return &"bulwark"
-	if elapsed_time > 20.0 and roll < 0.46 + phase_index * 0.035:
-		return &"skimmer"
+	var roster := _get_roster_weights(phase_index, elapsed_time)
+	var roll := _rng.randf()
+	var cumulative := 0.0
+	for entry in roster:
+		cumulative += float(entry[1])
+		if roll <= cumulative:
+			return StringName(entry[0])
 	return &"pursuer"
+
+
+func _get_roster_weights(phase_index: int, run_time: float) -> Array:
+	if phase_index <= 0:
+		return [[&"pursuer", 1.0]] if run_time <= 20.0 else [
+			[&"pursuer", 0.7],
+			[&"skimmer", 0.3],
+		]
+	if phase_index == 1:
+		return [
+			[&"pursuer", 0.45],
+			[&"skimmer", 0.25],
+			[&"bulwark", 0.18],
+			[&"rift_weaver", 0.12],
+		]
+	if phase_index == 2:
+		return [
+			[&"pursuer", 0.31],
+			[&"skimmer", 0.25],
+			[&"bulwark", 0.19],
+			[&"rift_weaver", 0.16],
+			[&"swarm_foundry", 0.09],
+		]
+	return [
+		[&"pursuer", 0.24],
+		[&"skimmer", 0.24],
+		[&"bulwark", 0.20],
+		[&"rift_weaver", 0.18],
+		[&"swarm_foundry", 0.14],
+	]
 
 
 func _update_arc_weapon(delta: float) -> void:
@@ -451,6 +486,19 @@ func _on_enemy_attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName) ->
 	attack_warning_feedback.emit(attack_kind, enemy.is_elite, enemy.is_apex)
 
 
+func _on_reinforcements_requested(source: EnemyAgent, count: int) -> void:
+	if not _run_active or not is_instance_valid(source):
+		return
+	var available_slots := maxi(0, MAXIMUM_ENEMIES - _enemies.size())
+	var spawn_count := mini(maxi(count, 0), available_slots)
+	for index in range(spawn_count):
+		var drone := _spawn_enemy(&"drone")
+		var angle := TAU * float(index) / float(maxi(spawn_count, 1)) + float(source.get_instance_id() % 17) * 0.21
+		var offset := Vector3(cos(angle), 0.0, sin(angle)) * (source.body_radius + drone.body_radius + 2.4)
+		drone.global_position = source.global_position + offset
+		drone.global_position.y = _world.get_surface_height(drone.global_position.x, drone.global_position.z) + drone.body_radius * 0.72
+
+
 func _on_enemy_health_changed(enemy: EnemyAgent, _current: float, _maximum: float) -> void:
 	enemy_hit_feedback.emit(enemy.is_apex)
 
@@ -484,7 +532,7 @@ func _update_run_pacing(previous_time: float) -> void:
 
 
 func _spawn_scheduled_elite(elite_index: int) -> void:
-	var elite_archetypes: Array[StringName] = [&"skimmer", &"bulwark", &"pursuer", &"skimmer"]
+	var elite_archetypes: Array[StringName] = [&"skimmer", &"bulwark", &"rift_weaver", &"swarm_foundry"]
 	var elite := _spawn_enemy(elite_archetypes[elite_index % elite_archetypes.size()], &"elite")
 	event_announced.emit("ELITE INTERCEPT", "%s entered the jetstream" % _get_enemy_title(elite.archetype))
 
@@ -519,8 +567,24 @@ func _get_enemy_title(archetype: StringName) -> String:
 			return "Razor Skimmer"
 		&"bulwark":
 			return "Ember Bulwark"
+		&"rift_weaver":
+			return "Rift Weaver"
+		&"swarm_foundry":
+			return "Swarm Foundry"
+		&"drone":
+			return "Foundry Drone"
 		_:
 			return "Overrun Pursuer"
+
+
+func _announce_archetype_once(archetype: StringName) -> void:
+	if archetype not in [&"rift_weaver", &"swarm_foundry"] or _introduced_archetypes.has(archetype):
+		return
+	_introduced_archetypes[archetype] = true
+	if archetype == &"rift_weaver":
+		event_announced.emit("RIFT WEAVER", "Marked ground detonates — change lanes")
+	else:
+		event_announced.emit("SWARM FOUNDRY", "Break the source before it multiplies")
 
 
 func _spawn_pulse(position: Vector3, color: Color, radius: float, duration: float) -> void:
