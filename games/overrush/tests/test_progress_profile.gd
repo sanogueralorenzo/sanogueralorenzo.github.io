@@ -15,6 +15,7 @@ func _init() -> void:
 	_test_schema_two_audio_migration()
 	_test_schema_three_recap_migration()
 	_test_schema_four_history_migration()
+	_test_schema_five_cadence_migration()
 	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
@@ -40,6 +41,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 		"arsenal_id": "hunter_array",
 		"evolution_id": "ramjet",
 		"catalyst_uptime": 0.64,
+		"upgrade_events": [{"id": "dash_nova", "elapsed_seconds": 12.0, "level": 2, "kind": "engine"}],
 	})
 	_expect(int(first_result.momentum_earned) == 200, "A baseline full victory should award deterministic Momentum.")
 	_expect(RunProtocolCatalog.REDLINE in first_result.new_unlocks, "The first strong run should unlock Redline Protocol.")
@@ -48,6 +50,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect(int(profile.last_run_summary.rerolls_used) == 2 and int(profile.last_run_summary.banishes_used) == 1, "Persisted balance evidence should distinguish draft agency from favorable rolls.")
 	_expect(str(profile.last_run_summary.apex_id) == "velocity_reaver", "Persisted recaps should retain the encountered Apex identity.")
 	_expect(str(profile.last_run_summary.catalyst_id) == "redline_core" and is_equal_approx(float(profile.last_run_summary.catalyst_uptime), 0.64), "Persisted balance evidence should retain catalyst choice and empowered uptime.")
+	_expect((profile.last_run_summary.upgrade_events as Array).size() == 1 and str(profile.last_run_summary.upgrade_events[0].kind) == "engine", "Persisted balance evidence should retain sanitized build milestone timing.")
 	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
 	_expect("GRAVITY KNOT" in profile.get_next_mastery_goal(), "The next mastery goal should direct the player toward an unexplored build.")
 	_expect(RunProtocolCatalog.GLASS_VELOCITY not in profile.get_unlocked_protocols(), "Later protocols should require additional runs.")
@@ -71,6 +74,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 		"damage_dealt": 18250.0,
 		"distance_meters": 71500.0,
 		"upgrade_history": ["velocity_coil", "storm_lance"],
+		"upgrade_events": [{"id": "velocity_coil", "elapsed_seconds": 14.5, "level": 2, "kind": "engine"}],
 	}
 	profile.selected_protocol = RunProtocolCatalog.REDLINE
 	profile.reduced_motion = true
@@ -87,6 +91,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	_expect(loaded.momentum == 470 and loaded.selected_protocol == RunProtocolCatalog.REDLINE, "Profile state should survive a save/load round trip.")
 	_expect(loaded.best_clear_count == 144 and loaded.best_damage == 18250.0 and loaded.best_distance_meters == 71500.0, "Personal run records should survive a save/load round trip.")
 	_expect(str(loaded.last_run_summary.build_name) == "ARCSTORM • STORM LANCE" and (loaded.last_run_summary.upgrade_history as Array).size() == 2, "The bounded last-run snapshot should survive a save/load round trip.")
+	_expect((loaded.last_run_summary.upgrade_events as Array).size() == 1 and is_equal_approx(float(loaded.last_run_summary.upgrade_events[0].elapsed_seconds), 14.5), "Timestamped draft evidence should survive a save/load round trip.")
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
 	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4), "Audio mix preferences should survive a save/load round trip.")
@@ -190,6 +195,26 @@ func _test_schema_four_history_migration() -> void:
 	var migrated := ProgressProfileModel.new()
 	_expect(migrated.load(legacy_path), "A schema-four profile should migrate when run history and mastery are introduced.")
 	_expect(migrated.run_history.is_empty() and migrated.get_mastery_count() == 0, "Older profiles should receive safe empty mastery evidence without inventing clears.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_five_cadence_migration() -> void:
+	var legacy_path := _test_path + ".legacy5"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 5,
+		"momentum": 900,
+		"completed_runs": 10,
+		"victories": 5,
+		"last_run_summary": {"build_name": "STORMTRAIL • TWIN CURRENT"},
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-five profile should migrate when cadence telemetry is introduced.")
+	_expect((migrated.last_run_summary.upgrade_events as Array).is_empty(), "Older profiles should receive safe empty cadence evidence without inventing milestone times.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):

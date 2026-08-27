@@ -3,7 +3,7 @@ extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunBuildModel = preload("res://scripts/run_build.gd")
-const SCHEMA_VERSION := 5
+const SCHEMA_VERSION := 6
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
@@ -260,9 +260,31 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"victory": bool(summary.get("victory", false)),
 	}
 	safe["upgrade_history"] = _sanitize_string_array(summary.get("upgrade_history", []), 64)
+	safe["upgrade_events"] = _sanitize_upgrade_events(summary.get("upgrade_events", []))
 	safe["damage_by_source"] = _sanitize_numeric_dictionary(summary.get("damage_by_source", {}), 16)
 	safe["hits_by_source"] = _sanitize_numeric_dictionary(summary.get("hits_by_source", {}), 16)
 	safe["defeats_by_archetype"] = _sanitize_numeric_dictionary(summary.get("defeats_by_archetype", {}), 16)
+	return safe
+
+
+func _sanitize_upgrade_events(value) -> Array[Dictionary]:
+	var safe: Array[Dictionary] = []
+	if not (value is Array):
+		return safe
+	for item in value:
+		if safe.size() >= 64:
+			break
+		if not (item is Dictionary):
+			continue
+		var milestone_kind := str(item.get("kind", "standard"))
+		if milestone_kind not in ["standard", "engine", "evolution", "arsenal", "catalyst"]:
+			milestone_kind = "standard"
+		safe.append({
+			"id": str(item.get("id", "")).left(48),
+			"elapsed_seconds": maxf(0.0, float(item.get("elapsed_seconds", 0.0))),
+			"level": maxi(1, int(item.get("level", 1))),
+			"kind": milestone_kind,
+		})
 	return safe
 
 

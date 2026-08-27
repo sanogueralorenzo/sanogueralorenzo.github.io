@@ -16,7 +16,7 @@ func _run() -> void:
 	await process_frame
 	var director: CombatDirector = scene.get_node("CombatDirector")
 
-	director._on_experience_collected(12)
+	director._on_experience_collected(RunBuild.INITIAL_EXPERIENCE_REQUIREMENT)
 	await process_frame
 	_expect(paused and scene.level_up_overlay.visible, "The initial engine draft should pause the live run.")
 	_expect(not scene.tutorial_card.visible, "First-run guidance should yield visual priority while a draft decision is open.")

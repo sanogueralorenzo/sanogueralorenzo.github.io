@@ -118,6 +118,7 @@ func choose_upgrade(option_index: int) -> void:
 	if option_index < 0 or option_index >= options.size():
 		return
 	var chosen_upgrade := StringName(options[option_index])
+	var choosing_engine := build.core_path.is_empty()
 	var choosing_evolution := build.is_evolution_upgrade(chosen_upgrade)
 	var choosing_catalyst := build.is_catalyst_upgrade(chosen_upgrade)
 	var choosing_arsenal := build.is_arsenal_upgrade(chosen_upgrade)
@@ -130,7 +131,16 @@ func choose_upgrade(option_index: int) -> void:
 		_pending_catalyst_announcement = build.get_upgrade_name(chosen_upgrade)
 	if choosing_arsenal:
 		_pending_arsenal_announcement = build.get_upgrade_name(chosen_upgrade)
-	run_stats.record_upgrade(chosen_upgrade)
+	var milestone_kind := &"standard"
+	if choosing_engine:
+		milestone_kind = &"engine"
+	elif choosing_evolution:
+		milestone_kind = &"evolution"
+	elif choosing_arsenal:
+		milestone_kind = &"arsenal"
+	elif choosing_catalyst:
+		milestone_kind = &"catalyst"
+	run_stats.record_upgrade(chosen_upgrade, elapsed_time, build.level, milestone_kind)
 	if float(result.maximum_integrity) > 0.0:
 		_runner.increase_maximum_integrity(float(result.maximum_integrity), float(result.repair))
 	build.consume_pending_level()

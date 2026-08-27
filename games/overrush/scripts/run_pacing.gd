@@ -7,6 +7,12 @@ const ELITE_TIMES: Array[float] = [3.0 * 60.0, 7.0 * 60.0, 12.0 * 60.0, 15.0 * 6
 const PHASE_STARTS: Array[float] = [0.0, 3.0 * 60.0, 7.0 * 60.0, 12.0 * 60.0, APEX_TIME]
 const PHASE_IDS: Array[StringName] = [&"breakaway", &"pressure", &"redline", &"overrun", &"apex"]
 const PHASE_NAMES: Array[String] = ["BREAKAWAY", "PRESSURE RISES", "REDLINE", "OVERRUN", "THE APEX"]
+const BUILD_MILESTONE_WINDOWS := {
+	&"engine": Vector2(8.0, 45.0),
+	&"evolution": Vector2(45.0, 240.0),
+	&"arsenal": Vector2(150.0, 480.0),
+	&"catalyst": Vector2(360.0, 900.0),
+}
 
 
 func get_phase_index(elapsed_time: float) -> int:
@@ -56,3 +62,16 @@ func crossed_apex_time(previous_time: float, current_time: float) -> bool:
 
 func crossed_deadline(previous_time: float, current_time: float) -> bool:
 	return previous_time < RUN_DURATION and current_time >= RUN_DURATION
+
+
+func get_build_cadence_failures(milestone_times: Dictionary) -> Array[StringName]:
+	var failures: Array[StringName] = []
+	for milestone_id in BUILD_MILESTONE_WINDOWS:
+		if not milestone_times.has(milestone_id):
+			failures.append(StringName(milestone_id))
+			continue
+		var window: Vector2 = BUILD_MILESTONE_WINDOWS[milestone_id]
+		var milestone_time := float(milestone_times[milestone_id])
+		if milestone_time < window.x or milestone_time > window.y:
+			failures.append(StringName(milestone_id))
+	return failures

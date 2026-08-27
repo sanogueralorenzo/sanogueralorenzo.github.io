@@ -26,6 +26,7 @@ func _init() -> void:
 
 func _test_experience_progression() -> void:
 	var build := RunBuildScript.new()
+	_expect(build.experience_to_next == RunBuild.INITIAL_EXPERIENCE_REQUIREMENT and build.experience_to_next >= 18, "The first engine draft should follow the initial steering guidance beat.")
 	var gained: int = build.add_experience(40)
 	_expect(gained >= 2, "A large XP award should preserve overflow and grant multiple levels.")
 	_expect(build.pending_levels == gained, "Every gained level should require one build decision.")
@@ -34,7 +35,7 @@ func _test_experience_progression() -> void:
 
 func _test_first_choice_establishes_distinct_builds() -> void:
 	var build := RunBuildScript.new()
-	build.add_experience(12)
+	build.add_experience(RunBuild.INITIAL_EXPERIENCE_REQUIREMENT)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
 	var options: Array[StringName] = build.get_upgrade_options(rng)
@@ -173,7 +174,7 @@ func _test_player_facing_build_explanations() -> void:
 	explained_build.apply_upgrade(RunBuild.AIRFRAME_CORE)
 	var summary := explained_build.get_loadout_summary()
 	_expect("DASHBREAKER" in summary and "AIRFRAME CORE" in summary, "The loadout summary should expose engine and drive commitments.")
-	_expect("DASHBREAKER 7" in summary and "EXIT WOUND 1" in summary, "The loadout summary should expose owned upgrade ranks.")
+	_expect("DASHBREAKER %d" % RunBuild.CATALYST_UNLOCK_RANK in summary and "EXIT WOUND 1" in summary, "The loadout summary should expose owned upgrade ranks.")
 	_expect("0.80× GROUNDED" in blank_build.get_upgrade_effect_preview(RunBuild.AIRFRAME_CORE), "Catalyst previews should state their downside as prominently as their payoff.")
 
 

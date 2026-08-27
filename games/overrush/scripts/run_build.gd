@@ -6,8 +6,9 @@ const STORMTRAIL := &"stormtrail"
 const ARCSTORM := &"arcstorm"
 const EVOLUTION_UNLOCK_RANK := 4
 const ARSENAL_UNLOCK_RANK := 5
-const CATALYST_UNLOCK_RANK := 7
+const CATALYST_UNLOCK_RANK := 6
 const PULSE_WINDOW_SECONDS := 0.42
+const INITIAL_EXPERIENCE_REQUIREMENT := 18
 
 const KEYSTONE_IDS: Array[StringName] = [&"dash_nova", &"slipstream", &"velocity_coil"]
 const PATH_UPGRADES := {
@@ -124,7 +125,7 @@ const PATH_NAMES := {
 
 var level := 1
 var experience := 0
-var experience_to_next := 12
+var experience_to_next := INITIAL_EXPERIENCE_REQUIREMENT
 var pending_levels := 0
 var core_path: StringName = &""
 var evolution_id: StringName = &""

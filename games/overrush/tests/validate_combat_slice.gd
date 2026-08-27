@@ -27,7 +27,7 @@ func _run() -> void:
 		_expect(director.enemies_defeated > 0, "The automatic arc weapon should acquire and defeat a nearby threat.")
 		_expect(float(director.run_stats.damage_by_source.get(&"arc_bolt", 0.0)) > 0.0, "Automatic arc damage should reach the run recap under its own source.")
 
-	director._on_experience_collected(12)
+	director._on_experience_collected(RunBuild.INITIAL_EXPERIENCE_REQUIREMENT)
 	await process_frame
 	_expect(paused, "Level-up decisions should pause combat.")
 	_expect(scene.get_node("HUD/LevelUpOverlay").visible, "A level-up should present three readable choices.")

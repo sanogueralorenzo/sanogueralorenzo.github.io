@@ -28,13 +28,13 @@ func _run() -> void:
 	var build: RunBuild = RunBuildScript.new()
 	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
 		build.apply_upgrade(&"dash_nova")
-		director.run_stats.record_upgrade(&"dash_nova")
+		director.run_stats.record_upgrade(&"dash_nova", 12.0 if _rank == 0 else 40.0 + _rank * 25.0, _rank + 2, &"engine" if _rank == 0 else &"standard")
 	build.apply_upgrade(&"ramjet")
-	director.run_stats.record_upgrade(&"ramjet")
+	director.run_stats.record_upgrade(&"ramjet", 180.0, 6, &"evolution")
 	build.catalyst_id = RunBuild.REDLINE_CORE
-	director.run_stats.record_upgrade(RunBuild.REDLINE_CORE)
+	director.run_stats.record_upgrade(RunBuild.REDLINE_CORE, 600.0, 9, &"catalyst")
 	build.arsenal_id = RunBuild.HUNTER_ARRAY
-	director.run_stats.record_upgrade(RunBuild.HUNTER_ARRAY)
+	director.run_stats.record_upgrade(RunBuild.HUNTER_ARRAY, 315.0, 8, &"arsenal")
 	build.level = 9
 	director.build = build
 	director.elapsed_time = 743.2
@@ -76,6 +76,7 @@ func _run() -> void:
 	_expect(scene.has_node("HUD/GameOverOverlay/RecapPanel"), "The recap should use a framed panel rather than floating outcome text.")
 	_expect("DASHBREAKER • RAMJET" in message.text and "LEVEL 9" in message.text, "The recap should identify the demonstrated build and maturity.")
 	_expect("7 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
+	_expect("ENGINE 00:12" in message.text and "EVOLUTION 03:00" in message.text and "DRIVE 10:00" in message.text, "The recap should expose when the run's strategic identity came online.")
 	_expect("ARSENAL  •  HUNTER ARRAY" in message.text, "The recap should preserve the independent weapon choice for replay and balance review.")
 	_expect("REDLINE CORE" in message.text and "64% HOT" in message.text, "The recap should identify the movement catalyst and measured empowered uptime.")
 	_expect("VELOCITY REAVER" in message.text and "BROKEN" in message.text, "The recap should identify the climax encounter and its outcome.")

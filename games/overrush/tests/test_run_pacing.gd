@@ -18,6 +18,15 @@ func _init() -> void:
 	_expect(pacing.crossed_deadline(1199.9, 1200.1), "Crossing twenty minutes should resolve an unfinished run.")
 	_expect(pacing.get_intensity(900.0) > pacing.get_intensity(300.0), "Run intensity should escalate materially over time.")
 	_expect(pacing.get_spawn_interval(900.0) < pacing.get_spawn_interval(300.0), "Later phases should spawn threats faster.")
+	var intentional_cadence := {
+		&"engine": 12.0,
+		&"evolution": 90.0,
+		&"arsenal": 240.0,
+		&"catalyst": 600.0,
+	}
+	_expect(pacing.get_build_cadence_failures(intentional_cadence).is_empty(), "The authored progression windows should accept a staged full-build arc before Overrun.")
+	intentional_cadence.erase(&"arsenal")
+	_expect(pacing.get_build_cadence_failures(intentional_cadence) == [&"arsenal"], "Cadence validation should identify a missing build fork instead of treating partial progression as complete.")
 
 	if _failures.is_empty():
 		print("Run pacing validation passed — phases, elites, Apex, and deadline are scheduled.")

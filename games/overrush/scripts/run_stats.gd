@@ -31,6 +31,7 @@ var catalyst_total_seconds := 0.0
 var elite_defeats := 0
 var defeats_by_archetype: Dictionary = {}
 var upgrade_history: Array[StringName] = []
+var upgrade_events: Array[Dictionary] = []
 var phase_reached := &"breakaway"
 var apex_id := &""
 
@@ -52,6 +53,7 @@ func reset(start_position: Vector3) -> void:
 	elite_defeats = 0
 	defeats_by_archetype.clear()
 	upgrade_history.clear()
+	upgrade_events.clear()
 	phase_reached = &"breakaway"
 	apex_id = &""
 	_last_position = start_position
@@ -101,8 +103,38 @@ func record_catalyst_state(delta: float, active: bool) -> void:
 		catalyst_active_seconds += safe_delta
 
 
-func record_upgrade(upgrade_id: StringName) -> void:
+func record_upgrade(
+	upgrade_id: StringName,
+	elapsed_seconds: float = 0.0,
+	player_level: int = 1,
+	milestone_kind: StringName = &"standard"
+) -> void:
 	upgrade_history.append(upgrade_id)
+	upgrade_events.append({
+		"id": str(upgrade_id),
+		"elapsed_seconds": snappedf(maxf(0.0, elapsed_seconds), 0.1),
+		"level": maxi(1, player_level),
+		"kind": str(milestone_kind),
+	})
+
+
+func get_build_milestone_times() -> Dictionary:
+	var milestones := {}
+	for event in upgrade_events:
+		var milestone_kind := StringName(str(event.get("kind", "standard")))
+		if milestone_kind != &"standard" and not milestones.has(milestone_kind):
+			milestones[milestone_kind] = float(event.get("elapsed_seconds", 0.0))
+	return milestones
+
+
+func get_build_cadence_text() -> String:
+	var milestones := get_build_milestone_times()
+	var parts: Array[String] = []
+	for entry in [[&"engine", "ENGINE"], [&"evolution", "EVOLUTION"], [&"arsenal", "ARSENAL"], [&"catalyst", "DRIVE"]]:
+		var milestone_id: StringName = entry[0]
+		var label: String = entry[1]
+		parts.append("%s %s" % [label, _format_elapsed(float(milestones[milestone_id]))] if milestones.has(milestone_id) else "%s —" % label)
+	return "CADENCE  •  %s" % "  •  ".join(parts)
 
 
 func record_defeat(archetype: StringName, is_elite: bool) -> void:
@@ -164,6 +196,9 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 	var serialized_upgrades: Array[String] = []
 	for upgrade_id in upgrade_history:
 		serialized_upgrades.append(str(upgrade_id))
+	var serialized_upgrade_events: Array[Dictionary] = []
+	for event in upgrade_events:
+		serialized_upgrade_events.append(event.duplicate(true))
 	return {
 		"elapsed_seconds": snappedf(maxf(0.0, elapsed_time), 0.1),
 		"enemies_defeated": maxi(0, enemies_defeated),
@@ -187,5 +222,11 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"build_name": build.get_build_name(),
 		"level": build.level,
 		"upgrade_history": serialized_upgrades,
+		"upgrade_events": serialized_upgrade_events,
 		"defeats_by_archetype": serialized_defeats,
 	}
+
+
+func _format_elapsed(elapsed_seconds: float) -> String:
+	var total_seconds := floori(maxf(0.0, elapsed_seconds))
+	return "%02d:%02d" % [total_seconds / 60, total_seconds % 60]

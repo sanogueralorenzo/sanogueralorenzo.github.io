@@ -31,12 +31,14 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
+- Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; the first draft follows the opening guidance beat and the full identity arrives well before the Apex.
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
+- Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
 - Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles, and high-contrast attack zones with bright geometric boundaries.
@@ -171,4 +173,10 @@ Run the dash-speed pickup pursuit, stale-reward recovery, value-silhouette, and 
 
 ```sh
 godot --headless --path games/overrush --script res://tests/validate_pickup_flow.gd
+```
+
+Run the accelerated fixed-seed full-system progression cadence gate with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/validate_progression_cadence.gd
 ```

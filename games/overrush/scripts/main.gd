@@ -621,7 +621,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 	if arsenal_id in RunBuild.ARSENAL_IDS:
 		arsenal_text = "ARSENAL  •  %s" % combat.build.get_upgrade_name(arsenal_id)
 	drive_text = "%s\n%s" % [arsenal_text, drive_text]
-	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -630,6 +630,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		int(summary.get("rerolls_used", 0)),
 		banishes_used,
 		banish_label,
+		combat.run_stats.get_build_cadence_text(),
 		elapsed_seconds / 60,
 		elapsed_seconds % 60,
 		int(summary.get("enemies_defeated", 0)),
