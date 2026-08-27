@@ -21,6 +21,7 @@ func _init() -> void:
 	_test_schema_eight_recovery_migration()
 	_test_schema_nine_effects_migration()
 	_test_schema_ten_playtest_tag_migration()
+	_test_schema_eleven_flow_migration()
 	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
@@ -49,11 +50,13 @@ func _test_unlock_progression_without_permanent_power() -> void:
 		"damage_taken_by_source": {"skimmer_charge": 42.0},
 		"integrity_recovered": 36.0,
 		"recovery_pickups": 3,
+		"best_velocity_chain": 36,
+		"velocity_chain_defeats": 72,
 		"upgrade_events": [{"id": "dash_nova", "elapsed_seconds": 12.0, "level": 2, "kind": "engine"}],
 	})
-	_expect(int(first_result.momentum_earned) == 200, "A baseline full victory should award deterministic Momentum.")
+	_expect(int(first_result.momentum_earned) == 218 and int(first_result.flow_momentum_bonus) == 18, "A baseline victory should add a modest deterministic Flow bonus without changing combat power.")
 	_expect(RunProtocolCatalog.REDLINE in first_result.new_unlocks, "The first strong run should unlock Redline Protocol.")
-	_expect(&"damage" in first_result.new_records and &"distance" in first_result.new_records, "A first measured run should establish explicit personal records.")
+	_expect(&"damage" in first_result.new_records and &"distance" in first_result.new_records and &"flow" in first_result.new_records, "A first measured run should establish explicit combat, traversal, and Flow records.")
 	_expect(profile.best_damage == 12400.0 and str(profile.last_run_summary.build_name) == "DASHBREAKER • RAMJET", "Balance evidence and build identity should be retained after a run.")
 	_expect(int(profile.last_run_summary.rerolls_used) == 2 and int(profile.last_run_summary.banishes_used) == 1, "Persisted balance evidence should distinguish draft agency from favorable rolls.")
 	_expect(str(profile.last_run_summary.apex_id) == "velocity_reaver", "Persisted recaps should retain the encountered Apex identity.")
@@ -61,6 +64,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect((profile.last_run_summary.upgrade_events as Array).size() == 1 and str(profile.last_run_summary.upgrade_events[0].kind) == "engine", "Persisted balance evidence should retain sanitized build milestone timing.")
 	_expect(is_equal_approx(float(profile.last_run_summary.damage_taken_by_source.skimmer_charge), 42.0), "Persisted balance evidence should retain incoming damage attribution.")
 	_expect(is_equal_approx(float(profile.last_run_summary.integrity_recovered), 36.0) and int(profile.last_run_summary.recovery_pickups) == 3, "Persisted balance evidence should retain recovery economy usage.")
+	_expect(profile.best_velocity_chain == 36 and int(profile.last_run_summary.velocity_chain_defeats) == 72, "Best Flow and linked high-speed defeats should remain visible as movement-skill evidence.")
 	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
 	_expect(profile.get_mastery_count_for(ProgressProfileModel.EVOLUTION_MASTERY_IDS) == 1 and profile.get_mastery_count_for(ProgressProfileModel.ARSENAL_MASTERY_IDS) == 1 and profile.get_mastery_count_for(ProgressProfileModel.DRIVE_MASTERY_IDS) == 1, "Mastery progress should remain legible across evolution, arsenal, and Drive categories.")
 	_expect(profile.record_latest_replay_intent("yes"), "A completed run should accept optional replay-intent feedback.")
@@ -70,7 +74,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	var report := profile.get_latest_playtest_report()
 	var report_run: Dictionary = report.get("run", {})
 	_expect(str(report.get("format", "")) == ProgressProfileModel.PLAYTEST_REPORT_FORMAT and int(report.get("format_version", 0)) == ProgressProfileModel.PLAYTEST_REPORT_VERSION, "A copied playtest report should carry an explicit, versioned contract.")
-	_expect(str(report_run.get("build_name", "")) == "DASHBREAKER • RAMJET" and str(report_run.get("apex_id", "")) == "velocity_reaver", "A copied playtest report should retain the build and climax evidence needed for review.")
+	_expect(str(report_run.get("build_name", "")) == "DASHBREAKER • RAMJET" and str(report_run.get("apex_id", "")) == "velocity_reaver" and int(report_run.get("best_velocity_chain", 0)) == 36, "A copied playtest report should retain build, climax, and movement-skill evidence needed for review.")
 	_expect(str(report_run.get("replay_intent", "")) == "yes" and str(report_run.get("playtest_tag", "")) == "movement_highlight", "A copied playtest report should pair subjective feedback with the exact run telemetry.")
 	_expect(not report.has("run_history") and not report.has("momentum") and not report.has("selected_protocol"), "A copied playtest report should exclude progression, history, and unrelated profile state.")
 	var parsed_report = JSON.parse_string(profile.get_latest_playtest_report_json())
@@ -99,6 +103,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.best_clear_count = 144
 	profile.best_damage = 18250.0
 	profile.best_distance_meters = 71500.0
+	profile.best_velocity_chain = 42
 	profile.last_run_summary = {
 		"build_name": "ARCSTORM • STORM LANCE",
 		"damage_dealt": 18250.0,
@@ -106,6 +111,8 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 		"integrity_recovered": 54.0,
 		"recovery_pickups": 4,
 		"distance_meters": 71500.0,
+		"best_velocity_chain": 42,
+		"velocity_chain_defeats": 108,
 		"upgrade_history": ["velocity_coil", "storm_lance"],
 		"upgrade_events": [{"id": "velocity_coil", "elapsed_seconds": 14.5, "level": 2, "kind": "engine"}],
 		"replay_intent": "yes",
@@ -119,13 +126,13 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.master_volume = 0.35
 	profile.music_volume = 0.4
 	profile.effects_volume = 0.65
-	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes", "playtest_tag": "build_highlight"}]
+	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "best_velocity_chain": 42, "replay_intent": "yes", "playtest_tag": "build_highlight"}]
 	profile.mastered_build_ids = [&"storm_lance", &"drift_blades"]
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
 	var loaded := ProgressProfileModel.new()
 	_expect(loaded.load(_test_path), "A saved profile should load.")
 	_expect(loaded.momentum == 470 and loaded.selected_protocol == RunProtocolCatalog.REDLINE, "Profile state should survive a save/load round trip.")
-	_expect(loaded.best_clear_count == 144 and loaded.best_damage == 18250.0 and loaded.best_distance_meters == 71500.0, "Personal run records should survive a save/load round trip.")
+	_expect(loaded.best_clear_count == 144 and loaded.best_damage == 18250.0 and loaded.best_distance_meters == 71500.0 and loaded.best_velocity_chain == 42, "Personal combat, traversal, and Flow records should survive a save/load round trip.")
 	_expect(str(loaded.last_run_summary.build_name) == "ARCSTORM • STORM LANCE" and (loaded.last_run_summary.upgrade_history as Array).size() == 2, "The bounded last-run snapshot should survive a save/load round trip.")
 	_expect((loaded.last_run_summary.upgrade_events as Array).size() == 1 and is_equal_approx(float(loaded.last_run_summary.upgrade_events[0].elapsed_seconds), 14.5), "Timestamped draft evidence should survive a save/load round trip.")
 	_expect(is_equal_approx(float(loaded.last_run_summary.damage_taken_by_source.apex_rift), 33.0), "Incoming threat attribution should survive a save/load round trip.")
@@ -361,6 +368,27 @@ func _test_schema_ten_playtest_tag_migration() -> void:
 	var migrated := ProgressProfileModel.new()
 	_expect(migrated.load(legacy_path), "A schema-ten profile should migrate when actionable playtest tags are introduced.")
 	_expect(str(migrated.last_run_summary.playtest_tag).is_empty() and migrated.get_recent_playtest_tag_count() == 0, "Existing replay responses should migrate without inventing a reason tag.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_eleven_flow_migration() -> void:
+	var legacy_path := _test_path + ".legacy11"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 11,
+		"momentum": 2050,
+		"completed_runs": 22,
+		"victories": 11,
+		"last_run_summary": {"build_name": "DASHBREAKER • GRAVITY KNOT"},
+		"run_history": [{"victory": true, "build_name": "DASHBREAKER • GRAVITY KNOT"}],
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-eleven profile should migrate when movement-skill records are introduced.")
+	_expect(migrated.best_velocity_chain == 0 and int(migrated.last_run_summary.best_velocity_chain) == 0, "Existing histories should not invent Flow performance that was never measured.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):

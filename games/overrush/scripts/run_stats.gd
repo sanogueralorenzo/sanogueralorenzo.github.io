@@ -49,6 +49,8 @@ var recovery_pickups := 0
 var distance_traveled := 0.0
 var maximum_speed := 0.0
 var dash_count := 0
+var best_velocity_chain := 0
+var velocity_chain_defeats := 0
 var rerolls_used := 0
 var banishes_used := 0
 var catalyst_active_seconds := 0.0
@@ -75,6 +77,8 @@ func reset(start_position: Vector3) -> void:
 	distance_traveled = 0.0
 	maximum_speed = 0.0
 	dash_count = 0
+	best_velocity_chain = 0
+	velocity_chain_defeats = 0
 	rerolls_used = 0
 	banishes_used = 0
 	catalyst_active_seconds = 0.0
@@ -129,6 +133,11 @@ func record_traversal(position: Vector3, horizontal_speed: float) -> void:
 
 func record_dash() -> void:
 	dash_count += 1
+
+
+func record_velocity_chain(current_count: int, qualifying_defeats: int) -> void:
+	best_velocity_chain = maxi(best_velocity_chain, maxi(0, current_count))
+	velocity_chain_defeats = maxi(velocity_chain_defeats, maxi(0, qualifying_defeats))
 
 
 func record_reroll() -> void:
@@ -287,6 +296,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"distance_meters": snappedf(distance_traveled, 0.1),
 		"maximum_speed": snappedf(maximum_speed, 0.1),
 		"dash_count": dash_count,
+		"best_velocity_chain": best_velocity_chain,
+		"velocity_chain_defeats": velocity_chain_defeats,
 		"rerolls_used": rerolls_used,
 		"banishes_used": banishes_used,
 		"catalyst_id": str(build.catalyst_id),

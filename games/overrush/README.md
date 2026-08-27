@@ -14,6 +14,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
 - The runner now carries an original procedural gyro shell with a forward needle, speed-reactive vector fins, steering bank, and a local dash-charge ring, preserving the compact ball collision model while making direction, velocity, and dash state readable in-world.
 - A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
+- A universal non-power Flow challenge chains rewarding defeats above 52 m/s, gives dashes bounded timer grace, weights elites without counting summons, escalates through five readable tiers, and converts only the run's best chain into at most 24 bonus Momentum—never damage or experience.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
 - Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
@@ -46,18 +47,18 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, applied integrity recovery, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
 - Victory and defeat recaps ask “Would you run again?” and reuse the same three buttons for one optional strength or issue tag; both answers attach to that run's full telemetry, retry keeps focus, recent sentiment plus the top note appear on the next launch screen, and `COPY RUN REPORT` places one sanitized, versioned latest-run JSON payload on the clipboard for external playtest handoff.
-- Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
+- Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, distance, and Flow records.
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
-- A launch-accessible, controller-safe run archive turns that history into five-card pages that compare outcome, duration, protocol, clears, elites, mature build components, level, replay intent, and optional playtest notes; empty and restored profiles remain explicit and usable.
+- A launch-accessible, controller-safe run archive turns that history into five-card pages that compare outcome, duration, protocol, clears, elites, mature build components, level, best Flow, replay intent, and optional playtest notes; empty and restored profiles remain explicit and usable.
 - Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
 - Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
 - A launch-accessible mastery record separates all six evolutions, three arsenals, and three Drives into visible completed and unexplored checklists, explains that mastery grants no combat power, and returns controller focus safely to run setup.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles and combat flashes, and high-contrast attack zones with bright geometric boundaries while preserving directional damage information.
-- Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
+- Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, the 52 m/s Flow rule, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
 - First-run lessons use a terrain-independent guidance card; returning players receive a six-second compact control refresher that never overlaps integrity, while the pause screen keeps the complete input reference available throughout the run.
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
-- Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
+- Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, rising Flow tiers, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master, music, and independent effects mix controls apply immediately to active pooled players; outcome cues duck the run music so the ending remains legible.
 - Full keyboard and gamepad action mapping supports analog steering, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
 - A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
@@ -75,7 +76,8 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 - `experience_pickup.gd` owns high-speed pursuit, stale-reward recovery, distinct experience/integrity silhouettes, and full-integrity banking behavior.
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
-- `run_stats.gd` owns outgoing and incoming attack attribution, applied integrity recovery, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
+- `velocity_chain.gd` owns the deterministic speed gate, timer pressure, dash grace, elite weight, named tiers, and capped non-power reward independently of combat and profile persistence.
+- `run_stats.gd` owns outgoing and incoming attack attribution, applied integrity recovery, catalyst uptime, Flow evidence, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
 - `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
@@ -137,6 +139,7 @@ Run the build rules and playable combat integration checks with:
 godot --headless --path games/overrush --script res://tests/test_run_build.gd
 godot --headless --path games/overrush --script res://tests/test_build_evolution_balance.gd
 godot --headless --path games/overrush --script res://tests/test_run_stats.gd
+godot --headless --path games/overrush --script res://tests/test_velocity_chain.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
@@ -145,6 +148,7 @@ godot --headless --path games/overrush --script res://tests/validate_drive_catal
 godot --headless --path games/overrush --script res://tests/validate_arsenal_weapons.gd
 godot --headless --path games/overrush --script res://tests/validate_apex_variants.gd
 godot --headless --path games/overrush --script res://tests/validate_run_recap.gd
+godot --headless --path games/overrush --script res://tests/validate_velocity_chain.gd
 ```
 
 Run the simulated 20-minute and in-engine maximum-speed boundary traversal checks with:
@@ -232,4 +236,4 @@ Run the fixed-step, finite-integrity 20-minute survival budget audit with:
 godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_survival_soak.gd -- 41001
 ```
 
-The audit uses a threat-aware Arcstorm route plus a controlled execution mistake every 45 seconds. It requires the real enemy population, pickups, recovery cap, build cadence, traversal, Apex phase, and victory/deadline resolution to sustain one complete run. Controlled mistakes make the recovery budget reproducible; this is a balance guardrail, not a substitute for human playtesting.
+The audit uses a threat-aware Arcstorm route plus a controlled execution mistake every 45 seconds. It requires the real enemy population, pickups, recovery cap, build cadence, traversal, a final-tier Flow chain with its capped reward, Apex phase, and victory/deadline resolution to sustain one complete run. Controlled mistakes make the recovery budget reproducible; this is a balance guardrail, not a substitute for human playtesting.

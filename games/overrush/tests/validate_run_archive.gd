@@ -79,6 +79,8 @@ func _populate_archive(profile: ProgressProfile) -> void:
 			"arsenal_id": arsenals[index],
 			"catalyst_id": drives[index],
 			"level": 12 + index,
+			"best_velocity_chain": 6 + index * 5,
+			"velocity_chain_defeats": 20 + index * 11,
 			"replay_intent": "yes" if victory else "maybe",
 			"playtest_tag": "build_highlight" if victory else "difficulty_issue",
 		})
@@ -87,9 +89,9 @@ func _populate_archive(profile: ProgressProfile) -> void:
 func _validate_populated_archive(scene: Node) -> void:
 	scene.profile_summary.pressed.emit()
 	_expect(not scene.archive_empty.visible and scene.archive_rows[0].visible and scene.archive_rows[4].visible, "A populated archive should replace the empty state with five recent run cards.")
-	_expect("7 RECORDED RUNS" in scene.archive_summary.text and "3 VICTORIES" in scene.archive_summary.text and "43% CLEAR RATE" in scene.archive_summary.text, "The archive header should summarize the complete recorded sample honestly.")
+	_expect("7 RECORDED RUNS" in scene.archive_summary.text and "3 VICTORIES" in scene.archive_summary.text and "43% CLEAR RATE" in scene.archive_summary.text and "BEST FLOW ×36" in scene.archive_summary.text, "The archive header should summarize outcomes and the best movement-skill record honestly.")
 	_expect("RUN 07" in scene.archive_rows[0].text and "VICTORY" in scene.archive_rows[0].text and "ELITE HUNT" in scene.archive_rows[0].text, "The newest card should identify its outcome, true run number, and protocol.")
-	_expect("DASHBREAKER / RAMJET" in scene.archive_rows[0].text and "HUNTER ARRAY" in scene.archive_rows[0].text and "REDLINE CORE" in scene.archive_rows[0].text, "Each card should expose the mature build components needed for comparison.")
+	_expect("DASHBREAKER / RAMJET" in scene.archive_rows[0].text and "HUNTER ARRAY" in scene.archive_rows[0].text and "REDLINE CORE" in scene.archive_rows[0].text and "FLOW ×36" in scene.archive_rows[0].text, "Each card should expose mature build components and movement execution needed for comparison.")
 	_expect("REPLAY YES" in scene.archive_rows[0].text and "NOTE BUILD" in scene.archive_rows[0].text, "A player's optional replay verdict and note should stay attached to the matching run.")
 	_expect("RUNS 1–5 OF 7" in scene.archive_page_label.text and scene.archive_newer_button.disabled and not scene.archive_older_button.disabled, "The first page should expose its range and only offer valid older navigation.")
 	scene.archive_older_button.pressed.emit()

@@ -3,7 +3,8 @@ extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunBuildModel = preload("res://scripts/run_build.gd")
-const SCHEMA_VERSION := 11
+const VelocityChainModel = preload("res://scripts/velocity_chain.gd")
+const SCHEMA_VERSION := 12
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
@@ -37,6 +38,7 @@ var best_time_seconds := 0.0
 var best_clear_count := 0
 var best_damage := 0.0
 var best_distance_meters := 0.0
+var best_velocity_chain := 0
 var last_run_summary: Dictionary = {}
 var run_history: Array[Dictionary] = []
 var mastered_build_ids: Array[StringName] = []
@@ -58,6 +60,7 @@ func reset() -> void:
 	best_clear_count = 0
 	best_damage = 0.0
 	best_distance_meters = 0.0
+	best_velocity_chain = 0
 	last_run_summary.clear()
 	run_history.clear()
 	mastered_build_ids.clear()
@@ -86,7 +89,9 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 	var unlocked_before := get_unlocked_protocols()
 	var definition := RunProtocolCatalog.get_definition(selected_protocol)
 	var base_reward := elapsed_time / 12.0 + maxi(enemies_defeated, 0) * 0.25 + (75.0 if victory else 0.0)
-	var earned := maxi(1, roundi(base_reward * float(definition.reward_multiplier)))
+	var run_velocity_chain := maxi(0, int(summary.get("best_velocity_chain", 0)))
+	var flow_momentum_bonus := VelocityChainModel.get_momentum_bonus_for(run_velocity_chain)
+	var earned := maxi(1, roundi(base_reward * float(definition.reward_multiplier)) + flow_momentum_bonus)
 	var safe_elapsed := maxf(0.0, elapsed_time)
 	var safe_clears := maxi(0, enemies_defeated)
 	var run_damage := maxf(0.0, float(summary.get("damage_dealt", 0.0)))
@@ -100,6 +105,8 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 		new_records.append(&"damage")
 	if run_distance > best_distance_meters:
 		new_records.append(&"distance")
+	if run_velocity_chain > best_velocity_chain:
+		new_records.append(&"flow")
 	momentum += earned
 	completed_runs += 1
 	if victory:
@@ -108,6 +115,7 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 	best_clear_count = maxi(best_clear_count, safe_clears)
 	best_damage = maxf(best_damage, run_damage)
 	best_distance_meters = maxf(best_distance_meters, run_distance)
+	best_velocity_chain = maxi(best_velocity_chain, run_velocity_chain)
 	last_run_summary = _sanitize_run_summary(summary)
 	last_run_summary["elapsed_seconds"] = snappedf(safe_elapsed, 0.1)
 	last_run_summary["enemies_defeated"] = safe_clears
@@ -130,6 +138,7 @@ func record_run(elapsed_time: float, enemies_defeated: int, victory: bool, summa
 	return {
 		"momentum_earned": earned,
 		"momentum_total": momentum,
+		"flow_momentum_bonus": flow_momentum_bonus,
 		"new_unlocks": new_unlocks,
 		"new_records": new_records,
 		"new_masteries": new_masteries,
@@ -317,6 +326,7 @@ func _load_absolute_path(absolute_path: String) -> bool:
 	best_clear_count = maxi(0, int(data.get("best_clear_count", 0)))
 	best_damage = maxf(0.0, float(data.get("best_damage", 0.0)))
 	best_distance_meters = maxf(0.0, float(data.get("best_distance_meters", 0.0)))
+	best_velocity_chain = maxi(0, int(data.get("best_velocity_chain", 0)))
 	var saved_summary = data.get("last_run_summary", {})
 	last_run_summary = _sanitize_run_summary(saved_summary if saved_summary is Dictionary else {})
 	run_history = _sanitize_run_history(data.get("run_history", []))
@@ -343,6 +353,7 @@ func _to_dictionary() -> Dictionary:
 		"best_clear_count": best_clear_count,
 		"best_damage": best_damage,
 		"best_distance_meters": best_distance_meters,
+		"best_velocity_chain": best_velocity_chain,
 		"last_run_summary": last_run_summary,
 		"run_history": run_history,
 		"mastered_build_ids": mastered_build_ids.map(func(id: StringName) -> String: return str(id)),
@@ -376,6 +387,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"distance_meters": maxf(0.0, float(summary.get("distance_meters", 0.0))),
 		"maximum_speed": maxf(0.0, float(summary.get("maximum_speed", 0.0))),
 		"dash_count": maxi(0, int(summary.get("dash_count", 0))),
+		"best_velocity_chain": maxi(0, int(summary.get("best_velocity_chain", 0))),
+		"velocity_chain_defeats": maxi(0, int(summary.get("velocity_chain_defeats", 0))),
 		"rerolls_used": maxi(0, int(summary.get("rerolls_used", 0))),
 		"banishes_used": maxi(0, int(summary.get("banishes_used", 0))),
 		"catalyst_id": str(summary.get("catalyst_id", "")).left(48),

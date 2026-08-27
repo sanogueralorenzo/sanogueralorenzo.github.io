@@ -1,5 +1,6 @@
 extends SceneTree
 
+const VelocityChainModel = preload("res://scripts/velocity_chain.gd")
 const SAMPLE_SPEED := 58.0
 const ROUTE_RADIUS := 700.0
 const MAX_EVASION_OFFSET := 150.0
@@ -44,7 +45,7 @@ func _run() -> void:
 		_apply_survival_route()
 		await process_frame
 	_apply_survival_route()
-	print("STANDARD SURVIVAL elapsed=%.1f outcome=%s level=%d clears=%d integrity=%.1f/%.1f taken=%.1f repaired=%.1f cores=%d distance=%.0f dashes=%d milestones=%s" % [
+	print("STANDARD SURVIVAL elapsed=%.1f outcome=%s level=%d clears=%d integrity=%.1f/%.1f taken=%.1f repaired=%.1f cores=%d distance=%.0f dashes=%d flow=%d/%d bonus=%d milestones=%s" % [
 		_director.elapsed_time,
 		_outcome,
 		_director.build.level,
@@ -56,6 +57,9 @@ func _run() -> void:
 		_director.run_stats.recovery_pickups,
 		_director.run_stats.distance_traveled,
 		_director.run_stats.dash_count,
+		_director.run_stats.best_velocity_chain,
+		_director.run_stats.velocity_chain_defeats,
+		_director.velocity_chain.get_momentum_bonus(),
 		str(_director.run_stats.get_build_milestone_times()),
 	])
 	print("STANDARD THREATS %s" % _director.run_stats.get_damage_taken_breakdown_text())
@@ -202,6 +206,9 @@ func _validate_result() -> void:
 	_expect(_director.run_stats.integrity_recovered >= 180.0, "Earned recovery should make a measurable contribution across a full run.")
 	_expect(_director.run_stats.recovery_pickups >= 12, "The full-run sample should exercise repeated recovery decisions.")
 	_expect(_director.run_stats.distance_traveled >= 55000.0, "Survival should preserve Overrush's high-speed traversal identity.")
+	_expect(_director.run_stats.best_velocity_chain >= 30, "A representative high-speed full run should reach the final Flow tier through actual rewarding defeats.")
+	_expect(_director.run_stats.velocity_chain_defeats >= _director.enemies_defeated * 0.75, "Flow telemetry should reflect sustained traversal rather than a rare scripted sample.")
+	_expect(_director.velocity_chain.get_momentum_bonus() == VelocityChainModel.MAX_MOMENTUM_BONUS, "A complete high-speed run should reach—but never exceed—the bounded non-power Flow reward.")
 	_expect(_director.pacing.get_build_cadence_failures(_director.run_stats.get_build_milestone_times()).is_empty(), "A surviving build should reach every strategic milestone inside its authored cadence window.")
 
 

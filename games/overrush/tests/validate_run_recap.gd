@@ -51,6 +51,7 @@ func _run() -> void:
 		director.run_stats.record_traversal(Vector3(0.0, 0.0, float(index + 1) * 200.0), 126.0 if index == 40 else 72.0)
 	for _dash in range(74):
 		director.run_stats.record_dash()
+	director.run_stats.record_velocity_chain(36, 72)
 	director.run_stats.record_reroll()
 	director.run_stats.record_reroll()
 	director.run_stats.record_banish()
@@ -92,7 +93,8 @@ func _run() -> void:
 	_expect("DASH NOVA" in message.text and "RAMJET" in message.text, "The recap should expose leading damage contributions for balance review.")
 	_expect("TOP THREATS" in message.text and "SKIMMER CHARGE 70%" in message.text, "The recap should teach the player and playtester which attack caused most incoming damage.")
 	_expect("24 REPAIRED / 2 CORES" in message.text, "The recap should expose how much bounded recovery influenced survivability.")
-	_expect("36.0 KM TRAVERSED" in message.text and "126 M/S PEAK" in message.text and "74 DASHES" in message.text, "The recap should preserve Overrush's traversal identity.")
+	_expect("36.0 KM TRAVERSED" in message.text and "126 M/S PEAK" in message.text and "74 DASHES" in message.text and "FLOW ×36 / 72 LINKED" in message.text, "The recap should preserve Overrush's traversal identity and movement-skill execution.")
+	_expect("FLOW +18" in message.text and scene._profile.best_velocity_chain == 36, "The recap should separate the bounded non-power Flow reward and persist its personal best.")
 	_expect("NEW BEST" in message.text and "+" in message.text and "MOMENTUM" in message.text, "The first measured run should connect records and progression to the retry prompt.")
 	_expect(str(scene._profile.last_run_summary.build_name) == "DASHBREAKER • RAMJET", "The same bounded recap evidence should persist through the profile model.")
 	_expect(is_equal_approx(float(scene._profile.last_run_summary.damage_taken_by_source.skimmer_charge), 47.0), "Incoming threat attribution should persist with the bounded run history.")
@@ -110,7 +112,7 @@ func _run() -> void:
 	_expect(copy_report.text == "✓ REPORT COPIED", "Copying a run report should provide visible confirmation without another screen.")
 	if DisplayServer.get_name() != "headless":
 		_expect(DisplayServer.clipboard_get() == scene._profile.get_latest_playtest_report_json(), "The recap action should place the complete latest-run report on the system clipboard.")
-	_expect(int(copied_run.get("world_seed", 0)) == 151867 and str(copied_run.get("build_name", "")) == "DASHBREAKER • RAMJET", "The copied report should retain the reproducible seed and demonstrated build.")
+	_expect(int(copied_run.get("world_seed", 0)) == 151867 and str(copied_run.get("build_name", "")) == "DASHBREAKER • RAMJET" and int(copied_run.get("best_velocity_chain", 0)) == 36, "The copied report should retain the reproducible seed, demonstrated build, and Flow execution.")
 	_expect(str(copied_run.get("apex_id", "")) == "velocity_reaver" and str(copied_run.get("playtest_tag", "")) == "movement_highlight", "The copied report should pair climax telemetry with the selected playtest note.")
 	scene._refresh_launch_screen()
 	_expect("REPLAY YES 1 / 1" in scene.mastery_summary.text and "TOP NOTE MOVEMENT" in scene.mastery_summary.text, "The launch summary should expose recent intent and its most common actionable note.")

@@ -5,8 +5,16 @@ const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
+const VelocityChainModel = preload("res://scripts/velocity_chain.gd")
 const CONTROL_REMINDER_SECONDS := 6.0
 const ARCHIVE_PAGE_SIZE := 5
+const VELOCITY_TIER_COLORS: Array[Color] = [
+	Color(0.68, 0.9, 1.0),
+	Color(0.2, 0.88, 1.0),
+	Color(0.42, 1.0, 0.66),
+	Color(1.0, 0.72, 0.22),
+	Color(1.0, 0.35, 0.84),
+]
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -25,6 +33,9 @@ const ARCHIVE_PAGE_SIZE := 5
 @onready var level_label: Label = $HUD/LevelLabel
 @onready var boundary_warning: Label = $HUD/BoundaryWarning
 @onready var event_banner: Label = $HUD/EventBanner
+@onready var velocity_panel: PanelContainer = $HUD/VelocityPanel
+@onready var velocity_label: Label = $HUD/VelocityPanel/Content/Label
+@onready var velocity_timer: ProgressBar = $HUD/VelocityPanel/Content/Timer
 @onready var apex_bar: ProgressBar = $HUD/ApexBar
 @onready var apex_label: Label = $HUD/ApexLabel
 @onready var level_up_overlay: Control = $HUD/LevelUpOverlay
@@ -163,6 +174,7 @@ func _ready() -> void:
 	combat.experience_collected_feedback.connect(audio.play_pickup)
 	combat.integrity_collected_feedback.connect(audio.play_repair)
 	combat.attack_warning_feedback.connect(audio.play_attack_warning)
+	combat.velocity_tier_changed.connect(audio.play_velocity_tier)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
 	reroll_button.pressed.connect(_reroll_upgrade_options)
@@ -228,6 +240,7 @@ func _process(_delta: float) -> void:
 		combat.get_enemy_count(),
 		combat.enemies_defeated,
 	]
+	_refresh_velocity_chain_hud()
 	var warning_text := boundary.get_warning_text()
 	boundary_warning.visible = not warning_text.is_empty()
 	if boundary_warning.visible:
@@ -239,6 +252,34 @@ func _process(_delta: float) -> void:
 		)
 	_update_onboarding(_delta)
 	_update_control_reminder(_delta)
+
+
+func _refresh_velocity_chain_hud() -> void:
+	var chain = combat.velocity_chain
+	velocity_panel.visible = _run_started and not _run_recorded and chain.best_count > 0
+	if not velocity_panel.visible:
+		return
+	var bonus: int = chain.get_momentum_bonus()
+	var reward_text := "+%d MOMENTUM BANKED" % bonus if bonus > 0 else "BONUS STARTS AT ×04"
+	if chain.current_count <= 0:
+		velocity_label.text = "FLOW LOST  •  %d M/S TO REBUILD\nBEST ×%02d  •  %s" % [
+			roundi(VelocityChainModel.QUALIFYING_SPEED),
+			chain.best_count,
+			reward_text,
+		]
+		velocity_label.add_theme_color_override("font_color", Color(0.62, 0.72, 0.82))
+		velocity_timer.value = 0.0
+		return
+	var tier: int = chain.get_tier()
+	velocity_label.text = "FLOW ×%02d  •  %s\nBEST ×%02d  •  %s" % [
+		chain.current_count,
+		chain.get_tier_name(),
+		chain.best_count,
+		reward_text,
+	]
+	velocity_label.add_theme_color_override("font_color", VELOCITY_TIER_COLORS[clampi(tier, 0, VELOCITY_TIER_COLORS.size() - 1)])
+	velocity_timer.max_value = VelocityChainModel.MAX_TIMER
+	velocity_timer.value = chain.timer
 
 
 func _input(event: InputEvent) -> void:
@@ -688,12 +729,13 @@ func _refresh_run_archive() -> void:
 	_archive_page = clampi(_archive_page, 0, page_count - 1)
 	var clear_rate := 0 if _profile.completed_runs == 0 else roundi(float(_profile.victories) / _profile.completed_runs * 100.0)
 	var best_seconds := floori(_profile.best_time_seconds)
-	archive_summary.text = "%d RECORDED RUNS  •  %d VICTORIES  •  %d%% CLEAR RATE  •  BEST %02d:%02d" % [
+	archive_summary.text = "%d RECORDED RUNS  •  %d VICTORIES  •  %d%% CLEAR RATE  •  BEST %02d:%02d  •  BEST FLOW ×%d" % [
 		_profile.completed_runs,
 		_profile.victories,
 		clear_rate,
 		best_seconds / 60,
 		best_seconds % 60,
+		_profile.best_velocity_chain,
 	]
 	archive_empty.visible = history_count == 0
 	var page_start := _archive_page * ARCHIVE_PAGE_SIZE
@@ -720,7 +762,13 @@ func _format_archive_run(summary: Dictionary, run_number: int) -> String:
 	var build_name := str(summary.get("build_name", "UNCOMMITTED"))
 	var arsenal_name := _get_archive_upgrade_name(StringName(str(summary.get("arsenal_id", ""))), "NO ARSENAL")
 	var drive_name := _get_archive_upgrade_name(StringName(str(summary.get("catalyst_id", ""))), "NO DRIVE")
-	var detail_parts: Array[String] = [build_name, arsenal_name, drive_name, "LEVEL %d" % int(summary.get("level", 1))]
+	var detail_parts: Array[String] = [
+		build_name,
+		arsenal_name,
+		drive_name,
+		"LEVEL %d" % int(summary.get("level", 1)),
+		"FLOW ×%d" % int(summary.get("best_velocity_chain", 0)),
+	]
 	var replay_intent := str(summary.get("replay_intent", ""))
 	if replay_intent in ProgressProfileModel.REPLAY_INTENTS:
 		detail_parts.append("REPLAY %s" % replay_intent.to_upper())
@@ -859,6 +907,13 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		int(result.get("momentum_earned", 0)),
 		int(result.get("momentum_total", 0)),
 	]
+	var flow_momentum_bonus := int(result.get("flow_momentum_bonus", 0))
+	if flow_momentum_bonus > 0:
+		progress_text = "+%d MOMENTUM  •  INCLUDES FLOW +%d  •  TOTAL %d" % [
+			int(result.get("momentum_earned", 0)),
+			flow_momentum_bonus,
+			int(result.get("momentum_total", 0)),
+		]
 	var unlock_names: Array[String] = []
 	for protocol_id in result.get("new_unlocks", []):
 		unlock_names.append(str(RunProtocolCatalog.get_definition(StringName(protocol_id)).name))
@@ -880,6 +935,8 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 				record_names.append("DAMAGE")
 			&"distance":
 				record_names.append("DISTANCE")
+			&"flow":
+				record_names.append("FLOW")
 	var record_text := "RUN LOGGED  •  CHASE THE NEXT RECORD" if record_names.is_empty() else "NEW BEST  •  %s" % " / ".join(record_names)
 	var banishes_used := int(summary.get("banishes_used", 0))
 	var banish_label := "BANISH" if banishes_used == 1 else "BANISHES"
@@ -902,7 +959,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 	if arsenal_id in RunBuild.ARSENAL_IDS:
 		arsenal_text = "ARSENAL  •  %s" % combat.build.get_upgrade_name(arsenal_id)
 	drive_text = "%s\n%s" % [arsenal_text, drive_text]
-	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN  •  %d REPAIRED / %d CORES\n%s\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN  •  %d REPAIRED / %d CORES\n%s\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES  •  FLOW ×%d / %d LINKED\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -927,6 +984,8 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		float(summary.get("distance_meters", 0.0)) / 1000.0,
 		roundi(float(summary.get("maximum_speed", 0.0))),
 		int(summary.get("dash_count", 0)),
+		int(summary.get("best_velocity_chain", 0)),
+		int(summary.get("velocity_chain_defeats", 0)),
 		progress_text,
 		record_text,
 	]

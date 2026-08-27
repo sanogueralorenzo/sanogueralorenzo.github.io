@@ -32,6 +32,7 @@ var _defeat_sequence := 0
 var _pickup_sequence := 0
 var _repair_sequence := 0
 var _upgrade_choice_sequence := 0
+var _velocity_tier_sequence := 0
 var _warning_cooldown := 0.0
 var _hit_cooldown := 0.0
 var _phase_drive_db := -24.0
@@ -152,6 +153,13 @@ func play_upgrade_choice(milestone: bool) -> void:
 
 func play_phase_event() -> void:
 	_play_effect(&"phase", -1.0, 1.0)
+
+
+func play_velocity_tier(tier: int) -> void:
+	if tier <= 0:
+		return
+	_velocity_tier_sequence += 1
+	_play_effect(&"level_up", -7.0 + minf(float(tier), 4.0), 0.92 + minf(float(tier), 4.0) * 0.11)
 
 
 func play_victory() -> void:

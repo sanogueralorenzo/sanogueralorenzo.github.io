@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -94,6 +94,13 @@ corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxFlat" id="ExperienceFill"]
 bg_color = Color(0.1, 0.88, 1, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="VelocityFill"]
+bg_color = Color(1, 0.66, 0.16, 0.96)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -472,6 +479,46 @@ theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 16
 text = "INTEGRITY  100 / 100"
 horizontal_alignment = 1
+
+[node name="VelocityPanel" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -370.0
+offset_top = -98.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("HUDCardStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/VelocityPanel"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="HUD/VelocityPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0.005, 0.02, 0.06, 0.94)
+theme_override_constants/outline_size = 4
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+text = "FLOW ×05  •  LOCKED\nBEST ×12  •  +6 MOMENTUM BANKED"
+vertical_alignment = 1
+
+[node name="Timer" type="ProgressBar" parent="HUD/VelocityPanel/Content"]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("VelocityFill")
+max_value = 3.05
+value = 2.6
+show_percentage = false
 
 [node name="Controls" type="Label" parent="HUD"]
 visible = false
@@ -1096,7 +1143,7 @@ vertical_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.7, 0.25, 1)
 theme_override_font_sizes/font_size = 16
-text = "0 RECORDED RUNS  •  0 VICTORIES  •  0% CLEAR RATE  •  BEST 00:00"
+text = "0 RECORDED RUNS  •  0 VICTORIES  •  0% CLEAR RATE  •  BEST 00:00  •  BEST FLOW ×0"
 horizontal_alignment = 1
 
 [node name="Body" type="Control" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]

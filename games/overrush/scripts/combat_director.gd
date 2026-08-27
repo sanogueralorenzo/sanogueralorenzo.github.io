@@ -14,6 +14,7 @@ signal enemy_hit_feedback(is_apex: bool)
 signal experience_collected_feedback(value: int)
 signal integrity_collected_feedback(value: float)
 signal attack_warning_feedback(attack_kind: StringName, is_elite: bool, is_apex: bool)
+signal velocity_tier_changed(tier: int)
 
 const EnemyAgentScript = preload("res://scripts/enemy_agent.gd")
 const ArcProjectileScript = preload("res://scripts/arc_projectile.gd")
@@ -24,6 +25,7 @@ const RunStatsScript = preload("res://scripts/run_stats.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
+const VelocityChainModel = preload("res://scripts/velocity_chain.gd")
 
 const INITIAL_SPAWN_DELAY := 1.25
 const MINIMUM_SPAWN_INTERVAL := 0.24
@@ -45,6 +47,7 @@ const ANCHOR_SHARED_HIT_INTERVAL := 0.48
 var build: RunBuild = RunBuildScript.new()
 var run_stats: OverrushRunStats = RunStatsScript.new()
 var pacing: RunPacing = RunPacingModel.new()
+var velocity_chain = VelocityChainModel.new()
 var elapsed_time := 0.0
 var enemies_defeated := 0
 var selected_protocol: StringName = RunProtocolCatalog.STANDARD
@@ -103,6 +106,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var previous_time := elapsed_time
 	elapsed_time += delta
+	velocity_chain.update(delta, _runner.get_horizontal_speed())
 	_catalyst_dash_window = maxf(0.0, _catalyst_dash_window - delta)
 	_dash_nova_recharge = maxf(0.0, _dash_nova_recharge - delta)
 	run_stats.record_traversal(_runner.global_position, _runner.get_horizontal_speed())
@@ -238,6 +242,7 @@ func start_run(protocol_id: StringName) -> void:
 	_arsenal_timer = 0.0
 	_rewarding_defeats_since_recovery = 0
 	_anchor_last_hit_times.clear()
+	velocity_chain.reset()
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -500,6 +505,7 @@ func _on_dash_state_changed(active: bool) -> void:
 	_catalyst_dash_window = RunBuild.PULSE_WINDOW_SECONDS
 	if active:
 		run_stats.record_dash()
+		velocity_chain.record_dash()
 		_dash_hit_ids.clear()
 		_ramjet_previous_position = _runner.global_position
 		_ramjet_has_previous_position = true
@@ -699,6 +705,12 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 		return
 	if experience_value <= 0:
 		return
+	var qualifying_defeats_before: int = velocity_chain.total_qualifying_defeats
+	var reached_new_tier: bool = velocity_chain.record_defeat(_runner.get_horizontal_speed(), enemy.is_elite)
+	if velocity_chain.total_qualifying_defeats > qualifying_defeats_before:
+		run_stats.record_velocity_chain(velocity_chain.current_count, velocity_chain.total_qualifying_defeats)
+	if reached_new_tier:
+		velocity_tier_changed.emit(velocity_chain.get_tier())
 	_rewarding_defeats_since_recovery += 1
 	var cadence_recovery_due := _rewarding_defeats_since_recovery >= RECOVERY_DROP_STRIDE
 	var should_drop_recovery := enemy.is_elite or cadence_recovery_due

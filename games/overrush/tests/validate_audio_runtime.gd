@@ -25,9 +25,13 @@ func _run() -> void:
 	_expect(director.experience_collected_feedback.is_connected(audio.play_pickup), "Core pickups should reach the audio director.")
 	_expect(director.integrity_collected_feedback.is_connected(audio.play_repair), "Integrity cores should reach their distinct recovery cue.")
 	_expect(director.attack_warning_feedback.is_connected(audio.play_attack_warning), "Enemy telegraphs should reach the warning cue system.")
+	_expect(director.velocity_tier_changed.is_connected(audio.play_velocity_tier), "New Flow tiers should reach a distinct rising confirmation cue.")
 	var upgrade_choice_before := audio._upgrade_choice_sequence
 	audio.play_upgrade_choice(true)
 	_expect(audio._upgrade_choice_sequence == upgrade_choice_before + 1, "A committed draft choice should select a confirmation cue independently of the draft-open sound.")
+	var velocity_tier_before := audio._velocity_tier_sequence
+	audio.play_velocity_tier(2)
+	_expect(audio._velocity_tier_sequence == velocity_tier_before + 1, "A Flow tier cue should remain measurable even when headless audio playback is unavailable.")
 
 	var master_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Slider")
 	var music_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Slider")

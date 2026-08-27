@@ -4,10 +4,11 @@ extends RefCounted
 const STEER := 0
 const DASH := 1
 const HOP := 2
-const THREATS := 3
-const BUILD := 4
-const OBJECTIVE := 5
-const COMPLETE := 6
+const FLOW := 3
+const THREATS := 4
+const BUILD := 5
+const OBJECTIVE := 6
+const COMPLETE := 7
 const AUTOMATIC_ADVANCE_SECONDS := 8.0
 const INFORMATION_ADVANCE_SECONDS := 6.0
 
@@ -40,7 +41,7 @@ func update(delta: float, steering: bool, dashing: bool, hopping: bool) -> bool:
 		_advance()
 	if step == HOP and (_seen_hop or step_elapsed >= AUTOMATIC_ADVANCE_SECONDS):
 		_advance()
-	if step in [THREATS, BUILD, OBJECTIVE] and step_elapsed >= INFORMATION_ADVANCE_SECONDS:
+	if step in [FLOW, THREATS, BUILD, OBJECTIVE] and step_elapsed >= INFORMATION_ADVANCE_SECONDS:
 		_advance()
 	return step != previous_step
 
@@ -53,6 +54,8 @@ func get_message(gamepad: bool = false) -> String:
 			return "DASH THROUGH PRESSURE  •  LB / RB\nTap for a burst, hold for distance. Your air dash refreshes on landing." if gamepad else "DASH THROUGH PRESSURE  •  SHIFT / ALT\nTap for a burst, hold for distance. Your air dash refreshes on landing."
 		HOP:
 			return "HOP THE TERRAIN  •  A\nWeapons fire automatically. Bright shards level you; coral cores repair integrity." if gamepad else "HOP THE TERRAIN  •  SPACE\nWeapons fire automatically. Bright shards level you; coral cores repair integrity."
+		FLOW:
+			return "CHAIN THE FLOW\nDefeat threats above 52 m/s. Dashes extend time; best Flow banks Momentum."
 		THREATS:
 			return "READ THE GROUND\nLeave marked zones before they trigger. Dashing briefly prevents damage."
 		BUILD:
