@@ -11,10 +11,11 @@ func _init() -> void:
 	_test_path = "user://overrush_profile_test_%d.json" % Time.get_ticks_usec()
 	_test_unlock_progression_without_permanent_power()
 	_test_atomic_round_trip_and_backup_recovery()
+	_test_schema_one_migration()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
 	if _failures.is_empty():
-		print("Progress profile validation passed — unlocks, atomic save, backup recovery, and corruption fallback.")
+		print("Progress profile validation passed — unlocks, schema migration, comfort settings, atomic save, and recovery.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -41,10 +42,16 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.victories = 2
 	profile.best_time_seconds = 1200.0
 	profile.selected_protocol = RunProtocolCatalog.REDLINE
+	profile.reduced_motion = true
+	profile.high_contrast_telegraphs = true
+	profile.guidance_enabled = false
+	profile.onboarding_completed = true
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
 	var loaded := ProgressProfileModel.new()
 	_expect(loaded.load(_test_path), "A saved profile should load.")
 	_expect(loaded.momentum == 470 and loaded.selected_protocol == RunProtocolCatalog.REDLINE, "Profile state should survive a save/load round trip.")
+	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
+	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
 
 	var absolute_path := ProjectSettings.globalize_path(_test_path)
 	profile.momentum = 520
@@ -55,6 +62,28 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	var recovered := ProgressProfileModel.new()
 	_expect(recovered.load(_test_path), "A corrupt primary profile should recover from its retained backup.")
 	_expect(recovered.momentum == 470, "Backup recovery should preserve progression state.")
+
+
+func _test_schema_one_migration() -> void:
+	var legacy_path := _test_path + ".legacy"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 1,
+		"momentum": 300,
+		"completed_runs": 2,
+		"victories": 1,
+		"best_time_seconds": 780.0,
+		"selected_protocol": "glass_velocity",
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-one profile should migrate without losing progression.")
+	_expect(migrated.momentum == 300 and migrated.selected_protocol == RunProtocolCatalog.GLASS_VELOCITY, "Schema migration should retain earned Momentum and protocol selection.")
+	_expect(not migrated.reduced_motion and not migrated.high_contrast_telegraphs and migrated.guidance_enabled, "Schema migration should apply safe accessibility defaults.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
 
 
 func _test_corrupt_profile_falls_back_safely() -> void:

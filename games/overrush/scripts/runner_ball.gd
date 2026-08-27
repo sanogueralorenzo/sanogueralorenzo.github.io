@@ -38,6 +38,7 @@ var integrity: float
 var _damage_invulnerability_remaining := 0.0
 var _damage_flash_remaining := 0.0
 var _dash_visual_active := false
+var _reduced_motion := false
 
 
 func _ready() -> void:
@@ -163,6 +164,11 @@ func apply_integrity_multiplier(multiplier: float) -> void:
 	integrity_changed.emit(integrity, maximum_integrity)
 
 
+func set_reduced_motion(enabled: bool) -> void:
+	_reduced_motion = enabled
+	_set_dash_visuals(_dash_visual_active)
+
+
 func is_dashing() -> bool:
 	return _dash_state != null and _dash_state.is_active
 
@@ -200,8 +206,8 @@ func _set_dash_visuals(active: bool) -> void:
 		return
 	_dash_visual_active = active
 	_update_ball_material()
-	dash_trail.emitting = active
-	dash_light.light_energy = 3.2 if active else 0.0
+	dash_trail.emitting = active and not _reduced_motion
+	dash_light.light_energy = (1.2 if _reduced_motion else 3.2) if active else 0.0
 
 
 func _update_ball_material() -> void:

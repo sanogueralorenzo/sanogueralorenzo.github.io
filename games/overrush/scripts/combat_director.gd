@@ -52,6 +52,8 @@ var _outgoing_damage_multiplier := 1.0
 var _extra_elite_interval := 0.0
 var _next_protocol_elite := INF
 var _protocol_elite_index := 0
+var _reduced_motion := false
+var _high_contrast_telegraphs := false
 
 
 func _ready() -> void:
@@ -120,6 +122,14 @@ func stop_run() -> void:
 	_run_active = false
 
 
+func set_accessibility(reduced_motion: bool, high_contrast_telegraphs: bool) -> void:
+	_reduced_motion = reduced_motion
+	_high_contrast_telegraphs = high_contrast_telegraphs
+	for enemy in _enemies:
+		if is_instance_valid(enemy):
+			enemy.apply_accessibility(_reduced_motion, _high_contrast_telegraphs)
+
+
 func get_enemy_count() -> int:
 	_cleanup_enemies()
 	return _enemies.size()
@@ -162,6 +172,7 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	var archetype := archetype_override if not archetype_override.is_empty() else _choose_archetype()
 	enemy.configure(_runner, _world, archetype, difficulty, rank)
 	enemy.apply_health_multiplier(_enemy_health_multiplier)
+	enemy.apply_accessibility(_reduced_motion, _high_contrast_telegraphs)
 	enemy.defeated.connect(_on_enemy_defeated)
 	if rank == &"apex":
 		enemy.health_changed.connect(_on_apex_health_changed)

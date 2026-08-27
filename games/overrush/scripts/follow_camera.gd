@@ -12,6 +12,7 @@ extends Camera3D
 var _target: CharacterBody3D
 var _last_direction := Vector3.FORWARD
 var _dash_active := false
+var _reduced_motion := false
 
 
 func _ready() -> void:
@@ -28,11 +29,18 @@ func _physics_process(delta: float) -> void:
 	var blend := 1.0 - exp(-position_smoothing * delta)
 	global_position = global_position.lerp(desired_position, blend)
 	look_at(_target.global_position + _last_direction * look_ahead + Vector3.UP * 1.5, Vector3.UP)
-	fov = lerpf(fov, dash_fov if _dash_active else normal_fov, 1.0 - exp(-fov_smoothing * delta))
+	var target_fov := normal_fov if _reduced_motion else (dash_fov if _dash_active else normal_fov)
+	fov = lerpf(fov, target_fov, 1.0 - exp(-fov_smoothing * delta))
 
 
 func set_dash_active(active: bool) -> void:
 	_dash_active = active
+
+
+func set_reduced_motion(enabled: bool) -> void:
+	_reduced_motion = enabled
+	if enabled:
+		fov = normal_fov
 
 
 func snap_to_target() -> void:

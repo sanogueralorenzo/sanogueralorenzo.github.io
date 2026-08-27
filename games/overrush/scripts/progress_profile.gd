@@ -2,7 +2,8 @@ class_name ProgressProfile
 extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
-const SCHEMA_VERSION := 1
+const SCHEMA_VERSION := 2
+const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 
 var momentum := 0
@@ -10,6 +11,10 @@ var completed_runs := 0
 var victories := 0
 var best_time_seconds := 0.0
 var selected_protocol: StringName = RunProtocolCatalog.STANDARD
+var reduced_motion := false
+var high_contrast_telegraphs := false
+var guidance_enabled := true
+var onboarding_completed := false
 
 
 func reset() -> void:
@@ -18,6 +23,10 @@ func reset() -> void:
 	victories = 0
 	best_time_seconds = 0.0
 	selected_protocol = RunProtocolCatalog.STANDARD
+	reduced_motion = false
+	high_contrast_telegraphs = false
+	guidance_enabled = true
+	onboarding_completed = false
 
 
 func get_unlocked_protocols() -> Array[StringName]:
@@ -96,7 +105,10 @@ func _load_absolute_path(absolute_path: String) -> bool:
 	if parser.parse(FileAccess.get_file_as_string(absolute_path)) != OK:
 		return false
 	var data = parser.data
-	if not (data is Dictionary) or int(data.get("schema_version", -1)) != SCHEMA_VERSION:
+	if not (data is Dictionary):
+		return false
+	var schema_version := int(data.get("schema_version", -1))
+	if schema_version < MINIMUM_SUPPORTED_SCHEMA or schema_version > SCHEMA_VERSION:
 		return false
 	momentum = maxi(0, int(data.get("momentum", 0)))
 	completed_runs = maxi(0, int(data.get("completed_runs", 0)))
@@ -104,6 +116,10 @@ func _load_absolute_path(absolute_path: String) -> bool:
 	best_time_seconds = maxf(0.0, float(data.get("best_time_seconds", 0.0)))
 	var saved_protocol := StringName(str(data.get("selected_protocol", RunProtocolCatalog.STANDARD)))
 	selected_protocol = saved_protocol if saved_protocol in get_unlocked_protocols() else RunProtocolCatalog.STANDARD
+	reduced_motion = bool(data.get("reduced_motion", false))
+	high_contrast_telegraphs = bool(data.get("high_contrast_telegraphs", false))
+	guidance_enabled = bool(data.get("guidance_enabled", true))
+	onboarding_completed = bool(data.get("onboarding_completed", false))
 	return true
 
 
@@ -115,4 +131,8 @@ func _to_dictionary() -> Dictionary:
 		"victories": victories,
 		"best_time_seconds": best_time_seconds,
 		"selected_protocol": str(selected_protocol),
+		"reduced_motion": reduced_motion,
+		"high_contrast_telegraphs": high_contrast_telegraphs,
+		"guidance_enabled": guidance_enabled,
+		"onboarding_completed": onboarding_completed,
 	}

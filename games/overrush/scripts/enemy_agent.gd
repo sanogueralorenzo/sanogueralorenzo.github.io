@@ -38,6 +38,10 @@ var _body_mesh: MeshInstance3D
 var _core_mesh: MeshInstance3D
 var _telegraph_mesh: MeshInstance3D
 var _telegraph_material: StandardMaterial3D
+var _telegraph_outline_mesh: MeshInstance3D
+var _telegraph_outline_material: StandardMaterial3D
+var _reduced_motion := false
+var _high_contrast_telegraphs := false
 
 
 func _enter_tree() -> void:
@@ -119,6 +123,11 @@ func apply_health_multiplier(multiplier: float) -> void:
 	health *= safe_multiplier
 
 
+func apply_accessibility(reduced_motion: bool, high_contrast_telegraphs: bool) -> void:
+	_reduced_motion = reduced_motion
+	_high_contrast_telegraphs = high_contrast_telegraphs
+
+
 func get_attack_state() -> AttackState:
 	return _attack_state
 
@@ -157,13 +166,18 @@ func _update_telegraph(delta: float) -> void:
 	_state_timer -= delta
 	var progress := 1.0 - clampf(_state_timer / maxf(_state_duration, 0.001), 0.0, 1.0)
 	var radius := _get_attack_radius()
-	_telegraph_mesh.scale = Vector3.ONE * lerpf(0.3, radius, progress)
+	var warning_scale := radius if _reduced_motion else lerpf(0.3, radius, progress)
+	_telegraph_mesh.scale = Vector3.ONE * warning_scale * 0.94
 	_telegraph_mesh.scale.y = 1.0
-	_telegraph_material.albedo_color.a = lerpf(0.12, TELEGRAPH_ALPHA, progress)
-	_core_mesh.scale = Vector3.ONE * lerpf(1.0, 1.55, progress)
+	_telegraph_outline_mesh.scale = Vector3.ONE * warning_scale
+	_telegraph_outline_mesh.scale.y = 1.0
+	_telegraph_material.albedo_color.a = lerpf(0.06 if _high_contrast_telegraphs else 0.12, _get_telegraph_alpha(), progress)
+	_telegraph_outline_material.albedo_color.a = lerpf(0.48, 0.94 if _high_contrast_telegraphs else 0.72, progress)
+	_core_mesh.scale = Vector3.ONE if _reduced_motion else Vector3.ONE * lerpf(1.0, 1.55, progress)
 	if _state_timer > 0.0:
 		return
 	_telegraph_mesh.visible = false
+	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
 	if _attack_kind == &"bulwark_pulse" or _attack_kind == &"apex_pulse":
 		_resolve_pulse()
@@ -236,10 +250,24 @@ func _begin_special(planar_offset: Vector3) -> void:
 	_state_duration = 0.82 if is_apex else (0.9 if _attack_kind == &"bulwark_pulse" else 0.58)
 	_state_timer = _state_duration
 	_telegraph_mesh.visible = true
-	_telegraph_mesh.scale = Vector3(0.3, 1.0, 0.3)
-	var warning_color := Color(0.08, 0.86, 1.0, TELEGRAPH_ALPHA) if is_apex else Color(1.0, 0.16, 0.05, TELEGRAPH_ALPHA)
+	_telegraph_outline_mesh.visible = true
+	var initial_radius := _get_attack_radius() if _reduced_motion else 0.3
+	_telegraph_mesh.scale = Vector3(initial_radius * 0.94, 1.0, initial_radius * 0.94)
+	_telegraph_outline_mesh.scale = Vector3(initial_radius, 1.0, initial_radius)
+	var warning_alpha := _get_telegraph_alpha()
+	var warning_color: Color
+	if is_apex:
+		warning_color = Color(0.18, 0.95, 1.0, warning_alpha)
+	elif _high_contrast_telegraphs:
+		warning_color = Color(1.0, 0.86, 0.06, warning_alpha)
+	else:
+		warning_color = Color(1.0, 0.16, 0.05, warning_alpha)
 	_telegraph_material.albedo_color = warning_color
 	_telegraph_material.emission = Color(warning_color.r, warning_color.g, warning_color.b)
+	_telegraph_material.emission_energy_multiplier = 1.0 if _high_contrast_telegraphs else 4.0
+	var outline_color := Color.WHITE if _high_contrast_telegraphs else Color(warning_color.r, warning_color.g, warning_color.b)
+	_telegraph_outline_material.albedo_color = Color(outline_color.r, outline_color.g, outline_color.b, 0.94 if _high_contrast_telegraphs else 0.72)
+	_telegraph_outline_material.emission = outline_color
 	attack_telegraphed.emit(self, _attack_kind)
 
 
@@ -258,6 +286,7 @@ func _begin_recovery() -> void:
 	_state_timer = _state_duration
 	_special_cooldown = 2.35 if is_apex and health <= maximum_health * 0.5 else (2.9 if is_apex else 3.4)
 	_telegraph_mesh.visible = false
+	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
 
 
@@ -267,6 +296,10 @@ func _get_attack_radius() -> float:
 	if _attack_kind == &"bulwark_pulse":
 		return 27.0 if is_elite else 21.0
 	return body_radius * (2.4 if is_apex else 2.0)
+
+
+func _get_telegraph_alpha() -> float:
+	return 0.22 if _high_contrast_telegraphs else TELEGRAPH_ALPHA
 
 
 func _build_visuals() -> void:
@@ -324,9 +357,54 @@ func _build_visuals() -> void:
 	_telegraph_mesh.material_override = _telegraph_material
 	add_child(_telegraph_mesh)
 
+	_telegraph_outline_mesh = MeshInstance3D.new()
+	_telegraph_outline_mesh.mesh = _create_warning_ring_mesh()
+	_telegraph_outline_mesh.position = _telegraph_mesh.position
+	_telegraph_mesh.position += Vector3.UP * 0.04
+	_telegraph_outline_mesh.visible = false
+	_telegraph_outline_material = StandardMaterial3D.new()
+	_telegraph_outline_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_telegraph_outline_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_telegraph_outline_material.emission_enabled = true
+	_telegraph_outline_material.emission_energy_multiplier = 5.0
+	_telegraph_outline_mesh.material_override = _telegraph_outline_material
+	add_child(_telegraph_outline_mesh)
+
 	if is_elite or is_apex:
 		_build_rank_shell()
 	_update_material()
+
+
+func _create_warning_ring_mesh() -> ArrayMesh:
+	const SEGMENTS := 48
+	const INNER_RADIUS := 0.9
+	var vertices := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for segment in range(SEGMENTS + 1):
+		var angle := TAU * float(segment) / float(SEGMENTS)
+		var direction := Vector3(cos(angle), 0.0, sin(angle))
+		vertices.append(direction)
+		vertices.append(direction * INNER_RADIUS)
+	for segment in range(SEGMENTS):
+		var outer_current := segment * 2
+		var inner_current := outer_current + 1
+		var outer_next := outer_current + 2
+		var inner_next := outer_current + 3
+		indices.append_array(PackedInt32Array([
+			outer_current,
+			outer_next,
+			inner_current,
+			outer_next,
+			inner_next,
+			inner_current,
+		]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 func _build_rank_shell() -> void:

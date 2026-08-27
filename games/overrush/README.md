@@ -24,6 +24,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Recovery-safe, versioned profile saving keeps a previous valid backup and restores it if the primary save is missing or corrupt.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
+- Persistent comfort options provide a steady dash camera, reduced dash particles, and high-contrast attack zones with bright geometric boundaries.
+- Short first-run prompts teach steering, dashing, hopping, automatic combat, and pickups during live play; they retire automatically and can be disabled or replayed.
 
 This is not yet the complete target game. The 20-minute structure, first boss, and initial non-power-creeping progression loop now exist, but broad content variety, audio, accessibility, repeated balance work, onboarding/usability validation, and external playtesting remain long-term work.
 
@@ -38,6 +40,7 @@ This is not yet the complete target game. The 20-minute structure, first boss, a
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
 - `progress_profile.gd` owns versioned progression state, deterministic run rewards, protocol selection, atomic writes, and backup recovery.
+- `run_onboarding.gd` owns the input-aware, time-bounded first-run guidance sequence independently of the HUD.
 
 ## Controls
 
@@ -49,6 +52,7 @@ This is not yet the complete target game. The 20-minute structure, first boss, a
 - `R`: generate a new world
 - `1` / `2` / `3` or mouse: choose a level-up upgrade
 - At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
+- `Accessibility & Guidance` on the launch screen changes persistent comfort preferences without affecting difficulty or rewards
 
 ## Map validation
 
@@ -107,4 +111,5 @@ Run the persistent-profile and challenge-protocol checks with:
 ```sh
 godot --headless --path games/overrush --script res://tests/test_progress_profile.gd
 godot --headless --path games/overrush --script res://tests/validate_run_protocols.gd
+godot --headless --path games/overrush --script res://tests/validate_accessibility.gd
 ```

@@ -379,6 +379,27 @@ theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 16
 text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   R new world"
 
+[node name="TutorialCard" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -390.0
+offset_top = -144.0
+offset_right = 390.0
+offset_bottom = -78.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
+theme_override_colors/font_outline_color = Color(0.004, 0.02, 0.06, 0.96)
+theme_override_constants/outline_size = 7
+theme_override_font_sizes/font_size = 18
+text = "STEER THE RUN  •  A / D OR ← / →\nYou move automatically. Choose open ground and keep velocity."
+horizontal_alignment = 1
+vertical_alignment = 1
+
 [node name="LevelUpOverlay" type="ColorRect" parent="HUD"]
 visible = false
 process_mode = 3
@@ -523,7 +544,7 @@ theme_override_styles/panel = SubResource("LaunchPanelStyle")
 
 [node name="Content" type="VBoxContainer" parent="HUD/StartOverlay/LaunchPanel"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 9
 
 [node name="Kicker" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 layout_mode = 2
@@ -645,3 +666,110 @@ theme_override_colors/font_color = Color(0.48, 0.62, 0.74, 1)
 theme_override_font_sizes/font_size = 13
 text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 horizontal_alignment = 1
+
+[node name="Accessibility" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 14
+text = "ACCESSIBILITY & GUIDANCE"
+
+[node name="SettingsOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.004, 0.014, 0.045, 0.94)
+
+[node name="SettingsPanel" type="PanelContainer" parent="HUD/SettingsOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -270.0
+offset_right = 360.0
+offset_bottom = 270.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("LaunchPanelStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Kicker" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "PLAYER COMFORT"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "ACCESSIBILITY & GUIDANCE"
+horizontal_alignment = 1
+
+[node name="Introduction" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.82, 0.94, 1)
+theme_override_font_sizes/font_size = 15
+text = "These preferences save immediately and never change run difficulty or rewards."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ReducedMotion" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "STEADY DASH CAMERA"
+
+[node name="ReducedMotionDescription" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "Removes dash FOV surges and most dash particles; attack timing remains unchanged."
+
+[node name="HighContrast" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "HIGH-CONTRAST ATTACK WARNINGS"
+
+[node name="HighContrastDescription" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "Adds bright yellow boundaries to warning zones without hiding the terrain."
+
+[node name="Guidance" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+button_pressed = true
+text = "FIRST-RUN GUIDANCE"
+
+[node name="GuidanceDescription" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.72, 0.84, 1)
+theme_override_font_sizes/font_size = 14
+text = "Shows short, non-blocking prompts until steering, dashing, and hopping are understood."
+
+[node name="ReplayGuidance" type="Button" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+text = "REPLAY GUIDANCE NEXT RUN"
+
+[node name="Back" type="Button" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "BACK TO RUN SETUP"

@@ -2,6 +2,7 @@ extends Node3D
 
 const ProgressProfileModel = preload("res://scripts/progress_profile.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
+const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -38,6 +39,14 @@ const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 @onready var previous_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Previous
 @onready var next_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Next
 @onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
+@onready var accessibility_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Accessibility
+@onready var settings_overlay: Control = $HUD/SettingsOverlay
+@onready var reduced_motion_toggle: CheckButton = $HUD/SettingsOverlay/SettingsPanel/Content/ReducedMotion
+@onready var high_contrast_toggle: CheckButton = $HUD/SettingsOverlay/SettingsPanel/Content/HighContrast
+@onready var guidance_toggle: CheckButton = $HUD/SettingsOverlay/SettingsPanel/Content/Guidance
+@onready var replay_guidance_button: Button = $HUD/SettingsOverlay/SettingsPanel/Content/ReplayGuidance
+@onready var settings_back_button: Button = $HUD/SettingsOverlay/SettingsPanel/Content/Back
+@onready var tutorial_card: Label = $HUD/TutorialCard
 
 var _current_upgrade_options: Array[StringName] = []
 var _phase_name := "BREAKAWAY"
@@ -48,6 +57,7 @@ var _protocol_index := 0
 var _persistence_enabled := true
 var _run_started := false
 var _run_recorded := false
+var _onboarding: RunOnboarding = RunOnboardingModel.new()
 
 
 func _ready() -> void:
@@ -70,11 +80,19 @@ func _ready() -> void:
 	previous_protocol.pressed.connect(_cycle_protocol.bind(-1))
 	next_protocol.pressed.connect(_cycle_protocol.bind(1))
 	launch_button.pressed.connect(begin_run)
+	accessibility_button.pressed.connect(_open_settings)
+	settings_back_button.pressed.connect(_close_settings)
+	reduced_motion_toggle.toggled.connect(_on_visual_accessibility_changed)
+	high_contrast_toggle.toggled.connect(_on_visual_accessibility_changed)
+	guidance_toggle.toggled.connect(_on_guidance_toggled)
+	replay_guidance_button.pressed.connect(_replay_guidance)
 	_on_integrity_changed(ball.integrity, ball.maximum_integrity)
 	_on_build_changed(combat.build)
 	camera.snap_to_target()
 	if _persistence_enabled:
 		_profile.load()
+	_apply_accessibility()
+	_refresh_settings()
 	_available_protocols = _profile.get_unlocked_protocols()
 	_protocol_index = maxi(0, _available_protocols.find(_profile.selected_protocol))
 	_refresh_launch_screen()
@@ -104,10 +122,15 @@ func _process(_delta: float) -> void:
 			"font_color",
 			Color(1.0, 0.58, 0.16) if boundary.pressure > 0.72 else Color(0.9, 1.0, 1.0)
 		)
+	_update_onboarding(_delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if settings_overlay.visible:
+		if event.keycode == KEY_ESCAPE:
+			_close_settings()
 		return
 	if start_overlay.visible:
 		if event.keycode == KEY_LEFT or event.keycode == KEY_A:
@@ -191,11 +214,12 @@ func _on_event_announced(title: String, subtitle: String) -> void:
 	event_banner.text = "%s\n%s" % [title, subtitle]
 	event_banner.visible = true
 	event_banner.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	event_banner.scale = Vector2(0.94, 0.94)
+	event_banner.scale = Vector2.ONE if _profile.reduced_motion else Vector2(0.94, 0.94)
 	event_banner.pivot_offset = event_banner.size * 0.5
 	_event_tween = create_tween()
 	_event_tween.tween_property(event_banner, "modulate:a", 1.0, 0.22)
-	_event_tween.parallel().tween_property(event_banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if not _profile.reduced_motion:
+		_event_tween.parallel().tween_property(event_banner, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_event_tween.tween_interval(2.2)
 	_event_tween.tween_property(event_banner, "modulate:a", 0.0, 0.5)
 	_event_tween.tween_callback(func() -> void: event_banner.visible = false)
@@ -242,10 +266,13 @@ func begin_run(protocol_id: StringName = &"") -> void:
 	if not _profile.select_protocol(chosen_protocol):
 		chosen_protocol = RunProtocolCatalog.STANDARD
 		_profile.select_protocol(chosen_protocol)
-	if _persistence_enabled:
-		_profile.save()
+	_save_profile()
+	settings_overlay.visible = false
 	start_overlay.visible = false
 	_run_started = true
+	_onboarding.reset(_profile.onboarding_completed or not _profile.guidance_enabled)
+	tutorial_card.text = _onboarding.get_message()
+	tutorial_card.visible = not _onboarding.is_complete()
 	combat.start_run(chosen_protocol)
 	get_tree().paused = false
 
@@ -284,8 +311,7 @@ func _record_run_progress(victory: bool) -> String:
 		return ""
 	_run_recorded = true
 	var result := _profile.record_run(combat.elapsed_time, combat.enemies_defeated, victory)
-	if _persistence_enabled:
-		_profile.save()
+	_save_profile()
 	var unlock_names: Array[String] = []
 	for protocol_id in result.new_unlocks:
 		unlock_names.append(str(RunProtocolCatalog.get_definition(StringName(protocol_id)).name))
@@ -293,3 +319,68 @@ func _record_run_progress(victory: bool) -> String:
 	if not unlock_names.is_empty():
 		unlock_text = "  •  UNLOCKED %s" % ", ".join(unlock_names)
 	return "+%d MOMENTUM  •  TOTAL %d%s" % [result.momentum_earned, result.momentum_total, unlock_text]
+
+
+func _apply_accessibility() -> void:
+	camera.set_reduced_motion(_profile.reduced_motion)
+	ball.set_reduced_motion(_profile.reduced_motion)
+	combat.set_accessibility(_profile.reduced_motion, _profile.high_contrast_telegraphs)
+
+
+func _open_settings() -> void:
+	settings_overlay.visible = true
+	reduced_motion_toggle.grab_focus()
+
+
+func _close_settings() -> void:
+	settings_overlay.visible = false
+	accessibility_button.grab_focus()
+
+
+func _refresh_settings() -> void:
+	reduced_motion_toggle.set_pressed_no_signal(_profile.reduced_motion)
+	high_contrast_toggle.set_pressed_no_signal(_profile.high_contrast_telegraphs)
+	guidance_toggle.set_pressed_no_signal(_profile.guidance_enabled)
+	replay_guidance_button.disabled = not _profile.onboarding_completed
+
+
+func _on_visual_accessibility_changed(_enabled: bool) -> void:
+	_profile.reduced_motion = reduced_motion_toggle.button_pressed
+	_profile.high_contrast_telegraphs = high_contrast_toggle.button_pressed
+	_apply_accessibility()
+	_save_profile()
+
+
+func _on_guidance_toggled(enabled: bool) -> void:
+	_profile.guidance_enabled = enabled
+	if enabled:
+		_profile.onboarding_completed = false
+	replay_guidance_button.disabled = not _profile.onboarding_completed
+	_save_profile()
+
+
+func _replay_guidance() -> void:
+	_profile.guidance_enabled = true
+	_profile.onboarding_completed = false
+	_refresh_settings()
+	_save_profile()
+
+
+func _update_onboarding(delta: float) -> void:
+	if not _run_started or _onboarding.is_complete() or get_tree().paused:
+		return
+	var steering: bool = Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_RIGHT)
+	var hopping: bool = not ball.is_on_floor() and ball.velocity.y > 2.0
+	if not _onboarding.update(delta, steering, ball.is_dashing(), hopping):
+		return
+	if _onboarding.is_complete():
+		tutorial_card.visible = false
+		_profile.onboarding_completed = true
+		_save_profile()
+	else:
+		tutorial_card.text = _onboarding.get_message()
+
+
+func _save_profile() -> void:
+	if _persistence_enabled and not _profile.save():
+		push_warning("Overrush could not save the current profile.")
