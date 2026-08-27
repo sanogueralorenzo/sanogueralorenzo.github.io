@@ -13,6 +13,7 @@ func _init() -> void:
 	_test_exclusive_evolution_forks()
 	_test_draft_agency_and_repair_cap()
 	_test_drive_catalyst_forks()
+	_test_player_facing_build_explanations()
 	if _failures.is_empty():
 		print("Run build validation passed.")
 		quit(0)
@@ -156,6 +157,23 @@ func _test_drive_catalyst_forks() -> void:
 	var pulse := _catalyst_ready_build()
 	pulse.apply_upgrade(RunBuild.PULSE_CORE)
 	_expect(pulse.get_catalyst_damage_multiplier(88.0, false, true) > 1.0 and pulse.get_catalyst_damage_multiplier(88.0, false, false) < 1.0, "Pulse Core should create a short dash-timed damage window with a downtime penalty.")
+
+
+func _test_player_facing_build_explanations() -> void:
+	var blank_build := RunBuildScript.new()
+	for upgrade_id in RunBuild.UPGRADE_NAMES:
+		var typed_id := StringName(upgrade_id)
+		_expect(not blank_build.get_upgrade_kind_label(typed_id).is_empty(), "%s should expose a draft category." % typed_id)
+		_expect(not blank_build.get_upgrade_family(typed_id).is_empty(), "%s should expose a visual family." % typed_id)
+		_expect(not blank_build.get_upgrade_effect_preview(typed_id).is_empty(), "%s should expose a concrete mechanical preview." % typed_id)
+
+	var explained_build := _catalyst_ready_build()
+	explained_build.apply_upgrade(&"dash_echo")
+	explained_build.apply_upgrade(RunBuild.AIRFRAME_CORE)
+	var summary := explained_build.get_loadout_summary()
+	_expect("DASHBREAKER" in summary and "AIRFRAME CORE" in summary, "The loadout summary should expose engine and drive commitments.")
+	_expect("DASHBREAKER 7" in summary and "EXIT WOUND 1" in summary, "The loadout summary should expose owned upgrade ranks.")
+	_expect("0.80× GROUNDED" in blank_build.get_upgrade_effect_preview(RunBuild.AIRFRAME_CORE), "Catalyst previews should state their downside as prominently as their payoff.")
 
 
 func _catalyst_ready_build() -> RunBuild:

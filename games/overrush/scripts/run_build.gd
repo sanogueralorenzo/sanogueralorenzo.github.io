@@ -272,6 +272,139 @@ func get_upgrade_description(upgrade_id: StringName) -> String:
 	return str(UPGRADE_DESCRIPTIONS.get(upgrade_id, ""))
 
 
+func get_upgrade_kind_label(upgrade_id: StringName) -> String:
+	if upgrade_id in KEYSTONE_IDS:
+		return "ENGINE COMMITMENT" if core_path.is_empty() else "ENGINE CORE"
+	if _is_any_evolution(upgrade_id):
+		return "EVOLUTION FORK"
+	if upgrade_id in CATALYST_IDS:
+		return "DRIVE CATALYST"
+	if upgrade_id in EVOLUTION_SUPPORT.values():
+		return "EVOLUTION SUPPORT"
+	if upgrade_id == &"kinetic_repair":
+		return "SURVIVAL"
+	return "ENGINE UPGRADE"
+
+
+func get_upgrade_family(upgrade_id: StringName) -> StringName:
+	if upgrade_id in PATH_UPGRADES[DASHBREAKER] or upgrade_id in PATH_EVOLUTIONS[DASHBREAKER] or upgrade_id == &"ramjet_mass" or upgrade_id == &"event_horizon":
+		return DASHBREAKER
+	if upgrade_id in PATH_UPGRADES[STORMTRAIL] or upgrade_id in PATH_EVOLUTIONS[STORMTRAIL] or upgrade_id == &"parallel_flow" or upgrade_id == &"storm_charge":
+		return STORMTRAIL
+	if upgrade_id in PATH_UPGRADES[ARCSTORM] or upgrade_id in PATH_EVOLUTIONS[ARCSTORM] or upgrade_id == &"lance_focus" or upgrade_id == &"orbit_flux":
+		return ARCSTORM
+	return &"catalyst" if upgrade_id in CATALYST_IDS else &"utility"
+
+
+func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
+	var next_rank := get_upgrade_rank(upgrade_id) + 1
+	match upgrade_id:
+		&"dash_nova":
+			return "ENTRY NOVA  •  %d DAMAGE  •  %d M RADIUS" % [24 + next_rank * 14, 15 + next_rank * 4]
+		&"dash_echo":
+			return "EXIT NOVA  •  %d%% OF ENTRY DAMAGE" % roundi((0.5 + next_rank * 0.14) * 100.0)
+		&"phase_shell":
+			return "DASH IMMUNITY  •  %.2f S" % (0.16 + next_rank * 0.12)
+		&"slipstream":
+			return "WAKE  •  %.1f DAMAGE  •  %.1f M RADIUS  •  %.2f S" % [
+				5.0 + next_rank * 2.5 + wake_damage_bonus,
+				7.5 + next_rank * 2.0 + wake_width_bonus,
+				1.45 + next_rank * 0.15 + wake_duration_bonus,
+			]
+		&"wake_duration":
+			return "WAKE DURATION  •  %.2f → %.2f S" % [get_wake_duration(), get_wake_duration() + 0.7]
+		&"wake_width":
+			return "WAKE RADIUS  •  %.1f → %.1f M" % [get_wake_radius(), get_wake_radius() + 2.6]
+		&"wake_voltage":
+			return "CRUISE WAKE DAMAGE  •  %.1f → %.1f" % [get_wake_damage(58.0), get_wake_damage(58.0) + 3.0]
+		&"velocity_coil":
+			var next_dash_damage := weapon_damage * (1.0 + (126.0 - 45.0) * (speed_damage_bonus + 0.006))
+			return "DASH-SPEED ARC DAMAGE  •  %.1f → %.1f" % [get_arc_damage(126.0), next_dash_damage]
+		&"arc_capacitor":
+			var next_interval := maxf(0.18, fire_interval * 0.82)
+			return "ARC RATE  •  %.2f → %.2f SHOTS/S" % [1.0 / fire_interval, 1.0 / next_interval]
+		&"forked_current":
+			return "SIMULTANEOUS TARGETS  •  %d → %d" % [projectile_count, mini(5, projectile_count + 1)]
+		&"arc_chain":
+			return "CHAIN JUMPS PER BOLT  •  %d → %d" % [arc_chain_count, mini(4, arc_chain_count + 1)]
+		&"arc_payload":
+			return "BASE ARC DAMAGE  •  %.0f → %.0f" % [weapon_damage, weapon_damage + 4.0]
+		&"kinetic_repair":
+			return "+20 MAX INTEGRITY  •  REPAIR 30 NOW"
+		&"ramjet":
+			return "DASH CONTACT  •  %.0f DAMAGE AT MAX SPEED  •  2.8 M" % get_ramjet_damage(126.0)
+		&"gravity_knot":
+			return "DASH EXIT  •  24 M PULL  •  18 COLLAPSE DAMAGE"
+		&"twin_current":
+			return "TWO WAKE LANES  •  9 M OFFSET  •  58% DAMAGE EACH"
+		&"tempest_anchor":
+			return "EVERY 5TH WAKE  •  REPEATING 0.58 S PULSES"
+		&"storm_lance":
+			return "FORWARD BEAM  •  115 M  •  5 TARGETS  •  2.0× DAMAGE"
+		&"arc_orbit":
+			return "CLOSE NOVA  •  20 M RADIUS  •  0.72× ARC DAMAGE"
+		&"ramjet_mass":
+			return "MAX-SPEED CONTACT  •  %.0f DAMAGE  •  %.2f M" % [
+				(18.0 + next_rank * 5.0) * (126.0 / 58.0),
+				2.8 + next_rank * 0.35,
+			]
+		&"event_horizon":
+			return "KNOT  •  %d M  •  %d DAMAGE  •  %d%% PULL" % [
+				24 + next_rank * 3,
+				18 + next_rank * 6,
+				roundi(minf(0.66, 0.42 + next_rank * 0.06) * 100.0),
+			]
+		&"parallel_flow":
+			return "TWIN LANES  •  %d M OFFSET  •  %d%% DAMAGE EACH" % [
+				9 + next_rank,
+				roundi(minf(0.86, 0.58 + next_rank * 0.09) * 100.0),
+			]
+		&"storm_charge":
+			return "ANCHOR EVERY %d WAKES  •  %.2f S PULSES" % [
+				maxi(3, 5 - next_rank),
+				maxf(0.32, 0.58 - next_rank * 0.08),
+			]
+		&"lance_focus":
+			return "LANCE  •  %d M  •  %.1f M WIDE  •  %d TARGETS" % [
+				115 + next_rank * 10,
+				6.0 + next_rank * 1.2,
+				5 + next_rank * 2,
+			]
+		&"orbit_flux":
+			return "ORBIT  •  %.1f M  •  %.2f S RATE  •  %.2f× DAMAGE" % [
+				20.0 + next_rank * 2.5,
+				maxf(0.24, fire_interval * 0.95 - next_rank * 0.04),
+				0.72 + next_rank * 0.1,
+			]
+		REDLINE_CORE:
+			return "0.78× AT CRUISE  •  1.50× AT DASH SPEED"
+		AIRFRAME_CORE:
+			return "0.80× GROUNDED  •  1.40× AIRBORNE"
+		PULSE_CORE:
+			return "0.75× DOWNTIME  •  1.35× DURING DASH WINDOW"
+		_:
+			return ""
+
+
+func get_loadout_summary() -> String:
+	if core_path.is_empty():
+		return "LOADOUT  •  NO ENGINE COMMITTED"
+	var lines: Array[String] = ["ENGINE  •  %s" % get_build_name()]
+	lines.append("DRIVE  •  %s" % get_catalyst_name())
+	var ranked: Array[String] = []
+	for upgrade_id in PATH_UPGRADES[core_path]:
+		var rank := get_upgrade_rank(StringName(upgrade_id))
+		if rank > 0:
+			ranked.append("%s %d" % [get_upgrade_name(StringName(upgrade_id)), rank])
+	if not evolution_id.is_empty():
+		var support_id: StringName = EVOLUTION_SUPPORT[evolution_id]
+		var support_rank := get_upgrade_rank(support_id)
+		if support_rank > 0:
+			ranked.append("%s %d" % [get_upgrade_name(support_id), support_rank])
+	lines.append("RANKS  •  %s" % "  /  ".join(ranked))
+	return "\n".join(lines)
+
+
 func get_upgrade_rank(upgrade_id: StringName) -> int:
 	return int(upgrade_ranks.get(upgrade_id, 0))
 
@@ -282,6 +415,13 @@ func is_evolution_upgrade(upgrade_id: StringName) -> bool:
 
 func is_catalyst_upgrade(upgrade_id: StringName) -> bool:
 	return upgrade_id in CATALYST_IDS
+
+
+func _is_any_evolution(upgrade_id: StringName) -> bool:
+	for evolution_ids in PATH_EVOLUTIONS.values():
+		if upgrade_id in evolution_ids:
+			return true
+	return false
 
 
 func can_banish_upgrade(upgrade_id: StringName) -> bool:

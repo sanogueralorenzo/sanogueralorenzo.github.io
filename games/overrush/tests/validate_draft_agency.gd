@@ -19,10 +19,20 @@ func _run() -> void:
 	director._on_experience_collected(12)
 	await process_frame
 	_expect(paused and scene.level_up_overlay.visible, "The initial engine draft should pause the live run.")
+	_expect(not scene.tutorial_card.visible, "First-run guidance should yield visual priority while a draft decision is open.")
 	_expect(scene.reroll_button.disabled and scene.banish_button.disabled, "Keystone commitment should not be rerollable or banishable.")
+	_expect("ENGINE COMMITMENT" in scene.level_up_buttons[0].text and "ENTRY NOVA" in scene.level_up_buttons[0].text, "Draft cards should pair strategic categories with concrete effect previews.")
+	_expect(
+		scene.level_up_buttons[0].get_theme_color("font_color") != scene.level_up_buttons[1].get_theme_color("font_color"),
+		"The initial engine choices should have distinct path colors.",
+	)
 	scene._choose_upgrade(0)
 	await process_frame
 	_expect(not paused and director.build.core_path == RunBuild.DASHBREAKER, "Choosing the keystone should resume play with a committed engine.")
+	_expect(scene.tutorial_card.visible, "Unfinished guidance should return after the draft closes.")
+	scene._pause_run()
+	_expect("DASHBREAKER" in scene.pause_loadout.text and "DASHBREAKER 1" in scene.pause_loadout.text, "Pause should expose the current engine and owned ranks without ending the run.")
+	scene._resume_run()
 
 	director.build.pending_levels = 1
 	director._offer_level_up()

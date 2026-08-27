@@ -52,6 +52,7 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var accessibility_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Accessibility
 @onready var pause_overlay: Control = $HUD/PauseOverlay
 @onready var pause_summary: Label = $HUD/PauseOverlay/PausePanel/Content/Summary
+@onready var pause_loadout: Label = $HUD/PauseOverlay/PausePanel/Content/Loadout
 @onready var pause_resume_button: Button = $HUD/PauseOverlay/PausePanel/Content/Resume
 @onready var pause_settings_button: Button = $HUD/PauseOverlay/PausePanel/Content/Settings
 @onready var pause_restart_button: Button = $HUD/PauseOverlay/PausePanel/Content/Restart
@@ -246,6 +247,7 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 	if is_instance_valid(_event_tween):
 		_event_tween.kill()
 	event_banner.visible = false
+	tutorial_card.visible = false
 	level_up_overlay.visible = true
 	var offers_evolution := false
 	var offers_catalyst := false
@@ -288,12 +290,23 @@ func _render_upgrade_options(options: Array[StringName]) -> void:
 			continue
 		var upgrade_id := options[index]
 		var next_rank := combat.build.get_upgrade_rank(upgrade_id) + 1
-		button.text = "%d   %s  •  RANK %d\n%s" % [
+		var rank_label := "RANK %d" % next_rank
+		if combat.build.core_path.is_empty():
+			rank_label = "COMMIT"
+		elif combat.build.is_evolution_upgrade(upgrade_id) or combat.build.is_catalyst_upgrade(upgrade_id):
+			rank_label = "EXCLUSIVE"
+		button.text = "%d   %s  •  %s\n%s  •  %s\n%s" % [
 			index + 1,
 			combat.build.get_upgrade_name(upgrade_id),
-			next_rank,
+			rank_label,
+			combat.build.get_upgrade_kind_label(upgrade_id),
+			combat.build.get_upgrade_effect_preview(upgrade_id),
 			combat.build.get_upgrade_description(upgrade_id),
 		]
+		var accent := _get_upgrade_accent(combat.build.get_upgrade_family(upgrade_id))
+		button.add_theme_color_override("font_color", accent)
+		button.add_theme_color_override("font_hover_color", accent.lightened(0.16))
+		button.add_theme_color_override("font_focus_color", accent.lightened(0.16))
 	_refresh_draft_controls()
 	if not options.is_empty():
 		level_up_buttons[0].grab_focus()
@@ -351,6 +364,7 @@ func _choose_upgrade(index: int) -> void:
 		return
 	level_up_overlay.visible = false
 	combat.choose_upgrade(index)
+	tutorial_card.visible = not _onboarding.is_complete()
 
 
 func _on_runner_defeated() -> void:
@@ -577,15 +591,14 @@ func _apply_audio_levels() -> void:
 func _pause_run() -> void:
 	if not _run_started or game_over_overlay.visible or victory_overlay.visible or level_up_overlay.visible:
 		return
-	var build_name := "UNCOMMITTED" if combat.build.core_path.is_empty() else combat.build.get_build_name()
-	pause_summary.text = "%s  •  %s\n%s  •  LEVEL %d\n%d CLEARED  •  %d M/S" % [
+	pause_summary.text = "%s  •  %s\nLEVEL %d  •  %d CLEARED  •  %d M/S" % [
 		combat.get_formatted_time(),
 		_phase_name,
-		build_name,
 		combat.build.level,
 		combat.enemies_defeated,
 		roundi(ball.get_horizontal_speed()),
 	]
+	pause_loadout.text = combat.build.get_loadout_summary()
 	_cancel_restart_confirmation()
 	pause_overlay.visible = true
 	get_tree().paused = true
@@ -663,6 +676,20 @@ func _refresh_input_prompts() -> void:
 		_refresh_draft_controls()
 	if tutorial_card.visible:
 		tutorial_card.text = _onboarding.get_message(_using_gamepad)
+
+
+func _get_upgrade_accent(family: StringName) -> Color:
+	match family:
+		RunBuild.DASHBREAKER:
+			return Color(1.0, 0.55, 0.24)
+		RunBuild.STORMTRAIL:
+			return Color(0.22, 1.0, 0.62)
+		RunBuild.ARCSTORM:
+			return Color(0.32, 0.82, 1.0)
+		&"catalyst":
+			return Color(1.0, 0.76, 0.22)
+		_:
+			return Color(0.92, 0.78, 1.0)
 
 
 func _refresh_settings() -> void:
