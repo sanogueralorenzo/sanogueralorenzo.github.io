@@ -264,7 +264,7 @@ func _on_integrity_changed(current: float, maximum: float) -> void:
 		integrity_label.add_theme_color_override("font_color", Color(0.76, 1.0, 0.96))
 
 
-func _on_runner_damaged(amount: float, source_direction: Vector3, integrity_ratio: float) -> void:
+func _on_runner_damaged(amount: float, source_direction: Vector3, integrity_ratio: float, _source_id: StringName) -> void:
 	audio.play_hurt(amount)
 	_show_damage_feedback(amount, source_direction, integrity_ratio)
 
@@ -450,6 +450,7 @@ func _choose_upgrade(index: int) -> void:
 func _on_runner_defeated() -> void:
 	audio.play_defeat()
 	combat.stop_run()
+	level_up_overlay.visible = false
 	var result := _record_run_progress(false)
 	game_over_message.text = _format_run_recap("RUN ENDED", result)
 	game_over_overlay.visible = true
@@ -493,6 +494,7 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 
 func _on_run_victory() -> void:
 	audio.play_victory()
+	level_up_overlay.visible = false
 	var result := _record_run_progress(true)
 	victory_message.text = _format_run_recap("APEX BROKEN", result)
 	_reset_replay_feedback(victory_feedback_prompt, victory_feedback_buttons)
@@ -503,6 +505,7 @@ func _on_run_victory() -> void:
 
 func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
+	level_up_overlay.visible = false
 	var result := _record_run_progress(false)
 	game_over_message.text = _format_run_recap(reason, result)
 	_reset_replay_feedback(game_over_feedback_prompt, game_over_feedback_buttons)
@@ -664,7 +667,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 	if arsenal_id in RunBuild.ARSENAL_IDS:
 		arsenal_text = "ARSENAL  •  %s" % combat.build.get_upgrade_name(arsenal_id)
 	drive_text = "%s\n%s" % [arsenal_text, drive_text]
-	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -683,6 +686,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		roundi(float(summary.get("damage_dealt", 0.0))),
 		roundi(float(summary.get("damage_taken", 0.0))),
 		combat.run_stats.get_damage_breakdown_text(),
+		combat.run_stats.get_damage_taken_breakdown_text(),
 		float(summary.get("distance_meters", 0.0)) / 1000.0,
 		roundi(float(summary.get("maximum_speed", 0.0))),
 		int(summary.get("dash_count", 0)),

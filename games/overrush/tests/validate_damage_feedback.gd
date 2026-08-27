@@ -4,6 +4,7 @@ var _failures: Array[String] = []
 var _reported_amount := 0.0
 var _reported_direction := Vector3.ZERO
 var _reported_integrity_ratio := 1.0
+var _reported_source := &""
 
 
 func _init() -> void:
@@ -25,12 +26,13 @@ func _run() -> void:
 	var integrity_label: Label = scene.get_node("HUD/IntegrityLabel")
 	runner.damaged.connect(_capture_damage)
 	var source_position := runner.global_position + Vector3.RIGHT * 12.0
-	runner.take_damage(18.0, source_position)
+	runner.take_damage(18.0, source_position, &"skimmer_charge")
 	await process_frame
 
 	_expect(is_equal_approx(_reported_amount, 18.0), "Runner damage should report the amount actually removed.")
 	_expect(_reported_direction.dot(Vector3.RIGHT) > 0.99, "Runner damage should report the attack's planar direction.")
 	_expect(is_equal_approx(_reported_integrity_ratio, 0.82), "Runner damage should report remaining integrity as a ratio.")
+	_expect(_reported_source == &"skimmer_charge", "Runner damage should retain the incoming attack source for playtest telemetry.")
 	_expect(marker.visible, "A directional marker should appear immediately after damage.")
 	_expect(marker.text.contains("→") and marker.text.contains("-18"), "The marker should communicate direction and numeric severity without relying on color.")
 	var screen_center_x := root.get_visible_rect().size.x * 0.5
@@ -40,6 +42,11 @@ func _run() -> void:
 
 	await create_timer(0.8, true, false, true).timeout
 	_expect(not marker.visible and not vignette.visible, "Damage feedback should clear quickly so it cannot obscure traversal.")
+	var integrity_before_dash: float = runner.integrity
+	runner._begin_dash()
+	runner.take_damage(30.0, runner.global_position + Vector3.FORWARD, &"pursuer_contact")
+	_expect(is_equal_approx(runner.integrity, integrity_before_dash), "A correctly timed dash should provide a reliable base dodge window against contact damage.")
+	runner._end_dash()
 
 	paused = false
 	scene.queue_free()
@@ -53,10 +60,11 @@ func _run() -> void:
 		quit(1)
 
 
-func _capture_damage(amount: float, source_direction: Vector3, integrity_ratio: float) -> void:
+func _capture_damage(amount: float, source_direction: Vector3, integrity_ratio: float, source_id: StringName) -> void:
 	_reported_amount = amount
 	_reported_direction = source_direction
 	_reported_integrity_ratio = integrity_ratio
+	_reported_source = source_id
 
 
 func _expect(condition: bool, message: String) -> void:

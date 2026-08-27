@@ -17,10 +17,30 @@ const SOURCE_NAMES := {
 	&"backdraft_mine": "BACKDRAFT MINE",
 	&"unattributed": "OTHER",
 }
+const DAMAGE_TAKEN_SOURCE_NAMES := {
+	&"pursuer_contact": "PURSUER CONTACT",
+	&"skimmer_contact": "SKIMMER CONTACT",
+	&"bulwark_contact": "BULWARK CONTACT",
+	&"rift_weaver_contact": "RIFT WEAVER CONTACT",
+	&"swarm_foundry_contact": "FOUNDRY CONTACT",
+	&"drone_contact": "DRONE CONTACT",
+	&"rift_spawn_contact": "RIFT SPAWN CONTACT",
+	&"velocity_reaver_contact": "REAVER CONTACT",
+	&"rift_matriarch_contact": "MATRIARCH CONTACT",
+	&"skimmer_charge": "SKIMMER CHARGE",
+	&"apex_charge": "APEX CHARGE",
+	&"bulwark_pulse": "BULWARK PULSE",
+	&"rift_blast": "RIFT BLAST",
+	&"apex_pulse": "APEX PULSE",
+	&"apex_rift": "APEX RIFT",
+	&"unattributed": "OTHER",
+}
 
 var damage_by_source: Dictionary = {}
 var hits_by_source: Dictionary = {}
 var damage_taken := 0.0
+var damage_taken_by_source: Dictionary = {}
+var hits_taken_by_source: Dictionary = {}
 var distance_traveled := 0.0
 var maximum_speed := 0.0
 var dash_count := 0
@@ -43,6 +63,8 @@ func reset(start_position: Vector3) -> void:
 	damage_by_source.clear()
 	hits_by_source.clear()
 	damage_taken = 0.0
+	damage_taken_by_source.clear()
+	hits_taken_by_source.clear()
 	distance_traveled = 0.0
 	maximum_speed = 0.0
 	dash_count = 0
@@ -68,8 +90,14 @@ func record_damage(source_id: StringName, amount: float) -> void:
 	hits_by_source[safe_source] = int(hits_by_source.get(safe_source, 0)) + 1
 
 
-func record_damage_taken(amount: float) -> void:
-	damage_taken += maxf(0.0, amount)
+func record_damage_taken(amount: float, source_id: StringName = &"unattributed") -> void:
+	var applied_amount := maxf(0.0, amount)
+	if applied_amount <= 0.0:
+		return
+	var safe_source := source_id if DAMAGE_TAKEN_SOURCE_NAMES.has(source_id) else &"unattributed"
+	damage_taken += applied_amount
+	damage_taken_by_source[safe_source] = float(damage_taken_by_source.get(safe_source, 0.0)) + applied_amount
+	hits_taken_by_source[safe_source] = int(hits_taken_by_source.get(safe_source, 0)) + 1
 
 
 func record_traversal(position: Vector3, horizontal_speed: float) -> void:
@@ -183,6 +211,30 @@ func get_damage_breakdown_text() -> String:
 	return "NO DAMAGE RECORDED" if parts.is_empty() else "  •  ".join(parts)
 
 
+func get_top_damage_taken_sources(limit: int = 2) -> Array[Dictionary]:
+	var sources: Array[Dictionary] = []
+	for source_id in damage_taken_by_source:
+		var amount := float(damage_taken_by_source[source_id])
+		sources.append({
+			"id": str(source_id),
+			"name": str(DAMAGE_TAKEN_SOURCE_NAMES.get(source_id, "OTHER")),
+			"damage": amount,
+			"share": amount / maxf(damage_taken, 0.001),
+			"hits": int(hits_taken_by_source.get(source_id, 0)),
+		})
+	sources.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.damage) > float(b.damage))
+	if sources.size() > limit:
+		sources.resize(limit)
+	return sources
+
+
+func get_damage_taken_breakdown_text() -> String:
+	var parts: Array[String] = []
+	for source in get_top_damage_taken_sources():
+		parts.append("%s %d%%" % [str(source.name), roundi(float(source.share) * 100.0)])
+	return "TOP THREATS  •  NO HITS TAKEN" if parts.is_empty() else "TOP THREATS  •  %s" % "  •  ".join(parts)
+
+
 func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Dictionary:
 	var serialized_damage := {}
 	for source_id in damage_by_source:
@@ -190,6 +242,12 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 	var serialized_hits := {}
 	for source_id in hits_by_source:
 		serialized_hits[str(source_id)] = int(hits_by_source[source_id])
+	var serialized_damage_taken := {}
+	for source_id in damage_taken_by_source:
+		serialized_damage_taken[str(source_id)] = snappedf(float(damage_taken_by_source[source_id]), 0.1)
+	var serialized_hits_taken := {}
+	for source_id in hits_taken_by_source:
+		serialized_hits_taken[str(source_id)] = int(hits_taken_by_source[source_id])
 	var serialized_defeats := {}
 	for archetype in defeats_by_archetype:
 		serialized_defeats[str(archetype)] = int(defeats_by_archetype[archetype])
@@ -205,6 +263,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"elite_defeats": elite_defeats,
 		"damage_dealt": snappedf(get_total_damage(), 0.1),
 		"damage_taken": snappedf(damage_taken, 0.1),
+		"damage_taken_by_source": serialized_damage_taken,
+		"hits_taken_by_source": serialized_hits_taken,
 		"damage_by_source": serialized_damage,
 		"hits_by_source": serialized_hits,
 		"distance_meters": snappedf(distance_traveled, 0.1),

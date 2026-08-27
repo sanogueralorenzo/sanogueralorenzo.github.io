@@ -12,7 +12,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
 - Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
 - A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
-- A short, hold-sensitive dash that is repeatable on the ground and available once per airtime.
+- A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
 - Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
@@ -36,7 +36,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
-- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
+- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
+- Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
 - Victory and defeat recaps ask one optional “Would you run again?” question without stealing retry focus; the response is attached to that run's full telemetry and recent Yes sentiment appears on the next launch screen for playtest review.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
@@ -63,7 +64,7 @@ This is not yet the complete target game. The 20-minute structure, two Apex enco
 - `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
-- `run_stats.gd` owns applied-damage attribution, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
+- `run_stats.gd` owns outgoing and incoming attack attribution, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
 - `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.

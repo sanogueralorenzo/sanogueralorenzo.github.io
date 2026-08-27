@@ -19,7 +19,8 @@ func _init() -> void:
 	stats.record_damage(&"arc_bolt", 20.0)
 	stats.record_damage(&"dash_nova", 20.0)
 	stats.record_damage(&"unknown_source", 5.0)
-	stats.record_damage_taken(22.0)
+	stats.record_damage_taken(14.0, &"skimmer_charge")
+	stats.record_damage_taken(8.0, &"pursuer_contact")
 	stats.record_dash()
 	stats.record_dash()
 	stats.record_reroll()
@@ -38,6 +39,7 @@ func _init() -> void:
 	_expect(top_sources.size() == 3 and str(top_sources[0].id) == "dash_nova", "Damage sources should rank by actual applied damage.")
 	_expect(int(top_sources[0].hits) == 2 and roundi(float(top_sources[0].damage)) == 100, "Damage accounting should retain hit count and source total.")
 	_expect("DASH NOVA 80%" in stats.get_damage_breakdown_text(), "The recap breakdown should expose a readable contribution percentage.")
+	_expect("SKIMMER CHARGE 64%" in stats.get_damage_taken_breakdown_text(), "The recap should identify the attack responsible for most incoming damage.")
 
 	var build: RunBuild = RunBuildScript.new()
 	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
@@ -49,6 +51,7 @@ func _init() -> void:
 	_expect(str(summary.build_name) == "DASHBREAKER • RAMJET" and int(summary.level) == 9, "Run snapshots should identify the demonstrated build and level.")
 	_expect(int(summary.elite_defeats) == 1 and str(summary.phase_reached) == "overrun", "Run snapshots should preserve encounter progress.")
 	_expect(int(summary.dash_count) == 2 and is_equal_approx(float(summary.damage_taken), 22.0), "Run snapshots should preserve movement and survivability evidence.")
+	_expect(is_equal_approx(float(summary.damage_taken_by_source.skimmer_charge), 14.0) and int(summary.hits_taken_by_source.skimmer_charge) == 1, "Run snapshots should retain incoming damage and hit counts by attack source.")
 	_expect(int(summary.rerolls_used) == 2 and int(summary.banishes_used) == 1, "Run snapshots should distinguish draft agency from favorable random rolls.")
 	_expect(str(summary.apex_id) == "velocity_reaver", "Run snapshots should retain which climax encounter the build faced.")
 	_expect(str(summary.catalyst_id) == "redline_core" and is_equal_approx(float(summary.catalyst_uptime), 0.6), "Run snapshots should retain the catalyst identity and measured empowered uptime.")

@@ -1,9 +1,8 @@
 extends SceneTree
 
-const InputBindings = preload("res://scripts/input_bindings.gd")
-
 var _director: CombatDirector
 var _runner: CharacterBody3D
+var _world: Node3D
 var _failures: Array[String] = []
 var _strategy := "dashbreaker"
 var _next_dash_time := 0.0
@@ -29,21 +28,22 @@ func _run() -> void:
 	root.add_child(scene)
 	await process_frame
 	_runner = scene.get_node("RunnerBall")
+	_world = scene.get_node("World")
 	_runner.maximum_integrity = 100000.0
 	_runner.integrity = _runner.maximum_integrity
 	_director = scene.get_node("CombatDirector")
 	_director.level_up_requested.connect(_choose_upgrade)
 	scene.begin_run()
 	while _director.elapsed_time < 420.0 and _director._run_active:
+		_apply_audit_route()
 		if _strategy == "dashbreaker" and _director.elapsed_time >= _next_dash_time:
 			_director._on_dash_state_changed(true)
 			_director._on_dash_state_changed(false)
 			_next_dash_time = _director.elapsed_time + 0.75
-		elif _strategy == "stormtrail":
-			_update_weave_input()
 		elif _strategy == "arcstorm":
-			_update_aim_input()
+			_update_aim_heading()
 		await process_frame
+	_apply_audit_route()
 	print("%s SOAK elapsed=%.1f level=%d clears=%d integrity=%.0f taken=%.0f distance=%.0f peak=%.1f current=%.1f position=%s milestones=%s total_damage=%.0f damage=%s" % [
 		_strategy,
 		_director.elapsed_time,
@@ -68,8 +68,6 @@ func _run() -> void:
 	_validate_result()
 	Engine.time_scale = 1.0
 	Engine.physics_ticks_per_second = 60
-	Input.action_release(InputBindings.MOVE_LEFT)
-	Input.action_release(InputBindings.MOVE_RIGHT)
 	if _failures.is_empty():
 		print("Engine balance soak passed — %s remains fast, staged, viable, and mechanically distinct." % _strategy)
 		quit(0)
@@ -117,13 +115,28 @@ func _expect(condition: bool, message: String) -> void:
 		_failures.append(message)
 
 
-func _update_weave_input() -> void:
-	var turning_left := fposmod(_director.elapsed_time, 6.0) < 3.0
-	Input.action_release(InputBindings.MOVE_RIGHT if turning_left else InputBindings.MOVE_LEFT)
-	Input.action_press(InputBindings.MOVE_LEFT if turning_left else InputBindings.MOVE_RIGHT, 0.16)
+func _apply_audit_route() -> void:
+	var elapsed := _director.elapsed_time
+	var angular_speed := 58.0 / 720.0
+	var angle := elapsed * angular_speed
+	var radius := 720.0
+	var radial_speed := 0.0
+	if _strategy == "stormtrail":
+		radius += sin(elapsed * 0.48) * 115.0
+		radial_speed = cos(elapsed * 0.48) * 115.0 * 0.48
+	var position := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+	var route_heading := Vector3(
+		radial_speed * cos(angle) - radius * angular_speed * sin(angle),
+		0.0,
+		radial_speed * sin(angle) + radius * angular_speed * cos(angle)
+	).normalized()
+	position.y = _world.get_surface_height(position.x, position.z) + 2.0
+	_runner.global_position = position
+	_runner.apply_boundary_heading(route_heading)
+	_runner.velocity = route_heading * 58.0
 
 
-func _update_aim_input() -> void:
+func _update_aim_heading() -> void:
 	var best_target: EnemyAgent
 	var best_score := INF
 	for enemy in _director._enemies:
@@ -142,21 +155,15 @@ func _update_aim_input() -> void:
 			best_score = score
 			best_target = enemy
 	if best_target == null:
-		Input.action_release(InputBindings.MOVE_LEFT)
-		Input.action_release(InputBindings.MOVE_RIGHT)
 		return
 	var target_direction: Vector3 = best_target.global_position - _runner.global_position
 	target_direction.y = 0.0
 	if target_direction.length_squared() < 0.01:
 		return
 	var angle: float = _runner.heading.signed_angle_to(target_direction.normalized(), Vector3.UP)
-	if absf(angle) < 0.04:
-		Input.action_release(InputBindings.MOVE_LEFT)
-		Input.action_release(InputBindings.MOVE_RIGHT)
+	if absf(angle) > PI * 0.5:
 		return
-	var turn_left: bool = angle > 0.0
-	Input.action_release(InputBindings.MOVE_RIGHT if turn_left else InputBindings.MOVE_LEFT)
-	Input.action_press(InputBindings.MOVE_LEFT if turn_left else InputBindings.MOVE_RIGHT, clampf(absf(angle), 0.1, 0.22))
+	_runner.apply_boundary_heading(_runner.heading.slerp(target_direction.normalized(), 0.46).normalized())
 
 
 func _choose_upgrade(options: Array[StringName]) -> void:

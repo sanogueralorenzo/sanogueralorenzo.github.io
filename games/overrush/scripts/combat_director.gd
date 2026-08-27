@@ -114,7 +114,7 @@ func _physics_process(delta: float) -> void:
 
 
 func choose_upgrade(option_index: int) -> void:
-	if not _awaiting_upgrade:
+	if not _run_active or not _awaiting_upgrade:
 		return
 	var options := build.get_meta("current_options", []) as Array
 	if option_index < 0 or option_index >= options.size():
@@ -171,7 +171,7 @@ func choose_upgrade(option_index: int) -> void:
 
 
 func reroll_upgrade_options() -> bool:
-	if not _awaiting_upgrade or rerolls_remaining <= 0:
+	if not _run_active or not _awaiting_upgrade or rerolls_remaining <= 0:
 		return false
 	var current_options := _get_current_upgrade_options()
 	if not build.has_alternative_upgrade_options(current_options):
@@ -187,7 +187,7 @@ func reroll_upgrade_options() -> bool:
 
 
 func banish_upgrade_option(option_index: int) -> bool:
-	if not _awaiting_upgrade or banishes_remaining <= 0:
+	if not _run_active or not _awaiting_upgrade or banishes_remaining <= 0:
 		return false
 	var current_options := _get_current_upgrade_options()
 	if option_index < 0 or option_index >= current_options.size():
@@ -228,6 +228,8 @@ func start_run(protocol_id: StringName) -> void:
 
 func stop_run() -> void:
 	_run_active = false
+	_awaiting_upgrade = false
+	build.remove_meta("current_options")
 
 
 func set_accessibility(reduced_motion: bool, high_contrast_telegraphs: bool) -> void:
@@ -634,7 +636,7 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemy_defeated_feedback.emit(enemy.is_elite, enemy.is_apex)
 	if enemy.is_apex:
 		_apex = null
-		_run_active = false
+		stop_run()
 		apex_health_changed.emit(0.0, enemy.maximum_health)
 		run_victory.emit()
 		return
@@ -648,6 +650,8 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 
 
 func _on_experience_collected(value: int) -> void:
+	if not _run_active:
+		return
 	experience_collected_feedback.emit(value)
 	build.add_experience(value)
 	build_changed.emit(build)
@@ -663,8 +667,8 @@ func _on_enemy_damaged(_enemy: EnemyAgent, amount: float, source_id: StringName)
 	run_stats.record_damage(source_id, amount)
 
 
-func _on_runner_damaged(amount: float, _source_direction: Vector3, _integrity_ratio: float) -> void:
-	run_stats.record_damage_taken(amount)
+func _on_runner_damaged(amount: float, _source_direction: Vector3, _integrity_ratio: float, source_id: StringName) -> void:
+	run_stats.record_damage_taken(amount, source_id)
 
 
 func _on_reinforcements_requested(source: EnemyAgent, count: int) -> void:
@@ -686,6 +690,8 @@ func _on_enemy_health_changed(enemy: EnemyAgent, _current: float, _maximum: floa
 
 
 func _offer_level_up() -> void:
+	if not _run_active:
+		return
 	_awaiting_upgrade = true
 	var options := build.get_upgrade_options(_rng, [], _get_available_fork_stage())
 	_set_current_upgrade_options(options)
@@ -740,7 +746,7 @@ func _update_run_pacing(previous_time: float) -> void:
 	if pacing.crossed_apex_time(previous_time, elapsed_time) and not has_active_apex():
 		_spawn_apex()
 	if pacing.crossed_deadline(previous_time, elapsed_time) and has_active_apex():
-		_run_active = false
+		stop_run()
 		run_failed.emit("%s HELD THE STORM" % get_active_apex_title())
 
 

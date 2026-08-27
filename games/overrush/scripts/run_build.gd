@@ -90,7 +90,7 @@ const UPGRADE_DESCRIPTIONS := {
 	&"slipstream": "Commit to route control. Movement leaves persistent damaging wakes; further ranks strengthen them.",
 	&"velocity_coil": "Commit to ranged chaining. Arc damage scales with speed; further ranks amplify the scaling.",
 	&"dash_echo": "Dash exit detonates a second, smaller shockwave.",
-	&"phase_shell": "Gain a brief damage-immunity window whenever a dash begins.",
+	&"phase_shell": "Extend the dash's base damage-immunity window beyond its opening movement.",
 	&"wake_duration": "Stormtrail zones remain active 0.7 seconds longer.",
 	&"wake_width": "Stormtrail zones grow wider and catch more enemies.",
 	&"arc_capacitor": "Arcstorm fires 18% faster.",
@@ -362,7 +362,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"dash_echo":
 			return "EXIT NOVA  •  %d%% OF ENTRY DAMAGE" % roundi((0.5 + next_rank * 0.14) * 100.0)
 		&"phase_shell":
-			return "DASH IMMUNITY  •  %.2f S" % (0.16 + next_rank * 0.12)
+			return "EXTENDED DASH IMMUNITY  •  %.2f S" % (0.16 + next_rank * 0.12)
 		&"slipstream":
 			return "WAKE  •  %.1f DAMAGE  •  %.1f M RADIUS  •  %.2f S" % [
 				5.0 + next_rank * 2.5 + wake_damage_bonus,

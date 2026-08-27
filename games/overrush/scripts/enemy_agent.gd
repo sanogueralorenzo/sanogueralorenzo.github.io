@@ -249,7 +249,7 @@ func _update_charge(distance: float, delta: float) -> void:
 	var charge_speed := 112.0 if is_apex else 128.0
 	global_position += _charge_direction * charge_speed * delta
 	if not _charge_connected and distance <= body_radius + CONTACT_DISTANCE_PADDING + 1.6:
-		target.take_damage(contact_damage * (1.35 if is_apex else 1.15), global_position)
+		target.take_damage(contact_damage * (1.35 if is_apex else 1.15), global_position, _attack_kind)
 		_charge_connected = true
 	if _state_timer <= 0.0:
 		_begin_recovery()
@@ -283,7 +283,7 @@ func _move_at_standoff(planar_offset: Vector3, distance: float, near_distance: f
 
 func _try_contact_damage(distance: float) -> void:
 	if distance <= body_radius + CONTACT_DISTANCE_PADDING and _contact_cooldown <= 0.0:
-		target.take_damage(contact_damage, global_position)
+		target.take_damage(contact_damage, global_position, StringName("%s_contact" % archetype))
 		_contact_cooldown = 0.85 if archetype != &"skimmer" else 1.15
 
 
@@ -388,7 +388,7 @@ func _resolve_pulse() -> void:
 	).length()
 	if planar_distance <= _get_attack_radius():
 		var damage_multiplier := 1.1 if _attack_kind == &"rift_blast" else (1.18 if _attack_kind == &"apex_rift" else (1.25 if is_apex else 0.9))
-		target.take_damage(contact_damage * damage_multiplier, center)
+		target.take_damage(contact_damage * damage_multiplier, center, _attack_kind)
 
 
 func _begin_recovery() -> void:

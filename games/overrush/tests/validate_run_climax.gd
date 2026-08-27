@@ -13,6 +13,7 @@ func _init() -> void:
 func _run() -> void:
 	await _validate_elite_telegraph_and_victory()
 	await _validate_deadline_failure()
+	await _validate_post_defeat_atomicity()
 	if _failures.is_empty():
 		print("Run climax validation passed — elite telegraph, Apex health, victory, and deadline failure.")
 		quit(0)
@@ -100,6 +101,40 @@ func _validate_deadline_failure() -> void:
 	_expect(_failure_seen, "An undefeated Apex at 20:00 should resolve the run as a deadline failure.")
 	_expect(scene.get_node("HUD/GameOverOverlay").visible and paused, "Deadline failure should pause play and present a clear retry state.")
 	_expect(not scene.get_node("HUD/GameOverOverlay/FeedbackChoices/Yes").disabled, "Deadline failure should offer the same optional playtest feedback as victory.")
+	paused = false
+	scene.queue_free()
+	await process_frame
+
+
+func _validate_post_defeat_atomicity() -> void:
+	var scene: Node = load("res://main.tscn").instantiate()
+	scene.set_meta("overrush_manual_start", true)
+	scene.set_meta("overrush_disable_persistence", true)
+	scene.get_node("World").seed = 56839
+	root.add_child(scene)
+	await process_frame
+	scene.begin_run()
+	await process_frame
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	director.build.apply_upgrade(&"dash_nova")
+	director.build.pending_levels = 1
+	director._offer_level_up()
+	await process_frame
+	_expect(director.is_choosing_upgrade() and scene.get_node("HUD/LevelUpOverlay").visible, "The fixture should begin with a live draft that could race the defeat event.")
+	runner.take_damage(runner.integrity + 100.0, runner.global_position + Vector3.RIGHT, &"skimmer_charge")
+	await process_frame
+	var level_before := director.build.level
+	var experience_before := director.build.experience
+	var pending_before := director.build.pending_levels
+	director._on_experience_collected(9999)
+	director.build.set_meta("current_options", [&"kinetic_repair"])
+	director.choose_upgrade(0)
+	await process_frame
+	_expect(not director._run_active and not director.is_choosing_upgrade(), "Defeat should close combat and invalidate any in-flight draft atomically.")
+	_expect(not scene.get_node("HUD/LevelUpOverlay").visible and scene.get_node("HUD/GameOverOverlay").visible, "The defeat recap should replace, never overlap, an in-flight draft.")
+	_expect(is_zero_approx(runner.integrity), "A post-defeat Kinetic Repair choice must not revive a run that has already ended.")
+	_expect(director.build.level == level_before and director.build.experience == experience_before and director.build.pending_levels == pending_before, "Post-defeat pickups and stale choices must not mutate progression or the recorded build.")
 	paused = false
 	scene.queue_free()
 	await process_frame

@@ -3,11 +3,12 @@ extends CharacterBody3D
 signal dash_state_changed(active: bool)
 signal integrity_changed(current: float, maximum: float)
 signal defeated
-signal damaged(amount: float, source_direction: Vector3, integrity_ratio: float)
+signal damaged(amount: float, source_direction: Vector3, integrity_ratio: float, source_id: StringName)
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
 const AIRFRAME_COMMIT_TIME := 0.14
+const BASE_DASH_IMMUNITY_SECONDS := 0.14
 
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
@@ -145,7 +146,7 @@ func grant_damage_immunity(duration: float) -> void:
 	_damage_invulnerability_remaining = maxf(_damage_invulnerability_remaining, duration)
 
 
-func take_damage(amount: float, source_position: Vector3 = Vector3.INF) -> void:
+func take_damage(amount: float, source_position: Vector3 = Vector3.INF, source_id: StringName = &"unattributed") -> void:
 	if amount <= 0.0 or integrity <= 0.0 or _damage_invulnerability_remaining > 0.0:
 		return
 	var previous_integrity := integrity
@@ -161,7 +162,8 @@ func take_damage(amount: float, source_position: Vector3 = Vector3.INF) -> void:
 	damaged.emit(
 		previous_integrity - integrity,
 		source_direction,
-		integrity / maxf(maximum_integrity, 1.0)
+		integrity / maxf(maximum_integrity, 1.0),
+		source_id
 	)
 	integrity_changed.emit(integrity, maximum_integrity)
 	if integrity <= 0.0:
@@ -205,6 +207,7 @@ func get_dash_status() -> String:
 
 func _begin_dash() -> void:
 	_dash_heading = heading.normalized()
+	grant_damage_immunity(BASE_DASH_IMMUNITY_SECONDS)
 	if _dash_state.started_in_air:
 		velocity.y = 0.0
 	_set_dash_visuals(true)

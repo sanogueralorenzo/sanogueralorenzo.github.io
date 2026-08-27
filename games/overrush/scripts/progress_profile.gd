@@ -3,7 +3,7 @@ extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunBuildModel = preload("res://scripts/run_build.gd")
-const SCHEMA_VERSION := 7
+const SCHEMA_VERSION := 8
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
@@ -293,6 +293,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 	safe["upgrade_events"] = _sanitize_upgrade_events(summary.get("upgrade_events", []))
 	safe["damage_by_source"] = _sanitize_numeric_dictionary(summary.get("damage_by_source", {}), 16)
 	safe["hits_by_source"] = _sanitize_numeric_dictionary(summary.get("hits_by_source", {}), 16)
+	safe["damage_taken_by_source"] = _sanitize_numeric_dictionary(summary.get("damage_taken_by_source", {}), 16)
+	safe["hits_taken_by_source"] = _sanitize_numeric_dictionary(summary.get("hits_taken_by_source", {}), 16)
 	safe["defeats_by_archetype"] = _sanitize_numeric_dictionary(summary.get("defeats_by_archetype", {}), 16)
 	return safe
 
