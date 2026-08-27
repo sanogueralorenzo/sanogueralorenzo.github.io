@@ -6,7 +6,7 @@ Map-first prototype for a fast 3D run across large procedural landscapes.
 
 - A newly randomized 3.2 km × 3.2 km terrain on every run.
 - A route graph generated before the terrain, with occasional alternate paths that split and merge.
-- Authored terrain features: broad valleys, banked turns, launch hills, smooth landing zones, and narrow passes.
+- Authored terrain features: broad valleys, banked turns, gradual launch hills, smooth landing zones, and gently shouldered narrow passes.
 - Three blended regions per run: Verdant Reach, Ember Basin, and Prism Highlands.
 - Original rock spires, boulder fields, distant ridges, and procedural materials.
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
@@ -32,7 +32,7 @@ Run the deterministic 20-seed terrain and formation gate with:
 godot --headless --path games/overrush --script res://tests/validate_worlds.gd
 ```
 
-The gate checks required terrain shapes, route continuity and slopes, sightline curvature, alternate-route frequency, formation clearance, finite terrain heights, three-region coverage, and layout uniqueness.
+The gate checks required terrain shapes, route continuity and slopes, local corridor gradients, sightline curvature, alternate-route frequency, formation clearance, finite terrain heights, three-region coverage, and layout uniqueness.
 
 Run the dash timing and ground/air reset checks with:
 

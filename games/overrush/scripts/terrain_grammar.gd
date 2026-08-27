@@ -10,6 +10,8 @@ const ALTERNATE := "alternate"
 
 const REQUIRED_FEATURES := [BROAD_VALLEY, BANKED_TURN, LAUNCH, LANDING, NARROW_PASS]
 const SAMPLE_SPACING := 18.0
+const MAX_ROUTE_SLOPE := 0.34
+const MAX_TRAVERSABLE_GRADIENT := 0.65
 const ROUTE_TEMPLATES := [
 	[BROAD_VALLEY, BANKED_TURN, CRUISE, LAUNCH, LANDING, NARROW_PASS, BANKED_TURN],
 	[BROAD_VALLEY, NARROW_PASS, BANKED_TURN, LAUNCH, LANDING, CRUISE, BANKED_TURN],
@@ -62,28 +64,63 @@ func configure(seed_value: int, size: float) -> void:
 
 func sample_height(x: float, z: float) -> float:
 	var terrain_height := _sample_base_height(x, z)
-	var closest := get_closest_route_info(x, z)
-	if closest.is_empty():
-		return terrain_height
-
-	var sample: Dictionary = closest.sample
-	var distance: float = closest.distance
-	var signed_distance: float = closest.signed_distance
-	var width: float = sample.width
-	var normalized_distance := distance / maxf(width, 1.0)
-	var influence := 1.0 - smoothstep(0.48, 1.28, normalized_distance)
-	var route_height: float = sample.position.y + signed_distance * sample.bank
-	var bowl_depth := _feature_bowl_depth(sample.feature)
-	route_height += minf(normalized_distance * normalized_distance * bowl_depth, bowl_depth * 1.8)
-	terrain_height = lerpf(terrain_height, route_height, influence)
-
-	if sample.feature == NARROW_PASS:
-		var wall_band := smoothstep(0.46, 0.92, normalized_distance)
-		wall_band *= 1.0 - smoothstep(0.92, 1.75, normalized_distance)
-		terrain_height += wall_band * 58.0
+	var route_height_sum := 0.0
+	var total_shaping_weight := 0.0
+	var strongest_influence := 0.0
+	var route_infos: Array[Dictionary] = [
+		_get_closest_segment_info(x, z, primary_samples),
+		_get_closest_segment_info(x, z, alternate_samples),
+	]
+	var nearest_route: Dictionary = {}
+	for closest in route_infos:
+		if closest.is_empty():
+			continue
+		if nearest_route.is_empty() or closest.distance < nearest_route.distance:
+			nearest_route = closest
+		var sample: Dictionary = closest.sample
+		var distance: float = closest.distance
+		var width: float = sample.width
+		var normalized_distance := distance / maxf(width, 1.0)
+		var influence := 1.0 - _smootherstep(0.42, 3.40, normalized_distance)
+		if influence <= 0.0:
+			continue
+		var shaping_weight := influence * exp(-0.5 * pow(distance / 70.0, 2.0))
+		var route_height := _get_shaped_route_height(closest)
+		route_height_sum += route_height * shaping_weight
+		total_shaping_weight += shaping_weight
+		strongest_influence = maxf(strongest_influence, influence)
+	if total_shaping_weight > 0.0:
+		var blended_route_height := route_height_sum / total_shaping_weight
+		terrain_height = lerpf(terrain_height, blended_route_height, strongest_influence)
+	if not nearest_route.is_empty():
+		var nearest_sample: Dictionary = nearest_route.sample
+		var core_distance: float = nearest_route.distance / maxf(nearest_sample.width, 1.0)
+		var core_influence := 1.0 - _smootherstep(0.0, 0.42, core_distance)
+		if core_influence > 0.0:
+			terrain_height = lerpf(
+				terrain_height,
+				_get_shaped_route_height(nearest_route),
+				core_influence
+			)
 
 	var start_blend := smoothstep(10.0, 58.0, Vector2(x, z).length())
 	return lerpf(0.0, terrain_height, start_blend)
+
+
+func _get_shaped_route_height(route_info: Dictionary) -> float:
+	var sample: Dictionary = route_info.sample
+	var signed_distance: float = route_info.signed_distance
+	var normalized_distance: float = route_info.distance / maxf(sample.width, 1.0)
+	var bank_influence := 1.0 - _smootherstep(0.45, 1.15, normalized_distance)
+	var route_height: float = sample.position.y + signed_distance * sample.bank * bank_influence
+	var bowl_depth: float = sample.get("bowl_depth", _feature_bowl_depth(sample.feature))
+	route_height += minf(normalized_distance * normalized_distance * bowl_depth, bowl_depth * 1.8)
+	var narrow_pass_weight: float = sample.get("narrow_pass_weight", 1.0 if sample.feature == NARROW_PASS else 0.0)
+	if narrow_pass_weight > 0.001:
+		var wall_band := _smootherstep(0.62, 1.50, normalized_distance)
+		wall_band *= 1.0 - _smootherstep(1.50, 2.50, normalized_distance)
+		route_height += wall_band * 22.0 * narrow_pass_weight
+	return route_height
 
 
 func get_spawn_position() -> Vector3:
@@ -91,27 +128,84 @@ func get_spawn_position() -> Vector3:
 
 
 func get_closest_route_info(x: float, z: float) -> Dictionary:
-	var best_sample: Dictionary = {}
+	var primary_info := _get_closest_segment_info(x, z, primary_samples)
+	var alternate_info := _get_closest_segment_info(x, z, alternate_samples)
+	if primary_info.is_empty():
+		return alternate_info
+	if alternate_info.is_empty() or primary_info.distance <= alternate_info.distance:
+		return primary_info
+	return alternate_info
+
+
+func _get_closest_segment_info(x: float, z: float, samples: Array[Dictionary]) -> Dictionary:
+	if samples.size() < 2:
+		return {}
+	var query := Vector2(x, z)
+	var first_route_position: Vector3 = samples[0].position
+	var last_route_position: Vector3 = samples[-1].position
+	var route_progress := inverse_lerp(first_route_position.z, last_route_position.z, z)
+	var estimated_index := clampi(roundi(route_progress * (samples.size() - 1)), 0, samples.size() - 1)
+	var first_index := maxi(0, estimated_index - 14)
+	var last_index := mini(samples.size() - 2, estimated_index + 14)
+	var best_selection_distance_squared := INF
 	var best_distance_squared := INF
-	for sample in primary_samples:
-		var position: Vector3 = sample.position
-		var distance_squared := Vector2(x - position.x, z - position.z).length_squared()
-		if distance_squared < best_distance_squared:
-			best_distance_squared = distance_squared
-			best_sample = sample
-	for sample in alternate_samples:
-		var position: Vector3 = sample.position
-		var distance_squared := Vector2(x - position.x, z - position.z).length_squared()
-		if distance_squared < best_distance_squared:
-			best_distance_squared = distance_squared
-			best_sample = sample
+	var best_sample: Dictionary = {}
+	var best_closest_2d := Vector2.ZERO
+	for index in range(first_index, last_index + 1):
+		var first: Dictionary = samples[index]
+		var second: Dictionary = samples[index + 1]
+		var first_position: Vector3 = first.position
+		var second_position: Vector3 = second.position
+		var first_2d := Vector2(first_position.x, first_position.z)
+		var second_2d := Vector2(second_position.x, second_position.z)
+		var segment := second_2d - first_2d
+		var selection_segment := Vector2(segment.x, segment.y * 4.0)
+		var segment_length_squared := selection_segment.length_squared()
+		if segment_length_squared <= 0.001:
+			continue
+		var query_offset := query - first_2d
+		var selection_offset := Vector2(query_offset.x, query_offset.y * 4.0)
+		var segment_t := clampf(selection_offset.dot(selection_segment) / segment_length_squared, 0.0, 1.0)
+		var closest_2d := first_2d.lerp(second_2d, segment_t)
+		var segment_offset := query - closest_2d
+		var selection_distance_squared := (
+			segment_offset.x * segment_offset.x + segment_offset.y * segment_offset.y * 16.0
+		)
+		if selection_distance_squared >= best_selection_distance_squared:
+			continue
+		best_selection_distance_squared = selection_distance_squared
+		best_distance_squared = segment_offset.length_squared()
+		best_closest_2d = closest_2d
+		var first_tangent: Vector3 = first.tangent
+		var second_tangent: Vector3 = second.tangent
+		var tangent := first_tangent.lerp(second_tangent, segment_t).normalized()
+		best_sample = {
+			"position": first_position.lerp(second_position, segment_t),
+			"width": lerpf(
+				first.get("blend_width", first.width),
+				second.get("blend_width", second.width),
+				segment_t
+			),
+			"bank": lerpf(first.bank, second.bank, segment_t),
+			"bowl_depth": lerpf(
+				first.get("bowl_depth", _feature_bowl_depth(first.feature)),
+				second.get("bowl_depth", _feature_bowl_depth(second.feature)),
+				segment_t
+			),
+			"narrow_pass_weight": lerpf(
+				first.get("narrow_pass_weight", 0.0),
+				second.get("narrow_pass_weight", 0.0),
+				segment_t
+			),
+			"feature": first.feature if segment_t < 0.5 else second.feature,
+			"tangent": tangent,
+			"progress": lerpf(first.progress, second.progress, segment_t),
+		}
 	if best_sample.is_empty():
 		return {}
-
-	var position: Vector3 = best_sample.position
 	var tangent: Vector3 = best_sample.tangent
 	var lateral := Vector2(-tangent.z, tangent.x).normalized()
-	var offset := Vector2(x - position.x, z - position.z)
+	var offset := query - best_closest_2d
 	return {
 		"sample": best_sample,
 		"distance": sqrt(best_distance_squared),
@@ -192,8 +286,13 @@ func validate_layout() -> PackedStringArray:
 		if index + 16 < primary_samples.size():
 			var future: Dictionary = primary_samples[index + 16]
 			max_turn = maxf(max_turn, sample.tangent.angle_to(future.tangent))
-	if max_route_slope > 0.48:
+	if max_route_slope > MAX_ROUTE_SLOPE:
 		errors.append("primary route exceeds safe slope: %.3f" % max_route_slope)
+	var max_traversable_gradient := _get_max_traversable_gradient()
+	if max_traversable_gradient > MAX_TRAVERSABLE_GRADIENT:
+		errors.append(
+			"route corridor has an abrupt terrain gradient: %.3f" % max_traversable_gradient
+		)
 	if rad_to_deg(max_turn) > 65.0:
 		errors.append("route turns more than 65 degrees inside a 200–400 m sightline")
 	if min_width < 78.0:
@@ -267,6 +366,7 @@ func get_validation_metrics() -> Dictionary:
 			max_turn = maxf(max_turn, primary_samples[index].tangent.angle_to(primary_samples[index + 16].tangent))
 	return {
 		"max_route_slope": max_route_slope,
+		"max_traversable_gradient": _get_max_traversable_gradient(),
 		"max_sightline_turn_degrees": rad_to_deg(max_turn),
 		"sample_count": primary_samples.size(),
 		"has_alternate": has_alternate_route,
@@ -276,24 +376,24 @@ func get_validation_metrics() -> Dictionary:
 func _configure_noise() -> void:
 	_broad_noise.seed = _rng.randi()
 	_broad_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_broad_noise.frequency = 0.00105
+	_broad_noise.frequency = 0.00082
 	_broad_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_broad_noise.fractal_octaves = 5
-	_broad_noise.fractal_gain = 0.48
+	_broad_noise.fractal_octaves = 4
+	_broad_noise.fractal_gain = 0.42
 
 	_ridge_noise.seed = _rng.randi()
 	_ridge_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_ridge_noise.frequency = 0.0018
+	_ridge_noise.frequency = 0.00115
 	_ridge_noise.fractal_type = FastNoiseLite.FRACTAL_RIDGED
-	_ridge_noise.fractal_octaves = 4
-	_ridge_noise.fractal_gain = 0.52
+	_ridge_noise.fractal_octaves = 3
+	_ridge_noise.fractal_gain = 0.40
 
 	_detail_noise.seed = _rng.randi()
 	_detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_detail_noise.frequency = 0.007
+	_detail_noise.frequency = 0.0035
 	_detail_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_detail_noise.fractal_octaves = 3
-	_detail_noise.fractal_gain = 0.42
+	_detail_noise.fractal_octaves = 2
+	_detail_noise.fractal_gain = 0.36
 
 	_route_noise.seed = _rng.randi()
 	_route_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -342,6 +442,7 @@ func _generate_route_graph() -> void:
 
 	route_length = absf(current.z)
 	_finalize_route_samples(primary_samples)
+	_smooth_route_properties(primary_samples)
 	has_alternate_route = _rng.randf() < 0.56
 	if has_alternate_route:
 		_generate_alternate_edge()
@@ -364,14 +465,14 @@ func _sample_section(section: Dictionary) -> void:
 			position.x += sin(t * PI) * section.turn_direction * 28.0
 			position.y += sin(t * PI) * 4.0
 		elif feature == LAUNCH:
-			position.y = start.y + (end.y - start.y) * pow(t, 1.65)
+			position.y = lerpf(start.y, end.y, eased)
 		elif feature == LANDING:
-			position.y = end.y + (start.y - end.y) * pow(1.0 - t, 2.25)
+			position.y = lerpf(start.y, end.y, eased)
 		else:
 			position.y += _route_noise.get_noise_1d(position.z) * 3.5
 		var bank := 0.0
 		if feature == BANKED_TURN:
-			bank = section.turn_direction * sin(t * PI) * 0.16
+			bank = section.turn_direction * sin(t * PI) * 0.125
 		primary_samples.append({
 			"position": position,
 			"width": section.width,
@@ -404,11 +505,12 @@ func _generate_alternate_edge() -> void:
 	var branch_length := Vector2(end.x - start.x, end.z - start.z).length()
 	var count := maxi(8, ceili(branch_length / SAMPLE_SPACING))
 	var height_offset := _rng.randf_range(-12.0, 14.0)
+	var lateral_offset := _rng.randf_range(205.0, 245.0)
 	for index in range(count + 1):
 		var t := index / float(count)
 		var eased := t * t * (3.0 - 2.0 * t)
 		var position := start.lerp(end, eased)
-		position.x += side * sin(t * PI) * _rng.randf_range(205.0, 245.0)
+		position.x += side * sin(t * PI) * lateral_offset
 		position.y += sin(t * PI) * height_offset
 		alternate_samples.append({
 			"position": position,
@@ -420,6 +522,7 @@ func _generate_alternate_edge() -> void:
 			"progress": lerpf(start_sample.progress, end_sample.progress, t),
 		})
 	_finalize_route_samples(alternate_samples)
+	_smooth_route_properties(alternate_samples)
 
 
 func _finalize_route_samples(samples: Array[Dictionary]) -> void:
@@ -434,16 +537,74 @@ func _finalize_route_samples(samples: Array[Dictionary]) -> void:
 			samples[index].progress = clampf(-samples[index].position.z / maxf(route_length, 1.0), 0.0, 1.0)
 
 
+func _smooth_route_properties(samples: Array[Dictionary]) -> void:
+	var blend_widths := PackedFloat32Array()
+	var bowl_depths := PackedFloat32Array()
+	var narrow_weights := PackedFloat32Array()
+	blend_widths.resize(samples.size())
+	bowl_depths.resize(samples.size())
+	narrow_weights.resize(samples.size())
+	for index in range(samples.size()):
+		var width_sum := 0.0
+		var bowl_sum := 0.0
+		var narrow_sum := 0.0
+		var weight_sum := 0.0
+		for neighbor_index in range(maxi(0, index - 8), mini(samples.size(), index + 9)):
+			var distance := absi(neighbor_index - index)
+			var weight := float(9 - distance)
+			var neighbor: Dictionary = samples[neighbor_index]
+			width_sum += neighbor.width * weight
+			bowl_sum += _feature_bowl_depth(neighbor.feature) * weight
+			narrow_sum += (1.0 if neighbor.feature == NARROW_PASS else 0.0) * weight
+			weight_sum += weight
+		var minimum_blend_width := 180.0
+		blend_widths[index] = maxf(width_sum / weight_sum, minimum_blend_width)
+		bowl_depths[index] = bowl_sum / weight_sum
+		narrow_weights[index] = narrow_sum / weight_sum
+	for index in range(samples.size()):
+		samples[index].blend_width = blend_widths[index]
+		samples[index].bowl_depth = bowl_depths[index]
+		samples[index].narrow_pass_weight = narrow_weights[index]
+
+
 func _sample_base_height(x: float, z: float) -> float:
 	var progress := clampf(-z / maxf(route_length, 1.0), 0.0, 1.0)
 	var weights := _region_weights(progress)
 	var broad := _broad_noise.get_noise_2d(x, z)
 	var ridge := _ridge_noise.get_noise_2d(x, z)
 	var detail := _detail_noise.get_noise_2d(x, z)
-	var verdant := broad * 78.0 + ridge * absf(ridge) * 42.0 + detail * 8.0
-	var ember := broad * 104.0 + ridge * absf(ridge) * 138.0 + detail * 13.0 + 12.0
-	var prism := broad * 128.0 + absf(ridge) * 92.0 + detail * 17.0 + 24.0
+	var ridge_curve := ridge * absf(ridge)
+	var rounded_ridge := ridge * ridge
+	var verdant := broad * 70.0 + ridge_curve * 34.0 + detail * 5.0
+	var ember := broad * 90.0 + ridge_curve * 96.0 + detail * 8.0 + 12.0
+	var prism := broad * 108.0 + rounded_ridge * 78.0 + detail * 10.0 + 24.0
 	return verdant * weights.x + ember * weights.y + prism * weights.z
+
+
+func _get_max_traversable_gradient() -> float:
+	var max_gradient := 0.0
+	var gradient_step := 10.0
+	var lateral_factors := [-1.05, -0.78, -0.52, -0.26, 0.0, 0.26, 0.52, 0.78, 1.05]
+	for sample in primary_samples:
+		var position: Vector3 = sample.position
+		var tangent: Vector3 = sample.tangent
+		var lateral := Vector2(-tangent.z, tangent.x).normalized()
+		for lateral_factor in lateral_factors:
+			var x: float = position.x + lateral.x * sample.width * lateral_factor
+			var z: float = position.z + lateral.y * sample.width * lateral_factor
+			var x_gradient := (
+				sample_height(x + gradient_step, z) - sample_height(x - gradient_step, z)
+			) / (gradient_step * 2.0)
+			var z_gradient := (
+				sample_height(x, z + gradient_step) - sample_height(x, z - gradient_step)
+			) / (gradient_step * 2.0)
+			max_gradient = maxf(max_gradient, Vector2(x_gradient, z_gradient).length())
+	return max_gradient
+
+
+func _smootherstep(edge_start: float, edge_end: float, value: float) -> float:
+	var t := clampf((value - edge_start) / maxf(edge_end - edge_start, 0.0001), 0.0, 1.0)
+	return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
 
 
 func _region_weights(progress: float) -> Vector3:
