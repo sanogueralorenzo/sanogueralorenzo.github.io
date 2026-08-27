@@ -1,247 +1,49 @@
-# Overrush
+# Overrush: Dune Drifter
 
-Early movement-survivor prototype for fast combat runs across large procedural landscapes.
+Overrush is being rebuilt as a minimalist desert freeriding game. The shipped scene is now a combat-free sandboarding run: choose any direction from a high central summit, read the terrain, carve for speed, jump, land cleanly, and use one directional air boost per airtime.
 
-## Current scope
+## Current playable foundation
 
-- A newly randomized 3.2 km × 3.2 km terrain on every run.
-- A route graph generated before the terrain, with occasional alternate paths that split and merge.
-- Authored terrain features: broad valleys, banked turns, gradual launch hills, smooth landing zones, and gently shouldered narrow passes.
-- Three smoothly blended regions per run—Verdant Reach, Ember Basin, and Prism Highlands—now coordinate terrain, sky, fog, ambient light, and sunlight instead of recoloring the ground beneath one static atmosphere.
-- Rate-limited atmosphere updates preserve performance and long sightlines, while each later region receives one concise discovery reveal that queues behind higher-priority combat messages and never spams during backtracking.
-- Original rock spires, boulder fields, distant ridges, and procedural materials.
-- Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
-- Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
-- A compact high-speed runner and follow camera used to test terrain flow, scale, and traversal; movement starts and stops on deliberate player input.
-- The runner carries an original procedural gyro shell with a forward needle, speed-reactive vector fins, steering bank, and a local dash-charge ring, using a compact rounded collision footprint while making direction, velocity, and dash state readable in-world.
-- A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
-- A universal non-power Flow challenge chains rewarding defeats above 52 m/s, gives dashes bounded timer grace, weights elites without counting summons, escalates through five readable tiers, and converts only the run's best chain into at most 24 bonus Momentum—never damage or experience.
-- A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
-- Immediate camera-relative direction changes and glancing collision response keep high-speed traversal responsive around scenery.
-- Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
-- Three deterministic elite doctrines cycle without random streaks across scheduled and protocol encounters: brittle Razor elites pursue faster with tighter warnings, Horizon elites trade speed for wider and longer-warned geometry, and brittle Tempest elites repeat signature attacks more often.
-- Doctrine-colored shells, matching attack zones, distinct procedural silhouettes, and arrival banners explain each elite's counterplay before it attacks; doctrine defeats remain in bounded run telemetry for playtest balance review.
-- Fragile zero-reward Foundry drones add bounded pack pressure without creating an experience exploit or exceeding the global population cap.
-- Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning, and specialist body overlap is deliberately weaker than each role's signature attack.
-- A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
-- Value-tiered crystal cores latch once approached, overtake maximum dash speed, and recover from distant terrain so fast traversal never discards earned progression or accumulates stale rewards.
-- Distinct coral integrity cores add a bounded recovery economy: a 14-point core is earned every eighteen rewarding defeats, elite cores repair 30, no more than three may wait in the world, and full-health runners bank rather than waste them.
-- A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
-- Path-specific follow-ups create different combat geometry: charged dash-entry and unconditional exit detonations, persistent traversal wakes, or speed-scaled multi-target chain arcs.
-- Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
-- Late Slipstream ranks gain damage and width with diminishing returns; mature Twin Current lanes space their wake samples farther apart, while Tempest Anchors cap their footprint and lifetime and share a per-target pulse interval so dense Overrun packs cannot feed automatic map-wide clear loops.
-- Ramjet checks a bounded swept dash corridor rather than a single frame position, preserving direct-impact reliability at maximum speed without allowing teleports or discontinuities to register as hits.
-- Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
-- Mature evolved builds make a second protected commitment to one of three Drive Catalysts: Redline rewards dash velocity, Airframe rewards airtime, and Pulse rewards deliberate dash-timed attack windows.
-- Every evolved engine also chooses an independent arsenal: Hunter Array missiles cover distant targets, Drift Blades reward close pack threading, and Backdraft Mine turns dash exits into delayed pursuit traps; each has a dedicated three-rank support upgrade.
-- Every catalyst carries visible downtime penalties and combines with all six evolution geometries and three arsenals for 54 endgame playstyles; arsenal damage and empowered catalyst uptime remain visible in the run recap for balance review.
-- Each run grants three honest rerolls and one deliberate banish: rerolls only spend when a different offer exists, while banishment permanently removes one standard upgrade without consuming the level.
-- Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
-- Family-colored card surfaces keep every unfocused draft option distinct, selection has its own confirmation cue, and engine commitments receive an in-world activation banner before control returns.
-- Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
-- A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
-- The live HUD counts down to the Apex, then switches to its two-minute defeat deadline; reproducible seed information remains available from pause without competing with the immediate objective.
-- Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
-- Strategy-aware seven- and eighteen-minute balance soaks cover all six evolution branches inside overlapping early and late clear envelopes while rejecting stalled traversal. Their routes exercise distinct execution: setup dashes, direct Ramjet impacts, woven Twin Current lanes, bounded Tempest zones, aimed Storm Lances, and close Arc Orbit threading.
-- A deterministic 18-matchup climax matrix pairs every mature evolution with every Apex, requiring a meaningful second phase, high-speed counterplay, a victory inside the two-minute deadline, and measurable boss damage from the chosen evolution.
-- Three named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, the Rift Matriarch predicts the route and releases bounded zero-reward broods, and the Horizon Warden alternates transverse gates with longitudinal lane cuts.
-- Every Apex visibly escalates below half health with faster pursuit, wider geometry, or shorter route-denial cycles plus distinct procedural silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
-- A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
-- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, applied integrity recovery, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
-- Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
-- Victory and defeat recaps ask “Would you run again?” and reuse the same three buttons for one optional strength or issue tag; both answers attach to that run's full telemetry, retry keeps focus, recent sentiment plus the top note appear on the next launch screen, and `COPY RUN REPORT` places one sanitized, versioned latest-run JSON payload on the clipboard for external playtest handoff.
-- Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, distance, and Flow records.
-- A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
-- A launch-accessible, controller-safe run archive turns that history into five-card pages that compare outcome, duration, protocol, clears, elites, mature build components, level, best Flow, replay intent, and optional playtest notes; empty and restored profiles remain explicit and usable.
-- Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
-- Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
-- A launch-accessible mastery record separates all six evolutions, three arsenals, and three Drives into visible completed and unexplored checklists, explains that mastery grants no combat power, and returns controller focus safely to run setup.
-- Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
-- Persistent comfort options provide a steady dash camera, reduced dash particles and combat flashes, and high-contrast attack zones with bright geometric boundaries while preserving directional damage information.
-- Short first-run prompts teach free movement, camera control, dashing, hopping, automatic combat, pickups, the 52 m/s Flow rule, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
-- First-run lessons use a terrain-independent guidance card; returning players receive a six-second compact control refresher that never overlaps integrity, while the pause screen keeps the complete input reference available throughout the run.
-- An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
-- Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, rising Flow tiers, level-ups, phase changes, victory, and failure without importing placeholder audio.
-- Persistent master, music, and independent effects mix controls apply immediately to active pooled players; outcome cues duck the run music so the ending remains legible.
-- Full keyboard and gamepad action mapping supports camera-relative analog movement, independent right-stick camera control, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
-- A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
-- The pause menu doubles as a compact loadout inspector, listing the current engine, evolution, Drive Catalyst, and every owned upgrade rank without interrupting or ending the run.
+- `freeride.tscn` is the project entry scene. It contains no enemies, weapons, builds, health, pickups, or survivor progression.
+- Each run creates a deterministic 4.8 km radial desert with a softened central summit, broad landforms, folded ridges, and smaller dunes.
+- All tested outward headings descend and remain available to the player; there is no route corridor or prescribed forward direction.
+- The sandboard controller gains speed from terrain slope, preserves momentum while carving, supports camera-relative steering and jumping, and avoids a fixed powered target speed.
+- The directional air boost adds to existing momentum. It has exactly one charge in the air and only a valid sand landing refreshes it.
+- A restrained HUD communicates speed, descent, distance, controls, and boost state.
+- Mouse/right-stick orbit controls retain the existing free camera behavior.
 
-This is not yet the complete target game. The 20-minute structure, three Apex encounters, six build evolutions with three independent arsenals and three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+The previous movement-survivor scene remains in `main.tscn` only as temporary migration reference. It is not the project entry scene and its combat/progression systems are outside the new game direction.
 
-## Generation architecture
-
-- `route_generator.gd` owns deterministic route topology and authored feature samples.
-- `route_lookup.gd` converts route samples into packed Z buckets for allocation-free height queries.
-- `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
-- `world_atmosphere.gd` maps the terrain's exact region weights into deterministic sky, fog, ambient, and sun palettes with gradual, rate-limited runtime transitions.
-- `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
-- `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, deterministic experience and integrity rewards, and the distinct geometry of movement-triggered combat effects.
-- `experience_pickup.gd` owns high-speed pursuit, stale-reward recovery, distinct experience/integrity silhouettes, and full-integrity banking behavior.
-- `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
-- `elite_traits.gd` is the single catalog for deterministic elite rotation, player-facing doctrine identity, mechanical tradeoffs, and shared colors.
-- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
-- `velocity_chain.gd` owns the deterministic speed gate, timer pressure, dash grace, elite weight, named tiers, and capped non-power reward independently of combat and profile persistence.
-- `run_stats.gd` owns outgoing and incoming attack attribution, applied integrity recovery, catalyst uptime, Flow evidence, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
-- `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
-- `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
-- `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
-- `progress_profile.gd` owns versioned progression state, deterministic run rewards, bounded run history, optional replay intent and actionable playtest tags, the privacy-safe latest-run report contract, non-power build mastery, protocol selection, atomic writes, and backup recovery.
-- `run_onboarding.gd` owns the input-aware, time-bounded first-run guidance sequence independently of the HUD.
-- `audio_director.gd` synthesizes and pools the original music and feedback palette, controls phase intensity, rate-limits warnings, and owns runtime mixing.
-- `input_bindings.gd` owns the idempotent keyboard/gamepad action map and input-device detection used by movement, menus, prompts, and tests.
+This is the first conversion milestone, not the completed game. Chunk streaming, effectively infinite traversal, richer terrain grammar, sandboard animation and contact physics, authored rocks and gaps, environmental audio, effects, accessibility, performance soaks, and external playtest validation remain required.
 
 ## Controls
 
-- `W` / `A` / `S` / `D` or arrow keys: move in any direction relative to the camera; releasing movement stops horizontal movement
-- Mouse: rotate the camera independently
-- `Space`: hop
-- `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
-- `Escape`: pause or return from settings; restarting an active run requires confirmation in the pause menu
-- `1` / `2` / `3` or mouse: choose a level-up upgrade
-- `Q` during a level-up: spend a reroll when the active pool can produce a different offer
-- `B` during a level-up: enter banish mode, then choose a removable standard upgrade with `1` / `2` / `3` or the mouse
-- At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
-- `Accessibility & Guidance` on the launch screen changes persistent comfort and audio preferences without affecting difficulty or rewards
-- Gamepad: left stick moves, right stick rotates the camera, `A` hops or confirms, `LB` / `RB` dashes, D-pad changes protocol, `Y` rerolls, `X` enters banish mode, and Start pauses
-- `R` retries only after a victory or defeat
+- `W` / `A` / `S` / `D` or left stick: carve relative to the camera
+- Mouse or right stick: orbit the camera independently
+- `Space` or gamepad `A`: jump
+- `Shift` / `Alt` or either shoulder button: use the single directional air boost while airborne
+- `Escape` or Start: pause
 
-## Map validation
+## Architecture
 
-Run the deterministic 20-seed terrain and formation gate with:
+- `procedural_desert.gd` owns seeded radial terrain height generation and its matching visual/collision surfaces.
+- `sandboarder.gd` owns slope-driven movement, carving, air control, jump/landing transitions, and boost application.
+- `air_boost_state.gd` owns the small testable one-charge, sand-only refresh contract.
+- `follow_camera.gd` owns independent mouse/right-stick orbit and speed feedback.
+- `freeride_main.gd` owns the minimal run lifecycle, onboarding, pause flow, and HUD.
+- `main.tscn` and the older survivor scripts/tests are legacy migration material and are not loaded by the freeride runtime.
 
-```sh
-godot --headless --path games/overrush --script res://tests/validate_worlds.gd
-godot --headless --path games/overrush --script res://tests/test_world_atmosphere.gd
-godot --headless --path games/overrush --script res://tests/validate_world_atmosphere.gd
-```
+## Focused validation
 
-The gate checks required terrain shapes, route continuity and slopes, local corridor gradients, sightline curvature, alternate-route frequency, formation clearance, finite terrain heights, three-region coverage, and layout uniqueness.
-
-Run the deterministic regular/alternate generation performance gate with:
+Run the boost-state contract, combat-free runtime integration, radial terrain sweep, input mapping, and project boot checks with:
 
 ```sh
-godot --headless --path games/overrush --script res://tests/benchmark_generation.gd
-```
-
-The current development-machine target is less than two seconds for a complete 321 × 321 world.
-
-Run the terrain collision and grounded-runner integration check with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/validate_heightmap_collision.gd
-```
-
-Run the dash timing and ground/air reset checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_dash_state.gd
-godot --headless --path games/overrush --script res://tests/validate_runner_presentation.gd
-```
-
-Run the build rules and playable combat integration checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_run_build.gd
-godot --headless --path games/overrush --script res://tests/test_build_evolution_balance.gd
-godot --headless --path games/overrush --script res://tests/test_run_stats.gd
-godot --headless --path games/overrush --script res://tests/test_velocity_chain.gd
-godot --headless --path games/overrush --script res://tests/test_elite_traits.gd
-godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
-godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
-godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
-godot --headless --path games/overrush --script res://tests/validate_elite_doctrines.gd
-godot --headless --path games/overrush --script res://tests/validate_draft_agency.gd
-godot --headless --path games/overrush --script res://tests/validate_drive_catalysts.gd
-godot --headless --path games/overrush --script res://tests/validate_arsenal_weapons.gd
-godot --headless --path games/overrush --script res://tests/validate_apex_variants.gd
-godot --headless --path games/overrush --script res://tests/validate_run_recap.gd
-godot --headless --path games/overrush --script res://tests/validate_velocity_chain.gd
-```
-
-Run the simulated 20-minute and in-engine maximum-speed boundary traversal checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_boundary_current.gd
-godot --headless --path games/overrush --script res://tests/validate_boundary_runtime.gd
-```
-
-Run the timed phase model and accelerated elite/Apex outcome checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_run_pacing.gd
-godot --headless --path games/overrush --script res://tests/validate_run_climax.gd
-```
-
-Run the persistent-profile and challenge-protocol checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_progress_profile.gd
-godot --headless --path games/overrush --script res://tests/validate_run_protocols.gd
-godot --headless --path games/overrush --script res://tests/validate_run_archive.gd
-godot --headless --path games/overrush --script res://tests/validate_accessibility.gd
+godot --headless --path games/overrush --script res://tests/test_air_boost_state.gd
+godot --headless --path games/overrush --script res://tests/validate_freeride_runtime.gd
+godot --headless --path games/overrush --script res://tests/validate_desert_terrain.gd
+godot --headless --fixed-fps 300 --path games/overrush --script res://tests/validate_sandboard_motion.gd
 godot --headless --path games/overrush --script res://tests/test_input_bindings.gd
-godot --headless --path games/overrush --script res://tests/validate_controller_pause.gd
+godot --headless --path games/overrush --quit-after 12
 ```
 
-Run the waveform headroom/performance and gameplay-audio connection checks with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/test_audio_synthesis.gd
-godot --headless --path games/overrush --script res://tests/validate_audio_runtime.gd
-```
-
-Run the directional hit, numeric integrity, and unobtrusive recovery feedback check with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/validate_damage_feedback.gd
-```
-
-Run the dash-speed pickup pursuit, stale-reward recovery, integrity-core cadence/banking, value-silhouette, and empty-drop check with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/validate_pickup_flow.gd
-```
-
-Run the accelerated fixed-seed full-system progression cadence gate with:
-
-```sh
-godot --headless --path games/overrush --script res://tests/validate_progression_cadence.gd
-```
-
-Run the fixed-seed, strategy-aware seven-minute engine balance gates sequentially with:
-
-```sh
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- dashbreaker 41001
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- ramjet 41001
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- stormtrail 41001
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- tempest_anchor 41001
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- arcstorm 41001
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- arc_orbit 41001
-```
-
-Each gate requires at least 20 km of traversal, a viable clear envelope, the intended evolution and arsenal, and source-share guardrails where a single effect could otherwise erase the build's decision-making.
-
-Repeat the same six commands with `1080` as a third user argument for the 18-minute Overrun sample, for example:
-
-```sh
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_engine_soak.gd -- stormtrail 41001 1080
-```
-
-The late gate requires every engine to complete its evolution, arsenal, and catalyst on schedule, traverse at least 48.6 km, remain inside the shared 500–1,000 clear envelope, and preserve measurable contributions outside its leading effect.
-
-After the six 18-minute maturation gates pass, run the focused climax matrix across all six mature evolutions and three deterministic Apex encounters with:
-
-```sh
-games/overrush/tests/audit_apex_matrix.sh
-```
-
-Every matchup uses the same mature loadout proven by the full spawning, pickup, and draft gates; preserves high-speed traversal; defeats the Apex inside its actual two-minute encounter; and attributes a meaningful share of boss damage to the chosen evolution.
-
-Run the fixed-step, finite-integrity 20-minute survival budget audit with:
-
-```sh
-godot --headless --fixed-fps 300 --path games/overrush --script res://tests/audit_survival_soak.gd -- 41001
-```
-
-The audit uses a threat-aware Arcstorm route plus a controlled execution mistake every 45 seconds. It requires the real enemy population, pickups, recovery cap, build cadence, traversal, a final-tier Flow chain with its capped reward, Apex phase, and victory/deadline resolution to sustain one complete run. Controlled mistakes make the recovery budget reproducible; this is a balance guardrail, not a substitute for human playtesting.
+The terrain sweep samples 16 radial lines over 2 km and rejects insufficient net descent, non-finite terrain, repetitive cone geometry, or abrupt local rises. These automated gates establish a foundation; they do not substitute for long-session streaming tests or hands-on movement playtests.

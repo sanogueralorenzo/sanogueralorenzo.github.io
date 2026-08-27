@@ -10,6 +10,7 @@ const LOOK_RIGHT := &"overrush_look_right"
 const LOOK_UP := &"overrush_look_up"
 const LOOK_DOWN := &"overrush_look_down"
 const HOP := &"overrush_hop"
+const AIR_BOOST := &"overrush_air_boost"
 const DASH := &"overrush_dash"
 const PAUSE := &"overrush_pause"
 const CONFIRM := &"overrush_confirm"
@@ -29,6 +30,7 @@ const ALL_ACTIONS: Array[StringName] = [
 	LOOK_UP,
 	LOOK_DOWN,
 	HOP,
+	AIR_BOOST,
 	DASH,
 	PAUSE,
 	CONFIRM,
@@ -50,6 +52,7 @@ static func ensure_actions() -> void:
 	_ensure_action(LOOK_UP, [_joy_axis(JOY_AXIS_RIGHT_Y, -1.0)])
 	_ensure_action(LOOK_DOWN, [_joy_axis(JOY_AXIS_RIGHT_Y, 1.0)])
 	_ensure_action(HOP, [_key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])
+	_ensure_action(AIR_BOOST, [_key(KEY_SHIFT), _key(KEY_ALT), _joy_button(JOY_BUTTON_LEFT_SHOULDER), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
 	_ensure_action(DASH, [_key(KEY_SHIFT), _key(KEY_ALT), _joy_button(JOY_BUTTON_LEFT_SHOULDER), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
 	_ensure_action(PAUSE, [_key(KEY_ESCAPE), _joy_button(JOY_BUTTON_START)])
 	_ensure_action(CONFIRM, [_key(KEY_ENTER), _key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])

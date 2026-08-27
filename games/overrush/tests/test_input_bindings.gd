@@ -25,6 +25,7 @@ func _init() -> void:
 	_expect(_has_axis(InputBindings.LOOK_RIGHT, JOY_AXIS_RIGHT_X, 1.0), "Camera rotation should include the right stick's horizontal axis.")
 	_expect(_has_axis(InputBindings.LOOK_UP, JOY_AXIS_RIGHT_Y, -1.0), "Camera rotation should include the right stick's vertical axis.")
 	_expect(_has_button(InputBindings.HOP, JOY_BUTTON_A), "Gamepad hop should use the south face button.")
+	_expect(_has_button(InputBindings.AIR_BOOST, JOY_BUTTON_LEFT_SHOULDER), "Gamepad air boost should include the left shoulder.")
 	_expect(_has_button(InputBindings.DASH, JOY_BUTTON_LEFT_SHOULDER), "Gamepad dash should include the left shoulder.")
 	_expect(_has_button(InputBindings.PAUSE, JOY_BUTTON_START), "Gamepad pause should use Start.")
 	_expect(_has_button(InputBindings.REROLL, JOY_BUTTON_Y), "Gamepad reroll should use the north face button.")

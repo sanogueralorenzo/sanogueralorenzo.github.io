@@ -67,6 +67,10 @@ func set_dash_active(active: bool) -> void:
 	_dash_active = active
 
 
+func set_speed_burst_active(active: bool) -> void:
+	set_dash_active(active)
+
+
 func set_reduced_motion(enabled: bool) -> void:
 	_reduced_motion = enabled
 	if enabled:

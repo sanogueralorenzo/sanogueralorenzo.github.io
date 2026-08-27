@@ -86,6 +86,10 @@ func play_dash(active: bool) -> void:
 		_play_effect(&"dash", -2.0, 1.0)
 
 
+func play_air_boost() -> void:
+	play_dash(true)
+
+
 func play_hurt(_amount: float = 0.0) -> void:
 	_play_effect(&"hurt", 0.0, 1.0)
 
