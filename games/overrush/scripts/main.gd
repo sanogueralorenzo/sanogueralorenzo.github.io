@@ -85,6 +85,8 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var master_volume_label: Label = $HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Value
 @onready var music_volume_slider: HSlider = $HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Slider
 @onready var music_volume_label: Label = $HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Value
+@onready var effects_volume_slider: HSlider = $HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio/Slider
+@onready var effects_volume_label: Label = $HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio/Value
 
 var _current_upgrade_options: Array[StringName] = []
 var _phase_name := "BREAKAWAY"
@@ -155,6 +157,7 @@ func _ready() -> void:
 	replay_guidance_button.pressed.connect(_replay_guidance)
 	master_volume_slider.value_changed.connect(_on_audio_levels_changed)
 	music_volume_slider.value_changed.connect(_on_audio_levels_changed)
+	effects_volume_slider.value_changed.connect(_on_audio_levels_changed)
 	_on_integrity_changed(ball.integrity, ball.maximum_integrity)
 	_on_build_changed(combat.build)
 	camera.snap_to_target()
@@ -291,7 +294,9 @@ func _show_damage_feedback(amount: float, source_direction: Vector3, integrity_r
 	damage_vignette.visible = true
 	var severity := clampf(amount / maxf(ball.maximum_integrity * 0.25, 1.0), 0.25, 1.0)
 	var danger := 1.0 - clampf(integrity_ratio, 0.0, 1.0)
-	damage_vignette.color = Color(0.82, 0.015, 0.025, lerpf(0.07, 0.17, maxf(severity, danger)))
+	var minimum_alpha := 0.025 if _profile.reduced_motion else 0.07
+	var maximum_alpha := 0.065 if _profile.reduced_motion else 0.17
+	damage_vignette.color = Color(0.82, 0.015, 0.025, lerpf(minimum_alpha, maximum_alpha, maxf(severity, danger)))
 	_damage_feedback_tween = create_tween().set_parallel(true)
 	_damage_feedback_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	if not _profile.reduced_motion:
@@ -719,7 +724,7 @@ func _apply_accessibility() -> void:
 
 
 func _apply_audio_levels() -> void:
-	audio.set_levels(_profile.master_volume, _profile.music_volume)
+	audio.set_levels(_profile.master_volume, _profile.music_volume, _profile.effects_volume)
 
 
 func _pause_run() -> void:
@@ -780,7 +785,7 @@ func _open_settings(from_pause: bool = false) -> void:
 		pause_overlay.visible = false
 	settings_overlay.visible = true
 	settings_back_button.text = "BACK TO PAUSE" if from_pause else "BACK TO LAUNCH"
-	reduced_motion_toggle.grab_focus()
+	master_volume_slider.grab_focus()
 
 
 func _close_settings() -> void:
@@ -837,6 +842,7 @@ func _refresh_settings() -> void:
 	replay_guidance_button.disabled = not _profile.onboarding_completed
 	master_volume_slider.set_value_no_signal(_profile.master_volume * 100.0)
 	music_volume_slider.set_value_no_signal(_profile.music_volume * 100.0)
+	effects_volume_slider.set_value_no_signal(_profile.effects_volume * 100.0)
 	_refresh_audio_labels()
 
 
@@ -865,6 +871,7 @@ func _replay_guidance() -> void:
 func _on_audio_levels_changed(_value: float) -> void:
 	_profile.master_volume = float(master_volume_slider.value) / 100.0
 	_profile.music_volume = float(music_volume_slider.value) / 100.0
+	_profile.effects_volume = float(effects_volume_slider.value) / 100.0
 	_apply_audio_levels()
 	_refresh_audio_labels()
 	_save_profile()
@@ -873,6 +880,7 @@ func _on_audio_levels_changed(_value: float) -> void:
 func _refresh_audio_labels() -> void:
 	master_volume_label.text = "%d%%" % roundi(_profile.master_volume * 100.0)
 	music_volume_label.text = "%d%%" % roundi(_profile.music_volume * 100.0)
+	effects_volume_label.text = "%d%%" % roundi(_profile.effects_volume * 100.0)
 
 
 func _update_onboarding(delta: float) -> void:

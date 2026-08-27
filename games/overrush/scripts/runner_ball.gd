@@ -248,9 +248,14 @@ func _update_ball_material() -> void:
 	if not is_instance_valid(_ball_material):
 		return
 	if _damage_flash_remaining > 0.0:
-		_ball_material.albedo_color = Color(1.0, 0.95, 0.72, 1.0)
-		_ball_material.emission = Color(1.0, 0.42, 0.06, 1.0)
-		_ball_material.emission_energy_multiplier = 5.2
+		if _reduced_motion:
+			_ball_material.albedo_color = Color(1.0, 0.3, 0.08, 1.0)
+			_ball_material.emission = Color(0.8, 0.035, 0.006, 1.0)
+			_ball_material.emission_energy_multiplier = 1.8
+		else:
+			_ball_material.albedo_color = Color(1.0, 0.95, 0.72, 1.0)
+			_ball_material.emission = Color(1.0, 0.42, 0.06, 1.0)
+			_ball_material.emission_energy_multiplier = 5.2
 	elif _dash_visual_active:
 		_ball_material.albedo_color = Color(0.12, 0.9, 1.0, 1.0)
 		_ball_material.emission = Color(0.02, 0.65, 1.0, 1.0)

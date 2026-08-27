@@ -54,8 +54,13 @@ func _run() -> void:
 	_expect("APEX IN" in scene.pause_summary.text and "SEED" in scene.pause_summary.text, "Pause should preserve objective context and move the reproducible world seed out of the live HUD.")
 
 	scene._open_settings(true)
+	await process_frame
 	_expect(scene.settings_overlay.visible and not scene.pause_overlay.visible, "Accessibility and audio settings should be available without abandoning a run.")
 	_expect(scene.settings_back_button.text == "BACK TO PAUSE", "Mid-run settings should make their return destination explicit.")
+	_expect(scene.get_viewport().gui_get_focus_owner() == scene.master_volume_slider, "Settings should begin at the first audio control for predictable controller navigation.")
+	var settings_panel: Control = scene.get_node("HUD/SettingsOverlay/SettingsPanel")
+	var settings_content: Control = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content")
+	_expect(settings_content.get_global_rect().end.y <= settings_panel.get_global_rect().end.y - 32.0, "The complete audio and comfort control stack should fit inside the settings panel without clipping.")
 	scene._close_settings()
 	_expect(scene.pause_overlay.visible and paused, "Leaving mid-run settings should return to the still-paused run.")
 

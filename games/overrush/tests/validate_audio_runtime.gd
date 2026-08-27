@@ -28,10 +28,14 @@ func _run() -> void:
 
 	var master_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Slider")
 	var music_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/MusicAudio/Slider")
+	var effects_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio/Slider")
 	master_slider.value = 35.0
 	music_slider.value = 20.0
+	effects_slider.value = 40.0
 	_expect(is_equal_approx(scene._profile.master_volume, 0.35) and is_equal_approx(audio.master_level, 0.35), "Master audio changes should apply immediately and update the profile.")
 	_expect(is_equal_approx(scene._profile.music_volume, 0.2) and is_equal_approx(audio.music_level, 0.2), "Music changes should apply immediately and update the profile.")
+	_expect(is_equal_approx(scene._profile.effects_volume, 0.4) and is_equal_approx(audio.effects_level, 0.4), "Effects changes should apply immediately and update the profile.")
+	_expect(is_equal_approx(audio._effect_players[0].volume_db, linear_to_db(0.35 * 0.4)), "Independent effects volume should retune already-pooled players instead of only future sounds.")
 
 	scene.begin_run()
 	await process_frame
@@ -55,7 +59,7 @@ func _run() -> void:
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Audio runtime validation passed — gameplay cues, pooling, rate limiting, and persistent mix controls are connected.")
+		print("Audio runtime validation passed — gameplay cues, pooling, rate limiting, and independent persistent mix controls are connected.")
 		quit(0)
 	else:
 		for failure in _failures:

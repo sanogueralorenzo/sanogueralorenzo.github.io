@@ -1059,16 +1059,16 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -360.0
-offset_top = -310.0
+offset_top = -320.0
 offset_right = 360.0
-offset_bottom = 310.0
+offset_bottom = 320.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("LaunchPanelStyle")
 
 [node name="Content" type="VBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel"]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 5
 
 [node name="Kicker" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 layout_mode = 2
@@ -1158,17 +1158,46 @@ text = "55%"
 horizontal_alignment = 2
 vertical_alignment = 1
 
+[node name="EffectsAudio" type="HBoxContainer" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "EFFECTS"
+vertical_alignment = 1
+
+[node name="Slider" type="HSlider" parent="HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio"]
+custom_minimum_size = Vector2(390, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100.0
+step = 5.0
+value = 100.0
+
+[node name="Value" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content/EffectsAudio"]
+custom_minimum_size = Vector2(54, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.86, 0.96, 1)
+theme_override_font_sizes/font_size = 15
+text = "100%"
+horizontal_alignment = 2
+vertical_alignment = 1
+
 [node name="ReducedMotion" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
-text = "STEADY DASH CAMERA"
+text = "REDUCED MOTION & FLASHES"
 
 [node name="ReducedMotionDescription" type="Label" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.72, 0.84, 1)
 theme_override_font_sizes/font_size = 14
-text = "Removes dash FOV surges and most dash particles; attack timing remains unchanged."
+text = "Steadies dash effects and softens damage flashes; attack timing remains unchanged."
 
 [node name="HighContrast" type="CheckButton" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 custom_minimum_size = Vector2(0, 42)
@@ -1193,7 +1222,7 @@ text = "FIRST-RUN GUIDANCE"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.58, 0.72, 0.84, 1)
 theme_override_font_sizes/font_size = 14
-text = "Shows short, non-blocking prompts until steering, dashing, and hopping are understood."
+text = "Shows short prompts for controls, threat reading, build planning, and the objective."
 
 [node name="ReplayGuidance" type="Button" parent="HUD/SettingsOverlay/SettingsPanel/Content"]
 custom_minimum_size = Vector2(0, 38)

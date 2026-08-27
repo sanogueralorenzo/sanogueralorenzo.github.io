@@ -742,7 +742,8 @@ func _update_material() -> void:
 	if is_elite:
 		base_color = base_color.lerp(Color(1.0, 0.42, 0.04), 0.42)
 	if _hit_flash > 0.0:
-		base_color = Color(1.0, 0.95, 0.65)
+		base_color = base_color.lerp(Color(1.0, 0.8, 0.3), 0.25) if _reduced_motion else Color(1.0, 0.95, 0.65)
 	_body_material.albedo_color = base_color
 	_body_material.emission = base_color * 0.72
-	_body_material.emission_energy_multiplier = 2.8 if _hit_flash > 0.0 else (2.0 if is_apex or is_elite else 1.2)
+	var hit_flash_energy := 1.5 if _reduced_motion else 2.8
+	_body_material.emission_energy_multiplier = hit_flash_energy if _hit_flash > 0.0 else (2.0 if is_apex or is_elite else 1.2)

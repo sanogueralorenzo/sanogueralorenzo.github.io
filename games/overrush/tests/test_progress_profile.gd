@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_schema_six_feedback_migration()
 	_test_schema_seven_incoming_damage_migration()
 	_test_schema_eight_recovery_migration()
+	_test_schema_nine_effects_migration()
 	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
@@ -98,6 +99,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	profile.onboarding_completed = true
 	profile.master_volume = 0.35
 	profile.music_volume = 0.4
+	profile.effects_volume = 0.65
 	profile.run_history = [{"victory": true, "build_name": "ARCSTORM • STORM LANCE", "replay_intent": "yes"}]
 	profile.mastered_build_ids = [&"storm_lance", &"drift_blades"]
 	_expect(profile.save(_test_path), "A valid profile should save atomically.")
@@ -112,7 +114,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	_expect(str(loaded.last_run_summary.replay_intent) == "yes" and loaded.get_recent_replay_yes_count() == 1, "Optional replay intent should survive a save/load round trip.")
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
-	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4), "Audio mix preferences should survive a save/load round trip.")
+	_expect(is_equal_approx(loaded.master_volume, 0.35) and is_equal_approx(loaded.music_volume, 0.4) and is_equal_approx(loaded.effects_volume, 0.65), "All three audio mix preferences should survive a save/load round trip.")
 	_expect(loaded.run_history.size() == 1 and loaded.get_mastery_count() == 2, "Bounded run history and non-power mastery should survive a save/load round trip.")
 
 	var absolute_path := ProjectSettings.globalize_path(_test_path)
@@ -142,7 +144,7 @@ func _test_schema_one_migration() -> void:
 	_expect(migrated.load(legacy_path), "A schema-one profile should migrate without losing progression.")
 	_expect(migrated.momentum == 300 and migrated.selected_protocol == RunProtocolCatalog.GLASS_VELOCITY, "Schema migration should retain earned Momentum and protocol selection.")
 	_expect(not migrated.reduced_motion and not migrated.high_contrast_telegraphs and migrated.guidance_enabled, "Schema migration should apply safe accessibility defaults.")
-	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55), "Older profiles should receive balanced default audio levels.")
+	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55) and is_equal_approx(migrated.effects_volume, 1.0), "Older profiles should receive balanced default audio levels.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):
@@ -168,7 +170,7 @@ func _test_schema_two_audio_migration() -> void:
 	var migrated := ProgressProfileModel.new()
 	_expect(migrated.load(legacy_path), "A schema-two profile should migrate when audio preferences are introduced.")
 	_expect(migrated.reduced_motion and migrated.high_contrast_telegraphs and migrated.onboarding_completed, "Schema-two migration should retain existing comfort preferences.")
-	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55), "Schema-two profiles should receive balanced default audio levels.")
+	_expect(is_equal_approx(migrated.master_volume, 0.8) and is_equal_approx(migrated.music_volume, 0.55) and is_equal_approx(migrated.effects_volume, 1.0), "Schema-two profiles should receive balanced default audio levels.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):
@@ -296,6 +298,28 @@ func _test_schema_eight_recovery_migration() -> void:
 	var migrated := ProgressProfileModel.new()
 	_expect(migrated.load(legacy_path), "A schema-eight profile should migrate when integrity recovery telemetry is introduced.")
 	_expect(is_zero_approx(float(migrated.last_run_summary.integrity_recovered)) and int(migrated.last_run_summary.recovery_pickups) == 0, "Older profiles should preserve run history without inventing recovery use.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_nine_effects_migration() -> void:
+	var legacy_path := _test_path + ".legacy9"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 9,
+		"momentum": 1650,
+		"completed_runs": 18,
+		"victories": 9,
+		"master_volume": 0.6,
+		"music_volume": 0.35,
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-nine profile should migrate when independent effects volume is introduced.")
+	_expect(is_equal_approx(migrated.master_volume, 0.6) and is_equal_approx(migrated.music_volume, 0.35), "Effects migration should preserve the existing audio mix.")
+	_expect(is_equal_approx(migrated.effects_volume, 1.0), "Existing players should retain the prior full-strength effects mix by default.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):

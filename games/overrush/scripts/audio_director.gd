@@ -21,6 +21,7 @@ const EFFECT_DURATIONS := {
 
 var master_level := 0.8
 var music_level := 0.55
+var effects_level := 1.0
 
 var _library: Dictionary = {}
 var _effect_players: Array[AudioStreamPlayer] = []
@@ -56,9 +57,10 @@ func _process(delta: float) -> void:
 	_hit_cooldown = maxf(0.0, _hit_cooldown - delta)
 
 
-func set_levels(new_master_level: float, new_music_level: float) -> void:
+func set_levels(new_master_level: float, new_music_level: float, new_effects_level: float = 1.0) -> void:
 	master_level = clampf(new_master_level, 0.0, 1.0)
 	music_level = clampf(new_music_level, 0.0, 1.0)
+	effects_level = clampf(new_effects_level, 0.0, 1.0)
 	_apply_levels()
 
 
@@ -172,18 +174,20 @@ func _create_players() -> void:
 	for _index in range(EFFECT_POOL_SIZE):
 		var player := AudioStreamPlayer.new()
 		player.process_mode = Node.PROCESS_MODE_ALWAYS
+		player.set_meta(&"volume_offset_db", 0.0)
 		add_child(player)
 		_effect_players.append(player)
 
 
 func _play_effect(effect_id: StringName, volume_offset_db: float, pitch: float) -> void:
-	if not _initialized or master_level <= 0.0 or not _library.has(effect_id):
+	if not _initialized or master_level * effects_level <= 0.0 or not _library.has(effect_id):
 		return
 	var player := _effect_players[_effect_cursor]
 	_effect_cursor = (_effect_cursor + 1) % _effect_players.size()
 	player.stop()
 	player.stream = _library[effect_id]
-	player.volume_db = _linear_level_to_db(master_level) + volume_offset_db
+	player.set_meta(&"volume_offset_db", volume_offset_db)
+	_apply_effect_level(player)
 	player.pitch_scale = clampf(pitch, 0.5, 1.8)
 	player.play()
 
@@ -194,6 +198,13 @@ func _apply_levels() -> void:
 	var combined_music := master_level * music_level
 	_music_bed.volume_db = _linear_level_to_db(combined_music) - 9.0 + _music_duck_db
 	_music_drive.volume_db = _linear_level_to_db(combined_music) + _phase_drive_db + _music_duck_db
+	for player in _effect_players:
+		_apply_effect_level(player)
+
+
+func _apply_effect_level(player: AudioStreamPlayer) -> void:
+	var volume_offset_db := float(player.get_meta(&"volume_offset_db", 0.0))
+	player.volume_db = _linear_level_to_db(master_level * effects_level) + volume_offset_db
 
 
 func _linear_level_to_db(level: float) -> float:
