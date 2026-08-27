@@ -280,6 +280,7 @@ world_path = NodePath("../World")
 [node name="RunnerBall" type="CharacterBody3D" parent="."]
 position = Vector3(0, 8, 0)
 script = ExtResource("3_ball")
+movement_camera_path = NodePath("../Camera3D")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="RunnerBall"]
 shape = SubResource("BallShape")
@@ -544,7 +545,7 @@ theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("HUDCardStyle")
-text = "A / D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
+text = "WASD MOVE  •  MOUSE LOOK  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
 vertical_alignment = 1
 
 [node name="TutorialCard" type="Label" parent="HUD"]
@@ -565,7 +566,7 @@ theme_override_colors/font_outline_color = Color(0.004, 0.02, 0.06, 0.96)
 theme_override_constants/outline_size = 7
 theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("HUDCardStyle")
-text = "DRIVE AND STEER  •  W / ↑ + A / D OR ← / →\nHold forward to move; release it to stop. Choose open ground."
+text = "MOVE AND LOOK  •  WASD + MOUSE\nMove in any direction; rotate the camera independently."
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -1467,7 +1468,7 @@ custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.66, 0.78, 1)
 theme_override_font_sizes/font_size = 13
-text = "A/D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
+text = "WASD MOVE  •  MOUSE LOOK  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
 horizontal_alignment = 1
 vertical_alignment = 1
 

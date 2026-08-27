@@ -25,10 +25,10 @@ func _run() -> void:
 func _validate_onboarding_model() -> void:
 	var onboarding: RunOnboarding = RunOnboardingModel.new()
 	onboarding.reset()
-	_expect("DRIVE" in onboarding.get_message() and "release it to stop" in onboarding.get_message(), "Guidance should begin with deliberate drive-and-stop control.")
-	_expect("LEFT STICK" in onboarding.get_message(true), "Controller guidance should teach driving and steering with the left stick.")
+	_expect("WASD + MOUSE" in onboarding.get_message() and "any direction" in onboarding.get_message(), "Guidance should begin with independent movement and camera control.")
+	_expect("LEFT + RIGHT STICKS" in onboarding.get_message(true), "Controller guidance should teach movement and camera control with both sticks.")
 	onboarding.update(0.1, true, false, false)
-	_expect(onboarding.step == RunOnboardingModel.DASH, "Drive or steering input should advance guidance to the dash concept.")
+	_expect(onboarding.step == RunOnboardingModel.DASH, "Directional movement should advance guidance to the dash concept.")
 	_expect("LB / RB" in onboarding.get_message(true), "Controller guidance should teach both dash shoulder buttons.")
 	onboarding.update(0.1, false, true, false)
 	_expect(onboarding.step == RunOnboardingModel.HOP, "A dash should advance guidance to hopping and automatic combat.")

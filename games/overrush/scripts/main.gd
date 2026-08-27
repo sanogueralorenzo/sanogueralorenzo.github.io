@@ -228,6 +228,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_sync_camera_controls()
 	var catalyst_status := combat.get_catalyst_status()
 	var catalyst_line := "" if catalyst_status.is_empty() else "\n%s" % catalyst_status
 	info.text = "OVER RUSH  •  %s\n%03d m/s  •  %s%s" % [
@@ -368,10 +369,10 @@ func _on_runner_damaged(amount: float, source_direction: Vector3, integrity_rati
 func _show_damage_feedback(amount: float, source_direction: Vector3, integrity_ratio: float) -> void:
 	if is_instance_valid(_damage_feedback_tween):
 		_damage_feedback_tween.kill()
-	var forward := Vector3(ball.heading.x, 0.0, ball.heading.z).normalized()
+	var forward: Vector3 = camera.get_planar_forward()
 	if forward.length_squared() < 0.1:
 		forward = Vector3.FORWARD
-	var right := Vector3(-forward.z, 0.0, forward.x)
+	var right: Vector3 = camera.get_planar_right()
 	var screen_direction := Vector2(source_direction.dot(right), -source_direction.dot(forward))
 	if screen_direction.length_squared() < 0.01:
 		screen_direction = Vector2.UP
@@ -1115,19 +1116,19 @@ func _close_settings() -> void:
 
 func _refresh_input_prompts() -> void:
 	if _using_gamepad:
-		controls.text = "LEFT STICK DRIVE / STEER  •  A HOP\nLB / RB DASH  •  START PAUSE"
+		controls.text = "LEFT STICK MOVE  •  RIGHT STICK LOOK  •  A HOP\nLB / RB DASH  •  START PAUSE"
 		select_hint.text = "D-PAD TO SELECT"
 		launch_hint.text = "A TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  A"
 		victory_retry.text = "RUN AGAIN  •  A"
-		pause_hint.text = "LEFT STICK DRIVE / STEER  •  A HOP  •  LB/RB DASH\nSTART TO RESUME  •  A TO SELECT"
+		pause_hint.text = "LEFT STICK MOVE  •  RIGHT STICK LOOK  •  A HOP  •  LB/RB DASH\nSTART TO RESUME  •  A TO SELECT"
 	else:
-		controls.text = "A / D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
+		controls.text = "WASD MOVE  •  MOUSE LOOK  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
 		select_hint.text = "A / D OR ARROW KEYS"
 		launch_hint.text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  R"
 		victory_retry.text = "RUN AGAIN  •  R"
-		pause_hint.text = "A/D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
+		pause_hint.text = "WASD MOVE  •  MOUSE LOOK  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
 	if level_up_overlay.visible:
 		_refresh_draft_controls()
 	if tutorial_card.visible:
@@ -1230,7 +1231,8 @@ func _update_onboarding(delta: float) -> void:
 	var movement_input := (
 		Input.get_action_strength(InputBindings.MOVE_LEFT) > 0.2
 		or Input.get_action_strength(InputBindings.MOVE_RIGHT) > 0.2
-		or Input.get_action_strength(InputBindings.BOOST) > 0.2
+		or Input.get_action_strength(InputBindings.MOVE_FORWARD) > 0.2
+		or Input.get_action_strength(InputBindings.MOVE_BACKWARD) > 0.2
 	)
 	var hopping: bool = not ball.is_on_floor() and ball.velocity.y > 2.0
 	if not _onboarding.update(delta, movement_input, ball.is_dashing(), hopping):
@@ -1241,6 +1243,16 @@ func _update_onboarding(delta: float) -> void:
 		_save_profile()
 	else:
 		tutorial_card.text = _onboarding.get_message(_using_gamepad)
+
+
+func _sync_camera_controls() -> void:
+	var gameplay_active := (
+		_run_started
+		and not get_tree().paused
+		and not game_over_overlay.visible
+		and not victory_overlay.visible
+	)
+	camera.set_controls_enabled(gameplay_active)
 
 
 func _update_control_reminder(delta: float) -> void:

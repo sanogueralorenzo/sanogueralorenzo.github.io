@@ -29,12 +29,14 @@ func _run() -> void:
 	_expect(scene._using_gamepad, "Controller input should switch every contextual prompt to gamepad language.")
 	_expect(scene._protocol_index == 1, "D-pad input should cycle run protocols even while the launch button owns focus.")
 	_expect("D-PAD" in scene.select_hint.text and "A TO LAUNCH" in scene.launch_hint.text, "The launch screen should explain controller selection and confirmation.")
-	_expect("LEFT STICK" in scene.controls.text and "START PAUSE" in scene.controls.text, "The contextual reminder should describe the complete gamepad movement loop.")
+	_expect("LEFT STICK MOVE" in scene.controls.text and "RIGHT STICK LOOK" in scene.controls.text and "START PAUSE" in scene.controls.text, "The contextual reminder should describe independent gamepad movement and camera control.")
 
 	scene._profile.onboarding_completed = true
 	scene.begin_run(RunProtocolCatalog.STANDARD)
 	await process_frame
+	var camera: Camera3D = scene.get_node("Camera3D")
 	_expect(not paused and scene._run_started, "Launching should resume the simulation.")
+	_expect(camera._controls_enabled, "Launching should capture independent camera control for gameplay.")
 	_expect(scene.controls.visible and not scene.tutorial_card.visible, "Returning players should receive one compact control refresher instead of replaying onboarding.")
 	var design_integrity_left: float = 1280.0 * 0.5 + scene.integrity_bar.offset_left
 	_expect(scene.controls.offset_right < design_integrity_left, "The compact refresher should not overlap the centered integrity HUD at the 1280×720 design resolution.")
@@ -47,7 +49,7 @@ func _run() -> void:
 	Input.action_press(InputBindings.MOVE_LEFT, 0.5)
 	runner._physics_process(0.1)
 	Input.action_release(InputBindings.MOVE_LEFT)
-	_expect(runner.heading.distance_to(heading_before) > 0.001, "Analog action strength should steer the live runner.")
+	_expect(runner.heading.distance_to(heading_before) > 0.001, "Analog action strength should move the live runner laterally.")
 	Input.action_press(InputBindings.DASH)
 	runner._physics_process(0.016)
 	Input.action_release(InputBindings.DASH)
@@ -55,6 +57,7 @@ func _run() -> void:
 	paused = false
 	await _push_joy_button(JOY_BUTTON_START)
 	_expect(paused and scene.pause_overlay.visible, "Start should suspend an active run behind a dedicated pause overlay.")
+	_expect(not camera._controls_enabled, "Pausing should release camera control for menu interaction.")
 	_expect(scene.get_viewport().gui_get_focus_owner() == scene.pause_resume_button, "Resume should be the safe default pause action.")
 	_expect("LEFT STICK" in scene.pause_hint.text and "LB/RB DASH" in scene.pause_hint.text, "Pause should retain the complete movement reference after the live refresher retires.")
 	var pause_panel: Control = scene.get_node("HUD/PauseOverlay/PausePanel")
@@ -78,7 +81,9 @@ func _run() -> void:
 	_expect(scene._restart_armed and scene.pause_restart_button.text == "CONFIRM RESTART", "Restart should require a second deliberate confirmation.")
 	_expect(not scene._run_recorded, "Arming restart should not log or mutate run progression.")
 	scene._resume_run()
+	scene._sync_camera_controls()
 	_expect(not paused and not scene.pause_overlay.visible, "Resume should restore the active run.")
+	_expect(camera._controls_enabled, "Resuming should restore independent camera control.")
 	_expect(not scene._restart_armed and scene.pause_restart_button.text == "RESTART RUN", "Leaving pause should cancel stale restart confirmation.")
 
 	scene.get_node("CombatDirector").stop_run()

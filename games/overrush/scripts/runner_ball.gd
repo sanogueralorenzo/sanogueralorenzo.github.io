@@ -12,14 +12,15 @@ const BASE_DASH_IMMUNITY_SECONDS := 0.14
 const VISUAL_TURN_RESPONSE := 12.0
 const VISUAL_BANK_RADIANS := 0.3
 const DRIVE_DEADZONE := 0.15
+const BOUNDARY_GUIDANCE_HOLD_SECONDS := 0.3
+const COLLISION_RECOVERY_RESPONSE := 4.0
 
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
 @export var ground_acceleration: float = 52.0
 @export var air_control: float = 0.28
-@export var ground_traction: float = 11.0
-@export var air_traction: float = 3.2
-@export var turn_speed: float = 1.75
+@export var collision_traction: float = 11.0
+@export var air_collision_traction: float = 3.2
 @export var jump_velocity: float = 17.0
 @export var dash_speed: float = 126.0
 @export var dash_exit_speed: float = 78.0
@@ -28,6 +29,7 @@ const DRIVE_DEADZONE := 0.15
 @export var dash_cooldown: float = 0.14
 @export var maximum_integrity: float = 100.0
 @export var damage_invulnerability: float = 0.42
+@export var movement_camera_path: NodePath
 
 @onready var ball_mesh: MeshInstance3D = $BallMesh
 @onready var dash_trail: GPUParticles3D = $DashTrail
@@ -51,9 +53,15 @@ var _dash_ring: MeshInstance3D
 var _directional_fins: Array[MeshInstance3D] = []
 var _roll_bands: Array[MeshInstance3D] = []
 var _dash_ring_material: StandardMaterial3D
+var _movement_camera
+var _guided_heading_pending := Vector3.ZERO
+var _guided_heading_remaining := 0.0
+var _last_requested_direction := Vector3.ZERO
 
 
 func _ready() -> void:
+	if not movement_camera_path.is_empty():
+		_movement_camera = get_node(movement_camera_path)
 	_dash_state = DashStateMachine.new(dash_minimum_duration, dash_maximum_duration, dash_cooldown)
 	_ball_material = ball_mesh.get_active_material(0).duplicate()
 	ball_mesh.material_override = _ball_material
@@ -68,6 +76,28 @@ func _physics_process(delta: float) -> void:
 	_update_ball_material()
 	var grounded := is_on_floor()
 	_airborne_time = 0.0 if grounded else _airborne_time + delta
+	var movement_input := Input.get_vector(
+		InputBindings.MOVE_LEFT,
+		InputBindings.MOVE_RIGHT,
+		InputBindings.MOVE_FORWARD,
+		InputBindings.MOVE_BACKWARD
+	)
+	var requested_direction := get_camera_relative_direction(movement_input)
+	var request_changed := requested_direction.distance_squared_to(_last_requested_direction) > 0.000001
+	_last_requested_direction = requested_direction
+	var movement_direction := requested_direction
+	var boundary_guided := movement_direction.length_squared() > 0.01 and _guided_heading_remaining > 0.0
+	if boundary_guided:
+		movement_direction = _guided_heading_pending
+	_guided_heading_remaining = maxf(0.0, _guided_heading_remaining - delta)
+	if not _dash_state.is_active and movement_direction.length_squared() > 0.01:
+		if request_changed or boundary_guided:
+			heading = movement_direction
+		elif heading.dot(movement_direction) < 0.999:
+			heading = heading.slerp(
+				movement_direction,
+				1.0 - exp(-COLLISION_RECOVERY_RESPONSE * delta)
+			).normalized()
 	var dash_pressed := _is_dash_pressed()
 	var dash_event := _dash_state.step(delta, dash_pressed, dash_pressed and not _dash_was_pressed, grounded)
 	_dash_was_pressed = dash_pressed
@@ -75,10 +105,6 @@ func _physics_process(delta: float) -> void:
 		_begin_dash()
 	elif dash_event == DashStateMachine.Event.ENDED:
 		_end_dash()
-
-	var steering := Input.get_action_strength(InputBindings.MOVE_LEFT) - Input.get_action_strength(InputBindings.MOVE_RIGHT)
-	if not _dash_state.is_active:
-		heading = heading.rotated(Vector3.UP, steering * turn_speed * delta).normalized()
 
 	if _dash_state.is_active:
 		velocity.x = _dash_heading.x * dash_speed
@@ -89,23 +115,18 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_preserve_collision_momentum(intended_dash_velocity)
 		_roll_visual(delta)
-		_update_runner_frame(delta, steering)
+		_update_runner_frame(delta, movement_input.x)
 		_check_fall()
 		return
 
-	var drive_strength := Input.get_action_strength(InputBindings.BOOST)
-	var brake_strength := Input.get_action_strength(InputBindings.BRAKE)
-	var target_speed := get_drive_target_speed(drive_strength)
-	if brake_strength > DRIVE_DEADZONE:
-		target_speed = 0.0
-
+	var target_speed := get_movement_target_speed(movement_input.length())
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	var acceleration := ground_acceleration if is_on_floor() else ground_acceleration * air_control
 	var current_speed := horizontal_velocity.length()
 	var adjusted_speed := 0.0 if is_zero_approx(target_speed) else move_toward(current_speed, target_speed, acceleration * delta)
 	var travel_direction := heading
-	if current_speed > 0.01:
-		var traction := ground_traction if is_on_floor() else air_traction
+	if not request_changed and current_speed > 0.01:
+		var traction := collision_traction if is_on_floor() else air_collision_traction
 		travel_direction = horizontal_velocity.normalized().slerp(
 			heading,
 			1.0 - exp(-traction * delta)
@@ -126,7 +147,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_preserve_collision_momentum(intended_horizontal_velocity)
 	_roll_visual(delta)
-	_update_runner_frame(delta, steering)
+	_update_runner_frame(delta, movement_input.x)
 	_check_fall()
 
 
@@ -134,6 +155,9 @@ func respawn(at_position: Vector3) -> void:
 	spawn_position = at_position
 	global_position = at_position
 	velocity = Vector3.ZERO
+	_guided_heading_pending = Vector3.ZERO
+	_guided_heading_remaining = 0.0
+	_last_requested_direction = Vector3.ZERO
 	if is_instance_valid(_dash_state):
 		_dash_state.reset()
 		_set_dash_visuals(false)
@@ -144,17 +168,34 @@ func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
 
 
-func get_drive_target_speed(drive_strength: float) -> float:
-	if drive_strength <= DRIVE_DEADZONE:
+func get_movement_target_speed(input_strength: float) -> float:
+	if input_strength <= DRIVE_DEADZONE:
 		return 0.0
-	var drive_amount := inverse_lerp(DRIVE_DEADZONE, 1.0, clampf(drive_strength, 0.0, 1.0))
-	return lerpf(cruise_speed, boost_speed, drive_amount)
+	var movement_amount := inverse_lerp(DRIVE_DEADZONE, 1.0, clampf(input_strength, 0.0, 1.0))
+	return lerpf(cruise_speed, boost_speed, movement_amount)
+
+
+func get_camera_relative_direction(input_vector: Vector2) -> Vector3:
+	if input_vector.length() <= DRIVE_DEADZONE:
+		return Vector3.ZERO
+	var camera_forward := Vector3.FORWARD
+	var camera_right := Vector3.RIGHT
+	if is_instance_valid(_movement_camera):
+		camera_forward = _movement_camera.get_planar_forward()
+		camera_right = _movement_camera.get_planar_right()
+	return (camera_right * input_vector.x + camera_forward * -input_vector.y).normalized()
 
 
 func apply_boundary_heading(guided_heading: Vector3) -> void:
-	heading = Vector3(guided_heading.x, 0.0, guided_heading.z).normalized()
+	var planar_heading := Vector3(guided_heading.x, 0.0, guided_heading.z).normalized()
+	if planar_heading.length_squared() < 0.01:
+		return
+	heading = planar_heading
 	if is_instance_valid(_dash_state) and _dash_state.is_active:
 		_dash_heading = heading
+	else:
+		_guided_heading_pending = heading
+		_guided_heading_remaining = BOUNDARY_GUIDANCE_HOLD_SECONDS
 
 
 func grant_damage_immunity(duration: float) -> void:

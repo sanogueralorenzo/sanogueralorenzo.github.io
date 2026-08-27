@@ -27,7 +27,7 @@ func _init() -> void:
 
 func _test_experience_progression() -> void:
 	var build := RunBuildScript.new()
-	_expect(build.experience_to_next == RunBuild.INITIAL_EXPERIENCE_REQUIREMENT and build.experience_to_next >= 18, "The first engine draft should follow the initial steering guidance beat.")
+	_expect(build.experience_to_next == RunBuild.INITIAL_EXPERIENCE_REQUIREMENT and build.experience_to_next >= 18, "The first engine draft should follow the initial movement-and-camera guidance beat.")
 	var gained: int = build.add_experience(40)
 	_expect(gained >= 2, "A large XP award should preserve overflow and grant multiple levels.")
 	_expect(build.pending_levels == gained, "Every gained level should require one build decision.")

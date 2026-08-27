@@ -49,7 +49,7 @@ func update(delta: float, movement_input: bool, dashing: bool, hopping: bool) ->
 func get_message(gamepad: bool = false) -> String:
 	match step:
 		STEER:
-			return "DRIVE AND STEER  •  LEFT STICK\nPush forward to move; release it to stop. Choose open ground." if gamepad else "DRIVE AND STEER  •  W / ↑ + A / D OR ← / →\nHold forward to move; release it to stop. Choose open ground."
+			return "MOVE AND LOOK  •  LEFT + RIGHT STICKS\nMove in any direction; rotate the camera independently." if gamepad else "MOVE AND LOOK  •  WASD + MOUSE\nMove in any direction; rotate the camera independently."
 		DASH:
 			return "DASH THROUGH PRESSURE  •  LB / RB\nTap for a burst, hold for distance. Your air dash refreshes on landing." if gamepad else "DASH THROUGH PRESSURE  •  SHIFT / ALT\nTap for a burst, hold for distance. Your air dash refreshes on landing."
 		HOP:

@@ -26,7 +26,7 @@ func _run() -> void:
 	runner.integrity = runner.maximum_integrity
 	runner.cruise_speed = 58.0
 	runner.boost_speed = 58.0
-	Input.action_press(InputBindings.BOOST)
+	Input.action_press(InputBindings.MOVE_FORWARD)
 	_director = scene.get_node("CombatDirector")
 	_director.level_up_requested.connect(_choose_upgrade)
 	scene.begin_run()
@@ -54,10 +54,10 @@ func _run() -> void:
 	_expect(lance_share <= 0.75, "The aimed evolution should not erase Arcstorm's residual coverage in the full-system sample.")
 	_expect(residual_share >= 0.15, "Missed Storm Lance lanes should preserve a meaningful automatic fallback contribution.")
 	_expect(float(_director.run_stats.damage_by_source.get(&"hunter_array", 0.0)) > 0.0, "The independent arsenal should contribute before the Drive fork arrives.")
-	_expect(float(milestones.get("engine", 0.0)) >= RunOnboarding.AUTOMATIC_ADVANCE_SECONDS, "The first engine decision should not interrupt the initial steering guidance beat.")
+	_expect(float(milestones.get("engine", 0.0)) >= RunOnboarding.AUTOMATIC_ADVANCE_SECONDS, "The first engine decision should not interrupt the initial movement-and-camera guidance beat.")
 	_expect(Time.get_ticks_msec() - _wall_start < 60000, "The accelerated cadence gate should remain practical for routine validation.")
 
-	Input.action_release(InputBindings.BOOST)
+	Input.action_release(InputBindings.MOVE_FORWARD)
 	Engine.time_scale = 1.0
 	Engine.physics_ticks_per_second = 60
 	paused = false

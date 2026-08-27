@@ -18,9 +18,12 @@ func _init() -> void:
 			InputMap.action_get_events(action).size() == int(original_event_counts[action]),
 			"Registering actions twice should not duplicate %s bindings." % action,
 		)
-	_expect(_has_key(InputBindings.MOVE_LEFT, KEY_A), "Keyboard steering should include A.")
-	_expect(_has_axis(InputBindings.MOVE_LEFT, JOY_AXIS_LEFT_X, -1.0), "Analog steering should include the left stick's negative X axis.")
-	_expect(_has_axis(InputBindings.BOOST, JOY_AXIS_LEFT_Y, -1.0), "Analog boost should include the left stick's forward axis.")
+	_expect(_has_key(InputBindings.MOVE_LEFT, KEY_A), "Keyboard movement should include A.")
+	_expect(_has_key(InputBindings.MOVE_BACKWARD, KEY_S), "Keyboard movement should include S.")
+	_expect(_has_axis(InputBindings.MOVE_LEFT, JOY_AXIS_LEFT_X, -1.0), "Analog movement should include the left stick's negative X axis.")
+	_expect(_has_axis(InputBindings.MOVE_FORWARD, JOY_AXIS_LEFT_Y, -1.0), "Analog movement should include the left stick's forward axis.")
+	_expect(_has_axis(InputBindings.LOOK_RIGHT, JOY_AXIS_RIGHT_X, 1.0), "Camera rotation should include the right stick's horizontal axis.")
+	_expect(_has_axis(InputBindings.LOOK_UP, JOY_AXIS_RIGHT_Y, -1.0), "Camera rotation should include the right stick's vertical axis.")
 	_expect(_has_button(InputBindings.HOP, JOY_BUTTON_A), "Gamepad hop should use the south face button.")
 	_expect(_has_button(InputBindings.DASH, JOY_BUTTON_LEFT_SHOULDER), "Gamepad dash should include the left shoulder.")
 	_expect(_has_button(InputBindings.PAUSE, JOY_BUTTON_START), "Gamepad pause should use Start.")

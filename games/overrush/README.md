@@ -17,7 +17,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
 - A universal non-power Flow challenge chains rewarding defeats above 52 m/s, gives dashes bounded timer grace, weights elites without counting summons, escalates through five readable tiers, and converts only the run's best chain into at most 24 bonus Momentum—never damage or experience.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
-- Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
+- Immediate camera-relative direction changes and glancing collision response keep high-speed traversal responsive around scenery.
 - Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
 - Three deterministic elite doctrines cycle without random streaks across scheduled and protocol encounters: brittle Razor elites pursue faster with tighter warnings, Horizon elites trade speed for wider and longer-warned geometry, and brittle Tempest elites repeat signature attacks more often.
 - Doctrine-colored shells, matching attack zones, distinct procedural silhouettes, and arrival banners explain each elite's counterplay before it attacks; doctrine defeats remain in bounded run telemetry for playtest balance review.
@@ -58,12 +58,12 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A launch-accessible mastery record separates all six evolutions, three arsenals, and three Drives into visible completed and unexplored checklists, explains that mastery grants no combat power, and returns controller focus safely to run setup.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles and combat flashes, and high-contrast attack zones with bright geometric boundaries while preserving directional damage information.
-- Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, the 52 m/s Flow rule, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
+- Short first-run prompts teach free movement, camera control, dashing, hopping, automatic combat, pickups, the 52 m/s Flow rule, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
 - First-run lessons use a terrain-independent guidance card; returning players receive a six-second compact control refresher that never overlaps integrity, while the pause screen keeps the complete input reference available throughout the run.
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, rising Flow tiers, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master, music, and independent effects mix controls apply immediately to active pooled players; outcome cues duck the run music so the ending remains legible.
-- Full keyboard and gamepad action mapping supports analog steering, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
+- Full keyboard and gamepad action mapping supports camera-relative analog movement, independent right-stick camera control, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
 - A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
 - The pause menu doubles as a compact loadout inspector, listing the current engine, evolution, Drive Catalyst, and every owned upgrade rank without interrupting or ending the run.
 
@@ -93,9 +93,8 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 
 ## Controls
 
-- `A` / `D` or left / right: steer
-- Hold `W` or up to drive; forward stick travel moves from cruise to boost speed, and releasing forward stops horizontal movement
-- `S` or down: stop immediately
+- `W` / `A` / `S` / `D` or arrow keys: move in any direction relative to the camera; releasing movement stops horizontal movement
+- Mouse: rotate the camera independently
 - `Space`: hop
 - `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
 - `Escape`: pause or return from settings; restarting an active run requires confirmation in the pause menu
@@ -104,7 +103,7 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 - `B` during a level-up: enter banish mode, then choose a removable standard upgrade with `1` / `2` / `3` or the mouse
 - At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
 - `Accessibility & Guidance` on the launch screen changes persistent comfort and audio preferences without affecting difficulty or rewards
-- Gamepad: left stick steers, boosts, and brakes; `A` hops or confirms; `LB` / `RB` dashes; D-pad changes protocol; `Y` rerolls; `X` enters banish mode; Start pauses
+- Gamepad: left stick moves, right stick rotates the camera, `A` hops or confirms, `LB` / `RB` dashes, D-pad changes protocol, `Y` rerolls, `X` enters banish mode, and Start pauses
 - `R` retries only after a victory or defeat
 
 ## Map validation

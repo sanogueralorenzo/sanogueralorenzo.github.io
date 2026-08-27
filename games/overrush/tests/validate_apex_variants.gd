@@ -72,7 +72,7 @@ func _validate_rift_matriarch() -> void:
 	var matriarch: EnemyAgent = director._apex
 	runner.heading = Vector3.BACK
 	runner.velocity = Vector3(0.0, 0.0, 72.0)
-	Input.action_press(InputBindings.BOOST)
+	Input.action_press(InputBindings.MOVE_FORWARD)
 	matriarch.global_position = runner.global_position + Vector3.RIGHT * 82.0
 	matriarch.global_position.y = world.get_surface_height(matriarch.global_position.x, matriarch.global_position.z) + matriarch.body_radius
 	_attack_kind = &""
@@ -114,7 +114,7 @@ func _validate_horizon_warden() -> void:
 	var warden: EnemyAgent = director._apex
 	runner.heading = Vector3.BACK
 	runner.velocity = Vector3(0.0, 0.0, 72.0)
-	Input.action_press(InputBindings.BOOST)
+	Input.action_press(InputBindings.MOVE_FORWARD)
 	warden.global_position = runner.global_position + Vector3.RIGHT * 76.0
 	warden.global_position.y = world.get_surface_height(warden.global_position.x, warden.global_position.z) + warden.body_radius
 	_attack_kind = &""
@@ -176,7 +176,7 @@ func _create_scene(world_seed: int) -> Node:
 
 
 func _destroy_scene(scene: Node) -> void:
-	Input.action_release(InputBindings.BOOST)
+	Input.action_release(InputBindings.MOVE_FORWARD)
 	paused = false
 	scene.queue_free()
 	await process_frame
