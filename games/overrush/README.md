@@ -12,8 +12,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Original rock spires, boulder fields, distant ridges, and procedural materials.
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
 - Packed Z-bucket route lookups and heightmap collision keep full world generation responsive.
-- A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
-- The runner now carries an original procedural gyro shell with a forward needle, speed-reactive vector fins, steering bank, and a local dash-charge ring, preserving the compact ball collision model while making direction, velocity, and dash state readable in-world.
+- A compact high-speed runner and follow camera used to test terrain flow, scale, and traversal; movement starts and stops on deliberate player input.
+- The runner carries an original procedural gyro shell with a forward needle, speed-reactive vector fins, steering bank, and a local dash-charge ring, using a compact rounded collision footprint while making direction, velocity, and dash state readable in-world.
 - A short, hold-sensitive dash that is repeatable on the ground, available once per airtime, and provides a reliable 0.14-second base dodge window; Dashbreaker's Phase Shell extends that protection.
 - A universal non-power Flow challenge chains rewarding defeats above 52 m/s, gives dashes bounded timer grace, weights elites without counting summons, escalates through five readable tiers, and converts only the run's best chain into at most 24 bonus Momentum—never damage or experience.
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
@@ -94,8 +94,8 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 ## Controls
 
 - `A` / `D` or left / right: steer
-- `W` or up: boost
-- `S` or down: brake
+- Hold `W` or up to drive; forward stick travel moves from cruise to boost speed, and releasing forward stops horizontal movement
+- `S` or down: stop immediately
 - `Space`: hop
 - `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
 - `Escape`: pause or return from settings; restarting an active run requires confirmation in the pause menu

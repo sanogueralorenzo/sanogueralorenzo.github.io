@@ -1,5 +1,7 @@
 extends SceneTree
 
+const InputBindings = preload("res://scripts/input_bindings.gd")
+
 var _failures: Array[String] = []
 var _director: CombatDirector
 var _wall_start := 0
@@ -22,6 +24,9 @@ func _run() -> void:
 	var runner: CharacterBody3D = scene.get_node("RunnerBall")
 	runner.maximum_integrity = 100000.0
 	runner.integrity = runner.maximum_integrity
+	runner.cruise_speed = 58.0
+	runner.boost_speed = 58.0
+	Input.action_press(InputBindings.BOOST)
 	_director = scene.get_node("CombatDirector")
 	_director.level_up_requested.connect(_choose_upgrade)
 	scene.begin_run()
@@ -52,6 +57,7 @@ func _run() -> void:
 	_expect(float(milestones.get("engine", 0.0)) >= RunOnboarding.AUTOMATIC_ADVANCE_SECONDS, "The first engine decision should not interrupt the initial steering guidance beat.")
 	_expect(Time.get_ticks_msec() - _wall_start < 60000, "The accelerated cadence gate should remain practical for routine validation.")
 
+	Input.action_release(InputBindings.BOOST)
 	Engine.time_scale = 1.0
 	Engine.physics_ticks_per_second = 60
 	paused = false

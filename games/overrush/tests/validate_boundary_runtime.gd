@@ -23,6 +23,7 @@ func _run() -> void:
 	runner.heading = Vector3.FORWARD
 	runner.velocity = Vector3.FORWARD * 126.0
 	runner.global_position = Vector3(0.0, world.get_surface_height(0.0, -1220.0) + 4.0, -1220.0)
+	Input.action_press(&"overrush_boost")
 
 	var maximum_axis := 0.0
 	var minimum_speed := INF
@@ -45,6 +46,7 @@ func _run() -> void:
 	_expect(minimum_speed > 92.0, "The boundary current should preserve momentum instead of stopping the runner; minimum was %.1f m/s at frame %d near %s." % [minimum_speed, minimum_speed_frame, str(minimum_speed_position)])
 	_expect(runner.heading.dot(Vector3.FORWARD) < 0.72, "The current should produce a clear flowing turn along the perimeter.")
 
+	Input.action_release(&"overrush_boost")
 	paused = false
 	scene.queue_free()
 	if _failures.is_empty():

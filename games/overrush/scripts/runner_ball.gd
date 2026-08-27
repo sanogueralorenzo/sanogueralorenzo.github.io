@@ -11,10 +11,10 @@ const AIRFRAME_COMMIT_TIME := 0.14
 const BASE_DASH_IMMUNITY_SECONDS := 0.14
 const VISUAL_TURN_RESPONSE := 12.0
 const VISUAL_BANK_RADIANS := 0.3
+const DRIVE_DEADZONE := 0.15
 
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
-@export var brake_speed: float = 24.0
 @export var ground_acceleration: float = 52.0
 @export var air_control: float = 0.28
 @export var ground_traction: float = 11.0
@@ -93,18 +93,16 @@ func _physics_process(delta: float) -> void:
 		_check_fall()
 		return
 
-	var target_speed := cruise_speed
-	var boost_strength := Input.get_action_strength(InputBindings.BOOST)
+	var drive_strength := Input.get_action_strength(InputBindings.BOOST)
 	var brake_strength := Input.get_action_strength(InputBindings.BRAKE)
-	if boost_strength > brake_strength and boost_strength > 0.15:
-		target_speed = boost_speed
-	elif brake_strength > 0.15:
-		target_speed = brake_speed
+	var target_speed := get_drive_target_speed(drive_strength)
+	if brake_strength > DRIVE_DEADZONE:
+		target_speed = 0.0
 
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	var acceleration := ground_acceleration if is_on_floor() else ground_acceleration * air_control
 	var current_speed := horizontal_velocity.length()
-	var adjusted_speed := move_toward(current_speed, target_speed, acceleration * delta)
+	var adjusted_speed := 0.0 if is_zero_approx(target_speed) else move_toward(current_speed, target_speed, acceleration * delta)
 	var travel_direction := heading
 	if current_speed > 0.01:
 		var traction := ground_traction if is_on_floor() else air_traction
@@ -135,7 +133,7 @@ func _physics_process(delta: float) -> void:
 func respawn(at_position: Vector3) -> void:
 	spawn_position = at_position
 	global_position = at_position
-	velocity = heading * cruise_speed * 0.35
+	velocity = Vector3.ZERO
 	if is_instance_valid(_dash_state):
 		_dash_state.reset()
 		_set_dash_visuals(false)
@@ -144,6 +142,13 @@ func respawn(at_position: Vector3) -> void:
 
 func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
+
+
+func get_drive_target_speed(drive_strength: float) -> float:
+	if drive_strength <= DRIVE_DEADZONE:
+		return 0.0
+	var drive_amount := inverse_lerp(DRIVE_DEADZONE, 1.0, clampf(drive_strength, 0.0, 1.0))
+	return lerpf(cruise_speed, boost_speed, drive_amount)
 
 
 func apply_boundary_heading(guided_heading: Vector3) -> void:

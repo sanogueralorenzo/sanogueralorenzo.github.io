@@ -1115,19 +1115,19 @@ func _close_settings() -> void:
 
 func _refresh_input_prompts() -> void:
 	if _using_gamepad:
-		controls.text = "LEFT STICK STEER / SPEED  •  A HOP\nLB / RB DASH  •  START PAUSE"
+		controls.text = "LEFT STICK DRIVE / STEER  •  A HOP\nLB / RB DASH  •  START PAUSE"
 		select_hint.text = "D-PAD TO SELECT"
 		launch_hint.text = "A TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  A"
 		victory_retry.text = "RUN AGAIN  •  A"
-		pause_hint.text = "LEFT STICK STEER / SPEED  •  A HOP  •  LB/RB DASH\nSTART TO RESUME  •  A TO SELECT"
+		pause_hint.text = "LEFT STICK DRIVE / STEER  •  A HOP  •  LB/RB DASH\nSTART TO RESUME  •  A TO SELECT"
 	else:
-		controls.text = "A / D STEER  •  W / S SPEED  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
+		controls.text = "A / D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
 		select_hint.text = "A / D OR ARROW KEYS"
 		launch_hint.text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  R"
 		victory_retry.text = "RUN AGAIN  •  R"
-		pause_hint.text = "A/D STEER  •  W/S SPEED  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
+		pause_hint.text = "A/D STEER  •  W DRIVE  •  S STOP  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
 	if level_up_overlay.visible:
 		_refresh_draft_controls()
 	if tutorial_card.visible:
@@ -1227,12 +1227,13 @@ func _refresh_audio_labels() -> void:
 func _update_onboarding(delta: float) -> void:
 	if not _run_started or _onboarding.is_complete() or get_tree().paused:
 		return
-	var steering := (
+	var movement_input := (
 		Input.get_action_strength(InputBindings.MOVE_LEFT) > 0.2
 		or Input.get_action_strength(InputBindings.MOVE_RIGHT) > 0.2
+		or Input.get_action_strength(InputBindings.BOOST) > 0.2
 	)
 	var hopping: bool = not ball.is_on_floor() and ball.velocity.y > 2.0
-	if not _onboarding.update(delta, steering, ball.is_dashing(), hopping):
+	if not _onboarding.update(delta, movement_input, ball.is_dashing(), hopping):
 		return
 	if _onboarding.is_complete():
 		tutorial_card.visible = false
