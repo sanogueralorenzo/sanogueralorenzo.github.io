@@ -1,6 +1,7 @@
 class_name OverrushRunStats
 extends RefCounted
 
+const EliteTraitCatalog = preload("res://scripts/elite_traits.gd")
 const SOURCE_NAMES := {
 	&"arc_bolt": "ARC BOLT",
 	&"dash_nova": "DASH NOVA",
@@ -56,6 +57,7 @@ var banishes_used := 0
 var catalyst_active_seconds := 0.0
 var catalyst_total_seconds := 0.0
 var elite_defeats := 0
+var elite_traits_defeated: Dictionary = {}
 var defeats_by_archetype: Dictionary = {}
 var upgrade_history: Array[StringName] = []
 var upgrade_events: Array[Dictionary] = []
@@ -84,6 +86,7 @@ func reset(start_position: Vector3) -> void:
 	catalyst_active_seconds = 0.0
 	catalyst_total_seconds = 0.0
 	elite_defeats = 0
+	elite_traits_defeated.clear()
 	defeats_by_archetype.clear()
 	upgrade_history.clear()
 	upgrade_events.clear()
@@ -189,10 +192,12 @@ func get_build_cadence_text() -> String:
 	return "CADENCE  •  %s" % "  •  ".join(parts)
 
 
-func record_defeat(archetype: StringName, is_elite: bool) -> void:
+func record_defeat(archetype: StringName, is_elite: bool, elite_trait_id: StringName = &"") -> void:
 	defeats_by_archetype[archetype] = int(defeats_by_archetype.get(archetype, 0)) + 1
 	if is_elite:
 		elite_defeats += 1
+		if EliteTraitCatalog.is_valid(elite_trait_id):
+			elite_traits_defeated[elite_trait_id] = int(elite_traits_defeated.get(elite_trait_id, 0)) + 1
 
 
 func set_phase(phase_id: StringName) -> void:
@@ -275,6 +280,9 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 	var serialized_defeats := {}
 	for archetype in defeats_by_archetype:
 		serialized_defeats[str(archetype)] = int(defeats_by_archetype[archetype])
+	var serialized_elite_traits := {}
+	for trait_id in elite_traits_defeated:
+		serialized_elite_traits[str(trait_id)] = int(elite_traits_defeated[trait_id])
 	var serialized_upgrades: Array[String] = []
 	for upgrade_id in upgrade_history:
 		serialized_upgrades.append(str(upgrade_id))
@@ -285,6 +293,7 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"elapsed_seconds": snappedf(maxf(0.0, elapsed_time), 0.1),
 		"enemies_defeated": maxi(0, enemies_defeated),
 		"elite_defeats": elite_defeats,
+		"elite_traits_defeated": serialized_elite_traits,
 		"damage_dealt": snappedf(get_total_damage(), 0.1),
 		"damage_taken": snappedf(damage_taken, 0.1),
 		"damage_taken_by_source": serialized_damage_taken,

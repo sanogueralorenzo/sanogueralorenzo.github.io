@@ -21,12 +21,14 @@ const BODY_CONTACT_MULTIPLIERS := {
 	&"swarm_foundry": 0.45,
 }
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
+const EliteTraitCatalog = preload("res://scripts/elite_traits.gd")
 
 var target: CharacterBody3D
 var world: Node3D
 var archetype := &"pursuer"
 var is_elite := false
 var is_apex := false
+var elite_trait_id: StringName = &""
 var health := 20.0
 var maximum_health := 20.0
 var movement_speed := 52.0
@@ -55,6 +57,10 @@ var _telegraph_outline_material: StandardMaterial3D
 var _reduced_motion := false
 var _high_contrast_telegraphs := false
 var _apex_enraged := false
+var _elite_telegraph_multiplier := 1.0
+var _elite_cooldown_multiplier := 1.0
+var _elite_radius_multiplier := 1.0
+var _elite_trait_color := Color(1.0, 0.42, 0.04)
 
 
 func _enter_tree() -> void:
@@ -66,7 +72,8 @@ func configure(
 	new_world: Node3D,
 	new_archetype: StringName,
 	difficulty: float,
-	rank: StringName = &"standard"
+	rank: StringName = &"standard",
+	new_elite_trait_id: StringName = &""
 ) -> void:
 	target = new_target
 	world = new_world
@@ -85,11 +92,20 @@ func configure(
 	else:
 		_configure_archetype(difficulty)
 		if is_elite:
+			elite_trait_id = new_elite_trait_id if EliteTraitCatalog.is_valid(new_elite_trait_id) else EliteTraitCatalog.RAZOR
+			var doctrine_definition := EliteTraitCatalog.get_definition(elite_trait_id)
 			maximum_health *= 4.5
 			movement_speed *= 0.96
 			contact_damage *= 1.3
 			experience_value *= 5
 			body_radius *= 1.38
+			maximum_health *= float(doctrine_definition.health_multiplier)
+			movement_speed *= float(doctrine_definition.movement_multiplier)
+			contact_damage *= float(doctrine_definition.damage_multiplier)
+			_elite_telegraph_multiplier = float(doctrine_definition.telegraph_multiplier)
+			_elite_cooldown_multiplier = float(doctrine_definition.cooldown_multiplier)
+			_elite_radius_multiplier = float(doctrine_definition.radius_multiplier)
+			_elite_trait_color = Color(doctrine_definition.color)
 	health = maximum_health
 	_special_cooldown = 1.0 if is_apex else 1.5
 	_build_visuals()
@@ -257,7 +273,7 @@ func _update_charge(distance: float, delta: float) -> void:
 	_state_timer -= delta
 	var charge_speed := 112.0 if is_apex else 128.0
 	global_position += _charge_direction * charge_speed * delta
-	if not _charge_connected and distance <= body_radius + CONTACT_DISTANCE_PADDING + 1.6:
+	if not _charge_connected and distance <= _get_charge_hit_distance():
 		target.take_damage(contact_damage * (1.35 if is_apex else 1.15), global_position, _attack_kind)
 		_charge_connected = true
 	if _state_timer <= 0.0:
@@ -383,6 +399,8 @@ func _begin_special(planar_offset: Vector3) -> void:
 		_state_duration = 0.88
 	else:
 		_state_duration = 0.82 if is_apex else (0.9 if _attack_kind == &"bulwark_pulse" else 0.58)
+	if is_elite:
+		_state_duration *= _elite_telegraph_multiplier
 	_state_timer = _state_duration
 	_telegraph_mesh.visible = true
 	_telegraph_outline_mesh.visible = true
@@ -397,6 +415,8 @@ func _begin_special(planar_offset: Vector3) -> void:
 		warning_color = Color(0.18, 0.95, 1.0, warning_alpha)
 	elif _high_contrast_telegraphs:
 		warning_color = Color(1.0, 0.86, 0.06, warning_alpha)
+	elif is_elite:
+		warning_color = Color(_elite_trait_color.r, _elite_trait_color.g, _elite_trait_color.b, warning_alpha)
 	elif _attack_kind == &"rift_blast":
 		warning_color = Color(0.72, 0.16, 1.0, warning_alpha)
 	elif _attack_kind == &"foundry_bloom":
@@ -449,25 +469,35 @@ func _begin_recovery() -> void:
 		_special_cooldown = 4.2
 	else:
 		_special_cooldown = 3.4
+	if is_elite:
+		_special_cooldown *= _elite_cooldown_multiplier
 	_telegraph_mesh.visible = false
 	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
 
 
 func _get_attack_radius() -> float:
+	var radius: float
 	if _attack_kind == &"apex_rift":
-		return 22.0 if _apex_enraged else 18.0
-	if _attack_kind == &"apex_bloom":
-		return 24.0
-	if _attack_kind == &"apex_pulse":
-		return 34.0
-	if _attack_kind == &"bulwark_pulse":
-		return 27.0 if is_elite else 21.0
-	if _attack_kind == &"rift_blast":
-		return 14.0 if is_elite else 12.0
-	if _attack_kind == &"foundry_bloom":
-		return 18.0
-	return body_radius * (2.4 if is_apex else 2.0)
+		radius = 22.0 if _apex_enraged else 18.0
+	elif _attack_kind == &"apex_bloom":
+		radius = 24.0
+	elif _attack_kind == &"apex_pulse":
+		radius = 34.0
+	elif _attack_kind == &"bulwark_pulse":
+		radius = 27.0 if is_elite else 21.0
+	elif _attack_kind == &"rift_blast":
+		radius = 14.0 if is_elite else 12.0
+	elif _attack_kind == &"foundry_bloom":
+		radius = 18.0
+	else:
+		radius = body_radius * (2.4 if is_apex else 2.0)
+	return radius * (_elite_radius_multiplier if is_elite else 1.0)
+
+
+func _get_charge_hit_distance() -> float:
+	var hit_distance := body_radius + CONTACT_DISTANCE_PADDING + 1.6
+	return hit_distance * (_elite_radius_multiplier if is_elite else 1.0)
 
 
 func _is_warden_attack() -> bool:
@@ -804,17 +834,67 @@ func _build_rank_shell() -> void:
 		apex_color = Color(0.68, 0.08, 1.0)
 	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
 		apex_color = Color(1.0, 0.34, 0.04)
-	shell_material.albedo_color = Color(apex_color.r, apex_color.g, apex_color.b, 0.18) if is_apex else Color(1.0, 0.62, 0.08, 0.17)
+	var rank_color := apex_color if is_apex else _elite_trait_color
+	shell_material.albedo_color = Color(rank_color.r, rank_color.g, rank_color.b, 0.18 if is_apex else 0.17)
 	shell_material.emission_enabled = true
-	shell_material.emission = apex_color if is_apex else Color(1.0, 0.28, 0.03)
+	shell_material.emission = rank_color
 	shell_material.emission_energy_multiplier = 2.8
 	shell.material_override = shell_material
 	add_child(shell)
 	var light := OmniLight3D.new()
-	light.light_color = apex_color if is_apex else Color(1.0, 0.28, 0.05)
+	light.light_color = rank_color
 	light.light_energy = 4.5 if is_apex else 2.4
 	light.omni_range = body_radius * 4.0
 	add_child(light)
+	if is_elite:
+		_build_elite_trait_silhouette()
+
+
+func _build_elite_trait_silhouette() -> void:
+	var material := _create_role_material(_elite_trait_color)
+	match elite_trait_id:
+		EliteTraitCatalog.HORIZON:
+			for tilt in [-18.0, 18.0]:
+				var ring := MeshInstance3D.new()
+				ring.name = "HorizonDoctrineRing"
+				var torus := TorusMesh.new()
+				torus.inner_radius = body_radius * 1.08
+				torus.outer_radius = body_radius * 1.25
+				torus.rings = 20
+				torus.ring_segments = 8
+				ring.mesh = torus
+				ring.rotation_degrees = Vector3(90.0 + tilt, 0.0, tilt)
+				ring.material_override = material
+				add_child(ring)
+		EliteTraitCatalog.TEMPEST:
+			for index in range(3):
+				var arc := MeshInstance3D.new()
+				arc.name = "TempestDoctrineArc"
+				var arc_mesh := CapsuleMesh.new()
+				arc_mesh.radius = body_radius * 0.09
+				arc_mesh.height = body_radius * 1.25
+				arc_mesh.radial_segments = 10
+				arc_mesh.rings = 4
+				arc.mesh = arc_mesh
+				var angle := TAU * float(index) / 3.0
+				arc.position = Vector3(cos(angle), 0.0, sin(angle)) * body_radius * 1.18
+				arc.rotation_degrees = Vector3(62.0, rad_to_deg(angle), 24.0)
+				arc.material_override = material
+				add_child(arc)
+		_:
+			for side in [-1.0, 1.0]:
+				var blade := MeshInstance3D.new()
+				blade.name = "RazorDoctrineBlade"
+				var blade_mesh := CapsuleMesh.new()
+				blade_mesh.radius = body_radius * 0.1
+				blade_mesh.height = body_radius * 1.5
+				blade_mesh.radial_segments = 10
+				blade_mesh.rings = 4
+				blade.mesh = blade_mesh
+				blade.position = Vector3(side * body_radius * 0.88, 0.0, body_radius * 0.65)
+				blade.rotation_degrees = Vector3(64.0, 0.0, side * 24.0)
+				blade.material_override = material
+				add_child(blade)
 
 
 func _update_material() -> void:
@@ -841,7 +921,7 @@ func _update_material() -> void:
 		else:
 			base_color = Color(0.025, 0.32, 0.62)
 	if is_elite:
-		base_color = base_color.lerp(Color(1.0, 0.42, 0.04), 0.42)
+		base_color = base_color.lerp(_elite_trait_color, 0.5)
 	if _hit_flash > 0.0:
 		base_color = base_color.lerp(Color(1.0, 0.8, 0.3), 0.25) if _reduced_motion else Color(1.0, 0.95, 0.65)
 	_body_material.albedo_color = base_color

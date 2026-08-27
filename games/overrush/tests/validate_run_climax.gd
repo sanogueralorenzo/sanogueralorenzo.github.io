@@ -33,6 +33,7 @@ func _validate_elite_telegraph_and_victory() -> void:
 	var world: Node3D = scene.get_node("World")
 	director.stop_run()
 
+	var standard_skimmer: EnemyAgent = director._spawn_enemy(&"skimmer")
 	var elite: EnemyAgent = director._spawn_enemy(&"skimmer", &"elite")
 	elite.global_position = runner.global_position + Vector3.FORWARD * 42.0
 	elite.global_position.y = world.get_surface_height(elite.global_position.x, elite.global_position.z) + elite.body_radius
@@ -41,8 +42,9 @@ func _validate_elite_telegraph_and_victory() -> void:
 	elite.attack_telegraphed.connect(func(_enemy: EnemyAgent, _kind: StringName) -> void: _telegraph_seen = true)
 	await physics_frame
 	await physics_frame
-	_expect(elite.is_elite and elite.maximum_health > 45.0, "Scheduled elites should be visually and mechanically stronger than standard threats.")
+	_expect(elite.is_elite and elite.maximum_health > standard_skimmer.maximum_health * 3.0 and elite.body_radius > standard_skimmer.body_radius, "Even a brittle Razor elite should remain visually and mechanically stronger than its standard role.")
 	_expect(_telegraph_seen and elite.get_attack_state() == EnemyAgent.AttackState.TELEGRAPH, "Elite attacks should enter a readable telegraph state before dealing burst damage.")
+	standard_skimmer.queue_free()
 	elite.queue_free()
 	await process_frame
 

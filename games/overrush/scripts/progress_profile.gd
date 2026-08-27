@@ -413,6 +413,7 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 	safe["damage_taken_by_source"] = _sanitize_numeric_dictionary(summary.get("damage_taken_by_source", {}), 16)
 	safe["hits_taken_by_source"] = _sanitize_numeric_dictionary(summary.get("hits_taken_by_source", {}), 16)
 	safe["defeats_by_archetype"] = _sanitize_numeric_dictionary(summary.get("defeats_by_archetype", {}), 16)
+	safe["elite_traits_defeated"] = _sanitize_numeric_dictionary(summary.get("elite_traits_defeated", {}), 3)
 	return safe
 
 

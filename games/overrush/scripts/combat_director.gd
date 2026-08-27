@@ -25,6 +25,7 @@ const RunStatsScript = preload("res://scripts/run_stats.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
+const EliteTraitCatalog = preload("res://scripts/elite_traits.gd")
 const VelocityChainModel = preload("res://scripts/velocity_chain.gd")
 
 const INITIAL_SPAWN_DELAY := 1.25
@@ -73,6 +74,7 @@ var _outgoing_damage_multiplier := 1.0
 var _extra_elite_interval := 0.0
 var _next_protocol_elite := INF
 var _protocol_elite_index := 0
+var _elite_spawn_sequence := 0
 var _reduced_motion := false
 var _high_contrast_telegraphs := false
 var _dash_hit_ids: Dictionary = {}
@@ -241,6 +243,7 @@ func start_run(protocol_id: StringName) -> void:
 	_dash_nova_recharge = 0.0
 	_arsenal_timer = 0.0
 	_rewarding_defeats_since_recovery = 0
+	_elite_spawn_sequence = 0
 	_anchor_last_hit_times.clear()
 	velocity_chain.reset()
 	run_stats.reset(_runner.global_position)
@@ -326,11 +329,15 @@ func _update_spawning(delta: float) -> void:
 		_spawn_enemy()
 
 
-func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"standard") -> EnemyAgent:
+func _spawn_enemy(
+	archetype_override: StringName = &"",
+	rank: StringName = &"standard",
+	elite_trait_id: StringName = &""
+) -> EnemyAgent:
 	var enemy: EnemyAgent = EnemyAgentScript.new()
 	var difficulty := 1.0 + elapsed_time / 240.0
 	var archetype := archetype_override if not archetype_override.is_empty() else _choose_archetype()
-	enemy.configure(_runner, _world, archetype, difficulty, rank)
+	enemy.configure(_runner, _world, archetype, difficulty, rank, elite_trait_id)
 	enemy.apply_health_multiplier(_enemy_health_multiplier)
 	enemy.apply_accessibility(_reduced_motion, _high_contrast_telegraphs)
 	enemy.defeated.connect(_on_enemy_defeated)
@@ -693,7 +700,7 @@ func _get_outgoing_damage_multiplier() -> float:
 
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemies_defeated += 1
-	run_stats.record_defeat(enemy.archetype, enemy.is_elite)
+	run_stats.record_defeat(enemy.archetype, enemy.is_elite, enemy.elite_trait_id)
 	_enemies.erase(enemy)
 	_anchor_last_hit_times.erase(enemy.get_instance_id())
 	enemy_defeated_feedback.emit(enemy.is_elite, enemy.is_apex)
@@ -855,8 +862,13 @@ func _update_run_pacing(previous_time: float) -> void:
 
 func _spawn_scheduled_elite(elite_index: int) -> void:
 	var elite_archetypes: Array[StringName] = [&"skimmer", &"bulwark", &"rift_weaver", &"swarm_foundry"]
-	var elite := _spawn_enemy(elite_archetypes[elite_index % elite_archetypes.size()], &"elite")
-	event_announced.emit("ELITE INTERCEPT", "%s entered the jetstream" % _get_enemy_title(elite.archetype))
+	var trait_id := EliteTraitCatalog.get_for_seed(int(_world.generated_seed), _elite_spawn_sequence)
+	_elite_spawn_sequence += 1
+	var elite := _spawn_enemy(elite_archetypes[elite_index % elite_archetypes.size()], &"elite", trait_id)
+	event_announced.emit(
+		"%s ELITE • %s" % [EliteTraitCatalog.get_title(trait_id), _get_enemy_title(elite.archetype).to_upper()],
+		EliteTraitCatalog.get_subtitle(trait_id)
+	)
 
 
 func _spawn_apex(apex_override: StringName = &"") -> void:

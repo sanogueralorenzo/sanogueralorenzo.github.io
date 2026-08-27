@@ -43,7 +43,7 @@ func _run() -> void:
 	scene.begin_run()
 	while _director.elapsed_time < RunPacing.RUN_DURATION and _director._run_active:
 		_apply_survival_route()
-		await process_frame
+		await physics_frame
 	_apply_survival_route()
 	print("STANDARD SURVIVAL elapsed=%.1f outcome=%s level=%d clears=%d integrity=%.1f/%.1f taken=%.1f repaired=%.1f cores=%d distance=%.0f dashes=%d flow=%d/%d bonus=%d milestones=%s" % [
 		_director.elapsed_time,
@@ -63,6 +63,7 @@ func _run() -> void:
 		str(_director.run_stats.get_build_milestone_times()),
 	])
 	print("STANDARD THREATS %s" % _director.run_stats.get_damage_taken_breakdown_text())
+	print("STANDARD THREAT DETAIL %s" % str(_director.run_stats.damage_taken_by_source))
 	_validate_result()
 	Engine.time_scale = 1.0
 	Engine.physics_ticks_per_second = 60

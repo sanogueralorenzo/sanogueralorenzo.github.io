@@ -18,6 +18,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A speed-aware perimeter jetstream that smoothly banks traversal back across the landscape instead of using invisible walls or abrupt terrain obstructions.
 - Momentum-preserving steering and glancing collision response prevent high-speed turns or scenery contact from stopping the run.
 - Five phase-gated regular roles create escalating traversal decisions: Pursuers close space, Skimmers intercept, Bulwarks deny an area, Rift Weavers mark the runner's projected route, and Swarm Foundries multiply if ignored.
+- Three deterministic elite doctrines cycle without random streaks across scheduled and protocol encounters: brittle Razor elites pursue faster with tighter warnings, Horizon elites trade speed for wider and longer-warned geometry, and brittle Tempest elites repeat signature attacks more often.
+- Doctrine-colored shells, matching attack zones, distinct procedural silhouettes, and arrival banners explain each elite's counterplay before it attacks; doctrine defeats remain in bounded run telemetry for playtest balance review.
 - Fragile zero-reward Foundry drones add bounded pack pressure without creating an experience exploit or exceeding the global population cap.
 - Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning, and specialist body overlap is deliberately weaker than each role's signature attack.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
@@ -75,6 +77,7 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 - `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, deterministic experience and integrity rewards, and the distinct geometry of movement-triggered combat effects.
 - `experience_pickup.gd` owns high-speed pursuit, stale-reward recovery, distinct experience/integrity silhouettes, and full-integrity banking behavior.
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
+- `elite_traits.gd` is the single catalog for deterministic elite rotation, player-facing doctrine identity, mechanical tradeoffs, and shared colors.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
 - `velocity_chain.gd` owns the deterministic speed gate, timer pressure, dash grace, elite weight, named tiers, and capped non-power reward independently of combat and profile persistence.
 - `run_stats.gd` owns outgoing and incoming attack attribution, applied integrity recovery, catalyst uptime, Flow evidence, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
@@ -140,9 +143,11 @@ godot --headless --path games/overrush --script res://tests/test_run_build.gd
 godot --headless --path games/overrush --script res://tests/test_build_evolution_balance.gd
 godot --headless --path games/overrush --script res://tests/test_run_stats.gd
 godot --headless --path games/overrush --script res://tests/test_velocity_chain.gd
+godot --headless --path games/overrush --script res://tests/test_elite_traits.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
+godot --headless --path games/overrush --script res://tests/validate_elite_doctrines.gd
 godot --headless --path games/overrush --script res://tests/validate_draft_agency.gd
 godot --headless --path games/overrush --script res://tests/validate_drive_catalysts.gd
 godot --headless --path games/overrush --script res://tests/validate_arsenal_weapons.gd
