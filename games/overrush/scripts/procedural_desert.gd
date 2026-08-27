@@ -367,7 +367,7 @@ func _create_materials() -> void:
 		_sand_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
 		_sand_material.set_shader_parameter("world_origin", Vector2.ZERO)
 		_rock_material = StandardMaterial3D.new()
-		_rock_material.albedo_color = Color("#4a2418")
+		_rock_material.albedo_color = Color("#201c2b")
 		_rock_material.roughness = 0.94
 
 

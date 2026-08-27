@@ -15,6 +15,8 @@ Overrush is being rebuilt as a minimalist desert freeriding game. The shipped sc
 - Buffered/coyote jumps launch along the contacted terrain normal while preserving approach momentum. Sand landings resolve predictably from impact and alignment as clean, solid, or rough, with bounded momentum retention.
 - The directional air boost adds to existing momentum. It has exactly one charge in the air and only a valid sand landing refreshes it.
 - Board pitch and bank, continuous sand spray, contact bursts, synthesized jump/landing cues, and a restrained HUD communicate speed, surface contact, landing quality, and boost state.
+- A close third-person camera now widens continuously with speed, while reduced-motion mode holds a steady FOV. The rounded board and articulated high-contrast rider replace the earlier box-and-capsule silhouette.
+- Cool atmospheric depth, warm directionally shaded sand, wind-ridge highlights, dark sandstone landmarks, SSAO, and rounded spray grains keep slopes and motion readable without changing the Forward+ renderer configuration.
 - Mouse/right-stick orbit controls retain the existing free camera behavior.
 
 The previous movement-survivor scene remains in `main.tscn` only as temporary migration reference. It is not the project entry scene and its combat/progression systems are outside the new game direction.
@@ -38,6 +40,7 @@ This is still a foundation, not the completed game. Repeated hands-on movement t
 - `sandboarder.gd` integrates slope-driven movement, buffered/coyote jumps, surface-aligned presentation, contact feedback, and boost application.
 - `air_boost_state.gd` owns the small testable one-charge, sand-only refresh contract.
 - `follow_camera.gd` owns independent mouse/right-stick orbit and speed feedback.
+- `desert.gdshader` owns seamless world-space sand variation, directional slope depth, and fine wind-ridge readability.
 - `freeride_main.gd` owns the minimal run lifecycle, onboarding, pause flow, and HUD.
 - `main.tscn` and the older survivor scripts/tests are legacy migration material and are not loaded by the freeride runtime.
 
@@ -51,6 +54,7 @@ godot --headless --path games/overrush --script res://tests/test_sandboard_motio
 godot --headless --path games/overrush --script res://tests/test_jump_assist_state.gd
 godot --headless --path games/overrush --script res://tests/test_desert_feature_grammar.gd
 godot --headless --path games/overrush --script res://tests/validate_freeride_runtime.gd
+godot --headless --path games/overrush --script res://tests/validate_freeride_presentation.gd
 godot --headless --path games/overrush --script res://tests/validate_desert_terrain.gd
 godot --headless --path games/overrush --script res://tests/validate_desert_streaming.gd
 godot --headless --fixed-fps 300 --path games/overrush --script res://tests/validate_sandboard_motion.gd
@@ -59,4 +63,4 @@ godot --headless --path games/overrush --script res://tests/test_input_bindings.
 godot --headless --path games/overrush --quit-after 12
 ```
 
-The feature gate checks deterministic seed variation, balanced feature-family distribution, smooth cell boundaries, bounded cache residency, meaningful relief, and a maximum authored-feature grade. The terrain sweep samples 16 radial lines over 12 km and requires every heading's reachable 512 m-wide line fan to encounter bowls, ridges, kickers, split lines, and multiple rock passages while rejecting insufficient net descent, non-finite terrain, repetitive cone geometry, or abrupt local rises. The streaming gate compares adjacent mesh borders and normals, raycasts both sides of a collision seam, verifies rock clearance and non-sand identity, simulates 22 km of repeated rebased travel, and checks the collision safety neighborhood plus bounded chunk residency throughout. These automated gates establish a foundation; they do not substitute for long-session streaming soaks or hands-on movement playtests.
+The feature gate checks deterministic seed variation, balanced feature-family distribution, smooth cell boundaries, bounded cache residency, meaningful relief, and a maximum authored-feature grade. The presentation gate checks warm/cool separation, sightline-safe atmospheric depth, a non-placeholder rider silhouette, rounded spray, close framing, continuous speed FOV, and the reduced-motion override. The terrain sweep samples 16 radial lines over 12 km and requires every heading's reachable 512 m-wide line fan to encounter bowls, ridges, kickers, split lines, and multiple rock passages while rejecting insufficient net descent, non-finite terrain, repetitive cone geometry, or abrupt local rises. The streaming gate compares adjacent mesh borders and normals, raycasts both sides of a collision seam, verifies rock clearance and non-sand identity, simulates 22 km of repeated rebased travel, and checks the collision safety neighborhood plus bounded chunk residency throughout. These automated gates establish a foundation; they do not substitute for long-session streaming soaks or hands-on movement playtests.

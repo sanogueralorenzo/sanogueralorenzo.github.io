@@ -12,6 +12,9 @@ extends Camera3D
 @export var maximum_pitch_degrees: float = 55.0
 @export var normal_fov: float = 82.0
 @export var dash_fov: float = 96.0
+@export var speed_fov_start: float = 16.0
+@export var speed_fov_full: float = 72.0
+@export var speed_fov_addition: float = 8.0
 @export var fov_smoothing: float = 12.0
 
 var _target: CharacterBody3D
@@ -59,8 +62,18 @@ func _physics_process(delta: float) -> void:
 	_smoothed_target_position = _smoothed_target_position.lerp(_target.global_position, blend)
 	global_position = _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
 	look_at(_target.global_position + forward * look_ahead + Vector3.UP * focus_height, Vector3.UP)
-	var target_fov := normal_fov if _reduced_motion else (dash_fov if _dash_active else normal_fov)
+	var target_fov := _get_target_fov()
 	fov = lerpf(fov, target_fov, 1.0 - exp(-fov_smoothing * delta))
+
+
+func _get_target_fov() -> float:
+	if _reduced_motion:
+		return normal_fov
+	if _dash_active:
+		return dash_fov
+	var planar_speed := Vector2(_target.velocity.x, _target.velocity.z).length()
+	var speed_ratio := smoothstep(speed_fov_start, speed_fov_full, planar_speed)
+	return normal_fov + speed_fov_addition * speed_ratio
 
 
 func set_dash_active(active: bool) -> void:

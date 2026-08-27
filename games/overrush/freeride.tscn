@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -7,11 +7,16 @@
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_desert"]
-sky_top_color = Color(0.18, 0.31, 0.48, 1)
-sky_horizon_color = Color(0.93, 0.62, 0.34, 1)
-ground_bottom_color = Color(0.2, 0.1, 0.055, 1)
-ground_horizon_color = Color(0.79, 0.42, 0.18, 1)
-sun_angle_max = 18.0
+sky_top_color = Color(0.006, 0.028, 0.075, 1)
+sky_horizon_color = Color(0.12, 0.31, 0.37, 1)
+sky_curve = 0.2
+sky_energy_multiplier = 0.9
+ground_bottom_color = Color(0.018, 0.02, 0.045, 1)
+ground_horizon_color = Color(0.075, 0.1, 0.14, 1)
+ground_curve = 0.24
+ground_energy_multiplier = 0.72
+sun_angle_max = 9.0
+sun_curve = 0.14
 
 [sub_resource type="Sky" id="Sky_desert"]
 sky_material = SubResource("SkyMaterial_desert")
@@ -19,51 +24,92 @@ sky_material = SubResource("SkyMaterial_desert")
 [sub_resource type="Environment" id="Environment_desert"]
 background_mode = 2
 sky = SubResource("Sky_desert")
+background_energy_multiplier = 0.9
 ambient_light_source = 3
-ambient_light_color = Color(1, 0.71, 0.49, 1)
-ambient_light_energy = 0.62
+ambient_light_color = Color(0.18, 0.28, 0.4, 1)
+ambient_light_energy = 0.34
+ambient_light_sky_contribution = 0.82
 reflected_light_source = 2
 tonemap_mode = 2
+adjustment_enabled = true
+adjustment_brightness = 0.9
+adjustment_contrast = 1.08
+adjustment_saturation = 0.86
+ssao_enabled = true
+ssao_radius = 2.8
+ssao_intensity = 2.2
+ssao_power = 1.35
 fog_enabled = true
-fog_light_color = Color(0.9, 0.58, 0.32, 1)
-fog_light_energy = 0.55
-fog_density = 0.00048
+fog_light_color = Color(0.18, 0.25, 0.3, 1)
+fog_light_energy = 0.5
+fog_density = 0.00062
 fog_height = -400.0
 fog_height_density = 0.001
-aerial_perspective = 0.56
+aerial_perspective = 0.68
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_rider"]
 radius = 0.54
 height = 2.1
 
-[sub_resource type="BoxMesh" id="BoardMesh"]
-size = Vector3(1.25, 0.12, 2.85)
+[sub_resource type="CylinderMesh" id="BoardMesh"]
+top_radius = 0.62
+bottom_radius = 0.62
+height = 0.1
+radial_segments = 18
+rings = 1
 
 [sub_resource type="StandardMaterial3D" id="BoardMaterial"]
-albedo_color = Color(0.05, 0.22, 0.24, 1)
-metallic = 0.24
-roughness = 0.34
+albedo_color = Color(0.018, 0.09, 0.12, 1)
+metallic = 0.18
+roughness = 0.42
 emission_enabled = true
-emission = Color(0.02, 0.16, 0.17, 1)
-emission_energy_multiplier = 1.3
+emission = Color(0.01, 0.08, 0.1, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="StandardMaterial3D" id="AccentMaterial"]
+albedo_color = Color(0.96, 0.24, 0.055, 1)
+roughness = 0.58
+emission_enabled = true
+emission = Color(0.28, 0.032, 0.006, 1)
+emission_energy_multiplier = 1.25
 
 [sub_resource type="CapsuleMesh" id="RiderMesh"]
-radius = 0.37
-height = 1.55
+radius = 0.32
+height = 1.04
+radial_segments = 14
+rings = 5
 
 [sub_resource type="StandardMaterial3D" id="RiderMaterial"]
-albedo_color = Color(0.94, 0.87, 0.67, 1)
-roughness = 0.78
+albedo_color = Color(0.025, 0.12, 0.15, 1)
+roughness = 0.68
+emission_enabled = true
+emission = Color(0.005, 0.035, 0.045, 1)
+emission_energy_multiplier = 1.1
+
+[sub_resource type="SphereMesh" id="HeadMesh"]
+radius = 0.28
+height = 0.56
+radial_segments = 16
+rings = 8
+
+[sub_resource type="CapsuleMesh" id="LimbMesh"]
+radius = 0.105
+height = 0.82
+radial_segments = 12
+rings = 4
 
 [sub_resource type="StandardMaterial3D" id="TrailMaterial"]
 transparency = 1
 shading_mode = 0
 vertex_color_use_as_albedo = true
-albedo_color = Color(1, 0.72, 0.28, 0.76)
+albedo_color = Color(1, 0.9, 0.72, 0.78)
 
-[sub_resource type="QuadMesh" id="TrailMesh"]
+[sub_resource type="SphereMesh" id="TrailMesh"]
 material = SubResource("TrailMaterial")
-size = Vector2(0.28, 0.28)
+radius = 0.09
+height = 0.18
+radial_segments = 8
+rings = 4
 
 [sub_resource type="ParticleProcessMaterial" id="TrailProcess"]
 emission_shape = 3
@@ -144,9 +190,10 @@ environment = SubResource("Environment_desert")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-48, -32, 0)
-light_color = Color(1, 0.79, 0.56, 1)
-light_energy = 1.35
+light_color = Color(1, 0.73, 0.46, 1)
+light_energy = 1.28
 shadow_enabled = true
+shadow_blur = 1.6
 directional_shadow_max_distance = 520.0
 
 [node name="Desert" type="StaticBody3D" parent="."]
@@ -169,13 +216,49 @@ shape = SubResource("CapsuleShape_rider")
 
 [node name="Board" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(0, -0.27, 0)
+scale = Vector3(1, 1, 2.25)
 mesh = SubResource("BoardMesh")
 material_override = SubResource("BoardMaterial")
 
+[node name="BoardAccent" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(0, -0.205, 0)
+scale = Vector3(0.7, 0.5, 1.55)
+mesh = SubResource("BoardMesh")
+material_override = SubResource("AccentMaterial")
+
 [node name="Rider" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
-position = Vector3(0, 0.72, 0)
-rotation_degrees = Vector3(0, 0, -12)
+position = Vector3(0, 0.98, 0)
+rotation_degrees = Vector3(0, 0, -10)
 mesh = SubResource("RiderMesh")
+material_override = SubResource("RiderMaterial")
+
+[node name="Head" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(-0.03, 1.69, -0.06)
+mesh = SubResource("HeadMesh")
+material_override = SubResource("AccentMaterial")
+
+[node name="LeftArm" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(-0.4, 1.08, 0.02)
+rotation_degrees = Vector3(-8, 0, -53)
+mesh = SubResource("LimbMesh")
+material_override = SubResource("RiderMaterial")
+
+[node name="RightArm" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(0.4, 1.08, -0.02)
+rotation_degrees = Vector3(8, 0, 53)
+mesh = SubResource("LimbMesh")
+material_override = SubResource("RiderMaterial")
+
+[node name="LeftLeg" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(-0.24, 0.3, 0.22)
+rotation_degrees = Vector3(-16, 0, -7)
+mesh = SubResource("LimbMesh")
+material_override = SubResource("RiderMaterial")
+
+[node name="RightLeg" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
+position = Vector3(0.24, 0.3, -0.22)
+rotation_degrees = Vector3(16, 0, 7)
+mesh = SubResource("LimbMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="BoostTrail" type="GPUParticles3D" parent="Sandboarder"]
@@ -198,8 +281,8 @@ omni_range = 7.0
 [node name="SandTrail" type="GPUParticles3D" parent="Sandboarder"]
 position = Vector3(0, -0.24, 1.1)
 emitting = false
-amount = 88
-lifetime = 0.68
+amount = 220
+lifetime = 0.76
 local_coords = false
 process_material = SubResource("SandTrailProcess")
 draw_pass_1 = SubResource("TrailMesh")
@@ -222,11 +305,15 @@ current = true
 near = 0.12
 far = 6000.0
 target_path = NodePath("../Sandboarder")
-follow_distance = 15.5
-follow_height = 6.8
-look_ahead = 6.0
-normal_fov = 86.0
-dash_fov = 98.0
+follow_distance = 10.2
+follow_height = 3.15
+look_ahead = 4.6
+focus_height = 1.0
+normal_fov = 76.0
+dash_fov = 94.0
+speed_fov_start = 15.0
+speed_fov_full = 72.0
+speed_fov_addition = 9.0
 
 [node name="AudioDirector" type="Node" parent="."]
 script = ExtResource("5_audio")
