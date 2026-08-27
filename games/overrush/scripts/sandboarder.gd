@@ -29,7 +29,7 @@ signal jumped
 @onready var board_visual: Node3D = $BoardVisual
 @onready var boost_trail: GPUParticles3D = $BoostTrail
 @onready var boost_light: OmniLight3D = $BoostLight
-@onready var sand_trail: GPUParticles3D = $SandTrail
+@onready var surface_trail: GPUParticles3D = $SurfaceTrail
 @onready var landing_burst: GPUParticles3D = $LandingBurst
 
 var air_boost_state := AirBoostState.new()
@@ -46,6 +46,12 @@ var _carve_intensity := 0.0
 var _carve_sign := 0.0
 var _landing_compression := 0.0
 var _has_departed_rideable_ground := false
+var _surface_grass_weight := 0.0
+
+const SAND_TRAIL_COLOR := Color(0.96, 0.69, 0.32, 0.58)
+const GRASS_TRAIL_COLOR := Color(0.47, 0.67, 0.27, 0.62)
+const SAND_LANDING_COLOR := Color(1.0, 0.73, 0.34, 0.78)
+const GRASS_LANDING_COLOR := Color(0.65, 0.78, 0.34, 0.8)
 
 
 func _ready() -> void:
@@ -83,6 +89,7 @@ func _physics_process(delta: float) -> void:
 
 	var before_move := velocity
 	move_and_slide()
+	_update_surface_effect_palette()
 	_update_surface_state(started_on_floor, before_move, jumped_this_frame)
 	_update_visuals(delta)
 	distance_traveled += Vector2(
@@ -277,10 +284,25 @@ func _update_visuals(delta: float) -> void:
 	_landing_compression = move_toward(_landing_compression, 0.0, delta * 1.8)
 	board_visual.position.y = -_landing_compression
 	var speed_ratio := clampf(get_horizontal_speed() / maximum_speed, 0.0, 1.0)
-	sand_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
-	sand_trail.amount_ratio = clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
-	sand_trail.rotation.y = atan2(-_heading.x, -_heading.z)
+	surface_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
+	surface_trail.amount_ratio = clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
+	surface_trail.rotation.y = atan2(-_heading.x, -_heading.z)
 	_boost_feedback_time = maxf(0.0, _boost_feedback_time - delta)
 	if _boost_feedback_time <= 0.0:
 		boost_trail.emitting = false
 		boost_light.visible = false
+
+
+func _update_surface_effect_palette() -> void:
+	var logical_position := _world.get_world_position(global_position)
+	_surface_grass_weight = smoothstep(
+		0.08,
+		0.92,
+		_world.get_grass_weight(Vector2(logical_position.x, logical_position.z)),
+	)
+	var trail_process := surface_trail.process_material as ParticleProcessMaterial
+	if trail_process != null:
+		trail_process.color = SAND_TRAIL_COLOR.lerp(GRASS_TRAIL_COLOR, _surface_grass_weight)
+	var landing_process := landing_burst.process_material as ParticleProcessMaterial
+	if landing_process != null:
+		landing_process.color = SAND_LANDING_COLOR.lerp(GRASS_LANDING_COLOR, _surface_grass_weight)

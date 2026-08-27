@@ -29,8 +29,19 @@ func _run() -> void:
 	_expect(board.mesh is CylinderMesh, "The sandboard should use a rounded silhouette rather than a placeholder box.")
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
 		_expect(rider.get_node_or_null("BoardVisual/%s" % part_name) is MeshInstance3D, "The rider silhouette is missing %s." % part_name)
-	_expect(rider.sand_trail.draw_pass_1 is SphereMesh, "Sand spray should use rounded grains rather than flashing quad pixels.")
-	_expect(rider.sand_trail.amount >= 200, "The high-speed wake should remain continuous instead of a sparse dotted line.")
+	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
+	_expect(rider.surface_trail.amount >= 200, "The high-speed wake should remain continuous instead of a sparse dotted line.")
+	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
+	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
+	if surface_process != null:
+		var sand_color := Sandboarder.SAND_TRAIL_COLOR
+		var grass_color := Sandboarder.GRASS_TRAIL_COLOR
+		var palette_difference := (
+			absf(sand_color.r - grass_color.r)
+			+ absf(sand_color.g - grass_color.g)
+			+ absf(sand_color.b - grass_color.b)
+		)
+		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
 
 	var camera: Camera3D = scene.get_node("FollowCamera")
 	_expect(camera.follow_distance <= 11.0 and camera.follow_height <= 3.5, "Third-person framing should keep the rider readable against the terrain.")
@@ -47,12 +58,15 @@ func _run() -> void:
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Reduced motion should remove all speed-driven FOV displacement.")
 
 	var shader: Shader = load("res://shaders/desert.gdshader")
-	_expect("key_light_direction" in shader.code and "wind_crest" in shader.code, "The desert shader should expose directional slope depth and readable wind ridges.")
+	_expect(
+		"key_light_direction" in shader.code and "wind_crest" in shader.code and "grass_weight" in shader.code,
+		"The terrain shader should expose directional slope depth, readable wind ridges, and seamless biome blending.",
+	)
 
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Freeride presentation passed — cool/warm depth, rounded rider and spray, close framing, and accessible speed FOV agree.")
+		print("Freeride presentation passed — biome-aware spray, landscape depth, rounded rider, close framing, and accessible speed FOV agree.")
 		quit(0)
 	else:
 		for failure in _failures:

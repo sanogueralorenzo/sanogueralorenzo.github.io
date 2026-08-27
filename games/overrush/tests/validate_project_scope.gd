@@ -8,6 +8,7 @@ const EXPECTED_SCRIPTS: Array[String] = [
 	"freeride_main.gd",
 	"input_bindings.gd",
 	"jump_assist_state.gd",
+	"landscape_layout.gd",
 	"procedural_desert.gd",
 	"sandboard_motion.gd",
 	"sandboarder.gd",
@@ -51,7 +52,7 @@ func _init() -> void:
 	_expect(effect_ids == expected_effects, "Audio should contain only core movement feedback: %s." % str(effect_ids))
 
 	if _failures.is_empty():
-		print("Project scope passed — one freeride scene, 10 runtime scripts, one shader, 11 inputs, and 5 movement cues remain.")
+		print("Project scope passed — one freeride scene, 11 runtime scripts, one shader, 11 inputs, and 5 movement cues remain.")
 		quit(0)
 	else:
 		for failure in _failures:

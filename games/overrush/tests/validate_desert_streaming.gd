@@ -130,8 +130,11 @@ func _validate_shared_border(desert: ProceduralDesert, left_coord: Vector2i, rig
 	var right_vertices: PackedVector3Array = right_arrays[Mesh.ARRAY_VERTEX]
 	var left_normals: PackedVector3Array = left_arrays[Mesh.ARRAY_NORMAL]
 	var right_normals: PackedVector3Array = right_arrays[Mesh.ARRAY_NORMAL]
+	var left_colors: PackedColorArray = left_arrays[Mesh.ARRAY_COLOR]
+	var right_colors: PackedColorArray = right_arrays[Mesh.ARRAY_COLOR]
 	var max_height_error := 0.0
 	var max_normal_error := 0.0
+	var max_biome_error := 0.0
 	for row in range(desert.chunk_resolution):
 		var left_index := row * desert.chunk_resolution + desert.chunk_resolution - 1
 		var right_index := row * desert.chunk_resolution
@@ -139,8 +142,10 @@ func _validate_shared_border(desert: ProceduralDesert, left_coord: Vector2i, rig
 		var right_height: float = right_chunk.position.y + right_vertices[right_index].y
 		max_height_error = maxf(max_height_error, absf(left_height - right_height))
 		max_normal_error = maxf(max_normal_error, left_normals[left_index].distance_to(right_normals[right_index]))
+		max_biome_error = maxf(max_biome_error, absf(left_colors[left_index].r - right_colors[right_index].r))
 	_expect(max_height_error <= BORDER_TOLERANCE, "Adjacent mesh borders differ vertically by %.6f m." % max_height_error)
 	_expect(max_normal_error <= BORDER_TOLERANCE, "Adjacent mesh-border normals differ by %.6f." % max_normal_error)
+	_expect(max_biome_error <= BORDER_TOLERANCE, "Adjacent mesh-border biome weights differ by %.6f." % max_biome_error)
 
 
 func _validate_collision_seam(desert: ProceduralDesert, rider: Sandboarder) -> void:

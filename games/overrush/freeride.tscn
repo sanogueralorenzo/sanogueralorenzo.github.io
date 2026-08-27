@@ -123,7 +123,7 @@ scale_min = 0.45
 scale_max = 1.15
 color = Color(1, 0.67, 0.25, 0.72)
 
-[sub_resource type="ParticleProcessMaterial" id="SandTrailProcess"]
+[sub_resource type="ParticleProcessMaterial" id="SurfaceTrailProcess"]
 emission_shape = 3
 emission_box_extents = Vector3(0.62, 0.08, 0.22)
 direction = Vector3(0, 0.32, 1)
@@ -278,13 +278,13 @@ light_color = Color(1, 0.61, 0.2, 1)
 light_energy = 4.0
 omni_range = 7.0
 
-[node name="SandTrail" type="GPUParticles3D" parent="Sandboarder"]
+[node name="SurfaceTrail" type="GPUParticles3D" parent="Sandboarder"]
 position = Vector3(0, -0.24, 1.1)
 emitting = false
 amount = 220
 lifetime = 0.76
 local_coords = false
-process_material = SubResource("SandTrailProcess")
+process_material = SubResource("SurfaceTrailProcess")
 draw_pass_1 = SubResource("TrailMesh")
 
 [node name="LandingBurst" type="GPUParticles3D" parent="Sandboarder"]

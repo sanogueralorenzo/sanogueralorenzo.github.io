@@ -34,8 +34,8 @@ func _run() -> void:
 	if pre_jump_speed < 12.0:
 		_fail(scene, "The jump test needs meaningful approach momentum, measured %.1f m/s." % pre_jump_speed)
 		return
-	if not rider.sand_trail.emitting:
-		_fail(scene, "Grounded speed should emit a continuous sand trail.")
+	if not rider.surface_trail.emitting:
+		_fail(scene, "Grounded speed should emit a continuous surface trail.")
 		return
 	var visual_alignment := rider.board_visual.global_basis.y.normalized().dot(rider.get_floor_normal())
 	if visual_alignment < 0.82:

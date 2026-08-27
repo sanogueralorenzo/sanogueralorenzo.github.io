@@ -21,13 +21,20 @@ var _tracked_camera: Node3D
 var _stream_center := Vector2i(2147483647, 2147483647)
 var _desired_chunks: Dictionary = {}
 var _pending_chunks: Array[Vector2i] = []
-var _sand_material: ShaderMaterial
+var _terrain_material: ShaderMaterial
 var _rock_material: StandardMaterial3D
+var _tree_trunk_material: StandardMaterial3D
+var _tree_canopy_material: StandardMaterial3D
+var _ruin_material: StandardMaterial3D
 var _rock_mesh: SphereMesh
+var _tree_trunk_mesh: CylinderMesh
+var _tree_canopy_mesh: CylinderMesh
+var _ruin_block_mesh: BoxMesh
 var _broad_noise := FastNoiseLite.new()
 var _ridge_noise := FastNoiseLite.new()
 var _dune_noise := FastNoiseLite.new()
 var _feature_grammar := DesertFeatureGrammar.new()
+var _landscape_layout := LandscapeLayout.new()
 
 
 func _ready() -> void:
@@ -50,6 +57,7 @@ func generate() -> void:
 		generated_seed = random_seed.randi()
 	_configure_noise()
 	_feature_grammar.configure(generated_seed)
+	_landscape_layout.configure(generated_seed)
 	_create_materials()
 	_stream_center = Vector2i(2147483647, 2147483647)
 	_set_stream_focus(Vector2.ZERO, true)
@@ -126,8 +134,20 @@ func get_feature_height_offset(logical_position: Vector2) -> float:
 	return _feature_grammar.sample_height_offset(logical_position.x, logical_position.y)
 
 
+func get_grass_weight(logical_position: Vector2) -> float:
+	return _landscape_layout.get_grass_weight(logical_position)
+
+
+func chunk_has_ruin(coord: Vector2i) -> bool:
+	return _landscape_layout.has_ruin(coord, chunk_size)
+
+
 func chunk_has_rock_passage(coord: Vector2i) -> bool:
-	return Vector2(coord).length() * chunk_size >= 420.0 and _feature_grammar.get_cell_random(coord, 31) <= 0.38
+	return (
+		not chunk_has_ruin(coord)
+		and Vector2(coord).length() * chunk_size >= 420.0
+		and _feature_grammar.get_cell_random(coord, 31) <= 0.38
+	)
 
 
 func get_loaded_rock_bodies() -> Array[StaticBody3D]:
@@ -135,9 +155,26 @@ func get_loaded_rock_bodies() -> Array[StaticBody3D]:
 	for chunk_value in loaded_chunks.values():
 		var chunk: StaticBody3D = chunk_value
 		for child in chunk.get_children():
-			if child is StaticBody3D and is_obstacle_collider(child):
+			if child is StaticBody3D and child.get_meta(&"overrush_rock", false):
 				rocks.append(child)
 	return rocks
+
+
+func get_loaded_tree_count() -> int:
+	var total := 0
+	for chunk_value in loaded_chunks.values():
+		total += int((chunk_value as StaticBody3D).get_meta(&"tree_count", 0))
+	return total
+
+
+func get_loaded_ruin_bodies() -> Array[StaticBody3D]:
+	var ruins: Array[StaticBody3D] = []
+	for chunk_value in loaded_chunks.values():
+		var chunk: StaticBody3D = chunk_value
+		for child in chunk.get_children():
+			if child is StaticBody3D and child.get_meta(&"overrush_ruin", false):
+				ruins.append(child)
+	return ruins
 
 
 func get_chunk_coordinate(logical_position: Vector2) -> Vector2i:
@@ -210,7 +247,7 @@ func _load_chunk(coord: Vector2i) -> void:
 	if loaded_chunks.has(coord) or not _desired_chunks.has(coord):
 		return
 	var chunk := StaticBody3D.new()
-	chunk.name = "Sand_%d_%d" % [coord.x, coord.y]
+	chunk.name = "Terrain_%d_%d" % [coord.x, coord.y]
 	chunk.set_meta(&"overrush_rideable", true)
 	var center_x := float(coord.x) * chunk_size
 	var center_z := float(coord.y) * chunk_size
@@ -224,7 +261,7 @@ func _load_chunk(coord: Vector2i) -> void:
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Terrain"
 	mesh_instance.mesh = chunk_data.mesh
-	mesh_instance.material_override = _sand_material
+	mesh_instance.material_override = _terrain_material
 	chunk.add_child(mesh_instance)
 	var collision := CollisionShape3D.new()
 	collision.name = "TerrainCollision"
@@ -232,6 +269,8 @@ func _load_chunk(coord: Vector2i) -> void:
 	var spacing := chunk_size / float(chunk_resolution - 1)
 	collision.scale = Vector3(spacing, 1.0, spacing)
 	chunk.add_child(collision)
+	_add_forest(chunk, coord, reference_height)
+	_add_ruin(chunk, coord, reference_height)
 	_add_rock_passage(chunk, coord, reference_height)
 	add_child(chunk)
 	loaded_chunks[coord] = chunk
@@ -247,10 +286,12 @@ func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
 	heights.resize(vertex_count)
 	vertices.resize(vertex_count)
 	normals.resize(vertex_count)
 	uvs.resize(vertex_count)
+	colors.resize(vertex_count)
 
 	for z_index in range(chunk_resolution):
 		var local_z := -half_size + z_index * spacing
@@ -264,6 +305,7 @@ func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
 			vertices[index] = Vector3(local_x, local_height, local_z)
 			normals[index] = get_surface_normal(logical_x, logical_z, spacing)
 			uvs[index] = Vector2(logical_x, logical_z) * 0.002
+			colors[index] = Color(_landscape_layout.get_grass_weight(Vector2(logical_x, logical_z)), 0.0, 0.0, 1.0)
 
 	var indices := PackedInt32Array()
 	indices.resize((chunk_resolution - 1) * (chunk_resolution - 1) * 6)
@@ -287,6 +329,7 @@ func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -321,8 +364,8 @@ func _perform_origin_rebase(local_focus: Vector3) -> void:
 			_tracked_camera.call("apply_world_rebase", shift)
 		else:
 			_tracked_camera.global_position -= shift
-	if is_instance_valid(_sand_material):
-		_sand_material.set_shader_parameter("world_origin", Vector2(world_origin.x, world_origin.z))
+	if is_instance_valid(_terrain_material):
+		_terrain_material.set_shader_parameter("world_origin", Vector2(world_origin.x, world_origin.z))
 
 
 func _chunk_distance_squared(coord: Vector2i) -> int:
@@ -354,31 +397,227 @@ func _configure_noise() -> void:
 
 
 func _create_materials() -> void:
-	_sand_material = null
+	_terrain_material = null
 	_rock_material = null
+	_tree_trunk_material = null
+	_tree_canopy_material = null
+	_ruin_material = null
 	_rock_mesh = SphereMesh.new()
 	_rock_mesh.radius = 1.0
 	_rock_mesh.height = 2.0
 	_rock_mesh.radial_segments = 12
 	_rock_mesh.rings = 6
+	_tree_trunk_mesh = CylinderMesh.new()
+	_tree_trunk_mesh.top_radius = 0.72
+	_tree_trunk_mesh.bottom_radius = 1.0
+	_tree_trunk_mesh.height = 1.0
+	_tree_trunk_mesh.radial_segments = 7
+	_tree_trunk_mesh.rings = 1
+	_tree_canopy_mesh = CylinderMesh.new()
+	_tree_canopy_mesh.top_radius = 0.0
+	_tree_canopy_mesh.bottom_radius = 1.0
+	_tree_canopy_mesh.height = 1.0
+	_tree_canopy_mesh.radial_segments = 8
+	_tree_canopy_mesh.rings = 1
+	_ruin_block_mesh = BoxMesh.new()
+	_ruin_block_mesh.size = Vector3.ONE
 	if DisplayServer.get_name() != "headless":
-		_sand_material = ShaderMaterial.new()
-		_sand_material.shader = load("res://shaders/desert.gdshader")
-		_sand_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
-		_sand_material.set_shader_parameter("world_origin", Vector2.ZERO)
+		_terrain_material = ShaderMaterial.new()
+		_terrain_material.shader = load("res://shaders/desert.gdshader")
+		_terrain_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
+		_terrain_material.set_shader_parameter("world_origin", Vector2.ZERO)
 		_rock_material = StandardMaterial3D.new()
 		_rock_material.albedo_color = Color("#201c2b")
 		_rock_material.roughness = 0.94
+		_tree_trunk_material = StandardMaterial3D.new()
+		_tree_trunk_material.albedo_color = Color("#70452d")
+		_tree_trunk_material.roughness = 0.96
+		_tree_trunk_material.vertex_color_use_as_albedo = true
+		_tree_canopy_material = StandardMaterial3D.new()
+		_tree_canopy_material.albedo_color = Color("#4f8848")
+		_tree_canopy_material.roughness = 0.92
+		_tree_canopy_material.vertex_color_use_as_albedo = true
+		_ruin_material = StandardMaterial3D.new()
+		_ruin_material.albedo_color = Color("#c1b27f")
+		_ruin_material.roughness = 0.92
+		_ruin_material.emission_enabled = true
+		_ruin_material.emission = Color("#443b29")
+		_ruin_material.emission_energy_multiplier = 0.8
+
+
+func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
+	var chunk_center := Vector2(coord) * chunk_size
+	var half_size := chunk_size * 0.5
+	var cell_size := LandscapeLayout.TREE_CELL_SIZE
+	var minimum_cell := Vector2i(
+		floori((chunk_center.x - half_size) / cell_size) - 1,
+		floori((chunk_center.y - half_size) / cell_size) - 1,
+	)
+	var maximum_cell := Vector2i(
+		floori((chunk_center.x + half_size) / cell_size) + 1,
+		floori((chunk_center.y + half_size) / cell_size) + 1,
+	)
+	var ruin_center := _landscape_layout.get_ruin_center(coord, chunk_size) if chunk_has_ruin(coord) else Vector2(INF, INF)
+	var rock_center := _get_rock_passage_center(coord) if chunk_has_rock_passage(coord) else Vector2(INF, INF)
+	var trees: Array[Dictionary] = []
+	for cell_y in range(minimum_cell.y, maximum_cell.y + 1):
+		for cell_x in range(minimum_cell.x, maximum_cell.x + 1):
+			var cell := Vector2i(cell_x, cell_y)
+			if not _landscape_layout.has_tree(cell):
+				continue
+			var logical_position := _landscape_layout.get_tree_position(cell)
+			if get_chunk_coordinate(logical_position) != coord:
+				continue
+			if logical_position.distance_to(ruin_center) < 36.0 or logical_position.distance_to(rock_center) < 28.0:
+				continue
+			trees.append({
+				"cell": cell,
+				"position": logical_position,
+				"height": _landscape_layout.get_tree_height(cell),
+				"radius": _landscape_layout.get_tree_radius(cell),
+			})
+	chunk.set_meta(&"tree_count", trees.size())
+	if trees.is_empty():
+		return
+
+	var obstacles := StaticBody3D.new()
+	obstacles.name = "ForestObstacles"
+	obstacles.set_meta(&"overrush_obstacle", true)
+	obstacles.set_meta(&"overrush_forest", true)
+	for tree_index in range(trees.size()):
+		var tree := trees[tree_index]
+		var logical_position: Vector2 = tree.position
+		var height: float = tree.height
+		var radius: float = tree.radius
+		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
+		var collision := CollisionShape3D.new()
+		collision.name = "Tree_%d" % tree_index
+		var shape := CylinderShape3D.new()
+		shape.radius = radius * 1.12
+		shape.height = maxf(4.8, height * 0.7)
+		collision.shape = shape
+		collision.position = Vector3(
+			logical_position.x - chunk_center.x,
+			local_height + shape.height * 0.5,
+			logical_position.y - chunk_center.y,
+		)
+		obstacles.add_child(collision)
+	chunk.add_child(obstacles)
+
+	if DisplayServer.get_name() == "headless":
+		return
+	var trunk_multimesh := MultiMesh.new()
+	trunk_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	trunk_multimesh.use_colors = true
+	trunk_multimesh.mesh = _tree_trunk_mesh
+	trunk_multimesh.instance_count = trees.size()
+	var canopy_multimesh := MultiMesh.new()
+	canopy_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	canopy_multimesh.use_colors = true
+	canopy_multimesh.mesh = _tree_canopy_mesh
+	canopy_multimesh.instance_count = trees.size()
+	for tree_index in range(trees.size()):
+		var tree := trees[tree_index]
+		var cell: Vector2i = tree.cell
+		var logical_position: Vector2 = tree.position
+		var height: float = tree.height
+		var radius: float = tree.radius
+		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
+		var local_xz := logical_position - chunk_center
+		var trunk_transform := Transform3D(
+			Basis.IDENTITY.scaled(Vector3(radius, height, radius)),
+			Vector3(local_xz.x, local_height + height * 0.5, local_xz.y),
+		)
+		var canopy_radius := height * lerpf(0.24, 0.31, _landscape_layout.get_cell_random(cell, 16))
+		var canopy_height := height * lerpf(0.5, 0.62, _landscape_layout.get_cell_random(cell, 17))
+		var canopy_transform := Transform3D(
+			Basis.IDENTITY.scaled(Vector3(canopy_radius, canopy_height, canopy_radius)),
+			Vector3(local_xz.x, local_height + height * 0.78, local_xz.y),
+		)
+		trunk_multimesh.set_instance_transform(tree_index, trunk_transform)
+		trunk_multimesh.set_instance_color(tree_index, Color(0.82, 0.74, 0.67, 1.0))
+		canopy_multimesh.set_instance_transform(tree_index, canopy_transform)
+		var tint := lerpf(0.78, 1.08, _landscape_layout.get_cell_random(cell, 18))
+		canopy_multimesh.set_instance_color(tree_index, Color(tint * 0.78, tint, tint * 0.72, 1.0))
+	var trunks := MultiMeshInstance3D.new()
+	trunks.name = "TreeTrunks"
+	trunks.multimesh = trunk_multimesh
+	trunks.material_override = _tree_trunk_material
+	chunk.add_child(trunks)
+	var canopies := MultiMeshInstance3D.new()
+	canopies.name = "TreeCanopies"
+	canopies.multimesh = canopy_multimesh
+	canopies.material_override = _tree_canopy_material
+	chunk.add_child(canopies)
+
+
+func _add_ruin(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
+	if not chunk_has_ruin(coord):
+		return
+	var chunk_center := Vector2(coord) * chunk_size
+	var ruin_center := _landscape_layout.get_ruin_center(coord, chunk_size)
+	var forward := _landscape_layout.get_ruin_forward(coord, chunk_size)
+	var ruin := StaticBody3D.new()
+	ruin.name = "Ruin_%d_%d" % [coord.x, coord.y]
+	ruin.position = Vector3(ruin_center.x - chunk_center.x, 0.0, ruin_center.y - chunk_center.y)
+	ruin.rotation.y = atan2(-forward.x, -forward.y)
+	ruin.set_meta(&"overrush_obstacle", true)
+	ruin.set_meta(&"overrush_ruin", true)
+	ruin.set_meta(&"passage_clearance", 13.6)
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "LeftColumn")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "RightColumn")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2.ZERO, Vector3(18.4, 1.8, 3.0), 7.0, "Lintel")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "LeftTerrace")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "RightTerrace")
+	chunk.add_child(ruin)
+
+
+func _add_ruin_block(
+	ruin: StaticBody3D,
+	_chunk_center: Vector2,
+	reference_height: float,
+	ruin_center: Vector2,
+	forward: Vector2,
+	local_offset: Vector2,
+	size: Vector3,
+	vertical_offset: float,
+	block_name: String,
+) -> void:
+	var right := Vector2(-forward.y, forward.x)
+	var logical_position := ruin_center + right * local_offset.x - forward * local_offset.y
+	var local_ground := get_surface_height(logical_position.x, logical_position.y) - reference_height
+	var position := Vector3(local_offset.x, local_ground + size.y * 0.5 + vertical_offset, local_offset.y)
+	var collision := CollisionShape3D.new()
+	collision.name = "%sCollision" % block_name
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	collision.position = position
+	ruin.add_child(collision)
+	if DisplayServer.get_name() == "headless":
+		return
+	var visual := MeshInstance3D.new()
+	visual.name = block_name
+	visual.mesh = _ruin_block_mesh
+	visual.material_override = _ruin_material
+	visual.position = position
+	visual.scale = size
+	ruin.add_child(visual)
+
+
+func _get_rock_passage_center(coord: Vector2i) -> Vector2:
+	var chunk_center := Vector2(coord) * chunk_size
+	return chunk_center + Vector2(
+		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 32)),
+		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 33)),
+	)
 
 
 func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
 	var chunk_center := Vector2(coord) * chunk_size
 	if not chunk_has_rock_passage(coord):
 		return
-	var passage_center := chunk_center + Vector2(
-		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 32)),
-		lerpf(-72.0, 72.0, _feature_grammar.get_cell_random(coord, 33)),
-	)
+	var passage_center := _get_rock_passage_center(coord)
 	var outward := chunk_center.normalized()
 	var angle_offset := deg_to_rad(lerpf(-26.0, 26.0, _feature_grammar.get_cell_random(coord, 34)))
 	var gate_axis := Vector2(-outward.y, outward.x).rotated(angle_offset)
@@ -390,6 +629,7 @@ func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: f
 		var rock := StaticBody3D.new()
 		rock.name = "RockGate_%d_%d_%d" % [coord.x, coord.y, rock_index]
 		rock.set_meta(&"overrush_obstacle", true)
+		rock.set_meta(&"overrush_rock", true)
 		rock.set_meta(&"passage_clearance", center_spacing - radius * 2.0)
 		rock.position = Vector3(
 			logical_position.x - chunk_center.x,

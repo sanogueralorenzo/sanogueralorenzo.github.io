@@ -7,9 +7,13 @@ uniform vec3 shadow_sand : source_color = vec3(0.055, 0.065, 0.11);
 uniform vec3 pale_sand : source_color = vec3(0.34, 0.155, 0.055);
 uniform vec3 sunlit_sand : source_color = vec3(0.69, 0.345, 0.095);
 uniform vec3 sandstone : source_color = vec3(0.17, 0.075, 0.065);
+uniform vec3 shadow_grass : source_color = vec3(0.045, 0.09, 0.075);
+uniform vec3 grass : source_color = vec3(0.17, 0.36, 0.15);
+uniform vec3 sunlit_grass : source_color = vec3(0.48, 0.68, 0.24);
 
 varying vec3 world_position;
 varying vec3 world_normal;
+varying float grass_weight;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -29,6 +33,7 @@ float noise(vec2 p) {
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
+	grass_weight = COLOR.r;
 }
 
 void fragment() {
@@ -41,11 +46,15 @@ void fragment() {
 	vec3 key_light_direction = normalize(vec3(-0.35, 0.74, 0.57));
 	float key_light = smoothstep(0.42, 0.88, max(dot(world_normal, key_light_direction), 0.0));
 	float wind_crest = smoothstep(0.76, 0.98, wind_lines) * (1.0 - smoothstep(0.22, 0.52, slope));
-	vec3 sand = mix(pale_sand, sunlit_sand, broad * 0.68 + wind_lines * 0.18 + 0.08);
-	sand = mix(shadow_sand, sand, 0.28 + key_light * 0.72);
-	sand += wind_crest * vec3(0.095, 0.047, 0.012);
+	vec3 sand_surface = mix(pale_sand, sunlit_sand, broad * 0.68 + wind_lines * 0.18 + 0.08);
+	sand_surface = mix(shadow_sand, sand_surface, 0.28 + key_light * 0.72);
+	sand_surface += wind_crest * vec3(0.095, 0.047, 0.012);
+	vec3 grass_surface = mix(grass, sunlit_grass, broad * 0.58 + ripples * 0.2 + 0.12);
+	grass_surface = mix(shadow_grass, grass_surface, 0.3 + key_light * 0.7);
+	float biome_blend = smoothstep(0.08, 0.92, grass_weight);
+	vec3 rideable_surface = mix(sand_surface, grass_surface, biome_blend);
 	vec3 rock = mix(shadow_sand * 0.62, sandstone, broad);
-	ALBEDO = mix(sand, rock, stone);
-	ROUGHNESS = mix(0.91 - wind_crest * 0.12, 0.82, stone);
+	ALBEDO = mix(rideable_surface, rock, stone);
+	ROUGHNESS = mix(mix(0.91 - wind_crest * 0.12, 0.96, biome_blend), 0.82, stone);
 	SPECULAR = mix(0.18, 0.08, stone);
 }
