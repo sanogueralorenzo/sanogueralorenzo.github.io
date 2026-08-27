@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_dashbreaker_envelopes()
 	_test_stormtrail_envelopes()
 	_test_arcstorm_envelopes()
+	_test_catalyst_tradeoff_envelopes()
 	if _failures.is_empty():
 		print("Build evolution tuning envelopes passed.")
 		quit(0)
@@ -64,6 +65,27 @@ func _test_arcstorm_envelopes() -> void:
 	_expect_ratio(orbit_peak, orbit_base, 2.1, 2.5, "Arc Orbit support")
 	_expect(lance.get_lance_range() > orbit.get_orbit_radius() * 4.0, "Arcstorm's two evolutions should retain clearly different engagement geometry.")
 	_expect(lance.get_lance_damage(88.0) > orbit.get_orbit_damage(88.0) * 2.0, "Storm Lance should trade Arc Orbit's coverage for heavier aimed hits.")
+
+
+func _test_catalyst_tradeoff_envelopes() -> void:
+	var redline := RunBuildScript.new()
+	redline.catalyst_id = RunBuild.REDLINE_CORE
+	var redline_average := (
+		redline.get_catalyst_damage_multiplier(58.0, false, false) * 0.4
+		+ redline.get_catalyst_damage_multiplier(88.0, false, false) * 0.4
+		+ redline.get_catalyst_damage_multiplier(126.0, false, false) * 0.2
+	)
+	_expect(redline_average >= 0.95 and redline_average <= 1.08, "Redline Core's representative speed mix should trade timing for output instead of granting universal power.")
+
+	var airframe := RunBuildScript.new()
+	airframe.catalyst_id = RunBuild.AIRFRAME_CORE
+	var airframe_average := airframe.get_catalyst_damage_multiplier(88.0, true, false) * 0.35 + airframe.get_catalyst_damage_multiplier(88.0, false, false) * 0.65
+	_expect(airframe_average >= 0.95 and airframe_average <= 1.08, "Airframe Core should require substantial airtime to outperform an untuned drive.")
+
+	var pulse := RunBuildScript.new()
+	pulse.catalyst_id = RunBuild.PULSE_CORE
+	var pulse_average := pulse.get_catalyst_damage_multiplier(88.0, false, true) * 0.45 + pulse.get_catalyst_damage_multiplier(88.0, false, false) * 0.55
+	_expect(pulse_average >= 0.95 and pulse_average <= 1.08, "Pulse Core should require deliberate dash-window uptime to outperform an untuned drive.")
 
 
 func _evolved_build(keystone: StringName, evolution: StringName) -> RunBuild:

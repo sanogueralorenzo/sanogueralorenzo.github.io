@@ -69,6 +69,8 @@ var _high_contrast_telegraphs := false
 var _dash_hit_ids: Dictionary = {}
 var _wake_drop_count := 0
 var _pending_evolution_announcement := ""
+var _pending_catalyst_announcement := ""
+var _catalyst_dash_window := 0.0
 var _introduced_archetypes: Dictionary = {}
 
 
@@ -88,7 +90,14 @@ func _physics_process(delta: float) -> void:
 		return
 	var previous_time := elapsed_time
 	elapsed_time += delta
+	_catalyst_dash_window = maxf(0.0, _catalyst_dash_window - delta)
 	run_stats.record_traversal(_runner.global_position, _runner.get_horizontal_speed())
+	if not build.catalyst_id.is_empty():
+		run_stats.record_catalyst_state(delta, build.get_catalyst_damage_multiplier(
+			_runner.get_horizontal_speed(),
+			_runner.is_airborne_attack_window(),
+			_catalyst_dash_window > 0.0
+		) > 1.0)
 	_update_run_pacing(previous_time)
 	if not _run_active:
 		return
@@ -107,11 +116,14 @@ func choose_upgrade(option_index: int) -> void:
 		return
 	var chosen_upgrade := StringName(options[option_index])
 	var choosing_evolution := build.is_evolution_upgrade(chosen_upgrade)
+	var choosing_catalyst := build.is_catalyst_upgrade(chosen_upgrade)
 	var result := build.apply_upgrade(chosen_upgrade)
 	if result.is_empty():
 		return
 	if choosing_evolution:
 		_pending_evolution_announcement = build.get_upgrade_name(chosen_upgrade)
+	if choosing_catalyst:
+		_pending_catalyst_announcement = build.get_upgrade_name(chosen_upgrade)
 	run_stats.record_upgrade(chosen_upgrade)
 	if float(result.maximum_integrity) > 0.0:
 		_runner.increase_maximum_integrity(float(result.maximum_integrity), float(result.repair))
@@ -129,6 +141,12 @@ func choose_upgrade(option_index: int) -> void:
 				"Exclusive evolution locked for this run"
 			)
 			_pending_evolution_announcement = ""
+		if not _pending_catalyst_announcement.is_empty():
+			event_announced.emit(
+				"%s TUNED" % _pending_catalyst_announcement,
+				"Your damage now follows this movement rhythm"
+			)
+			_pending_catalyst_announcement = ""
 
 
 func reroll_upgrade_options() -> bool:
@@ -176,6 +194,7 @@ func start_run(protocol_id: StringName) -> void:
 	_runner.apply_integrity_multiplier(float(definition.integrity_multiplier))
 	rerolls_remaining = INITIAL_REROLLS
 	banishes_remaining = INITIAL_BANISHES
+	_catalyst_dash_window = 0.0
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -226,6 +245,17 @@ func get_active_apex_title() -> String:
 	if not has_active_apex():
 		return "THE APEX"
 	return ApexCatalogModel.get_title(_apex.archetype)
+
+
+func get_catalyst_status() -> String:
+	if build.catalyst_id.is_empty():
+		return ""
+	var multiplier := build.get_catalyst_damage_multiplier(
+		_runner.get_horizontal_speed(),
+		_runner.is_airborne_attack_window(),
+		_catalyst_dash_window > 0.0
+	)
+	return "%s  •  OUTPUT %d%%" % [build.get_catalyst_name(), roundi(multiplier * 100.0)]
 
 
 func _update_spawning(delta: float) -> void:
@@ -337,7 +367,7 @@ func _update_arc_weapon(delta: float) -> void:
 		return
 	_fire_timer += build.fire_interval
 	var targets := _find_targets(build.projectile_count)
-	var damage := build.get_arc_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
+	var damage := build.get_arc_damage(_runner.get_horizontal_speed()) * _get_outgoing_damage_multiplier()
 	for target in targets:
 		var projectile: ArcProjectile = ArcProjectileScript.new()
 		add_child(projectile)
@@ -370,7 +400,7 @@ func _update_slipstream(delta: float) -> void:
 	var heading: Vector3 = _runner.heading.normalized()
 	var wake_position: Vector3 = _runner.global_position - heading * 10.0
 	var radius := build.get_wake_radius()
-	var damage := build.get_wake_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
+	var damage := build.get_wake_damage(_runner.get_horizontal_speed()) * _get_outgoing_damage_multiplier()
 	var duration := build.get_wake_duration()
 	if build.is_twin_current():
 		var side := Vector3(-heading.z, 0.0, heading.x) * build.get_twin_current_offset()
@@ -394,6 +424,7 @@ func _update_slipstream(delta: float) -> void:
 func _on_dash_state_changed(active: bool) -> void:
 	if not _run_active:
 		return
+	_catalyst_dash_window = RunBuild.PULSE_WINDOW_SECONDS
 	if active:
 		run_stats.record_dash()
 		_dash_hit_ids.clear()
@@ -434,7 +465,7 @@ func _update_ramjet() -> void:
 		if planar_distance > build.get_ramjet_radius() + enemy.body_radius:
 			continue
 		_dash_hit_ids[enemy.get_instance_id()] = true
-		enemy.take_damage(build.get_ramjet_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier, &"ramjet")
+		enemy.take_damage(build.get_ramjet_damage(_runner.get_horizontal_speed()) * _get_outgoing_damage_multiplier(), &"ramjet")
 		hit_count += 1
 	if hit_count > 0:
 		_spawn_pulse(_runner.global_position, Color(1.0, 0.42, 0.05, 0.42), build.get_ramjet_radius() * 1.6, 0.12)
@@ -493,7 +524,7 @@ func _fire_storm_lance() -> void:
 	)
 	if targets.size() > build.get_lance_target_limit():
 		targets.resize(build.get_lance_target_limit())
-	var damage := build.get_lance_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
+	var damage := build.get_lance_damage(_runner.get_horizontal_speed()) * _get_outgoing_damage_multiplier()
 	for target in targets:
 		target.take_damage(damage, &"storm_lance")
 	_spawn_lance_visual(_runner.global_position, heading, lance_range, lance_width)
@@ -521,11 +552,19 @@ func _spawn_lance_visual(origin: Vector3, heading: Vector3, lance_range: float, 
 
 
 func _release_nova(position: Vector3, damage: float, radius: float, color: Color, source_id: StringName) -> void:
-	damage *= _outgoing_damage_multiplier
+	damage *= _get_outgoing_damage_multiplier()
 	for enemy in _enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.global_position.distance_to(position) <= radius:
 			enemy.take_damage(damage, source_id)
 	_spawn_pulse(position, color, radius, 0.32)
+
+
+func _get_outgoing_damage_multiplier() -> float:
+	return _outgoing_damage_multiplier * build.get_catalyst_damage_multiplier(
+		_runner.get_horizontal_speed(),
+		_runner.is_airborne_attack_window(),
+		_catalyst_dash_window > 0.0
+	)
 
 
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:

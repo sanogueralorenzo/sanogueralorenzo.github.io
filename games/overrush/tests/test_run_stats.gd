@@ -25,6 +25,8 @@ func _init() -> void:
 	stats.record_reroll()
 	stats.record_reroll()
 	stats.record_banish()
+	stats.record_catalyst_state(0.6, true)
+	stats.record_catalyst_state(0.4, false)
 	stats.record_upgrade(&"dash_nova")
 	stats.record_upgrade(&"ramjet")
 	stats.set_apex_identity(&"velocity_reaver")
@@ -39,6 +41,7 @@ func _init() -> void:
 	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
 		build.apply_upgrade(&"dash_nova")
 	build.apply_upgrade(&"ramjet")
+	build.catalyst_id = RunBuild.REDLINE_CORE
 	build.level = 9
 	var summary := stats.snapshot(743.2, 88, build)
 	_expect(str(summary.build_name) == "DASHBREAKER • RAMJET" and int(summary.level) == 9, "Run snapshots should identify the demonstrated build and level.")
@@ -46,6 +49,7 @@ func _init() -> void:
 	_expect(int(summary.dash_count) == 2 and is_equal_approx(float(summary.damage_taken), 22.0), "Run snapshots should preserve movement and survivability evidence.")
 	_expect(int(summary.rerolls_used) == 2 and int(summary.banishes_used) == 1, "Run snapshots should distinguish draft agency from favorable random rolls.")
 	_expect(str(summary.apex_id) == "velocity_reaver", "Run snapshots should retain which climax encounter the build faced.")
+	_expect(str(summary.catalyst_id) == "redline_core" and is_equal_approx(float(summary.catalyst_uptime), 0.6), "Run snapshots should retain the catalyst identity and measured empowered uptime.")
 	_expect((summary.upgrade_history as Array).size() == 2, "Run snapshots should retain the choice history used for balance review.")
 
 	if _failures.is_empty():

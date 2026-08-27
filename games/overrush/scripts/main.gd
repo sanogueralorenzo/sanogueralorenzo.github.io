@@ -124,10 +124,13 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	info.text = "OVER RUSH  •  %s\n%03d m/s  •  %s" % [
+	var catalyst_status := combat.get_catalyst_status()
+	var catalyst_line := "" if catalyst_status.is_empty() else "\n%s" % catalyst_status
+	info.text = "OVER RUSH  •  %s\n%03d m/s  •  %s%s" % [
 		world.get_region_name(ball.global_position.z),
 		roundi(ball.get_horizontal_speed()),
 		ball.get_dash_status(),
+		catalyst_line,
 	]
 	run_stats.text = "%s  •  %s\n%d HOSTILES  •  %d CLEARED\nSEED %s" % [
 		combat.get_formatted_time(),
@@ -197,16 +200,21 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 	event_banner.visible = false
 	level_up_overlay.visible = true
 	var offers_evolution := false
+	var offers_catalyst := false
 	for upgrade_id in options:
 		if combat.build.is_evolution_upgrade(upgrade_id):
 			offers_evolution = true
-			break
+		if combat.build.is_catalyst_upgrade(upgrade_id):
+			offers_catalyst = true
 	if combat.build.core_path.is_empty():
 		level_up_title.text = "CHOOSE YOUR ENGINE"
 		_draft_prompt = "Commit to a combat geometry for this run"
 	elif offers_evolution:
 		level_up_title.text = "EVOLVE %s" % combat.build.get_build_name()
 		_draft_prompt = "Choose one exclusive geometry, or defer the fork with a standard upgrade"
+	elif offers_catalyst:
+		level_up_title.text = "TUNE YOUR DRIVE"
+		_draft_prompt = "Choose one movement rhythm  •  Every catalyst has a real downside"
 	else:
 		level_up_title.text = "%s EVOLVES" % combat.build.get_build_name()
 		_draft_prompt = "Deepen this build without collapsing into another path"
@@ -453,10 +461,18 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 			ApexCatalogModel.get_title(apex_id),
 			"BROKEN" if bool(summary.get("victory", false)) else "UNBROKEN",
 		]
-	return "%s\n\n%s  •  LEVEL %d\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
+	var catalyst_id := StringName(str(summary.get("catalyst_id", "")))
+	var drive_text := "DRIVE  •  NOT TUNED"
+	if catalyst_id in RunBuild.CATALYST_IDS:
+		drive_text = "DRIVE  •  %s  •  %d%% HOT" % [
+			combat.build.get_upgrade_name(catalyst_id),
+			roundi(float(summary.get("catalyst_uptime", 0.0)) * 100.0),
+		]
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
+		drive_text,
 		upgrade_count,
 		int(summary.get("rerolls_used", 0)),
 		banishes_used,

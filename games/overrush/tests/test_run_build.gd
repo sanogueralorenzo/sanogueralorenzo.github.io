@@ -12,6 +12,7 @@ func _init() -> void:
 	_test_repeatable_upgrade_limits()
 	_test_exclusive_evolution_forks()
 	_test_draft_agency_and_repair_cap()
+	_test_drive_catalyst_forks()
 	if _failures.is_empty():
 		print("Run build validation passed.")
 		quit(0)
@@ -133,6 +134,38 @@ func _test_draft_agency_and_repair_cap() -> void:
 	for _rank in range(3):
 		evolution_build.apply_upgrade(&"kinetic_repair")
 	_expect(evolution_build.apply_upgrade(&"kinetic_repair").is_empty(), "Kinetic Repair should cap after three ranks instead of becoming an unlimited universal build.")
+
+
+func _test_drive_catalyst_forks() -> void:
+	var catalyst_build := _catalyst_ready_build()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4401
+	var options := catalyst_build.get_upgrade_options(rng)
+	_expect(options == RunBuild.CATALYST_IDS, "A mature evolved build should receive all three protected movement-rhythm catalysts at once.")
+	_expect(not catalyst_build.has_alternative_upgrade_options(options), "A complete catalyst fork should not spend rerolls on an identical offer.")
+	for catalyst_id in RunBuild.CATALYST_IDS:
+		_expect(not catalyst_build.can_banish_upgrade(catalyst_id), "Drive catalysts should remain protected strategic commitments.")
+	_expect(not catalyst_build.apply_upgrade(RunBuild.REDLINE_CORE).is_empty(), "A qualified build should accept one drive catalyst.")
+	_expect(catalyst_build.apply_upgrade(RunBuild.AIRFRAME_CORE).is_empty(), "Choosing one drive catalyst should permanently reject the others.")
+	_expect(catalyst_build.get_catalyst_damage_multiplier(58.0, false, false) < 1.0, "Redline Core should impose a real low-speed penalty.")
+	_expect(catalyst_build.get_catalyst_damage_multiplier(126.0, false, false) >= 1.5, "Redline Core should reward reaching dash velocity.")
+
+	var airframe := _catalyst_ready_build()
+	airframe.apply_upgrade(RunBuild.AIRFRAME_CORE)
+	_expect(airframe.get_catalyst_damage_multiplier(88.0, true, false) > 1.0 and airframe.get_catalyst_damage_multiplier(88.0, false, false) < 1.0, "Airframe Core should reverse output based on airborne state.")
+	var pulse := _catalyst_ready_build()
+	pulse.apply_upgrade(RunBuild.PULSE_CORE)
+	_expect(pulse.get_catalyst_damage_multiplier(88.0, false, true) > 1.0 and pulse.get_catalyst_damage_multiplier(88.0, false, false) < 1.0, "Pulse Core should create a short dash-timed damage window with a downtime penalty.")
+
+
+func _catalyst_ready_build() -> RunBuild:
+	var build := RunBuildScript.new()
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		build.apply_upgrade(&"dash_nova")
+	build.apply_upgrade(&"ramjet")
+	while build.get_specialization_rank() < RunBuild.CATALYST_UNLOCK_RANK:
+		build.apply_upgrade(&"dash_nova")
+	return build
 
 
 func _expect(condition: bool, message: String) -> void:

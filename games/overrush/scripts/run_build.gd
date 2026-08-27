@@ -5,6 +5,8 @@ const DASHBREAKER := &"dashbreaker"
 const STORMTRAIL := &"stormtrail"
 const ARCSTORM := &"arcstorm"
 const EVOLUTION_UNLOCK_RANK := 4
+const CATALYST_UNLOCK_RANK := 7
+const PULSE_WINDOW_SECONDS := 0.42
 
 const KEYSTONE_IDS: Array[StringName] = [&"dash_nova", &"slipstream", &"velocity_coil"]
 const PATH_UPGRADES := {
@@ -25,6 +27,10 @@ const EVOLUTION_SUPPORT := {
 	&"storm_lance": &"lance_focus",
 	&"arc_orbit": &"orbit_flux",
 }
+const REDLINE_CORE := &"redline_core"
+const AIRFRAME_CORE := &"airframe_core"
+const PULSE_CORE := &"pulse_core"
+const CATALYST_IDS: Array[StringName] = [REDLINE_CORE, AIRFRAME_CORE, PULSE_CORE]
 
 const UPGRADE_NAMES := {
 	&"dash_nova": "DASHBREAKER",
@@ -52,6 +58,9 @@ const UPGRADE_NAMES := {
 	&"storm_charge": "STORM CHARGE",
 	&"lance_focus": "LANCE FOCUS",
 	&"orbit_flux": "ORBIT FLUX",
+	REDLINE_CORE: "REDLINE CORE",
+	AIRFRAME_CORE: "AIRFRAME CORE",
+	PULSE_CORE: "PULSE CORE",
 }
 
 const UPGRADE_DESCRIPTIONS := {
@@ -80,6 +89,9 @@ const UPGRADE_DESCRIPTIONS := {
 	&"storm_charge": "Tempest Anchors occur more often, pulse faster, and grow more violent.",
 	&"lance_focus": "Storm Lance reaches farther, widens, pierces more targets, and gains damage.",
 	&"orbit_flux": "Arc Orbit expands, strikes faster, and gains damage.",
+	REDLINE_CORE: "-22% at cruise; scales to +50% at dash speed. Keep accelerating.",
+	AIRFRAME_CORE: "+40% to attacks created airborne; -20% grounded. Commit to hops and hills.",
+	PULSE_CORE: "+35% to attacks created during a dash and 0.42 seconds after; -25% otherwise.",
 }
 
 const PATH_NAMES := {
@@ -94,6 +106,7 @@ var experience_to_next := 12
 var pending_levels := 0
 var core_path: StringName = &""
 var evolution_id: StringName = &""
+var catalyst_id: StringName = &""
 
 var weapon_damage := 18.0
 var fire_interval := 0.58
@@ -143,6 +156,8 @@ func get_upgrade_options(rng: RandomNumberGenerator, avoid_options: Array[String
 			if not standard_options.is_empty():
 				evolution_options.append(standard_options[0])
 		return evolution_options
+	if not evolution_id.is_empty() and catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK:
+		return CATALYST_IDS.duplicate()
 	return _draw_options(candidates, rng, avoid_options, 3)
 
 
@@ -193,6 +208,8 @@ func apply_upgrade(upgrade_id: StringName) -> Dictionary:
 			lance_focus_level += 1
 		&"orbit_flux":
 			orbit_flux_level += 1
+		REDLINE_CORE, AIRFRAME_CORE, PULSE_CORE:
+			catalyst_id = upgrade_id
 	return {
 		"id": upgrade_id,
 		"rank": int(upgrade_ranks[upgrade_id]),
@@ -263,8 +280,12 @@ func is_evolution_upgrade(upgrade_id: StringName) -> bool:
 	return upgrade_id in PATH_EVOLUTIONS.get(core_path, [])
 
 
+func is_catalyst_upgrade(upgrade_id: StringName) -> bool:
+	return upgrade_id in CATALYST_IDS
+
+
 func can_banish_upgrade(upgrade_id: StringName) -> bool:
-	if core_path.is_empty() or is_evolution_upgrade(upgrade_id) or banished_upgrades.has(upgrade_id):
+	if core_path.is_empty() or is_evolution_upgrade(upgrade_id) or is_catalyst_upgrade(upgrade_id) or banished_upgrades.has(upgrade_id):
 		return false
 	var candidates := _get_available_path_upgrades()
 	if upgrade_id not in candidates:
@@ -283,6 +304,9 @@ func banish_upgrade(upgrade_id: StringName) -> bool:
 func has_alternative_upgrade_options(current_options: Array[StringName]) -> bool:
 	if core_path.is_empty():
 		return false
+	for upgrade_id in current_options:
+		if is_catalyst_upgrade(upgrade_id):
+			return false
 	for upgrade_id in _get_available_path_upgrades():
 		if StringName(upgrade_id) not in current_options:
 			return true
@@ -305,6 +329,23 @@ func get_specialization_rank() -> int:
 		if upgrade_id != &"kinetic_repair":
 			total += get_upgrade_rank(StringName(upgrade_id))
 	return total
+
+
+func get_catalyst_name() -> String:
+	return get_upgrade_name(catalyst_id) if not catalyst_id.is_empty() else "UNTUNED DRIVE"
+
+
+func get_catalyst_damage_multiplier(horizontal_speed: float, airborne: bool, pulse_active: bool) -> float:
+	match catalyst_id:
+		REDLINE_CORE:
+			var speed_ratio := clampf((horizontal_speed - 58.0) / (126.0 - 58.0), 0.0, 1.0)
+			return lerpf(0.78, 1.5, speed_ratio)
+		AIRFRAME_CORE:
+			return 1.4 if airborne else 0.8
+		PULSE_CORE:
+			return 1.35 if pulse_active else 0.75
+		_:
+			return 1.0
 
 
 func is_ramjet() -> bool:
@@ -420,6 +461,8 @@ func _is_upgrade_allowed(upgrade_id: StringName) -> bool:
 		return true
 	if evolution_id.is_empty():
 		return get_specialization_rank() >= EVOLUTION_UNLOCK_RANK and upgrade_id in PATH_EVOLUTIONS[core_path]
+	if catalyst_id.is_empty() and get_specialization_rank() >= CATALYST_UNLOCK_RANK and upgrade_id in CATALYST_IDS:
+		return true
 	return upgrade_id == EVOLUTION_SUPPORT[evolution_id]
 
 
@@ -477,6 +520,8 @@ func _draw_from_pool(pool: Array, rng: RandomNumberGenerator, options: Array[Str
 
 
 func _is_capped(upgrade_id: StringName) -> bool:
+	if upgrade_id in CATALYST_IDS:
+		return not catalyst_id.is_empty()
 	if upgrade_id in PATH_EVOLUTIONS.get(core_path, []):
 		return not evolution_id.is_empty()
 	if upgrade_id in EVOLUTION_SUPPORT.values():

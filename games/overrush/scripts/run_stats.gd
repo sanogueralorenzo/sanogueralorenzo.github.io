@@ -23,6 +23,8 @@ var maximum_speed := 0.0
 var dash_count := 0
 var rerolls_used := 0
 var banishes_used := 0
+var catalyst_active_seconds := 0.0
+var catalyst_total_seconds := 0.0
 var elite_defeats := 0
 var defeats_by_archetype: Dictionary = {}
 var upgrade_history: Array[StringName] = []
@@ -42,6 +44,8 @@ func reset(start_position: Vector3) -> void:
 	dash_count = 0
 	rerolls_used = 0
 	banishes_used = 0
+	catalyst_active_seconds = 0.0
+	catalyst_total_seconds = 0.0
 	elite_defeats = 0
 	defeats_by_archetype.clear()
 	upgrade_history.clear()
@@ -85,6 +89,13 @@ func record_reroll() -> void:
 
 func record_banish() -> void:
 	banishes_used += 1
+
+
+func record_catalyst_state(delta: float, active: bool) -> void:
+	var safe_delta := maxf(0.0, delta)
+	catalyst_total_seconds += safe_delta
+	if active:
+		catalyst_active_seconds += safe_delta
 
 
 func record_upgrade(upgrade_id: StringName) -> void:
@@ -163,6 +174,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"dash_count": dash_count,
 		"rerolls_used": rerolls_used,
 		"banishes_used": banishes_used,
+		"catalyst_id": str(build.catalyst_id),
+		"catalyst_uptime": snappedf(catalyst_active_seconds / maxf(catalyst_total_seconds, 0.001), 0.001),
 		"phase_reached": str(phase_reached),
 		"apex_id": str(apex_id),
 		"build_name": build.get_build_name(),

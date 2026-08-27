@@ -34,6 +34,8 @@ func _test_unlock_progression_without_permanent_power() -> void:
 		"rerolls_used": 2,
 		"banishes_used": 1,
 		"apex_id": "velocity_reaver",
+		"catalyst_id": "redline_core",
+		"catalyst_uptime": 0.64,
 	})
 	_expect(int(first_result.momentum_earned) == 200, "A baseline full victory should award deterministic Momentum.")
 	_expect(RunProtocolCatalog.REDLINE in first_result.new_unlocks, "The first strong run should unlock Redline Protocol.")
@@ -41,6 +43,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect(profile.best_damage == 12400.0 and str(profile.last_run_summary.build_name) == "DASHBREAKER • RAMJET", "Balance evidence and build identity should be retained after a run.")
 	_expect(int(profile.last_run_summary.rerolls_used) == 2 and int(profile.last_run_summary.banishes_used) == 1, "Persisted balance evidence should distinguish draft agency from favorable rolls.")
 	_expect(str(profile.last_run_summary.apex_id) == "velocity_reaver", "Persisted recaps should retain the encountered Apex identity.")
+	_expect(str(profile.last_run_summary.catalyst_id) == "redline_core" and is_equal_approx(float(profile.last_run_summary.catalyst_uptime), 0.64), "Persisted balance evidence should retain catalyst choice and empowered uptime.")
 	_expect(RunProtocolCatalog.GLASS_VELOCITY not in profile.get_unlocked_protocols(), "Later protocols should require additional runs.")
 	_expect(profile.select_protocol(RunProtocolCatalog.REDLINE), "An unlocked challenge protocol should be selectable.")
 	var second_result := profile.record_run(1200.0, 100, true)

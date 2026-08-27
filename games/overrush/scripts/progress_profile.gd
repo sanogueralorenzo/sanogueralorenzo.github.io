@@ -197,6 +197,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"dash_count": maxi(0, int(summary.get("dash_count", 0))),
 		"rerolls_used": maxi(0, int(summary.get("rerolls_used", 0))),
 		"banishes_used": maxi(0, int(summary.get("banishes_used", 0))),
+		"catalyst_id": str(summary.get("catalyst_id", "")).left(48),
+		"catalyst_uptime": clampf(float(summary.get("catalyst_uptime", 0.0)), 0.0, 1.0),
 		"phase_reached": str(summary.get("phase_reached", "breakaway")).left(32),
 		"apex_id": str(summary.get("apex_id", "")).left(48),
 		"build_name": str(summary.get("build_name", "UNCOMMITTED")).left(80),

@@ -6,6 +6,7 @@ signal defeated
 signal damaged(amount: float)
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
+const AIRFRAME_COMMIT_TIME := 0.14
 
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
@@ -40,6 +41,7 @@ var _damage_invulnerability_remaining := 0.0
 var _damage_flash_remaining := 0.0
 var _dash_visual_active := false
 var _reduced_motion := false
+var _airborne_time := 0.0
 
 
 func _ready() -> void:
@@ -55,6 +57,7 @@ func _physics_process(delta: float) -> void:
 	_damage_flash_remaining = maxf(0.0, _damage_flash_remaining - delta)
 	_update_ball_material()
 	var grounded := is_on_floor()
+	_airborne_time = 0.0 if grounded else _airborne_time + delta
 	var dash_pressed := _is_dash_pressed()
 	var dash_event := _dash_state.step(delta, dash_pressed, dash_pressed and not _dash_was_pressed, grounded)
 	_dash_was_pressed = dash_pressed
@@ -126,6 +129,7 @@ func respawn(at_position: Vector3) -> void:
 	if is_instance_valid(_dash_state):
 		_dash_state.reset()
 		_set_dash_visuals(false)
+	_airborne_time = 0.0
 
 
 func get_horizontal_speed() -> float:
@@ -174,6 +178,10 @@ func set_reduced_motion(enabled: bool) -> void:
 
 func is_dashing() -> bool:
 	return _dash_state != null and _dash_state.is_active
+
+
+func is_airborne_attack_window() -> bool:
+	return _airborne_time >= AIRFRAME_COMMIT_TIME
 
 
 func get_dash_status() -> String:

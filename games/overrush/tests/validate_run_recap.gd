@@ -31,6 +31,8 @@ func _run() -> void:
 		director.run_stats.record_upgrade(&"dash_nova")
 	build.apply_upgrade(&"ramjet")
 	director.run_stats.record_upgrade(&"ramjet")
+	build.catalyst_id = RunBuild.REDLINE_CORE
+	director.run_stats.record_upgrade(RunBuild.REDLINE_CORE)
 	build.level = 9
 	director.build = build
 	director.elapsed_time = 743.2
@@ -48,6 +50,8 @@ func _run() -> void:
 	director.run_stats.record_reroll()
 	director.run_stats.record_banish()
 	director.run_stats.set_apex_identity(&"velocity_reaver")
+	director.run_stats.record_catalyst_state(64.0, true)
+	director.run_stats.record_catalyst_state(36.0, false)
 	for _elite in range(4):
 		director.run_stats.record_defeat(&"rift_weaver", true)
 
@@ -66,7 +70,8 @@ func _run() -> void:
 	_expect(overlay.visible and paused, "A completed run should pause behind a dedicated recap overlay.")
 	_expect(scene.has_node("HUD/GameOverOverlay/RecapPanel"), "The recap should use a framed panel rather than floating outcome text.")
 	_expect("DASHBREAKER • RAMJET" in message.text and "LEVEL 9" in message.text, "The recap should identify the demonstrated build and maturity.")
-	_expect("5 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
+	_expect("6 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
+	_expect("REDLINE CORE" in message.text and "64% HOT" in message.text, "The recap should identify the movement catalyst and measured empowered uptime.")
 	_expect("VELOCITY REAVER" in message.text and "BROKEN" in message.text, "The recap should identify the climax encounter and its outcome.")
 	_expect("12:23" in message.text and "88 CLEARED" in message.text and "4 ELITES" in message.text, "The recap should summarize encounter progress at a glance.")
 	_expect("DASH NOVA" in message.text and "RAMJET" in message.text, "The recap should expose leading damage contributions for balance review.")
