@@ -44,6 +44,9 @@ func _run() -> void:
 		director.run_stats.record_traversal(Vector3(0.0, 0.0, float(index + 1) * 200.0), 126.0 if index == 40 else 72.0)
 	for _dash in range(74):
 		director.run_stats.record_dash()
+	director.run_stats.record_reroll()
+	director.run_stats.record_reroll()
+	director.run_stats.record_banish()
 	for _elite in range(4):
 		director.run_stats.record_defeat(&"rift_weaver", true)
 
@@ -62,6 +65,7 @@ func _run() -> void:
 	_expect(overlay.visible and paused, "A completed run should pause behind a dedicated recap overlay.")
 	_expect(scene.has_node("HUD/GameOverOverlay/RecapPanel"), "The recap should use a framed panel rather than floating outcome text.")
 	_expect("DASHBREAKER • RAMJET" in message.text and "LEVEL 9" in message.text, "The recap should identify the demonstrated build and maturity.")
+	_expect("5 UPGRADES" in message.text and "2 REROLLS" in message.text and "1 BANISH" in message.text, "The recap should distinguish deliberate draft shaping from favorable rolls.")
 	_expect("12:23" in message.text and "88 CLEARED" in message.text and "4 ELITES" in message.text, "The recap should summarize encounter progress at a glance.")
 	_expect("DASH NOVA" in message.text and "RAMJET" in message.text, "The recap should expose leading damage contributions for balance review.")
 	_expect("36.0 KM TRAVERSED" in message.text and "126 M/S PEAK" in message.text and "74 DASHES" in message.text, "The recap should preserve Overrush's traversal identity.")

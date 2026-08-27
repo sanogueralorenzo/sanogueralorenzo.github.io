@@ -115,6 +115,7 @@ var storm_charge_level := 0
 var lance_focus_level := 0
 var orbit_flux_level := 0
 var upgrade_ranks: Dictionary = {}
+var banished_upgrades: Dictionary = {}
 
 
 func add_experience(amount: int) -> int:
@@ -129,26 +130,20 @@ func add_experience(amount: int) -> int:
 	return levels_gained
 
 
-func get_upgrade_options(rng: RandomNumberGenerator) -> Array[StringName]:
+func get_upgrade_options(rng: RandomNumberGenerator, avoid_options: Array[StringName] = []) -> Array[StringName]:
 	if core_path.is_empty():
 		return KEYSTONE_IDS.duplicate()
-	var candidates: Array = PATH_UPGRADES[core_path].duplicate()
-	_filter_capped_upgrades(candidates)
+	var candidates := _get_available_path_upgrades()
 	if evolution_id.is_empty() and get_specialization_rank() >= EVOLUTION_UNLOCK_RANK:
 		var evolution_options: Array[StringName] = []
 		for upgrade_id in PATH_EVOLUTIONS[core_path]:
 			evolution_options.append(StringName(upgrade_id))
 		if not candidates.is_empty():
-			evolution_options.append(StringName(candidates[rng.randi_range(0, candidates.size() - 1)]))
+			var standard_options := _draw_options(candidates, rng, avoid_options, 1)
+			if not standard_options.is_empty():
+				evolution_options.append(standard_options[0])
 		return evolution_options
-	if not evolution_id.is_empty():
-		candidates.append(EVOLUTION_SUPPORT[evolution_id])
-		_filter_capped_upgrades(candidates)
-	var options: Array[StringName] = []
-	while options.size() < 3 and not candidates.is_empty():
-		var index := rng.randi_range(0, candidates.size() - 1)
-		options.append(StringName(candidates.pop_at(index)))
-	return options
+	return _draw_options(candidates, rng, avoid_options, 3)
 
 
 func apply_upgrade(upgrade_id: StringName) -> Dictionary:
@@ -266,6 +261,36 @@ func get_upgrade_rank(upgrade_id: StringName) -> int:
 
 func is_evolution_upgrade(upgrade_id: StringName) -> bool:
 	return upgrade_id in PATH_EVOLUTIONS.get(core_path, [])
+
+
+func can_banish_upgrade(upgrade_id: StringName) -> bool:
+	if core_path.is_empty() or is_evolution_upgrade(upgrade_id) or banished_upgrades.has(upgrade_id):
+		return false
+	var candidates := _get_available_path_upgrades()
+	if upgrade_id not in candidates:
+		return false
+	candidates.erase(upgrade_id)
+	return candidates.size() >= 3
+
+
+func banish_upgrade(upgrade_id: StringName) -> bool:
+	if not can_banish_upgrade(upgrade_id):
+		return false
+	banished_upgrades[upgrade_id] = true
+	return true
+
+
+func has_alternative_upgrade_options(current_options: Array[StringName]) -> bool:
+	if core_path.is_empty():
+		return false
+	for upgrade_id in _get_available_path_upgrades():
+		if StringName(upgrade_id) not in current_options:
+			return true
+	return false
+
+
+func is_upgrade_banished(upgrade_id: StringName) -> bool:
+	return banished_upgrades.has(upgrade_id)
 
 
 func get_progress_ratio() -> float:
@@ -387,6 +412,8 @@ func get_orbit_damage(horizontal_speed: float) -> float:
 
 
 func _is_upgrade_allowed(upgrade_id: StringName) -> bool:
+	if banished_upgrades.has(upgrade_id):
+		return false
 	if core_path.is_empty():
 		return upgrade_id in KEYSTONE_IDS
 	if upgrade_id in PATH_UPGRADES[core_path]:
@@ -410,8 +437,43 @@ func _path_for_keystone(upgrade_id: StringName) -> StringName:
 
 func _filter_capped_upgrades(candidates: Array) -> void:
 	for upgrade_id in candidates.duplicate():
-		if _is_capped(StringName(upgrade_id)):
+		if _is_capped(StringName(upgrade_id)) or banished_upgrades.has(upgrade_id):
 			candidates.erase(upgrade_id)
+
+
+func _get_available_path_upgrades() -> Array:
+	if core_path.is_empty():
+		return []
+	var candidates: Array = PATH_UPGRADES[core_path].duplicate()
+	if not evolution_id.is_empty():
+		candidates.append(EVOLUTION_SUPPORT[evolution_id])
+	_filter_capped_upgrades(candidates)
+	return candidates
+
+
+func _draw_options(
+	candidates: Array,
+	rng: RandomNumberGenerator,
+	avoid_options: Array[StringName],
+	limit: int
+) -> Array[StringName]:
+	var preferred: Array = []
+	var fallback: Array = []
+	for upgrade_id in candidates:
+		if StringName(upgrade_id) in avoid_options:
+			fallback.append(upgrade_id)
+		else:
+			preferred.append(upgrade_id)
+	var options: Array[StringName] = []
+	_draw_from_pool(preferred, rng, options, limit)
+	_draw_from_pool(fallback, rng, options, limit)
+	return options
+
+
+func _draw_from_pool(pool: Array, rng: RandomNumberGenerator, options: Array[StringName], limit: int) -> void:
+	while options.size() < limit and not pool.is_empty():
+		var index := rng.randi_range(0, pool.size() - 1)
+		options.append(StringName(pool.pop_at(index)))
 
 
 func _is_capped(upgrade_id: StringName) -> bool:
@@ -427,6 +489,8 @@ func _is_capped(upgrade_id: StringName) -> bool:
 		&"arc_chain":
 			return arc_chain_count >= 4
 		&"phase_shell":
+			return get_upgrade_rank(upgrade_id) >= 3
+		&"kinetic_repair":
 			return get_upgrade_rank(upgrade_id) >= 3
 		&"wake_duration":
 			return get_upgrade_rank(upgrade_id) >= 4

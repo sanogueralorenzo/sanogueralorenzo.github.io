@@ -27,6 +27,8 @@ const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option2,
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option3,
 ]
+@onready var reroll_button: Button = $HUD/LevelUpOverlay/ChoicePanel/Choices/DraftControls/Reroll
+@onready var banish_button: Button = $HUD/LevelUpOverlay/ChoicePanel/Choices/DraftControls/Banish
 @onready var game_over_overlay: Control = $HUD/GameOverOverlay
 @onready var game_over_message: Label = $HUD/GameOverOverlay/Message
 @onready var victory_overlay: Control = $HUD/VictoryOverlay
@@ -64,6 +66,8 @@ var _run_started := false
 var _run_recorded := false
 var _run_result: Dictionary = {}
 var _onboarding: RunOnboarding = RunOnboardingModel.new()
+var _draft_prompt := ""
+var _banish_mode := false
 
 
 func _ready() -> void:
@@ -78,6 +82,7 @@ func _ready() -> void:
 	ball.defeated.connect(_on_runner_defeated)
 	combat.build_changed.connect(_on_build_changed)
 	combat.level_up_requested.connect(_on_level_up_requested)
+	combat.upgrade_options_refreshed.connect(_on_upgrade_options_refreshed)
 	combat.phase_changed.connect(_on_phase_changed)
 	combat.event_announced.connect(_on_event_announced)
 	combat.apex_health_changed.connect(_on_apex_health_changed)
@@ -89,6 +94,8 @@ func _ready() -> void:
 	combat.attack_warning_feedback.connect(audio.play_attack_warning)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
+	reroll_button.pressed.connect(_reroll_upgrade_options)
+	banish_button.pressed.connect(_toggle_banish_mode)
 	previous_protocol.pressed.connect(_cycle_protocol.bind(-1))
 	next_protocol.pressed.connect(_cycle_protocol.bind(1))
 	launch_button.pressed.connect(begin_run)
@@ -159,8 +166,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_tree().paused = false
 		get_tree().reload_current_scene()
 		return
-	if level_up_overlay.visible and event.keycode >= KEY_1 and event.keycode <= KEY_3:
-		_choose_upgrade(event.keycode - KEY_1)
+	if level_up_overlay.visible:
+		if event.keycode == KEY_Q:
+			_reroll_upgrade_options()
+		elif event.keycode == KEY_B:
+			_toggle_banish_mode()
+		elif event.keycode == KEY_ESCAPE and _banish_mode:
+			_toggle_banish_mode()
+		elif event.keycode >= KEY_1 and event.keycode <= KEY_3:
+			_choose_upgrade(event.keycode - KEY_1)
 
 
 func _on_integrity_changed(current: float, maximum: float) -> void:
@@ -177,7 +191,6 @@ func _on_build_changed(build: RunBuild) -> void:
 
 func _on_level_up_requested(options: Array[StringName]) -> void:
 	audio.play_level_up()
-	_current_upgrade_options = options
 	if is_instance_valid(_event_tween):
 		_event_tween.kill()
 	event_banner.visible = false
@@ -189,27 +202,93 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 			break
 	if combat.build.core_path.is_empty():
 		level_up_title.text = "CHOOSE YOUR ENGINE"
-		level_up_prompt.text = "Commit to a combat geometry for this run"
+		_draft_prompt = "Commit to a combat geometry for this run"
 	elif offers_evolution:
 		level_up_title.text = "EVOLVE %s" % combat.build.get_build_name()
-		level_up_prompt.text = "Choose one exclusive geometry, or defer the fork with a standard upgrade"
+		_draft_prompt = "Choose one exclusive geometry, or defer the fork with a standard upgrade"
 	else:
 		level_up_title.text = "%s EVOLVES" % combat.build.get_build_name()
-		level_up_prompt.text = "Deepen this build without collapsing into another path"
+		_draft_prompt = "Deepen this build without collapsing into another path"
+	_banish_mode = false
+	_render_upgrade_options(options)
+
+
+func _on_upgrade_options_refreshed(options: Array[StringName]) -> void:
+	_banish_mode = false
+	audio.play_pickup(1)
+	_render_upgrade_options(options)
+
+
+func _render_upgrade_options(options: Array[StringName]) -> void:
+	_current_upgrade_options = options
+	level_up_prompt.text = _draft_prompt
 	for index in range(level_up_buttons.size()):
+		var button := level_up_buttons[index]
+		var has_option := index < options.size()
+		button.visible = has_option
+		button.disabled = not has_option
+		if not has_option:
+			continue
 		var upgrade_id := options[index]
 		var next_rank := combat.build.get_upgrade_rank(upgrade_id) + 1
-		level_up_buttons[index].text = "%d   %s  •  RANK %d\n%s" % [
+		button.text = "%d   %s  •  RANK %d\n%s" % [
 			index + 1,
 			combat.build.get_upgrade_name(upgrade_id),
 			next_rank,
 			combat.build.get_upgrade_description(upgrade_id),
 		]
-	level_up_buttons[0].grab_focus()
+	_refresh_draft_controls()
+	if not options.is_empty():
+		level_up_buttons[0].grab_focus()
+
+
+func _refresh_draft_controls() -> void:
+	var can_reroll := (
+		combat.rerolls_remaining > 0
+		and combat.build.has_alternative_upgrade_options(_current_upgrade_options)
+	)
+	reroll_button.text = "Q  REROLL  •  %d" % combat.rerolls_remaining
+	reroll_button.disabled = not can_reroll
+	var can_banish := false
+	for upgrade_id in _current_upgrade_options:
+		if combat.build.can_banish_upgrade(upgrade_id):
+			can_banish = true
+			break
+	banish_button.text = "B  CANCEL BANISH" if _banish_mode else "B  BANISH  •  %d" % combat.banishes_remaining
+	banish_button.disabled = combat.banishes_remaining <= 0 or not can_banish
+
+
+func _reroll_upgrade_options() -> void:
+	if reroll_button.disabled:
+		level_up_prompt.text = "No alternate draft is available from this pool"
+		return
+	_banish_mode = false
+	if not combat.reroll_upgrade_options():
+		level_up_prompt.text = "No alternate draft is available from this pool"
+	_refresh_draft_controls()
+
+
+func _toggle_banish_mode() -> void:
+	if banish_button.disabled:
+		return
+	_banish_mode = not _banish_mode
+	level_up_prompt.text = "BANISH ACTIVE  •  Choose one standard upgrade to remove for this run" if _banish_mode else _draft_prompt
+	_refresh_draft_controls()
+	if not _current_upgrade_options.is_empty():
+		level_up_buttons[0].grab_focus()
 
 
 func _choose_upgrade(index: int) -> void:
 	if not level_up_overlay.visible or index < 0 or index >= _current_upgrade_options.size():
+		return
+	if _banish_mode:
+		var upgrade_id := _current_upgrade_options[index]
+		if combat.build.is_evolution_upgrade(upgrade_id):
+			level_up_prompt.text = "Evolution forks cannot be banished"
+			return
+		if not combat.banish_upgrade_option(index):
+			level_up_prompt.text = "Keep at least three standard upgrades in the active pool"
+		_refresh_draft_controls()
 		return
 	level_up_overlay.visible = false
 	combat.choose_upgrade(index)
@@ -361,11 +440,16 @@ func _format_run_recap(headline: String, result: Dictionary, retry_text: String)
 			&"distance":
 				record_names.append("DISTANCE")
 	var record_text := "RUN LOGGED  •  CHASE THE NEXT RECORD" if record_names.is_empty() else "NEW BEST  •  %s" % " / ".join(record_names)
-	return "%s\n\n%s  •  LEVEL %d  •  %d UPGRADES\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
+	var banishes_used := int(summary.get("banishes_used", 0))
+	var banish_label := "BANISH" if banishes_used == 1 else "BANISHES"
+	return "%s\n\n%s  •  LEVEL %d\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
 		upgrade_count,
+		int(summary.get("rerolls_used", 0)),
+		banishes_used,
+		banish_label,
 		elapsed_seconds / 60,
 		elapsed_seconds % 60,
 		int(summary.get("enemies_defeated", 0)),

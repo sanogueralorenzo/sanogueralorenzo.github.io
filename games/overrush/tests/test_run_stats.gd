@@ -22,6 +22,9 @@ func _init() -> void:
 	stats.record_damage_taken(22.0)
 	stats.record_dash()
 	stats.record_dash()
+	stats.record_reroll()
+	stats.record_reroll()
+	stats.record_banish()
 	stats.record_upgrade(&"dash_nova")
 	stats.record_upgrade(&"ramjet")
 	stats.record_defeat(&"rift_weaver", true)
@@ -40,6 +43,7 @@ func _init() -> void:
 	_expect(str(summary.build_name) == "DASHBREAKER • RAMJET" and int(summary.level) == 9, "Run snapshots should identify the demonstrated build and level.")
 	_expect(int(summary.elite_defeats) == 1 and str(summary.phase_reached) == "overrun", "Run snapshots should preserve encounter progress.")
 	_expect(int(summary.dash_count) == 2 and is_equal_approx(float(summary.damage_taken), 22.0), "Run snapshots should preserve movement and survivability evidence.")
+	_expect(int(summary.rerolls_used) == 2 and int(summary.banishes_used) == 1, "Run snapshots should distinguish draft agency from favorable random rolls.")
 	_expect((summary.upgrade_history as Array).size() == 2, "Run snapshots should retain the choice history used for balance review.")
 
 	if _failures.is_empty():

@@ -195,6 +195,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"distance_meters": maxf(0.0, float(summary.get("distance_meters", 0.0))),
 		"maximum_speed": maxf(0.0, float(summary.get("maximum_speed", 0.0))),
 		"dash_count": maxi(0, int(summary.get("dash_count", 0))),
+		"rerolls_used": maxi(0, int(summary.get("rerolls_used", 0))),
+		"banishes_used": maxi(0, int(summary.get("banishes_used", 0))),
 		"phase_reached": str(summary.get("phase_reached", "breakaway")).left(32),
 		"build_name": str(summary.get("build_name", "UNCOMMITTED")).left(80),
 		"level": maxi(1, int(summary.get("level", 1))),

@@ -23,6 +23,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
 - Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
+- Each run grants three honest rerolls and one deliberate banish: rerolls only spend when a different offer exists, while banishment permanently removes one standard upgrade without consuming the level.
+- Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute Apex climax with explicit victory or deadline failure.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Framed victory and defeat recaps identify the build, upgrade count, phase, clears, elites, actual damage contribution, damage taken, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
@@ -44,7 +46,7 @@ This is not yet the complete target game. The 20-minute structure, first boss, s
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
 - `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
-- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution forks, capped support ranks, and branch tuning.
+- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution forks, capped support ranks, banishment filtering, alternate-offer detection, and branch tuning.
 - `run_stats.gd` owns applied-damage attribution, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
@@ -61,6 +63,8 @@ This is not yet the complete target game. The 20-minute structure, first boss, s
 - `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
 - `R`: generate a new world
 - `1` / `2` / `3` or mouse: choose a level-up upgrade
+- `Q` during a level-up: spend a reroll when the active pool can produce a different offer
+- `B` during a level-up: enter banish mode, then choose a removable standard upgrade with `1` / `2` / `3` or the mouse
 - At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
 - `Accessibility & Guidance` on the launch screen changes persistent comfort and audio preferences without affecting difficulty or rewards
 
@@ -103,6 +107,7 @@ godot --headless --path games/overrush --script res://tests/test_run_stats.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 godot --headless --path games/overrush --script res://tests/validate_enemy_roster.gd
+godot --headless --path games/overrush --script res://tests/validate_draft_agency.gd
 godot --headless --path games/overrush --script res://tests/validate_run_recap.gd
 ```
 

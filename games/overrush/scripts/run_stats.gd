@@ -21,6 +21,8 @@ var damage_taken := 0.0
 var distance_traveled := 0.0
 var maximum_speed := 0.0
 var dash_count := 0
+var rerolls_used := 0
+var banishes_used := 0
 var elite_defeats := 0
 var defeats_by_archetype: Dictionary = {}
 var upgrade_history: Array[StringName] = []
@@ -37,6 +39,8 @@ func reset(start_position: Vector3) -> void:
 	distance_traveled = 0.0
 	maximum_speed = 0.0
 	dash_count = 0
+	rerolls_used = 0
+	banishes_used = 0
 	elite_defeats = 0
 	defeats_by_archetype.clear()
 	upgrade_history.clear()
@@ -71,6 +75,14 @@ func record_traversal(position: Vector3, horizontal_speed: float) -> void:
 
 func record_dash() -> void:
 	dash_count += 1
+
+
+func record_reroll() -> void:
+	rerolls_used += 1
+
+
+func record_banish() -> void:
+	banishes_used += 1
 
 
 func record_upgrade(upgrade_id: StringName) -> void:
@@ -143,6 +155,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"distance_meters": snappedf(distance_traveled, 0.1),
 		"maximum_speed": snappedf(maximum_speed, 0.1),
 		"dash_count": dash_count,
+		"rerolls_used": rerolls_used,
+		"banishes_used": banishes_used,
 		"phase_reached": str(phase_reached),
 		"build_name": build.get_build_name(),
 		"level": build.level,

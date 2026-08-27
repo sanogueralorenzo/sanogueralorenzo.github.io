@@ -3,6 +3,7 @@ extends Node3D
 
 signal build_changed(build: RunBuild)
 signal level_up_requested(options: Array[StringName])
+signal upgrade_options_refreshed(options: Array[StringName])
 signal phase_changed(phase_id: StringName, phase_name: String)
 signal event_announced(title: String, subtitle: String)
 signal apex_health_changed(current: float, maximum: float)
@@ -29,6 +30,8 @@ const TARGETING_RANGE := 105.0
 const SPAWN_DISTANCE_MIN := 52.0
 const SPAWN_DISTANCE_MAX := 94.0
 const WAKE_DROP_INTERVAL := 0.2
+const INITIAL_REROLLS := 3
+const INITIAL_BANISHES := 1
 
 @export var runner_path: NodePath
 @export var world_path: NodePath
@@ -39,6 +42,8 @@ var pacing: RunPacing = RunPacingModel.new()
 var elapsed_time := 0.0
 var enemies_defeated := 0
 var selected_protocol: StringName = RunProtocolCatalog.STANDARD
+var rerolls_remaining := INITIAL_REROLLS
+var banishes_remaining := INITIAL_BANISHES
 
 var _runner: CharacterBody3D
 var _world: Node3D
@@ -125,6 +130,38 @@ func choose_upgrade(option_index: int) -> void:
 			_pending_evolution_announcement = ""
 
 
+func reroll_upgrade_options() -> bool:
+	if not _awaiting_upgrade or rerolls_remaining <= 0:
+		return false
+	var current_options := _get_current_upgrade_options()
+	if not build.has_alternative_upgrade_options(current_options):
+		return false
+	var options := build.get_upgrade_options(_rng, current_options)
+	if _same_option_set(options, current_options):
+		return false
+	rerolls_remaining -= 1
+	run_stats.record_reroll()
+	_set_current_upgrade_options(options)
+	upgrade_options_refreshed.emit(options)
+	return true
+
+
+func banish_upgrade_option(option_index: int) -> bool:
+	if not _awaiting_upgrade or banishes_remaining <= 0:
+		return false
+	var current_options := _get_current_upgrade_options()
+	if option_index < 0 or option_index >= current_options.size():
+		return false
+	if not build.banish_upgrade(current_options[option_index]):
+		return false
+	banishes_remaining -= 1
+	run_stats.record_banish()
+	var options := build.get_upgrade_options(_rng, current_options)
+	_set_current_upgrade_options(options)
+	upgrade_options_refreshed.emit(options)
+	return true
+
+
 func start_run(protocol_id: StringName) -> void:
 	if _run_started:
 		return
@@ -136,6 +173,8 @@ func start_run(protocol_id: StringName) -> void:
 	_extra_elite_interval = float(definition.extra_elite_interval)
 	_next_protocol_elite = _extra_elite_interval if _extra_elite_interval > 0.0 else INF
 	_runner.apply_integrity_multiplier(float(definition.integrity_multiplier))
+	rerolls_remaining = INITIAL_REROLLS
+	banishes_remaining = INITIAL_BANISHES
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -535,9 +574,29 @@ func _on_enemy_health_changed(enemy: EnemyAgent, _current: float, _maximum: floa
 func _offer_level_up() -> void:
 	_awaiting_upgrade = true
 	var options := build.get_upgrade_options(_rng)
-	build.set_meta("current_options", options)
+	_set_current_upgrade_options(options)
 	get_tree().paused = true
 	level_up_requested.emit(options)
+
+
+func _set_current_upgrade_options(options: Array[StringName]) -> void:
+	build.set_meta("current_options", options)
+
+
+func _get_current_upgrade_options() -> Array[StringName]:
+	var options: Array[StringName] = []
+	for upgrade_id in build.get_meta("current_options", []):
+		options.append(StringName(upgrade_id))
+	return options
+
+
+func _same_option_set(first: Array[StringName], second: Array[StringName]) -> bool:
+	if first.size() != second.size():
+		return false
+	for upgrade_id in first:
+		if upgrade_id not in second:
+			return false
+	return true
 
 
 func _update_run_pacing(previous_time: float) -> void:

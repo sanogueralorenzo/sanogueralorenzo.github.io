@@ -457,9 +457,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -390.0
-offset_top = -244.0
+offset_top = -278.0
 offset_right = 390.0
-offset_bottom = 244.0
+offset_bottom = 278.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -500,6 +500,23 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 17
 text = "3   VELOCITY COIL"
 alignment = 0
+
+[node name="DraftControls" type="HBoxContainer" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Reroll" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices/DraftControls"]
+custom_minimum_size = Vector2(340, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Q  REROLL  •  3"
+
+[node name="Banish" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices/DraftControls"]
+custom_minimum_size = Vector2(340, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "B  BANISH  •  1"
 
 [node name="GameOverOverlay" type="ColorRect" parent="HUD"]
 visible = false

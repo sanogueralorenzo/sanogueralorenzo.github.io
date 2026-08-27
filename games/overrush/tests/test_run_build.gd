@@ -11,6 +11,7 @@ func _init() -> void:
 	_test_paths_remain_mechanically_isolated()
 	_test_repeatable_upgrade_limits()
 	_test_exclusive_evolution_forks()
+	_test_draft_agency_and_repair_cap()
 	if _failures.is_empty():
 		print("Run build validation passed.")
 		quit(0)
@@ -103,6 +104,35 @@ func _test_exclusive_evolution_forks() -> void:
 		envelope_build.apply_upgrade(&"lance_focus")
 	_expect(envelope_build.get_lance_range() <= 145.0 and envelope_build.get_lance_target_limit() <= 11, "Storm Lance support should stay inside its authored range and target envelope.")
 	_expect(envelope_build.apply_upgrade(&"lance_focus").is_empty(), "Evolution support should cap after three meaningful ranks.")
+
+
+func _test_draft_agency_and_repair_cap() -> void:
+	var build := RunBuildScript.new()
+	build.apply_upgrade(&"dash_nova")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9157
+	var first_options := build.get_upgrade_options(rng)
+	_expect(build.has_alternative_upgrade_options(first_options), "A four-upgrade path should expose a meaningful alternate draft.")
+	var rerolled_options := build.get_upgrade_options(rng, first_options)
+	var introduced_alternative := false
+	for upgrade_id in rerolled_options:
+		if upgrade_id not in first_options:
+			introduced_alternative = true
+	_expect(introduced_alternative, "A reroll should prioritize at least one upgrade outside the previous offer when available.")
+
+	var banish_target := first_options[0]
+	_expect(build.can_banish_upgrade(banish_target) and build.banish_upgrade(banish_target), "A standard upgrade should be banishable while three alternatives remain.")
+	_expect(build.is_upgrade_banished(banish_target) and build.apply_upgrade(banish_target).is_empty(), "A banished upgrade should remain unavailable for the rest of the run.")
+	for upgrade_id in build.get_upgrade_options(rng):
+		_expect(upgrade_id != banish_target, "Future drafts should exclude a banished upgrade.")
+
+	var evolution_build := RunBuildScript.new()
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		evolution_build.apply_upgrade(&"dash_nova")
+	_expect(not evolution_build.can_banish_upgrade(&"ramjet") and not evolution_build.banish_upgrade(&"gravity_knot"), "Exclusive evolution forks should never be removable draft resources.")
+	for _rank in range(3):
+		evolution_build.apply_upgrade(&"kinetic_repair")
+	_expect(evolution_build.apply_upgrade(&"kinetic_repair").is_empty(), "Kinetic Repair should cap after three ranks instead of becoming an unlimited universal build.")
 
 
 func _expect(condition: bool, message: String) -> void:
