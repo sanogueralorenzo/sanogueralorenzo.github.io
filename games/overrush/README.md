@@ -21,8 +21,11 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute Apex climax with explicit victory or deadline failure.
+- A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
+- Recovery-safe, versioned profile saving keeps a previous valid backup and restores it if the primary save is missing or corrupt.
+- Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 
-This is not yet the complete target game. The 20-minute structure and first boss now exist, but broad content variety, metaprogression, saving, audio, accessibility, repeated balance work, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, first boss, and initial non-power-creeping progression loop now exist, but broad content variety, audio, accessibility, repeated balance work, onboarding/usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 
@@ -33,6 +36,8 @@ This is not yet the complete target game. The 20-minute structure and first boss
 - `combat_director.gd` owns spawning, escalation, targeting, rewards, and movement-triggered combat effects.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, and build-changing path state.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
+- `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
+- `progress_profile.gd` owns versioned progression state, deterministic run rewards, protocol selection, atomic writes, and backup recovery.
 
 ## Controls
 
@@ -43,6 +48,7 @@ This is not yet the complete target game. The 20-minute structure and first boss
 - `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
 - `R`: generate a new world
 - `1` / `2` / `3` or mouse: choose a level-up upgrade
+- At the launch screen, `A` / `D` or left / right changes protocol and `Enter` / `Space` starts the run
 
 ## Map validation
 
@@ -94,4 +100,11 @@ Run the timed phase model and accelerated elite/Apex outcome checks with:
 ```sh
 godot --headless --path games/overrush --script res://tests/test_run_pacing.gd
 godot --headless --path games/overrush --script res://tests/validate_run_climax.gd
+```
+
+Run the persistent-profile and challenge-protocol checks with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/test_progress_profile.gd
+godot --headless --path games/overrush --script res://tests/validate_run_protocols.gd
 ```

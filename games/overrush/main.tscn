@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -104,6 +104,50 @@ corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="LaunchPanelStyle"]
+content_margin_left = 44.0
+content_margin_top = 36.0
+content_margin_right = 44.0
+content_margin_bottom = 38.0
+bg_color = Color(0.012, 0.032, 0.085, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.12, 0.78, 0.96, 0.56)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0.002, 0.012, 0.04, 0.74)
+shadow_size = 18
+
+[sub_resource type="StyleBoxFlat" id="LaunchButtonStyle"]
+bg_color = Color(0.08, 0.78, 0.96, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="LaunchButtonHoverStyle"]
+bg_color = Color(0.24, 0.9, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.75, 0.98, 1, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="LaunchButtonPressedStyle"]
+bg_color = Color(0.035, 0.55, 0.75, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="Overrush" type="Node3D"]
 script = ExtResource("1_main")
@@ -453,3 +497,151 @@ theme_override_font_sizes/font_size = 32
 text = "APEX BROKEN\n\nPRESS R TO OVERRUN AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="StartOverlay" type="ColorRect" parent="HUD"]
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.004, 0.014, 0.045, 0.84)
+
+[node name="LaunchPanel" type="PanelContainer" parent="HUD/StartOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -410.0
+offset_top = -300.0
+offset_right = 410.0
+offset_bottom = 300.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("LaunchPanelStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/StartOverlay/LaunchPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Kicker" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_constants/letter_spacing = 3
+theme_override_font_sizes/font_size = 15
+text = "HIGH-VELOCITY SURVIVAL"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.99, 1, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.4, 0.62, 0.7)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 46
+text = "OVER RUSH"
+horizontal_alignment = 1
+
+[node name="Tagline" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.82, 0.94, 1)
+theme_override_font_sizes/font_size = 17
+text = "OUTRUN THE STORM. BREAK THE APEX. BUILD MOMENTUM."
+horizontal_alignment = 1
+
+[node name="ProfileSummary" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.64, 0.22, 1)
+theme_override_font_sizes/font_size = 17
+text = "MOMENTUM 0   •   RUNS 0   •   WINS 0   •   BEST 00:00"
+horizontal_alignment = 1
+
+[node name="Divider" type="ColorRect" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+color = Color(0.16, 0.58, 0.75, 0.52)
+
+[node name="ProtocolLabel" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.72, 0.86, 1)
+theme_override_constants/letter_spacing = 2
+theme_override_font_sizes/font_size = 13
+text = "RUN PROTOCOL"
+horizontal_alignment = 1
+
+[node name="ProtocolName" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.14, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 29
+text = "OPEN CIRCUIT"
+horizontal_alignment = 1
+
+[node name="ProtocolDescription" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.9, 0.97, 1)
+theme_override_font_sizes/font_size = 16
+text = "The intended baseline run. No protocol modifiers."
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ProtocolReward" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.7, 0.25, 1)
+theme_override_font_sizes/font_size = 16
+text = "MOMENTUM REWARD  ×1.00"
+horizontal_alignment = 1
+
+[node name="ProtocolControls" type="HBoxContainer" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 18
+alignment = 1
+
+[node name="Previous" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content/ProtocolControls"]
+custom_minimum_size = Vector2(142, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "‹  PREVIOUS"
+
+[node name="SelectHint" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content/ProtocolControls"]
+custom_minimum_size = Vector2(250, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.66, 0.78, 1)
+theme_override_font_sizes/font_size = 13
+text = "A / D OR ARROW KEYS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Next" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content/ProtocolControls"]
+custom_minimum_size = Vector2(142, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "NEXT  ›"
+
+[node name="NextUnlock" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.7, 0.82, 1)
+theme_override_font_sizes/font_size = 14
+text = "NEXT UNLOCK  •  REDLINE PROTOCOL AT 120 MOMENTUM"
+horizontal_alignment = 1
+
+[node name="Launch" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.005, 0.05, 0.09, 1)
+theme_override_colors/font_hover_color = Color(0.005, 0.05, 0.09, 1)
+theme_override_colors/font_pressed_color = Color(0.92, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 21
+theme_override_styles/normal = SubResource("LaunchButtonStyle")
+theme_override_styles/hover = SubResource("LaunchButtonHoverStyle")
+theme_override_styles/focus = SubResource("LaunchButtonHoverStyle")
+theme_override_styles/pressed = SubResource("LaunchButtonPressedStyle")
+text = "LAUNCH RUN"
+
+[node name="LaunchHint" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.48, 0.62, 0.74, 1)
+theme_override_font_sizes/font_size = 13
+text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
+horizontal_alignment = 1

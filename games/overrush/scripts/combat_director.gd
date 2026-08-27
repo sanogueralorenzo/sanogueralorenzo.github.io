@@ -15,6 +15,7 @@ const ExperiencePickupScript = preload("res://scripts/experience_pickup.gd")
 const SlipstreamWakeScript = preload("res://scripts/slipstream_wake.gd")
 const RunBuildScript = preload("res://scripts/run_build.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
+const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 
 const INITIAL_SPAWN_DELAY := 1.25
 const MINIMUM_SPAWN_INTERVAL := 0.24
@@ -31,6 +32,7 @@ var build: RunBuild = RunBuildScript.new()
 var pacing: RunPacing = RunPacingModel.new()
 var elapsed_time := 0.0
 var enemies_defeated := 0
+var selected_protocol: StringName = RunProtocolCatalog.STANDARD
 
 var _runner: CharacterBody3D
 var _world: Node3D
@@ -40,9 +42,16 @@ var _spawn_timer := INITIAL_SPAWN_DELAY
 var _fire_timer := 0.4
 var _wake_timer := 0.0
 var _awaiting_upgrade := false
-var _run_active := true
+var _run_active := false
+var _run_started := false
 var _current_phase := &""
 var _apex: EnemyAgent
+var _spawn_interval_multiplier := 1.0
+var _enemy_health_multiplier := 1.0
+var _outgoing_damage_multiplier := 1.0
+var _extra_elite_interval := 0.0
+var _next_protocol_elite := INF
+var _protocol_elite_index := 0
 
 
 func _ready() -> void:
@@ -53,7 +62,6 @@ func _ready() -> void:
 	_runner.dash_state_changed.connect(_on_dash_state_changed)
 	_current_phase = pacing.get_phase_id(0.0)
 	build_changed.emit(build)
-	call_deferred("_announce_initial_phase")
 
 
 func _physics_process(delta: float) -> void:
@@ -91,6 +99,23 @@ func choose_upgrade(option_index: int) -> void:
 		get_tree().paused = false
 
 
+func start_run(protocol_id: StringName) -> void:
+	if _run_started:
+		return
+	selected_protocol = protocol_id if RunProtocolCatalog.is_valid(protocol_id) else RunProtocolCatalog.STANDARD
+	var definition := RunProtocolCatalog.get_definition(selected_protocol)
+	_spawn_interval_multiplier = float(definition.spawn_interval_multiplier)
+	_enemy_health_multiplier = float(definition.enemy_health_multiplier)
+	_outgoing_damage_multiplier = float(definition.outgoing_damage_multiplier)
+	_extra_elite_interval = float(definition.extra_elite_interval)
+	_next_protocol_elite = _extra_elite_interval if _extra_elite_interval > 0.0 else INF
+	_runner.apply_integrity_multiplier(float(definition.integrity_multiplier))
+	_run_started = true
+	_run_active = true
+	phase_changed.emit(_current_phase, pacing.get_phase_name(0.0))
+	event_announced.emit("BREAKAWAY", "%s engaged" % str(definition.name))
+
+
 func stop_run() -> void:
 	_run_active = false
 
@@ -123,7 +148,7 @@ func _update_spawning(delta: float) -> void:
 	if _spawn_timer > 0.0 or _enemies.size() >= population_limit:
 		return
 	var spawn_interval := maxf(MINIMUM_SPAWN_INTERVAL, pacing.get_spawn_interval(elapsed_time))
-	_spawn_timer = spawn_interval
+	_spawn_timer = maxf(MINIMUM_SPAWN_INTERVAL, spawn_interval * _spawn_interval_multiplier)
 	var pack_size := pacing.get_pack_size(elapsed_time)
 	for index in range(pack_size):
 		if _enemies.size() >= population_limit:
@@ -136,6 +161,7 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	var difficulty := 1.0 + elapsed_time / 240.0
 	var archetype := archetype_override if not archetype_override.is_empty() else _choose_archetype()
 	enemy.configure(_runner, _world, archetype, difficulty, rank)
+	enemy.apply_health_multiplier(_enemy_health_multiplier)
 	enemy.defeated.connect(_on_enemy_defeated)
 	if rank == &"apex":
 		enemy.health_changed.connect(_on_apex_health_changed)
@@ -172,7 +198,7 @@ func _update_arc_weapon(delta: float) -> void:
 		return
 	_fire_timer += build.fire_interval
 	var targets := _find_targets(build.projectile_count)
-	var damage := build.get_arc_damage(_runner.get_horizontal_speed())
+	var damage := build.get_arc_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
 	for target in targets:
 		var projectile: ArcProjectile = ArcProjectileScript.new()
 		add_child(projectile)
@@ -208,7 +234,7 @@ func _update_slipstream(delta: float) -> void:
 	wake.global_position = wake_position
 	wake.configure(
 		build.get_wake_radius(),
-		build.get_wake_damage(_runner.get_horizontal_speed()),
+		build.get_wake_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier,
 		build.get_wake_duration()
 	)
 
@@ -235,6 +261,7 @@ func _on_dash_state_changed(active: bool) -> void:
 
 
 func _release_nova(position: Vector3, damage: float, radius: float, color: Color) -> void:
+	damage *= _outgoing_damage_multiplier
 	for enemy in _enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.global_position.distance_to(position) <= radius:
 			enemy.take_damage(damage)
@@ -272,11 +299,6 @@ func _offer_level_up() -> void:
 	level_up_requested.emit(options)
 
 
-func _announce_initial_phase() -> void:
-	phase_changed.emit(_current_phase, pacing.get_phase_name(0.0))
-	event_announced.emit("BREAKAWAY", "Build velocity. Shape the run.")
-
-
 func _update_run_pacing(previous_time: float) -> void:
 	var phase_id := pacing.get_phase_id(elapsed_time)
 	if phase_id != _current_phase:
@@ -286,6 +308,10 @@ func _update_run_pacing(previous_time: float) -> void:
 		event_announced.emit(phase_name, _get_phase_subtitle(phase_id))
 	for elite_index in pacing.get_crossed_elite_indices(previous_time, elapsed_time):
 		_spawn_scheduled_elite(elite_index)
+	while elapsed_time >= _next_protocol_elite and _next_protocol_elite < pacing.APEX_TIME:
+		_spawn_scheduled_elite(_protocol_elite_index)
+		_protocol_elite_index += 1
+		_next_protocol_elite += _extra_elite_interval
 	if pacing.crossed_apex_time(previous_time, elapsed_time) and not has_active_apex():
 		_spawn_apex()
 	if pacing.crossed_deadline(previous_time, elapsed_time) and has_active_apex():

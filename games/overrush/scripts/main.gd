@@ -1,5 +1,8 @@
 extends Node3D
 
+const ProgressProfileModel = preload("res://scripts/progress_profile.gd")
+const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
+
 @onready var world = $World
 @onready var ball = $RunnerBall
 @onready var camera = $Camera3D
@@ -26,14 +29,31 @@ extends Node3D
 @onready var game_over_message: Label = $HUD/GameOverOverlay/Message
 @onready var victory_overlay: Control = $HUD/VictoryOverlay
 @onready var victory_message: Label = $HUD/VictoryOverlay/Message
+@onready var start_overlay: Control = $HUD/StartOverlay
+@onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
+@onready var protocol_name: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolName
+@onready var protocol_description: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolDescription
+@onready var protocol_reward: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolReward
+@onready var next_unlock: Label = $HUD/StartOverlay/LaunchPanel/Content/NextUnlock
+@onready var previous_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Previous
+@onready var next_protocol: Button = $HUD/StartOverlay/LaunchPanel/Content/ProtocolControls/Next
+@onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
 
 var _current_upgrade_options: Array[StringName] = []
 var _phase_name := "BREAKAWAY"
 var _event_tween: Tween
+var _profile: ProgressProfile = ProgressProfileModel.new()
+var _available_protocols: Array[StringName] = []
+var _protocol_index := 0
+var _persistence_enabled := true
+var _run_started := false
+var _run_recorded := false
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().paused = true
+	_persistence_enabled = DisplayServer.get_name() != "headless"
 	ball.respawn(world.get_spawn_position())
 	ball.dash_state_changed.connect(camera.set_dash_active)
 	ball.integrity_changed.connect(_on_integrity_changed)
@@ -47,9 +67,19 @@ func _ready() -> void:
 	combat.run_failed.connect(_on_run_failed)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
+	previous_protocol.pressed.connect(_cycle_protocol.bind(-1))
+	next_protocol.pressed.connect(_cycle_protocol.bind(1))
+	launch_button.pressed.connect(begin_run)
 	_on_integrity_changed(ball.integrity, ball.maximum_integrity)
 	_on_build_changed(combat.build)
 	camera.snap_to_target()
+	if _persistence_enabled:
+		_profile.load()
+	_available_protocols = _profile.get_unlocked_protocols()
+	_protocol_index = maxi(0, _available_protocols.find(_profile.selected_protocol))
+	_refresh_launch_screen()
+	if not _persistence_enabled and not has_meta("overrush_manual_start"):
+		call_deferred("begin_run", RunProtocolCatalog.STANDARD)
 
 
 func _process(_delta: float) -> void:
@@ -78,6 +108,14 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if start_overlay.visible:
+		if event.keycode == KEY_LEFT or event.keycode == KEY_A:
+			_cycle_protocol(-1)
+		elif event.keycode == KEY_RIGHT or event.keycode == KEY_D:
+			_cycle_protocol(1)
+		elif event.keycode == KEY_ENTER or event.keycode == KEY_SPACE:
+			begin_run()
 		return
 	if event.keycode == KEY_R:
 		get_tree().paused = false
@@ -132,10 +170,12 @@ func _choose_upgrade(index: int) -> void:
 
 func _on_runner_defeated() -> void:
 	combat.stop_run()
-	game_over_message.text = "RUN ENDED\n\n%s  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO BREAK THROUGH AGAIN" % [
+	var progress_text := _record_run_progress(false)
+	game_over_message.text = "RUN ENDED\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
 		combat.get_formatted_time(),
 		combat.build.level,
 		combat.enemies_defeated,
+		progress_text,
 	]
 	game_over_overlay.visible = true
 	get_tree().paused = true
@@ -170,20 +210,86 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 
 
 func _on_run_victory() -> void:
-	victory_message.text = "APEX BROKEN\n\n%s  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO OVERRUN AGAIN" % [
+	var progress_text := _record_run_progress(true)
+	victory_message.text = "APEX BROKEN\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO OVERRUN AGAIN" % [
 		combat.get_formatted_time(),
 		combat.build.level,
 		combat.enemies_defeated,
+		progress_text,
 	]
 	victory_overlay.visible = true
 	get_tree().paused = true
 
 
 func _on_run_failed(reason: String) -> void:
-	game_over_message.text = "%s\n\n20:00  •  LEVEL %d  •  %d CLEARED\n\nPRESS R TO BREAK THROUGH AGAIN" % [
+	var progress_text := _record_run_progress(false)
+	game_over_message.text = "%s\n\n20:00  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
 		reason,
 		combat.build.level,
 		combat.enemies_defeated,
+		progress_text,
 	]
 	game_over_overlay.visible = true
 	get_tree().paused = true
+
+
+func begin_run(protocol_id: StringName = &"") -> void:
+	if _run_started:
+		return
+	var chosen_protocol := protocol_id
+	if chosen_protocol.is_empty():
+		chosen_protocol = _available_protocols[_protocol_index]
+	if not _profile.select_protocol(chosen_protocol):
+		chosen_protocol = RunProtocolCatalog.STANDARD
+		_profile.select_protocol(chosen_protocol)
+	if _persistence_enabled:
+		_profile.save()
+	start_overlay.visible = false
+	_run_started = true
+	combat.start_run(chosen_protocol)
+	get_tree().paused = false
+
+
+func _cycle_protocol(direction: int) -> void:
+	if _available_protocols.is_empty():
+		return
+	_protocol_index = posmod(_protocol_index + direction, _available_protocols.size())
+	_refresh_launch_screen()
+
+
+func _refresh_launch_screen() -> void:
+	if _available_protocols.is_empty():
+		_available_protocols = [RunProtocolCatalog.STANDARD]
+	var protocol_id := _available_protocols[_protocol_index]
+	var definition := RunProtocolCatalog.get_definition(protocol_id)
+	var best_total_seconds := floori(_profile.best_time_seconds)
+	profile_summary.text = "MOMENTUM %d   •   RUNS %d   •   WINS %d   •   BEST %02d:%02d" % [
+		_profile.momentum,
+		_profile.completed_runs,
+		_profile.victories,
+		best_total_seconds / 60,
+		best_total_seconds % 60,
+	]
+	protocol_name.text = str(definition.name)
+	protocol_description.text = str(definition.description)
+	protocol_reward.text = "MOMENTUM REWARD  ×%.2f" % float(definition.reward_multiplier)
+	var upcoming := RunProtocolCatalog.get_next_unlock(_profile.momentum)
+	next_unlock.text = "ALL PROTOCOLS UNLOCKED" if upcoming.is_empty() else "NEXT UNLOCK  •  %s AT %d MOMENTUM" % [upcoming.name, upcoming.required]
+	previous_protocol.disabled = _available_protocols.size() <= 1
+	next_protocol.disabled = _available_protocols.size() <= 1
+
+
+func _record_run_progress(victory: bool) -> String:
+	if _run_recorded:
+		return ""
+	_run_recorded = true
+	var result := _profile.record_run(combat.elapsed_time, combat.enemies_defeated, victory)
+	if _persistence_enabled:
+		_profile.save()
+	var unlock_names: Array[String] = []
+	for protocol_id in result.new_unlocks:
+		unlock_names.append(str(RunProtocolCatalog.get_definition(StringName(protocol_id)).name))
+	var unlock_text := ""
+	if not unlock_names.is_empty():
+		unlock_text = "  •  UNLOCKED %s" % ", ".join(unlock_names)
+	return "+%d MOMENTUM  •  TOTAL %d%s" % [result.momentum_earned, result.momentum_total, unlock_text]

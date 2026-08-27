@@ -157,6 +157,12 @@ func increase_maximum_integrity(amount: float, repair_amount: float) -> void:
 	integrity_changed.emit(integrity, maximum_integrity)
 
 
+func apply_integrity_multiplier(multiplier: float) -> void:
+	maximum_integrity = maxf(1.0, maximum_integrity * maxf(0.1, multiplier))
+	integrity = minf(integrity, maximum_integrity)
+	integrity_changed.emit(integrity, maximum_integrity)
+
+
 func is_dashing() -> bool:
 	return _dash_state != null and _dash_state.is_active
 

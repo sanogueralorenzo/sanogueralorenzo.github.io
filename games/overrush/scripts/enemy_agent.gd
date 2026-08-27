@@ -113,6 +113,12 @@ func take_damage(amount: float) -> void:
 		queue_free()
 
 
+func apply_health_multiplier(multiplier: float) -> void:
+	var safe_multiplier := maxf(0.1, multiplier)
+	maximum_health *= safe_multiplier
+	health *= safe_multiplier
+
+
 func get_attack_state() -> AttackState:
 	return _attack_state
 
