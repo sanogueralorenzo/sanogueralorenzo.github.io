@@ -585,9 +585,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -470.0
-offset_top = -320.0
+offset_top = -340.0
 offset_right = 470.0
-offset_bottom = 320.0
+offset_bottom = 340.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("DefeatRecapStyle")
@@ -601,16 +601,63 @@ anchor_bottom = 0.5
 offset_left = -440.0
 offset_top = -295.0
 offset_right = 440.0
-offset_bottom = 205.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.34, 0.18, 1)
 theme_override_colors/font_outline_color = Color(0.025, 0.002, 0.008, 0.96)
 theme_override_constants/outline_size = 5
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 20
 text = "RUN ENDED\n\nPRESS R TO BREAK THROUGH AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="FeedbackPrompt" type="Label" parent="HUD/GameOverOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = 198.0
+offset_right = 300.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.63, 0.38, 1)
+theme_override_font_sizes/font_size = 15
+text = "PLAYTEST  •  WOULD YOU RUN AGAIN?"
+horizontal_alignment = 1
+
+[node name="FeedbackChoices" type="HBoxContainer" parent="HUD/GameOverOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -215.0
+offset_top = 224.0
+offset_right = 215.0
+offset_bottom = 264.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="No" type="Button" parent="HUD/GameOverOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "NO"
+
+[node name="Maybe" type="Button" parent="HUD/GameOverOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "MAYBE"
+
+[node name="Yes" type="Button" parent="HUD/GameOverOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "YES"
 
 [node name="Retry" type="Button" parent="HUD/GameOverOverlay"]
 anchors_preset = 8
@@ -619,9 +666,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -210.0
-offset_top = 235.0
+offset_top = 278.0
 offset_right = 210.0
-offset_bottom = 287.0
+offset_bottom = 326.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 18
@@ -644,9 +691,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -470.0
-offset_top = -320.0
+offset_top = -340.0
 offset_right = 470.0
-offset_bottom = 320.0
+offset_bottom = 340.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("VictoryRecapStyle")
@@ -660,16 +707,63 @@ anchor_bottom = 0.5
 offset_left = -440.0
 offset_top = -295.0
 offset_right = 440.0
-offset_bottom = 205.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.18, 0.94, 1, 1)
 theme_override_colors/font_outline_color = Color(0.005, 0.025, 0.06, 0.95)
 theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 20
 text = "APEX BROKEN\n\nPRESS R TO OVERRUN AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="FeedbackPrompt" type="Label" parent="HUD/VictoryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = 198.0
+offset_right = 300.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.35, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 15
+text = "PLAYTEST  •  WOULD YOU RUN AGAIN?"
+horizontal_alignment = 1
+
+[node name="FeedbackChoices" type="HBoxContainer" parent="HUD/VictoryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -215.0
+offset_top = 224.0
+offset_right = 215.0
+offset_bottom = 264.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="No" type="Button" parent="HUD/VictoryOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "NO"
+
+[node name="Maybe" type="Button" parent="HUD/VictoryOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "MAYBE"
+
+[node name="Yes" type="Button" parent="HUD/VictoryOverlay/FeedbackChoices"]
+custom_minimum_size = Vector2(128, 40)
+layout_mode = 2
+text = "YES"
 
 [node name="Retry" type="Button" parent="HUD/VictoryOverlay"]
 anchors_preset = 8
@@ -678,9 +772,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -210.0
-offset_top = 235.0
+offset_top = 278.0
 offset_right = 210.0
-offset_bottom = 287.0
+offset_bottom = 326.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_font_sizes/font_size = 18

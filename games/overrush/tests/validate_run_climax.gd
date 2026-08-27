@@ -77,6 +77,7 @@ func _validate_elite_telegraph_and_victory() -> void:
 		await process_frame
 	_expect(_victory_seen, "Defeating the Apex should resolve the run as a victory.")
 	_expect(scene.get_node("HUD/VictoryOverlay").visible and paused, "Victory should pause play and present a clear ending.")
+	_expect(not scene.get_node("HUD/VictoryOverlay/FeedbackChoices/Yes").disabled, "Victory should offer optional replay-intent feedback without hiding the ending.")
 
 	paused = false
 	scene.queue_free()
@@ -98,6 +99,7 @@ func _validate_deadline_failure() -> void:
 	await process_frame
 	_expect(_failure_seen, "An undefeated Apex at 20:00 should resolve the run as a deadline failure.")
 	_expect(scene.get_node("HUD/GameOverOverlay").visible and paused, "Deadline failure should pause play and present a clear retry state.")
+	_expect(not scene.get_node("HUD/GameOverOverlay/FeedbackChoices/Yes").disabled, "Deadline failure should offer the same optional playtest feedback as victory.")
 	paused = false
 	scene.queue_free()
 	await process_frame

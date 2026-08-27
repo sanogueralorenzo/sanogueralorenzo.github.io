@@ -38,9 +38,21 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var game_over_overlay: Control = $HUD/GameOverOverlay
 @onready var game_over_message: Label = $HUD/GameOverOverlay/Message
 @onready var game_over_retry: Button = $HUD/GameOverOverlay/Retry
+@onready var game_over_feedback_prompt: Label = $HUD/GameOverOverlay/FeedbackPrompt
+@onready var game_over_feedback_buttons: Array[Button] = [
+	$HUD/GameOverOverlay/FeedbackChoices/No,
+	$HUD/GameOverOverlay/FeedbackChoices/Maybe,
+	$HUD/GameOverOverlay/FeedbackChoices/Yes,
+]
 @onready var victory_overlay: Control = $HUD/VictoryOverlay
 @onready var victory_message: Label = $HUD/VictoryOverlay/Message
 @onready var victory_retry: Button = $HUD/VictoryOverlay/Retry
+@onready var victory_feedback_prompt: Label = $HUD/VictoryOverlay/FeedbackPrompt
+@onready var victory_feedback_buttons: Array[Button] = [
+	$HUD/VictoryOverlay/FeedbackChoices/No,
+	$HUD/VictoryOverlay/FeedbackChoices/Maybe,
+	$HUD/VictoryOverlay/FeedbackChoices/Yes,
+]
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
 @onready var mastery_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/MasterySummary
@@ -132,6 +144,9 @@ func _ready() -> void:
 	pause_restart_button.pressed.connect(_request_restart)
 	game_over_retry.pressed.connect(_restart_scene)
 	victory_retry.pressed.connect(_restart_scene)
+	for index in range(ProgressProfileModel.REPLAY_INTENTS.size()):
+		game_over_feedback_buttons[index].pressed.connect(_record_replay_intent.bind(ProgressProfileModel.REPLAY_INTENTS[index]))
+		victory_feedback_buttons[index].pressed.connect(_record_replay_intent.bind(ProgressProfileModel.REPLAY_INTENTS[index]))
 	settings_back_button.pressed.connect(_close_settings)
 	reduced_motion_toggle.toggled.connect(_on_visual_accessibility_changed)
 	high_contrast_toggle.toggled.connect(_on_visual_accessibility_changed)
@@ -480,6 +495,7 @@ func _on_run_victory() -> void:
 	audio.play_victory()
 	var result := _record_run_progress(true)
 	victory_message.text = _format_run_recap("APEX BROKEN", result)
+	_reset_replay_feedback(victory_feedback_prompt, victory_feedback_buttons)
 	victory_overlay.visible = true
 	get_tree().paused = true
 	victory_retry.grab_focus()
@@ -489,6 +505,7 @@ func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
 	var result := _record_run_progress(false)
 	game_over_message.text = _format_run_recap(reason, result)
+	_reset_replay_feedback(game_over_feedback_prompt, game_over_feedback_buttons)
 	game_over_overlay.visible = true
 	get_tree().paused = true
 	game_over_retry.grab_focus()
@@ -540,6 +557,9 @@ func _refresh_launch_screen() -> void:
 	]
 	var recent_count := _profile.get_recent_run_count()
 	var recent_text := "NO RECORDED RUNS" if recent_count == 0 else "RECENT  •  %d / %d WINS" % [_profile.get_recent_win_count(), recent_count]
+	var feedback_count := _profile.get_recent_replay_feedback_count()
+	if feedback_count > 0:
+		recent_text += "  •  REPLAY YES %d / %d" % [_profile.get_recent_replay_yes_count(), feedback_count]
 	mastery_summary.text = "BUILD MASTERY  •  %d / %d   •   %s\nNEXT CLEAR  •  %s" % [
 		_profile.get_mastery_count(),
 		ProgressProfileModel.MASTERY_IDS.size(),
@@ -553,6 +573,29 @@ func _refresh_launch_screen() -> void:
 	next_unlock.text = "ALL PROTOCOLS UNLOCKED" if upcoming.is_empty() else "NEXT UNLOCK  •  %s AT %d MOMENTUM" % [upcoming.name, upcoming.required]
 	previous_protocol.disabled = _available_protocols.size() <= 1
 	next_protocol.disabled = _available_protocols.size() <= 1
+
+
+func _record_replay_intent(intent: String) -> void:
+	if not _profile.record_latest_replay_intent(intent):
+		return
+	_save_profile()
+	_apply_replay_feedback(game_over_feedback_prompt, game_over_feedback_buttons, intent)
+	_apply_replay_feedback(victory_feedback_prompt, victory_feedback_buttons, intent)
+
+
+func _reset_replay_feedback(prompt: Label, buttons: Array[Button]) -> void:
+	prompt.text = "PLAYTEST  •  WOULD YOU RUN AGAIN?"
+	for index in range(buttons.size()):
+		buttons[index].text = ProgressProfileModel.REPLAY_INTENTS[index].to_upper()
+		buttons[index].disabled = false
+
+
+func _apply_replay_feedback(prompt: Label, buttons: Array[Button], intent: String) -> void:
+	prompt.text = "PLAYTEST LOGGED  •  THANK YOU"
+	for index in range(buttons.size()):
+		var option := ProgressProfileModel.REPLAY_INTENTS[index]
+		buttons[index].text = "%s%s" % ["✓  " if option == intent else "", option.to_upper()]
+		buttons[index].disabled = true
 
 
 func _record_run_progress(victory: bool) -> Dictionary:
