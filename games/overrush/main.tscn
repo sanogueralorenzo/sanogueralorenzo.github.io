@@ -221,9 +221,9 @@ show_percentage = false
 [node name="LevelLabel" type="Label" parent="HUD"]
 anchors_preset = 10
 anchor_right = 1.0
-offset_left = 550.0
+offset_left = 440.0
 offset_top = 17.0
-offset_right = -550.0
+offset_right = -440.0
 offset_bottom = 44.0
 grow_horizontal = 2
 theme_override_colors/font_color = Color(0.75, 0.96, 1, 1)
@@ -365,14 +365,14 @@ theme_override_constants/separation = 12
 layout_mode = 2
 theme_override_colors/font_color = Color(0.15, 0.9, 1, 1)
 theme_override_font_sizes/font_size = 32
-text = "VELOCITY EVOLVES"
+text = "CHOOSE YOUR ENGINE"
 horizontal_alignment = 1
 
 [node name="Prompt" type="Label" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 17
-text = "Choose the way this run changes"
+text = "Commit to a combat geometry for this run"
 horizontal_alignment = 1
 
 [node name="Option1" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]

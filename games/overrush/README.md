@@ -18,8 +18,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Terrain-aware Pursuer, Skimmer, and Bulwark threats with escalating population and durability.
 - Skimmer charges and Bulwark pulses use ground telegraphs before their damaging windows; scheduled elites amplify those patterns without removing the warning.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
-- Level-up choices that begin distinct movement-centric builds: Dash Nova, Slipstream, or speed-scaled arcs.
-- Repeatable fire-rate, multi-target, and repair upgrades for the first combat-progression slice.
+- A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
+- Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute Apex climax with explicit victory or deadline failure.
 
 This is not yet the complete target game. The 20-minute structure and first boss now exist, but broad content variety, metaprogression, saving, audio, accessibility, repeated balance work, and external playtesting remain long-term work.
@@ -31,7 +31,7 @@ This is not yet the complete target game. The 20-minute structure and first boss
 - `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
 - `combat_director.gd` owns spawning, escalation, targeting, rewards, and movement-triggered combat effects.
-- `run_build.gd` owns testable experience thresholds and build-changing upgrade state.
+- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, and build-changing path state.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
 
 ## Controls
@@ -79,6 +79,7 @@ Run the build rules and playable combat integration checks with:
 ```sh
 godot --headless --path games/overrush --script res://tests/test_run_build.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
+godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 ```
 
 Run the simulated 20-minute and in-engine maximum-speed boundary traversal checks with:

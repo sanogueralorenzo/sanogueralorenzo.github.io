@@ -8,7 +8,7 @@ var _failures: Array[String] = []
 func _init() -> void:
 	_test_experience_progression()
 	_test_first_choice_establishes_distinct_builds()
-	_test_speed_scaling_rewards_fast_movement()
+	_test_paths_remain_mechanically_isolated()
 	_test_repeatable_upgrade_limits()
 	if _failures.is_empty():
 		print("Run build validation passed.")
@@ -35,22 +35,43 @@ func _test_first_choice_establishes_distinct_builds() -> void:
 	var options: Array[StringName] = build.get_upgrade_options(rng)
 	_expect(options == [&"dash_nova", &"slipstream", &"velocity_coil"], "The first choice should present three movement-centric build directions.")
 	build.apply_upgrade(&"dash_nova")
-	_expect(build.dash_nova_level == 1 and build.slipstream_level == 0, "Dash Nova should unlock dash burst combat without also unlocking Slipstream.")
+	_expect(build.core_path == RunBuild.DASHBREAKER, "Dashbreaker should commit the run to its own path.")
+	var follow_up_options := build.get_upgrade_options(rng)
+	for option in follow_up_options:
+		_expect(option in RunBuild.PATH_UPGRADES[RunBuild.DASHBREAKER], "Dashbreaker should not receive upgrades from another engine.")
 
 
-func _test_speed_scaling_rewards_fast_movement() -> void:
-	var build := RunBuildScript.new()
-	build.apply_upgrade(&"velocity_coil")
-	_expect(build.get_arc_damage(126.0) > build.get_arc_damage(58.0), "Velocity Coil should deal materially more damage at dash speed.")
+func _test_paths_remain_mechanically_isolated() -> void:
+	var dash_build := RunBuildScript.new()
+	dash_build.apply_upgrade(&"dash_nova")
+	dash_build.apply_upgrade(&"dash_echo")
+	dash_build.apply_upgrade(&"phase_shell")
+	var trail_build := RunBuildScript.new()
+	trail_build.apply_upgrade(&"slipstream")
+	trail_build.apply_upgrade(&"wake_duration")
+	trail_build.apply_upgrade(&"wake_width")
+	var arc_build := RunBuildScript.new()
+	arc_build.apply_upgrade(&"velocity_coil")
+	arc_build.apply_upgrade(&"arc_chain")
+
+	_expect(dash_build.dash_echo_level == 1 and dash_build.phase_shell_level == 1, "Dashbreaker should gain dash endpoint and immunity mechanics.")
+	_expect(trail_build.get_wake_duration() > 2.0 and trail_build.get_wake_radius() > 11.0, "Stormtrail should gain persistent route-control geometry.")
+	_expect(arc_build.arc_chain_count == 1 and arc_build.get_arc_damage(126.0) > arc_build.get_arc_damage(58.0), "Arcstorm should gain speed-scaled chaining projectiles.")
+	_expect(not dash_build.is_arc_weapon_enabled() and not trail_build.is_arc_weapon_enabled() and arc_build.is_arc_weapon_enabled(), "Only Arcstorm should retain the universal auto-arc after commitment.")
+	_expect(dash_build.apply_upgrade(&"arc_chain").is_empty(), "Committed builds should reject off-path upgrades.")
 
 
 func _test_repeatable_upgrade_limits() -> void:
 	var build := RunBuildScript.new()
+	build.apply_upgrade(&"velocity_coil")
 	for index in range(12):
 		build.apply_upgrade(&"arc_capacitor")
 		build.apply_upgrade(&"forked_current")
 	_expect(build.fire_interval >= 0.18, "Arc Capacitor should respect its fire-rate floor.")
 	_expect(build.projectile_count == 5, "Forked Current should respect its projectile cap.")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 9
+	_expect(build.get_upgrade_options(rng).size() == 3, "A mature path should still offer three valid choices after capped upgrades leave the pool.")
 
 
 func _expect(condition: bool, message: String) -> void:

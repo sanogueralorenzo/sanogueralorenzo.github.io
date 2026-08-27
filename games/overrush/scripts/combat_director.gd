@@ -12,6 +12,7 @@ signal run_failed(reason: String)
 const EnemyAgentScript = preload("res://scripts/enemy_agent.gd")
 const ArcProjectileScript = preload("res://scripts/arc_projectile.gd")
 const ExperiencePickupScript = preload("res://scripts/experience_pickup.gd")
+const SlipstreamWakeScript = preload("res://scripts/slipstream_wake.gd")
 const RunBuildScript = preload("res://scripts/run_build.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
 
@@ -21,7 +22,7 @@ const MAXIMUM_ENEMIES := 96
 const TARGETING_RANGE := 105.0
 const SPAWN_DISTANCE_MIN := 52.0
 const SPAWN_DISTANCE_MAX := 94.0
-const WAKE_TICK_INTERVAL := 0.22
+const WAKE_DROP_INTERVAL := 0.2
 
 @export var runner_path: NodePath
 @export var world_path: NodePath
@@ -164,6 +165,8 @@ func _choose_archetype() -> StringName:
 
 
 func _update_arc_weapon(delta: float) -> void:
+	if not build.is_arc_weapon_enabled():
+		return
 	_fire_timer -= delta
 	if _fire_timer > 0.0:
 		return
@@ -175,7 +178,7 @@ func _update_arc_weapon(delta: float) -> void:
 		add_child(projectile)
 		projectile.global_position = _runner.global_position + Vector3.UP * 1.1
 		var direction := (target.global_position - projectile.global_position).normalized()
-		projectile.configure(target, damage, direction)
+		projectile.configure(target, damage, direction, build.arc_chain_count)
 
 
 func _find_targets(count: int) -> Array[EnemyAgent]:
@@ -197,28 +200,45 @@ func _update_slipstream(delta: float) -> void:
 	_wake_timer -= delta
 	if _wake_timer > 0.0:
 		return
-	_wake_timer = WAKE_TICK_INTERVAL
-	var wake_radius := 8.0 + build.slipstream_level * 2.5
+	_wake_timer = WAKE_DROP_INTERVAL
 	var wake_position: Vector3 = _runner.global_position - _runner.heading.normalized() * 10.0
-	var damage := (4.0 + build.slipstream_level * 2.0) * maxf(1.0, _runner.get_horizontal_speed() / 58.0)
-	var hit_anything := false
-	for enemy in _enemies:
-		if is_instance_valid(enemy) and enemy.global_position.distance_to(wake_position) <= wake_radius:
-			enemy.take_damage(damage)
-			hit_anything = true
-	if hit_anything:
-		_spawn_pulse(wake_position, Color(0.12, 0.9, 1.0, 0.26), wake_radius, 0.22)
+	wake_position.y = _world.get_surface_height(wake_position.x, wake_position.z) + 0.14
+	var wake: SlipstreamWake = SlipstreamWakeScript.new()
+	add_child(wake)
+	wake.global_position = wake_position
+	wake.configure(
+		build.get_wake_radius(),
+		build.get_wake_damage(_runner.get_horizontal_speed()),
+		build.get_wake_duration()
+	)
 
 
 func _on_dash_state_changed(active: bool) -> void:
-	if not active or build.dash_nova_level <= 0 or not _run_active:
+	if build.dash_nova_level <= 0 or not _run_active:
 		return
-	var radius := 15.0 + build.dash_nova_level * 4.0
-	var damage := 24.0 + build.dash_nova_level * 14.0
-	for enemy in _enemies:
-		if is_instance_valid(enemy) and enemy.global_position.distance_to(_runner.global_position) <= radius:
+	if active:
+		if build.phase_shell_level > 0:
+			_runner.grant_damage_immunity(build.get_phase_shell_duration())
+		_release_nova(
+			_runner.global_position,
+			build.get_dash_nova_damage(),
+			build.get_dash_nova_radius(),
+			Color(0.05, 0.82, 1.0, 0.42)
+		)
+	elif build.dash_echo_level > 0:
+		_release_nova(
+			_runner.global_position,
+			build.get_dash_echo_damage(),
+			build.get_dash_nova_radius() * 0.82,
+			Color(0.52, 0.16, 1.0, 0.38)
+		)
+
+
+func _release_nova(position: Vector3, damage: float, radius: float, color: Color) -> void:
+	for enemy in _enemies.duplicate():
+		if is_instance_valid(enemy) and enemy.global_position.distance_to(position) <= radius:
 			enemy.take_damage(damage)
-	_spawn_pulse(_runner.global_position, Color(0.05, 0.82, 1.0, 0.42), radius, 0.32)
+	_spawn_pulse(position, color, radius, 0.32)
 
 
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:

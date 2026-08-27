@@ -136,6 +136,10 @@ func apply_boundary_heading(guided_heading: Vector3) -> void:
 		_dash_heading = heading
 
 
+func grant_damage_immunity(duration: float) -> void:
+	_damage_invulnerability_remaining = maxf(_damage_invulnerability_remaining, duration)
+
+
 func take_damage(amount: float) -> void:
 	if amount <= 0.0 or integrity <= 0.0 or _damage_invulnerability_remaining > 0.0:
 		return

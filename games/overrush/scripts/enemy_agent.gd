@@ -40,6 +40,10 @@ var _telegraph_mesh: MeshInstance3D
 var _telegraph_material: StandardMaterial3D
 
 
+func _enter_tree() -> void:
+	add_to_group("overrush_enemies")
+
+
 func configure(
 	new_target: CharacterBody3D,
 	new_world: Node3D,

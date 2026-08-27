@@ -15,6 +15,8 @@ extends Node3D
 @onready var apex_bar: ProgressBar = $HUD/ApexBar
 @onready var apex_label: Label = $HUD/ApexLabel
 @onready var level_up_overlay: Control = $HUD/LevelUpOverlay
+@onready var level_up_title: Label = $HUD/LevelUpOverlay/ChoicePanel/Choices/Title
+@onready var level_up_prompt: Label = $HUD/LevelUpOverlay/ChoicePanel/Choices/Prompt
 @onready var level_up_buttons: Array[Button] = [
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option1,
 	$HUD/LevelUpOverlay/ChoicePanel/Choices/Option2,
@@ -94,12 +96,21 @@ func _on_integrity_changed(current: float, maximum: float) -> void:
 func _on_build_changed(build: RunBuild) -> void:
 	experience_bar.max_value = build.experience_to_next
 	experience_bar.value = build.experience
-	level_label.text = "LEVEL %d" % build.level
+	level_label.text = "LEVEL %d" % build.level if build.core_path.is_empty() else "LEVEL %d  •  %s" % [build.level, build.get_build_name()]
 
 
 func _on_level_up_requested(options: Array[StringName]) -> void:
 	_current_upgrade_options = options
+	if is_instance_valid(_event_tween):
+		_event_tween.kill()
+	event_banner.visible = false
 	level_up_overlay.visible = true
+	if combat.build.core_path.is_empty():
+		level_up_title.text = "CHOOSE YOUR ENGINE"
+		level_up_prompt.text = "Commit to a combat geometry for this run"
+	else:
+		level_up_title.text = "%s EVOLVES" % combat.build.get_build_name()
+		level_up_prompt.text = "Deepen this build without collapsing into another path"
 	for index in range(level_up_buttons.size()):
 		var upgrade_id := options[index]
 		var next_rank := combat.build.get_upgrade_rank(upgrade_id) + 1
