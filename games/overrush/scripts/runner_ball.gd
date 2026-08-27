@@ -1,5 +1,9 @@
 extends CharacterBody3D
 
+signal dash_state_changed(active: bool)
+
+const DashStateMachine = preload("res://scripts/dash_state.gd")
+
 @export var cruise_speed: float = 58.0
 @export var boost_speed: float = 88.0
 @export var brake_speed: float = 24.0
@@ -7,21 +11,58 @@ extends CharacterBody3D
 @export var air_control: float = 0.28
 @export var turn_speed: float = 1.75
 @export var jump_velocity: float = 17.0
+@export var dash_speed: float = 126.0
+@export var dash_exit_speed: float = 78.0
+@export var dash_minimum_duration: float = 0.08
+@export var dash_maximum_duration: float = 0.24
+@export var dash_cooldown: float = 0.14
 
 @onready var ball_mesh: MeshInstance3D = $BallMesh
+@onready var dash_trail: GPUParticles3D = $DashTrail
+@onready var dash_light: OmniLight3D = $DashLight
 
 var heading := Vector3.FORWARD
 var spawn_position := Vector3.ZERO
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+var _dash_state: DashStateMachine
+var _dash_heading := Vector3.FORWARD
+var _dash_was_pressed := false
+var _ball_material: StandardMaterial3D
+
+
+func _ready() -> void:
+	_dash_state = DashStateMachine.new(dash_minimum_duration, dash_maximum_duration, dash_cooldown)
+	_ball_material = ball_mesh.get_active_material(0).duplicate()
+	ball_mesh.material_override = _ball_material
 
 
 func _physics_process(delta: float) -> void:
+	var grounded := is_on_floor()
+	var dash_pressed := _is_dash_pressed()
+	var dash_event := _dash_state.step(delta, dash_pressed, dash_pressed and not _dash_was_pressed, grounded)
+	_dash_was_pressed = dash_pressed
+	if dash_event == DashStateMachine.Event.STARTED:
+		_begin_dash()
+	elif dash_event == DashStateMachine.Event.ENDED:
+		_end_dash()
+
 	var steering := 0.0
 	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		steering += 1.0
 	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		steering -= 1.0
-	heading = heading.rotated(Vector3.UP, steering * turn_speed * delta).normalized()
+	if not _dash_state.is_active:
+		heading = heading.rotated(Vector3.UP, steering * turn_speed * delta).normalized()
+
+	if _dash_state.is_active:
+		velocity.x = _dash_heading.x * dash_speed
+		velocity.z = _dash_heading.z * dash_speed
+		if _dash_state.started_in_air:
+			velocity.y = 0.0
+		move_and_slide()
+		_roll_visual(delta)
+		_check_fall()
+		return
 
 	var target_speed := cruise_speed
 	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
@@ -45,18 +86,76 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_roll_visual(delta)
-	if global_position.y < -180.0:
-		respawn(spawn_position)
+	_check_fall()
 
 
 func respawn(at_position: Vector3) -> void:
 	spawn_position = at_position
 	global_position = at_position
 	velocity = heading * cruise_speed * 0.35
+	if is_instance_valid(_dash_state):
+		_dash_state.reset()
+		_set_dash_visuals(false)
 
 
 func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
+
+
+func is_dashing() -> bool:
+	return _dash_state != null and _dash_state.is_active
+
+
+func get_dash_status() -> String:
+	if _dash_state == null:
+		return "DASH READY"
+	if _dash_state.is_active:
+		return "DASHING"
+	if not is_on_floor() and not _dash_state.air_dash_available:
+		return "AIR DASH SPENT"
+	return "DASH READY"
+
+
+func _begin_dash() -> void:
+	_dash_heading = heading.normalized()
+	if _dash_state.started_in_air:
+		velocity.y = 0.0
+	_set_dash_visuals(true)
+	dash_state_changed.emit(true)
+
+
+func _end_dash() -> void:
+	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	if horizontal_velocity.length() > dash_exit_speed:
+		horizontal_velocity = horizontal_velocity.normalized() * dash_exit_speed
+		velocity.x = horizontal_velocity.x
+		velocity.z = horizontal_velocity.z
+	_set_dash_visuals(false)
+	dash_state_changed.emit(false)
+
+
+func _set_dash_visuals(active: bool) -> void:
+	if not is_instance_valid(_ball_material):
+		return
+	if active:
+		_ball_material.albedo_color = Color(0.12, 0.9, 1.0, 1.0)
+		_ball_material.emission = Color(0.02, 0.65, 1.0, 1.0)
+		_ball_material.emission_energy_multiplier = 4.2
+	else:
+		_ball_material.albedo_color = Color(1.0, 0.17, 0.055, 1.0)
+		_ball_material.emission = Color(0.8, 0.035, 0.006, 1.0)
+		_ball_material.emission_energy_multiplier = 1.35
+	dash_trail.emitting = active
+	dash_light.light_energy = 3.2 if active else 0.0
+
+
+func _is_dash_pressed() -> bool:
+	return Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_ALT)
+
+
+func _check_fall() -> void:
+	if global_position.y < -180.0:
+		respawn(spawn_position)
 
 
 func _roll_visual(delta: float) -> void:

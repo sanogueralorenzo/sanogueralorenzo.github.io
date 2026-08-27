@@ -5,9 +5,13 @@ extends Camera3D
 @export var follow_height: float = 8.0
 @export var position_smoothing: float = 7.5
 @export var look_ahead: float = 16.0
+@export var normal_fov: float = 82.0
+@export var dash_fov: float = 96.0
+@export var fov_smoothing: float = 12.0
 
 var _target: CharacterBody3D
 var _last_direction := Vector3.FORWARD
+var _dash_active := false
 
 
 func _ready() -> void:
@@ -24,6 +28,11 @@ func _physics_process(delta: float) -> void:
 	var blend := 1.0 - exp(-position_smoothing * delta)
 	global_position = global_position.lerp(desired_position, blend)
 	look_at(_target.global_position + _last_direction * look_ahead + Vector3.UP * 1.5, Vector3.UP)
+	fov = lerpf(fov, dash_fov if _dash_active else normal_fov, 1.0 - exp(-fov_smoothing * delta))
+
+
+func set_dash_active(active: bool) -> void:
+	_dash_active = active
 
 
 func snap_to_target() -> void:

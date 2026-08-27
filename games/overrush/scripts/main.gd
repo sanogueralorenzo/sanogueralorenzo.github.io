@@ -8,14 +8,16 @@ extends Node3D
 
 func _ready() -> void:
 	ball.respawn(world.get_spawn_position())
+	ball.dash_state_changed.connect(camera.set_dash_active)
 	camera.snap_to_target()
 
 
 func _process(_delta: float) -> void:
-	info.text = "OVER RUSH  •  SEED %s\n%03d m/s  •  %s  •  ROUTE-GRAMMAR WORLD" % [
+	info.text = "OVER RUSH  •  SEED %s\n%03d m/s  •  %s  •  %s" % [
 		str(world.generated_seed),
 		roundi(ball.get_horizontal_speed()),
 		world.get_region_name(ball.global_position.z),
+		ball.get_dash_status(),
 	]
 
 

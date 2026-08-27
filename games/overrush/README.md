@@ -10,7 +10,8 @@ Map-first prototype for a fast 3D run across large procedural landscapes.
 - Three blended regions per run: Verdant Reach, Ember Basin, and Prism Highlands.
 - Original rock spires, boulder fields, distant ridges, and procedural materials.
 - Route geometry designed to preserve readable 200–400 meter sightlines at high speed.
-- A small auto-running ball and follow camera used only to test terrain flow and scale.
+- A small auto-running ball and follow camera used to test terrain flow, scale, and high-speed traversal.
+- A short, hold-sensitive dash that is repeatable on the ground and available once per airtime.
 
 The prototype intentionally contains no enemies, combat, progression, pickups, or character systems.
 
@@ -20,6 +21,7 @@ The prototype intentionally contains no enemies, combat, progression, pickups, o
 - `W` or up: boost
 - `S` or down: brake
 - `Space`: hop
+- `Shift` or `Alt`: dash (tap for a short burst, hold for maximum distance)
 - `R`: generate a new world
 
 ## Map validation
@@ -31,3 +33,9 @@ godot --headless --path games/overrush --script res://tests/validate_worlds.gd
 ```
 
 The gate checks required terrain shapes, route continuity and slopes, sightline curvature, alternate-route frequency, formation clearance, finite terrain heights, three-region coverage, and layout uniqueness.
+
+Run the dash timing and ground/air reset checks with:
+
+```sh
+godot --headless --path games/overrush --script res://tests/test_dash_state.gd
+```

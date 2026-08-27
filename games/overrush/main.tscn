@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -50,6 +50,31 @@ rings = 12
 [sub_resource type="SphereShape3D" id="BallShape"]
 radius = 1.2
 
+[sub_resource type="StandardMaterial3D" id="DashTrailMaterial"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.08, 0.78, 1, 0.72)
+
+[sub_resource type="SphereMesh" id="DashTrailMesh"]
+material = SubResource("DashTrailMaterial")
+radius = 0.2
+height = 0.4
+radial_segments = 8
+rings = 4
+
+[sub_resource type="ParticleProcessMaterial" id="DashTrailProcess"]
+emission_shape = 1
+emission_sphere_radius = 0.65
+direction = Vector3(0, 0, 0)
+spread = 180.0
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 3.0
+scale_min = 0.35
+scale_max = 1.25
+color = Color(0.08, 0.78, 1, 0.72)
+
 [node name="Overrush" type="Node3D"]
 script = ExtResource("1_main")
 
@@ -88,6 +113,19 @@ shape = SubResource("BallShape")
 [node name="BallMesh" type="MeshInstance3D" parent="RunnerBall"]
 mesh = SubResource("BallMesh")
 
+[node name="DashTrail" type="GPUParticles3D" parent="RunnerBall"]
+emitting = false
+amount = 48
+lifetime = 0.34
+visibility_aabb = AABB(-12, -12, -12, 24, 24, 24)
+process_material = SubResource("DashTrailProcess")
+draw_pass_1 = SubResource("DashTrailMesh")
+
+[node name="DashLight" type="OmniLight3D" parent="RunnerBall"]
+light_color = Color(0.08, 0.78, 1, 1)
+light_energy = 0.0
+omni_range = 9.0
+
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 10, 18)
 current = true
@@ -124,4 +162,4 @@ theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 16
-text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   R new world"
+text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   R new world"
