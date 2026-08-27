@@ -29,11 +29,17 @@ func _run() -> void:
 	_expect(scene._using_gamepad, "Controller input should switch every contextual prompt to gamepad language.")
 	_expect(scene._protocol_index == 1, "D-pad input should cycle run protocols even while the launch button owns focus.")
 	_expect("D-PAD" in scene.select_hint.text and "A TO LAUNCH" in scene.launch_hint.text, "The launch screen should explain controller selection and confirmation.")
-	_expect("LEFT STICK" in scene.controls.text and "START pause" in scene.controls.text, "The live controls legend should describe the complete gamepad movement loop.")
+	_expect("LEFT STICK" in scene.controls.text and "START PAUSE" in scene.controls.text, "The contextual reminder should describe the complete gamepad movement loop.")
 
+	scene._profile.onboarding_completed = true
 	scene.begin_run(RunProtocolCatalog.STANDARD)
 	await process_frame
 	_expect(not paused and scene._run_started, "Launching should resume the simulation.")
+	_expect(scene.controls.visible and not scene.tutorial_card.visible, "Returning players should receive one compact control refresher instead of replaying onboarding.")
+	var design_integrity_left: float = 1280.0 * 0.5 + scene.integrity_bar.offset_left
+	_expect(scene.controls.offset_right < design_integrity_left, "The compact refresher should not overlap the centered integrity HUD at the 1280×720 design resolution.")
+	scene._update_control_reminder(scene.CONTROL_REMINDER_SECONDS)
+	_expect(not scene.controls.visible, "The returning-player control refresher should retire after a bounded opening window.")
 	_expect("APEX IN" in scene.run_stats.text and "SEED" not in scene.run_stats.text, "The live HUD should prioritize the win-condition countdown over developer-facing seed data.")
 	var runner: CharacterBody3D = scene.get_node("RunnerBall")
 	paused = true
@@ -50,6 +56,10 @@ func _run() -> void:
 	await _push_joy_button(JOY_BUTTON_START)
 	_expect(paused and scene.pause_overlay.visible, "Start should suspend an active run behind a dedicated pause overlay.")
 	_expect(scene.get_viewport().gui_get_focus_owner() == scene.pause_resume_button, "Resume should be the safe default pause action.")
+	_expect("LEFT STICK" in scene.pause_hint.text and "LB/RB DASH" in scene.pause_hint.text, "Pause should retain the complete movement reference after the live refresher retires.")
+	var pause_panel: Control = scene.get_node("HUD/PauseOverlay/PausePanel")
+	var pause_content: Control = scene.get_node("HUD/PauseOverlay/PausePanel/Content")
+	_expect(pause_content.get_global_rect().end.y <= pause_panel.get_global_rect().end.y - 32.0, "The pause summary, controls, and safe actions should fit inside the panel without clipping.")
 	_expect("OPEN CIRCUIT" not in scene.pause_summary.text, "The pause summary should describe the current run state rather than repeat launch copy.")
 	_expect("APEX IN" in scene.pause_summary.text and "SEED" in scene.pause_summary.text, "Pause should preserve objective context and move the reproducible world seed out of the live HUD.")
 

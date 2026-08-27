@@ -5,6 +5,7 @@ const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
+const CONTROL_REMINDER_SECONDS := 6.0
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -109,6 +110,7 @@ var _restart_armed := false
 var _damage_feedback_tween: Tween
 var _feedback_stage := &"intent"
 var _feedback_tag_options: Array[String] = []
+var _control_reminder_remaining := 0.0
 
 
 func _enter_tree() -> void:
@@ -207,6 +209,7 @@ func _process(_delta: float) -> void:
 			Color(1.0, 0.58, 0.16) if boundary.pressure > 0.72 else Color(0.9, 1.0, 1.0)
 		)
 	_update_onboarding(_delta)
+	_update_control_reminder(_delta)
 
 
 func _input(event: InputEvent) -> void:
@@ -545,6 +548,9 @@ func begin_run(protocol_id: StringName = &"") -> void:
 	_onboarding.reset(_profile.onboarding_completed or not _profile.guidance_enabled)
 	tutorial_card.text = _onboarding.get_message(_using_gamepad)
 	tutorial_card.visible = not _onboarding.is_complete()
+	_control_reminder_remaining = CONTROL_REMINDER_SECONDS if _onboarding.is_complete() else 0.0
+	controls.visible = _control_reminder_remaining > 0.0
+	controls.modulate.a = 1.0
 	combat.start_run(chosen_protocol)
 	get_tree().paused = false
 
@@ -855,19 +861,19 @@ func _close_settings() -> void:
 
 func _refresh_input_prompts() -> void:
 	if _using_gamepad:
-		controls.text = "LEFT STICK steer / boost / brake   •   A hop   •   LB / RB dash   •   START pause"
+		controls.text = "LEFT STICK STEER / SPEED  •  A HOP\nLB / RB DASH  •  START PAUSE"
 		select_hint.text = "D-PAD TO SELECT"
 		launch_hint.text = "A TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  A"
 		victory_retry.text = "RUN AGAIN  •  A"
-		pause_hint.text = "START TO RESUME  •  A TO SELECT"
+		pause_hint.text = "LEFT STICK STEER / SPEED  •  A HOP  •  LB/RB DASH\nSTART TO RESUME  •  A TO SELECT"
 	else:
-		controls.text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   Esc pause"
+		controls.text = "A / D STEER  •  W / S SPEED  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
 		select_hint.text = "A / D OR ARROW KEYS"
 		launch_hint.text = "ENTER / SPACE TO LAUNCH   •   SURVIVE 20:00 AND BREAK THE APEX"
 		game_over_retry.text = "RUN AGAIN  •  R"
 		victory_retry.text = "RUN AGAIN  •  R"
-		pause_hint.text = "ESC TO RESUME  •  ENTER TO SELECT"
+		pause_hint.text = "A/D STEER  •  W/S SPEED  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
 	if level_up_overlay.visible:
 		_refresh_draft_controls()
 	if tutorial_card.visible:
@@ -954,6 +960,15 @@ func _update_onboarding(delta: float) -> void:
 		_save_profile()
 	else:
 		tutorial_card.text = _onboarding.get_message(_using_gamepad)
+
+
+func _update_control_reminder(delta: float) -> void:
+	if not _run_started or not controls.visible or get_tree().paused:
+		return
+	_control_reminder_remaining = maxf(0.0, _control_reminder_remaining - maxf(0.0, delta))
+	controls.modulate.a = clampf(_control_reminder_remaining, 0.0, 1.0)
+	if is_zero_approx(_control_reminder_remaining):
+		controls.visible = false
 
 
 func _save_profile() -> void:

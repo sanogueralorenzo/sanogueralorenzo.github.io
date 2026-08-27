@@ -52,6 +52,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles and combat flashes, and high-contrast attack zones with bright geometric boundaries while preserving directional damage information.
 - Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
+- First-run lessons use a terrain-independent guidance card; returning players receive a six-second compact control refresher that never overlaps integrity, while the pause screen keeps the complete input reference available throughout the run.
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master, music, and independent effects mix controls apply immediately to active pooled players; outcome cues duck the run music so the ending remains legible.

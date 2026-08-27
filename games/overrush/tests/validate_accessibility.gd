@@ -72,6 +72,10 @@ func _validate_runtime_preferences() -> void:
 	await process_frame
 	var tutorial_card: Label = scene.get_node("HUD/TutorialCard")
 	_expect(tutorial_card.visible, "An unfinished first run should show contextual guidance without pausing play.")
+	_expect(not scene.controls.visible, "First-run guidance should replace the redundant full control legend instead of stacking over the integrity HUD.")
+	var guidance_style := tutorial_card.get_theme_stylebox(&"normal") as StyleBoxFlat
+	_expect(guidance_style != null and guidance_style.bg_color.a >= 0.8, "Guidance should use a stable high-contrast card instead of floating directly over terrain.")
+	_expect(tutorial_card.get_global_rect().end.y <= scene.integrity_label.get_global_rect().position.y - 12.0, "Guidance should remain separated from the persistent integrity readout at 720p.")
 	_validate_guidance_card_fit(tutorial_card)
 	runner.take_damage(12.0, runner.global_position + Vector3.RIGHT, &"skimmer_charge")
 	runner._update_ball_material()

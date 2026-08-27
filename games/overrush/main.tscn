@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -98,6 +98,24 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="HUDCardStyle"]
+content_margin_left = 14.0
+content_margin_top = 10.0
+content_margin_right = 14.0
+content_margin_bottom = 10.0
+bg_color = Color(0.008, 0.026, 0.07, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14, 0.78, 0.94, 0.42)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0.002, 0.01, 0.03, 0.62)
+shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="ApexFill"]
 bg_color = Color(0.08, 0.8, 1, 0.96)
@@ -424,20 +442,23 @@ text = "INTEGRITY  100 / 100"
 horizontal_alignment = 1
 
 [node name="Controls" type="Label" parent="HUD"]
+visible = false
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -58.0
-offset_right = 610.0
-offset_bottom = -22.0
+offset_top = -94.0
+offset_right = 374.0
+offset_bottom = -24.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.82, 0.92, 1, 0.82)
+theme_override_colors/font_color = Color(0.86, 0.95, 1, 0.94)
 theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 16
-text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   R new world"
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "A / D STEER  •  W / S SPEED  •  SPACE HOP\nSHIFT / ALT DASH  •  ESC PAUSE"
+vertical_alignment = 1
 
 [node name="TutorialCard" type="Label" parent="HUD"]
 visible = false
@@ -447,15 +468,16 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -390.0
-offset_top = -144.0
+offset_top = -192.0
 offset_right = 390.0
-offset_bottom = -78.0
+offset_bottom = -102.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.91, 0.98, 1, 1)
 theme_override_colors/font_outline_color = Color(0.004, 0.02, 0.06, 0.96)
 theme_override_constants/outline_size = 7
 theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("HUDCardStyle")
 text = "STEER THE RUN  •  A / D OR ← / →\nYou move automatically. Choose open ground and keep velocity."
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -1066,11 +1088,13 @@ vertical_alignment = 1
 autowrap_mode = 2
 
 [node name="Hint" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.5, 0.66, 0.78, 1)
 theme_override_font_sizes/font_size = 13
-text = "ESC TO RESUME  •  ENTER TO SELECT"
+text = "A/D STEER  •  W/S SPEED  •  SPACE HOP  •  SHIFT/ALT DASH\nESC TO RESUME  •  ENTER TO SELECT"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="SettingsOverlay" type="ColorRect" parent="HUD"]
 visible = false
