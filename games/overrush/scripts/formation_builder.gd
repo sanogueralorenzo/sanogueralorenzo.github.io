@@ -127,10 +127,18 @@ func _plan_distant_ridges(count: int) -> void:
 func _rock_placement(type: String, position: Vector3, scale: Vector3, blocks_route: bool) -> Dictionary:
 	var yaw := _rng.randf_range(-PI, PI)
 	var basis := Basis(Vector3.UP, yaw).scaled(scale)
+	var footprint_radius := maxf(scale.x, scale.z) * 0.72
+	var lowest_ground := position.y
+	for sample_index in range(8):
+		var angle := sample_index / 8.0 * TAU + yaw
+		var sample_x := position.x + cos(angle) * footprint_radius
+		var sample_z := position.z + sin(angle) * footprint_radius
+		lowest_ground = minf(lowest_ground, _grammar.sample_height(sample_x, sample_z))
+	var embedded_position := Vector3(position.x, lowest_ground - clampf(footprint_radius * 0.08, 0.8, 3.5), position.z)
 	return {
 		"type": type,
-		"position": position,
-		"transform": Transform3D(basis, position),
+		"position": embedded_position,
+		"transform": Transform3D(basis, embedded_position),
 		"blocks_route": blocks_route,
 	}
 

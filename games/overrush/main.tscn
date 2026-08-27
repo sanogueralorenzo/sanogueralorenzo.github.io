@@ -61,8 +61,12 @@ rotation_degrees = Vector3(-48, -32, 0)
 light_color = Color(1, 0.78, 0.58, 1)
 light_energy = 0.92
 shadow_enabled = true
-directional_shadow_max_distance = 950.0
-directional_shadow_fade_start = 0.72
+shadow_bias = 0.035
+shadow_normal_bias = 0.65
+shadow_blur = 1.5
+directional_shadow_blend_splits = true
+directional_shadow_max_distance = 700.0
+directional_shadow_fade_start = 0.82
 
 [node name="World" type="StaticBody3D" parent="."]
 script = ExtResource("2_world")
