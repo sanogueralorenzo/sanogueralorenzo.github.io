@@ -31,7 +31,6 @@ const MAXIMUM_ENEMIES := 96
 const TARGETING_RANGE := 105.0
 const SPAWN_DISTANCE_MIN := 52.0
 const SPAWN_DISTANCE_MAX := 94.0
-const WAKE_DROP_INTERVAL := 0.2
 const INITIAL_REROLLS := 3
 const INITIAL_BANISHES := 1
 const RECOVERY_DROP_STRIDE := 18
@@ -432,7 +431,7 @@ func _update_slipstream(delta: float) -> void:
 	_wake_timer -= delta
 	if _wake_timer > 0.0:
 		return
-	_wake_timer = WAKE_DROP_INTERVAL
+	_wake_timer = build.get_wake_drop_interval()
 	_wake_drop_count += 1
 	var heading: Vector3 = _runner.heading.normalized()
 	var wake_position: Vector3 = _runner.global_position - heading * 10.0

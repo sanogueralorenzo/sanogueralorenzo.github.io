@@ -298,11 +298,21 @@ func get_wake_duration() -> float:
 
 
 func get_wake_radius() -> float:
-	return 7.5 + slipstream_level * 2.0 + wake_width_bonus
+	return _get_slipstream_radius(slipstream_level) + wake_width_bonus
+
+
+func get_wake_drop_interval() -> float:
+	if not is_twin_current():
+		return 0.2
+	return minf(0.34, 0.2 + maxf(0.0, slipstream_level - 4) * 0.02)
 
 
 func get_wake_damage(horizontal_speed: float) -> float:
 	return (5.0 + slipstream_level * 2.5 + wake_damage_bonus) * maxf(1.0, horizontal_speed / 58.0)
+
+
+func _get_slipstream_radius(rank: int) -> float:
+	return 7.5 + mini(rank, 4) * 2.0 + maxi(0, rank - 4) * 0.5
 
 
 func get_build_name() -> String:
@@ -366,7 +376,7 @@ func get_upgrade_effect_preview(upgrade_id: StringName) -> String:
 		&"slipstream":
 			return "WAKE  •  %.1f DAMAGE  •  %.1f M RADIUS  •  %.2f S" % [
 				5.0 + next_rank * 2.5 + wake_damage_bonus,
-				7.5 + next_rank * 2.0 + wake_width_bonus,
+				_get_slipstream_radius(next_rank) + wake_width_bonus,
 				1.45 + next_rank * 0.15 + wake_duration_bonus,
 			]
 		&"wake_duration":

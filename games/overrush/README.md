@@ -24,6 +24,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: charged dash-entry and unconditional exit detonations, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
+- Late Slipstream ranks widen with diminishing returns, and mature Twin Current lanes space their wake samples farther apart, preserving weaving and individual hit strength without turning dense Overrun packs into automatic map-wide clears.
 - Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
 - Mature evolved builds make a second protected commitment to one of three Drive Catalysts: Redline rewards dash velocity, Airframe rewards airtime, and Pulse rewards deliberate dash-timed attack windows.
 - Every evolved engine also chooses an independent arsenal: Hunter Array missiles cover distant targets, Drift Blades reward close pack threading, and Backdraft Mine turns dash exits into delayed pursuit traps; each has a dedicated three-rank support upgrade.
@@ -33,7 +34,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
 - Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
-- Strategy-aware seven-minute balance soaks keep all three engines inside an overlapping clear envelope while rejecting stalled traversal: Dashbreaker alternates a recharging entry nova with setup effects, Stormtrail earns coverage through weaving, and Storm Lance retains one residual auto-arc only when its aimed lane misses completely.
+- Strategy-aware seven- and eighteen-minute balance soaks keep all three engines inside overlapping early and late clear envelopes while rejecting stalled traversal: Dashbreaker alternates a recharging entry nova with setup effects, Stormtrail earns bounded coverage through weaving, and Storm Lance retains one residual auto-arc only when its aimed lane misses completely.
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
@@ -195,6 +196,14 @@ godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd
 ```
 
 Each gate requires at least 20 km of traversal, a viable clear envelope, the intended evolution and arsenal, and source-share guardrails where a single effect could otherwise erase the build's decision-making.
+
+Repeat the same three commands with `1080` as a third user argument for the 18-minute Overrun sample, for example:
+
+```sh
+godot --headless --path games/overrush --script res://tests/audit_engine_soak.gd -- stormtrail 41001 1080
+```
+
+The late gate requires every engine to complete its evolution, arsenal, and catalyst on schedule, traverse at least 48.6 km, remain inside the shared 500–1,000 clear envelope, and preserve measurable contributions outside its leading effect.
 
 Run the fixed-step, finite-integrity 20-minute survival budget audit with:
 

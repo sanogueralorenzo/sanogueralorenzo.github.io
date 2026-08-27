@@ -7,6 +7,7 @@ var _failures: Array[String] = []
 var _strategy := "dashbreaker"
 var _next_dash_time := 0.0
 var _audit_seed := 41001
+var _sample_duration := 420.0
 
 
 func _init() -> void:
@@ -15,6 +16,8 @@ func _init() -> void:
 		_strategy = user_args[0]
 	if user_args.size() > 1:
 		_audit_seed = int(user_args[1])
+	if user_args.size() > 2:
+		_sample_duration = maxf(420.0, float(user_args[2]))
 	Engine.physics_ticks_per_second = 600
 	Engine.time_scale = 30.0
 	call_deferred("_run")
@@ -34,7 +37,7 @@ func _run() -> void:
 	_director = scene.get_node("CombatDirector")
 	_director.level_up_requested.connect(_choose_upgrade)
 	scene.begin_run()
-	while _director.elapsed_time < 420.0 and _director._run_active:
+	while _director.elapsed_time < _sample_duration and _director._run_active:
 		_apply_audit_route()
 		if _strategy == "dashbreaker" and _director.elapsed_time >= _next_dash_time:
 			_director._on_dash_state_changed(true)
@@ -79,9 +82,9 @@ func _run() -> void:
 
 func _validate_result() -> void:
 	var expected_paths := {
-		"dashbreaker": [RunBuild.DASHBREAKER, &"gravity_knot", RunBuild.BACKDRAFT_MINE],
-		"stormtrail": [RunBuild.STORMTRAIL, &"twin_current", RunBuild.HUNTER_ARRAY],
-		"arcstorm": [RunBuild.ARCSTORM, &"storm_lance", RunBuild.HUNTER_ARRAY],
+		"dashbreaker": [RunBuild.DASHBREAKER, &"gravity_knot", RunBuild.BACKDRAFT_MINE, RunBuild.PULSE_CORE],
+		"stormtrail": [RunBuild.STORMTRAIL, &"twin_current", RunBuild.HUNTER_ARRAY, RunBuild.REDLINE_CORE],
+		"arcstorm": [RunBuild.ARCSTORM, &"storm_lance", RunBuild.HUNTER_ARRAY, RunBuild.REDLINE_CORE],
 	}
 	_expect(expected_paths.has(_strategy), "Unknown engine strategy '%s'." % _strategy)
 	if not expected_paths.has(_strategy):
@@ -90,10 +93,16 @@ func _validate_result() -> void:
 	_expect(_director.build.core_path == expected[0], "The soak should retain its intended engine commitment.")
 	_expect(_director.build.evolution_id == expected[1], "The soak should reach its intended evolution fork.")
 	_expect(_director.build.arsenal_id == expected[2], "The soak should reach its intended independent arsenal.")
-	_expect(_director.elapsed_time >= 419.0, "The representative seven-minute sample should complete.")
-	_expect(_director.run_stats.distance_traveled >= 20000.0, "The strategy must preserve high-speed traversal instead of farming while stalled.")
+	var is_late_sample := _sample_duration >= 1000.0
+	_expect(_director.elapsed_time >= _sample_duration - 1.0, "The requested strategy sample should complete.")
+	_expect(_director.run_stats.distance_traveled >= _sample_duration * 45.0, "The strategy must preserve high-speed traversal instead of farming while stalled.")
 	_expect(_runner.get_horizontal_speed() >= 45.0, "The sample should finish at traversal speed.")
-	_expect(_director.enemies_defeated >= 260 and _director.enemies_defeated <= 700, "The engine should remain inside the broad viable clear envelope.")
+	if is_late_sample:
+		_expect(_director.build.catalyst_id == expected[3], "The late sample should reach its intended movement catalyst.")
+		_expect(_director.enemies_defeated >= 500 and _director.enemies_defeated <= 1000, "The engine should remain inside the shared late-run clear envelope.")
+		_expect(_director.pacing.get_build_cadence_failures(_director.run_stats.get_build_milestone_times()).is_empty(), "The late sample should reach every build commitment inside its authored cadence window.")
+	else:
+		_expect(_director.enemies_defeated >= 260 and _director.enemies_defeated <= 700, "The engine should remain inside the broad seven-minute clear envelope.")
 	for milestone_id in _director.run_stats.get_build_milestone_times():
 		var window: Vector2 = RunPacing.BUILD_MILESTONE_WINDOWS[milestone_id]
 		var milestone_time := float(_director.run_stats.get_build_milestone_times()[milestone_id])
@@ -104,6 +113,9 @@ func _validate_result() -> void:
 	elif _strategy == "arcstorm":
 		_expect(_source_share(&"storm_lance") <= 0.75, "Storm Lance should reward aim without erasing Arcstorm's residual coverage.")
 		_expect(_source_share(&"arc_bolt") >= 0.15, "Missed Storm Lance lanes should preserve meaningful residual Arcstorm output.")
+	elif is_late_sample:
+		_expect(_source_share(&"twin_current") <= 0.9, "Twin Current should reward sustained weaving without erasing its arsenal and base engine.")
+		_expect(_source_share(&"hunter_array") >= 0.05, "Stormtrail's independent arsenal should remain measurable at late density.")
 
 
 func _source_share(source_id: StringName) -> float:

@@ -48,6 +48,11 @@ func _test_stormtrail_envelopes() -> void:
 	var twin_peak := twin.get_twin_current_damage_multiplier() * 2.0 * twin.get_twin_current_offset()
 	_expect_ratio(twin_peak, twin_base, 1.5, 2.0, "Twin Current support")
 	_expect(twin.get_twin_current_damage_multiplier() < 1.0, "Each Twin Current lane should remain weaker than one centered wake.")
+	_expect(is_equal_approx(twin.get_wake_drop_interval(), 0.2), "Twin Current should retain continuous early lanes at its evolution commitment.")
+	for _rank in range(6):
+		twin.apply_upgrade(&"slipstream")
+	_expect(twin.get_wake_radius() <= 19.0, "Late Slipstream ranks should add punch without growing Twin Current into near-universal map coverage.")
+	_expect(twin.get_wake_drop_interval() >= 0.31, "Dense late Twin Current lanes should space out overlapping wake samples instead of scaling without bound.")
 
 	var anchor := _evolved_build(&"slipstream", &"tempest_anchor")
 	var anchor_base := _anchor_pressure_index(anchor)
