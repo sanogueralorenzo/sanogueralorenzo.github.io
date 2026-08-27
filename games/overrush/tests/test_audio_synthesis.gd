@@ -15,7 +15,7 @@ func _init() -> void:
 	library.clear()
 	audio.free()
 	if _failures.is_empty():
-		print("Audio synthesis validation passed — 2 music layers and 15 effects built in %.2f ms." % build_milliseconds)
+		print("Audio synthesis validation passed — one ambient layer and 5 freeride effects built in %.2f ms." % build_milliseconds)
 		quit(0)
 	else:
 		for failure in _failures:
@@ -25,29 +25,16 @@ func _init() -> void:
 
 func _validate_library(library: Dictionary) -> void:
 	var expected_effects: Array[StringName] = [
-		&"dash",
+		&"air_boost",
 		&"jump",
 		&"landing_clean",
 		&"landing_solid",
 		&"landing_rough",
-		&"hurt",
-		&"hit",
-		&"enemy_defeat",
-		&"pickup",
-		&"repair",
-		&"warning",
-		&"level_up",
-		&"phase",
-		&"victory",
-		&"defeat",
 	]
-	_expect(library.size() == expected_effects.size() + 2, "The sound library should contain every designed music and feedback cue.")
-	for music_id in [&"music_bed", &"music_drive"]:
-		_expect(library.has(music_id), "Missing synthesized music layer %s." % music_id)
-		if not library.has(music_id):
-			continue
-		var stream := library[music_id] as AudioStreamWAV
-		_validate_stream(stream, AudioDirectorModel.MUSIC_DURATION, true, str(music_id))
+	_expect(library.size() == expected_effects.size() + 1, "The sound library should contain only the ambient bed and core movement feedback.")
+	_expect(library.has(&"music"), "Missing synthesized ambient music layer.")
+	if library.has(&"music"):
+		_validate_stream(library.music as AudioStreamWAV, AudioDirectorModel.MUSIC_DURATION, true, "music")
 	for effect_id in expected_effects:
 		_expect(library.has(effect_id), "Missing synthesized feedback cue %s." % effect_id)
 		if not library.has(effect_id):

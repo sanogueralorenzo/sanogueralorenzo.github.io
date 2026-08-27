@@ -42,7 +42,7 @@ func _run() -> void:
 		"High speed should widen FOV continuously without waiting for the air boost.",
 	)
 	camera.set_speed_burst_active(true)
-	_expect(is_equal_approx(camera._get_target_fov(), camera.dash_fov), "Air boost should retain the strongest brief speed framing.")
+	_expect(is_equal_approx(camera._get_target_fov(), camera.boost_fov), "Air boost should retain the strongest brief speed framing.")
 	camera.set_reduced_motion(true)
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Reduced motion should remove all speed-driven FOV displacement.")
 

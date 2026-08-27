@@ -26,8 +26,8 @@ func _run() -> void:
 	_expect(initial_rocks.size() >= 8, "The opening stream should contain several readable rock passages beyond the summit.")
 	_expect(initial_rocks.size() <= 32, "Rock passages should remain sparse enough for alternate lines.")
 	for rock in initial_rocks:
-		_expect(desert.is_rock_collider(rock), "Rock bodies need an explicit non-sand collision identity.")
-		_expect(not desert.is_sand_collider(rock), "Rock collision must never qualify as a boost-refreshing sand landing.")
+		_expect(desert.is_obstacle_collider(rock), "Rock bodies need an explicit obstacle collision identity.")
+		_expect(not desert.is_rideable_collider(rock), "Rock collision must never qualify as a boost-refreshing rideable landing.")
 		_expect(float(rock.get_meta(&"passage_clearance", 0.0)) >= 12.0, "Rock gates must retain at least 12 m of clear passage.")
 		var rock_shape: CollisionShape3D = rock.get_node("CollisionShape3D")
 		_expect(rock_shape.shape is SphereShape3D, "Every procedural rock needs dedicated solid collision.")
@@ -157,7 +157,7 @@ func _validate_collision_seam(desert: ProceduralDesert, rider: Sandboarder) -> v
 		var hit := space.intersect_ray(query)
 		_expect(not hit.is_empty(), "Collision ray missed one side of a streamed chunk seam.")
 		if not hit.is_empty():
-			_expect(desert.is_sand_collider(hit.collider), "Seam collision should resolve to a valid sand chunk.")
+			_expect(desert.is_rideable_collider(hit.collider), "Seam collision should resolve to valid rideable terrain.")
 			_expect(
 				absf(hit.position.y - expected_height) <= COLLISION_TOLERANCE,
 				"Collision differs from procedural height by %.3f m at the seam." % absf(hit.position.y - expected_height),

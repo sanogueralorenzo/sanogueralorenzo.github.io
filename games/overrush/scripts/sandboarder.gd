@@ -45,7 +45,7 @@ var _last_floor_normal := Vector3.UP
 var _carve_intensity := 0.0
 var _carve_sign := 0.0
 var _landing_compression := 0.0
-var _has_departed_sand := false
+var _has_departed_rideable_ground := false
 
 
 func _ready() -> void:
@@ -57,7 +57,7 @@ func _ready() -> void:
 	floor_stop_on_slope = false
 	_last_position = global_position
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
-	air_boost_state.reset_on_sand()
+	air_boost_state.reset_on_rideable_ground()
 	air_boost_state_changed.emit(true, false)
 
 
@@ -98,9 +98,9 @@ func respawn() -> void:
 	_heading = Vector3(_camera.call("get_planar_forward")) if _camera.has_method("get_planar_forward") else Vector3.FORWARD
 	distance_traveled = 0.0
 	_airtime = 0.0
-	_has_departed_sand = false
+	_has_departed_rideable_ground = false
 	jump_assist_state.reset()
-	air_boost_state.reset_on_sand()
+	air_boost_state.reset_on_rideable_ground()
 	_last_position = global_position
 	air_boost_state_changed.emit(true, false)
 
@@ -206,7 +206,7 @@ func _try_buffered_jump(started_on_floor: bool) -> bool:
 		velocity -= launch_normal * normal_speed
 	velocity += launch_normal * jump_velocity
 	_airtime = 0.0
-	_has_departed_sand = true
+	_has_departed_rideable_ground = true
 	air_boost_state.leave_surface()
 	air_boost_state_changed.emit(air_boost_state.available, true)
 	jumped.emit()
@@ -216,9 +216,9 @@ func _try_buffered_jump(started_on_floor: bool) -> bool:
 func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3, jumped_this_frame: bool) -> void:
 	var ended_on_floor := is_on_floor()
 	if ended_on_floor and not started_on_floor:
-		var valid_sand := _airtime >= minimum_landing_airtime and _has_valid_sand_floor_contact()
-		air_boost_state.land(valid_sand)
-		if valid_sand and _has_departed_sand:
+		var valid_rideable_ground := _airtime >= minimum_landing_airtime and _has_valid_rideable_floor_contact()
+		air_boost_state.land(valid_rideable_ground)
+		if valid_rideable_ground and _has_departed_rideable_ground:
 			var assessment := SandboardMotion.evaluate_landing(impact_velocity, get_floor_normal(), _heading)
 			var retention: float = assessment.momentum_retention
 			velocity.x *= retention
@@ -230,18 +230,18 @@ func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3, jum
 			landing_scored.emit(assessment.rating, float(assessment.score), float(assessment.impact_speed))
 		air_boost_state_changed.emit(air_boost_state.available, false)
 		_airtime = 0.0
-		_has_departed_sand = false
+		_has_departed_rideable_ground = false
 	elif not ended_on_floor and started_on_floor and not jumped_this_frame:
 		air_boost_state.leave_surface()
 		_airtime = 0.0
-		_has_departed_sand = true
+		_has_departed_rideable_ground = true
 		air_boost_state_changed.emit(air_boost_state.available, true)
 
 
-func _has_valid_sand_floor_contact() -> bool:
+func _has_valid_rideable_floor_contact() -> bool:
 	for index in range(get_slide_collision_count()):
 		var collision := get_slide_collision(index)
-		if _world.is_sand_collider(collision.get_collider()) and collision.get_normal().y >= valid_landing_normal_y:
+		if _world.is_rideable_collider(collision.get_collider()) and collision.get_normal().y >= valid_landing_normal_y:
 			return true
 	return false
 

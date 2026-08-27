@@ -27,7 +27,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	_expect(rider.global_position.is_equal_approx(paused_position), "The board must stay still behind start and pause overlays.")
-	rider.air_boost_state.reset_on_sand()
+	rider.air_boost_state.reset_on_rideable_ground()
 	_expect(not rider.try_air_boost(Vector3.FORWARD), "Air boost must reject use while grounded.")
 	rider.air_boost_state.leave_surface()
 	rider.velocity = Vector3(31.0, 3.0, 0.0)
@@ -40,7 +40,7 @@ func _run() -> void:
 	_expect(not rider.try_air_boost(Vector3.RIGHT), "Non-sand contact must not refresh the air boost.")
 	rider.air_boost_state.land(true)
 	rider.air_boost_state.leave_surface()
-	_expect(rider.try_air_boost(Vector3.RIGHT), "A valid sand landing must refresh exactly one boost.")
+	_expect(rider.try_air_boost(Vector3.RIGHT), "A valid rideable landing must refresh exactly one boost.")
 
 	scene.begin_run()
 	_expect(scene.run_active and not paused, "Drop In should begin an unpaused freeride run.")

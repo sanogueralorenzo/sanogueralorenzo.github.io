@@ -5,7 +5,7 @@ var available := true
 var airborne := false
 
 
-func reset_on_sand() -> void:
+func reset_on_rideable_ground() -> void:
 	available = true
 	airborne = false
 
@@ -21,9 +21,9 @@ func try_use() -> bool:
 	return true
 
 
-func land(valid_sand: bool) -> bool:
+func land(valid_rideable_ground: bool) -> bool:
 	airborne = false
-	if not valid_sand:
+	if not valid_rideable_ground:
 		return false
 	var refreshed := not available
 	available = true

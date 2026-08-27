@@ -54,7 +54,7 @@ func generate() -> void:
 	_stream_center = Vector2i(2147483647, 2147483647)
 	_set_stream_focus(Vector2.ZERO, true)
 	print(
-		"Dune Drifter desert — seed %s, %d seamless chunks around an unbounded radial field"
+		"Overrush terrain — seed %s, %d seamless chunks around an unbounded radial field"
 		% [str(generated_seed), loaded_chunks.size()]
 	)
 
@@ -110,12 +110,12 @@ func get_surface_normal(x: float, z: float, sample_distance := 3.0) -> Vector3:
 	return Vector3(left - right, sample_distance * 2.0, back - forward).normalized()
 
 
-func is_sand_collider(collider: Object) -> bool:
-	return collider is StaticBody3D and collider.get_meta(&"dune_drifter_sand", false)
+func is_rideable_collider(collider: Object) -> bool:
+	return collider is StaticBody3D and collider.get_meta(&"overrush_rideable", false)
 
 
-func is_rock_collider(collider: Object) -> bool:
-	return collider is StaticBody3D and collider.get_meta(&"dune_drifter_rock", false)
+func is_obstacle_collider(collider: Object) -> bool:
+	return collider is StaticBody3D and collider.get_meta(&"overrush_obstacle", false)
 
 
 func get_feature_kind_at(logical_position: Vector2) -> StringName:
@@ -135,7 +135,7 @@ func get_loaded_rock_bodies() -> Array[StaticBody3D]:
 	for chunk_value in loaded_chunks.values():
 		var chunk: StaticBody3D = chunk_value
 		for child in chunk.get_children():
-			if child is StaticBody3D and is_rock_collider(child):
+			if child is StaticBody3D and is_obstacle_collider(child):
 				rocks.append(child)
 	return rocks
 
@@ -211,7 +211,7 @@ func _load_chunk(coord: Vector2i) -> void:
 		return
 	var chunk := StaticBody3D.new()
 	chunk.name = "Sand_%d_%d" % [coord.x, coord.y]
-	chunk.set_meta(&"dune_drifter_sand", true)
+	chunk.set_meta(&"overrush_rideable", true)
 	var center_x := float(coord.x) * chunk_size
 	var center_z := float(coord.y) * chunk_size
 	var reference_height := get_surface_height(center_x, center_z)
@@ -389,7 +389,7 @@ func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: f
 		var radius := lerpf(2.7, 4.1, _feature_grammar.get_cell_random(coord, 36 + rock_index))
 		var rock := StaticBody3D.new()
 		rock.name = "RockGate_%d_%d_%d" % [coord.x, coord.y, rock_index]
-		rock.set_meta(&"dune_drifter_rock", true)
+		rock.set_meta(&"overrush_obstacle", true)
 		rock.set_meta(&"passage_clearance", center_spacing - radius * 2.0)
 		rock.position = Vector3(
 			logical_position.x - chunk_center.x,

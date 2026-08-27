@@ -181,7 +181,7 @@ corner_radius_bottom_left = 6
 content_margin_top = 12.0
 content_margin_bottom = 12.0
 
-[node name="DuneDrifter" type="Node3D"]
+[node name="Overrush" type="Node3D"]
 process_mode = 3
 script = ExtResource("1_main")
 
@@ -310,7 +310,7 @@ follow_height = 3.15
 look_ahead = 4.6
 focus_height = 1.0
 normal_fov = 76.0
-dash_fov = 94.0
+boost_fov = 94.0
 speed_fov_start = 15.0
 speed_fov_full = 72.0
 speed_fov_addition = 9.0
@@ -416,19 +416,19 @@ theme_override_constants/separation = 16
 [node name="Kicker" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
 theme_override_font_sizes/font_size = 16
-text = "ENDLESS DESERT FREERIDING"
+text = "ENDLESS OPEN-WORLD FREERIDING"
 horizontal_alignment = 1
 
 [node name="Title" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(1, 0.94, 0.8, 1)
 theme_override_font_sizes/font_size = 48
-text = "DUNE DRIFTER"
+text = "OVERRUSH"
 horizontal_alignment = 1
 
 [node name="Tagline" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(0.92, 0.82, 0.68, 1)
 theme_override_font_sizes/font_size = 19
-text = "Choose a horizon. Read the sand. Find your line."
+text = "Choose a horizon. Read the terrain. Find your line."
 horizontal_alignment = 1
 
 [node name="Description" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
@@ -440,7 +440,7 @@ horizontal_alignment = 1
 [node name="Rule" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(1, 0.72, 0.34, 1)
 theme_override_font_sizes/font_size = 14
-text = "ONE BOOST IN THE AIR  •  RECHARGES ON SAND"
+text = "ONE BOOST IN THE AIR  •  RECHARGES ON RIDEABLE GROUND"
 horizontal_alignment = 1
 
 [node name="Launch" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]

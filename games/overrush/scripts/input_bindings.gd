@@ -11,14 +11,7 @@ const LOOK_UP := &"overrush_look_up"
 const LOOK_DOWN := &"overrush_look_down"
 const HOP := &"overrush_hop"
 const AIR_BOOST := &"overrush_air_boost"
-const DASH := &"overrush_dash"
 const PAUSE := &"overrush_pause"
-const CONFIRM := &"overrush_confirm"
-const RETRY := &"overrush_retry"
-const REROLL := &"overrush_reroll"
-const BANISH := &"overrush_banish"
-const MENU_LEFT := &"overrush_menu_left"
-const MENU_RIGHT := &"overrush_menu_right"
 
 const ALL_ACTIONS: Array[StringName] = [
 	MOVE_LEFT,
@@ -31,14 +24,7 @@ const ALL_ACTIONS: Array[StringName] = [
 	LOOK_DOWN,
 	HOP,
 	AIR_BOOST,
-	DASH,
 	PAUSE,
-	CONFIRM,
-	RETRY,
-	REROLL,
-	BANISH,
-	MENU_LEFT,
-	MENU_RIGHT,
 ]
 
 
@@ -53,14 +39,7 @@ static func ensure_actions() -> void:
 	_ensure_action(LOOK_DOWN, [_joy_axis(JOY_AXIS_RIGHT_Y, 1.0)])
 	_ensure_action(HOP, [_key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])
 	_ensure_action(AIR_BOOST, [_key(KEY_SHIFT), _key(KEY_ALT), _joy_button(JOY_BUTTON_LEFT_SHOULDER), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
-	_ensure_action(DASH, [_key(KEY_SHIFT), _key(KEY_ALT), _joy_button(JOY_BUTTON_LEFT_SHOULDER), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
 	_ensure_action(PAUSE, [_key(KEY_ESCAPE), _joy_button(JOY_BUTTON_START)])
-	_ensure_action(CONFIRM, [_key(KEY_ENTER), _key(KEY_SPACE), _joy_button(JOY_BUTTON_A)])
-	_ensure_action(RETRY, [_key(KEY_R), _joy_button(JOY_BUTTON_A)])
-	_ensure_action(REROLL, [_key(KEY_Q), _joy_button(JOY_BUTTON_Y)])
-	_ensure_action(BANISH, [_key(KEY_B), _joy_button(JOY_BUTTON_X)])
-	_ensure_action(MENU_LEFT, [_key(KEY_A), _key(KEY_LEFT), _joy_button(JOY_BUTTON_DPAD_LEFT)])
-	_ensure_action(MENU_RIGHT, [_key(KEY_D), _key(KEY_RIGHT), _joy_button(JOY_BUTTON_DPAD_RIGHT)])
 
 
 static func is_gamepad_event(event: InputEvent) -> bool:

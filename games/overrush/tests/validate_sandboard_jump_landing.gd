@@ -70,12 +70,12 @@ func _run() -> void:
 			break
 	Input.action_release(OverrushInputBindings.MOVE_FORWARD)
 	if _landing_rating.is_empty():
-		_fail(scene, "The boosted jump did not resolve to a scored sand landing.")
+		_fail(scene, "The boosted jump did not resolve to a scored rideable landing.")
 		return
 	if not rider.air_boost_state.available or rider.air_boost_state.airborne:
 		_fail(
 			scene,
-			"A scored sand landing should restore exactly one grounded boost charge (available=%s, airborne=%s, on_floor=%s)."
+			"A scored rideable landing should restore exactly one grounded boost charge (available=%s, airborne=%s, on_floor=%s)."
 			% [str(rider.air_boost_state.available), str(rider.air_boost_state.airborne), str(rider.is_on_floor())],
 		)
 		return
@@ -86,7 +86,7 @@ func _run() -> void:
 		_fail(scene, "Landing feedback should include meaningful quality and impact values.")
 		return
 	if not rider.landing_burst.emitting:
-		_fail(scene, "A valid sand landing should emit an immediate contact burst.")
+		_fail(scene, "A valid rideable landing should emit an immediate contact burst.")
 		return
 	var landing_text: String = scene.get_node("HUD/LandingFeedback").text
 	if "LANDING" not in landing_text:
