@@ -215,6 +215,8 @@ func _update_chase(planar_offset: Vector3, distance: float, delta: float) -> voi
 		return
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		_move_at_standoff(planar_offset, distance, 68.0, 112.0, delta)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		_move_at_standoff(planar_offset, distance, 48.0, 92.0, delta)
 	elif archetype == &"rift_weaver":
 		_move_at_standoff(planar_offset, distance, 54.0, 88.0, delta)
 	elif archetype == &"swarm_foundry":
@@ -227,12 +229,7 @@ func _update_chase(planar_offset: Vector3, distance: float, delta: float) -> voi
 func _update_telegraph(delta: float) -> void:
 	_state_timer -= delta
 	var progress := 1.0 - clampf(_state_timer / maxf(_state_duration, 0.001), 0.0, 1.0)
-	var radius := _get_attack_radius()
-	var warning_scale := radius if _reduced_motion else lerpf(0.3, radius, progress)
-	_telegraph_mesh.scale = Vector3.ONE * warning_scale * 0.94
-	_telegraph_mesh.scale.y = 1.0
-	_telegraph_outline_mesh.scale = Vector3.ONE * warning_scale
-	_telegraph_outline_mesh.scale.y = 1.0
+	_set_telegraph_scale(1.0 if _reduced_motion else progress)
 	_telegraph_material.albedo_color.a = lerpf(0.06 if _high_contrast_telegraphs else 0.12, _get_telegraph_alpha(), progress)
 	_telegraph_outline_material.albedo_color.a = lerpf(0.48, 0.94 if _high_contrast_telegraphs else 0.72, progress)
 	_core_mesh.scale = Vector3.ONE if _reduced_motion else Vector3.ONE * lerpf(1.0, 1.55, progress)
@@ -242,7 +239,7 @@ func _update_telegraph(delta: float) -> void:
 	_telegraph_outline_mesh.visible = false
 	_core_mesh.scale = Vector3.ONE
 	match _attack_kind:
-		&"bulwark_pulse", &"apex_pulse", &"rift_blast", &"apex_rift":
+		&"bulwark_pulse", &"apex_pulse", &"rift_blast", &"apex_rift", &"apex_gate", &"apex_lane":
 			_resolve_pulse()
 			_begin_recovery()
 		&"foundry_bloom", &"apex_bloom":
@@ -303,7 +300,11 @@ func _can_begin_special(distance: float) -> bool:
 	if _special_cooldown > 0.0:
 		return false
 	if is_apex:
-		return distance <= (138.0 if archetype == ApexCatalogModel.RIFT_MATRIARCH else 92.0)
+		if archetype == ApexCatalogModel.RIFT_MATRIARCH:
+			return distance <= 138.0
+		if archetype == ApexCatalogModel.HORIZON_WARDEN:
+			return distance <= 132.0
+		return distance <= 92.0
 	if archetype == &"skimmer":
 		return distance >= 16.0 and distance <= 66.0
 	if archetype == &"bulwark":
@@ -321,6 +322,8 @@ func _begin_special(planar_offset: Vector3) -> void:
 	_special_sequence += 1
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		_attack_kind = &"apex_bloom" if _special_sequence % 3 == 0 else &"apex_rift"
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		_attack_kind = &"apex_gate" if _special_sequence % 2 == 1 else &"apex_lane"
 	elif is_apex and _special_sequence % 3 == 0:
 		_attack_kind = &"apex_pulse"
 	elif archetype == &"rift_weaver":
@@ -332,7 +335,22 @@ func _begin_special(planar_offset: Vector3) -> void:
 	else:
 		_attack_kind = &"apex_charge" if is_apex else &"skimmer_charge"
 	var predicted_target := target.global_position + target.velocity * (0.3 if is_apex else 0.18)
-	if _attack_kind in [&"rift_blast", &"apex_rift"]:
+	if _is_warden_attack():
+		_charge_direction = Vector3(target.velocity.x, 0.0, target.velocity.z).normalized()
+		if _charge_direction.length_squared() < 0.1:
+			_charge_direction = planar_offset.normalized()
+		if _charge_direction.length_squared() < 0.1:
+			_charge_direction = Vector3.FORWARD
+		var prediction_seconds := 0.62 if _apex_enraged else 0.55
+		predicted_target = target.global_position + target.velocity * prediction_seconds
+		_attack_center = Vector3(
+			predicted_target.x,
+			world.get_surface_height(predicted_target.x, predicted_target.z) + 0.16,
+			predicted_target.z
+		)
+		_place_remote_telegraph(_attack_center)
+		_orient_remote_telegraph(_charge_direction)
+	elif _attack_kind in [&"rift_blast", &"apex_rift"]:
 		var prediction_seconds := RIFT_PREDICTION_SECONDS
 		if _attack_kind == &"apex_rift":
 			prediction_seconds = 0.74 if _apex_enraged else 0.68
@@ -359,6 +377,8 @@ func _begin_special(planar_offset: Vector3) -> void:
 		_state_duration = 0.82 if _apex_enraged else 0.92
 	elif _attack_kind == &"apex_bloom":
 		_state_duration = 0.72 if _apex_enraged else 0.9
+	elif _is_warden_attack():
+		_state_duration = 0.72 if _apex_enraged else 0.9
 	elif _attack_kind == &"foundry_bloom":
 		_state_duration = 0.88
 	else:
@@ -366,13 +386,13 @@ func _begin_special(planar_offset: Vector3) -> void:
 	_state_timer = _state_duration
 	_telegraph_mesh.visible = true
 	_telegraph_outline_mesh.visible = true
-	var initial_radius := _get_attack_radius() if _reduced_motion else 0.3
-	_telegraph_mesh.scale = Vector3(initial_radius * 0.94, 1.0, initial_radius * 0.94)
-	_telegraph_outline_mesh.scale = Vector3(initial_radius, 1.0, initial_radius)
+	_set_telegraph_scale(1.0 if _reduced_motion else 0.0)
 	var warning_alpha := _get_telegraph_alpha()
 	var warning_color: Color
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		warning_color = Color(0.72, 0.18, 1.0, warning_alpha) if _attack_kind == &"apex_rift" else Color(0.34, 1.0, 0.62, warning_alpha)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		warning_color = Color(1.0, 0.58, 0.06, warning_alpha) if _attack_kind == &"apex_gate" else Color(1.0, 0.16, 0.48, warning_alpha)
 	elif is_apex:
 		warning_color = Color(0.18, 0.95, 1.0, warning_alpha)
 	elif _high_contrast_telegraphs:
@@ -393,7 +413,17 @@ func _begin_special(planar_offset: Vector3) -> void:
 
 
 func _resolve_pulse() -> void:
-	var center := _attack_center if _attack_kind in [&"rift_blast", &"apex_rift"] else global_position
+	var center := _attack_center if _attack_kind in [&"rift_blast", &"apex_rift", &"apex_gate", &"apex_lane"] else global_position
+	if _is_warden_attack():
+		var offset := target.global_position - center
+		offset.y = 0.0
+		var forward := _charge_direction.normalized()
+		var lateral := Vector3(-forward.z, 0.0, forward.x)
+		var half_extents := _get_warden_attack_half_extents()
+		if absf(offset.dot(lateral)) <= half_extents.x and absf(offset.dot(forward)) <= half_extents.y:
+			var damage_multiplier := 1.15 if _attack_kind == &"apex_gate" else 1.1
+			target.take_damage(contact_damage * damage_multiplier, center, _attack_kind)
+		return
 	var planar_distance := Vector2(
 		target.global_position.x - center.x,
 		target.global_position.z - center.z
@@ -409,6 +439,8 @@ func _begin_recovery() -> void:
 	_state_timer = _state_duration
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		_special_cooldown = 1.85 if _apex_enraged else 2.55
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		_special_cooldown = 2.05 if _apex_enraged else 2.7
 	elif is_apex:
 		_special_cooldown = 2.35 if health <= maximum_health * 0.5 else 2.9
 	elif archetype == &"swarm_foundry":
@@ -438,9 +470,41 @@ func _get_attack_radius() -> float:
 	return body_radius * (2.4 if is_apex else 2.0)
 
 
+func _is_warden_attack() -> bool:
+	return _attack_kind in [&"apex_gate", &"apex_lane"]
+
+
+func _get_warden_attack_half_extents() -> Vector2:
+	if _attack_kind == &"apex_gate":
+		return Vector2(54.0, 8.0) if _apex_enraged else Vector2(46.0, 7.0)
+	return Vector2(11.0, 56.0) if _apex_enraged else Vector2(9.0, 48.0)
+
+
+func _set_telegraph_scale(progress: float) -> void:
+	if _is_warden_attack():
+		var half_extents := _get_warden_attack_half_extents()
+		var growth := lerpf(0.04, 1.0, progress)
+		_telegraph_mesh.scale = Vector3(half_extents.x * 0.94 * growth, 1.0, half_extents.y * 0.94 * growth)
+		_telegraph_outline_mesh.scale = Vector3(half_extents.x * growth, 1.0, half_extents.y * growth)
+		return
+	var radius := _get_attack_radius()
+	var warning_scale := lerpf(0.3, radius, progress)
+	_telegraph_mesh.scale = Vector3(warning_scale * 0.94, 1.0, warning_scale * 0.94)
+	_telegraph_outline_mesh.scale = Vector3(warning_scale, 1.0, warning_scale)
+
+
 func _place_remote_telegraph(center: Vector3) -> void:
 	_telegraph_mesh.global_position = center + Vector3.UP * 0.04
 	_telegraph_outline_mesh.global_position = center
+
+
+func _orient_remote_telegraph(direction: Vector3) -> void:
+	var flat_direction := Vector3(direction.x, 0.0, direction.z).normalized()
+	if flat_direction.length_squared() < 0.1:
+		flat_direction = Vector3.FORWARD
+	var orientation := Basis.looking_at(flat_direction, Vector3.UP)
+	_telegraph_mesh.global_basis = orientation
+	_telegraph_outline_mesh.global_basis = orientation
 
 
 func _place_local_telegraph() -> void:
@@ -483,6 +547,8 @@ func _build_visuals() -> void:
 		_body_mesh.scale = Vector3(0.7, 0.7, 1.42)
 	elif archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		_body_mesh.scale = Vector3(0.9, 1.28, 0.9)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		_body_mesh.scale = Vector3(1.42, 0.68, 0.92)
 	elif is_apex:
 		_body_mesh.scale = Vector3(1.18, 0.78, 1.45)
 	add_child(_body_mesh)
@@ -498,6 +564,8 @@ func _build_visuals() -> void:
 	core_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		core_material.albedo_color = Color(0.96, 0.72, 1.0)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		core_material.albedo_color = Color(1.0, 0.86, 0.48)
 	elif is_apex:
 		core_material.albedo_color = Color(0.72, 0.96, 1.0)
 	elif archetype == &"rift_weaver":
@@ -511,6 +579,8 @@ func _build_visuals() -> void:
 	core_material.emission_enabled = true
 	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
 		core_material.emission = Color(0.68, 0.08, 1.0)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		core_material.emission = Color(1.0, 0.38, 0.04)
 	elif is_apex:
 		core_material.emission = Color(0.08, 0.78, 1.0)
 	elif archetype == &"rift_weaver":
@@ -541,7 +611,7 @@ func _build_visuals() -> void:
 	_telegraph_material.emission_energy_multiplier = 4.0
 	_telegraph_mesh.material_override = _telegraph_material
 	add_child(_telegraph_mesh)
-	if archetype in [&"rift_weaver", ApexCatalogModel.RIFT_MATRIARCH]:
+	if archetype in [&"rift_weaver", ApexCatalogModel.RIFT_MATRIARCH, ApexCatalogModel.HORIZON_WARDEN]:
 		_telegraph_mesh.top_level = true
 
 	_telegraph_outline_mesh = MeshInstance3D.new()
@@ -556,7 +626,7 @@ func _build_visuals() -> void:
 	_telegraph_outline_material.emission_energy_multiplier = 5.0
 	_telegraph_outline_mesh.material_override = _telegraph_outline_material
 	add_child(_telegraph_outline_mesh)
-	if archetype in [&"rift_weaver", ApexCatalogModel.RIFT_MATRIARCH]:
+	if archetype in [&"rift_weaver", ApexCatalogModel.RIFT_MATRIARCH, ApexCatalogModel.HORIZON_WARDEN]:
 		_telegraph_outline_mesh.top_level = true
 
 	_build_role_silhouette()
@@ -615,6 +685,28 @@ func _build_role_silhouette() -> void:
 			brood_core.position = Vector3(cos(angle), 0.12, sin(angle)) * body_radius * 1.18
 			brood_core.material_override = _create_role_material(Color(0.28, 1.0, 0.58))
 			add_child(brood_core)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		for side in [-1.0, 1.0]:
+			var horizon_fin := MeshInstance3D.new()
+			var fin_mesh := BoxMesh.new()
+			fin_mesh.size = Vector3(body_radius * 1.55, body_radius * 0.18, body_radius * 0.42)
+			horizon_fin.mesh = fin_mesh
+			horizon_fin.position = Vector3(side * body_radius * 0.94, 0.0, 0.0)
+			horizon_fin.rotation_degrees = Vector3(0.0, side * 9.0, side * 12.0)
+			horizon_fin.material_override = _create_role_material(Color(1.0, 0.48, 0.04))
+			add_child(horizon_fin)
+		for side in [-1.0, 1.0]:
+			var gate_pylon := MeshInstance3D.new()
+			var pylon_mesh := CapsuleMesh.new()
+			pylon_mesh.radius = body_radius * 0.14
+			pylon_mesh.height = body_radius * 1.45
+			pylon_mesh.radial_segments = 12
+			pylon_mesh.rings = 4
+			gate_pylon.mesh = pylon_mesh
+			gate_pylon.position = Vector3(side * body_radius * 0.5, body_radius * 0.54, 0.0)
+			gate_pylon.rotation_degrees = Vector3(0.0, 0.0, side * 8.0)
+			gate_pylon.material_override = _create_role_material(Color(1.0, 0.2, 0.42))
+			add_child(gate_pylon)
 	elif archetype == &"rift_weaver":
 		for tilt in [-52.0, 52.0]:
 			var ring := MeshInstance3D.new()
@@ -707,7 +799,11 @@ func _build_rank_shell() -> void:
 	var shell_material := StandardMaterial3D.new()
 	shell_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	shell_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	var apex_color := Color(0.68, 0.08, 1.0) if archetype == ApexCatalogModel.RIFT_MATRIARCH else Color(0.05, 0.7, 1.0)
+	var apex_color := Color(0.05, 0.7, 1.0)
+	if archetype == ApexCatalogModel.RIFT_MATRIARCH:
+		apex_color = Color(0.68, 0.08, 1.0)
+	elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+		apex_color = Color(1.0, 0.34, 0.04)
 	shell_material.albedo_color = Color(apex_color.r, apex_color.g, apex_color.b, 0.18) if is_apex else Color(1.0, 0.62, 0.08, 0.17)
 	shell_material.emission_enabled = true
 	shell_material.emission = apex_color if is_apex else Color(1.0, 0.28, 0.03)
@@ -738,7 +834,12 @@ func _update_material() -> void:
 	elif archetype == &"rift_spawn":
 		base_color = Color(0.48, 0.04, 0.72)
 	elif is_apex:
-		base_color = Color(0.34, 0.02, 0.56) if archetype == ApexCatalogModel.RIFT_MATRIARCH else Color(0.025, 0.32, 0.62)
+		if archetype == ApexCatalogModel.RIFT_MATRIARCH:
+			base_color = Color(0.34, 0.02, 0.56)
+		elif archetype == ApexCatalogModel.HORIZON_WARDEN:
+			base_color = Color(0.56, 0.12, 0.015)
+		else:
+			base_color = Color(0.025, 0.32, 0.62)
 	if is_elite:
 		base_color = base_color.lerp(Color(1.0, 0.42, 0.04), 0.42)
 	if _hit_flash > 0.0:

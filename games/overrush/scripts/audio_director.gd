@@ -123,7 +123,11 @@ func play_attack_warning(attack_kind: StringName, is_elite: bool, is_apex: bool)
 		return
 	_warning_cooldown = 0.1
 	var pitch := 1.08
-	if "pulse" in str(attack_kind):
+	if attack_kind == &"apex_gate":
+		pitch = 1.42
+	elif attack_kind == &"apex_lane":
+		pitch = 1.16
+	elif "pulse" in str(attack_kind):
 		pitch = 0.72
 	elif attack_kind in [&"rift_blast", &"apex_rift"]:
 		pitch = 1.28

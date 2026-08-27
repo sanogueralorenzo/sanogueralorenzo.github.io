@@ -15,8 +15,9 @@ func _run() -> void:
 	_validate_catalog()
 	await _validate_velocity_reaver()
 	await _validate_rift_matriarch()
+	await _validate_horizon_warden()
 	if _failures.is_empty():
-		print("Apex variant validation passed — deterministic selection, pursuit, prediction, broods, escalation, and HUD identity are distinct.")
+		print("Apex variant validation passed — three deterministic encounters provide distinct charges, rifts, broods, gates, lanes, escalation, and HUD identity.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -25,9 +26,14 @@ func _run() -> void:
 
 
 func _validate_catalog() -> void:
-	_expect(ApexCatalogModel.get_for_seed(48920) == ApexCatalogModel.VELOCITY_REAVER, "Even world seeds should select the Velocity Reaver.")
-	_expect(ApexCatalogModel.get_for_seed(41001) == ApexCatalogModel.RIFT_MATRIARCH, "Odd world seeds should select the Rift Matriarch.")
-	_expect(ApexCatalogModel.get_title(ApexCatalogModel.VELOCITY_REAVER) != ApexCatalogModel.get_title(ApexCatalogModel.RIFT_MATRIARCH), "Each Apex should expose a distinct player-facing identity.")
+	_expect(ApexCatalogModel.IDS.size() == 3, "The deterministic Apex rotation should expose three encounters.")
+	_expect(ApexCatalogModel.get_for_seed(41001) == ApexCatalogModel.RIFT_MATRIARCH, "Seed 41001 should preserve the Rift Matriarch climax.")
+	_expect(ApexCatalogModel.get_for_seed(41002) == ApexCatalogModel.HORIZON_WARDEN, "Seed 41002 should select the Horizon Warden.")
+	_expect(ApexCatalogModel.get_for_seed(48920) == ApexCatalogModel.VELOCITY_REAVER, "Seed 48920 should preserve the Velocity Reaver climax.")
+	var titles := {}
+	for apex_id in ApexCatalogModel.IDS:
+		titles[ApexCatalogModel.get_title(apex_id)] = true
+	_expect(titles.size() == ApexCatalogModel.IDS.size(), "Each Apex should expose a distinct player-facing identity.")
 
 
 func _validate_velocity_reaver() -> void:
@@ -96,6 +102,61 @@ func _validate_rift_matriarch() -> void:
 	await _destroy_scene(scene)
 
 
+func _validate_horizon_warden() -> void:
+	var scene := await _create_scene(41002)
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	var world: Node3D = scene.get_node("World")
+	director._spawn_apex(ApexCatalogModel.HORIZON_WARDEN)
+	var warden: EnemyAgent = director._apex
+	runner.velocity = Vector3(0.0, 0.0, 72.0)
+	warden.global_position = runner.global_position + Vector3.RIGHT * 76.0
+	warden.global_position.y = world.get_surface_height(warden.global_position.x, warden.global_position.z) + warden.body_radius
+	_attack_kind = &""
+	warden.attack_telegraphed.connect(func(_enemy: EnemyAgent, kind: StringName) -> void: _attack_kind = kind)
+	warden._special_cooldown = 0.0
+	await physics_frame
+	await physics_frame
+	_expect(_attack_kind == &"apex_gate", "The Horizon Warden should open with a transverse gate across the projected route.")
+	_expect(warden._telegraph_mesh.top_level and warden._attack_center.distance_to(warden.global_position) > 25.0, "Warden gates should remain fixed in remote world space instead of following the boss.")
+	var runner_direction := Vector3(runner.velocity.x, 0.0, runner.velocity.z).normalized()
+	_expect(absf(warden._charge_direction.dot(runner_direction)) > 0.9, "Warden attack geometry should align to the runner's current travel direction.")
+	var gate_extents := warden._get_warden_attack_half_extents()
+	_expect(gate_extents.x > gate_extents.y * 5.0, "The gate should read as a broad transverse obstacle rather than another circular blast.")
+
+	var forward := warden._charge_direction.normalized()
+	var lateral := Vector3(-forward.z, 0.0, forward.x)
+	runner.global_position = warden._attack_center + lateral * (gate_extents.x + 3.0)
+	runner._damage_invulnerability_remaining = 0.0
+	var integrity_before_safe_resolution: float = runner.integrity
+	warden._resolve_pulse()
+	_expect(is_equal_approx(runner.integrity, integrity_before_safe_resolution), "Clearing the visible side of a Warden gate should avoid its damage.")
+	runner.global_position = warden._attack_center
+	runner._damage_invulnerability_remaining = 0.0
+	warden._resolve_pulse()
+	_expect(runner.integrity < integrity_before_safe_resolution, "Remaining inside a Warden gate should apply attributed damage.")
+
+	warden._attack_state = EnemyAgent.AttackState.CHASE
+	warden._special_sequence = 1
+	warden._special_cooldown = 0.0
+	warden._begin_special(Vector3.LEFT)
+	_expect(warden._attack_kind == &"apex_lane", "The Warden should alternate its transverse gate with a longitudinal lane cut.")
+	var lane_extents := warden._get_warden_attack_half_extents()
+	_expect(lane_extents.y > lane_extents.x * 5.0, "The lane cut should demand a lateral turn instead of reusing gate geometry.")
+
+	warden._begin_recovery()
+	var cooldown_before_enrage := warden._special_cooldown
+	_enrage_announced = false
+	director.event_announced.connect(_capture_enrage_event)
+	warden.take_damage(warden.maximum_health * 0.51)
+	warden._begin_recovery()
+	await process_frame
+	_expect(warden.is_apex_enraged() and warden._special_cooldown < cooldown_before_enrage, "The Warden's second phase should widen its geometry and shorten its attack cycle.")
+	_expect(_enrage_announced, "The Warden's converging second phase should be announced clearly.")
+	_expect(scene.get_node("HUD/ApexLabel").text.begins_with("HORIZON WARDEN"), "The Horizon Warden identity should remain readable in the HUD during combat.")
+	await _destroy_scene(scene)
+
+
 func _create_scene(world_seed: int) -> Node:
 	var scene: Node = load("res://main.tscn").instantiate()
 	scene.set_meta("overrush_disable_persistence", true)
@@ -116,7 +177,7 @@ func _destroy_scene(scene: Node) -> void:
 
 
 func _capture_enrage_event(title: String, _subtitle: String) -> void:
-	if "UNBOUND" in title or "FRACTURES" in title:
+	if "UNBOUND" in title or "FRACTURES" in title or "CONVERGES" in title:
 		_enrage_announced = true
 
 

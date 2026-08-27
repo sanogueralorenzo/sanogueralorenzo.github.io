@@ -27,12 +27,15 @@ const DAMAGE_TAKEN_SOURCE_NAMES := {
 	&"rift_spawn_contact": "RIFT SPAWN CONTACT",
 	&"velocity_reaver_contact": "REAVER CONTACT",
 	&"rift_matriarch_contact": "MATRIARCH CONTACT",
+	&"horizon_warden_contact": "WARDEN CONTACT",
 	&"skimmer_charge": "SKIMMER CHARGE",
 	&"apex_charge": "APEX CHARGE",
 	&"bulwark_pulse": "BULWARK PULSE",
 	&"rift_blast": "RIFT BLAST",
 	&"apex_pulse": "APEX PULSE",
 	&"apex_rift": "APEX RIFT",
+	&"apex_gate": "HORIZON GATE",
+	&"apex_lane": "HORIZON CUT",
 	&"unattributed": "OTHER",
 }
 

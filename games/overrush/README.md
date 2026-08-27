@@ -37,8 +37,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - The live HUD counts down to the Apex, then switches to its two-minute defeat deadline; reproducible seed information remains available from pause without competing with the immediate objective.
 - Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
 - Strategy-aware seven- and eighteen-minute balance soaks cover all six evolution branches inside overlapping early and late clear envelopes while rejecting stalled traversal. Their routes exercise distinct execution: setup dashes, direct Ramjet impacts, woven Twin Current lanes, bounded Tempest zones, aimed Storm Lances, and close Arc Orbit threading.
-- Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
-- Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
+- Three named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, the Rift Matriarch predicts the route and releases bounded zero-reward broods, and the Horizon Warden alternates transverse gates with longitudinal lane cuts.
+- Every Apex visibly escalates below half health with faster pursuit, wider geometry, or shorter route-denial cycles plus distinct procedural silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, applied integrity recovery, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
@@ -57,7 +57,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
 - The pause menu doubles as a compact loadout inspector, listing the current engine, evolution, Drive Catalyst, and every owned upgrade rank without interrupting or ending the run.
 
-This is not yet the complete target game. The 20-minute structure, two Apex encounters, six build evolutions with three independent arsenals and three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, three Apex encounters, six build evolutions with three independent arsenals and three cross-engine catalysts, five-role enemy roster, measured run recaps, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broader content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 

@@ -863,7 +863,7 @@ func _get_phase_subtitle(phase_id: StringName) -> String:
 		&"overrun":
 			return "The storm is saturating the route"
 		&"apex":
-			return "Two minutes to break the hunter"
+			return "Two minutes to break the Apex"
 		_:
 			return "Build velocity. Shape the run."
 
@@ -886,6 +886,8 @@ func _get_enemy_title(archetype: StringName) -> String:
 			return "Velocity Reaver"
 		ApexCatalogModel.RIFT_MATRIARCH:
 			return "Rift Matriarch"
+		ApexCatalogModel.HORIZON_WARDEN:
+			return "Horizon Warden"
 		_:
 			return "Overrun Pursuer"
 

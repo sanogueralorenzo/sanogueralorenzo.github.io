@@ -62,6 +62,11 @@ func _init() -> void:
 	var milestones := stats.get_build_milestone_times()
 	_expect(is_equal_approx(float(milestones.engine), 12.4) and is_equal_approx(float(milestones.catalyst), 612.8), "Run telemetry should preserve the first occurrence of every major build milestone.")
 	_expect("ENGINE 00:12" in stats.get_build_cadence_text() and "DRIVE 10:12" in stats.get_build_cadence_text(), "Cadence evidence should be readable in the player-facing recap.")
+	var warden_stats: OverrushRunStats = RunStatsScript.new()
+	warden_stats.reset(Vector3.ZERO)
+	warden_stats.record_damage_taken(12.0, &"apex_gate")
+	warden_stats.record_damage_taken(8.0, &"apex_lane")
+	_expect("HORIZON GATE 60%" in warden_stats.get_damage_taken_breakdown_text() and "HORIZON CUT 40%" in warden_stats.get_damage_taken_breakdown_text(), "Warden gate and lane hits should remain distinguishable in playtest recaps.")
 
 	if _failures.is_empty():
 		print("Run statistics validation passed — damage attribution, traversal evidence, and bounded snapshots are deterministic.")

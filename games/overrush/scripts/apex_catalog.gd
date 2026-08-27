@@ -3,7 +3,8 @@ extends RefCounted
 
 const VELOCITY_REAVER := &"velocity_reaver"
 const RIFT_MATRIARCH := &"rift_matriarch"
-const IDS: Array[StringName] = [VELOCITY_REAVER, RIFT_MATRIARCH]
+const HORIZON_WARDEN := &"horizon_warden"
+const IDS: Array[StringName] = [RIFT_MATRIARCH, HORIZON_WARDEN, VELOCITY_REAVER]
 
 const DEFINITIONS := {
 	VELOCITY_REAVER: {
@@ -25,6 +26,16 @@ const DEFINITIONS := {
 		"movement_speed": 54.0,
 		"contact_damage": 22.0,
 		"body_radius": 6.6,
+	},
+	HORIZON_WARDEN: {
+		"title": "HORIZON WARDEN",
+		"arrival": "It folds the route into gates — break its geometry before 20:00",
+		"enrage_title": "HORIZON WARDEN CONVERGES",
+		"enrage_subtitle": "Wider gates. Faster cuts. Read the line before it closes.",
+		"maximum_health": 1800.0,
+		"movement_speed": 58.0,
+		"contact_damage": 23.0,
+		"body_radius": 6.4,
 	},
 }
 
