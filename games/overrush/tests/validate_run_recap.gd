@@ -45,6 +45,8 @@ func _run() -> void:
 	director.run_stats.record_damage(&"dash_echo", 1000.0)
 	director.run_stats.record_damage_taken(47.0, &"skimmer_charge")
 	director.run_stats.record_damage_taken(20.0, &"pursuer_contact")
+	director.run_stats.record_integrity_recovery(12.0)
+	director.run_stats.record_integrity_recovery(12.0)
 	for index in range(180):
 		director.run_stats.record_traversal(Vector3(0.0, 0.0, float(index + 1) * 200.0), 126.0 if index == 40 else 72.0)
 	for _dash in range(74):
@@ -86,10 +88,12 @@ func _run() -> void:
 	_expect("12:23" in message.text and "88 CLEARED" in message.text and "4 ELITES" in message.text, "The recap should summarize encounter progress at a glance.")
 	_expect("DASH NOVA" in message.text and "RAMJET" in message.text, "The recap should expose leading damage contributions for balance review.")
 	_expect("TOP THREATS" in message.text and "SKIMMER CHARGE 70%" in message.text, "The recap should teach the player and playtester which attack caused most incoming damage.")
+	_expect("24 REPAIRED / 2 CORES" in message.text, "The recap should expose how much bounded recovery influenced survivability.")
 	_expect("36.0 KM TRAVERSED" in message.text and "126 M/S PEAK" in message.text and "74 DASHES" in message.text, "The recap should preserve Overrush's traversal identity.")
 	_expect("NEW BEST" in message.text and "+" in message.text and "MOMENTUM" in message.text, "The first measured run should connect records and progression to the retry prompt.")
 	_expect(str(scene._profile.last_run_summary.build_name) == "DASHBREAKER • RAMJET", "The same bounded recap evidence should persist through the profile model.")
 	_expect(is_equal_approx(float(scene._profile.last_run_summary.damage_taken_by_source.skimmer_charge), 47.0), "Incoming threat attribution should persist with the bounded run history.")
+	_expect(is_equal_approx(float(scene._profile.last_run_summary.integrity_recovered), 24.0) and int(scene._profile.last_run_summary.recovery_pickups) == 2, "Recovery evidence should persist with the bounded run history.")
 	_expect(feedback_prompt.text == "PLAYTEST  •  WOULD YOU RUN AGAIN?" and not feedback_yes.disabled, "Outcome feedback should remain optional and available without blocking retry.")
 	feedback_yes.pressed.emit()
 	_expect(str(scene._profile.last_run_summary.replay_intent) == "yes" and str(scene._profile.run_history[0].replay_intent) == "yes", "A replay response should attach to the exact measured run.")

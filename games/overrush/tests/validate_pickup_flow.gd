@@ -12,9 +12,10 @@ func _init() -> void:
 func _run() -> void:
 	await _validate_dash_speed_collection()
 	await _validate_recovery_and_value_silhouettes()
+	await _validate_integrity_recovery_flow()
 	await _validate_zero_value_drops()
 	if _failures.is_empty():
-		print("Pickup flow validation passed — cores catch dash-speed runners, recover stale rewards, communicate value, and skip empty drops.")
+		print("Pickup flow validation passed — experience and bounded integrity cores catch fast runners, communicate purpose, and skip empty drops.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -96,6 +97,76 @@ func _validate_zero_value_drops() -> void:
 		if child is ExperiencePickup:
 			pickup_count += 1
 	_expect(pickup_count == 0, "Zero-reward summons should not leave deceptive or permanent pickup nodes.")
+	paused = false
+	scene.queue_free()
+	await process_frame
+
+
+func _validate_integrity_recovery_flow() -> void:
+	var scene: Node = load("res://main.tscn").instantiate()
+	scene.set_meta("overrush_manual_start", true)
+	scene.set_meta("overrush_disable_persistence", true)
+	scene.get_node("World").seed = 77131
+	root.add_child(scene)
+	await process_frame
+	scene.begin_run()
+	await process_frame
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	director._spawn_timer = INF
+	director._rewarding_defeats_since_recovery = director.RECOVERY_DROP_STRIDE - 1
+	var enemy: EnemyAgent = director._spawn_enemy(&"pursuer")
+	enemy.global_position = runner.global_position + Vector3.RIGHT * 28.0
+	enemy.take_damage(enemy.health + 1.0, &"dash_nova")
+	await process_frame
+	var recovery: ExperiencePickup
+	for child in director.get_children():
+		if child is ExperiencePickup and child.is_integrity_pickup():
+			recovery = child
+			break
+	_expect(is_instance_valid(recovery), "Every eighteenth rewarding defeat should create one deterministic integrity core.")
+	if is_instance_valid(recovery):
+		_expect(recovery.get_child_count() == 7, "Integrity cores should use a unique squat, ringed silhouette with four satellites.")
+		recovery.global_position = runner.global_position
+		await physics_frame
+		_expect(is_instance_valid(recovery) and not recovery.is_queued_for_deletion(), "A full-integrity runner should be able to bank a recovery core instead of wasting it.")
+		runner.take_damage(25.0, runner.global_position + Vector3.RIGHT, &"pursuer_contact")
+		var damaged_integrity: float = runner.integrity
+		for _frame in range(30):
+			await physics_frame
+			if not is_instance_valid(recovery) or recovery.is_queued_for_deletion():
+				break
+		_expect(is_equal_approx(runner.integrity, damaged_integrity + float(director.STANDARD_RECOVERY_VALUE)), "A banked standard integrity core should apply its bounded repair once the runner is damaged.")
+		_expect(is_equal_approx(director.run_stats.integrity_recovered, float(director.STANDARD_RECOVERY_VALUE)) and director.run_stats.recovery_pickups == 1, "Applied recovery should be recorded once in run telemetry.")
+	runner.repair_integrity(runner.maximum_integrity)
+	var elite: EnemyAgent = director._spawn_enemy(&"pursuer", &"elite")
+	elite.global_position = runner.global_position + Vector3.RIGHT * 34.0
+	elite.take_damage(elite.health + 1.0, &"dash_nova")
+	await process_frame
+	var elite_recovery: ExperiencePickup
+	for child in director.get_children():
+		if child is ExperiencePickup and child.is_integrity_pickup():
+			elite_recovery = child
+			break
+	_expect(is_instance_valid(elite_recovery) and elite_recovery.value == director.ELITE_RECOVERY_VALUE, "Every rewarding elite should guarantee a larger integrity core when the world cap has room.")
+	_expect(director._rewarding_defeats_since_recovery == 1, "An elite bonus should not postpone the regular recovery cadence.")
+	while director._count_active_recovery_pickups() < director.MAX_ACTIVE_RECOVERY_PICKUPS:
+		director._spawn_pickup(runner.global_position + Vector3.FORWARD * (12.0 + director._count_active_recovery_pickups() * 3.0), director.STANDARD_RECOVERY_VALUE, ExperiencePickup.INTEGRITY)
+	director._rewarding_defeats_since_recovery = director.RECOVERY_DROP_STRIDE - 1
+	var capped_enemy: EnemyAgent = director._spawn_enemy(&"pursuer")
+	capped_enemy.take_damage(capped_enemy.health + 1.0, &"dash_nova")
+	await process_frame
+	_expect(director._count_active_recovery_pickups() == director.MAX_ACTIVE_RECOVERY_PICKUPS and director._rewarding_defeats_since_recovery == director.RECOVERY_DROP_STRIDE, "Three banked integrity cores should cap world clutter without discarding an earned cadence drop.")
+	for child in director.get_children():
+		if child is ExperiencePickup and child.is_integrity_pickup():
+			child.queue_free()
+			break
+	await process_frame
+	var deferred_enemy: EnemyAgent = director._spawn_enemy(&"pursuer")
+	deferred_enemy.take_damage(deferred_enemy.health + 1.0, &"dash_nova")
+	await process_frame
+	_expect(director._count_active_recovery_pickups() == director.MAX_ACTIVE_RECOVERY_PICKUPS and director._rewarding_defeats_since_recovery == 0, "A deferred cadence drop should appear on the next rewarding defeat once a world slot opens.")
+	director.stop_run()
 	paused = false
 	scene.queue_free()
 	await process_frame

@@ -130,6 +130,7 @@ func _ready() -> void:
 	combat.enemy_defeated_feedback.connect(audio.play_enemy_defeat)
 	combat.enemy_hit_feedback.connect(audio.play_enemy_hit)
 	combat.experience_collected_feedback.connect(audio.play_pickup)
+	combat.integrity_collected_feedback.connect(audio.play_repair)
 	combat.attack_warning_feedback.connect(audio.play_attack_warning)
 	for index in range(level_up_buttons.size()):
 		level_up_buttons[index].pressed.connect(_choose_upgrade.bind(index))
@@ -667,7 +668,7 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 	if arsenal_id in RunBuild.ARSENAL_IDS:
 		arsenal_text = "ARSENAL  •  %s" % combat.build.get_upgrade_name(arsenal_id)
 	drive_text = "%s\n%s" % [arsenal_text, drive_text]
-	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN\n%s\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
+	return "%s\n\n%s  •  LEVEL %d\n%s\nDRAFT  •  %d UPGRADES  •  %d REROLLS  •  %d %s\n%s\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%s\n%d DAMAGE  •  %d TAKEN  •  %d REPAIRED / %d CORES\n%s\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s" % [
 		headline,
 		str(summary.get("build_name", "UNCOMMITTED")),
 		int(summary.get("level", 1)),
@@ -685,6 +686,8 @@ func _format_run_recap(headline: String, result: Dictionary) -> String:
 		apex_text,
 		roundi(float(summary.get("damage_dealt", 0.0))),
 		roundi(float(summary.get("damage_taken", 0.0))),
+		roundi(float(summary.get("integrity_recovered", 0.0))),
+		int(summary.get("recovery_pickups", 0)),
 		combat.run_stats.get_damage_breakdown_text(),
 		combat.run_stats.get_damage_taken_breakdown_text(),
 		float(summary.get("distance_meters", 0.0)) / 1000.0,

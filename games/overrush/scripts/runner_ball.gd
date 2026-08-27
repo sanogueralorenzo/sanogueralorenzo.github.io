@@ -176,6 +176,17 @@ func increase_maximum_integrity(amount: float, repair_amount: float) -> void:
 	integrity_changed.emit(integrity, maximum_integrity)
 
 
+func repair_integrity(amount: float) -> float:
+	if amount <= 0.0 or integrity <= 0.0:
+		return 0.0
+	var previous_integrity := integrity
+	integrity = minf(maximum_integrity, integrity + amount)
+	var applied := integrity - previous_integrity
+	if applied > 0.0:
+		integrity_changed.emit(integrity, maximum_integrity)
+	return applied
+
+
 func apply_integrity_multiplier(multiplier: float) -> void:
 	maximum_integrity = maxf(1.0, maximum_integrity * maxf(0.1, multiplier))
 	integrity = minf(integrity, maximum_integrity)

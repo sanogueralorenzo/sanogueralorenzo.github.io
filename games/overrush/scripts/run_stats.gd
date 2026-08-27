@@ -41,6 +41,8 @@ var hits_by_source: Dictionary = {}
 var damage_taken := 0.0
 var damage_taken_by_source: Dictionary = {}
 var hits_taken_by_source: Dictionary = {}
+var integrity_recovered := 0.0
+var recovery_pickups := 0
 var distance_traveled := 0.0
 var maximum_speed := 0.0
 var dash_count := 0
@@ -65,6 +67,8 @@ func reset(start_position: Vector3) -> void:
 	damage_taken = 0.0
 	damage_taken_by_source.clear()
 	hits_taken_by_source.clear()
+	integrity_recovered = 0.0
+	recovery_pickups = 0
 	distance_traveled = 0.0
 	maximum_speed = 0.0
 	dash_count = 0
@@ -98,6 +102,14 @@ func record_damage_taken(amount: float, source_id: StringName = &"unattributed")
 	damage_taken += applied_amount
 	damage_taken_by_source[safe_source] = float(damage_taken_by_source.get(safe_source, 0.0)) + applied_amount
 	hits_taken_by_source[safe_source] = int(hits_taken_by_source.get(safe_source, 0)) + 1
+
+
+func record_integrity_recovery(amount: float) -> void:
+	var applied_amount := maxf(0.0, amount)
+	if applied_amount <= 0.0:
+		return
+	integrity_recovered += applied_amount
+	recovery_pickups += 1
 
 
 func record_traversal(position: Vector3, horizontal_speed: float) -> void:
@@ -265,6 +277,8 @@ func snapshot(elapsed_time: float, enemies_defeated: int, build: RunBuild) -> Di
 		"damage_taken": snappedf(damage_taken, 0.1),
 		"damage_taken_by_source": serialized_damage_taken,
 		"hits_taken_by_source": serialized_hits_taken,
+		"integrity_recovered": snappedf(integrity_recovered, 0.1),
+		"recovery_pickups": recovery_pickups,
 		"damage_by_source": serialized_damage,
 		"hits_by_source": serialized_hits,
 		"distance_meters": snappedf(distance_traveled, 0.1),

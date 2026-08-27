@@ -11,6 +11,7 @@ const EFFECT_DURATIONS := {
 	&"hit": 0.07,
 	&"enemy_defeat": 0.16,
 	&"pickup": 0.14,
+	&"repair": 0.34,
 	&"warning": 0.35,
 	&"level_up": 0.75,
 	&"phase": 0.8,
@@ -28,6 +29,7 @@ var _music_drive: AudioStreamPlayer
 var _effect_cursor := 0
 var _defeat_sequence := 0
 var _pickup_sequence := 0
+var _repair_sequence := 0
 var _warning_cooldown := 0.0
 var _hit_cooldown := 0.0
 var _phase_drive_db := -24.0
@@ -105,6 +107,13 @@ func play_pickup(value: int) -> void:
 	var pitch := pitch_steps[_pickup_sequence % pitch_steps.size()]
 	_pickup_sequence += 1
 	_play_effect(&"pickup", -7.0 + minf(float(maxi(value, 1)), 7.0) * 0.35, pitch)
+
+
+func play_repair(value: float) -> void:
+	var pitch_steps: Array[float] = [0.96, 1.04, 1.12]
+	var pitch := pitch_steps[_repair_sequence % pitch_steps.size()]
+	_repair_sequence += 1
+	_play_effect(&"repair", -2.0 + minf(maxf(value, 1.0), 30.0) * 0.04, pitch)
 
 
 func play_attack_warning(attack_kind: StringName, is_elite: bool, is_apex: bool) -> void:
@@ -267,6 +276,8 @@ func _sample_effect(effect_id: StringName, time: float, progress: float, noise: 
 			return sin(TAU * (410.0 * time - 620.0 * time * time)) * exp(-17.0 * time) * 0.78
 		&"pickup":
 			return (sin(TAU * 660.0 * time) * 0.52 + sin(TAU * 990.0 * time) * 0.28) * exp(-14.0 * time)
+		&"repair":
+			return _sample_arpeggio(time, progress, [329.6, 493.9, 659.3], 0.105, 0.68)
 		&"warning":
 			var warning_pulse := 0.5 + 0.5 * sin(TAU * 9.0 * time)
 			return (sin(TAU * 118.0 * time) * 0.62 + sin(TAU * 236.0 * time) * 0.18) * warning_pulse * (1.0 - progress * 0.25)

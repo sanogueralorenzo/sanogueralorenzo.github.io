@@ -18,6 +18,7 @@ func _init() -> void:
 	_test_schema_five_cadence_migration()
 	_test_schema_six_feedback_migration()
 	_test_schema_seven_incoming_damage_migration()
+	_test_schema_eight_recovery_migration()
 	_test_bounded_history_and_mastery()
 	_test_corrupt_profile_falls_back_safely()
 	_cleanup()
@@ -44,6 +45,8 @@ func _test_unlock_progression_without_permanent_power() -> void:
 		"evolution_id": "ramjet",
 		"catalyst_uptime": 0.64,
 		"damage_taken_by_source": {"skimmer_charge": 42.0},
+		"integrity_recovered": 36.0,
+		"recovery_pickups": 3,
 		"upgrade_events": [{"id": "dash_nova", "elapsed_seconds": 12.0, "level": 2, "kind": "engine"}],
 	})
 	_expect(int(first_result.momentum_earned) == 200, "A baseline full victory should award deterministic Momentum.")
@@ -55,6 +58,7 @@ func _test_unlock_progression_without_permanent_power() -> void:
 	_expect(str(profile.last_run_summary.catalyst_id) == "redline_core" and is_equal_approx(float(profile.last_run_summary.catalyst_uptime), 0.64), "Persisted balance evidence should retain catalyst choice and empowered uptime.")
 	_expect((profile.last_run_summary.upgrade_events as Array).size() == 1 and str(profile.last_run_summary.upgrade_events[0].kind) == "engine", "Persisted balance evidence should retain sanitized build milestone timing.")
 	_expect(is_equal_approx(float(profile.last_run_summary.damage_taken_by_source.skimmer_charge), 42.0), "Persisted balance evidence should retain incoming damage attribution.")
+	_expect(is_equal_approx(float(profile.last_run_summary.integrity_recovered), 36.0) and int(profile.last_run_summary.recovery_pickups) == 3, "Persisted balance evidence should retain recovery economy usage.")
 	_expect((first_result.new_masteries as Array).size() == 3 and profile.get_mastery_count() == 3, "A victory should master its evolution, arsenal, and catalyst without granting combat power.")
 	_expect(profile.record_latest_replay_intent("yes"), "A completed run should accept optional replay-intent feedback.")
 	_expect(profile.get_recent_replay_feedback_count() == 1 and profile.get_recent_replay_yes_count() == 1, "Recent playtest sentiment should remain measurable beside run telemetry.")
@@ -80,6 +84,8 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 		"build_name": "ARCSTORM • STORM LANCE",
 		"damage_dealt": 18250.0,
 		"damage_taken_by_source": {"apex_rift": 33.0},
+		"integrity_recovered": 54.0,
+		"recovery_pickups": 4,
 		"distance_meters": 71500.0,
 		"upgrade_history": ["velocity_coil", "storm_lance"],
 		"upgrade_events": [{"id": "velocity_coil", "elapsed_seconds": 14.5, "level": 2, "kind": "engine"}],
@@ -102,6 +108,7 @@ func _test_atomic_round_trip_and_backup_recovery() -> void:
 	_expect(str(loaded.last_run_summary.build_name) == "ARCSTORM • STORM LANCE" and (loaded.last_run_summary.upgrade_history as Array).size() == 2, "The bounded last-run snapshot should survive a save/load round trip.")
 	_expect((loaded.last_run_summary.upgrade_events as Array).size() == 1 and is_equal_approx(float(loaded.last_run_summary.upgrade_events[0].elapsed_seconds), 14.5), "Timestamped draft evidence should survive a save/load round trip.")
 	_expect(is_equal_approx(float(loaded.last_run_summary.damage_taken_by_source.apex_rift), 33.0), "Incoming threat attribution should survive a save/load round trip.")
+	_expect(is_equal_approx(float(loaded.last_run_summary.integrity_recovered), 54.0) and int(loaded.last_run_summary.recovery_pickups) == 4, "Recovery economy evidence should survive a save/load round trip.")
 	_expect(str(loaded.last_run_summary.replay_intent) == "yes" and loaded.get_recent_replay_yes_count() == 1, "Optional replay intent should survive a save/load round trip.")
 	_expect(loaded.reduced_motion and loaded.high_contrast_telegraphs, "Visual accessibility preferences should survive a save/load round trip.")
 	_expect(not loaded.guidance_enabled and loaded.onboarding_completed, "Guidance preferences should survive a save/load round trip.")
@@ -268,6 +275,27 @@ func _test_schema_seven_incoming_damage_migration() -> void:
 	var migrated := ProgressProfileModel.new()
 	_expect(migrated.load(legacy_path), "A schema-seven profile should migrate when incoming threat attribution is introduced.")
 	_expect((migrated.last_run_summary.damage_taken_by_source as Dictionary).is_empty(), "Older profiles should preserve total damage taken without inventing attack sources.")
+	for suffix in ["", ".tmp", ".bak"]:
+		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
+		if FileAccess.file_exists(target):
+			DirAccess.remove_absolute(target)
+
+
+func _test_schema_eight_recovery_migration() -> void:
+	var legacy_path := _test_path + ".legacy8"
+	var legacy_file := FileAccess.open(ProjectSettings.globalize_path(legacy_path), FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify({
+		"schema_version": 8,
+		"momentum": 1450,
+		"completed_runs": 16,
+		"victories": 8,
+		"last_run_summary": {"build_name": "DASHBREAKER • RAMJET", "damage_taken": 62.0},
+		"run_history": [{"victory": true, "build_name": "DASHBREAKER • RAMJET"}],
+	}))
+	legacy_file.close()
+	var migrated := ProgressProfileModel.new()
+	_expect(migrated.load(legacy_path), "A schema-eight profile should migrate when integrity recovery telemetry is introduced.")
+	_expect(is_zero_approx(float(migrated.last_run_summary.integrity_recovered)) and int(migrated.last_run_summary.recovery_pickups) == 0, "Older profiles should preserve run history without inventing recovery use.")
 	for suffix in ["", ".tmp", ".bak"]:
 		var target: String = ProjectSettings.globalize_path(legacy_path) + suffix
 		if FileAccess.file_exists(target):

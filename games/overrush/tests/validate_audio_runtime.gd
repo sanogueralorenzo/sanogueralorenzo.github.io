@@ -23,6 +23,7 @@ func _run() -> void:
 	_expect(director.enemy_defeated_feedback.is_connected(audio.play_enemy_defeat), "Enemy defeats should reach the audio director.")
 	_expect(director.enemy_hit_feedback.is_connected(audio.play_enemy_hit), "Weapon impacts should reach the rate-limited hit cue system.")
 	_expect(director.experience_collected_feedback.is_connected(audio.play_pickup), "Core pickups should reach the audio director.")
+	_expect(director.integrity_collected_feedback.is_connected(audio.play_repair), "Integrity cores should reach their distinct recovery cue.")
 	_expect(director.attack_warning_feedback.is_connected(audio.play_attack_warning), "Enemy telegraphs should reach the warning cue system.")
 
 	var master_slider: HSlider = scene.get_node("HUD/SettingsOverlay/SettingsPanel/Content/MasterAudio/Slider")
@@ -44,6 +45,10 @@ func _run() -> void:
 	var pickup_sequence_before := audio._pickup_sequence
 	director._on_experience_collected(3)
 	_expect(audio._pickup_sequence > pickup_sequence_before, "Collecting a core should select a varied pickup cue pitch.")
+	var repair_sequence_before := audio._repair_sequence
+	runner.take_damage(20.0, runner.global_position + Vector3.RIGHT, &"pursuer_contact")
+	director._on_integrity_collected(12.0)
+	_expect(audio._repair_sequence > repair_sequence_before, "Collecting an integrity core should select a distinct varied recovery cue.")
 
 	director.stop_run()
 	paused = false

@@ -3,7 +3,7 @@ extends RefCounted
 
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 const RunBuildModel = preload("res://scripts/run_build.gd")
-const SCHEMA_VERSION := 8
+const SCHEMA_VERSION := 9
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
@@ -270,6 +270,8 @@ func _sanitize_run_summary(summary: Dictionary) -> Dictionary:
 		"elite_defeats": maxi(0, int(summary.get("elite_defeats", 0))),
 		"damage_dealt": maxf(0.0, float(summary.get("damage_dealt", 0.0))),
 		"damage_taken": maxf(0.0, float(summary.get("damage_taken", 0.0))),
+		"integrity_recovered": maxf(0.0, float(summary.get("integrity_recovered", 0.0))),
+		"recovery_pickups": maxi(0, int(summary.get("recovery_pickups", 0))),
 		"distance_meters": maxf(0.0, float(summary.get("distance_meters", 0.0))),
 		"maximum_speed": maxf(0.0, float(summary.get("maximum_speed", 0.0))),
 		"dash_count": maxi(0, int(summary.get("dash_count", 0))),

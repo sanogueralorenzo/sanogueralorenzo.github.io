@@ -12,6 +12,7 @@ signal run_failed(reason: String)
 signal enemy_defeated_feedback(is_elite: bool, is_apex: bool)
 signal enemy_hit_feedback(is_apex: bool)
 signal experience_collected_feedback(value: int)
+signal integrity_collected_feedback(value: float)
 signal attack_warning_feedback(attack_kind: StringName, is_elite: bool, is_apex: bool)
 
 const EnemyAgentScript = preload("res://scripts/enemy_agent.gd")
@@ -33,6 +34,10 @@ const SPAWN_DISTANCE_MAX := 94.0
 const WAKE_DROP_INTERVAL := 0.2
 const INITIAL_REROLLS := 3
 const INITIAL_BANISHES := 1
+const RECOVERY_DROP_STRIDE := 18
+const STANDARD_RECOVERY_VALUE := 12
+const ELITE_RECOVERY_VALUE := 30
+const MAX_ACTIVE_RECOVERY_PICKUPS := 3
 
 @export var runner_path: NodePath
 @export var world_path: NodePath
@@ -75,6 +80,7 @@ var _pending_arsenal_announcement := ""
 var _catalyst_dash_window := 0.0
 var _dash_nova_recharge := 0.0
 var _introduced_archetypes: Dictionary = {}
+var _rewarding_defeats_since_recovery := 0
 
 
 func _ready() -> void:
@@ -218,6 +224,7 @@ func start_run(protocol_id: StringName) -> void:
 	_catalyst_dash_window = 0.0
 	_dash_nova_recharge = 0.0
 	_arsenal_timer = 0.0
+	_rewarding_defeats_since_recovery = 0
 	run_stats.reset(_runner.global_position)
 	run_stats.set_phase(_current_phase)
 	_run_started = true
@@ -642,11 +649,34 @@ func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 		return
 	if experience_value <= 0:
 		return
+	_rewarding_defeats_since_recovery += 1
+	var cadence_recovery_due := _rewarding_defeats_since_recovery >= RECOVERY_DROP_STRIDE
+	var should_drop_recovery := enemy.is_elite or cadence_recovery_due
+	if should_drop_recovery and _count_active_recovery_pickups() < MAX_ACTIVE_RECOVERY_PICKUPS:
+		var recovery_value := ELITE_RECOVERY_VALUE if enemy.is_elite else STANDARD_RECOVERY_VALUE
+		_spawn_pickup(enemy.global_position + Vector3.RIGHT * 3.0, recovery_value, ExperiencePickup.INTEGRITY)
+		if cadence_recovery_due:
+			_rewarding_defeats_since_recovery = 0
+	_spawn_pickup(enemy.global_position, experience_value, ExperiencePickup.EXPERIENCE)
+
+
+func _spawn_pickup(position: Vector3, value: int, pickup_kind: StringName) -> void:
 	var pickup: ExperiencePickup = ExperiencePickupScript.new()
 	add_child(pickup)
-	pickup.global_position = enemy.global_position + Vector3.UP * 1.2
-	pickup.configure(_runner, experience_value, 38.0)
-	pickup.collected.connect(_on_experience_collected)
+	pickup.global_position = position + Vector3.UP * 1.2
+	pickup.configure(_runner, value, 38.0, pickup_kind)
+	if pickup_kind == ExperiencePickup.INTEGRITY:
+		pickup.integrity_collected.connect(_on_integrity_collected)
+	else:
+		pickup.collected.connect(_on_experience_collected)
+
+
+func _count_active_recovery_pickups() -> int:
+	var count := 0
+	for child in get_children():
+		if child is ExperiencePickup and child.is_integrity_pickup() and not child.is_queued_for_deletion():
+			count += 1
+	return count
 
 
 func _on_experience_collected(value: int) -> void:
@@ -657,6 +687,17 @@ func _on_experience_collected(value: int) -> void:
 	build_changed.emit(build)
 	if build.pending_levels > 0 and not _awaiting_upgrade:
 		_offer_level_up()
+
+
+func _on_integrity_collected(value: float) -> void:
+	if not _run_active:
+		return
+	var applied: float = _runner.repair_integrity(value)
+	if applied <= 0.0:
+		return
+	run_stats.record_integrity_recovery(applied)
+	integrity_collected_feedback.emit(applied)
+	_spawn_pulse(_runner.global_position, Color(1.0, 0.16, 0.42, 0.42), 8.0, 0.24)
 
 
 func _on_enemy_attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName) -> void:

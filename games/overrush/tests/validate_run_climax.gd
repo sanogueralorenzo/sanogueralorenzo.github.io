@@ -128,12 +128,14 @@ func _validate_post_defeat_atomicity() -> void:
 	var experience_before := director.build.experience
 	var pending_before := director.build.pending_levels
 	director._on_experience_collected(9999)
+	director._on_integrity_collected(30.0)
 	director.build.set_meta("current_options", [&"kinetic_repair"])
 	director.choose_upgrade(0)
 	await process_frame
 	_expect(not director._run_active and not director.is_choosing_upgrade(), "Defeat should close combat and invalidate any in-flight draft atomically.")
 	_expect(not scene.get_node("HUD/LevelUpOverlay").visible and scene.get_node("HUD/GameOverOverlay").visible, "The defeat recap should replace, never overlap, an in-flight draft.")
 	_expect(is_zero_approx(runner.integrity), "A post-defeat Kinetic Repair choice must not revive a run that has already ended.")
+	_expect(is_zero_approx(director.run_stats.integrity_recovered), "A post-defeat integrity core must not mutate recovery telemetry or revive the runner.")
 	_expect(director.build.level == level_before and director.build.experience == experience_before and director.build.pending_levels == pending_before, "Post-defeat pickups and stale choices must not mutate progression or the recorded build.")
 	paused = false
 	scene.queue_free()

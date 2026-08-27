@@ -20,6 +20,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Charges, pulses, remote blasts, and reinforcement blooms use distinct ground telegraphs before their active windows; scheduled elites amplify four different roles without removing the warning.
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - Value-tiered crystal cores latch once approached, overtake maximum dash speed, and recover from distant terrain so fast traversal never discards earned progression or accumulates stale rewards.
+- Distinct coral integrity cores add a bounded recovery economy: every eighteenth rewarding defeat and every elite can drop repair, no more than three may wait in the world, and full-health runners bank rather than waste them.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: charged dash-entry and unconditional exit detonations, persistent traversal wakes, or speed-scaled multi-target chain arcs.
 - Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
@@ -36,7 +37,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
 - Both Apex encounters visibly escalate below half health with faster pursuit or shorter route-denial cycles, distinct curved silhouettes, warning tones, arrival banners, boss HUD labels, and recap identity.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
-- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
+- Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, applied integrity recovery, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
 - Victory and defeat recaps ask one optional “Would you run again?” question without stealing retry focus; the response is attached to that run's full telemetry and recent Yes sentiment appears on the next launch screen for playtest review.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
@@ -47,7 +48,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Persistent comfort options provide a steady dash camera, reduced dash particles, and high-contrast attack zones with bright geometric boundaries.
 - Short first-run prompts teach steering, dashing, hopping, automatic combat, and pickups during live play; they retire automatically and can be disabled or replayed.
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
-- Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, core pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
+- Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.
 - Full keyboard and gamepad action mapping supports analog steering, contextual prompts, controller-focused menus, and controller draft shortcuts without requiring project-level input configuration.
 - A run-safe pause menu exposes live build context, immediate accessibility and audio changes, focused resume controls, and a two-step restart confirmation; victory and defeat provide focused retry buttons.
@@ -61,10 +62,11 @@ This is not yet the complete target game. The 20-minute structure, two Apex enco
 - `route_lookup.gd` converts route samples into packed Z buckets for allocation-free height queries.
 - `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
-- `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
+- `combat_director.gd` owns phase-weighted enemy composition, bounded reinforcements, spawning, escalation, targeting, deterministic experience and integrity rewards, and the distinct geometry of movement-triggered combat effects.
+- `experience_pickup.gd` owns high-speed pursuit, stale-reward recovery, distinct experience/integrity silhouettes, and full-integrity banking behavior.
 - `enemy_agent.gd` owns role stats, standoff/chase movement, telegraph state, attack resolution, rank treatment, and curved procedural silhouettes.
 - `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution and catalyst forks, movement-conditioned output, capped support ranks, banishment filtering, alternate-offer detection, branch tuning, exact draft previews, and compact loadout summaries.
-- `run_stats.gd` owns outgoing and incoming attack attribution, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
+- `run_stats.gd` owns outgoing and incoming attack attribution, applied integrity recovery, catalyst uptime, traversal evidence, encounter and choice history, top-source ranking, and bounded recap snapshots.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
 - `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
@@ -172,7 +174,7 @@ Run the directional hit, numeric integrity, and unobtrusive recovery feedback ch
 godot --headless --path games/overrush --script res://tests/validate_damage_feedback.gd
 ```
 
-Run the dash-speed pickup pursuit, stale-reward recovery, value-silhouette, and empty-drop check with:
+Run the dash-speed pickup pursuit, stale-reward recovery, integrity-core cadence/banking, value-silhouette, and empty-drop check with:
 
 ```sh
 godot --headless --path games/overrush --script res://tests/validate_pickup_flow.gd
