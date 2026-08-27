@@ -30,6 +30,22 @@ func get_phase_name(elapsed_time: float) -> String:
 	return PHASE_NAMES[get_phase_index(elapsed_time)]
 
 
+func get_objective_status(elapsed_time: float) -> String:
+	var safe_time := clampf(elapsed_time, 0.0, RUN_DURATION)
+	var remaining := APEX_TIME - safe_time
+	var prefix := "APEX IN"
+	if safe_time >= APEX_TIME:
+		remaining = RUN_DURATION - safe_time
+		prefix = "BREAK THE APEX  •"
+	var total_seconds := ceili(maxf(0.0, remaining))
+	return "%s %02d:%02d%s" % [
+		prefix,
+		total_seconds / 60,
+		total_seconds % 60,
+		" LEFT" if safe_time >= APEX_TIME else "",
+	]
+
+
 func get_intensity(elapsed_time: float) -> float:
 	var progress := clampf(elapsed_time / RUN_DURATION, 0.0, 1.0)
 	var phase_boost := get_phase_index(elapsed_time) * 0.12

@@ -34,6 +34,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Every draft card identifies its strategic category, path color, next rank, and exact mechanical result; catalyst cards give their downtime penalty equal prominence instead of hiding it in flavor text.
 - Keystone commitments and exclusive evolution forks cannot be banished, and universal Kinetic Repair caps at three ranks instead of becoming an unlimited dominant fallback.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute, seed-selected Apex climax with explicit victory or deadline failure.
+- The live HUD counts down to the Apex, then switches to its two-minute defeat deadline; reproducible seed information remains available from pause without competing with the immediate objective.
 - Authored build-cadence windows stage the engine, evolution, arsenal, and Drive decisions across the run; rank-qualified forks remain protected until their intended beats, so faster pickup recovery cannot collapse the full identity into the opening minutes.
 - Strategy-aware seven- and eighteen-minute balance soaks cover all six evolution branches inside overlapping early and late clear envelopes while rejecting stalled traversal. Their routes exercise distinct execution: setup dashes, direct Ramjet impacts, woven Twin Current lanes, bounded Tempest zones, aimed Storm Lances, and close Arc Orbit threading.
 - Two named Apex encounters demand different traversal: the Velocity Reaver commits to charges and body-centered pulses, while the Rift Matriarch predicts the route and releases bounded, zero-reward broods.
@@ -48,7 +49,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
 - Momentum unlocks optional run protocols rather than permanent combat power: denser Redline spawns, high-risk Glass Velocity damage, and elite-heavy hunts each trade added pressure for larger rewards.
 - Persistent comfort options provide a steady dash camera, reduced dash particles, and high-contrast attack zones with bright geometric boundaries.
-- Short first-run prompts teach steering, dashing, hopping, automatic combat, and pickups during live play; they retire automatically and can be disabled or replayed.
+- Short first-run prompts teach steering, dashing, hopping, automatic combat, pickups, attack-zone reading, build structure, and the Apex win condition during live play; they retire automatically and can be disabled or replayed.
 - An original procedural soundtrack layers an atmospheric velocity bed with a rhythmic drive that intensifies through Breakaway, Pressure, Redline, Overrun, and the Apex.
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, experience and integrity pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.

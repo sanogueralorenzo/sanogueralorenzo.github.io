@@ -269,6 +269,10 @@ func get_phase_name() -> String:
 	return pacing.get_phase_name(elapsed_time)
 
 
+func get_objective_status() -> String:
+	return pacing.get_objective_status(elapsed_time)
+
+
 func has_active_apex() -> bool:
 	return is_instance_valid(_apex) and not _apex.is_queued_for_deletion()
 

@@ -34,6 +34,7 @@ func _run() -> void:
 	scene.begin_run(RunProtocolCatalog.STANDARD)
 	await process_frame
 	_expect(not paused and scene._run_started, "Launching should resume the simulation.")
+	_expect("APEX IN" in scene.run_stats.text and "SEED" not in scene.run_stats.text, "The live HUD should prioritize the win-condition countdown over developer-facing seed data.")
 	var runner: CharacterBody3D = scene.get_node("RunnerBall")
 	paused = true
 	var heading_before: Vector3 = runner.heading
@@ -50,6 +51,7 @@ func _run() -> void:
 	_expect(paused and scene.pause_overlay.visible, "Start should suspend an active run behind a dedicated pause overlay.")
 	_expect(scene.get_viewport().gui_get_focus_owner() == scene.pause_resume_button, "Resume should be the safe default pause action.")
 	_expect("OPEN CIRCUIT" not in scene.pause_summary.text, "The pause summary should describe the current run state rather than repeat launch copy.")
+	_expect("APEX IN" in scene.pause_summary.text and "SEED" in scene.pause_summary.text, "Pause should preserve objective context and move the reproducible world seed out of the live HUD.")
 
 	scene._open_settings(true)
 	_expect(scene.settings_overlay.visible and not scene.pause_overlay.visible, "Accessibility and audio settings should be available without abandoning a run.")

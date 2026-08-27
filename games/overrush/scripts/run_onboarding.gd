@@ -4,8 +4,12 @@ extends RefCounted
 const STEER := 0
 const DASH := 1
 const HOP := 2
-const COMPLETE := 3
+const THREATS := 3
+const BUILD := 4
+const OBJECTIVE := 5
+const COMPLETE := 6
 const AUTOMATIC_ADVANCE_SECONDS := 8.0
+const INFORMATION_ADVANCE_SECONDS := 6.0
 
 var step := STEER
 var step_elapsed := 0.0
@@ -36,6 +40,8 @@ func update(delta: float, steering: bool, dashing: bool, hopping: bool) -> bool:
 		_advance()
 	if step == HOP and (_seen_hop or step_elapsed >= AUTOMATIC_ADVANCE_SECONDS):
 		_advance()
+	if step in [THREATS, BUILD, OBJECTIVE] and step_elapsed >= INFORMATION_ADVANCE_SECONDS:
+		_advance()
 	return step != previous_step
 
 
@@ -46,7 +52,13 @@ func get_message(gamepad: bool = false) -> String:
 		DASH:
 			return "DASH THROUGH PRESSURE  •  LB / RB\nTap for a burst, hold for distance. Your air dash refreshes on landing." if gamepad else "DASH THROUGH PRESSURE  •  SHIFT / ALT\nTap for a burst, hold for distance. Your air dash refreshes on landing."
 		HOP:
-			return "HOP THE TERRAIN  •  A\nWeapons fire automatically. Collect bright cores to shape your engine." if gamepad else "HOP THE TERRAIN  •  SPACE\nWeapons fire automatically. Collect bright cores to shape your engine."
+			return "HOP THE TERRAIN  •  A\nWeapons fire automatically. Bright shards level you; coral cores repair integrity." if gamepad else "HOP THE TERRAIN  •  SPACE\nWeapons fire automatically. Bright shards level you; coral cores repair integrity."
+		THREATS:
+			return "READ THE GROUND\nLeave marked zones before they trigger. Dashing briefly prevents damage."
+		BUILD:
+			return "BUILD FOR A PLAN\nDrafts pause play. Commit to an engine, evolve it, then add an arsenal."
+		OBJECTIVE:
+			return "BREAK THE APEX\nAt 18:00, destroy it before the 20:00 deadline. Survival alone is not victory."
 		_:
 			return ""
 

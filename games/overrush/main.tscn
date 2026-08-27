@@ -286,7 +286,7 @@ theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 3
 theme_override_font_sizes/font_size = 18
-text = "00:00\n0 HOSTILES  •  0 CLEARED"
+text = "00:00  •  BREAKAWAY\nAPEX IN 18:00\n0 HOSTILES  •  0 CLEARED"
 horizontal_alignment = 2
 
 [node name="ExperienceBar" type="ProgressBar" parent="HUD"]
@@ -992,7 +992,7 @@ custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.72, 0.86, 0.96, 1)
 theme_override_font_sizes/font_size = 16
-text = "00:00  •  BREAKAWAY\nUNCOMMITTED"
+text = "00:00  •  BREAKAWAY\nAPEX IN 18:00\nLEVEL 1  •  0 CLEARED  •  58 M/S  •  SEED 41001"
 horizontal_alignment = 1
 vertical_alignment = 1
 

@@ -181,12 +181,12 @@ func _process(_delta: float) -> void:
 		ball.get_dash_status(),
 		catalyst_line,
 	]
-	run_stats.text = "%s  •  %s\n%d HOSTILES  •  %d CLEARED\nSEED %s" % [
+	run_stats.text = "%s  •  %s\n%s\n%d HOSTILES  •  %d CLEARED" % [
 		combat.get_formatted_time(),
 		_phase_name,
+		combat.get_objective_status(),
 		combat.get_enemy_count(),
 		combat.enemies_defeated,
-		str(world.generated_seed),
 	]
 	var warning_text := boundary.get_warning_text()
 	boundary_warning.visible = not warning_text.is_empty()
@@ -725,12 +725,14 @@ func _apply_audio_levels() -> void:
 func _pause_run() -> void:
 	if not _run_started or game_over_overlay.visible or victory_overlay.visible or level_up_overlay.visible:
 		return
-	pause_summary.text = "%s  •  %s\nLEVEL %d  •  %d CLEARED  •  %d M/S" % [
+	pause_summary.text = "%s  •  %s\n%s\nLEVEL %d  •  %d CLEARED  •  %d M/S  •  SEED %s" % [
 		combat.get_formatted_time(),
 		_phase_name,
+		combat.get_objective_status(),
 		combat.build.level,
 		combat.enemies_defeated,
 		roundi(ball.get_horizontal_speed()),
+		str(world.generated_seed),
 	]
 	pause_loadout.text = combat.build.get_loadout_summary()
 	_cancel_restart_confirmation()

@@ -34,10 +34,17 @@ func _validate_onboarding_model() -> void:
 	_expect(onboarding.step == RunOnboardingModel.HOP, "A dash should advance guidance to hopping and automatic combat.")
 	_expect(" •  A" in onboarding.get_message(true), "Controller guidance should teach hopping with the south face button.")
 	onboarding.update(0.1, false, false, true)
-	_expect(onboarding.is_complete(), "Performing the three movement concepts should complete onboarding.")
+	_expect(onboarding.step == RunOnboardingModel.THREATS, "Performing movement concepts should advance into combat literacy instead of ending guidance.")
+	_expect("MARKED ZONES" in onboarding.get_message().to_upper(), "Guidance should teach players to leave telegraphed attacks.")
+	onboarding.update(RunOnboardingModel.INFORMATION_ADVANCE_SECONDS, false, false, false)
+	_expect(onboarding.step == RunOnboardingModel.BUILD and "ENGINE" in onboarding.get_message().to_upper(), "Guidance should explain the engine, evolution, and arsenal build structure.")
+	onboarding.update(RunOnboardingModel.INFORMATION_ADVANCE_SECONDS, false, false, false)
+	_expect(onboarding.step == RunOnboardingModel.OBJECTIVE and "18:00" in onboarding.get_message(), "Guidance should state when the Apex arrives and how the run is won.")
+	onboarding.update(RunOnboardingModel.INFORMATION_ADVANCE_SECONDS, false, false, false)
+	_expect(onboarding.is_complete(), "Movement and literacy prompts should complete after their bounded display windows.")
 
 	onboarding.reset()
-	for _index in range(3):
+	for _index in range(RunOnboardingModel.COMPLETE):
 		onboarding.update(RunOnboardingModel.AUTOMATIC_ADVANCE_SECONDS, false, false, false)
 	_expect(onboarding.is_complete(), "Guidance should retire automatically instead of obstructing players who ignore it.")
 
@@ -63,7 +70,9 @@ func _validate_runtime_preferences() -> void:
 
 	scene.begin_run(RunProtocolCatalog.STANDARD)
 	await process_frame
-	_expect(scene.get_node("HUD/TutorialCard").visible, "An unfinished first run should show contextual guidance without pausing play.")
+	var tutorial_card: Label = scene.get_node("HUD/TutorialCard")
+	_expect(tutorial_card.visible, "An unfinished first run should show contextual guidance without pausing play.")
+	_validate_guidance_card_fit(tutorial_card)
 	var enemy: EnemyAgent = director._spawn_enemy(&"bulwark")
 	enemy._special_cooldown = 0.0
 	enemy._begin_special(runner.global_position - enemy.global_position)
@@ -76,6 +85,19 @@ func _validate_runtime_preferences() -> void:
 	paused = false
 	scene.queue_free()
 	await process_frame
+
+
+func _validate_guidance_card_fit(tutorial_card: Label) -> void:
+	var font := tutorial_card.get_theme_font(&"font")
+	var font_size := tutorial_card.get_theme_font_size(&"font_size")
+	var safe_width := tutorial_card.size.x - 28.0
+	var onboarding: RunOnboarding = RunOnboardingModel.new()
+	for step_index in range(RunOnboardingModel.COMPLETE):
+		onboarding.step = step_index
+		for gamepad in [false, true]:
+			for line in onboarding.get_message(gamepad).split("\n"):
+				var line_width := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+				_expect(line_width <= safe_width, "Guidance step %d should fit the two-line card for %s input." % [step_index, "gamepad" if gamepad else "keyboard"])
 
 
 func _expect(condition: bool, message: String) -> void:
