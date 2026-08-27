@@ -2,7 +2,6 @@ extends RefCounted
 
 const SPIRE := "spire"
 const BOULDER := "boulder"
-const ARCH := "arch"
 const RIDGE := "ridge"
 
 var placements: Array[Dictionary] = []
@@ -16,7 +15,6 @@ func plan_layout(seed: int, grammar, map_size: float) -> void:
 	_grammar = grammar
 	_map_size = map_size
 	_rng.seed = seed ^ 0x5F3759DF
-	_plan_route_arches()
 	_plan_spires(62)
 	_plan_boulder_clusters(38)
 	_plan_distant_ridges(26)
@@ -40,77 +38,20 @@ func build(host: StaticBody3D, visual_root: Node3D) -> void:
 	_build_rock_multimesh(host, visual_root, BOULDER, "BoulderFields", rock_mesh, rock_shape, true)
 	_build_rock_multimesh(host, visual_root, RIDGE, "DistantRidges", rock_mesh, rock_shape, false)
 
-	var arch_mesh := _build_arch_mesh()
-	arch_mesh.surface_set_material(0, material)
-	var arch_shape := arch_mesh.create_trimesh_shape()
-	for placement in placements:
-		if placement.type != ARCH:
-			continue
-		var mesh_instance := MeshInstance3D.new()
-		mesh_instance.name = "RockArch"
-		mesh_instance.mesh = arch_mesh
-		mesh_instance.transform = placement.transform
-		visual_root.add_child(mesh_instance)
-		var collider := CollisionShape3D.new()
-		collider.name = "ArchCollision"
-		collider.shape = arch_shape
-		collider.transform = placement.transform
-		collider.set_meta("overrush_formation_collider", true)
-		host.add_child(collider)
-
 
 func validate_layout(grammar) -> PackedStringArray:
 	var errors := PackedStringArray()
-	var counts := {SPIRE: 0, BOULDER: 0, ARCH: 0, RIDGE: 0}
+	var counts := {SPIRE: 0, BOULDER: 0, RIDGE: 0}
 	for placement in placements:
 		counts[placement.type] += 1
-		if placement.type == ARCH:
-			if placement.inner_radius < 18.0:
-				errors.append("arch opening is too small for high-speed traversal")
-		elif placement.blocks_route:
+		if placement.blocks_route:
 			var position: Vector3 = placement.position
 			if grammar.get_route_clearance(position.x, position.z) < 1.12:
 				errors.append("%s blocks the authored route corridor" % placement.type)
 	for type in counts:
 		if counts[type] == 0:
 			errors.append("formation grammar produced no %s placements" % type)
-	if counts[ARCH] < 3:
-		errors.append("formation grammar produced fewer than three arches")
 	return errors
-
-
-func _plan_route_arches() -> void:
-	var progress_marks := [0.19, 0.37, 0.61, 0.82]
-	for progress in progress_marks:
-		var sample: Dictionary = _find_arch_sample(progress + _rng.randf_range(-0.025, 0.025))
-		var position: Vector3 = sample.position
-		var tangent: Vector3 = sample.tangent
-		var radius := _rng.randf_range(27.0, 35.0)
-		var yaw := atan2(tangent.x, tangent.z)
-		var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * radius)
-		position.y = _grammar.sample_height(position.x, position.z) + radius * 0.19
-		placements.append({
-			"type": ARCH,
-			"position": position,
-			"transform": Transform3D(basis, position),
-			"inner_radius": radius * 0.79,
-			"blocks_route": false,
-		})
-
-
-func _find_arch_sample(progress: float) -> Dictionary:
-	var center_index := clampi(
-		roundi(progress * (_grammar.primary_samples.size() - 1)),
-		0,
-		_grammar.primary_samples.size() - 1
-	)
-	for offset in range(22):
-		for direction in [-1, 1]:
-			var index := clampi(center_index + offset * direction, 0, _grammar.primary_samples.size() - 1)
-			var sample: Dictionary = _grammar.primary_samples[index]
-			if sample.feature in [_grammar.BROAD_VALLEY, _grammar.CRUISE, _grammar.BANKED_TURN]:
-				return sample
-	return _grammar.primary_samples[center_index]
 
 
 func _plan_spires(count: int) -> void:
@@ -256,37 +197,6 @@ func _build_irregular_rock_mesh() -> ArrayMesh:
 		_add_triangle(surface, Vector3.ZERO, p1, p0)
 	surface.generate_normals()
 	return surface.commit()
-
-
-func _build_arch_mesh() -> ArrayMesh:
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var arc_segments := 18
-	var tube_segments := 8
-	var tube_radius := 0.21
-	for arc_index in range(arc_segments):
-		var angle0 := arc_index / float(arc_segments) * PI
-		var angle1 := (arc_index + 1) / float(arc_segments) * PI
-		for tube_index in range(tube_segments):
-			var tube0 := tube_index / float(tube_segments) * TAU
-			var tube1 := (tube_index + 1) / float(tube_segments) * TAU
-			var p00 := _arch_point(angle0, tube0, tube_radius)
-			var p01 := _arch_point(angle0, tube1, tube_radius)
-			var p10 := _arch_point(angle1, tube0, tube_radius)
-			var p11 := _arch_point(angle1, tube1, tube_radius)
-			_add_triangle(surface, p00, p10, p01)
-			_add_triangle(surface, p01, p10, p11)
-	surface.generate_normals()
-	return surface.commit()
-
-
-func _arch_point(arc_angle: float, tube_angle: float, tube_radius: float) -> Vector3:
-	var radial := Vector3(cos(arc_angle), sin(arc_angle), 0.0)
-	var center_wobble := 1.0 + sin(arc_angle * 5.0 + 0.7) * 0.035
-	var surface_wobble := 1.0 + sin(arc_angle * 7.0 + tube_angle * 3.0) * 0.11
-	var center := radial * center_wobble
-	var local_radius := tube_radius * surface_wobble
-	return center + radial * cos(tube_angle) * local_radius + Vector3(0.0, 0.0, sin(tube_angle) * local_radius)
 
 
 func _add_triangle(surface: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
