@@ -1,6 +1,7 @@
 extends SceneTree
 
-const SIMULATION_FRAMES := 600
+const EARLY_SIMULATION_FRAMES := 600
+const TOTAL_SIMULATION_FRAMES := 2400
 
 
 func _init() -> void:
@@ -17,9 +18,10 @@ func _run() -> void:
 	var start_position := rider.global_position
 	scene.begin_run()
 	Input.action_press(OverrushInputBindings.MOVE_FORWARD)
-	for _frame in range(SIMULATION_FRAMES):
+	var peak_speed := 0.0
+	for _frame in range(EARLY_SIMULATION_FRAMES):
 		await physics_frame
-	Input.action_release(OverrushInputBindings.MOVE_FORWARD)
+		peak_speed = maxf(peak_speed, rider.get_horizontal_speed())
 
 	var planar_distance := Vector2(
 		rider.global_position.x - start_position.x,
@@ -38,9 +40,24 @@ func _run() -> void:
 		push_error("Slope-driven movement did not gather useful speed: %.1f m/s." % rider.get_horizontal_speed())
 		await _finish(scene, 1)
 		return
+	for _frame in range(TOTAL_SIMULATION_FRAMES - EARLY_SIMULATION_FRAMES):
+		await physics_frame
+		peak_speed = maxf(peak_speed, rider.get_horizontal_speed())
+	Input.action_release(OverrushInputBindings.MOVE_FORWARD)
+	if peak_speed < 28.0:
+		push_error(
+			"Extended downhill carving never reached a satisfying speed: %.1f m/s across %.1f m (final y %.1f)."
+			% [peak_speed, rider.distance_traveled, rider.global_position.y]
+		)
+		await _finish(scene, 1)
+		return
+	if rider.distance_traveled < 420.0:
+		push_error("Extended downhill carving covered too little terrain: %.1f m." % rider.distance_traveled)
+		await _finish(scene, 1)
+		return
 	print(
-		"Sandboard motion passed — %.1f m travelled, %.1f m descended, %.1f m/s after a sustained outward carve."
-		% [planar_distance, descent, rider.get_horizontal_speed()]
+		"Sandboard motion passed — %.1f m early travel, %.1f m early descent, %.1f m/s peak across %.1f m of sustained carving."
+		% [planar_distance, descent, peak_speed, rider.distance_traveled]
 	)
 	await _finish(scene, 0)
 

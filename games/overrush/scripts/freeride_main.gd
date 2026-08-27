@@ -6,6 +6,7 @@ extends Node3D
 @onready var audio_director: OverrushAudioDirector = $AudioDirector
 @onready var stats_label: Label = $HUD/Stats
 @onready var boost_label: Label = $HUD/BoostStatus
+@onready var landing_label: Label = $HUD/LandingFeedback
 @onready var controls_label: Label = $HUD/Controls
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
@@ -17,6 +18,7 @@ var run_active := false
 var elapsed_time := 0.0
 var start_height := 0.0
 var _using_gamepad := false
+var _landing_feedback_time := 0.0
 
 
 func _ready() -> void:
@@ -24,6 +26,8 @@ func _ready() -> void:
 	OverrushInputBindings.ensure_actions()
 	rider.air_boost_state_changed.connect(_on_air_boost_state_changed)
 	rider.air_boost_used.connect(_on_air_boost_used)
+	rider.landing_scored.connect(_on_landing_scored)
+	rider.jumped.connect(_on_jumped)
 	launch_button.pressed.connect(begin_run)
 	resume_button.pressed.connect(resume_run)
 	restart_button.pressed.connect(restart_run)
@@ -44,6 +48,8 @@ func _process(delta: float) -> void:
 	if run_active and not get_tree().paused:
 		elapsed_time += delta
 		_update_stats()
+		_landing_feedback_time = maxf(0.0, _landing_feedback_time - delta)
+		landing_label.modulate.a = clampf(_landing_feedback_time / 0.35, 0.0, 1.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -86,6 +92,8 @@ func resume_run() -> void:
 
 func restart_run() -> void:
 	elapsed_time = 0.0
+	_landing_feedback_time = 0.0
+	landing_label.modulate.a = 0.0
 	desert.begin_new_run()
 	rider.respawn()
 	follow_camera.snap_to_target()
@@ -131,3 +139,22 @@ func _on_air_boost_used() -> void:
 	audio_director.play_air_boost()
 	follow_camera.set_speed_burst_active(true)
 	get_tree().create_timer(0.22).timeout.connect(func() -> void: follow_camera.set_speed_burst_active(false))
+
+
+func _on_jumped() -> void:
+	audio_director.play_jump()
+
+
+func _on_landing_scored(rating: StringName, _score: float, _impact_speed: float) -> void:
+	_landing_feedback_time = 1.35
+	match rating:
+		SandboardMotion.LANDING_CLEAN:
+			landing_label.text = "CLEAN LANDING  •  MOMENTUM HELD"
+			landing_label.modulate = Color("#fff0ad")
+		SandboardMotion.LANDING_SOLID:
+			landing_label.text = "SOLID LANDING"
+			landing_label.modulate = Color("#e9bf72")
+		_:
+			landing_label.text = "ROUGH LANDING  •  RECOVER"
+			landing_label.modulate = Color("#d88962")
+	audio_director.play_landing(rating)

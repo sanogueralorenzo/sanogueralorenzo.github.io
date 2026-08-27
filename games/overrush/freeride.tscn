@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -76,6 +76,30 @@ gravity = Vector3(0, -1.6, 0)
 scale_min = 0.45
 scale_max = 1.15
 color = Color(1, 0.67, 0.25, 0.72)
+
+[sub_resource type="ParticleProcessMaterial" id="SandTrailProcess"]
+emission_shape = 3
+emission_box_extents = Vector3(0.62, 0.08, 0.22)
+direction = Vector3(0, 0.32, 1)
+spread = 24.0
+initial_velocity_min = 2.2
+initial_velocity_max = 5.8
+gravity = Vector3(0, -3.2, 0)
+scale_min = 0.28
+scale_max = 0.9
+color = Color(0.96, 0.69, 0.32, 0.58)
+
+[sub_resource type="ParticleProcessMaterial" id="LandingBurstProcess"]
+emission_shape = 3
+emission_box_extents = Vector3(0.72, 0.06, 0.45)
+direction = Vector3(0, 1, 0)
+spread = 62.0
+initial_velocity_min = 4.0
+initial_velocity_max = 9.0
+gravity = Vector3(0, -8, 0)
+scale_min = 0.38
+scale_max = 1.25
+color = Color(1, 0.73, 0.34, 0.78)
 
 [sub_resource type="StyleBoxFlat" id="PanelStyle"]
 bg_color = Color(0.055, 0.043, 0.035, 0.88)
@@ -171,6 +195,26 @@ light_color = Color(1, 0.61, 0.2, 1)
 light_energy = 4.0
 omni_range = 7.0
 
+[node name="SandTrail" type="GPUParticles3D" parent="Sandboarder"]
+position = Vector3(0, -0.24, 1.1)
+emitting = false
+amount = 88
+lifetime = 0.68
+local_coords = false
+process_material = SubResource("SandTrailProcess")
+draw_pass_1 = SubResource("TrailMesh")
+
+[node name="LandingBurst" type="GPUParticles3D" parent="Sandboarder"]
+position = Vector3(0, -0.22, 0)
+emitting = false
+amount = 54
+lifetime = 0.52
+one_shot = true
+explosiveness = 0.82
+local_coords = false
+process_material = SubResource("LandingBurstProcess")
+draw_pass_1 = SubResource("TrailMesh")
+
 [node name="FollowCamera" type="Camera3D" parent="."]
 process_mode = 1
 script = ExtResource("4_camera")
@@ -218,6 +262,26 @@ theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 20
 text = "AIR BOOST  •  CHARGED"
+horizontal_alignment = 1
+
+[node name="LandingFeedback" type="Label" parent="HUD"]
+modulate = Color(1, 1, 1, 0)
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -240.0
+offset_top = -112.0
+offset_right = 240.0
+offset_bottom = -78.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_shadow_color = Color(0.08, 0.04, 0.02, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 19
+text = "CLEAN LANDING  •  MOMENTUM HELD"
 horizontal_alignment = 1
 
 [node name="Controls" type="Label" parent="HUD"]

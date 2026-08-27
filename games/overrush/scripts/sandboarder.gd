@@ -4,6 +4,8 @@ extends CharacterBody3D
 signal air_boost_state_changed(available: bool, airborne: bool)
 signal air_boost_used
 signal landed(impact_speed: float)
+signal landing_scored(rating: StringName, score: float, impact_speed: float)
+signal jumped
 
 @export var world_path: NodePath
 @export var camera_path: NodePath
@@ -11,11 +13,13 @@ signal landed(impact_speed: float)
 @export var slope_acceleration := 44.0
 @export var starting_push := 18.0
 @export var summit_push_speed := 14.0
-@export var ground_drag := 0.18
-@export var carve_response := 3.8
-@export var carve_speed_loss := 0.035
+@export var ground_drag := 0.065
+@export var low_speed_turn_rate := 2.8
+@export var high_speed_turn_rate := 1.05
 @export var air_control := 5.0
 @export var jump_velocity := 10.5
+@export var jump_buffer_duration := 0.13
+@export var coyote_duration := 0.1
 @export var air_boost_impulse := 19.0
 @export var air_boost_lift := 4.5
 @export var maximum_speed := 78.0
@@ -25,8 +29,11 @@ signal landed(impact_speed: float)
 @onready var board_visual: Node3D = $BoardVisual
 @onready var boost_trail: GPUParticles3D = $BoostTrail
 @onready var boost_light: OmniLight3D = $BoostLight
+@onready var sand_trail: GPUParticles3D = $SandTrail
+@onready var landing_burst: GPUParticles3D = $LandingBurst
 
 var air_boost_state := AirBoostState.new()
+var jump_assist_state := JumpAssistState.new()
 var distance_traveled := 0.0
 var _world: ProceduralDesert
 var _camera: Camera3D
@@ -34,6 +41,11 @@ var _last_position := Vector3.ZERO
 var _airtime := 0.0
 var _heading := Vector3.FORWARD
 var _boost_feedback_time := 0.0
+var _last_floor_normal := Vector3.UP
+var _carve_intensity := 0.0
+var _carve_sign := 0.0
+var _landing_compression := 0.0
+var _has_departed_sand := false
 
 
 func _ready() -> void:
@@ -44,6 +56,7 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(58.0)
 	floor_stop_on_slope = false
 	_last_position = global_position
+	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_sand()
 	air_boost_state_changed.emit(true, false)
 
@@ -51,26 +64,26 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	var started_on_floor := is_on_floor()
 	var input_direction := get_camera_relative_direction()
+	jump_assist_state.tick(delta, started_on_floor)
+	if Input.is_action_just_pressed(OverrushInputBindings.HOP):
+		jump_assist_state.queue_jump()
 	if started_on_floor:
+		_last_floor_normal = get_floor_normal()
 		_apply_ground_motion(input_direction, delta)
-		if Input.is_action_just_pressed(OverrushInputBindings.HOP):
-			velocity.y = jump_velocity
-			air_boost_state.leave_surface()
-			_airtime = 0.0
-			air_boost_state_changed.emit(air_boost_state.available, true)
 	else:
 		_apply_air_motion(input_direction, delta)
 		_airtime += delta
 		if not air_boost_state.airborne:
 			air_boost_state.leave_surface()
 			air_boost_state_changed.emit(air_boost_state.available, true)
+	var jumped_this_frame := _try_buffered_jump(started_on_floor)
 
 	if Input.is_action_just_pressed(OverrushInputBindings.AIR_BOOST):
 		try_air_boost(input_direction)
 
 	var before_move := velocity
 	move_and_slide()
-	_update_surface_state(started_on_floor, before_move)
+	_update_surface_state(started_on_floor, before_move, jumped_this_frame)
 	_update_visuals(delta)
 	distance_traveled += Vector2(
 		global_position.x - _last_position.x,
@@ -85,6 +98,8 @@ func respawn() -> void:
 	_heading = Vector3(_camera.call("get_planar_forward")) if _camera.has_method("get_planar_forward") else Vector3.FORWARD
 	distance_traveled = 0.0
 	_airtime = 0.0
+	_has_departed_sand = false
+	jump_assist_state.reset()
 	air_boost_state.reset_on_sand()
 	_last_position = global_position
 	air_boost_state_changed.emit(true, false)
@@ -109,6 +124,7 @@ func try_air_boost(requested_direction: Vector3) -> bool:
 	velocity.y += air_boost_lift
 	_limit_horizontal_speed(maximum_speed * 1.18)
 	_boost_feedback_time = 0.2
+	boost_trail.restart()
 	boost_trail.emitting = true
 	boost_light.visible = true
 	air_boost_used.emit()
@@ -139,19 +155,31 @@ func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := horizontal.length()
 	var downhill := Vector3.DOWN.slide(normal)
-	if downhill.length_squared() > 0.0001:
-		velocity += downhill.normalized() * slope_acceleration * (1.0 - normal.y) * delta
 	if input_direction.length_squared() > 0.01:
 		var tangent_input := input_direction.slide(normal).normalized()
 		if speed < summit_push_speed:
 			velocity += tangent_input * starting_push * delta
-		else:
-			var current_direction := horizontal.normalized()
-			var carved_direction := current_direction.slerp(tangent_input, clampf(carve_response * delta, 0.0, 1.0))
-			var retained_speed := speed * (1.0 - carve_speed_loss * delta)
-			velocity.x = carved_direction.x * retained_speed
-			velocity.z = carved_direction.z * retained_speed
-		_heading = tangent_input
+			_heading = Vector3(tangent_input.x, 0.0, tangent_input.z).normalized()
+		if speed >= summit_push_speed:
+			var carve := SandboardMotion.calculate_carve(
+				horizontal,
+				tangent_input,
+				delta,
+				maximum_speed,
+				low_speed_turn_rate,
+				high_speed_turn_rate,
+			)
+			var carved_velocity: Vector3 = carve.velocity
+			velocity.x = carved_velocity.x
+			velocity.z = carved_velocity.z
+			_heading = carve.direction
+			_carve_intensity = float(carve.carve_intensity)
+			_carve_sign = signf(float(carve.steering_angle))
+	else:
+		_carve_intensity = move_toward(_carve_intensity, 0.0, delta * 3.0)
+		_carve_sign = move_toward(_carve_sign, 0.0, delta * 5.0)
+	if downhill.length_squared() > 0.0001:
+		velocity += downhill.normalized() * slope_acceleration * downhill.length() * delta
 	velocity += Vector3.DOWN * gravity_strength * delta
 	var drag_factor := maxf(0.0, 1.0 - ground_drag * delta)
 	velocity.x *= drag_factor
@@ -164,21 +192,49 @@ func _apply_air_motion(input_direction: Vector3, delta: float) -> void:
 	if input_direction.length_squared() > 0.01:
 		velocity += input_direction * air_control * delta
 		_heading = input_direction
+	_carve_intensity = move_toward(_carve_intensity, 0.0, delta * 2.0)
 	_limit_horizontal_speed(maximum_speed * 1.18)
 
 
-func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3) -> void:
+func _try_buffered_jump(started_on_floor: bool) -> bool:
+	if not jump_assist_state.try_consume(started_on_floor):
+		return false
+	var launch_normal := get_floor_normal() if started_on_floor else _last_floor_normal
+	launch_normal = launch_normal.normalized()
+	var normal_speed := velocity.dot(launch_normal)
+	if normal_speed < 0.0:
+		velocity -= launch_normal * normal_speed
+	velocity += launch_normal * jump_velocity
+	_airtime = 0.0
+	_has_departed_sand = true
+	air_boost_state.leave_surface()
+	air_boost_state_changed.emit(air_boost_state.available, true)
+	jumped.emit()
+	return true
+
+
+func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3, jumped_this_frame: bool) -> void:
 	var ended_on_floor := is_on_floor()
 	if ended_on_floor and not started_on_floor:
 		var valid_sand := _airtime >= minimum_landing_airtime and _has_valid_sand_floor_contact()
 		air_boost_state.land(valid_sand)
-		if valid_sand:
-			landed.emit(maxf(0.0, -impact_velocity.y))
+		if valid_sand and _has_departed_sand:
+			var assessment := SandboardMotion.evaluate_landing(impact_velocity, get_floor_normal(), _heading)
+			var retention: float = assessment.momentum_retention
+			velocity.x *= retention
+			velocity.z *= retention
+			_landing_compression = minf(float(assessment.impact_speed) / 30.0 * 0.22, 0.22)
+			landing_burst.restart()
+			landing_burst.emitting = true
+			landed.emit(float(assessment.impact_speed))
+			landing_scored.emit(assessment.rating, float(assessment.score), float(assessment.impact_speed))
 		air_boost_state_changed.emit(air_boost_state.available, false)
 		_airtime = 0.0
-	elif not ended_on_floor and started_on_floor:
+		_has_departed_sand = false
+	elif not ended_on_floor and started_on_floor and not jumped_this_frame:
 		air_boost_state.leave_surface()
 		_airtime = 0.0
+		_has_departed_sand = true
 		air_boost_state_changed.emit(air_boost_state.available, true)
 
 
@@ -203,7 +259,27 @@ func _update_visuals(delta: float) -> void:
 	var flat_heading := Vector3(velocity.x, 0.0, velocity.z)
 	if flat_heading.length_squared() > 0.25:
 		_heading = flat_heading.normalized()
-		board_visual.rotation.y = lerp_angle(board_visual.rotation.y, atan2(-_heading.x, -_heading.z), 1.0 - exp(-9.0 * delta))
+	var visual_forward := _heading
+	var visual_up := Vector3.UP
+	if is_on_floor():
+		visual_up = get_floor_normal().normalized()
+		visual_forward = _heading.slide(visual_up).normalized()
+	elif velocity.length_squared() > 4.0:
+		visual_forward = velocity.normalized()
+	var visual_right := visual_forward.cross(visual_up).normalized()
+	if visual_right.length_squared() < 0.01:
+		visual_right = Vector3.RIGHT
+	visual_up = visual_right.cross(visual_forward).normalized()
+	var target_basis := Basis(visual_right, visual_up, -visual_forward).orthonormalized()
+	if is_on_floor():
+		target_basis = target_basis.rotated(visual_forward, -_carve_sign * _carve_intensity * deg_to_rad(13.0))
+	board_visual.basis = board_visual.basis.slerp(target_basis, 1.0 - exp(-10.0 * delta)).orthonormalized()
+	_landing_compression = move_toward(_landing_compression, 0.0, delta * 1.8)
+	board_visual.position.y = -_landing_compression
+	var speed_ratio := clampf(get_horizontal_speed() / maximum_speed, 0.0, 1.0)
+	sand_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
+	sand_trail.amount_ratio = clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
+	sand_trail.rotation.y = atan2(-_heading.x, -_heading.z)
 	_boost_feedback_time = maxf(0.0, _boost_feedback_time - delta)
 	if _boost_feedback_time <= 0.0:
 		boost_trail.emitting = false

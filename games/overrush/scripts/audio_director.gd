@@ -7,6 +7,10 @@ const EFFECT_POOL_SIZE := 12
 
 const EFFECT_DURATIONS := {
 	&"dash": 0.28,
+	&"jump": 0.18,
+	&"landing_clean": 0.28,
+	&"landing_solid": 0.22,
+	&"landing_rough": 0.3,
 	&"hurt": 0.32,
 	&"hit": 0.07,
 	&"enemy_defeat": 0.16,
@@ -88,6 +92,20 @@ func play_dash(active: bool) -> void:
 
 func play_air_boost() -> void:
 	play_dash(true)
+
+
+func play_jump() -> void:
+	_play_effect(&"jump", -5.0, 1.0)
+
+
+func play_landing(rating: StringName) -> void:
+	match rating:
+		SandboardMotion.LANDING_CLEAN:
+			_play_effect(&"landing_clean", -3.0, 1.0)
+		SandboardMotion.LANDING_SOLID:
+			_play_effect(&"landing_solid", -4.0, 1.0)
+		_:
+			_play_effect(&"landing_rough", -2.0, 1.0)
 
 
 func play_hurt(_amount: float = 0.0) -> void:
@@ -303,6 +321,14 @@ func _sample_effect(effect_id: StringName, time: float, progress: float, noise: 
 			var dash_phase := 120.0 * time + 520.0 * time * time
 			var dash_envelope := pow(sin(PI * progress), 0.65) * (1.0 - progress * 0.35)
 			return clampf((sin(TAU * dash_phase) * 0.48 + noise * 0.42) * dash_envelope, -0.92, 0.92)
+		&"jump":
+			return (sin(TAU * (150.0 * time + 390.0 * time * time)) * 0.42 + noise * 0.24) * pow(1.0 - progress, 0.8)
+		&"landing_clean":
+			return (sin(TAU * 310.0 * time) * 0.38 + sin(TAU * 465.0 * time) * 0.24 + noise * 0.16) * exp(-9.0 * time)
+		&"landing_solid":
+			return (sin(TAU * 170.0 * time) * 0.4 + noise * 0.3) * exp(-12.0 * time)
+		&"landing_rough":
+			return (sin(TAU * (105.0 * time - 18.0 * time * time)) * 0.45 + noise * 0.48) * exp(-8.0 * time)
 		&"hurt":
 			return clampf((sin(TAU * (92.0 * time - 28.0 * time * time)) * 0.7 + noise * 0.3) * exp(-8.0 * time), -0.92, 0.92)
 		&"hit":

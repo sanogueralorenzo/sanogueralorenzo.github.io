@@ -15,7 +15,7 @@ func _init() -> void:
 	library.clear()
 	audio.free()
 	if _failures.is_empty():
-		print("Audio synthesis validation passed — 2 music layers and 11 effects built in %.2f ms." % build_milliseconds)
+		print("Audio synthesis validation passed — 2 music layers and 15 effects built in %.2f ms." % build_milliseconds)
 		quit(0)
 	else:
 		for failure in _failures:
@@ -26,6 +26,10 @@ func _init() -> void:
 func _validate_library(library: Dictionary) -> void:
 	var expected_effects: Array[StringName] = [
 		&"dash",
+		&"jump",
+		&"landing_clean",
+		&"landing_solid",
+		&"landing_rough",
 		&"hurt",
 		&"hit",
 		&"enemy_defeat",

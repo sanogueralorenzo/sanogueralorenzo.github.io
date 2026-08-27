@@ -11,14 +11,15 @@ Overrush is being rebuilt as a minimalist desert freeriding game. The shipped sc
 - A bounded infinite-cell grammar layers smooth bowls, readable ridges, broad kickers, split-line dune pairs, and open breathing space without defining a route corridor.
 - Sparse procedural sandstone gates create visible passage decisions outside the summit. Their dedicated rock colliders never qualify as sand landings or refresh the air boost.
 - All tested outward headings descend and remain available to the player; there is no route corridor or prescribed forward direction.
-- The sandboard controller gains speed from terrain slope, preserves momentum while carving, supports camera-relative steering and jumping, and avoids a fixed powered target speed.
+- The sandboard controller gains speed from terrain slope, uses a speed-scaled carve envelope instead of direction snapping, and avoids a fixed powered target speed.
+- Buffered/coyote jumps launch along the contacted terrain normal while preserving approach momentum. Sand landings resolve predictably from impact and alignment as clean, solid, or rough, with bounded momentum retention.
 - The directional air boost adds to existing momentum. It has exactly one charge in the air and only a valid sand landing refreshes it.
-- A restrained HUD communicates speed, descent, distance, controls, and boost state.
+- Board pitch and bank, continuous sand spray, contact bursts, synthesized jump/landing cues, and a restrained HUD communicate speed, surface contact, landing quality, and boost state.
 - Mouse/right-stick orbit controls retain the existing free camera behavior.
 
 The previous movement-survivor scene remains in `main.tscn` only as temporary migration reference. It is not the project entry scene and its combat/progression systems are outside the new game direction.
 
-This is still a foundation, not the completed game. Repeated terrain-shape iteration, sandboard animation and contact physics, more landmark and gap variety, environmental audio, effects, accessibility, long-session streaming/performance soaks, and external playtest validation remain required.
+This is still a foundation, not the completed game. Repeated hands-on movement tuning, more detailed rider animation, more landmark and gap variety, environmental audio, effects refinement, accessibility, long-session streaming/performance soaks, and external playtest validation remain required.
 
 ## Controls
 
@@ -32,7 +33,9 @@ This is still a foundation, not the completed game. Repeated terrain-shape itera
 
 - `procedural_desert.gd` owns seeded radial terrain generation, seamless visual/collision chunks, bounded streaming, and floating-origin rebasing.
 - `desert_feature_grammar.gd` owns the deterministic, cache-bounded macro-feature distribution and its smooth analytic landforms.
-- `sandboarder.gd` owns slope-driven movement, carving, air control, jump/landing transitions, and boost application.
+- `sandboard_motion.gd` owns the testable speed-scaled carve envelope and clean/solid/rough landing assessment.
+- `jump_assist_state.gd` owns the single-consume 130 ms input buffer and 100 ms coyote window independently of frame rate.
+- `sandboarder.gd` integrates slope-driven movement, buffered/coyote jumps, surface-aligned presentation, contact feedback, and boost application.
 - `air_boost_state.gd` owns the small testable one-charge, sand-only refresh contract.
 - `follow_camera.gd` owns independent mouse/right-stick orbit and speed feedback.
 - `freeride_main.gd` owns the minimal run lifecycle, onboarding, pause flow, and HUD.
@@ -44,11 +47,14 @@ Run the boost-state contract, combat-free runtime integration, radial terrain sw
 
 ```sh
 godot --headless --path games/overrush --script res://tests/test_air_boost_state.gd
+godot --headless --path games/overrush --script res://tests/test_sandboard_motion.gd
+godot --headless --path games/overrush --script res://tests/test_jump_assist_state.gd
 godot --headless --path games/overrush --script res://tests/test_desert_feature_grammar.gd
 godot --headless --path games/overrush --script res://tests/validate_freeride_runtime.gd
 godot --headless --path games/overrush --script res://tests/validate_desert_terrain.gd
 godot --headless --path games/overrush --script res://tests/validate_desert_streaming.gd
 godot --headless --fixed-fps 300 --path games/overrush --script res://tests/validate_sandboard_motion.gd
+godot --headless --fixed-fps 300 --path games/overrush --script res://tests/validate_sandboard_jump_landing.gd
 godot --headless --path games/overrush --script res://tests/test_input_bindings.gd
 godot --headless --path games/overrush --quit-after 12
 ```
