@@ -915,12 +915,19 @@ theme_override_font_sizes/font_size = 17
 text = "OUTRUN THE STORM. BREAK THE APEX. BUILD MOMENTUM."
 horizontal_alignment = 1
 
-[node name="ProfileSummary" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+[node name="ProfileSummary" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.64, 0.22, 1)
-theme_override_font_sizes/font_size = 17
-text = "MOMENTUM 0   •   RUNS 0   •   WINS 0   •   SURVIVAL 00:00   •   CLEARS 0"
-horizontal_alignment = 1
+theme_override_colors/font_hover_color = Color(1, 0.8, 0.36, 1)
+theme_override_colors/font_focus_color = Color(1, 0.8, 0.36, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("MasteryButtonStyle")
+theme_override_styles/hover = SubResource("MasteryButtonHoverStyle")
+theme_override_styles/focus = SubResource("MasteryButtonHoverStyle")
+theme_override_styles/pressed = SubResource("MasteryButtonHoverStyle")
+text = "RUN ARCHIVE  •  OPEN   |   MOMENTUM 0   •   RUNS 0   •   WINS 0   •   SURVIVAL 00:00   •   CLEARS 0"
+tooltip_text = "Open the latest 20 run outcomes and builds"
 
 [node name="MasterySummary" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
 custom_minimum_size = Vector2(0, 42)
@@ -1032,6 +1039,173 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.78, 0.9, 1)
 theme_override_font_sizes/font_size = 14
 text = "ACCESSIBILITY & GUIDANCE"
+
+[node name="ArchiveOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.003, 0.012, 0.035, 0.95)
+
+[node name="ArchivePanel" type="PanelContainer" parent="HUD/ArchiveOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -480.0
+offset_top = -320.0
+offset_right = 480.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("LaunchPanelStyle")
+
+[node name="Content" type="VBoxContainer" parent="HUD/ArchiveOverlay/ArchivePanel"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Kicker" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.86, 1, 1)
+theme_override_constants/letter_spacing = 3
+theme_override_font_sizes/font_size = 14
+text = "REPEAT-RUN EVIDENCE"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.99, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "RUN ARCHIVE"
+horizontal_alignment = 1
+
+[node name="Introduction" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.82, 0.94, 1)
+theme_override_font_sizes/font_size = 14
+text = "Compare recent builds, protocols, outcomes, and your own replay notes. Most recent run first."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Summary" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.7, 0.25, 1)
+theme_override_font_sizes/font_size = 16
+text = "0 RECORDED RUNS  •  0 VICTORIES  •  0% CLEAR RATE  •  BEST 00:00"
+horizontal_alignment = 1
+
+[node name="Body" type="Control" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+custom_minimum_size = Vector2(0, 324)
+layout_mode = 2
+
+[node name="Empty" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.62, 0.78, 0.9, 1)
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "NO RUNS RECORDED\nLaunch your first run to begin comparing outcomes and builds."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Rows" type="VBoxContainer" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Run1" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.52, 1, 0.78, 1)
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "RUN 01  •  VICTORY  •  20:00  •  OPEN CIRCUIT  •  600 CLEARS  •  4 ELITES\nRAMJET  •  HUNTER ARRAY  •  REDLINE CORE  •  LEVEL 18"
+vertical_alignment = 1
+
+[node name="Run2" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "RUN 02"
+vertical_alignment = 1
+
+[node name="Run3" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "RUN 03"
+vertical_alignment = 1
+
+[node name="Run4" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "RUN 04"
+vertical_alignment = 1
+
+[node name="Run5" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/line_spacing = 2
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("HUDCardStyle")
+text = "RUN 05"
+vertical_alignment = 1
+
+[node name="PageControls" type="HBoxContainer" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Newer" type="Button" parent="HUD/ArchiveOverlay/ArchivePanel/Content/PageControls"]
+custom_minimum_size = Vector2(170, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "‹  NEWER RUNS"
+
+[node name="Page" type="Label" parent="HUD/ArchiveOverlay/ArchivePanel/Content/PageControls"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.64, 0.8, 0.92, 1)
+theme_override_font_sizes/font_size = 14
+text = "NO RUNS RECORDED"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Older" type="Button" parent="HUD/ArchiveOverlay/ArchivePanel/Content/PageControls"]
+custom_minimum_size = Vector2(170, 38)
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "OLDER RUNS  ›"
+
+[node name="Back" type="Button" parent="HUD/ArchiveOverlay/ArchivePanel/Content"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "BACK TO RUN SETUP"
 
 [node name="MasteryOverlay" type="ColorRect" parent="HUD"]
 visible = false

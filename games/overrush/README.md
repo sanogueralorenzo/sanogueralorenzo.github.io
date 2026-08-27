@@ -48,6 +48,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Victory and defeat recaps ask “Would you run again?” and reuse the same three buttons for one optional strength or issue tag; both answers attach to that run's full telemetry, retry keeps focus, recent sentiment plus the top note appear on the next launch screen, and `COPY RUN REPORT` places one sanitized, versioned latest-run JSON payload on the clipboard for external playtest handoff.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
+- A launch-accessible, controller-safe run archive turns that history into five-card pages that compare outcome, duration, protocol, clears, elites, mature build components, level, replay intent, and optional playtest notes; empty and restored profiles remain explicit and usable.
 - Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
 - Twelve non-power masteries track first Apex clears across all evolutions, arsenals, and Drive Catalysts, then point toward the next unexplored clear to encourage experimentation without replacing skill.
 - A launch-accessible mastery record separates all six evolutions, three arsenals, and three Drives into visible completed and unexplored checklists, explains that mastery grants no combat power, and returns controller focus safely to run setup.
@@ -165,6 +166,7 @@ Run the persistent-profile and challenge-protocol checks with:
 ```sh
 godot --headless --path games/overrush --script res://tests/test_progress_profile.gd
 godot --headless --path games/overrush --script res://tests/validate_run_protocols.gd
+godot --headless --path games/overrush --script res://tests/validate_run_archive.gd
 godot --headless --path games/overrush --script res://tests/validate_accessibility.gd
 godot --headless --path games/overrush --script res://tests/test_input_bindings.gd
 godot --headless --path games/overrush --script res://tests/validate_controller_pause.gd

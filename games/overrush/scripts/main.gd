@@ -6,6 +6,7 @@ const RunOnboardingModel = preload("res://scripts/run_onboarding.gd")
 const ApexCatalogModel = preload("res://scripts/apex_catalog.gd")
 const InputBindings = preload("res://scripts/input_bindings.gd")
 const CONTROL_REMINDER_SECONDS := 6.0
+const ARCHIVE_PAGE_SIZE := 5
 
 @onready var world = $World
 @onready var ball = $RunnerBall
@@ -57,7 +58,7 @@ const CONTROL_REMINDER_SECONDS := 6.0
 	$HUD/VictoryOverlay/FeedbackChoices/Yes,
 ]
 @onready var start_overlay: Control = $HUD/StartOverlay
-@onready var profile_summary: Label = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
+@onready var profile_summary: Button = $HUD/StartOverlay/LaunchPanel/Content/ProfileSummary
 @onready var mastery_summary: Button = $HUD/StartOverlay/LaunchPanel/Content/MasterySummary
 @onready var protocol_name: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolName
 @onready var protocol_description: Label = $HUD/StartOverlay/LaunchPanel/Content/ProtocolDescription
@@ -76,6 +77,20 @@ const CONTROL_REMINDER_SECONDS := 6.0
 @onready var mastery_drives: Label = $HUD/MasteryOverlay/MasteryPanel/Content/Groups/Drives
 @onready var mastery_next_goal: Label = $HUD/MasteryOverlay/MasteryPanel/Content/NextGoal
 @onready var mastery_back_button: Button = $HUD/MasteryOverlay/MasteryPanel/Content/Back
+@onready var archive_overlay: Control = $HUD/ArchiveOverlay
+@onready var archive_summary: Label = $HUD/ArchiveOverlay/ArchivePanel/Content/Summary
+@onready var archive_empty: Label = $HUD/ArchiveOverlay/ArchivePanel/Content/Body/Empty
+@onready var archive_rows: Array[Label] = [
+	$HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows/Run1,
+	$HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows/Run2,
+	$HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows/Run3,
+	$HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows/Run4,
+	$HUD/ArchiveOverlay/ArchivePanel/Content/Body/Rows/Run5,
+]
+@onready var archive_page_label: Label = $HUD/ArchiveOverlay/ArchivePanel/Content/PageControls/Page
+@onready var archive_newer_button: Button = $HUD/ArchiveOverlay/ArchivePanel/Content/PageControls/Newer
+@onready var archive_older_button: Button = $HUD/ArchiveOverlay/ArchivePanel/Content/PageControls/Older
+@onready var archive_back_button: Button = $HUD/ArchiveOverlay/ArchivePanel/Content/Back
 @onready var pause_overlay: Control = $HUD/PauseOverlay
 @onready var pause_summary: Label = $HUD/PauseOverlay/PausePanel/Content/Summary
 @onready var pause_loadout: Label = $HUD/PauseOverlay/PausePanel/Content/Loadout
@@ -118,6 +133,7 @@ var _damage_feedback_tween: Tween
 var _feedback_stage := &"intent"
 var _feedback_tag_options: Array[String] = []
 var _control_reminder_remaining := 0.0
+var _archive_page := 0
 
 
 func _enter_tree() -> void:
@@ -155,8 +171,12 @@ func _ready() -> void:
 	next_protocol.pressed.connect(_cycle_protocol.bind(1))
 	launch_button.pressed.connect(begin_run)
 	accessibility_button.pressed.connect(_open_settings.bind(false))
+	profile_summary.pressed.connect(_open_run_archive)
 	mastery_summary.pressed.connect(_open_mastery_board)
 	mastery_back_button.pressed.connect(_close_mastery_board)
+	archive_newer_button.pressed.connect(_change_archive_page.bind(-1))
+	archive_older_button.pressed.connect(_change_archive_page.bind(1))
+	archive_back_button.pressed.connect(_close_run_archive)
 	pause_resume_button.pressed.connect(_resume_run)
 	pause_settings_button.pressed.connect(_open_settings.bind(true))
 	pause_restart_button.pressed.connect(_request_restart)
@@ -228,15 +248,20 @@ func _input(event: InputEvent) -> void:
 	elif InputBindings.is_keyboard_or_mouse_event(event) and _using_gamepad:
 		_using_gamepad = false
 		_refresh_input_prompts()
-	if start_overlay.visible and event.is_action_pressed(InputBindings.MENU_LEFT):
+	if start_overlay.visible and not _is_launch_modal_visible() and event.is_action_pressed(InputBindings.MENU_LEFT):
 		_cycle_protocol(-1)
 		get_viewport().set_input_as_handled()
-	elif start_overlay.visible and event.is_action_pressed(InputBindings.MENU_RIGHT):
+	elif start_overlay.visible and not _is_launch_modal_visible() and event.is_action_pressed(InputBindings.MENU_RIGHT):
 		_cycle_protocol(1)
 		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if archive_overlay.visible:
+		if event.is_action_pressed(InputBindings.PAUSE):
+			_close_run_archive()
+			get_viewport().set_input_as_handled()
+		return
 	if mastery_overlay.visible:
 		if event.is_action_pressed(InputBindings.PAUSE):
 			_close_mastery_board()
@@ -556,7 +581,7 @@ func _on_run_failed(reason: String) -> void:
 
 
 func begin_run(protocol_id: StringName = &"") -> void:
-	if _run_started or mastery_overlay.visible:
+	if _run_started or _is_launch_modal_visible():
 		return
 	var chosen_protocol := protocol_id
 	if chosen_protocol.is_empty():
@@ -593,7 +618,7 @@ func _refresh_launch_screen() -> void:
 	var protocol_id := _available_protocols[_protocol_index]
 	var definition := RunProtocolCatalog.get_definition(protocol_id)
 	var best_total_seconds := floori(_profile.best_time_seconds)
-	profile_summary.text = "MOMENTUM %d   •   RUNS %d   •   WINS %d   •   SURVIVAL %02d:%02d   •   CLEARS %d" % [
+	profile_summary.text = "RUN ARCHIVE  •  OPEN   |   MOMENTUM %d   •   RUNS %d   •   WINS %d   •   SURVIVAL %02d:%02d   •   CLEARS %d" % [
 		_profile.momentum,
 		_profile.completed_runs,
 		_profile.victories,
@@ -627,10 +652,99 @@ func _refresh_launch_screen() -> void:
 	previous_protocol.disabled = _available_protocols.size() <= 1
 	next_protocol.disabled = _available_protocols.size() <= 1
 	_refresh_mastery_board()
+	_refresh_run_archive()
+
+
+func _is_launch_modal_visible() -> bool:
+	return archive_overlay.visible or mastery_overlay.visible or settings_overlay.visible
+
+
+func _open_run_archive() -> void:
+	if _run_started or not start_overlay.visible or mastery_overlay.visible or settings_overlay.visible:
+		return
+	_archive_page = 0
+	_refresh_run_archive()
+	archive_overlay.visible = true
+	archive_back_button.grab_focus()
+
+
+func _close_run_archive() -> void:
+	archive_overlay.visible = false
+	profile_summary.grab_focus()
+
+
+func _change_archive_page(direction: int) -> void:
+	var page_count := maxi(1, ceili(float(_profile.run_history.size()) / ARCHIVE_PAGE_SIZE))
+	_archive_page = clampi(_archive_page + direction, 0, page_count - 1)
+	_refresh_run_archive()
+	var requested_focus := archive_newer_button if direction < 0 else archive_older_button
+	var fallback_focus := archive_older_button if direction < 0 else archive_newer_button
+	(requested_focus if not requested_focus.disabled else fallback_focus).grab_focus()
+
+
+func _refresh_run_archive() -> void:
+	var history_count := _profile.run_history.size()
+	var page_count := maxi(1, ceili(float(history_count) / ARCHIVE_PAGE_SIZE))
+	_archive_page = clampi(_archive_page, 0, page_count - 1)
+	var clear_rate := 0 if _profile.completed_runs == 0 else roundi(float(_profile.victories) / _profile.completed_runs * 100.0)
+	var best_seconds := floori(_profile.best_time_seconds)
+	archive_summary.text = "%d RECORDED RUNS  •  %d VICTORIES  •  %d%% CLEAR RATE  •  BEST %02d:%02d" % [
+		_profile.completed_runs,
+		_profile.victories,
+		clear_rate,
+		best_seconds / 60,
+		best_seconds % 60,
+	]
+	archive_empty.visible = history_count == 0
+	var page_start := _archive_page * ARCHIVE_PAGE_SIZE
+	for row_index in range(archive_rows.size()):
+		var history_index := page_start + row_index
+		var row := archive_rows[row_index]
+		row.visible = history_index < history_count
+		if not row.visible:
+			continue
+		var summary: Dictionary = _profile.run_history[history_index]
+		row.text = _format_archive_run(summary, maxi(1, _profile.completed_runs - history_index))
+		row.add_theme_color_override("font_color", Color(0.52, 1.0, 0.78) if bool(summary.get("victory", false)) else Color(1.0, 0.67, 0.48))
+	var first_visible := 0 if history_count == 0 else page_start + 1
+	var last_visible := mini(history_count, page_start + ARCHIVE_PAGE_SIZE)
+	archive_page_label.text = "NO RUNS RECORDED" if history_count == 0 else "RUNS %d–%d OF %d  •  PAGE %d / %d" % [first_visible, last_visible, history_count, _archive_page + 1, page_count]
+	archive_newer_button.disabled = _archive_page == 0
+	archive_older_button.disabled = _archive_page >= page_count - 1
+
+
+func _format_archive_run(summary: Dictionary, run_number: int) -> String:
+	var elapsed_seconds := floori(float(summary.get("elapsed_seconds", 0.0)))
+	var protocol := RunProtocolCatalog.get_definition(StringName(str(summary.get("protocol_id", RunProtocolCatalog.STANDARD))))
+	var outcome := "VICTORY" if bool(summary.get("victory", false)) else "DEFEAT IN %s" % _get_recap_phase_name(StringName(str(summary.get("phase_reached", "breakaway"))))
+	var build_name := str(summary.get("build_name", "UNCOMMITTED"))
+	var arsenal_name := _get_archive_upgrade_name(StringName(str(summary.get("arsenal_id", ""))), "NO ARSENAL")
+	var drive_name := _get_archive_upgrade_name(StringName(str(summary.get("catalyst_id", ""))), "NO DRIVE")
+	var detail_parts: Array[String] = [build_name, arsenal_name, drive_name, "LEVEL %d" % int(summary.get("level", 1))]
+	var replay_intent := str(summary.get("replay_intent", ""))
+	if replay_intent in ProgressProfileModel.REPLAY_INTENTS:
+		detail_parts.append("REPLAY %s" % replay_intent.to_upper())
+	var playtest_tag := str(summary.get("playtest_tag", ""))
+	if ProgressProfileModel.PLAYTEST_TAG_NAMES.has(playtest_tag):
+		detail_parts.append("NOTE %s" % str(ProgressProfileModel.PLAYTEST_TAG_NAMES[playtest_tag]))
+	return "RUN %02d  •  %s  •  %02d:%02d  •  %s  •  %d CLEARS  •  %d ELITES\n%s" % [
+		run_number,
+		outcome,
+		elapsed_seconds / 60,
+		elapsed_seconds % 60,
+		str(protocol.name),
+		int(summary.get("enemies_defeated", 0)),
+		int(summary.get("elite_defeats", 0)),
+		"  •  ".join(detail_parts),
+	]
+
+
+func _get_archive_upgrade_name(upgrade_id: StringName, fallback: String) -> String:
+	return str(RunBuild.UPGRADE_NAMES.get(upgrade_id, fallback))
 
 
 func _open_mastery_board() -> void:
-	if _run_started or not start_overlay.visible:
+	if _run_started or not start_overlay.visible or archive_overlay.visible or settings_overlay.visible:
 		return
 	_refresh_mastery_board()
 	mastery_overlay.visible = true
