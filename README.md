@@ -2,7 +2,6 @@
 
 A small collection of things I'm building and experimenting with.
 
-- [Aeolian](./games/aeolian) — a Godot game.
 - [Voice](./tools/voice/README.md) — local-first voice input.
 - [Overlay](./overlay/README.md) — a small Android screen overlay.
 - [Trace](./trace/README.md) — connects commits to agent conversations.
