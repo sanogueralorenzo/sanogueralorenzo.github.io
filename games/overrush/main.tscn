@@ -1,4 +1,4 @@
-[gd_scene load_steps=25 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
@@ -123,6 +123,42 @@ corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
 shadow_color = Color(0.002, 0.012, 0.04, 0.74)
 shadow_size = 18
+
+[sub_resource type="StyleBoxFlat" id="DefeatRecapStyle"]
+content_margin_left = 36.0
+content_margin_top = 28.0
+content_margin_right = 36.0
+content_margin_bottom = 28.0
+bg_color = Color(0.055, 0.008, 0.024, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.18, 0.09, 0.6)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0.01, 0.001, 0.004, 0.78)
+shadow_size = 20
+
+[sub_resource type="StyleBoxFlat" id="VictoryRecapStyle"]
+content_margin_left = 36.0
+content_margin_top = 28.0
+content_margin_right = 36.0
+content_margin_bottom = 28.0
+bg_color = Color(0.006, 0.04, 0.075, 0.97)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.12, 0.88, 1, 0.68)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0.001, 0.012, 0.025, 0.78)
+shadow_size = 20
 
 [sub_resource type="StyleBoxFlat" id="LaunchButtonStyle"]
 bg_color = Color(0.08, 0.78, 0.96, 1)
@@ -475,20 +511,36 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.08, 0.005, 0.018, 0.82)
 
+[node name="RecapPanel" type="PanelContainer" parent="HUD/GameOverOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -470.0
+offset_top = -270.0
+offset_right = 470.0
+offset_bottom = 270.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("DefeatRecapStyle")
+
 [node name="Message" type="Label" parent="HUD/GameOverOverlay"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -320.0
-offset_top = -90.0
-offset_right = 320.0
-offset_bottom = 90.0
+offset_left = -440.0
+offset_top = -245.0
+offset_right = 440.0
+offset_bottom = 245.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(1, 0.34, 0.18, 1)
-theme_override_font_sizes/font_size = 34
+theme_override_colors/font_outline_color = Color(0.025, 0.002, 0.008, 0.96)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 22
 text = "RUN ENDED\n\nPRESS R TO BREAK THROUGH AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -503,22 +555,36 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.005, 0.075, 0.105, 0.86)
 
+[node name="RecapPanel" type="PanelContainer" parent="HUD/VictoryOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -470.0
+offset_top = -270.0
+offset_right = 470.0
+offset_bottom = 270.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("VictoryRecapStyle")
+
 [node name="Message" type="Label" parent="HUD/VictoryOverlay"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -420.0
-offset_top = -125.0
-offset_right = 420.0
-offset_bottom = 125.0
+offset_left = -440.0
+offset_top = -245.0
+offset_right = 440.0
+offset_bottom = 245.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_colors/font_color = Color(0.18, 0.94, 1, 1)
 theme_override_colors/font_outline_color = Color(0.005, 0.025, 0.06, 0.95)
 theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 22
 text = "APEX BROKEN\n\nPRESS R TO OVERRUN AGAIN"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -578,7 +644,7 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.94, 0.64, 0.22, 1)
 theme_override_font_sizes/font_size = 17
-text = "MOMENTUM 0   •   RUNS 0   •   WINS 0   •   BEST 00:00"
+text = "MOMENTUM 0   •   RUNS 0   •   WINS 0   •   SURVIVAL 00:00   •   CLEARS 0"
 horizontal_alignment = 1
 
 [node name="Divider" type="ColorRect" parent="HUD/StartOverlay/LaunchPanel/Content"]

@@ -1,0 +1,56 @@
+extends SceneTree
+
+const RunBuildScript = preload("res://scripts/run_build.gd")
+const RunStatsScript = preload("res://scripts/run_stats.gd")
+
+var _failures: Array[String] = []
+
+
+func _init() -> void:
+	var stats: OverrushRunStats = RunStatsScript.new()
+	stats.reset(Vector3.ZERO)
+	stats.record_traversal(Vector3(3.0, 8.0, 4.0), 58.0)
+	stats.record_traversal(Vector3(403.0, 8.0, 404.0), 126.0)
+	stats.record_traversal(Vector3(409.0, 8.0, 412.0), 88.0)
+	_expect(is_equal_approx(stats.distance_traveled, 15.0), "Run distance should include planar movement while rejecting teleport-sized discontinuities.")
+	_expect(is_equal_approx(stats.maximum_speed, 126.0), "Peak speed should preserve the fastest sampled traversal state.")
+
+	stats.record_damage(&"dash_nova", 80.0)
+	stats.record_damage(&"arc_bolt", 20.0)
+	stats.record_damage(&"dash_nova", 20.0)
+	stats.record_damage(&"unknown_source", 5.0)
+	stats.record_damage_taken(22.0)
+	stats.record_dash()
+	stats.record_dash()
+	stats.record_upgrade(&"dash_nova")
+	stats.record_upgrade(&"ramjet")
+	stats.record_defeat(&"rift_weaver", true)
+	stats.set_phase(&"overrun")
+	var top_sources := stats.get_top_damage_sources()
+	_expect(top_sources.size() == 3 and str(top_sources[0].id) == "dash_nova", "Damage sources should rank by actual applied damage.")
+	_expect(int(top_sources[0].hits) == 2 and roundi(float(top_sources[0].damage)) == 100, "Damage accounting should retain hit count and source total.")
+	_expect("DASH NOVA 80%" in stats.get_damage_breakdown_text(), "The recap breakdown should expose a readable contribution percentage.")
+
+	var build: RunBuild = RunBuildScript.new()
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		build.apply_upgrade(&"dash_nova")
+	build.apply_upgrade(&"ramjet")
+	build.level = 9
+	var summary := stats.snapshot(743.2, 88, build)
+	_expect(str(summary.build_name) == "DASHBREAKER • RAMJET" and int(summary.level) == 9, "Run snapshots should identify the demonstrated build and level.")
+	_expect(int(summary.elite_defeats) == 1 and str(summary.phase_reached) == "overrun", "Run snapshots should preserve encounter progress.")
+	_expect(int(summary.dash_count) == 2 and is_equal_approx(float(summary.damage_taken), 22.0), "Run snapshots should preserve movement and survivability evidence.")
+	_expect((summary.upgrade_history as Array).size() == 2, "Run snapshots should retain the choice history used for balance review.")
+
+	if _failures.is_empty():
+		print("Run statistics validation passed — damage attribution, traversal evidence, and bounded snapshots are deterministic.")
+		quit(0)
+	else:
+		for failure in _failures:
+			push_error(failure)
+		quit(1)
+
+
+func _expect(condition: bool, message: String) -> void:
+	if not condition:
+		_failures.append(message)

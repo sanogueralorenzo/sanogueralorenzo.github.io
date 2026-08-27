@@ -8,6 +8,7 @@ var radius := 10.0
 var damage := 8.0
 var lifetime := 1.5
 var repeat_interval := 0.0
+var source_id := &"stormtrail"
 
 var _total_lifetime := 1.5
 var _scan_timer := 0.0
@@ -16,13 +17,20 @@ var _hit_enemy_ids: Dictionary = {}
 var _disc: MeshInstance3D
 
 
-func configure(new_radius: float, new_damage: float, new_lifetime: float, new_repeat_interval: float = 0.0) -> void:
+func configure(
+	new_radius: float,
+	new_damage: float,
+	new_lifetime: float,
+	new_repeat_interval: float = 0.0,
+	new_source_id: StringName = &"stormtrail"
+) -> void:
 	radius = new_radius
 	damage = new_damage
 	lifetime = new_lifetime
 	_total_lifetime = new_lifetime
 	repeat_interval = maxf(0.0, new_repeat_interval)
 	_repeat_timer = repeat_interval
+	source_id = new_source_id
 	_build_visual()
 
 
@@ -57,7 +65,7 @@ func _damage_new_crossings() -> void:
 		).length()
 		if planar_distance <= radius:
 			_hit_enemy_ids[enemy.get_instance_id()] = true
-			enemy.take_damage(damage)
+			enemy.take_damage(damage, source_id)
 
 
 func _build_visual() -> void:

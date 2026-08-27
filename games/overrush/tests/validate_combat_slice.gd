@@ -25,6 +25,7 @@ func _run() -> void:
 		enemy.global_position.y = runner.global_position.y
 		await create_timer(1.0).timeout
 		_expect(director.enemies_defeated > 0, "The automatic arc weapon should acquire and defeat a nearby threat.")
+		_expect(float(director.run_stats.damage_by_source.get(&"arc_bolt", 0.0)) > 0.0, "Automatic arc damage should reach the run recap under its own source.")
 
 	director._on_experience_collected(12)
 	await process_frame
@@ -43,6 +44,7 @@ func _run() -> void:
 	director._on_dash_state_changed(true)
 	await process_frame
 	_expect(director.enemies_defeated > defeats_before_nova, "Dash Nova should convert a movement action into immediate area damage.")
+	_expect(float(director.run_stats.damage_by_source.get(&"dash_nova", 0.0)) > 0.0, "Dash Nova damage should reach the run recap under its own source.")
 
 	director.stop_run()
 	paused = false

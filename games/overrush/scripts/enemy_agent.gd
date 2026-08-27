@@ -2,6 +2,7 @@ class_name EnemyAgent
 extends Node3D
 
 signal defeated(enemy: EnemyAgent, experience_value: int)
+signal damaged(enemy: EnemyAgent, amount: float, source_id: StringName)
 signal health_changed(enemy: EnemyAgent, current: float, maximum: float)
 signal attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName)
 signal reinforcements_requested(enemy: EnemyAgent, count: int)
@@ -109,11 +110,13 @@ func _physics_process(delta: float) -> void:
 	_body_mesh.rotation.y += delta * (3.8 if archetype == &"skimmer" else 1.8)
 
 
-func take_damage(amount: float) -> void:
+func take_damage(amount: float, source_id: StringName = &"unattributed") -> void:
 	if amount <= 0.0 or health <= 0.0:
 		return
+	var previous_health := health
 	health = maxf(0.0, health - amount)
 	_hit_flash = 0.09
+	damaged.emit(self, previous_health - health, source_id)
 	health_changed.emit(self, health, maximum_health)
 	if health <= 0.0:
 		defeated.emit(self, experience_value)

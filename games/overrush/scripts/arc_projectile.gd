@@ -14,13 +14,15 @@ var _lifetime := MAX_LIFETIME
 var _direction := Vector3.FORWARD
 var _chain_remaining := 0
 var _hit_target_ids: Dictionary = {}
+var _source_id := &"arc_bolt"
 
 
-func configure(new_target: EnemyAgent, new_damage: float, initial_direction: Vector3, chain_count: int = 0) -> void:
+func configure(new_target: EnemyAgent, new_damage: float, initial_direction: Vector3, chain_count: int = 0, source_id: StringName = &"arc_bolt") -> void:
 	target = new_target
 	damage = new_damage
 	_direction = initial_direction.normalized()
 	_chain_remaining = chain_count
+	_source_id = source_id
 	_build_visual()
 
 
@@ -41,7 +43,7 @@ func _physics_process(delta: float) -> void:
 func _strike_target() -> void:
 	var struck_target := target
 	_hit_target_ids[struck_target.get_instance_id()] = true
-	struck_target.take_damage(damage)
+	struck_target.take_damage(damage, _source_id)
 	if _chain_remaining <= 0:
 		queue_free()
 		return

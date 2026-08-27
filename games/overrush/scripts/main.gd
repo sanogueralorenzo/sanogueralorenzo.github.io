@@ -62,6 +62,7 @@ var _protocol_index := 0
 var _persistence_enabled := true
 var _run_started := false
 var _run_recorded := false
+var _run_result: Dictionary = {}
 var _onboarding: RunOnboarding = RunOnboardingModel.new()
 
 
@@ -217,13 +218,8 @@ func _choose_upgrade(index: int) -> void:
 func _on_runner_defeated() -> void:
 	audio.play_defeat()
 	combat.stop_run()
-	var progress_text := _record_run_progress(false)
-	game_over_message.text = "RUN ENDED\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
-		combat.get_formatted_time(),
-		combat.build.level,
-		combat.enemies_defeated,
-		progress_text,
-	]
+	var result := _record_run_progress(false)
+	game_over_message.text = _format_run_recap("RUN ENDED", result, "PRESS R TO BREAK THROUGH AGAIN")
 	game_over_overlay.visible = true
 	get_tree().paused = true
 
@@ -261,26 +257,16 @@ func _on_apex_health_changed(current: float, maximum: float) -> void:
 
 func _on_run_victory() -> void:
 	audio.play_victory()
-	var progress_text := _record_run_progress(true)
-	victory_message.text = "APEX BROKEN\n\n%s  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO OVERRUN AGAIN" % [
-		combat.get_formatted_time(),
-		combat.build.level,
-		combat.enemies_defeated,
-		progress_text,
-	]
+	var result := _record_run_progress(true)
+	victory_message.text = _format_run_recap("APEX BROKEN", result, "PRESS R TO OVERRUN AGAIN")
 	victory_overlay.visible = true
 	get_tree().paused = true
 
 
 func _on_run_failed(reason: String) -> void:
 	audio.play_defeat()
-	var progress_text := _record_run_progress(false)
-	game_over_message.text = "%s\n\n20:00  •  LEVEL %d  •  %d CLEARED\n%s\n\nPRESS R TO BREAK THROUGH AGAIN" % [
-		reason,
-		combat.build.level,
-		combat.enemies_defeated,
-		progress_text,
-	]
+	var result := _record_run_progress(false)
+	game_over_message.text = _format_run_recap(reason, result, "PRESS R TO BREAK THROUGH AGAIN")
 	game_over_overlay.visible = true
 	get_tree().paused = true
 
@@ -318,12 +304,13 @@ func _refresh_launch_screen() -> void:
 	var protocol_id := _available_protocols[_protocol_index]
 	var definition := RunProtocolCatalog.get_definition(protocol_id)
 	var best_total_seconds := floori(_profile.best_time_seconds)
-	profile_summary.text = "MOMENTUM %d   •   RUNS %d   •   WINS %d   •   BEST %02d:%02d" % [
+	profile_summary.text = "MOMENTUM %d   •   RUNS %d   •   WINS %d   •   SURVIVAL %02d:%02d   •   CLEARS %d" % [
 		_profile.momentum,
 		_profile.completed_runs,
 		_profile.victories,
 		best_total_seconds / 60,
 		best_total_seconds % 60,
+		_profile.best_clear_count,
 	]
 	protocol_name.text = str(definition.name)
 	protocol_description.text = str(definition.description)
@@ -334,19 +321,80 @@ func _refresh_launch_screen() -> void:
 	next_protocol.disabled = _available_protocols.size() <= 1
 
 
-func _record_run_progress(victory: bool) -> String:
+func _record_run_progress(victory: bool) -> Dictionary:
 	if _run_recorded:
-		return ""
+		return _run_result
 	_run_recorded = true
-	var result := _profile.record_run(combat.elapsed_time, combat.enemies_defeated, victory)
+	var summary := combat.run_stats.snapshot(combat.elapsed_time, combat.enemies_defeated, combat.build)
+	summary["victory"] = victory
+	summary["protocol_id"] = str(combat.selected_protocol)
+	summary["world_seed"] = int(world.generated_seed)
+	_run_result = _profile.record_run(combat.elapsed_time, combat.enemies_defeated, victory, summary)
+	_run_result["summary"] = summary
 	_save_profile()
+	return _run_result
+
+
+func _format_run_recap(headline: String, result: Dictionary, retry_text: String) -> String:
+	var summary: Dictionary = result.get("summary", {})
+	var elapsed_seconds := floori(float(summary.get("elapsed_seconds", 0.0)))
+	var phase_name := _get_recap_phase_name(StringName(str(summary.get("phase_reached", "breakaway"))))
+	var upgrade_count := (summary.get("upgrade_history", []) as Array).size()
+	var progress_text := "+%d MOMENTUM  •  TOTAL %d" % [
+		int(result.get("momentum_earned", 0)),
+		int(result.get("momentum_total", 0)),
+	]
 	var unlock_names: Array[String] = []
-	for protocol_id in result.new_unlocks:
+	for protocol_id in result.get("new_unlocks", []):
 		unlock_names.append(str(RunProtocolCatalog.get_definition(StringName(protocol_id)).name))
-	var unlock_text := ""
 	if not unlock_names.is_empty():
-		unlock_text = "  •  UNLOCKED %s" % ", ".join(unlock_names)
-	return "+%d MOMENTUM  •  TOTAL %d%s" % [result.momentum_earned, result.momentum_total, unlock_text]
+		progress_text += "  •  UNLOCKED %s" % ", ".join(unlock_names)
+	var record_names: Array[String] = []
+	for record_id in result.get("new_records", []):
+		match StringName(record_id):
+			&"survival":
+				record_names.append("SURVIVAL")
+			&"clears":
+				record_names.append("CLEARS")
+			&"damage":
+				record_names.append("DAMAGE")
+			&"distance":
+				record_names.append("DISTANCE")
+	var record_text := "RUN LOGGED  •  CHASE THE NEXT RECORD" if record_names.is_empty() else "NEW BEST  •  %s" % " / ".join(record_names)
+	return "%s\n\n%s  •  LEVEL %d  •  %d UPGRADES\n%02d:%02d  •  %d CLEARED  •  %d ELITES  •  %s\n%d DAMAGE  •  %d TAKEN\n%s\n%.1f KM TRAVERSED  •  %d M/S PEAK  •  %d DASHES\n\n%s\n%s\n\n%s" % [
+		headline,
+		str(summary.get("build_name", "UNCOMMITTED")),
+		int(summary.get("level", 1)),
+		upgrade_count,
+		elapsed_seconds / 60,
+		elapsed_seconds % 60,
+		int(summary.get("enemies_defeated", 0)),
+		int(summary.get("elite_defeats", 0)),
+		phase_name,
+		roundi(float(summary.get("damage_dealt", 0.0))),
+		roundi(float(summary.get("damage_taken", 0.0))),
+		combat.run_stats.get_damage_breakdown_text(),
+		float(summary.get("distance_meters", 0.0)) / 1000.0,
+		roundi(float(summary.get("maximum_speed", 0.0))),
+		int(summary.get("dash_count", 0)),
+		progress_text,
+		record_text,
+		retry_text,
+	]
+
+
+func _get_recap_phase_name(phase_id: StringName) -> String:
+	match phase_id:
+		&"pressure":
+			return "PRESSURE"
+		&"redline":
+			return "REDLINE"
+		&"overrun":
+			return "OVERRUN"
+		&"apex":
+			return "THE APEX"
+		_:
+			return "BREAKAWAY"
 
 
 func _apply_accessibility() -> void:

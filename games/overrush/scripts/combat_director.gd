@@ -18,6 +18,7 @@ const ArcProjectileScript = preload("res://scripts/arc_projectile.gd")
 const ExperiencePickupScript = preload("res://scripts/experience_pickup.gd")
 const SlipstreamWakeScript = preload("res://scripts/slipstream_wake.gd")
 const RunBuildScript = preload("res://scripts/run_build.gd")
+const RunStatsScript = preload("res://scripts/run_stats.gd")
 const RunPacingModel = preload("res://scripts/run_pacing.gd")
 const RunProtocolCatalog = preload("res://scripts/run_protocols.gd")
 
@@ -33,6 +34,7 @@ const WAKE_DROP_INTERVAL := 0.2
 @export var world_path: NodePath
 
 var build: RunBuild = RunBuildScript.new()
+var run_stats: OverrushRunStats = RunStatsScript.new()
 var pacing: RunPacing = RunPacingModel.new()
 var elapsed_time := 0.0
 var enemies_defeated := 0
@@ -70,6 +72,7 @@ func _ready() -> void:
 	_world = get_node(world_path)
 	_rng.seed = int(_world.generated_seed) ^ 0x4F564552
 	_runner.dash_state_changed.connect(_on_dash_state_changed)
+	_runner.damaged.connect(_on_runner_damaged)
 	_current_phase = pacing.get_phase_id(0.0)
 	build_changed.emit(build)
 
@@ -79,6 +82,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var previous_time := elapsed_time
 	elapsed_time += delta
+	run_stats.record_traversal(_runner.global_position, _runner.get_horizontal_speed())
 	_update_run_pacing(previous_time)
 	if not _run_active:
 		return
@@ -102,6 +106,7 @@ func choose_upgrade(option_index: int) -> void:
 		return
 	if choosing_evolution:
 		_pending_evolution_announcement = build.get_upgrade_name(chosen_upgrade)
+	run_stats.record_upgrade(chosen_upgrade)
 	if float(result.maximum_integrity) > 0.0:
 		_runner.increase_maximum_integrity(float(result.maximum_integrity), float(result.repair))
 	build.consume_pending_level()
@@ -131,6 +136,8 @@ func start_run(protocol_id: StringName) -> void:
 	_extra_elite_interval = float(definition.extra_elite_interval)
 	_next_protocol_elite = _extra_elite_interval if _extra_elite_interval > 0.0 else INF
 	_runner.apply_integrity_multiplier(float(definition.integrity_multiplier))
+	run_stats.reset(_runner.global_position)
+	run_stats.set_phase(_current_phase)
 	_run_started = true
 	_run_active = true
 	phase_changed.emit(_current_phase, pacing.get_phase_name(0.0))
@@ -193,6 +200,7 @@ func _spawn_enemy(archetype_override: StringName = &"", rank: StringName = &"sta
 	enemy.apply_health_multiplier(_enemy_health_multiplier)
 	enemy.apply_accessibility(_reduced_motion, _high_contrast_telegraphs)
 	enemy.defeated.connect(_on_enemy_defeated)
+	enemy.damaged.connect(_on_enemy_damaged)
 	enemy.health_changed.connect(_on_enemy_health_changed)
 	enemy.attack_telegraphed.connect(_on_enemy_attack_telegraphed)
 	enemy.reinforcements_requested.connect(_on_reinforcements_requested)
@@ -272,7 +280,8 @@ func _update_arc_weapon(delta: float) -> void:
 			_runner.global_position,
 			build.get_orbit_damage(_runner.get_horizontal_speed()),
 			build.get_orbit_radius(),
-			Color(0.1, 0.9, 1.0, 0.34)
+			Color(0.1, 0.9, 1.0, 0.34),
+			&"arc_orbit"
 		)
 		return
 	_fire_timer += build.fire_interval
@@ -283,7 +292,7 @@ func _update_arc_weapon(delta: float) -> void:
 		add_child(projectile)
 		projectile.global_position = _runner.global_position + Vector3.UP * 1.1
 		var direction := (target.global_position - projectile.global_position).normalized()
-		projectile.configure(target, damage, direction, build.arc_chain_count)
+		projectile.configure(target, damage, direction, build.arc_chain_count, &"arc_bolt")
 
 
 func _find_targets(count: int) -> Array[EnemyAgent]:
@@ -315,8 +324,8 @@ func _update_slipstream(delta: float) -> void:
 	if build.is_twin_current():
 		var side := Vector3(-heading.z, 0.0, heading.x) * build.get_twin_current_offset()
 		var twin_damage := damage * build.get_twin_current_damage_multiplier()
-		_spawn_wake(wake_position + side, radius, twin_damage, duration)
-		_spawn_wake(wake_position - side, radius, twin_damage, duration)
+		_spawn_wake(wake_position + side, radius, twin_damage, duration, 0.0, &"twin_current")
+		_spawn_wake(wake_position - side, radius, twin_damage, duration, 0.0, &"twin_current")
 		return
 	if build.is_tempest_anchor() and _wake_drop_count % build.get_anchor_stride() == 0:
 		_spawn_wake(
@@ -324,16 +333,18 @@ func _update_slipstream(delta: float) -> void:
 			radius * build.get_anchor_radius_multiplier(),
 			damage * build.get_anchor_damage_multiplier(),
 			duration * build.get_anchor_duration_multiplier(),
-			build.get_anchor_repeat_interval()
+			build.get_anchor_repeat_interval(),
+			&"tempest_anchor"
 		)
 		return
-	_spawn_wake(wake_position, radius, damage, duration)
+	_spawn_wake(wake_position, radius, damage, duration, 0.0, &"stormtrail")
 
 
 func _on_dash_state_changed(active: bool) -> void:
 	if not _run_active:
 		return
 	if active:
+		run_stats.record_dash()
 		_dash_hit_ids.clear()
 		if build.phase_shell_level > 0:
 			_runner.grant_damage_immunity(build.get_phase_shell_duration())
@@ -342,7 +353,8 @@ func _on_dash_state_changed(active: bool) -> void:
 				_runner.global_position,
 				build.get_dash_nova_damage(),
 				build.get_dash_nova_radius(),
-				Color(0.05, 0.82, 1.0, 0.42)
+				Color(0.05, 0.82, 1.0, 0.42),
+				&"dash_nova"
 			)
 	else:
 		if build.dash_echo_level > 0:
@@ -350,7 +362,8 @@ func _on_dash_state_changed(active: bool) -> void:
 				_runner.global_position,
 				build.get_dash_echo_damage(),
 				build.get_dash_nova_radius() * 0.82,
-				Color(0.52, 0.16, 1.0, 0.38)
+				Color(0.52, 0.16, 1.0, 0.38),
+				&"dash_echo"
 			)
 		if build.is_gravity_knot():
 			_release_gravity_knot(_runner.global_position)
@@ -370,7 +383,7 @@ func _update_ramjet() -> void:
 		if planar_distance > build.get_ramjet_radius() + enemy.body_radius:
 			continue
 		_dash_hit_ids[enemy.get_instance_id()] = true
-		enemy.take_damage(build.get_ramjet_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier)
+		enemy.take_damage(build.get_ramjet_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier, &"ramjet")
 		hit_count += 1
 	if hit_count > 0:
 		_spawn_pulse(_runner.global_position, Color(1.0, 0.42, 0.05, 0.42), build.get_ramjet_radius() * 1.6, 0.12)
@@ -390,17 +403,24 @@ func _release_gravity_knot(center: Vector3) -> void:
 		enemy.global_position.y = _world.get_surface_height(enemy.global_position.x, enemy.global_position.z) + enemy.body_radius * 0.72
 	_spawn_pulse(center, Color(0.62, 0.16, 1.0, 0.42), radius, 0.28)
 	get_tree().create_timer(0.28, false).timeout.connect(func() -> void:
-		if is_inside_tree():
-			_release_nova(center, damage, radius * 0.62, Color(0.9, 0.28, 1.0, 0.48))
+		if is_inside_tree() and _run_active:
+			_release_nova(center, damage, radius * 0.62, Color(0.9, 0.28, 1.0, 0.48), &"gravity_knot")
 	)
 
 
-func _spawn_wake(position: Vector3, radius: float, damage: float, duration: float, repeat_interval: float = 0.0) -> void:
+func _spawn_wake(
+	position: Vector3,
+	radius: float,
+	damage: float,
+	duration: float,
+	repeat_interval: float = 0.0,
+	source_id: StringName = &"stormtrail"
+) -> void:
 	position.y = _world.get_surface_height(position.x, position.z) + 0.14
 	var wake: SlipstreamWake = SlipstreamWakeScript.new()
 	add_child(wake)
 	wake.global_position = position
-	wake.configure(radius, damage, duration, repeat_interval)
+	wake.configure(radius, damage, duration, repeat_interval, source_id)
 
 
 func _fire_storm_lance() -> void:
@@ -424,7 +444,7 @@ func _fire_storm_lance() -> void:
 		targets.resize(build.get_lance_target_limit())
 	var damage := build.get_lance_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
 	for target in targets:
-		target.take_damage(damage)
+		target.take_damage(damage, &"storm_lance")
 	_spawn_lance_visual(_runner.global_position, heading, lance_range, lance_width)
 
 
@@ -449,16 +469,17 @@ func _spawn_lance_visual(origin: Vector3, heading: Vector3, lance_range: float, 
 	tween.tween_callback(lance.queue_free)
 
 
-func _release_nova(position: Vector3, damage: float, radius: float, color: Color) -> void:
+func _release_nova(position: Vector3, damage: float, radius: float, color: Color, source_id: StringName) -> void:
 	damage *= _outgoing_damage_multiplier
 	for enemy in _enemies.duplicate():
 		if is_instance_valid(enemy) and enemy.global_position.distance_to(position) <= radius:
-			enemy.take_damage(damage)
+			enemy.take_damage(damage, source_id)
 	_spawn_pulse(position, color, radius, 0.32)
 
 
 func _on_enemy_defeated(enemy: EnemyAgent, experience_value: int) -> void:
 	enemies_defeated += 1
+	run_stats.record_defeat(enemy.archetype, enemy.is_elite)
 	_enemies.erase(enemy)
 	enemy_defeated_feedback.emit(enemy.is_elite, enemy.is_apex)
 	if enemy.is_apex:
@@ -484,6 +505,14 @@ func _on_experience_collected(value: int) -> void:
 
 func _on_enemy_attack_telegraphed(enemy: EnemyAgent, attack_kind: StringName) -> void:
 	attack_warning_feedback.emit(attack_kind, enemy.is_elite, enemy.is_apex)
+
+
+func _on_enemy_damaged(_enemy: EnemyAgent, amount: float, source_id: StringName) -> void:
+	run_stats.record_damage(source_id, amount)
+
+
+func _on_runner_damaged(amount: float) -> void:
+	run_stats.record_damage_taken(amount)
 
 
 func _on_reinforcements_requested(source: EnemyAgent, count: int) -> void:
@@ -515,6 +544,7 @@ func _update_run_pacing(previous_time: float) -> void:
 	var phase_id := pacing.get_phase_id(elapsed_time)
 	if phase_id != _current_phase:
 		_current_phase = phase_id
+		run_stats.set_phase(phase_id)
 		var phase_name := pacing.get_phase_name(elapsed_time)
 		phase_changed.emit(phase_id, phase_name)
 		event_announced.emit(phase_name, _get_phase_subtitle(phase_id))
