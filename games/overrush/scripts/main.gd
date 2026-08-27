@@ -38,6 +38,7 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var game_over_overlay: Control = $HUD/GameOverOverlay
 @onready var game_over_message: Label = $HUD/GameOverOverlay/Message
 @onready var game_over_retry: Button = $HUD/GameOverOverlay/Retry
+@onready var game_over_copy_report: Button = $HUD/GameOverOverlay/CopyReport
 @onready var game_over_feedback_prompt: Label = $HUD/GameOverOverlay/FeedbackPrompt
 @onready var game_over_feedback_buttons: Array[Button] = [
 	$HUD/GameOverOverlay/FeedbackChoices/No,
@@ -47,6 +48,7 @@ const InputBindings = preload("res://scripts/input_bindings.gd")
 @onready var victory_overlay: Control = $HUD/VictoryOverlay
 @onready var victory_message: Label = $HUD/VictoryOverlay/Message
 @onready var victory_retry: Button = $HUD/VictoryOverlay/Retry
+@onready var victory_copy_report: Button = $HUD/VictoryOverlay/CopyReport
 @onready var victory_feedback_prompt: Label = $HUD/VictoryOverlay/FeedbackPrompt
 @onready var victory_feedback_buttons: Array[Button] = [
 	$HUD/VictoryOverlay/FeedbackChoices/No,
@@ -149,6 +151,8 @@ func _ready() -> void:
 	pause_restart_button.pressed.connect(_request_restart)
 	game_over_retry.pressed.connect(_restart_scene)
 	victory_retry.pressed.connect(_restart_scene)
+	game_over_copy_report.pressed.connect(_copy_latest_playtest_report.bind(game_over_copy_report))
+	victory_copy_report.pressed.connect(_copy_latest_playtest_report.bind(victory_copy_report))
 	for index in range(ProgressProfileModel.REPLAY_INTENTS.size()):
 		game_over_feedback_buttons[index].pressed.connect(_on_feedback_choice.bind(index))
 		victory_feedback_buttons[index].pressed.connect(_on_feedback_choice.bind(index))
@@ -632,6 +636,14 @@ func _reset_replay_feedback(prompt: Label, buttons: Array[Button]) -> void:
 	for index in range(buttons.size()):
 		buttons[index].text = ProgressProfileModel.REPLAY_INTENTS[index].to_upper()
 		buttons[index].disabled = false
+
+
+func _copy_latest_playtest_report(button: Button) -> void:
+	var report_json := _profile.get_latest_playtest_report_json()
+	if report_json.is_empty():
+		return
+	DisplayServer.clipboard_set(report_json)
+	button.text = "✓ REPORT COPIED"
 
 
 func _show_playtest_tags(prompt: Label, buttons: Array[Button]) -> void:

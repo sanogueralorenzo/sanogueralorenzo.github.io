@@ -7,6 +7,8 @@ const SCHEMA_VERSION := 11
 const MINIMUM_SUPPORTED_SCHEMA := 1
 const DEFAULT_PATH := "user://overrush_profile.json"
 const RUN_HISTORY_LIMIT := 20
+const PLAYTEST_REPORT_FORMAT := "overrush_playtest_report"
+const PLAYTEST_REPORT_VERSION := 1
 const REPLAY_INTENTS: Array[String] = ["no", "maybe", "yes"]
 const POSITIVE_PLAYTEST_TAGS: Array[String] = ["movement_highlight", "build_highlight", "climax_highlight"]
 const ISSUE_PLAYTEST_TAGS: Array[String] = ["readability_issue", "terrain_issue", "difficulty_issue"]
@@ -176,6 +178,22 @@ func record_latest_playtest_tag(tag: String) -> bool:
 	last_run_summary["playtest_tag"] = safe_tag
 	run_history[0]["playtest_tag"] = safe_tag
 	return true
+
+
+func get_latest_playtest_report() -> Dictionary:
+	if last_run_summary.is_empty():
+		return {}
+	return {
+		"format": PLAYTEST_REPORT_FORMAT,
+		"format_version": PLAYTEST_REPORT_VERSION,
+		"profile_schema": SCHEMA_VERSION,
+		"run": _sanitize_run_summary(last_run_summary),
+	}
+
+
+func get_latest_playtest_report_json() -> String:
+	var report := get_latest_playtest_report()
+	return "" if report.is_empty() else JSON.stringify(report, "\t")
 
 
 func get_recent_replay_feedback_count(limit: int = 5) -> int:

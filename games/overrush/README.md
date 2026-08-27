@@ -43,7 +43,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Framed victory and defeat recaps identify the build, arsenal, catalyst execution, upgrade count, phase, clears, elites, actual damage contribution, incoming damage by attack source, applied integrity recovery, distance, peak speed, dashes, rewards, unlocks, and personal records before retrying.
 - Run endings are atomic: victory, deadline, or integrity failure invalidates any in-flight draft and rejects late pickups or stale upgrade input before the recap is recorded.
-- Victory and defeat recaps ask “Would you run again?” and reuse the same three buttons for one optional strength or issue tag; both answers attach to that run's full telemetry, retry keeps focus, and recent sentiment plus the top note appear on the next launch screen.
+- Victory and defeat recaps ask “Would you run again?” and reuse the same three buttons for one optional strength or issue tag; both answers attach to that run's full telemetry, retry keeps focus, recent sentiment plus the top note appear on the next launch screen, and `COPY RUN REPORT` places one sanitized, versioned latest-run JSON payload on the clipboard for external playtest handoff.
 - Recovery-safe, versioned profile saving keeps a previous valid backup, restores it if the primary save is missing or corrupt, and retains a bounded last-run snapshot plus personal clear, damage, and distance records.
 - A bounded 20-run history preserves sanitized build outcomes for balance review; the launch screen summarizes recent form rather than letting one exceptional run hide a weak build.
 - Timestamped draft telemetry and the outcome recap expose when each run's engine, evolution, arsenal, and Drive came online, supporting repeated pacing analysis instead of relying on final level alone.
@@ -74,7 +74,7 @@ This is not yet the complete target game. The 20-minute structure, three Apex en
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, deadline, and earliest protected build-fork beats independently of frame rate.
 - `apex_catalog.gd` owns deterministic encounter selection, names, phase messaging, and shared boss tuning while `enemy_agent.gd` owns the distinct pursuit and route-denial behaviors.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
-- `progress_profile.gd` owns versioned progression state, deterministic run rewards, bounded run history, optional replay intent and actionable playtest tags, non-power build mastery, protocol selection, atomic writes, and backup recovery.
+- `progress_profile.gd` owns versioned progression state, deterministic run rewards, bounded run history, optional replay intent and actionable playtest tags, the privacy-safe latest-run report contract, non-power build mastery, protocol selection, atomic writes, and backup recovery.
 - `run_onboarding.gd` owns the input-aware, time-bounded first-run guidance sequence independently of the HUD.
 - `audio_director.gd` synthesizes and pools the original music and feedback palette, controls phase intensity, rate-limits warnings, and owns runtime mixing.
 - `input_bindings.gd` owns the idempotent keyboard/gamepad action map and input-device detection used by movement, menus, prompts, and tests.
