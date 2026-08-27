@@ -10,6 +10,7 @@ func _init() -> void:
 	_test_first_choice_establishes_distinct_builds()
 	_test_paths_remain_mechanically_isolated()
 	_test_repeatable_upgrade_limits()
+	_test_exclusive_evolution_forks()
 	if _failures.is_empty():
 		print("Run build validation passed.")
 		quit(0)
@@ -72,6 +73,36 @@ func _test_repeatable_upgrade_limits() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9
 	_expect(build.get_upgrade_options(rng).size() == 3, "A mature path should still offer three valid choices after capped upgrades leave the pool.")
+
+
+func _test_exclusive_evolution_forks() -> void:
+	var path_cases := [
+		[&"dash_nova", &"ramjet", &"gravity_knot", &"ramjet_mass", &"event_horizon"],
+		[&"slipstream", &"twin_current", &"tempest_anchor", &"parallel_flow", &"storm_charge"],
+		[&"velocity_coil", &"storm_lance", &"arc_orbit", &"lance_focus", &"orbit_flux"],
+	]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7721
+	for path_case in path_cases:
+		var build := RunBuildScript.new()
+		for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+			build.apply_upgrade(StringName(path_case[0]))
+		var options := build.get_upgrade_options(rng)
+		_expect(StringName(path_case[1]) in options and StringName(path_case[2]) in options, "A mature engine should explicitly offer both exclusive evolution geometries.")
+		_expect(not build.apply_upgrade(StringName(path_case[1])).is_empty(), "A qualified evolution should be selectable.")
+		_expect(build.apply_upgrade(StringName(path_case[2])).is_empty(), "Choosing one evolution should permanently reject its sibling for the run.")
+		_expect(not build.apply_upgrade(StringName(path_case[3])).is_empty(), "The chosen evolution should unlock its dedicated support upgrade.")
+		_expect(build.apply_upgrade(StringName(path_case[4])).is_empty(), "Support from the rejected evolution should remain unavailable.")
+		_expect(str(build.get_upgrade_name(StringName(path_case[1]))) in build.get_build_name(), "The HUD build name should expose the chosen evolution.")
+
+	var envelope_build := RunBuildScript.new()
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		envelope_build.apply_upgrade(&"velocity_coil")
+	envelope_build.apply_upgrade(&"storm_lance")
+	for _rank in range(3):
+		envelope_build.apply_upgrade(&"lance_focus")
+	_expect(envelope_build.get_lance_range() <= 145.0 and envelope_build.get_lance_target_limit() <= 11, "Storm Lance support should stay inside its authored range and target envelope.")
+	_expect(envelope_build.apply_upgrade(&"lance_focus").is_empty(), "Evolution support should cap after three meaningful ranks.")
 
 
 func _expect(condition: bool, message: String) -> void:

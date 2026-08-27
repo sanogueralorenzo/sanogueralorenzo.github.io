@@ -13,8 +13,11 @@ func _run() -> void:
 	await _validate_dashbreaker()
 	await _validate_stormtrail()
 	await _validate_arcstorm()
+	await _validate_dashbreaker_evolutions()
+	await _validate_stormtrail_evolutions()
+	await _validate_arcstorm_evolutions()
 	if _failures.is_empty():
-		print("Build path validation passed — dash endpoints, persistent wakes, and chain arcs all defeat threats.")
+		print("Build path validation passed — all three engines and six exclusive evolution geometries defeat threats.")
 		quit(0)
 	else:
 		for failure in _failures:
@@ -113,6 +116,138 @@ func _validate_arcstorm() -> void:
 	_expect(director.enemies_defeated >= 2, "One Arcstorm bolt should chain between two nearby threats.")
 	_expect(director.build.is_arc_weapon_enabled(), "Arcstorm should retain ranged automatic targeting.")
 	await _dispose_scene(scene)
+
+
+func _validate_dashbreaker_evolutions() -> void:
+	var scene := await _create_test_scene(64758)
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	director._run_active = true
+	director.build = _evolved_build(&"dash_nova", &"ramjet", &"ramjet_mass")
+	var ram_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	ram_target.health = 18.0
+	ram_target.movement_speed = 0.0
+	ram_target.global_position = runner.global_position + Vector3.RIGHT * 2.0
+	ram_target.global_position.y = runner.global_position.y
+	runner._dash_state.is_active = true
+	director._dash_hit_ids.clear()
+	var defeats_before_ram := director.enemies_defeated
+	director._update_ramjet()
+	await process_frame
+	_expect(director.enemies_defeated > defeats_before_ram, "Ramjet should turn the moving dash body into a once-per-target collision weapon.")
+	runner._dash_state.is_active = false
+	await _clear_director_children(director)
+
+	director.build = _evolved_build(&"dash_nova", &"gravity_knot", &"event_horizon")
+	var knot_target: EnemyAgent = director._spawn_enemy(&"bulwark")
+	knot_target.health = 24.0
+	knot_target.movement_speed = 0.0
+	knot_target.global_position = runner.global_position + Vector3.RIGHT * 24.0
+	knot_target.global_position.y = runner.global_position.y
+	var distance_before := knot_target.global_position.distance_to(runner.global_position)
+	var defeats_before_knot := director.enemies_defeated
+	director._on_dash_state_changed(false)
+	var distance_after_pull := knot_target.global_position.distance_to(runner.global_position)
+	_expect(distance_after_pull < distance_before * 0.7, "Gravity Knot should pull nearby threats toward the dash endpoint before damage resolves.")
+	await create_timer(0.45).timeout
+	_expect(director.enemies_defeated > defeats_before_knot, "Gravity Knot's delayed collapse should damage the clustered threat.")
+	await _dispose_scene(scene)
+
+
+func _validate_stormtrail_evolutions() -> void:
+	var scene := await _create_test_scene(72677)
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	director.build = _evolved_build(&"slipstream", &"twin_current", &"parallel_flow")
+	director._update_slipstream(1.0)
+	var twin_wakes: Array[SlipstreamWake] = []
+	for child in director.get_children():
+		if child is SlipstreamWake:
+			twin_wakes.append(child)
+	_expect(twin_wakes.size() == 2, "Twin Current should replace the center wake with two separated traversal lanes.")
+	if twin_wakes.size() == 2:
+		_expect(twin_wakes[0].global_position.distance_to(twin_wakes[1].global_position) > 16.0, "Twin Current lanes should be spatially distinct enough to reward weaving.")
+	await _clear_director_children(director)
+
+	director.build = _evolved_build(&"slipstream", &"tempest_anchor", &"storm_charge")
+	director._wake_drop_count = director.build.get_anchor_stride() - 1
+	director._wake_timer = 0.0
+	director._update_slipstream(1.0)
+	var anchor: SlipstreamWake
+	for child in director.get_children():
+		if child is SlipstreamWake:
+			anchor = child
+			break
+	_expect(anchor != null and anchor.repeat_interval > 0.0, "Tempest Anchor should periodically create a persistent, repeating damage zone.")
+	if anchor != null:
+		var anchor_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+		anchor_target.health = anchor.damage * 1.5
+		anchor_target.movement_speed = 0.0
+		anchor_target.global_position = anchor.global_position
+		await create_timer(anchor.repeat_interval * 2.4).timeout
+		_expect(not is_instance_valid(anchor_target) or anchor_target.is_queued_for_deletion(), "A Tempest Anchor should be able to strike the same stationary threat more than once.")
+	await _dispose_scene(scene)
+
+
+func _validate_arcstorm_evolutions() -> void:
+	var scene := await _create_test_scene(104353)
+	var director: CombatDirector = scene.get_node("CombatDirector")
+	var runner: CharacterBody3D = scene.get_node("RunnerBall")
+	director.build = _evolved_build(&"velocity_coil", &"storm_lance", &"lance_focus")
+	var lance_defeats_before := director.enemies_defeated
+	for distance in [24.0, 48.0, 72.0]:
+		var target: EnemyAgent = director._spawn_enemy(&"pursuer")
+		target.health = 28.0
+		target.movement_speed = 0.0
+		target.global_position = runner.global_position + runner.heading.normalized() * distance
+		target.global_position.y = runner.global_position.y
+	var behind_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	behind_target.health = 28.0
+	behind_target.movement_speed = 0.0
+	behind_target.global_position = runner.global_position - runner.heading.normalized() * 20.0
+	behind_target.global_position.y = runner.global_position.y
+	director._fire_timer = 0.0
+	director._update_arc_weapon(1.0)
+	await process_frame
+	_expect(director.enemies_defeated >= lance_defeats_before + 3, "Storm Lance should pierce a lined-up pack in the runner's heading.")
+	_expect(is_instance_valid(behind_target) and behind_target.health > 0.0, "Storm Lance should reward facing instead of hitting enemies behind the runner.")
+	await _clear_director_children(director)
+
+	director.build = _evolved_build(&"velocity_coil", &"arc_orbit", &"orbit_flux")
+	var orbit_defeats_before := director.enemies_defeated
+	for offset in [Vector3.RIGHT * 8.0, Vector3.LEFT * 12.0, runner.heading.normalized() * 16.0]:
+		var target: EnemyAgent = director._spawn_enemy(&"pursuer")
+		target.health = 12.0
+		target.movement_speed = 0.0
+		target.global_position = runner.global_position + offset
+		target.global_position.y = runner.global_position.y
+	var distant_target: EnemyAgent = director._spawn_enemy(&"pursuer")
+	distant_target.health = 12.0
+	distant_target.movement_speed = 0.0
+	distant_target.global_position = runner.global_position + Vector3.RIGHT * 50.0
+	distant_target.global_position.y = runner.global_position.y
+	director._fire_timer = 0.0
+	director._update_arc_weapon(1.0)
+	await process_frame
+	_expect(director.enemies_defeated >= orbit_defeats_before + 3, "Arc Orbit should clear nearby threats in every direction.")
+	_expect(is_instance_valid(distant_target) and distant_target.health > 0.0, "Arc Orbit should trade ranged safety for close traversal pressure.")
+	await _dispose_scene(scene)
+
+
+func _evolved_build(keystone: StringName, evolution: StringName, support: StringName) -> RunBuild:
+	var build: RunBuild = RunBuildScript.new()
+	for _rank in range(RunBuild.EVOLUTION_UNLOCK_RANK):
+		build.apply_upgrade(keystone)
+	build.apply_upgrade(evolution)
+	build.apply_upgrade(support)
+	return build
+
+
+func _clear_director_children(director: CombatDirector) -> void:
+	for child in director.get_children():
+		child.queue_free()
+	director._enemies.clear()
+	await process_frame
 
 
 func _expect(condition: bool, message: String) -> void:

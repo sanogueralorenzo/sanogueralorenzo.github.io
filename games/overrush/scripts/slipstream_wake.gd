@@ -7,18 +7,22 @@ const WakeShader = preload("res://shaders/slipstream_wake.gdshader")
 var radius := 10.0
 var damage := 8.0
 var lifetime := 1.5
+var repeat_interval := 0.0
 
 var _total_lifetime := 1.5
 var _scan_timer := 0.0
+var _repeat_timer := 0.0
 var _hit_enemy_ids: Dictionary = {}
 var _disc: MeshInstance3D
 
 
-func configure(new_radius: float, new_damage: float, new_lifetime: float) -> void:
+func configure(new_radius: float, new_damage: float, new_lifetime: float, new_repeat_interval: float = 0.0) -> void:
 	radius = new_radius
 	damage = new_damage
 	lifetime = new_lifetime
 	_total_lifetime = new_lifetime
+	repeat_interval = maxf(0.0, new_repeat_interval)
+	_repeat_timer = repeat_interval
 	_build_visual()
 
 
@@ -27,6 +31,11 @@ func _physics_process(delta: float) -> void:
 	if lifetime <= 0.0:
 		queue_free()
 		return
+	if repeat_interval > 0.0:
+		_repeat_timer -= delta
+		if _repeat_timer <= 0.0:
+			_hit_enemy_ids.clear()
+			_repeat_timer += repeat_interval
 	_scan_timer -= delta
 	if _scan_timer <= 0.0:
 		_scan_timer = DAMAGE_SCAN_INTERVAL

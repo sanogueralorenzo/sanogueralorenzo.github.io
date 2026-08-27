@@ -20,6 +20,8 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - A homing arc weapon, collectible experience, integrity damage, run timer, and defeat state.
 - A first level-up commitment to one exclusive movement-centric engine: Dashbreaker, Stormtrail, or Arcstorm.
 - Path-specific follow-ups create different combat geometry: dash entry/exit detonations and immunity, persistent traversal wakes, or speed-scaled multi-target chain arcs.
+- Each mature engine forks into one of two exclusive evolutions: impact or gravity dashes, parallel or repeating wakes, and aimed lances or close-range electrical orbits.
+- Every evolution has a capped three-rank support upgrade, keeping late-run choices transformative while preserving each branch's traversal-driven identity.
 - A structured 20-minute run: Breakaway, Pressure Rises, Redline, Overrun, and a two-minute Apex climax with explicit victory or deadline failure.
 - A run-launch screen summarizes persistent Momentum, completed runs, victories, best survival time, and the selected challenge protocol.
 - Recovery-safe, versioned profile saving keeps a previous valid backup and restores it if the primary save is missing or corrupt.
@@ -30,7 +32,7 @@ Early movement-survivor prototype for fast combat runs across large procedural l
 - Pooled synthesized cues distinguish dashing, damage, weapon impacts, attack warnings, enemy defeats, core pickups, level-ups, phase changes, victory, and failure without importing placeholder audio.
 - Persistent master and music mix controls apply immediately; outcome cues duck the run music so the ending remains legible.
 
-This is not yet the complete target game. The 20-minute structure, first boss, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broad content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
+This is not yet the complete target game. The 20-minute structure, first boss, six build evolutions, initial progression loop, onboarding, comfort settings, and audio foundation now exist, but broad content variety, deeper accessibility, repeated balance work, usability validation, and external playtesting remain long-term work.
 
 ## Generation architecture
 
@@ -38,8 +40,8 @@ This is not yet the complete target game. The 20-minute structure, first boss, i
 - `route_lookup.gd` converts route samples into packed Z buckets for allocation-free height queries.
 - `terrain_grammar.gd` owns noise, regional blending, and route-shaped terrain heights.
 - `terrain_validator.gd` keeps test-only safety checks out of runtime generation code.
-- `combat_director.gd` owns spawning, escalation, targeting, rewards, and movement-triggered combat effects.
-- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, and build-changing path state.
+- `combat_director.gd` owns spawning, escalation, targeting, rewards, and the distinct geometry of movement-triggered combat effects.
+- `run_build.gd` owns testable experience thresholds, exclusive upgrade pools, evolution forks, capped support ranks, and branch tuning.
 - `run_pacing.gd` owns the deterministic phase, elite, Apex, and deadline schedule independently of frame rate.
 - `run_protocols.gd` is the single catalog for challenge tradeoffs, reward multipliers, and Momentum thresholds.
 - `progress_profile.gd` owns versioned progression state, deterministic run rewards, protocol selection, atomic writes, and backup recovery.
@@ -92,6 +94,7 @@ Run the build rules and playable combat integration checks with:
 
 ```sh
 godot --headless --path games/overrush --script res://tests/test_run_build.gd
+godot --headless --path games/overrush --script res://tests/test_build_evolution_balance.gd
 godot --headless --path games/overrush --script res://tests/validate_combat_slice.gd
 godot --headless --path games/overrush --script res://tests/validate_build_paths.gd
 ```

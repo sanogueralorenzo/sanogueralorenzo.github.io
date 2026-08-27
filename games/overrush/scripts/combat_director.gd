@@ -58,6 +58,9 @@ var _next_protocol_elite := INF
 var _protocol_elite_index := 0
 var _reduced_motion := false
 var _high_contrast_telegraphs := false
+var _dash_hit_ids: Dictionary = {}
+var _wake_drop_count := 0
+var _pending_evolution_announcement := ""
 
 
 func _ready() -> void:
@@ -82,6 +85,7 @@ func _physics_process(delta: float) -> void:
 	_update_spawning(delta)
 	_update_arc_weapon(delta)
 	_update_slipstream(delta)
+	_update_ramjet()
 
 
 func choose_upgrade(option_index: int) -> void:
@@ -90,9 +94,13 @@ func choose_upgrade(option_index: int) -> void:
 	var options := build.get_meta("current_options", []) as Array
 	if option_index < 0 or option_index >= options.size():
 		return
-	var result := build.apply_upgrade(StringName(options[option_index]))
+	var chosen_upgrade := StringName(options[option_index])
+	var choosing_evolution := build.is_evolution_upgrade(chosen_upgrade)
+	var result := build.apply_upgrade(chosen_upgrade)
 	if result.is_empty():
 		return
+	if choosing_evolution:
+		_pending_evolution_announcement = build.get_upgrade_name(chosen_upgrade)
 	if float(result.maximum_integrity) > 0.0:
 		_runner.increase_maximum_integrity(float(result.maximum_integrity), float(result.repair))
 	build.consume_pending_level()
@@ -103,6 +111,12 @@ func choose_upgrade(option_index: int) -> void:
 		_awaiting_upgrade = false
 		build.remove_meta("current_options")
 		get_tree().paused = false
+		if not _pending_evolution_announcement.is_empty():
+			event_announced.emit(
+				"%s ONLINE" % _pending_evolution_announcement,
+				"Exclusive evolution locked for this run"
+			)
+			_pending_evolution_announcement = ""
 
 
 func start_run(protocol_id: StringName) -> void:
@@ -213,6 +227,19 @@ func _update_arc_weapon(delta: float) -> void:
 	_fire_timer -= delta
 	if _fire_timer > 0.0:
 		return
+	if build.is_storm_lance():
+		_fire_timer += build.get_lance_interval()
+		_fire_storm_lance()
+		return
+	if build.is_arc_orbit():
+		_fire_timer += build.get_orbit_interval()
+		_release_nova(
+			_runner.global_position,
+			build.get_orbit_damage(_runner.get_horizontal_speed()),
+			build.get_orbit_radius(),
+			Color(0.1, 0.9, 1.0, 0.34)
+		)
+		return
 	_fire_timer += build.fire_interval
 	var targets := _find_targets(build.projectile_count)
 	var damage := build.get_arc_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
@@ -244,37 +271,147 @@ func _update_slipstream(delta: float) -> void:
 	if _wake_timer > 0.0:
 		return
 	_wake_timer = WAKE_DROP_INTERVAL
-	var wake_position: Vector3 = _runner.global_position - _runner.heading.normalized() * 10.0
-	wake_position.y = _world.get_surface_height(wake_position.x, wake_position.z) + 0.14
-	var wake: SlipstreamWake = SlipstreamWakeScript.new()
-	add_child(wake)
-	wake.global_position = wake_position
-	wake.configure(
-		build.get_wake_radius(),
-		build.get_wake_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier,
-		build.get_wake_duration()
-	)
+	_wake_drop_count += 1
+	var heading: Vector3 = _runner.heading.normalized()
+	var wake_position: Vector3 = _runner.global_position - heading * 10.0
+	var radius := build.get_wake_radius()
+	var damage := build.get_wake_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
+	var duration := build.get_wake_duration()
+	if build.is_twin_current():
+		var side := Vector3(-heading.z, 0.0, heading.x) * build.get_twin_current_offset()
+		var twin_damage := damage * build.get_twin_current_damage_multiplier()
+		_spawn_wake(wake_position + side, radius, twin_damage, duration)
+		_spawn_wake(wake_position - side, radius, twin_damage, duration)
+		return
+	if build.is_tempest_anchor() and _wake_drop_count % build.get_anchor_stride() == 0:
+		_spawn_wake(
+			wake_position,
+			radius * build.get_anchor_radius_multiplier(),
+			damage * build.get_anchor_damage_multiplier(),
+			duration * build.get_anchor_duration_multiplier(),
+			build.get_anchor_repeat_interval()
+		)
+		return
+	_spawn_wake(wake_position, radius, damage, duration)
 
 
 func _on_dash_state_changed(active: bool) -> void:
-	if build.dash_nova_level <= 0 or not _run_active:
+	if not _run_active:
 		return
 	if active:
+		_dash_hit_ids.clear()
 		if build.phase_shell_level > 0:
 			_runner.grant_damage_immunity(build.get_phase_shell_duration())
-		_release_nova(
-			_runner.global_position,
-			build.get_dash_nova_damage(),
-			build.get_dash_nova_radius(),
-			Color(0.05, 0.82, 1.0, 0.42)
-		)
-	elif build.dash_echo_level > 0:
-		_release_nova(
-			_runner.global_position,
-			build.get_dash_echo_damage(),
-			build.get_dash_nova_radius() * 0.82,
-			Color(0.52, 0.16, 1.0, 0.38)
-		)
+		if build.dash_nova_level > 0:
+			_release_nova(
+				_runner.global_position,
+				build.get_dash_nova_damage(),
+				build.get_dash_nova_radius(),
+				Color(0.05, 0.82, 1.0, 0.42)
+			)
+	else:
+		if build.dash_echo_level > 0:
+			_release_nova(
+				_runner.global_position,
+				build.get_dash_echo_damage(),
+				build.get_dash_nova_radius() * 0.82,
+				Color(0.52, 0.16, 1.0, 0.38)
+			)
+		if build.is_gravity_knot():
+			_release_gravity_knot(_runner.global_position)
+
+
+func _update_ramjet() -> void:
+	if not _run_active or not _runner.is_dashing() or not build.is_ramjet():
+		return
+	var hit_count := 0
+	for enemy in _enemies.duplicate():
+		if not is_instance_valid(enemy) or _dash_hit_ids.has(enemy.get_instance_id()):
+			continue
+		var planar_distance := Vector2(
+			enemy.global_position.x - _runner.global_position.x,
+			enemy.global_position.z - _runner.global_position.z
+		).length()
+		if planar_distance > build.get_ramjet_radius() + enemy.body_radius:
+			continue
+		_dash_hit_ids[enemy.get_instance_id()] = true
+		enemy.take_damage(build.get_ramjet_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier)
+		hit_count += 1
+	if hit_count > 0:
+		_spawn_pulse(_runner.global_position, Color(1.0, 0.42, 0.05, 0.42), build.get_ramjet_radius() * 1.6, 0.12)
+
+
+func _release_gravity_knot(center: Vector3) -> void:
+	var radius := build.get_gravity_knot_radius()
+	var damage := build.get_gravity_knot_damage()
+	var pull_ratio := build.get_gravity_knot_pull_ratio()
+	for enemy in _enemies.duplicate():
+		if not is_instance_valid(enemy):
+			continue
+		var planar_offset := Vector3(center.x - enemy.global_position.x, 0.0, center.z - enemy.global_position.z)
+		if planar_offset.length() > radius:
+			continue
+		enemy.global_position += planar_offset * pull_ratio
+		enemy.global_position.y = _world.get_surface_height(enemy.global_position.x, enemy.global_position.z) + enemy.body_radius * 0.72
+	_spawn_pulse(center, Color(0.62, 0.16, 1.0, 0.42), radius, 0.28)
+	get_tree().create_timer(0.28, false).timeout.connect(func() -> void:
+		if is_inside_tree():
+			_release_nova(center, damage, radius * 0.62, Color(0.9, 0.28, 1.0, 0.48))
+	)
+
+
+func _spawn_wake(position: Vector3, radius: float, damage: float, duration: float, repeat_interval: float = 0.0) -> void:
+	position.y = _world.get_surface_height(position.x, position.z) + 0.14
+	var wake: SlipstreamWake = SlipstreamWakeScript.new()
+	add_child(wake)
+	wake.global_position = position
+	wake.configure(radius, damage, duration, repeat_interval)
+
+
+func _fire_storm_lance() -> void:
+	var heading: Vector3 = _runner.heading.normalized()
+	var lance_range := build.get_lance_range()
+	var lance_width := build.get_lance_width()
+	var targets: Array[EnemyAgent] = []
+	for enemy in _enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var offset := enemy.global_position - _runner.global_position
+		offset.y = 0.0
+		var forward_distance := offset.dot(heading)
+		var lateral_distance := (offset - heading * forward_distance).length()
+		if forward_distance > 0.0 and forward_distance <= lance_range and lateral_distance <= lance_width + enemy.body_radius:
+			targets.append(enemy)
+	targets.sort_custom(func(a: EnemyAgent, b: EnemyAgent) -> bool:
+		return (a.global_position - _runner.global_position).dot(heading) < (b.global_position - _runner.global_position).dot(heading)
+	)
+	if targets.size() > build.get_lance_target_limit():
+		targets.resize(build.get_lance_target_limit())
+	var damage := build.get_lance_damage(_runner.get_horizontal_speed()) * _outgoing_damage_multiplier
+	for target in targets:
+		target.take_damage(damage)
+	_spawn_lance_visual(_runner.global_position, heading, lance_range, lance_width)
+
+
+func _spawn_lance_visual(origin: Vector3, heading: Vector3, lance_range: float, lance_width: float) -> void:
+	var lance := MeshInstance3D.new()
+	var beam := BoxMesh.new()
+	beam.size = Vector3(lance_width * 2.0, 0.22, lance_range)
+	lance.mesh = beam
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(0.18, 0.94, 1.0, 0.34)
+	material.emission_enabled = true
+	material.emission = Color(0.04, 0.72, 1.0)
+	material.emission_energy_multiplier = 4.5
+	lance.material_override = material
+	add_child(lance)
+	lance.global_position = origin + heading * lance_range * 0.5 + Vector3.UP * 0.45
+	lance.look_at(lance.global_position + heading, Vector3.UP)
+	var tween := create_tween()
+	tween.tween_property(lance, "transparency", 1.0, 0.16)
+	tween.tween_callback(lance.queue_free)
 
 
 func _release_nova(position: Vector3, damage: float, radius: float, color: Color) -> void:

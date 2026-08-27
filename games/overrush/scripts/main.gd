@@ -181,9 +181,17 @@ func _on_level_up_requested(options: Array[StringName]) -> void:
 		_event_tween.kill()
 	event_banner.visible = false
 	level_up_overlay.visible = true
+	var offers_evolution := false
+	for upgrade_id in options:
+		if combat.build.is_evolution_upgrade(upgrade_id):
+			offers_evolution = true
+			break
 	if combat.build.core_path.is_empty():
 		level_up_title.text = "CHOOSE YOUR ENGINE"
 		level_up_prompt.text = "Commit to a combat geometry for this run"
+	elif offers_evolution:
+		level_up_title.text = "EVOLVE %s" % combat.build.get_build_name()
+		level_up_prompt.text = "Choose one exclusive geometry, or defer the fork with a standard upgrade"
 	else:
 		level_up_title.text = "%s EVOLVES" % combat.build.get_build_name()
 		level_up_prompt.text = "Deepen this build without collapsing into another path"
