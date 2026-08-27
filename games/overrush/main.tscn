@@ -1,9 +1,10 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_world.gd" id="2_world"]
 [ext_resource type="Script" path="res://scripts/runner_ball.gd" id="3_ball"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
+[ext_resource type="Script" path="res://scripts/combat_director.gd" id="5_combat"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_overrush"]
 sky_top_color = Color(0.018, 0.12, 0.43, 1)
@@ -75,6 +76,27 @@ scale_min = 0.35
 scale_max = 1.25
 color = Color(0.08, 0.78, 1, 0.72)
 
+[sub_resource type="StyleBoxFlat" id="HUDBarBackground"]
+bg_color = Color(0.015, 0.035, 0.09, 0.78)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="IntegrityFill"]
+bg_color = Color(1, 0.19, 0.065, 0.95)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="ExperienceFill"]
+bg_color = Color(0.1, 0.88, 1, 0.95)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [node name="Overrush" type="Node3D"]
 script = ExtResource("1_main")
 
@@ -126,6 +148,11 @@ light_color = Color(0.08, 0.78, 1, 1)
 light_energy = 0.0
 omni_range = 9.0
 
+[node name="CombatDirector" type="Node3D" parent="."]
+script = ExtResource("5_combat")
+runner_path = NodePath("../RunnerBall")
+world_path = NodePath("../World")
+
 [node name="Camera3D" type="Camera3D" parent="."]
 position = Vector3(0, 10, 18)
 current = true
@@ -148,6 +175,70 @@ theme_override_constants/shadow_offset_y = 3
 theme_override_font_sizes/font_size = 19
 text = "OVER RUSH  •  GENERATING WORLD"
 
+[node name="RunStats" type="Label" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = 102.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0.94, 0.98, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 18
+text = "00:00\n0 HOSTILES  •  0 CLEARED"
+horizontal_alignment = 2
+
+[node name="ExperienceBar" type="ProgressBar" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 22.0
+offset_top = 8.0
+offset_right = -22.0
+offset_bottom = 14.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("ExperienceFill")
+show_percentage = false
+
+[node name="LevelLabel" type="Label" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 550.0
+offset_top = 17.0
+offset_right = -550.0
+offset_bottom = 44.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.75, 0.96, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.015, 0.035, 0.09, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 16
+text = "LEVEL 1"
+horizontal_alignment = 1
+
+[node name="IntegrityBar" type="ProgressBar" parent="HUD"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -56.0
+offset_right = 180.0
+offset_bottom = -42.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/background = SubResource("HUDBarBackground")
+theme_override_styles/fill = SubResource("IntegrityFill")
+value = 100.0
+show_percentage = false
+
 [node name="Controls" type="Label" parent="HUD"]
 anchors_preset = 2
 anchor_top = 1.0
@@ -163,3 +254,92 @@ theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
 theme_override_font_sizes/font_size = 16
 text = "A / D steer   •   W boost   •   S brake   •   Space hop   •   Shift / Alt dash   •   R new world"
+
+[node name="LevelUpOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.008, 0.018, 0.055, 0.78)
+
+[node name="ChoicePanel" type="PanelContainer" parent="HUD/LevelUpOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -390.0
+offset_top = -244.0
+offset_right = 390.0
+offset_bottom = 244.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Choices" type="VBoxContainer" parent="HUD/LevelUpOverlay/ChoicePanel"]
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.15, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "VELOCITY EVOLVES"
+horizontal_alignment = 1
+
+[node name="Prompt" type="Label" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
+theme_override_font_sizes/font_size = 17
+text = "Choose the way this run changes"
+horizontal_alignment = 1
+
+[node name="Option1" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+custom_minimum_size = Vector2(720, 102)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "1   DASH NOVA"
+alignment = 0
+
+[node name="Option2" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+custom_minimum_size = Vector2(720, 102)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "2   SLIPSTREAM"
+alignment = 0
+
+[node name="Option3" type="Button" parent="HUD/LevelUpOverlay/ChoicePanel/Choices"]
+custom_minimum_size = Vector2(720, 102)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+text = "3   VELOCITY COIL"
+alignment = 0
+
+[node name="GameOverOverlay" type="ColorRect" parent="HUD"]
+visible = false
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.005, 0.018, 0.82)
+
+[node name="Message" type="Label" parent="HUD/GameOverOverlay"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -90.0
+offset_right = 320.0
+offset_bottom = 90.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(1, 0.34, 0.18, 1)
+theme_override_font_sizes/font_size = 34
+text = "RUN ENDED\n\nPRESS R TO BREAK THROUGH AGAIN"
+horizontal_alignment = 1
+vertical_alignment = 1

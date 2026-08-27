@@ -1,6 +1,8 @@
 extends CharacterBody3D
 
 signal dash_state_changed(active: bool)
+signal integrity_changed(current: float, maximum: float)
+signal defeated
 
 const DashStateMachine = preload("res://scripts/dash_state.gd")
 
@@ -16,6 +18,8 @@ const DashStateMachine = preload("res://scripts/dash_state.gd")
 @export var dash_minimum_duration: float = 0.08
 @export var dash_maximum_duration: float = 0.24
 @export var dash_cooldown: float = 0.14
+@export var maximum_integrity: float = 100.0
+@export var damage_invulnerability: float = 0.42
 
 @onready var ball_mesh: MeshInstance3D = $BallMesh
 @onready var dash_trail: GPUParticles3D = $DashTrail
@@ -28,15 +32,24 @@ var _dash_state: DashStateMachine
 var _dash_heading := Vector3.FORWARD
 var _dash_was_pressed := false
 var _ball_material: StandardMaterial3D
+var integrity: float
+var _damage_invulnerability_remaining := 0.0
+var _damage_flash_remaining := 0.0
+var _dash_visual_active := false
 
 
 func _ready() -> void:
 	_dash_state = DashStateMachine.new(dash_minimum_duration, dash_maximum_duration, dash_cooldown)
 	_ball_material = ball_mesh.get_active_material(0).duplicate()
 	ball_mesh.material_override = _ball_material
+	integrity = maximum_integrity
+	integrity_changed.emit(integrity, maximum_integrity)
 
 
 func _physics_process(delta: float) -> void:
+	_damage_invulnerability_remaining = maxf(0.0, _damage_invulnerability_remaining - delta)
+	_damage_flash_remaining = maxf(0.0, _damage_flash_remaining - delta)
+	_update_ball_material()
 	var grounded := is_on_floor()
 	var dash_pressed := _is_dash_pressed()
 	var dash_event := _dash_state.step(delta, dash_pressed, dash_pressed and not _dash_was_pressed, grounded)
@@ -102,6 +115,23 @@ func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
 
 
+func take_damage(amount: float) -> void:
+	if amount <= 0.0 or integrity <= 0.0 or _damage_invulnerability_remaining > 0.0:
+		return
+	integrity = maxf(0.0, integrity - amount)
+	_damage_invulnerability_remaining = damage_invulnerability
+	_damage_flash_remaining = 0.13
+	integrity_changed.emit(integrity, maximum_integrity)
+	if integrity <= 0.0:
+		defeated.emit()
+
+
+func increase_maximum_integrity(amount: float, repair_amount: float) -> void:
+	maximum_integrity += maxf(0.0, amount)
+	integrity = minf(maximum_integrity, integrity + maxf(0.0, repair_amount))
+	integrity_changed.emit(integrity, maximum_integrity)
+
+
 func is_dashing() -> bool:
 	return _dash_state != null and _dash_state.is_active
 
@@ -137,7 +167,20 @@ func _end_dash() -> void:
 func _set_dash_visuals(active: bool) -> void:
 	if not is_instance_valid(_ball_material):
 		return
-	if active:
+	_dash_visual_active = active
+	_update_ball_material()
+	dash_trail.emitting = active
+	dash_light.light_energy = 3.2 if active else 0.0
+
+
+func _update_ball_material() -> void:
+	if not is_instance_valid(_ball_material):
+		return
+	if _damage_flash_remaining > 0.0:
+		_ball_material.albedo_color = Color(1.0, 0.95, 0.72, 1.0)
+		_ball_material.emission = Color(1.0, 0.42, 0.06, 1.0)
+		_ball_material.emission_energy_multiplier = 5.2
+	elif _dash_visual_active:
 		_ball_material.albedo_color = Color(0.12, 0.9, 1.0, 1.0)
 		_ball_material.emission = Color(0.02, 0.65, 1.0, 1.0)
 		_ball_material.emission_energy_multiplier = 4.2
@@ -145,8 +188,6 @@ func _set_dash_visuals(active: bool) -> void:
 		_ball_material.albedo_color = Color(1.0, 0.17, 0.055, 1.0)
 		_ball_material.emission = Color(0.8, 0.035, 0.006, 1.0)
 		_ball_material.emission_energy_multiplier = 1.35
-	dash_trail.emitting = active
-	dash_light.light_energy = 3.2 if active else 0.0
 
 
 func _is_dash_pressed() -> bool:

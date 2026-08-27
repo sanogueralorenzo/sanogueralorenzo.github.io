@@ -58,6 +58,10 @@ func get_region_name(z: float) -> String:
 	return grammar.get_region_name(z)
 
 
+func get_surface_height(x: float, z: float) -> float:
+	return grammar.sample_height(x, z)
+
+
 func _build_terrain() -> Dictionary:
 	var resolution := grid_resolution
 	var vertex_count := resolution * resolution
