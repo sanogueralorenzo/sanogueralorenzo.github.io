@@ -18,6 +18,13 @@ func _run() -> void:
 	var sky_material := environment.sky.sky_material as ShaderMaterial
 	var sky_shader := sky_material.shader if sky_material != null else null
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
+	_expect(
+		environment.ssao_intensity >= 1.4
+			and environment.ssao_intensity <= 1.8
+			and environment.ssao_radius >= 2.0
+			and environment.ssao_radius <= 2.6,
+		"Contact occlusion should anchor hazards without crushing broad rideable valleys into false pits.",
+	)
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
 	_expect(
 		is_zero_approx(environment.fog_height_density),
@@ -30,8 +37,10 @@ func _run() -> void:
 	)
 	_expect(
 		environment.ambient_light_energy >= 0.64
+			and environment.ambient_light_energy <= 0.73
 			and environment.ambient_light_sky_contribution >= 0.8
-			and environment.adjustment_contrast <= 1.05,
+			and environment.adjustment_contrast >= 0.99
+			and environment.adjustment_contrast <= 1.02,
 		"The daylight pass must preserve color and terrain detail outside direct sun while retaining mountain-scale shadow contrast.",
 	)
 	_expect(
@@ -75,11 +84,12 @@ func _run() -> void:
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
-		sun.light_energy >= 1.45
+		sun.light_energy >= 1.25
+			and sun.light_energy <= 1.45
 			and sun.light_color.g >= 0.85
 			and sun.rotation_degrees.x >= -33.0
-			and sun.shadow_opacity >= 0.65
-			and sun.shadow_opacity <= 0.75
+			and sun.shadow_opacity >= 0.52
+			and sun.shadow_opacity <= 0.62
 			and sun.shadow_blur >= 1.5
 			and sun.shadow_blur <= 2.2
 			and sun.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -88,6 +98,17 @@ func _run() -> void:
 			and sun.directional_shadow_max_distance >= 960.0
 			and sun.directional_shadow_max_distance <= 1200.0,
 		"Warm grazing daylight should separate mountain folds and hazards without the former dim orange cast or hard-edged shadows.",
+	)
+	var sky_fill := scene.get_node("SkyFill") as DirectionalLight3D
+	_expect(
+		sky_fill != null
+			and sky_fill.light_energy >= 0.25
+			and sky_fill.light_energy <= 0.4
+			and sky_fill.light_color.b > sky_fill.light_color.r
+			and sky_fill.rotation_degrees.y >= 135.0
+			and sky_fill.rotation_degrees.y <= 165.0
+			and not sky_fill.shadow_enabled,
+		"A restrained cool, shadowless sky fill should reveal back-facing slopes without flattening the warm key-light hierarchy.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
@@ -379,18 +400,18 @@ func _run() -> void:
 	)
 	_expect(rider.surface_trail.draw_pass_1 is QuadMesh, "Surface spray should use a soft alpha-masked powder sprite rather than primitive pellets.")
 	_expect(
-		rider.surface_trail.amount >= 800
-			and rider.surface_trail.amount <= 1000
-			and rider.surface_trail.lifetime >= 0.7
-			and rider.surface_trail.lifetime <= 0.9,
-		"The high-speed powder wake should remain dense and bounded instead of a sparse dotted line or an unbounded cloud.",
+		rider.surface_trail.amount >= 280
+			and rider.surface_trail.amount <= 380
+			and rider.surface_trail.lifetime >= 0.36
+			and rider.surface_trail.lifetime <= 0.48,
+		"The high-speed powder wake should remain continuous without restoring the previous long opaque card strip.",
 	)
 	_expect(
 		rider.surface_trail.fixed_fps >= 60 and rider.surface_trail.fract_delta,
 		"Maximum-speed spray needs interpolated 60 Hz simulation to avoid spaced particle clumps.",
 	)
 	_expect(
-		rider.surface_trail.position.y >= 0.05,
+		rider.surface_trail.position.y >= 0.14,
 		"The soft powder billboards should originate high enough to avoid terrain clipping their radial alpha into flat bands.",
 	)
 	var dust_mesh := rider.surface_trail.draw_pass_1 as QuadMesh
@@ -413,13 +434,38 @@ func _run() -> void:
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
 	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
 	if surface_process != null:
+		var trail_gradient_texture := surface_process.color_ramp as GradientTexture1D
+		var trail_gradient := trail_gradient_texture.gradient if trail_gradient_texture != null else null
+		var trail_coverage := (
+			surface_process.emission_box_extents.z * 2.0
+			+ rider.surface_trail.lifetime * surface_process.initial_velocity_max
+		)
 		_expect(
 			surface_process.color_ramp != null
-				and surface_process.initial_velocity_max >= 9.0
-				and surface_process.scale_min >= 0.65
-				and surface_process.scale_max <= 1.6
-				and surface_process.emission_box_extents.z >= 1.25,
-			"Surface spray should burst clearly from the board, fade cleanly, and remain size-bounded.",
+				and surface_process.initial_velocity_min >= 1.8
+				and surface_process.initial_velocity_min <= 2.8
+				and surface_process.initial_velocity_max >= 4.8
+				and surface_process.initial_velocity_max <= 6.5
+				and surface_process.scale_min >= 0.22
+				and surface_process.scale_min <= 0.32
+				and surface_process.scale_max >= 0.5
+				and surface_process.scale_max <= 0.68
+				and surface_process.emission_box_extents.x >= 0.3
+				and surface_process.emission_box_extents.x <= 0.42
+				and surface_process.emission_box_extents.y <= 0.065
+				and surface_process.emission_box_extents.z >= 0.14
+				and surface_process.emission_box_extents.z <= 0.26
+				and trail_coverage <= 3.5
+				and rider.surface_trail.amount * pow(surface_process.scale_max, 2.0) <= 130.0,
+			"Surface spray should use a short local birth fan with a bounded transparent-card budget.",
+		)
+		_expect(
+			trail_gradient != null
+				and trail_gradient.sample(0.0).a <= 0.001
+				and trail_gradient.sample(0.1).a <= 0.82
+				and trail_gradient.sample(0.5).a <= 0.45
+				and trail_gradient.sample(1.0).a <= 0.001,
+			"Powder cards should fade through a short translucent pulse without a full-opacity plateau.",
 		)
 		var sand_color := Sandboarder.SAND_TRAIL_COLOR
 		var grass_color := Sandboarder.GRASS_TRAIL_COLOR
@@ -431,15 +477,37 @@ func _run() -> void:
 		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
 		_expect(
 			Sandboarder.SAND_TRAIL_SCALE_MAX >= Sandboarder.GRASS_TRAIL_SCALE_MAX * 1.3
-				and Sandboarder.GRASS_TRAIL_SCALE_MIN >= 0.4,
+				and Sandboarder.GRASS_TRAIL_SCALE_MIN >= 0.2
+				and Sandboarder.SAND_TRAIL_COLOR.a <= 0.1
+				and Sandboarder.GRASS_TRAIL_COLOR.a <= 0.08,
 			"Grass contact should use a smaller restrained haze instead of sand-sized green cards.",
+		)
+		var straight_emission_ratios: Array[float] = []
+		rider._carve_intensity = 0.0
+		for speed_ratio in [0.15, 0.45, 0.9]:
+			rider.velocity = Vector3(rider.maximum_speed * speed_ratio, 0.0, 0.0)
+			rider._update_visuals(1.0 / 60.0)
+			straight_emission_ratios.append(rider.surface_trail.amount_ratio)
+		_expect(
+			straight_emission_ratios[0] >= 0.04
+				and straight_emission_ratios[0] <= 0.08
+				and straight_emission_ratios[1] >= 0.16
+				and straight_emission_ratios[1] <= 0.28
+				and straight_emission_ratios[2] >= 0.4
+				and straight_emission_ratios[2] <= 0.58
+				and straight_emission_ratios[0] < straight_emission_ratios[1]
+				and straight_emission_ratios[1] < straight_emission_ratios[2],
+			"Straight-line powder density should rise smoothly from separate puffs to a translucent high-speed fan.",
 		)
 		rider.velocity = Vector3(rider.maximum_speed, 0.0, 0.0)
 		rider._carve_intensity = 1.0
 		rider._carve_sign = 1.0
 		rider._update_visuals(1.0 / 60.0)
 		_expect(
-			surface_process.direction.x <= -0.45 and surface_process.direction.y >= 0.4,
+			surface_process.direction.x <= -0.45
+				and surface_process.direction.y >= 0.4
+				and rider.surface_trail.amount_ratio > straight_emission_ratios[2]
+				and rider.surface_trail.amount_ratio <= 0.88,
 			"A committed carve should fan the surface spray outward and upward from the loaded edge.",
 		)
 	var landing_burst_process := rider.landing_burst.process_material as ParticleProcessMaterial
@@ -633,6 +701,7 @@ func _run() -> void:
 	_expect(
 		"sand_albedo" in shader.code
 			and "grass_albedo" in shader.code
+			and "slope_surface" in shader.code
 			and "filter_linear_mipmap_anisotropic" in shader.code
 			and "repeat_enable" in shader.code,
 		"Fast terrain needs original sand and grass albedo detail with mipmapped anisotropic filtering and continuous repetition.",

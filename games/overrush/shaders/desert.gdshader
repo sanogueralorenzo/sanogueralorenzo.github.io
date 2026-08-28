@@ -6,7 +6,6 @@ uniform vec2 world_origin = vec2(0.0);
 uniform sampler2D sand_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float surface_texture_scale = 0.08;
-uniform vec3 shadow_sand : source_color = vec3(0.15, 0.09, 0.05);
 uniform vec3 pale_sand : source_color = vec3(0.45, 0.32, 0.2);
 uniform vec3 sunlit_sand : source_color = vec3(0.58, 0.4, 0.23);
 uniform vec3 sandstone : source_color = vec3(0.28, 0.19, 0.13);
@@ -82,7 +81,7 @@ void fragment() {
 	);
 	float wind_lines = 0.5 + sin(wind_phase) * 0.5 * wind_visibility;
 	float slope = 1.0 - clamp(world_normal.y, 0.0, 1.0);
-	float stone = smoothstep(0.34, 0.67, slope + (broad - 0.5) * 0.16);
+	float stone = smoothstep(0.44, 0.76, slope + (broad - 0.5) * 0.12);
 	float wind_crest = smoothstep(0.78, 0.97, wind_lines) * (1.0 - smoothstep(0.22, 0.52, slope));
 	vec3 sand_palette = mix(pale_sand, sunlit_sand, 0.26 + broad * 0.48 + wind_lines * 0.08);
 	vec3 sand_surface = sand_palette * material_response(sand_texel, 0.22, 0.12, 0.52);
@@ -93,8 +92,12 @@ void fragment() {
 	float transition_mottle = (middle - 0.5) * 0.1 * (1.0 - abs(grass_weight * 2.0 - 1.0));
 	float biome_blend = smoothstep(0.08, 0.92, grass_weight + transition_mottle);
 	vec3 rideable_surface = mix(sand_surface, grass_surface, biome_blend);
-	vec3 rock = mix(shadow_sand * 0.62, sandstone, broad);
-	ALBEDO = mix(rideable_surface, rock, stone);
+	vec3 slope_surface = mix(
+		rideable_surface * vec3(0.8, 0.78, 0.76),
+		sandstone * 0.9,
+		0.2 + broad * 0.18
+	);
+	ALBEDO = mix(rideable_surface, slope_surface, stone * 0.72);
 	float surface_luma = mix(dot(sand_texel, vec3(0.299, 0.587, 0.114)), dot(grass_texel, vec3(0.299, 0.587, 0.114)), biome_blend);
 	ROUGHNESS = mix(mix(0.88 + surface_luma * 0.08 - wind_crest * 0.07, 0.96, biome_blend), 0.84, stone);
 	SPECULAR = mix(0.18, 0.08, stone);

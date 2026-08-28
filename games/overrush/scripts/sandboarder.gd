@@ -84,12 +84,12 @@ var _carve_track_points: Array[Dictionary] = []
 var _carve_track_segment := 0
 var _carve_track_was_grounded := false
 
-const SAND_TRAIL_COLOR := Color(0.78, 0.56, 0.38, 0.22)
-const GRASS_TRAIL_COLOR := Color(0.35, 0.36, 0.18, 0.2)
-const SAND_TRAIL_SCALE_MIN := 0.5
-const SAND_TRAIL_SCALE_MAX := 1.12
-const GRASS_TRAIL_SCALE_MIN := 0.42
-const GRASS_TRAIL_SCALE_MAX := 0.84
+const SAND_TRAIL_COLOR := Color(0.78, 0.56, 0.38, 0.08)
+const GRASS_TRAIL_COLOR := Color(0.35, 0.36, 0.18, 0.065)
+const SAND_TRAIL_SCALE_MIN := 0.26
+const SAND_TRAIL_SCALE_MAX := 0.58
+const GRASS_TRAIL_SCALE_MIN := 0.22
+const GRASS_TRAIL_SCALE_MAX := 0.44
 const SAND_LANDING_COLOR := Color(0.9, 0.61, 0.3, 0.58)
 const GRASS_LANDING_COLOR := Color(0.42, 0.5, 0.25, 0.5)
 const SAND_TRACK_COLOR := Color(0.14, 0.05, 0.015, 0.3)
@@ -797,8 +797,8 @@ func _update_visuals(delta: float) -> void:
 	var speed_ratio := clampf(get_horizontal_speed() / maximum_speed, 0.0, 1.0)
 	_update_rider_pose(delta, is_on_floor(), speed_ratio)
 	surface_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
-	var speed_emission := clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
-	surface_trail.amount_ratio = speed_emission * lerpf(0.72, 1.0, _carve_intensity)
+	var speed_emission := lerpf(0.06, 0.56, smoothstep(0.1, 1.0, speed_ratio))
+	surface_trail.amount_ratio = minf(0.86, speed_emission * lerpf(1.0, 1.5, _carve_intensity))
 	surface_trail.rotation.y = atan2(-_heading.x, -_heading.z)
 	var surface_process := surface_trail.process_material as ParticleProcessMaterial
 	if surface_process != null:
