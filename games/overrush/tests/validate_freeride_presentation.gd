@@ -70,6 +70,24 @@ func _run() -> void:
 		"key_light_direction" in shader.code and "wind_crest" in shader.code and "grass_weight" in shader.code,
 		"The terrain shader should expose directional slope depth, readable wind ridges, and seamless biome blending.",
 	)
+	_expect(
+		"sand_albedo" in shader.code
+			and "grass_albedo" in shader.code
+			and "filter_linear_mipmap_anisotropic" in shader.code
+			and "repeat_enable" in shader.code,
+		"Fast terrain needs original sand and grass albedo detail with mipmapped anisotropic filtering and continuous repetition.",
+	)
+	for texture_path in [
+		"res://assets/terrain/wind_sand_albedo.png",
+		"res://assets/terrain/alpine_grass_albedo.png",
+	]:
+		var terrain_texture := load(texture_path) as Texture2D
+		_expect(terrain_texture != null, "The terrain material asset is missing: %s" % texture_path)
+		if terrain_texture != null:
+			_expect(
+				terrain_texture.get_width() == 1024 and terrain_texture.get_height() == 1024,
+				"Terrain albedo assets should remain production-sized 1024 px square textures.",
+			)
 
 	scene.queue_free()
 	await process_frame

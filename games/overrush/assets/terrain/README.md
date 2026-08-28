@@ -1,0 +1,11 @@
+# Terrain texture provenance
+
+These are original albedo assets generated with OpenAI's built-in image-generation mode on 2026-08-27, then resized to 1024 × 1024 for the game. They intentionally contain no recognizable third-party assets, text, logos, or characters.
+
+## `wind_sand_albedo.png`
+
+> Use case: stylized-concept. Asset type: tileable game terrain texture for a fast 3D freeriding game. Primary request: original seamless wind-sculpted desert sand material, viewed perfectly orthographic from above. Style/medium: polished stylized-realistic game texture, diffuse albedo only. Color palette: warm burnt orange, ochre, muted gold, and restrained cool brown variation. Materials/textures: fine wind ripples, soft layered grain, subtle broad tonal mottling, enough high-frequency detail to remain readable while moving quickly. Composition/framing: evenly distributed surface detail across a square tile with no focal point. Lighting/mood: neutral flat material capture, no baked directional light, no cast shadows, no highlights. Constraints: genuinely seamless repeating edges; no rocks, plants, footprints, objects, horizon, perspective, text, logos, borders, or watermark. Avoid: obvious repeated circles, large cracks, photographic scene lighting, deep black areas.
+
+## `alpine_grass_albedo.png`
+
+> Use case: stylized-concept. Asset type: tileable game terrain texture for a fast 3D freeriding game. Primary request: original seamless dry alpine grass and low groundcover material, viewed perfectly orthographic from above. Style/medium: polished stylized-realistic game texture, diffuse albedo only. Color palette: deep forest green, sage, muted olive, and restrained sun-dried yellow-green variation. Materials/textures: dense short grass fibers, fine groundcover, subtle broad tonal mottling, enough high-frequency detail to remain readable while moving quickly. Composition/framing: evenly distributed surface detail across a square tile with no focal point. Lighting/mood: neutral flat material capture, no baked directional light, no cast shadows, no highlights. Constraints: genuinely seamless repeating edges; no trees, branches, flowers, rocks, paths, objects, horizon, perspective, text, logos, borders, or watermark. Avoid: lawn stripes, neon green, obvious repeated clumps, photographic scene lighting, deep black areas.

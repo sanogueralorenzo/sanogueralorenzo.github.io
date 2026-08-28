@@ -2,6 +2,14 @@
 
 Overrush is a minimalist procedural freeriding game. The playable experience is a focused sandboarding run: choose any direction from a high central summit, read the terrain, carve for speed, jump, land cleanly, and use one directional air boost per airtime. Its unbounded landscape blends dunes, grassland forests, and sparse weathered ruins without adding combat or progression systems.
 
+## Governing quality direction
+
+SNØ is the benchmark for the finished experience's graphical fidelity, collision clarity, obstacle tension, and convincing sensation of descending a mountain. Overrush must reach equivalent commercial quality with its own terrain technology, art, rider, biomes, ruins, presentation, and identity; reference parity is not permission to copy another game's assets or distinctive content.
+
+Work stays inside the freeriding core: steep sustained multidirectional descent, carving, jumps and clean landings, the single air boost, readable high-speed terrain, dense but fair tree and rock line choices, consequential direct impacts, cohesive audiovisual feedback, streaming, accessibility, and playtest polish. Prefer replacing unfinished presentation and tuning existing systems over adding features. Combat, builds, progression, quests, collectibles, crafting, dialogue, and other unrelated breadth remain out of scope.
+
+The goal remains incomplete until external playtests confirm that the original graphics no longer read as placeholders, the mountain scale and downhill sensation are convincing, tree and rock frequency creates frequent fair line-reading decisions, direct high-speed impacts end the run predictably, and traversal alone sustains repeated runs.
+
 ## Current playable foundation
 
 - `freeride.tscn` is the project entry scene. It contains no enemies, weapons, builds, health, pickups, or survivor progression.
@@ -21,12 +29,12 @@ Overrush is a minimalist procedural freeriding game. The playable experience is 
 - Direct tree, rock, or ruin impacts with at least 10 m/s of closing speed end the run immediately. Low-speed bumps and fast grazing contact remain recoverable; the run-ended overlay identifies the obstacle and impact speed, and `Drop Again` performs a clean summit reset.
 - Board pitch and bank, biome-aware surface spray, contact bursts, synthesized jump/landing cues, and a restrained HUD communicate speed, contacted terrain, landing quality, and boost state.
 - A close third-person camera now widens continuously with speed, while reduced-motion mode holds a steady FOV. The rounded board and articulated high-contrast rider replace the earlier box-and-capsule silhouette.
-- A brighter cool-sky/warm-horizon grade, readable shadow fill, smoother mountain geometry, terrain mottle, lit stone landmarks, directional slope shading, SSAO, and rounded spray grains keep slopes and motion readable without changing the Forward+ renderer configuration.
+- A brighter cool-sky/warm-horizon grade, readable shadow fill, smoother mountain geometry, original high-detail sand and alpine-grass albedos, lit stone landmarks, directional slope shading, SSAO, and rounded spray grains keep slopes and motion readable without changing the Forward+ renderer configuration. Rotated secondary world-space sampling suppresses obvious texture repetition while remaining continuous across streamed chunk seams.
 - Mouse/right-stick orbit controls retain the existing free camera behavior.
 
 The previous movement-survivor scene and all of its combat, enemy, weapon, build, progression, boundary, and alternate-world implementation have been removed. The project now contains one entry scene and only the runtime systems used by the focused freeride game.
 
-This is still a foundation, not the completed game or visual-parity proof. Bespoke production assets, repeated hands-on movement tuning, more detailed rider animation, effects refinement, accessibility, long-session streaming/performance soaks, and external playtest comparison against SNØ remain required.
+This is still a foundation, not the completed game or SNØ-quality parity proof. More bespoke production assets, repeated hands-on movement tuning, more detailed rider animation, effects refinement, accessibility, long-session streaming/performance soaks, and external playtest comparison against SNØ remain required.
 
 ## Controls
 

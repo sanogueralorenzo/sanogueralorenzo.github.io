@@ -477,6 +477,8 @@ func _create_materials() -> void:
 		_terrain_material.shader = load("res://shaders/desert.gdshader")
 		_terrain_material.set_shader_parameter("seed_offset", Vector2(generated_seed % 997, generated_seed % 619))
 		_terrain_material.set_shader_parameter("world_origin", Vector2.ZERO)
+		_terrain_material.set_shader_parameter("sand_albedo", load("res://assets/terrain/wind_sand_albedo.png"))
+		_terrain_material.set_shader_parameter("grass_albedo", load("res://assets/terrain/alpine_grass_albedo.png"))
 		_rock_material = StandardMaterial3D.new()
 		_rock_material.albedo_color = Color("#51495d")
 		_rock_material.roughness = 0.94
