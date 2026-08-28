@@ -15,9 +15,8 @@ turning the launcher into a full desktop environment.
 
 ## Architecture
 
-Palette is not an Electron application. It uses the operating system's native
-WebView inside a thin platform host, backed by shared application services and a
-portable high-performance core.
+Palette uses the operating system's native WebView inside a thin platform host,
+backed by shared application services and a portable high-performance core.
 
 | Layer | Technology | Responsibility |
 | --- | --- | --- |
