@@ -91,7 +91,7 @@ final class CodexAuthCLIClient: @unchecked Sendable {
     guard fileManager.isExecutableFile(atPath: executablePath) else {
       throw Error(
         message:
-          "codex-core CLI not found at \(executablePath). Run codex/codex-core/scripts/install.sh first."
+          "codex-core CLI not found at \(executablePath). Run tools/codex/codex-core/scripts/install.sh first."
       )
     }
 
