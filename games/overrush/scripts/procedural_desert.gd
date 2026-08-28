@@ -1,7 +1,11 @@
 class_name ProceduralDesert
 extends StaticBody3D
 
-const TREE_CROWN_LAYERS := 3
+const TREE_BOUGH_TIERS := 4
+const TREE_RADIAL_SEGMENTS := 9
+const ROCK_RADIAL_SEGMENTS := 9
+const TREE_COLLISION_RADIUS_FACTOR := 0.96
+const ROCK_COLLISION_RADIUS_FACTOR := 0.68
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -28,9 +32,9 @@ var _rock_material: StandardMaterial3D
 var _tree_trunk_material: StandardMaterial3D
 var _tree_canopy_material: StandardMaterial3D
 var _ruin_material: StandardMaterial3D
-var _rock_mesh: SphereMesh
+var _rock_mesh: ArrayMesh
 var _tree_trunk_mesh: CylinderMesh
-var _tree_canopy_mesh: SphereMesh
+var _tree_canopy_mesh: ArrayMesh
 var _ruin_block_mesh: BoxMesh
 var _broad_noise := FastNoiseLite.new()
 var _mountain_noise := FastNoiseLite.new()
@@ -454,22 +458,14 @@ func _create_materials() -> void:
 	_tree_trunk_material = null
 	_tree_canopy_material = null
 	_ruin_material = null
-	_rock_mesh = SphereMesh.new()
-	_rock_mesh.radius = 1.0
-	_rock_mesh.height = 2.0
-	_rock_mesh.radial_segments = 12
-	_rock_mesh.rings = 6
+	_rock_mesh = _build_faceted_rock_mesh()
 	_tree_trunk_mesh = CylinderMesh.new()
 	_tree_trunk_mesh.top_radius = 0.72
 	_tree_trunk_mesh.bottom_radius = 1.0
 	_tree_trunk_mesh.height = 1.0
 	_tree_trunk_mesh.radial_segments = 9
 	_tree_trunk_mesh.rings = 1
-	_tree_canopy_mesh = SphereMesh.new()
-	_tree_canopy_mesh.radius = 1.0
-	_tree_canopy_mesh.height = 2.0
-	_tree_canopy_mesh.radial_segments = 10
-	_tree_canopy_mesh.rings = 5
+	_tree_canopy_mesh = _build_conifer_canopy_mesh()
 	_ruin_block_mesh = BoxMesh.new()
 	_ruin_block_mesh.size = Vector3.ONE
 	if DisplayServer.get_name() != "headless":
@@ -480,26 +476,97 @@ func _create_materials() -> void:
 		_terrain_material.set_shader_parameter("sand_albedo", load("res://assets/terrain/wind_sand_albedo.png"))
 		_terrain_material.set_shader_parameter("grass_albedo", load("res://assets/terrain/alpine_grass_albedo.png"))
 		_rock_material = StandardMaterial3D.new()
-		_rock_material.albedo_color = Color("#51495d")
-		_rock_material.roughness = 0.94
+		_rock_material.albedo_color = Color("#625f64")
+		_rock_material.roughness = 0.9
 		_rock_material.vertex_color_use_as_albedo = true
-		_rock_material.emission_enabled = true
-		_rock_material.emission = Color("#15121b")
-		_rock_material.emission_energy_multiplier = 0.32
+		_rock_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_tree_trunk_material = StandardMaterial3D.new()
-		_tree_trunk_material.albedo_color = Color("#70452d")
-		_tree_trunk_material.roughness = 0.96
+		_tree_trunk_material.albedo_color = Color("#62432f")
+		_tree_trunk_material.roughness = 0.93
 		_tree_trunk_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material = StandardMaterial3D.new()
-		_tree_canopy_material.albedo_color = Color("#4f8848")
-		_tree_canopy_material.roughness = 0.92
+		_tree_canopy_material.albedo_color = Color("#3d7044")
+		_tree_canopy_material.roughness = 0.88
 		_tree_canopy_material.vertex_color_use_as_albedo = true
+		_tree_canopy_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_ruin_material = StandardMaterial3D.new()
-		_ruin_material.albedo_color = Color("#c1b27f")
-		_ruin_material.roughness = 0.92
-		_ruin_material.emission_enabled = true
-		_ruin_material.emission = Color("#443b29")
-		_ruin_material.emission_energy_multiplier = 0.8
+		_ruin_material.albedo_color = Color("#aa976c")
+		_ruin_material.roughness = 0.9
+
+
+func _build_conifer_canopy_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for tier_index in range(TREE_BOUGH_TIERS):
+		var tier_progress := float(tier_index) / float(TREE_BOUGH_TIERS - 1)
+		var base_y := tier_progress * 0.58
+		var top_y := minf(1.0, base_y + lerpf(0.5, 0.36, tier_progress))
+		var tier_radius := lerpf(1.0, 0.38, tier_progress)
+		var top := Vector3(0.0, top_y, 0.0)
+		var underside_center := Vector3(0.0, base_y + 0.035, 0.0)
+		var tier_color := Color(lerpf(0.68, 0.9, tier_progress), lerpf(0.78, 1.0, tier_progress), lerpf(0.7, 0.84, tier_progress), 1.0)
+		for segment_index in range(TREE_RADIAL_SEGMENTS):
+			var angle_a := TAU * float(segment_index) / float(TREE_RADIAL_SEGMENTS)
+			var angle_b := TAU * float(segment_index + 1) / float(TREE_RADIAL_SEGMENTS)
+			var irregular_a := 0.91 + 0.09 * sin(float(segment_index * 5 + tier_index * 7))
+			var irregular_b := 0.91 + 0.09 * sin(float((segment_index + 1) * 5 + tier_index * 7))
+			var ring_a := Vector3(cos(angle_a) * tier_radius * irregular_a, base_y, sin(angle_a) * tier_radius * irregular_a)
+			var ring_b := Vector3(cos(angle_b) * tier_radius * irregular_b, base_y, sin(angle_b) * tier_radius * irregular_b)
+			_add_mesh_triangle(builder, top, ring_a, ring_b, tier_color, Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, underside_center, ring_b, ring_a, tier_color.darkened(0.24), Vector3(0.0, 0.45, 0.0))
+	return builder.commit() as ArrayMesh
+
+
+func _build_faceted_rock_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array[PackedVector3Array] = []
+	var ring_heights := [0.52, 0.02, -0.5]
+	var ring_radii := [0.72, 1.0, 0.76]
+	for ring_index in range(ring_heights.size()):
+		var ring := PackedVector3Array()
+		for segment_index in range(ROCK_RADIAL_SEGMENTS):
+			var angle := TAU * float(segment_index) / float(ROCK_RADIAL_SEGMENTS)
+			var irregularity := 0.84 + 0.16 * sin(float(segment_index * 11 + ring_index * 17))
+			ring.append(Vector3(
+				cos(angle) * ring_radii[ring_index] * irregularity,
+				ring_heights[ring_index] + 0.07 * sin(float(segment_index * 7 + ring_index * 3)),
+				sin(angle) * ring_radii[ring_index] * irregularity,
+			))
+		rings.append(ring)
+	var top := Vector3(0.08, 0.8, -0.04)
+	var bottom := Vector3(-0.06, -0.64, 0.05)
+	for segment_index in range(ROCK_RADIAL_SEGMENTS):
+		var next_index := (segment_index + 1) % ROCK_RADIAL_SEGMENTS
+		_add_mesh_triangle(builder, top, rings[0][segment_index], rings[0][next_index], Color(1.02, 1.0, 0.96, 1.0))
+		for ring_index in range(rings.size() - 1):
+			var upper_a := rings[ring_index][segment_index]
+			var upper_b := rings[ring_index][next_index]
+			var lower_a := rings[ring_index + 1][segment_index]
+			var lower_b := rings[ring_index + 1][next_index]
+			var side_color := Color(lerpf(0.96, 0.74, float(ring_index) / 2.0), lerpf(0.94, 0.76, float(ring_index) / 2.0), lerpf(0.98, 0.82, float(ring_index) / 2.0), 1.0)
+			_add_mesh_triangle(builder, upper_a, lower_a, lower_b, side_color)
+			_add_mesh_triangle(builder, upper_a, lower_b, upper_b, side_color)
+		_add_mesh_triangle(builder, bottom, rings[2][next_index], rings[2][segment_index], Color(0.62, 0.64, 0.68, 1.0))
+	return builder.commit() as ArrayMesh
+
+
+func _add_mesh_triangle(
+	builder: SurfaceTool,
+	first: Vector3,
+	second: Vector3,
+	third: Vector3,
+	color: Color,
+	normal_origin := Vector3.ZERO,
+) -> void:
+	var normal := (second - first).cross(third - first).normalized()
+	var centroid := (first + second + third) / 3.0
+	if normal.dot(centroid - normal_origin) < 0.0:
+		normal = -normal
+	for vertex in [first, second, third]:
+		builder.set_normal(normal)
+		builder.set_color(color)
+		builder.add_vertex(vertex)
 
 
 func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
@@ -552,7 +619,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 		var collision := CollisionShape3D.new()
 		collision.name = "Tree_%d" % tree_index
 		var shape := CylinderShape3D.new()
-		shape.radius = radius * 1.12
+		shape.radius = radius * TREE_COLLISION_RADIUS_FACTOR
 		shape.height = maxf(4.8, height * 0.7)
 		collision.shape = shape
 		collision.position = Vector3(
@@ -574,7 +641,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	canopy_multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	canopy_multimesh.use_colors = true
 	canopy_multimesh.mesh = _tree_canopy_mesh
-	canopy_multimesh.instance_count = trees.size() * TREE_CROWN_LAYERS
+	canopy_multimesh.instance_count = trees.size()
 	for tree_index in range(trees.size()):
 		var tree := trees[tree_index]
 		var cell: Vector2i = tree.cell
@@ -583,36 +650,28 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 		var radius: float = tree.radius
 		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
 		var local_xz := logical_position - chunk_center
+		var visible_trunk_height := height * 0.7
 		var trunk_transform := Transform3D(
-			Basis.IDENTITY.scaled(Vector3(radius, height, radius)),
-			Vector3(local_xz.x, local_height + height * 0.5, local_xz.y),
+			Basis.IDENTITY.scaled(Vector3(radius, visible_trunk_height, radius)),
+			Vector3(local_xz.x, local_height + visible_trunk_height * 0.5, local_xz.y),
 		)
 		var canopy_radius := height * lerpf(0.21, 0.28, _landscape_layout.get_cell_random(cell, 16))
 		var crown_angle := _landscape_layout.get_cell_random(cell, 17) * TAU
-		var crown_offset := Vector2(cos(crown_angle), sin(crown_angle)) * canopy_radius * 0.18
 		var crown_basis := Basis(Vector3.UP, crown_angle)
-		var lower_canopy := Transform3D(
-			crown_basis.scaled(Vector3(canopy_radius, height * 0.2, canopy_radius * 0.86)),
-			Vector3(local_xz.x - crown_offset.x, local_height + height * 0.58, local_xz.y - crown_offset.y),
-		)
-		var middle_canopy := Transform3D(
-			crown_basis.scaled(Vector3(canopy_radius * 0.84, height * 0.17, canopy_radius * 0.76)),
-			Vector3(local_xz.x + crown_offset.x, local_height + height * 0.76, local_xz.y + crown_offset.y),
-		)
-		var upper_canopy := Transform3D(
-			crown_basis.scaled(Vector3(canopy_radius * 0.58, height * 0.13, canopy_radius * 0.55)),
-			Vector3(local_xz.x, local_height + height * 0.91, local_xz.y),
+		var canopy := Transform3D(
+			crown_basis.scaled(Vector3(
+				canopy_radius,
+				height * 0.66,
+				canopy_radius * lerpf(0.84, 1.08, _landscape_layout.get_cell_random(cell, 19)),
+			)),
+			Vector3(local_xz.x, local_height + height * 0.35, local_xz.y),
 		)
 		trunk_multimesh.set_instance_transform(tree_index, trunk_transform)
 		trunk_multimesh.set_instance_color(tree_index, Color(0.82, 0.74, 0.67, 1.0))
 		var tint := lerpf(0.78, 1.08, _landscape_layout.get_cell_random(cell, 18))
 		var canopy_color := Color(tint * 0.78, tint, tint * 0.72, 1.0)
-		canopy_multimesh.set_instance_transform(tree_index * 3, lower_canopy)
-		canopy_multimesh.set_instance_color(tree_index * 3, canopy_color.darkened(0.04))
-		canopy_multimesh.set_instance_transform(tree_index * 3 + 1, middle_canopy)
-		canopy_multimesh.set_instance_color(tree_index * 3 + 1, canopy_color)
-		canopy_multimesh.set_instance_transform(tree_index * 3 + 2, upper_canopy)
-		canopy_multimesh.set_instance_color(tree_index * 3 + 2, canopy_color.lightened(0.08))
+		canopy_multimesh.set_instance_transform(tree_index, canopy)
+		canopy_multimesh.set_instance_color(tree_index, canopy_color)
 	var trunks := MultiMeshInstance3D.new()
 	trunks.name = "TreeTrunks"
 	trunks.multimesh = trunk_multimesh
@@ -670,7 +729,7 @@ func _add_rock_field(chunk: StaticBody3D, coord: Vector2i, reference_height: flo
 		var collision := CollisionShape3D.new()
 		collision.name = "Rock_%d" % rock_index
 		var shape := SphereShape3D.new()
-		shape.radius = radius * 0.82
+		shape.radius = radius * ROCK_COLLISION_RADIUS_FACTOR
 		collision.shape = shape
 		collision.position = Vector3(
 			logical_position.x - chunk_center.x,
@@ -829,7 +888,7 @@ func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: f
 		var collision := CollisionShape3D.new()
 		collision.name = "CollisionShape3D"
 		var shape := SphereShape3D.new()
-		shape.radius = radius * 0.84
+		shape.radius = radius * ROCK_COLLISION_RADIUS_FACTOR
 		collision.shape = shape
 		rock.add_child(collision)
 		if DisplayServer.get_name() != "headless":

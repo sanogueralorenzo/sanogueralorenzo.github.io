@@ -27,8 +27,19 @@ func _run() -> void:
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
 	_expect(
-		world._tree_canopy_mesh is SphereMesh and ProceduralDesert.TREE_CROWN_LAYERS == 3,
-		"Forests should use three layered organic crowns rather than single primitive cones.",
+		world._tree_canopy_mesh is ArrayMesh
+			and ProceduralDesert.TREE_BOUGH_TIERS >= 4
+			and world._tree_canopy_mesh.surface_get_array_len(0) >= 180,
+		"Forests should use a layered faceted conifer silhouette rather than stacked primitive blobs.",
+	)
+	_expect(
+		world._rock_mesh is ArrayMesh and world._rock_mesh.surface_get_array_len(0) >= 150,
+		"Rock hazards should use irregular faceted boulders rather than stretched primitive spheres.",
+	)
+	_expect(
+		ProceduralDesert.TREE_COLLISION_RADIUS_FACTOR <= 1.0
+			and ProceduralDesert.ROCK_COLLISION_RADIUS_FACTOR <= 0.7,
+		"Fatal tree and rock colliders should stay inside their visible silhouettes so high-speed near misses remain fair.",
 	)
 
 	var rider: Sandboarder = scene.get_node("Sandboarder")
