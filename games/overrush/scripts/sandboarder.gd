@@ -76,14 +76,14 @@ var _carve_track_points: Array[Dictionary] = []
 var _carve_track_segment := 0
 var _carve_track_was_grounded := false
 
-const SAND_TRAIL_COLOR := Color(0.88, 0.56, 0.24, 0.66)
-const GRASS_TRAIL_COLOR := Color(0.42, 0.38, 0.13, 0.55)
-const SAND_TRAIL_SCALE_MIN := 0.42
-const SAND_TRAIL_SCALE_MAX := 1.35
-const GRASS_TRAIL_SCALE_MIN := 0.3
-const GRASS_TRAIL_SCALE_MAX := 0.9
-const SAND_LANDING_COLOR := Color(0.96, 0.7, 0.32, 0.7)
-const GRASS_LANDING_COLOR := Color(0.44, 0.58, 0.27, 0.68)
+const SAND_TRAIL_COLOR := Color(0.78, 0.56, 0.38, 0.22)
+const GRASS_TRAIL_COLOR := Color(0.35, 0.36, 0.18, 0.2)
+const SAND_TRAIL_SCALE_MIN := 0.5
+const SAND_TRAIL_SCALE_MAX := 1.12
+const GRASS_TRAIL_SCALE_MIN := 0.42
+const GRASS_TRAIL_SCALE_MAX := 0.84
+const SAND_LANDING_COLOR := Color(0.9, 0.61, 0.3, 0.58)
+const GRASS_LANDING_COLOR := Color(0.42, 0.5, 0.25, 0.5)
 const SAND_TRACK_COLOR := Color(0.14, 0.05, 0.015, 0.3)
 const GRASS_TRACK_COLOR := Color(0.015, 0.045, 0.015, 0.27)
 

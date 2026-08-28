@@ -1,10 +1,11 @@
-[gd_scene load_steps=34 format=3]
+[gd_scene load_steps=36 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
 [ext_resource type="Script" path="res://scripts/sandboarder.gd" id="3_rider"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
+[ext_resource type="Texture2D" path="res://assets/terrain/dust_puff_sprite.png" id="6_dust"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_desert"]
 sky_top_color = Color(0.025, 0.18, 0.34, 1)
@@ -128,12 +129,17 @@ height = 0.13
 radial_segments = 8
 rings = 4
 
-[sub_resource type="SphereMesh" id="SurfaceGrainMesh"]
-material = SubResource("TrailMaterial")
-radius = 0.06
-height = 0.12
-radial_segments = 6
-rings = 3
+[sub_resource type="StandardMaterial3D" id="SurfaceDustMaterial"]
+transparency = 1
+shading_mode = 1
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("6_dust")
+billboard_mode = 1
+billboard_keep_scale = true
+
+[sub_resource type="QuadMesh" id="SurfaceDustMesh"]
+material = SubResource("SurfaceDustMaterial")
+size = Vector2(1, 1)
 
 [sub_resource type="Gradient" id="Gradient_surface_fade"]
 offsets = PackedFloat32Array(0, 0.08, 0.62, 1)
@@ -156,15 +162,17 @@ color = Color(1, 0.67, 0.25, 0.72)
 
 [sub_resource type="ParticleProcessMaterial" id="SurfaceTrailProcess"]
 emission_shape = 3
-emission_box_extents = Vector3(0.76, 0.1, 0.3)
+emission_box_extents = Vector3(0.72, 0.1, 1.35)
 direction = Vector3(0, 0.45, 1)
 spread = 44.0
-initial_velocity_min = 4.5
-initial_velocity_max = 10.5
-gravity = Vector3(0, -5.2, 0)
-scale_min = 0.42
-scale_max = 1.35
-color = Color(0.88, 0.56, 0.24, 0.66)
+initial_velocity_min = 3.5
+initial_velocity_max = 9.5
+gravity = Vector3(0, -3.4, 0)
+angular_velocity_min = -32.0
+angular_velocity_max = 32.0
+scale_min = 0.5
+scale_max = 1.12
+color = Color(0.78, 0.56, 0.38, 0.22)
 color_ramp = SubResource("GradientTexture_surface_fade")
 
 [sub_resource type="ParticleProcessMaterial" id="LandingBurstProcess"]
@@ -174,10 +182,13 @@ direction = Vector3(0, 1, 0)
 spread = 62.0
 initial_velocity_min = 4.0
 initial_velocity_max = 9.0
-gravity = Vector3(0, -8, 0)
-scale_min = 0.28
-scale_max = 0.92
-color = Color(0.96, 0.7, 0.32, 0.7)
+gravity = Vector3(0, -6, 0)
+angular_velocity_min = -45.0
+angular_velocity_max = 45.0
+scale_min = 0.48
+scale_max = 1.05
+color = Color(0.9, 0.61, 0.3, 0.58)
+color_ramp = SubResource("GradientTexture_surface_fade")
 
 [sub_resource type="StyleBoxFlat" id="PanelStyle"]
 bg_color = Color(0.055, 0.043, 0.035, 0.88)
@@ -414,26 +425,27 @@ light_energy = 4.0
 omni_range = 7.0
 
 [node name="SurfaceTrail" type="GPUParticles3D" parent="Sandboarder"]
-position = Vector3(0, -0.24, 1.1)
+position = Vector3(0, -0.24, 1.65)
 emitting = false
-amount = 760
-lifetime = 0.64
+amount = 900
+lifetime = 0.78
 fixed_fps = 60
+fract_delta = true
 local_coords = false
 process_material = SubResource("SurfaceTrailProcess")
-draw_pass_1 = SubResource("SurfaceGrainMesh")
+draw_pass_1 = SubResource("SurfaceDustMesh")
 
 [node name="LandingBurst" type="GPUParticles3D" parent="Sandboarder"]
 process_mode = 3
 position = Vector3(0, -0.22, 0)
 emitting = false
 amount = 54
-lifetime = 0.52
+lifetime = 0.64
 one_shot = true
 explosiveness = 0.82
 local_coords = false
 process_material = SubResource("LandingBurstProcess")
-draw_pass_1 = SubResource("SurfaceGrainMesh")
+draw_pass_1 = SubResource("SurfaceDustMesh")
 
 [node name="FollowCamera" type="Camera3D" parent="."]
 process_mode = 1

@@ -246,26 +246,36 @@ func _run() -> void:
 			and rider.torso_visual.rotation.is_equal_approx(torso_base_rotation),
 		"Returning to the summit should reset every procedural rider pose.",
 	)
-	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
+	_expect(rider.surface_trail.draw_pass_1 is QuadMesh, "Surface spray should use a soft alpha-masked powder sprite rather than primitive pellets.")
 	_expect(
-		rider.surface_trail.amount >= 700
-			and rider.surface_trail.amount <= 900
-			and rider.surface_trail.lifetime <= 0.7,
-		"The high-speed wake should remain dense and short-lived instead of a sparse dotted line or an unbounded cloud.",
+		rider.surface_trail.amount >= 800
+			and rider.surface_trail.amount <= 1000
+			and rider.surface_trail.lifetime >= 0.7
+			and rider.surface_trail.lifetime <= 0.9,
+		"The high-speed powder wake should remain dense and bounded instead of a sparse dotted line or an unbounded cloud.",
 	)
-	_expect(rider.surface_trail.fixed_fps >= 60, "Maximum-speed spray needs a 60 Hz simulation to avoid spaced particle clumps.")
 	_expect(
-		(rider.surface_trail.draw_pass_1 as SphereMesh).radius >= 0.05
-			and (rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.07,
-		"The surface wake needs readable low-poly clumps without becoming oversized glowing balls.",
+		rider.surface_trail.fixed_fps >= 60 and rider.surface_trail.fract_delta,
+		"Maximum-speed spray needs interpolated 60 Hz simulation to avoid spaced particle clumps.",
+	)
+	var dust_mesh := rider.surface_trail.draw_pass_1 as QuadMesh
+	var dust_material := dust_mesh.material as StandardMaterial3D if dust_mesh != null else null
+	_expect(
+		dust_mesh != null
+			and dust_mesh.size.x >= 0.9
+			and dust_material != null
+			and dust_material.albedo_texture != null
+			and dust_material.billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED,
+		"Powder particles need a complete transparent billboard asset that can overlap into a soft continuous plume.",
 	)
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
 	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
 	if surface_process != null:
 		_expect(
 			surface_process.color_ramp != null
-				and surface_process.initial_velocity_max >= 10.0
-				and surface_process.scale_max <= 1.5,
+				and surface_process.initial_velocity_max >= 9.0
+				and surface_process.scale_max <= 1.6
+				and surface_process.emission_box_extents.z >= 1.25,
 			"Surface spray should burst clearly from the board, fade cleanly, and remain size-bounded.",
 		)
 		var sand_color := Sandboarder.SAND_TRAIL_COLOR
@@ -277,9 +287,9 @@ func _run() -> void:
 		)
 		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
 		_expect(
-			Sandboarder.SAND_TRAIL_SCALE_MAX >= Sandboarder.GRASS_TRAIL_SCALE_MAX * 1.5
-				and Sandboarder.GRASS_TRAIL_SCALE_MIN >= 0.25,
-			"Grass contact should use smaller readable fragments instead of sand-sized green confetti.",
+			Sandboarder.SAND_TRAIL_SCALE_MAX >= Sandboarder.GRASS_TRAIL_SCALE_MAX * 1.3
+				and Sandboarder.GRASS_TRAIL_SCALE_MIN >= 0.4,
+			"Grass contact should use a smaller restrained haze instead of sand-sized green cards.",
 		)
 		rider.velocity = Vector3(rider.maximum_speed, 0.0, 0.0)
 		rider._carve_intensity = 1.0
