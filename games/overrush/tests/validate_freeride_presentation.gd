@@ -54,6 +54,39 @@ func _run() -> void:
 	_expect(board.mesh is CylinderMesh, "The sandboard should use a rounded silhouette rather than a placeholder box.")
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
 		_expect(rider.get_node_or_null("BoardVisual/%s" % part_name) is MeshInstance3D, "The rider silhouette is missing %s." % part_name)
+	for detail_path in [
+		"BoardVisual/LeftBinding",
+		"BoardVisual/RightBinding",
+		"BoardVisual/Rider/JacketPanel",
+		"BoardVisual/Head/Visor",
+		"BoardVisual/LeftArm/LeftGlove",
+		"BoardVisual/RightArm/RightGlove",
+		"BoardVisual/LeftLeg/LeftBoot",
+		"BoardVisual/RightLeg/RightBoot",
+	]:
+		_expect(rider.get_node_or_null(detail_path) is MeshInstance3D, "The articulated rider is missing visual detail %s." % detail_path)
+	var torso_base_rotation := rider.torso_visual.rotation
+	var left_arm_base_rotation := rider.left_arm_visual.rotation
+	rider.velocity = Vector3(rider.maximum_speed * 0.82, 0.0, 0.0)
+	rider._carve_intensity = 1.0
+	rider._carve_sign = 1.0
+	rider._update_rider_pose(1.0, true, 0.82)
+	_expect(
+		absf(rider.torso_visual.rotation.z - torso_base_rotation.z) >= deg_to_rad(12.0),
+		"A committed carve should visibly lean the rider into the turn.",
+	)
+	_expect(
+		absf(rider.left_arm_visual.rotation.z - left_arm_base_rotation.z) >= deg_to_rad(9.0),
+		"The rider arms should counterbalance a committed carve rather than remain rigid.",
+	)
+	rider._update_rider_pose(1.0, false, 0.82)
+	_expect(rider._air_pose >= 0.95, "Airborne movement should produce a readable tucked rider silhouette.")
+	rider.respawn()
+	_expect(
+		is_equal_approx(rider._air_pose, 0.0)
+			and rider.torso_visual.rotation.is_equal_approx(torso_base_rotation),
+		"Returning to the summit should reset every procedural rider pose.",
+	)
 	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
 	_expect(rider.surface_trail.amount >= 200, "The high-speed wake should remain continuous instead of a sparse dotted line.")
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial

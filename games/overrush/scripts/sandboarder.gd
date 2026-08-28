@@ -27,8 +27,18 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var valid_landing_normal_y := 0.55
 @export var minimum_landing_airtime := 0.08
 @export var fatal_obstacle_impact_speed := 10.0
+@export var rider_pose_response := 9.0
+@export var rider_carve_lean_degrees := 16.0
+@export var rider_speed_crouch := 0.22
+@export var rider_air_tuck := 0.14
 
 @onready var board_visual: Node3D = $BoardVisual
+@onready var torso_visual: MeshInstance3D = $BoardVisual/Rider
+@onready var head_visual: MeshInstance3D = $BoardVisual/Head
+@onready var left_arm_visual: MeshInstance3D = $BoardVisual/LeftArm
+@onready var right_arm_visual: MeshInstance3D = $BoardVisual/RightArm
+@onready var left_leg_visual: MeshInstance3D = $BoardVisual/LeftLeg
+@onready var right_leg_visual: MeshInstance3D = $BoardVisual/RightLeg
 @onready var boost_trail: GPUParticles3D = $BoostTrail
 @onready var boost_light: OmniLight3D = $BoostLight
 @onready var surface_trail: GPUParticles3D = $SurfaceTrail
@@ -50,6 +60,10 @@ var _landing_compression := 0.0
 var _has_departed_rideable_ground := false
 var _surface_grass_weight := 0.0
 var _crashed := false
+var _air_pose := 0.0
+var _rider_parts: Array[Node3D] = []
+var _rider_base_positions: Array[Vector3] = []
+var _rider_base_rotations: Array[Vector3] = []
 
 const SAND_TRAIL_COLOR := Color(0.96, 0.69, 0.32, 0.58)
 const GRASS_TRAIL_COLOR := Color(0.47, 0.67, 0.27, 0.62)
@@ -67,6 +81,7 @@ func _ready() -> void:
 	_last_position = global_position
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_rideable_ground()
+	_cache_rider_pose()
 	air_boost_state_changed.emit(true, false)
 
 
@@ -116,6 +131,7 @@ func respawn() -> void:
 	_crashed = false
 	jump_assist_state.reset()
 	air_boost_state.reset_on_rideable_ground()
+	_reset_rider_pose()
 	_last_position = global_position
 	air_boost_state_changed.emit(true, false)
 
@@ -315,6 +331,7 @@ func _update_visuals(delta: float) -> void:
 	_landing_compression = move_toward(_landing_compression, 0.0, delta * 1.8)
 	board_visual.position.y = -_landing_compression
 	var speed_ratio := clampf(get_horizontal_speed() / maximum_speed, 0.0, 1.0)
+	_update_rider_pose(delta, is_on_floor(), speed_ratio)
 	surface_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
 	surface_trail.amount_ratio = clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
 	surface_trail.rotation.y = atan2(-_heading.x, -_heading.z)
@@ -322,6 +339,98 @@ func _update_visuals(delta: float) -> void:
 	if _boost_feedback_time <= 0.0:
 		boost_trail.emitting = false
 		boost_light.visible = false
+
+
+func _cache_rider_pose() -> void:
+	_rider_parts.assign([
+		torso_visual,
+		head_visual,
+		left_arm_visual,
+		right_arm_visual,
+		left_leg_visual,
+		right_leg_visual,
+	])
+	_rider_base_positions.clear()
+	_rider_base_rotations.clear()
+	for part in _rider_parts:
+		_rider_base_positions.append(part.position)
+		_rider_base_rotations.append(part.rotation)
+
+
+func _reset_rider_pose() -> void:
+	_air_pose = 0.0
+	_landing_compression = 0.0
+	board_visual.position.y = 0.0
+	for part_index in range(_rider_parts.size()):
+		_rider_parts[part_index].position = _rider_base_positions[part_index]
+		_rider_parts[part_index].rotation = _rider_base_rotations[part_index]
+
+
+func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> void:
+	var blend := 1.0 - exp(-rider_pose_response * delta)
+	_air_pose = lerpf(_air_pose, 0.0 if grounded else 1.0, blend)
+	var landing_ratio := clampf(_landing_compression / 0.22, 0.0, 1.0)
+	var crouch := clampf(speed_ratio * 0.72 + landing_ratio * 0.55, 0.0, 1.0)
+	var carve := _carve_sign * _carve_intensity * (1.0 - _air_pose)
+	var boost_ratio := clampf(_boost_feedback_time / 0.2, 0.0, 1.0)
+	var torso_position := _rider_base_positions[0] + Vector3(
+		carve * 0.07,
+		-rider_speed_crouch * crouch,
+		-0.08 * speed_ratio - 0.08 * boost_ratio,
+	)
+	var torso_rotation := _rider_base_rotations[0] + Vector3(
+		deg_to_rad(-11.0 * crouch - 8.0 * boost_ratio),
+		0.0,
+		deg_to_rad(-rider_carve_lean_degrees * carve),
+	)
+	var head_position := _rider_base_positions[1] + Vector3(
+		carve * 0.035,
+		-rider_speed_crouch * crouch * 0.72,
+		-0.035 * boost_ratio,
+	)
+	var head_rotation := _rider_base_rotations[1] + Vector3(
+		deg_to_rad(5.0 * crouch),
+		0.0,
+		deg_to_rad(7.0 * carve),
+	)
+	var left_arm_rotation := _rider_base_rotations[2] + Vector3(
+		deg_to_rad(-9.0 * _air_pose),
+		deg_to_rad(-10.0 * carve),
+		deg_to_rad(-22.0 * _air_pose + 12.0 * carve),
+	)
+	var right_arm_rotation := _rider_base_rotations[3] + Vector3(
+		deg_to_rad(9.0 * _air_pose),
+		deg_to_rad(-10.0 * carve),
+		deg_to_rad(22.0 * _air_pose + 12.0 * carve),
+	)
+	var leg_lift := rider_air_tuck * _air_pose - 0.04 * landing_ratio
+	var left_leg_position := _rider_base_positions[4] + Vector3(0.0, leg_lift, -0.04 * crouch)
+	var right_leg_position := _rider_base_positions[5] + Vector3(0.0, leg_lift, 0.04 * crouch)
+	var left_leg_rotation := _rider_base_rotations[4] + Vector3(
+		deg_to_rad(20.0 * crouch + 24.0 * _air_pose),
+		0.0,
+		deg_to_rad(-8.0 * carve - 8.0 * _air_pose),
+	)
+	var right_leg_rotation := _rider_base_rotations[5] + Vector3(
+		deg_to_rad(-20.0 * crouch - 24.0 * _air_pose),
+		0.0,
+		deg_to_rad(-8.0 * carve + 8.0 * _air_pose),
+	)
+	_lerp_part_pose(torso_visual, torso_position, torso_rotation, blend)
+	_lerp_part_pose(head_visual, head_position, head_rotation, blend)
+	_lerp_part_pose(left_arm_visual, _rider_base_positions[2], left_arm_rotation, blend)
+	_lerp_part_pose(right_arm_visual, _rider_base_positions[3], right_arm_rotation, blend)
+	_lerp_part_pose(left_leg_visual, left_leg_position, left_leg_rotation, blend)
+	_lerp_part_pose(right_leg_visual, right_leg_position, right_leg_rotation, blend)
+
+
+func _lerp_part_pose(part: Node3D, target_position: Vector3, target_rotation: Vector3, blend: float) -> void:
+	part.position = part.position.lerp(target_position, blend)
+	part.rotation = Vector3(
+		lerp_angle(part.rotation.x, target_rotation.x, blend),
+		lerp_angle(part.rotation.y, target_rotation.y, blend),
+		lerp_angle(part.rotation.z, target_rotation.z, blend),
+	)
 
 
 func _update_surface_effect_palette() -> void:
