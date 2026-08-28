@@ -18,13 +18,21 @@ func _run() -> void:
 	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
+	_expect(environment.ambient_light_energy >= 0.45, "Forest and rock silhouettes need readable ambient fill.")
 	_expect(
 		sky_material.sky_top_color.b > sky_material.sky_top_color.r * 5.0
-			and sky_material.sky_horizon_color.b > sky_material.sky_horizon_color.r * 2.0,
-		"The cool sky should separate clearly from the warm sand instead of producing a monochrome frame.",
+			and sky_material.sky_horizon_color.r > sky_material.sky_top_color.r * 10.0,
+		"The cool upper sky and warm atmospheric horizon should create strong landscape depth.",
+	)
+	var world: ProceduralDesert = scene.get_node("Desert")
+	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
+	_expect(
+		world._tree_canopy_mesh is SphereMesh and ProceduralDesert.TREE_CROWN_LAYERS == 3,
+		"Forests should use three layered organic crowns rather than single primitive cones.",
 	)
 
 	var rider: Sandboarder = scene.get_node("Sandboarder")
+	_expect(rider.fatal_obstacle_impact_speed <= 10.0, "Direct high-speed obstacle collisions must have consequential run-ending stakes.")
 	var board := rider.get_node("BoardVisual/Board") as MeshInstance3D
 	_expect(board.mesh is CylinderMesh, "The sandboard should use a rounded silhouette rather than a placeholder box.")
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
@@ -66,7 +74,7 @@ func _run() -> void:
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Freeride presentation passed — biome-aware spray, landscape depth, rounded rider, close framing, and accessible speed FOV agree.")
+		print("Freeride presentation passed — layered forests, mountain sampling, atmospheric depth, rider feedback, and accessible speed FOV agree.")
 		quit(0)
 	else:
 		for failure in _failures:

@@ -22,7 +22,7 @@ func _run() -> void:
 	var desert: ProceduralDesert = scene.get_node("Desert")
 	var rider: Sandboarder = scene.get_node("Sandboarder")
 	var camera: Camera3D = scene.get_node("FollowCamera")
-	var initial_rocks := desert.get_loaded_rock_bodies()
+	var initial_rocks := desert.get_loaded_rock_gate_bodies()
 	_expect(initial_rocks.size() >= 8, "The opening stream should contain several readable rock passages beyond the summit.")
 	_expect(initial_rocks.size() <= 32, "Rock passages should remain sparse enough for alternate lines.")
 	for rock in initial_rocks:

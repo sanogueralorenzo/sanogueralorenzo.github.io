@@ -7,12 +7,12 @@
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_desert"]
-sky_top_color = Color(0.006, 0.028, 0.075, 1)
-sky_horizon_color = Color(0.12, 0.31, 0.37, 1)
+sky_top_color = Color(0.018, 0.065, 0.17, 1)
+sky_horizon_color = Color(0.34, 0.29, 0.31, 1)
 sky_curve = 0.2
-sky_energy_multiplier = 0.9
+sky_energy_multiplier = 1.08
 ground_bottom_color = Color(0.018, 0.02, 0.045, 1)
-ground_horizon_color = Color(0.075, 0.1, 0.14, 1)
+ground_horizon_color = Color(0.13, 0.14, 0.19, 1)
 ground_curve = 0.24
 ground_energy_multiplier = 0.72
 sun_angle_max = 9.0
@@ -24,24 +24,24 @@ sky_material = SubResource("SkyMaterial_desert")
 [sub_resource type="Environment" id="Environment_desert"]
 background_mode = 2
 sky = SubResource("Sky_desert")
-background_energy_multiplier = 0.9
+background_energy_multiplier = 1.05
 ambient_light_source = 3
 ambient_light_color = Color(0.18, 0.28, 0.4, 1)
-ambient_light_energy = 0.34
+ambient_light_energy = 0.5
 ambient_light_sky_contribution = 0.82
 reflected_light_source = 2
 tonemap_mode = 2
 adjustment_enabled = true
-adjustment_brightness = 0.9
-adjustment_contrast = 1.08
-adjustment_saturation = 0.86
+adjustment_brightness = 1.04
+adjustment_contrast = 1.1
+adjustment_saturation = 1.02
 ssao_enabled = true
 ssao_radius = 2.8
 ssao_intensity = 2.2
 ssao_power = 1.35
 fog_enabled = true
-fog_light_color = Color(0.18, 0.25, 0.3, 1)
-fog_light_energy = 0.5
+fog_light_color = Color(0.28, 0.28, 0.34, 1)
+fog_light_energy = 0.68
 fog_density = 0.00062
 fog_height = -400.0
 fog_height_density = 0.001
@@ -194,7 +194,7 @@ light_color = Color(1, 0.73, 0.46, 1)
 light_energy = 1.28
 shadow_enabled = true
 shadow_blur = 1.6
-directional_shadow_max_distance = 520.0
+directional_shadow_max_distance = 820.0
 
 [node name="Desert" type="StaticBody3D" parent="."]
 process_mode = 1
@@ -416,7 +416,7 @@ theme_override_constants/separation = 16
 [node name="Kicker" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(1, 0.68, 0.28, 1)
 theme_override_font_sizes/font_size = 16
-text = "ENDLESS OPEN-WORLD FREERIDING"
+text = "ENDLESS MOUNTAIN FREERIDING"
 horizontal_alignment = 1
 
 [node name="Title" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
@@ -434,13 +434,13 @@ horizontal_alignment = 1
 [node name="Description" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(0.78, 0.71, 0.62, 1)
 theme_override_font_sizes/font_size = 15
-text = "Sandboard away from the summit to gather speed. Jump cleanly and use\nyour single air boost to correct a landing or stretch across a gap."
+text = "Sandboard away from the summit to gather speed. Jump cleanly and use\nyour single air boost carefully. Direct tree and rock impacts end the run."
 horizontal_alignment = 1
 
 [node name="Rule" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
 theme_override_colors/font_color = Color(1, 0.72, 0.34, 1)
 theme_override_font_sizes/font_size = 14
-text = "ONE BOOST IN THE AIR  •  RECHARGES ON RIDEABLE GROUND"
+text = "ONE AIR BOOST  •  READ THE MOUNTAIN  •  COMMIT TO YOUR LINE"
 horizontal_alignment = 1
 
 [node name="Launch" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]

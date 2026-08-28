@@ -3,8 +3,10 @@ extends SceneTree
 const DIRECTION_COUNT := 16
 const SAMPLE_STEP := 50.0
 const SAMPLE_RADIUS := 12000.0
-const MINIMUM_NET_DESCENT := 1600.0
-const MAXIMUM_LOCAL_RISE := 28.0
+const MINIMUM_NET_DESCENT := 3900.0
+const MINIMUM_FIRST_KM_DESCENT := 150.0
+const MAXIMUM_LOCAL_RISE := 36.0
+const MINIMUM_CROSS_SLOPE_RELIEF := 55.0
 
 var _failures: Array[String] = []
 
@@ -29,12 +31,15 @@ func _run() -> void:
 		var angle := TAU * float(direction_index) / DIRECTION_COUNT
 		var direction := Vector2(cos(angle), sin(angle))
 		var previous_height := center_height
+		var first_km_height := center_height
 		for distance in range(int(SAMPLE_STEP), int(SAMPLE_RADIUS) + 1, int(SAMPLE_STEP)):
 			var point := direction * distance
 			var height := desert.get_surface_height(point.x, point.y)
 			_expect(is_finite(height), "Terrain samples must always be finite.")
 			greatest_local_rise = maxf(greatest_local_rise, height - previous_height)
 			previous_height = height
+			if distance == 1000:
+				first_km_height = height
 		endpoint_heights.append(previous_height)
 		var net_descent := center_height - previous_height
 		shallowest_descent = minf(shallowest_descent, net_descent)
@@ -42,10 +47,27 @@ func _run() -> void:
 			net_descent >= MINIMUM_NET_DESCENT,
 			"Direction %d only descends %.1f m over %.0f m." % [direction_index, net_descent, SAMPLE_RADIUS],
 		)
+		_expect(
+			center_height - first_km_height >= MINIMUM_FIRST_KM_DESCENT,
+			"Direction %d feels too flat near the summit: %.1f m descent in the first kilometer."
+			% [direction_index, center_height - first_km_height],
+		)
+		var lateral := Vector2(-direction.y, direction.x)
+		var cross_slope_relief := 0.0
+		for relief_distance_value in [800.0, 1600.0, 2400.0, 3200.0]:
+			var relief_distance: float = relief_distance_value
+			var cross_slope_heights: Array[float] = []
+			for lateral_offset in [-384.0, -288.0, -192.0, -96.0, 0.0, 96.0, 192.0, 288.0, 384.0]:
+				var relief_point: Vector2 = direction * relief_distance + lateral * float(lateral_offset)
+				cross_slope_heights.append(desert.get_surface_height(relief_point.x, relief_point.y))
+			cross_slope_relief = maxf(cross_slope_relief, cross_slope_heights.max() - cross_slope_heights.min())
+		_expect(
+			cross_slope_relief >= MINIMUM_CROSS_SLOPE_RELIEF,
+			"Direction %d lacks mountain-scale cross-slope relief: %.1f m." % [direction_index, cross_slope_relief],
+		)
 		var encountered_features := {}
 		var encountered_rock_chunks := {}
 		var rock_passage_count := 0
-		var lateral := Vector2(-direction.y, direction.x)
 		for feature_distance in range(512, int(SAMPLE_RADIUS) + 1, 64):
 			for lateral_offset in [-256.0, -192.0, -128.0, -64.0, 0.0, 64.0, 128.0, 192.0, 256.0]:
 				var feature_point: Vector2 = direction * feature_distance + lateral * float(lateral_offset)

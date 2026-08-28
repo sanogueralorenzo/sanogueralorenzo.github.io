@@ -33,8 +33,21 @@ func _init() -> void:
 	_expect(rough.momentum_retention >= 0.8, "Even a rough landing must not arbitrarily erase momentum.")
 	_expect(clean.score > solid.score and solid.score > rough.score, "Landing scores should order clean, solid, and rough contact predictably.")
 
+	_expect(
+		Motion.is_fatal_obstacle_impact(Vector3(0.0, 0.0, -24.0), Vector3(0.0, 0.0, 1.0), 10.0),
+		"A direct high-speed obstacle strike should end the run.",
+	)
+	_expect(
+		not Motion.is_fatal_obstacle_impact(Vector3(20.0, 0.0, -3.0), Vector3(0.0, 0.0, 1.0), 10.0),
+		"A fast grazing contact should remain recoverable when closing speed is low.",
+	)
+	_expect(
+		not Motion.is_fatal_obstacle_impact(Vector3(0.0, 0.0, -6.0), Vector3(0.0, 0.0, 1.0), 10.0),
+		"A low-speed bump should not force a restart.",
+	)
+
 	if _failures.is_empty():
-		print("Sandboard motion passed — speed-scaled carve envelope and predictable clean/solid/rough landings agree.")
+		print("Sandboard motion passed — carve, landing, and fair fatal-impact envelopes agree.")
 		quit(0)
 	else:
 		for failure in _failures:

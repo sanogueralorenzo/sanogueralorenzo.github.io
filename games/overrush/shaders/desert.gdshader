@@ -7,9 +7,9 @@ uniform vec3 shadow_sand : source_color = vec3(0.055, 0.065, 0.11);
 uniform vec3 pale_sand : source_color = vec3(0.34, 0.155, 0.055);
 uniform vec3 sunlit_sand : source_color = vec3(0.69, 0.345, 0.095);
 uniform vec3 sandstone : source_color = vec3(0.17, 0.075, 0.065);
-uniform vec3 shadow_grass : source_color = vec3(0.045, 0.09, 0.075);
-uniform vec3 grass : source_color = vec3(0.17, 0.36, 0.15);
-uniform vec3 sunlit_grass : source_color = vec3(0.48, 0.68, 0.24);
+uniform vec3 shadow_grass : source_color = vec3(0.028, 0.075, 0.065);
+uniform vec3 grass : source_color = vec3(0.09, 0.29, 0.13);
+uniform vec3 sunlit_grass : source_color = vec3(0.31, 0.55, 0.2);
 
 varying vec3 world_position;
 varying vec3 world_normal;
@@ -40,6 +40,7 @@ void fragment() {
 	vec2 p = world_position.xz + world_origin + seed_offset;
 	float broad = noise(p * 0.0035);
 	float ripples = noise(p * 0.044 + vec2(31.0, -17.0));
+	float grass_mottle = noise(p * 0.012 + vec2(-53.0, 29.0));
 	float wind_lines = sin((p.x * 0.16 + p.y * 0.044) + ripples * 2.8) * 0.5 + 0.5;
 	float slope = 1.0 - clamp(world_normal.y, 0.0, 1.0);
 	float stone = smoothstep(0.34, 0.67, slope + (broad - 0.5) * 0.16);
@@ -51,6 +52,7 @@ void fragment() {
 	sand_surface += wind_crest * vec3(0.095, 0.047, 0.012);
 	vec3 grass_surface = mix(grass, sunlit_grass, broad * 0.58 + ripples * 0.2 + 0.12);
 	grass_surface = mix(shadow_grass, grass_surface, 0.3 + key_light * 0.7);
+	grass_surface *= mix(vec3(0.78, 0.92, 0.84), vec3(1.06, 1.03, 0.76), grass_mottle);
 	float biome_blend = smoothstep(0.08, 0.92, grass_weight);
 	vec3 rideable_surface = mix(sand_surface, grass_surface, biome_blend);
 	vec3 rock = mix(shadow_sand * 0.62, sandstone, broad);

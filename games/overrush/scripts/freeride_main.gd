@@ -11,6 +11,7 @@ extends Node3D
 @onready var start_overlay: Control = $HUD/StartOverlay
 @onready var launch_button: Button = $HUD/StartOverlay/LaunchPanel/Content/Launch
 @onready var pause_overlay: Control = $HUD/PauseOverlay
+@onready var pause_title: Label = $HUD/PauseOverlay/PausePanel/Content/Title
 @onready var resume_button: Button = $HUD/PauseOverlay/PausePanel/Content/Resume
 @onready var restart_button: Button = $HUD/PauseOverlay/PausePanel/Content/Restart
 
@@ -19,6 +20,7 @@ var elapsed_time := 0.0
 var start_height := 0.0
 var _using_gamepad := false
 var _landing_feedback_time := 0.0
+var _run_crashed := false
 
 
 func _ready() -> void:
@@ -28,6 +30,7 @@ func _ready() -> void:
 	rider.air_boost_used.connect(_on_air_boost_used)
 	rider.landing_scored.connect(_on_landing_scored)
 	rider.jumped.connect(_on_jumped)
+	rider.crashed.connect(_on_rider_crashed)
 	launch_button.pressed.connect(begin_run)
 	resume_button.pressed.connect(resume_run)
 	restart_button.pressed.connect(restart_run)
@@ -69,6 +72,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func begin_run() -> void:
 	run_active = true
+	_run_crashed = false
+	_configure_pause_overlay()
 	start_overlay.visible = false
 	pause_overlay.visible = false
 	get_tree().paused = false
@@ -79,12 +84,15 @@ func pause_run() -> void:
 	if not run_active:
 		return
 	get_tree().paused = true
+	_configure_pause_overlay()
 	pause_overlay.visible = true
 	follow_camera.set_controls_enabled(false)
 	resume_button.grab_focus()
 
 
 func resume_run() -> void:
+	if _run_crashed:
+		return
 	pause_overlay.visible = false
 	get_tree().paused = false
 	follow_camera.set_controls_enabled(true)
@@ -94,6 +102,9 @@ func restart_run() -> void:
 	elapsed_time = 0.0
 	_landing_feedback_time = 0.0
 	landing_label.modulate.a = 0.0
+	_run_crashed = false
+	run_active = true
+	_configure_pause_overlay()
 	desert.begin_new_run()
 	rider.respawn()
 	follow_camera.snap_to_target()
@@ -143,6 +154,25 @@ func _on_air_boost_used() -> void:
 
 func _on_jumped() -> void:
 	audio_director.play_jump()
+
+
+func _on_rider_crashed(obstacle_kind: StringName, impact_speed: float) -> void:
+	_run_crashed = true
+	run_active = false
+	get_tree().paused = true
+	pause_overlay.visible = true
+	pause_title.text = "%s IMPACT\n%03d KM/H" % [String(obstacle_kind).to_upper(), roundi(impact_speed * 3.6)]
+	resume_button.visible = false
+	restart_button.text = "DROP AGAIN"
+	follow_camera.set_controls_enabled(false)
+	restart_button.grab_focus()
+	audio_director.play_landing(SandboardMotion.LANDING_ROUGH)
+
+
+func _configure_pause_overlay() -> void:
+	pause_title.text = "PAUSED"
+	resume_button.visible = true
+	restart_button.text = "RETURN TO SUMMIT"
 
 
 func _on_landing_scored(rating: StringName, _score: float, _impact_speed: float) -> void:

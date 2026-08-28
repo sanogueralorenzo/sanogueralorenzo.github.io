@@ -1,8 +1,10 @@
 class_name LandscapeLayout
 extends RefCounted
 
-const TREE_CELL_SIZE := 32.0
+const TREE_CELL_SIZE := 20.0
+const ROCK_CELL_SIZE := 64.0
 const TREE_SUMMIT_CLEAR_RADIUS := 280.0
+const ROCK_SUMMIT_CLEAR_RADIUS := 320.0
 const RUIN_MINIMUM_RADIUS := 620.0
 
 var _seed := 1
@@ -45,8 +47,8 @@ func get_tree_cell_coordinate(logical_position: Vector2) -> Vector2i:
 func get_tree_position(cell: Vector2i) -> Vector2:
 	var center := (Vector2(cell) + Vector2(0.5, 0.5)) * TREE_CELL_SIZE
 	var jitter := Vector2(
-		lerpf(-0.34, 0.34, get_cell_random(cell, 11)),
-		lerpf(-0.34, 0.34, get_cell_random(cell, 12)),
+		lerpf(-0.24, 0.24, get_cell_random(cell, 11)),
+		lerpf(-0.24, 0.24, get_cell_random(cell, 12)),
 	) * TREE_CELL_SIZE
 	return center + jitter
 
@@ -55,8 +57,8 @@ func get_tree_density(logical_position: Vector2) -> float:
 	var summit_fade := smoothstep(TREE_SUMMIT_CLEAR_RADIUS, TREE_SUMMIT_CLEAR_RADIUS + 180.0, logical_position.length())
 	var grass_density := smoothstep(0.58, 0.88, get_grass_weight(logical_position))
 	var glade_distance := absf(_glade_noise.get_noise_2dv(logical_position))
-	var glade_clearance := smoothstep(0.08, 0.3, glade_distance)
-	return 0.32 * summit_fade * grass_density * glade_clearance
+	var glade_clearance := smoothstep(0.07, 0.24, glade_distance)
+	return 0.48 * summit_fade * grass_density * glade_clearance
 
 
 func has_tree(cell: Vector2i) -> bool:
@@ -65,11 +67,40 @@ func has_tree(cell: Vector2i) -> bool:
 
 
 func get_tree_height(cell: Vector2i) -> float:
-	return lerpf(6.2, 10.5, get_cell_random(cell, 14))
+	return lerpf(7.5, 14.0, get_cell_random(cell, 14))
 
 
 func get_tree_radius(cell: Vector2i) -> float:
-	return lerpf(0.55, 0.95, get_cell_random(cell, 15))
+	return lerpf(0.48, 0.82, get_cell_random(cell, 15))
+
+
+func get_rock_cell_coordinate(logical_position: Vector2) -> Vector2i:
+	return Vector2i(floori(logical_position.x / ROCK_CELL_SIZE), floori(logical_position.y / ROCK_CELL_SIZE))
+
+
+func get_rock_position(cell: Vector2i) -> Vector2:
+	var center := (Vector2(cell) + Vector2(0.5, 0.5)) * ROCK_CELL_SIZE
+	var jitter := Vector2(
+		lerpf(-0.3, 0.3, get_cell_random(cell, 51)),
+		lerpf(-0.3, 0.3, get_cell_random(cell, 52)),
+	) * ROCK_CELL_SIZE
+	return center + jitter
+
+
+func get_rock_density(logical_position: Vector2) -> float:
+	var summit_fade := smoothstep(ROCK_SUMMIT_CLEAR_RADIUS, ROCK_SUMMIT_CLEAR_RADIUS + 180.0, logical_position.length())
+	var cluster := smoothstep(-0.08, 0.42, _glade_noise.get_noise_2dv(logical_position))
+	var biome_density := lerpf(0.34, 0.48, get_grass_weight(logical_position))
+	return biome_density * summit_fade * cluster
+
+
+func has_rock(cell: Vector2i) -> bool:
+	var position := get_rock_position(cell)
+	return get_cell_random(cell, 53) < get_rock_density(position)
+
+
+func get_rock_radius(cell: Vector2i) -> float:
+	return lerpf(1.2, 4.2, pow(get_cell_random(cell, 54), 1.65))
 
 
 func has_ruin(chunk_coord: Vector2i, chunk_size: float) -> bool:

@@ -66,3 +66,12 @@ static func evaluate_landing(incoming_velocity: Vector3, surface_normal: Vector3
 		"alignment": alignment,
 		"momentum_retention": momentum_retention,
 	}
+
+
+static func is_fatal_obstacle_impact(
+	incoming_velocity: Vector3,
+	collision_normal: Vector3,
+	minimum_closing_speed: float,
+) -> bool:
+	var closing_speed := maxf(0.0, -incoming_velocity.dot(collision_normal.normalized()))
+	return closing_speed >= minimum_closing_speed

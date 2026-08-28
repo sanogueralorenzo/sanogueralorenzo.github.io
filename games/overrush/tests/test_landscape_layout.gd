@@ -46,7 +46,24 @@ func _init() -> void:
 			var position := layout.get_tree_position(cell)
 			_expect(position.length() >= LandscapeLayout.TREE_SUMMIT_CLEAR_RADIUS, "Trees must leave the summit drop-in open.")
 			_expect(layout.get_grass_weight(position) >= 0.58, "Trees must never appear in clear dune terrain.")
-	_expect(tree_count >= 1200 and tree_count <= 3800, "Forest density should be substantial but line-readable: %d trees." % tree_count)
+	_expect(tree_count >= 5500 and tree_count <= 10500, "Forest density should create consequential slalom sections without becoming continuous walls: %d trees." % tree_count)
+
+	var rock_count := 0
+	var smallest_rock := INF
+	var largest_rock := 0.0
+	for y in range(-50, 51):
+		for x in range(-50, 51):
+			var cell := Vector2i(x, y)
+			if not layout.has_rock(cell):
+				continue
+			rock_count += 1
+			var position := layout.get_rock_position(cell)
+			var radius := layout.get_rock_radius(cell)
+			_expect(position.length() >= LandscapeLayout.ROCK_SUMMIT_CLEAR_RADIUS, "Rock fields must leave the summit drop-in open.")
+			smallest_rock = minf(smallest_rock, radius)
+			largest_rock = maxf(largest_rock, radius)
+	_expect(rock_count >= 300 and rock_count <= 2200, "Rock fields should be frequent hazards with open clusters between them: %d rocks." % rock_count)
+	_expect(smallest_rock <= 1.5 and largest_rock >= 3.7, "Rock silhouettes need meaningful scale variation.")
 
 	var ruin_coords: Array[Vector2i] = []
 	for y in range(-14, 15):
@@ -66,7 +83,7 @@ func _init() -> void:
 	_expect(ruin_coords.size() >= 40 and ruin_coords.size() <= 120, "Ruins should remain sparse and memorable: %d sites." % ruin_coords.size())
 
 	if _failures.is_empty():
-		print("Landscape layout passed — every heading crosses dunes and forest, %.3f max blend step, %d trees, %d separated ruins." % [maximum_step, tree_count, ruin_coords.size()])
+		print("Landscape layout passed — every heading crosses dunes and forest, %.3f max blend step, %d trees, %d rocks, %d separated ruins." % [maximum_step, tree_count, rock_count, ruin_coords.size()])
 		quit(0)
 	else:
 		for failure in _failures:

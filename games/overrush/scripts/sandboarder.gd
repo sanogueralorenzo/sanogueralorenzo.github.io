@@ -6,6 +6,7 @@ signal air_boost_used
 signal landed(impact_speed: float)
 signal landing_scored(rating: StringName, score: float, impact_speed: float)
 signal jumped
+signal crashed(obstacle_kind: StringName, impact_speed: float)
 
 @export var world_path: NodePath
 @export var camera_path: NodePath
@@ -17,7 +18,7 @@ signal jumped
 @export var low_speed_turn_rate := 2.8
 @export var high_speed_turn_rate := 1.05
 @export var air_control := 5.0
-@export var jump_velocity := 10.5
+@export var jump_velocity := 13.5
 @export var jump_buffer_duration := 0.13
 @export var coyote_duration := 0.1
 @export var air_boost_impulse := 19.0
@@ -25,6 +26,7 @@ signal jumped
 @export var maximum_speed := 78.0
 @export var valid_landing_normal_y := 0.55
 @export var minimum_landing_airtime := 0.08
+@export var fatal_obstacle_impact_speed := 10.0
 
 @onready var board_visual: Node3D = $BoardVisual
 @onready var boost_trail: GPUParticles3D = $BoostTrail
@@ -47,6 +49,7 @@ var _carve_sign := 0.0
 var _landing_compression := 0.0
 var _has_departed_rideable_ground := false
 var _surface_grass_weight := 0.0
+var _crashed := false
 
 const SAND_TRAIL_COLOR := Color(0.96, 0.69, 0.32, 0.58)
 const GRASS_TRAIL_COLOR := Color(0.47, 0.67, 0.27, 0.62)
@@ -68,6 +71,8 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _crashed:
+		return
 	var started_on_floor := is_on_floor()
 	var input_direction := get_camera_relative_direction()
 	jump_assist_state.tick(delta, started_on_floor)
@@ -89,6 +94,8 @@ func _physics_process(delta: float) -> void:
 
 	var before_move := velocity
 	move_and_slide()
+	if _detect_fatal_obstacle_impact(before_move):
+		return
 	_update_surface_effect_palette()
 	_update_surface_state(started_on_floor, before_move, jumped_this_frame)
 	_update_visuals(delta)
@@ -106,6 +113,7 @@ func respawn() -> void:
 	distance_traveled = 0.0
 	_airtime = 0.0
 	_has_departed_rideable_ground = false
+	_crashed = false
 	jump_assist_state.reset()
 	air_boost_state.reset_on_rideable_ground()
 	_last_position = global_position
@@ -250,6 +258,29 @@ func _has_valid_rideable_floor_contact() -> bool:
 		var collision := get_slide_collision(index)
 		if _world.is_rideable_collider(collision.get_collider()) and collision.get_normal().y >= valid_landing_normal_y:
 			return true
+	return false
+
+
+func _detect_fatal_obstacle_impact(incoming_velocity: Vector3) -> bool:
+	for index in range(get_slide_collision_count()):
+		var collision := get_slide_collision(index)
+		var collider := collision.get_collider()
+		if not _world.is_obstacle_collider(collider):
+			continue
+		if not SandboardMotion.is_fatal_obstacle_impact(
+			incoming_velocity,
+			collision.get_normal(),
+			fatal_obstacle_impact_speed,
+		):
+			continue
+		var impact_speed := maxf(0.0, -incoming_velocity.dot(collision.get_normal().normalized()))
+		_crashed = true
+		velocity = Vector3.ZERO
+		surface_trail.emitting = false
+		boost_trail.emitting = false
+		boost_light.visible = false
+		crashed.emit(_world.get_obstacle_kind(collider), impact_speed)
+		return true
 	return false
 
 

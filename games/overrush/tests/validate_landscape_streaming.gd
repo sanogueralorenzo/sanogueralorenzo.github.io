@@ -20,8 +20,11 @@ func _run() -> void:
 	var rider: Sandboarder = scene.get_node("Sandboarder")
 
 	var initial_tree_count := world.get_loaded_tree_count()
-	_expect(initial_tree_count >= 40 and initial_tree_count <= 700, "The opening stream should show forest mass without becoming a wall: %d trees." % initial_tree_count)
+	var initial_rock_count := world.get_loaded_rock_count()
+	_expect(initial_tree_count >= 1500 and initial_tree_count <= 4200, "The opening stream should contain consequential forests with preserved glades: %d trees." % initial_tree_count)
+	_expect(initial_rock_count >= 60 and initial_rock_count <= 500, "The opening stream should contain frequent but avoidable rock hazards: %d rocks." % initial_rock_count)
 	_validate_loaded_trees(world)
+	_validate_loaded_rocks(world)
 	_validate_surface_feedback(world, rider)
 
 	var ruin_coord := _find_nearest_ruin(world)
@@ -52,7 +55,7 @@ func _run() -> void:
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Landscape streaming passed — %d opening trees, grass-only placement, fair obstacle spacing, and a sparse 13 m ruin passage." % initial_tree_count)
+		print("Landscape streaming passed — %d trees, %d rocks, fair obstacle spacing, biome feedback, and a sparse 13 m ruin passage." % [initial_tree_count, initial_rock_count])
 		quit(0)
 	else:
 		for failure in _failures:
@@ -83,6 +86,21 @@ func _validate_loaded_trees(world: ProceduralDesert) -> void:
 			minimum_spacing = minf(minimum_spacing, positions[first_index].distance_to(positions[second_index]))
 	if positions.size() >= 2:
 		_expect(minimum_spacing >= 9.0, "Tree placement leaves less than 9 m between trunk centers: %.2f m." % minimum_spacing)
+
+
+func _validate_loaded_rocks(world: ProceduralDesert) -> void:
+	var field_body_count := 0
+	var collision_count := 0
+	for rock_body in world.get_loaded_rock_bodies():
+		_expect(world.is_obstacle_collider(rock_body) and not world.is_rideable_collider(rock_body), "Every tree/rock hazard must be obstacle-only contact.")
+		if not rock_body.get_meta(&"overrush_rock_field", false):
+			continue
+		field_body_count += 1
+		for child in rock_body.get_children():
+			if child is CollisionShape3D:
+				collision_count += 1
+	_expect(field_body_count >= 4, "Several streamed chunks should contain batched rock fields.")
+	_expect(collision_count >= 40, "Rock-field collision should match the visible hazard density: %d shapes." % collision_count)
 
 
 func _find_nearest_ruin(world: ProceduralDesert) -> Vector2i:
