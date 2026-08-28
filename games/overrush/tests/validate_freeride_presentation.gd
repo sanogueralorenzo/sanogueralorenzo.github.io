@@ -94,6 +94,20 @@ func _run() -> void:
 			and ProceduralDesert.MOUNTAIN_FOLD_SECONDARY_AMPLITUDE >= 55.0,
 		"Mountain-scale relief must remain strong enough to form visible valleys and ridgelines around the opening descent.",
 	)
+	var trunk_bounds := world._tree_trunk_mesh.get_aabb()
+	_expect(
+		ProceduralDesert.TREE_TRUNK_RADIAL_SEGMENTS >= 10
+			and ProceduralDesert.TREE_TRUNK_HEIGHT_RINGS >= 6
+			and ProceduralDesert.TREE_VISIBLE_TRUNK_HEIGHT_SCALE <= 0.21
+			and world._tree_trunk_mesh is ArrayMesh
+			and world._tree_trunk_mesh.surface_get_array_len(0) >= 140
+			and world._tree_trunk_mesh.surface_get_array_len(0) <= 180
+			and world._tree_trunk_mesh.surface_get_array_index_len(0) == 360
+			and trunk_bounds.size.y >= 0.99
+			and minf(trunk_bounds.size.x, trunk_bounds.size.z) >= 2.05,
+		"Tree trunks need one indexed, multi-ring tapered mesh with a concealed upper section instead of a one-ring primitive cylinder: %s."
+		% str(trunk_bounds),
+	)
 	var foliage_texture := load("res://assets/terrain/conifer_foliage_atlas.png") as Texture2D
 	var foliage_source := Image.load_from_file(
 		ProjectSettings.globalize_path("res://assets/terrain/conifer_foliage_atlas.png")
@@ -103,7 +117,6 @@ func _run() -> void:
 	var foliage_uvs: PackedVector2Array = foliage_arrays[Mesh.ARRAY_TEX_UV]
 	_expect(
 		ProceduralDesert.TREE_FOLIAGE_CARD_PLANES == 3
-			and ProceduralDesert.TREE_VISIBLE_TRUNK_HEIGHT_SCALE <= 0.25
 			and ProceduralDesert.TREE_FOLIAGE_SHELL_RADIUS_SCALE >= 1.05
 			and world._tree_foliage_mesh is ArrayMesh
 			and world._tree_foliage_mesh.surface_get_array_len(0) == 18

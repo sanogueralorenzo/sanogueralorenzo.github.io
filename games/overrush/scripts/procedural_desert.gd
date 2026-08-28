@@ -2,7 +2,9 @@ class_name ProceduralDesert
 extends StaticBody3D
 
 const TREE_FOLIAGE_CARD_PLANES := 3
-const TREE_VISIBLE_TRUNK_HEIGHT_SCALE := 0.24
+const TREE_TRUNK_RADIAL_SEGMENTS := 10
+const TREE_TRUNK_HEIGHT_RINGS := 6
+const TREE_VISIBLE_TRUNK_HEIGHT_SCALE := 0.2
 const TREE_FOLIAGE_SHELL_RADIUS_SCALE := 1.08
 const ROCK_RADIAL_SEGMENTS := 12
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
@@ -53,7 +55,7 @@ var _tree_foliage_material: StandardMaterial3D
 var _ruin_material: StandardMaterial3D
 var _ruin_recess_material: StandardMaterial3D
 var _rock_mesh: ArrayMesh
-var _tree_trunk_mesh: CylinderMesh
+var _tree_trunk_mesh: ArrayMesh
 var _tree_foliage_mesh: ArrayMesh
 var _ruin_block_mesh: ArrayMesh
 var _broad_noise := FastNoiseLite.new()
@@ -541,12 +543,7 @@ func _create_materials() -> void:
 	_ruin_material = null
 	_ruin_recess_material = null
 	_rock_mesh = _build_weathered_rock_mesh()
-	_tree_trunk_mesh = CylinderMesh.new()
-	_tree_trunk_mesh.top_radius = 0.72
-	_tree_trunk_mesh.bottom_radius = 1.0
-	_tree_trunk_mesh.height = 1.0
-	_tree_trunk_mesh.radial_segments = 9
-	_tree_trunk_mesh.rings = 1
+	_tree_trunk_mesh = _build_tree_trunk_mesh()
 	_tree_foliage_mesh = _build_conifer_foliage_mesh()
 	_ruin_block_mesh = _build_weathered_block_mesh()
 	if DisplayServer.get_name() != "headless":
@@ -612,6 +609,85 @@ func _offset_stone_texture_origin(material: StandardMaterial3D, shift: Vector3) 
 	if not is_instance_valid(material):
 		return
 	material.uv1_offset += shift * STONE_TRIPLANAR_SCALE
+
+
+func _build_tree_trunk_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring_index in range(TREE_TRUNK_HEIGHT_RINGS - 1):
+		var lower_progress := float(ring_index) / float(TREE_TRUNK_HEIGHT_RINGS - 1)
+		var upper_progress := float(ring_index + 1) / float(TREE_TRUNK_HEIGHT_RINGS - 1)
+		for segment_index in range(TREE_TRUNK_RADIAL_SEGMENTS):
+			var next_segment := (segment_index + 1) % TREE_TRUNK_RADIAL_SEGMENTS
+			var lower_left := _get_tree_trunk_vertex(lower_progress, segment_index)
+			var lower_right := _get_tree_trunk_vertex(lower_progress, next_segment)
+			var upper_left := _get_tree_trunk_vertex(upper_progress, segment_index)
+			var upper_right := _get_tree_trunk_vertex(upper_progress, next_segment)
+			var stripe := sin(float(segment_index) * 2.31) * 0.5 + 0.5
+			var bark_color := Color(
+				lerpf(0.78, 0.96, stripe),
+				lerpf(0.72, 0.86, stripe),
+				lerpf(0.66, 0.76, stripe),
+				1.0,
+			)
+			_add_tree_trunk_side_triangle(builder, lower_left, upper_left, upper_right, bark_color)
+			_add_tree_trunk_side_triangle(builder, lower_left, upper_right, lower_right, bark_color)
+	var bottom_center := Vector3(0.0, -0.5, 0.0)
+	var top_center := Vector3(0.0, 0.5, 0.0)
+	for segment_index in range(TREE_TRUNK_RADIAL_SEGMENTS):
+		var next_segment := (segment_index + 1) % TREE_TRUNK_RADIAL_SEGMENTS
+		_add_mesh_triangle(
+			builder,
+			bottom_center,
+			_get_tree_trunk_vertex(0.0, next_segment),
+			_get_tree_trunk_vertex(0.0, segment_index),
+			Color(0.5, 0.42, 0.34, 1.0),
+		)
+		_add_mesh_triangle(
+			builder,
+			top_center,
+			_get_tree_trunk_vertex(1.0, segment_index),
+			_get_tree_trunk_vertex(1.0, next_segment),
+			Color(0.58, 0.49, 0.4, 1.0),
+		)
+	builder.index()
+	return builder.commit() as ArrayMesh
+
+
+func _add_tree_trunk_side_triangle(
+	builder: SurfaceTool,
+	first: Vector3,
+	second: Vector3,
+	third: Vector3,
+	color: Color,
+) -> void:
+	for vertex in [first, second, third]:
+		var trunk_vertex: Vector3 = vertex
+		var progress := trunk_vertex.y + 0.5
+		var center_offset := Vector2(
+			sin(progress * 5.1) * 0.025,
+			cos(progress * 4.3) * 0.02,
+		)
+		builder.set_normal(Vector3(trunk_vertex.x - center_offset.x, 0.0, trunk_vertex.z - center_offset.y).normalized())
+		builder.set_color(color)
+		builder.add_vertex(trunk_vertex)
+
+
+func _get_tree_trunk_vertex(progress: float, segment_index: int) -> Vector3:
+	var angle := TAU * float(segment_index) / float(TREE_TRUNK_RADIAL_SEGMENTS)
+	var taper := lerpf(1.05, 0.78, pow(progress, 0.82))
+	var root_flare := lerpf(0.06, 0.0, smoothstep(0.0, 0.24, progress))
+	var radial_variation := 1.0 + 0.025 * sin(float(segment_index) * 3.17 + progress * 8.3)
+	var center_offset := Vector2(
+		sin(progress * 5.1) * 0.025,
+		cos(progress * 4.3) * 0.02,
+	)
+	var radius := (taper + root_flare) * radial_variation
+	return Vector3(
+		center_offset.x + cos(angle) * radius,
+		progress - 0.5,
+		center_offset.y + sin(angle) * radius,
+	)
 
 
 func _build_conifer_foliage_mesh() -> ArrayMesh:
@@ -910,8 +986,9 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
 		var local_xz := logical_position - chunk_center
 		var visible_trunk_height := height * TREE_VISIBLE_TRUNK_HEIGHT_SCALE
+		var trunk_basis := Basis(Vector3.UP, _landscape_layout.get_cell_random(cell, 26) * TAU)
 		var trunk_transform := Transform3D(
-			Basis.IDENTITY.scaled(Vector3(radius, visible_trunk_height, radius)),
+			trunk_basis.scaled(Vector3(radius, visible_trunk_height, radius)),
 			Vector3(local_xz.x, local_height + visible_trunk_height * 0.5, local_xz.y),
 		)
 		var canopy_radius := height * lerpf(0.21, 0.28, _landscape_layout.get_cell_random(cell, 16))
