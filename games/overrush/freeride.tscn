@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -73,11 +73,19 @@ radial_segments = 14
 rings = 5
 
 [sub_resource type="StandardMaterial3D" id="RiderMaterial"]
-albedo_color = Color(0.022, 0.085, 0.105, 1)
-roughness = 0.76
+albedo_color = Color(0.157, 0.365, 0.408, 1)
+roughness = 0.78
 emission_enabled = true
-emission = Color(0.003, 0.018, 0.023, 1)
-emission_energy_multiplier = 0.45
+emission = Color(0.027, 0.098, 0.114, 1)
+emission_energy_multiplier = 0.25
+
+[sub_resource type="StandardMaterial3D" id="PantsMaterial"]
+albedo_color = Color(0.161, 0.22, 0.239, 1)
+roughness = 0.84
+
+[sub_resource type="StandardMaterial3D" id="HelmetMaterial"]
+albedo_color = Color(0.212, 0.282, 0.31, 1)
+roughness = 0.88
 
 [sub_resource type="SphereMesh" id="HeadMesh"]
 radius = 0.23
@@ -93,6 +101,12 @@ radius = 0.125
 height = 0.8
 radial_segments = 12
 rings = 4
+
+[sub_resource type="TorusMesh" id="HoodMesh"]
+inner_radius = 0.18
+outer_radius = 0.29
+rings = 12
+ring_segments = 8
 
 [sub_resource type="StandardMaterial3D" id="TrailMaterial"]
 transparency = 1
@@ -279,9 +293,16 @@ mesh = SubResource("RiderDetailMesh")
 material_override = SubResource("AccentMaterial")
 
 [node name="Shoulders" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Rider"]
-position = Vector3(0, 0.25, 0)
-scale = Vector3(0.47, 0.12, 0.22)
-mesh = SubResource("RiderDetailMesh")
+position = Vector3(0, 0.27, 0)
+rotation_degrees = Vector3(0, 0, 90)
+scale = Vector3(1, 1, 1.2)
+mesh = SubResource("LimbMesh")
+material_override = SubResource("RiderMaterial")
+
+[node name="Hood" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Rider"]
+position = Vector3(0, 0.49, -0.015)
+scale = Vector3(1, 0.72, 1)
+mesh = SubResource("HoodMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="Belt" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Rider"]
@@ -293,7 +314,7 @@ material_override = SubResource("BoardMaterial")
 [node name="Head" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(-0.03, 1.69, -0.06)
 mesh = SubResource("HeadMesh")
-material_override = SubResource("RiderMaterial")
+material_override = SubResource("HelmetMaterial")
 
 [node name="Visor" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Head"]
 position = Vector3(0, 0.015, -0.225)
@@ -335,7 +356,7 @@ material_override = SubResource("BoardMaterial")
 position = Vector3(-0.24, 0.3, 0.22)
 rotation_degrees = Vector3(-16, 0, -7)
 mesh = SubResource("LimbMesh")
-material_override = SubResource("RiderMaterial")
+material_override = SubResource("PantsMaterial")
 
 [node name="LeftBoot" type="MeshInstance3D" parent="Sandboarder/BoardVisual/LeftLeg"]
 position = Vector3(0, -0.37, -0.035)
@@ -353,7 +374,7 @@ material_override = SubResource("AccentMaterial")
 position = Vector3(0.24, 0.3, -0.22)
 rotation_degrees = Vector3(16, 0, 7)
 mesh = SubResource("LimbMesh")
-material_override = SubResource("RiderMaterial")
+material_override = SubResource("PantsMaterial")
 
 [node name="RightBoot" type="MeshInstance3D" parent="Sandboarder/BoardVisual/RightLeg"]
 position = Vector3(0, -0.37, 0.035)

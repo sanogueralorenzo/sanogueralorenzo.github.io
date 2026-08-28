@@ -134,6 +134,7 @@ func _run() -> void:
 		"BoardVisual/RightBinding",
 		"BoardVisual/Rider/JacketPanel",
 		"BoardVisual/Rider/Shoulders",
+		"BoardVisual/Rider/Hood",
 		"BoardVisual/Rider/Belt",
 		"BoardVisual/Head/Visor",
 		"BoardVisual/Head/HelmetStripe",
@@ -145,6 +146,29 @@ func _run() -> void:
 		"BoardVisual/RightLeg/RightKnee",
 	]:
 		_expect(rider.get_node_or_null(detail_path) is MeshInstance3D, "The articulated rider is missing visual detail %s." % detail_path)
+	var jacket_material := rider.torso_visual.material_override as StandardMaterial3D
+	var pants_material := rider.left_leg_visual.material_override as StandardMaterial3D
+	var helmet_material := rider.head_visual.material_override as StandardMaterial3D
+	var jacket_pants_separation := (
+		absf(jacket_material.albedo_color.r - pants_material.albedo_color.r)
+		+ absf(jacket_material.albedo_color.g - pants_material.albedo_color.g)
+		+ absf(jacket_material.albedo_color.b - pants_material.albedo_color.b)
+	)
+	var helmet_jacket_separation := (
+		absf(helmet_material.albedo_color.r - jacket_material.albedo_color.r)
+		+ absf(helmet_material.albedo_color.g - jacket_material.albedo_color.g)
+		+ absf(helmet_material.albedo_color.b - jacket_material.albedo_color.b)
+	)
+	_expect(
+		jacket_pants_separation >= 0.28 and helmet_jacket_separation >= 0.2,
+		"The rider's jacket, pants, and helmet need distinct mid-tone values that remain legible at gameplay distance.",
+	)
+	var shoulders := rider.get_node("BoardVisual/Rider/Shoulders") as MeshInstance3D
+	var hood := rider.get_node("BoardVisual/Rider/Hood") as MeshInstance3D
+	_expect(
+		shoulders.mesh is CapsuleMesh and hood.mesh is TorusMesh,
+		"The jacket silhouette should use a rounded shoulder yoke and hood rather than additional box primitives.",
+	)
 	var torso_base_rotation := rider.torso_visual.rotation
 	var left_arm_base_rotation := rider.left_arm_visual.rotation
 	rider.velocity = Vector3(rider.maximum_speed * 0.82, 0.0, 0.0)
