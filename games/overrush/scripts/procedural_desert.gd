@@ -6,6 +6,7 @@ const TREE_RADIAL_SEGMENTS := 9
 const ROCK_RADIAL_SEGMENTS := 9
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
+const RUIN_VISUAL_SEGMENTS := 19
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -35,7 +36,7 @@ var _ruin_material: StandardMaterial3D
 var _rock_mesh: ArrayMesh
 var _tree_trunk_mesh: CylinderMesh
 var _tree_canopy_mesh: ArrayMesh
-var _ruin_block_mesh: BoxMesh
+var _ruin_block_mesh: ArrayMesh
 var _broad_noise := FastNoiseLite.new()
 var _mountain_noise := FastNoiseLite.new()
 var _ridge_noise := FastNoiseLite.new()
@@ -466,8 +467,7 @@ func _create_materials() -> void:
 	_tree_trunk_mesh.radial_segments = 9
 	_tree_trunk_mesh.rings = 1
 	_tree_canopy_mesh = _build_conifer_canopy_mesh()
-	_ruin_block_mesh = BoxMesh.new()
-	_ruin_block_mesh.size = Vector3.ONE
+	_ruin_block_mesh = _build_weathered_block_mesh()
 	if DisplayServer.get_name() != "headless":
 		_terrain_material = ShaderMaterial.new()
 		_terrain_material.shader = load("res://shaders/desert.gdshader")
@@ -490,8 +490,10 @@ func _create_materials() -> void:
 		_tree_canopy_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_ruin_material = StandardMaterial3D.new()
-		_ruin_material.albedo_color = Color("#aa976c")
-		_ruin_material.roughness = 0.9
+		_ruin_material.albedo_color = Color("#ad9b79")
+		_ruin_material.roughness = 0.94
+		_ruin_material.vertex_color_use_as_albedo = true
+		_ruin_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 
 
 func _build_conifer_canopy_mesh() -> ArrayMesh:
@@ -551,6 +553,59 @@ func _build_faceted_rock_mesh() -> ArrayMesh:
 	return builder.commit() as ArrayMesh
 
 
+func _build_weathered_block_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half := 0.5
+	var inset := 0.38
+	var top_color := Color(1.0, 0.98, 0.88, 1.0)
+	var side_color := Color(0.86, 0.82, 0.72, 1.0)
+	var shadow_color := Color(0.68, 0.66, 0.62, 1.0)
+	_add_mesh_quad(builder, Vector3(-inset, half, -inset), Vector3(inset, half, -inset), Vector3(inset, half, inset), Vector3(-inset, half, inset), top_color)
+	_add_mesh_quad(builder, Vector3(-inset, -half, inset), Vector3(inset, -half, inset), Vector3(inset, -half, -inset), Vector3(-inset, -half, -inset), shadow_color)
+	_add_mesh_quad(builder, Vector3(half, -inset, -inset), Vector3(half, -inset, inset), Vector3(half, inset, inset), Vector3(half, inset, -inset), side_color.lightened(0.05))
+	_add_mesh_quad(builder, Vector3(-half, -inset, inset), Vector3(-half, -inset, -inset), Vector3(-half, inset, -inset), Vector3(-half, inset, inset), side_color.darkened(0.08))
+	_add_mesh_quad(builder, Vector3(-inset, -inset, half), Vector3(inset, -inset, half), Vector3(inset, inset, half), Vector3(-inset, inset, half), side_color)
+	_add_mesh_quad(builder, Vector3(inset, -inset, -half), Vector3(-inset, -inset, -half), Vector3(-inset, inset, -half), Vector3(inset, inset, -half), side_color.darkened(0.12))
+	for first_sign in [-1.0, 1.0]:
+		for second_sign in [-1.0, 1.0]:
+			_add_mesh_quad(
+				builder,
+				Vector3(-inset, first_sign * half, second_sign * inset),
+				Vector3(inset, first_sign * half, second_sign * inset),
+				Vector3(inset, first_sign * inset, second_sign * half),
+				Vector3(-inset, first_sign * inset, second_sign * half),
+				side_color.darkened(0.04),
+			)
+			_add_mesh_quad(
+				builder,
+				Vector3(first_sign * half, -inset, second_sign * inset),
+				Vector3(first_sign * half, inset, second_sign * inset),
+				Vector3(first_sign * inset, inset, second_sign * half),
+				Vector3(first_sign * inset, -inset, second_sign * half),
+				side_color.darkened(0.08),
+			)
+			_add_mesh_quad(
+				builder,
+				Vector3(first_sign * half, second_sign * inset, -inset),
+				Vector3(first_sign * half, second_sign * inset, inset),
+				Vector3(first_sign * inset, second_sign * half, inset),
+				Vector3(first_sign * inset, second_sign * half, -inset),
+				side_color,
+			)
+	for x_sign in [-1.0, 1.0]:
+		for y_sign in [-1.0, 1.0]:
+			for z_sign in [-1.0, 1.0]:
+				_add_mesh_triangle(
+					builder,
+					Vector3(x_sign * half, y_sign * inset, z_sign * inset),
+					Vector3(x_sign * inset, y_sign * half, z_sign * inset),
+					Vector3(x_sign * inset, y_sign * inset, z_sign * half),
+					side_color.lightened(0.03) if y_sign > 0.0 else shadow_color,
+				)
+	return builder.commit() as ArrayMesh
+
+
 func _add_mesh_triangle(
 	builder: SurfaceTool,
 	first: Vector3,
@@ -567,6 +622,18 @@ func _add_mesh_triangle(
 		builder.set_normal(normal)
 		builder.set_color(color)
 		builder.add_vertex(vertex)
+
+
+func _add_mesh_quad(
+	builder: SurfaceTool,
+	first: Vector3,
+	second: Vector3,
+	third: Vector3,
+	fourth: Vector3,
+	color: Color,
+) -> void:
+	_add_mesh_triangle(builder, first, second, third, color)
+	_add_mesh_triangle(builder, first, third, fourth, color)
 
 
 func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
@@ -811,6 +878,7 @@ func _add_ruin(chunk: StaticBody3D, coord: Vector2i, reference_height: float) ->
 	ruin.set_meta(&"overrush_obstacle", true)
 	ruin.set_meta(&"overrush_ruin", true)
 	ruin.set_meta(&"passage_clearance", 13.6)
+	ruin.set_meta(&"visual_segment_count", RUIN_VISUAL_SEGMENTS)
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "LeftColumn")
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "RightColumn")
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2.ZERO, Vector3(18.4, 1.8, 3.0), 7.0, "Lintel")
@@ -841,15 +909,43 @@ func _add_ruin_block(
 	collision.shape = shape
 	collision.position = position
 	ruin.add_child(collision)
+	_add_ruin_block_visuals(ruin, position, size, block_name)
+
+
+func _add_ruin_block_visuals(ruin: StaticBody3D, position: Vector3, size: Vector3, block_name: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var visual := MeshInstance3D.new()
-	visual.name = block_name
-	visual.mesh = _ruin_block_mesh
-	visual.material_override = _ruin_material
-	visual.position = position
-	visual.scale = size
-	ruin.add_child(visual)
+	var segment_count := 1
+	var split_axis := Vector3.ZERO
+	match block_name:
+		"LeftColumn", "RightColumn":
+			segment_count = 3
+			split_axis = Vector3.UP
+		"Lintel":
+			segment_count = 7
+			split_axis = Vector3.RIGHT
+		"LeftTerrace", "RightTerrace":
+			segment_count = 3
+			split_axis = Vector3.FORWARD
+	var split_length := size.dot(split_axis.abs())
+	var gap := 0.07
+	var segment_length := (split_length - gap * float(segment_count - 1)) / float(segment_count)
+	var segment_size := size
+	if split_axis.x != 0.0:
+		segment_size.x = segment_length
+	elif split_axis.y != 0.0:
+		segment_size.y = segment_length
+	else:
+		segment_size.z = segment_length
+	for segment_index in range(segment_count):
+		var along_axis := -split_length * 0.5 + segment_length * 0.5 + float(segment_index) * (segment_length + gap)
+		var visual := MeshInstance3D.new()
+		visual.name = "%sStone%02d" % [block_name, segment_index]
+		visual.mesh = _ruin_block_mesh
+		visual.material_override = _ruin_material
+		visual.position = position + split_axis * along_axis
+		visual.scale = segment_size * 1.012
+		ruin.add_child(visual)
 
 
 func _get_rock_passage_center(coord: Vector2i) -> Vector2:

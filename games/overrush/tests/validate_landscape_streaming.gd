@@ -44,6 +44,7 @@ func _run() -> void:
 		if target_ruin != null:
 			_expect(world.is_obstacle_collider(target_ruin) and not world.is_rideable_collider(target_ruin), "Ruins must never refresh the air boost.")
 			_expect(float(target_ruin.get_meta(&"passage_clearance", 0.0)) >= 13.0, "Ruin arches need a maximum-speed passage wider than 13 m.")
+			_expect(int(target_ruin.get_meta(&"visual_segment_count", 0)) >= 19, "The ruin should render as constructed weathered masonry, not five monolithic blocks.")
 			var collision_count := 0
 			for child in target_ruin.get_children():
 				if child is CollisionShape3D:

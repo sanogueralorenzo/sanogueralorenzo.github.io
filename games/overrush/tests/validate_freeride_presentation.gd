@@ -37,6 +37,12 @@ func _run() -> void:
 		"Rock hazards should use irregular faceted boulders rather than stretched primitive spheres.",
 	)
 	_expect(
+		world._ruin_block_mesh is ArrayMesh
+			and world._ruin_block_mesh.surface_get_array_len(0) >= 120
+			and ProceduralDesert.RUIN_VISUAL_SEGMENTS >= 19,
+		"Ruin landmarks should use segmented bevel-edged masonry rather than five scaled box primitives.",
+	)
+	_expect(
 		ProceduralDesert.TREE_COLLISION_RADIUS_FACTOR <= 1.0
 			and ProceduralDesert.ROCK_COLLISION_RADIUS_FACTOR <= 0.7,
 		"Fatal tree and rock colliders should stay inside their visible silhouettes so high-speed near misses remain fair.",
