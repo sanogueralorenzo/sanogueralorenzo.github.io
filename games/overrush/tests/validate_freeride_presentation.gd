@@ -25,10 +25,10 @@ func _run() -> void:
 		"Fog should add distant depth without washing the sky into a flat gray backdrop.",
 	)
 	_expect(
-		environment.ambient_light_energy >= 0.7
-			and environment.ambient_light_sky_contribution >= 0.88
+		environment.ambient_light_energy >= 0.64
+			and environment.ambient_light_sky_contribution >= 0.8
 			and environment.adjustment_contrast <= 1.05,
-		"The daylight pass must preserve color and terrain detail outside direct sun without crushing shadow contrast.",
+		"The daylight pass must preserve color and terrain detail outside direct sun while retaining mountain-scale shadow contrast.",
 	)
 	_expect(
 		sky_material != null
@@ -53,13 +53,14 @@ func _run() -> void:
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
-		sun.light_energy >= 1.35
+		sun.light_energy >= 1.45
 			and sun.light_color.g >= 0.85
-			and sun.rotation_degrees.x >= -40.0
-			and sun.shadow_opacity >= 0.5
-			and sun.shadow_opacity <= 0.7
-			and sun.shadow_blur >= 2.0,
-		"Warm daylight should produce readable terrain form without the former dim orange cast.",
+			and sun.rotation_degrees.x >= -33.0
+			and sun.shadow_opacity >= 0.65
+			and sun.shadow_opacity <= 0.75
+			and sun.shadow_blur >= 1.5
+			and sun.shadow_blur <= 2.2,
+		"Warm grazing daylight should separate mountain folds and hazards without the former dim orange cast or hard-edged shadows.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")

@@ -21,8 +21,8 @@ sky = SubResource("Sky_desert")
 background_energy_multiplier = 1.03
 ambient_light_source = 3
 ambient_light_color = Color(0.3, 0.41, 0.46, 1)
-ambient_light_energy = 0.76
-ambient_light_sky_contribution = 0.9
+ambient_light_energy = 0.66
+ambient_light_sky_contribution = 0.82
 reflected_light_source = 2
 tonemap_mode = 2
 adjustment_enabled = true
@@ -225,12 +225,12 @@ script = ExtResource("1_main")
 environment = SubResource("Environment_desert")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-37, -32, 0)
+rotation_degrees = Vector3(-31, -32, 0)
 light_color = Color(1, 0.89, 0.72, 1)
-light_energy = 1.42
+light_energy = 1.5
 shadow_enabled = true
-shadow_opacity = 0.62
-shadow_blur = 2.4
+shadow_opacity = 0.7
+shadow_blur = 1.9
 directional_shadow_max_distance = 820.0
 
 [node name="Desert" type="StaticBody3D" parent="."]
