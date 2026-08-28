@@ -13,6 +13,19 @@ const KICKER_APPROACH_START := -140.0
 const KICKER_LIP_ALONG := 12.0
 const KICKER_RUNOUT_END := 190.0
 const KICKER_CATCH_CURVE := 1.25
+const PROTECTED_ROUTE_NEIGHBOR_RANGE := 1
+const KICKER_ROUTE_HALF_WIDTH := 16.0
+const BOWL_EXIT_START := -12.0
+const BOWL_EXIT_END := 190.0
+const BOWL_EXIT_HALF_WIDTH := 18.0
+const RIDGE_ROUTE_OFFSET := 86.0
+const RIDGE_ROUTE_START := -148.0
+const RIDGE_ROUTE_END := 190.0
+const RIDGE_ROUTE_HALF_WIDTH := 14.0
+const SPLIT_ROUTE_START := -150.0
+const SPLIT_ROUTE_END := 190.0
+const SPLIT_ROUTE_HALF_WIDTH := 15.0
+const OPEN_SAND_RADIUS := 55.0
 
 var _seed := 1
 var _descriptor_cache: Dictionary = {}
@@ -98,6 +111,105 @@ func get_cell_random(coord: Vector2i, salt: int) -> float:
 
 func get_cached_descriptor_count() -> int:
 	return _descriptor_cache.size()
+
+
+## Returns true when an obstacle circle would overlap an authored traversal lane.
+## Positions use the same stable logical/world XZ coordinates as sample_height_offset.
+## The radius expands the lane by the obstacle's collision footprint; it does not add
+## a separate gameplay safety margin. Nearby cells are included so the result remains
+## stable when an obstacle center lies on a cell seam.
+func intersects_protected_route(logical_position: Vector2, collision_radius: float = 0.0) -> bool:
+	var center_coord := get_cell_coordinate(logical_position)
+	var safe_radius := maxf(collision_radius, 0.0)
+	for z_offset in range(-PROTECTED_ROUTE_NEIGHBOR_RANGE, PROTECTED_ROUTE_NEIGHBOR_RANGE + 1):
+		for x_offset in range(-PROTECTED_ROUTE_NEIGHBOR_RANGE, PROTECTED_ROUTE_NEIGHBOR_RANGE + 1):
+			var coord := center_coord + Vector2i(x_offset, z_offset)
+			if _descriptor_route_intersects(_get_descriptor(coord), logical_position, safe_radius):
+				return true
+	return false
+
+
+func _descriptor_route_intersects(
+	descriptor: Dictionary,
+	logical_position: Vector2,
+	collision_radius: float,
+) -> bool:
+	var axis := Vector2.from_angle(float(descriptor.angle))
+	var side := Vector2(-axis.y, axis.x)
+	var local: Vector2 = logical_position - Vector2(descriptor.center)
+	var along := local.dot(axis)
+	var across := local.dot(side)
+	var kind: StringName = descriptor.kind
+	match kind:
+		KICKER:
+			return _circle_intersects_lane(
+				along,
+				across,
+				collision_radius,
+				KICKER_APPROACH_START,
+				KICKER_RUNOUT_END,
+				0.0,
+				KICKER_ROUTE_HALF_WIDTH,
+			)
+		BOWL:
+			return _circle_intersects_lane(
+				along,
+				across,
+				collision_radius,
+				BOWL_EXIT_START,
+				BOWL_EXIT_END,
+				0.0,
+				BOWL_EXIT_HALF_WIDTH,
+			)
+		RIDGE:
+			return (
+				_circle_intersects_lane(
+					along,
+					across,
+					collision_radius,
+					RIDGE_ROUTE_START,
+					RIDGE_ROUTE_END,
+					-RIDGE_ROUTE_OFFSET,
+					RIDGE_ROUTE_HALF_WIDTH,
+				)
+				or _circle_intersects_lane(
+					along,
+					across,
+					collision_radius,
+					RIDGE_ROUTE_START,
+					RIDGE_ROUTE_END,
+					RIDGE_ROUTE_OFFSET,
+					RIDGE_ROUTE_HALF_WIDTH,
+				)
+			)
+		SPLIT_LINE:
+			return _circle_intersects_lane(
+				along,
+				across,
+				collision_radius,
+				SPLIT_ROUTE_START,
+				SPLIT_ROUTE_END,
+				0.0,
+				SPLIT_ROUTE_HALF_WIDTH,
+			)
+		OPEN_SAND:
+			return local.length() <= OPEN_SAND_RADIUS + collision_radius
+	return false
+
+
+func _circle_intersects_lane(
+	along: float,
+	across: float,
+	collision_radius: float,
+	start: float,
+	end: float,
+	lane_offset: float,
+	half_width: float,
+) -> bool:
+	var closest_along := clampf(along, start, end)
+	var delta := Vector2(along - closest_along, across - lane_offset)
+	var expanded_width := half_width + collision_radius
+	return delta.length_squared() <= expanded_width * expanded_width
 
 
 func _get_descriptor(coord: Vector2i) -> Dictionary:

@@ -85,6 +85,7 @@ func _init() -> void:
 			)
 			_expect(horizontal_error <= 0.001 and vertical_error <= 0.001, "Feature influence must fade to zero at cell boundaries.")
 	_expect(grammar.get_cached_descriptor_count() <= FeatureGrammar.CACHE_LIMIT, "The infinite feature cache must remain bounded.")
+	_validate_protected_route_contract(grammar, repeated)
 
 	if _failures.is_empty():
 		print(
@@ -101,6 +102,127 @@ func _init() -> void:
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+func _validate_protected_route_contract(grammar: RefCounted, repeated: RefCounted) -> void:
+	var checked := {
+		FeatureGrammar.BOWL: false,
+		FeatureGrammar.RIDGE: false,
+		FeatureGrammar.KICKER: false,
+		FeatureGrammar.SPLIT_LINE: false,
+		FeatureGrammar.OPEN_SAND: false,
+	}
+	for z_coord in range(-GRID_RADIUS, GRID_RADIUS + 1):
+		for x_coord in range(-GRID_RADIUS, GRID_RADIUS + 1):
+			var coord := Vector2i(x_coord, z_coord)
+			var descriptor: Dictionary = grammar._get_descriptor(coord)
+			var kind: StringName = descriptor.kind
+			if bool(checked[kind]):
+				continue
+			checked[kind] = true
+			_validate_descriptor_route(grammar, descriptor, coord)
+	for kind in checked:
+		_expect(bool(checked[kind]), "Protected-route coverage did not find feature kind %s." % kind)
+
+	# Protected geometry stays comfortably inside its owning cell, so querying on
+	# either side of a seam cannot gain or lose a lane due to lookup ownership.
+	for boundary_index in range(-5, 6):
+		var boundary := (float(boundary_index) + 0.5) * FeatureGrammar.CELL_SIZE
+		for cross_index in range(-5, 6):
+			var cross := float(cross_index) * 47.0
+			for point in [
+				Vector2(boundary - 0.001, cross),
+				Vector2(boundary, cross),
+				Vector2(boundary + 0.001, cross),
+				Vector2(cross, boundary - 0.001),
+				Vector2(cross, boundary),
+				Vector2(cross, boundary + 0.001),
+			]:
+				var result: bool = grammar.intersects_protected_route(point, 4.0)
+				_expect(
+					result == repeated.intersects_protected_route(point, 4.0),
+					"Equal seeds must return deterministic protected-route results at cell seams.",
+				)
+	_expect(
+		grammar.get_cached_descriptor_count() <= FeatureGrammar.CACHE_LIMIT,
+		"Protected-route seam queries must keep descriptor residency bounded.",
+	)
+
+
+func _validate_descriptor_route(
+	grammar: RefCounted,
+	descriptor: Dictionary,
+	coord: Vector2i,
+) -> void:
+	var kind: StringName = descriptor.kind
+	var context := "%s protected route at %s" % [kind, str(coord)]
+	match kind:
+		FeatureGrammar.KICKER:
+			_expect(_route_query(grammar, descriptor, -120.0, 0.0), "%s misses its approach." % context)
+			_expect(_route_query(grammar, descriptor, 160.0, 0.0), "%s misses its catch." % context)
+			_expect(not _route_query(grammar, descriptor, -180.0, 0.0), "%s extends too far uphill." % context)
+			_expect(not _route_query(grammar, descriptor, 40.0, 42.0), "%s removes its hazardous flanks." % context)
+			_expect(
+				not _route_query(grammar, descriptor, 40.0, FeatureGrammar.KICKER_ROUTE_HALF_WIDTH + 2.0)
+					and _route_query(grammar, descriptor, 40.0, FeatureGrammar.KICKER_ROUTE_HALF_WIDTH + 2.0, 3.0),
+				"%s does not expand by the queried collision radius." % context,
+			)
+		FeatureGrammar.BOWL:
+			_expect(_route_query(grammar, descriptor, 80.0, 0.0), "%s misses its downhill exit." % context)
+			_expect(not _route_query(grammar, descriptor, -80.0, 0.0), "%s unnecessarily clears the uphill bowl." % context)
+			_expect(not _route_query(grammar, descriptor, 80.0, 52.0), "%s removes its side walls." % context)
+		FeatureGrammar.RIDGE:
+			_expect(
+				_route_query(grammar, descriptor, 60.0, -FeatureGrammar.RIDGE_ROUTE_OFFSET)
+					and _route_query(grammar, descriptor, 60.0, FeatureGrammar.RIDGE_ROUTE_OFFSET),
+				"%s misses one of its side routes." % context,
+			)
+			_expect(not _route_query(grammar, descriptor, 60.0, 0.0), "%s clears the central ridge." % context)
+			_expect(not _route_query(grammar, descriptor, 60.0, 130.0), "%s removes its outer flanks." % context)
+		FeatureGrammar.SPLIT_LINE:
+			_expect(_route_query(grammar, descriptor, 40.0, 0.0), "%s misses its center choice." % context)
+			_expect(not _route_query(grammar, descriptor, 40.0, 52.0), "%s removes a split marker." % context)
+			_expect(not _route_query(grammar, descriptor, 40.0, 100.0), "%s removes its outer flanks." % context)
+		FeatureGrammar.OPEN_SAND:
+			_expect(_route_query(grammar, descriptor, 0.0, 0.0), "%s misses its breathing space." % context)
+			_expect(not _route_query(grammar, descriptor, 0.0, 90.0), "%s clears too much of the cell." % context)
+
+	# The entire owning-cell perimeter stays outside the unexpanded mask even
+	# after the descriptor's deterministic center jitter and rotation.
+	var cell_center := Vector2(coord) * FeatureGrammar.CELL_SIZE
+	var half_cell := FeatureGrammar.CELL_SIZE * 0.5
+	for perimeter_index in range(-64, 65):
+		var offset := float(perimeter_index) * 4.0
+		for point in [
+			cell_center + Vector2(-half_cell, offset),
+			cell_center + Vector2(half_cell, offset),
+			cell_center + Vector2(offset, -half_cell),
+			cell_center + Vector2(offset, half_cell),
+		]:
+			_expect(
+				not grammar._descriptor_route_intersects(
+					descriptor,
+					point,
+					0.0,
+				),
+				"%s reaches its owning-cell boundary." % context,
+			)
+
+
+func _route_query(
+	grammar: RefCounted,
+	descriptor: Dictionary,
+	along: float,
+	across: float,
+	radius: float = 0.0,
+) -> bool:
+	return grammar.intersects_protected_route(_profile_point(descriptor, along, across), radius)
+
+
+func _profile_point(descriptor: Dictionary, along: float, across: float) -> Vector2:
+	var axis := Vector2.from_angle(float(descriptor.angle))
+	var side := Vector2(-axis.y, axis.x)
+	return Vector2(descriptor.center) + axis * along + side * across
 
 
 func _validate_directional_profiles(world_seed: int) -> float:

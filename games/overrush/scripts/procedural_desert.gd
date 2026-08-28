@@ -11,6 +11,11 @@ const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
 const RUIN_VISUAL_SEGMENTS := 52
 const RUIN_COLLISION_VOLUMES := 9
+const RUIN_ROUTE_APPROACH_LENGTH := 150.0
+const RUIN_ROUTE_EXIT_LENGTH := 110.0
+const RUIN_ROUTE_HALF_WIDTH := 18.0
+const ROCK_PASSAGE_ROUTE_HALF_LENGTH := 110.0
+const ROCK_PASSAGE_ROUTE_HALF_WIDTH := 11.0
 const SUMMIT_MOUNTAIN_BLEND_START := 180.0
 const SUMMIT_MOUNTAIN_BLEND_END := 960.0
 const SUMMIT_RELIEF_BLEND_START := 260.0
@@ -65,6 +70,9 @@ var _local_roll_noise := FastNoiseLite.new()
 var _feature_grammar := DesertFeatureGrammar.new()
 var _landscape_layout := LandscapeLayout.new()
 var _mountain_fold_phase := Vector2.ZERO
+var _route_protection_cache := {}
+var _route_landmark_chunk := Vector2i(2147483647, 2147483647)
+var _route_landmarks: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -188,6 +196,13 @@ func get_feature_kind_at(logical_position: Vector2) -> StringName:
 
 func get_feature_height_offset(logical_position: Vector2) -> float:
 	return _feature_grammar.sample_height_offset(logical_position.x, logical_position.y)
+
+
+func is_obstacle_route_protected(logical_position: Vector2, collision_radius: float = 0.0) -> bool:
+	return (
+		_feature_grammar.intersects_protected_route(logical_position, collision_radius)
+		or _is_landmark_route_protected(logical_position, collision_radius)
+	)
 
 
 func get_grass_weight(logical_position: Vector2) -> float:
@@ -392,10 +407,15 @@ func _load_chunk(coord: Vector2i) -> void:
 	var spacing := chunk_size / float(chunk_resolution - 1)
 	collision.scale = Vector3(spacing, 1.0, spacing)
 	chunk.add_child(collision)
+	_route_protection_cache.clear()
+	_prime_landmark_route_cache(coord)
 	_add_forest(chunk, coord, reference_height)
 	_add_ruin(chunk, coord, reference_height)
 	_add_rock_field(chunk, coord, reference_height)
 	_add_rock_passage(chunk, coord, reference_height)
+	_route_protection_cache.clear()
+	_route_landmarks.clear()
+	_route_landmark_chunk = Vector2i(2147483647, 2147483647)
 	add_child(chunk)
 	loaded_chunks[coord] = chunk
 
@@ -916,6 +936,9 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 			var logical_position := _landscape_layout.get_tree_position(cell)
 			if get_chunk_coordinate(logical_position) != coord:
 				continue
+			var tree_collision_radius := _landscape_layout.get_tree_radius(cell) * TREE_COLLISION_RADIUS_FACTOR
+			if _is_obstacle_route_protected_cached(logical_position, tree_collision_radius):
+				continue
 			if logical_position.distance_to(ruin_center) < 36.0 or logical_position.distance_to(rock_center) < 28.0:
 				continue
 			if _has_scattered_rock_near(logical_position, 9.0):
@@ -935,6 +958,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	obstacles.set_meta(&"overrush_obstacle", true)
 	obstacles.set_meta(&"overrush_forest", true)
 	var tree_positions := PackedVector3Array()
+	var tree_collision_radii := PackedFloat32Array()
 	var collision_faces: Array[Vector3] = []
 	for tree_index in range(trees.size()):
 		var tree := trees[tree_index]
@@ -948,6 +972,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 			logical_position.y - chunk_center.y,
 		)
 		tree_positions.append(tree_position)
+		tree_collision_radii.append(radius * TREE_COLLISION_RADIUS_FACTOR)
 		_append_tree_collision_prism(
 			collision_faces,
 			tree_position,
@@ -962,6 +987,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	collision.shape = forest_shape
 	obstacles.add_child(collision)
 	obstacles.set_meta(&"tree_positions", tree_positions)
+	obstacles.set_meta(&"tree_collision_radii", tree_collision_radii)
 	chunk.add_child(obstacles)
 
 	if DisplayServer.get_name() == "headless":
@@ -1093,6 +1119,8 @@ func _add_rock_field(chunk: StaticBody3D, coord: Vector2i, reference_height: flo
 			if get_chunk_coordinate(logical_position) != coord:
 				continue
 			var radius := _landscape_layout.get_rock_radius(cell)
+			if _is_obstacle_route_protected_cached(logical_position, radius * ROCK_COLLISION_RADIUS_FACTOR):
+				continue
 			if logical_position.distance_to(ruin_center) < 38.0 or logical_position.distance_to(gate_center) < 32.0:
 				continue
 			rocks.append({"cell": cell, "position": logical_position, "radius": radius})
@@ -1166,6 +1194,9 @@ func _has_scattered_rock_near(logical_position: Vector2, clearance: float) -> bo
 			if not _landscape_layout.has_rock(cell):
 				continue
 			var rock_position := _landscape_layout.get_rock_position(cell)
+			var rock_radius := _landscape_layout.get_rock_radius(cell) * ROCK_COLLISION_RADIUS_FACTOR
+			if _is_obstacle_route_protected_cached(rock_position, rock_radius):
+				continue
 			if rock_position.distance_to(logical_position) < clearance + _landscape_layout.get_rock_radius(cell):
 				return true
 	return false
@@ -1375,14 +1406,100 @@ func _get_rock_passage_center(coord: Vector2i) -> Vector2:
 	)
 
 
+func _get_rock_passage_forward(coord: Vector2i) -> Vector2:
+	var outward := (Vector2(coord) * chunk_size).normalized()
+	if outward.length_squared() <= 0.001:
+		outward = Vector2.DOWN
+	var angle_offset := deg_to_rad(lerpf(-26.0, 26.0, _feature_grammar.get_cell_random(coord, 34)))
+	return outward.rotated(angle_offset).normalized()
+
+
+func _is_landmark_route_protected(logical_position: Vector2, collision_radius: float) -> bool:
+	var center_coord := get_chunk_coordinate(logical_position)
+	var routes := _route_landmarks if center_coord == _route_landmark_chunk else _get_landmark_routes(center_coord)
+	for route in routes:
+		if _intersects_oriented_route(
+			logical_position,
+			collision_radius,
+			Vector2(route.center),
+			Vector2(route.forward),
+			float(route.approach_length),
+			float(route.exit_length),
+			float(route.half_width),
+		):
+			return true
+	return false
+
+
+func _prime_landmark_route_cache(center_coord: Vector2i) -> void:
+	_route_landmark_chunk = center_coord
+	_route_landmarks = _get_landmark_routes(center_coord)
+
+
+func _get_landmark_routes(center_coord: Vector2i) -> Array[Dictionary]:
+	var routes: Array[Dictionary] = []
+	for y_offset in range(-1, 2):
+		for x_offset in range(-1, 2):
+			var coord := center_coord + Vector2i(x_offset, y_offset)
+			if chunk_has_ruin(coord):
+				routes.append({
+					"center": _landscape_layout.get_ruin_center(coord, chunk_size),
+					"forward": _landscape_layout.get_ruin_forward(coord, chunk_size),
+					"approach_length": RUIN_ROUTE_APPROACH_LENGTH,
+					"exit_length": RUIN_ROUTE_EXIT_LENGTH,
+					"half_width": RUIN_ROUTE_HALF_WIDTH,
+				})
+			if chunk_has_rock_passage(coord):
+				routes.append({
+					"center": _get_rock_passage_center(coord),
+					"forward": _get_rock_passage_forward(coord),
+					"approach_length": ROCK_PASSAGE_ROUTE_HALF_LENGTH,
+					"exit_length": ROCK_PASSAGE_ROUTE_HALF_LENGTH,
+					"half_width": ROCK_PASSAGE_ROUTE_HALF_WIDTH,
+				})
+	return routes
+
+
+func _is_obstacle_route_protected_cached(logical_position: Vector2, collision_radius: float) -> bool:
+	var cache_key := Vector3i(
+		roundi(logical_position.x * 100.0),
+		roundi(logical_position.y * 100.0),
+		roundi(maxf(0.0, collision_radius) * 100.0),
+	)
+	if not _route_protection_cache.has(cache_key):
+		_route_protection_cache[cache_key] = is_obstacle_route_protected(logical_position, collision_radius)
+	return bool(_route_protection_cache[cache_key])
+
+
+func _intersects_oriented_route(
+	logical_position: Vector2,
+	collision_radius: float,
+	route_center: Vector2,
+	route_forward: Vector2,
+	approach_length: float,
+	exit_length: float,
+	half_width: float,
+) -> bool:
+	var forward := route_forward.normalized()
+	if forward.length_squared() <= 0.001:
+		return false
+	var local := logical_position - route_center
+	var along := local.dot(forward)
+	var across := local.dot(Vector2(-forward.y, forward.x))
+	var clearance := maxf(0.0, collision_radius)
+	var closest_along := clampf(along, -approach_length, exit_length)
+	var route_delta := Vector2(along - closest_along, across)
+	var expanded_width := half_width + clearance
+	return route_delta.length_squared() <= expanded_width * expanded_width
+
+
 func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
 	var chunk_center := Vector2(coord) * chunk_size
 	if not chunk_has_rock_passage(coord):
 		return
 	var passage_center := _get_rock_passage_center(coord)
-	var outward := chunk_center.normalized()
-	var angle_offset := deg_to_rad(lerpf(-26.0, 26.0, _feature_grammar.get_cell_random(coord, 34)))
-	var gate_axis := Vector2(-outward.y, outward.x).rotated(angle_offset)
+	var gate_forward := _get_rock_passage_forward(coord)
+	var gate_axis := Vector2(-gate_forward.y, gate_forward.x)
 	var center_spacing := lerpf(21.0, 28.0, _feature_grammar.get_cell_random(coord, 35))
 	for rock_index in range(2):
 		var side := -1.0 if rock_index == 0 else 1.0
