@@ -16,7 +16,6 @@ Desktop.ini
 .precedent/
 .jury/
 tools/voice/.cache/
-tools/codex/codex-*/target/
 ekkzo/cli/codex-*/target/
 ekkzo/cli/*/target/
 harness/target/
