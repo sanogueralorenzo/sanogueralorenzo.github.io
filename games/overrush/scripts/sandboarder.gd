@@ -181,6 +181,10 @@ func get_horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
 
 
+func get_surface_grass_weight() -> float:
+	return _surface_grass_weight
+
+
 func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	var normal := get_floor_normal()
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)

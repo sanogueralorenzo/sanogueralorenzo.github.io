@@ -3,7 +3,9 @@ extends Node
 
 const SAMPLE_RATE := 22050
 const MUSIC_DURATION := 4.0
+const MOTION_LOOP_DURATION := 2.0
 const EFFECT_POOL_SIZE := 6
+const MOTION_LOOP_IDS: Array[StringName] = [&"wind", &"sand_surface", &"grass_surface"]
 
 const EFFECT_DURATIONS := {
 	&"air_boost": 0.28,
@@ -20,8 +22,12 @@ var effects_level := 1.0
 var _library: Dictionary = {}
 var _effect_players: Array[AudioStreamPlayer] = []
 var _music_player: AudioStreamPlayer
+var _motion_players: Dictionary = {}
 var _effect_cursor := 0
 var _initialized := false
+var _motion_speed_ratio := 0.0
+var _motion_grass_weight := 0.0
+var _motion_grounded := false
 
 
 func _ready() -> void:
@@ -31,6 +37,10 @@ func _ready() -> void:
 		return
 	_library = build_sound_library()
 	_music_player.stream = _library.music
+	for loop_id in MOTION_LOOP_IDS:
+		var motion_player := _motion_players[loop_id] as AudioStreamPlayer
+		motion_player.stream = _library[loop_id]
+		motion_player.play()
 	_initialized = true
 	_apply_levels()
 	_music_player.play()
@@ -41,6 +51,26 @@ func set_levels(new_master_level: float, new_music_level: float, new_effects_lev
 	music_level = clampf(new_music_level, 0.0, 1.0)
 	effects_level = clampf(new_effects_level, 0.0, 1.0)
 	_apply_levels()
+
+
+func set_motion_state(speed_ratio: float, grass_weight: float, grounded: bool) -> void:
+	_motion_speed_ratio = clampf(speed_ratio, 0.0, 1.2)
+	_motion_grass_weight = clampf(grass_weight, 0.0, 1.0)
+	_motion_grounded = grounded
+	_apply_motion_levels()
+
+
+func calculate_motion_mix(speed_ratio: float, grass_weight: float, grounded: bool) -> Dictionary:
+	var speed := clampf(speed_ratio, 0.0, 1.2)
+	var grass := clampf(grass_weight, 0.0, 1.0)
+	var wind_level := smoothstep(0.06, 1.0, speed)
+	var surface_level := smoothstep(0.08, 0.88, speed) if grounded else 0.0
+	return {
+		&"wind": wind_level * 0.68,
+		&"sand_surface": surface_level * pow(1.0 - grass, 0.72) * 0.76,
+		&"grass_surface": surface_level * pow(grass, 0.72) * 0.72,
+		&"pitch": lerpf(0.76, 1.32, clampf(speed, 0.0, 1.0)),
+	}
 
 
 func play_air_boost() -> void:
@@ -63,6 +93,8 @@ func play_landing(rating: StringName) -> void:
 
 func build_sound_library() -> Dictionary:
 	var library := {"music": _create_music()}
+	for loop_id in MOTION_LOOP_IDS:
+		library[loop_id] = _create_motion_loop(loop_id)
 	for effect_id in EFFECT_DURATIONS:
 		library[effect_id] = _create_effect(effect_id, float(EFFECT_DURATIONS[effect_id]))
 	return library
@@ -72,6 +104,12 @@ func _create_players() -> void:
 	_music_player = AudioStreamPlayer.new()
 	_music_player.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_music_player)
+	for loop_id in MOTION_LOOP_IDS:
+		var motion_player := AudioStreamPlayer.new()
+		motion_player.process_mode = Node.PROCESS_MODE_ALWAYS
+		motion_player.volume_db = -80.0
+		add_child(motion_player)
+		_motion_players[loop_id] = motion_player
 	for _index in range(EFFECT_POOL_SIZE):
 		var player := AudioStreamPlayer.new()
 		player.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -99,6 +137,17 @@ func _apply_levels() -> void:
 	_music_player.volume_db = _linear_level_to_db(master_level * music_level) - 9.0
 	for player in _effect_players:
 		_apply_effect_level(player)
+	_apply_motion_levels()
+
+
+func _apply_motion_levels() -> void:
+	if _motion_players.is_empty():
+		return
+	var mix := calculate_motion_mix(_motion_speed_ratio, _motion_grass_weight, _motion_grounded)
+	for loop_id in MOTION_LOOP_IDS:
+		var player := _motion_players[loop_id] as AudioStreamPlayer
+		player.volume_db = _linear_level_to_db(master_level * effects_level * float(mix[loop_id]))
+		player.pitch_scale = float(mix.pitch)
 
 
 func _apply_effect_level(player: AudioStreamPlayer) -> void:
@@ -128,6 +177,46 @@ func _create_music() -> AudioStreamWAV:
 		var right := (chord - air) * (0.92 - slow_wave * 0.04)
 		_encode_stereo_frame(data, frame, left, right)
 	return _make_stream(data, frame_count, true)
+
+
+func _create_motion_loop(loop_id: StringName) -> AudioStreamWAV:
+	var frame_count := roundi(MOTION_LOOP_DURATION * SAMPLE_RATE)
+	var data := PackedByteArray()
+	data.resize(frame_count * 4)
+	for frame in range(frame_count):
+		var time := float(frame) / SAMPLE_RATE
+		var left := _sample_motion_loop(loop_id, time, false)
+		var right := _sample_motion_loop(loop_id, time, true)
+		_encode_stereo_frame(data, frame, left, right)
+	return _make_stream(data, frame_count, true)
+
+
+func _sample_motion_loop(loop_id: StringName, time: float, right_channel: bool) -> float:
+	var channel_phase := 0.63 if right_channel else 0.0
+	match loop_id:
+		&"wind":
+			var slow := sin(TAU * 0.5 * time + channel_phase)
+			return (
+				sin(TAU * 31.5 * time + slow * 1.7 + channel_phase) * 0.12
+				+ sin(TAU * 53.0 * time + channel_phase * 1.4) * 0.075
+				+ sin(TAU * 87.5 * time + slow * 0.8) * 0.045
+			)
+		&"sand_surface":
+			var grain := sin(TAU * 6.0 * time + channel_phase) * 0.5 + 0.5
+			return (
+				sin(TAU * 421.0 * time + channel_phase) * 0.09
+				+ sin(TAU * 733.5 * time + channel_phase * 1.6) * 0.06
+				+ sin(TAU * 1091.0 * time) * 0.035
+			) * (0.42 + grain * 0.58)
+		&"grass_surface":
+			var rustle := sin(TAU * 4.5 * time + channel_phase) * 0.5 + 0.5
+			return (
+				sin(TAU * 127.0 * time + channel_phase) * 0.08
+				+ sin(TAU * 191.5 * time + rustle * 1.1) * 0.065
+				+ sin(TAU * 317.0 * time + channel_phase * 0.7) * 0.04
+			) * (0.35 + rustle * 0.65)
+		_:
+			return 0.0
 
 
 func _create_effect(effect_id: StringName, duration: float) -> AudioStreamWAV:

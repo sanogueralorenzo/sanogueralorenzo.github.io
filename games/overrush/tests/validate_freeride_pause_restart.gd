@@ -47,6 +47,9 @@ func _run() -> void:
 	scene.pause_run()
 	_expect(paused and scene.get_node("HUD/PauseOverlay").visible, "Pause should stop the run and show its focused overlay.")
 	_expect(not camera._controls_enabled, "Pause should release camera control.")
+	scene._process(0.016)
+	var paused_mix: Dictionary = scene.audio_director.calculate_motion_mix(scene.audio_director._motion_speed_ratio, 0.5, scene.audio_director._motion_grounded)
+	_expect(is_zero_approx(float(paused_mix.wind)), "Pausing must silence continuous motion audio immediately.")
 	scene.resume_run()
 	_expect(not paused and camera._controls_enabled, "Resume should restore the same run and camera control.")
 

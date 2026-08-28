@@ -66,6 +66,12 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	var motion_audio_active := run_active and not get_tree().paused and not _run_crashed
+	audio_director.set_motion_state(
+		rider.get_horizontal_speed() / rider.maximum_speed if motion_audio_active else 0.0,
+		rider.get_surface_grass_weight(),
+		motion_audio_active and rider.is_on_floor(),
+	)
 	if run_active and not get_tree().paused:
 		elapsed_time += delta
 		_update_stats()
