@@ -1,6 +1,7 @@
 extends Camera3D
 
 @export var target_path: NodePath
+@export var world_path: NodePath
 @export var follow_distance: float = 17.0
 @export var follow_height: float = 8.0
 @export var position_smoothing: float = 7.5
@@ -16,8 +17,11 @@ extends Camera3D
 @export var speed_fov_full: float = 72.0
 @export var speed_fov_addition: float = 8.0
 @export var fov_smoothing: float = 12.0
+@export var terrain_clearance: float = 0.7
+@export_range(3, 12, 1) var terrain_probe_samples := 7
 
 var _target: CharacterBody3D
+var _world: ProceduralDesert
 var _speed_burst_active := false
 var _reduced_motion := false
 var _controls_enabled := false
@@ -28,6 +32,7 @@ var _smoothed_target_position := Vector3.ZERO
 
 func _ready() -> void:
 	_target = get_node(target_path)
+	_world = get_node_or_null(world_path) as ProceduralDesert
 	_pitch = atan2(follow_height, follow_distance)
 	_smoothed_target_position = _target.global_position
 	set_controls_enabled(false)
@@ -60,8 +65,10 @@ func _physics_process(delta: float) -> void:
 	var orbit_height := tan(_pitch) * follow_distance
 	var blend := 1.0 - exp(-position_smoothing * delta)
 	_smoothed_target_position = _smoothed_target_position.lerp(_target.global_position, blend)
-	global_position = _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
-	look_at(_target.global_position + forward * look_ahead + Vector3.UP * focus_height, Vector3.UP)
+	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
+	var desired_position := _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
+	global_position = _resolve_terrain_clearance(desired_position, focus)
+	look_at(focus, Vector3.UP)
 	var target_fov := _get_target_fov()
 	fov = lerpf(fov, target_fov, 1.0 - exp(-fov_smoothing * delta))
 
@@ -121,8 +128,42 @@ func snap_to_target() -> void:
 		_target = get_node(target_path)
 	var forward := get_planar_forward()
 	_smoothed_target_position = _target.global_position
-	global_position = _target.global_position - forward * follow_distance + Vector3.UP * tan(_pitch) * follow_distance
-	look_at(_target.global_position + forward * look_ahead + Vector3.UP * focus_height, Vector3.UP)
+	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
+	var desired_position := _target.global_position - forward * follow_distance + Vector3.UP * tan(_pitch) * follow_distance
+	global_position = _resolve_terrain_clearance(desired_position, focus)
+	look_at(focus, Vector3.UP)
+
+
+func get_current_minimum_terrain_clearance() -> float:
+	if not is_instance_valid(_target) or not is_instance_valid(_world):
+		return INF
+	var focus := _target.global_position + get_planar_forward() * look_ahead + Vector3.UP * focus_height
+	return _sample_minimum_terrain_clearance(focus, global_position)
+
+
+func _resolve_terrain_clearance(desired_position: Vector3, focus: Vector3) -> Vector3:
+	if not is_instance_valid(_world):
+		return desired_position
+	var required_camera_lift := 0.0
+	for sample_index in range(1, terrain_probe_samples + 1):
+		var progress := float(sample_index) / float(terrain_probe_samples)
+		var point := focus.lerp(desired_position, progress)
+		var surface_height := _world.get_local_surface_height(point.x, point.z)
+		var clearance_deficit := surface_height + terrain_clearance - point.y
+		if clearance_deficit > 0.0:
+			required_camera_lift = maxf(required_camera_lift, clearance_deficit / progress)
+	var resolved := desired_position
+	resolved.y += required_camera_lift
+	return resolved
+
+
+func _sample_minimum_terrain_clearance(from: Vector3, to: Vector3) -> float:
+	var minimum_clearance := INF
+	for sample_index in range(1, terrain_probe_samples + 1):
+		var progress := float(sample_index) / float(terrain_probe_samples)
+		var point := from.lerp(to, progress)
+		minimum_clearance = minf(minimum_clearance, point.y - _world.get_local_surface_height(point.x, point.z))
+	return minimum_clearance
 
 
 func apply_world_rebase(shift: Vector3) -> void:

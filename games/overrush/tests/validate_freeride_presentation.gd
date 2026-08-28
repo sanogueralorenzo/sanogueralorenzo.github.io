@@ -62,7 +62,7 @@ func _run() -> void:
 		)
 		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
 
-	var camera: Camera3D = scene.get_node("FollowCamera")
+	var camera = scene.get_node("FollowCamera")
 	_expect(camera.follow_distance <= 11.0 and camera.follow_height <= 3.5, "Third-person framing should keep the rider readable against the terrain.")
 	rider.velocity = Vector3.ZERO
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Resting camera FOV should remain restrained.")
@@ -75,6 +75,20 @@ func _run() -> void:
 	_expect(is_equal_approx(camera._get_target_fov(), camera.boost_fov), "Air boost should retain the strongest brief speed framing.")
 	camera.set_reduced_motion(true)
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Reduced motion should remove all speed-driven FOV displacement.")
+	for direction_index in range(8):
+		var heading := TAU * float(direction_index) / 8.0
+		var steep_test_position := Vector2(cos(heading), sin(heading)) * 900.0
+		rider.global_position = world.world_to_local_position(Vector3(
+			steep_test_position.x,
+			world.get_surface_height(steep_test_position.x, steep_test_position.y) + 0.45,
+			steep_test_position.y,
+		))
+		camera.set_orbit_angles(-heading - PI * 0.5, atan2(camera.follow_height, camera.follow_distance))
+		camera.snap_to_target()
+		_expect(
+			camera.get_current_minimum_terrain_clearance() >= camera.terrain_clearance - 0.03,
+			"The chase-camera sightline clips mountain terrain in outward heading %d." % direction_index,
+		)
 
 	var shader: Shader = load("res://shaders/desert.gdshader")
 	_expect(

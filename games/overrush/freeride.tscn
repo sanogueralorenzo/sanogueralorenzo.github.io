@@ -305,6 +305,7 @@ current = true
 near = 0.12
 far = 6000.0
 target_path = NodePath("../Sandboarder")
+world_path = NodePath("../Desert")
 follow_distance = 10.2
 follow_height = 3.15
 look_ahead = 4.6
