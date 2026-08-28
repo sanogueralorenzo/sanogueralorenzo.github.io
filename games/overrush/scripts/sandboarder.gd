@@ -34,7 +34,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var rider_speed_crouch := 0.22
 @export var rider_air_tuck := 0.14
 @export var carve_track_sample_distance := 1.5
-@export var carve_track_width := 0.68
+@export var carve_track_width := 0.42
 @export var carve_track_surface_offset := 0.035
 @export_range(80, 320, 1) var carve_track_max_points := 200
 
@@ -75,12 +75,12 @@ var _carve_track_points: Array[Dictionary] = []
 var _carve_track_segment := 0
 var _carve_track_was_grounded := false
 
-const SAND_TRAIL_COLOR := Color(1.0, 0.78, 0.38, 0.7)
-const GRASS_TRAIL_COLOR := Color(0.64, 0.82, 0.34, 0.72)
-const SAND_LANDING_COLOR := Color(1.0, 0.82, 0.42, 0.84)
-const GRASS_LANDING_COLOR := Color(0.72, 0.88, 0.4, 0.84)
-const SAND_TRACK_COLOR := Color(0.22, 0.085, 0.024, 0.46)
-const GRASS_TRACK_COLOR := Color(0.034, 0.12, 0.04, 0.44)
+const SAND_TRAIL_COLOR := Color(0.92, 0.64, 0.28, 0.52)
+const GRASS_TRAIL_COLOR := Color(0.38, 0.52, 0.24, 0.48)
+const SAND_LANDING_COLOR := Color(0.96, 0.7, 0.32, 0.7)
+const GRASS_LANDING_COLOR := Color(0.44, 0.58, 0.27, 0.68)
+const SAND_TRACK_COLOR := Color(0.16, 0.06, 0.018, 0.2)
+const GRASS_TRACK_COLOR := Color(0.018, 0.05, 0.018, 0.18)
 
 
 func _ready() -> void:

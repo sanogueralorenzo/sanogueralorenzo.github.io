@@ -73,7 +73,7 @@ func _physics_process(delta: float) -> void:
 	var orbit_height := tan(_pitch) * follow_distance
 	var blend := 1.0 - exp(-position_smoothing * delta)
 	_smoothed_target_position = _smoothed_target_position.lerp(_target.global_position, blend)
-	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
+	var focus := _get_focus(forward)
 	var desired_position := _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
 	var terrain_resolved := _resolve_terrain_clearance(desired_position, focus)
 	var sightline_origin := _target.global_position + Vector3.UP * focus_height
@@ -148,7 +148,7 @@ func snap_to_target() -> void:
 		_target = get_node(target_path)
 	var forward := get_planar_forward()
 	_smoothed_target_position = _target.global_position
-	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
+	var focus := _get_focus(forward)
 	var desired_position := _target.global_position - forward * follow_distance + Vector3.UP * tan(_pitch) * follow_distance
 	var terrain_resolved := _resolve_terrain_clearance(desired_position, focus)
 	var sightline_origin := _target.global_position + Vector3.UP * focus_height
@@ -159,8 +159,20 @@ func snap_to_target() -> void:
 func get_current_minimum_terrain_clearance() -> float:
 	if not is_instance_valid(_target) or not is_instance_valid(_world):
 		return INF
-	var focus := _target.global_position + get_planar_forward() * look_ahead + Vector3.UP * focus_height
+	var focus := _get_focus(get_planar_forward())
 	return _sample_minimum_terrain_clearance(focus, global_position)
+
+
+func _get_focus(forward: Vector3) -> Vector3:
+	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
+	if not is_instance_valid(_world):
+		return focus
+	var surface_focus_height := (
+		_world.get_local_surface_height(focus.x, focus.z)
+		+ focus_height
+	)
+	focus.y = minf(focus.y, surface_focus_height)
+	return focus
 
 
 func _resolve_terrain_clearance(desired_position: Vector3, focus: Vector3) -> Vector3:

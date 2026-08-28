@@ -4,6 +4,7 @@ const DIRECTION_COUNT := 16
 const SAMPLE_STEP := 50.0
 const SAMPLE_RADIUS := 12000.0
 const MINIMUM_NET_DESCENT := 3900.0
+const MINIMUM_FIRST_250M_DESCENT := 45.0
 const MINIMUM_FIRST_KM_DESCENT := 150.0
 const MAXIMUM_LOCAL_RISE := 36.0
 const MINIMUM_CROSS_SLOPE_RELIEF := 55.0
@@ -31,6 +32,7 @@ func _run() -> void:
 		var angle := TAU * float(direction_index) / DIRECTION_COUNT
 		var direction := Vector2(cos(angle), sin(angle))
 		var previous_height := center_height
+		var first_250m_height := center_height
 		var first_km_height := center_height
 		for distance in range(int(SAMPLE_STEP), int(SAMPLE_RADIUS) + 1, int(SAMPLE_STEP)):
 			var point := direction * distance
@@ -38,6 +40,8 @@ func _run() -> void:
 			_expect(is_finite(height), "Terrain samples must always be finite.")
 			greatest_local_rise = maxf(greatest_local_rise, height - previous_height)
 			previous_height = height
+			if distance == 250:
+				first_250m_height = height
 			if distance == 1000:
 				first_km_height = height
 		endpoint_heights.append(previous_height)
@@ -46,6 +50,11 @@ func _run() -> void:
 		_expect(
 			net_descent >= MINIMUM_NET_DESCENT,
 			"Direction %d only descends %.1f m over %.0f m." % [direction_index, net_descent, SAMPLE_RADIUS],
+		)
+		_expect(
+			center_height - first_250m_height >= MINIMUM_FIRST_250M_DESCENT,
+			"Direction %d lacks an immediate summit drop: %.1f m descent in the first 250 m."
+			% [direction_index, center_height - first_250m_height],
 		)
 		_expect(
 			center_height - first_km_height >= MINIMUM_FIRST_KM_DESCENT,

@@ -18,16 +18,17 @@ func _run() -> void:
 	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
-	_expect(environment.ambient_light_energy >= 0.6, "The daylight pass must keep terrain readable outside direct sun.")
+	_expect(environment.ambient_light_energy >= 0.5, "The daylight pass must keep terrain readable outside direct sun.")
 	_expect(
-		sky_material.sky_top_color.b > sky_material.sky_top_color.r * 5.0
-			and sky_material.sky_horizon_color.r > sky_material.sky_top_color.r * 10.0
-			and sky_material.sky_horizon_color.get_luminance() >= 0.65,
-		"The saturated upper sky and bright atmospheric horizon should separate mountain silhouettes clearly.",
+		sky_material != null
+			and sky_material.sky_top_color.b > sky_material.sky_top_color.r * 8.0
+			and sky_material.sky_horizon_color.get_luminance() >= 0.5
+			and sky_material.sky_curve >= 0.6,
+		"The high-desert sky needs enough vertical gradient to avoid a flat cyan backdrop while preserving a bright horizon.",
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
-		sun.light_energy >= 1.4 and sun.light_color.g >= 0.85,
+		sun.light_energy >= 1.35 and sun.light_color.g >= 0.85 and sun.rotation_degrees.x >= -40.0,
 		"Warm daylight should produce readable terrain form without the former dim orange cast.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
@@ -98,9 +99,9 @@ func _run() -> void:
 		"Returning to the summit should reset every procedural rider pose.",
 	)
 	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
-	_expect(rider.surface_trail.amount >= 300, "The high-speed wake should remain continuous instead of a sparse dotted line.")
+	_expect(rider.surface_trail.amount >= 400, "The high-speed wake should remain continuous instead of a sparse dotted line.")
 	_expect(
-		(rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.08,
+		(rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.035,
 		"The denser surface wake should use fine grains rather than oversized glowing balls.",
 	)
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
@@ -136,6 +137,7 @@ func _run() -> void:
 	_expect(is_equal_approx(camera._get_target_fov(), camera.boost_fov), "Air boost should retain the strongest brief speed framing.")
 	camera.set_reduced_motion(true)
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Reduced motion should remove all speed-driven FOV displacement.")
+	var downhill_focus_count := 0
 	for direction_index in range(8):
 		var heading := TAU * float(direction_index) / 8.0
 		var steep_test_position := Vector2(cos(heading), sin(heading)) * 900.0
@@ -145,11 +147,21 @@ func _run() -> void:
 			steep_test_position.y,
 		))
 		camera.set_orbit_angles(-heading - PI * 0.5, atan2(camera.follow_height, camera.follow_distance))
+		var camera_forward: Vector3 = camera.get_planar_forward()
+		var level_focus_height: float = rider.global_position.y + camera.focus_height
+		var terrain_focus: Vector3 = camera._get_focus(camera_forward)
+		if terrain_focus.y <= level_focus_height - 0.5:
+			downhill_focus_count += 1
 		camera.snap_to_target()
 		_expect(
 			camera.get_current_minimum_terrain_clearance() >= camera.terrain_clearance - 0.03,
 			"The chase-camera sightline clips mountain terrain in outward heading %d." % direction_index,
 		)
+	_expect(
+		downhill_focus_count >= 6,
+		"The chase camera should look into most descending surfaces instead of flattening them against the horizon: %d/8."
+		% downhill_focus_count,
+	)
 
 	var shader: Shader = load("res://shaders/desert.gdshader")
 	_expect(

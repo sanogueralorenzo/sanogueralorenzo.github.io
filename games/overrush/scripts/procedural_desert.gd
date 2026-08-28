@@ -7,6 +7,8 @@ const ROCK_RADIAL_SEGMENTS := 9
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
 const RUIN_VISUAL_SEGMENTS := 19
+const SUMMIT_RELIEF_BLEND_START := 260.0
+const SUMMIT_RELIEF_BLEND_END := 620.0
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -18,6 +20,7 @@ const RUIN_VISUAL_SEGMENTS := 19
 @export var seed := 0
 @export var summit_height := 520.0
 @export var radial_grade := 0.34
+@export var summit_softening_radius := 36.0
 
 var generated_seed := 0
 var world_origin := Vector3.ZERO
@@ -103,9 +106,12 @@ func world_to_local_position(logical_position: Vector3) -> Vector3:
 
 func get_surface_height(x: float, z: float) -> float:
 	var radius := Vector2(x, z).length()
-	var softened_radius := sqrt(radius * radius + 90.0 * 90.0) - 90.0
+	var softened_radius := (
+		sqrt(radius * radius + summit_softening_radius * summit_softening_radius)
+		- summit_softening_radius
+	)
 	var descent := softened_radius * radial_grade
-	var feature_fade := smoothstep(55.0, 230.0, radius)
+	var feature_fade := smoothstep(SUMMIT_RELIEF_BLEND_START, SUMMIT_RELIEF_BLEND_END, radius)
 	var mountain_relief := _mountain_noise.get_noise_2d(x, z) * 92.0
 	var mountain_folds := (
 		sin(x * 0.0014 + z * 0.0005 + _mountain_fold_phase.x) * 62.0

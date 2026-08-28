@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -7,16 +7,16 @@
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_desert"]
-sky_top_color = Color(0.025, 0.31, 0.52, 1)
-sky_horizon_color = Color(0.52, 0.72, 0.73, 1)
-sky_curve = 0.16
-sky_energy_multiplier = 1.18
-ground_bottom_color = Color(0.07, 0.09, 0.13, 1)
-ground_horizon_color = Color(0.34, 0.4, 0.43, 1)
-ground_curve = 0.2
-ground_energy_multiplier = 0.82
-sun_angle_max = 7.0
-sun_curve = 0.09
+sky_top_color = Color(0.025, 0.18, 0.34, 1)
+sky_horizon_color = Color(0.24, 0.58, 0.72, 1)
+sky_curve = 0.68
+sky_energy_multiplier = 1.08
+ground_bottom_color = Color(0.08, 0.085, 0.095, 1)
+ground_horizon_color = Color(0.38, 0.43, 0.44, 1)
+ground_curve = 0.54
+ground_energy_multiplier = 0.86
+sun_angle_max = 8.0
+sun_curve = 0.12
 
 [sub_resource type="Sky" id="Sky_desert"]
 sky_material = SubResource("SkyMaterial_desert")
@@ -24,25 +24,25 @@ sky_material = SubResource("SkyMaterial_desert")
 [sub_resource type="Environment" id="Environment_desert"]
 background_mode = 2
 sky = SubResource("Sky_desert")
-background_energy_multiplier = 1.1
+background_energy_multiplier = 1.03
 ambient_light_source = 3
-ambient_light_color = Color(0.34, 0.48, 0.56, 1)
-ambient_light_energy = 0.66
-ambient_light_sky_contribution = 0.88
+ambient_light_color = Color(0.3, 0.41, 0.46, 1)
+ambient_light_energy = 0.64
+ambient_light_sky_contribution = 0.86
 reflected_light_source = 2
 tonemap_mode = 2
 adjustment_enabled = true
-adjustment_brightness = 1.08
-adjustment_contrast = 1.06
-adjustment_saturation = 1.06
+adjustment_brightness = 1.02
+adjustment_contrast = 1.08
+adjustment_saturation = 0.98
 ssao_enabled = true
 ssao_radius = 2.8
 ssao_intensity = 2.2
 ssao_power = 1.35
 fog_enabled = true
-fog_light_color = Color(0.46, 0.59, 0.64, 1)
-fog_light_energy = 0.76
-fog_density = 0.00048
+fog_light_color = Color(0.48, 0.57, 0.59, 1)
+fog_light_energy = 0.7
+fog_density = 0.00052
 fog_height = -400.0
 fog_height_density = 0.001
 aerial_perspective = 0.68
@@ -111,7 +111,7 @@ albedo_color = Color(1, 0.9, 0.72, 0.78)
 transparency = 1
 cull_mode = 2
 vertex_color_use_as_albedo = true
-albedo_color = Color(1, 1, 1, 0.62)
+albedo_color = Color(1, 1, 1, 0.38)
 roughness = 1.0
 
 [sub_resource type="SphereMesh" id="TrailMesh"]
@@ -120,6 +120,13 @@ radius = 0.065
 height = 0.13
 radial_segments = 8
 rings = 4
+
+[sub_resource type="SphereMesh" id="SurfaceGrainMesh"]
+material = SubResource("TrailMaterial")
+radius = 0.028
+height = 0.056
+radial_segments = 6
+rings = 3
 
 [sub_resource type="ParticleProcessMaterial" id="TrailProcess"]
 emission_shape = 3
@@ -141,9 +148,9 @@ spread = 28.0
 initial_velocity_min = 3.0
 initial_velocity_max = 7.2
 gravity = Vector3(0, -3.6, 0)
-scale_min = 0.28
-scale_max = 0.72
-color = Color(1, 0.76, 0.36, 0.68)
+scale_min = 0.2
+scale_max = 0.58
+color = Color(0.92, 0.64, 0.28, 0.52)
 
 [sub_resource type="ParticleProcessMaterial" id="LandingBurstProcess"]
 emission_shape = 3
@@ -153,9 +160,9 @@ spread = 62.0
 initial_velocity_min = 4.0
 initial_velocity_max = 9.0
 gravity = Vector3(0, -8, 0)
-scale_min = 0.38
-scale_max = 1.25
-color = Color(1, 0.73, 0.34, 0.78)
+scale_min = 0.28
+scale_max = 0.92
+color = Color(0.96, 0.7, 0.32, 0.7)
 
 [sub_resource type="StyleBoxFlat" id="PanelStyle"]
 bg_color = Color(0.055, 0.043, 0.035, 0.88)
@@ -199,9 +206,9 @@ script = ExtResource("1_main")
 environment = SubResource("Environment_desert")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-48, -32, 0)
-light_color = Color(1, 0.9, 0.72, 1)
-light_energy = 1.5
+rotation_degrees = Vector3(-37, -32, 0)
+light_color = Color(1, 0.89, 0.72, 1)
+light_energy = 1.42
 shadow_enabled = true
 shadow_blur = 1.6
 directional_shadow_max_distance = 820.0
@@ -346,11 +353,11 @@ omni_range = 7.0
 [node name="SurfaceTrail" type="GPUParticles3D" parent="Sandboarder"]
 position = Vector3(0, -0.24, 1.1)
 emitting = false
-amount = 360
+amount = 440
 lifetime = 0.86
 local_coords = false
 process_material = SubResource("SurfaceTrailProcess")
-draw_pass_1 = SubResource("TrailMesh")
+draw_pass_1 = SubResource("SurfaceGrainMesh")
 
 [node name="LandingBurst" type="GPUParticles3D" parent="Sandboarder"]
 position = Vector3(0, -0.22, 0)
@@ -361,7 +368,7 @@ one_shot = true
 explosiveness = 0.82
 local_coords = false
 process_material = SubResource("LandingBurstProcess")
-draw_pass_1 = SubResource("TrailMesh")
+draw_pass_1 = SubResource("SurfaceGrainMesh")
 
 [node name="FollowCamera" type="Camera3D" parent="."]
 process_mode = 1
@@ -373,7 +380,7 @@ target_path = NodePath("../Sandboarder")
 world_path = NodePath("../Desert")
 follow_distance = 10.2
 follow_height = 3.15
-look_ahead = 4.6
+look_ahead = 7.5
 focus_height = 1.0
 normal_fov = 76.0
 boost_fov = 94.0
