@@ -3,6 +3,7 @@ extends StaticBody3D
 
 const TREE_BOUGH_TIERS := 6
 const TREE_RADIAL_SEGMENTS := 10
+const TREE_FOLIAGE_CARD_PLANES := 3
 const ROCK_RADIAL_SEGMENTS := 12
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
@@ -47,11 +48,13 @@ var _terrain_material: ShaderMaterial
 var _rock_material: StandardMaterial3D
 var _tree_trunk_material: StandardMaterial3D
 var _tree_canopy_material: StandardMaterial3D
+var _tree_foliage_material: StandardMaterial3D
 var _ruin_material: StandardMaterial3D
 var _ruin_recess_material: StandardMaterial3D
 var _rock_mesh: ArrayMesh
 var _tree_trunk_mesh: CylinderMesh
 var _tree_canopy_mesh: ArrayMesh
+var _tree_foliage_mesh: ArrayMesh
 var _ruin_block_mesh: ArrayMesh
 var _broad_noise := FastNoiseLite.new()
 var _mountain_noise := FastNoiseLite.new()
@@ -535,6 +538,7 @@ func _create_materials() -> void:
 	_rock_material = null
 	_tree_trunk_material = null
 	_tree_canopy_material = null
+	_tree_foliage_material = null
 	_ruin_material = null
 	_ruin_recess_material = null
 	_rock_mesh = _build_weathered_rock_mesh()
@@ -545,6 +549,7 @@ func _create_materials() -> void:
 	_tree_trunk_mesh.radial_segments = 9
 	_tree_trunk_mesh.rings = 1
 	_tree_canopy_mesh = _build_conifer_canopy_mesh()
+	_tree_foliage_mesh = _build_conifer_foliage_mesh()
 	_ruin_block_mesh = _build_weathered_block_mesh()
 	if DisplayServer.get_name() != "headless":
 		_terrain_material = ShaderMaterial.new()
@@ -567,6 +572,9 @@ func _create_materials() -> void:
 		_tree_canopy_material.emission_enabled = true
 		_tree_canopy_material.emission = Color("#081a10")
 		_tree_canopy_material.emission_energy_multiplier = TREE_CANOPY_EMISSION_ENERGY
+		_tree_foliage_material = _create_foliage_material(
+			load("res://assets/terrain/conifer_foliage_atlas.png") as Texture2D
+		)
 		_ruin_material = _create_stone_material(stone_texture, Color("#d7c2a0"), 0.94)
 		_ruin_material.emission_enabled = true
 		_ruin_material.emission = Color("#1f1308")
@@ -592,6 +600,21 @@ func _create_stone_material(texture: Texture2D, tint: Color, surface_roughness: 
 	material.uv1_triplanar = true
 	material.uv1_world_triplanar = true
 	material.uv1_triplanar_sharpness = 4.0
+	return material
+
+
+func _create_foliage_material(texture: Texture2D) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = texture
+	material.albedo_color = Color.WHITE
+	material.roughness = 0.92
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	material.alpha_scissor_threshold = 0.38
+	material.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	material.alpha_antialiasing_edge = 0.48
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.vertex_color_use_as_albedo = true
 	return material
 
 
@@ -671,6 +694,59 @@ func _build_conifer_canopy_mesh() -> ArrayMesh:
 			_add_mesh_triangle(builder, top, inner_a, inner_b, tier_color.darkened(0.04), Vector3(0.0, 0.45, 0.0))
 			_add_mesh_triangle(builder, inner_underside, inner_b, inner_a, tier_color.darkened(0.14), Vector3(0.0, 0.45, 0.0))
 	return builder.commit() as ArrayMesh
+
+
+func _build_conifer_foliage_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for plane_index in range(TREE_FOLIAGE_CARD_PLANES):
+		var angle := PI * float(plane_index) / float(TREE_FOLIAGE_CARD_PLANES)
+		var right := Vector3(cos(angle), 0.0, sin(angle))
+		var normal := Vector3(-sin(angle), 0.0, cos(angle))
+		var bottom_left := -right
+		var bottom_right := right
+		var top_left := -right + Vector3.UP
+		var top_right := right + Vector3.UP
+		_add_foliage_triangle(
+			builder,
+			bottom_left,
+			bottom_right,
+			top_right,
+			Vector2(0.0, 1.0),
+			Vector2(1.0, 1.0),
+			Vector2(1.0, 0.0),
+			normal,
+		)
+		_add_foliage_triangle(
+			builder,
+			bottom_left,
+			top_right,
+			top_left,
+			Vector2(0.0, 1.0),
+			Vector2(1.0, 0.0),
+			Vector2(0.0, 0.0),
+			normal,
+		)
+	return builder.commit() as ArrayMesh
+
+
+func _add_foliage_triangle(
+	builder: SurfaceTool,
+	first: Vector3,
+	second: Vector3,
+	third: Vector3,
+	first_uv: Vector2,
+	second_uv: Vector2,
+	third_uv: Vector2,
+	normal: Vector3,
+) -> void:
+	var vertices := [first, second, third]
+	var uvs := [first_uv, second_uv, third_uv]
+	for vertex_index in range(3):
+		builder.set_normal(normal)
+		builder.set_uv(uvs[vertex_index])
+		builder.set_color(Color.WHITE)
+		builder.add_vertex(vertices[vertex_index])
 
 
 func _build_weathered_rock_mesh() -> ArrayMesh:
@@ -907,6 +983,11 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	canopy_multimesh.use_colors = true
 	canopy_multimesh.mesh = _tree_canopy_mesh
 	canopy_multimesh.instance_count = trees.size()
+	var foliage_multimesh := MultiMesh.new()
+	foliage_multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	foliage_multimesh.use_colors = true
+	foliage_multimesh.mesh = _tree_foliage_mesh
+	foliage_multimesh.instance_count = trees.size()
 	for tree_index in range(trees.size()):
 		var tree := trees[tree_index]
 		var cell: Vector2i = tree.cell
@@ -931,19 +1012,30 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 			Vector3.FORWARD,
 			deg_to_rad(lerpf(-2.4, 2.4, _landscape_layout.get_cell_random(cell, 21))),
 		)
+		var canopy_depth_scale := lerpf(0.84, 1.08, _landscape_layout.get_cell_random(cell, 19))
 		var canopy := Transform3D(
 			crown_basis.scaled(Vector3(
-				canopy_radius,
-				height * 0.86,
-				canopy_radius * lerpf(0.84, 1.08, _landscape_layout.get_cell_random(cell, 19)),
+				canopy_radius * 0.74,
+				height * 0.84,
+				canopy_radius * canopy_depth_scale * 0.74,
 			)),
 			Vector3(local_xz.x, local_height + height * 0.14, local_xz.y),
+		)
+		var foliage_canopy := Transform3D(
+			crown_basis.scaled(Vector3(
+				canopy_radius * 1.08,
+				height * 0.9,
+				canopy_radius * canopy_depth_scale * 1.08,
+			)),
+			Vector3(local_xz.x, local_height + height * 0.1, local_xz.y),
 		)
 		trunk_multimesh.set_instance_transform(tree_index, trunk_transform)
 		trunk_multimesh.set_instance_color(tree_index, _get_tree_trunk_color(cell))
 		var canopy_color := _get_tree_canopy_color(cell)
 		canopy_multimesh.set_instance_transform(tree_index, canopy)
 		canopy_multimesh.set_instance_color(tree_index, canopy_color)
+		foliage_multimesh.set_instance_transform(tree_index, foliage_canopy)
+		foliage_multimesh.set_instance_color(tree_index, _get_tree_foliage_color(cell))
 	var trunks := MultiMeshInstance3D.new()
 	trunks.name = "TreeTrunks"
 	trunks.multimesh = trunk_multimesh
@@ -954,6 +1046,11 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	canopies.multimesh = canopy_multimesh
 	canopies.material_override = _tree_canopy_material
 	chunk.add_child(canopies)
+	var foliage := MultiMeshInstance3D.new()
+	foliage.name = "TreeFoliage"
+	foliage.multimesh = foliage_multimesh
+	foliage.material_override = _tree_foliage_material
+	chunk.add_child(foliage)
 
 
 func _get_tree_trunk_color(cell: Vector2i) -> Color:
@@ -973,6 +1070,17 @@ func _get_tree_canopy_color(cell: Vector2i) -> Color:
 		brightness * lerpf(0.64, 0.86, warmth),
 		brightness * lerpf(0.92, 0.82, warmth),
 		brightness * lerpf(0.84, 0.62, warmth),
+		1.0,
+	)
+
+
+func _get_tree_foliage_color(cell: Vector2i) -> Color:
+	var brightness := lerpf(0.78, 0.94, _landscape_layout.get_cell_random(cell, 24))
+	var warmth := _landscape_layout.get_cell_random(cell, 25)
+	return Color(
+		brightness * lerpf(0.96, 1.0, warmth),
+		brightness * lerpf(0.99, 1.0, warmth),
+		brightness * lerpf(0.99, 0.96, warmth),
 		1.0,
 	)
 

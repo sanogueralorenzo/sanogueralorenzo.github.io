@@ -102,6 +102,33 @@ func _run() -> void:
 			and world._tree_canopy_mesh.surface_get_array_len(0) <= 1200,
 		"Forests should use a full layered conifer silhouette rather than sparse stacked cones.",
 	)
+	var foliage_texture := load("res://assets/terrain/conifer_foliage_atlas.png") as Texture2D
+	var foliage_source := Image.load_from_file(
+		ProjectSettings.globalize_path("res://assets/terrain/conifer_foliage_atlas.png")
+	)
+	var foliage_material := world._create_foliage_material(foliage_texture)
+	var foliage_arrays := world._tree_foliage_mesh.surface_get_arrays(0)
+	var foliage_uvs: PackedVector2Array = foliage_arrays[Mesh.ARRAY_TEX_UV]
+	_expect(
+		ProceduralDesert.TREE_FOLIAGE_CARD_PLANES == 3
+			and world._tree_foliage_mesh is ArrayMesh
+			and world._tree_foliage_mesh.surface_get_array_len(0) == 18
+			and foliage_uvs.size() == 18,
+		"Each conifer needs one bounded three-plane foliage shell with complete UVs around the existing geometric crown.",
+	)
+	_expect(
+		foliage_texture != null
+			and foliage_texture.get_width() >= 1024
+			and foliage_texture.get_height() >= 1024
+			and not foliage_source.is_empty()
+			and foliage_source.detect_alpha() != Image.ALPHA_NONE
+			and foliage_material.albedo_texture == foliage_texture
+			and foliage_material.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			and foliage_material.alpha_scissor_threshold >= 0.35
+			and foliage_material.cull_mode == BaseMaterial3D.CULL_DISABLED
+			and foliage_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC,
+		"The foliage shell needs an original high-resolution RGBA atlas and efficient two-sided alpha-scissor material.",
+	)
 	var canopy_arrays := world._tree_canopy_mesh.surface_get_arrays(0)
 	var canopy_vertices: PackedVector3Array = canopy_arrays[Mesh.ARRAY_VERTEX]
 	var canopy_y_levels := {}
