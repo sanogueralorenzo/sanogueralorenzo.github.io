@@ -82,6 +82,34 @@ func _run() -> void:
 		"Conifer crowns need jagged asymmetric bough edges and a full ground-to-tip silhouette: %d height levels, %s bounds."
 		% [canopy_y_levels.size(), str(canopy_bounds)],
 	)
+	var minimum_canopy_color := Color(INF, INF, INF, 1.0)
+	var maximum_canopy_color := Color(-INF, -INF, -INF, 1.0)
+	var minimum_canopy_luminance := INF
+	var maximum_canopy_luminance := -INF
+	for cell_y in range(-8, 9):
+		for cell_x in range(-8, 9):
+			var canopy_color := world._get_tree_canopy_color(Vector2i(cell_x, cell_y))
+			minimum_canopy_color.r = minf(minimum_canopy_color.r, canopy_color.r)
+			minimum_canopy_color.g = minf(minimum_canopy_color.g, canopy_color.g)
+			minimum_canopy_color.b = minf(minimum_canopy_color.b, canopy_color.b)
+			maximum_canopy_color.r = maxf(maximum_canopy_color.r, canopy_color.r)
+			maximum_canopy_color.g = maxf(maximum_canopy_color.g, canopy_color.g)
+			maximum_canopy_color.b = maxf(maximum_canopy_color.b, canopy_color.b)
+			minimum_canopy_luminance = minf(minimum_canopy_luminance, canopy_color.get_luminance())
+			maximum_canopy_luminance = maxf(maximum_canopy_luminance, canopy_color.get_luminance())
+	_expect(
+		maximum_canopy_color.r - minimum_canopy_color.r >= 0.35
+			and maximum_canopy_color.b - minimum_canopy_color.b >= 0.35
+			and maximum_canopy_luminance - minimum_canopy_luminance >= 0.25
+			and ProceduralDesert.TREE_CANOPY_EMISSION_ENERGY <= 0.4,
+		"Batched forests need deterministic cool/warm and value variation while direct light remains the primary form cue.",
+	)
+	var stable_canopy_color := world._get_tree_canopy_color(Vector2i(7, -3))
+	var repeated_canopy_color := world._get_tree_canopy_color(Vector2i(7, -3))
+	_expect(
+		stable_canopy_color.is_equal_approx(repeated_canopy_color),
+		"Tree palette variation must remain deterministic for a seeded landscape.",
+	)
 	_expect(
 		world._rock_mesh is ArrayMesh
 			and ProceduralDesert.ROCK_RADIAL_SEGMENTS >= 12

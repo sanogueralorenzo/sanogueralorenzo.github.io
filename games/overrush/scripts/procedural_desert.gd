@@ -7,6 +7,7 @@ const ROCK_RADIAL_SEGMENTS := 12
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
 const RUIN_VISUAL_SEGMENTS := 34
+const TREE_CANOPY_EMISSION_ENERGY := 0.34
 const SUMMIT_RELIEF_BLEND_START := 260.0
 const SUMMIT_RELIEF_BLEND_END := 620.0
 
@@ -493,13 +494,13 @@ func _create_materials() -> void:
 		_tree_trunk_material.roughness = 0.93
 		_tree_trunk_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material = StandardMaterial3D.new()
-		_tree_canopy_material.albedo_color = Color("#315c43")
+		_tree_canopy_material.albedo_color = Color("#345f45")
 		_tree_canopy_material.roughness = 0.88
 		_tree_canopy_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_tree_canopy_material.emission_enabled = true
-		_tree_canopy_material.emission = Color("#0b2415")
-		_tree_canopy_material.emission_energy_multiplier = 0.62
+		_tree_canopy_material.emission = Color("#081a10")
+		_tree_canopy_material.emission_energy_multiplier = TREE_CANOPY_EMISSION_ENERGY
 		_ruin_material = StandardMaterial3D.new()
 		_ruin_material.albedo_color = Color("#927858")
 		_ruin_material.roughness = 0.94
@@ -856,9 +857,8 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 			Vector3(local_xz.x, local_height + height * 0.14, local_xz.y),
 		)
 		trunk_multimesh.set_instance_transform(tree_index, trunk_transform)
-		trunk_multimesh.set_instance_color(tree_index, Color(0.82, 0.74, 0.67, 1.0))
-		var tint := lerpf(0.8, 1.08, _landscape_layout.get_cell_random(cell, 18))
-		var canopy_color := Color(tint * 0.7, tint * 0.9, tint * 0.78, 1.0)
+		trunk_multimesh.set_instance_color(tree_index, _get_tree_trunk_color(cell))
+		var canopy_color := _get_tree_canopy_color(cell)
 		canopy_multimesh.set_instance_transform(tree_index, canopy)
 		canopy_multimesh.set_instance_color(tree_index, canopy_color)
 	var trunks := MultiMeshInstance3D.new()
@@ -871,6 +871,27 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	canopies.multimesh = canopy_multimesh
 	canopies.material_override = _tree_canopy_material
 	chunk.add_child(canopies)
+
+
+func _get_tree_trunk_color(cell: Vector2i) -> Color:
+	var variation := _landscape_layout.get_cell_random(cell, 23)
+	return Color(
+		lerpf(0.72, 0.9, variation),
+		lerpf(0.64, 0.8, variation),
+		lerpf(0.56, 0.7, variation),
+		1.0,
+	)
+
+
+func _get_tree_canopy_color(cell: Vector2i) -> Color:
+	var brightness := lerpf(0.76, 1.12, _landscape_layout.get_cell_random(cell, 18))
+	var warmth := _landscape_layout.get_cell_random(cell, 22)
+	return Color(
+		brightness * lerpf(0.64, 0.86, warmth),
+		brightness * lerpf(0.92, 0.82, warmth),
+		brightness * lerpf(0.84, 0.62, warmth),
+		1.0,
+	)
 
 
 func _append_tree_collision_prism(
