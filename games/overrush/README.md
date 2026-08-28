@@ -31,6 +31,7 @@ The goal remains incomplete until external playtests confirm that the original g
 - A close third-person camera widens continuously with speed and raises only as much as required to keep its sightline above steep terrain, while reduced-motion mode holds a steady FOV. The rounded board and articulated high-contrast rider now shift through speed crouch, carve lean and counterbalance, airborne tuck, boost commitment, and landing compression instead of remaining a rigid primitive silhouette.
 - A brighter cool-sky/warm-horizon grade, readable shadow fill, smoother mountain geometry, original high-detail sand and alpine-grass albedos, lit stone landmarks, directional slope shading, SSAO, and rounded spray grains keep slopes and motion readable without changing the Forward+ renderer configuration. Rotated secondary world-space sampling suppresses obvious texture repetition while remaining continuous across streamed chunk seams.
 - Mouse/right-stick orbit controls retain the existing free camera behavior.
+- Reduced camera motion, shared mouse/gamepad look sensitivity, and master volume are available before drop-in and while paused. Both control surfaces remain synchronized and persist through `user://overrush_settings.cfg`.
 
 The previous movement-survivor scene and all of its combat, enemy, weapon, build, progression, boundary, and alternate-world implementation have been removed. The project now contains one entry scene and only the runtime systems used by the focused freeride game.
 

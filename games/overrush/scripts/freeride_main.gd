@@ -1,5 +1,8 @@
 extends Node3D
 
+const SETTINGS_PATH := "user://overrush_settings.cfg"
+const SETTINGS_SECTION := "accessibility"
+
 @onready var desert: ProceduralDesert = $Desert
 @onready var rider: Sandboarder = $Sandboarder
 @onready var follow_camera: Camera3D = $FollowCamera
@@ -14,6 +17,12 @@ extends Node3D
 @onready var pause_title: Label = $HUD/PauseOverlay/PausePanel/Content/Title
 @onready var resume_button: Button = $HUD/PauseOverlay/PausePanel/Content/Resume
 @onready var restart_button: Button = $HUD/PauseOverlay/PausePanel/Content/Restart
+@onready var start_reduced_motion: CheckButton = $HUD/StartOverlay/LaunchPanel/Content/ReducedMotion
+@onready var start_look_sensitivity: HSlider = $HUD/StartOverlay/LaunchPanel/Content/LookSensitivity/Slider
+@onready var start_master_volume: HSlider = $HUD/StartOverlay/LaunchPanel/Content/MasterVolume/Slider
+@onready var pause_reduced_motion: CheckButton = $HUD/PauseOverlay/PausePanel/Content/ReducedMotion
+@onready var pause_look_sensitivity: HSlider = $HUD/PauseOverlay/PausePanel/Content/LookSensitivity/Slider
+@onready var pause_master_volume: HSlider = $HUD/PauseOverlay/PausePanel/Content/MasterVolume/Slider
 
 var run_active := false
 var elapsed_time := 0.0
@@ -21,6 +30,9 @@ var start_height := 0.0
 var _using_gamepad := false
 var _landing_feedback_time := 0.0
 var _run_crashed := false
+var _reduced_motion := false
+var _look_sensitivity := 1.0
+var _master_volume := 0.8
 
 
 func _ready() -> void:
@@ -34,6 +46,12 @@ func _ready() -> void:
 	launch_button.pressed.connect(begin_run)
 	resume_button.pressed.connect(resume_run)
 	restart_button.pressed.connect(restart_run)
+	_connect_settings_controls()
+	if DisplayServer.get_name() != "headless":
+		load_settings()
+	else:
+		_apply_settings_to_runtime()
+	_sync_settings_controls()
 	rider.respawn()
 	follow_camera.snap_to_target()
 	start_height = desert.get_world_position(rider.global_position).y
@@ -110,6 +128,78 @@ func restart_run() -> void:
 	follow_camera.snap_to_target()
 	start_height = desert.get_world_position(rider.global_position).y
 	resume_run()
+
+
+func set_accessibility_settings(
+	reduced_motion: bool,
+	look_sensitivity: float,
+	master_volume: float,
+	persist := true,
+) -> void:
+	_reduced_motion = reduced_motion
+	_look_sensitivity = clampf(look_sensitivity, 0.5, 2.0)
+	_master_volume = clampf(master_volume, 0.0, 1.0)
+	_apply_settings_to_runtime()
+	_sync_settings_controls()
+	if persist:
+		save_settings()
+
+
+func save_settings(path := SETTINGS_PATH) -> Error:
+	var config := ConfigFile.new()
+	config.set_value(SETTINGS_SECTION, "reduced_motion", _reduced_motion)
+	config.set_value(SETTINGS_SECTION, "look_sensitivity", _look_sensitivity)
+	config.set_value(SETTINGS_SECTION, "master_volume", _master_volume)
+	return config.save(path)
+
+
+func load_settings(path := SETTINGS_PATH) -> bool:
+	var config := ConfigFile.new()
+	if config.load(path) != OK:
+		_apply_settings_to_runtime()
+		return false
+	_reduced_motion = bool(config.get_value(SETTINGS_SECTION, "reduced_motion", false))
+	_look_sensitivity = clampf(float(config.get_value(SETTINGS_SECTION, "look_sensitivity", 1.0)), 0.5, 2.0)
+	_master_volume = clampf(float(config.get_value(SETTINGS_SECTION, "master_volume", 0.8)), 0.0, 1.0)
+	_apply_settings_to_runtime()
+	_sync_settings_controls()
+	return true
+
+
+func _connect_settings_controls() -> void:
+	for toggle in [start_reduced_motion, pause_reduced_motion]:
+		toggle.toggled.connect(_on_reduced_motion_toggled)
+	for slider in [start_look_sensitivity, pause_look_sensitivity]:
+		slider.value_changed.connect(_on_look_sensitivity_changed)
+	for slider in [start_master_volume, pause_master_volume]:
+		slider.value_changed.connect(_on_master_volume_changed)
+
+
+func _apply_settings_to_runtime() -> void:
+	follow_camera.set_reduced_motion(_reduced_motion)
+	follow_camera.set_look_sensitivity_multiplier(_look_sensitivity)
+	audio_director.set_levels(_master_volume, audio_director.music_level, audio_director.effects_level)
+
+
+func _sync_settings_controls() -> void:
+	for toggle in [start_reduced_motion, pause_reduced_motion]:
+		toggle.set_pressed_no_signal(_reduced_motion)
+	for slider in [start_look_sensitivity, pause_look_sensitivity]:
+		slider.set_value_no_signal(_look_sensitivity)
+	for slider in [start_master_volume, pause_master_volume]:
+		slider.set_value_no_signal(_master_volume)
+
+
+func _on_reduced_motion_toggled(enabled: bool) -> void:
+	set_accessibility_settings(enabled, _look_sensitivity, _master_volume, DisplayServer.get_name() != "headless")
+
+
+func _on_look_sensitivity_changed(value: float) -> void:
+	set_accessibility_settings(_reduced_motion, value, _master_volume, DisplayServer.get_name() != "headless")
+
+
+func _on_master_volume_changed(value: float) -> void:
+	set_accessibility_settings(_reduced_motion, _look_sensitivity, value, DisplayServer.get_name() != "headless")
 
 
 func _update_stats() -> void:

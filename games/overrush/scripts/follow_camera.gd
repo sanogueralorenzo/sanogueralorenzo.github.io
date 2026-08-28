@@ -28,6 +28,9 @@ var _controls_enabled := false
 var _yaw := 0.0
 var _pitch := 0.0
 var _smoothed_target_position := Vector3.ZERO
+var _base_mouse_sensitivity := 0.0
+var _base_gamepad_look_speed := 0.0
+var _look_sensitivity_multiplier := 1.0
 
 
 func _ready() -> void:
@@ -35,6 +38,8 @@ func _ready() -> void:
 	_world = get_node_or_null(world_path) as ProceduralDesert
 	_pitch = atan2(follow_height, follow_distance)
 	_smoothed_target_position = _target.global_position
+	_base_mouse_sensitivity = mouse_sensitivity
+	_base_gamepad_look_speed = gamepad_look_speed
 	set_controls_enabled(false)
 
 
@@ -91,6 +96,16 @@ func set_reduced_motion(enabled: bool) -> void:
 	_reduced_motion = enabled
 	if enabled:
 		fov = normal_fov
+
+
+func set_look_sensitivity_multiplier(multiplier: float) -> void:
+	_look_sensitivity_multiplier = clampf(multiplier, 0.5, 2.0)
+	mouse_sensitivity = _base_mouse_sensitivity * _look_sensitivity_multiplier
+	gamepad_look_speed = _base_gamepad_look_speed * _look_sensitivity_multiplier
+
+
+func get_look_sensitivity_multiplier() -> float:
+	return _look_sensitivity_multiplier
 
 
 func set_controls_enabled(enabled: bool) -> void:

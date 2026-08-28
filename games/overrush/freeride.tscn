@@ -457,9 +457,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -300.0
-offset_top = -220.0
+offset_top = -295.0
 offset_right = 300.0
-offset_bottom = 220.0
+offset_bottom = 295.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("PanelStyle")
@@ -497,6 +497,47 @@ theme_override_font_sizes/font_size = 14
 text = "ONE AIR BOOST  •  READ THE MOUNTAIN  •  COMMIT TO YOUR LINE"
 horizontal_alignment = 1
 
+[node name="SettingsDivider" type="HSeparator" parent="HUD/StartOverlay/LaunchPanel/Content"]
+
+[node name="SettingsTitle" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content"]
+theme_override_colors/font_color = Color(1, 0.83, 0.58, 1)
+theme_override_font_sizes/font_size = 14
+text = "ACCESSIBILITY"
+horizontal_alignment = 1
+
+[node name="ReducedMotion" type="CheckButton" parent="HUD/StartOverlay/LaunchPanel/Content"]
+custom_minimum_size = Vector2(0, 34)
+text = "REDUCED CAMERA MOTION"
+
+[node name="LookSensitivity" type="HBoxContainer" parent="HUD/StartOverlay/LaunchPanel/Content"]
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content/LookSensitivity"]
+custom_minimum_size = Vector2(190, 0)
+text = "LOOK SENSITIVITY"
+
+[node name="Slider" type="HSlider" parent="HUD/StartOverlay/LaunchPanel/Content/LookSensitivity"]
+custom_minimum_size = Vector2(0, 30)
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 2.0
+step = 0.1
+value = 1.0
+
+[node name="MasterVolume" type="HBoxContainer" parent="HUD/StartOverlay/LaunchPanel/Content"]
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="HUD/StartOverlay/LaunchPanel/Content/MasterVolume"]
+custom_minimum_size = Vector2(190, 0)
+text = "MASTER VOLUME"
+
+[node name="Slider" type="HSlider" parent="HUD/StartOverlay/LaunchPanel/Content/MasterVolume"]
+custom_minimum_size = Vector2(0, 30)
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.8
+
 [node name="Launch" type="Button" parent="HUD/StartOverlay/LaunchPanel/Content"]
 custom_minimum_size = Vector2(0, 54)
 theme_override_colors/font_color = Color(0.12, 0.07, 0.03, 1)
@@ -524,9 +565,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -190.0
-offset_top = -140.0
+offset_top = -210.0
 offset_right = 190.0
-offset_bottom = 140.0
+offset_bottom = 210.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("PanelStyle")
@@ -539,6 +580,45 @@ theme_override_colors/font_color = Color(1, 0.94, 0.8, 1)
 theme_override_font_sizes/font_size = 32
 text = "PAUSED"
 horizontal_alignment = 1
+
+[node name="SettingsTitle" type="Label" parent="HUD/PauseOverlay/PausePanel/Content"]
+theme_override_colors/font_color = Color(1, 0.83, 0.58, 1)
+theme_override_font_sizes/font_size = 14
+text = "ACCESSIBILITY"
+horizontal_alignment = 1
+
+[node name="ReducedMotion" type="CheckButton" parent="HUD/PauseOverlay/PausePanel/Content"]
+custom_minimum_size = Vector2(0, 34)
+text = "REDUCED CAMERA MOTION"
+
+[node name="LookSensitivity" type="HBoxContainer" parent="HUD/PauseOverlay/PausePanel/Content"]
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/PauseOverlay/PausePanel/Content/LookSensitivity"]
+custom_minimum_size = Vector2(150, 0)
+text = "LOOK SENSITIVITY"
+
+[node name="Slider" type="HSlider" parent="HUD/PauseOverlay/PausePanel/Content/LookSensitivity"]
+custom_minimum_size = Vector2(0, 30)
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 2.0
+step = 0.1
+value = 1.0
+
+[node name="MasterVolume" type="HBoxContainer" parent="HUD/PauseOverlay/PausePanel/Content"]
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/PauseOverlay/PausePanel/Content/MasterVolume"]
+custom_minimum_size = Vector2(150, 0)
+text = "MASTER VOLUME"
+
+[node name="Slider" type="HSlider" parent="HUD/PauseOverlay/PausePanel/Content/MasterVolume"]
+custom_minimum_size = Vector2(0, 30)
+size_flags_horizontal = 3
+max_value = 1.0
+step = 0.05
+value = 0.8
 
 [node name="Resume" type="Button" parent="HUD/PauseOverlay/PausePanel/Content"]
 custom_minimum_size = Vector2(0, 48)
