@@ -39,6 +39,9 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 
 @onready var board_visual: Node3D = $BoardVisual
 @onready var board_mesh_visual: MeshInstance3D = $BoardVisual/Board
+@onready var board_accent_visual: MeshInstance3D = $BoardVisual/BoardAccent
+@onready var left_binding_visual: MeshInstance3D = $BoardVisual/LeftBinding
+@onready var right_binding_visual: MeshInstance3D = $BoardVisual/RightBinding
 @onready var torso_visual: MeshInstance3D = $BoardVisual/Rider
 @onready var head_visual: MeshInstance3D = $BoardVisual/Head
 @onready var left_arm_visual: MeshInstance3D = $BoardVisual/LeftArm
@@ -91,6 +94,23 @@ const RIDER_JACKET_HALF_WIDTHS := [0.25, 0.34, 0.37, 0.42, 0.25]
 const RIDER_JACKET_HALF_DEPTHS := [0.22, 0.27, 0.29, 0.27, 0.19]
 const RIDER_JACKET_CENTER_Z := [0.03, 0.035, 0.02, 0.0, -0.01]
 const RIDER_JACKET_NORMAL_Y := [-0.3, -0.08, 0.0, 0.2, 0.68]
+const RIDER_HELMET_RADIAL_SEGMENTS := 12
+const RIDER_HELMET_HEIGHTS := [-0.23, -0.14, 0.02, 0.15, 0.23]
+const RIDER_HELMET_HALF_WIDTHS := [0.15, 0.215, 0.235, 0.19, 0.08]
+const RIDER_HELMET_HALF_DEPTHS := [0.16, 0.225, 0.24, 0.205, 0.09]
+const RIDER_HELMET_CENTER_Z := [0.025, 0.025, 0.02, 0.015, 0.005]
+const RIDER_HELMET_NORMAL_Y := [-0.72, -0.36, 0.02, 0.42, 0.88]
+const RIDER_LIMB_RADIAL_SEGMENTS := 10
+const RIDER_ARM_HEIGHTS := [-0.4, -0.2, 0.06, 0.4]
+const RIDER_ARM_HALF_WIDTHS := [0.09, 0.105, 0.125, 0.14]
+const RIDER_ARM_HALF_DEPTHS := [0.1, 0.12, 0.14, 0.15]
+const RIDER_ARM_CENTER_Z := [0.045, 0.015, -0.025, -0.015]
+const RIDER_ARM_NORMAL_Y := [-0.18, -0.08, 0.02, 0.18]
+const RIDER_LEG_HEIGHTS := [-0.4, -0.2, 0.04, 0.4]
+const RIDER_LEG_HALF_WIDTHS := [0.105, 0.135, 0.165, 0.16]
+const RIDER_LEG_HALF_DEPTHS := [0.13, 0.155, 0.18, 0.17]
+const RIDER_LEG_CENTER_Z := [0.075, -0.005, -0.055, 0.0]
+const RIDER_LEG_NORMAL_Y := [-0.2, -0.05, 0.04, 0.2]
 const AIRBORNE_GRAVITY_MULTIPLIER := 1.15
 
 
@@ -104,27 +124,53 @@ func _ready() -> void:
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_rideable_ground()
 	board_mesh_visual.mesh = _build_sandboard_mesh()
+	board_accent_visual.mesh = _build_deck_pad_mesh()
+	board_accent_visual.scale = Vector3.ONE
+	var binding_mesh := _build_binding_mesh()
+	left_binding_visual.mesh = binding_mesh
+	right_binding_visual.mesh = binding_mesh
+	left_binding_visual.scale = Vector3.ONE
+	right_binding_visual.scale = Vector3.ONE
 	torso_visual.mesh = _build_rider_jacket_mesh()
+	head_visual.mesh = _build_rider_helmet_mesh()
+	var arm_mesh := _build_profiled_limb_mesh(
+		RIDER_ARM_HEIGHTS,
+		RIDER_ARM_HALF_WIDTHS,
+		RIDER_ARM_HALF_DEPTHS,
+		RIDER_ARM_CENTER_Z,
+		RIDER_ARM_NORMAL_Y,
+	)
+	left_arm_visual.mesh = arm_mesh
+	right_arm_visual.mesh = arm_mesh
+	var leg_mesh := _build_profiled_limb_mesh(
+		RIDER_LEG_HEIGHTS,
+		RIDER_LEG_HALF_WIDTHS,
+		RIDER_LEG_HALF_DEPTHS,
+		RIDER_LEG_CENTER_Z,
+		RIDER_LEG_NORMAL_Y,
+	)
+	left_leg_visual.mesh = leg_mesh
+	right_leg_visual.mesh = leg_mesh
 	_cache_rider_pose()
 	_clear_carve_track()
 
 
 func _build_sandboard_mesh() -> ArrayMesh:
 	var outline := PackedVector2Array([
-		Vector2(0.0, -1.45),
-		Vector2(0.42, -1.35),
-		Vector2(0.6, -1.08),
-		Vector2(0.64, -0.55),
-		Vector2(0.64, 0.55),
-		Vector2(0.6, 1.08),
-		Vector2(0.42, 1.35),
-		Vector2(0.0, 1.45),
-		Vector2(-0.42, 1.35),
-		Vector2(-0.6, 1.08),
-		Vector2(-0.64, 0.55),
-		Vector2(-0.64, -0.55),
-		Vector2(-0.6, -1.08),
-		Vector2(-0.42, -1.35),
+		Vector2(0.0, -1.2),
+		Vector2(0.25, -1.15),
+		Vector2(0.37, -0.96),
+		Vector2(0.42, -0.52),
+		Vector2(0.42, 0.52),
+		Vector2(0.37, 0.96),
+		Vector2(0.25, 1.15),
+		Vector2(0.0, 1.2),
+		Vector2(-0.25, 1.15),
+		Vector2(-0.37, 0.96),
+		Vector2(-0.42, 0.52),
+		Vector2(-0.42, -0.52),
+		Vector2(-0.37, -0.96),
+		Vector2(-0.25, -1.15),
 	])
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -143,84 +189,168 @@ func _build_sandboard_mesh() -> ArrayMesh:
 	return builder.commit() as ArrayMesh
 
 
-func _build_rider_jacket_mesh() -> ArrayMesh:
+func _build_deck_pad_mesh() -> ArrayMesh:
+	var outline := PackedVector2Array([
+		Vector2(0.0, -0.76),
+		Vector2(0.24, -0.69),
+		Vector2(0.31, -0.46),
+		Vector2(0.31, 0.46),
+		Vector2(0.24, 0.69),
+		Vector2(0.0, 0.76),
+		Vector2(-0.24, 0.69),
+		Vector2(-0.31, 0.46),
+		Vector2(-0.31, -0.46),
+		Vector2(-0.24, -0.69),
+	])
+	return _build_shaped_prism(outline, -0.008, 0.012)
+
+
+func _build_binding_mesh() -> ArrayMesh:
+	var outline := PackedVector2Array([
+		Vector2(0.0, -0.19),
+		Vector2(0.1, -0.15),
+		Vector2(0.13, -0.02),
+		Vector2(0.11, 0.14),
+		Vector2(0.0, 0.19),
+		Vector2(-0.11, 0.14),
+		Vector2(-0.13, -0.02),
+		Vector2(-0.1, -0.15),
+	])
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for ring_index in range(RIDER_JACKET_HEIGHTS.size() - 1):
-		for segment_index in range(RIDER_JACKET_RADIAL_SEGMENTS):
-			var next_segment := (segment_index + 1) % RIDER_JACKET_RADIAL_SEGMENTS
-			var lower_left := _get_rider_jacket_vertex(ring_index, segment_index)
-			var lower_right := _get_rider_jacket_vertex(ring_index, next_segment)
-			var upper_left := _get_rider_jacket_vertex(ring_index + 1, segment_index)
-			var upper_right := _get_rider_jacket_vertex(ring_index + 1, next_segment)
-			var lower_left_normal := _get_rider_jacket_normal(ring_index, segment_index)
-			var lower_right_normal := _get_rider_jacket_normal(ring_index, next_segment)
-			var upper_left_normal := _get_rider_jacket_normal(ring_index + 1, segment_index)
-			var upper_right_normal := _get_rider_jacket_normal(ring_index + 1, next_segment)
-			_add_rider_mesh_triangle(
-				builder,
-				lower_left,
-				upper_left,
-				upper_right,
-				lower_left_normal,
-				upper_left_normal,
-				upper_right_normal,
-			)
-			_add_rider_mesh_triangle(
-				builder,
-				lower_left,
-				upper_right,
-				lower_right,
-				lower_left_normal,
-				upper_right_normal,
-				lower_right_normal,
-			)
-	var bottom_center := Vector3(0.0, RIDER_JACKET_HEIGHTS.front(), RIDER_JACKET_CENTER_Z.front())
-	var top_center := Vector3(0.0, RIDER_JACKET_HEIGHTS.back(), RIDER_JACKET_CENTER_Z.back())
-	for segment_index in range(RIDER_JACKET_RADIAL_SEGMENTS):
-		var next_segment := (segment_index + 1) % RIDER_JACKET_RADIAL_SEGMENTS
-		_add_rider_mesh_triangle(
-			builder,
-			bottom_center,
-			_get_rider_jacket_vertex(0, next_segment),
-			_get_rider_jacket_vertex(0, segment_index),
-			Vector3.DOWN,
-			Vector3.DOWN,
-			Vector3.DOWN,
-		)
-		_add_rider_mesh_triangle(
-			builder,
-			top_center,
-			_get_rider_jacket_vertex(RIDER_JACKET_HEIGHTS.size() - 1, segment_index),
-			_get_rider_jacket_vertex(RIDER_JACKET_HEIGHTS.size() - 1, next_segment),
-			Vector3.UP,
-			Vector3.UP,
-			Vector3.UP,
-		)
+	var bottom_center := Vector3(0.0, -0.035, 0.0)
+	var top_center := Vector3(0.0, 0.075, 0.025)
+	for point_index in range(outline.size()):
+		var next_index := (point_index + 1) % outline.size()
+		var point := outline[point_index]
+		var next_point := outline[next_index]
+		var bottom_a := Vector3(point.x, -0.035, point.y)
+		var bottom_b := Vector3(next_point.x, -0.035, next_point.y)
+		var top_a := Vector3(point.x * 0.86, _get_binding_top_height(point.y), point.y * 0.91)
+		var top_b := Vector3(next_point.x * 0.86, _get_binding_top_height(next_point.y), next_point.y * 0.91)
+		_add_board_triangle(builder, top_center, top_a, top_b)
+		_add_board_triangle(builder, bottom_center, bottom_b, bottom_a)
+		_add_board_triangle(builder, top_a, bottom_a, bottom_b)
+		_add_board_triangle(builder, top_a, bottom_b, top_b)
 	builder.index()
 	return builder.commit() as ArrayMesh
 
 
-func _get_rider_jacket_vertex(ring_index: int, segment_index: int) -> Vector3:
-	var angle := TAU * float(segment_index) / float(RIDER_JACKET_RADIAL_SEGMENTS)
-	return Vector3(
-		cos(angle) * float(RIDER_JACKET_HALF_WIDTHS[ring_index]),
-		float(RIDER_JACKET_HEIGHTS[ring_index]),
-		float(RIDER_JACKET_CENTER_Z[ring_index])
-			+ sin(angle) * float(RIDER_JACKET_HALF_DEPTHS[ring_index]),
+func _get_binding_top_height(longitudinal_position: float) -> float:
+	return 0.045 + smoothstep(-0.19, 0.19, longitudinal_position) * 0.075
+
+
+func _build_shaped_prism(outline: PackedVector2Array, bottom_height: float, top_height: float) -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var bottom_center := Vector3(0.0, bottom_height, 0.0)
+	var top_center := Vector3(0.0, top_height, 0.0)
+	for point_index in range(outline.size()):
+		var next_index := (point_index + 1) % outline.size()
+		var point := outline[point_index]
+		var next_point := outline[next_index]
+		var bottom_a := Vector3(point.x, bottom_height, point.y)
+		var bottom_b := Vector3(next_point.x, bottom_height, next_point.y)
+		var top_a := Vector3(point.x, top_height, point.y)
+		var top_b := Vector3(next_point.x, top_height, next_point.y)
+		_add_board_triangle(builder, top_center, top_a, top_b)
+		_add_board_triangle(builder, bottom_center, bottom_b, bottom_a)
+		_add_board_triangle(builder, top_a, bottom_a, bottom_b)
+		_add_board_triangle(builder, top_a, bottom_b, top_b)
+	builder.index()
+	return builder.commit() as ArrayMesh
+
+
+func _build_rider_helmet_mesh() -> ArrayMesh:
+	return _build_profiled_mesh(
+		RIDER_HELMET_RADIAL_SEGMENTS,
+		RIDER_HELMET_HEIGHTS,
+		RIDER_HELMET_HALF_WIDTHS,
+		RIDER_HELMET_HALF_DEPTHS,
+		RIDER_HELMET_CENTER_Z,
+		RIDER_HELMET_NORMAL_Y,
 	)
 
 
-func _get_rider_jacket_normal(ring_index: int, segment_index: int) -> Vector3:
-	var angle := TAU * float(segment_index) / float(RIDER_JACKET_RADIAL_SEGMENTS)
+func _build_profiled_limb_mesh(
+	heights: Array,
+	half_widths: Array,
+	half_depths: Array,
+	center_z: Array,
+	normal_y: Array,
+) -> ArrayMesh:
+	return _build_profiled_mesh(
+		RIDER_LIMB_RADIAL_SEGMENTS,
+		heights,
+		half_widths,
+		half_depths,
+		center_z,
+		normal_y,
+	)
+
+
+func _build_profiled_mesh(
+	radial_segments: int,
+	heights: Array,
+	half_widths: Array,
+	half_depths: Array,
+	center_z: Array,
+	normal_y: Array,
+) -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring_index in range(heights.size() - 1):
+		for segment_index in range(radial_segments):
+			var next_segment := (segment_index + 1) % radial_segments
+			var lower_left := _get_profile_vertex(ring_index, segment_index, radial_segments, heights, half_widths, half_depths, center_z)
+			var lower_right := _get_profile_vertex(ring_index, next_segment, radial_segments, heights, half_widths, half_depths, center_z)
+			var upper_left := _get_profile_vertex(ring_index + 1, segment_index, radial_segments, heights, half_widths, half_depths, center_z)
+			var upper_right := _get_profile_vertex(ring_index + 1, next_segment, radial_segments, heights, half_widths, half_depths, center_z)
+			var lower_left_normal := _get_profile_normal(ring_index, segment_index, radial_segments, half_widths, half_depths, normal_y)
+			var lower_right_normal := _get_profile_normal(ring_index, next_segment, radial_segments, half_widths, half_depths, normal_y)
+			var upper_left_normal := _get_profile_normal(ring_index + 1, segment_index, radial_segments, half_widths, half_depths, normal_y)
+			var upper_right_normal := _get_profile_normal(ring_index + 1, next_segment, radial_segments, half_widths, half_depths, normal_y)
+			_add_profile_triangle(builder, lower_left, upper_left, upper_right, lower_left_normal, upper_left_normal, upper_right_normal)
+			_add_profile_triangle(builder, lower_left, upper_right, lower_right, lower_left_normal, upper_right_normal, lower_right_normal)
+	_add_profile_caps(builder, radial_segments, heights, half_widths, half_depths, center_z)
+	builder.index()
+	return builder.commit() as ArrayMesh
+
+
+func _get_profile_vertex(
+	ring_index: int,
+	segment_index: int,
+	radial_segments: int,
+	heights: Array,
+	half_widths: Array,
+	half_depths: Array,
+	center_z: Array,
+) -> Vector3:
+	var angle := TAU * float(segment_index) / float(radial_segments)
 	return Vector3(
-		cos(angle) / float(RIDER_JACKET_HALF_WIDTHS[ring_index]),
-		float(RIDER_JACKET_NORMAL_Y[ring_index]),
-		sin(angle) / float(RIDER_JACKET_HALF_DEPTHS[ring_index]),
+		cos(angle) * float(half_widths[ring_index]),
+		float(heights[ring_index]),
+		float(center_z[ring_index]) + sin(angle) * float(half_depths[ring_index]),
+	)
+
+
+func _get_profile_normal(
+	ring_index: int,
+	segment_index: int,
+	radial_segments: int,
+	half_widths: Array,
+	half_depths: Array,
+	normal_y: Array,
+) -> Vector3:
+	var angle := TAU * float(segment_index) / float(radial_segments)
+	return Vector3(
+		cos(angle) / float(half_widths[ring_index]),
+		float(normal_y[ring_index]),
+		sin(angle) / float(half_depths[ring_index]),
 	).normalized()
 
 
-func _add_rider_mesh_triangle(
+func _add_profile_triangle(
 	builder: SurfaceTool,
 	first: Vector3,
 	second: Vector3,
@@ -236,8 +366,51 @@ func _add_rider_mesh_triangle(
 		builder.add_vertex(vertices[vertex_index])
 
 
+func _add_profile_caps(
+	builder: SurfaceTool,
+	radial_segments: int,
+	heights: Array,
+	half_widths: Array,
+	half_depths: Array,
+	center_z: Array,
+) -> void:
+	var bottom_center := Vector3(0.0, float(heights.front()), float(center_z.front()))
+	var top_center := Vector3(0.0, float(heights.back()), float(center_z.back()))
+	for segment_index in range(radial_segments):
+		var next_segment := (segment_index + 1) % radial_segments
+		_add_profile_triangle(
+			builder,
+			bottom_center,
+			_get_profile_vertex(0, next_segment, radial_segments, heights, half_widths, half_depths, center_z),
+			_get_profile_vertex(0, segment_index, radial_segments, heights, half_widths, half_depths, center_z),
+			Vector3.DOWN,
+			Vector3.DOWN,
+			Vector3.DOWN,
+		)
+		_add_profile_triangle(
+			builder,
+			top_center,
+			_get_profile_vertex(heights.size() - 1, segment_index, radial_segments, heights, half_widths, half_depths, center_z),
+			_get_profile_vertex(heights.size() - 1, next_segment, radial_segments, heights, half_widths, half_depths, center_z),
+			Vector3.UP,
+			Vector3.UP,
+			Vector3.UP,
+		)
+
+
+func _build_rider_jacket_mesh() -> ArrayMesh:
+	return _build_profiled_mesh(
+		RIDER_JACKET_RADIAL_SEGMENTS,
+		RIDER_JACKET_HEIGHTS,
+		RIDER_JACKET_HALF_WIDTHS,
+		RIDER_JACKET_HALF_DEPTHS,
+		RIDER_JACKET_CENTER_Z,
+		RIDER_JACKET_NORMAL_Y,
+	)
+
+
 func _get_board_vertex(point: Vector2, top_surface: bool) -> Vector3:
-	var tip_progress := smoothstep(0.72, 1.45, absf(point.y))
+	var tip_progress := smoothstep(0.6, 1.2, absf(point.y))
 	var tip_lift := pow(tip_progress, 1.6)
 	var height := (0.055 + tip_lift * 0.14) if top_surface else (-0.05 + tip_lift * 0.075)
 	return Vector3(point.x, height, point.y)
@@ -582,24 +755,24 @@ func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> voi
 	var carve := _carve_sign * _carve_intensity * (1.0 - _air_pose)
 	var boost_ratio := clampf(_boost_feedback_time / 0.2, 0.0, 1.0)
 	var torso_position := _rider_base_positions[0] + Vector3(
-		carve * 0.07,
+		carve * 0.085,
 		-rider_speed_crouch * crouch,
 		-0.08 * speed_ratio - 0.08 * boost_ratio,
 	)
 	var torso_rotation := _rider_base_rotations[0] + Vector3(
 		deg_to_rad(-11.0 * crouch - 8.0 * boost_ratio),
-		0.0,
+		deg_to_rad(3.0 * carve),
 		deg_to_rad(-rider_carve_lean_degrees * carve),
 	)
 	var head_position := _rider_base_positions[1] + Vector3(
-		carve * 0.035,
+		carve * 0.045,
 		-rider_speed_crouch * crouch * 0.72,
 		-0.035 * boost_ratio,
 	)
 	var head_rotation := _rider_base_rotations[1] + Vector3(
 		deg_to_rad(5.0 * crouch),
-		0.0,
-		deg_to_rad(7.0 * carve),
+		deg_to_rad(-6.0 * carve),
+		deg_to_rad(9.0 * carve),
 	)
 	var left_arm_rotation := _rider_base_rotations[2] + Vector3(
 		deg_to_rad(-9.0 * _air_pose),
@@ -612,15 +785,24 @@ func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> voi
 		deg_to_rad(22.0 * _air_pose + 12.0 * carve),
 	)
 	var leg_lift := rider_air_tuck * _air_pose - 0.04 * landing_ratio
-	var left_leg_position := _rider_base_positions[4] + Vector3(0.0, leg_lift, -0.04 * crouch)
-	var right_leg_position := _rider_base_positions[5] + Vector3(0.0, leg_lift, 0.04 * crouch)
+	var leg_height_difference := carve * 0.045
+	var left_leg_position := _rider_base_positions[4] + Vector3(
+		0.0,
+		leg_lift - leg_height_difference,
+		-0.04 * crouch,
+	)
+	var right_leg_position := _rider_base_positions[5] + Vector3(
+		0.0,
+		leg_lift + leg_height_difference,
+		0.04 * crouch,
+	)
 	var left_leg_rotation := _rider_base_rotations[4] + Vector3(
-		deg_to_rad(20.0 * crouch + 24.0 * _air_pose),
+		deg_to_rad(20.0 * crouch + 24.0 * _air_pose + 8.0 * carve),
 		0.0,
 		deg_to_rad(-8.0 * carve - 8.0 * _air_pose),
 	)
 	var right_leg_rotation := _rider_base_rotations[5] + Vector3(
-		deg_to_rad(-20.0 * crouch - 24.0 * _air_pose),
+		deg_to_rad(-20.0 * crouch - 24.0 * _air_pose + 8.0 * carve),
 		0.0,
 		deg_to_rad(-8.0 * carve + 8.0 * _air_pose),
 	)

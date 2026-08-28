@@ -1,4 +1,4 @@
-[gd_scene load_steps=37 format=3]
+[gd_scene load_steps=36 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -10,6 +10,7 @@
 
 [sub_resource type="ShaderMaterial" id="SkyMaterial_desert"]
 shader = ExtResource("7_sky")
+shader_parameter/horizon_haze_color = Color(0.55, 0.63, 0.64, 1)
 
 [sub_resource type="Sky" id="Sky_desert"]
 process_mode = 1
@@ -34,11 +35,10 @@ ssao_radius = 2.8
 ssao_intensity = 2.2
 ssao_power = 1.35
 fog_enabled = true
-fog_light_color = Color(0.48, 0.57, 0.59, 1)
+fog_light_color = Color(0.55, 0.63, 0.64, 1)
 fog_light_energy = 0.7
 fog_density = 0.00052
-fog_height = -400.0
-fog_height_density = 0.001
+fog_height_density = 0.0
 fog_aerial_perspective = 0.42
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_rider"]
@@ -46,25 +46,19 @@ radius = 0.54
 height = 2.1
 
 [sub_resource type="StandardMaterial3D" id="BoardMaterial"]
-albedo_color = Color(0.012, 0.055, 0.07, 1)
-metallic = 0.08
-roughness = 0.55
+albedo_color = Color(0.035, 0.11, 0.135, 1)
+metallic = 0.04
+roughness = 0.68
 emission_enabled = true
-emission = Color(0.004, 0.018, 0.024, 1)
-emission_energy_multiplier = 0.4
+emission = Color(0.003, 0.012, 0.016, 1)
+emission_energy_multiplier = 0.22
 
 [sub_resource type="StandardMaterial3D" id="AccentMaterial"]
-albedo_color = Color(0.82, 0.2, 0.045, 1)
-roughness = 0.62
+albedo_color = Color(0.72, 0.24, 0.055, 1)
+roughness = 0.7
 emission_enabled = true
-emission = Color(0.1, 0.015, 0.002, 1)
-emission_energy_multiplier = 0.55
-
-[sub_resource type="CapsuleMesh" id="RiderMesh"]
-radius = 0.36
-height = 1.06
-radial_segments = 14
-rings = 5
+emission = Color(0.035, 0.008, 0.001, 1)
+emission_energy_multiplier = 0.25
 
 [sub_resource type="StandardMaterial3D" id="RiderMaterial"]
 albedo_color = Color(0.157, 0.365, 0.408, 1)
@@ -231,7 +225,10 @@ light_energy = 1.5
 shadow_enabled = true
 shadow_opacity = 0.7
 shadow_blur = 1.9
-directional_shadow_max_distance = 820.0
+directional_shadow_mode = 2
+directional_shadow_blend_splits = true
+directional_shadow_fade_start = 0.86
+directional_shadow_max_distance = 1080.0
 
 [node name="Desert" type="StaticBody3D" parent="."]
 process_mode = 1
@@ -266,18 +263,6 @@ scale = Vector3(0.48, 0.025, 0.78)
 mesh = SubResource("RiderDetailMesh")
 material_override = SubResource("AccentMaterial")
 
-[node name="LeftRail" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
-position = Vector3(-0.54, -0.195, 0)
-scale = Vector3(0.035, 0.025, 0.92)
-mesh = SubResource("RiderDetailMesh")
-material_override = SubResource("AccentMaterial")
-
-[node name="RightRail" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
-position = Vector3(0.54, -0.195, 0)
-scale = Vector3(0.035, 0.025, 0.92)
-mesh = SubResource("RiderDetailMesh")
-material_override = SubResource("AccentMaterial")
-
 [node name="LeftBinding" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(-0.24, -0.13, 0.22)
 rotation_degrees = Vector3(0, 8, -5)
@@ -295,7 +280,6 @@ material_override = SubResource("BoardMaterial")
 [node name="Rider" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(0, 0.98, 0)
 rotation_degrees = Vector3(0, 0, -10)
-mesh = SubResource("RiderMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="JacketPanel" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Rider"]
@@ -325,7 +309,6 @@ material_override = SubResource("BoardMaterial")
 
 [node name="Head" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(-0.03, 1.69, -0.06)
-mesh = SubResource("HeadMesh")
 material_override = SubResource("HelmetMaterial")
 
 [node name="Visor" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Head"]
@@ -343,7 +326,6 @@ material_override = SubResource("AccentMaterial")
 [node name="LeftArm" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(-0.4, 1.08, 0.02)
 rotation_degrees = Vector3(-8, 0, -53)
-mesh = SubResource("LimbMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="LeftGlove" type="MeshInstance3D" parent="Sandboarder/BoardVisual/LeftArm"]
@@ -355,7 +337,6 @@ material_override = SubResource("BoardMaterial")
 [node name="RightArm" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(0.4, 1.08, -0.02)
 rotation_degrees = Vector3(8, 0, 53)
-mesh = SubResource("LimbMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="RightGlove" type="MeshInstance3D" parent="Sandboarder/BoardVisual/RightArm"]
@@ -367,7 +348,6 @@ material_override = SubResource("BoardMaterial")
 [node name="LeftLeg" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(-0.24, 0.3, 0.22)
 rotation_degrees = Vector3(-16, 0, -7)
-mesh = SubResource("LimbMesh")
 material_override = SubResource("PantsMaterial")
 
 [node name="LeftBoot" type="MeshInstance3D" parent="Sandboarder/BoardVisual/LeftLeg"]
@@ -385,7 +365,6 @@ material_override = SubResource("AccentMaterial")
 [node name="RightLeg" type="MeshInstance3D" parent="Sandboarder/BoardVisual"]
 position = Vector3(0.24, 0.3, -0.22)
 rotation_degrees = Vector3(16, 0, 7)
-mesh = SubResource("LimbMesh")
 material_override = SubResource("PantsMaterial")
 
 [node name="RightBoot" type="MeshInstance3D" parent="Sandboarder/BoardVisual/RightLeg"]
@@ -467,23 +446,20 @@ theme_override_font_sizes/font_size = 19
 text = "00:00\n000 km/h\n0 m descent\n0.00 km ridden"
 
 [node name="BoostStatus" type="Label" parent="HUD"]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -74.0
-offset_right = 150.0
-offset_bottom = -38.0
-grow_horizontal = 2
-grow_vertical = 0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 28.0
+offset_right = -28.0
+offset_bottom = 60.0
+grow_horizontal = 0
 theme_override_colors/font_shadow_color = Color(0.08, 0.04, 0.02, 0.9)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "AIR BOOST  •  CHARGED"
-horizontal_alignment = 1
+horizontal_alignment = 2
 
 [node name="LandingFeedback" type="Label" parent="HUD"]
 modulate = Color(1, 1, 1, 0)

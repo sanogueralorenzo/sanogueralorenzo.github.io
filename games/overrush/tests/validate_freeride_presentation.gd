@@ -20,6 +20,10 @@ func _run() -> void:
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
 	_expect(
+		is_zero_approx(environment.fog_height_density),
+		"Atmospheric depth must use rebase-stable distance fog rather than a fixed local-height layer.",
+	)
+	_expect(
 		environment.fog_aerial_perspective >= 0.35
 			and environment.fog_aerial_perspective <= 0.5,
 		"Fog should add distant depth without washing the sky into a flat gray backdrop.",
@@ -38,9 +42,11 @@ func _run() -> void:
 		"The high-desert backdrop needs one static quality-cached sky shader rather than the former flat procedural gradient.",
 	)
 	_expect(
-		sky_shader != null
+			sky_shader != null
 			and "sky_top_color" in sky_shader.code
 			and "sky_horizon_color" in sky_shader.code
+			and "horizon_haze_color" in sky_shader.code
+			and "sun_haze_color" in sky_shader.code
 			and "cloud_coverage" in sky_shader.code
 			and "cloud_opacity" in sky_shader.code
 			and "LIGHT0_DIRECTION" in sky_shader.code
@@ -51,6 +57,22 @@ func _run() -> void:
 			and not "TIME" in sky_shader.code,
 		"The static sky must provide a graded horizon, restrained half-resolution cirrus, and sun glow without forcing real-time cubemap updates.",
 	)
+	var horizon_haze_value = sky_material.get_shader_parameter("horizon_haze_color")
+	var horizon_haze := Vector3.ZERO
+	if horizon_haze_value is Color:
+		horizon_haze = Vector3(horizon_haze_value.r, horizon_haze_value.g, horizon_haze_value.b)
+	elif horizon_haze_value is Vector3:
+		horizon_haze = horizon_haze_value
+	var fog_haze_distance := (
+		absf(horizon_haze.x - environment.fog_light_color.r)
+		+ absf(horizon_haze.y - environment.fog_light_color.g)
+		+ absf(horizon_haze.z - environment.fog_light_color.b)
+	)
+	_expect(
+		horizon_haze_value != null and fog_haze_distance <= 0.12,
+		"Fog and the low-angle sky should share one coherent distance palette: %.3f color distance."
+		% fog_haze_distance,
+	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
 		sun.light_energy >= 1.45
@@ -59,7 +81,12 @@ func _run() -> void:
 			and sun.shadow_opacity >= 0.65
 			and sun.shadow_opacity <= 0.75
 			and sun.shadow_blur >= 1.5
-			and sun.shadow_blur <= 2.2,
+			and sun.shadow_blur <= 2.2
+			and sun.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+			and sun.directional_shadow_blend_splits
+			and sun.directional_shadow_fade_start >= 0.8
+			and sun.directional_shadow_max_distance >= 960.0
+			and sun.directional_shadow_max_distance <= 1200.0,
 		"Warm grazing daylight should separate mountain folds and hazards without the former dim orange cast or hard-edged shadows.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
@@ -224,14 +251,16 @@ func _run() -> void:
 		var board_bounds := board.mesh.get_aabb()
 		_expect(
 			board.mesh.surface_get_array_len(0) >= 150
-				and board_bounds.size.x >= 1.2
-				and board_bounds.size.z >= 2.8
+				and board_bounds.size.x >= 0.78
+				and board_bounds.size.x <= 0.95
+				and board_bounds.size.z >= 2.25
+				and board_bounds.size.z <= 2.55
 				and board_bounds.size.y >= 0.2,
-			"The board needs a wide, long, beveled deck with readable upturned tips: %s."
+			"The board needs a proportionate, beveled sandboard deck with readable upturned tips: %s."
 			% str(board_bounds),
 		)
 		_expect(
-			rider._get_board_vertex(Vector2(0.0, -1.45), true).y
+			rider._get_board_vertex(Vector2(0.0, -board_bounds.size.z * 0.5), true).y
 				- rider._get_board_vertex(Vector2(0.0, 0.0), true).y >= 0.13,
 			"The sandboard nose and tail should visibly rise above the center deck.",
 		)
@@ -254,11 +283,17 @@ func _run() -> void:
 		"The jacket accent should remain a small orientation cue rather than a primitive rectangular torso panel.",
 	)
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
-		_expect(rider.get_node_or_null("BoardVisual/%s" % part_name) is MeshInstance3D, "The rider silhouette is missing %s." % part_name)
+		var rider_part := rider.get_node_or_null("BoardVisual/%s" % part_name) as MeshInstance3D
+		_expect(
+			rider_part != null
+				and rider_part.mesh is ArrayMesh
+				and rider_part.mesh.surface_get_array_len(0) >= 60
+				and rider_part.mesh.surface_get_array_len(0) <= 100,
+			"The rider's primary %s silhouette needs one bounded authored mesh rather than a stock sphere or capsule."
+			% part_name,
+		)
 	for detail_path in [
 		"BoardVisual/BoardAccent",
-		"BoardVisual/LeftRail",
-		"BoardVisual/RightRail",
 		"BoardVisual/LeftBinding",
 		"BoardVisual/RightBinding",
 		"BoardVisual/Rider/JacketPanel",
@@ -275,6 +310,19 @@ func _run() -> void:
 		"BoardVisual/RightLeg/RightKnee",
 	]:
 		_expect(rider.get_node_or_null(detail_path) is MeshInstance3D, "The articulated rider is missing visual detail %s." % detail_path)
+	_expect(
+		rider.get_node_or_null("BoardVisual/LeftRail") == null
+			and rider.get_node_or_null("BoardVisual/RightRail") == null
+			and rider.board_visual.find_children("*", "MeshInstance3D", true, false).size() <= 22,
+		"The authored board edge should replace redundant rectangular rail nodes and keep rider draw ownership bounded.",
+	)
+	for shaped_board_detail in ["BoardVisual/BoardAccent", "BoardVisual/LeftBinding", "BoardVisual/RightBinding"]:
+		var board_detail := rider.get_node(shaped_board_detail) as MeshInstance3D
+		_expect(
+			board_detail.mesh is ArrayMesh,
+			"Board pads and bindings should use bounded authored profiles instead of cuboid garnish: %s."
+			% shaped_board_detail,
+		)
 	var jacket_material := rider.torso_visual.material_override as StandardMaterial3D
 	var pants_material := rider.left_leg_visual.material_override as StandardMaterial3D
 	var helmet_material := rider.head_visual.material_override as StandardMaterial3D
@@ -300,6 +348,8 @@ func _run() -> void:
 	)
 	var torso_base_rotation := rider.torso_visual.rotation
 	var left_arm_base_rotation := rider.left_arm_visual.rotation
+	var left_leg_base_position := rider.left_leg_visual.position
+	var right_leg_base_position := rider.right_leg_visual.position
 	rider.velocity = Vector3(rider.maximum_speed * 0.82, 0.0, 0.0)
 	rider._carve_intensity = 1.0
 	rider._carve_sign = 1.0
@@ -311,6 +361,13 @@ func _run() -> void:
 	_expect(
 		absf(rider.left_arm_visual.rotation.z - left_arm_base_rotation.z) >= deg_to_rad(9.0),
 		"The rider arms should counterbalance a committed carve rather than remain rigid.",
+	)
+	_expect(
+		absf(
+			(rider.left_leg_visual.position.y - left_leg_base_position.y)
+				- (rider.right_leg_visual.position.y - right_leg_base_position.y)
+		) >= 0.07,
+		"A committed carve should load the inside and outside legs asymmetrically instead of moving as a rigid mannequin.",
 	)
 	rider._update_rider_pose(1.0, false, 0.82)
 	_expect(rider._air_pose >= 0.95, "Airborne movement should produce a readable tucked rider silhouette.")
@@ -394,6 +451,14 @@ func _run() -> void:
 		"Carve-track feedback must remain bounded, sampled efficiently, and lifted above terrain seams.",
 	)
 
+	var boost_status := scene.get_node("HUD/BoostStatus") as Label
+	_expect(
+		is_equal_approx(boost_status.anchor_left, 1.0)
+			and is_equal_approx(boost_status.anchor_right, 1.0)
+			and is_zero_approx(boost_status.anchor_top)
+			and boost_status.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT,
+		"Persistent boost state should occupy a top corner rather than masking the rider, board, and landing line.",
+	)
 	var camera = scene.get_node("FollowCamera")
 	_expect(
 		camera.normal_fov <= 66.0
@@ -507,11 +572,14 @@ func _run() -> void:
 
 	var shader: Shader = load("res://shaders/desert.gdshader")
 	_expect(
-		"key_light_direction" in shader.code
+		not "key_light_direction" in shader.code
+			and "material_response" in shader.code
+			and "CAMERA_POSITION_WORLD" in shader.code
+			and "fwidth" in shader.code
 			and "wind_crest" in shader.code
 			and "grass_weight" in shader.code
 			and "surface_texture_scale = 0.08" in shader.code,
-		"The terrain shader should expose directional slope depth, readable wind ridges, and seamless biome blending.",
+		"The terrain shader should let real lighting define slope depth while preserving anti-aliased material detail, wind ridges, and seamless biome blending.",
 	)
 	_expect(
 		"sand_albedo" in shader.code

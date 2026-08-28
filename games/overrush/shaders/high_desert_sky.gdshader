@@ -1,10 +1,12 @@
 shader_type sky;
 render_mode use_half_res_pass;
 
-uniform vec3 sky_top_color : source_color = vec3(0.025, 0.18, 0.34);
-uniform vec3 sky_horizon_color : source_color = vec3(0.24, 0.58, 0.72);
+uniform vec3 sky_top_color : source_color = vec3(0.022, 0.16, 0.34);
+uniform vec3 sky_horizon_color : source_color = vec3(0.27, 0.55, 0.67);
+uniform vec3 horizon_haze_color : source_color = vec3(0.55, 0.63, 0.64);
+uniform vec3 sun_haze_color : source_color = vec3(0.91, 0.69, 0.46);
 uniform vec3 ground_bottom_color : source_color = vec3(0.07, 0.13, 0.18);
-uniform vec3 cloud_shadow_color : source_color = vec3(0.50, 0.61, 0.65);
+uniform vec3 cloud_shadow_color : source_color = vec3(0.48, 0.58, 0.61);
 uniform vec3 cloud_light_color : source_color = vec3(0.96, 0.91, 0.80);
 uniform float cloud_coverage : hint_range(0.35, 0.75) = 0.50;
 uniform float cloud_opacity : hint_range(0.0, 0.5) = 0.34;
@@ -34,12 +36,21 @@ float fbm(vec2 point) {
 	return value;
 }
 
-vec3 generate_atmosphere(vec3 direction) {
+vec3 generate_atmosphere(vec3 direction, float haze_strength) {
 	float up = clamp(direction.y, 0.0, 1.0);
 	float sky_blend = pow(up, 0.62);
 	vec3 sky_color = mix(sky_horizon_color, sky_top_color, sky_blend);
-	float horizon_haze = exp(-abs(direction.y) * 8.0);
-	sky_color = mix(sky_color, sky_horizon_color * 1.06, horizon_haze * 0.2);
+	float horizon_haze = exp(-abs(direction.y) * 9.0);
+	vec3 low_angle_haze = horizon_haze_color;
+
+	if (LIGHT0_ENABLED) {
+		vec2 view_heading = normalize(direction.xz + vec2(0.0001));
+		vec2 sun_heading = normalize(LIGHT0_DIRECTION.xz + vec2(0.0001));
+		float sun_side = pow(max(dot(view_heading, sun_heading), 0.0), 5.0);
+		low_angle_haze = mix(low_angle_haze, sun_haze_color, sun_side * 0.16);
+	}
+	vec3 horizon_color = mix(sky_horizon_color, low_angle_haze, haze_strength);
+	sky_color = mix(sky_color, horizon_color, horizon_haze);
 
 	if (LIGHT0_ENABLED && direction.y > 0.0) {
 		float sun_angle = acos(clamp(dot(direction, LIGHT0_DIRECTION), -1.0, 1.0));
@@ -49,7 +60,7 @@ vec3 generate_atmosphere(vec3 direction) {
 	}
 
 	float below_horizon = clamp(-direction.y, 0.0, 1.0);
-	vec3 ground_color = mix(sky_horizon_color, ground_bottom_color, pow(below_horizon, 0.54));
+	vec3 ground_color = mix(horizon_color, ground_bottom_color, pow(below_horizon, 0.54));
 	return mix(ground_color, sky_color, step(0.0, direction.y)) * sky_energy;
 }
 
@@ -76,10 +87,10 @@ void sky() {
 		COLOR = clouds.rgb;
 		ALPHA = clouds.a;
 	} else if (AT_CUBEMAP_PASS) {
-		vec3 atmosphere = generate_atmosphere(EYEDIR);
+		vec3 atmosphere = generate_atmosphere(EYEDIR, 0.3);
 		vec4 clouds = generate_clouds(EYEDIR);
 		COLOR = mix(atmosphere, clouds.rgb, clouds.a);
 	} else {
-		COLOR = mix(generate_atmosphere(EYEDIR), HALF_RES_COLOR.rgb, HALF_RES_COLOR.a);
+		COLOR = mix(generate_atmosphere(EYEDIR, 0.42), HALF_RES_COLOR.rgb, HALF_RES_COLOR.a);
 	}
 }
