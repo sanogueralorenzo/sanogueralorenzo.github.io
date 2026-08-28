@@ -104,8 +104,8 @@ func get_rock_position(cell: Vector2i) -> Vector2:
 
 func get_rock_density(logical_position: Vector2) -> float:
 	var summit_fade := smoothstep(ROCK_SUMMIT_CLEAR_RADIUS, ROCK_SUMMIT_CLEAR_RADIUS + 180.0, logical_position.length())
-	var cluster := smoothstep(-0.08, 0.42, _glade_noise.get_noise_2dv(logical_position))
-	var biome_density := lerpf(0.34, 0.48, get_grass_weight(logical_position))
+	var cluster := smoothstep(-0.16, 0.38, _glade_noise.get_noise_2dv(logical_position))
+	var biome_density := lerpf(0.48, 0.58, get_grass_weight(logical_position))
 	return biome_density * summit_fade * cluster
 
 

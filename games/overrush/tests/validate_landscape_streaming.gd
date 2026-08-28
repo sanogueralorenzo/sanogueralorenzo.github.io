@@ -22,7 +22,7 @@ func _run() -> void:
 	var initial_tree_count := world.get_loaded_tree_count()
 	var initial_rock_count := world.get_loaded_rock_count()
 	_expect(initial_tree_count >= 1500 and initial_tree_count <= 4200, "The opening stream should contain consequential forests with preserved glades: %d trees." % initial_tree_count)
-	_expect(initial_rock_count >= 60 and initial_rock_count <= 500, "The opening stream should contain frequent but avoidable rock hazards: %d rocks." % initial_rock_count)
+	_expect(initial_rock_count >= 120 and initial_rock_count <= 500, "The opening stream should contain frequent but avoidable rock hazards: %d rocks." % initial_rock_count)
 	_validate_loaded_trees(world)
 	_validate_loaded_rocks(world)
 	_validate_surface_feedback(world, rider)
@@ -110,7 +110,7 @@ func _validate_loaded_rocks(world: ProceduralDesert) -> void:
 			if child is CollisionShape3D:
 				collision_count += 1
 	_expect(field_body_count >= 4, "Several streamed chunks should contain batched rock fields.")
-	_expect(collision_count >= 40, "Rock-field collision should match the visible hazard density: %d shapes." % collision_count)
+	_expect(collision_count >= 80, "Rock-field collision should match the visible hazard density: %d shapes." % collision_count)
 
 
 func _find_nearest_ruin(world: ProceduralDesert) -> Vector2i:

@@ -67,8 +67,27 @@ func _run() -> void:
 		% [canopy_y_levels.size(), str(canopy_bounds)],
 	)
 	_expect(
-		world._rock_mesh is ArrayMesh and world._rock_mesh.surface_get_array_len(0) >= 150,
-		"Rock hazards should use irregular faceted boulders rather than stretched primitive spheres.",
+		world._rock_mesh is ArrayMesh
+			and ProceduralDesert.ROCK_RADIAL_SEGMENTS >= 12
+			and world._rock_mesh.surface_get_array_len(0) >= 330
+			and world._rock_mesh.surface_get_array_len(0) <= 420,
+		"Rock hazards should use rounded weathered boulders with bounded faceting rather than stretched primitive shards.",
+	)
+	var rock_arrays := world._rock_mesh.surface_get_arrays(0)
+	var rock_normals: PackedVector3Array = rock_arrays[Mesh.ARRAY_NORMAL]
+	var rounded_rock_normals := {}
+	for rock_normal in rock_normals:
+		rounded_rock_normals[Vector3i(
+			roundi(rock_normal.x * 1000.0),
+			roundi(rock_normal.y * 1000.0),
+			roundi(rock_normal.z * 1000.0),
+		)] = true
+	_expect(
+		rock_normals.size() == world._rock_mesh.surface_get_array_len(0)
+			and rounded_rock_normals.size() >= 50
+			and rounded_rock_normals.size() <= 80,
+		"Rock lighting should share smooth outward normals across the bounded asymmetric profile: %d unique normals."
+		% rounded_rock_normals.size(),
 	)
 	_expect(
 		world._ruin_block_mesh is ArrayMesh
