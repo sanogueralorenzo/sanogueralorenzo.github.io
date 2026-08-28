@@ -36,9 +36,23 @@ func _run() -> void:
 	_expect(scene._run_crashed and not scene.run_active, "A direct tree strike at speed should end the active run.")
 	_expect(_crash_kind == &"tree", "The crash should identify the contacted tree, received %s." % _crash_kind)
 	_expect(_impact_speed >= rider.fatal_obstacle_impact_speed, "The reported impact must meet the fatal closing-speed threshold.")
+	_expect(not paused and not scene.pause_overlay.visible, "The result panel should wait while the frozen impact feedback remains visible.")
+	_expect(rider.landing_burst.emitting, "A fatal obstacle impact should produce immediate contact debris during the consequence beat.")
+	await _wait_for_crash_overlay(scene)
 	_expect(paused and scene.pause_overlay.visible, "A fatal impact should freeze play and show the run-ended overlay.")
 	_expect(not scene.resume_button.visible and scene.restart_button.visible, "A crashed run may restart but must not resume through the obstacle.")
 	_expect("TREE IMPACT" in scene.pause_title.text, "The run-ended overlay should explain the collision immediately.")
+	_expect(
+		rider.board_visual.position.y <= -0.1
+			and absf(rider.torso_visual.rotation.x - rider._rider_base_rotations[0].x) >= deg_to_rad(18.0)
+			and absf(rider.left_arm_visual.rotation.z - rider._rider_base_rotations[2].z) >= deg_to_rad(28.0),
+		"A fatal impact should freeze the board and rider in a readable collision pose: board %.2f, torso %.1f°, arm %.1f°."
+		% [
+			rider.board_visual.position.y,
+			rad_to_deg(absf(rider.torso_visual.rotation.x - rider._rider_base_rotations[0].x)),
+			rad_to_deg(absf(rider.left_arm_visual.rotation.z - rider._rider_base_rotations[2].z)),
+		],
+	)
 
 	scene.restart_run()
 	_crash_kind = &""
@@ -57,12 +71,18 @@ func _run() -> void:
 		_crash_kind = &""
 		_impact_speed = 0.0
 		await _strike_target(scene, world, rider, rock_target.position)
+		await _wait_for_crash_overlay(scene)
 		_expect(scene._run_crashed and _crash_kind == &"rock", "A direct rock strike at speed should end the run as a rock impact.")
 		_expect("ROCK IMPACT" in scene.pause_title.text, "The run-ended overlay should identify a rock collision immediately.")
 
 	scene.restart_run()
 	_expect(not paused and scene.run_active and not scene._run_crashed, "Drop Again should start a clean run from the summit.")
 	_expect(not rider._crashed and rider.velocity.is_zero_approx(), "Restart must clear the rider crash state and momentum.")
+	_expect(
+		rider.board_visual.position.is_zero_approx()
+			and rider.torso_visual.rotation.is_equal_approx(rider._rider_base_rotations[0]),
+		"Drop Again must clear the collision pose before returning to the summit.",
+	)
 	_expect(
 		rider._carve_track_points.is_empty()
 			and (scene.get_node("CarveTrack") as MeshInstance3D).mesh == null,
@@ -118,6 +138,13 @@ func _skim_target(scene: Node, world: ProceduralDesert, rider: Sandboarder, targ
 		if logical_position.x >= target_position.x + 8.0:
 			return true
 	return false
+
+
+func _wait_for_crash_overlay(scene: Node) -> void:
+	for _frame in range(60):
+		if paused and scene.pause_overlay.visible:
+			return
+		await process_frame
 
 
 func _find_obstacle_target(world: ProceduralDesert, obstacle_name: String) -> Dictionary:

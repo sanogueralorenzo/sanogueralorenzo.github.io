@@ -16,7 +16,7 @@ func _init() -> void:
 	library.clear()
 	audio.free()
 	if _failures.is_empty():
-		print("Audio synthesis validation passed — ambient, 3 motion loops, and 5 freeride effects built in %.2f ms." % build_milliseconds)
+		print("Audio synthesis validation passed — ambient, 3 motion loops, and 6 freeride effects built in %.2f ms." % build_milliseconds)
 		quit(0)
 	else:
 		for failure in _failures:
@@ -31,6 +31,7 @@ func _validate_library(library: Dictionary) -> void:
 		&"landing_clean",
 		&"landing_solid",
 		&"landing_rough",
+		&"obstacle_impact",
 	]
 	_expect(library.size() == expected_effects.size() + AudioDirectorModel.MOTION_LOOP_IDS.size() + 1, "The sound library should contain only ambient, continuous traversal, and core event feedback.")
 	_expect(library.has(&"music"), "Missing synthesized ambient music layer.")

@@ -2,6 +2,7 @@ extends Node3D
 
 const SETTINGS_PATH := "user://overrush_settings.cfg"
 const SETTINGS_SECTION := "accessibility"
+const CRASH_PRESENTATION_DURATION := 0.32
 
 @onready var desert: ProceduralDesert = $Desert
 @onready var rider: Sandboarder = $Sandboarder
@@ -255,14 +256,17 @@ func _on_jumped() -> void:
 func _on_rider_crashed(obstacle_kind: StringName, impact_speed: float) -> void:
 	_run_crashed = true
 	run_active = false
-	get_tree().paused = true
+	follow_camera.set_controls_enabled(false)
+	audio_director.play_obstacle_impact(impact_speed)
+	await get_tree().create_timer(CRASH_PRESENTATION_DURATION).timeout
+	if not _run_crashed:
+		return
 	pause_overlay.visible = true
 	pause_title.text = "%s IMPACT\n%03d KM/H" % [String(obstacle_kind).to_upper(), roundi(impact_speed * 3.6)]
 	resume_button.visible = false
 	restart_button.text = "DROP AGAIN"
-	follow_camera.set_controls_enabled(false)
 	restart_button.grab_focus()
-	audio_director.play_landing(SandboardMotion.LANDING_ROUGH)
+	get_tree().paused = true
 
 
 func _configure_pause_overlay() -> void:

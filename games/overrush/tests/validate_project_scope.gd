@@ -48,7 +48,7 @@ func _init() -> void:
 	for effect_id in OverrushAudioDirector.EFFECT_DURATIONS:
 		effect_ids.append(str(effect_id))
 	effect_ids.sort()
-	var expected_effects: Array[String] = ["air_boost", "jump", "landing_clean", "landing_rough", "landing_solid"]
+	var expected_effects: Array[String] = ["air_boost", "jump", "landing_clean", "landing_rough", "landing_solid", "obstacle_impact"]
 	_expect(effect_ids == expected_effects, "Audio should contain only core movement feedback: %s." % str(effect_ids))
 	var motion_loop_ids: Array[String] = []
 	for loop_id in OverrushAudioDirector.MOTION_LOOP_IDS:
@@ -60,7 +60,7 @@ func _init() -> void:
 	)
 
 	if _failures.is_empty():
-		print("Project scope passed — one freeride scene, 11 runtime scripts, one shader, 11 inputs, 3 traversal loops, and 5 event cues remain.")
+		print("Project scope passed — one freeride scene, 11 runtime scripts, one shader, 11 inputs, 3 traversal loops, and 6 event cues remain.")
 		quit(0)
 	else:
 		for failure in _failures:

@@ -424,6 +424,7 @@ process_material = SubResource("SurfaceTrailProcess")
 draw_pass_1 = SubResource("SurfaceGrainMesh")
 
 [node name="LandingBurst" type="GPUParticles3D" parent="Sandboarder"]
+process_mode = 3
 position = Vector3(0, -0.22, 0)
 emitting = false
 amount = 54

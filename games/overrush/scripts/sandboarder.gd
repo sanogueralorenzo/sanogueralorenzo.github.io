@@ -371,6 +371,7 @@ func _detect_fatal_obstacle_impact(incoming_velocity: Vector3) -> bool:
 			continue
 		var impact_speed := maxf(0.0, -incoming_velocity.dot(collision.get_normal().normalized()))
 		_crashed = true
+		_apply_crash_feedback(collision.get_normal(), incoming_velocity)
 		velocity = Vector3.ZERO
 		surface_trail.emitting = false
 		boost_trail.emitting = false
@@ -378,6 +379,25 @@ func _detect_fatal_obstacle_impact(incoming_velocity: Vector3) -> bool:
 		crashed.emit(_world.get_obstacle_kind(collider), impact_speed)
 		return true
 	return false
+
+
+func _apply_crash_feedback(collision_normal: Vector3, incoming_velocity: Vector3) -> void:
+	var incoming_horizontal := Vector3(incoming_velocity.x, 0.0, incoming_velocity.z).normalized()
+	var normal_horizontal := Vector3(collision_normal.x, 0.0, collision_normal.z).normalized()
+	var impact_side := signf(incoming_horizontal.cross(normal_horizontal).y)
+	if is_zero_approx(impact_side):
+		impact_side = 1.0
+	board_visual.position.y = -0.12
+	board_visual.rotate_object_local(Vector3.RIGHT, deg_to_rad(24.0))
+	board_visual.rotate_object_local(Vector3.FORWARD, deg_to_rad(18.0 * impact_side))
+	torso_visual.rotation += Vector3(deg_to_rad(34.0), 0.0, deg_to_rad(20.0 * impact_side))
+	head_visual.rotation += Vector3(deg_to_rad(12.0), 0.0, deg_to_rad(12.0 * impact_side))
+	left_arm_visual.rotation += Vector3(deg_to_rad(-18.0), 0.0, deg_to_rad(-34.0))
+	right_arm_visual.rotation += Vector3(deg_to_rad(18.0), 0.0, deg_to_rad(34.0))
+	left_leg_visual.rotation += Vector3(deg_to_rad(18.0), 0.0, deg_to_rad(-12.0 * impact_side))
+	right_leg_visual.rotation += Vector3(deg_to_rad(-18.0), 0.0, deg_to_rad(12.0 * impact_side))
+	landing_burst.restart()
+	landing_burst.emitting = true
 
 
 func _limit_horizontal_speed(limit: float) -> void:

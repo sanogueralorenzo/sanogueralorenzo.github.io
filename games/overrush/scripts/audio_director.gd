@@ -13,6 +13,7 @@ const EFFECT_DURATIONS := {
 	&"landing_clean": 0.28,
 	&"landing_solid": 0.22,
 	&"landing_rough": 0.3,
+	&"obstacle_impact": 0.42,
 }
 
 var master_level := 0.8
@@ -89,6 +90,11 @@ func play_landing(rating: StringName) -> void:
 			_play_effect(&"landing_solid", -4.0, 1.0)
 		_:
 			_play_effect(&"landing_rough", -2.0, 1.0)
+
+
+func play_obstacle_impact(impact_speed: float) -> void:
+	var impact_ratio := clampf(impact_speed / 60.0, 0.0, 1.0)
+	_play_effect(&"obstacle_impact", lerpf(-2.0, -0.5, impact_ratio), lerpf(0.78, 0.96, impact_ratio))
 
 
 func build_sound_library() -> Dictionary:
@@ -250,6 +256,10 @@ func _sample_effect(effect_id: StringName, time: float, progress: float, noise: 
 			return (sin(TAU * 170.0 * time) * 0.4 + noise * 0.3) * exp(-12.0 * time)
 		&"landing_rough":
 			return (sin(TAU * (105.0 * time - 18.0 * time * time)) * 0.45 + noise * 0.48) * exp(-8.0 * time)
+		&"obstacle_impact":
+			var thud := sin(TAU * (72.0 * time - 11.0 * time * time)) * 0.42
+			var crack := sin(TAU * 235.0 * time + noise * 1.4) * 0.14
+			return (thud + crack + noise * 0.32) * exp(-6.2 * time)
 		_:
 			return 0.0
 
