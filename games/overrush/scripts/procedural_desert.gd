@@ -31,7 +31,7 @@ const HORIZON_CHUNK_RESOLUTION := 17
 @export var rebase_distance := 1536.0
 @export var seed := 0
 @export var summit_height := 520.0
-@export var radial_grade := 0.52
+@export var radial_grade := 0.565
 @export var summit_softening_radius := 36.0
 
 var generated_seed := 0

@@ -82,7 +82,7 @@ func _run() -> void:
 			and horizon_sample.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 		"Distant mountain terrain must remain a render-only low-detail surface with no collision or obstacle content.",
 	)
-	_expect(world.radial_grade >= 0.5, "The base mountainside needs a sustained steep grade that reads as freeriding rather than flat traversal.")
+	_expect(world.radial_grade >= 0.56, "The base mountainside needs a sustained steep grade that reads as freeriding rather than flat traversal.")
 	_expect(
 		ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_START < ProceduralDesert.SUMMIT_RELIEF_BLEND_START
 			and ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_END > ProceduralDesert.SUMMIT_RELIEF_BLEND_END,
@@ -384,13 +384,14 @@ func _run() -> void:
 	_expect(
 		camera.follow_distance <= 6.5
 			and rad_to_deg(atan2(camera.follow_height, camera.follow_distance)) >= 30.0
-			and camera.look_ahead >= 10.0,
+			and camera.look_ahead >= 18.0
+			and camera.focus_height <= 0.7,
 		"Third-person framing should keep the rider large enough for high-speed pose reading while looking down into the mountain line.",
 	)
 	_expect(
-		camera.normal_fov <= 70.0
-			and camera.speed_fov_addition <= 7.0
-			and camera.boost_fov <= 88.0,
+		camera.normal_fov <= 66.0
+			and camera.speed_fov_addition <= 4.0
+			and camera.boost_fov <= 82.0,
 		"Chase framing should preserve speed feedback without shrinking the rider and hazards through an excessively wide lens.",
 	)
 	_expect(
