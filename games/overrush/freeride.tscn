@@ -11,10 +11,10 @@ sky_top_color = Color(0.025, 0.18, 0.34, 1)
 sky_horizon_color = Color(0.24, 0.58, 0.72, 1)
 sky_curve = 0.68
 sky_energy_multiplier = 1.08
-ground_bottom_color = Color(0.08, 0.085, 0.095, 1)
-ground_horizon_color = Color(0.38, 0.43, 0.44, 1)
+ground_bottom_color = Color(0.07, 0.13, 0.18, 1)
+ground_horizon_color = Color(0.24, 0.58, 0.72, 1)
 ground_curve = 0.54
-ground_energy_multiplier = 0.86
+ground_energy_multiplier = 1.08
 sun_angle_max = 8.0
 sun_curve = 0.12
 
@@ -45,7 +45,7 @@ fog_light_energy = 0.7
 fog_density = 0.00052
 fog_height = -400.0
 fog_height_density = 0.001
-aerial_perspective = 0.68
+fog_aerial_perspective = 0.42
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape_rider"]
 radius = 0.54

@@ -19,6 +19,11 @@ func _run() -> void:
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
 	_expect(
+		environment.fog_aerial_perspective >= 0.35
+			and environment.fog_aerial_perspective <= 0.5,
+		"Fog should add distant depth without washing the sky into a flat gray backdrop.",
+	)
+	_expect(
 		environment.ambient_light_energy >= 0.7
 			and environment.ambient_light_sky_contribution >= 0.88
 			and environment.adjustment_contrast <= 1.05,
@@ -30,6 +35,17 @@ func _run() -> void:
 			and sky_material.sky_horizon_color.get_luminance() >= 0.5
 			and sky_material.sky_curve >= 0.6,
 		"The high-desert sky needs enough vertical gradient to avoid a flat cyan backdrop while preserving a bright horizon.",
+	)
+	var horizon_color_difference := (
+		absf(sky_material.sky_horizon_color.r - sky_material.ground_horizon_color.r)
+		+ absf(sky_material.sky_horizon_color.g - sky_material.ground_horizon_color.g)
+		+ absf(sky_material.sky_horizon_color.b - sky_material.ground_horizon_color.b)
+	)
+	_expect(
+		horizon_color_difference <= 0.02
+			and is_equal_approx(sky_material.sky_energy_multiplier, sky_material.ground_energy_multiplier)
+			and sky_material.ground_bottom_color.b > sky_material.ground_bottom_color.r,
+		"Sky and ground horizons must share color and energy so reduced fog does not expose a hard seam.",
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
