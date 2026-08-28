@@ -299,8 +299,8 @@ mesh = SubResource("RiderMesh")
 material_override = SubResource("RiderMaterial")
 
 [node name="JacketPanel" type="MeshInstance3D" parent="Sandboarder/BoardVisual/Rider"]
-position = Vector3(0, 0.02, 0.365)
-scale = Vector3(0.22, 0.31, 0.035)
+position = Vector3(0, 0.11, 0.315)
+scale = Vector3(0.16, 0.055, 0.025)
 mesh = SubResource("RiderDetailMesh")
 material_override = SubResource("AccentMaterial")
 

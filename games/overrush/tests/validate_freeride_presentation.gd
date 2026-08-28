@@ -234,6 +234,24 @@ func _run() -> void:
 				- rider._get_board_vertex(Vector2(0.0, 0.0), true).y >= 0.13,
 			"The sandboard nose and tail should visibly rise above the center deck.",
 		)
+	var jacket := rider.torso_visual.mesh as ArrayMesh
+	_expect(jacket != null, "The rider jacket should use an authored mesh rather than a stock capsule torso.")
+	if jacket != null:
+		var jacket_bounds := jacket.get_aabb()
+		_expect(
+			jacket.surface_get_array_len(0) >= 80
+				and jacket.surface_get_array_index_len(0) == 360
+				and jacket_bounds.size.x >= 0.8
+				and jacket_bounds.size.y >= 0.9
+				and jacket_bounds.size.z >= 0.55,
+			"The jacket needs a rounded shoulder, waist, and neck profile that reads at gameplay distance: %s."
+			% str(jacket_bounds),
+		)
+	var jacket_panel := rider.get_node("BoardVisual/Rider/JacketPanel") as MeshInstance3D
+	_expect(
+		jacket_panel.scale.x <= 0.18 and jacket_panel.scale.y <= 0.08,
+		"The jacket accent should remain a small orientation cue rather than a primitive rectangular torso panel.",
+	)
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
 		_expect(rider.get_node_or_null("BoardVisual/%s" % part_name) is MeshInstance3D, "The rider silhouette is missing %s." % part_name)
 	for detail_path in [

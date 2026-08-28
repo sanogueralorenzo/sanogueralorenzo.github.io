@@ -86,6 +86,12 @@ const SAND_LANDING_COLOR := Color(0.9, 0.61, 0.3, 0.58)
 const GRASS_LANDING_COLOR := Color(0.42, 0.5, 0.25, 0.5)
 const SAND_TRACK_COLOR := Color(0.14, 0.05, 0.015, 0.3)
 const GRASS_TRACK_COLOR := Color(0.015, 0.045, 0.015, 0.27)
+const RIDER_JACKET_RADIAL_SEGMENTS := 12
+const RIDER_JACKET_HEIGHTS := [-0.48, -0.34, 0.02, 0.28, 0.43]
+const RIDER_JACKET_HALF_WIDTHS := [0.25, 0.34, 0.37, 0.42, 0.25]
+const RIDER_JACKET_HALF_DEPTHS := [0.22, 0.27, 0.29, 0.27, 0.19]
+const RIDER_JACKET_CENTER_Z := [0.03, 0.035, 0.02, 0.0, -0.01]
+const RIDER_JACKET_NORMAL_Y := [-0.3, -0.08, 0.0, 0.2, 0.68]
 
 
 func _ready() -> void:
@@ -99,6 +105,7 @@ func _ready() -> void:
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_rideable_ground()
 	board_mesh_visual.mesh = _build_sandboard_mesh()
+	torso_visual.mesh = _build_rider_jacket_mesh()
 	_cache_rider_pose()
 	_clear_carve_track()
 	air_boost_state_changed.emit(true, false)
@@ -136,6 +143,99 @@ func _build_sandboard_mesh() -> ArrayMesh:
 		_add_board_triangle(builder, top_a, bottom_a, bottom_b)
 		_add_board_triangle(builder, top_a, bottom_b, top_b)
 	return builder.commit() as ArrayMesh
+
+
+func _build_rider_jacket_mesh() -> ArrayMesh:
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for ring_index in range(RIDER_JACKET_HEIGHTS.size() - 1):
+		for segment_index in range(RIDER_JACKET_RADIAL_SEGMENTS):
+			var next_segment := (segment_index + 1) % RIDER_JACKET_RADIAL_SEGMENTS
+			var lower_left := _get_rider_jacket_vertex(ring_index, segment_index)
+			var lower_right := _get_rider_jacket_vertex(ring_index, next_segment)
+			var upper_left := _get_rider_jacket_vertex(ring_index + 1, segment_index)
+			var upper_right := _get_rider_jacket_vertex(ring_index + 1, next_segment)
+			var lower_left_normal := _get_rider_jacket_normal(ring_index, segment_index)
+			var lower_right_normal := _get_rider_jacket_normal(ring_index, next_segment)
+			var upper_left_normal := _get_rider_jacket_normal(ring_index + 1, segment_index)
+			var upper_right_normal := _get_rider_jacket_normal(ring_index + 1, next_segment)
+			_add_rider_mesh_triangle(
+				builder,
+				lower_left,
+				upper_left,
+				upper_right,
+				lower_left_normal,
+				upper_left_normal,
+				upper_right_normal,
+			)
+			_add_rider_mesh_triangle(
+				builder,
+				lower_left,
+				upper_right,
+				lower_right,
+				lower_left_normal,
+				upper_right_normal,
+				lower_right_normal,
+			)
+	var bottom_center := Vector3(0.0, RIDER_JACKET_HEIGHTS.front(), RIDER_JACKET_CENTER_Z.front())
+	var top_center := Vector3(0.0, RIDER_JACKET_HEIGHTS.back(), RIDER_JACKET_CENTER_Z.back())
+	for segment_index in range(RIDER_JACKET_RADIAL_SEGMENTS):
+		var next_segment := (segment_index + 1) % RIDER_JACKET_RADIAL_SEGMENTS
+		_add_rider_mesh_triangle(
+			builder,
+			bottom_center,
+			_get_rider_jacket_vertex(0, next_segment),
+			_get_rider_jacket_vertex(0, segment_index),
+			Vector3.DOWN,
+			Vector3.DOWN,
+			Vector3.DOWN,
+		)
+		_add_rider_mesh_triangle(
+			builder,
+			top_center,
+			_get_rider_jacket_vertex(RIDER_JACKET_HEIGHTS.size() - 1, segment_index),
+			_get_rider_jacket_vertex(RIDER_JACKET_HEIGHTS.size() - 1, next_segment),
+			Vector3.UP,
+			Vector3.UP,
+			Vector3.UP,
+		)
+	builder.index()
+	return builder.commit() as ArrayMesh
+
+
+func _get_rider_jacket_vertex(ring_index: int, segment_index: int) -> Vector3:
+	var angle := TAU * float(segment_index) / float(RIDER_JACKET_RADIAL_SEGMENTS)
+	return Vector3(
+		cos(angle) * float(RIDER_JACKET_HALF_WIDTHS[ring_index]),
+		float(RIDER_JACKET_HEIGHTS[ring_index]),
+		float(RIDER_JACKET_CENTER_Z[ring_index])
+			+ sin(angle) * float(RIDER_JACKET_HALF_DEPTHS[ring_index]),
+	)
+
+
+func _get_rider_jacket_normal(ring_index: int, segment_index: int) -> Vector3:
+	var angle := TAU * float(segment_index) / float(RIDER_JACKET_RADIAL_SEGMENTS)
+	return Vector3(
+		cos(angle) / float(RIDER_JACKET_HALF_WIDTHS[ring_index]),
+		float(RIDER_JACKET_NORMAL_Y[ring_index]),
+		sin(angle) / float(RIDER_JACKET_HALF_DEPTHS[ring_index]),
+	).normalized()
+
+
+func _add_rider_mesh_triangle(
+	builder: SurfaceTool,
+	first: Vector3,
+	second: Vector3,
+	third: Vector3,
+	first_normal: Vector3,
+	second_normal: Vector3,
+	third_normal: Vector3,
+) -> void:
+	var vertices := [first, second, third]
+	var normals := [first_normal, second_normal, third_normal]
+	for vertex_index in range(3):
+		builder.set_normal(normals[vertex_index])
+		builder.add_vertex(vertices[vertex_index])
 
 
 func _get_board_vertex(point: Vector2, top_surface: bool) -> Vector3:
