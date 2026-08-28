@@ -79,6 +79,11 @@ func _find_obstacle_target(world: ProceduralDesert, obstacle_name: String) -> Di
 		var obstacle_body := chunk.get_node_or_null(obstacle_name) as StaticBody3D
 		if obstacle_body == null:
 			continue
+		if obstacle_name == "ForestObstacles":
+			var tree_positions: PackedVector3Array = obstacle_body.get_meta(&"tree_positions", PackedVector3Array())
+			if not tree_positions.is_empty():
+				var local_position: Vector3 = chunk.position + obstacle_body.position + tree_positions[0]
+				return {"position": world.get_world_position(local_position)}
 		for child in obstacle_body.get_children():
 			if child is CollisionShape3D:
 				var local_position: Vector3 = chunk.position + obstacle_body.position + child.position

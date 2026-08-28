@@ -677,24 +677,34 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	obstacles.name = "ForestObstacles"
 	obstacles.set_meta(&"overrush_obstacle", true)
 	obstacles.set_meta(&"overrush_forest", true)
+	var tree_positions := PackedVector3Array()
+	var collision_faces: Array[Vector3] = []
 	for tree_index in range(trees.size()):
 		var tree := trees[tree_index]
 		var logical_position: Vector2 = tree.position
 		var height: float = tree.height
 		var radius: float = tree.radius
 		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
-		var collision := CollisionShape3D.new()
-		collision.name = "Tree_%d" % tree_index
-		var shape := CylinderShape3D.new()
-		shape.radius = radius * TREE_COLLISION_RADIUS_FACTOR
-		shape.height = maxf(4.8, height * 0.7)
-		collision.shape = shape
-		collision.position = Vector3(
+		var tree_position := Vector3(
 			logical_position.x - chunk_center.x,
-			local_height + shape.height * 0.5,
+			local_height,
 			logical_position.y - chunk_center.y,
 		)
-		obstacles.add_child(collision)
+		tree_positions.append(tree_position)
+		_append_tree_collision_prism(
+			collision_faces,
+			tree_position,
+			radius * TREE_COLLISION_RADIUS_FACTOR,
+			maxf(4.8, height * 0.7),
+		)
+	var collision := CollisionShape3D.new()
+	collision.name = "TreeCollision"
+	var forest_shape := ConcavePolygonShape3D.new()
+	forest_shape.set_faces(PackedVector3Array(collision_faces))
+	collision.shape = forest_shape
+	obstacles.add_child(collision)
+	obstacles.set_meta(&"tree_positions", tree_positions)
+	obstacles.set_meta(&"tree_collision_triangle_count", collision_faces.size() / 3)
 	chunk.add_child(obstacles)
 
 	if DisplayServer.get_name() == "headless":
@@ -749,6 +759,28 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	canopies.multimesh = canopy_multimesh
 	canopies.material_override = _tree_canopy_material
 	chunk.add_child(canopies)
+
+
+func _append_tree_collision_prism(
+	faces: Array[Vector3],
+	base_center: Vector3,
+	radius: float,
+	height: float,
+) -> void:
+	const SEGMENT_COUNT := 6
+	var top_center := base_center + Vector3.UP * height
+	for segment_index in range(SEGMENT_COUNT):
+		var angle_a := TAU * float(segment_index) / float(SEGMENT_COUNT)
+		var angle_b := TAU * float(segment_index + 1) / float(SEGMENT_COUNT)
+		var radial_a := Vector3(cos(angle_a) * radius, 0.0, sin(angle_a) * radius)
+		var radial_b := Vector3(cos(angle_b) * radius, 0.0, sin(angle_b) * radius)
+		var bottom_a := base_center + radial_a
+		var bottom_b := base_center + radial_b
+		var top_a := top_center + radial_a
+		var top_b := top_center + radial_b
+		faces.append_array([bottom_a, top_a, top_b, bottom_a, top_b, bottom_b])
+		faces.append_array([top_center, top_b, top_a])
+		faces.append_array([base_center, bottom_a, bottom_b])
 
 
 func _add_rock_field(chunk: StaticBody3D, coord: Vector2i, reference_height: float) -> void:
