@@ -17,6 +17,7 @@ const MOUNTAIN_FOLD_PRIMARY_AMPLITUDE := 74.0
 const MOUNTAIN_FOLD_SECONDARY_AMPLITUDE := 58.0
 const BROAD_RELIEF_AMPLITUDE := 54.0
 const RIDGE_RELIEF_AMPLITUDE := 38.0
+const STONE_TRIPLANAR_SCALE := 0.25
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -433,6 +434,8 @@ func _perform_origin_rebase(local_focus: Vector3) -> void:
 			_tracked_camera.global_position -= shift
 	if is_instance_valid(_terrain_material):
 		_terrain_material.set_shader_parameter("world_origin", Vector2(world_origin.x, world_origin.z))
+	_offset_stone_texture_origin(_rock_material, shift)
+	_offset_stone_texture_origin(_ruin_material, shift)
 
 
 func _chunk_distance_squared(coord: Vector2i) -> int:
@@ -497,11 +500,8 @@ func _create_materials() -> void:
 		_terrain_material.set_shader_parameter("world_origin", Vector2.ZERO)
 		_terrain_material.set_shader_parameter("sand_albedo", load("res://assets/terrain/wind_sand_albedo.png"))
 		_terrain_material.set_shader_parameter("grass_albedo", load("res://assets/terrain/alpine_grass_albedo.png"))
-		_rock_material = StandardMaterial3D.new()
-		_rock_material.albedo_color = Color("#6b6255")
-		_rock_material.roughness = 0.9
-		_rock_material.vertex_color_use_as_albedo = true
-		_rock_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var stone_texture := load("res://assets/terrain/weathered_sandstone_albedo.png") as Texture2D
+		_rock_material = _create_stone_material(stone_texture, Color("#a7a19a"), 0.9)
 		_tree_trunk_material = StandardMaterial3D.new()
 		_tree_trunk_material.albedo_color = Color("#4b3428")
 		_tree_trunk_material.roughness = 0.93
@@ -514,11 +514,7 @@ func _create_materials() -> void:
 		_tree_canopy_material.emission_enabled = true
 		_tree_canopy_material.emission = Color("#081a10")
 		_tree_canopy_material.emission_energy_multiplier = TREE_CANOPY_EMISSION_ENERGY
-		_ruin_material = StandardMaterial3D.new()
-		_ruin_material.albedo_color = Color("#927858")
-		_ruin_material.roughness = 0.94
-		_ruin_material.vertex_color_use_as_albedo = true
-		_ruin_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_ruin_material = _create_stone_material(stone_texture, Color("#d7c2a0"), 0.94)
 		_ruin_material.emission_enabled = true
 		_ruin_material.emission = Color("#1f1308")
 		_ruin_material.emission_energy_multiplier = 0.18
@@ -529,6 +525,27 @@ func _create_materials() -> void:
 		_ruin_recess_material.emission_enabled = true
 		_ruin_recess_material.emission = Color("#080504")
 		_ruin_recess_material.emission_energy_multiplier = 0.2
+
+
+func _create_stone_material(texture: Texture2D, tint: Color, surface_roughness: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = tint
+	material.albedo_texture = texture
+	material.roughness = surface_roughness
+	material.vertex_color_use_as_albedo = true
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.uv1_scale = Vector3.ONE * STONE_TRIPLANAR_SCALE
+	material.uv1_triplanar = true
+	material.uv1_world_triplanar = true
+	material.uv1_triplanar_sharpness = 4.0
+	return material
+
+
+func _offset_stone_texture_origin(material: StandardMaterial3D, shift: Vector3) -> void:
+	if not is_instance_valid(material):
+		return
+	material.uv1_offset += shift * STONE_TRIPLANAR_SCALE
 
 
 func _build_conifer_canopy_mesh() -> ArrayMesh:

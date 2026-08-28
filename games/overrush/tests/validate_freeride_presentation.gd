@@ -144,6 +144,24 @@ func _run() -> void:
 		"Rock lighting should share smooth outward normals across the bounded asymmetric profile: %d unique normals."
 		% rounded_rock_normals.size(),
 	)
+	var stone_texture := load("res://assets/terrain/weathered_sandstone_albedo.png") as Texture2D
+	var stone_material := world._create_stone_material(stone_texture, Color.WHITE, 0.92)
+	_expect(
+		stone_texture != null
+			and stone_texture.get_width() >= 1024
+			and stone_texture.get_height() >= 1024
+			and stone_material.albedo_texture == stone_texture
+			and stone_material.uv1_triplanar
+			and stone_material.uv1_world_triplanar
+			and stone_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC,
+		"Rocks and ruins need a complete high-resolution anisotropic triplanar stone material instead of flat placeholder color.",
+	)
+	var stone_rebase_shift := Vector3(384.0, 137.0, -384.0)
+	world._offset_stone_texture_origin(stone_material, stone_rebase_shift)
+	_expect(
+		stone_material.uv1_offset.is_equal_approx(stone_rebase_shift * ProceduralDesert.STONE_TRIPLANAR_SCALE),
+		"World-triplanar stone offsets must follow floating-origin rebases so landmark surfaces cannot visibly swim.",
+	)
 	_expect(
 		world._ruin_block_mesh is ArrayMesh
 			and world._ruin_block_mesh.surface_get_array_len(0) >= 120
