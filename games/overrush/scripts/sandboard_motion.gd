@@ -31,14 +31,28 @@ static func calculate_carve(
 	var maximum_turn := maxf(0.0001, turn_rate * delta)
 	var turn_angle := clampf(steering_angle, -maximum_turn, maximum_turn)
 	var carved_direction := current_direction.rotated(Vector3.UP, turn_angle).normalized()
-	var turn_drag := 1.0 - minf(absf(turn_angle) * 0.045, 0.08)
+	var carve_intensity := clampf(absf(steering_angle) / (PI * 0.5), 0.0, 1.0)
+	var turn_commitment := clampf(absf(turn_angle) / maximum_turn, 0.0, 1.0)
+	var edge_load := carve_intensity * turn_commitment
+	var carve_drag_rate := lerpf(0.015, 0.11, speed_ratio) * edge_load
+	var turn_drag := exp(-carve_drag_rate * delta)
 	return {
 		"velocity": carved_direction * speed * turn_drag,
 		"direction": carved_direction,
 		"turn_angle": turn_angle,
 		"steering_angle": steering_angle,
-		"carve_intensity": clampf(absf(steering_angle) / (PI * 0.5), 0.0, 1.0),
+		"carve_intensity": carve_intensity,
+		"edge_load": edge_load,
 	}
+
+
+static func calculate_slope_drive(board_direction: Vector3, surface_normal: Vector3) -> Vector3:
+	var normal := surface_normal.normalized()
+	var downhill := Vector3.DOWN.slide(normal)
+	var board_tangent := board_direction.slide(normal).normalized()
+	if downhill.length_squared() <= 0.0001 or board_tangent.length_squared() <= 0.0001:
+		return Vector3.ZERO
+	return board_tangent * downhill.dot(board_tangent)
 
 
 static func evaluate_landing(incoming_velocity: Vector3, surface_normal: Vector3, board_heading: Vector3) -> Dictionary:

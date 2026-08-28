@@ -262,7 +262,6 @@ func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	var normal := get_floor_normal()
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	var speed := horizontal.length()
-	var downhill := Vector3.DOWN.slide(normal)
 	if input_direction.length_squared() > 0.01:
 		var tangent_input := input_direction.slide(normal).normalized()
 		if speed < summit_push_speed:
@@ -286,8 +285,8 @@ func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	else:
 		_carve_intensity = move_toward(_carve_intensity, 0.0, delta * 3.0)
 		_carve_sign = move_toward(_carve_sign, 0.0, delta * 5.0)
-	if downhill.length_squared() > 0.0001:
-		velocity += downhill.normalized() * slope_acceleration * downhill.length() * delta
+	var slope_drive := SandboardMotion.calculate_slope_drive(_heading, normal)
+	velocity += slope_drive * slope_acceleration * delta
 	velocity += Vector3.DOWN * gravity_strength * delta
 	var drag_factor := maxf(0.0, 1.0 - ground_drag * delta)
 	velocity.x *= drag_factor
