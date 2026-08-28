@@ -1,8 +1,8 @@
 class_name ProceduralDesert
 extends StaticBody3D
 
-const TREE_BOUGH_TIERS := 4
-const TREE_RADIAL_SEGMENTS := 9
+const TREE_BOUGH_TIERS := 6
+const TREE_RADIAL_SEGMENTS := 10
 const ROCK_RADIAL_SEGMENTS := 9
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
@@ -487,14 +487,17 @@ func _create_materials() -> void:
 		_rock_material.vertex_color_use_as_albedo = true
 		_rock_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_tree_trunk_material = StandardMaterial3D.new()
-		_tree_trunk_material.albedo_color = Color("#62432f")
+		_tree_trunk_material.albedo_color = Color("#4b3428")
 		_tree_trunk_material.roughness = 0.93
 		_tree_trunk_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material = StandardMaterial3D.new()
-		_tree_canopy_material.albedo_color = Color("#3d7044")
+		_tree_canopy_material.albedo_color = Color("#315c43")
 		_tree_canopy_material.roughness = 0.88
 		_tree_canopy_material.vertex_color_use_as_albedo = true
 		_tree_canopy_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_tree_canopy_material.emission_enabled = true
+		_tree_canopy_material.emission = Color("#0b2415")
+		_tree_canopy_material.emission_energy_multiplier = 0.62
 		_ruin_material = StandardMaterial3D.new()
 		_ruin_material.albedo_color = Color("#ad9b79")
 		_ruin_material.roughness = 0.94
@@ -507,21 +510,70 @@ func _build_conifer_canopy_mesh() -> ArrayMesh:
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for tier_index in range(TREE_BOUGH_TIERS):
 		var tier_progress := float(tier_index) / float(TREE_BOUGH_TIERS - 1)
-		var base_y := tier_progress * 0.58
-		var top_y := minf(1.0, base_y + lerpf(0.5, 0.36, tier_progress))
-		var tier_radius := lerpf(1.0, 0.38, tier_progress)
-		var top := Vector3(0.0, top_y, 0.0)
-		var underside_center := Vector3(0.0, base_y + 0.035, 0.0)
-		var tier_color := Color(lerpf(0.68, 0.9, tier_progress), lerpf(0.78, 1.0, tier_progress), lerpf(0.7, 0.84, tier_progress), 1.0)
+		var base_y := 0.04 + tier_progress * 0.68
+		var top_y := minf(1.0, base_y + lerpf(0.42, 0.29, tier_progress))
+		var tier_radius := lerpf(1.0, 0.27, tier_progress)
+		var tier_stagger := float(tier_index % 2) * PI / float(TREE_RADIAL_SEGMENTS)
+		var center_offset := Vector3(
+			sin(float(tier_index) * 2.17) * 0.045 * (1.0 - tier_progress * 0.45),
+			0.0,
+			cos(float(tier_index) * 1.73) * 0.04 * (1.0 - tier_progress * 0.45),
+		)
+		var top := center_offset + Vector3(
+			0.025 * sin(float(tier_index) * 3.1),
+			top_y,
+			0.025 * cos(float(tier_index) * 2.7),
+		)
+		var tier_color := Color(
+			lerpf(0.62, 0.86, tier_progress),
+			lerpf(0.72, 0.96, tier_progress),
+			lerpf(0.68, 0.82, tier_progress),
+			1.0,
+		)
+		var inner_radius := tier_radius * 0.42
+		var inner_base_y := base_y + 0.07
+		var inner_underside := center_offset + Vector3(0.0, inner_base_y + 0.018, 0.0)
 		for segment_index in range(TREE_RADIAL_SEGMENTS):
-			var angle_a := TAU * float(segment_index) / float(TREE_RADIAL_SEGMENTS)
-			var angle_b := TAU * float(segment_index + 1) / float(TREE_RADIAL_SEGMENTS)
-			var irregular_a := 0.91 + 0.09 * sin(float(segment_index * 5 + tier_index * 7))
-			var irregular_b := 0.91 + 0.09 * sin(float((segment_index + 1) * 5 + tier_index * 7))
-			var ring_a := Vector3(cos(angle_a) * tier_radius * irregular_a, base_y, sin(angle_a) * tier_radius * irregular_a)
-			var ring_b := Vector3(cos(angle_b) * tier_radius * irregular_b, base_y, sin(angle_b) * tier_radius * irregular_b)
-			_add_mesh_triangle(builder, top, ring_a, ring_b, tier_color, Vector3(0.0, 0.45, 0.0))
-			_add_mesh_triangle(builder, underside_center, ring_b, ring_a, tier_color.darkened(0.24), Vector3(0.0, 0.45, 0.0))
+			var angle := tier_stagger + TAU * float(segment_index) / float(TREE_RADIAL_SEGMENTS)
+			var half_spread := TAU / float(TREE_RADIAL_SEGMENTS) * 0.32
+			var inner_angle_a := angle - PI / float(TREE_RADIAL_SEGMENTS)
+			var inner_angle_b := angle + PI / float(TREE_RADIAL_SEGMENTS)
+			var irregularity := 0.8 + 0.2 * (sin(float(segment_index * 5 + tier_index * 11)) * 0.5 + 0.5)
+			var direction := Vector3(cos(angle), 0.0, sin(angle))
+			var left_direction := Vector3(cos(angle - half_spread), 0.0, sin(angle - half_spread))
+			var right_direction := Vector3(cos(angle + half_spread), 0.0, sin(angle + half_spread))
+			var branch_root := top + direction * tier_radius * 0.08
+			var branch_left := center_offset + left_direction * tier_radius * irregularity * 0.56
+			branch_left.y = base_y + 0.065
+			var branch_tip := center_offset + direction * tier_radius * irregularity
+			branch_tip.y = base_y + 0.02 * sin(float(segment_index * 7 + tier_index * 3))
+			var branch_right := center_offset + right_direction * tier_radius * irregularity * 0.56
+			branch_right.y = base_y + 0.065
+			var underside_root := center_offset + direction * tier_radius * 0.16
+			underside_root.y = base_y + 0.018
+			var inner_a := center_offset + Vector3(
+				cos(inner_angle_a) * inner_radius,
+				inner_base_y,
+				sin(inner_angle_a) * inner_radius,
+			)
+			var inner_b := center_offset + Vector3(
+				cos(inner_angle_b) * inner_radius,
+				inner_base_y,
+				sin(inner_angle_b) * inner_radius,
+			)
+			var branch_tint := 1.0 + 0.04 * sin(float(segment_index * 3 + tier_index))
+			var branch_color := Color(
+				tier_color.r * branch_tint,
+				tier_color.g * branch_tint,
+				tier_color.b * branch_tint,
+				1.0,
+			)
+			_add_mesh_triangle(builder, branch_root, branch_left, branch_tip, branch_color, Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, branch_root, branch_tip, branch_right, branch_color, Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, underside_root, branch_tip, branch_left, tier_color.darkened(0.18), Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, underside_root, branch_right, branch_tip, tier_color.darkened(0.18), Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, top, inner_a, inner_b, tier_color.darkened(0.04), Vector3(0.0, 0.45, 0.0))
+			_add_mesh_triangle(builder, inner_underside, inner_b, inner_a, tier_color.darkened(0.14), Vector3(0.0, 0.45, 0.0))
 	return builder.commit() as ArrayMesh
 
 
@@ -734,7 +786,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 		var radius: float = tree.radius
 		var local_height := get_surface_height(logical_position.x, logical_position.y) - reference_height
 		var local_xz := logical_position - chunk_center
-		var visible_trunk_height := height * 0.7
+		var visible_trunk_height := height * 0.74
 		var trunk_transform := Transform3D(
 			Basis.IDENTITY.scaled(Vector3(radius, visible_trunk_height, radius)),
 			Vector3(local_xz.x, local_height + visible_trunk_height * 0.5, local_xz.y),
@@ -742,18 +794,26 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 		var canopy_radius := height * lerpf(0.21, 0.28, _landscape_layout.get_cell_random(cell, 16))
 		var crown_angle := _landscape_layout.get_cell_random(cell, 17) * TAU
 		var crown_basis := Basis(Vector3.UP, crown_angle)
+		crown_basis = crown_basis.rotated(
+			Vector3.RIGHT,
+			deg_to_rad(lerpf(-2.4, 2.4, _landscape_layout.get_cell_random(cell, 20))),
+		)
+		crown_basis = crown_basis.rotated(
+			Vector3.FORWARD,
+			deg_to_rad(lerpf(-2.4, 2.4, _landscape_layout.get_cell_random(cell, 21))),
+		)
 		var canopy := Transform3D(
 			crown_basis.scaled(Vector3(
 				canopy_radius,
-				height * 0.66,
+				height * 0.86,
 				canopy_radius * lerpf(0.84, 1.08, _landscape_layout.get_cell_random(cell, 19)),
 			)),
-			Vector3(local_xz.x, local_height + height * 0.35, local_xz.y),
+			Vector3(local_xz.x, local_height + height * 0.14, local_xz.y),
 		)
 		trunk_multimesh.set_instance_transform(tree_index, trunk_transform)
 		trunk_multimesh.set_instance_color(tree_index, Color(0.82, 0.74, 0.67, 1.0))
-		var tint := lerpf(0.78, 1.08, _landscape_layout.get_cell_random(cell, 18))
-		var canopy_color := Color(tint * 0.78, tint, tint * 0.72, 1.0)
+		var tint := lerpf(0.8, 1.08, _landscape_layout.get_cell_random(cell, 18))
+		var canopy_color := Color(tint * 0.7, tint * 0.9, tint * 0.78, 1.0)
 		canopy_multimesh.set_instance_transform(tree_index, canopy)
 		canopy_multimesh.set_instance_color(tree_index, canopy_color)
 	var trunks := MultiMeshInstance3D.new()

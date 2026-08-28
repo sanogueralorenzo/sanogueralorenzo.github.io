@@ -35,9 +35,25 @@ func _run() -> void:
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
 	_expect(
 		world._tree_canopy_mesh is ArrayMesh
-			and ProceduralDesert.TREE_BOUGH_TIERS >= 4
-			and world._tree_canopy_mesh.surface_get_array_len(0) >= 180,
-		"Forests should use a layered faceted conifer silhouette rather than stacked primitive blobs.",
+			and ProceduralDesert.TREE_BOUGH_TIERS >= 6
+			and ProceduralDesert.TREE_RADIAL_SEGMENTS >= 10
+			and world._tree_canopy_mesh.surface_get_array_len(0) >= 1000
+			and world._tree_canopy_mesh.surface_get_array_len(0) <= 1200,
+		"Forests should use a full layered conifer silhouette rather than sparse stacked cones.",
+	)
+	var canopy_arrays := world._tree_canopy_mesh.surface_get_arrays(0)
+	var canopy_vertices: PackedVector3Array = canopy_arrays[Mesh.ARRAY_VERTEX]
+	var canopy_y_levels := {}
+	for canopy_vertex in canopy_vertices:
+		canopy_y_levels[roundi(canopy_vertex.y * 1000.0)] = true
+	var canopy_bounds := world._tree_canopy_mesh.get_aabb()
+	_expect(
+		canopy_y_levels.size() >= 24
+			and canopy_bounds.position.y <= 0.03
+			and canopy_bounds.end.y >= 0.98
+			and minf(canopy_bounds.size.x, canopy_bounds.size.z) >= 1.6,
+		"Conifer crowns need jagged asymmetric bough edges and a full ground-to-tip silhouette: %d height levels, %s bounds."
+		% [canopy_y_levels.size(), str(canopy_bounds)],
 	)
 	_expect(
 		world._rock_mesh is ArrayMesh and world._rock_mesh.surface_get_array_len(0) >= 150,
