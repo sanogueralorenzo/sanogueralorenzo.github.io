@@ -6,6 +6,10 @@ const ROCK_CELL_SIZE := 64.0
 const TREE_SUMMIT_CLEAR_RADIUS := 280.0
 const ROCK_SUMMIT_CLEAR_RADIUS := 320.0
 const RUIN_MINIMUM_RADIUS := 620.0
+const SUMMIT_BIOME_BLEND_START := 80.0
+const SUMMIT_BIOME_FULL_RADIUS := 800.0
+const SUMMIT_BIOME_FADE_START := 1200.0
+const SUMMIT_BIOME_FADE_END := 2800.0
 
 var _seed := 1
 var _phase := 0.0
@@ -37,6 +41,17 @@ func get_grass_weight(logical_position: Vector2) -> float:
 	var traveling_band := sin(warped_radius * 0.00135 + _phase)
 	var cross_variation := sin((logical_position.x - logical_position.y) * 0.00031 + _phase * 0.63)
 	var field := traveling_band * 0.78 + broad_variation * 0.16 + cross_variation * 0.06
+	var summit_influence := (
+		smoothstep(SUMMIT_BIOME_BLEND_START, SUMMIT_BIOME_FULL_RADIUS, radius)
+		* (1.0 - smoothstep(SUMMIT_BIOME_FADE_START, SUMMIT_BIOME_FADE_END, radius))
+	)
+	if summit_influence > 0.0:
+		var angle := atan2(logical_position.y, logical_position.x)
+		var summit_lobes := (
+			sin(angle * 2.0 + _phase * 0.37 + warped_radius * 0.00055) * 0.72
+			+ 0.04
+		)
+		field = lerpf(field, summit_lobes, summit_influence * 0.84)
 	return smoothstep(-0.3, 0.3, field)
 
 
@@ -58,7 +73,7 @@ func get_tree_density(logical_position: Vector2) -> float:
 	var grass_density := smoothstep(0.58, 0.88, get_grass_weight(logical_position))
 	var glade_distance := absf(_glade_noise.get_noise_2dv(logical_position))
 	var glade_clearance := smoothstep(0.07, 0.24, glade_distance)
-	return 0.48 * summit_fade * grass_density * glade_clearance
+	return 0.6 * summit_fade * grass_density * glade_clearance
 
 
 func has_tree(cell: Vector2i) -> bool:

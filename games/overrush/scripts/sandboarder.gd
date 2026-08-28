@@ -65,10 +65,10 @@ var _rider_parts: Array[Node3D] = []
 var _rider_base_positions: Array[Vector3] = []
 var _rider_base_rotations: Array[Vector3] = []
 
-const SAND_TRAIL_COLOR := Color(0.96, 0.69, 0.32, 0.58)
-const GRASS_TRAIL_COLOR := Color(0.47, 0.67, 0.27, 0.62)
-const SAND_LANDING_COLOR := Color(1.0, 0.73, 0.34, 0.78)
-const GRASS_LANDING_COLOR := Color(0.65, 0.78, 0.34, 0.8)
+const SAND_TRAIL_COLOR := Color(1.0, 0.78, 0.38, 0.7)
+const GRASS_TRAIL_COLOR := Color(0.64, 0.82, 0.34, 0.72)
+const SAND_LANDING_COLOR := Color(1.0, 0.82, 0.42, 0.84)
+const GRASS_LANDING_COLOR := Color(0.72, 0.88, 0.4, 0.84)
 
 
 func _ready() -> void:

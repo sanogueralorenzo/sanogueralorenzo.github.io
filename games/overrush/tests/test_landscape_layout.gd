@@ -2,6 +2,8 @@ extends SceneTree
 
 const TEST_SEED := 73013
 const SAMPLE_RADIUS := 12000.0
+const OPENING_RADIUS := 1200.0
+const OPENING_SEEDS := [94631, 41777, 73013, 89173, 1001, 2002, 3003, 4004]
 
 var _failures: Array[String] = []
 
@@ -35,6 +37,58 @@ func _init() -> void:
 		_expect(maximum_grass >= 0.95, "Direction %d never reaches a clear grass/forest region." % direction_index)
 	_expect(maximum_step <= 0.34, "Biome blending changes too abruptly over 50 m: %.3f." % maximum_step)
 	_expect(seed_difference > 100.0, "Different seeds should materially change biome placement.")
+	for opening_seed in OPENING_SEEDS:
+		var opening_layout := LandscapeLayout.new()
+		opening_layout.configure(opening_seed)
+		var opening_tree_count := 0
+		var opening_rock_count := 0
+		for y in range(-60, 61):
+			for x in range(-60, 61):
+				var tree_cell := Vector2i(x, y)
+				if (
+					opening_layout.get_tree_position(tree_cell).length() <= OPENING_RADIUS
+					and opening_layout.has_tree(tree_cell)
+				):
+					opening_tree_count += 1
+		for y in range(-19, 20):
+			for x in range(-19, 20):
+				var rock_cell := Vector2i(x, y)
+				if (
+					opening_layout.get_rock_position(rock_cell).length() <= OPENING_RADIUS
+					and opening_layout.has_rock(rock_cell)
+				):
+					opening_rock_count += 1
+		var forest_headings := 0
+		var dune_headings := 0
+		for heading_index in range(16):
+			var heading := Vector2.from_angle(TAU * float(heading_index) / 16.0)
+			var forest_samples := 0
+			var dune_samples := 0
+			for distance in [500.0, 700.0, 900.0, 1100.0]:
+				var grass := opening_layout.get_grass_weight(heading * distance)
+				if grass >= 0.9:
+					forest_samples += 1
+				if grass <= 0.1:
+					dune_samples += 1
+			if forest_samples >= 3:
+				forest_headings += 1
+			if dune_samples >= 3:
+				dune_headings += 1
+		_expect(
+			opening_tree_count >= 1000 and opening_tree_count <= 2800,
+			"Seed %d should offer consequential but bounded opening forests: %d trees."
+			% [opening_seed, opening_tree_count],
+		)
+		_expect(
+			opening_rock_count >= 90,
+			"Seed %d has too few opening rock decisions: %d."
+			% [opening_seed, opening_rock_count],
+		)
+		_expect(
+			forest_headings >= 4 and dune_headings >= 3,
+			"Seed %d must offer both wooded and open opening choices: %d forest, %d dune headings."
+			% [opening_seed, forest_headings, dune_headings],
+		)
 
 	var tree_count := 0
 	for y in range(-80, 81):

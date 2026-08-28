@@ -18,11 +18,17 @@ func _run() -> void:
 	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
-	_expect(environment.ambient_light_energy >= 0.45, "Forest and rock silhouettes need readable ambient fill.")
+	_expect(environment.ambient_light_energy >= 0.6, "The daylight pass must keep terrain readable outside direct sun.")
 	_expect(
 		sky_material.sky_top_color.b > sky_material.sky_top_color.r * 5.0
-			and sky_material.sky_horizon_color.r > sky_material.sky_top_color.r * 10.0,
-		"The cool upper sky and warm atmospheric horizon should create strong landscape depth.",
+			and sky_material.sky_horizon_color.r > sky_material.sky_top_color.r * 10.0
+			and sky_material.sky_horizon_color.get_luminance() >= 0.65,
+		"The saturated upper sky and bright atmospheric horizon should separate mountain silhouettes clearly.",
+	)
+	var sun := scene.get_node("Sun") as DirectionalLight3D
+	_expect(
+		sun.light_energy >= 1.4 and sun.light_color.g >= 0.85,
+		"Warm daylight should produce readable terrain form without the former dim orange cast.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
@@ -88,7 +94,11 @@ func _run() -> void:
 		"Returning to the summit should reset every procedural rider pose.",
 	)
 	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
-	_expect(rider.surface_trail.amount >= 200, "The high-speed wake should remain continuous instead of a sparse dotted line.")
+	_expect(rider.surface_trail.amount >= 300, "The high-speed wake should remain continuous instead of a sparse dotted line.")
+	_expect(
+		(rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.08,
+		"The denser surface wake should use fine grains rather than oversized glowing balls.",
+	)
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
 	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
 	if surface_process != null:
