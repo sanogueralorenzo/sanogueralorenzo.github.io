@@ -8,8 +8,15 @@ const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
 const RUIN_VISUAL_SEGMENTS := 34
 const TREE_CANOPY_EMISSION_ENERGY := 0.34
+const SUMMIT_MOUNTAIN_BLEND_START := 180.0
+const SUMMIT_MOUNTAIN_BLEND_END := 960.0
 const SUMMIT_RELIEF_BLEND_START := 260.0
 const SUMMIT_RELIEF_BLEND_END := 620.0
+const MOUNTAIN_RELIEF_AMPLITUDE := 108.0
+const MOUNTAIN_FOLD_PRIMARY_AMPLITUDE := 74.0
+const MOUNTAIN_FOLD_SECONDARY_AMPLITUDE := 58.0
+const BROAD_RELIEF_AMPLITUDE := 54.0
+const RIDGE_RELIEF_AMPLITUDE := 38.0
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -113,18 +120,24 @@ func get_surface_height(x: float, z: float) -> float:
 		- summit_softening_radius
 	)
 	var descent := softened_radius * radial_grade
+	var mountain_fade := smoothstep(SUMMIT_MOUNTAIN_BLEND_START, SUMMIT_MOUNTAIN_BLEND_END, radius)
 	var feature_fade := smoothstep(SUMMIT_RELIEF_BLEND_START, SUMMIT_RELIEF_BLEND_END, radius)
-	var mountain_relief := _mountain_noise.get_noise_2d(x, z) * 92.0
+	var mountain_relief := _mountain_noise.get_noise_2d(x, z) * MOUNTAIN_RELIEF_AMPLITUDE
 	var mountain_folds := (
-		sin(x * 0.0014 + z * 0.0005 + _mountain_fold_phase.x) * 62.0
-		+ sin(x * -0.00055 + z * 0.0011 + _mountain_fold_phase.y) * 48.0
+		sin(x * 0.0014 + z * 0.0005 + _mountain_fold_phase.x) * MOUNTAIN_FOLD_PRIMARY_AMPLITUDE
+		+ sin(x * -0.00055 + z * 0.0011 + _mountain_fold_phase.y) * MOUNTAIN_FOLD_SECONDARY_AMPLITUDE
 	)
-	var broad := _broad_noise.get_noise_2d(x, z) * 48.0
+	var broad := _broad_noise.get_noise_2d(x, z) * BROAD_RELIEF_AMPLITUDE
 	var ridges := _ridge_noise.get_noise_2d(x, z)
-	var folded_ridges := signf(ridges) * ridges * ridges * 34.0
+	var folded_ridges := signf(ridges) * ridges * ridges * RIDGE_RELIEF_AMPLITUDE
 	var dunes := _dune_noise.get_noise_2d(x, z) * 10.5
 	var authored_feature := _feature_grammar.sample_height_offset(x, z)
-	return summit_height - descent + feature_fade * (mountain_relief + mountain_folds + broad + folded_ridges + dunes + authored_feature)
+	return (
+		summit_height
+		- descent
+		+ mountain_fade * (mountain_relief + mountain_folds + broad + folded_ridges)
+		+ feature_fade * (dunes + authored_feature)
+	)
 
 
 func get_local_surface_height(x: float, z: float) -> float:

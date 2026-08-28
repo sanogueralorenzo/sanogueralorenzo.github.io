@@ -27,6 +27,8 @@ func _run() -> void:
 	var endpoint_heights: Array[float] = []
 	var greatest_local_rise := 0.0
 	var shallowest_descent := INF
+	var shallowest_first_250m_descent := INF
+	var shallowest_first_km_descent := INF
 
 	for direction_index in range(DIRECTION_COUNT):
 		var angle := TAU * float(direction_index) / DIRECTION_COUNT
@@ -46,20 +48,24 @@ func _run() -> void:
 				first_km_height = height
 		endpoint_heights.append(previous_height)
 		var net_descent := center_height - previous_height
+		var first_250m_descent := center_height - first_250m_height
+		var first_km_descent := center_height - first_km_height
 		shallowest_descent = minf(shallowest_descent, net_descent)
+		shallowest_first_250m_descent = minf(shallowest_first_250m_descent, first_250m_descent)
+		shallowest_first_km_descent = minf(shallowest_first_km_descent, first_km_descent)
 		_expect(
 			net_descent >= MINIMUM_NET_DESCENT,
 			"Direction %d only descends %.1f m over %.0f m." % [direction_index, net_descent, SAMPLE_RADIUS],
 		)
 		_expect(
-			center_height - first_250m_height >= MINIMUM_FIRST_250M_DESCENT,
+			first_250m_descent >= MINIMUM_FIRST_250M_DESCENT,
 			"Direction %d lacks an immediate summit drop: %.1f m descent in the first 250 m."
-			% [direction_index, center_height - first_250m_height],
+			% [direction_index, first_250m_descent],
 		)
 		_expect(
-			center_height - first_km_height >= MINIMUM_FIRST_KM_DESCENT,
+			first_km_descent >= MINIMUM_FIRST_KM_DESCENT,
 			"Direction %d feels too flat near the summit: %.1f m descent in the first kilometer."
-			% [direction_index, center_height - first_km_height],
+			% [direction_index, first_km_descent],
 		)
 		var lateral := Vector2(-direction.y, direction.x)
 		var cross_slope_relief := 0.0
@@ -114,8 +120,8 @@ func _run() -> void:
 
 	if _failures.is_empty():
 		print(
-			"Desert terrain passed — 16 outward line fans contain every feature family and rock gates; shallowest descent %.1f m, max 50 m rise %.1f m, endpoint range %.1f m."
-			% [shallowest_descent, greatest_local_rise, endpoint_range]
+			"Desert terrain passed — 16 outward line fans contain every feature family and rock gates; shallowest descent %.1f m (%.1f m at 250 m, %.1f m at 1 km), max 50 m rise %.1f m, endpoint range %.1f m."
+			% [shallowest_descent, shallowest_first_250m_descent, shallowest_first_km_descent, greatest_local_rise, endpoint_range]
 		)
 		scene.queue_free()
 		await process_frame

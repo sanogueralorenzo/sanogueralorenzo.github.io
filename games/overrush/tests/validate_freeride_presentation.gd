@@ -61,6 +61,17 @@ func _run() -> void:
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
 	_expect(world.radial_grade >= 0.42, "The base mountainside needs a sustained grade that reads as freeriding rather than flat traversal.")
 	_expect(
+		ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_START < ProceduralDesert.SUMMIT_RELIEF_BLEND_START
+			and ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_END > ProceduralDesert.SUMMIT_RELIEF_BLEND_END,
+		"Broad mountain folds must emerge before local dunes and kickers while blending gradually beyond them.",
+	)
+	_expect(
+		ProceduralDesert.MOUNTAIN_RELIEF_AMPLITUDE >= 100.0
+			and ProceduralDesert.MOUNTAIN_FOLD_PRIMARY_AMPLITUDE >= 70.0
+			and ProceduralDesert.MOUNTAIN_FOLD_SECONDARY_AMPLITUDE >= 55.0,
+		"Mountain-scale relief must remain strong enough to form visible valleys and ridgelines around the opening descent.",
+	)
+	_expect(
 		world._tree_canopy_mesh is ArrayMesh
 			and ProceduralDesert.TREE_BOUGH_TIERS >= 6
 			and ProceduralDesert.TREE_RADIAL_SEGMENTS >= 10
