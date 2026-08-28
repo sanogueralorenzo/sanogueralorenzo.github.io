@@ -18,7 +18,12 @@ func _run() -> void:
 	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
-	_expect(environment.ambient_light_energy >= 0.5, "The daylight pass must keep terrain readable outside direct sun.")
+	_expect(
+		environment.ambient_light_energy >= 0.7
+			and environment.ambient_light_sky_contribution >= 0.88
+			and environment.adjustment_contrast <= 1.05,
+		"The daylight pass must preserve color and terrain detail outside direct sun without crushing shadow contrast.",
+	)
 	_expect(
 		sky_material != null
 			and sky_material.sky_top_color.b > sky_material.sky_top_color.r * 8.0
@@ -28,7 +33,12 @@ func _run() -> void:
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(
-		sun.light_energy >= 1.35 and sun.light_color.g >= 0.85 and sun.rotation_degrees.x >= -40.0,
+		sun.light_energy >= 1.35
+			and sun.light_color.g >= 0.85
+			and sun.rotation_degrees.x >= -40.0
+			and sun.shadow_opacity >= 0.5
+			and sun.shadow_opacity <= 0.7
+			and sun.shadow_blur >= 2.0,
 		"Warm daylight should produce readable terrain form without the former dim orange cast.",
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
