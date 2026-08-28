@@ -208,14 +208,27 @@ func _run() -> void:
 		"Returning to the summit should reset every procedural rider pose.",
 	)
 	_expect(rider.surface_trail.draw_pass_1 is SphereMesh, "Surface spray should use rounded grains rather than flashing quad pixels.")
-	_expect(rider.surface_trail.amount >= 400, "The high-speed wake should remain continuous instead of a sparse dotted line.")
 	_expect(
-		(rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.035,
-		"The denser surface wake should use fine grains rather than oversized glowing balls.",
+		rider.surface_trail.amount >= 700
+			and rider.surface_trail.amount <= 900
+			and rider.surface_trail.lifetime <= 0.7,
+		"The high-speed wake should remain dense and short-lived instead of a sparse dotted line or an unbounded cloud.",
+	)
+	_expect(rider.surface_trail.fixed_fps >= 60, "Maximum-speed spray needs a 60 Hz simulation to avoid spaced particle clumps.")
+	_expect(
+		(rider.surface_trail.draw_pass_1 as SphereMesh).radius >= 0.05
+			and (rider.surface_trail.draw_pass_1 as SphereMesh).radius <= 0.07,
+		"The surface wake needs readable low-poly clumps without becoming oversized glowing balls.",
 	)
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
 	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
 	if surface_process != null:
+		_expect(
+			surface_process.color_ramp != null
+				and surface_process.initial_velocity_max >= 10.0
+				and surface_process.scale_max <= 1.5,
+			"Surface spray should burst clearly from the board, fade cleanly, and remain size-bounded.",
+		)
 		var sand_color := Sandboarder.SAND_TRAIL_COLOR
 		var grass_color := Sandboarder.GRASS_TRAIL_COLOR
 		var palette_difference := (
@@ -224,6 +237,19 @@ func _run() -> void:
 			+ absf(sand_color.b - grass_color.b)
 		)
 		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
+		_expect(
+			Sandboarder.SAND_TRAIL_SCALE_MAX >= Sandboarder.GRASS_TRAIL_SCALE_MAX * 1.5
+				and Sandboarder.GRASS_TRAIL_SCALE_MIN >= 0.25,
+			"Grass contact should use smaller readable fragments instead of sand-sized green confetti.",
+		)
+		rider.velocity = Vector3(rider.maximum_speed, 0.0, 0.0)
+		rider._carve_intensity = 1.0
+		rider._carve_sign = 1.0
+		rider._update_visuals(1.0 / 60.0)
+		_expect(
+			surface_process.direction.x <= -0.45 and surface_process.direction.y >= 0.4,
+			"A committed carve should fan the surface spray outward and upward from the loaded edge.",
+		)
 	var carve_track := scene.get_node_or_null("CarveTrack") as MeshInstance3D
 	_expect(carve_track != null and carve_track.material_override is StandardMaterial3D, "The rider should leave one terrain-conforming carve-track mesh.")
 	_expect(

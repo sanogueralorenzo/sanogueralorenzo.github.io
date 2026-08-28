@@ -34,7 +34,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var rider_speed_crouch := 0.22
 @export var rider_air_tuck := 0.14
 @export var carve_track_sample_distance := 1.5
-@export var carve_track_width := 0.42
+@export var carve_track_width := 0.46
 @export var carve_track_surface_offset := 0.035
 @export_range(80, 320, 1) var carve_track_max_points := 200
 
@@ -76,12 +76,16 @@ var _carve_track_points: Array[Dictionary] = []
 var _carve_track_segment := 0
 var _carve_track_was_grounded := false
 
-const SAND_TRAIL_COLOR := Color(0.92, 0.64, 0.28, 0.52)
-const GRASS_TRAIL_COLOR := Color(0.38, 0.52, 0.24, 0.48)
+const SAND_TRAIL_COLOR := Color(0.88, 0.56, 0.24, 0.66)
+const GRASS_TRAIL_COLOR := Color(0.42, 0.38, 0.13, 0.55)
+const SAND_TRAIL_SCALE_MIN := 0.42
+const SAND_TRAIL_SCALE_MAX := 1.35
+const GRASS_TRAIL_SCALE_MIN := 0.3
+const GRASS_TRAIL_SCALE_MAX := 0.9
 const SAND_LANDING_COLOR := Color(0.96, 0.7, 0.32, 0.7)
 const GRASS_LANDING_COLOR := Color(0.44, 0.58, 0.27, 0.68)
-const SAND_TRACK_COLOR := Color(0.16, 0.06, 0.018, 0.2)
-const GRASS_TRACK_COLOR := Color(0.018, 0.05, 0.018, 0.18)
+const SAND_TRACK_COLOR := Color(0.14, 0.05, 0.015, 0.3)
+const GRASS_TRACK_COLOR := Color(0.015, 0.045, 0.015, 0.27)
 
 
 func _ready() -> void:
@@ -409,8 +413,16 @@ func _update_visuals(delta: float) -> void:
 	var speed_ratio := clampf(get_horizontal_speed() / maximum_speed, 0.0, 1.0)
 	_update_rider_pose(delta, is_on_floor(), speed_ratio)
 	surface_trail.emitting = is_on_floor() and get_horizontal_speed() >= 8.0
-	surface_trail.amount_ratio = clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
+	var speed_emission := clampf((speed_ratio - 0.08) / 0.92, 0.15, 1.0)
+	surface_trail.amount_ratio = speed_emission * lerpf(0.72, 1.0, _carve_intensity)
 	surface_trail.rotation.y = atan2(-_heading.x, -_heading.z)
+	var surface_process := surface_trail.process_material as ParticleProcessMaterial
+	if surface_process != null:
+		surface_process.direction = Vector3(
+			-_carve_sign * _carve_intensity * 0.9,
+			0.45 + _carve_intensity * 0.4,
+			1.0,
+		).normalized()
 	_boost_feedback_time = maxf(0.0, _boost_feedback_time - delta)
 	if _boost_feedback_time <= 0.0:
 		boost_trail.emitting = false
@@ -519,6 +531,8 @@ func _update_surface_effect_palette() -> void:
 	var trail_process := surface_trail.process_material as ParticleProcessMaterial
 	if trail_process != null:
 		trail_process.color = SAND_TRAIL_COLOR.lerp(GRASS_TRAIL_COLOR, _surface_grass_weight)
+		trail_process.scale_min = lerpf(SAND_TRAIL_SCALE_MIN, GRASS_TRAIL_SCALE_MIN, _surface_grass_weight)
+		trail_process.scale_max = lerpf(SAND_TRAIL_SCALE_MAX, GRASS_TRAIL_SCALE_MAX, _surface_grass_weight)
 	var landing_process := landing_burst.process_material as ParticleProcessMaterial
 	if landing_process != null:
 		landing_process.color = SAND_LANDING_COLOR.lerp(GRASS_LANDING_COLOR, _surface_grass_weight)

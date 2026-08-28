@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3]
+[gd_scene load_steps=34 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -112,13 +112,13 @@ ring_segments = 8
 transparency = 1
 shading_mode = 0
 vertex_color_use_as_albedo = true
-albedo_color = Color(1, 0.9, 0.72, 0.78)
+albedo_color = Color(1, 0.9, 0.72, 0.9)
 
 [sub_resource type="StandardMaterial3D" id="CarveTrackMaterial"]
 transparency = 1
 cull_mode = 2
 vertex_color_use_as_albedo = true
-albedo_color = Color(1, 1, 1, 0.38)
+albedo_color = Color(1, 1, 1, 0.62)
 roughness = 1.0
 
 [sub_resource type="SphereMesh" id="TrailMesh"]
@@ -130,10 +130,17 @@ rings = 4
 
 [sub_resource type="SphereMesh" id="SurfaceGrainMesh"]
 material = SubResource("TrailMaterial")
-radius = 0.028
-height = 0.056
+radius = 0.06
+height = 0.12
 radial_segments = 6
 rings = 3
+
+[sub_resource type="Gradient" id="Gradient_surface_fade"]
+offsets = PackedFloat32Array(0, 0.08, 0.62, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0.7, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture_surface_fade"]
+gradient = SubResource("Gradient_surface_fade")
 
 [sub_resource type="ParticleProcessMaterial" id="TrailProcess"]
 emission_shape = 3
@@ -149,15 +156,16 @@ color = Color(1, 0.67, 0.25, 0.72)
 
 [sub_resource type="ParticleProcessMaterial" id="SurfaceTrailProcess"]
 emission_shape = 3
-emission_box_extents = Vector3(0.7, 0.08, 0.26)
-direction = Vector3(0, 0.42, 1)
-spread = 28.0
-initial_velocity_min = 3.0
-initial_velocity_max = 7.2
-gravity = Vector3(0, -3.6, 0)
-scale_min = 0.2
-scale_max = 0.58
-color = Color(0.92, 0.64, 0.28, 0.52)
+emission_box_extents = Vector3(0.76, 0.1, 0.3)
+direction = Vector3(0, 0.45, 1)
+spread = 44.0
+initial_velocity_min = 4.5
+initial_velocity_max = 10.5
+gravity = Vector3(0, -5.2, 0)
+scale_min = 0.42
+scale_max = 1.35
+color = Color(0.88, 0.56, 0.24, 0.66)
+color_ramp = SubResource("GradientTexture_surface_fade")
 
 [sub_resource type="ParticleProcessMaterial" id="LandingBurstProcess"]
 emission_shape = 3
@@ -408,8 +416,9 @@ omni_range = 7.0
 [node name="SurfaceTrail" type="GPUParticles3D" parent="Sandboarder"]
 position = Vector3(0, -0.24, 1.1)
 emitting = false
-amount = 440
-lifetime = 0.86
+amount = 760
+lifetime = 0.64
+fixed_fps = 60
 local_coords = false
 process_material = SubResource("SurfaceTrailProcess")
 draw_pass_1 = SubResource("SurfaceGrainMesh")
