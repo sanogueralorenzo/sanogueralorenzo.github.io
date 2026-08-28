@@ -76,6 +76,17 @@ func _run() -> void:
 		_expect("ROCK IMPACT" in scene.pause_title.text, "The run-ended overlay should identify a rock collision immediately.")
 
 	scene.restart_run()
+	var ruin_target := _find_ruin_target(world, rider)
+	_expect(not ruin_target.is_empty(), "The collision test needs a streamed ruin column obstacle.")
+	if not ruin_target.is_empty():
+		_crash_kind = &""
+		_impact_speed = 0.0
+		await _strike_target(scene, world, rider, ruin_target.position)
+		await _wait_for_crash_overlay(scene)
+		_expect(scene._run_crashed and _crash_kind == &"ruin", "A direct ruin strike at speed should end the run as a ruin impact.")
+		_expect("RUIN IMPACT" in scene.pause_title.text, "The run-ended overlay should identify a ruin collision immediately.")
+
+	scene.restart_run()
 	_expect(not paused and scene.run_active and not scene._run_crashed, "Drop Again should start a clean run from the summit.")
 	_expect(not rider._crashed and rider.velocity.is_zero_approx(), "Restart must clear the rider crash state and momentum.")
 	_expect(
@@ -165,6 +176,36 @@ func _find_obstacle_target(world: ProceduralDesert, obstacle_name: String) -> Di
 	return {}
 
 
+func _find_ruin_target(world: ProceduralDesert, rider: Sandboarder) -> Dictionary:
+	var nearest_coord := Vector2i(2147483647, 2147483647)
+	var nearest_distance := INF
+	for y in range(-8, 9):
+		for x in range(-8, 9):
+			var coord := Vector2i(x, y)
+			if not world.chunk_has_ruin(coord):
+				continue
+			var distance := Vector2(coord).length_squared()
+			if distance < nearest_distance:
+				nearest_coord = coord
+				nearest_distance = distance
+	if nearest_coord.x == 2147483647:
+		return {}
+	var focus := Vector2(nearest_coord) * world.chunk_size
+	rider.global_position = world.world_to_local_position(Vector3(
+		focus.x,
+		world.get_surface_height(focus.x, focus.y) + 0.5,
+		focus.y,
+	))
+	world.maintain_streaming(true)
+	for ruin in world.get_loaded_ruin_bodies():
+		if ruin.name != "Ruin_%d_%d" % [nearest_coord.x, nearest_coord.y]:
+			continue
+		var column := ruin.get_node_or_null("LeftColumnCollision") as CollisionShape3D
+		if column != null:
+			return {"position": world.get_world_position(column.global_position)}
+	return {}
+
+
 func _on_crashed(obstacle_kind: StringName, impact_speed: float) -> void:
 	_crash_kind = obstacle_kind
 	_impact_speed = impact_speed
@@ -176,7 +217,7 @@ func _finish(scene: Node) -> void:
 	await process_frame
 	if _failures.is_empty():
 		print(
-			"Fatal obstacle collision passed — 88 m/s tree and rock strikes remain fatal at 30 Hz, a 1.55 m tree skim stays fair, and Drop Again resets cleanly."
+			"Fatal obstacle collision passed — 88 m/s tree, rock, and ruin strikes remain fatal at 30 Hz, a 1.55 m tree skim stays fair, and Drop Again resets cleanly."
 		)
 		quit(0)
 	else:

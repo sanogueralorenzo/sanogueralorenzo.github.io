@@ -7,7 +7,8 @@ const TREE_FOLIAGE_CARD_PLANES := 3
 const ROCK_RADIAL_SEGMENTS := 12
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
-const RUIN_VISUAL_SEGMENTS := 34
+const RUIN_VISUAL_SEGMENTS := 52
+const RUIN_COLLISION_VOLUMES := 9
 const TREE_CANOPY_EMISSION_ENERGY := 0.34
 const SUMMIT_MOUNTAIN_BLEND_START := 180.0
 const SUMMIT_MOUNTAIN_BLEND_END := 960.0
@@ -1221,13 +1222,15 @@ func _add_ruin(chunk: StaticBody3D, coord: Vector2i, reference_height: float) ->
 	ruin.rotation.y = atan2(-forward.x, -forward.y)
 	ruin.set_meta(&"overrush_obstacle", true)
 	ruin.set_meta(&"overrush_ruin", true)
-	ruin.set_meta(&"passage_clearance", 13.6)
+	ruin.set_meta(&"passage_clearance", 15.2)
 	ruin.set_meta(&"visual_segment_count", RUIN_VISUAL_SEGMENTS)
-	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "LeftColumn")
-	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(8.0, 0.0), Vector3(2.4, 7.0, 2.8), 0.0, "RightColumn")
-	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2.ZERO, Vector3(18.4, 1.8, 3.0), 7.0, "Lintel")
-	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "LeftTerrace")
-	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "RightTerrace")
+	ruin.set_meta(&"collision_volume_count", RUIN_COLLISION_VOLUMES)
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-9.0, 0.0), Vector3(2.8, 9.0, 3.4), 0.0, "LeftColumn")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(9.0, 0.0), Vector3(2.8, 9.0, 3.4), 0.0, "RightColumn")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2.ZERO, Vector3(21.0, 2.2, 3.6), 9.0, "Lintel")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-12.0, 6.0), Vector3(4.8, 1.4, 10.0), 0.0, "LeftTerrace")
+	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(12.0, 6.0), Vector3(4.8, 1.4, 10.0), 0.0, "RightTerrace")
+	_add_ruin_pediment_collisions(ruin)
 	_add_ruin_landmark_details(ruin)
 	chunk.add_child(ruin)
 
@@ -1264,13 +1267,13 @@ func _add_ruin_block_visuals(ruin: StaticBody3D, position: Vector3, size: Vector
 	var split_axis := Vector3.ZERO
 	match block_name:
 		"LeftColumn", "RightColumn":
-			segment_count = 3
+			segment_count = 4
 			split_axis = Vector3.UP
 		"Lintel":
-			segment_count = 7
+			segment_count = 9
 			split_axis = Vector3.RIGHT
 		"LeftTerrace", "RightTerrace":
-			segment_count = 3
+			segment_count = 4
 			split_axis = Vector3.FORWARD
 	var split_length := size.dot(split_axis.abs())
 	var gap := 0.07
@@ -1299,6 +1302,26 @@ func _add_ruin_block_visuals(ruin: StaticBody3D, position: Vector3, size: Vector
 		ruin.add_child(visual)
 
 
+func _add_ruin_pediment_collisions(ruin: StaticBody3D) -> void:
+	var lintel := ruin.get_node("LintelCollision") as CollisionShape3D
+	var lintel_size := (lintel.shape as BoxShape3D).size
+	var lintel_top := lintel.position.y + lintel_size.y * 0.5
+	var levels := [
+		{"name": "PedimentBaseCollision", "width": 18.5, "height": 1.2, "bottom": 0.0},
+		{"name": "PedimentMidCollision", "width": 13.2, "height": 0.6, "bottom": 1.2},
+		{"name": "PedimentInnerCollision", "width": 7.9, "height": 0.8, "bottom": 1.8},
+		{"name": "PedimentCrownCollision", "width": 2.5, "height": 1.0, "bottom": 2.6},
+	]
+	for level in levels:
+		var collision := CollisionShape3D.new()
+		collision.name = level.name
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(level.width, level.height, 3.1)
+		collision.shape = shape
+		collision.position = Vector3(0.0, lintel_top + level.bottom + level.height * 0.5, 0.0)
+		ruin.add_child(collision)
+
+
 func _add_ruin_landmark_details(ruin: StaticBody3D) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -1308,21 +1331,21 @@ func _add_ruin_landmark_details(ruin: StaticBody3D) -> void:
 		_add_ruin_detail(
 			ruin,
 			"%sColumnBase" % side_name,
-			column.position - Vector3.UP * (column_size.y * 0.5 - 0.28),
-			Vector3(2.9, 0.56, 3.3),
+			column.position - Vector3.UP * (column_size.y * 0.5 - 0.32),
+			Vector3(3.4, 0.64, 4.0),
 		)
 		_add_ruin_detail(
 			ruin,
 			"%sColumnCap" % side_name,
-			column.position + Vector3.UP * (column_size.y * 0.5 - 0.3),
-			Vector3(3.0, 0.6, 3.25),
+			column.position + Vector3.UP * (column_size.y * 0.5 - 0.35),
+			Vector3(3.5, 0.7, 4.0),
 		)
 		var side_sign := -1.0 if side_name == "Left" else 1.0
 		_add_ruin_detail(
 			ruin,
 			"%sBrokenPylon" % side_name,
-			column.position + Vector3.UP * (column_size.y * 0.5 + 1.02),
-			Vector3(1.45, 2.05, 2.0),
+			column.position + Vector3.UP * (column_size.y * 0.5 + 1.25),
+			Vector3(1.8, 2.5, 2.4),
 			_ruin_material,
 			Vector3(0.0, side_sign * 2.5, side_sign * 1.6),
 		)
@@ -1331,15 +1354,28 @@ func _add_ruin_landmark_details(ruin: StaticBody3D) -> void:
 				ruin,
 				"%sRelief%s" % [side_name, "Front" if face_sign > 0.0 else "Back"],
 				column.position + Vector3(0.0, 0.15, face_sign * (column_size.z * 0.5 + 0.045)),
-				Vector3(1.45, 2.6, 0.09),
+				Vector3(1.8, 3.4, 0.1),
 				_ruin_recess_material,
 			)
 	var lintel := ruin.get_node("LintelCollision") as CollisionShape3D
 	var lintel_size := (lintel.shape as BoxShape3D).size
-	var crest_heights := [1.0, 1.55, 2.4, 1.55, 1.0]
+	for face_sign in [-1.0, 1.0]:
+		for panel_index in range(-2, 3):
+			_add_ruin_detail(
+				ruin,
+				"LintelRelief%s%02d" % ["Front" if face_sign > 0.0 else "Back", panel_index + 2],
+				lintel.position + Vector3(
+					float(panel_index) * 3.35,
+					0.0,
+					face_sign * (lintel_size.z * 0.5 + 0.05),
+				),
+				Vector3(2.5, 1.15, 0.1),
+				_ruin_recess_material,
+			)
+	var crest_heights := [1.2, 1.8, 2.6, 3.6, 2.6, 1.8, 1.2]
 	for crest_index in range(crest_heights.size()):
 		var crest_height: float = crest_heights[crest_index]
-		var crest_x := (float(crest_index) - 2.0) * 2.65
+		var crest_x := (float(crest_index) - 3.0) * 2.65
 		_add_ruin_detail(
 			ruin,
 			"CrestStone%02d" % crest_index,
@@ -1348,7 +1384,7 @@ func _add_ruin_landmark_details(ruin: StaticBody3D) -> void:
 				lintel_size.y * 0.5 + crest_height * 0.5 + 0.08,
 				0.0,
 			),
-			Vector3(2.5, crest_height, 2.55),
+			Vector3(2.5, crest_height, 3.1),
 		)
 
 

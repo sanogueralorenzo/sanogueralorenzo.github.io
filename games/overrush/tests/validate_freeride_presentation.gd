@@ -215,8 +215,9 @@ func _run() -> void:
 	_expect(
 		world._ruin_block_mesh is ArrayMesh
 			and world._ruin_block_mesh.surface_get_array_len(0) >= 120
-			and ProceduralDesert.RUIN_VISUAL_SEGMENTS >= 34,
-		"Ruin landmarks should use a complete arch, relief, cap, base, and crest silhouette rather than five scaled boxes.",
+			and ProceduralDesert.RUIN_VISUAL_SEGMENTS >= 52
+			and ProceduralDesert.RUIN_COLLISION_VOLUMES == 9,
+		"Ruin landmarks should use a complete temple arch, relief band, cap, base, pylon, and stepped pediment silhouette rather than five scaled boxes.",
 	)
 	_expect(
 		ProceduralDesert.TREE_COLLISION_RADIUS_FACTOR <= 1.0

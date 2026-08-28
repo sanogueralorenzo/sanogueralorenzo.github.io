@@ -43,20 +43,21 @@ func _run() -> void:
 		_expect(target_ruin != null, "The selected ruin should stream with its terrain chunk.")
 		if target_ruin != null:
 			_expect(world.is_obstacle_collider(target_ruin) and not world.is_rideable_collider(target_ruin), "Ruins must never refresh the air boost.")
-			_expect(float(target_ruin.get_meta(&"passage_clearance", 0.0)) >= 13.0, "Ruin arches need a maximum-speed passage wider than 13 m.")
-			_expect(int(target_ruin.get_meta(&"visual_segment_count", 0)) >= 34, "The ruin should render as a complete weathered arch-and-crest landmark, not five monolithic blocks.")
+			_expect(float(target_ruin.get_meta(&"passage_clearance", 0.0)) >= 15.0, "Ruin arches need a maximum-speed passage wider than 15 m.")
+			_expect(int(target_ruin.get_meta(&"visual_segment_count", 0)) >= 52, "The ruin should render as a complete weathered temple arch and stepped pediment, not five monolithic blocks.")
+			_expect(int(target_ruin.get_meta(&"collision_volume_count", 0)) == 9, "Ruin collision metadata must cover the five ground volumes and four visible pediment steps.")
 			var collision_count := 0
 			for child in target_ruin.get_children():
 				if child is CollisionShape3D:
 					collision_count += 1
-			_expect(collision_count == 5, "The landmark should remain one readable arch-and-terrace grammar, not a dense obstacle pile.")
+			_expect(collision_count == 9, "The landmark should use nine coarse volumes matching its arch, terraces, and pediment rather than per-brick collision.")
 		_validate_loaded_trees(world)
 
 	paused = false
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Landscape streaming passed — %d trees, %d rocks, fair obstacle spacing, biome feedback, and a sparse 13 m ruin passage." % [initial_tree_count, initial_rock_count])
+		print("Landscape streaming passed — %d trees, %d rocks, fair obstacle spacing, biome feedback, and a sparse 15 m ruin passage." % [initial_tree_count, initial_rock_count])
 		quit(0)
 	else:
 		for failure in _failures:
