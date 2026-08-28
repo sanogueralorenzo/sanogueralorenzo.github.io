@@ -19,7 +19,7 @@ const SUMMIT_RELIEF_BLEND_END := 620.0
 @export var rebase_distance := 1536.0
 @export var seed := 0
 @export var summit_height := 520.0
-@export var radial_grade := 0.34
+@export var radial_grade := 0.44
 @export var summit_softening_radius := 36.0
 
 var generated_seed := 0

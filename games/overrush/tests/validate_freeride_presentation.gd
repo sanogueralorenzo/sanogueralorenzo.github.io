@@ -33,6 +33,7 @@ func _run() -> void:
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
+	_expect(world.radial_grade >= 0.42, "The base mountainside needs a sustained grade that reads as freeriding rather than flat traversal.")
 	_expect(
 		world._tree_canopy_mesh is ArrayMesh
 			and ProceduralDesert.TREE_BOUGH_TIERS >= 6
@@ -164,7 +165,16 @@ func _run() -> void:
 	)
 
 	var camera = scene.get_node("FollowCamera")
-	_expect(camera.follow_distance <= 11.0 and camera.follow_height <= 3.5, "Third-person framing should keep the rider readable against the terrain.")
+	_expect(
+		camera.follow_distance <= 8.5
+			and rad_to_deg(atan2(camera.follow_height, camera.follow_distance)) >= 30.0
+			and camera.look_ahead >= 10.0,
+		"Third-person framing should keep the rider readable while looking down into the mountain line.",
+	)
+	_expect(
+		camera.get_follow_response_rate(camera.speed_fov_full) >= camera.position_smoothing * 2.5,
+		"High-speed follow should close camera lag before the rider shrinks into the horizon.",
+	)
 	rider.velocity = Vector3.ZERO
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Resting camera FOV should remain restrained.")
 	rider.velocity = Vector3(camera.speed_fov_full, 0.0, 0.0)
@@ -204,7 +214,10 @@ func _run() -> void:
 
 	var shader: Shader = load("res://shaders/desert.gdshader")
 	_expect(
-		"key_light_direction" in shader.code and "wind_crest" in shader.code and "grass_weight" in shader.code,
+		"key_light_direction" in shader.code
+			and "wind_crest" in shader.code
+			and "grass_weight" in shader.code
+			and "surface_texture_scale = 0.08" in shader.code,
 		"The terrain shader should expose directional slope depth, readable wind ridges, and seamless biome blending.",
 	)
 	_expect(

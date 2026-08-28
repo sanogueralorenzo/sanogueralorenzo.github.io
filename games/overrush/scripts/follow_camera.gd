@@ -5,6 +5,7 @@ extends Camera3D
 @export var follow_distance: float = 17.0
 @export var follow_height: float = 8.0
 @export var position_smoothing: float = 7.5
+@export var speed_position_smoothing: float = 0.22
 @export var look_ahead: float = 4.0
 @export var focus_height: float = 1.5
 @export var mouse_sensitivity: float = 0.0025
@@ -71,7 +72,7 @@ func _physics_process(delta: float) -> void:
 		apply_look_delta(look_input * gamepad_look_speed * delta)
 	var forward := get_planar_forward()
 	var orbit_height := tan(_pitch) * follow_distance
-	var blend := 1.0 - exp(-position_smoothing * delta)
+	var blend := 1.0 - exp(-get_follow_response_rate(_get_planar_speed()) * delta)
 	_smoothed_target_position = _smoothed_target_position.lerp(_target.global_position, blend)
 	var focus := _get_focus(forward)
 	var desired_position := _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
@@ -88,9 +89,17 @@ func _get_target_fov() -> float:
 		return normal_fov
 	if _speed_burst_active:
 		return boost_fov
-	var planar_speed := Vector2(_target.velocity.x, _target.velocity.z).length()
+	var planar_speed := _get_planar_speed()
 	var speed_ratio := smoothstep(speed_fov_start, speed_fov_full, planar_speed)
 	return normal_fov + speed_fov_addition * speed_ratio
+
+
+func get_follow_response_rate(planar_speed: float) -> float:
+	return position_smoothing + maxf(0.0, planar_speed) * speed_position_smoothing
+
+
+func _get_planar_speed() -> float:
+	return Vector2(_target.velocity.x, _target.velocity.z).length()
 
 
 func set_speed_burst_active(active: bool) -> void:

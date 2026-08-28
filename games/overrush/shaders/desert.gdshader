@@ -5,7 +5,7 @@ uniform vec2 seed_offset = vec2(0.0);
 uniform vec2 world_origin = vec2(0.0);
 uniform sampler2D sand_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform float surface_texture_scale = 0.025;
+uniform float surface_texture_scale = 0.08;
 uniform vec3 shadow_sand : source_color = vec3(0.12, 0.075, 0.045);
 uniform vec3 pale_sand : source_color = vec3(0.43, 0.25, 0.105);
 uniform vec3 sunlit_sand : source_color = vec3(0.68, 0.42, 0.18);
