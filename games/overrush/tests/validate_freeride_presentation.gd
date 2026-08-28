@@ -78,18 +78,41 @@ func _run() -> void:
 		"Terrain following should reduce incidental float without suppressing intentional and natural launches.",
 	)
 	var board := rider.get_node("BoardVisual/Board") as MeshInstance3D
-	_expect(board.mesh is CylinderMesh, "The sandboard should use a rounded silhouette rather than a placeholder box.")
+	_expect(board.mesh is ArrayMesh, "The sandboard should use one authored deck mesh rather than a scaled primitive puck.")
+	if board.mesh is ArrayMesh:
+		var board_bounds := board.mesh.get_aabb()
+		_expect(
+			board.mesh.surface_get_array_len(0) >= 150
+				and board_bounds.size.x >= 1.2
+				and board_bounds.size.z >= 2.8
+				and board_bounds.size.y >= 0.2,
+			"The board needs a wide, long, beveled deck with readable upturned tips: %s."
+			% str(board_bounds),
+		)
+		_expect(
+			rider._get_board_vertex(Vector2(0.0, -1.45), true).y
+				- rider._get_board_vertex(Vector2(0.0, 0.0), true).y >= 0.13,
+			"The sandboard nose and tail should visibly rise above the center deck.",
+		)
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
 		_expect(rider.get_node_or_null("BoardVisual/%s" % part_name) is MeshInstance3D, "The rider silhouette is missing %s." % part_name)
 	for detail_path in [
+		"BoardVisual/BoardAccent",
+		"BoardVisual/LeftRail",
+		"BoardVisual/RightRail",
 		"BoardVisual/LeftBinding",
 		"BoardVisual/RightBinding",
 		"BoardVisual/Rider/JacketPanel",
+		"BoardVisual/Rider/Shoulders",
+		"BoardVisual/Rider/Belt",
 		"BoardVisual/Head/Visor",
+		"BoardVisual/Head/HelmetStripe",
 		"BoardVisual/LeftArm/LeftGlove",
 		"BoardVisual/RightArm/RightGlove",
 		"BoardVisual/LeftLeg/LeftBoot",
+		"BoardVisual/LeftLeg/LeftKnee",
 		"BoardVisual/RightLeg/RightBoot",
+		"BoardVisual/RightLeg/RightKnee",
 	]:
 		_expect(rider.get_node_or_null(detail_path) is MeshInstance3D, "The articulated rider is missing visual detail %s." % detail_path)
 	var torso_base_rotation := rider.torso_visual.rotation

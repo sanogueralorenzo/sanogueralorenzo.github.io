@@ -39,6 +39,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export_range(80, 320, 1) var carve_track_max_points := 200
 
 @onready var board_visual: Node3D = $BoardVisual
+@onready var board_mesh_visual: MeshInstance3D = $BoardVisual/Board
 @onready var torso_visual: MeshInstance3D = $BoardVisual/Rider
 @onready var head_visual: MeshInstance3D = $BoardVisual/Head
 @onready var left_arm_visual: MeshInstance3D = $BoardVisual/LeftArm
@@ -93,9 +94,61 @@ func _ready() -> void:
 	_last_position = global_position
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_rideable_ground()
+	board_mesh_visual.mesh = _build_sandboard_mesh()
 	_cache_rider_pose()
 	_clear_carve_track()
 	air_boost_state_changed.emit(true, false)
+
+
+func _build_sandboard_mesh() -> ArrayMesh:
+	var outline := PackedVector2Array([
+		Vector2(0.0, -1.45),
+		Vector2(0.42, -1.35),
+		Vector2(0.6, -1.08),
+		Vector2(0.64, -0.55),
+		Vector2(0.64, 0.55),
+		Vector2(0.6, 1.08),
+		Vector2(0.42, 1.35),
+		Vector2(0.0, 1.45),
+		Vector2(-0.42, 1.35),
+		Vector2(-0.6, 1.08),
+		Vector2(-0.64, 0.55),
+		Vector2(-0.64, -0.55),
+		Vector2(-0.6, -1.08),
+		Vector2(-0.42, -1.35),
+	])
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var top_center := Vector3(0.0, 0.055, 0.0)
+	var bottom_center := Vector3(0.0, -0.05, 0.0)
+	for point_index in range(outline.size()):
+		var next_index := (point_index + 1) % outline.size()
+		var top_a := _get_board_vertex(outline[point_index], true)
+		var top_b := _get_board_vertex(outline[next_index], true)
+		var bottom_a := _get_board_vertex(outline[point_index], false)
+		var bottom_b := _get_board_vertex(outline[next_index], false)
+		_add_board_triangle(builder, top_center, top_a, top_b)
+		_add_board_triangle(builder, bottom_center, bottom_b, bottom_a)
+		_add_board_triangle(builder, top_a, bottom_a, bottom_b)
+		_add_board_triangle(builder, top_a, bottom_b, top_b)
+	return builder.commit() as ArrayMesh
+
+
+func _get_board_vertex(point: Vector2, top_surface: bool) -> Vector3:
+	var tip_progress := smoothstep(0.72, 1.45, absf(point.y))
+	var tip_lift := pow(tip_progress, 1.6)
+	var height := (0.055 + tip_lift * 0.14) if top_surface else (-0.05 + tip_lift * 0.075)
+	return Vector3(point.x, height, point.y)
+
+
+func _add_board_triangle(builder: SurfaceTool, first: Vector3, second: Vector3, third: Vector3) -> void:
+	var normal := (second - first).cross(third - first).normalized()
+	var centroid := (first + second + third) / 3.0
+	if normal.dot(centroid) < 0.0:
+		normal = -normal
+	for vertex in [first, second, third]:
+		builder.set_normal(normal)
+		builder.add_vertex(vertex)
 
 
 func _physics_process(delta: float) -> void:
