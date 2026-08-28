@@ -8,6 +8,7 @@ extends Camera3D
 @export var speed_position_smoothing: float = 0.22
 @export var look_ahead: float = 18.0
 @export var focus_height: float = 0.6
+@export_range(0.0, 1.0, 0.05) var terrain_focus_follow := 0.45
 @export var mouse_sensitivity: float = 0.0025
 @export var gamepad_look_speed: float = 2.4
 @export var minimum_pitch_degrees: float = 10.0
@@ -180,7 +181,7 @@ func _get_focus(forward: Vector3) -> Vector3:
 		_world.get_local_surface_height(focus.x, focus.z)
 		+ focus_height
 	)
-	focus.y = minf(focus.y, surface_focus_height)
+	focus.y = lerpf(focus.y, minf(focus.y, surface_focus_height), terrain_focus_follow)
 	return focus
 
 

@@ -367,8 +367,10 @@ func _run() -> void:
 		camera.follow_distance <= 6.5
 			and rad_to_deg(atan2(camera.follow_height, camera.follow_distance)) >= 30.0
 			and camera.look_ahead >= 18.0
-			and camera.focus_height <= 0.7,
-		"Third-person framing should keep the rider large enough for high-speed pose reading while looking down into the mountain line.",
+			and camera.focus_height <= 0.7
+			and camera.terrain_focus_follow >= 0.35
+			and camera.terrain_focus_follow <= 0.6,
+		"Third-person framing should keep the rider readable, look down the line, and preserve part of the mountain grade instead of visually leveling it.",
 	)
 	_expect(
 		camera.normal_fov <= 66.0

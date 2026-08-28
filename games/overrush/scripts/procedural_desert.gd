@@ -18,6 +18,8 @@ const MOUNTAIN_FOLD_PRIMARY_AMPLITUDE := 74.0
 const MOUNTAIN_FOLD_SECONDARY_AMPLITUDE := 58.0
 const BROAD_RELIEF_AMPLITUDE := 54.0
 const RIDGE_RELIEF_AMPLITUDE := 38.0
+const LOCAL_ROLL_AMPLITUDE := 18.0
+const LOCAL_ROLL_FREQUENCY := 0.0042
 const STONE_TRIPLANAR_SCALE := 0.25
 const HORIZON_RADIUS := 4
 const HORIZON_CHUNK_RESOLUTION := 17
@@ -57,7 +59,7 @@ var _ruin_block_mesh: ArrayMesh
 var _broad_noise := FastNoiseLite.new()
 var _mountain_noise := FastNoiseLite.new()
 var _ridge_noise := FastNoiseLite.new()
-var _dune_noise := FastNoiseLite.new()
+var _local_roll_noise := FastNoiseLite.new()
 var _feature_grammar := DesertFeatureGrammar.new()
 var _landscape_layout := LandscapeLayout.new()
 var _mountain_fold_phase := Vector2.ZERO
@@ -135,13 +137,13 @@ func get_surface_height(x: float, z: float) -> float:
 	var broad := _broad_noise.get_noise_2d(x, z) * BROAD_RELIEF_AMPLITUDE
 	var ridges := _ridge_noise.get_noise_2d(x, z)
 	var folded_ridges := signf(ridges) * ridges * ridges * RIDGE_RELIEF_AMPLITUDE
-	var dunes := _dune_noise.get_noise_2d(x, z) * 10.5
+	var local_rolls := _local_roll_noise.get_noise_2d(x, z) * LOCAL_ROLL_AMPLITUDE
 	var authored_feature := _feature_grammar.sample_height_offset(x, z)
 	return (
 		summit_height
 		- descent
 		+ mountain_fade * (mountain_relief + mountain_folds + broad + folded_ridges)
-		+ feature_fade * (dunes + authored_feature)
+		+ feature_fade * (local_rolls + authored_feature)
 	)
 
 
@@ -523,12 +525,12 @@ func _configure_noise() -> void:
 	_ridge_noise.fractal_octaves = 3
 	_ridge_noise.fractal_gain = 0.38
 
-	_dune_noise.seed = generated_seed ^ 0x55AA31
-	_dune_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	_dune_noise.frequency = 0.0042
-	_dune_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
-	_dune_noise.fractal_octaves = 2
-	_dune_noise.fractal_gain = 0.34
+	_local_roll_noise.seed = generated_seed ^ 0x55AA31
+	_local_roll_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	_local_roll_noise.frequency = LOCAL_ROLL_FREQUENCY
+	_local_roll_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	_local_roll_noise.fractal_octaves = 2
+	_local_roll_noise.fractal_gain = 0.34
 
 
 func _create_materials() -> void:
