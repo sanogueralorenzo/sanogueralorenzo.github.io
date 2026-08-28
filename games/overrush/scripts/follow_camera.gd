@@ -19,6 +19,8 @@ extends Camera3D
 @export var fov_smoothing: float = 12.0
 @export var terrain_clearance: float = 0.7
 @export_range(3, 12, 1) var terrain_probe_samples := 7
+@export var obstacle_padding := 0.7
+@export var obstacle_release_speed := 18.0
 
 var _target: CharacterBody3D
 var _world: ProceduralDesert
@@ -31,6 +33,7 @@ var _smoothed_target_position := Vector3.ZERO
 var _base_mouse_sensitivity := 0.0
 var _base_gamepad_look_speed := 0.0
 var _look_sensitivity_multiplier := 1.0
+var _obstacle_distance_limit := INF
 
 
 func _ready() -> void:
@@ -72,7 +75,9 @@ func _physics_process(delta: float) -> void:
 	_smoothed_target_position = _smoothed_target_position.lerp(_target.global_position, blend)
 	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
 	var desired_position := _smoothed_target_position - forward * follow_distance + Vector3.UP * orbit_height
-	global_position = _resolve_terrain_clearance(desired_position, focus)
+	var terrain_resolved := _resolve_terrain_clearance(desired_position, focus)
+	var sightline_origin := _target.global_position + Vector3.UP * focus_height
+	global_position = _resolve_obstacle_clearance(terrain_resolved, sightline_origin, delta)
 	look_at(focus, Vector3.UP)
 	var target_fov := _get_target_fov()
 	fov = lerpf(fov, target_fov, 1.0 - exp(-fov_smoothing * delta))
@@ -145,7 +150,9 @@ func snap_to_target() -> void:
 	_smoothed_target_position = _target.global_position
 	var focus := _target.global_position + forward * look_ahead + Vector3.UP * focus_height
 	var desired_position := _target.global_position - forward * follow_distance + Vector3.UP * tan(_pitch) * follow_distance
-	global_position = _resolve_terrain_clearance(desired_position, focus)
+	var terrain_resolved := _resolve_terrain_clearance(desired_position, focus)
+	var sightline_origin := _target.global_position + Vector3.UP * focus_height
+	global_position = _resolve_obstacle_clearance(terrain_resolved, sightline_origin, 0.0, true)
 	look_at(focus, Vector3.UP)
 
 
@@ -179,6 +186,49 @@ func _sample_minimum_terrain_clearance(from: Vector3, to: Vector3) -> float:
 		var point := from.lerp(to, progress)
 		minimum_clearance = minf(minimum_clearance, point.y - _world.get_local_surface_height(point.x, point.z))
 	return minimum_clearance
+
+
+func _resolve_obstacle_clearance(
+	desired_position: Vector3,
+	sightline_origin: Vector3,
+	delta: float,
+	instant := false,
+) -> Vector3:
+	var offset := desired_position - sightline_origin
+	var desired_distance := offset.length()
+	if desired_distance <= 0.001 or not is_instance_valid(_world):
+		return desired_position
+	var allowed_distance := desired_distance
+	var hit := _find_obstacle_hit(sightline_origin, desired_position)
+	if not hit.is_empty():
+		allowed_distance = maxf(0.25, sightline_origin.distance_to(Vector3(hit.position)) - obstacle_padding)
+	if instant or not is_finite(_obstacle_distance_limit):
+		_obstacle_distance_limit = allowed_distance
+	elif allowed_distance < _obstacle_distance_limit:
+		_obstacle_distance_limit = allowed_distance
+	else:
+		_obstacle_distance_limit = move_toward(
+			_obstacle_distance_limit,
+			allowed_distance,
+			obstacle_release_speed * delta,
+		)
+	_obstacle_distance_limit = minf(_obstacle_distance_limit, desired_distance)
+	return sightline_origin + offset / desired_distance * _obstacle_distance_limit
+
+
+func _find_obstacle_hit(from: Vector3, to: Vector3) -> Dictionary:
+	if from.is_equal_approx(to):
+		return {}
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.hit_back_faces = true
+	if is_instance_valid(_target):
+		query.exclude = [_target.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or not _world.is_obstacle_collider(hit.collider):
+		return {}
+	return hit
 
 
 func apply_world_rebase(shift: Vector3) -> void:

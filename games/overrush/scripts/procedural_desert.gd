@@ -700,6 +700,7 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	var collision := CollisionShape3D.new()
 	collision.name = "TreeCollision"
 	var forest_shape := ConcavePolygonShape3D.new()
+	forest_shape.backface_collision = true
 	forest_shape.set_faces(PackedVector3Array(collision_faces))
 	collision.shape = forest_shape
 	obstacles.add_child(collision)

@@ -74,6 +74,12 @@ func _validate_loaded_trees(world: ProceduralDesert) -> void:
 		_expect(world.is_obstacle_collider(forest) and not world.is_rideable_collider(forest), "Tree trunks must remain obstacle-only contact.")
 		var forest_collision := forest.get_node_or_null("TreeCollision") as CollisionShape3D
 		_expect(forest_collision != null and forest_collision.shape is ConcavePolygonShape3D, "Each forest chunk should consolidate its trunks into one static collision mesh.")
+		_expect(
+			forest_collision != null
+				and forest_collision.shape is ConcavePolygonShape3D
+				and (forest_collision.shape as ConcavePolygonShape3D).backface_collision,
+			"Forest collision should answer rider and camera queries from either trunk face.",
+		)
 		_expect(forest.get_child_count() == 1, "Forest collision should not create one scene node per tree.")
 		var tree_positions: PackedVector3Array = forest.get_meta(&"tree_positions", PackedVector3Array())
 		_expect(tree_positions.size() == int(chunk.get_meta(&"tree_count", 0)), "Batched forest collision metadata must retain every deterministic tree center.")
