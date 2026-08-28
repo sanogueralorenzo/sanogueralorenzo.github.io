@@ -15,7 +15,8 @@ func _run() -> void:
 	await process_frame
 
 	var environment: Environment = scene.get_node("WorldEnvironment").environment
-	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
+	var sky_material := environment.sky.sky_material as ShaderMaterial
+	var sky_shader := sky_material.shader if sky_material != null else null
 	_expect(environment.ssao_enabled, "The freeride terrain needs contact depth from SSAO in Forward+.")
 	_expect(environment.fog_density <= 0.001, "Atmospheric depth must preserve maximum-speed sightlines.")
 	_expect(
@@ -31,21 +32,24 @@ func _run() -> void:
 	)
 	_expect(
 		sky_material != null
-			and sky_material.sky_top_color.b > sky_material.sky_top_color.r * 8.0
-			and sky_material.sky_horizon_color.get_luminance() >= 0.5
-			and sky_material.sky_curve >= 0.6,
-		"The high-desert sky needs enough vertical gradient to avoid a flat cyan backdrop while preserving a bright horizon.",
-	)
-	var horizon_color_difference := (
-		absf(sky_material.sky_horizon_color.r - sky_material.ground_horizon_color.r)
-		+ absf(sky_material.sky_horizon_color.g - sky_material.ground_horizon_color.g)
-		+ absf(sky_material.sky_horizon_color.b - sky_material.ground_horizon_color.b)
+			and sky_shader != null
+			and "shader_type sky" in sky_shader.code
+			and environment.sky.process_mode == Sky.PROCESS_MODE_QUALITY,
+		"The high-desert backdrop needs one static quality-cached sky shader rather than the former flat procedural gradient.",
 	)
 	_expect(
-		horizon_color_difference <= 0.02
-			and is_equal_approx(sky_material.sky_energy_multiplier, sky_material.ground_energy_multiplier)
-			and sky_material.ground_bottom_color.b > sky_material.ground_bottom_color.r,
-		"Sky and ground horizons must share color and energy so reduced fog does not expose a hard seam.",
+		sky_shader != null
+			and "sky_top_color" in sky_shader.code
+			and "sky_horizon_color" in sky_shader.code
+			and "cloud_coverage" in sky_shader.code
+			and "cloud_opacity" in sky_shader.code
+			and "LIGHT0_DIRECTION" in sky_shader.code
+			and "use_half_res_pass" in sky_shader.code
+			and "AT_HALF_RES_PASS" in sky_shader.code
+			and "HALF_RES_COLOR" in sky_shader.code
+			and "AT_CUBEMAP_PASS" in sky_shader.code
+			and not "TIME" in sky_shader.code,
+		"The static sky must provide a graded horizon, restrained half-resolution cirrus, and sun glow without forcing real-time cubemap updates.",
 	)
 	var sun := scene.get_node("Sun") as DirectionalLight3D
 	_expect(

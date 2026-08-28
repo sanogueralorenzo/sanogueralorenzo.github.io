@@ -14,7 +14,7 @@ const EXPECTED_SCRIPTS: Array[String] = [
 	"sandboarder.gd",
 ]
 
-const EXPECTED_SHADERS: Array[String] = ["desert.gdshader"]
+const EXPECTED_SHADERS: Array[String] = ["desert.gdshader", "high_desert_sky.gdshader"]
 const LEGACY_ENTRY_POINTS: Array[String] = [
 	"res://main.tscn",
 	"res://scripts/combat_director.gd",
@@ -41,7 +41,7 @@ func _init() -> void:
 	var actual_shaders := _source_files_in("res://shaders", ".gdshader")
 	var expected_shaders := EXPECTED_SHADERS.duplicate()
 	expected_shaders.sort()
-	_expect(actual_shaders == expected_shaders, "Only the final desert shader should remain: %s." % str(actual_shaders))
+	_expect(actual_shaders == expected_shaders, "Only the final terrain and atmosphere shaders should remain: %s." % str(actual_shaders))
 
 	_expect(OverrushInputBindings.ALL_ACTIONS.size() == 11, "Only traversal, camera, jump, boost, and pause inputs should remain.")
 	var effect_ids: Array[String] = []
@@ -60,7 +60,7 @@ func _init() -> void:
 	)
 
 	if _failures.is_empty():
-		print("Project scope passed — one freeride scene, 11 runtime scripts, one shader, 11 inputs, 3 traversal loops, and 6 event cues remain.")
+		print("Project scope passed — one freeride scene, 11 runtime scripts, 2 presentation shaders, 11 inputs, 3 traversal loops, and 6 event cues remain.")
 		quit(0)
 	else:
 		for failure in _failures:

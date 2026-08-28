@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3]
+[gd_scene load_steps=37 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -6,20 +6,13 @@
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
 [ext_resource type="Texture2D" path="res://assets/terrain/dust_puff_sprite.png" id="6_dust"]
+[ext_resource type="Shader" path="res://shaders/high_desert_sky.gdshader" id="7_sky"]
 
-[sub_resource type="ProceduralSkyMaterial" id="SkyMaterial_desert"]
-sky_top_color = Color(0.025, 0.18, 0.34, 1)
-sky_horizon_color = Color(0.24, 0.58, 0.72, 1)
-sky_curve = 0.68
-sky_energy_multiplier = 1.08
-ground_bottom_color = Color(0.07, 0.13, 0.18, 1)
-ground_horizon_color = Color(0.24, 0.58, 0.72, 1)
-ground_curve = 0.54
-ground_energy_multiplier = 1.08
-sun_angle_max = 8.0
-sun_curve = 0.12
+[sub_resource type="ShaderMaterial" id="SkyMaterial_desert"]
+shader = ExtResource("7_sky")
 
 [sub_resource type="Sky" id="Sky_desert"]
+process_mode = 1
 sky_material = SubResource("SkyMaterial_desert")
 
 [sub_resource type="Environment" id="Environment_desert"]
