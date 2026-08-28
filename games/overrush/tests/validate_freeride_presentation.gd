@@ -94,14 +94,6 @@ func _run() -> void:
 			and ProceduralDesert.MOUNTAIN_FOLD_SECONDARY_AMPLITUDE >= 55.0,
 		"Mountain-scale relief must remain strong enough to form visible valleys and ridgelines around the opening descent.",
 	)
-	_expect(
-		world._tree_canopy_mesh is ArrayMesh
-			and ProceduralDesert.TREE_BOUGH_TIERS >= 6
-			and ProceduralDesert.TREE_RADIAL_SEGMENTS >= 10
-			and world._tree_canopy_mesh.surface_get_array_len(0) >= 1000
-			and world._tree_canopy_mesh.surface_get_array_len(0) <= 1200,
-		"Forests should use a full layered conifer silhouette rather than sparse stacked cones.",
-	)
 	var foliage_texture := load("res://assets/terrain/conifer_foliage_atlas.png") as Texture2D
 	var foliage_source := Image.load_from_file(
 		ProjectSettings.globalize_path("res://assets/terrain/conifer_foliage_atlas.png")
@@ -111,10 +103,12 @@ func _run() -> void:
 	var foliage_uvs: PackedVector2Array = foliage_arrays[Mesh.ARRAY_TEX_UV]
 	_expect(
 		ProceduralDesert.TREE_FOLIAGE_CARD_PLANES == 3
+			and ProceduralDesert.TREE_VISIBLE_TRUNK_HEIGHT_SCALE <= 0.25
+			and ProceduralDesert.TREE_FOLIAGE_SHELL_RADIUS_SCALE >= 1.05
 			and world._tree_foliage_mesh is ArrayMesh
 			and world._tree_foliage_mesh.surface_get_array_len(0) == 18
 			and foliage_uvs.size() == 18,
-		"Each conifer needs one bounded three-plane foliage shell with complete UVs around the existing geometric crown.",
+		"Each conifer needs one bounded three-plane foliage shell with complete UVs and a trunk concealed inside its lower crown.",
 	)
 	_expect(
 		foliage_texture != null
@@ -129,46 +123,21 @@ func _run() -> void:
 			and foliage_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC,
 		"The foliage shell needs an original high-resolution RGBA atlas and efficient two-sided alpha-scissor material.",
 	)
-	var canopy_arrays := world._tree_canopy_mesh.surface_get_arrays(0)
-	var canopy_vertices: PackedVector3Array = canopy_arrays[Mesh.ARRAY_VERTEX]
-	var canopy_y_levels := {}
-	for canopy_vertex in canopy_vertices:
-		canopy_y_levels[roundi(canopy_vertex.y * 1000.0)] = true
-	var canopy_bounds := world._tree_canopy_mesh.get_aabb()
-	_expect(
-		canopy_y_levels.size() >= 24
-			and canopy_bounds.position.y <= 0.03
-			and canopy_bounds.end.y >= 0.98
-			and minf(canopy_bounds.size.x, canopy_bounds.size.z) >= 1.6,
-		"Conifer crowns need jagged asymmetric bough edges and a full ground-to-tip silhouette: %d height levels, %s bounds."
-		% [canopy_y_levels.size(), str(canopy_bounds)],
-	)
-	var minimum_canopy_color := Color(INF, INF, INF, 1.0)
-	var maximum_canopy_color := Color(-INF, -INF, -INF, 1.0)
-	var minimum_canopy_luminance := INF
-	var maximum_canopy_luminance := -INF
+	var minimum_foliage_luminance := INF
+	var maximum_foliage_luminance := -INF
 	for cell_y in range(-8, 9):
 		for cell_x in range(-8, 9):
-			var canopy_color := world._get_tree_canopy_color(Vector2i(cell_x, cell_y))
-			minimum_canopy_color.r = minf(minimum_canopy_color.r, canopy_color.r)
-			minimum_canopy_color.g = minf(minimum_canopy_color.g, canopy_color.g)
-			minimum_canopy_color.b = minf(minimum_canopy_color.b, canopy_color.b)
-			maximum_canopy_color.r = maxf(maximum_canopy_color.r, canopy_color.r)
-			maximum_canopy_color.g = maxf(maximum_canopy_color.g, canopy_color.g)
-			maximum_canopy_color.b = maxf(maximum_canopy_color.b, canopy_color.b)
-			minimum_canopy_luminance = minf(minimum_canopy_luminance, canopy_color.get_luminance())
-			maximum_canopy_luminance = maxf(maximum_canopy_luminance, canopy_color.get_luminance())
+			var foliage_color := world._get_tree_foliage_color(Vector2i(cell_x, cell_y))
+			minimum_foliage_luminance = minf(minimum_foliage_luminance, foliage_color.get_luminance())
+			maximum_foliage_luminance = maxf(maximum_foliage_luminance, foliage_color.get_luminance())
 	_expect(
-		maximum_canopy_color.r - minimum_canopy_color.r >= 0.35
-			and maximum_canopy_color.b - minimum_canopy_color.b >= 0.35
-			and maximum_canopy_luminance - minimum_canopy_luminance >= 0.25
-			and ProceduralDesert.TREE_CANOPY_EMISSION_ENERGY <= 0.4,
-		"Batched forests need deterministic cool/warm and value variation while direct light remains the primary form cue.",
+		maximum_foliage_luminance - minimum_foliage_luminance >= 0.14,
+		"Batched foliage needs restrained deterministic value variation while direct light remains the primary form cue.",
 	)
-	var stable_canopy_color := world._get_tree_canopy_color(Vector2i(7, -3))
-	var repeated_canopy_color := world._get_tree_canopy_color(Vector2i(7, -3))
+	var stable_foliage_color := world._get_tree_foliage_color(Vector2i(7, -3))
+	var repeated_foliage_color := world._get_tree_foliage_color(Vector2i(7, -3))
 	_expect(
-		stable_canopy_color.is_equal_approx(repeated_canopy_color),
+		stable_foliage_color.is_equal_approx(repeated_foliage_color),
 		"Tree palette variation must remain deterministic for a seeded landscape.",
 	)
 	_expect(
