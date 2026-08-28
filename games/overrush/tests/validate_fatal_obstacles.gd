@@ -1,7 +1,9 @@
 extends SceneTree
 
 const TEST_SEED := 73013
-const APPROACH_SPEED := 28.0
+const APPROACH_SPEED := 88.0
+const TEST_PHYSICS_TICKS := 30
+const NEAR_MISS_OFFSET := 1.55
 const TIMEOUT_FRAMES := 180
 
 var _crash_kind := &""
@@ -10,6 +12,7 @@ var _failures: Array[String] = []
 
 
 func _init() -> void:
+	Engine.physics_ticks_per_second = TEST_PHYSICS_TICKS
 	call_deferred("_run")
 
 
@@ -38,6 +41,16 @@ func _run() -> void:
 	_expect("TREE IMPACT" in scene.pause_title.text, "The run-ended overlay should explain the collision immediately.")
 
 	scene.restart_run()
+	_crash_kind = &""
+	_impact_speed = 0.0
+	var passed_tree := await _skim_target(scene, world, rider, tree_target.position)
+	_expect(passed_tree, "The maximum-speed near-miss test should travel beyond the tree.")
+	_expect(
+		not scene._run_crashed and _crash_kind.is_empty(),
+		"A close pass outside the combined rider/trunk envelope must remain recoverable.",
+	)
+
+	scene.restart_run()
 	var rock_target := _find_obstacle_target(world, "RockFieldObstacles")
 	_expect(not rock_target.is_empty(), "The collision test needs a streamed rock-field obstacle.")
 	if not rock_target.is_empty():
@@ -50,12 +63,17 @@ func _run() -> void:
 	scene.restart_run()
 	_expect(not paused and scene.run_active and not scene._run_crashed, "Drop Again should start a clean run from the summit.")
 	_expect(not rider._crashed and rider.velocity.is_zero_approx(), "Restart must clear the rider crash state and momentum.")
+	_expect(
+		rider._carve_track_points.is_empty()
+			and (scene.get_node("CarveTrack") as MeshInstance3D).mesh == null,
+		"Drop Again must clear the previous run's carve track.",
+	)
 	await _finish(scene)
 
 
 func _strike_target(scene: Node, world: ProceduralDesert, rider: Sandboarder, target_position: Vector3) -> void:
 	var approach_direction := Vector3(1.0, 0.0, 0.0)
-	var start_xz := Vector2(target_position.x, target_position.z) - Vector2(approach_direction.x, approach_direction.z) * 7.0
+	var start_xz := Vector2(target_position.x, target_position.z) - Vector2(approach_direction.x, approach_direction.z) * 12.0
 	var start_logical := Vector3(
 		start_xz.x,
 		world.get_surface_height(start_xz.x, start_xz.y) + 0.5,
@@ -71,6 +89,35 @@ func _strike_target(scene: Node, world: ProceduralDesert, rider: Sandboarder, ta
 		await physics_frame
 		if scene._run_crashed:
 			return
+
+
+func _skim_target(scene: Node, world: ProceduralDesert, rider: Sandboarder, target_position: Vector3) -> bool:
+	var approach_direction := Vector3(1.0, 0.0, 0.0)
+	var target_xz := Vector2(target_position.x, target_position.z)
+	var start_xz := (
+		target_xz
+		+ Vector2(0.0, NEAR_MISS_OFFSET)
+		- Vector2(approach_direction.x, approach_direction.z) * 12.0
+	)
+	var start_logical := Vector3(
+		start_xz.x,
+		world.get_surface_height(start_xz.x, start_xz.y) + 0.5,
+		start_xz.y,
+	)
+	rider.global_position = world.world_to_local_position(start_logical)
+	rider._last_position = rider.global_position
+	rider.velocity = Vector3.ZERO
+	for _frame in range(5):
+		await physics_frame
+	rider.velocity = approach_direction * APPROACH_SPEED
+	for _frame in range(TIMEOUT_FRAMES):
+		await physics_frame
+		if scene._run_crashed:
+			return false
+		var logical_position := world.get_world_position(rider.global_position)
+		if logical_position.x >= target_position.x + 8.0:
+			return true
+	return false
 
 
 func _find_obstacle_target(world: ProceduralDesert, obstacle_name: String) -> Dictionary:
@@ -101,7 +148,9 @@ func _finish(scene: Node) -> void:
 	scene.queue_free()
 	await process_frame
 	if _failures.is_empty():
-		print("Fatal obstacle collision passed — direct tree and rock strikes end the run while Drop Again resets cleanly.")
+		print(
+			"Fatal obstacle collision passed — 88 m/s tree and rock strikes remain fatal at 30 Hz, a 1.55 m tree skim stays fair, and Drop Again resets cleanly."
+		)
 		quit(0)
 	else:
 		for failure in _failures:

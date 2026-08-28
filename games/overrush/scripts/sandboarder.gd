@@ -10,6 +10,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 
 @export var world_path: NodePath
 @export var camera_path: NodePath
+@export var carve_track_path: NodePath
 @export var gravity_strength := 30.0
 @export var slope_acceleration := 44.0
 @export var starting_push := 18.0
@@ -31,6 +32,10 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var rider_carve_lean_degrees := 16.0
 @export var rider_speed_crouch := 0.22
 @export var rider_air_tuck := 0.14
+@export var carve_track_sample_distance := 1.5
+@export var carve_track_width := 0.68
+@export var carve_track_surface_offset := 0.035
+@export_range(80, 320, 1) var carve_track_max_points := 200
 
 @onready var board_visual: Node3D = $BoardVisual
 @onready var torso_visual: MeshInstance3D = $BoardVisual/Rider
@@ -43,6 +48,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @onready var boost_light: OmniLight3D = $BoostLight
 @onready var surface_trail: GPUParticles3D = $SurfaceTrail
 @onready var landing_burst: GPUParticles3D = $LandingBurst
+@onready var carve_track: MeshInstance3D = get_node(carve_track_path)
 
 var air_boost_state := AirBoostState.new()
 var jump_assist_state := JumpAssistState.new()
@@ -64,11 +70,16 @@ var _air_pose := 0.0
 var _rider_parts: Array[Node3D] = []
 var _rider_base_positions: Array[Vector3] = []
 var _rider_base_rotations: Array[Vector3] = []
+var _carve_track_points: Array[Dictionary] = []
+var _carve_track_segment := 0
+var _carve_track_was_grounded := false
 
 const SAND_TRAIL_COLOR := Color(1.0, 0.78, 0.38, 0.7)
 const GRASS_TRAIL_COLOR := Color(0.64, 0.82, 0.34, 0.72)
 const SAND_LANDING_COLOR := Color(1.0, 0.82, 0.42, 0.84)
 const GRASS_LANDING_COLOR := Color(0.72, 0.88, 0.4, 0.84)
+const SAND_TRACK_COLOR := Color(0.22, 0.085, 0.024, 0.46)
+const GRASS_TRACK_COLOR := Color(0.034, 0.12, 0.04, 0.44)
 
 
 func _ready() -> void:
@@ -82,6 +93,7 @@ func _ready() -> void:
 	jump_assist_state.configure(jump_buffer_duration, coyote_duration)
 	air_boost_state.reset_on_rideable_ground()
 	_cache_rider_pose()
+	_clear_carve_track()
 	air_boost_state_changed.emit(true, false)
 
 
@@ -113,6 +125,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_update_surface_effect_palette()
 	_update_surface_state(started_on_floor, before_move, jumped_this_frame)
+	_update_carve_track()
 	_update_visuals(delta)
 	distance_traveled += Vector2(
 		global_position.x - _last_position.x,
@@ -132,6 +145,7 @@ func respawn() -> void:
 	jump_assist_state.reset()
 	air_boost_state.reset_on_rideable_ground()
 	_reset_rider_pose()
+	_clear_carve_track()
 	_last_position = global_position
 	air_boost_state_changed.emit(true, false)
 
@@ -139,6 +153,11 @@ func respawn() -> void:
 func apply_world_rebase(shift: Vector3) -> void:
 	global_position -= shift
 	_last_position = global_position
+	for point_index in range(_carve_track_points.size()):
+		var point := _carve_track_points[point_index]
+		point.position = Vector3(point.position) - shift
+		_carve_track_points[point_index] = point
+	_rebuild_carve_track_mesh()
 
 
 func try_air_boost(requested_direction: Vector3) -> bool:
@@ -450,3 +469,108 @@ func _update_surface_effect_palette() -> void:
 	var landing_process := landing_burst.process_material as ParticleProcessMaterial
 	if landing_process != null:
 		landing_process.color = SAND_LANDING_COLOR.lerp(GRASS_LANDING_COLOR, _surface_grass_weight)
+
+
+func _update_carve_track() -> void:
+	var grounded := is_on_floor() and get_horizontal_speed() >= 5.0
+	if not grounded:
+		if _carve_track_was_grounded:
+			_carve_track_segment += 1
+		_carve_track_was_grounded = false
+		return
+	_carve_track_was_grounded = true
+	var logical_position := _world.get_world_position(global_position)
+	var surface_normal := _world.get_surface_normal(logical_position.x, logical_position.z, 1.5)
+	var local_position := Vector3(
+		global_position.x,
+		_world.get_local_surface_height(global_position.x, global_position.z),
+		global_position.z,
+	) + surface_normal * carve_track_surface_offset
+	if not _carve_track_points.is_empty():
+		var last_position := Vector3(_carve_track_points.back().position)
+		if Vector2(local_position.x - last_position.x, local_position.z - last_position.z).length() < carve_track_sample_distance:
+			return
+	var forward := Vector3(velocity.x, 0.0, velocity.z)
+	if forward.length_squared() < 0.01:
+		forward = _heading
+	forward = forward.slide(surface_normal).normalized()
+	var right := forward.cross(surface_normal).normalized()
+	if right.length_squared() < 0.01:
+		return
+	var grass_weight := smoothstep(
+		0.08,
+		0.92,
+		_world.get_grass_weight(Vector2(logical_position.x, logical_position.z)),
+	)
+	_carve_track_points.append({
+		"position": local_position,
+		"normal": surface_normal,
+		"right": right,
+		"color": SAND_TRACK_COLOR.lerp(GRASS_TRACK_COLOR, grass_weight),
+		"segment": _carve_track_segment,
+	})
+	while _carve_track_points.size() > carve_track_max_points:
+		_carve_track_points.pop_front()
+	_rebuild_carve_track_mesh()
+
+
+func _rebuild_carve_track_mesh() -> void:
+	if not is_instance_valid(carve_track) or _carve_track_points.size() < 2:
+		if is_instance_valid(carve_track):
+			carve_track.mesh = null
+		return
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	var point_count := _carve_track_points.size()
+	for point_index in range(point_count):
+		var point := _carve_track_points[point_index]
+		var position := Vector3(point.position)
+		var normal := Vector3(point.normal)
+		var right := Vector3(point.right) * carve_track_width * 0.5
+		var color := Color(point.color)
+		color.a *= smoothstep(0.0, 0.16, float(point_index) / float(maxi(1, point_count - 1)))
+		vertices.append(position - right)
+		vertices.append(position + right)
+		normals.append(normal)
+		normals.append(normal)
+		colors.append(color)
+		colors.append(color)
+		if point_index == 0:
+			continue
+		var previous := _carve_track_points[point_index - 1]
+		if int(previous.segment) != int(point.segment):
+			continue
+		var previous_left := (point_index - 1) * 2
+		var previous_right := previous_left + 1
+		var current_left := point_index * 2
+		var current_right := current_left + 1
+		indices.append_array(PackedInt32Array([
+			previous_left,
+			current_right,
+			previous_right,
+			previous_left,
+			current_left,
+			current_right,
+		]))
+	if indices.is_empty():
+		carve_track.mesh = null
+		return
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	carve_track.mesh = mesh
+
+
+func _clear_carve_track() -> void:
+	_carve_track_points.clear()
+	_carve_track_segment = 0
+	_carve_track_was_grounded = false
+	if is_instance_valid(carve_track):
+		carve_track.mesh = null

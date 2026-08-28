@@ -110,6 +110,14 @@ func _run() -> void:
 			+ absf(sand_color.b - grass_color.b)
 		)
 		_expect(palette_difference >= 0.35, "Dune and grass wakes need visibly distinct surface feedback.")
+	var carve_track := scene.get_node_or_null("CarveTrack") as MeshInstance3D
+	_expect(carve_track != null and carve_track.material_override is StandardMaterial3D, "The rider should leave one terrain-conforming carve-track mesh.")
+	_expect(
+		rider.carve_track_max_points <= 240
+			and rider.carve_track_sample_distance >= 1.25
+			and rider.carve_track_surface_offset >= 0.025,
+		"Carve-track feedback must remain bounded, sampled efficiently, and lifted above terrain seams.",
+	)
 
 	var camera = scene.get_node("FollowCamera")
 	_expect(camera.follow_distance <= 11.0 and camera.follow_height <= 3.5, "Third-person framing should keep the rider readable against the terrain.")

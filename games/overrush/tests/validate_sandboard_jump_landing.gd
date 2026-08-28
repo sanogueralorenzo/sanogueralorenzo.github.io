@@ -37,6 +37,10 @@ func _run() -> void:
 	if not rider.surface_trail.emitting:
 		_fail(scene, "Grounded speed should emit a continuous surface trail.")
 		return
+	var carve_track := scene.get_node("CarveTrack") as MeshInstance3D
+	if rider._carve_track_points.size() < 12 or carve_track.mesh == null:
+		_fail(scene, "Grounded movement should leave a continuous terrain-conforming carve track.")
+		return
 	var visual_alignment := rider.board_visual.global_basis.y.normalized().dot(rider.get_floor_normal())
 	if visual_alignment < 0.82:
 		_fail(scene, "The board visual should align to the contacted sand normal: %.3f." % visual_alignment)
@@ -51,6 +55,9 @@ func _run() -> void:
 	await physics_frame
 	if _jump_count != 1 or rider.is_on_floor():
 		_fail(scene, "A deliberate jump press should produce exactly one immediate takeoff.")
+		return
+	if rider._carve_track_segment < 1:
+		_fail(scene, "Takeoff should break the ground track instead of drawing a ribbon through the air.")
 		return
 	if Vector2(_jump_velocity.x, _jump_velocity.z).length() < pre_jump_speed * 0.97:
 		_fail(scene, "Jumping should preserve approach momentum instead of replacing it.")
@@ -88,12 +95,19 @@ func _run() -> void:
 	if not rider.landing_burst.emitting:
 		_fail(scene, "A valid rideable landing should emit an immediate contact burst.")
 		return
+	if int(rider._carve_track_points.back().segment) != rider._carve_track_segment:
+		_fail(scene, "Landing should begin a new carve-track segment on the contacted terrain.")
+		return
+	var track_index_count: int = carve_track.mesh.surface_get_array_index_len(0)
+	if track_index_count > maxi(0, rider._carve_track_points.size() - 2) * 6:
+		_fail(scene, "The carve track must not bridge the airborne gap between takeoff and landing.")
+		return
 	var landing_text: String = scene.get_node("HUD/LandingFeedback").text
 	if "LANDING" not in landing_text:
 		_fail(scene, "The minimal HUD should communicate the resolved landing quality.")
 		return
 	print(
-		"Sandboard jump/landing passed — %.1f m/s takeoff preserved, one boost spent/refreshed, %s landing (%.0f%%, %.1f m/s impact)."
+		"Sandboard jump/landing passed — %.1f m/s takeoff preserved, the track breaks in air, one boost spent/refreshed, %s landing (%.0f%%, %.1f m/s impact)."
 		% [pre_jump_speed, _landing_rating, _landing_score * 100.0, _landing_impact]
 	)
 	scene.queue_free()

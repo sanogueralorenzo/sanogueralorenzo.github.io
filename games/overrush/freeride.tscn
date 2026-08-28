@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts/freeride_main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/procedural_desert.gd" id="2_desert"]
@@ -107,6 +107,13 @@ shading_mode = 0
 vertex_color_use_as_albedo = true
 albedo_color = Color(1, 0.9, 0.72, 0.78)
 
+[sub_resource type="StandardMaterial3D" id="CarveTrackMaterial"]
+transparency = 1
+cull_mode = 2
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 0.62)
+roughness = 1.0
+
 [sub_resource type="SphereMesh" id="TrailMesh"]
 material = SubResource("TrailMaterial")
 radius = 0.065
@@ -205,11 +212,16 @@ script = ExtResource("2_desert")
 tracked_body_path = NodePath("../Sandboarder")
 tracked_camera_path = NodePath("../FollowCamera")
 
+[node name="CarveTrack" type="MeshInstance3D" parent="."]
+cast_shadow = 0
+material_override = SubResource("CarveTrackMaterial")
+
 [node name="Sandboarder" type="CharacterBody3D" parent="."]
 process_mode = 1
 script = ExtResource("3_rider")
 world_path = NodePath("../Desert")
 camera_path = NodePath("../FollowCamera")
+carve_track_path = NodePath("../CarveTrack")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Sandboarder"]
 position = Vector3(0, 0.7, 0)
