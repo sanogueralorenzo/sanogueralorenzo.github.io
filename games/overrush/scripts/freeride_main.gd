@@ -282,7 +282,7 @@ func _on_landing_scored(rating: StringName, _score: float, _impact_speed: float)
 			landing_label.text = "CLEAN LANDING  •  MOMENTUM HELD"
 			landing_label.modulate = Color("#fff0ad")
 		SandboardMotion.LANDING_SOLID:
-			landing_label.text = "SOLID LANDING"
+			landing_label.text = "SOLID LANDING  •  MOMENTUM KEPT"
 			landing_label.modulate = Color("#e9bf72")
 		_:
 			landing_label.text = "ROUGH LANDING  •  RECOVER"

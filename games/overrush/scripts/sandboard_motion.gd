@@ -74,6 +74,72 @@ static func calculate_starting_push(
 	return starting_push * fade * clampf(input_strength, 0.0, 1.0)
 
 
+static func calculate_landing_preparation(
+	velocity: Vector3,
+	desired_direction: Vector3,
+	surface_normal: Vector3,
+	clearance: float,
+	clearance_window: float,
+	delta: float,
+	response: float,
+	target_closing_speed: float,
+	maximum_tangent_speed: float,
+) -> Dictionary:
+	var normal := surface_normal.normalized()
+	var tangent_velocity := velocity.slide(normal) if normal.length_squared() > 0.001 else velocity
+	var closing_speed := maxf(0.0, -velocity.dot(normal)) if normal.length_squared() > 0.001 else 0.0
+	var result := {
+		"velocity": velocity,
+		"direction": tangent_velocity.normalized(),
+		"preparation_strength": 0.0,
+		"response_blend": 0.0,
+		"alignment": 0.0,
+		"closing_speed_before": closing_speed,
+		"closing_speed_after": closing_speed,
+		"tangent_speed": tangent_velocity.length(),
+	}
+	if (
+		normal.length_squared() <= 0.001
+		or velocity.y >= 0.0
+		or clearance < 0.0
+		or clearance_window <= 0.0
+		or clearance >= clearance_window
+		or delta <= 0.0
+		or response <= 0.0
+		or maximum_tangent_speed <= 0.0
+	):
+		return result
+	var input_strength := clampf(desired_direction.length(), 0.0, 1.0)
+	var desired_tangent := desired_direction.slide(normal).normalized()
+	var current_tangent := tangent_velocity.normalized()
+	if input_strength <= 0.001 or desired_tangent.length_squared() <= 0.001 or current_tangent.length_squared() <= 0.001:
+		return result
+	var alignment := current_tangent.dot(desired_tangent)
+	result.alignment = alignment
+	var closing_target := maxf(0.01, target_closing_speed)
+	if alignment <= 0.0 or closing_speed <= closing_target:
+		return result
+	var clearance_strength := 1.0 - smoothstep(0.0, clearance_window, clearance)
+	var preparation_strength := input_strength * alignment * clearance_strength
+	var response_blend := 1.0 - exp(-response * preparation_strength * delta)
+	var prepared_closing_speed := lerpf(closing_speed, closing_target, response_blend)
+	var total_speed_squared := velocity.length_squared()
+	var preserved_tangent_speed := sqrt(maxf(0.0, total_speed_squared - prepared_closing_speed * prepared_closing_speed))
+	var prepared_tangent_speed := minf(preserved_tangent_speed, maximum_tangent_speed)
+	var prepared_tangent_direction := current_tangent.lerp(desired_tangent, response_blend).normalized()
+	var prepared_velocity := (
+		prepared_tangent_direction * prepared_tangent_speed
+		- normal * prepared_closing_speed
+	)
+	result.velocity = prepared_velocity
+	result.direction = prepared_tangent_direction
+	result.preparation_strength = preparation_strength
+	result.response_blend = response_blend
+	result.closing_speed_after = maxf(0.0, -prepared_velocity.dot(normal))
+	result.tangent_speed = prepared_velocity.slide(normal).length()
+	return result
+
+
 static func calculate_slope_drive(board_direction: Vector3, surface_normal: Vector3) -> Vector3:
 	var normal := surface_normal.normalized()
 	var downhill := Vector3.DOWN.slide(normal)

@@ -48,6 +48,86 @@ func _init() -> void:
 			and push_half_input < Motion.calculate_starting_push(4.0, 14.0, 18.0, 1.0),
 		"Starting propulsion should fade continuously before the carve-speed envelope and respect analog input.",
 	)
+	var full_preparation := _simulate_landing_preparation(120, 1.0, 90.0)
+	var half_preparation := _simulate_landing_preparation(120, 0.5, 90.0)
+	var no_preparation := _simulate_landing_preparation(120, 0.0, 90.0)
+	var opposed_preparation := _simulate_landing_preparation(120, -1.0, 90.0)
+	_expect(
+		float(full_preparation.closing_speed_after) >= 9.0
+			and float(full_preparation.closing_speed_after) <= 13.0,
+		"Aligned full input should prepare a hard descent into a still-descending clean-impact envelope.",
+	)
+	_expect(
+		float(full_preparation.closing_speed_after) < float(half_preparation.closing_speed_after)
+			and float(half_preparation.closing_speed_after) < float(no_preparation.closing_speed_after),
+		"Landing preparation should improve normal impact monotonically with analog input strength.",
+	)
+	_expect(
+		is_equal_approx(float(no_preparation.preparation_strength), 0.0)
+			and Vector3(no_preparation.velocity).is_equal_approx(Vector3(no_preparation.starting_velocity))
+			and is_equal_approx(float(opposed_preparation.preparation_strength), 0.0)
+			and Vector3(opposed_preparation.velocity).is_equal_approx(Vector3(opposed_preparation.starting_velocity)),
+		"No input and opposed input must not receive automatic landing correction.",
+	)
+	_expect(
+		float(full_preparation.preparation_strength) > float(half_preparation.preparation_strength)
+			and float(half_preparation.preparation_strength) > 0.0
+			and float(full_preparation.alignment) >= 0.99,
+		"Preparation feedback should expose the aligned analog intent that produced the correction.",
+	)
+	_expect(
+		absf(Vector3(full_preparation.velocity).length() - Vector3(full_preparation.starting_velocity).length()) <= 0.01
+			and float(full_preparation.tangent_speed) <= 90.001
+			and Vector3(full_preparation.velocity).dot(Vector3(full_preparation.surface_normal)) < 0.0,
+		"Landing preparation should preserve total speed within the tangent cap and keep approaching the surface.",
+	)
+	var capped_preparation := _simulate_landing_preparation(120, 1.0, 50.0)
+	_expect(
+		float(capped_preparation.tangent_speed) <= 50.001
+			and Vector3(capped_preparation.velocity).length() <= Vector3(capped_preparation.starting_velocity).length() + 0.01,
+		"The tangent cap may discard excess speed but must never inject energy.",
+	)
+	var outside_window := Motion.calculate_landing_preparation(
+		Vector3(full_preparation.starting_velocity),
+		Vector3(full_preparation.desired_direction),
+		Vector3(full_preparation.surface_normal),
+		24.0,
+		24.0,
+		1.0 / 120.0,
+		8.0,
+		9.5,
+		90.0,
+	)
+	_expect(
+		is_equal_approx(float(outside_window.preparation_strength), 0.0)
+			and Vector3(outside_window.velocity).is_equal_approx(Vector3(full_preparation.starting_velocity)),
+		"Landing preparation should remain inactive outside its near-surface clearance window.",
+	)
+	var ascending_velocity := Vector3(0.0, 1.0, 60.0)
+	var ascending_result := Motion.calculate_landing_preparation(
+		ascending_velocity,
+		Vector3.BACK,
+		Vector3(full_preparation.surface_normal),
+		6.0,
+		24.0,
+		1.0 / 120.0,
+		8.0,
+		9.5,
+		90.0,
+	)
+	_expect(
+		is_equal_approx(float(ascending_result.preparation_strength), 0.0)
+			and Vector3(ascending_result.velocity).is_equal_approx(ascending_velocity),
+		"Surface-relative closing motion must not trigger preparation while the rider is ascending in world space.",
+	)
+	var preparation_60 := _simulate_landing_preparation(60, 1.0, 90.0)
+	var preparation_300 := _simulate_landing_preparation(300, 1.0, 90.0)
+	_expect(
+		absf(float(preparation_60.closing_speed_after) - float(full_preparation.closing_speed_after)) <= 0.05
+			and absf(float(preparation_300.closing_speed_after) - float(full_preparation.closing_speed_after)) <= 0.05
+			and Vector3(preparation_60.velocity).normalized().dot(Vector3(preparation_300.velocity).normalized()) >= 0.9999,
+		"Landing preparation should resolve equivalently at 60, 120, and 300 Hz.",
+	)
 	var result_60 := _simulate_carve(60)
 	var result_120 := _simulate_carve(120)
 	var result_300 := _simulate_carve(300)
@@ -121,3 +201,36 @@ func _simulate_carve(ticks_per_second: int) -> Vector3:
 		)
 		simulated_velocity = carve.velocity
 	return simulated_velocity
+
+
+func _simulate_landing_preparation(
+	ticks_per_second: int,
+	input_strength: float,
+	maximum_tangent_speed: float,
+) -> Dictionary:
+	var surface_normal := Vector3(0.0, 0.9, -0.435).normalized()
+	var downhill := Vector3.DOWN.slide(surface_normal).normalized()
+	var desired_direction := Vector3(downhill.x, 0.0, downhill.z).normalized() * absf(input_strength)
+	if input_strength < 0.0:
+		desired_direction = -desired_direction
+	var starting_velocity := downhill * 42.0 - surface_normal * 55.0
+	var simulated_velocity := starting_velocity
+	var result := {}
+	var delta := 1.0 / float(ticks_per_second)
+	for _frame in range(roundi(float(ticks_per_second) * 0.45)):
+		result = Motion.calculate_landing_preparation(
+			simulated_velocity,
+			desired_direction,
+			surface_normal,
+			6.0,
+			24.0,
+			delta,
+			8.0,
+			9.5,
+			maximum_tangent_speed,
+		)
+		simulated_velocity = result.velocity
+	result.starting_velocity = starting_velocity
+	result.desired_direction = desired_direction
+	result.surface_normal = surface_normal
+	return result

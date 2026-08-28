@@ -18,6 +18,10 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var low_speed_turn_rate := 2.8
 @export var high_speed_turn_rate := 1.05
 @export var air_control := 5.0
+@export var landing_preparation_clearance := 14.0
+@export var landing_preparation_lead_time := 0.18
+@export var landing_preparation_response := 28.0
+@export var landing_preparation_target_speed := 16.0
 @export var jump_velocity := 13.5
 @export var jump_buffer_duration := 0.13
 @export var coyote_duration := 0.1
@@ -71,6 +75,8 @@ var _has_departed_rideable_ground := false
 var _surface_grass_weight := 0.0
 var _crashed := false
 var _air_pose := 0.0
+var _landing_preparation_strength := 0.0
+var _landing_preparation_normal := Vector3.UP
 var _rider_parts: Array[Node3D] = []
 var _rider_base_positions: Array[Vector3] = []
 var _rider_base_rotations: Array[Vector3] = []
@@ -112,6 +118,9 @@ const RIDER_LEG_HALF_DEPTHS := [0.13, 0.155, 0.18, 0.17]
 const RIDER_LEG_CENTER_Z := [0.075, -0.005, -0.055, 0.0]
 const RIDER_LEG_NORMAL_Y := [-0.2, -0.05, 0.04, 0.2]
 const AIRBORNE_GRAVITY_MULTIPLIER := 1.15
+const LANDING_BURST_CLEAN_RATIO := 0.46
+const LANDING_BURST_SOLID_RATIO := 0.72
+const LANDING_BURST_ROUGH_RATIO := 1.0
 
 
 func _ready() -> void:
@@ -470,6 +479,8 @@ func respawn() -> void:
 	distance_traveled = 0.0
 	_airtime = 0.0
 	_has_departed_rideable_ground = false
+	_landing_preparation_strength = 0.0
+	_landing_preparation_normal = Vector3.UP
 	_crashed = false
 	jump_assist_state.reset()
 	air_boost_state.reset_on_rideable_ground()
@@ -577,8 +588,47 @@ func _apply_air_motion(input_direction: Vector3, delta: float) -> void:
 	if input_direction.length_squared() > 0.01:
 		velocity += input_direction * air_control * delta
 		_heading = input_direction
+		_apply_landing_preparation(input_direction, delta)
+	else:
+		_landing_preparation_strength = move_toward(_landing_preparation_strength, 0.0, delta * 6.0)
 	_carve_intensity = move_toward(_carve_intensity, 0.0, delta * 2.0)
 	_limit_horizontal_speed(maximum_speed * 1.18)
+
+
+func _apply_landing_preparation(input_direction: Vector3, delta: float) -> void:
+	var planar_travel := Vector3(velocity.x, 0.0, velocity.z)
+	if velocity.y >= 0.0 or planar_travel.length_squared() <= 0.01:
+		_landing_preparation_strength = move_toward(_landing_preparation_strength, 0.0, delta * 6.0)
+		return
+	var lead_distance := clampf(planar_travel.length() * landing_preparation_lead_time, 6.0, 14.0)
+	var target_local_position := global_position + planar_travel.normalized() * lead_distance
+	var target_logical_position := _world.get_world_position(target_local_position)
+	var target_surface_height := _world.get_local_surface_height(target_local_position.x, target_local_position.z)
+	var clearance := target_local_position.y - target_surface_height
+	var target_normal := _world.get_surface_normal(
+		target_logical_position.x,
+		target_logical_position.z,
+		3.0,
+	)
+	if target_normal.y < valid_landing_normal_y:
+		_landing_preparation_strength = move_toward(_landing_preparation_strength, 0.0, delta * 6.0)
+		return
+	var preparation := SandboardMotion.calculate_landing_preparation(
+		velocity,
+		input_direction,
+		target_normal,
+		clearance,
+		landing_preparation_clearance,
+		delta,
+		landing_preparation_response,
+		landing_preparation_target_speed,
+		maximum_speed * 1.18,
+	)
+	velocity = preparation.velocity
+	_landing_preparation_strength = float(preparation.preparation_strength)
+	if _landing_preparation_strength > 0.001:
+		_heading = preparation.direction
+		_landing_preparation_normal = target_normal
 
 
 func _try_buffered_jump(started_on_floor: bool) -> bool:
@@ -601,14 +651,17 @@ func _try_buffered_jump(started_on_floor: bool) -> bool:
 func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3, jumped_this_frame: bool) -> void:
 	var ended_on_floor := is_on_floor()
 	if ended_on_floor and not started_on_floor:
+		_landing_preparation_strength = 0.0
+		_landing_preparation_normal = Vector3.UP
 		var valid_rideable_ground := _airtime >= minimum_landing_airtime and _has_valid_rideable_floor_contact()
 		air_boost_state.land(valid_rideable_ground)
 		if valid_rideable_ground and _has_departed_rideable_ground:
-			var assessment := SandboardMotion.evaluate_landing(impact_velocity, get_floor_normal(), _heading)
+			var landing_normal := _get_rideable_surface_normal(global_position)
+			var assessment := SandboardMotion.evaluate_landing(impact_velocity, landing_normal, _heading)
 			var retention: float = assessment.momentum_retention
-			velocity.x *= retention
-			velocity.z *= retention
-			_landing_compression = minf(float(assessment.impact_speed) / 30.0 * 0.22, 0.22)
+			velocity = impact_velocity.slide(landing_normal) * retention
+			_limit_horizontal_speed(maximum_speed)
+			_configure_landing_feedback(assessment.rating, float(assessment.impact_speed))
 			landing_burst.restart()
 			landing_burst.emitting = true
 			landing_scored.emit(assessment.rating, float(assessment.score), float(assessment.impact_speed))
@@ -628,6 +681,41 @@ func _has_valid_rideable_floor_contact() -> bool:
 		if _world.is_rideable_collider(collision.get_collider()) and collision.get_normal().y >= valid_landing_normal_y:
 			return true
 	return false
+
+
+func _get_rideable_surface_normal(local_position: Vector3) -> Vector3:
+	var logical_position := _world.get_world_position(local_position)
+	return _world.get_surface_normal(logical_position.x, logical_position.z, 3.0)
+
+
+func _configure_landing_feedback(rating: StringName, impact_speed: float) -> void:
+	var burst_process := landing_burst.process_material as ParticleProcessMaterial
+	var impact_compression := minf(impact_speed / 30.0 * 0.22, 0.22)
+	match rating:
+		SandboardMotion.LANDING_CLEAN:
+			_landing_compression = maxf(0.035, impact_compression * 0.55)
+			landing_burst.amount_ratio = LANDING_BURST_CLEAN_RATIO
+			if burst_process != null:
+				burst_process.direction = Vector3(0.0, 0.35, 1.0).normalized()
+				burst_process.spread = 42.0
+				burst_process.initial_velocity_min = 3.0
+				burst_process.initial_velocity_max = 6.0
+		SandboardMotion.LANDING_SOLID:
+			_landing_compression = maxf(0.09, impact_compression * 0.78)
+			landing_burst.amount_ratio = LANDING_BURST_SOLID_RATIO
+			if burst_process != null:
+				burst_process.direction = Vector3(0.0, 0.62, 1.0).normalized()
+				burst_process.spread = 56.0
+				burst_process.initial_velocity_min = 4.0
+				burst_process.initial_velocity_max = 8.0
+		_:
+			_landing_compression = maxf(0.15, impact_compression)
+			landing_burst.amount_ratio = LANDING_BURST_ROUGH_RATIO
+			if burst_process != null:
+				burst_process.direction = Vector3(0.0, 0.92, 0.7).normalized()
+				burst_process.spread = 70.0
+				burst_process.initial_velocity_min = 5.0
+				burst_process.initial_velocity_max = 10.0
 
 
 func _detect_fatal_obstacle_impact(incoming_velocity: Vector3) -> bool:
@@ -684,12 +772,15 @@ func _limit_horizontal_speed(limit: float) -> void:
 
 func _update_visuals(delta: float) -> void:
 	var flat_heading := Vector3(velocity.x, 0.0, velocity.z)
-	if flat_heading.length_squared() > 0.25:
+	if flat_heading.length_squared() > 0.25 and (is_on_floor() or _landing_preparation_strength <= 0.001):
 		_heading = flat_heading.normalized()
 	var visual_forward := _heading
 	var visual_up := Vector3.UP
 	if is_on_floor():
 		visual_up = get_floor_normal().normalized()
+		visual_forward = _heading.slide(visual_up).normalized()
+	elif _landing_preparation_strength > 0.001:
+		visual_up = Vector3.UP.lerp(_landing_preparation_normal, _landing_preparation_strength).normalized()
 		visual_forward = _heading.slide(visual_up).normalized()
 	elif velocity.length_squared() > 4.0:
 		visual_forward = velocity.normalized()
@@ -740,6 +831,8 @@ func _cache_rider_pose() -> void:
 
 func _reset_rider_pose() -> void:
 	_air_pose = 0.0
+	_landing_preparation_strength = 0.0
+	_landing_preparation_normal = Vector3.UP
 	_landing_compression = 0.0
 	board_visual.position.y = 0.0
 	for part_index in range(_rider_parts.size()):
@@ -753,6 +846,7 @@ func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> voi
 	var landing_ratio := clampf(_landing_compression / 0.22, 0.0, 1.0)
 	var crouch := clampf(speed_ratio * 0.72 + landing_ratio * 0.55, 0.0, 1.0)
 	var carve := _carve_sign * _carve_intensity * (1.0 - _air_pose)
+	var visible_air_pose := _air_pose * (1.0 - _landing_preparation_strength * 0.45)
 	var boost_ratio := clampf(_boost_feedback_time / 0.2, 0.0, 1.0)
 	var torso_position := _rider_base_positions[0] + Vector3(
 		carve * 0.085,
@@ -775,16 +869,16 @@ func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> voi
 		deg_to_rad(9.0 * carve),
 	)
 	var left_arm_rotation := _rider_base_rotations[2] + Vector3(
-		deg_to_rad(-9.0 * _air_pose),
+		deg_to_rad(-9.0 * visible_air_pose),
 		deg_to_rad(-10.0 * carve),
-		deg_to_rad(-22.0 * _air_pose + 12.0 * carve),
+		deg_to_rad(-22.0 * visible_air_pose + 12.0 * carve),
 	)
 	var right_arm_rotation := _rider_base_rotations[3] + Vector3(
-		deg_to_rad(9.0 * _air_pose),
+		deg_to_rad(9.0 * visible_air_pose),
 		deg_to_rad(-10.0 * carve),
-		deg_to_rad(22.0 * _air_pose + 12.0 * carve),
+		deg_to_rad(22.0 * visible_air_pose + 12.0 * carve),
 	)
-	var leg_lift := rider_air_tuck * _air_pose - 0.04 * landing_ratio
+	var leg_lift := rider_air_tuck * visible_air_pose - 0.04 * landing_ratio
 	var leg_height_difference := carve * 0.045
 	var left_leg_position := _rider_base_positions[4] + Vector3(
 		0.0,
@@ -797,14 +891,14 @@ func _update_rider_pose(delta: float, grounded: bool, speed_ratio: float) -> voi
 		0.04 * crouch,
 	)
 	var left_leg_rotation := _rider_base_rotations[4] + Vector3(
-		deg_to_rad(20.0 * crouch + 24.0 * _air_pose + 8.0 * carve),
+		deg_to_rad(20.0 * crouch + 24.0 * visible_air_pose + 8.0 * carve),
 		0.0,
-		deg_to_rad(-8.0 * carve - 8.0 * _air_pose),
+		deg_to_rad(-8.0 * carve - 8.0 * visible_air_pose),
 	)
 	var right_leg_rotation := _rider_base_rotations[5] + Vector3(
-		deg_to_rad(-20.0 * crouch - 24.0 * _air_pose + 8.0 * carve),
+		deg_to_rad(-20.0 * crouch - 24.0 * visible_air_pose + 8.0 * carve),
 		0.0,
-		deg_to_rad(-8.0 * carve + 8.0 * _air_pose),
+		deg_to_rad(-8.0 * carve + 8.0 * visible_air_pose),
 	)
 	_lerp_part_pose(torso_visual, torso_position, torso_rotation, blend)
 	_lerp_part_pose(head_visual, head_position, head_rotation, blend)

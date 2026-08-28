@@ -12,6 +12,7 @@ func _init() -> void:
 	var build_milliseconds := float(Time.get_ticks_usec() - started_at) / 1000.0
 	_validate_library(library)
 	_validate_motion_mix(audio)
+	_validate_landing_mix_window(audio)
 	_expect(build_milliseconds < 1500.0, "The complete procedural audio palette should synthesize in under 1.5 seconds, measured %.2f ms." % build_milliseconds)
 	library.clear()
 	audio.free()
@@ -59,6 +60,22 @@ func _validate_motion_mix(audio: OverrushAudioDirector) -> void:
 	var grass := audio.calculate_motion_mix(0.85, 1.0, true)
 	_expect(float(sand.sand_surface) >= 0.65 and is_zero_approx(float(sand.grass_surface)), "Clear dunes should favor only the sand contact layer.")
 	_expect(float(grass.grass_surface) >= 0.6 and is_zero_approx(float(grass.sand_surface)), "Forest ground should favor only the grass contact layer.")
+
+
+func _validate_landing_mix_window(audio: OverrushAudioDirector) -> void:
+	audio.play_landing(SandboardMotion.LANDING_CLEAN)
+	_expect(
+		audio.get_landing_surface_duck_db() <= -4.9,
+		"Landing cues need a brief clear window above grounded contact loops.",
+	)
+	audio._landing_surface_duck_remaining = 0.025
+	var recovering_duck := audio.get_landing_surface_duck_db()
+	_expect(
+		recovering_duck > AudioDirectorModel.LANDING_SURFACE_DUCK_DB and recovering_duck < 0.0,
+		"The contact-loop landing duck should recover smoothly rather than cut abruptly.",
+	)
+	audio._landing_surface_duck_remaining = 0.0
+	_expect(is_zero_approx(audio.get_landing_surface_duck_db()), "Landing audio ducking must clear completely.")
 
 
 func _validate_stream(stream: AudioStreamWAV, expected_duration: float, looped: bool, stream_name: String) -> void:

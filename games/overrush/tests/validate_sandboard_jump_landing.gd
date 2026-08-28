@@ -86,11 +86,15 @@ func _run() -> void:
 			% [str(rider.air_boost_state.available), str(rider.air_boost_state.airborne), str(rider.is_on_floor())],
 		)
 		return
-	if _landing_rating not in [SandboardMotion.LANDING_CLEAN, SandboardMotion.LANDING_SOLID, SandboardMotion.LANDING_ROUGH]:
-		_fail(scene, "The landing should resolve to one documented quality rating.")
+	if _landing_rating not in [SandboardMotion.LANDING_CLEAN, SandboardMotion.LANDING_SOLID]:
+		_fail(scene, "Holding the intended line should prepare a boosted jump for a clean or solid landing, measured %s." % _landing_rating)
 		return
-	if _landing_score <= 0.0 or _landing_impact <= 0.0:
-		_fail(scene, "Landing feedback should include meaningful quality and impact values.")
+	if _landing_score < 0.6 or _landing_impact <= 0.0 or _landing_impact > 23.0:
+		_fail(
+			scene,
+			"Deliberate landing preparation should produce bounded contact: %.0f%% at %.1f m/s."
+			% [_landing_score * 100.0, _landing_impact],
+		)
 		return
 	if not rider.landing_burst.emitting:
 		_fail(scene, "A valid rideable landing should emit an immediate contact burst.")

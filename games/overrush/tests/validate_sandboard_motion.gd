@@ -87,6 +87,10 @@ func _run() -> void:
 		push_error("The no-jump contact envelope produced an unexpected %d scored landings." % _landing_count)
 		await _finish(scene, 1)
 		return
+	if _rough_landing_count > 0:
+		push_error("Holding a readable downhill line should prepare natural launches without rough landings: %s." % ", ".join(_landing_observations))
+		await _finish(scene, 1)
+		return
 	var carve_track := scene.get_node("CarveTrack") as MeshInstance3D
 	if rider._carve_track_points.size() != rider.carve_track_max_points:
 		push_error(

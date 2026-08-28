@@ -9,6 +9,8 @@ extends Camera3D
 @export var look_ahead: float = 18.0
 @export var maximum_look_ahead: float = 42.0
 @export var focus_reaction_time: float = 0.62
+@export var descending_focus_reaction_time: float = 0.8
+@export var descending_maximum_look_ahead: float = 56.0
 @export var travel_focus_speed_start: float = 14.0
 @export var travel_focus_speed_full: float = 54.0
 @export_range(0.0, 1.0, 0.05) var travel_focus_strength := 0.7
@@ -262,11 +264,20 @@ func _get_target_travel_weight(planar_speed: float) -> float:
 func _get_target_focus_distance(planar_speed: float) -> float:
 	if _reduced_motion:
 		return look_ahead
+	var reaction_time := focus_reaction_time
+	var maximum_distance := maximum_look_ahead
+	if _is_target_descending_airborne():
+		reaction_time = descending_focus_reaction_time
+		maximum_distance = descending_maximum_look_ahead
 	return clampf(
-		maxf(look_ahead, planar_speed * focus_reaction_time),
+		maxf(look_ahead, planar_speed * reaction_time),
 		look_ahead,
-		maximum_look_ahead,
+		maximum_distance,
 	)
+
+
+func _is_target_descending_airborne() -> bool:
+	return is_instance_valid(_target) and not _target.is_on_floor() and _target.velocity.y < 0.0
 
 
 func _build_focus(direction: Vector3, distance: float) -> Vector3:

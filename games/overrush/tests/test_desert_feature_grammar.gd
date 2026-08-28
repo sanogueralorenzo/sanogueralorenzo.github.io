@@ -9,6 +9,8 @@ const REPRESENTATIVE_SEEDS := [73013, 89173, 41777, 94631]
 const PROFILE_GRID_RADIUS := 10
 const MINIMUM_CHECKED_PROFILES_PER_KIND := 8
 const MINIMUM_OUTWARD_ALIGNMENT := 0.92
+const KICKER_NORMAL_SAMPLE_STEP := 6.0
+const MAXIMUM_KICKER_NORMAL_CHANGE_DEGREES := 6.0
 
 var _failures: Array[String] = []
 
@@ -178,14 +180,40 @@ func _validate_profile_shape(
 		FeatureGrammar.KICKER:
 			var entry := _sample_profile(grammar, descriptor, -104.0, 0.0)
 			var approach := _sample_profile(grammar, descriptor, -52.0, 0.0)
-			var lip := _sample_profile(grammar, descriptor, 4.0, 0.0)
-			var landing := _sample_profile(grammar, descriptor, 48.0, 0.0)
-			var runout := _sample_profile(grammar, descriptor, 92.0, 0.0)
+			var lip := _sample_profile(grammar, descriptor, FeatureGrammar.KICKER_LIP_ALONG, 0.0)
+			var early_catch := _sample_profile(grammar, descriptor, 60.0, 0.0)
+			var late_catch := _sample_profile(grammar, descriptor, 140.0, 0.0)
+			var runout := _sample_profile(grammar, descriptor, FeatureGrammar.KICKER_RUNOUT_END + 8.0, 0.0)
+			var lip_grade := absf(
+				_sample_profile(grammar, descriptor, FeatureGrammar.KICKER_LIP_ALONG + 3.0, 0.0)
+				- _sample_profile(grammar, descriptor, FeatureGrammar.KICKER_LIP_ALONG - 3.0, 0.0)
+			) / 6.0
+			var runout_grade := absf(
+				_sample_profile(grammar, descriptor, FeatureGrammar.KICKER_RUNOUT_END + 3.0, 0.0)
+				- _sample_profile(grammar, descriptor, FeatureGrammar.KICKER_RUNOUT_END - 3.0, 0.0)
+			) / 6.0
 			_expect(
 				entry >= -0.01 and entry < approach and approach < lip,
 				"%s needs a progressive uphill approach into its lip." % context,
 			)
-			_expect(landing < lip and absf(runout) <= 0.15, "%s lacks a bounded downhill landing transition." % context)
+			_expect(
+				early_catch < lip
+					and late_catch < early_catch
+					and late_catch >= float(descriptor.amplitude) * 0.09
+					and absf(runout) <= 0.15,
+				"%s lacks a long, usable downhill catch and clean runout." % context,
+			)
+			_expect(
+				lip_grade <= 0.02 and runout_grade <= 0.02,
+				"%s should enter and leave its catch with a near-zero derivative (%.3f, %.3f)."
+				% [context, lip_grade, runout_grade],
+			)
+			var maximum_normal_change := _measure_kicker_normal_change(grammar, descriptor)
+			_expect(
+				maximum_normal_change <= MAXIMUM_KICKER_NORMAL_CHANGE_DEGREES,
+				"%s changes its board-scale normal by %.2f degrees across 6 m."
+				% [context, maximum_normal_change],
+			)
 		FeatureGrammar.SPLIT_LINE:
 			var center_route := _sample_profile(grammar, descriptor, 0.0, 0.0)
 			var left_marker := _sample_profile(grammar, descriptor, 0.0, -46.0)
@@ -215,6 +243,38 @@ func _measure_profile_grade(grammar: RefCounted, descriptor: Dictionary) -> floa
 			var gradient := Vector2(along_height - height, across_height - height) / step
 			maximum_grade = maxf(maximum_grade, gradient.length())
 	return maximum_grade
+
+
+func _measure_kicker_normal_change(grammar: RefCounted, descriptor: Dictionary) -> float:
+	var maximum_change := 0.0
+	var step := KICKER_NORMAL_SAMPLE_STEP
+	for along in range(-134, 188, int(step)):
+		for across in range(-72, 73, int(step)):
+			var normal := _sample_profile_normal(grammar, descriptor, float(along), float(across), step)
+			var next_along := _sample_profile_normal(grammar, descriptor, float(along) + step, float(across), step)
+			var next_across := _sample_profile_normal(grammar, descriptor, float(along), float(across) + step, step)
+			maximum_change = maxf(maximum_change, rad_to_deg(normal.angle_to(next_along)))
+			maximum_change = maxf(maximum_change, rad_to_deg(normal.angle_to(next_across)))
+	return maximum_change
+
+
+func _sample_profile_normal(
+	grammar: RefCounted,
+	descriptor: Dictionary,
+	along: float,
+	across: float,
+	step: float,
+) -> Vector3:
+	var half_step := step * 0.5
+	var along_grade := (
+		_sample_profile(grammar, descriptor, along + half_step, across)
+		- _sample_profile(grammar, descriptor, along - half_step, across)
+	) / step
+	var across_grade := (
+		_sample_profile(grammar, descriptor, along, across + half_step)
+		- _sample_profile(grammar, descriptor, along, across - half_step)
+	) / step
+	return Vector3(-along_grade, 1.0, -across_grade).normalized()
 
 
 func _sample_profile(

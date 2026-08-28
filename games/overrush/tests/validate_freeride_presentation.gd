@@ -442,6 +442,37 @@ func _run() -> void:
 			surface_process.direction.x <= -0.45 and surface_process.direction.y >= 0.4,
 			"A committed carve should fan the surface spray outward and upward from the loaded edge.",
 		)
+	var landing_burst_process := rider.landing_burst.process_material as ParticleProcessMaterial
+	rider._configure_landing_feedback(SandboardMotion.LANDING_CLEAN, 10.0)
+	var clean_burst_ratio := rider.landing_burst.amount_ratio
+	var clean_compression := rider._landing_compression
+	var clean_burst_speed := landing_burst_process.initial_velocity_max
+	rider._configure_landing_feedback(SandboardMotion.LANDING_SOLID, 19.0)
+	var solid_burst_ratio := rider.landing_burst.amount_ratio
+	var solid_compression := rider._landing_compression
+	var solid_burst_speed := landing_burst_process.initial_velocity_max
+	rider._configure_landing_feedback(SandboardMotion.LANDING_ROUGH, 31.0)
+	_expect(
+		clean_burst_ratio < solid_burst_ratio
+			and solid_burst_ratio < rider.landing_burst.amount_ratio
+			and clean_compression < solid_compression
+			and solid_compression < rider._landing_compression
+			and clean_burst_speed < solid_burst_speed
+			and solid_burst_speed < landing_burst_process.initial_velocity_max,
+		"Clean, solid, and rough landings need progressively stronger board compression and contact spray.",
+	)
+	var landing_messages: Array[String] = []
+	for rating in [SandboardMotion.LANDING_CLEAN, SandboardMotion.LANDING_SOLID, SandboardMotion.LANDING_ROUGH]:
+		scene._on_landing_scored(rating, 0.75, 18.0)
+		landing_messages.append(scene.landing_label.text)
+	_expect(
+		landing_messages[0] != landing_messages[1]
+			and landing_messages[1] != landing_messages[2]
+			and "MOMENTUM KEPT" in landing_messages[1]
+			and "RECOVER" in landing_messages[2],
+		"Minimal landing text should distinguish excellent flow, retained momentum, and recovery.",
+	)
+	rider._landing_compression = 0.0
 	var carve_track := scene.get_node_or_null("CarveTrack") as MeshInstance3D
 	_expect(carve_track != null and carve_track.material_override is StandardMaterial3D, "The rider should leave one terrain-conforming carve-track mesh.")
 	_expect(
@@ -503,6 +534,24 @@ func _run() -> void:
 		"High-speed focus should favor planar travel without discarding manual orbit: travel %.3f, orbit %.3f."
 		% [high_speed_direction.dot(travel_direction), high_speed_direction.dot(manual_forward)],
 	)
+	var focus_test_position := rider.global_position
+	rider.global_position += Vector3.UP * 100.0
+	rider.velocity = travel_direction * camera.speed_fov_full + Vector3.DOWN * 18.0
+	rider.move_and_slide()
+	var descending_focus_distance: float = camera._get_target_focus_distance(camera.speed_fov_full)
+	_expect(
+		not rider.is_on_floor()
+			and descending_focus_distance >= camera.maximum_look_ahead + 10.0
+			and descending_focus_distance <= camera.descending_maximum_look_ahead + 0.05,
+		"Descending airtime should reveal a longer bounded landing line: %.2f m." % descending_focus_distance,
+	)
+	rider.velocity = travel_direction * camera.speed_fov_full + Vector3.UP * 18.0
+	_expect(
+		camera._get_target_focus_distance(camera.speed_fov_full) <= camera.maximum_look_ahead + 0.05,
+		"The extended landing-line focus should only engage during descent.",
+	)
+	rider.global_position = focus_test_position
+	rider.velocity = travel_direction * camera.speed_fov_full
 	var camera_position_before_focus_blend: Vector3 = camera.global_position
 	var first_blended_focus: Vector3 = camera._advance_focus(manual_forward, 1.0 / 60.0)
 	var first_blended_offset := first_blended_focus - rider.global_position

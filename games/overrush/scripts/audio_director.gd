@@ -6,6 +6,8 @@ const MUSIC_DURATION := 4.0
 const MOTION_LOOP_DURATION := 2.0
 const EFFECT_POOL_SIZE := 6
 const MOTION_LOOP_IDS: Array[StringName] = [&"wind", &"sand_surface", &"grass_surface"]
+const LANDING_SURFACE_DUCK_DURATION := 0.15
+const LANDING_SURFACE_DUCK_DB := -5.0
 
 const EFFECT_DURATIONS := {
 	&"air_boost": 0.28,
@@ -29,6 +31,7 @@ var _initialized := false
 var _motion_speed_ratio := 0.0
 var _motion_grass_weight := 0.0
 var _motion_grounded := false
+var _landing_surface_duck_remaining := 0.0
 
 
 func _ready() -> void:
@@ -45,6 +48,13 @@ func _ready() -> void:
 	_initialized = true
 	_apply_levels()
 	_music_player.play()
+
+
+func _process(delta: float) -> void:
+	if _landing_surface_duck_remaining <= 0.0:
+		return
+	_landing_surface_duck_remaining = maxf(0.0, _landing_surface_duck_remaining - delta)
+	_apply_motion_levels()
 
 
 func set_levels(new_master_level: float, new_music_level: float, new_effects_level: float = 1.0) -> void:
@@ -83,13 +93,15 @@ func play_jump() -> void:
 
 
 func play_landing(rating: StringName) -> void:
+	_landing_surface_duck_remaining = LANDING_SURFACE_DUCK_DURATION
+	_apply_motion_levels()
 	match rating:
 		SandboardMotion.LANDING_CLEAN:
-			_play_effect(&"landing_clean", -3.0, 1.0)
+			_play_effect(&"landing_clean", -3.0, 1.08)
 		SandboardMotion.LANDING_SOLID:
-			_play_effect(&"landing_solid", -4.0, 1.0)
+			_play_effect(&"landing_solid", -3.5, 0.98)
 		_:
-			_play_effect(&"landing_rough", -2.0, 1.0)
+			_play_effect(&"landing_rough", -2.0, 0.88)
 
 
 func play_obstacle_impact(impact_speed: float) -> void:
@@ -152,8 +164,14 @@ func _apply_motion_levels() -> void:
 	var mix := calculate_motion_mix(_motion_speed_ratio, _motion_grass_weight, _motion_grounded)
 	for loop_id in MOTION_LOOP_IDS:
 		var player := _motion_players[loop_id] as AudioStreamPlayer
-		player.volume_db = _linear_level_to_db(master_level * effects_level * float(mix[loop_id]))
+		var landing_duck := get_landing_surface_duck_db() if loop_id != &"wind" else 0.0
+		player.volume_db = _linear_level_to_db(master_level * effects_level * float(mix[loop_id])) + landing_duck
 		player.pitch_scale = float(mix.pitch)
+
+
+func get_landing_surface_duck_db() -> float:
+	var recovery := smoothstep(0.0, 0.05, _landing_surface_duck_remaining)
+	return LANDING_SURFACE_DUCK_DB * recovery
 
 
 func _apply_effect_level(player: AudioStreamPlayer) -> void:

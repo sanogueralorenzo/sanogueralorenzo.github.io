@@ -9,6 +9,10 @@ const KICKER := &"kicker"
 const SPLIT_LINE := &"split_line"
 const OPEN_SAND := &"open_sand"
 const MAXIMUM_AXIS_JITTER_DEGREES := 20.0
+const KICKER_APPROACH_START := -140.0
+const KICKER_LIP_ALONG := 12.0
+const KICKER_RUNOUT_END := 190.0
+const KICKER_CATCH_CURVE := 1.25
 
 var _seed := 1
 var _descriptor_cache: Dictionary = {}
@@ -47,10 +51,13 @@ func sample_height_offset(x: float, z: float) -> float:
 			var ridge_width := 1.0 - smoothstep(0.1, 1.0, absf(across) / 66.0)
 			return amplitude * ridge_length * ridge_width
 		KICKER:
-			if along <= -140.0 or along >= 84.0:
+			if along <= KICKER_APPROACH_START or along >= KICKER_RUNOUT_END:
 				return 0.0
-			var approach := smoothstep(-140.0, 12.0, along)
-			var landing_transition := 1.0 - smoothstep(12.0, 84.0, along)
+			var approach := smoothstep(KICKER_APPROACH_START, KICKER_LIP_ALONG, along)
+			var landing_transition := pow(
+				1.0 - smoothstep(KICKER_LIP_ALONG, KICKER_RUNOUT_END, along),
+				KICKER_CATCH_CURVE,
+			)
 			var ramp_profile := approach * landing_transition
 			var ramp_width := 1.0 - smoothstep(0.28, 1.0, absf(across) / 82.0)
 			return amplitude * ramp_profile * ramp_width
