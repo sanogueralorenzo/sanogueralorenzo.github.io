@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dty0rcb6ein84"
-path="res://.godot/imported/dust_puff_sprite.png-fdd6db45cc83f9d70c638d895ff5c736.ctex"
+uid="uid://c27fc4ivglu5i"
+path="res://.godot/imported/dust_puff_soft.svg-7502b8fac0743aaa24d774212c3bfd0c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/terrain/dust_puff_sprite.png"
-dest_files=["res://.godot/imported/dust_puff_sprite.png-fdd6db45cc83f9d70c638d895ff5c736.ctex"]
+source_file="res://assets/terrain/dust_puff_soft.svg"
+dest_files=["res://.godot/imported/dust_puff_soft.svg-7502b8fac0743aaa24d774212c3bfd0c.ctex"]
 
 [params]
 
@@ -38,3 +38,6 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
+svg/scale=1.0
+editor/scale_with_editor_scale=false
+editor/convert_colors_with_editor_theme=false

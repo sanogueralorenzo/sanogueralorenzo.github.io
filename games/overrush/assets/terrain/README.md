@@ -1,6 +1,6 @@
 # Terrain texture provenance
 
-These are original terrain and VFX assets generated with OpenAI's built-in image-generation mode on 2026-08-27, then resized to the per-asset dimensions documented below. They intentionally contain no recognizable third-party assets, text, logos, or characters.
+These are original terrain assets generated with OpenAI's built-in image-generation mode on 2026-08-27, then resized to the per-asset dimensions documented below. They intentionally contain no recognizable third-party assets, text, logos, or characters. The powder wake now uses a deterministic radial-alpha SVG rather than a generated bitmap.
 
 ## `wind_sand_albedo.png`
 
@@ -9,10 +9,6 @@ These are original terrain and VFX assets generated with OpenAI's built-in image
 ## `alpine_grass_albedo.png`
 
 > Use case: stylized-concept. Asset type: tileable game terrain texture for a fast 3D freeriding game. Primary request: original seamless dry alpine grass and low groundcover material, viewed perfectly orthographic from above. Style/medium: polished stylized-realistic game texture, diffuse albedo only. Color palette: deep forest green, sage, muted olive, and restrained sun-dried yellow-green variation. Materials/textures: dense short grass fibers, fine groundcover, subtle broad tonal mottling, enough high-frequency detail to remain readable while moving quickly. Composition/framing: evenly distributed surface detail across a square tile with no focal point. Lighting/mood: neutral flat material capture, no baked directional light, no cast shadows, no highlights. Constraints: genuinely seamless repeating edges; no trees, branches, flowers, rocks, paths, objects, horizon, perspective, text, logos, borders, or watermark. Avoid: lawn stripes, neon green, obvious repeated clumps, photographic scene lighting, deep black areas.
-
-## `dust_puff_sprite.png`
-
-> Use case: stylized-concept. Asset type: transparent GPU particle sprite for an original 3D sandboarding game. Primary request: a single extremely soft diffuse powder haze designed to overlap into a continuous high-speed sand or dry-grass carving plume. Style/medium: restrained realistic VFX opacity texture with a low-contrast asymmetrical oval mist, a softly denser center, feathered edges, and only subtle fine grains. Composition/framing: one centered haze occupying roughly 65 percent of the canvas with broad transparent padding. Lighting/mood: diffuse neutral white-to-light-gray for biome tinting, with no baked directional light. Constraints: real alpha transparency and smooth falloff; no visible lobes, radial burst, tendrils, ground, horizon, shadow, text, logo, watermark, fire, snowflakes, rocks, pellets, or opaque background. Generated at 1254 × 1254 and resized to 256 × 256 for the game.
 
 ## `weathered_sandstone_albedo.png`
 

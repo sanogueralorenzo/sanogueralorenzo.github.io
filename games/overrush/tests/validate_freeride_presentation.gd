@@ -330,15 +330,26 @@ func _run() -> void:
 		rider.surface_trail.fixed_fps >= 60 and rider.surface_trail.fract_delta,
 		"Maximum-speed spray needs interpolated 60 Hz simulation to avoid spaced particle clumps.",
 	)
+	_expect(
+		rider.surface_trail.position.y >= 0.05,
+		"The soft powder billboards should originate high enough to avoid terrain clipping their radial alpha into flat bands.",
+	)
 	var dust_mesh := rider.surface_trail.draw_pass_1 as QuadMesh
 	var dust_material := dust_mesh.material as StandardMaterial3D if dust_mesh != null else null
+	var dust_texture := dust_material.albedo_texture if dust_material != null else null
+	var dust_source := FileAccess.get_file_as_string("res://assets/terrain/dust_puff_soft.svg")
 	_expect(
 		dust_mesh != null
-			and dust_mesh.size.x >= 0.9
+			and dust_mesh.size.x >= 1.0
+			and absf(dust_mesh.size.x - dust_mesh.size.y) <= 0.05
 			and dust_material != null
-			and dust_material.albedo_texture != null
+			and dust_texture != null
+			and dust_texture.resource_path == "res://assets/terrain/dust_puff_soft.svg"
+			and "radialGradient" in dust_source
+			and "stop-opacity=\"0\"" in dust_source
+			and "<circle" in dust_source
 			and dust_material.billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED,
-		"Powder particles need a complete transparent billboard asset that can overlap into a soft continuous plume.",
+		"Powder particles need a radial-alpha billboard that reaches zero before every card edge and overlaps into a soft continuous plume.",
 	)
 	var surface_process := rider.surface_trail.process_material as ParticleProcessMaterial
 	_expect(surface_process != null, "The movement wake needs a surface-aware particle material.")
@@ -346,6 +357,7 @@ func _run() -> void:
 		_expect(
 			surface_process.color_ramp != null
 				and surface_process.initial_velocity_max >= 9.0
+				and surface_process.scale_min >= 0.65
 				and surface_process.scale_max <= 1.6
 				and surface_process.emission_box_extents.z >= 1.25,
 			"Surface spray should burst clearly from the board, fade cleanly, and remain size-bounded.",

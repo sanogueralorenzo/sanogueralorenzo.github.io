@@ -5,7 +5,7 @@
 [ext_resource type="Script" path="res://scripts/sandboarder.gd" id="3_rider"]
 [ext_resource type="Script" path="res://scripts/follow_camera.gd" id="4_camera"]
 [ext_resource type="Script" path="res://scripts/audio_director.gd" id="5_audio"]
-[ext_resource type="Texture2D" path="res://assets/terrain/dust_puff_sprite.png" id="6_dust"]
+[ext_resource type="Texture2D" path="res://assets/terrain/dust_puff_soft.svg" id="6_dust"]
 [ext_resource type="Shader" path="res://shaders/high_desert_sky.gdshader" id="7_sky"]
 
 [sub_resource type="ShaderMaterial" id="SkyMaterial_desert"]
@@ -132,7 +132,7 @@ billboard_keep_scale = true
 
 [sub_resource type="QuadMesh" id="SurfaceDustMesh"]
 material = SubResource("SurfaceDustMaterial")
-size = Vector2(1, 1)
+size = Vector2(1.05, 1.05)
 
 [sub_resource type="Gradient" id="Gradient_surface_fade"]
 offsets = PackedFloat32Array(0, 0.08, 0.62, 1)
@@ -163,8 +163,8 @@ initial_velocity_max = 9.5
 gravity = Vector3(0, -3.4, 0)
 angular_velocity_min = -32.0
 angular_velocity_max = 32.0
-scale_min = 0.5
-scale_max = 1.12
+scale_min = 0.72
+scale_max = 1.48
 color = Color(0.78, 0.56, 0.38, 0.22)
 color_ramp = SubResource("GradientTexture_surface_fade")
 
@@ -418,7 +418,7 @@ light_energy = 4.0
 omni_range = 7.0
 
 [node name="SurfaceTrail" type="GPUParticles3D" parent="Sandboarder"]
-position = Vector3(0, -0.24, 1.65)
+position = Vector3(0, 0.08, 1.65)
 emitting = false
 amount = 900
 lifetime = 0.78
