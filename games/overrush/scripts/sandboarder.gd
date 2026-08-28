@@ -28,6 +28,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var valid_landing_normal_y := 0.55
 @export var minimum_landing_airtime := 0.08
 @export var fatal_obstacle_impact_speed := 10.0
+@export var terrain_follow_snap := 1.6
 @export var rider_pose_response := 9.0
 @export var rider_carve_lean_degrees := 16.0
 @export var rider_speed_crouch := 0.22
@@ -86,7 +87,7 @@ func _ready() -> void:
 	OverrushInputBindings.ensure_actions()
 	_world = get_node(world_path)
 	_camera = get_node(camera_path)
-	floor_snap_length = 1.1
+	floor_snap_length = terrain_follow_snap
 	floor_max_angle = deg_to_rad(58.0)
 	floor_stop_on_slope = false
 	_last_position = global_position

@@ -56,6 +56,10 @@ func _run() -> void:
 
 	var rider: Sandboarder = scene.get_node("Sandboarder")
 	_expect(rider.fatal_obstacle_impact_speed <= 10.0, "Direct high-speed obstacle collisions must have consequential run-ending stakes.")
+	_expect(
+		rider.terrain_follow_snap >= 1.4 and rider.terrain_follow_snap <= 1.8,
+		"Terrain following should reduce incidental float without suppressing intentional and natural launches.",
+	)
 	var board := rider.get_node("BoardVisual/Board") as MeshInstance3D
 	_expect(board.mesh is CylinderMesh, "The sandboard should use a rounded silhouette rather than a placeholder box.")
 	for part_name in ["Head", "LeftArm", "RightArm", "LeftLeg", "RightLeg"]:
