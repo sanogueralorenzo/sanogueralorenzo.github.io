@@ -8,6 +8,7 @@ const RIDGE := &"ridge"
 const KICKER := &"kicker"
 const SPLIT_LINE := &"split_line"
 const OPEN_SAND := &"open_sand"
+const MAXIMUM_AXIS_JITTER_DEGREES := 20.0
 
 var _seed := 1
 var _descriptor_cache: Dictionary = {}
@@ -36,24 +37,28 @@ func sample_height_offset(x: float, z: float) -> float:
 
 	match kind:
 		BOWL:
-			var radius_ratio := local.length() / 150.0
+			var along_extent := 156.0 if along < 0.0 else 204.0
+			var radius_ratio := Vector2(along / along_extent, across / 118.0).length()
 			var bowl_falloff := 1.0 - smoothstep(0.42, 1.0, radius_ratio)
 			return -amplitude * bowl_falloff * bowl_falloff
 		RIDGE:
-			var ridge_length := 1.0 - smoothstep(0.62, 1.0, absf(along) / 158.0)
-			var ridge_width := 1.0 - smoothstep(0.12, 1.0, absf(across) / 68.0)
+			var along_extent := 165.0 if along < 0.0 else 204.0
+			var ridge_length := 1.0 - smoothstep(0.6, 1.0, absf(along) / along_extent)
+			var ridge_width := 1.0 - smoothstep(0.1, 1.0, absf(across) / 66.0)
 			return amplitude * ridge_length * ridge_width
 		KICKER:
-			if absf(along) >= 108.0:
+			if along <= -140.0 or along >= 84.0:
 				return 0.0
-			var ramp_t := (along + 108.0) / 216.0
-			var ramp_profile := pow(sin(PI * ramp_t), 2.0)
-			var ramp_width := 1.0 - smoothstep(0.45, 1.0, absf(across) / 74.0)
+			var approach := smoothstep(-140.0, 12.0, along)
+			var landing_transition := 1.0 - smoothstep(12.0, 84.0, along)
+			var ramp_profile := approach * landing_transition
+			var ramp_width := 1.0 - smoothstep(0.28, 1.0, absf(across) / 82.0)
 			return amplitude * ramp_profile * ramp_width
 		SPLIT_LINE:
-			var split_length := 1.0 - smoothstep(0.58, 1.0, absf(along) / 154.0)
-			var first_lobe := 1.0 - smoothstep(0.18, 1.0, absf(across - 43.0) / 42.0)
-			var second_lobe := 1.0 - smoothstep(0.18, 1.0, absf(across + 43.0) / 42.0)
+			var along_extent := 160.0 if along < 0.0 else 195.0
+			var split_length := 1.0 - smoothstep(0.56, 1.0, absf(along) / along_extent)
+			var first_lobe := 1.0 - smoothstep(0.16, 1.0, absf(across - 46.0) / 52.0)
+			var second_lobe := 1.0 - smoothstep(0.16, 1.0, absf(across + 46.0) / 52.0)
 			return amplitude * split_length * maxf(first_lobe, second_lobe)
 		_:
 			return 0.0
@@ -105,10 +110,18 @@ func _get_descriptor(coord: Vector2i) -> Dictionary:
 		lerpf(-32.0, 32.0, get_cell_random(coord, 2)),
 		lerpf(-32.0, 32.0, get_cell_random(coord, 3)),
 	)
+	var outward := center.normalized()
+	if outward.length_squared() <= 0.001:
+		outward = Vector2.from_angle(get_cell_random(coord, 6) * TAU)
+	var axis_jitter := deg_to_rad(lerpf(
+		-MAXIMUM_AXIS_JITTER_DEGREES,
+		MAXIMUM_AXIS_JITTER_DEGREES,
+		get_cell_random(coord, 4),
+	))
 	var descriptor := {
 		"kind": kind,
 		"center": center,
-		"angle": get_cell_random(coord, 4) * TAU,
+		"angle": outward.angle() + axis_jitter,
 		"amplitude": lerpf(7.5, 10.0, get_cell_random(coord, 5)),
 	}
 	_descriptor_cache[coord] = descriptor

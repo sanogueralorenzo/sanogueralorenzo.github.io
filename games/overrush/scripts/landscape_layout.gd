@@ -55,10 +55,6 @@ func get_grass_weight(logical_position: Vector2) -> float:
 	return smoothstep(-0.3, 0.3, field)
 
 
-func get_tree_cell_coordinate(logical_position: Vector2) -> Vector2i:
-	return Vector2i(floori(logical_position.x / TREE_CELL_SIZE), floori(logical_position.y / TREE_CELL_SIZE))
-
-
 func get_tree_position(cell: Vector2i) -> Vector2:
 	var center := (Vector2(cell) + Vector2(0.5, 0.5)) * TREE_CELL_SIZE
 	var jitter := Vector2(

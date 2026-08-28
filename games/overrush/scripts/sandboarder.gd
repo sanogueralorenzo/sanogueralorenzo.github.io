@@ -3,7 +3,6 @@ extends CharacterBody3D
 
 signal air_boost_state_changed(available: bool, airborne: bool)
 signal air_boost_used
-signal landed(impact_speed: float)
 signal landing_scored(rating: StringName, score: float, impact_speed: float)
 signal jumped
 signal crashed(obstacle_kind: StringName, impact_speed: float)
@@ -28,7 +27,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var valid_landing_normal_y := 0.55
 @export var minimum_landing_airtime := 0.08
 @export var fatal_obstacle_impact_speed := 10.0
-@export var terrain_follow_snap := 1.6
+@export var terrain_follow_snap := 1.8
 @export var rider_pose_response := 9.0
 @export var rider_carve_lean_degrees := 16.0
 @export var rider_speed_crouch := 0.22
@@ -92,10 +91,10 @@ const RIDER_JACKET_HALF_WIDTHS := [0.25, 0.34, 0.37, 0.42, 0.25]
 const RIDER_JACKET_HALF_DEPTHS := [0.22, 0.27, 0.29, 0.27, 0.19]
 const RIDER_JACKET_CENTER_Z := [0.03, 0.035, 0.02, 0.0, -0.01]
 const RIDER_JACKET_NORMAL_Y := [-0.3, -0.08, 0.0, 0.2, 0.68]
+const AIRBORNE_GRAVITY_MULTIPLIER := 1.15
 
 
 func _ready() -> void:
-	OverrushInputBindings.ensure_actions()
 	_world = get_node(world_path)
 	_camera = get_node(camera_path)
 	floor_snap_length = terrain_follow_snap
@@ -108,7 +107,6 @@ func _ready() -> void:
 	torso_visual.mesh = _build_rider_jacket_mesh()
 	_cache_rider_pose()
 	_clear_carve_track()
-	air_boost_state_changed.emit(true, false)
 
 
 func _build_sandboard_mesh() -> ArrayMesh:
@@ -351,7 +349,7 @@ func get_camera_relative_direction() -> Vector3:
 		return Vector3.ZERO
 	var forward: Vector3 = Vector3(_camera.call("get_planar_forward")) if _camera.has_method("get_planar_forward") else Vector3.FORWARD
 	var right: Vector3 = Vector3(_camera.call("get_planar_right")) if _camera.has_method("get_planar_right") else Vector3.RIGHT
-	return (right * input.x + forward * -input.y).normalized()
+	return right * input.x + forward * -input.y
 
 
 func get_horizontal_speed() -> float:
@@ -364,28 +362,31 @@ func get_surface_grass_weight() -> float:
 
 func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	var normal := get_floor_normal()
-	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	var speed := horizontal.length()
+	var tangent_velocity := velocity.slide(normal)
+	var tangent_speed := tangent_velocity.length()
 	if input_direction.length_squared() > 0.01:
+		var input_strength := clampf(input_direction.length(), 0.0, 1.0)
 		var tangent_input := input_direction.slide(normal).normalized()
-		if speed < summit_push_speed:
-			velocity += tangent_input * starting_push * delta
-			_heading = Vector3(tangent_input.x, 0.0, tangent_input.z).normalized()
-		if speed >= summit_push_speed:
-			var carve := SandboardMotion.calculate_carve(
-				horizontal,
-				tangent_input,
-				delta,
-				maximum_speed,
-				low_speed_turn_rate,
-				high_speed_turn_rate,
-			)
-			var carved_velocity: Vector3 = carve.velocity
-			velocity.x = carved_velocity.x
-			velocity.z = carved_velocity.z
-			_heading = carve.direction
-			_carve_intensity = float(carve.carve_intensity)
-			_carve_sign = signf(float(carve.steering_angle))
+		var carve := SandboardMotion.calculate_carve(
+			velocity,
+			input_direction,
+			normal,
+			delta,
+			maximum_speed,
+			low_speed_turn_rate,
+			high_speed_turn_rate,
+		)
+		velocity = carve.velocity
+		_heading = carve.direction
+		_carve_intensity = float(carve.carve_intensity)
+		_carve_sign = signf(float(carve.steering_angle))
+		var push_acceleration := SandboardMotion.calculate_starting_push(
+			tangent_speed,
+			summit_push_speed,
+			starting_push,
+			input_strength,
+		)
+		velocity += tangent_input * push_acceleration * delta
 	else:
 		_carve_intensity = move_toward(_carve_intensity, 0.0, delta * 3.0)
 		_carve_sign = move_toward(_carve_sign, 0.0, delta * 5.0)
@@ -393,13 +394,13 @@ func _apply_ground_motion(input_direction: Vector3, delta: float) -> void:
 	velocity += slope_drive * slope_acceleration * delta
 	velocity += Vector3.DOWN * gravity_strength * delta
 	var drag_factor := maxf(0.0, 1.0 - ground_drag * delta)
-	velocity.x *= drag_factor
-	velocity.z *= drag_factor
+	var normal_velocity := normal * velocity.dot(normal)
+	velocity = velocity.slide(normal) * drag_factor + normal_velocity
 	_limit_horizontal_speed(maximum_speed)
 
 
 func _apply_air_motion(input_direction: Vector3, delta: float) -> void:
-	velocity.y -= gravity_strength * delta
+	velocity.y -= gravity_strength * AIRBORNE_GRAVITY_MULTIPLIER * delta
 	if input_direction.length_squared() > 0.01:
 		velocity += input_direction * air_control * delta
 		_heading = input_direction
@@ -437,7 +438,6 @@ func _update_surface_state(started_on_floor: bool, impact_velocity: Vector3, jum
 			_landing_compression = minf(float(assessment.impact_speed) / 30.0 * 0.22, 0.22)
 			landing_burst.restart()
 			landing_burst.emitting = true
-			landed.emit(float(assessment.impact_speed))
 			landing_scored.emit(assessment.rating, float(assessment.score), float(assessment.impact_speed))
 		air_boost_state_changed.emit(air_boost_state.available, false)
 		_airtime = 0.0

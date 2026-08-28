@@ -396,15 +396,6 @@ func _run() -> void:
 
 	var camera = scene.get_node("FollowCamera")
 	_expect(
-		camera.follow_distance <= 6.5
-			and rad_to_deg(atan2(camera.follow_height, camera.follow_distance)) >= 30.0
-			and camera.look_ahead >= 18.0
-			and camera.focus_height <= 0.7
-			and camera.terrain_focus_follow >= 0.35
-			and camera.terrain_focus_follow <= 0.6,
-		"Third-person framing should keep the rider readable, look down the line, and preserve part of the mountain grade instead of visually leveling it.",
-	)
-	_expect(
 		camera.normal_fov <= 66.0
 			and camera.speed_fov_addition <= 4.0
 			and camera.boost_fov <= 82.0,
@@ -414,9 +405,61 @@ func _run() -> void:
 		camera.get_follow_response_rate(camera.speed_fov_full) >= camera.position_smoothing * 2.5,
 		"High-speed follow should close camera lag before the rider shrinks into the horizon.",
 	)
+	camera.set_reduced_motion(false)
+	camera.set_orbit_angles(0.0, atan2(camera.follow_height, camera.follow_distance))
+	var manual_forward: Vector3 = camera.get_planar_forward()
 	rider.velocity = Vector3.ZERO
+	camera._reset_focus_tracking(manual_forward)
+	var low_speed_focus: Vector3 = camera._get_focus(manual_forward)
+	var low_speed_offset := low_speed_focus - rider.global_position
+	var low_speed_planar := Vector3(low_speed_offset.x, 0.0, low_speed_offset.z)
+	_expect(
+		absf(low_speed_planar.length() - camera.look_ahead) <= 0.05
+			and low_speed_planar.normalized().dot(manual_forward) >= 0.999,
+		"At low speed the focus should honor the player's orbit and retain a compact readable lead: %.2f m, %.3f alignment."
+		% [low_speed_planar.length(), low_speed_planar.normalized().dot(manual_forward)],
+	)
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Resting camera FOV should remain restrained.")
-	rider.velocity = Vector3(camera.speed_fov_full, 0.0, 0.0)
+	var travel_direction := Vector3.RIGHT
+	rider.velocity = travel_direction * camera.speed_fov_full
+	var high_speed_focus: Vector3 = camera._get_focus(manual_forward)
+	var high_speed_offset := high_speed_focus - rider.global_position
+	var high_speed_planar := Vector3(high_speed_offset.x, 0.0, high_speed_offset.z)
+	var high_speed_direction := high_speed_planar.normalized()
+	_expect(
+		high_speed_planar.length() >= low_speed_planar.length() + 12.0
+			and high_speed_planar.length() <= camera.maximum_look_ahead + 0.05,
+		"High speed should extend terrain-reading focus by reaction time while remaining bounded: %.2f m."
+		% high_speed_planar.length(),
+	)
+	_expect(
+		high_speed_direction.dot(travel_direction) >= 0.8
+			and high_speed_direction.dot(manual_forward) >= 0.35,
+		"High-speed focus should favor planar travel without discarding manual orbit: travel %.3f, orbit %.3f."
+		% [high_speed_direction.dot(travel_direction), high_speed_direction.dot(manual_forward)],
+	)
+	var camera_position_before_focus_blend: Vector3 = camera.global_position
+	var first_blended_focus: Vector3 = camera._advance_focus(manual_forward, 1.0 / 60.0)
+	var first_blended_offset := first_blended_focus - rider.global_position
+	var first_blended_planar := Vector3(first_blended_offset.x, 0.0, first_blended_offset.z)
+	var first_blended_direction := first_blended_planar.normalized()
+	_expect(
+		first_blended_planar.length() > low_speed_planar.length()
+			and first_blended_planar.length() < high_speed_planar.length()
+			and first_blended_direction.dot(manual_forward) > high_speed_direction.dot(manual_forward)
+			and camera.global_position.is_equal_approx(camera_position_before_focus_blend),
+		"Travel-aware focus should ease ahead smoothly without moving the player's manual orbit position.",
+	)
+	var settled_focus := first_blended_focus
+	for _focus_step in range(90):
+		settled_focus = camera._advance_focus(manual_forward, 1.0 / 60.0)
+	var settled_offset := settled_focus - rider.global_position
+	var settled_planar := Vector3(settled_offset.x, 0.0, settled_offset.z)
+	_expect(
+		absf(settled_planar.length() - high_speed_planar.length()) <= 0.15
+			and settled_planar.normalized().dot(high_speed_direction) >= 0.999,
+		"Focus assistance should converge promptly without a permanent direction or lead lag.",
+	)
 	_expect(
 		is_equal_approx(camera._get_target_fov(), camera.normal_fov + camera.speed_fov_addition),
 		"High speed should widen FOV continuously without waiting for the air boost.",
@@ -425,6 +468,16 @@ func _run() -> void:
 	_expect(is_equal_approx(camera._get_target_fov(), camera.boost_fov), "Air boost should retain the strongest brief speed framing.")
 	camera.set_reduced_motion(true)
 	_expect(is_equal_approx(camera._get_target_fov(), camera.normal_fov), "Reduced motion should remove all speed-driven FOV displacement.")
+	var reduced_focus: Vector3 = camera._advance_focus(manual_forward, 0.0, true)
+	var reduced_offset := reduced_focus - rider.global_position
+	var reduced_planar := Vector3(reduced_offset.x, 0.0, reduced_offset.z)
+	_expect(
+		absf(reduced_planar.length() - camera.look_ahead) <= 0.05
+			and reduced_planar.normalized().dot(manual_forward) >= 0.999,
+		"Reduced motion should remove automated travel steering and speed lead while retaining manual orbit.",
+	)
+	camera.set_speed_burst_active(false)
+	camera.set_reduced_motion(false)
 	var downhill_focus_count := 0
 	for direction_index in range(8):
 		var heading := TAU * float(direction_index) / 8.0
@@ -436,6 +489,7 @@ func _run() -> void:
 		))
 		camera.set_orbit_angles(-heading - PI * 0.5, atan2(camera.follow_height, camera.follow_distance))
 		var camera_forward: Vector3 = camera.get_planar_forward()
+		rider.velocity = camera_forward * camera.speed_fov_full
 		var level_focus_height: float = rider.global_position.y + camera.focus_height
 		var terrain_focus: Vector3 = camera._get_focus(camera_forward)
 		if terrain_focus.y <= level_focus_height - 0.5:

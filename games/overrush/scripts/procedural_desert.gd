@@ -962,7 +962,6 @@ func _add_forest(chunk: StaticBody3D, coord: Vector2i, reference_height: float) 
 	collision.shape = forest_shape
 	obstacles.add_child(collision)
 	obstacles.set_meta(&"tree_positions", tree_positions)
-	obstacles.set_meta(&"tree_collision_triangle_count", collision_faces.size() / 3)
 	chunk.add_child(obstacles)
 
 	if DisplayServer.get_name() == "headless":

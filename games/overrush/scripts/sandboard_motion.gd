@@ -7,43 +7,71 @@ const LANDING_ROUGH := &"rough"
 
 
 static func calculate_carve(
-	horizontal_velocity: Vector3,
+	velocity: Vector3,
 	desired_direction: Vector3,
+	surface_normal: Vector3,
 	delta: float,
 	maximum_speed: float,
 	fast_turn_rate: float,
 	high_speed_turn_rate: float
 ) -> Dictionary:
-	var speed := Vector2(horizontal_velocity.x, horizontal_velocity.z).length()
-	var current_direction := Vector3(horizontal_velocity.x, 0.0, horizontal_velocity.z).normalized()
-	var target_direction := Vector3(desired_direction.x, 0.0, desired_direction.z).normalized()
-	if speed <= 0.001 or target_direction.length_squared() <= 0.001:
+	var normal := surface_normal.normalized()
+	var normal_velocity := normal * velocity.dot(normal)
+	var tangent_velocity := velocity.slide(normal)
+	var speed := tangent_velocity.length()
+	var current_direction := tangent_velocity.normalized()
+	var input_strength := clampf(desired_direction.length(), 0.0, 1.0)
+	var target_direction := desired_direction.slide(normal).normalized()
+	if input_strength <= 0.001 or target_direction.length_squared() <= 0.001:
 		return {
-			"velocity": horizontal_velocity,
+			"velocity": velocity,
 			"direction": current_direction,
 			"turn_angle": 0.0,
 			"steering_angle": 0.0,
 			"carve_intensity": 0.0,
+			"edge_load": 0.0,
+		}
+	if speed <= 0.001:
+		return {
+			"velocity": velocity,
+			"direction": target_direction,
+			"turn_angle": 0.0,
+			"steering_angle": 0.0,
+			"carve_intensity": 0.0,
+			"edge_load": 0.0,
 		}
 	var speed_ratio := clampf(speed / maximum_speed, 0.0, 1.0)
 	var turn_rate := lerpf(fast_turn_rate, high_speed_turn_rate, pow(speed_ratio, 0.7))
-	var steering_angle := current_direction.signed_angle_to(target_direction, Vector3.UP)
-	var maximum_turn := maxf(0.0001, turn_rate * delta)
+	var steering_angle := current_direction.signed_angle_to(target_direction, normal)
+	var analog_turn_scale := lerpf(0.18, 1.0, input_strength)
+	var maximum_turn := maxf(0.0001, turn_rate * analog_turn_scale * delta)
 	var turn_angle := clampf(steering_angle, -maximum_turn, maximum_turn)
-	var carved_direction := current_direction.rotated(Vector3.UP, turn_angle).normalized()
-	var carve_intensity := clampf(absf(steering_angle) / (PI * 0.5), 0.0, 1.0)
+	var carved_direction := current_direction.rotated(normal, turn_angle).normalized()
+	var carve_intensity := clampf(absf(steering_angle) / (PI * 0.5), 0.0, 1.0) * input_strength
 	var turn_commitment := clampf(absf(turn_angle) / maximum_turn, 0.0, 1.0)
 	var edge_load := carve_intensity * turn_commitment
 	var carve_drag_rate := lerpf(0.015, 0.11, speed_ratio) * edge_load
 	var turn_drag := exp(-carve_drag_rate * delta)
 	return {
-		"velocity": carved_direction * speed * turn_drag,
+		"velocity": carved_direction * speed * turn_drag + normal_velocity,
 		"direction": carved_direction,
 		"turn_angle": turn_angle,
 		"steering_angle": steering_angle,
 		"carve_intensity": carve_intensity,
 		"edge_load": edge_load,
 	}
+
+
+static func calculate_starting_push(
+	tangent_speed: float,
+	push_speed_limit: float,
+	starting_push: float,
+	input_strength: float,
+) -> float:
+	if push_speed_limit <= 0.001 or starting_push <= 0.0:
+		return 0.0
+	var fade := 1.0 - smoothstep(push_speed_limit * 0.45, push_speed_limit, maxf(0.0, tangent_speed))
+	return starting_push * fade * clampf(input_strength, 0.0, 1.0)
 
 
 static func calculate_slope_drive(board_direction: Vector3, surface_normal: Vector3) -> Vector3:
