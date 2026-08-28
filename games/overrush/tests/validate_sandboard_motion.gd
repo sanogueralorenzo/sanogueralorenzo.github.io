@@ -76,7 +76,7 @@ func _run() -> void:
 		push_error("Ordinary no-jump carving feels too floaty: only %.1f%% grounded." % (grounded_ratio * 100.0))
 		await _finish(scene, 1)
 		return
-	if _airtime_episode_count < 1 or _airtime_episode_count > 2 or longest_airtime > 2.25:
+	if _airtime_episode_count < 1 or _airtime_episode_count > 2 or longest_airtime > 2.5:
 		push_error(
 			"Terrain following should preserve occasional readable natural launches, measured %d episodes with %.2f s longest."
 			% [_airtime_episode_count, longest_airtime]

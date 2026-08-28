@@ -24,7 +24,7 @@ signal crashed(obstacle_kind: StringName, impact_speed: float)
 @export var coyote_duration := 0.1
 @export var air_boost_impulse := 19.0
 @export var air_boost_lift := 4.5
-@export var maximum_speed := 78.0
+@export var maximum_speed := 68.0
 @export var valid_landing_normal_y := 0.55
 @export var minimum_landing_airtime := 0.08
 @export var fatal_obstacle_impact_speed := 10.0

@@ -35,6 +35,7 @@ func _run() -> void:
 		_expect(Vector2(logical_rock_position.x, logical_rock_position.z).length() >= 300.0, "Rocks must leave the central drop-in region unobstructed.")
 
 	_validate_shared_border(desert, Vector2i.ZERO, Vector2i.RIGHT)
+	_validate_horizon_border(desert, Vector2i(2, 0), Vector2i(3, 0))
 	await _validate_collision_seam(desert, rider)
 
 	var far_height := desert.get_surface_height(FAR_POSITION.x, FAR_POSITION.y)
@@ -61,6 +62,7 @@ func _run() -> void:
 	)
 	_expect(absf(rider.global_position.y) < 1.0, "Vertical rebasing should keep the rider close to local zero.")
 	_expect(desert.loaded_chunks.size() == 25, "Chunk residency should remain bounded after distant travel.")
+	_expect(desert.horizon_chunks.size() <= 56, "The collision-free horizon ring should remain bounded after distant travel.")
 	_expect(
 		is_equal_approx(desert.get_surface_height(FAR_POSITION.x, FAR_POSITION.y), far_height),
 		"Streaming and rebasing must not change deterministic terrain heights.",
@@ -167,6 +169,42 @@ func _validate_collision_seam(desert: ProceduralDesert, rider: Sandboarder) -> v
 				absf(hit.position.y - expected_height) <= COLLISION_TOLERANCE,
 				"Collision differs from procedural height by %.3f m at the seam." % absf(hit.position.y - expected_height),
 			)
+
+
+func _validate_horizon_border(desert: ProceduralDesert, near_coord: Vector2i, far_coord: Vector2i) -> void:
+	var near_chunk := desert.get_chunk(near_coord)
+	var far_terrain := desert.horizon_chunks.get(far_coord) as MeshInstance3D
+	_expect(near_chunk != null and far_terrain != null, "The visual horizon needs a resident border sample beyond collision terrain.")
+	if near_chunk == null or far_terrain == null:
+		return
+	var near_mesh: ArrayMesh = near_chunk.get_node("Terrain").mesh
+	var far_mesh := far_terrain.mesh as ArrayMesh
+	var near_arrays := near_mesh.surface_get_arrays(0)
+	var far_arrays := far_mesh.surface_get_arrays(0)
+	var near_vertices: PackedVector3Array = near_arrays[Mesh.ARRAY_VERTEX]
+	var far_vertices: PackedVector3Array = far_arrays[Mesh.ARRAY_VERTEX]
+	var near_colors: PackedColorArray = near_arrays[Mesh.ARRAY_COLOR]
+	var far_colors: PackedColorArray = far_arrays[Mesh.ARRAY_COLOR]
+	var sample_ratio := roundi(
+		float(desert.chunk_resolution - 1)
+		/ float(ProceduralDesert.HORIZON_CHUNK_RESOLUTION - 1)
+	)
+	var maximum_height_error := 0.0
+	var maximum_biome_error := 0.0
+	for far_row in range(ProceduralDesert.HORIZON_CHUNK_RESOLUTION):
+		var near_row := far_row * sample_ratio
+		var near_index := near_row * desert.chunk_resolution + desert.chunk_resolution - 1
+		var far_index := far_row * ProceduralDesert.HORIZON_CHUNK_RESOLUTION
+		var near_height: float = near_chunk.position.y + near_vertices[near_index].y
+		var far_height: float = far_terrain.position.y + far_vertices[far_index].y
+		maximum_height_error = maxf(maximum_height_error, absf(near_height - far_height))
+		maximum_biome_error = maxf(maximum_biome_error, absf(near_colors[near_index].r - far_colors[far_index].r))
+	_expect(maximum_height_error <= BORDER_TOLERANCE, "Horizon terrain opens a %.6f m border crack." % maximum_height_error)
+	_expect(maximum_biome_error <= BORDER_TOLERANCE, "Horizon terrain changes biome weight by %.6f at its inner border." % maximum_biome_error)
+	_expect(
+		far_terrain.get_child_count() == 0 and far_terrain.get_meta(&"overrush_horizon_terrain", false),
+		"Horizon terrain must remain visual-only and never add collision or obstacles.",
+	)
 
 
 func _expect(condition: bool, message: String) -> void:

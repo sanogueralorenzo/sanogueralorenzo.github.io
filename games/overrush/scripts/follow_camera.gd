@@ -2,21 +2,21 @@ extends Camera3D
 
 @export var target_path: NodePath
 @export var world_path: NodePath
-@export var follow_distance: float = 17.0
-@export var follow_height: float = 8.0
+@export var follow_distance: float = 6.2
+@export var follow_height: float = 3.8
 @export var position_smoothing: float = 7.5
 @export var speed_position_smoothing: float = 0.22
-@export var look_ahead: float = 4.0
-@export var focus_height: float = 1.5
+@export var look_ahead: float = 10.0
+@export var focus_height: float = 1.2
 @export var mouse_sensitivity: float = 0.0025
 @export var gamepad_look_speed: float = 2.4
 @export var minimum_pitch_degrees: float = 10.0
 @export var maximum_pitch_degrees: float = 55.0
-@export var normal_fov: float = 82.0
-@export var boost_fov: float = 96.0
-@export var speed_fov_start: float = 16.0
+@export var normal_fov: float = 70.0
+@export var boost_fov: float = 88.0
+@export var speed_fov_start: float = 15.0
 @export var speed_fov_full: float = 72.0
-@export var speed_fov_addition: float = 8.0
+@export var speed_fov_addition: float = 7.0
 @export var fov_smoothing: float = 12.0
 @export var terrain_clearance: float = 0.7
 @export_range(3, 12, 1) var terrain_probe_samples := 7

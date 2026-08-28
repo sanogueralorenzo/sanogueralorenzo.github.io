@@ -63,7 +63,26 @@ func _run() -> void:
 	)
 	var world: ProceduralDesert = scene.get_node("Desert")
 	_expect(world.chunk_resolution >= 65, "Mountain silhouettes need terrain sampling finer than the former 8 m grid.")
-	_expect(world.radial_grade >= 0.42, "The base mountainside needs a sustained grade that reads as freeriding rather than flat traversal.")
+	_expect(
+		ProceduralDesert.HORIZON_RADIUS == 4
+			and ProceduralDesert.HORIZON_CHUNK_RESOLUTION == 17
+			and world.horizon_chunks.size() == 56,
+		"The opening view needs one bounded coarse terrain ring beyond the 5 by 5 collision stream: %d horizon chunks."
+		% world.horizon_chunks.size(),
+	)
+	var horizon_sample := world.horizon_chunks.get(Vector2i(3, 0)) as MeshInstance3D
+	_expect(
+		horizon_sample != null
+			and horizon_sample.mesh is ArrayMesh
+			and horizon_sample.mesh.surface_get_array_len(0) == (
+				ProceduralDesert.HORIZON_CHUNK_RESOLUTION
+				* ProceduralDesert.HORIZON_CHUNK_RESOLUTION
+			)
+			and horizon_sample.get_child_count() == 0
+			and horizon_sample.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"Distant mountain terrain must remain a render-only low-detail surface with no collision or obstacle content.",
+	)
+	_expect(world.radial_grade >= 0.5, "The base mountainside needs a sustained steep grade that reads as freeriding rather than flat traversal.")
 	_expect(
 		ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_START < ProceduralDesert.SUMMIT_RELIEF_BLEND_START
 			and ProceduralDesert.SUMMIT_MOUNTAIN_BLEND_END > ProceduralDesert.SUMMIT_RELIEF_BLEND_END,
@@ -180,6 +199,10 @@ func _run() -> void:
 
 	var rider: Sandboarder = scene.get_node("Sandboarder")
 	_expect(rider.fatal_obstacle_impact_speed <= 10.0, "Direct high-speed obstacle collisions must have consequential run-ending stakes.")
+	_expect(
+		rider.maximum_speed <= 70.0 and rider.maximum_speed >= 65.0,
+		"Maximum ground speed should stay extremely fast while leaving enough visual time to read fatal terrain obstacles.",
+	)
 	_expect(
 		rider.terrain_follow_snap >= 1.4 and rider.terrain_follow_snap <= 1.8,
 		"Terrain following should reduce incidental float without suppressing intentional and natural launches.",
@@ -332,10 +355,16 @@ func _run() -> void:
 
 	var camera = scene.get_node("FollowCamera")
 	_expect(
-		camera.follow_distance <= 8.5
+		camera.follow_distance <= 6.5
 			and rad_to_deg(atan2(camera.follow_height, camera.follow_distance)) >= 30.0
 			and camera.look_ahead >= 10.0,
-		"Third-person framing should keep the rider readable while looking down into the mountain line.",
+		"Third-person framing should keep the rider large enough for high-speed pose reading while looking down into the mountain line.",
+	)
+	_expect(
+		camera.normal_fov <= 70.0
+			and camera.speed_fov_addition <= 7.0
+			and camera.boost_fov <= 88.0,
+		"Chase framing should preserve speed feedback without shrinking the rider and hazards through an excessively wide lens.",
 	)
 	_expect(
 		camera.get_follow_response_rate(camera.speed_fov_full) >= camera.position_smoothing * 2.5,

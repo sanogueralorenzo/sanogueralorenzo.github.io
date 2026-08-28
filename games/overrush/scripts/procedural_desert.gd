@@ -18,6 +18,8 @@ const MOUNTAIN_FOLD_SECONDARY_AMPLITUDE := 58.0
 const BROAD_RELIEF_AMPLITUDE := 54.0
 const RIDGE_RELIEF_AMPLITUDE := 38.0
 const STONE_TRIPLANAR_SCALE := 0.25
+const HORIZON_RADIUS := 4
+const HORIZON_CHUNK_RESOLUTION := 17
 
 @export var tracked_body_path: NodePath
 @export var tracked_camera_path: NodePath
@@ -28,12 +30,13 @@ const STONE_TRIPLANAR_SCALE := 0.25
 @export var rebase_distance := 1536.0
 @export var seed := 0
 @export var summit_height := 520.0
-@export var radial_grade := 0.44
+@export var radial_grade := 0.52
 @export var summit_softening_radius := 36.0
 
 var generated_seed := 0
 var world_origin := Vector3.ZERO
 var loaded_chunks: Dictionary = {}
+var horizon_chunks: Dictionary = {}
 
 var _tracked_body: Node3D
 var _tracked_camera: Node3D
@@ -262,7 +265,8 @@ func flush_streaming() -> void:
 
 func _set_stream_focus(logical_position: Vector2, immediate: bool) -> void:
 	var next_center := get_chunk_coordinate(logical_position)
-	if next_center != _stream_center:
+	var focus_changed := next_center != _stream_center
+	if focus_changed:
 		_stream_center = next_center
 		_rebuild_stream_request()
 		_ensure_safety_chunks()
@@ -274,6 +278,8 @@ func _set_stream_focus(logical_position: Vector2, immediate: bool) -> void:
 			if _pending_chunks.is_empty():
 				break
 			_load_chunk(_pending_chunks.pop_front())
+	if focus_changed:
+		_rebuild_horizon_chunks()
 
 
 func _rebuild_stream_request() -> void:
@@ -310,9 +316,54 @@ func _retire_distant_chunks() -> void:
 		chunk.queue_free()
 
 
+func _rebuild_horizon_chunks() -> void:
+	var desired_horizon := {}
+	for z_offset in range(-HORIZON_RADIUS, HORIZON_RADIUS + 1):
+		for x_offset in range(-HORIZON_RADIUS, HORIZON_RADIUS + 1):
+			var coord := _stream_center + Vector2i(x_offset, z_offset)
+			if loaded_chunks.has(coord):
+				continue
+			desired_horizon[coord] = true
+			if not horizon_chunks.has(coord):
+				_load_horizon_chunk(coord)
+	for key in horizon_chunks.keys():
+		var coord: Vector2i = key
+		if desired_horizon.has(coord):
+			continue
+		_remove_horizon_chunk(coord)
+
+
+func _load_horizon_chunk(coord: Vector2i) -> void:
+	var center_x := float(coord.x) * chunk_size
+	var center_z := float(coord.y) * chunk_size
+	var reference_height := get_surface_height(center_x, center_z)
+	var terrain := MeshInstance3D.new()
+	terrain.name = "Horizon_%d_%d" % [coord.x, coord.y]
+	terrain.position = Vector3(
+		center_x - world_origin.x,
+		reference_height - world_origin.y,
+		center_z - world_origin.z,
+	)
+	terrain.mesh = _build_chunk_mesh(coord, reference_height, HORIZON_CHUNK_RESOLUTION).mesh
+	terrain.material_override = _terrain_material
+	terrain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	terrain.set_meta(&"overrush_horizon_terrain", true)
+	add_child(terrain)
+	horizon_chunks[coord] = terrain
+
+
+func _remove_horizon_chunk(coord: Vector2i) -> void:
+	if not horizon_chunks.has(coord):
+		return
+	var terrain := horizon_chunks[coord] as MeshInstance3D
+	horizon_chunks.erase(coord)
+	terrain.free()
+
+
 func _load_chunk(coord: Vector2i) -> void:
 	if loaded_chunks.has(coord) or not _desired_chunks.has(coord):
 		return
+	_remove_horizon_chunk(coord)
 	var chunk := StaticBody3D.new()
 	chunk.name = "Terrain_%d_%d" % [coord.x, coord.y]
 	chunk.set_meta(&"overrush_rideable", true)
@@ -324,7 +375,7 @@ func _load_chunk(coord: Vector2i) -> void:
 		reference_height - world_origin.y,
 		center_z - world_origin.z,
 	)
-	var chunk_data := _build_chunk_mesh(coord, reference_height)
+	var chunk_data := _build_chunk_mesh(coord, reference_height, chunk_resolution)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "Terrain"
 	mesh_instance.mesh = chunk_data.mesh
@@ -344,9 +395,9 @@ func _load_chunk(coord: Vector2i) -> void:
 	loaded_chunks[coord] = chunk
 
 
-func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
-	var vertex_count := chunk_resolution * chunk_resolution
-	var spacing := chunk_size / float(chunk_resolution - 1)
+func _build_chunk_mesh(coord: Vector2i, reference_height: float, resolution: int) -> Dictionary:
+	var vertex_count := resolution * resolution
+	var spacing := chunk_size / float(resolution - 1)
 	var half_size := chunk_size * 0.5
 	var center_x := float(coord.x) * chunk_size
 	var center_z := float(coord.y) * chunk_size
@@ -361,13 +412,13 @@ func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
 	uvs.resize(vertex_count)
 	colors.resize(vertex_count)
 
-	for z_index in range(chunk_resolution):
+	for z_index in range(resolution):
 		var local_z := -half_size + z_index * spacing
 		var logical_z := center_z + local_z
-		for x_index in range(chunk_resolution):
+		for x_index in range(resolution):
 			var local_x := -half_size + x_index * spacing
 			var logical_x := center_x + local_x
-			var index := z_index * chunk_resolution + x_index
+			var index := z_index * resolution + x_index
 			var local_height := get_surface_height(logical_x, logical_z) - reference_height
 			heights[index] = local_height
 			vertices[index] = Vector3(local_x, local_height, local_z)
@@ -376,13 +427,13 @@ func _build_chunk_mesh(coord: Vector2i, reference_height: float) -> Dictionary:
 			colors[index] = Color(_landscape_layout.get_grass_weight(Vector2(logical_x, logical_z)), 0.0, 0.0, 1.0)
 
 	var indices := PackedInt32Array()
-	indices.resize((chunk_resolution - 1) * (chunk_resolution - 1) * 6)
+	indices.resize((resolution - 1) * (resolution - 1) * 6)
 	var write_index := 0
-	for z_index in range(chunk_resolution - 1):
-		for x_index in range(chunk_resolution - 1):
-			var top_left := z_index * chunk_resolution + x_index
+	for z_index in range(resolution - 1):
+		for x_index in range(resolution - 1):
+			var top_left := z_index * resolution + x_index
 			var top_right := top_left + 1
-			var bottom_left := top_left + chunk_resolution
+			var bottom_left := top_left + resolution
 			var bottom_right := bottom_left + 1
 			indices[write_index] = top_left
 			indices[write_index + 1] = top_right
@@ -423,6 +474,8 @@ func _perform_origin_rebase(local_focus: Vector3) -> void:
 	world_origin += shift
 	for chunk in loaded_chunks.values():
 		(chunk as StaticBody3D).position -= shift
+	for terrain in horizon_chunks.values():
+		(terrain as MeshInstance3D).position -= shift
 	if _tracked_body.has_method("apply_world_rebase"):
 		_tracked_body.call("apply_world_rebase", shift)
 	else:
@@ -1265,6 +1318,9 @@ func _add_rock_passage(chunk: StaticBody3D, coord: Vector2i, reference_height: f
 func _clear_chunks() -> void:
 	for chunk in loaded_chunks.values():
 		(chunk as StaticBody3D).free()
+	for terrain in horizon_chunks.values():
+		(terrain as MeshInstance3D).free()
 	loaded_chunks.clear()
+	horizon_chunks.clear()
 	_desired_chunks.clear()
 	_pending_chunks.clear()

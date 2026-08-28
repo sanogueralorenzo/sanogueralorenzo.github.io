@@ -69,6 +69,7 @@ func _run() -> void:
 		)
 		_expect(absf(rider.global_position.y) <= desert.rebase_distance, "Vertical position escaped the floating-origin precision envelope at step %d." % travel_step)
 		_expect(desert.loaded_chunks.size() <= 49, "Chunk residency exceeded the bounded 7 by 7 area at step %d." % travel_step)
+		_expect(desert.horizon_chunks.size() <= 72, "Visual horizon residency exceeded its bounded 9 by 9 envelope at step %d." % travel_step)
 		_expect(desert._pending_chunks.size() <= 16, "Pending chunk work exceeded one outer ring at step %d." % travel_step)
 		_validate_safety_neighborhood(desert, logical_xz, travel_step)
 
@@ -83,6 +84,7 @@ func _run() -> void:
 	desert.flush_streaming()
 	_expect(desert._pending_chunks.is_empty(), "The final streamed outer ring should flush completely.")
 	_expect(desert.loaded_chunks.size() <= 49, "Final chunk residency exceeded the bounded retention area.")
+	_expect(desert.horizon_chunks.size() <= 72, "Final visual horizon residency exceeded its bounded envelope.")
 	_expect(route_distance >= 50000.0, "The long-session route did not exceed 50 km.")
 	_expect(rebase_count >= 24, "The soak exercised too few floating-origin rebases: %d." % rebase_count)
 	_expect(

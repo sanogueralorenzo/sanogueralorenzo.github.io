@@ -448,15 +448,6 @@ near = 0.12
 far = 6000.0
 target_path = NodePath("../Sandboarder")
 world_path = NodePath("../Desert")
-follow_distance = 7.8
-follow_height = 5.5
-look_ahead = 12.0
-focus_height = 0.75
-normal_fov = 72.0
-boost_fov = 91.0
-speed_fov_start = 15.0
-speed_fov_full = 72.0
-speed_fov_addition = 8.0
 
 [node name="AudioDirector" type="Node" parent="."]
 script = ExtResource("5_audio")
