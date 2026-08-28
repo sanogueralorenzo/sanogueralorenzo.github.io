@@ -6,7 +6,7 @@ const TREE_RADIAL_SEGMENTS := 10
 const ROCK_RADIAL_SEGMENTS := 9
 const TREE_COLLISION_RADIUS_FACTOR := 0.96
 const ROCK_COLLISION_RADIUS_FACTOR := 0.68
-const RUIN_VISUAL_SEGMENTS := 19
+const RUIN_VISUAL_SEGMENTS := 34
 const SUMMIT_RELIEF_BLEND_START := 260.0
 const SUMMIT_RELIEF_BLEND_END := 620.0
 
@@ -36,6 +36,7 @@ var _rock_material: StandardMaterial3D
 var _tree_trunk_material: StandardMaterial3D
 var _tree_canopy_material: StandardMaterial3D
 var _ruin_material: StandardMaterial3D
+var _ruin_recess_material: StandardMaterial3D
 var _rock_mesh: ArrayMesh
 var _tree_trunk_mesh: CylinderMesh
 var _tree_canopy_mesh: ArrayMesh
@@ -465,6 +466,7 @@ func _create_materials() -> void:
 	_tree_trunk_material = null
 	_tree_canopy_material = null
 	_ruin_material = null
+	_ruin_recess_material = null
 	_rock_mesh = _build_faceted_rock_mesh()
 	_tree_trunk_mesh = CylinderMesh.new()
 	_tree_trunk_mesh.top_radius = 0.72
@@ -499,10 +501,20 @@ func _create_materials() -> void:
 		_tree_canopy_material.emission = Color("#0b2415")
 		_tree_canopy_material.emission_energy_multiplier = 0.62
 		_ruin_material = StandardMaterial3D.new()
-		_ruin_material.albedo_color = Color("#ad9b79")
+		_ruin_material.albedo_color = Color("#927858")
 		_ruin_material.roughness = 0.94
 		_ruin_material.vertex_color_use_as_albedo = true
 		_ruin_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_ruin_material.emission_enabled = true
+		_ruin_material.emission = Color("#1f1308")
+		_ruin_material.emission_energy_multiplier = 0.18
+		_ruin_recess_material = StandardMaterial3D.new()
+		_ruin_recess_material.albedo_color = Color("#382e28")
+		_ruin_recess_material.roughness = 1.0
+		_ruin_recess_material.vertex_color_use_as_albedo = true
+		_ruin_recess_material.emission_enabled = true
+		_ruin_recess_material.emission = Color("#080504")
+		_ruin_recess_material.emission_energy_multiplier = 0.2
 
 
 func _build_conifer_canopy_mesh() -> ArrayMesh:
@@ -983,6 +995,7 @@ func _add_ruin(chunk: StaticBody3D, coord: Vector2i, reference_height: float) ->
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2.ZERO, Vector3(18.4, 1.8, 3.0), 7.0, "Lintel")
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(-11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "LeftTerrace")
 	_add_ruin_block(ruin, chunk_center, reference_height, ruin_center, forward, Vector2(11.0, 6.0), Vector3(4.2, 1.2, 8.0), 0.0, "RightTerrace")
+	_add_ruin_landmark_details(ruin)
 	chunk.add_child(ruin)
 
 
@@ -1043,8 +1056,85 @@ func _add_ruin_block_visuals(ruin: StaticBody3D, position: Vector3, size: Vector
 		visual.mesh = _ruin_block_mesh
 		visual.material_override = _ruin_material
 		visual.position = position + split_axis * along_axis
-		visual.scale = segment_size * 1.012
+		var irregular_scale := 1.0 + 0.012 * sin(float(segment_index * 7 + segment_count * 3))
+		visual.scale = segment_size * irregular_scale
+		visual.rotation_degrees = Vector3(
+			0.35 * sin(float(segment_index * 5 + segment_count)),
+			0.45 * sin(float(segment_index * 3 + segment_count * 2)),
+			0.3 * cos(float(segment_index * 4 + segment_count)),
+		)
 		ruin.add_child(visual)
+
+
+func _add_ruin_landmark_details(ruin: StaticBody3D) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	for side_name in ["Left", "Right"]:
+		var column := ruin.get_node("%sColumnCollision" % side_name) as CollisionShape3D
+		var column_size := (column.shape as BoxShape3D).size
+		_add_ruin_detail(
+			ruin,
+			"%sColumnBase" % side_name,
+			column.position - Vector3.UP * (column_size.y * 0.5 - 0.28),
+			Vector3(2.9, 0.56, 3.3),
+		)
+		_add_ruin_detail(
+			ruin,
+			"%sColumnCap" % side_name,
+			column.position + Vector3.UP * (column_size.y * 0.5 - 0.3),
+			Vector3(3.0, 0.6, 3.25),
+		)
+		var side_sign := -1.0 if side_name == "Left" else 1.0
+		_add_ruin_detail(
+			ruin,
+			"%sBrokenPylon" % side_name,
+			column.position + Vector3.UP * (column_size.y * 0.5 + 1.02),
+			Vector3(1.45, 2.05, 2.0),
+			_ruin_material,
+			Vector3(0.0, side_sign * 2.5, side_sign * 1.6),
+		)
+		for face_sign in [-1.0, 1.0]:
+			_add_ruin_detail(
+				ruin,
+				"%sRelief%s" % [side_name, "Front" if face_sign > 0.0 else "Back"],
+				column.position + Vector3(0.0, 0.15, face_sign * (column_size.z * 0.5 + 0.045)),
+				Vector3(1.45, 2.6, 0.09),
+				_ruin_recess_material,
+			)
+	var lintel := ruin.get_node("LintelCollision") as CollisionShape3D
+	var lintel_size := (lintel.shape as BoxShape3D).size
+	var crest_heights := [1.0, 1.55, 2.4, 1.55, 1.0]
+	for crest_index in range(crest_heights.size()):
+		var crest_height: float = crest_heights[crest_index]
+		var crest_x := (float(crest_index) - 2.0) * 2.65
+		_add_ruin_detail(
+			ruin,
+			"CrestStone%02d" % crest_index,
+			lintel.position + Vector3(
+				crest_x,
+				lintel_size.y * 0.5 + crest_height * 0.5 + 0.08,
+				0.0,
+			),
+			Vector3(2.5, crest_height, 2.55),
+		)
+
+
+func _add_ruin_detail(
+	ruin: StaticBody3D,
+	detail_name: String,
+	position: Vector3,
+	size: Vector3,
+	material: StandardMaterial3D = null,
+	rotation_degrees := Vector3.ZERO,
+) -> void:
+	var visual := MeshInstance3D.new()
+	visual.name = detail_name
+	visual.mesh = _ruin_block_mesh
+	visual.material_override = material if material != null else _ruin_material
+	visual.position = position
+	visual.scale = size
+	visual.rotation_degrees = rotation_degrees
+	ruin.add_child(visual)
 
 
 func _get_rock_passage_center(coord: Vector2i) -> Vector2:
