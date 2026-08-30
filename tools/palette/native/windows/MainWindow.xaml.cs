@@ -28,7 +28,7 @@ public partial class MainWindow : Window
         menu.Items.Add("Open Palette", null, (_, _) => ToggleLauncher());
         menu.Items.Add("Clipboard History", null, (_, _) => OpenClipboardHistory());
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Quit Palette", null, (_, _) => Application.Current.Shutdown());
+        menu.Items.Add("Quit Palette", null, (_, _) => System.Windows.Application.Current.Shutdown());
         tray.ContextMenuStrip = menu;
         tray.DoubleClick += (_, _) => ToggleLauncher();
         Loaded += async (_, _) =>
