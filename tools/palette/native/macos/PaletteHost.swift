@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Security
+import UserNotifications
 import WebKit
 
 /// Minimal macOS shell for Palette.
@@ -331,13 +332,31 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         input.fileHandleForWriting.write(Data([0x0A]))
     }
 
+    private func deliverNotification(_ body: [String: Any]) {
+        guard let notification = body["notification"] as? [String: Any], let title = notification["title"] as? String else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = notification["body"] as? String ?? ""
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            center.add(request)
+        }
+    }
+
     private func consume(_ data: Data) {
         guard !data.isEmpty else { return }
         buffer.append(data)
         while let newline = buffer.firstIndex(of: 0x0A) {
             let line = buffer.prefix(upTo: newline)
             buffer.removeSubrange(...newline)
-            guard let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any], let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { continue }
+            guard let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
+            if response["type"] as? String == "notification" {
+                DispatchQueue.main.async { self.deliverNotification(response) }
+                continue
+            }
+            guard let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { continue }
             DispatchQueue.main.async { completion(response) }
         }
     }
