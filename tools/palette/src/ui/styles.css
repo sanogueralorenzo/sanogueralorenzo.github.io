@@ -1,0 +1,14 @@
+:root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 420px; background: #171719; color: #f5f5f7; }
+.palette-shell { padding: 14px; }
+.palette-search { width: 100%; border: 1px solid #3a3a40; border-radius: 9px; padding: 12px 14px; outline: 0; background: #29292d; color: inherit; font-size: 17px; }
+.palette-search:focus { border-color: #777780; }
+.palette-results { margin-top: 10px; max-height: 330px; overflow: auto; }
+.palette-row { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 0; border-radius: 8px; padding: 10px 12px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.palette-row.selected, .palette-row:hover { background: #34343a; }
+.palette-row span { display: flex; flex-direction: column; gap: 2px; }
+.palette-row small, .palette-empty, .palette-feedback { color: #98989f; }
+.palette-row kbd { color: #777780; font-size: 11px; }
+.palette-empty, .palette-feedback { margin: 14px 4px 3px; font-size: 12px; }
+.palette-feedback { color: #b8d8bd; }

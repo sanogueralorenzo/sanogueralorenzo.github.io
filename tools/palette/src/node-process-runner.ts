@@ -1,4 +1,5 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import type { ProcessRunner, CommandResult } from './contracts.ts';
 
 /**
@@ -20,7 +21,7 @@ export class NodeProcessRunner implements ProcessRunner {
       let settled = false;
       let stdout = '';
       let stderr = '';
-      let child: ChildProcessWithoutNullStreams;
+      let child: ChildProcessByStdio<null, Readable, Readable>;
 
       const finish = (result: CommandResult): void => {
         if (settled) return;

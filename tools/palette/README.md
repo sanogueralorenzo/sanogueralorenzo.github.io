@@ -41,3 +41,12 @@ stays in Rust.
 5. A small, permission-aware extension API.
 
 Everything else should earn its place through demonstrated user need.
+
+## Development
+
+The platform-neutral core and preview launcher live in `src/`. Install the
+package dependencies, then use `npm run dev` for the React preview or run the
+focused checks with `npm run typecheck`, `npm test`, and `npm run build`. The
+macOS shell is `native/macos/PaletteHost.swift`; it loads the bundled `dist/ui`
+frontend when packaged and provides the resident status item and default
+`⌥ Space` launcher shortcut.
