@@ -20,17 +20,22 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tools/palette/package-lock.json
-      - name: Install GTK/WebKit development libraries
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
       - name: Install JavaScript dependencies
         working-directory: tools/palette
         run: npm ci
       - name: Typecheck, test, and bundle shared services
         working-directory: tools/palette
         run: npm run typecheck && npm test && npm run build:all
+
+  linux-host:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK/WebKit development libraries
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
       - name: Build Linux host
         working-directory: tools/palette
-        run: npm run build:linux-host
+        run: cargo build --release --manifest-path native/linux-host/Cargo.toml
 
   macos-host:
     runs-on: macos-14
