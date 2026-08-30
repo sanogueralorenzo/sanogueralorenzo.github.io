@@ -48,9 +48,10 @@ const encryptionKey = await loadEncryptionKey();
 const settingsStore = new JsonSettingsStore(join(dataDirectory, 'settings.json'));
 const settings = await settingsStore.load();
 
-function notify(_notification: Notification): Promise<void> {
-  // Notifications are returned with the command result. A native host can add
-  // OS notifications later without changing the service protocol.
+function notify(notification: Notification): Promise<void> {
+  // Out-of-band events let resident native hosts surface silent actions without
+  // coupling the command service to AppKit, WPF, or GTK notification APIs.
+  process.stdout.write(`${JSON.stringify({ type: 'notification', notification })}\n`);
   return Promise.resolve();
 }
 
