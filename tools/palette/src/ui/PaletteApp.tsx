@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import type { CommandResult, CommandSummary } from '../contracts.ts';
+import type { ClipboardItem, CommandResult, CommandSummary } from '../contracts.ts';
 import { CommandRegistry } from '../command-registry.ts';
 
 export type PaletteBridge = {
   searchCommands(query: string): Promise<CommandSummary[]>;
   executeCommand(id: string): Promise<CommandResult>;
+  listClipboard?: (query: string) => Promise<ClipboardItem[]>;
+  copyClipboard?: (id: string) => Promise<boolean>;
 };
 
 const emptyBridge: PaletteBridge = {
@@ -20,15 +22,26 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
   const [commands, setCommands] = useState<CommandSummary[]>([]);
   const [selected, setSelected] = useState(0);
   const [feedback, setFeedback] = useState<string>('');
+  const [activeView, setActiveView] = useState<'launcher' | 'clipboard'>('launcher');
+  const [clipboardItems, setClipboardItems] = useState<ClipboardItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { void bridge.searchCommands(query).then(setCommands); }, [bridge, query]);
+  useEffect(() => {
+    if (activeView === 'clipboard' && bridge.listClipboard) void bridge.listClipboard(query).then(setClipboardItems);
+    else if (activeView === 'launcher') void bridge.searchCommands(query).then(setCommands);
+  }, [activeView, bridge, query]);
   useEffect(() => { setSelected(0); }, [query, commands.length]);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   async function execute(command: CommandSummary | undefined): Promise<void> {
     if (!command) return;
     const result = await bridge.executeCommand(command.id);
+    if (result.nextView === 'clipboard') {
+      setActiveView('clipboard');
+      setQuery('');
+      setFeedback('');
+      return;
+    }
     setFeedback(result.status === 'success' ? (result.output || 'Done') : (result.message || 'Action failed'));
   }
 
@@ -36,7 +49,25 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
     if (event.key === 'ArrowDown') { event.preventDefault(); setSelected((value) => Math.min(value + 1, commands.length - 1)); }
     if (event.key === 'ArrowUp') { event.preventDefault(); setSelected((value) => Math.max(value - 1, 0)); }
     if (event.key === 'Enter') { event.preventDefault(); void execute(commands[selected]); }
-    if (event.key === 'Escape') { window.close(); }
+    if (event.key === 'Escape') { if (activeView === 'clipboard') setActiveView('launcher'); else window.close(); }
+  }
+
+  async function copyClipboard(item: ClipboardItem): Promise<void> {
+    const copied = await bridge.copyClipboard?.(item.id);
+    setFeedback(copied === false ? 'Could not copy item' : 'Copied to clipboard');
+  }
+
+  if (activeView === 'clipboard') {
+    return (
+      <main className="palette-shell">
+        <input ref={inputRef} className="palette-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKeyDown} placeholder="Search clipboard history" aria-label="Search clipboard history" />
+        <section className="palette-results" aria-live="polite">
+          {clipboardItems.map((item) => <button key={item.id} className="palette-row" onClick={() => void copyClipboard(item)}><span><strong>{item.content.slice(0, 120) || '(empty)'}</strong><small>{item.kind}{item.pinned ? ' · pinned' : ''}</small></span></button>)}
+          {!clipboardItems.length && <p className="palette-empty">No clipboard items</p>}
+        </section>
+        {feedback && <p className="palette-feedback" role="status">{feedback}</p>}
+      </main>
+    );
   }
 
   return (

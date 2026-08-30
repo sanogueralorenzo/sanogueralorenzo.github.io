@@ -18,6 +18,7 @@ export type CommandResult = {
   message?: string;
   output?: string;
   exitCode?: number;
+  nextView?: 'clipboard';
 };
 
 export type CommandContext = {
@@ -61,6 +62,7 @@ export interface PlatformHost {
   registerShortcut(shortcut: Shortcut, callback: () => void): Promise<void>;
   unregisterShortcut(shortcut: Shortcut): Promise<void>;
   notify(notification: Notification): Promise<void>;
+  writeClipboard(content: string): Promise<void>;
 }
 
 export interface MenubarHost extends PlatformHost {
@@ -91,6 +93,8 @@ export type ClipboardItem = {
   createdAt: number;
   pinned: boolean;
 };
+
+export type ClipboardCapture = ClipboardItem & { sensitive?: boolean };
 
 export type ClipboardPolicy = {
   enabled: boolean;
