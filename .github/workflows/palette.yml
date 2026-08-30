@@ -1,0 +1,49 @@
+name: Palette
+
+on:
+  push:
+    paths:
+      - "tools/palette/**"
+      - ".github/workflows/palette.yml"
+  pull_request:
+    paths:
+      - "tools/palette/**"
+      - ".github/workflows/palette.yml"
+
+jobs:
+  shared-and-rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/palette/package-lock.json
+      - name: Install GTK/WebKit development libraries
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
+      - name: Install JavaScript dependencies
+        working-directory: tools/palette
+        run: npm ci
+      - name: Typecheck, test, and bundle shared services
+        working-directory: tools/palette
+        run: npm run typecheck && npm test && npm run build:all
+      - name: Build Linux host
+        working-directory: tools/palette
+        run: npm run build:linux-host
+
+  macos-host:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck AppKit host
+        working-directory: tools/palette
+        run: swiftc -parse-as-library -typecheck native/macos/PaletteHost.swift
+
+  windows-host:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build WPF host
+        working-directory: tools/palette
+        run: dotnet build native/windows/PaletteHost.csproj
