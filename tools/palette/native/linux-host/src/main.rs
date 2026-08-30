@@ -1,7 +1,7 @@
 use adw::prelude::*;
 use adw::{Application, ApplicationWindow};
 use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
-use ashpd::desktop::session::CreateSessionOptions;
+use ashpd::desktop::CreateSessionOptions;
 use futures_util::StreamExt;
 use gtk4::gio;
 use gtk4::glib;
