@@ -1,0 +1,9 @@
+[package]
+name = "palette-linux-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+adw = { package = "libadwaita", version = "0.7" }
+gtk4 = "0.9"
+webkit6 = "0.4"
