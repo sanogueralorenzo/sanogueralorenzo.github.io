@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import type { ClipboardItem, CommandResult, CommandSummary } from '../contracts.ts';
+import type { ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary } from '../contracts.ts';
 import { CommandRegistry } from '../command-registry.ts';
 
 export type PaletteBridge = {
@@ -7,6 +7,8 @@ export type PaletteBridge = {
   executeCommand(id: string): Promise<CommandResult>;
   listClipboard?: (query: string) => Promise<ClipboardItem[]>;
   copyClipboard?: (id: string) => Promise<boolean>;
+  getClipboardPolicy?: () => Promise<ClipboardPolicy>;
+  setClipboardPolicy?: (policy: ClipboardPolicy) => Promise<void>;
 };
 
 const emptyBridge: PaletteBridge = {
@@ -24,6 +26,7 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
   const [feedback, setFeedback] = useState<string>('');
   const [activeView, setActiveView] = useState<'launcher' | 'clipboard'>('launcher');
   const [clipboardItems, setClipboardItems] = useState<ClipboardItem[]>([]);
+  const [clipboardPolicy, setClipboardPolicyState] = useState<ClipboardPolicy | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,6 +39,9 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
     if (activeView === 'clipboard' && bridge.listClipboard) void bridge.listClipboard(query).then(setClipboardItems);
     else if (activeView === 'launcher') void bridge.searchCommands(query).then(setCommands);
   }, [activeView, bridge, query]);
+  useEffect(() => {
+    if (activeView === 'clipboard' && bridge.getClipboardPolicy) void bridge.getClipboardPolicy().then(setClipboardPolicyState);
+  }, [activeView, bridge]);
   useEffect(() => { setSelected(0); }, [query, commands.length]);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -63,10 +69,19 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
     setFeedback(copied === false ? 'Could not copy item' : 'Copied to clipboard');
   }
 
+  async function toggleClipboardCapture(): Promise<void> {
+    if (!clipboardPolicy || !bridge.setClipboardPolicy) return;
+    const next = { ...clipboardPolicy, enabled: !clipboardPolicy.enabled };
+    await bridge.setClipboardPolicy(next);
+    setClipboardPolicyState(next);
+    setFeedback(next.enabled ? 'Clipboard capture resumed' : 'Clipboard capture paused');
+  }
+
   if (activeView === 'clipboard') {
     return (
       <main className="palette-shell">
         <input ref={inputRef} className="palette-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKeyDown} placeholder="Search clipboard history" aria-label="Search clipboard history" />
+        {clipboardPolicy && bridge.setClipboardPolicy && <button className="palette-policy" onClick={() => void toggleClipboardCapture()}>{clipboardPolicy.enabled ? 'Pause capture' : 'Resume capture'}</button>}
         <section className="palette-results" aria-live="polite">
           {clipboardItems.map((item) => <button key={item.id} className="palette-row" onClick={() => void copyClipboard(item)}><span><strong>{item.content.slice(0, 120) || '(empty)'}</strong><small>{item.kind}{item.pinned ? ' · pinned' : ''}</small></span></button>)}
           {!clipboardItems.length && <p className="palette-empty">No clipboard items</p>}

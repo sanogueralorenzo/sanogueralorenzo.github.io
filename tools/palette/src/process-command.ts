@@ -1,4 +1,4 @@
-import type { CommandDefinition, ProcessRunner } from './contracts.ts';
+import type { CommandDefinition, InvocationMode, ProcessRunner } from './contracts.ts';
 
 export type ProcessCommandOptions = {
   id: string;
@@ -9,6 +9,8 @@ export type ProcessCommandOptions = {
   command: string;
   args?: string[];
   cwd?: string;
+  mode?: InvocationMode;
+  background?: boolean;
 };
 
 /** Creates a silent command without coupling command metadata to Node or a host. */
@@ -22,13 +24,13 @@ export function defineProcessCommand(
     subtitle: options.subtitle,
     keywords: options.keywords,
     shortcut: options.shortcut,
-    mode: 'silent',
-    background: true,
+    mode: options.mode ?? 'silent',
+    background: options.background ?? true,
     run: () => runner.run({
       command: options.command,
       args: options.args,
       cwd: options.cwd,
-      background: true,
+      background: options.background ?? true,
     }),
   };
 }

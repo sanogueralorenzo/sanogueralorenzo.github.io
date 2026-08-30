@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:daemon": "esbuild src/node-daemon.ts --bundle --platform=node --format=esm --outfile=dist/node/node-daemon.mjs",
+    "build:all": "npm run build && npm run build:daemon && npm run build:indexer",
     "build:indexer": "cargo build --release --manifest-path native/rust-indexer/Cargo.toml",
     "build:linux-host": "cargo build --release --manifest-path native/linux-host/Cargo.toml",
     "daemon": "node --experimental-strip-types src/node-daemon.ts",

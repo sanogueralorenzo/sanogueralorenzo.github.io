@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { RunHistoryEntry, RunHistoryStore } from './contracts.ts';
 
-async function writeAtomically(path: string, value: string): Promise<void> {
+export async function writeAtomically(path: string, value: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tempPath = `${path}.${process.pid}.tmp`;
   await writeFile(tempPath, value, 'utf8');

@@ -1,12 +1,13 @@
 import { createInterface } from 'node:readline';
 import { randomBytes } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { EncryptedJsonClipboardStore } from './encrypted-clipboard-store.ts';
 import { JsonRunHistoryStore } from './file-stores.ts';
+import { JsonSettingsStore } from './settings-store.ts';
 import { PolicyClipboardHistory } from './clipboard-history.ts';
 import { PaletteService } from './service.ts';
 import { handleBridgeRequest } from './service-bridge.ts';
@@ -14,12 +15,38 @@ import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
 import type { Notification } from './contracts.ts';
 import { LocalSearchProvider } from './local-search.ts';
 import { RustSearchProvider } from './rust-search-provider.ts';
+import { loadConfiguredCommands } from './command-config.ts';
+import { NodeProcessRunner } from './node-process-runner.ts';
 
 const dataDirectory = process.env.PALETTE_DATA_DIR || join(homedir(), '.palette');
 const configuredKey = process.env.PALETTE_CLIPBOARD_KEY;
-const encryptionKey = configuredKey ? Buffer.from(configuredKey, 'base64') : randomBytes(32);
-if (encryptionKey.length !== 32) throw new Error('PALETTE_CLIPBOARD_KEY must be a base64-encoded 32-byte key');
 await mkdir(dataDirectory, { recursive: true });
+
+async function loadEncryptionKey(): Promise<Buffer> {
+  if (configuredKey) {
+    const key = Buffer.from(configuredKey, 'base64');
+    if (key.length !== 32) throw new Error('PALETTE_CLIPBOARD_KEY must be a base64-encoded 32-byte key');
+    return key;
+  }
+  const keyPath = join(dataDirectory, 'clipboard.key');
+  try {
+    const existing = await readFile(keyPath);
+    if (existing.length === 32) return existing;
+  } catch {}
+  const created = randomBytes(32);
+  try {
+    await writeFile(keyPath, created, { flag: 'wx', mode: 0o600 });
+    return created;
+  } catch {
+    const raced = await readFile(keyPath);
+    if (raced.length !== 32) throw new Error('Clipboard key file is invalid');
+    return raced;
+  }
+}
+
+const encryptionKey = await loadEncryptionKey();
+const settingsStore = new JsonSettingsStore(join(dataDirectory, 'settings.json'));
+const settings = await settingsStore.load();
 
 function notify(_notification: Notification): Promise<void> {
   // Notifications are returned with the command result. A native host can add
@@ -69,15 +96,15 @@ const service = new PaletteService({
   platform: process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
   host: { setMenubarIcon: async () => {}, notify, writeClipboard, openPath },
   history: new JsonRunHistoryStore(join(dataDirectory, 'run-history.json')),
-  clipboard: new PolicyClipboardHistory(new EncryptedJsonClipboardStore(join(dataDirectory, 'clipboard.json'), encryptionKey), {
-    enabled: true,
-    maxItems: 200,
-    retentionDays: 30,
-    excludedAppIds: [],
-    ignoreSensitive: true,
-  }),
+  clipboard: new PolicyClipboardHistory(new EncryptedJsonClipboardStore(join(dataDirectory, 'clipboard.json'), encryptionKey), settings.clipboard),
+  clipboardPolicy: settings.clipboard,
   localSearch,
 });
+
+const processRunner = new NodeProcessRunner();
+for (const command of await loadConfiguredCommands(join(dataDirectory, 'commands.json'), processRunner)) {
+  try { service.registry.register(command); } catch {}
+}
 
 const backend = {
   searchCommands: async (query: string) => service.searchCommands(query),
@@ -85,6 +112,13 @@ const backend = {
   listClipboard: async (query: string) => service.listClipboard(query),
   copyClipboard: async (itemId: string) => service.copyClipboard(itemId),
   captureClipboard: async (item: Parameters<PaletteService['captureClipboard']>[0]) => service.captureClipboard(item),
+  getClipboardPolicy: async () => service.getClipboardPolicy(),
+  setClipboardPolicy: async (policy: Parameters<PaletteService['setClipboardPolicy']>[0]) => {
+    service.setClipboardPolicy(policy);
+    const next = service.getClipboardPolicy();
+    await settingsStore.save({ clipboard: next });
+    return next;
+  },
 };
 
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });

@@ -1,11 +1,16 @@
 import type { BridgeRequest, BridgeRequestBody, BridgeResponse } from '../bridge-protocol.ts';
-import type { ClipboardItem, CommandResult, CommandSummary } from '../contracts.ts';
+import type { ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary } from '../contracts.ts';
 import type { PaletteBridge } from './PaletteApp.tsx';
 
 type WebKitMessageHandler = { postMessage(message: BridgeRequest): void };
+type WebView2Bridge = {
+  postMessage(message: BridgeRequest): void;
+  addEventListener(type: 'message', listener: (event: MessageEvent<BridgeResponse>) => void): void;
+};
 type PaletteWindow = Window & {
   __paletteResolve?: (response: BridgeResponse) => void;
   webkit?: { messageHandlers?: { palette?: WebKitMessageHandler } };
+  chrome?: { webview?: WebView2Bridge };
 };
 
 /** WebView transport used by WKWebView/WebView2 hosts; no Electron globals. */
@@ -21,14 +26,18 @@ export function createWebViewBridge(): PaletteBridge {
     if (response.ok) request.resolve(response);
     else request.reject(new Error(response.error));
   };
+  target.chrome?.webview?.addEventListener('message', (event) => target.__paletteResolve?.(event.data));
 
   function request(message: BridgeRequestBody): Promise<BridgeResponse> {
     const handler = target.webkit?.messageHandlers?.palette;
-    if (!handler) return Promise.reject(new Error('Palette host bridge is not connected'));
+    const webview2 = target.chrome?.webview;
+    if (!handler && !webview2) return Promise.reject(new Error('Palette host bridge is not connected'));
     const id = `webview-${++sequence}`;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      handler.postMessage({ ...message, id });
+      const payload = { ...message, id };
+      if (handler) handler.postMessage(payload);
+      else webview2?.postMessage(payload);
     });
   }
 
@@ -49,6 +58,15 @@ export function createWebViewBridge(): PaletteBridge {
     copyClipboard: async (itemId): Promise<boolean> => {
       const response = await request({ type: 'copyClipboard', itemId });
       return response.ok && response.payload.type === 'copied' ? response.payload.copied : false;
+    },
+    getClipboardPolicy: async (): Promise<ClipboardPolicy> => {
+      const response = await request({ type: 'getClipboardPolicy' });
+      if (response.ok && response.payload.type === 'clipboardPolicy') return response.payload.policy;
+      throw new Error('Invalid clipboard policy response');
+    },
+    setClipboardPolicy: async (policy: ClipboardPolicy): Promise<void> => {
+      const response = await request({ type: 'setClipboardPolicy', policy });
+      if (!response.ok || response.payload.type !== 'clipboardPolicy') throw new Error('Invalid clipboard policy response');
     },
   };
 }

@@ -50,3 +50,14 @@ focused checks with `npm run typecheck`, `npm test`, and `npm run build`. The
 macOS shell is `native/macos/PaletteHost.swift`; it loads the bundled `dist/ui`
 frontend when packaged and provides the resident status item and default
 `⌥ Space` launcher shortcut.
+
+Copy `commands.example.json` to `~/.palette/commands.json` to add direct-process
+commands. Arguments are passed without a shell; use `mode: "silent"` for
+background actions and assign either an accelerator or a chord shortcut.
+
+Clipboard history is encrypted at rest. macOS supplies its key from Keychain;
+the development Node daemon keeps a permission-restricted `clipboard.key` in
+the data directory on other hosts until their native Secret-service adapter is
+available. The clipboard view exposes a pause/resume capture control, while
+retention, exclusions, and sensitive-content handling remain policy fields in
+`settings.json`.

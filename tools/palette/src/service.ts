@@ -3,6 +3,7 @@ import type {
   CommandResult,
   MenubarHost,
   Platform,
+  ClipboardPolicy,
   RunHistoryStore,
 } from './contracts.ts';
 import { PolicyClipboardHistory } from './clipboard-history.ts';
@@ -15,6 +16,7 @@ export type PaletteServiceOptions = {
   host: Pick<MenubarHost, 'notify' | 'setMenubarIcon' | 'writeClipboard' | 'openPath'>;
   history: RunHistoryStore;
   clipboard: PolicyClipboardHistory;
+  clipboardPolicy: ClipboardPolicy;
   localSearch?: SearchProvider;
 };
 
@@ -25,9 +27,11 @@ export class PaletteService {
   private readonly clipboard: PolicyClipboardHistory;
   private readonly localSearch?: SearchProvider;
   private readonly writeClipboard: (content: string) => Promise<void>;
+  private clipboardPolicy: ClipboardPolicy;
 
   constructor(options: PaletteServiceOptions) {
     this.clipboard = options.clipboard;
+    this.clipboardPolicy = options.clipboardPolicy;
     this.localSearch = options.localSearch;
     this.writeClipboard = options.host.writeClipboard;
     this.dispatcher = new CommandDispatcher(this.registry, options.host, options.history, {
@@ -68,6 +72,15 @@ export class PaletteService {
 
   async captureClipboard(item: ClipboardItem & { sensitive?: boolean }): Promise<boolean> {
     return this.clipboard.capture(item);
+  }
+
+  getClipboardPolicy(): ClipboardPolicy {
+    return structuredClone(this.clipboardPolicy);
+  }
+
+  setClipboardPolicy(policy: ClipboardPolicy): void {
+    this.clipboardPolicy = structuredClone(policy);
+    this.clipboard.setPolicy(this.clipboardPolicy);
   }
 
   async copyClipboard(id: string): Promise<boolean> {

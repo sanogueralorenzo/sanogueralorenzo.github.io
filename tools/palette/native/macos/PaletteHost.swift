@@ -64,7 +64,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         }
 
         let menu = NSMenu()
-        let openItem = NSMenuItem(title: "Open Palette  (shortcutLabel)", action: #selector(toggleLauncher), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open Palette  (\(shortcutLabel))", action: #selector(toggleLauncher), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
         let clipboardItem = NSMenuItem(title: "Clipboard History  ⌘⇧V", action: #selector(openClipboardHistory), keyEquivalent: "")
