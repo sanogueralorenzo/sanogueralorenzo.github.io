@@ -138,7 +138,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             contentRect: contentRect,
             styleMask: [.titled, .closable],
             backing: .buffered,
-            defer: false,
+            defer: false
         )
         window.title = "Palette"
         window.isReleasedWhenClosed = false
@@ -208,7 +208,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     private func installGlobalShortcut() {
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed),
+            eventKind: UInt32(kEventHotKeyPressed)
         )
         let userData = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         let callback: EventHandlerUPP = { _, event, userData in
@@ -222,7 +222,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
                 nil,
                 size,
                 nil,
-                &pressedID,
+                &pressedID
             )
             guard status == noErr, pressedID.id == 1 else { return noErr }
             let delegate = Unmanaged<PaletteAppDelegate>.fromOpaque(userData).takeUnretainedValue()
@@ -236,7 +236,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             1,
             &eventType,
             userData,
-            &eventHandlerRef,
+            &eventHandlerRef
         )
 
         let configured = Self.configuredShortcut()
@@ -248,7 +248,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             hotKeyID,
             GetApplicationEventTarget(),
             0,
-            &shortcutRef,
+            &shortcutRef
         )
     }
 

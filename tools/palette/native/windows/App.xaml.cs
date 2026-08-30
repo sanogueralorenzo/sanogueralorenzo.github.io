@@ -2,7 +2,7 @@ using System.Windows;
 
 namespace PaletteHost;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private MainWindow? window;
 
