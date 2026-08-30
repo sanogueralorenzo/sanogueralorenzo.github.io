@@ -19,6 +19,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     private var clipboardTimer: Timer?
     private var clipboardChangeCount = NSPasteboard.general.changeCount
     private var lastCapturedClipboard = ""
+    private var shortcutLabel = "⌥ Space"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -63,15 +64,25 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         }
 
         let menu = NSMenu()
-        let openItem = NSMenuItem(title: "Open Palette", action: #selector(toggleLauncher), keyEquivalent: "")
+        let openItem = NSMenuItem(title: "Open Palette  (shortcutLabel)", action: #selector(toggleLauncher), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
+        let clipboardItem = NSMenuItem(title: "Clipboard History  ⌘⇧V", action: #selector(openClipboardHistory), keyEquivalent: "")
+        clipboardItem.target = self
+        menu.addItem(clipboardItem)
         menu.addItem(.separator())
         let quitItem = NSMenuItem(title: "Quit Palette", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
         item.menu = menu
         statusItem = item
+    }
+
+    @objc private func openClipboardHistory() {
+        if launcherWindow == nil { launcherWindow = makeLauncherWindow() }
+        NSApp.activate(ignoringOtherApps: true)
+        launcherWindow?.makeKeyAndOrderFront(nil)
+        launcherWindow?.contentView?.subviews.compactMap { $0 as? WKWebView }.first?.evaluateJavaScript("window.__paletteOpenClipboard?.()")
     }
 
     private func startClipboardMonitor() {
@@ -215,17 +226,27 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             &eventHandlerRef,
         )
 
-        // Option + Space is the safe default; shortcut configuration will move
-        // into the shared settings service rather than this host shell.
+        let configured = Self.configuredShortcut()
+        shortcutLabel = configured.label
         let hotKeyID = shortcutID
         RegisterEventHotKey(
-            UInt32(kVK_Space),
-            UInt32(optionKey),
+            configured.keyCode,
+            configured.modifiers,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
             &shortcutRef,
         )
+    }
+
+    private static func configuredShortcut() -> (keyCode: UInt32, modifiers: UInt32, label: String) {
+        let raw = ProcessInfo.processInfo.environment["PALETTE_HOTKEY"]?.lowercased().replacingOccurrences(of: " ", with: "")
+        switch raw {
+        case "cmd+space", "command+space": return (UInt32(kVK_Space), UInt32(cmdKey), "⌘ Space")
+        case "cmd+shift+space", "command+shift+space": return (UInt32(kVK_Space), UInt32(cmdKey | shiftKey), "⌘⇧ Space")
+        case "ctrl+space", "control+space": return (UInt32(kVK_Space), UInt32(controlKey), "⌃ Space")
+        default: return (UInt32(kVK_Space), UInt32(optionKey), "⌥ Space")
+        }
     }
 
     private static let fallbackHTML = """

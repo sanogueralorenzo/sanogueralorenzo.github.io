@@ -27,6 +27,12 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const hostWindow = window as Window & { __paletteOpenClipboard?: () => void };
+    hostWindow.__paletteOpenClipboard = () => { setActiveView('clipboard'); setQuery(''); };
+    return () => { delete hostWindow.__paletteOpenClipboard; };
+  }, []);
+
+  useEffect(() => {
     if (activeView === 'clipboard' && bridge.listClipboard) void bridge.listClipboard(query).then(setClipboardItems);
     else if (activeView === 'launcher') void bridge.searchCommands(query).then(setCommands);
   }, [activeView, bridge, query]);
