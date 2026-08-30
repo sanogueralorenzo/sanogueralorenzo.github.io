@@ -14,6 +14,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     private var launcherWindow: NSWindow?
     private var shortcutRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
+    private var nodeService: NodeServiceProcess?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -91,14 +92,24 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "palette", let body = message.body as? [String: Any], let requestID = body["id"] as? String else { return }
-        // The native shell owns this transport boundary. A Node service
-        // connection will forward requests and call the same resolver with a
-        // typed response once the sidecar process is attached.
-        let response: [String: Any] = ["id": requestID, "ok": false, "error": "Palette service is not attached"]
-        guard JSONSerialization.isValidJSONObject(response), let data = try? JSONSerialization.data(withJSONObject: response), let json = String(data: data, encoding: .utf8) else { return }
-        let script = "window.__paletteResolve(\(json))"
-        launcherWindow?.contentView?.subviews.compactMap { $0 as? WKWebView }.first?.evaluateJavaScript(script)
+        guard message.name == "palette", let body = message.body as? [String: Any], body["id"] is String else { return }
+        if nodeService == nil {
+            nodeService = NodeServiceProcess(scriptURL: Self.nodeDaemonURL())
+            nodeService?.start()
+        }
+        nodeService?.send(body) { [weak self] response in
+            guard let data = try? JSONSerialization.data(withJSONObject: response), let json = String(data: data, encoding: .utf8) else { return }
+            let script = "window.__paletteResolve(\(json))"
+            self?.launcherWindow?.contentView?.subviews.compactMap { $0 as? WKWebView }.first?.evaluateJavaScript(script)
+        }
+    }
+
+    private static func nodeDaemonURL() -> URL {
+        if let configured = ProcessInfo.processInfo.environment["PALETTE_NODE_DAEMON"] {
+            return URL(fileURLWithPath: configured)
+        }
+        return Bundle.main.url(forResource: "node-daemon", withExtension: "ts")
+            ?? URL(fileURLWithPath: "src/node-daemon.ts")
     }
 
     private func installGlobalShortcut() {
@@ -161,4 +172,55 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
       <p>Palette host is running. Connect the shared React UI and command service to this WebView.</p>
     </body></html>
     """
+}
+
+/// Small JSON-lines connection to the long-lived Node service.
+private final class NodeServiceProcess {
+    private let scriptURL: URL
+    private let input = Pipe()
+    private let output = Pipe()
+    private var process: Process?
+    private var pending: [String: ([String: Any]) -> Void] = [:]
+    private var buffer = Data()
+
+    init(scriptURL: URL) {
+        self.scriptURL = scriptURL
+    }
+
+    func start() {
+        guard process == nil else { return }
+        let service = Process()
+        service.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        service.arguments = ["node", "--experimental-strip-types", scriptURL.path]
+        service.standardInput = input
+        service.standardOutput = output
+        service.standardError = FileHandle.standardError
+        output.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            self?.consume(handle.availableData)
+        }
+        do {
+            try service.run()
+            process = service
+        } catch {
+            process = nil
+        }
+    }
+
+    func send(_ request: [String: Any], completion: @escaping ([String: Any]) -> Void) {
+        guard let id = request["id"] as? String, JSONSerialization.isValidJSONObject(request), let data = try? JSONSerialization.data(withJSONObject: request) else { return }
+        pending[id] = completion
+        input.fileHandleForWriting.write(data)
+        input.fileHandleForWriting.write(Data([0x0A]))
+    }
+
+    private func consume(_ data: Data) {
+        guard !data.isEmpty else { return }
+        buffer.append(data)
+        while let newline = buffer.firstIndex(of: 0x0A) {
+            let line = buffer.prefix(upTo: newline)
+            buffer.removeSubrange(...newline)
+            guard let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any], let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { continue }
+            DispatchQueue.main.async { completion(response) }
+        }
+    }
 }
