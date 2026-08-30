@@ -8,7 +8,7 @@ import WebKit
 /// global shortcut. Product commands and UI remain behind the WebView/IPC
 /// boundary so the same contracts can be hosted by Windows and Linux later.
 @main
-final class PaletteAppDelegate: NSObject, NSApplicationDelegate {
+final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessageHandler {
     private let shortcutID = EventHotKeyID(signature: 0x50414C54, id: 1) // "PALT"
     private var statusItem: NSStatusItem?
     private var launcherWindow: NSWindow?
@@ -80,6 +80,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate {
 
         let webView = WKWebView(frame: contentRect)
         webView.autoresizingMask = [.width, .height]
+        webView.configuration.userContentController.add(self, name: "palette")
         if let uiURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "ui") {
             webView.loadFileURL(uiURL, allowingReadAccessTo: uiURL.deletingLastPathComponent())
         } else {
@@ -87,6 +88,17 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate {
         }
         window.contentView = webView
         return window
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "palette", let body = message.body as? [String: Any], let requestID = body["id"] as? String else { return }
+        // The native shell owns this transport boundary. A Node service
+        // connection will forward requests and call the same resolver with a
+        // typed response once the sidecar process is attached.
+        let response: [String: Any] = ["id": requestID, "ok": false, "error": "Palette service is not attached"]
+        guard JSONSerialization.isValidJSONObject(response), let data = try? JSONSerialization.data(withJSONObject: response), let json = String(data: data, encoding: .utf8) else { return }
+        let script = "window.__paletteResolve(\(json))"
+        launcherWindow?.contentView?.subviews.compactMap { $0 as? WKWebView }.first?.evaluateJavaScript(script)
     }
 
     private func installGlobalShortcut() {
