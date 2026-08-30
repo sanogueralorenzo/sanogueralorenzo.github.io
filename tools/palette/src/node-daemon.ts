@@ -55,6 +55,7 @@ const backend = {
   executeCommand: async (commandId: string) => service.executeCommand(commandId),
   listClipboard: async (query: string) => service.listClipboard(query),
   copyClipboard: async (itemId: string) => service.copyClipboard(itemId),
+  captureClipboard: async (item: Parameters<PaletteService['captureClipboard']>[0]) => service.captureClipboard(item),
 };
 
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });

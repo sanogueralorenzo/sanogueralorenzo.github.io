@@ -1,11 +1,12 @@
 import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
-import type { ClipboardItem, CommandResult, CommandSummary } from './contracts.ts';
+import type { ClipboardCapture, ClipboardItem, CommandResult, CommandSummary } from './contracts.ts';
 
 export type PaletteBridgeBackend = {
   searchCommands(query: string): Promise<CommandSummary[]>;
   executeCommand(commandId: string): Promise<CommandResult>;
   listClipboard(query: string): Promise<ClipboardItem[]>;
   copyClipboard(itemId: string): Promise<boolean>;
+  captureClipboard(item: ClipboardCapture): Promise<boolean>;
 };
 
 /** Dispatches serialized WebView messages without knowing the host transport. */
@@ -23,6 +24,8 @@ export async function handleBridgeRequest(
         return { id: request.id, ok: true, payload: { type: 'clipboard', items: await backend.listClipboard(request.query) } };
       case 'copyClipboard':
         return { id: request.id, ok: true, payload: { type: 'copied', copied: await backend.copyClipboard(request.itemId) } };
+      case 'captureClipboard':
+        return { id: request.id, ok: true, payload: { type: 'captured', captured: await backend.captureClipboard(request.item) } };
     }
   } catch (error) {
     return { id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) };

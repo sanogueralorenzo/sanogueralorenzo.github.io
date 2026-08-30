@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import Security
 import WebKit
 
 /// Minimal macOS shell for Palette.
@@ -15,11 +16,15 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     private var shortcutRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
     private var nodeService: NodeServiceProcess?
+    private var clipboardTimer: Timer?
+    private var clipboardChangeCount = NSPasteboard.general.changeCount
+    private var lastCapturedClipboard = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
         installGlobalShortcut()
+        startClipboardMonitor()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -29,6 +34,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         if let eventHandlerRef {
             RemoveEventHandler(eventHandlerRef)
         }
+        clipboardTimer?.invalidate()
+        nodeService?.stop()
     }
 
     @objc private func toggleLauncher() {
@@ -65,6 +72,40 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         menu.addItem(quitItem)
         item.menu = menu
         statusItem = item
+    }
+
+    private func startClipboardMonitor() {
+        // Seed the count so launching Palette never captures pre-existing data.
+        clipboardChangeCount = NSPasteboard.general.changeCount
+        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+            self?.captureClipboardIfChanged()
+        }
+    }
+
+    private func captureClipboardIfChanged() {
+        let pasteboard = NSPasteboard.general
+        guard pasteboard.changeCount != clipboardChangeCount else { return }
+        clipboardChangeCount = pasteboard.changeCount
+        guard let content = pasteboard.string(forType: .string), !content.isEmpty, content != lastCapturedClipboard else { return }
+        lastCapturedClipboard = content
+        let itemID = UUID().uuidString
+        var item: [String: Any] = [
+            "id": itemID,
+            "kind": content.contains("://") ? "url" : "text",
+            "content": content,
+            "createdAt": Int(Date().timeIntervalSince1970 * 1000),
+            "pinned": false,
+            "sensitive": false,
+        ]
+        if let sourceAppId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
+            item["sourceAppId"] = sourceAppId
+        }
+        guard JSONSerialization.isValidJSONObject(item) else { return }
+        if nodeService == nil {
+            nodeService = NodeServiceProcess(scriptURL: Self.nodeDaemonURL())
+            nodeService?.start()
+        }
+        nodeService?.send(["id": "capture-\(itemID)", "type": "captureClipboard", "item": item]) { _ in }
     }
 
     private func makeLauncherWindow() -> NSWindow {
@@ -110,6 +151,33 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         }
         return Bundle.main.url(forResource: "node-daemon", withExtension: "ts")
             ?? URL(fileURLWithPath: "src/node-daemon.ts")
+    }
+
+    fileprivate static func clipboardStorageKey() -> String {
+        let service = "com.palette.clipboard"
+        let account = "default"
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var result: CFTypeRef?
+        if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data, data.count == 32 {
+            return data.base64EncodedString()
+        }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return "" }
+        let data = Data(bytes)
+        let add: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: data,
+        ]
+        SecItemAdd(add as CFDictionary, nil)
+        return data.base64EncodedString()
     }
 
     private func installGlobalShortcut() {
@@ -175,7 +243,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
 }
 
 /// Small JSON-lines connection to the long-lived Node service.
-private final class NodeServiceProcess {
+    private final class NodeServiceProcess {
     private let scriptURL: URL
     private let input = Pipe()
     private let output = Pipe()
@@ -187,11 +255,24 @@ private final class NodeServiceProcess {
         self.scriptURL = scriptURL
     }
 
+    func stop() {
+        output.fileHandleForReading.readabilityHandler = nil
+        process?.terminate()
+        process = nil
+    }
+
     func start() {
         guard process == nil else { return }
         let service = Process()
         service.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         service.arguments = ["node", "--experimental-strip-types", scriptURL.path]
+        var environment = ProcessInfo.processInfo.environment
+        let key = PaletteAppDelegate.clipboardStorageKey()
+        if !key.isEmpty { environment["PALETTE_CLIPBOARD_KEY"] = key }
+        if let applicationSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            environment["PALETTE_DATA_DIR"] = applicationSupport.appendingPathComponent("Palette", isDirectory: true).path
+        }
+        service.environment = environment
         service.standardInput = input
         service.standardOutput = output
         service.standardError = FileHandle.standardError

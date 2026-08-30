@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { handleBridgeRequest } from './service-bridge.ts';
+import type { ClipboardCapture } from './contracts.ts';
 
 test('bridge dispatches typed search, execution, clipboard, and copy requests', async () => {
   const backend = {
@@ -8,6 +9,7 @@ test('bridge dispatches typed search, execution, clipboard, and copy requests', 
     executeCommand: async (commandId: string) => ({ status: 'success' as const, output: commandId }),
     listClipboard: async (query: string) => [{ id: query, kind: 'text' as const, content: query, createdAt: 1, pinned: false }],
     copyClipboard: async (itemId: string) => itemId === 'known',
+    captureClipboard: async (item: ClipboardCapture) => item.content === 'capture me',
   };
 
   const commands = await handleBridgeRequest({ id: '1', type: 'searchCommands', query: 'tonal' }, backend);
@@ -25,6 +27,10 @@ test('bridge dispatches typed search, execution, clipboard, and copy requests', 
   const copied = await handleBridgeRequest({ id: '4', type: 'copyClipboard', itemId: 'known' }, backend);
   assert.equal(copied.ok, true);
   if (copied.ok && copied.payload.type === 'copied') assert.equal(copied.payload.copied, true);
+
+  const captured = await handleBridgeRequest({ id: '5', type: 'captureClipboard', item: { id: 'c', kind: 'text', content: 'capture me', createdAt: 1, pinned: false } }, backend);
+  assert.equal(captured.ok, true);
+  if (captured.ok && captured.payload.type === 'captured') assert.equal(captured.payload.captured, true);
 });
 
 test('bridge turns backend errors into response errors', async () => {
@@ -33,6 +39,7 @@ test('bridge turns backend errors into response errors', async () => {
     executeCommand: async () => { throw new Error('backend offline'); },
     listClipboard: async () => [],
     copyClipboard: async () => false,
+    captureClipboard: async () => false,
   });
   assert.deepEqual(response, { id: 'x', ok: false, error: 'backend offline' });
 });
