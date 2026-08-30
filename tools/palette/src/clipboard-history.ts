@@ -1,12 +1,19 @@
 import type { ClipboardItem, ClipboardPolicy, ClipboardStore } from './contracts.ts';
 
+const sensitivePattern = /(?:password|passwd|secret|token|api[_ -]?key)\s*[:=]\s*\S+/i;
+
+/** Conservative local classifier for obvious credential-shaped clipboard text. */
+export function looksSensitive(content: string): boolean {
+  return sensitivePattern.test(content) || /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(content.trim());
+}
+
 export function shouldCapture(
-  item: Pick<ClipboardItem, 'sourceAppId'> & { sensitive?: boolean },
+  item: Pick<ClipboardItem, 'sourceAppId'> & { sensitive?: boolean; content?: string },
   policy: ClipboardPolicy,
 ): boolean {
   if (!policy.enabled) return false;
   if (item.sourceAppId && policy.excludedAppIds.includes(item.sourceAppId)) return false;
-  if (policy.ignoreSensitive && item.sensitive) return false;
+  if (policy.ignoreSensitive && (item.sensitive || (item.content !== undefined && looksSensitive(item.content)))) return false;
   return true;
 }
 

@@ -20,11 +20,23 @@ export class JsonSettingsStore {
       const parsed = JSON.parse(await readFile(this.path, 'utf8')) as Partial<PaletteSettings>;
       const clipboard = parsed.clipboard;
       if (!clipboard || typeof clipboard !== 'object') return structuredClone(defaultSettings);
+      const candidate = clipboard as Partial<ClipboardPolicy>;
+      const maxItems = typeof candidate.maxItems === 'number' && Number.isFinite(candidate.maxItems)
+        ? Math.max(0, Math.floor(candidate.maxItems))
+        : defaultSettings.clipboard.maxItems;
+      const retentionDays = candidate.retentionDays === null
+        ? null
+        : typeof candidate.retentionDays === 'number' && Number.isFinite(candidate.retentionDays)
+          ? Math.max(0, candidate.retentionDays)
+          : defaultSettings.clipboard.retentionDays;
       return {
         clipboard: {
           ...defaultSettings.clipboard,
-          ...clipboard,
-          excludedAppIds: Array.isArray(clipboard.excludedAppIds) ? clipboard.excludedAppIds.filter((id): id is string => typeof id === 'string') : [],
+          enabled: typeof candidate.enabled === 'boolean' ? candidate.enabled : defaultSettings.clipboard.enabled,
+          maxItems,
+          retentionDays,
+          ignoreSensitive: typeof candidate.ignoreSensitive === 'boolean' ? candidate.ignoreSensitive : defaultSettings.clipboard.ignoreSensitive,
+          excludedAppIds: Array.isArray(candidate.excludedAppIds) ? candidate.excludedAppIds.filter((id): id is string => typeof id === 'string') : [],
         },
       };
     } catch {

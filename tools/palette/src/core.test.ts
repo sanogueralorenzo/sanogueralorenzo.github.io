@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommandRegistry } from './command-registry.ts';
-import { PolicyClipboardHistory } from './clipboard-history.ts';
+import { PolicyClipboardHistory, looksSensitive } from './clipboard-history.ts';
 import type { ClipboardItem, ClipboardStore, RunHistoryEntry, RunHistoryStore } from './contracts.ts';
 import { CommandDispatcher } from './command-dispatcher.ts';
 
@@ -58,8 +58,11 @@ test('clipboard policy excludes sensitive and blacklisted captures', async () =>
 
   assert.equal(await history.capture({ ...base, id: 'secret', content: 'password', sensitive: true }), false);
   assert.equal(await history.capture({ ...base, id: 'blocked', content: 'token', sourceAppId: 'com.passwords' }), false);
+  assert.equal(await history.capture({ ...base, id: 'detected', content: 'api_key=abc123' }), false);
   assert.equal(await history.capture({ ...base, id: 'okay', content: 'hello' }), true);
   assert.deepEqual((await history.list()).map((item) => item.id), ['okay']);
+  assert.equal(looksSensitive('api_key=abc123'), true);
+  assert.equal(looksSensitive('a normal note'), false);
 });
 
 test('clipboard history preserves pinned items while pruning oldest unpinned items', async () => {

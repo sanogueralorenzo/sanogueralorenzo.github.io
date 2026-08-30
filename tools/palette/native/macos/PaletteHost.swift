@@ -97,12 +97,24 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         let pasteboard = NSPasteboard.general
         guard pasteboard.changeCount != clipboardChangeCount else { return }
         clipboardChangeCount = pasteboard.changeCount
-        guard let content = pasteboard.string(forType: .string), !content.isEmpty, content != lastCapturedClipboard else { return }
+        let fileURL = (pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [NSURL])?.first
+        let content: String
+        let kind: String
+        if let fileURL, let path = fileURL.path, !path.isEmpty {
+            content = path
+            kind = "file"
+        } else if let text = pasteboard.string(forType: .string), !text.isEmpty {
+            content = text
+            kind = text.contains("://") ? "url" : "text"
+        } else {
+            return
+        }
+        guard content != lastCapturedClipboard else { return }
         lastCapturedClipboard = content
         let itemID = UUID().uuidString
         var item: [String: Any] = [
             "id": itemID,
-            "kind": content.contains("://") ? "url" : "text",
+            "kind": kind,
             "content": content,
             "createdAt": Int(Date().timeIntervalSince1970 * 1000),
             "pinned": false,

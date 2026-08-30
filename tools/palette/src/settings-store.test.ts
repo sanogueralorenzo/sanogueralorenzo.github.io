@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JsonSettingsStore } from './settings-store.ts';
@@ -16,6 +16,11 @@ test('settings store defaults safely and persists clipboard policy', async () =>
     assert.equal(restored.clipboard.enabled, false);
     assert.equal(restored.clipboard.maxItems, 12);
     assert.deepEqual(restored.clipboard.excludedAppIds, ['com.example.App']);
+    await writeFile(join(directory, 'settings.json'), JSON.stringify({ clipboard: { maxItems: -4, retentionDays: -1, excludedAppIds: ["com.ok", 3] } }));
+    const normalized = await store.load();
+    assert.equal(normalized.clipboard.maxItems, 0);
+    assert.equal(normalized.clipboard.retentionDays, 0);
+    assert.deepEqual(normalized.clipboard.excludedAppIds, ['com.ok']);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
