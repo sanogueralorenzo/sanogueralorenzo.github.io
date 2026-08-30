@@ -40,6 +40,10 @@ export class CommandRegistry {
     return this.commands.delete(id);
   }
 
+  modeOf(id: string): CommandDefinition['mode'] | undefined {
+    return this.commands.get(id)?.mode;
+  }
+
   summaries(query = ''): CommandSummary[] {
     return [...this.commands.values()]
       .map(({ run: _run, ...summary }) => ({ summary, rank: score(summary, query) }))

@@ -47,6 +47,13 @@ export type Notification = {
   level?: 'info' | 'success' | 'error';
 };
 
+export type MenubarIconState = 'ready' | 'working' | 'error';
+
+export type MenubarMenuItem =
+  | { kind: 'command'; id: string; title: string; shortcut?: Shortcut }
+  | { kind: 'separator' }
+  | { kind: 'action'; id: string; title: string };
+
 export interface PlatformHost {
   readonly platform: Platform;
   showLauncher(query?: string): Promise<void>;
@@ -54,6 +61,24 @@ export interface PlatformHost {
   registerShortcut(shortcut: Shortcut, callback: () => void): Promise<void>;
   unregisterShortcut(shortcut: Shortcut): Promise<void>;
   notify(notification: Notification): Promise<void>;
+}
+
+export interface MenubarHost extends PlatformHost {
+  setMenubarIcon(state: MenubarIconState): Promise<void>;
+  setMenubarMenu(items: MenubarMenuItem[]): Promise<void>;
+}
+
+export type RunHistoryEntry = {
+  id: string;
+  commandId: string;
+  startedAt: number;
+  finishedAt: number;
+  result: CommandResult;
+};
+
+export interface RunHistoryStore {
+  append(entry: RunHistoryEntry): Promise<void>;
+  list(limit?: number): Promise<RunHistoryEntry[]>;
 }
 
 export type ClipboardKind = 'text' | 'url' | 'image' | 'file';

@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommandRegistry } from './command-registry.ts';
 import { PolicyClipboardHistory } from './clipboard-history.ts';
-import type { ClipboardItem, ClipboardStore } from './contracts.ts';
+import type { ClipboardItem, ClipboardStore, RunHistoryEntry, RunHistoryStore } from './contracts.ts';
+import { CommandDispatcher } from './command-dispatcher.ts';
 
 const signal = new AbortController().signal;
 
@@ -63,4 +64,23 @@ test('clipboard history preserves pinned items while pruning oldest unpinned ite
   await history.capture(item('new'));
 
   assert.deepEqual((await history.list()).map((entry) => entry.id), ['new', 'pinned']);
+});
+
+test('dispatcher records silent runs and reports their result through the host', async () => {
+  const registry = new CommandRegistry();
+  registry.register({ id: 'tonal-local', title: 'Tonal Local', mode: 'silent', run: async () => ({ status: 'success', output: 'ready' }) });
+  const icons: string[] = [];
+  const notifications: string[] = [];
+  const entries: RunHistoryEntry[] = [];
+  const history: RunHistoryStore = { append: async (entry) => { entries.push(entry); }, list: async () => entries };
+  const dispatcher = new CommandDispatcher(registry, {
+    setMenubarIcon: async (state) => { icons.push(state); },
+    notify: async (notification) => { notifications.push(notification.title); },
+  }, history, { platform: 'macos', signal });
+
+  const result = await dispatcher.execute('tonal-local');
+  assert.equal(result.status, 'success');
+  assert.deepEqual(icons, ['working', 'ready']);
+  assert.deepEqual(notifications, ['Action completed']);
+  assert.equal(entries[0]?.commandId, 'tonal-local');
 });
