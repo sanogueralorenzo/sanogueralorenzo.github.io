@@ -9,3 +9,6 @@ gtk4 = "0.9"
 webkit6 = "0.4"
 ksni = { version = "0.3", default-features = false, features = ["blocking", "tokio"] }
 serde_json = "1"
+ashpd = { version = "0.13", default-features = false, features = ["global_shortcuts", "tokio"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt", "macros"] }

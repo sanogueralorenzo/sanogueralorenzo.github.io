@@ -55,6 +55,13 @@ Copy `commands.example.json` to `~/.palette/commands.json` to add direct-process
 commands. Arguments are passed without a shell; use `mode: "silent"` for
 background actions and assign either an accelerator or a chord shortcut.
 
+On Linux, the resident host publishes a StatusNotifier tray item and registers
+the launcher accelerator through the XDG Desktop Portal GlobalShortcuts API
+when that portal is available. A focused-window GTK shortcut remains as a
+development fallback. Command chords are matched by the shared shortcut
+service after the launcher opens; desktop portals intentionally own only the
+single global launcher accelerator.
+
 Clipboard history is encrypted at rest. macOS supplies its key from Keychain;
 the development Node daemon keeps a permission-restricted `clipboard.key` in
 the data directory on other hosts until their native Secret-service adapter is

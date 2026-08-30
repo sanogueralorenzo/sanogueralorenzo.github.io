@@ -1,5 +1,8 @@
 use adw::prelude::*;
 use adw::{Application, ApplicationWindow};
+use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
+use ashpd::desktop::session::CreateSessionOptions;
+use futures_util::StreamExt;
 use gtk4::gio;
 use gtk4::glib;
 use ksni::blocking::TrayMethods;
@@ -159,6 +162,50 @@ fn start_sidecar() -> (mpsc::Sender<String>, mpsc::Receiver<String>) {
     (requests, responses)
 }
 
+fn start_global_shortcut(action_tx: mpsc::Sender<TrayAction>) {
+    thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build();
+        let Ok(runtime) = runtime else { return };
+        runtime.block_on(async move {
+            let Ok(portal) = GlobalShortcuts::new().await else {
+                return;
+            };
+            let Ok(session) = portal.create_session(CreateSessionOptions::default()).await else {
+                return;
+            };
+            let preferred = env::var("PALETTE_HOTKEY")
+                .unwrap_or_else(|_| "alt+space".into())
+                .to_uppercase();
+            let trigger = match preferred.as_str() {
+                "CTRL+SPACE" | "CONTROL+SPACE" => "<Control>space",
+                "CTRL+SHIFT+SPACE" | "CONTROL+SHIFT+SPACE" => "<Control><Shift>space",
+                _ => "<Alt>space",
+            };
+            let shortcut =
+                NewShortcut::new("toggle", "Toggle Palette").preferred_trigger(Some(trigger));
+            let Ok(request) = portal
+                .bind_shortcuts(&session, &[shortcut], None, Default::default())
+                .await
+            else {
+                return;
+            };
+            if request.response().is_err() {
+                return;
+            }
+            let Ok(mut activated) = portal.receive_activated().await else {
+                return;
+            };
+            while let Some(event) = activated.next().await {
+                if event.shortcut_id() == "toggle" {
+                    let _ = action_tx.send(TrayAction::Open);
+                }
+            }
+        });
+    });
+}
+
 fn main() {
     let application = Application::builder().application_id(APP_ID).build();
     application.connect_activate(|application| {
@@ -199,6 +246,7 @@ fn main() {
             .build();
 
         let (tray_actions, tray_events) = mpsc::channel();
+        let global_shortcut_actions = tray_actions.clone();
         thread::spawn(move || {
             let tray = PaletteTray {
                 actions: tray_actions,
@@ -210,6 +258,7 @@ fn main() {
                 Err(error) => eprintln!("Palette StatusNotifier unavailable: {error}"),
             }
         });
+        start_global_shortcut(global_shortcut_actions);
         let window_for_tray = window.clone();
         let web_view_for_tray = web_view.clone();
         let application_for_tray = application.clone();
