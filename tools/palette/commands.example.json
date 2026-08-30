@@ -1,0 +1,12 @@
+[
+  {
+    "id": "tonal-local",
+    "title": "Tonal Local",
+    "subtitle": "Run Tonal's local command in the background",
+    "keywords": ["tonal", "local"],
+    "shortcut": { "kind": "chord", "steps": ["⌘T", "L"], "timeoutMs": 800 },
+    "mode": "silent",
+    "command": "/usr/local/bin/tonal",
+    "args": ["local"]
+  }
+]
