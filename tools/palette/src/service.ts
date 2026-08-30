@@ -8,12 +8,14 @@ import type {
 import { PolicyClipboardHistory } from './clipboard-history.ts';
 import { CommandDispatcher } from './command-dispatcher.ts';
 import { CommandRegistry } from './command-registry.ts';
+import { LocalSearchProvider } from './local-search.ts';
 
 export type PaletteServiceOptions = {
   platform: Platform;
-  host: Pick<MenubarHost, 'notify' | 'setMenubarIcon' | 'writeClipboard'>;
+  host: Pick<MenubarHost, 'notify' | 'setMenubarIcon' | 'writeClipboard' | 'openPath'>;
   history: RunHistoryStore;
   clipboard: PolicyClipboardHistory;
+  localSearch?: LocalSearchProvider;
 };
 
 /** Long-lived Node service facade consumed by the native host and WebView. */
@@ -21,10 +23,12 @@ export class PaletteService {
   readonly registry = new CommandRegistry();
   private readonly dispatcher: CommandDispatcher;
   private readonly clipboard: PolicyClipboardHistory;
+  private readonly localSearch?: LocalSearchProvider;
   private readonly writeClipboard: (content: string) => Promise<void>;
 
   constructor(options: PaletteServiceOptions) {
     this.clipboard = options.clipboard;
+    this.localSearch = options.localSearch;
     this.writeClipboard = options.host.writeClipboard;
     this.dispatcher = new CommandDispatcher(this.registry, options.host, options.history, {
       platform: options.platform,
@@ -36,12 +40,21 @@ export class PaletteService {
       subtitle: 'Search and reuse recent copies',
       keywords: ['clipboard', 'history', 'paste'],
       mode: 'visible',
+      category: 'command',
       shortcut: { kind: 'accelerator', value: '⌘⇧V' },
       run: async () => ({ status: 'success', nextView: 'clipboard' }),
     });
   }
 
-  searchCommands(query = '') {
+  async searchCommands(query = '') {
+    if (this.localSearch) {
+      for (const summary of await this.localSearch.search(query)) {
+        const definition = await this.localSearch.definition(summary.id);
+        if (definition && this.registry.modeOf(definition.id) === undefined) {
+          try { this.registry.register(definition); } catch {}
+        }
+      }
+    }
     return this.registry.summaries(query);
   }
 

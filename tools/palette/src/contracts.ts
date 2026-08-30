@@ -37,6 +37,7 @@ export type CommandDefinition = {
   shortcut?: Shortcut;
   /** A command that starts a process without requiring a visible terminal. */
   background?: boolean;
+  category?: 'command' | 'app' | 'file';
   run: (context: CommandContext) => Promise<CommandResult>;
 };
 
@@ -63,6 +64,7 @@ export interface PlatformHost {
   unregisterShortcut(shortcut: Shortcut): Promise<void>;
   notify(notification: Notification): Promise<void>;
   writeClipboard(content: string): Promise<void>;
+  openPath(path: string): Promise<void>;
 }
 
 export interface MenubarHost extends PlatformHost {

@@ -11,6 +11,7 @@ import { PaletteService } from './service.ts';
 import { handleBridgeRequest } from './service-bridge.ts';
 import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
 import type { Notification } from './contracts.ts';
+import { LocalSearchProvider } from './local-search.ts';
 
 const dataDirectory = process.env.PALETTE_DATA_DIR || join(homedir(), '.palette');
 const configuredKey = process.env.PALETTE_CLIPBOARD_KEY;
@@ -37,9 +38,21 @@ function writeClipboard(content: string): Promise<void> {
   });
 }
 
+function openPath(path: string): Promise<void> {
+  const command = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open';
+  const args = process.platform === 'win32' ? ['/c', 'start', '', path] : [path];
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+    let error = '';
+    child.stderr.on('data', (chunk) => { error += chunk.toString(); });
+    child.once('error', reject);
+    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(error || `Open command exited with ${code ?? 'unknown'}`)));
+  });
+}
+
 const service = new PaletteService({
   platform: process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
-  host: { setMenubarIcon: async () => {}, notify, writeClipboard },
+  host: { setMenubarIcon: async () => {}, notify, writeClipboard, openPath },
   history: new JsonRunHistoryStore(join(dataDirectory, 'run-history.json')),
   clipboard: new PolicyClipboardHistory(new EncryptedJsonClipboardStore(join(dataDirectory, 'clipboard.json'), encryptionKey), {
     enabled: true,
@@ -47,6 +60,12 @@ const service = new PaletteService({
     retentionDays: 30,
     excludedAppIds: [],
     ignoreSensitive: true,
+  }),
+  localSearch: new LocalSearchProvider({
+    roots: process.platform === 'darwin'
+      ? ['/Applications', '/System/Applications', join(homedir(), 'Applications'), join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')]
+      : [join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')],
+    openPath,
   }),
 });
 
