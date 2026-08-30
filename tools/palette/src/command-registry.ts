@@ -4,6 +4,7 @@ import type {
   CommandResult,
   CommandSummary,
 } from './contracts.ts';
+import { ShortcutRegistry } from './shortcut-registry.ts';
 
 function normalize(value: string): string {
   return value.trim().toLocaleLowerCase();
@@ -27,17 +28,21 @@ function score(command: CommandSummary, query: string): number {
 /** In-process command catalog shared by the launcher and native hosts. */
 export class CommandRegistry {
   private readonly commands = new Map<string, CommandDefinition>();
+  readonly shortcuts = new ShortcutRegistry();
 
   register(command: CommandDefinition): void {
     if (!command.id.trim()) throw new Error('Command id is required');
     if (this.commands.has(command.id)) {
       throw new Error(`Command already registered: ${command.id}`);
     }
+    if (command.shortcut) this.shortcuts.register(command.id, command.shortcut);
     this.commands.set(command.id, command);
   }
 
   unregister(id: string): boolean {
-    return this.commands.delete(id);
+    const removed = this.commands.delete(id);
+    if (removed) this.shortcuts.unregister(id);
+    return removed;
   }
 
   modeOf(id: string): CommandDefinition['mode'] | undefined {

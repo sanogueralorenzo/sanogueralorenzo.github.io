@@ -17,6 +17,15 @@ test('registry ranks exact, prefix, and keyword matches', () => {
   assert.equal(registry.summaries('missing').length, 0);
 });
 
+test('command registry owns shortcut bindings with command lifecycle', () => {
+  const registry = new CommandRegistry();
+  registry.register({ id: 'tonal-local', title: 'Tonal Local', mode: 'silent', shortcut: { kind: 'chord', steps: ['⌘T', 'L'] }, run: async () => ({ status: 'success' }) });
+  assert.equal(registry.shortcuts.find({ kind: 'chord', steps: ['⌘t', 'l'] }), 'tonal-local');
+  assert.throws(() => registry.register({ id: 'other', title: 'Other', mode: 'visible', shortcut: { kind: 'chord', steps: ['⌘T', 'L'] }, run: async () => ({ status: 'success' }) }), /already assigned/);
+  registry.unregister('tonal-local');
+  assert.equal(registry.shortcuts.find({ kind: 'chord', steps: ['⌘T', 'L'] }), undefined);
+});
+
 test('execution preserves silent mode and returns failures instead of throwing', async () => {
   const registry = new CommandRegistry();
   let invocation = '';

@@ -6,6 +6,10 @@ function keyFor(shortcut: Shortcut): string {
     : `chord:${shortcut.steps.map((step) => step.trim().toLocaleLowerCase()).join('>')}`;
 }
 
+function normalizeStep(step: string): string {
+  return step.trim().toLocaleLowerCase();
+}
+
 /** Keeps shortcut ownership and conflict rules independent from native APIs. */
 export class ShortcutRegistry {
   private readonly bindings = new Map<string, { commandId: string; shortcut: Shortcut }>();
@@ -35,5 +39,47 @@ export class ShortcutRegistry {
 
   list(): Array<{ commandId: string; shortcut: Shortcut }> {
     return [...this.bindings.values()];
+  }
+}
+
+/** Resolves native key events into accelerator or chord command ids. */
+export class ShortcutMatcher {
+  private pending: string[] = [];
+  private pendingAt = 0;
+  private readonly registry: ShortcutRegistry;
+
+  constructor(registry: ShortcutRegistry) {
+    this.registry = registry;
+  }
+
+  press(step: string, now = Date.now()): string | undefined {
+    const normalized = normalizeStep(step);
+    if (!normalized) return undefined;
+    const accelerator = this.registry.find({ kind: 'accelerator', value: normalized });
+    if (accelerator) { this.reset(); return accelerator; }
+
+    const previous = now - this.pendingAt;
+    if (this.pending.length && previous > this.timeoutForPending()) this.reset();
+    const candidate = [...this.pending, normalized];
+    const exact = this.registry.find({ kind: 'chord', steps: candidate });
+    if (exact) { this.reset(); return exact; }
+    const isPrefix = this.registry.list().some(({ shortcut }) => shortcut.kind === 'chord'
+      && shortcut.steps.length > candidate.length
+      && candidate.every((part, index) => normalizeStep(shortcut.steps[index] ?? '') === part));
+    this.pending = isPrefix ? candidate : [];
+    this.pendingAt = isPrefix ? now : 0;
+    return undefined;
+  }
+
+  reset(): void {
+    this.pending = [];
+    this.pendingAt = 0;
+  }
+
+  private timeoutForPending(): number {
+    const first = this.pending[0];
+    const binding = this.registry.list().find(({ shortcut }) => shortcut.kind === 'chord'
+      && normalizeStep(shortcut.steps[0] ?? '') === first);
+    return binding?.shortcut.kind === 'chord' ? binding.shortcut.timeoutMs ?? 800 : 800;
   }
 }
