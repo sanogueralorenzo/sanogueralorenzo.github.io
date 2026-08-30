@@ -15,8 +15,6 @@ the portal integration below.
 
 The remaining desktop integration should add:
 
-- A StatusNotifierItem (the desktop-equivalent of a macOS menubar icon) for
-  open, clipboard history, recent actions, settings, and quit.
 - The XDG Desktop Portal GlobalShortcuts API for configurable accelerators and
   chord state handling where the desktop environment supports it.
 - The XDG Desktop Portal OpenURI and Secret APIs for opening results and
