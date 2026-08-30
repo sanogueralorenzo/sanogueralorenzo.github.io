@@ -1,6 +1,7 @@
 import { createInterface } from 'node:readline';
 import { randomBytes } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -12,6 +13,7 @@ import { handleBridgeRequest } from './service-bridge.ts';
 import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
 import type { Notification } from './contracts.ts';
 import { LocalSearchProvider } from './local-search.ts';
+import { RustSearchProvider } from './rust-search-provider.ts';
 
 const dataDirectory = process.env.PALETTE_DATA_DIR || join(homedir(), '.palette');
 const configuredKey = process.env.PALETTE_CLIPBOARD_KEY;
@@ -50,6 +52,19 @@ function openPath(path: string): Promise<void> {
   });
 }
 
+const defaultRoots = process.platform === 'darwin'
+  ? ['/Applications', '/System/Applications', join(homedir(), 'Applications'), join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')]
+  : [join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')];
+const roots = process.env.PALETTE_SEARCH_ROOTS?.split(process.platform === 'win32' ? ';' : ':').filter(Boolean) || defaultRoots;
+const openSearchPath = (path: string) => openPath(path);
+const configuredIndexer = process.env.PALETTE_INDEXER;
+const defaultIndexer = join(process.cwd(), 'native/rust-indexer/target/release/palette-indexer');
+const localSearch = configuredIndexer && existsSync(configuredIndexer)
+  ? new RustSearchProvider(configuredIndexer, roots, openSearchPath)
+  : existsSync(defaultIndexer)
+    ? new RustSearchProvider(defaultIndexer, roots, openSearchPath)
+    : new LocalSearchProvider({ roots, openPath: openSearchPath });
+
 const service = new PaletteService({
   platform: process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
   host: { setMenubarIcon: async () => {}, notify, writeClipboard, openPath },
@@ -61,12 +76,7 @@ const service = new PaletteService({
     excludedAppIds: [],
     ignoreSensitive: true,
   }),
-  localSearch: new LocalSearchProvider({
-    roots: process.platform === 'darwin'
-      ? ['/Applications', '/System/Applications', join(homedir(), 'Applications'), join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')]
-      : [join(homedir(), 'Desktop'), join(homedir(), 'Documents'), join(homedir(), 'Downloads')],
-    openPath,
-  }),
+  localSearch,
 });
 
 const backend = {
@@ -88,3 +98,5 @@ for await (const line of input) {
   }
   process.stdout.write(`${JSON.stringify(response)}\n`);
 }
+
+localSearch.close?.();

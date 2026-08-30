@@ -8,14 +8,14 @@ import type {
 import { PolicyClipboardHistory } from './clipboard-history.ts';
 import { CommandDispatcher } from './command-dispatcher.ts';
 import { CommandRegistry } from './command-registry.ts';
-import { LocalSearchProvider } from './local-search.ts';
+import type { SearchProvider } from './local-search.ts';
 
 export type PaletteServiceOptions = {
   platform: Platform;
   host: Pick<MenubarHost, 'notify' | 'setMenubarIcon' | 'writeClipboard' | 'openPath'>;
   history: RunHistoryStore;
   clipboard: PolicyClipboardHistory;
-  localSearch?: LocalSearchProvider;
+  localSearch?: SearchProvider;
 };
 
 /** Long-lived Node service facade consumed by the native host and WebView. */
@@ -23,7 +23,7 @@ export class PaletteService {
   readonly registry = new CommandRegistry();
   private readonly dispatcher: CommandDispatcher;
   private readonly clipboard: PolicyClipboardHistory;
-  private readonly localSearch?: LocalSearchProvider;
+  private readonly localSearch?: SearchProvider;
   private readonly writeClipboard: (content: string) => Promise<void>;
 
   constructor(options: PaletteServiceOptions) {

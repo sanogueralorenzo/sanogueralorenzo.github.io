@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:indexer": "cargo build --release --manifest-path native/rust-indexer/Cargo.toml",
     "daemon": "node --experimental-strip-types src/node-daemon.ts",
     "test": "node --experimental-strip-types --test src/*.test.ts",
     "typecheck": "tsc --noEmit"

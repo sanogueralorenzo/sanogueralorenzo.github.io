@@ -8,8 +8,14 @@ type LocalSearchOptions = {
   maxEntries?: number;
 };
 
+export interface SearchProvider {
+  search(query: string): Promise<CommandSummary[]>;
+  definition(id: string): Promise<CommandDefinition | undefined>;
+  close?(): Promise<void> | void;
+}
+
 /** Node fallback index; the production hot path can be replaced by Rust. */
-export class LocalSearchProvider {
+export class LocalSearchProvider implements SearchProvider {
   private readonly roots: string[];
   private readonly openPath: (path: string) => Promise<void>;
   private readonly maxEntries: number;
@@ -33,6 +39,8 @@ export class LocalSearchProvider {
   async definition(id: string): Promise<CommandDefinition | undefined> {
     return (await this.index()).find((entry) => entry.id === id);
   }
+
+  close(): void {}
 
   private async index(): Promise<CommandDefinition[]> {
     if (this.indexed) return this.indexed;
