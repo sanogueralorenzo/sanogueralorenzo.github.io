@@ -212,6 +212,7 @@ fn main() {
         });
         let window_for_tray = window.clone();
         let web_view_for_tray = web_view.clone();
+        let application_for_tray = application.clone();
         glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
             while let Ok(action) = tray_events.try_recv() {
                 match action {
@@ -226,7 +227,7 @@ fn main() {
                             |_| {},
                         );
                     }
-                    TrayAction::Quit => application.quit(),
+                    TrayAction::Quit => application_for_tray.quit(),
                 }
             }
             glib::ControlFlow::Continue
