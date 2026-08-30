@@ -149,7 +149,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         if let configured = ProcessInfo.processInfo.environment["PALETTE_NODE_DAEMON"] {
             return URL(fileURLWithPath: configured)
         }
-        return Bundle.main.url(forResource: "node-daemon", withExtension: "ts")
+        return Bundle.main.url(forResource: "node-daemon", withExtension: "mjs", subdirectory: "node")
+            ?? Bundle.main.url(forResource: "node-daemon", withExtension: "ts")
             ?? URL(fileURLWithPath: "src/node-daemon.ts")
     }
 
@@ -265,7 +266,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
         guard process == nil else { return }
         let service = Process()
         service.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        service.arguments = ["node", "--experimental-strip-types", scriptURL.path]
+        let nodeArguments = scriptURL.pathExtension == "mjs"
+            ? ["node", scriptURL.path]
+            : ["node", "--experimental-strip-types", scriptURL.path]
+        service.arguments = nodeArguments
         var environment = ProcessInfo.processInfo.environment
         let key = PaletteAppDelegate.clipboardStorageKey()
         if !key.isEmpty { environment["PALETTE_CLIPBOARD_KEY"] = key }

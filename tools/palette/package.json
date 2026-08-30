@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:daemon": "esbuild src/node-daemon.ts --bundle --platform=node --format=esm --outfile=dist/node/node-daemon.mjs",
     "build:indexer": "cargo build --release --manifest-path native/rust-indexer/Cargo.toml",
     "build:linux-host": "cargo build --release --manifest-path native/linux-host/Cargo.toml",
     "daemon": "node --experimental-strip-types src/node-daemon.ts",
@@ -16,6 +17,7 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "esbuild": "^0.24.0",
     "typescript": "^5.7.0"
   },
   "dependencies": {
