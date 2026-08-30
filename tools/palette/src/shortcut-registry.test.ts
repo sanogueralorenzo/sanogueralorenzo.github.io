@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ShortcutRegistry } from './shortcut-registry.ts';
+import { ShortcutMatcher, ShortcutRegistry } from './shortcut-registry.ts';
 
 test('shortcut registry detects accelerator and chord conflicts', () => {
   const registry = new ShortcutRegistry();
@@ -20,4 +20,17 @@ test('unregister removes every shortcut owned by a command', () => {
   registry.unregister('clipboard');
 
   assert.equal(registry.list().length, 0);
+});
+
+test('shortcut matcher resolves accelerators and timed chords', () => {
+  const registry = new ShortcutRegistry();
+  registry.register('open', { kind: 'accelerator', value: '⌥ Space' });
+  registry.register('tonal-local', { kind: 'chord', steps: ['⌘T', 'L'], timeoutMs: 500 });
+  const matcher = new ShortcutMatcher(registry);
+
+  assert.equal(matcher.press('⌥ space', 100), 'open');
+  assert.equal(matcher.press('⌘t', 200), undefined);
+  assert.equal(matcher.press('l', 600), 'tonal-local');
+  assert.equal(matcher.press('⌘t', 700), undefined);
+  assert.equal(matcher.press('l', 1301), undefined);
 });
