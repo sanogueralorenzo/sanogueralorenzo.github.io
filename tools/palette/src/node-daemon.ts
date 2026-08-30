@@ -11,7 +11,7 @@ import { JsonSettingsStore } from './settings-store.ts';
 import { PolicyClipboardHistory } from './clipboard-history.ts';
 import { PaletteService } from './service.ts';
 import { handleBridgeRequest } from './service-bridge.ts';
-import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
+import type { BridgeEvent, BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
 import type { Notification } from './contracts.ts';
 import { LocalSearchProvider } from './local-search.ts';
 import { RustSearchProvider } from './rust-search-provider.ts';
@@ -51,7 +51,8 @@ const settings = await settingsStore.load();
 function notify(notification: Notification): Promise<void> {
   // Out-of-band events let resident native hosts surface silent actions without
   // coupling the command service to AppKit, WPF, or GTK notification APIs.
-  process.stdout.write(`${JSON.stringify({ type: 'notification', notification })}\n`);
+  const event: BridgeEvent = { type: 'notification', notification };
+  process.stdout.write(`${JSON.stringify(event)}\n`);
   return Promise.resolve();
 }
 
