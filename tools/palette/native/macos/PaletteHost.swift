@@ -299,11 +299,21 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     func start() {
         guard process == nil else { return }
         let service = Process()
-        service.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         let nodeArguments = scriptURL.pathExtension == "mjs"
             ? ["node", scriptURL.path]
             : ["node", "--experimental-strip-types", scriptURL.path]
-        service.arguments = nodeArguments
+        let nodePathCandidates = [
+            "/opt/homebrew/bin/node",
+            "/usr/local/bin/node",
+            "/usr/bin/node",
+        ]
+        if let nodePath = nodePathCandidates.first(where: FileManager.default.isExecutableFile(atPath:)) {
+            service.executableURL = URL(fileURLWithPath: nodePath)
+            service.arguments = Array(nodeArguments.dropFirst())
+        } else {
+            service.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            service.arguments = nodeArguments
+        }
         var environment = ProcessInfo.processInfo.environment
         let key = PaletteAppDelegate.clipboardStorageKey()
         if !key.isEmpty { environment["PALETTE_CLIPBOARD_KEY"] = key }
