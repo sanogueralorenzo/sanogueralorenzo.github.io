@@ -22,11 +22,21 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
     private var lastCapturedClipboard = ""
     private var shortcutLabel = "⌥ Space"
 
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = PaletteAppDelegate()
+        application.delegate = delegate
+        application.run()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         configureStatusItem()
         installGlobalShortcut()
         startClipboardMonitor()
+        // Show the launcher once on manual launch so a first-time user gets
+        // immediate feedback; closing it returns Palette to its resident state.
+        DispatchQueue.main.async { [weak self] in self?.toggleLauncher() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -230,7 +240,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             return noErr
         }
 
-        InstallEventHandler(
+        let installStatus = InstallEventHandler(
             GetApplicationEventTarget(),
             callback,
             1,
@@ -238,11 +248,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             userData,
             &eventHandlerRef
         )
+        if installStatus != noErr {
+            NSLog("Palette: failed to install hotkey event handler (OSStatus %d)", installStatus)
+        }
 
         let configured = Self.configuredShortcut()
         shortcutLabel = configured.label
         let hotKeyID = shortcutID
-        RegisterEventHotKey(
+        let registerStatus = RegisterEventHotKey(
             configured.keyCode,
             configured.modifiers,
             hotKeyID,
@@ -250,6 +263,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, WKScriptMessage
             0,
             &shortcutRef
         )
+        if registerStatus != noErr {
+            NSLog("Palette: failed to register %@ (OSStatus %d)", shortcutLabel, registerStatus)
+        }
     }
 
     private static func configuredShortcut() -> (keyCode: UInt32, modifiers: UInt32, label: String) {
