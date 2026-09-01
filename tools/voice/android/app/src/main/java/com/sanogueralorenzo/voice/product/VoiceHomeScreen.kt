@@ -2,7 +2,6 @@ package com.sanogueralorenzo.voice.product
 
 import android.Manifest
 import android.content.Intent
-import android.graphics.RectF
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,8 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -61,8 +58,7 @@ import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun VoiceHomeScreen(
-    onOpenMicPosition: () -> Unit,
-    onLogoPositioned: (RectF) -> Unit
+    onOpenMicPosition: () -> Unit
 ) {
     val context = LocalContext.current
     val viewModel = mavericksViewModel<VoiceHomeViewModel, VoiceHomeState>()
@@ -82,8 +78,7 @@ fun VoiceHomeScreen(
         onOpenVoiceService = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
-        onOpenMicPosition = onOpenMicPosition,
-        onLogoPositioned = onLogoPositioned
+        onOpenMicPosition = onOpenMicPosition
     )
 }
 
@@ -93,15 +88,14 @@ private fun VoiceHomeContent(
     onDownloadModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
-    onOpenMicPosition: () -> Unit,
-    onLogoPositioned: (RectF) -> Unit
+    onOpenMicPosition: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { ProductHero(onLogoPositioned = onLogoPositioned) }
+        item { ProductHero() }
         item { HowItWorksCard() }
         item {
             StatusSection(
@@ -122,9 +116,7 @@ private fun VoiceHomeContent(
 }
 
 @Composable
-private fun ProductHero(
-    onLogoPositioned: (RectF) -> Unit
-) {
+private fun ProductHero() {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -135,14 +127,7 @@ private fun ProductHero(
             Icon(
                 painter = painterResource(R.drawable.ic_logo),
                 contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier
-                    .size(96.dp)
-                    .onGloballyPositioned { coordinates ->
-                        val bounds = coordinates.boundsInWindow()
-                        onLogoPositioned(
-                            RectF(bounds.left, bounds.top, bounds.right, bounds.bottom)
-                        )
-                    },
+                modifier = Modifier.size(96.dp),
                 tint = Color.Unspecified
             )
             Spacer(modifier = Modifier.height(12.dp))

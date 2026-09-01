@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.voice
 
-import android.graphics.RectF
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -29,9 +28,7 @@ private object VoiceRoute {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun MainNavHost(
-    onHomeLogoPositioned: (RectF) -> Unit
-) {
+fun MainNavHost() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
@@ -67,8 +64,7 @@ fun MainNavHost(
         ) {
             composable(VoiceRoute.HOME) {
                 VoiceHomeScreen(
-                    onOpenMicPosition = { navController.navigate(VoiceRoute.MIC_POSITION) },
-                    onLogoPositioned = onHomeLogoPositioned
+                    onOpenMicPosition = { navController.navigate(VoiceRoute.MIC_POSITION) }
                 )
             }
             composable(VoiceRoute.MIC_POSITION) {
