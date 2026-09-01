@@ -36,9 +36,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.asr.MoonshineSpeechProcessor
-import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
-import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
+import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import kotlinx.coroutines.CoroutineScope
@@ -48,29 +46,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import java.util.concurrent.TimeoutException
 import java.util.concurrent.Executors
-import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 
 class OverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val processingExecutor = Executors.newSingleThreadExecutor()
-    private val chunkExecutor = Executors.newSingleThreadExecutor()
+    private val transcriberExecutor = Executors.newSingleThreadExecutor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    @Volatile
-    private var inFlight: Future<*>? = null
-
-    @Volatile
-    private var recorder: VoiceAudioRecorder? = null
-    private var recorderChunkSessionId: Int = 0
-    private val chunkLock = Any()
-    private val chunkSessionCounter = AtomicInteger(0)
-    private var activeChunkSessionId: Int = 0
-    private val activeChunkFutures = mutableListOf<Future<*>>()
+    private var recordingSession: RecordingSession? = null
+    private var nextRecordingSessionId = 0
+    private var finishRecordingRunnable: Runnable? = null
 
     private var overlayView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
@@ -107,12 +93,8 @@ class OverlayAccessibilityService : AccessibilityService() {
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
         OverlayRepository(context = applicationContext)
     }
-    private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
-    private val speechProcessor by lazy(LazyThreadSafetyMode.NONE) {
-        MoonshineSpeechProcessor(
-            transcriber = moonshineTranscriber,
-            logTag = TAG
-        )
+    private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) {
+        MoonshineMicTranscriber(this)
     }
 
     override fun onServiceConnected() {
@@ -131,6 +113,7 @@ class OverlayAccessibilityService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
             notificationTimeout = 0
         }
+        warmupMoonshine()
         evaluateOverlayVisibility()
     }
 
@@ -163,27 +146,24 @@ class OverlayAccessibilityService : AccessibilityService() {
         unregisterSystemDialogReceiverIfNeeded()
         unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
+        stopRecordingDiscard(updateOverlayVisibility = false)
         hideBubble()
-        stopRecordingDiscard()
-        inFlight?.cancel(true)
-        processingExecutor.shutdownNow()
-        endChunkSession(activeChunkSessionId, cancelPending = true)
-        chunkExecutor.shutdownNow()
-        runCatching { moonshineTranscriber.release() }
+        transcriberExecutor.shutdownNow()
+        runCatching { moonshineTranscriber.close() }
         super.onDestroy()
     }
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
         val inputMethodVisible = isInputMethodWindowVisible()
-        if (inputMethodVisible || recorder == null) {
+        if (inputMethodVisible || recordingSession == null) {
             cancelKeyboardCloseStop()
         } else {
             scheduleKeyboardCloseStop()
         }
         val shouldShowByContext = (config.overlayEnabled || positionPreviewActive) &&
             inputMethodVisible
-        val shouldKeepVisibleForActiveWork = recorder != null || inFlight != null
+        val shouldKeepVisibleForActiveWork = recordingSession != null
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 
         if (shouldShow) {
@@ -544,28 +524,30 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun onBubbleTapped() {
-        if (inFlight != null) return
-
-        if (recorder == null) {
+        val session = recordingSession
+        if (session == null) {
             startRecording()
-        } else {
+        } else if (!session.stopping) {
             stopRecordingAndProcess()
         }
     }
 
     private fun stopRecordingAndProcess(): Boolean {
-        if (inFlight != null) return false
-        val activeRecorder = recorder ?: return false
+        val session = recordingSession ?: return false
+        if (session.stopping) return false
         cancelKeyboardCloseStop()
-        val chunkSessionId = recorderChunkSessionId
-        recorder = null
-        recorderChunkSessionId = 0
-        submitProcessing(activeRecorder, chunkSessionId)
+        session.stopping = true
+        runOnTranscriberThread {
+            moonshineTranscriber.stop()
+            mainHandler.post {
+                scheduleRecordingFinish(session.id, FINAL_TRANSCRIPT_TIMEOUT_MS)
+            }
+        }
         return true
     }
 
     private fun startRecording() {
-        if (recorder != null) return
+        if (recordingSession != null) return
         if (!overlayRepository.hasRecordAudioPermission()) {
             showToast(getString(R.string.overlay_microphone_required))
             return
@@ -575,71 +557,94 @@ class OverlayAccessibilityService : AccessibilityService() {
             return
         }
 
-        startForegroundForRecording()
-        val chunkSessionId = beginChunkSession()
-        val audioRecorder = VoiceAudioRecorder(
-            onLevelChanged = { },
-            onAudioFrame = { frame ->
-                enqueueMoonshineAudioFrame(chunkSessionId, frame)
-            }
+        val session = RecordingSession(
+            id = ++nextRecordingSessionId,
+            textBuffer = DictationTextBuffer(readFocusedInputText())
         )
-        if (!audioRecorder.start()) {
-            endChunkSession(chunkSessionId, cancelPending = true)
-            stopForegroundIfNeeded()
-            showToast(getString(R.string.overlay_recording_start_failed))
-            return
-        }
-        enqueueMoonshineSessionStart(chunkSessionId)
-        recorder = audioRecorder
-        recorderChunkSessionId = chunkSessionId
-    }
-
-    private fun submitProcessing(activeRecorder: VoiceAudioRecorder, chunkSessionId: Int) {
-        try {
-            inFlight = processingExecutor.submit {
-                processRecording(activeRecorder, chunkSessionId)
-            }
-        } catch (_: RejectedExecutionException) {
-            activeRecorder.stopAndGetPcm()
-            endChunkSession(chunkSessionId, cancelPending = true)
-            stopForegroundIfNeeded()
-        }
-    }
-
-    private fun processRecording(activeRecorder: VoiceAudioRecorder, chunkSessionId: Int) {
-        val sourceText = readFocusedInputText()
-        val transcript = try {
-            speechProcessor.transcribe(
-                recorder = activeRecorder,
-                chunkSessionId = chunkSessionId,
-                awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
-                finalizeStreamingTranscript = { finalizeMoonshineTranscript(it) }
+        recordingSession = session
+        startForegroundForRecording()
+        runOnTranscriberThread {
+            val started = moonshineTranscriber.start(
+                MoonshineMicTranscriber.Callbacks(
+                    onText = { text -> onMoonshineText(session.id, text) },
+                    onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
+                    onError = { onMoonshineError(session.id) }
+                )
             )
-        } catch (_: Throwable) {
-            cancelPendingChunkWork(chunkSessionId)
-            null
-        } finally {
-            endChunkSession(chunkSessionId, cancelPending = false)
+            mainHandler.post {
+                val current = recordingSession
+                if (!started && current?.id == session.id) {
+                    finishRecording(session.id, restoreOriginalText = true)
+                    showToast(getString(R.string.overlay_recording_start_failed))
+                }
+            }
         }
+    }
 
-        if (!transcript.isNullOrBlank()) {
-            val output = appendTranscript(sourceText, transcript)
-            if (!replaceFocusedInputText(output)) {
+    private fun onMoonshineText(sessionId: Int, text: String) {
+        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
+        val output = session.textBuffer.updatePartial(text)
+        replaceFocusedInputText(output)
+        if (session.stopping) {
+            scheduleRecordingFinish(sessionId, FINAL_TRANSCRIPT_TIMEOUT_MS)
+        }
+    }
+
+    private fun onMoonshineLine(sessionId: Int, lineId: Long, text: String) {
+        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
+        val output = session.textBuffer.completeLine(lineId, text)
+        replaceFocusedInputText(output)
+        if (session.stopping) {
+            scheduleRecordingFinish(sessionId, FINAL_LINE_SETTLE_MS)
+        }
+    }
+
+    private fun onMoonshineError(sessionId: Int) {
+        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
+        finishRecording(session.id, restoreOriginalText = true)
+        showToast(getString(R.string.overlay_recording_start_failed))
+    }
+
+    private fun scheduleRecordingFinish(sessionId: Int, delayMs: Long) {
+        if (recordingSession?.id != sessionId) return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = Runnable {
+            finishRecordingRunnable = null
+            finishRecording(sessionId, restoreOriginalText = false)
+        }.also { runnable ->
+            mainHandler.postDelayed(runnable, delayMs)
+        }
+    }
+
+    private fun finishRecording(sessionId: Int, restoreOriginalText: Boolean) {
+        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        moonshineTranscriber.detachCallbacks()
+        recordingSession = null
+        if (restoreOriginalText) {
+            replaceFocusedInputText(session.textBuffer.originalText())
+        } else if (session.textBuffer.hasTranscript) {
+            if (!replaceFocusedInputText(session.textBuffer.currentText())) {
                 showToast(getString(R.string.overlay_commit_failed))
             }
         }
+        stopForegroundIfNeeded()
+        evaluateOverlayVisibility()
+    }
 
-        mainHandler.post {
-            inFlight = null
-            stopForegroundIfNeeded()
-            evaluateOverlayVisibility()
+    private fun warmupMoonshine() {
+        runOnTranscriberThread {
+            moonshineTranscriber.warmup()
         }
     }
 
-    private fun appendTranscript(sourceText: String, transcript: String): String {
-        val source = sourceText.trimEnd()
-        val spokenText = transcript.trim()
-        return if (source.isBlank()) spokenText else "$source $spokenText"
+    private fun runOnTranscriberThread(block: () -> Unit) {
+        try {
+            transcriberExecutor.execute(block)
+        } catch (_: RejectedExecutionException) {
+            // Ignore late work while the accessibility service is shutting down.
+        }
     }
 
     private fun readFocusedInputText(): String {
@@ -696,146 +701,20 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun beginChunkSession(): Int {
-        val id = chunkSessionCounter.incrementAndGet()
-        synchronized(chunkLock) {
-            activeChunkSessionId = id
-            activeChunkFutures.clear()
-        }
-        return id
-    }
-
-    private fun endChunkSession(sessionId: Int, cancelPending: Boolean) {
-        synchronized(chunkLock) {
-            if (sessionId == 0 || activeChunkSessionId != sessionId) return
-            if (cancelPending) {
-                activeChunkFutures.forEach { it.cancel(true) }
-            }
-            activeChunkFutures.clear()
-            activeChunkSessionId = 0
-        }
-    }
-
-    private fun enqueueMoonshineSessionStart(sessionId: Int) {
-        if (sessionId == 0) return
-        val isActive = synchronized(chunkLock) { activeChunkSessionId == sessionId }
-        if (!isActive) return
-        try {
-            val future = chunkExecutor.submit {
-                synchronized(chunkLock) {
-                    if (activeChunkSessionId != sessionId) return@submit
-                }
-                moonshineTranscriber.startSession()
-            }
-            synchronized(chunkLock) {
-                if (activeChunkSessionId == sessionId) {
-                    activeChunkFutures.add(future)
-                } else {
-                    future.cancel(true)
-                }
-            }
-        } catch (_: RejectedExecutionException) {
-            // Ignore late work during shutdown.
-        }
-    }
-
-    private fun enqueueMoonshineAudioFrame(sessionId: Int, pcm: ShortArray) {
-        if (sessionId == 0 || pcm.isEmpty()) return
-        val isActive = synchronized(chunkLock) { activeChunkSessionId == sessionId }
-        if (!isActive) return
-        try {
-            val future = chunkExecutor.submit {
-                synchronized(chunkLock) {
-                    if (activeChunkSessionId != sessionId) return@submit
-                }
-                moonshineTranscriber.addAudio(
-                    pcm = pcm,
-                    sampleRateHz = VoiceAudioRecorder.SAMPLE_RATE_HZ
-                )
-            }
-            synchronized(chunkLock) {
-                if (activeChunkSessionId == sessionId) {
-                    activeChunkFutures.add(future)
-                } else {
-                    future.cancel(true)
-                }
-            }
-        } catch (_: RejectedExecutionException) {
-            // Ignore late work during shutdown.
-        }
-    }
-
-    private fun awaitChunkSessionQuiescence(sessionId: Int) {
-        if (sessionId == 0) return
-        val waitDeadlineMs = android.os.SystemClock.uptimeMillis() + CHUNK_WAIT_TOTAL_MS
-        while (true) {
-            val pending = synchronized(chunkLock) {
-                if (activeChunkSessionId != sessionId) return
-                activeChunkFutures.removeAll { it.isDone || it.isCancelled }
-                activeChunkFutures.toList()
-            }
-            if (pending.isEmpty()) break
-            val remainingMs = waitDeadlineMs - android.os.SystemClock.uptimeMillis()
-            if (remainingMs <= 0L) {
-                cancelPendingChunkWork(sessionId)
-                break
-            }
-            var deadlineReached = false
-            for (future in pending) {
-                val remainingForFutureMs = waitDeadlineMs - android.os.SystemClock.uptimeMillis()
-                if (remainingForFutureMs <= 0L) {
-                    cancelPendingChunkWork(sessionId)
-                    deadlineReached = true
-                    break
-                }
-                val timeoutMs = minOf(remainingForFutureMs, CHUNK_WAIT_SLICE_MS)
-                runCatching {
-                    future.get(timeoutMs, TimeUnit.MILLISECONDS)
-                }.onFailure { error ->
-                    if (error is TimeoutException) return@onFailure
-                    future.cancel(true)
-                    moonshineTranscriber.cancelActive()
-                }
-            }
-            if (deadlineReached) break
-        }
-    }
-
-    private fun finalizeMoonshineTranscript(sessionId: Int): String {
-        return try {
-            val future = chunkExecutor.submit<String> {
-                synchronized(chunkLock) {
-                    if (activeChunkSessionId != sessionId) return@submit ""
-                }
-                moonshineTranscriber.stopSessionAndGetTranscript()
-            }
-            future.get(MOONSHINE_FINALIZE_WAIT_MS, TimeUnit.MILLISECONDS)
-        } catch (_: Throwable) {
-            moonshineTranscriber.cancelActive()
-            ""
-        }
-    }
-
-    private fun cancelPendingChunkWork(sessionId: Int) {
-        synchronized(chunkLock) {
-            if (activeChunkSessionId != sessionId) return
-            activeChunkFutures.forEach { it.cancel(true) }
-            activeChunkFutures.clear()
-        }
-        moonshineTranscriber.cancelActive()
-    }
-
-    private fun stopRecordingDiscard() {
-        val activeRecorder = recorder ?: return
-        val chunkSessionId = recorderChunkSessionId
-        recorder = null
-        recorderChunkSessionId = 0
-        moonshineTranscriber.cancelActive()
-        endChunkSession(chunkSessionId, cancelPending = true)
-        processingExecutor.submit {
-            activeRecorder.stopAndGetPcm()
+    private fun stopRecordingDiscard(updateOverlayVisibility: Boolean = true) {
+        val session = recordingSession ?: return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        recordingSession = null
+        moonshineTranscriber.detachCallbacks()
+        replaceFocusedInputText(session.textBuffer.originalText())
+        runOnTranscriberThread {
+            moonshineTranscriber.cancel()
         }
         stopForegroundIfNeeded()
+        if (updateOverlayVisibility) {
+            evaluateOverlayVisibility()
+        }
     }
 
     private fun startForegroundForRecording() {
@@ -922,6 +801,12 @@ class OverlayAccessibilityService : AccessibilityService() {
         ).toInt()
     }
 
+    private data class RecordingSession(
+        val id: Int,
+        val textBuffer: DictationTextBuffer,
+        var stopping: Boolean = false
+    )
+
     companion object {
         const val ACTION_REFRESH = "com.sanogueralorenzo.voice.overlay.REFRESH"
 
@@ -941,12 +826,10 @@ class OverlayAccessibilityService : AccessibilityService() {
         @Volatile
         private var positionPreviewActive: Boolean = false
 
-        private const val TAG = "OverlayService"
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
-        private const val CHUNK_WAIT_TOTAL_MS = 7_000L
-        private const val CHUNK_WAIT_SLICE_MS = 180L
-        private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
+        private const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
+        private const val FINAL_LINE_SETTLE_MS = 50L
         private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
     }
 }
