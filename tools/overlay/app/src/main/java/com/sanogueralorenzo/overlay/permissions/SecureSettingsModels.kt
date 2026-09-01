@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.overlay.ui.components
+package com.sanogueralorenzo.overlay.permissions
 
 enum class DesktopOsOption {
     Mac,

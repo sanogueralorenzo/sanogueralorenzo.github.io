@@ -52,7 +52,6 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.overlay.OverlayTileService
 import com.sanogueralorenzo.overlay.tiles.requestQuickSettingsTile
-import com.sanogueralorenzo.overlay.ui.components.DesktopOsOption
 import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
 
 fun NavGraphBuilder.permissionsRoute(

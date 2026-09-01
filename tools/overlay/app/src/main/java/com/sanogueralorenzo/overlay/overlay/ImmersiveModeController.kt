@@ -1,14 +1,12 @@
 package com.sanogueralorenzo.overlay.overlay
 
 import android.Manifest
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
 private const val POLICY_CONTROL_KEY = "policy_control"
-private const val IMMERSIVE_STATUS_POLICY = "immersive.status=*"
 
 /**
  * Thin controller around `Settings.Global.policy_control` for toggling status-bar immersive policy.
@@ -36,13 +34,7 @@ class ImmersiveModeController(
      * when `WRITE_SECURE_SETTINGS` is granted; otherwise it is a no-op.
      */
     fun enableStatusBarImmersiveMode() {
-        updatePolicyControl { policies ->
-            if (IMMERSIVE_STATUS_POLICY in policies) {
-                policies
-            } else {
-                policies + IMMERSIVE_STATUS_POLICY
-            }
-        }
+        updatePolicyControl(::enableImmersiveStatusPolicy)
     }
 
     /**
@@ -52,9 +44,7 @@ class ImmersiveModeController(
      * Without permission, it is a no-op.
      */
     fun disableStatusBarImmersiveMode() {
-        updatePolicyControl { policies ->
-            policies.filterNot { policy -> policy == IMMERSIVE_STATUS_POLICY }
-        }
+        updatePolicyControl(::disableImmersiveStatusPolicy)
     }
 
     /**
@@ -62,20 +52,20 @@ class ImmersiveModeController(
      *
      * Algorithm:
      * 1. Gate on permission.
-     * 2. Read and parse current token set.
+     * 2. Read the current token string.
      * 3. Apply caller transform.
-     * 4. Serialize to comma-separated string or `null` when empty.
-     * 5. Persist via `Settings.Global.putString`.
+     * 4. Persist the changed value via `Settings.Global.putString`.
      */
-    private fun updatePolicyControl(transform: (List<String>) -> List<String>) {
+    private fun updatePolicyControl(transform: (String?) -> String?) {
         if (!hasWriteSecureSettingsPermission()) {
             return
         }
         val resolver = context.contentResolver
-        val currentPolicies = readPolicies(resolver)
-        val updatedPolicies = transform(currentPolicies)
-        val updatedValue = updatedPolicies.takeIf { it.isNotEmpty() }?.joinToString(",")
-        Settings.Global.putString(resolver, POLICY_CONTROL_KEY, updatedValue)
+        val currentValue = Settings.Global.getString(resolver, POLICY_CONTROL_KEY)
+        val updatedValue = transform(currentValue)
+        if (updatedValue != currentValue) {
+            Settings.Global.putString(resolver, POLICY_CONTROL_KEY, updatedValue)
+        }
     }
 
     /**
@@ -87,18 +77,4 @@ class ImmersiveModeController(
             Manifest.permission.WRITE_SECURE_SETTINGS
         ) == PackageManager.PERMISSION_GRANTED
     }
-}
-
-/**
- * Parses `Settings.Global[policy_control]` into normalized non-empty trimmed tokens.
- */
-private fun readPolicies(contentResolver: ContentResolver): List<String> {
-    val rawValue = Settings.Global.getString(contentResolver, POLICY_CONTROL_KEY)
-    if (rawValue.isNullOrBlank()) {
-        return emptyList()
-    }
-    return rawValue
-        .split(',')
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
 }
