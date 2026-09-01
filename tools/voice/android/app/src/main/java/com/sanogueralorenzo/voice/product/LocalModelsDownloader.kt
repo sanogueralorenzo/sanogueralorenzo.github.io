@@ -18,7 +18,7 @@ sealed interface LocalModelsDownloadResult {
     data class Failure(val message: String) : LocalModelsDownloadResult
 }
 
-/** Owns download, readiness, and removal for one language model. */
+/** Owns download and readiness for one language model. */
 class LocalModelsDownloader(
     context: Context
 ) {
@@ -39,12 +39,6 @@ class LocalModelsDownloader(
             downloadLocalAssets(language, downloader, onProgress)
         } finally {
             downloader.shutdown()
-        }
-    }
-
-    fun remove(language: DictationLanguage) {
-        ModelCatalog.moonshineStreamingSpecsFor(language).forEach { spec ->
-            ModelStore.removeModel(appContext, spec)
         }
     }
 

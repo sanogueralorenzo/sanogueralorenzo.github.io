@@ -30,12 +30,10 @@ interface AppGraph {
     @Provides
     fun provideModelSetupRepository(
         context: Context,
-        connectivityRepository: ConnectivityRepository,
-        languagePreferences: DictationLanguagePreferences
+        connectivityRepository: ConnectivityRepository
     ): ModelSetupRepository = ModelSetupRepository(
         context = context,
-        connectivityRepository = connectivityRepository,
-        languagePreferences = languagePreferences
+        connectivityRepository = connectivityRepository
     )
 
     @DependencyGraph.Factory

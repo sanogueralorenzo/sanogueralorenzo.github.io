@@ -89,10 +89,6 @@ object ModelStore {
         }
     }
 
-    fun removeModel(context: Context, spec: ModelSpec) {
-        deleteModelAndMarkers(modelFile(context, spec))
-    }
-
     internal fun markModelVerified(target: File, spec: ModelSpec) {
         if (!target.exists()) return
         if (spec.sizeBytes > 0L && target.length() != spec.sizeBytes) return

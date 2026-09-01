@@ -6,7 +6,7 @@ data class DictationLanguages(
     val ordered: List<DictationLanguage>
 ) {
     init {
-        require(ordered.isNotEmpty()) { "At least one language must be enabled." }
+        require(ordered.isNotEmpty()) { "At least one language must be ordered." }
         require(ordered.distinct().size == ordered.size) { "Languages must be unique." }
     }
 
@@ -16,31 +16,16 @@ data class DictationLanguages(
     val secondaryOrPrimary: DictationLanguage
         get() = ordered.getOrElse(1) { primary }
 
-    fun isEnabled(language: DictationLanguage): Boolean = language in ordered
-
-    fun withEnabled(language: DictationLanguage, enabled: Boolean): DictationLanguages {
-        if (enabled && !isEnabled(language)) {
-            return DictationLanguages(ordered + language)
-        }
-        if (!enabled && isEnabled(language) && ordered.size > 1) {
-            return DictationLanguages(ordered - language)
-        }
-        return this
-    }
-
-    fun move(language: DictationLanguage, offset: Int): DictationLanguages {
-        val fromIndex = ordered.indexOf(language)
-        if (fromIndex == -1) return this
-        val toIndex = (fromIndex + offset).coerceIn(0, ordered.lastIndex)
-        if (fromIndex == toIndex) return this
+    fun moveBefore(language: DictationLanguage, target: DictationLanguage): DictationLanguages {
+        if (language == target || language !in ordered || target !in ordered) return this
         val reordered = ordered.toMutableList()
-        reordered.removeAt(fromIndex)
-        reordered.add(toIndex, language)
+        reordered.remove(language)
+        reordered.add(reordered.indexOf(target), language)
         return DictationLanguages(reordered)
     }
 }
 
-/** Persists the enabled languages in tap/long-press priority order. */
+/** Persists downloaded languages in tap/long-press priority order. */
 class DictationLanguagePreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,
@@ -60,16 +45,18 @@ class DictationLanguagePreferences(context: Context) {
 
     fun secondaryOrPrimary(): DictationLanguage = read().secondaryOrPrimary
 
-    fun setEnabled(language: DictationLanguage, enabled: Boolean): DictationLanguages {
-        return write(read().withEnabled(language, enabled))
+    fun syncDownloaded(downloaded: Set<DictationLanguage>): List<DictationLanguage> {
+        if (downloaded.isEmpty()) return emptyList()
+        val existingOrder = read().ordered.filter(downloaded::contains)
+        val missing = DictationLanguage.entries.filter { it in downloaded && it !in existingOrder }
+        return write(DictationLanguages(existingOrder + missing)).ordered
     }
 
-    fun moveEarlier(language: DictationLanguage): DictationLanguages {
-        return write(read().move(language, -1))
-    }
-
-    fun moveLater(language: DictationLanguage): DictationLanguages {
-        return write(read().move(language, 1))
+    fun moveBefore(
+        language: DictationLanguage,
+        target: DictationLanguage
+    ): DictationLanguages {
+        return write(read().moveBefore(language, target))
     }
 
     private fun write(languages: DictationLanguages): DictationLanguages {

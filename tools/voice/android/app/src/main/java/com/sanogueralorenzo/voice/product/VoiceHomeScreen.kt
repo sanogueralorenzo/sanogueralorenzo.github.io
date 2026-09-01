@@ -292,7 +292,7 @@ private fun StatusSection(
         LocalModelsStatusRow(
             ready = state.modelsReady,
             loading = state.loading,
-            enabledLanguages = state.enabledLanguages,
+            activeLanguages = state.activeLanguages,
             onClick = onOpenLocalModels
         )
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
@@ -316,12 +316,12 @@ private fun StatusSection(
 private fun LocalModelsStatusRow(
     ready: Boolean,
     loading: Boolean,
-    enabledLanguages: List<DictationLanguage>,
+    activeLanguages: List<DictationLanguage>,
     onClick: () -> Unit
 ) {
     val englishName = stringResource(R.string.models_english_name)
     val spanishName = stringResource(R.string.models_spanish_name)
-    val enabledSummary = enabledLanguages.joinToString(" + ") { language ->
+    val activeSummary = activeLanguages.joinToString(" + ") { language ->
         when (language) {
             DictationLanguage.ENGLISH -> englishName
             DictationLanguage.SPANISH -> spanishName
@@ -355,7 +355,7 @@ private fun LocalModelsStatusRow(
                 text = if (!ready && !loading) {
                     stringResource(R.string.models_download_required)
                 } else {
-                    enabledSummary
+                    activeSummary
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 data class VoiceHomeState(
     val loading: Boolean = true,
     val modelsReady: Boolean = false,
-    val enabledLanguages: List<DictationLanguage> = listOf(DictationLanguage.ENGLISH),
+    val activeLanguages: List<DictationLanguage> = emptyList(),
     val microphoneAllowed: Boolean = false,
     val voiceServiceEnabled: Boolean = false,
     val voiceKeyboardEnabled: Boolean = false,
@@ -31,7 +31,7 @@ data class VoiceHomeState(
 class VoiceHomeViewModel(
     initialState: VoiceHomeState,
     private val overlayRepository: OverlayRepository,
-    private val readModelsReady: () -> Boolean,
+    private val readDownloadedLanguages: () -> Set<DictationLanguage>,
     private val readKeyboardStatus: () -> VoiceKeyboardStatus,
     private val languagePreferences: DictationLanguagePreferences
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
@@ -42,12 +42,11 @@ class VoiceHomeViewModel(
 
     fun refreshStatus() {
         viewModelScope.launch {
-            val modelsReady = withContext(Dispatchers.IO) { readModelsReady() }
+            val downloadedLanguages = withContext(Dispatchers.IO) { readDownloadedLanguages() }
+            val activeLanguages = languagePreferences.syncDownloaded(downloadedLanguages)
             val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
             val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
             val keyboardStatus = readKeyboardStatus()
-            val languages = languagePreferences.read()
-
             if (voiceServiceEnabled && !overlayRepository.currentConfig().overlayEnabled) {
                 overlayRepository.setOverlayEnabled(true)
             }
@@ -55,8 +54,8 @@ class VoiceHomeViewModel(
             setState {
                 copy(
                     loading = false,
-                    modelsReady = modelsReady,
-                    enabledLanguages = languages.ordered,
+                    modelsReady = activeLanguages.isNotEmpty(),
+                    activeLanguages = activeLanguages,
                     microphoneAllowed = microphoneAllowed,
                     voiceServiceEnabled = voiceServiceEnabled,
                     voiceKeyboardEnabled = keyboardStatus.enabled,
@@ -76,8 +75,8 @@ class VoiceHomeViewModel(
             return VoiceHomeViewModel(
                 initialState = state,
                 overlayRepository = overlayRepository,
-                readModelsReady = {
-                    app.appGraph.modelSetupRepository.readModelReadiness().allReady
+                readDownloadedLanguages = {
+                    app.appGraph.modelSetupRepository.readDownloadedLanguages()
                 },
                 readKeyboardStatus = {
                     VoiceKeyboardStatusReader.read(app)

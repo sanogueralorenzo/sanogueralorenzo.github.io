@@ -5,31 +5,17 @@ import org.junit.Test
 
 class DictationLanguagesTest {
     @Test
-    fun enablingSecondLanguageAddsItAsLongPress() {
+    fun oneLanguageHandlesBothGestures() {
         val languages = DictationLanguages(listOf(DictationLanguage.ENGLISH))
-            .withEnabled(DictationLanguage.SPANISH, enabled = true)
 
-        assertEquals(
-            listOf(DictationLanguage.ENGLISH, DictationLanguage.SPANISH),
-            languages.ordered
-        )
-        assertEquals(DictationLanguage.SPANISH, languages.secondaryOrPrimary)
-    }
-
-    @Test
-    fun disablingLastLanguageIsIgnored() {
-        val languages = DictationLanguages(listOf(DictationLanguage.ENGLISH))
-            .withEnabled(DictationLanguage.ENGLISH, enabled = false)
-
-        assertEquals(listOf(DictationLanguage.ENGLISH), languages.ordered)
         assertEquals(DictationLanguage.ENGLISH, languages.secondaryOrPrimary)
     }
 
     @Test
-    fun movingSecondLanguageEarlierMakesItPrimary() {
+    fun movingSecondLanguageBeforeFirstMakesItPrimary() {
         val languages = DictationLanguages(
             listOf(DictationLanguage.ENGLISH, DictationLanguage.SPANISH)
-        ).move(DictationLanguage.SPANISH, offset = -1)
+        ).moveBefore(DictationLanguage.SPANISH, DictationLanguage.ENGLISH)
 
         assertEquals(
             listOf(DictationLanguage.SPANISH, DictationLanguage.ENGLISH),

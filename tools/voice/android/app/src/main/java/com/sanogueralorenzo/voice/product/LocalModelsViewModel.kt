@@ -16,12 +16,10 @@ import kotlinx.coroutines.withContext
 
 data class LanguageModelState(
     val language: DictationLanguage,
-    val enabled: Boolean = false,
     val orderIndex: Int? = null,
     val ready: Boolean = false,
     val downloading: Boolean = false,
     val progress: Int = 0,
-    val removing: Boolean = false,
     val error: String? = null
 )
 
@@ -29,11 +27,11 @@ data class LocalModelsState(
     val loading: Boolean = true,
     val models: List<LanguageModelState> = DictationLanguage.entries.map(::LanguageModelState)
 ) : MavericksState {
-    val enabledCount: Int
-        get() = models.count { it.enabled }
+    val downloadedCount: Int
+        get() = models.count { it.ready }
 
     val operationInProgress: Boolean
-        get() = models.any { it.downloading || it.removing }
+        get() = models.any { it.downloading }
 }
 
 class LocalModelsViewModel(
@@ -48,39 +46,35 @@ class LocalModelsViewModel(
 
     private fun refresh() {
         viewModelScope.launch {
-            val languages = languagePreferences.read()
             val readiness = withContext(Dispatchers.IO) {
                 DictationLanguage.entries.associateWith(localModelsDownloader::isReady)
             }
+            val ordered = languagePreferences.syncDownloaded(
+                readiness.filterValues { it }.keys
+            )
             setState {
                 copy(
                     loading = false,
-                    models = buildModelStates(languages, readiness)
+                    models = buildModelStates(ordered, readiness)
                 )
             }
         }
     }
 
-    fun setEnabled(language: DictationLanguage, enabled: Boolean) {
-        if (withState(this) { it.operationInProgress }) return
-        val languages = languagePreferences.setEnabled(language, enabled)
-        updateOrdering(languages)
-    }
-
-    fun moveEarlier(language: DictationLanguage) {
-        if (withState(this) { it.operationInProgress }) return
-        updateOrdering(languagePreferences.moveEarlier(language))
-    }
-
-    fun moveLater(language: DictationLanguage) {
-        if (withState(this) { it.operationInProgress }) return
-        updateOrdering(languagePreferences.moveLater(language))
+    fun moveBefore(language: DictationLanguage, target: DictationLanguage) {
+        val canMove = withState(this) { state ->
+            !state.loading && !state.operationInProgress && state.downloadedCount > 1 &&
+                state.models.any { it.language == language && it.ready } &&
+                state.models.any { it.language == target && it.ready }
+        }
+        if (!canMove) return
+        updateOrdering(languagePreferences.moveBefore(language, target))
     }
 
     fun download(language: DictationLanguage) {
         val canStart = withState(this) { state ->
             !state.loading && !state.operationInProgress &&
-                state.models.any { it.language == language && it.enabled && !it.ready }
+                state.models.any { it.language == language && !it.ready }
         }
         if (!canStart) return
 
@@ -106,21 +100,30 @@ class LocalModelsViewModel(
                     )
                 }
             }) {
-                LocalModelsDownloadResult.Success -> setState {
-                    copy(
-                        models = models.map { model ->
-                            if (model.language == language) {
-                                model.copy(
-                                    ready = true,
-                                    downloading = false,
-                                    progress = 100,
-                                    error = null
-                                )
-                            } else {
-                                model
+                LocalModelsDownloadResult.Success -> {
+                    val downloaded = withState(this@LocalModelsViewModel) { state ->
+                        state.models
+                            .filter { it.ready }
+                            .mapTo(mutableSetOf()) { it.language }
+                    } + language
+                    val ordered = languagePreferences.syncDownloaded(downloaded)
+                    setState {
+                        copy(
+                            models = models.map { model ->
+                                if (model.language == language) {
+                                    model.copy(
+                                        ready = true,
+                                        downloading = false,
+                                        progress = 100,
+                                        error = null
+                                    )
+                                } else {
+                                    model
+                                }
                             }
-                        }
-                    )
+                                .withOrdering(ordered)
+                        )
+                    }
                 }
 
                 is LocalModelsDownloadResult.Failure -> setState {
@@ -138,61 +141,32 @@ class LocalModelsViewModel(
         }
     }
 
-    fun remove(language: DictationLanguage) {
-        val canStart = withState(this) { state ->
-            !state.loading && !state.operationInProgress &&
-                state.models.any { it.language == language && it.ready }
-        }
-        if (!canStart) return
-
-        setState {
-            copy(
-                models = models.map { model ->
-                    if (model.language == language) model.copy(removing = true, error = null)
-                    else model
-                }
-            )
-        }
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) { localModelsDownloader.remove(language) }
-            setState {
-                copy(
-                    models = models.map { model ->
-                        if (model.language == language) {
-                            model.copy(ready = false, removing = false, progress = 0)
-                        } else {
-                            model
-                        }
-                    }
-                )
-            }
-        }
-    }
-
     private fun updateOrdering(languages: DictationLanguages) {
         setState {
             copy(
-                models = models.map { model ->
-                    model.copy(
-                        enabled = languages.isEnabled(model.language),
-                        orderIndex = languages.ordered.indexOf(model.language).takeIf { it >= 0 }
-                    )
-                }.sortedWith(modelOrderComparator)
+                models = models.withOrdering(languages.ordered)
             )
         }
     }
 
     private fun buildModelStates(
-        languages: DictationLanguages,
+        ordered: List<DictationLanguage>,
         readiness: Map<DictationLanguage, Boolean>
     ): List<LanguageModelState> {
         return DictationLanguage.entries.map { language ->
             LanguageModelState(
                 language = language,
-                enabled = languages.isEnabled(language),
-                orderIndex = languages.ordered.indexOf(language).takeIf { it >= 0 },
+                orderIndex = ordered.indexOf(language).takeIf { it >= 0 },
                 ready = readiness[language] == true
             )
+        }.sortedWith(modelOrderComparator)
+    }
+
+    private fun List<LanguageModelState>.withOrdering(
+        ordered: List<DictationLanguage>
+    ): List<LanguageModelState> {
+        return map { model ->
+            model.copy(orderIndex = ordered.indexOf(model.language).takeIf { it >= 0 })
         }.sortedWith(modelOrderComparator)
     }
 
