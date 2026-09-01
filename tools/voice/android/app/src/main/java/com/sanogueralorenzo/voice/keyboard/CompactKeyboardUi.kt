@@ -53,13 +53,7 @@ internal enum class CompactKeyboardMode {
 
 internal data class CompactKeyboardState(
     val mode: CompactKeyboardMode = CompactKeyboardMode.IDLE,
-    val audioLevel: Float = 0f,
     val bottomInsetPx: Int = 0
-)
-
-private data class ActiveVisualState(
-    val mode: CompactKeyboardMode,
-    val audioLevel: Float
 )
 
 private data class CompactKeyboardColors(
@@ -122,19 +116,19 @@ internal fun CompactKeyboardContent(
                 animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                 label = "keyboard_pill_color"
             )
-            var retainedActive by remember { mutableStateOf<ActiveVisualState?>(null) }
-            LaunchedEffect(state.mode, state.audioLevel) {
+            var retainedActiveMode by remember { mutableStateOf<CompactKeyboardMode?>(null) }
+            LaunchedEffect(state.mode) {
                 if (state.mode == CompactKeyboardMode.IDLE) {
                     delay(IDLE_COLLAPSE_FADE_OUT_MS.toLong())
-                    retainedActive = null
+                    retainedActiveMode = null
                 } else {
-                    retainedActive = ActiveVisualState(state.mode, state.audioLevel)
+                    retainedActiveMode = state.mode
                 }
             }
-            val activeVisual = if (state.mode == CompactKeyboardMode.IDLE) {
-                retainedActive
+            val activeMode = if (state.mode == CompactKeyboardMode.IDLE) {
+                retainedActiveMode
             } else {
-                ActiveVisualState(state.mode, state.audioLevel)
+                state.mode
             }
             val activeAlpha by animateFloatAsState(
                 targetValue = if (state.mode == CompactKeyboardMode.IDLE) 0f else 1f,
@@ -190,14 +184,14 @@ internal fun CompactKeyboardContent(
                                 .wrapContentHeight(),
                             contentAlignment = Alignment.Center
                         ) {
-                            activeVisual?.let { visual ->
+                            activeMode?.let { mode ->
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .graphicsLayer { alpha = activeAlpha }
                                 ) {
                                     ActiveKeyboardContent(
-                                        state = visual,
+                                        mode = mode,
                                         colors = colors,
                                         onDiscardTap = onDiscardTap,
                                         onSendTap = onSendTap
@@ -214,13 +208,13 @@ internal fun CompactKeyboardContent(
 
 @Composable
 private fun ActiveKeyboardContent(
-    state: ActiveVisualState,
+    mode: CompactKeyboardMode,
     colors: CompactKeyboardColors,
     onDiscardTap: () -> Unit,
     onSendTap: () -> Unit
 ) {
-    val isRecording = state.mode == CompactKeyboardMode.RECORDING
-    val visualizerMode = when (state.mode) {
+    val isRecording = mode == CompactKeyboardMode.RECORDING
+    val visualizerMode = when (mode) {
         CompactKeyboardMode.RECORDING -> KeyboardVisualizerMode.RECORDING_BARS
         CompactKeyboardMode.PROCESSING -> KeyboardVisualizerMode.PROCESSING_DOTS
         CompactKeyboardMode.IDLE -> KeyboardVisualizerMode.IDLE_HIDDEN
@@ -246,7 +240,6 @@ private fun ActiveKeyboardContent(
                 onTap = onDiscardTap
             )
             KeyboardVisualizer(
-                level = state.audioLevel,
                 mode = visualizerMode,
                 color = colors.visualizer
             )

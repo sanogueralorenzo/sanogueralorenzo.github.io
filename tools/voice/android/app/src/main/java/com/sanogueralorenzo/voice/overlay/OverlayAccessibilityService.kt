@@ -34,6 +34,7 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.audio.DictationTextBuffer
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.models.ModelCatalog

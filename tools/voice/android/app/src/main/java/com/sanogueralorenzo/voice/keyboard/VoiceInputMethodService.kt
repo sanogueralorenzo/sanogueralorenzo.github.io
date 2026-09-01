@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Color
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.os.Handler
@@ -34,32 +33,28 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.sanogueralorenzo.voice.MainActivity
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.audio.DictationTextBuffer
+import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import java.util.concurrent.Executors
-import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
-/** Compact, audio-reactive voice keyboard backed only by the local Moonshine model. */
+/** Compact voice keyboard using the same Moonshine microphone transcriber as the overlay. */
 class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedStateRegistryOwner {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val processingExecutor = Executors.newSingleThreadExecutor()
-    private val moonshineExecutor = Executors.newSingleThreadExecutor()
-    private val sessionCounter = AtomicInteger(0)
+    private val transcriberExecutor = Executors.newSingleThreadExecutor()
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) {
-        KeyboardMoonshineTranscriber(this)
+        MoonshineMicTranscriber(this)
     }
 
-    @Volatile
+    private var nextSessionId = 0
     private var activeSession: RecordingSession? = null
-    private var processingFuture: Future<*>? = null
-    private var inputRootView: View? = null
+    private var finishRecordingRunnable: Runnable? = null
     private var keyboardState by mutableStateOf(CompactKeyboardState())
 
     override val lifecycle: Lifecycle
@@ -108,7 +103,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                         isDarkTheme = darkTheme,
                         onIdleTap = ::startRecording,
                         onDiscardTap = ::discardRecording,
-                        onSendTap = ::stopAndTranscribe
+                        onSendTap = ::stopRecording
                     )
                 }
             }
@@ -127,7 +122,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
             override fun onViewDetachedFromWindow(view: View) = Unit
         })
-        inputRootView = container
         ViewCompat.requestApplyInsets(container)
         return container
     }
@@ -141,8 +135,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
-        if (activeSession?.processing == false) {
-            stopAndTranscribe()
+        if (activeSession?.stopping == false) {
+            stopRecording()
         }
         lifecycleRegistry.currentState = Lifecycle.State.STARTED
         super.onFinishInputView(finishingInput)
@@ -154,16 +148,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     override fun onDestroy() {
-        activeSession?.recorder?.stopAndGetPcm()
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        moonshineTranscriber.detachCallbacks()
         activeSession = null
-        processingFuture?.cancel(true)
-        processingFuture = null
-        inputRootView = null
-        processingExecutor.shutdownNow()
-        moonshineExecutor.shutdownNow()
+        transcriberExecutor.shutdownNow()
         runCatching { moonshineTranscriber.close() }
-        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
     }
 
     private fun startRecording() {
@@ -175,131 +167,131 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             )
             return
         }
-        val sessionId = sessionCounter.incrementAndGet()
-        val recorder = KeyboardAudioRecorder(
-            onLevelChanged = { level ->
-                mainHandler.post {
-                    if (activeSession?.id == sessionId && keyboardState.mode != CompactKeyboardMode.PROCESSING) {
-                        keyboardState = keyboardState.copy(audioLevel = level.coerceIn(0f, 1f))
-                    }
-                }
-            },
-            onAudioFrame = { frame -> enqueueAudioFrame(sessionId, frame) }
-        )
+        val connection = currentInputConnection ?: return
+        val beforeCursor = runCatching {
+            connection.getTextBeforeCursor(1, 0)?.toString().orEmpty()
+        }.getOrDefault("")
         val session = RecordingSession(
-            id = sessionId,
-            recorder = recorder,
-            inputConnection = currentInputConnection
+            id = ++nextSessionId,
+            inputConnection = connection,
+            prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else "",
+            textBuffer = DictationTextBuffer("")
         )
         activeSession = session
-        keyboardState = keyboardState.copy(
-            mode = CompactKeyboardMode.RECORDING,
-            audioLevel = 0f
-        )
-        try {
-            moonshineExecutor.submit {
-                val started = moonshineTranscriber.startSession()
-                if (!started) {
-                    mainHandler.post { failRecordingStart(sessionId) }
+        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.RECORDING)
+        runOnTranscriberThread {
+            val started = moonshineTranscriber.start(
+                MoonshineMicTranscriber.Callbacks(
+                    onText = { text -> onMoonshineText(session.id, text) },
+                    onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
+                    onError = { onMoonshineError(session.id) }
+                )
+            )
+            mainHandler.post {
+                if (!started && activeSession?.id == session.id) {
+                    failRecording(session.id)
                 }
             }
-        } catch (_: RejectedExecutionException) {
-            failRecordingStart(sessionId)
-            return
-        }
-        if (!recorder.start()) {
-            failRecordingStart(sessionId)
         }
     }
 
-    private fun enqueueAudioFrame(sessionId: Int, frame: ShortArray) {
-        if (activeSession?.id != sessionId) return
-        try {
-            moonshineExecutor.execute {
-                if (activeSession?.id == sessionId) {
-                    moonshineTranscriber.addAudio(frame)
-                }
-            }
-        } catch (_: RejectedExecutionException) {
-            // Ignore late audio during service shutdown.
-        }
-    }
-
-    private fun stopAndTranscribe() {
+    private fun stopRecording() {
         val session = activeSession ?: return
-        if (session.processing) return
-        session.processing = true
-        keyboardState = keyboardState.copy(
-            mode = CompactKeyboardMode.PROCESSING,
-            audioLevel = 0f
-        )
-        try {
-            processingFuture = processingExecutor.submit {
-                val pcm = session.recorder.stopAndGetPcm()
-                val streamingTranscript = runCatching {
-                    moonshineExecutor.submit<String> {
-                        moonshineTranscriber.finishSession()
-                    }.get(FINALIZE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                }.getOrDefault("")
-                val transcript = streamingTranscript.ifBlank {
-                    moonshineTranscriber.transcribeOneShot(pcm)
-                }.trim()
-                mainHandler.post {
-                    if (activeSession?.id != session.id) return@post
-                    if (transcript.isNotBlank()) {
-                        commitTranscript(session.inputConnection, transcript)
-                    }
-                    activeSession = null
-                    processingFuture = null
-                    showIdle()
-                }
+        if (session.stopping) return
+        session.stopping = true
+        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.PROCESSING)
+        runOnTranscriberThread {
+            moonshineTranscriber.stop()
+            mainHandler.post {
+                scheduleRecordingFinish(session.id, FINAL_TRANSCRIPT_TIMEOUT_MS)
             }
-        } catch (_: RejectedExecutionException) {
-            activeSession = null
-            showIdle()
         }
     }
 
     private fun discardRecording() {
         val session = activeSession ?: return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        moonshineTranscriber.detachCallbacks()
         activeSession = null
-        sessionCounter.incrementAndGet()
+        clearComposition(session)
         showIdle()
-        try {
-            processingExecutor.execute { session.recorder.stopAndGetPcm() }
-            moonshineExecutor.execute { moonshineTranscriber.cancelActive() }
-        } catch (_: RejectedExecutionException) {
-            session.recorder.stopAndGetPcm()
+        runOnTranscriberThread { moonshineTranscriber.cancel() }
+    }
+
+    private fun onMoonshineText(sessionId: Int, text: String) {
+        val session = activeSession?.takeIf { it.id == sessionId } ?: return
+        updateComposition(session, session.textBuffer.updatePartial(text))
+        if (session.stopping) {
+            scheduleRecordingFinish(sessionId, FINAL_TRANSCRIPT_TIMEOUT_MS)
         }
     }
 
-    private fun failRecordingStart(sessionId: Int) {
+    private fun onMoonshineLine(sessionId: Int, lineId: Long, text: String) {
         val session = activeSession?.takeIf { it.id == sessionId } ?: return
-        activeSession = null
-        try {
-            processingExecutor.execute { session.recorder.stopAndGetPcm() }
-            moonshineExecutor.execute { moonshineTranscriber.cancelActive() }
-        } catch (_: RejectedExecutionException) {
-            session.recorder.stopAndGetPcm()
+        updateComposition(session, session.textBuffer.completeLine(lineId, text))
+        if (session.stopping) {
+            scheduleRecordingFinish(sessionId, FINAL_LINE_SETTLE_MS)
         }
+    }
+
+    private fun onMoonshineError(sessionId: Int) {
+        if (activeSession?.id != sessionId) return
+        failRecording(sessionId)
+    }
+
+    private fun scheduleRecordingFinish(sessionId: Int, delayMs: Long) {
+        if (activeSession?.id != sessionId) return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = Runnable {
+            finishRecordingRunnable = null
+            finishRecording(sessionId)
+        }.also { runnable ->
+            mainHandler.postDelayed(runnable, delayMs)
+        }
+    }
+
+    private fun finishRecording(sessionId: Int) {
+        val session = activeSession?.takeIf { it.id == sessionId } ?: return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        moonshineTranscriber.detachCallbacks()
+        if (session.textBuffer.hasTranscript) {
+            updateComposition(session, session.textBuffer.currentText())
+            runCatching { session.inputConnection.finishComposingText() }
+        } else {
+            clearComposition(session)
+        }
+        activeSession = null
         showIdle()
+    }
+
+    private fun failRecording(sessionId: Int) {
+        val session = activeSession?.takeIf { it.id == sessionId } ?: return
+        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
+        finishRecordingRunnable = null
+        moonshineTranscriber.detachCallbacks()
+        activeSession = null
+        clearComposition(session)
+        showIdle()
+        runOnTranscriberThread { moonshineTranscriber.cancel() }
         Toast.makeText(this, R.string.keyboard_recording_start_failed, Toast.LENGTH_SHORT).show()
     }
 
-    private fun commitTranscript(inputConnection: InputConnection?, transcript: String) {
-        val connection = inputConnection ?: currentInputConnection ?: return
-        val beforeCursor = runCatching {
-            connection.getTextBeforeCursor(1, 0)?.toString().orEmpty()
-        }.getOrDefault("")
-        val prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else ""
-        runCatching { connection.commitText(prefix + transcript, 1) }
+    private fun updateComposition(session: RecordingSession, text: String) {
+        val composingText = if (text.isBlank()) "" else session.prefix + text
+        runCatching { session.inputConnection.setComposingText(composingText, 1) }
+    }
+
+    private fun clearComposition(session: RecordingSession) {
+        runCatching {
+            session.inputConnection.setComposingText("", 1)
+            session.inputConnection.finishComposingText()
+        }
     }
 
     private fun showIdle() {
-        keyboardState = keyboardState.copy(
-            mode = CompactKeyboardMode.IDLE,
-            audioLevel = 0f
-        )
+        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.IDLE)
     }
 
     private fun updateBottomInset(insets: WindowInsetsCompat?) {
@@ -321,10 +313,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun warmupMoonshine() {
+        runOnTranscriberThread { moonshineTranscriber.warmup() }
+    }
+
+    private fun runOnTranscriberThread(block: () -> Unit) {
         try {
-            processingExecutor.execute { moonshineTranscriber.warmup() }
+            transcriberExecutor.execute(block)
         } catch (_: RejectedExecutionException) {
-            // Service is already shutting down.
+            // Ignore late work while the input method is shutting down.
         }
     }
 
@@ -369,13 +365,15 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private data class RecordingSession(
         val id: Int,
-        val recorder: KeyboardAudioRecorder,
-        val inputConnection: InputConnection?,
-        var processing: Boolean = false
+        val inputConnection: InputConnection,
+        val prefix: String,
+        val textBuffer: DictationTextBuffer,
+        var stopping: Boolean = false
     )
 
     private companion object {
-        const val FINALIZE_TIMEOUT_MS = 4_500L
+        const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
+        const val FINAL_LINE_SETTLE_MS = 50L
         const val KEYBOARD_BACKGROUND_LIGHT = 0xFFE8EAED.toInt()
         const val KEYBOARD_BACKGROUND_DARK = 0xFF131519.toInt()
     }

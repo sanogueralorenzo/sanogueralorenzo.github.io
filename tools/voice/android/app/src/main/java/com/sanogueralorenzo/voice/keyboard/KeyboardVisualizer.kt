@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +32,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -45,12 +43,10 @@ internal enum class KeyboardVisualizerMode {
 
 @Composable
 internal fun KeyboardVisualizer(
-    level: Float,
     mode: KeyboardVisualizerMode,
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    val normalizedLevel by rememberUpdatedState(level.coerceIn(0f, 1f))
     val bars = remember { List(BAR_COUNT) { androidx.compose.animation.core.Animatable(IDLE_BAR_FLOOR) } }
     val dotsTransition = rememberInfiniteTransition(label = "processing_dots")
     val dotsPhase by dotsTransition.animateFloat(
@@ -68,50 +64,36 @@ internal fun KeyboardVisualizer(
             return@LaunchedEffect
         }
         val random = Random(System.currentTimeMillis())
-        val idlePatternShift = random.nextInt(BAR_COUNT)
-        val idlePattern = FloatArray(BAR_COUNT) { index ->
-            val templateValue = IDLE_PATTERN_TEMPLATE[(index + idlePatternShift) % BAR_COUNT]
-            (templateValue + ((random.nextFloat() * 2f) - 1f) * IDLE_PATTERN_SEED_JITTER)
-                .coerceIn(IDLE_BAR_FLOOR, 1f)
-        }
         val noise = FloatArray(BAR_COUNT)
-        bars.forEachIndexed { index, bar -> bar.snapTo(idlePattern[index]) }
+        bars.forEach { bar -> bar.snapTo(IDLE_BAR_FLOOR) }
         coroutineScope {
             while (true) {
-                val talking = normalizedLevel >= TALKING_THRESHOLD
                 for (index in bars.indices) {
-                    val target = if (talking) {
-                        noise[index] = (
-                            noise[index] * NOISE_MEMORY +
-                                ((random.nextFloat() * 2f) - 1f) * NOISE_INPUT_RANDOM
-                            ).coerceIn(-1f, 1f)
-                        (
-                            TALKING_BASE +
-                                random.nextFloat() * TALKING_RANGE +
-                                noise[index] * TALKING_JITTER
-                            ).coerceIn(IDLE_BAR_FLOOR, 1f)
-                    } else {
-                        noise[index] = 0f
-                        idlePattern[index]
-                    }
-                    if (!talking && abs(target - bars[index].value) < IDLE_SETTLE_EPSILON) continue
+                    noise[index] = (
+                        noise[index] * NOISE_MEMORY +
+                            ((random.nextFloat() * 2f) - 1f) * NOISE_INPUT_RANDOM
+                        ).coerceIn(-1f, 1f)
+                    val target = (
+                        RECORDING_BASE +
+                            random.nextFloat() * RECORDING_RANGE +
+                            noise[index] * RECORDING_JITTER
+                        ).coerceIn(IDLE_BAR_FLOOR, 1f)
                     val rising = target >= bars[index].value
-                    val duration = when {
-                        talking && rising -> TALKING_ATTACK_DURATION_MS
-                        talking -> TALKING_RELEASE_DURATION_MS
-                        else -> IDLE_SETTLE_DURATION_MS
-                    }
                     launch {
                         bars[index].animateTo(
                             targetValue = target,
                             animationSpec = tween(
-                                durationMillis = duration,
+                                durationMillis = if (rising) {
+                                    RECORDING_ATTACK_DURATION_MS
+                                } else {
+                                    RECORDING_RELEASE_DURATION_MS
+                                },
                                 easing = if (rising) FastOutLinearInEasing else LinearOutSlowInEasing
                             )
                         )
                     }
                 }
-                delay(if (talking) TALKING_FRAME_MS else IDLE_FRAME_MS)
+                delay(RECORDING_FRAME_MS)
             }
         }
     }
@@ -207,17 +189,11 @@ private val PROCESSING_DOT_JUMP_AMPLITUDE = 7.dp
 private const val DOT_JUMP_WINDOW = 0.22f
 private const val DOTS_CYCLE_DURATION_MS = 920
 private const val IDLE_BAR_FLOOR = 0.30f
-private const val TALKING_THRESHOLD = 0.07f
-private const val TALKING_BASE = 0.30f
-private const val TALKING_RANGE = 0.62f
-private const val TALKING_JITTER = 0.15f
-private const val IDLE_PATTERN_SEED_JITTER = 0.02f
-private val IDLE_PATTERN_TEMPLATE = floatArrayOf(0.36f, 0.54f, 0.42f, 0.58f, 0.46f)
+private const val RECORDING_BASE = 0.30f
+private const val RECORDING_RANGE = 0.62f
+private const val RECORDING_JITTER = 0.15f
 private const val NOISE_MEMORY = 0.56f
 private const val NOISE_INPUT_RANDOM = 0.44f
-private const val TALKING_ATTACK_DURATION_MS = 90
-private const val TALKING_RELEASE_DURATION_MS = 170
-private const val IDLE_SETTLE_DURATION_MS = 180
-private const val IDLE_SETTLE_EPSILON = 0.012f
-private const val TALKING_FRAME_MS = 80L
-private const val IDLE_FRAME_MS = 120L
+private const val RECORDING_ATTACK_DURATION_MS = 90
+private const val RECORDING_RELEASE_DURATION_MS = 170
+private const val RECORDING_FRAME_MS = 80L

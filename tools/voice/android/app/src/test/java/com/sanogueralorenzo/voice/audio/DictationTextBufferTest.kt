@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.overlay
+package com.sanogueralorenzo.voice.audio
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

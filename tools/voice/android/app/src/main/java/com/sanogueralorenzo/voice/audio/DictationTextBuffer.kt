@@ -1,6 +1,6 @@
-package com.sanogueralorenzo.voice.overlay
+package com.sanogueralorenzo.voice.audio
 
-/** Combines the editor's original text with Moonshine's finalized and provisional lines. */
+/** Combines existing editor text with Moonshine's finalized and provisional lines. */
 internal class DictationTextBuffer(originalText: String) {
     private val originalText = originalText.trimEnd()
     private val completedLines = LinkedHashMap<Long, String>()
