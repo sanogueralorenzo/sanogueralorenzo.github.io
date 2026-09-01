@@ -291,7 +291,7 @@ fn start_clipboard_monitor(requests: mpsc::Sender<String>) {
                 return;
             }
             *last_text.borrow_mut() = text.clone();
-            let id = glib::uuid_string_random();
+            let id = glib::uuid_string_random().to_string();
             let request = json!({
                 "id": format!("capture-{id}"),
                 "type": "captureClipboard",
