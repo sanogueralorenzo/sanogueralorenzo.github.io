@@ -30,8 +30,8 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.OpenWith
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
@@ -276,7 +276,7 @@ private fun StatusSection(
             actionLabel = stringResource(R.string.product_action_allow),
             onAction = onGrantMicrophone
         )
-        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
+        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
             title = stringResource(R.string.product_status_service),
             ready = state.voiceServiceEnabled,
@@ -284,7 +284,7 @@ private fun StatusSection(
             actionLabel = stringResource(R.string.product_action_enable),
             onAction = onOpenVoiceService
         )
-        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
+        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         LocalModelsStatusRow(
             title = stringResource(R.string.product_status_models),
             ready = state.modelsReady,
@@ -295,7 +295,7 @@ private fun StatusSection(
             actionLabel = stringResource(R.string.product_action_download),
             onAction = onDownloadModels
         )
-        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
+        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
             title = stringResource(R.string.product_status_voice_keyboard),
             ready = state.voiceKeyboardSelected,
@@ -326,7 +326,7 @@ private fun LocalModelsStatusRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
@@ -334,9 +334,13 @@ private fun LocalModelsStatusRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val statusColor = if (ready) Color(0xFF16883B) else MaterialTheme.colorScheme.error
+            val statusColor = if (ready) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.error
+            }
             Icon(
-                imageVector = if (ready) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                imageVector = if (ready) Icons.Rounded.Check else Icons.Outlined.ErrorOutline,
                 contentDescription = null,
                 tint = if (loading || downloading) MaterialTheme.colorScheme.outline else statusColor,
                 modifier = Modifier.size(24.dp)
@@ -402,13 +406,17 @@ private fun StatusRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val statusColor = if (ready) Color(0xFF16883B) else MaterialTheme.colorScheme.error
+        val statusColor = if (ready) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.error
+        }
         Icon(
-            imageVector = if (ready) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+            imageVector = if (ready) Icons.Rounded.Check else Icons.Outlined.ErrorOutline,
             contentDescription = null,
             tint = if (loading) MaterialTheme.colorScheme.outline else statusColor,
             modifier = Modifier.size(24.dp)
