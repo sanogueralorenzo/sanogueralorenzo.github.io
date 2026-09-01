@@ -14,7 +14,7 @@
     <string name="product_step_two_chip">Step 2</string>
     <string name="product_step_three_chip">Step 3</string>
     <string name="product_step_setup_title">Set up Voice</string>
-    <string name="product_step_setup_body">Follow and allow the Setup steps.</string>
+    <string name="product_step_setup_body">Complete setup and download the models.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap and speak</string>
