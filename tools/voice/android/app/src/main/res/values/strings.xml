@@ -7,8 +7,8 @@
     <string name="product_step_one_chip">Step 1</string>
     <string name="product_step_two_chip">Step 2</string>
     <string name="product_step_three_chip">Step 3</string>
-    <string name="product_step_setup_title">Complete setup</string>
-    <string name="product_step_setup_body">Allow the microphone, enable the keyboard mic, and download the local models below.</string>
+    <string name="product_step_setup_title">Set up Voice</string>
+    <string name="product_step_setup_body">Allow permissions, enable the keyboard mic, and download models.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap and speak</string>
