@@ -40,6 +40,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val SplashDurationMs = 300L
+        const val SplashDurationMs = 600L
     }
 }
