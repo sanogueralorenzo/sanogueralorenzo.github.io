@@ -6,6 +6,7 @@ import com.sanogueralorenzo.voice.asr.AsrEngine
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
+import com.sanogueralorenzo.voice.command.LlmCommand
 import com.sanogueralorenzo.voice.engine.VoiceEngine
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
 import com.sanogueralorenzo.voice.summary.RewriteResult
@@ -42,11 +43,6 @@ internal class SpeechProcessor(
         )
         val rewrite = when (preLlm) {
             is PreLlmResult.Complete -> postLlmRulesStage.processComplete(preLlm)
-            is PreLlmResult.NeedsComposeLlm -> {
-                val llm = llmStage.processCompose(preLlm, onShowRewriting)
-                postLlmRulesStage.processCompose(preLlm, llm)
-            }
-
             is PreLlmResult.NeedsEditLlm -> {
                 val llm = llmStage.processEdit(preLlm, onShowRewriting)
                 postLlmRulesStage.processEdit(preLlm, llm)
@@ -200,11 +196,20 @@ internal class PreLlmRulesStage(
     ): PreLlmResult {
         val normalizedTranscript = transcript.trim()
         val hasSource = sourceText.trim().isNotBlank()
-        val shouldEdit = hasSource && VoiceEngine.isStrictEditCommand(normalizedTranscript)
-        return if (shouldEdit) {
-            processEdit(sourceText = sourceText, instructionTranscript = normalizedTranscript)
-        } else {
-            processAppend(sourceText = sourceText, transcript = normalizedTranscript)
+        val llmCommand = LlmCommand.fromExactTranscript(normalizedTranscript)
+        return when {
+            hasSource && VoiceEngine.isStrictEditCommand(normalizedTranscript) -> {
+                processDeterministicEdit(
+                    sourceText = sourceText,
+                    instructionTranscript = normalizedTranscript
+                )
+            }
+
+            hasSource && llmCommand != null -> {
+                processLlmCommand(sourceText = sourceText, command = llmCommand)
+            }
+
+            else -> processAppend(sourceText = sourceText, transcript = normalizedTranscript)
         }
     }
 
@@ -213,36 +218,25 @@ internal class PreLlmRulesStage(
         transcript: String
     ): PreLlmResult {
         val deterministicResult = VoiceEngine.preprocess(transcript)
-        val localRulesBeforeLlm = deterministicResult.appliedRuleIds.map { ruleId ->
+        val localRules = deterministicResult.appliedRuleIds.map { ruleId ->
             "compose_${ruleId.lowercase()}"
         }
-        val diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRulesBeforeLlm)
-        val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
-        val shouldUseRewritePipeline = rewriteEnabled && transcript.isNotBlank() && summaryEngine.isModelAvailable()
-        if (!shouldUseRewritePipeline) {
-            val output = appendIfNeeded(sourceText = sourceText, chunkText = transcript)
-            val applied = if (sourceText.isBlank()) {
-                output != transcript
-            } else {
-                output != sourceText
-            }
-            return PreLlmResult.Complete(
-                operation = ImeOperation.APPEND,
-                output = output,
-                applied = applied,
-                editIntent = null,
-                diagnostics = diagnostics
-            )
+        val output = appendIfNeeded(sourceText = sourceText, chunkText = transcript)
+        val applied = if (sourceText.isBlank()) {
+            output != transcript
+        } else {
+            output != sourceText
         }
-        return PreLlmResult.NeedsComposeLlm(
-            sourceText = sourceText,
-            transcript = transcript,
-            deterministicOutput = deterministicResult.text,
-            diagnostics = diagnostics
+        return PreLlmResult.Complete(
+            operation = ImeOperation.APPEND,
+            output = output,
+            applied = applied,
+            editIntent = null,
+            diagnostics = ImeRewriteDiagnostics(localRulesBeforeLlm = localRules)
         )
     }
 
-    private fun processEdit(
+    private fun processDeterministicEdit(
         sourceText: String,
         instructionTranscript: String
     ): PreLlmResult {
@@ -279,22 +273,35 @@ internal class PreLlmRulesStage(
         if (deterministicEdit?.noMatchDetected == true) {
             localRulesBeforeLlm += "deterministic_no_match"
         }
+        return PreLlmResult.Complete(
+            operation = ImeOperation.EDIT,
+            output = sourceText,
+            applied = false,
+            editIntent = editIntent,
+            diagnostics = diagnostics
+        )
+    }
 
-        val rewriteEnabled = preferencesRepository.isLlmRewriteEnabled()
-        if (!rewriteEnabled || !summaryEngine.isModelAvailable()) {
+    private fun processLlmCommand(
+        sourceText: String,
+        command: LlmCommand
+    ): PreLlmResult {
+        val diagnostics = ImeRewriteDiagnostics(
+            localRulesBeforeLlm = listOf("llm_command_${command.name.lowercase()}")
+        )
+        if (!preferencesRepository.isLlmRewriteEnabled() || !summaryEngine.isModelAvailable()) {
             return PreLlmResult.Complete(
                 operation = ImeOperation.EDIT,
                 output = sourceText,
                 applied = false,
-                editIntent = editIntent,
+                editIntent = VoiceEngine.EditIntent.GENERAL.name,
                 diagnostics = diagnostics
             )
         }
-
         return PreLlmResult.NeedsEditLlm(
             sourceText = sourceText,
-            instruction = normalizedInstruction,
-            editIntent = editIntent,
+            instruction = command.instruction,
+            editIntent = VoiceEngine.EditIntent.GENERAL.name,
             diagnostics = diagnostics
         )
     }
@@ -315,29 +322,6 @@ internal class PreLlmRulesStage(
 internal class LlmStage(
     private val summaryEngine: SummaryEngine
 ) {
-    fun processCompose(
-        input: PreLlmResult.NeedsComposeLlm,
-        onShowRewriting: () -> Unit
-    ): LlmStageResult {
-        onShowRewriting()
-        return when (val result = summaryEngine.summarizeBlocking(text = input.transcript)) {
-            is RewriteResult.Success -> LlmStageResult(
-                invoked = true,
-                output = result.text,
-                backend = result.backend.name,
-                llmOutputText = result.text
-            )
-
-            is RewriteResult.Failure -> LlmStageResult(
-                invoked = true,
-                output = input.transcript,
-                backend = result.backend?.name,
-                errorType = result.error.type,
-                errorMessage = result.error.litertError
-            )
-        }
-    }
-
     fun processEdit(
         input: PreLlmResult.NeedsEditLlm,
         onShowRewriting: () -> Unit
@@ -387,44 +371,6 @@ internal class PostLlmRulesStage {
         )
     }
 
-    fun processCompose(
-        input: PreLlmResult.NeedsComposeLlm,
-        llm: LlmStageResult
-    ): ImeRewriteResult {
-        val finalOutput = if (input.sourceText.isBlank()) {
-            llm.output
-        } else {
-            ImeAppendFormatter.append(sourceText = input.sourceText, chunkText = llm.output)
-        }
-        val localRulesAfterLlm = if (llm.output != input.deterministicOutput) {
-            listOf("compose_output_policy")
-        } else {
-            emptyList()
-        }
-        val diagnostics = ImeRewriteDiagnostics(
-            localRulesBeforeLlm = input.diagnostics.localRulesBeforeLlm,
-            llmOutputText = llm.llmOutputText,
-            localRulesAfterLlm = localRulesAfterLlm
-        )
-        val applied = if (input.sourceText.isBlank()) {
-            llm.output != input.transcript
-        } else {
-            finalOutput != input.sourceText
-        }
-        return ImeRewriteResult(
-            output = finalOutput,
-            operation = ImeOperation.APPEND,
-            llmInvoked = llm.invoked,
-            applied = applied,
-            backend = llm.backend,
-            errorType = llm.errorType,
-            errorMessage = llm.errorMessage,
-            elapsedMs = 0L,
-            editIntent = null,
-            diagnostics = diagnostics
-        )
-    }
-
     fun processEdit(
         input: PreLlmResult.NeedsEditLlm,
         llm: LlmStageResult
@@ -470,16 +416,6 @@ internal sealed interface PreLlmResult {
         override val editIntent: String?,
         override val diagnostics: ImeRewriteDiagnostics
     ) : PreLlmResult
-
-    data class NeedsComposeLlm(
-        val sourceText: String,
-        val transcript: String,
-        val deterministicOutput: String,
-        override val diagnostics: ImeRewriteDiagnostics
-    ) : PreLlmResult {
-        override val operation: ImeOperation = ImeOperation.APPEND
-        override val editIntent: String? = null
-    }
 
     data class NeedsEditLlm(
         val sourceText: String,

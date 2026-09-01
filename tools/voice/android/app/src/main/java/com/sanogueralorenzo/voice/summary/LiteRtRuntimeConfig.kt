@@ -8,8 +8,8 @@ package com.sanogueralorenzo.voice.summary
  * - `reportSnapshot()` returns a human-readable multi-line config summary.
  */
 object LiteRtRuntimeConfig {
-    // Temporary Moonshine-only build; keep the LiteRT pipeline intact for easy re-enabling.
-    const val ENABLE_LLM: Boolean = false
+    // Qwen is invoked only by exact one-word LLM commands in the keyboard pipeline.
+    const val ENABLE_LLM: Boolean = true
     const val TOP_K: Int = 1
     const val TOP_P: Double = 1.0
     const val TEMPERATURE: Double = 0.0
