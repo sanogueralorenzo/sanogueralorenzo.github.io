@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +26,10 @@ import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.OpenWith
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.Button
@@ -32,6 +37,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -115,19 +122,26 @@ private fun ProductHero() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_logo),
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(96.dp),
                 tint = Color.Unspecified
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.product_hero_title),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
@@ -136,32 +150,109 @@ private fun ProductHero() {
 
 @Composable
 private fun HowItWorksCard() {
-    Section(title = stringResource(R.string.product_how_it_works)) {
-        ProductStep(number = 1, text = stringResource(R.string.product_step_complete_setup))
-        HorizontalDivider()
-        ProductStep(number = 2, text = stringResource(R.string.product_step_position_mic))
-        HorizontalDivider()
-        ProductStep(number = 3, text = stringResource(R.string.product_step_record))
-        HorizontalDivider()
-        ProductStep(number = 4, text = stringResource(R.string.product_step_stop))
+    StepSectionCard(title = stringResource(R.string.product_how_it_works)) {
+        ProductStep(
+            icon = Icons.Outlined.Settings,
+            chipLabel = stringResource(R.string.product_step_one_chip),
+            title = stringResource(R.string.product_step_setup_title),
+            body = stringResource(R.string.product_step_setup_body)
+        )
+        ProductStep(
+            icon = Icons.Outlined.OpenWith,
+            chipLabel = stringResource(R.string.product_step_two_chip),
+            title = stringResource(R.string.product_step_position_title),
+            body = stringResource(R.string.product_step_position_body)
+        )
+        ProductStep(
+            icon = Icons.Outlined.Mic,
+            chipLabel = stringResource(R.string.product_step_three_chip),
+            title = stringResource(R.string.product_step_record_title),
+            body = stringResource(R.string.product_step_record_body)
+        )
+        ProductStep(
+            icon = Icons.Outlined.StopCircle,
+            chipLabel = stringResource(R.string.product_step_four_chip),
+            title = stringResource(R.string.product_step_stop_title),
+            body = stringResource(R.string.product_step_stop_body)
+        )
     }
 }
 
 @Composable
-private fun ProductStep(number: Int, text: String) {
+private fun StepSectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProductStep(
+    icon: ImageVector,
+    chipLabel: String,
+    title: String,
+    body: String
+) {
+    Column {
+        ProductStepHeader(icon = icon, chipLabel = chipLabel, title = title)
+        Text(
+            text = body,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun ProductStepHeader(
+    icon: ImageVector,
+    chipLabel: String,
+    title: String
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 13.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = number.toString(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(text = text, style = MaterialTheme.typography.bodyLarge)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(50)
+        ) {
+            Text(
+                text = chipLabel,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 

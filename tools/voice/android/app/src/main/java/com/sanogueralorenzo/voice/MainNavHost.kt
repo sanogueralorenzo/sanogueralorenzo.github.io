@@ -36,17 +36,14 @@ fun MainNavHost() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (route) {
-                            VoiceRoute.MIC_POSITION -> stringResource(R.string.product_mic_position_title)
-                            else -> stringResource(R.string.app_name)
-                        }
-                    )
-                },
-                navigationIcon = {
-                    if (!isHome) {
+            if (!isHome) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(R.string.product_mic_position_title)
+                        )
+                    },
+                    navigationIcon = {
                         IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -54,8 +51,8 @@ fun MainNavHost() {
                             )
                         }
                     }
-                }
-            )
+                )
+            }
         }
     ) { innerPadding ->
         NavHost(
