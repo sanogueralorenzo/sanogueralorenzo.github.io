@@ -31,6 +31,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/palette/package-lock.json
+      - name: Build production UI and Node service
+        working-directory: tools/palette
+        run: npm ci && npm run build && npm run build:daemon
       - name: Install GTK/WebKit development libraries
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
       - name: Build Linux host
@@ -41,14 +49,33 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/palette/package-lock.json
+      - name: Install JavaScript dependencies
+        working-directory: tools/palette
+        run: npm ci
       - name: Typecheck AppKit host
         working-directory: tools/palette
         run: swiftc -parse-as-library -typecheck native/macos/PaletteHost.swift
+      - name: Build and launch packaged app through LaunchServices
+        working-directory: tools/palette
+        run: npm run test:macos-app
 
   windows-host:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build WPF host
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/palette/package-lock.json
+      - name: Install JavaScript dependencies
         working-directory: tools/palette
-        run: dotnet build native/windows/PaletteHost.csproj
+        run: npm ci
+      - name: Build packaged WPF host
+        working-directory: tools/palette
+        run: npm run build:windows

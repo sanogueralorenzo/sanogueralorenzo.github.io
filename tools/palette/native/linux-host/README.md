@@ -13,12 +13,14 @@ When the launcher window is focused, `PALETTE_HOTKEY` (default `Alt+Space`)
 toggles it as a local fallback; a true desktop-wide shortcut still belongs in
 the portal integration below.
 
-The remaining desktop integration should add:
+The host uses the XDG Desktop Portal GlobalShortcuts API for the configurable
+launcher accelerator, captures text clipboard changes, and forwards native
+notifications. Escape, close, and deactivation hide the launcher while leaving
+the tray, WebView, and sidecar resident.
 
-- The XDG Desktop Portal GlobalShortcuts API for configurable accelerators and
-  chord state handling where the desktop environment supports it.
-- The XDG Desktop Portal OpenURI and Secret APIs for opening results and
-  provisioning the clipboard encryption key.
+The remaining desktop-security integration is an XDG Secret/libsecret adapter
+for the clipboard key. Until then, the daemon creates a permission-restricted
+key under the Palette data directory.
 
 `PALETTE_UI_PATH` may point to the Vite-built `dist/ui/index.html` during local
 development.
