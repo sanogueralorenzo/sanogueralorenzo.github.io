@@ -11,8 +11,8 @@
     <string name="product_step_setup_body">Allow the microphone, enable the keyboard mic, and download the local models below.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
-    <string name="product_step_record_title">Tap to record</string>
-    <string name="product_step_record_body">Open a text field, tap the mic, and speak. Tap again to stop; Voice’s local models do the rest.</string>
+    <string name="product_step_record_title">Tap and speak</string>
+    <string name="product_step_record_body">Tap again to stop. Voice’s local models do the rest.</string>
     <string name="product_status">Setup</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Permissions</string>
