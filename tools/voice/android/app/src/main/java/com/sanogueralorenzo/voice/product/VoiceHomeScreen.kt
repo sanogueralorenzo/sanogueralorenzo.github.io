@@ -150,7 +150,7 @@ private fun ProductHero() {
 
 @Composable
 private fun HowItWorksCard() {
-    StepSectionCard(title = stringResource(R.string.product_how_it_works)) {
+    StepSectionCard(title = stringResource(R.string.product_get_started)) {
         ProductStep(
             icon = Icons.Outlined.Settings,
             chipLabel = stringResource(R.string.product_step_one_chip),
