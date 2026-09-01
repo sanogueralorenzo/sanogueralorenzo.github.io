@@ -14,6 +14,7 @@ import android.database.ContentObserver
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Point
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -281,12 +282,21 @@ class OverlayAccessibilityService : AccessibilityService() {
                 bubbleSizePx,
                 bubbleSizePx,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 x = safePosition.first
                 y = safePosition.second
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    setFitInsetsTypes(0)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                }
             }
             wm.addView(bubble, params)
             overlayView = bubble
@@ -407,20 +417,32 @@ class OverlayAccessibilityService : AccessibilityService() {
         windowManager: WindowManager
     ): Pair<Int, Int> {
         val displaySize = displaySize(windowManager)
-        val imeBottomInsetPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            windowManager.currentWindowMetrics.windowInsets
-                .getInsets(WindowInsets.Type.ime())
-                .bottom
-        } else {
-            0
-        }
+        val keyboardTopPx = visibleInputMethodTopPx()
+            ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                windowManager.currentWindowMetrics.windowInsets
+                    .getInsets(WindowInsets.Type.ime())
+                    .bottom
+                    .takeIf { it > 0 }
+                    ?.let { displaySize.y - it }
+            } else {
+                null
+            }
         return OverlayDefaultPosition.calculate(
             displayWidthPx = displaySize.x,
             displayHeightPx = displaySize.y,
-            imeBottomInsetPx = imeBottomInsetPx,
+            keyboardTopPx = keyboardTopPx,
             bubbleSizePx = bubbleSizePx,
             density = resources.displayMetrics.density
         )
+    }
+
+    private fun visibleInputMethodTopPx(): Int? {
+        val inputMethodWindow = windows.firstOrNull { window ->
+            window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
+        } ?: return null
+        val bounds = Rect()
+        inputMethodWindow.getBoundsInScreen(bounds)
+        return bounds.top.takeIf { bounds.height() > 0 }
     }
 
     private fun displaySize(windowManager: WindowManager): Point {

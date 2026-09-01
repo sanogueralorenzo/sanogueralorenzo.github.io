@@ -11,7 +11,7 @@ class OverlayDefaultPositionTest {
             OverlayDefaultPosition.calculate(
                 displayWidthPx = 1080,
                 displayHeightPx = 2340,
-                imeBottomInsetPx = 852,
+                keyboardTopPx = 1488,
                 bubbleSizePx = 101,
                 density = 450f / 160f
             )
@@ -25,9 +25,23 @@ class OverlayDefaultPositionTest {
             OverlayDefaultPosition.calculate(
                 displayWidthPx = 1000,
                 displayHeightPx = 2000,
-                imeBottomInsetPx = 800,
+                keyboardTopPx = 1200,
                 bubbleSizePx = 72,
                 density = 2f
+            )
+        )
+    }
+
+    @Test
+    fun usesFallbackWhenKeyboardBoundsAreUnavailable() {
+        assertEquals(
+            962 to 1511,
+            OverlayDefaultPosition.calculate(
+                displayWidthPx = 1080,
+                displayHeightPx = 2340,
+                keyboardTopPx = null,
+                bubbleSizePx = 101,
+                density = 450f / 160f
             )
         )
     }

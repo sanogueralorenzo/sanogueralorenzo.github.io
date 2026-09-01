@@ -10,7 +10,7 @@ internal object OverlayDefaultPosition {
     fun calculate(
         displayWidthPx: Int,
         displayHeightPx: Int,
-        imeBottomInsetPx: Int,
+        keyboardTopPx: Int?,
         bubbleSizePx: Int,
         density: Float
     ): Pair<Int, Int> {
@@ -19,11 +19,9 @@ internal object OverlayDefaultPosition {
         val safeBubbleSize = bubbleSizePx.coerceAtLeast(1)
         val endOffsetPx = (END_OFFSET_DP * density).roundToInt()
         val keyboardOffsetPx = (KEYBOARD_TOP_OFFSET_DP * density).roundToInt()
-        val keyboardTop = if (imeBottomInsetPx > 0) {
-            safeHeight - imeBottomInsetPx
-        } else {
-            (safeHeight * FALLBACK_SCREEN_HEIGHT_RATIO).roundToInt()
-        }
+        val keyboardTop = keyboardTopPx
+            ?.takeIf { it in 1 until safeHeight }
+            ?: (safeHeight * FALLBACK_SCREEN_HEIGHT_RATIO).roundToInt()
         val maxX = (safeWidth - safeBubbleSize).coerceAtLeast(0)
         val maxY = (safeHeight - safeBubbleSize).coerceAtLeast(0)
         val x = safeWidth - safeBubbleSize - endOffsetPx
