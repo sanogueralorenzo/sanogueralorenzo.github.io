@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
 import android.content.Intent
-import android.content.res.Configuration
 import android.database.ContentObserver
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -24,9 +23,7 @@ import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
-import android.view.MotionEvent
 import android.view.View
-import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -46,7 +43,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 
@@ -64,23 +60,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     private var systemDialogReceiverRegistered = false
     private var imeSettingsObserverRegistered = false
     private var keyboardCloseStopScheduled = false
-    private var isBubbleDragging = false
-    private var positionPreviewVisible = false
-    private var resizeAnchorCenterX: Float? = null
-    private var resizeAnchorCenterY: Float? = null
-    private val showPositionPreviewRunnable = Runnable {
-        if (!positionPreviewActive) return@Runnable
-        overlayView?.alpha = 0f
-        positionPreviewVisible = true
-        evaluateOverlayVisibility()
-        overlayView?.let { bubble ->
-            bubble.alpha = 0f
-            bubble.animate()
-                .alpha(1f)
-                .setDuration(POSITION_PREVIEW_FADE_DURATION_MS)
-                .start()
-        }
-    }
     private val keyboardCloseStopRunnable = Runnable {
         keyboardCloseStopScheduled = false
         if (!isInputMethodWindowVisible()) {
@@ -129,11 +108,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             notificationTimeout = 0
         }
         warmupMoonshine()
-        if (positionPreviewActive) {
-            updatePositionPreview(active = true)
-        } else {
-            evaluateOverlayVisibility()
-        }
+        evaluateOverlayVisibility()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -155,7 +130,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
         serviceScope.cancel()
         cancelKeyboardCloseStop()
-        mainHandler.removeCallbacks(showPositionPreviewRunnable)
         unregisterSystemDialogReceiverIfNeeded()
         unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
@@ -174,8 +148,9 @@ class OverlayAccessibilityService : AccessibilityService() {
         } else {
             scheduleKeyboardCloseStop()
         }
-        val shouldShowByContext = positionPreviewActive ||
-            (config.overlayEnabled && inputMethodVisible)
+        val shouldShowByContext = config.overlayEnabled &&
+            inputMethodVisible &&
+            !positioningActive
         val shouldKeepVisibleForActiveWork = recordingSession != null
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 
@@ -183,17 +158,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             showOrUpdateBubble(config)
         } else {
             hideBubble()
-        }
-    }
-
-    private fun updatePositionPreview(active: Boolean) {
-        mainHandler.removeCallbacks(showPositionPreviewRunnable)
-        overlayView?.animate()?.cancel()
-        overlayView?.alpha = 1f
-        positionPreviewVisible = false
-        evaluateOverlayVisibility()
-        if (active) {
-            mainHandler.postDelayed(showPositionPreviewRunnable, POSITION_PREVIEW_DELAY_MS)
         }
     }
 
@@ -273,30 +237,18 @@ class OverlayAccessibilityService : AccessibilityService() {
         } else {
             defaultBubblePosition(bubbleSizePx = bubbleSizePx, windowManager = wm)
         }
-        val desiredX = if (isBubbleDragging) {
-            overlayParams?.x ?: configuredPosition.first
-        } else {
-            configuredPosition.first
-        }
-        val desiredY = if (isBubbleDragging) {
-            overlayParams?.y ?: configuredPosition.second
-        } else {
-            configuredPosition.second
-        }
         val safePosition = clampBubblePosition(
-            x = desiredX,
-            y = desiredY,
+            x = configuredPosition.first,
+            y = configuredPosition.second,
             bubbleSizePx = bubbleSizePx,
             windowManager = wm
         )
-        if (!isBubbleDragging) {
-            if (config.hasCustomBubblePosition) {
-                if (safePosition.first != config.bubbleX || safePosition.second != config.bubbleY) {
-                    overlayRepository.setBubblePosition(safePosition.first, safePosition.second)
-                }
-            } else {
-                overlayRepository.setDefaultBubblePosition(safePosition.first, safePosition.second)
+        if (config.hasCustomBubblePosition) {
+            if (safePosition.first != config.bubbleX || safePosition.second != config.bubbleY) {
+                overlayRepository.setBubblePosition(safePosition.first, safePosition.second)
             }
+        } else {
+            overlayRepository.setDefaultBubblePosition(safePosition.first, safePosition.second)
         }
         val view = overlayView
         if (view == null) {
@@ -324,7 +276,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             wm.addView(bubble, params)
             overlayView = bubble
             overlayParams = params
-            captureResizeAnchorFromParams(params)
             updateBubbleVisual()
             return
         }
@@ -341,7 +292,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             params.x = safePosition.first
             params.y = safePosition.second
             wm.updateViewLayout(view, params)
-            captureResizeAnchorFromParams(params)
         }
         updateBubbleVisual()
     }
@@ -368,7 +318,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun applyBubblePosition(targetX: Int?, targetY: Int?) {
-        if (isBubbleDragging) return
         val view = overlayView ?: return
         val params = overlayParams ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -383,44 +332,12 @@ class OverlayAccessibilityService : AccessibilityService() {
         params.x = safePosition.first
         params.y = safePosition.second
         wm.updateViewLayout(view, params)
-        captureResizeAnchorFromParams(params)
     }
 
     private fun applyBubbleSizeDp(sizeDp: Int) {
-        val view = overlayView ?: return
-        val params = overlayParams ?: return
-        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val newSizePx = dpToPx(sizeDp)
+        if (overlayView == null || overlayParams == null) return
         val config = overlayRepository.currentConfig()
-        if (!config.hasCustomBubblePosition) {
-            showOrUpdateBubble(config)
-            return
-        }
-        val oldSizePx = params.width.coerceAtLeast(1)
-        val centerX = resizeAnchorCenterX ?: (params.x + (oldSizePx / 2f))
-        val centerY = resizeAnchorCenterY ?: (params.y + (oldSizePx / 2f))
-        val centeredX = (centerX - (newSizePx / 2f)).roundToInt()
-        val centeredY = (centerY - (newSizePx / 2f)).roundToInt()
-        val safePosition = clampBubblePosition(
-            x = centeredX,
-            y = centeredY,
-            bubbleSizePx = newSizePx,
-            windowManager = wm
-        )
-        if (
-            params.width == newSizePx &&
-            params.height == newSizePx &&
-            params.x == safePosition.first &&
-            params.y == safePosition.second
-        ) {
-            return
-        }
-        params.width = newSizePx
-        params.height = newSizePx
-        params.x = safePosition.first
-        params.y = safePosition.second
-        wm.updateViewLayout(view, params)
-        overlayRepository.setBubblePosition(params.x, params.y)
+        showOrUpdateBubble(config.copy(bubbleSizeDp = sizeDp))
     }
 
     private fun clampBubblePosition(
@@ -479,8 +396,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun hideBubble() {
-        isBubbleDragging = false
-        clearResizeAnchor()
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         overlayView?.let { view ->
             view.animate().cancel()
@@ -491,7 +406,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun buildBubbleView(): TextView {
-        val bubble = TextView(this).apply {
+        return TextView(this).apply {
             text = ""
             textSize = 24f
             setTextColor(Color.WHITE)
@@ -502,80 +417,8 @@ class OverlayAccessibilityService : AccessibilityService() {
                 setStroke(dpToPx(2), Color.TRANSPARENT)
             }
             elevation = 0f
+            setOnClickListener { onBubbleTapped() }
         }
-
-        val touchSlopPx = ViewConfiguration.get(this).scaledTouchSlop
-        var initialRawX = 0f
-        var initialRawY = 0f
-        var initialX = 0
-        var initialY = 0
-        var moved = false
-        var repositioningGesture = false
-
-        bubble.setOnTouchListener { view, event ->
-            val params = overlayParams ?: return@setOnTouchListener false
-            val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    initialRawX = event.rawX
-                    initialRawY = event.rawY
-                    initialX = params.x
-                    initialY = params.y
-                    moved = false
-                    repositioningGesture = positionPreviewActive
-                    isBubbleDragging = repositioningGesture
-                    true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    val deltaX = (event.rawX - initialRawX).toInt()
-                    val deltaY = (event.rawY - initialRawY).toInt()
-                    if (!moved && (kotlin.math.abs(deltaX) > touchSlopPx || kotlin.math.abs(deltaY) > touchSlopPx)) {
-                        moved = true
-                    }
-                    if (!repositioningGesture) return@setOnTouchListener true
-                    val bubbleSizePx = params.width.coerceAtLeast(1)
-                    val safePosition = clampBubblePosition(
-                        x = initialX + deltaX,
-                        y = initialY + deltaY,
-                        bubbleSizePx = bubbleSizePx,
-                        windowManager = wm
-                    )
-                    params.x = safePosition.first
-                    params.y = safePosition.second
-                    wm.updateViewLayout(view, params)
-                    true
-                }
-
-                MotionEvent.ACTION_UP -> {
-                    val wasRepositioning = repositioningGesture
-                    repositioningGesture = false
-                    isBubbleDragging = false
-                    if (wasRepositioning && moved) {
-                        overlayRepository.setBubblePosition(params.x, params.y)
-                        captureResizeAnchorFromParams(params)
-                    } else if (!wasRepositioning && !moved) {
-                        onBubbleTapped()
-                    }
-                    true
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    val wasRepositioning = repositioningGesture
-                    repositioningGesture = false
-                    isBubbleDragging = false
-                    if (wasRepositioning && moved) {
-                        overlayRepository.setBubblePosition(params.x, params.y)
-                        captureResizeAnchorFromParams(params)
-                    }
-                    true
-                }
-
-                else -> false
-            }
-        }
-
-        return bubble
     }
 
     private fun onBubbleTapped() {
@@ -807,40 +650,13 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun updateBubbleVisual() {
         val bubble = overlayView ?: return
-        val showPositionPreview = positionPreviewActive && positionPreviewVisible
-        val color = if (showPositionPreview) {
-            if (isSystemInDarkTheme()) Color.WHITE else Color.BLACK
-        } else {
-            Color.TRANSPARENT
-        }
         val background = bubble.background as? GradientDrawable ?: return
-        background.setColor(color)
-        val strokeColor = if (showPositionPreview) {
-            Color.parseColor("#1B1F23")
-        } else {
-            Color.TRANSPARENT
-        }
-        background.setStroke(dpToPx(2), strokeColor)
-        bubble.elevation = if (showPositionPreview) dpToPx(10).toFloat() else 0f
+        background.setColor(Color.TRANSPARENT)
+        background.setStroke(dpToPx(2), Color.TRANSPARENT)
+        bubble.elevation = 0f
         bubble.text = ""
         bubble.gravity = Gravity.CENTER
         bubble.setPadding(0, 0, 0, 0)
-    }
-
-    private fun isSystemInDarkTheme(): Boolean {
-        val nightMask = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-        return nightMask == Configuration.UI_MODE_NIGHT_YES
-    }
-
-    private fun captureResizeAnchorFromParams(params: WindowManager.LayoutParams) {
-        val sizePx = params.width.coerceAtLeast(1)
-        resizeAnchorCenterX = params.x + (sizePx / 2f)
-        resizeAnchorCenterY = params.y + (sizePx / 2f)
-    }
-
-    private fun clearResizeAnchor() {
-        resizeAnchorCenterX = null
-        resizeAnchorCenterY = null
     }
 
     private fun showToast(message: String) {
@@ -864,25 +680,23 @@ class OverlayAccessibilityService : AccessibilityService() {
     )
 
     companion object {
-        fun setPositionPreviewActive(active: Boolean) {
-            if (positionPreviewActive == active) return
-            positionPreviewActive = active
+        fun setPositioningActive(active: Boolean) {
+            if (positioningActive == active) return
+            positioningActive = active
             runningService?.mainHandler?.post {
-                runningService?.updatePositionPreview(active)
+                runningService?.evaluateOverlayVisibility()
             }
         }
 
         @Volatile
         private var runningService: OverlayAccessibilityService? = null
         @Volatile
-        private var positionPreviewActive: Boolean = false
+        private var positioningActive: Boolean = false
 
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
         private const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
         private const val FINAL_LINE_SETTLE_MS = 50L
         private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
-        private const val POSITION_PREVIEW_DELAY_MS = 500L
-        private const val POSITION_PREVIEW_FADE_DURATION_MS = 200L
     }
 }

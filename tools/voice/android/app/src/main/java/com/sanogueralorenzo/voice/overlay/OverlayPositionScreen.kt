@@ -25,7 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +39,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -52,6 +55,36 @@ fun OverlayPositionScreen() {
     var numberInput by rememberSaveable { mutableStateOf("") }
     val inputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val hostView = LocalView.current
+    val positionPreview = remember(hostView) {
+        OverlayPositionPreview(
+            hostView = hostView,
+            onPositionChanged = viewModel::setBubblePosition
+        )
+    }
+
+    DisposableEffect(positionPreview) {
+        OverlayAccessibilityService.setPositioningActive(true)
+        positionPreview.show(
+            x = state.bubbleX,
+            y = state.bubbleY,
+            sizeDp = state.bubbleSizeDp,
+            hasCustomPosition = state.hasCustomBubblePosition
+        )
+        onDispose {
+            positionPreview.dismiss()
+            OverlayAccessibilityService.setPositioningActive(false)
+        }
+    }
+
+    SideEffect {
+        positionPreview.update(
+            x = state.bubbleX,
+            y = state.bubbleY,
+            sizeDp = state.bubbleSizeDp,
+            hasCustomPosition = state.hasCustomBubblePosition
+        )
+    }
 
     LaunchedEffect(Unit) {
         inputFocusRequester.requestFocus()
@@ -60,10 +93,17 @@ fun OverlayPositionScreen() {
 
     OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
         viewModel.refreshStatus()
-        OverlayAccessibilityService.setPositionPreviewActive(true)
+        OverlayAccessibilityService.setPositioningActive(true)
+        positionPreview.show(
+            x = state.bubbleX,
+            y = state.bubbleY,
+            sizeDp = state.bubbleSizeDp,
+            hasCustomPosition = state.hasCustomBubblePosition
+        )
     }
     OnLifecycle(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP) {
-        OverlayAccessibilityService.setPositionPreviewActive(false)
+        positionPreview.dismiss()
+        OverlayAccessibilityService.setPositioningActive(false)
     }
 
     Column(

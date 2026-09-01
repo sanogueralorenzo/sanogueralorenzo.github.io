@@ -8,6 +8,9 @@ import com.sanogueralorenzo.voice.VoiceApp
 
 data class OverlayPositionState(
     val bubbleSizeDp: Int = 36,
+    val bubbleX: Int = 0,
+    val bubbleY: Int = 0,
+    val hasCustomBubblePosition: Boolean = false,
     val accessibilityServiceEnabled: Boolean = false
 ) : MavericksState
 
@@ -21,23 +24,47 @@ class OverlayPositionViewModel(
         setState {
             copy(
                 bubbleSizeDp = config.bubbleSizeDp,
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition,
                 accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
             )
         }
     }
 
-    fun setBubbleSizeDp(sizeDp: Int) {
-        val clamped = repository.setBubbleSizeDp(sizeDp)
-        setState { copy(bubbleSizeDp = clamped) }
-    }
-
     fun adjustBubbleSizeDp(deltaDp: Int) {
-        val size = repository.adjustBubbleSizeDp(deltaDp)
-        setState { copy(bubbleSizeDp = size) }
+        val config = repository.adjustBubbleSizeDp(deltaDp)
+        setState {
+            copy(
+                bubbleSizeDp = config.bubbleSizeDp,
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition
+            )
+        }
     }
 
     fun nudgeBubblePosition(deltaXDp: Int, deltaYDp: Int) {
         repository.nudgeBubblePositionByDp(deltaXDp, deltaYDp)
+        val config = repository.currentConfig()
+        setState {
+            copy(
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition
+            )
+        }
+    }
+
+    fun setBubblePosition(x: Int, y: Int) {
+        repository.setBubblePosition(x, y)
+        setState {
+            copy(
+                bubbleX = x.coerceAtLeast(0),
+                bubbleY = y.coerceAtLeast(0),
+                hasCustomBubblePosition = true
+            )
+        }
     }
 
     companion object : MavericksViewModelFactory<OverlayPositionViewModel, OverlayPositionState> {
@@ -46,6 +73,9 @@ class OverlayPositionViewModel(
             val config = repository.currentConfig()
             return OverlayPositionState(
                 bubbleSizeDp = config.bubbleSizeDp,
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition,
                 accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
             )
         }

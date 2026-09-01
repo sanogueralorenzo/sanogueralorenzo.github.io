@@ -130,8 +130,21 @@ class OverlayRepository(context: Context) {
         return sizeDp.coerceIn(MIN_BUBBLE_SIZE_DP, MAX_BUBBLE_SIZE_DP)
     }
 
-    fun adjustBubbleSizeDp(deltaDp: Int): Int {
-        return setBubbleSizeDp(bubbleSizeDpState.value + deltaDp)
+    fun adjustBubbleSizeDp(deltaDp: Int): OverlayConfig {
+        val config = currentConfig()
+        val newSizeDp = clampBubbleSizeDp(config.bubbleSizeDp + deltaDp)
+        if (newSizeDp == config.bubbleSizeDp) return config
+        if (config.hasCustomBubblePosition) {
+            val oldSizePx = dpToPx(config.bubbleSizeDp)
+            val newSizePx = dpToPx(newSizeDp)
+            val positionShiftPx = (oldSizePx - newSizePx) / 2
+            setBubblePosition(
+                x = config.bubbleX + positionShiftPx,
+                y = config.bubbleY + positionShiftPx
+            )
+        }
+        setBubbleSizeDp(newSizeDp)
+        return currentConfig()
     }
 
     private fun dpToPx(dp: Int): Int {
