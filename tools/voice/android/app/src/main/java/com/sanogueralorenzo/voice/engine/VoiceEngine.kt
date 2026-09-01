@@ -16,17 +16,13 @@ object VoiceEngine {
     }
 
     enum class CommandScope {
-        ALL,
-        FIRST,
-        LAST
+        ALL
     }
 
     enum class CommandKind {
-        NO_OP,
         CLEAR_ALL,
         DELETE_TERM,
-        REPLACE_TERM,
-        UPDATE_NUMBER
+        REPLACE_TERM
     }
 
     enum class RuleConfidence {

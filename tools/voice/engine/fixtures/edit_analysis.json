@@ -10,31 +10,24 @@
       "expectedStrictEditCommand": false
     },
     {
-      "name": "delete all command is delete intent",
+      "name": "clear everything is delete all intent",
       "instruction": "clear everything please",
       "expectedNormalizedInstruction": "clear everything please",
       "expectedIntent": "DELETE_ALL",
       "expectedStrictEditCommand": true
     },
     {
-      "name": "undo command is delete all intent",
-      "instruction": "undo",
-      "expectedNormalizedInstruction": "undo",
-      "expectedIntent": "DELETE_ALL",
-      "expectedStrictEditCommand": true
-    },
-    {
-      "name": "fix command is strict replace intent",
-      "instruction": "fix milk to oat milk",
-      "expectedNormalizedInstruction": "fix milk to oat milk",
-      "expectedIntent": "REPLACE",
-      "expectedStrictEditCommand": true
-    },
-    {
-      "name": "polite remove command is strict general edit",
-      "instruction": "please remove milk",
-      "expectedNormalizedInstruction": "remove milk",
+      "name": "delete is a strict edit",
+      "instruction": "please delete milk",
+      "expectedNormalizedInstruction": "delete milk",
       "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": true
+    },
+    {
+      "name": "replace is a strict edit",
+      "instruction": "replace milk with oat milk",
+      "expectedNormalizedInstruction": "replace milk with oat milk",
+      "expectedIntent": "REPLACE",
       "expectedStrictEditCommand": true
     },
     {
@@ -45,11 +38,32 @@
       "expectedStrictEditCommand": true
     },
     {
-      "name": "update number is replace intent",
+      "name": "undo alias is not strict",
+      "instruction": "undo",
+      "expectedNormalizedInstruction": "undo",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "fix alias is not strict",
+      "instruction": "fix milk to oat milk",
+      "expectedNormalizedInstruction": "fix milk to oat milk",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "remove alias is not strict",
+      "instruction": "please remove milk",
+      "expectedNormalizedInstruction": "remove milk",
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
+    },
+    {
+      "name": "update number is not strict",
       "instruction": "update number to 6:30",
       "expectedNormalizedInstruction": "update number to 6:30",
-      "expectedIntent": "REPLACE",
-      "expectedStrictEditCommand": true
+      "expectedIntent": "GENERAL",
+      "expectedStrictEditCommand": false
     },
     {
       "name": "loose conversational replace is not strict",
@@ -66,9 +80,9 @@
       "expectedStrictEditCommand": false
     },
     {
-      "name": "loose scratch that is not strict",
-      "instruction": "scratch that",
-      "expectedNormalizedInstruction": "scratch that",
+      "name": "cancel is not strict",
+      "instruction": "cancel",
+      "expectedNormalizedInstruction": "cancel",
       "expectedIntent": "GENERAL",
       "expectedStrictEditCommand": false
     }

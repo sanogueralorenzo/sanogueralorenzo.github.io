@@ -23,37 +23,29 @@ impl EditIntent {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CommandScope {
     All,
-    First,
-    Last,
 }
 
 impl CommandScope {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             CommandScope::All => "ALL",
-            CommandScope::First => "FIRST",
-            CommandScope::Last => "LAST",
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CommandKind {
-    NoOp,
     ClearAll,
     DeleteTerm,
     ReplaceTerm,
-    UpdateNumber,
 }
 
 impl CommandKind {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            CommandKind::NoOp => "NO_OP",
             CommandKind::ClearAll => "CLEAR_ALL",
             CommandKind::DeleteTerm => "DELETE_TERM",
             CommandKind::ReplaceTerm => "REPLACE_TERM",
-            CommandKind::UpdateNumber => "UPDATE_NUMBER",
         }
     }
 }
@@ -92,59 +84,13 @@ pub struct DeterministicEditResult {
 #[derive(Clone)]
 struct ParsedCommand {
     kind: CommandKind,
-    scope: CommandScope,
     target: Option<String>,
     replacement: Option<String>,
-}
-
-struct ScopedTarget {
-    scope: CommandScope,
-    target: String,
 }
 
 struct ReplaceApplyResult {
     output: String,
     matched_count: usize,
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) enum DeleteVerbRestriction {
-    AllOnly,
-    TargetedOnly,
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) enum ReplaceVerbRestriction {
-    ExcludeNumberTarget,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum ReplaceConnector {
-    With,
-    To,
-    For,
-}
-
-impl ReplaceConnector {
-    fn pattern(self) -> &'static str {
-        match self {
-            ReplaceConnector::With => "with",
-            ReplaceConnector::To => "to",
-            ReplaceConnector::For => "for",
-        }
-    }
-}
-
-pub(crate) struct DeleteVerbSpec {
-    pub(crate) pattern: &'static str,
-    pub(crate) bare_means_all: bool,
-    pub(crate) restrictions: &'static [DeleteVerbRestriction],
-}
-
-pub(crate) struct ReplaceVerbSpec {
-    pub(crate) pattern: &'static str,
-    pub(crate) connectors: &'static [ReplaceConnector],
-    pub(crate) restrictions: &'static [ReplaceVerbRestriction],
 }
 
 pub fn analyze_instruction(instruction_text: &str) -> EditInstructionAnalysis {
@@ -154,15 +100,11 @@ pub fn analyze_instruction(instruction_text: &str) -> EditInstructionAnalysis {
         .to_string();
     let normalized = normalize_correction_phrases(&collapsed);
     let command_candidate = strip_command_preamble(&normalized);
-    let delete_command = parse_delete_verb_command(&command_candidate);
+    let clear_command = parse_clear_all_command(&command_candidate);
     let replace_command = parse_replace_command(&command_candidate);
-    let update_number_command = parse_update_number_command(&command_candidate);
-    let intent = if delete_command
-        .as_ref()
-        .is_some_and(|command| command.kind == CommandKind::ClearAll)
-    {
+    let intent = if clear_command.is_some() {
         EditIntent::DeleteAll
-    } else if replace_command.is_some() || update_number_command.is_some() {
+    } else if replace_command.is_some() {
         EditIntent::Replace
     } else {
         EditIntent::General
@@ -185,10 +127,9 @@ pub fn is_strict_edit_command(instruction_text: &str) -> bool {
     if command_candidate.is_empty() {
         return false;
     }
-    parse_delete_verb_command(&command_candidate).is_some()
-        || NO_OP.is_match(&command_candidate)
+    parse_clear_all_command(&command_candidate).is_some()
+        || parse_delete_command(&command_candidate).is_some()
         || parse_replace_command(&command_candidate).is_some()
-        || parse_update_number_command(&command_candidate).is_some()
 }
 
 pub fn should_allow_blank_output(intent: EditIntent) -> bool {
@@ -210,16 +151,6 @@ pub fn try_apply_deterministic_edit(
 
     let parsed = parse_deterministic_command(&command_candidate)?;
     match parsed.kind {
-        CommandKind::NoOp => Some(DeterministicEditResult {
-            output: source_text.to_string(),
-            applied: false,
-            intent: EditIntent::General,
-            scope: CommandScope::All,
-            command_kind: CommandKind::NoOp,
-            matched_count: 1,
-            rule_confidence: RuleConfidence::High,
-            no_match_detected: false,
-        }),
         CommandKind::ClearAll => Some(DeterministicEditResult {
             output: String::new(),
             applied: !source_text.is_empty(),
@@ -233,22 +164,10 @@ pub fn try_apply_deterministic_edit(
         CommandKind::DeleteTerm => {
             let target = parsed.target.unwrap_or_default();
             let targets = split_delete_targets(&target);
-            if targets.len() > 1 && parsed.scope != CommandScope::All {
-                return None;
-            }
             let mut updated = source_text.to_string();
             let mut total_matched = 0usize;
             for term in targets {
-                let replace_result = apply_scoped_edit(
-                    &updated,
-                    &term,
-                    "",
-                    if target.contains(',') || DELETE_TARGET_SEPARATOR.is_match(&target) {
-                        CommandScope::All
-                    } else {
-                        parsed.scope
-                    },
-                );
+                let replace_result = apply_edit(&updated, &term, "");
                 updated = replace_result.output;
                 total_matched += replace_result.matched_count;
             }
@@ -257,7 +176,7 @@ pub fn try_apply_deterministic_edit(
                 applied: updated != source_text,
                 output,
                 intent: EditIntent::General,
-                scope: parsed.scope,
+                scope: CommandScope::All,
                 command_kind: CommandKind::DeleteTerm,
                 matched_count: total_matched,
                 rule_confidence: if total_matched > 0 {
@@ -271,34 +190,14 @@ pub fn try_apply_deterministic_edit(
         CommandKind::ReplaceTerm => {
             let target = parsed.target.unwrap_or_default();
             let replacement = parsed.replacement.unwrap_or_default();
-            let replace_result =
-                apply_scoped_edit(source_text, &target, &replacement, parsed.scope);
+            let replace_result = apply_edit(source_text, &target, &replacement);
             let output = cleanup_edited_text(&replace_result.output);
             Some(DeterministicEditResult {
                 applied: replace_result.output != source_text,
                 output,
                 intent: EditIntent::Replace,
-                scope: parsed.scope,
+                scope: CommandScope::All,
                 command_kind: CommandKind::ReplaceTerm,
-                matched_count: replace_result.matched_count,
-                rule_confidence: if replace_result.matched_count > 0 {
-                    RuleConfidence::High
-                } else {
-                    RuleConfidence::Low
-                },
-                no_match_detected: replace_result.matched_count == 0,
-            })
-        }
-        CommandKind::UpdateNumber => {
-            let replacement = parsed.replacement.unwrap_or_default();
-            let replace_result = apply_last_numeric_edit(source_text, &replacement);
-            let output = cleanup_edited_text(&replace_result.output);
-            Some(DeterministicEditResult {
-                applied: replace_result.output != source_text,
-                output,
-                intent: EditIntent::Replace,
-                scope: CommandScope::Last,
-                command_kind: CommandKind::UpdateNumber,
                 matched_count: replace_result.matched_count,
                 rule_confidence: if replace_result.matched_count > 0 {
                     RuleConfidence::High
@@ -390,11 +289,9 @@ fn normalize_correction_phrases(text: &str) -> String {
 
 fn parse_deterministic_command(instruction: &str) -> Option<ParsedCommand> {
     let parsed: Vec<ParsedCommand> = [
-        parse_no_op_command(instruction),
         parse_clear_all_command(instruction),
         parse_delete_command(instruction),
         parse_replace_command(instruction),
-        parse_update_number_command(instruction),
     ]
     .into_iter()
     .flatten()
@@ -406,185 +303,47 @@ fn parse_deterministic_command(instruction: &str) -> Option<ParsedCommand> {
     }
 }
 
-fn parse_no_op_command(instruction: &str) -> Option<ParsedCommand> {
-    NO_OP.is_match(instruction).then_some(ParsedCommand {
-        kind: CommandKind::NoOp,
-        scope: CommandScope::All,
-        target: None,
+fn parse_clear_all_command(instruction: &str) -> Option<ParsedCommand> {
+    CLEAR_ALL_COMMAND
+        .is_match(instruction)
+        .then_some(ParsedCommand {
+            kind: CommandKind::ClearAll,
+            target: None,
+            replacement: None,
+        })
+}
+
+fn parse_delete_command(instruction: &str) -> Option<ParsedCommand> {
+    let captures = DELETE_COMMAND.captures(instruction)?;
+    let target = normalize_command_term(captures.get(1)?.as_str(), true);
+    if target.is_empty()
+        || DELETE_ALL_TARGET.is_match(&target)
+        || is_ambiguous_pronoun_target(&target)
+    {
+        return None;
+    }
+    Some(ParsedCommand {
+        kind: CommandKind::DeleteTerm,
+        target: Some(target),
         replacement: None,
     })
 }
 
-fn parse_clear_all_command(instruction: &str) -> Option<ParsedCommand> {
-    parse_delete_verb_command(instruction).filter(|command| command.kind == CommandKind::ClearAll)
-}
-
-fn parse_delete_command(instruction: &str) -> Option<ParsedCommand> {
-    parse_delete_verb_command(instruction).filter(|command| command.kind == CommandKind::DeleteTerm)
-}
-
-fn parse_delete_verb_command(instruction: &str) -> Option<ParsedCommand> {
-    for verb in DELETE_VERB_SPECS {
-        let regex = Regex::new(&format!(
-            r"(?i)^\s*(?:please\s+)?(?:{})(?:\s+(.+))?\s*$",
-            verb.pattern
-        ))
-        .ok()?;
-        let Some(captures) = regex.captures(instruction) else {
-            continue;
-        };
-        let raw_target = captures
-            .get(1)
-            .map(|value| value.as_str().trim())
-            .unwrap_or("");
-        let supports_all = !verb
-            .restrictions
-            .contains(&DeleteVerbRestriction::TargetedOnly);
-        let supports_targeted = !verb.restrictions.contains(&DeleteVerbRestriction::AllOnly);
-        if raw_target.is_empty() {
-            if verb.bare_means_all && supports_all {
-                return Some(ParsedCommand {
-                    kind: CommandKind::ClearAll,
-                    scope: CommandScope::All,
-                    target: None,
-                    replacement: None,
-                });
-            }
-            continue;
-        }
-
-        let scoped = scoped_target(raw_target)?;
-        let target = normalize_command_term(&scoped.target, true);
-        if target.is_empty() {
-            return None;
-        }
-        if DELETE_ALL_TARGET.is_match(&target) {
-            if supports_all && scoped.scope == CommandScope::All {
-                return Some(ParsedCommand {
-                    kind: CommandKind::ClearAll,
-                    scope: CommandScope::All,
-                    target: None,
-                    replacement: None,
-                });
-            }
-            return None;
-        }
-        if !supports_targeted || is_ambiguous_pronoun_target(&target) {
-            return None;
-        }
-        return Some(ParsedCommand {
-            kind: CommandKind::DeleteTerm,
-            scope: scoped.scope,
-            target: Some(target),
-            replacement: None,
-        });
-    }
-    None
-}
-
 fn parse_replace_command(instruction: &str) -> Option<ParsedCommand> {
-    parse_replace_verb_command(instruction).or_else(|| parse_use_instead_command(instruction))
-}
-
-fn parse_use_instead_command(instruction: &str) -> Option<ParsedCommand> {
-    let captures = REPLACE_USE_INSTEAD.captures(instruction)?;
-    let from_scoped = scoped_target(captures.get(2)?.as_str())?;
-    let from = normalize_command_term(&from_scoped.target, true);
-    let to = normalize_replacement_term(captures.get(1)?.as_str());
+    let captures = REPLACE_COMMAND.captures(instruction)?;
+    let from = normalize_command_term(captures.get(1)?.as_str(), true);
+    let to = normalize_replacement_term(captures.get(2)?.as_str());
     if from.is_empty() || to.is_empty() || is_ambiguous_pronoun_target(&from) {
         return None;
     }
     Some(ParsedCommand {
         kind: CommandKind::ReplaceTerm,
-        scope: from_scoped.scope,
         target: Some(from),
         replacement: Some(to),
     })
 }
 
-fn parse_replace_verb_command(instruction: &str) -> Option<ParsedCommand> {
-    for verb in REPLACE_VERB_SPECS {
-        for connector in verb.connectors {
-            let regex = Regex::new(&format!(
-                r"(?i)^\s*(?:please\s+)?(?:{})\s+(.+?)\s+(?:{})\s+(.+?)\s*$",
-                verb.pattern,
-                connector.pattern()
-            ))
-            .ok()?;
-            let Some(captures) = regex.captures(instruction) else {
-                continue;
-            };
-            let from_scoped = scoped_target(captures.get(1)?.as_str())?;
-            let from = normalize_command_term(&from_scoped.target, true);
-            let to = normalize_replacement_term(captures.get(2)?.as_str());
-            if from.is_empty() || to.is_empty() || is_ambiguous_pronoun_target(&from) {
-                return None;
-            }
-            if verb
-                .restrictions
-                .contains(&ReplaceVerbRestriction::ExcludeNumberTarget)
-                && NUMBER_WORD_TARGET.is_match(&from)
-            {
-                return None;
-            }
-            return Some(ParsedCommand {
-                kind: CommandKind::ReplaceTerm,
-                scope: from_scoped.scope,
-                target: Some(from),
-                replacement: Some(to),
-            });
-        }
-    }
-    None
-}
-
-fn parse_update_number_command(instruction: &str) -> Option<ParsedCommand> {
-    let captures = UPDATE_NUMBER_COMMAND.captures(instruction)?;
-    let replacement = normalize_replacement_term(captures.get(1)?.as_str());
-    if replacement.is_empty() {
-        return None;
-    }
-    Some(ParsedCommand {
-        kind: CommandKind::UpdateNumber,
-        scope: CommandScope::Last,
-        target: None,
-        replacement: Some(replacement),
-    })
-}
-
-fn scoped_target(raw: &str) -> Option<ScopedTarget> {
-    let mut target = raw.trim().to_string();
-    target = DELETE_CONTEXT_SUFFIX.replace(&target, "").to_string();
-    target = ARTICLE_WORD_PREFIX.replace(&target, "").to_string();
-    target = target.trim().to_string();
-    if target.is_empty() {
-        return None;
-    }
-
-    let has_first = SCOPE_FIRST.is_match(&target);
-    let has_last = SCOPE_LAST.is_match(&target);
-    if has_first && has_last {
-        return None;
-    }
-    let scope = if has_first {
-        CommandScope::First
-    } else if has_last {
-        CommandScope::Last
-    } else {
-        CommandScope::All
-    };
-    target = SCOPED_PREFIX.replace(&target, "").to_string();
-    target = SCOPED_SUFFIX.replace(&target, "").to_string();
-    target = target.trim().to_string();
-    (!target.is_empty()).then_some(ScopedTarget { scope, target })
-}
-
-fn apply_scoped_edit(
-    source_text: &str,
-    target: &str,
-    replacement: &str,
-    scope: CommandScope,
-) -> ReplaceApplyResult {
+fn apply_edit(source_text: &str, target: &str, replacement: &str) -> ReplaceApplyResult {
     let matches = find_target_matches(source_text, target);
     if matches.is_empty() {
         return ReplaceApplyResult {
@@ -592,35 +351,11 @@ fn apply_scoped_edit(
             matched_count: 0,
         };
     }
-    match scope {
-        CommandScope::All => ReplaceApplyResult {
-            output: replace_target_matches(source_text, target, |matched| {
-                apply_replacement_casing(matched, replacement)
-            }),
-            matched_count: matches.len(),
-        },
-        CommandScope::First => {
-            let first = matches.first().unwrap().clone();
-            ReplaceApplyResult {
-                output: replace_range(
-                    source_text,
-                    first.clone(),
-                    &apply_replacement_casing(&source_text[first], replacement),
-                ),
-                matched_count: 1,
-            }
-        }
-        CommandScope::Last => {
-            let last = matches.last().unwrap().clone();
-            ReplaceApplyResult {
-                output: replace_range(
-                    source_text,
-                    last.clone(),
-                    &apply_replacement_casing(&source_text[last], replacement),
-                ),
-                matched_count: 1,
-            }
-        }
+    ReplaceApplyResult {
+        output: replace_target_matches(source_text, target, |matched| {
+            apply_replacement_casing(matched, replacement)
+        }),
+        matched_count: matches.len(),
     }
 }
 
@@ -688,29 +423,6 @@ where
         cursor = range.end;
     }
     output.push_str(&source_text[cursor..]);
-    output
-}
-
-fn apply_last_numeric_edit(source_text: &str, replacement: &str) -> ReplaceApplyResult {
-    let matches: Vec<_> = NUMERIC_LIKE.find_iter(source_text).collect();
-    if matches.is_empty() {
-        return ReplaceApplyResult {
-            output: source_text.to_string(),
-            matched_count: 0,
-        };
-    }
-    let last = matches.last().unwrap().range();
-    ReplaceApplyResult {
-        output: replace_range(source_text, last, replacement),
-        matched_count: 1,
-    }
-}
-
-fn replace_range(source_text: &str, range: Range<usize>, replacement: &str) -> String {
-    let mut output = String::with_capacity(source_text.len() + replacement.len());
-    output.push_str(&source_text[..range.start]);
-    output.push_str(replacement);
-    output.push_str(&source_text[range.end..]);
     output
 }
 

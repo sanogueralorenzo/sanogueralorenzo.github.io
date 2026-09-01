@@ -15,10 +15,6 @@ pub use edit::{
     should_allow_blank_output, try_apply_deterministic_edit, CommandKind, CommandScope,
     DeterministicEditResult, EditInstructionAnalysis, EditIntent, RuleConfidence,
 };
-use edit::{
-    DeleteVerbRestriction, DeleteVerbSpec, ReplaceConnector, ReplaceVerbRestriction,
-    ReplaceVerbSpec,
-};
 pub use list_detection::looks_like_list;
 pub use postprocess::{
     clean_model_output, normalize_compose_input, normalize_compose_output_text,
@@ -388,111 +384,6 @@ const MAX_COMMAND_WORDS: usize = 10;
 const MAX_COMMAND_CHARS: usize = 96;
 const MAX_MULTI_TARGET_TERM_WORDS: usize = 3;
 
-const DELETE_VERB_SPECS: &[DeleteVerbSpec] = &[
-    DeleteVerbSpec {
-        pattern: r"get\s+rid\s+of",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: r"take\s+out",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: r"start\s+over",
-        bare_means_all: true,
-        restrictions: &[DeleteVerbRestriction::AllOnly],
-    },
-    DeleteVerbSpec {
-        pattern: "delete",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "clear",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "erase",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "wipe",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "remove",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "reset",
-        bare_means_all: true,
-        restrictions: &[DeleteVerbRestriction::AllOnly],
-    },
-    DeleteVerbSpec {
-        pattern: "undo",
-        bare_means_all: true,
-        restrictions: &[],
-    },
-    DeleteVerbSpec {
-        pattern: "drop",
-        bare_means_all: false,
-        restrictions: &[DeleteVerbRestriction::TargetedOnly],
-    },
-    DeleteVerbSpec {
-        pattern: "cut",
-        bare_means_all: false,
-        restrictions: &[],
-    },
-];
-
-const REPLACE_VERB_SPECS: &[ReplaceVerbSpec] = &[
-    ReplaceVerbSpec {
-        pattern: "replace",
-        connectors: &[ReplaceConnector::With],
-        restrictions: &[],
-    },
-    ReplaceVerbSpec {
-        pattern: "change",
-        connectors: &[
-            ReplaceConnector::To,
-            ReplaceConnector::With,
-            ReplaceConnector::For,
-        ],
-        restrictions: &[],
-    },
-    ReplaceVerbSpec {
-        pattern: "swap",
-        connectors: &[ReplaceConnector::For, ReplaceConnector::With],
-        restrictions: &[],
-    },
-    ReplaceVerbSpec {
-        pattern: "substitute",
-        connectors: &[ReplaceConnector::With, ReplaceConnector::For],
-        restrictions: &[],
-    },
-    ReplaceVerbSpec {
-        pattern: "update",
-        connectors: &[ReplaceConnector::To, ReplaceConnector::With],
-        restrictions: &[ReplaceVerbRestriction::ExcludeNumberTarget],
-    },
-    ReplaceVerbSpec {
-        pattern: "correct",
-        connectors: &[ReplaceConnector::To, ReplaceConnector::With],
-        restrictions: &[],
-    },
-    ReplaceVerbSpec {
-        pattern: "fix",
-        connectors: &[ReplaceConnector::To, ReplaceConnector::With],
-        restrictions: &[],
-    },
-];
-
 static WORD: Lazy<Regex> = Lazy::new(|| Regex::new(r"\p{L}[\p{L}\p{N}'’-]*").unwrap());
 static COMMAND_PREAMBLE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -500,19 +391,14 @@ static COMMAND_PREAMBLE: Lazy<Regex> = Lazy::new(|| {
     )
     .unwrap()
 });
-static NO_OP: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^\s*(?:(?:actually)\s+)?(?:(?:just)\s+)?(?:never\s*mind|cancel(?:\s+that)?|forget\s+it|ignore\s+that|disregard\s+that)\s*[.!]?\s*$").unwrap()
-});
-static REPLACE_USE_INSTEAD: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^\s*(?:please\s+)?use\s+(.+?)\s+instead\s+of\s+(.+?)\s*$").unwrap()
-});
-static UPDATE_NUMBER_COMMAND: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^\s*(?:please\s+)?update\s+number\s+(?:to|with)\s+(.+?)\s*$").unwrap()
-});
+static CLEAR_ALL_COMMAND: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)^\s*clear\s+everything(?:\s+please)?\s*[.!]?\s*$").unwrap());
+static DELETE_COMMAND: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)^\s*delete\s+(.+?)\s*$").unwrap());
+static REPLACE_COMMAND: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)^\s*replace\s+(.+?)\s+with\s+(.+?)\s*$").unwrap());
 static DELETE_TARGET_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)\s*(?:,|\band\b)\s*").unwrap());
-static NUMERIC_LIKE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)\b\d{1,4}(?::\d{2})?(?:\s?(?:am|pm))?\b").unwrap());
 static DELETE_ALL_TARGET: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(?:all|everything|(?:the\s+)?(?:whole|entire)\s+(?:message|text)|(?:the\s+)?message|(?:the\s+)?text)$").unwrap()
 });
@@ -523,19 +409,8 @@ static GENERAL_CORRECTION: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^\s*.+?\s+(?:no|actually|instead|rather|wait)\s*,?\s*(?:let'?s\s+do|make\s+it|use)?\s+(.+)\s*$").unwrap()
 });
 static INSTEAD_OF_PHRASE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\binstead\s+of\b").unwrap());
-static DELETE_CONTEXT_SUFFIX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\s+(?:from\s+(?:(?:my|the)\s+)?(?:shopping\s+)?list|from\s+(?:the\s+)?(?:message|text)|in\s+(?:the\s+)?(?:message|text)|from\s+it)$").unwrap()
-});
-static SCOPED_PREFIX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^(?:only\s+)?(?:first|last|final)\s+").unwrap());
-static SCOPED_SUFFIX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)\s+(?:only\s+first|first|last|final)$").unwrap());
-static SCOPE_FIRST: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)\b(?:only\s+first|first)\b").unwrap());
-static SCOPE_LAST: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(?:last|final)\b").unwrap());
 static AMBIGUOUS_PRONOUN_TARGET: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)^(?:it|that|this|thing|part)$").unwrap());
-static NUMBER_WORD_TARGET: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)^number$").unwrap());
 static EXPLICIT_BULLET: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?m)^\s*(?:[-*•]|\d+[.)])\s+\S+").unwrap());
 static LIST_CUE: Lazy<Regex> = Lazy::new(|| {

@@ -33,16 +33,12 @@ Edit intent values:
 Command scope values:
 
 - `ALL`
-- `FIRST`
-- `LAST`
 
 Command kind values:
 
-- `NO_OP`
 - `CLEAR_ALL`
 - `DELETE_TERM`
 - `REPLACE_TERM`
-- `UPDATE_NUMBER`
 
 Rule confidence values:
 
@@ -150,7 +146,7 @@ Output:
 Behavior:
 
 - Clear-all commands produce `DELETE_ALL`.
-- Replace-term and update-number commands produce `REPLACE`.
+- Replace-term commands produce `REPLACE`.
 - Everything else produces `GENERAL`.
 - Blank input produces `normalizedInstruction=""` and `intent=GENERAL`.
 
@@ -161,8 +157,8 @@ needing broader natural-language interpretation.
 
 Behavior:
 
-- Returns `true` for start-anchored no-op, delete, clear-all, replace, and
-  update-number commands.
+- Returns `true` only for start-anchored `clear everything`, `delete …`, and
+  `replace … with …` commands.
 - Returns `false` for blank input, general rewrite requests, and loose
   conversational text that merely contains an edit verb.
 
@@ -195,14 +191,12 @@ Output:
 
 Behavior:
 
-- Parse order is no-op, clear-all, delete-term, replace-term, update-number.
+- Parse order is clear-all, delete-term, replace-term.
 - Exactly one command must parse; competing parses return `null`/`None`.
-- `NO_OP` returns the original source, `applied=false`, `matchedCount=1`,
-  `ruleConfidence=HIGH`, `noMatchDetected=false`.
 - `CLEAR_ALL` returns `""`, `intent=DELETE_ALL`, `scope=ALL`, and
   `commandKind=CLEAR_ALL`.
-- Delete and replace commands honor `FIRST`, `LAST`, and `ALL` when present.
-- Multiple delete targets are only accepted with `ALL` scope.
+- Delete and replace commands apply to every matching occurrence.
+- Delete accepts multiple short targets separated by `and` or commas.
 - No target match returns the original source with `ruleConfidence=LOW` and
   `noMatchDetected=true`.
 

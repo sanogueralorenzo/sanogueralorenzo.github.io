@@ -8,6 +8,13 @@ The product is built around a simple pipeline:
 
 `capture audio -> transcribe -> clean or edit -> insert text`
 
+When a field already contains text, Voice supports three deterministic command
+forms:
+
+- `clear everything`
+- `delete milk` (or `delete milk and eggs`)
+- `replace milk with oat milk`
+
 ## Structure
 
 - `android/` contains the Android product UI and existing-keyboard microphone overlay.
