@@ -10,7 +10,7 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
         window = new MainWindow();
-        window.Hide();
+        window.PresentLauncher();
     }
 
     protected override void OnExit(ExitEventArgs e)

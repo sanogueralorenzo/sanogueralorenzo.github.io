@@ -9,6 +9,9 @@
     "build:all": "npm run build && npm run build:daemon && npm run build:indexer",
     "build:indexer": "cargo build --release --manifest-path native/rust-indexer/Cargo.toml",
     "build:linux-host": "cargo build --release --manifest-path native/linux-host/Cargo.toml",
+    "build:macos": "scripts/build-macos-app.sh",
+    "build:windows": "pwsh -File scripts/build-windows.ps1",
+    "test:macos-app": "scripts/test-macos-app.sh",
     "daemon": "node --experimental-strip-types src/node-daemon.ts",
     "test": "node --experimental-strip-types --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
