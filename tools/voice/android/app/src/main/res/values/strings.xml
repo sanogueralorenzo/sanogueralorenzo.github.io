@@ -8,7 +8,7 @@
     <string name="product_step_two_chip">Step 2</string>
     <string name="product_step_three_chip">Step 3</string>
     <string name="product_step_setup_title">Complete setup</string>
-    <string name="product_step_setup_body">Allow the microphone, enable keyboard integration, and download the local models below.</string>
+    <string name="product_step_setup_body">Allow the microphone, enable the keyboard mic, and download the local models below.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap to record</string>
@@ -16,13 +16,13 @@
     <string name="product_status">Status</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Microphone</string>
-    <string name="product_status_service">Keyboard integration</string>
+    <string name="product_status_service">Keyboard mic</string>
     <string name="product_action_download">Download</string>
     <string name="product_action_allow">Allow</string>
     <string name="product_action_enable">Enable</string>
     <string name="product_mic_position_title">Mic position</string>
     <string name="product_mic_position_body">Place Voice over your keyboard’s mic.</string>
-    <string name="product_mic_position_requires_service">Enable keyboard integration first.</string>
+    <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>
 
     <string name="overlay_position_instructions_title">Position Voice</string>
     <string name="overlay_position_instructions_body">Open the keyboard below, then drag the dot onto its microphone. Use the arrows if needed.</string>
@@ -34,7 +34,7 @@
     <string name="overlay_position_nudge_left">Move left</string>
     <string name="overlay_position_nudge_down">Move down</string>
     <string name="overlay_position_nudge_right">Move right</string>
-    <string name="overlay_position_enable_accessibility_note">Enable keyboard integration first to preview and position the dot.</string>
+    <string name="overlay_position_enable_accessibility_note">Enable the keyboard mic first to preview and position the dot.</string>
     <string name="overlay_microphone_required">Microphone permission is required.</string>
     <string name="overlay_asr_not_ready">ASR model is not ready yet.</string>
     <string name="overlay_recording_start_failed">Could not start recording.</string>
