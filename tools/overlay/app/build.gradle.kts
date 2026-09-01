@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId = "com.sanogueralorenzo.overlay"
         minSdk = 33
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "1.0"
 
