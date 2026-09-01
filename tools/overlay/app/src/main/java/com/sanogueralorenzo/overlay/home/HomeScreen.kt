@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.ui.components.RefreshOnResume
@@ -49,7 +49,7 @@ fun NavGraphBuilder.homeRoute(
 ) {
     composable(route) {
         val viewModel: HomeViewModel = mavericksViewModel()
-        val state by viewModel.mavericksCollectAsState()
+        val state by viewModel.collectAsStateWithLifecycle()
         RefreshOnResume(viewModel::refreshPermissions)
         HomeScreen(
             state = state,

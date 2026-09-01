@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.airbnb.mvrx.compose.collectAsState as mavericksCollectAsState
+import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.overlay.R
 import com.sanogueralorenzo.overlay.overlay.OverlayTileService
@@ -61,7 +61,7 @@ fun NavGraphBuilder.permissionsRoute(
 ) {
     composable(route) {
         val viewModel: PermissionsViewModel = mavericksViewModel()
-        val state by viewModel.mavericksCollectAsState()
+        val state by viewModel.collectAsStateWithLifecycle()
         val activity = LocalActivity.current as? ComponentActivity
         PermissionsScreen(
             state = state,
