@@ -190,7 +190,7 @@ class OverlayRepository(context: Context) {
         private val KEY_BUBBLE_SIZE_DP = intPreferencesKey("overlay_bubble_size_dp")
 
         private const val DEFAULT_OVERLAY_ENABLED = false
-        private const val DEFAULT_BUBBLE_SIZE_DP = 32
+        private const val DEFAULT_BUBBLE_SIZE_DP = 36
         private const val MIN_BUBBLE_SIZE_DP = 32
         private const val MAX_BUBBLE_SIZE_DP = 96
 

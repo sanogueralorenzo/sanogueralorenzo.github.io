@@ -7,7 +7,7 @@ import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
 
 data class OverlayPositionState(
-    val bubbleSizeDp: Int = 32,
+    val bubbleSizeDp: Int = 36,
     val accessibilityServiceEnabled: Boolean = false
 ) : MavericksState
 
