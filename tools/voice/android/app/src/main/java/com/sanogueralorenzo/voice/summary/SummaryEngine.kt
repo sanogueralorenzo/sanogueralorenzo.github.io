@@ -11,6 +11,7 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.SamplerConfig
+import com.google.ai.edge.litertlm.ThinkingConfig
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.prompt.LiteRtPromptTemplates
@@ -297,7 +298,8 @@ class SummaryEngine(
                 topP = LiteRtRuntimeConfig.TOP_P,
                 temperature = LiteRtRuntimeConfig.TEMPERATURE,
                 seed = LiteRtRuntimeConfig.SEED
-            )
+            ),
+            thinkingConfig = NON_THINKING_CONFIG
         )
         val output = runConversation(
             localEngine = localEngine,
@@ -374,7 +376,8 @@ class SummaryEngine(
                 topP = LiteRtRuntimeConfig.TOP_P,
                 temperature = LiteRtRuntimeConfig.TEMPERATURE,
                 seed = LiteRtRuntimeConfig.SEED
-            )
+            ),
+            thinkingConfig = NON_THINKING_CONFIG
         )
         val userPrompt = LiteRtPromptTemplates.buildEditUserPrompt(
             originalText = request.originalText,
@@ -561,9 +564,7 @@ class SummaryEngine(
     private fun isConfiguredModelSupported(): Boolean {
         val id = ModelCatalog.liteRtLm.id.lowercase()
         val fileName = ModelCatalog.liteRtLm.fileName.lowercase()
-        return SUPPORTED_MODEL_HINTS.any { hint ->
-            id.contains(hint) || fileName.contains(hint)
-        }
+        return id.contains(SUPPORTED_MODEL_HINT) || fileName.contains(SUPPORTED_MODEL_HINT)
     }
 
     private fun Message.toTextPayload(): String {
@@ -590,14 +591,11 @@ class SummaryEngine(
         private const val TAG = "SummaryEngine"
         private const val CONVERSATION_TIMEOUT_CANCEL_GRACE_MS = 120L
         private const val MAX_ERROR_MESSAGE_CHARS = 320
-        private val SUPPORTED_MODEL_HINTS = listOf(
-            "gemma-3n",
-            "gemma3-1b",
-            "gemma-3-1b",
-            "qwen2.5-1.5b",
-            "phi-4-mini",
-            "tinygarden"
+        private val NON_THINKING_CONFIG = ThinkingConfig(
+            enableThinking = LiteRtRuntimeConfig.ENABLE_THINKING,
+            thinkingTokenBudget = LiteRtRuntimeConfig.THINKING_TOKEN_BUDGET
         )
+        private const val SUPPORTED_MODEL_HINT = "qwen3-0.6b"
         private val WHITESPACE_REGEX = Regex("\\s+")
     }
 }

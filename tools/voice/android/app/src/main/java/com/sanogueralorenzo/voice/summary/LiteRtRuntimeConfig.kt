@@ -12,6 +12,8 @@ object LiteRtRuntimeConfig {
     const val TOP_P: Double = 1.0
     const val TEMPERATURE: Double = 0.0
     const val SEED: Int = 42
+    const val ENABLE_THINKING: Boolean = false
+    const val THINKING_TOKEN_BUDGET: Int = 0
 
     const val REQUEST_TIMEOUT_MS: Long = 10_000L
     const val ENGINE_MAX_TOKENS: Int = 4096
@@ -22,6 +24,8 @@ object LiteRtRuntimeConfig {
             appendLine("top_p: $TOP_P")
             appendLine("temperature: $TEMPERATURE")
             appendLine("seed: $SEED")
+            appendLine("enable_thinking: $ENABLE_THINKING")
+            appendLine("thinking_token_budget: $THINKING_TOKEN_BUDGET")
             appendLine("request_timeout_ms: $REQUEST_TIMEOUT_MS")
             appendLine("engine_max_tokens: $ENGINE_MAX_TOKENS")
         }.trim()

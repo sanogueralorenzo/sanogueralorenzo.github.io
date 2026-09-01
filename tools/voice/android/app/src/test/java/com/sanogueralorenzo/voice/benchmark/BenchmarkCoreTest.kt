@@ -172,7 +172,7 @@ class BenchmarkCoreTest {
             repeats = 3,
             timestampMs = 1700000000000L,
             totalElapsedMs = 500L,
-            modelId = "gemma3-1b-it-litertlm",
+            modelId = "qwen3-0.6b-litertlm",
             promptInstructionsSnapshot = "rewrite_system_instruction:\nR\n\nedit_system_instruction:\nE",
             runtimeConfigSnapshot = "compose_enabled=true",
             cases = listOf(

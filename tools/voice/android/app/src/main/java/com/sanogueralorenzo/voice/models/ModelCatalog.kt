@@ -13,14 +13,13 @@ data class ModelSpec(
 /** Central model definitions used by both setup UI and runtime pipelines. */
 object ModelCatalog {
     val liteRtLm = ModelSpec(
-        id = "gemma3-1b-it-litertlm",
-        fileName = "gemma3-1b-it-int4.litertlm",
-        url = "https://huggingface.co/sanogueralorenzo/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.litertlm",
-        // Hash pin disabled by request to avoid download hash mismatch failures.
-        sha256 = "",
-        sizeBytes = 584_417_280L,
+        id = "qwen3-0.6b-litertlm",
+        fileName = "Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm",
+        url = "https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm",
+        sha256 = "e3e290109da4388d65a17510a0c66af91c8039f52d2c465868dbc43c09a776cf",
+        sizeBytes = 344_437_808L,
         subdir = "litertlm",
-        notes = "Primary LiteRT rewrite model (Gemma3-1B-IT)."
+        notes = "Primary LiteRT rewrite model (Qwen3-0.6B)."
     )
 
     val moonshineMediumStreamingAdapter = ModelSpec(
