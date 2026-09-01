@@ -5,7 +5,7 @@
     <string name="keyboard_name">Voice Keyboard</string>
     <string name="keyboard_description">Compact, private voice keyboard</string>
     <string name="keyboard_discard_recording">Discard recording</string>
-    <string name="keyboard_send_recording">Finish dictation</string>
+    <string name="keyboard_send_recording">Finish dictation and submit</string>
     <string name="keyboard_recording_start_failed">Could not start keyboard recording.</string>
 
     <string name="product_hero_title">Private local dictation</string>

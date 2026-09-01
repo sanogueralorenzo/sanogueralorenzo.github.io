@@ -107,7 +107,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                         onIdleTap = { startRecording(languagePreferences.primary()) },
                         onIdleLongPress = { startRecording(languagePreferences.secondaryOrPrimary()) },
                         onDiscardTap = ::discardRecording,
-                        onSendTap = ::stopRecording
+                        onSendTap = { stopRecording(submitAfterFinish = true) }
                     )
                 }
             }
@@ -178,6 +178,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val session = RecordingSession(
             id = ++nextSessionId,
             inputConnection = connection,
+            editorAction = KeyboardEditorAction.resolve(currentInputEditorInfo),
             prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else "",
             textBuffer = DictationTextBuffer("")
         )
@@ -206,10 +207,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
     }
 
-    private fun stopRecording() {
+    private fun stopRecording(submitAfterFinish: Boolean = false) {
         val session = activeSession ?: return
         if (session.stopping) return
         session.stopping = true
+        session.submitAfterFinish = submitAfterFinish
         keyboardState = keyboardState.copy(
             mode = CompactKeyboardMode.PROCESSING,
             speechActive = false
@@ -283,7 +285,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         finishRecordingRunnable?.let(mainHandler::removeCallbacks)
         finishRecordingRunnable = null
         moonshineTranscriber.detachCallbacks()
-        if (session.textBuffer.hasTranscript) {
+        val hasTranscript = session.textBuffer.hasTranscript
+        if (hasTranscript) {
             updateComposition(session, session.textBuffer.currentText())
             runCatching { session.inputConnection.finishComposingText() }
         } else {
@@ -291,6 +294,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }
         activeSession = null
         showIdle()
+        if (hasTranscript && session.submitAfterFinish) {
+            session.editorAction?.let { action ->
+                runCatching { session.inputConnection.performEditorAction(action) }
+            }
+        }
     }
 
     private fun failRecording(sessionId: Int) {
@@ -390,9 +398,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private data class RecordingSession(
         val id: Int,
         val inputConnection: InputConnection,
+        val editorAction: Int?,
         val prefix: String,
         val textBuffer: DictationTextBuffer,
-        var stopping: Boolean = false
+        var stopping: Boolean = false,
+        var submitAfterFinish: Boolean = false
     )
 
     private companion object {
