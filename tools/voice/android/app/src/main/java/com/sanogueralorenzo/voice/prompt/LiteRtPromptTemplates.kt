@@ -38,21 +38,13 @@ internal object LiteRtPromptTemplates {
 
     fun buildEditUserPrompt(
         originalText: String,
-        instructionText: String,
-        editIntent: String,
-        listMode: Boolean
+        command: String
     ): String {
-        return buildString(originalText.length + instructionText.length + 180) {
-            append("EDIT_INTENT: ")
-            append(editIntent)
-            append('\n')
-            append("PREFER_LIST_FORMAT: ")
-            append(if (listMode) "yes" else "no")
-            append("\n\n")
-            append("ORIGINAL_MESSAGE:\n")
+        return buildString(originalText.length + command.length + 24) {
+            append("COMMAND: ")
+            append(command)
+            append("\n\nTEXT:\n")
             append(originalText)
-            append("\n\nEDIT_INSTRUCTION:\n")
-            append(instructionText)
         }
     }
 
@@ -67,14 +59,16 @@ internal object LiteRtPromptTemplates {
         If uncertain, return input unchanged.
         Return only the cleaned message, with no prefix or explanation.
         """.trimIndent()
-    private const val EDIT_SYSTEM_INSTRUCTION =
-        "Apply EDIT_INSTRUCTION to ORIGINAL_MESSAGE exactly. " +
-            "If EDIT_INTENT indicates delete-all, return an empty final message. " +
-            "If instruction includes correction turns ('X no, Y'), apply the final correction Y. " +
-            "When PREFER_LIST_FORMAT is yes and content is list-like, keep clean '- ' bullets. " +
-            "Keep untouched content faithful. Do not invent facts or add social filler. " +
-            "Return only the fully edited final message, with no explanations. " +
-            "Do not add labels/prefixes like message:, text:, cleaned:, output:, or result:."
+    private val EDIT_SYSTEM_INSTRUCTION =
+        """
+        Transform TEXT according to COMMAND.
+
+        FIX: Correct transcription, spelling, grammar, and punctuation. Preserve meaning and wording.
+        SHORTEN: Make the text shorter. Preserve meaning and essential details.
+        MESSAGE: Turn rough notes into a concise, natural message. Do not invent details.
+
+        Return only the final text. Never add labels, explanations, or commentary.
+        """.trimIndent()
 
     private fun normalizeRewriteSystemInstruction(raw: String): String {
         val withoutUserBlock = raw.substringBefore("\n\nUser input:").trim()

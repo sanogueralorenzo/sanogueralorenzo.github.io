@@ -53,8 +53,7 @@ class SummaryEngine(
 
     private data class EditRequest(
         val originalText: String,
-        val instructionText: String,
-        val intent: VoiceEngine.EditIntent,
+        val command: String,
         val listMode: Boolean
     )
 
@@ -323,12 +322,10 @@ class SummaryEngine(
                 backend = initializedBackend ?: Backend.GPU()
             )
 
-        val instructionAnalysis = VoiceEngine.analyzeInstruction(instructionText)
         val editRequest = EditRequest(
             originalText = originalText,
-            instructionText = instructionAnalysis.normalizedInstruction,
-            intent = instructionAnalysis.intent,
-            listMode = looksLikeList(originalText) || looksLikeList(instructionAnalysis.normalizedInstruction)
+            command = instructionText.uppercase(),
+            listMode = looksLikeList(originalText)
         )
 
         val localEngine = try {
@@ -382,9 +379,7 @@ class SummaryEngine(
         )
         val userPrompt = LiteRtPromptTemplates.buildEditUserPrompt(
             originalText = request.originalText,
-            instructionText = request.instructionText,
-            editIntent = request.intent.name,
-            listMode = request.listMode
+            command = request.command
         )
         val output = runConversation(
             localEngine = localEngine,

@@ -300,7 +300,7 @@ internal class PreLlmRulesStage(
         }
         return PreLlmResult.NeedsEditLlm(
             sourceText = sourceText,
-            instruction = command.instruction,
+            instruction = command.name,
             editIntent = VoiceEngine.EditIntent.GENERAL.name,
             diagnostics = diagnostics
         )
