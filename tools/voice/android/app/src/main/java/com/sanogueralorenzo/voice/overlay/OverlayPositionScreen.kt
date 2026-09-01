@@ -101,8 +101,8 @@ fun OverlayPositionScreen() {
         TextField(
             value = numberInput,
             onValueChange = { value -> numberInput = value },
-            label = {
-                Text(text = stringResource(R.string.overlay_position_number_input_label))
+            placeholder = {
+                Text(text = stringResource(R.string.overlay_position_message_placeholder))
             },
             modifier = Modifier
                 .fillMaxWidth()

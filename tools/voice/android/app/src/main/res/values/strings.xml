@@ -30,7 +30,7 @@
     <string name="overlay_position_size_label">Size: %1$ddp</string>
     <string name="overlay_position_size_decrease">Make smaller</string>
     <string name="overlay_position_size_increase">Make larger</string>
-    <string name="overlay_position_number_input_label">Input test</string>
+    <string name="overlay_position_message_placeholder">Message</string>
     <string name="overlay_position_nudge_label">Fine position (1dp)</string>
     <string name="overlay_position_nudge_up">Move up</string>
     <string name="overlay_position_nudge_left">Move left</string>
