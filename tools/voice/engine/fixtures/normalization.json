@@ -35,6 +35,18 @@
       "expected": "Hello there"
     },
     {
+      "name": "clean model output removes message label",
+      "input": "Message: Hello there",
+      "bulletMode": false,
+      "expected": "Hello there"
+    },
+    {
+      "name": "clean model output removes text label",
+      "input": "Text: Hello there",
+      "bulletMode": false,
+      "expected": "Hello there"
+    },
+    {
       "name": "clean model output flattens bullets outside bullet mode",
       "input": "- apple\n- milk\n- avocado",
       "bulletMode": false,

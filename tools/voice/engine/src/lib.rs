@@ -368,8 +368,9 @@ static MULTI_SPACE: Lazy<Regex> = Lazy::new(|| Regex::new(r" {2,}").unwrap());
 static FILLER_TOKEN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?i)^(?:um+|uh+|erm+|emm+|hmm+)$").unwrap());
 static CLEANED_ANCHOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?im)^cleaned\s*:\s*").unwrap());
-static PREFIX_LABEL: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)^(rewritten|rewrite|cleaned|output|result)\s*:\s*").unwrap());
+static PREFIX_LABEL: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^(rewritten|rewrite|cleaned|output|result|message|text)\s*:\s*").unwrap()
+});
 static STANDALONE_I: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bi\b").unwrap());
 static I_CONTRACTION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bi'([a-z]+)\b").unwrap());
 static NUMBER_SEPARATOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"[,\-]").unwrap());

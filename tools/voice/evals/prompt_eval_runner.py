@@ -18,7 +18,7 @@ REPEATED_FILLER_REGEX = re.compile(
     re.IGNORECASE,
 )
 PREFIX_LABEL_REGEX = re.compile(
-    r"^(rewritten|rewrite|cleaned|output|result)\s*:\s*",
+    r"^(rewritten|rewrite|cleaned|output|result|message|text)\s*:\s*",
     re.IGNORECASE,
 )
 CLEANED_ANCHOR_REGEX = re.compile(r"(?im)^cleaned\s*:\s*")
