@@ -462,6 +462,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         var initialX = 0
         var initialY = 0
         var moved = false
+        var repositioningGesture = false
 
         bubble.setOnTouchListener { view, event ->
             val params = overlayParams ?: return@setOnTouchListener false
@@ -473,7 +474,8 @@ class OverlayAccessibilityService : AccessibilityService() {
                     initialX = params.x
                     initialY = params.y
                     moved = false
-                    isBubbleDragging = true
+                    repositioningGesture = positionPreviewActive
+                    isBubbleDragging = repositioningGesture
                     true
                 }
 
@@ -483,6 +485,7 @@ class OverlayAccessibilityService : AccessibilityService() {
                     if (!moved && (kotlin.math.abs(deltaX) > touchSlopPx || kotlin.math.abs(deltaY) > touchSlopPx)) {
                         moved = true
                     }
+                    if (!repositioningGesture) return@setOnTouchListener true
                     val bubbleSizePx = params.width.coerceAtLeast(1)
                     val safePosition = clampBubblePosition(
                         x = initialX + deltaX,
@@ -497,19 +500,23 @@ class OverlayAccessibilityService : AccessibilityService() {
                 }
 
                 MotionEvent.ACTION_UP -> {
+                    val wasRepositioning = repositioningGesture
+                    repositioningGesture = false
                     isBubbleDragging = false
-                    if (moved) {
+                    if (wasRepositioning && moved) {
                         overlayRepository.setBubblePosition(params.x, params.y)
                         captureResizeAnchorFromParams(params)
-                    } else {
+                    } else if (!wasRepositioning && !moved) {
                         onBubbleTapped()
                     }
                     true
                 }
 
                 MotionEvent.ACTION_CANCEL -> {
+                    val wasRepositioning = repositioningGesture
+                    repositioningGesture = false
                     isBubbleDragging = false
-                    if (moved) {
+                    if (wasRepositioning && moved) {
                         overlayRepository.setBubblePosition(params.x, params.y)
                         captureResizeAnchorFromParams(params)
                     }
