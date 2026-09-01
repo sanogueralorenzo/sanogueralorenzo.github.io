@@ -76,6 +76,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     private val activeChunkFutures = mutableListOf<Future<*>>()
 
     private var overlayView: TextView? = null
+    private var statusView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var systemDialogReceiverRegistered = false
     private var imeSettingsObserverRegistered = false
@@ -101,10 +102,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private val appGraph by lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
-        OverlayRepository(
-            context = applicationContext,
-            setupRepository = appGraph.setupRepository
-        )
+        OverlayRepository(context = applicationContext)
     }
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val speechProcessor by lazy(LazyThreadSafetyMode.NONE) {
@@ -177,7 +175,6 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
         val shouldShowByContext = (config.overlayEnabled || positionPreviewActive) &&
-            !overlayRepository.isVoiceImeSelected() &&
             isInputMethodWindowVisible()
         val shouldKeepVisibleForActiveWork = recorder != null || inFlight != null
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
@@ -347,6 +344,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         params.y = safePosition.second
         wm.updateViewLayout(view, params)
         captureResizeAnchorFromParams(params)
+        updateStatusView(currentBubbleVisualState())
     }
 
     private fun applyBubbleSizeDp(sizeDp: Int) {
@@ -379,6 +377,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         params.y = safePosition.second
         wm.updateViewLayout(view, params)
         overlayRepository.setBubblePosition(params.x, params.y)
+        updateStatusView(currentBubbleVisualState())
     }
 
     private fun clampBubblePosition(
@@ -402,9 +401,9 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun hideBubble() {
         isBubbleDragging = false
         clearResizeAnchor()
-        val view = overlayView ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        runCatching { wm.removeView(view) }
+        hideStatusView(wm)
+        overlayView?.let { view -> runCatching { wm.removeView(view) } }
         overlayView = null
         overlayParams = null
     }
@@ -816,7 +815,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             .setOngoing(true)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
@@ -828,12 +827,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun stopForegroundIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     private fun updateBubbleVisual(state: BubbleVisualState) {
@@ -855,6 +849,73 @@ class OverlayAccessibilityService : AccessibilityService() {
         bubble.text = ""
         bubble.gravity = Gravity.CENTER
         bubble.setPadding(0, 0, 0, 0)
+        updateStatusView(state)
+    }
+
+    private fun updateStatusView(state: BubbleVisualState) {
+        if (state == BubbleVisualState.IDLE) {
+            hideStatusView()
+            return
+        }
+        val bubbleParams = overlayParams ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val width = dpToPx(STATUS_WIDTH_DP)
+        val height = dpToPx(STATUS_HEIGHT_DP)
+        val displayWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            wm.currentWindowMetrics.bounds.width()
+        } else {
+            @Suppress("DEPRECATION")
+            Point().also { wm.defaultDisplay.getRealSize(it) }.x
+        }
+        val x = (bubbleParams.x + (bubbleParams.width / 2) - (width / 2))
+            .coerceIn(0, (displayWidth - width).coerceAtLeast(0))
+        val y = (bubbleParams.y - height - dpToPx(STATUS_GAP_DP)).coerceAtLeast(0)
+        val params = WindowManager.LayoutParams(
+            width,
+            height,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            this.x = x
+            this.y = y
+        }
+        val text = when (state) {
+            BubbleVisualState.RECORDING -> getString(R.string.overlay_status_listening)
+            BubbleVisualState.PROCESSING -> getString(R.string.overlay_status_processing)
+            BubbleVisualState.IDLE -> ""
+        }
+        val view = statusView ?: TextView(this).apply {
+            gravity = Gravity.CENTER
+            textSize = 14f
+            setTextColor(if (isSystemInDarkTheme()) Color.WHITE else Color.rgb(40, 39, 44))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dpToPx(STATUS_HEIGHT_DP / 2).toFloat()
+                setColor(if (isSystemInDarkTheme()) Color.rgb(52, 50, 56) else Color.rgb(241, 238, 248))
+            }
+            elevation = dpToPx(4).toFloat()
+            setOnClickListener {
+                if (currentBubbleVisualState() == BubbleVisualState.RECORDING) {
+                    onBubbleTapped()
+                }
+            }
+            wm.addView(this, params)
+            statusView = this
+        }
+        view.text = text
+        if (statusView === view && view.isAttachedToWindow) {
+            wm.updateViewLayout(view, params)
+        }
+    }
+
+    private fun hideStatusView(
+        windowManager: WindowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    ) {
+        val view = statusView ?: return
+        runCatching { windowManager.removeView(view) }
+        statusView = null
     }
 
     private fun isSystemInDarkTheme(): Boolean {
@@ -926,5 +987,8 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val CHUNK_WAIT_TOTAL_MS = 7_000L
         private const val CHUNK_WAIT_SLICE_MS = 180L
         private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
+        private const val STATUS_WIDTH_DP = 200
+        private const val STATUS_HEIGHT_DP = 40
+        private const val STATUS_GAP_DP = 8
     }
 }

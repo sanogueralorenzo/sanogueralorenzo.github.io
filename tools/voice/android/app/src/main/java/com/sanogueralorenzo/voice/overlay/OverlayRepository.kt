@@ -13,7 +13,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.sanogueralorenzo.voice.setup.SetupRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,10 +36,7 @@ data class OverlayConfig(
     val bubbleSizeDp: Int
 )
 
-class OverlayRepository(
-    context: Context,
-    private val setupRepository: SetupRepository
-) {
+class OverlayRepository(context: Context) {
     private val appContext = context.applicationContext
     private val dataStore = appContext.overlayDataStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -163,10 +159,6 @@ class OverlayRepository(
         return enabledServices
             .split(':')
             .any { it.equals(serviceId, ignoreCase = true) }
-    }
-
-    fun isVoiceImeSelected(): Boolean {
-        return setupRepository.keyboardStatus().selected
     }
 
     companion object {

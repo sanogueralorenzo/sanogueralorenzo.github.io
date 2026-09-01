@@ -209,12 +209,6 @@ fun OverlayPositionScreen() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
-        } else if (state.voiceImeSelected) {
-            Text(
-                text = stringResource(R.string.overlay_voice_ime_selected_warning),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
         }
     }
 }

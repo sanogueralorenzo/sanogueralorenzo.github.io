@@ -35,6 +35,7 @@ import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
+import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
 import com.sanogueralorenzo.voice.ui.OnLifecycle
@@ -62,18 +63,18 @@ data class SetupStep3ModelsDownloadState(
 class SetupStep3ModelsDownloadViewModel(
     initialState: SetupStep3ModelsDownloadState,
     context: Context,
-    private val setupRepository: SetupRepository
+    private val modelSetupRepository: ModelSetupRepository
 ) : MavericksViewModel<SetupStep3ModelsDownloadState>(initialState) {
     private val appContext = context.applicationContext
     private val downloader = ModelDownloader(appContext)
 
     init {
         setState {
-            copy(connectedToWifi = setupRepository.isConnectedToWifi())
+            copy(connectedToWifi = modelSetupRepository.isConnectedToWifi())
         }
         refreshModelReadiness()
         viewModelScope.launch {
-            setupRepository.wifiConnected.collectLatest { connected ->
+            modelSetupRepository.wifiConnected.collectLatest { connected ->
                 setState {
                     copy(
                         connectedToWifi = connected,
@@ -96,7 +97,7 @@ class SetupStep3ModelsDownloadViewModel(
     fun refreshModelReadiness() {
         viewModelScope.launch {
             val readiness = withContext(Dispatchers.IO) {
-                setupRepository.readModelReadiness()
+                modelSetupRepository.readModelReadiness()
             }
             setState {
                 copy(
@@ -258,7 +259,7 @@ class SetupStep3ModelsDownloadViewModel(
         }
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
-                setupRepository.ensurePromptDownloaded(force = false)
+                modelSetupRepository.ensurePromptDownloaded(force = false)
             }
             val ready = result is PromptTemplateStore.DownloadResult.Success ||
                 result is PromptTemplateStore.DownloadResult.AlreadyAvailable
@@ -441,7 +442,7 @@ class SetupStep3ModelsDownloadViewModel(
             return SetupStep3ModelsDownloadViewModel(
                 initialState = state,
                 context = app.applicationContext,
-                setupRepository = app.appGraph.setupRepository
+                modelSetupRepository = app.appGraph.modelSetupRepository
             )
         }
     }

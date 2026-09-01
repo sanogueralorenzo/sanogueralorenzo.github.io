@@ -8,7 +8,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <application
@@ -38,36 +37,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <service
-            android:name=".ime.VoiceInputMethodService"
-            android:description="@string/ime_description"
-            android:exported="true"
-            android:label="@string/ime_name"
-            android:theme="@style/Theme.Voice.Ime"
-            android:permission="android.permission.BIND_INPUT_METHOD">
-            <intent-filter>
-                <action android:name="android.view.InputMethod" />
-            </intent-filter>
-            <meta-data
-                android:name="android.view.im"
-                android:resource="@xml/voice_ime" />
-        </service>
-
-        <receiver
-            android:name=".benchmark.adb.BenchmarkAdbReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.sanogueralorenzo.voice.DEBUG_BENCHMARK_RUN" />
-            </intent-filter>
-        </receiver>
-
-        <service
-            android:name=".benchmark.adb.BenchmarkAdbService"
-            android:enabled="true"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
 
         <service
             android:name=".overlay.OverlayAccessibilityService"

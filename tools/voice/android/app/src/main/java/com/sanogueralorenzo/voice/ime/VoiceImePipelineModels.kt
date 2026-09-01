@@ -7,6 +7,15 @@ enum class ImeOperation {
     EDIT
 }
 
+enum class TranscriptionPath {
+    STREAMING,
+    ONE_SHOT_FALLBACK,
+    ONE_SHOT_RETRY,
+    EMPTY_AUDIO,
+    EMPTY_AFTER_ALL_PATHS,
+    FAILED
+}
+
 internal data class ImePipelineRequest(
     val recorder: VoiceAudioRecorder,
     val sourceTextSnapshot: String,

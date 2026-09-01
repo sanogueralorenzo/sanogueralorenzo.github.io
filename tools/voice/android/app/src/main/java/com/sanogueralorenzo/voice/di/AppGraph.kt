@@ -4,10 +4,8 @@ import android.app.Application
 import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
-import com.sanogueralorenzo.voice.models.ModelUpdateChecker
+import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.theme.ThemeRepository
-import com.sanogueralorenzo.voice.setup.SetupRepository
 import com.sanogueralorenzo.voice.summary.SummaryEngine
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
@@ -18,12 +16,10 @@ import dev.zacsweers.metro.SingleIn
 @DependencyGraph(AppScope::class)
 interface AppGraph {
     val preferencesRepository: PreferencesRepository
-    val themeRepository: ThemeRepository
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
-    val modelUpdateChecker: ModelUpdateChecker
     val summaryEngine: SummaryEngine
     val connectivityRepository: ConnectivityRepository
-    val setupRepository: SetupRepository
+    val modelSetupRepository: ModelSetupRepository
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
@@ -40,10 +36,10 @@ interface AppGraph {
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)
 
     @Provides
-    fun provideSetupRepository(
+    fun provideModelSetupRepository(
         context: Context,
         connectivityRepository: ConnectivityRepository
-    ): SetupRepository = SetupRepository(
+    ): ModelSetupRepository = ModelSetupRepository(
         context = context,
         connectivityRepository = connectivityRepository
     )

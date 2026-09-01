@@ -8,8 +8,7 @@ import com.sanogueralorenzo.voice.VoiceApp
 
 data class OverlayPositionState(
     val bubbleSizeDp: Int = 32,
-    val accessibilityServiceEnabled: Boolean = false,
-    val voiceImeSelected: Boolean = false
+    val accessibilityServiceEnabled: Boolean = false
 ) : MavericksState
 
 class OverlayPositionViewModel(
@@ -22,8 +21,7 @@ class OverlayPositionViewModel(
         setState {
             copy(
                 bubbleSizeDp = config.bubbleSizeDp,
-                accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled(),
-                voiceImeSelected = repository.isVoiceImeSelected()
+                accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
             )
         }
     }
@@ -44,16 +42,11 @@ class OverlayPositionViewModel(
 
     companion object : MavericksViewModelFactory<OverlayPositionViewModel, OverlayPositionState> {
         override fun initialState(viewModelContext: ViewModelContext): OverlayPositionState {
-            val appGraph = viewModelContext.app<VoiceApp>().appGraph
-            val repository = OverlayRepository(
-                context = viewModelContext.app<VoiceApp>(),
-                setupRepository = appGraph.setupRepository
-            )
+            val repository = OverlayRepository(context = viewModelContext.app<VoiceApp>())
             val config = repository.currentConfig()
             return OverlayPositionState(
                 bubbleSizeDp = config.bubbleSizeDp,
-                accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled(),
-                voiceImeSelected = repository.isVoiceImeSelected()
+                accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
             )
         }
 
@@ -61,11 +54,7 @@ class OverlayPositionViewModel(
             viewModelContext: ViewModelContext,
             state: OverlayPositionState
         ): OverlayPositionViewModel {
-            val appGraph = viewModelContext.app<VoiceApp>().appGraph
-            val repository = OverlayRepository(
-                context = viewModelContext.app<VoiceApp>(),
-                setupRepository = appGraph.setupRepository
-            )
+            val repository = OverlayRepository(context = viewModelContext.app<VoiceApp>())
             return OverlayPositionViewModel(
                 initialState = state,
                 repository = repository
