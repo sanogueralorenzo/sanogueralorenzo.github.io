@@ -11,7 +11,7 @@
     <string name="product_step_setup_title">Complete setup</string>
     <string name="product_step_setup_body">Allow the microphone, enable keyboard integration, and download the local models below.</string>
     <string name="product_step_position_title">Position the mic</string>
-    <string name="product_step_position_body">Place Voice over your keyboard’s microphone.</string>
+    <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap to record</string>
     <string name="product_step_record_body">Open a text field, tap the mic, and speak.</string>
     <string name="product_step_stop_title">Tap to stop</string>
