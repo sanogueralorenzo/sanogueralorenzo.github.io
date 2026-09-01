@@ -6,16 +6,13 @@ import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
@@ -32,24 +28,17 @@ import androidx.compose.material.icons.outlined.OpenWith
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +55,7 @@ import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun VoiceHomeScreen(
+    onOpenLocalModels: () -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
     val context = LocalContext.current
@@ -79,7 +69,7 @@ fun VoiceHomeScreen(
 
     VoiceHomeContent(
         state = state,
-        onDownloadModels = viewModel::downloadLocalModels,
+        onOpenLocalModels = onOpenLocalModels,
         onGrantMicrophone = {
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         },
@@ -94,8 +84,6 @@ fun VoiceHomeScreen(
                 context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
             }
         },
-        onSelectPrimaryLanguage = viewModel::selectPrimaryLanguage,
-        onSelectSecondaryLanguage = viewModel::selectSecondaryLanguage,
         onOpenMicPosition = onOpenMicPosition
     )
 }
@@ -103,16 +91,12 @@ fun VoiceHomeScreen(
 @Composable
 private fun VoiceHomeContent(
     state: VoiceHomeState,
-    onDownloadModels: () -> Unit,
+    onOpenLocalModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenVoiceKeyboard: () -> Unit,
-    onSelectPrimaryLanguage: (DictationLanguage) -> Unit,
-    onSelectSecondaryLanguage: (DictationLanguage) -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
-    var selectedLanguageSlot by remember { mutableStateOf<LanguageSlot?>(null) }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -123,18 +107,10 @@ private fun VoiceHomeContent(
         item {
             StatusSection(
                 state = state,
-                onDownloadModels = onDownloadModels,
+                onOpenLocalModels = onOpenLocalModels,
                 onGrantMicrophone = onGrantMicrophone,
                 onOpenVoiceService = onOpenVoiceService,
                 onOpenVoiceKeyboard = onOpenVoiceKeyboard
-            )
-        }
-        item {
-            LanguagesSection(
-                primary = state.primaryLanguage,
-                secondary = state.secondaryLanguage,
-                onPrimaryClick = { selectedLanguageSlot = LanguageSlot.PRIMARY },
-                onSecondaryClick = { selectedLanguageSlot = LanguageSlot.SECONDARY }
             )
         }
         item {
@@ -146,23 +122,6 @@ private fun VoiceHomeContent(
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }
 
-    selectedLanguageSlot?.let { slot ->
-        LanguagePickerDialog(
-            slot = slot,
-            selected = when (slot) {
-                LanguageSlot.PRIMARY -> state.primaryLanguage
-                LanguageSlot.SECONDARY -> state.secondaryLanguage
-            },
-            onSelect = { language ->
-                when (slot) {
-                    LanguageSlot.PRIMARY -> onSelectPrimaryLanguage(language)
-                    LanguageSlot.SECONDARY -> onSelectSecondaryLanguage(language)
-                }
-                selectedLanguageSlot = null
-            },
-            onDismiss = { selectedLanguageSlot = null }
-        )
-    }
 }
 
 @Composable
@@ -308,7 +267,7 @@ private fun ProductStepHeader(
 @Composable
 private fun StatusSection(
     state: VoiceHomeState,
-    onDownloadModels: () -> Unit,
+    onOpenLocalModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenVoiceKeyboard: () -> Unit
@@ -331,14 +290,10 @@ private fun StatusSection(
         )
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         LocalModelsStatusRow(
-            title = stringResource(R.string.product_status_models),
             ready = state.modelsReady,
             loading = state.loading,
-            downloading = state.modelsDownloading,
-            progress = state.modelsDownloadProgress,
-            error = state.modelsDownloadError,
-            actionLabel = stringResource(R.string.product_action_download),
-            onAction = onDownloadModels
+            enabledLanguages = state.enabledLanguages,
+            onClick = onOpenLocalModels
         )
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
@@ -357,203 +312,66 @@ private fun StatusSection(
     }
 }
 
-private enum class LanguageSlot {
-    PRIMARY,
-    SECONDARY
-}
-
 @Composable
-private fun LanguagesSection(
-    primary: DictationLanguage,
-    secondary: DictationLanguage,
-    onPrimaryClick: () -> Unit,
-    onSecondaryClick: () -> Unit
-) {
-    Section(title = stringResource(R.string.product_languages)) {
-        LanguageRow(
-            title = stringResource(R.string.product_language_primary),
-            language = primary,
-            onClick = onPrimaryClick
-        )
-        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
-        LanguageRow(
-            title = stringResource(R.string.product_language_secondary),
-            language = secondary,
-            onClick = onSecondaryClick
-        )
-    }
-}
-
-@Composable
-private fun LanguageRow(
-    title: String,
-    language: DictationLanguage,
+private fun LocalModelsStatusRow(
+    ready: Boolean,
+    loading: Boolean,
+    enabledLanguages: List<DictationLanguage>,
     onClick: () -> Unit
 ) {
+    val englishName = stringResource(R.string.models_english_name)
+    val spanishName = stringResource(R.string.models_spanish_name)
+    val enabledSummary = enabledLanguages.joinToString(" + ") { language ->
+        when (language) {
+            DictationLanguage.ENGLISH -> englishName
+            DictationLanguage.SPANISH -> spanishName
+        }
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val statusColor = if (ready) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            MaterialTheme.colorScheme.error
+        }
+        Icon(
+            imageVector = if (ready) Icons.Rounded.Check else Icons.Outlined.ErrorOutline,
+            contentDescription = null,
+            tint = if (loading) MaterialTheme.colorScheme.outline else statusColor,
+            modifier = Modifier.size(24.dp)
+        )
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = languageLabel(language),
+                text = stringResource(R.string.product_status_models),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = if (!ready && !loading) {
+                    stringResource(R.string.models_download_required)
+                } else {
+                    enabledSummary
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun LanguagePickerDialog(
-    slot: LanguageSlot,
-    selected: DictationLanguage,
-    onSelect: (DictationLanguage) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = stringResource(
-                    if (slot == LanguageSlot.PRIMARY) {
-                        R.string.product_select_primary_language
-                    } else {
-                        R.string.product_select_secondary_language
-                    }
-                )
-            )
-        },
-        text = {
-            Column {
-                DictationLanguage.entries.forEach { language ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(language) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = language == selected,
-                            onClick = null
-                        )
-                        Text(
-                            text = languageLabel(language),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
-                }
+        if (!ready && !loading) {
+            Button(onClick = onClick) {
+                Text(text = stringResource(R.string.product_action_download))
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.product_action_cancel))
-            }
-        }
-    )
-}
-
-@Composable
-private fun languageLabel(language: DictationLanguage): String {
-    return stringResource(
-        when (language) {
-            DictationLanguage.ENGLISH -> R.string.product_language_english
-            DictationLanguage.SPANISH -> R.string.product_language_spanish
-        }
-    )
-}
-
-@Composable
-private fun LocalModelsStatusRow(
-    title: String,
-    ready: Boolean,
-    loading: Boolean,
-    downloading: Boolean,
-    progress: Int,
-    error: String?,
-    actionLabel: String,
-    onAction: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val statusColor = if (ready) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.error
-            }
+        } else {
             Icon(
-                imageVector = if (ready) Icons.Rounded.Check else Icons.Outlined.ErrorOutline,
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = if (loading || downloading) MaterialTheme.colorScheme.outline else statusColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
-            when {
-                downloading -> InlineDownloadProgress(progress = progress)
-                !ready && !loading -> Button(onClick = onAction) {
-                    Text(text = actionLabel)
-                }
-            }
-        }
-        if (!error.isNullOrBlank()) {
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(start = 36.dp)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
-}
-
-@Composable
-private fun InlineDownloadProgress(progress: Int) {
-    val safeProgress = progress.coerceIn(0, 100)
-    val progressFraction = safeProgress / 100f
-    Box(
-        modifier = Modifier
-            .width(112.dp)
-            .height(36.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .progressSemantics(progressFraction)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(progressFraction)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-        )
-        Text(
-            text = "$safeProgress%",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.align(Alignment.Center)
-        )
     }
 }
 

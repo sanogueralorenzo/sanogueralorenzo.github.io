@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.models
 
+import com.sanogueralorenzo.voice.audio.DictationLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,11 +28,14 @@ class ModelCatalogTest {
     }
 
     @Test
-    fun localModelDownloadIncludesEnglishAndSpanish() {
+    fun modelSpecsAreResolvedByDictationLanguage() {
         assertEquals(
-            ModelCatalog.moonshineMediumStreamingSpecs +
-                ModelCatalog.moonshineSmallStreamingSpanishSpecs,
-            ModelCatalog.moonshineStreamingSpecs
+            ModelCatalog.moonshineMediumStreamingSpecs,
+            ModelCatalog.moonshineStreamingSpecsFor(DictationLanguage.ENGLISH)
+        )
+        assertEquals(
+            ModelCatalog.moonshineSmallStreamingSpanishSpecs,
+            ModelCatalog.moonshineStreamingSpecsFor(DictationLanguage.SPANISH)
         )
     }
 }

@@ -1,5 +1,7 @@
 package com.sanogueralorenzo.voice.models
 
+import com.sanogueralorenzo.voice.audio.DictationLanguage
+
 data class ModelSpec(
     val id: String,
     val fileName: String,
@@ -141,6 +143,10 @@ object ModelCatalog {
         )
     )
 
-    val moonshineStreamingSpecs =
-        moonshineMediumStreamingSpecs + moonshineSmallStreamingSpanishSpecs
+    fun moonshineStreamingSpecsFor(language: DictationLanguage): List<ModelSpec> {
+        return when (language) {
+            DictationLanguage.ENGLISH -> moonshineMediumStreamingSpecs
+            DictationLanguage.SPANISH -> moonshineSmallStreamingSpanishSpecs
+        }
+    }
 }

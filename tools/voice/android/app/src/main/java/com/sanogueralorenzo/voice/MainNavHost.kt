@@ -20,11 +20,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.overlay.OverlayPositionScreen
+import com.sanogueralorenzo.voice.product.LocalModelsScreen
 import com.sanogueralorenzo.voice.product.VoiceHomeScreen
 
 private object VoiceRoute {
     const val HOME = "voice_home"
     const val MIC_POSITION = "voice_mic_position"
+    const val LOCAL_MODELS = "voice_local_models"
 }
 
 @Composable
@@ -41,7 +43,13 @@ fun MainNavHost() {
                 TopAppBar(
                     title = {
                         Text(
-                            text = stringResource(R.string.product_mic_position_title)
+                            text = stringResource(
+                                if (route == VoiceRoute.LOCAL_MODELS) {
+                                    R.string.models_title
+                                } else {
+                                    R.string.product_mic_position_title
+                                }
+                            )
                         )
                     },
                     navigationIcon = {
@@ -53,8 +61,10 @@ fun MainNavHost() {
                         }
                     },
                     actions = {
-                        TextButton(onClick = { navController.popBackStack() }) {
-                            Text(text = stringResource(R.string.main_done))
+                        if (route == VoiceRoute.MIC_POSITION) {
+                            TextButton(onClick = { navController.popBackStack() }) {
+                                Text(text = stringResource(R.string.main_done))
+                            }
                         }
                     }
                 )
@@ -70,8 +80,12 @@ fun MainNavHost() {
         ) {
             composable(VoiceRoute.HOME) {
                 VoiceHomeScreen(
+                    onOpenLocalModels = { navController.navigate(VoiceRoute.LOCAL_MODELS) },
                     onOpenMicPosition = { navController.navigate(VoiceRoute.MIC_POSITION) }
                 )
+            }
+            composable(VoiceRoute.LOCAL_MODELS) {
+                LocalModelsScreen()
             }
             composable(VoiceRoute.MIC_POSITION) {
                 OverlayPositionScreen()

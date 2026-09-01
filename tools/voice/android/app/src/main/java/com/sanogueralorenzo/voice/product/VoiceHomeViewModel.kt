@@ -5,7 +5,6 @@ import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
-import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
@@ -19,15 +18,11 @@ import kotlinx.coroutines.withContext
 data class VoiceHomeState(
     val loading: Boolean = true,
     val modelsReady: Boolean = false,
-    val modelsDownloading: Boolean = false,
-    val modelsDownloadProgress: Int = 0,
-    val modelsDownloadError: String? = null,
+    val enabledLanguages: List<DictationLanguage> = listOf(DictationLanguage.ENGLISH),
     val microphoneAllowed: Boolean = false,
     val voiceServiceEnabled: Boolean = false,
     val voiceKeyboardEnabled: Boolean = false,
-    val voiceKeyboardSelected: Boolean = false,
-    val primaryLanguage: DictationLanguage = DictationLanguage.ENGLISH,
-    val secondaryLanguage: DictationLanguage = DictationLanguage.SPANISH
+    val voiceKeyboardSelected: Boolean = false
 ) : MavericksState {
     val ready: Boolean
         get() = modelsReady && microphoneAllowed && voiceServiceEnabled
@@ -38,7 +33,6 @@ class VoiceHomeViewModel(
     private val overlayRepository: OverlayRepository,
     private val readModelsReady: () -> Boolean,
     private val readKeyboardStatus: () -> VoiceKeyboardStatus,
-    private val localModelsDownloader: LocalModelsDownloader,
     private val languagePreferences: DictationLanguagePreferences
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
 
@@ -62,69 +56,12 @@ class VoiceHomeViewModel(
                 copy(
                     loading = false,
                     modelsReady = modelsReady,
+                    enabledLanguages = languages.ordered,
                     microphoneAllowed = microphoneAllowed,
                     voiceServiceEnabled = voiceServiceEnabled,
                     voiceKeyboardEnabled = keyboardStatus.enabled,
-                    voiceKeyboardSelected = keyboardStatus.selected,
-                    primaryLanguage = languages.primary,
-                    secondaryLanguage = languages.secondary
+                    voiceKeyboardSelected = keyboardStatus.selected
                 )
-            }
-        }
-    }
-
-    fun selectPrimaryLanguage(language: DictationLanguage) {
-        val languages = languagePreferences.setPrimary(language)
-        setState {
-            copy(
-                primaryLanguage = languages.primary,
-                secondaryLanguage = languages.secondary
-            )
-        }
-    }
-
-    fun selectSecondaryLanguage(language: DictationLanguage) {
-        val languages = languagePreferences.setSecondary(language)
-        setState {
-            copy(
-                primaryLanguage = languages.primary,
-                secondaryLanguage = languages.secondary
-            )
-        }
-    }
-
-    fun downloadLocalModels() {
-        val canStart = withState(this) { state ->
-            !state.loading && !state.modelsReady && !state.modelsDownloading
-        }
-        if (!canStart) return
-
-        setState {
-            copy(
-                modelsDownloading = true,
-                modelsDownloadProgress = 0,
-                modelsDownloadError = null
-            )
-        }
-        viewModelScope.launch {
-            when (val result = localModelsDownloader.download { progress ->
-                setState { copy(modelsDownloadProgress = progress) }
-            }) {
-                LocalModelsDownloadResult.Success -> setState {
-                    copy(
-                        modelsReady = true,
-                        modelsDownloading = false,
-                        modelsDownloadProgress = 100,
-                        modelsDownloadError = null
-                    )
-                }
-
-                is LocalModelsDownloadResult.Failure -> setState {
-                    copy(
-                        modelsDownloading = false,
-                        modelsDownloadError = result.message
-                    )
-                }
             }
         }
     }
@@ -145,10 +82,7 @@ class VoiceHomeViewModel(
                 readKeyboardStatus = {
                     VoiceKeyboardStatusReader.read(app)
                 },
-                localModelsDownloader = LocalModelsDownloader(
-                    context = app
-                ),
-                languagePreferences = DictationLanguagePreferences(app)
+                languagePreferences = app.appGraph.languagePreferences
             )
         }
     }

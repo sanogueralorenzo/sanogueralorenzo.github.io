@@ -4,30 +4,36 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class DictationLanguagesTest {
-    private val defaults = DictationLanguages(
-        primary = DictationLanguage.ENGLISH,
-        secondary = DictationLanguage.SPANISH
-    )
-
     @Test
-    fun selectingCurrentSecondaryAsPrimarySwapsLanguages() {
+    fun enablingSecondLanguageAddsItAsLongPress() {
+        val languages = DictationLanguages(listOf(DictationLanguage.ENGLISH))
+            .withEnabled(DictationLanguage.SPANISH, enabled = true)
+
         assertEquals(
-            DictationLanguages(
-                primary = DictationLanguage.SPANISH,
-                secondary = DictationLanguage.ENGLISH
-            ),
-            defaults.withPrimary(DictationLanguage.SPANISH)
+            listOf(DictationLanguage.ENGLISH, DictationLanguage.SPANISH),
+            languages.ordered
         )
+        assertEquals(DictationLanguage.SPANISH, languages.secondaryOrPrimary)
     }
 
     @Test
-    fun selectingCurrentPrimaryAsSecondarySwapsLanguages() {
+    fun disablingLastLanguageIsIgnored() {
+        val languages = DictationLanguages(listOf(DictationLanguage.ENGLISH))
+            .withEnabled(DictationLanguage.ENGLISH, enabled = false)
+
+        assertEquals(listOf(DictationLanguage.ENGLISH), languages.ordered)
+        assertEquals(DictationLanguage.ENGLISH, languages.secondaryOrPrimary)
+    }
+
+    @Test
+    fun movingSecondLanguageEarlierMakesItPrimary() {
+        val languages = DictationLanguages(
+            listOf(DictationLanguage.ENGLISH, DictationLanguage.SPANISH)
+        ).move(DictationLanguage.SPANISH, offset = -1)
+
         assertEquals(
-            DictationLanguages(
-                primary = DictationLanguage.SPANISH,
-                secondary = DictationLanguage.ENGLISH
-            ),
-            defaults.withSecondary(DictationLanguage.ENGLISH)
+            listOf(DictationLanguage.SPANISH, DictationLanguage.ENGLISH),
+            languages.ordered
         )
     }
 }

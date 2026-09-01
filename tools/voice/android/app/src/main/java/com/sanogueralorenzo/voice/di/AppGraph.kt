@@ -2,6 +2,7 @@ package com.sanogueralorenzo.voice.di
 
 import android.app.Application
 import android.content.Context
+import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import dev.zacsweers.metro.AppScope
@@ -13,6 +14,7 @@ import dev.zacsweers.metro.SingleIn
 @DependencyGraph(AppScope::class)
 interface AppGraph {
     val connectivityRepository: ConnectivityRepository
+    val languagePreferences: DictationLanguagePreferences
     val modelSetupRepository: ModelSetupRepository
 
     @Provides
@@ -22,12 +24,18 @@ interface AppGraph {
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)
 
     @Provides
+    fun provideLanguagePreferences(context: Context): DictationLanguagePreferences =
+        DictationLanguagePreferences(context)
+
+    @Provides
     fun provideModelSetupRepository(
         context: Context,
-        connectivityRepository: ConnectivityRepository
+        connectivityRepository: ConnectivityRepository,
+        languagePreferences: DictationLanguagePreferences
     ): ModelSetupRepository = ModelSetupRepository(
         context = context,
-        connectivityRepository = connectivityRepository
+        connectivityRepository = connectivityRepository,
+        languagePreferences = languagePreferences
     )
 
     @DependencyGraph.Factory

@@ -2,6 +2,7 @@ package com.sanogueralorenzo.voice.product
 
 import android.content.Context
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
@@ -17,26 +18,42 @@ sealed interface LocalModelsDownloadResult {
     data class Failure(val message: String) : LocalModelsDownloadResult
 }
 
-/** Owns the complete local-model download so product UI only starts it and observes progress. */
+/** Owns download, readiness, and removal for one language model. */
 class LocalModelsDownloader(
     context: Context
 ) {
     private val appContext = context.applicationContext
 
-    suspend fun download(onProgress: (Int) -> Unit): LocalModelsDownloadResult {
+    fun isReady(language: DictationLanguage): Boolean {
+        return ModelCatalog.moonshineStreamingSpecsFor(language).all { spec ->
+            ModelStore.isModelReadyStrict(appContext, spec)
+        }
+    }
+
+    suspend fun download(
+        language: DictationLanguage,
+        onProgress: (Int) -> Unit
+    ): LocalModelsDownloadResult {
         val downloader = ModelDownloader(appContext)
         return try {
-            downloadLocalAssets(downloader, onProgress)
+            downloadLocalAssets(language, downloader, onProgress)
         } finally {
             downloader.shutdown()
         }
     }
 
+    fun remove(language: DictationLanguage) {
+        ModelCatalog.moonshineStreamingSpecsFor(language).forEach { spec ->
+            ModelStore.removeModel(appContext, spec)
+        }
+    }
+
     private suspend fun downloadLocalAssets(
+        language: DictationLanguage,
         downloader: ModelDownloader,
         onProgress: (Int) -> Unit
     ): LocalModelsDownloadResult {
-        val modelSpecs = ModelCatalog.moonshineStreamingSpecs
+        val modelSpecs = ModelCatalog.moonshineStreamingSpecsFor(language)
         val readyModels = withContext(Dispatchers.IO) {
             modelSpecs.associateWith { spec ->
                 ModelStore.isModelReadyStrict(appContext, spec)

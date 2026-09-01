@@ -120,10 +120,8 @@ class MoonshineMicTranscriber(context: Context) {
         return modelFiles.firstOrNull()?.parentFile
     }
 
-    private fun modelSpecs(language: DictationLanguage) = when (language) {
-        DictationLanguage.ENGLISH -> ModelCatalog.moonshineMediumStreamingSpecs
-        DictationLanguage.SPANISH -> ModelCatalog.moonshineSmallStreamingSpanishSpecs
-    }
+    private fun modelSpecs(language: DictationLanguage) =
+        ModelCatalog.moonshineStreamingSpecsFor(language)
 
     private fun modelConfiguration(language: DictationLanguage) = when (language) {
         DictationLanguage.ENGLISH -> ModelConfiguration(

@@ -105,7 +105,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                         state = keyboardState,
                         isDarkTheme = darkTheme,
                         onIdleTap = { startRecording(languagePreferences.primary()) },
-                        onIdleLongPress = { startRecording(languagePreferences.secondary()) },
+                        onIdleLongPress = { startRecording(languagePreferences.secondaryOrPrimary()) },
                         onDiscardTap = ::discardRecording,
                         onSendTap = ::stopRecording
                     )

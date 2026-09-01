@@ -429,7 +429,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             setOnClickListener { onBubbleTapped() }
             setOnLongClickListener {
                 if (recordingSession == null) {
-                    startRecording(languagePreferences.secondary())
+                    startRecording(languagePreferences.secondaryOrPrimary())
                     true
                 } else {
                     false
