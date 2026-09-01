@@ -36,15 +36,11 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.asr.MoonshineSpeechProcessor
 import com.sanogueralorenzo.voice.audio.MoonshineTranscriber
 import com.sanogueralorenzo.voice.audio.VoiceAudioRecorder
-import com.sanogueralorenzo.voice.di.appGraph
-import com.sanogueralorenzo.voice.ime.ImeOperation
-import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorEntryPoint
-import com.sanogueralorenzo.voice.ime.ImeSpeechProcessorRequest
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.engine.VoiceEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -101,15 +97,13 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private val appGraph by lazy(LazyThreadSafetyMode.NONE) { applicationContext.appGraph() }
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
         OverlayRepository(context = applicationContext)
     }
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) { MoonshineTranscriber(this) }
     private val speechProcessor by lazy(LazyThreadSafetyMode.NONE) {
-        ImeSpeechProcessorEntryPoint.create(
-            moonshineTranscriber = moonshineTranscriber,
-            asrRuntimeStatusStore = appGraph.asrRuntimeStatusStore,
+        MoonshineSpeechProcessor(
+            transcriber = moonshineTranscriber,
             logTag = TAG
         )
     }
@@ -590,15 +584,12 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun processRecording(activeRecorder: VoiceAudioRecorder, chunkSessionId: Int) {
         val sourceText = readFocusedInputText()
-        val result = try {
-            speechProcessor.process(
-                request = ImeSpeechProcessorRequest(
-                    recorder = activeRecorder,
-                    sourceTextSnapshot = sourceText,
-                    chunkSessionId = chunkSessionId
-                ),
+        val transcript = try {
+            speechProcessor.transcribe(
+                recorder = activeRecorder,
+                chunkSessionId = chunkSessionId,
                 awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
-                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) }
+                finalizeStreamingTranscript = { finalizeMoonshineTranscript(it) }
             )
         } catch (_: Throwable) {
             cancelPendingChunkWork(chunkSessionId)
@@ -607,9 +598,9 @@ class OverlayAccessibilityService : AccessibilityService() {
             endChunkSession(chunkSessionId, cancelPending = false)
         }
 
-        if (result != null) {
-            val committed = commitResult(result)
-            if (!committed && result.output.isNotBlank()) {
+        if (!transcript.isNullOrBlank()) {
+            val output = appendTranscript(sourceText, transcript)
+            if (!replaceFocusedInputText(output)) {
                 showToast(getString(R.string.overlay_commit_failed))
             }
         }
@@ -621,20 +612,10 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun commitResult(result: com.sanogueralorenzo.voice.ime.ImeSpeechProcessorResult): Boolean {
-        val shouldPreserveBlankEdit =
-            result.operation == ImeOperation.EDIT &&
-                result.output.isBlank() &&
-                result.editIntent != VoiceEngine.EditIntent.DELETE_ALL.name
-
-        if (result.output.isBlank() && result.operation == ImeOperation.APPEND) {
-            return false
-        }
-        if (result.output.isBlank() && shouldPreserveBlankEdit) {
-            return true
-        }
-
-        return replaceFocusedInputText(result.output)
+    private fun appendTranscript(sourceText: String, transcript: String): String {
+        val source = sourceText.trimEnd()
+        val spokenText = transcript.trim()
+        return if (source.isBlank()) spokenText else "$source $spokenText"
     }
 
     private fun readFocusedInputText(): String {

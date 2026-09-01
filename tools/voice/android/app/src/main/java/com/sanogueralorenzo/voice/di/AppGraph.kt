@@ -2,7 +2,6 @@ package com.sanogueralorenzo.voice.di
 
 import android.app.Application
 import android.content.Context
-import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import dev.zacsweers.metro.AppScope
@@ -13,7 +12,6 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @DependencyGraph(AppScope::class)
 interface AppGraph {
-    val asrRuntimeStatusStore: AsrRuntimeStatusStore
     val connectivityRepository: ConnectivityRepository
     val modelSetupRepository: ModelSetupRepository
 

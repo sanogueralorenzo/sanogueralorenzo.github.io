@@ -4,15 +4,8 @@ plugins {
     alias(libs.plugins.metro)
 }
 
-val voiceEngineDir = rootProject.file("../engine")
-val voiceCargoRunner = voiceEngineDir.resolve("scripts/run-cargo.sh")
-val voiceNdkVersion = providers.gradleProperty("voice.ndkVersion").get()
-val generatedRustJniLibsDir = layout.buildDirectory.dir("generated/rustJniLibs")
-val generatedRustJniLibsFile = layout.buildDirectory.asFile.get().resolve("generated/rustJniLibs")
-
 android {
     namespace = "com.sanogueralorenzo.voice"
-    ndkVersion = voiceNdkVersion
     compileSdk {
         version = release(37)
     }
@@ -45,52 +38,6 @@ android {
         compose = true
         buildConfig = true
     }
-    sourceSets {
-        named("main") {
-            jniLibs.directories.clear()
-            jniLibs.directories.add(generatedRustJniLibsFile.absolutePath)
-        }
-    }
-}
-
-val buildVoiceEngineHost = tasks.register<Exec>("buildVoiceEngineHost") {
-    workingDir = voiceEngineDir
-    commandLine(voiceCargoRunner.absolutePath, "build")
-    inputs.dir(voiceEngineDir.resolve("src"))
-    inputs.file(voiceEngineDir.resolve("Cargo.toml"))
-    inputs.file(voiceEngineDir.resolve("Cargo.lock"))
-    inputs.file(voiceEngineDir.resolve("rust-toolchain.toml"))
-    inputs.file(voiceCargoRunner)
-    doNotTrackState("Cargo owns its incremental target directory.")
-}
-
-val buildVoiceEngineAndroid = tasks.register<Exec>("buildVoiceEngineAndroid") {
-    workingDir = voiceEngineDir
-    commandLine(
-        voiceEngineDir.resolve("scripts/build-android.sh").absolutePath,
-        generatedRustJniLibsDir.get().asFile.absolutePath,
-        voiceNdkVersion
-    )
-    inputs.dir(voiceEngineDir.resolve("src"))
-    inputs.file(voiceEngineDir.resolve("Cargo.toml"))
-    inputs.file(voiceEngineDir.resolve("Cargo.lock"))
-    inputs.file(voiceEngineDir.resolve("rust-toolchain.toml"))
-    inputs.file(voiceCargoRunner)
-    inputs.file(voiceEngineDir.resolve("scripts/build-android.sh"))
-    outputs.dir(generatedRustJniLibsDir)
-}
-
-tasks.withType<Test>().configureEach {
-    dependsOn(buildVoiceEngineHost)
-    systemProperty("java.library.path", voiceEngineDir.resolve("target/debug").absolutePath)
-    systemProperty("voice.engine.fixtures.dir", voiceEngineDir.resolve("fixtures").absolutePath)
-    inputs.dir(voiceEngineDir.resolve("fixtures"))
-}
-
-tasks.matching { task ->
-    task.name.startsWith("merge") && task.name.endsWith("JniLibFolders")
-}.configureEach {
-    dependsOn(buildVoiceEngineAndroid)
 }
 
 dependencies {
@@ -112,7 +59,6 @@ dependencies {
     implementation(libs.mavericks.compose)
     implementation(libs.moonshine.voice)
     testImplementation(libs.junit)
-    testImplementation("org.json:json:20260719")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
