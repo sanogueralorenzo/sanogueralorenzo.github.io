@@ -258,6 +258,18 @@ class OverlayAccessibilityService : AccessibilityService() {
         updateBubbleVisual()
     }
 
+    private fun onPositionKeyboardHiding() {
+        if (!positionPreviewActive) return
+        cancelPositionPreviewReveal()
+        fadeOutPositionPreview()
+    }
+
+    private fun onPositionKeyboardShowing() {
+        if (!positionPreviewActive) return
+        cancelPositionPreviewFadeOut()
+        schedulePositionPreviewReveal()
+    }
+
     private fun isInputMethodWindowVisible(): Boolean {
         return windows.any { window ->
             window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
@@ -930,6 +942,18 @@ class OverlayAccessibilityService : AccessibilityService() {
             positionPreviewActive = active
             runningService?.mainHandler?.post {
                 runningService?.updatePositionPreview(active)
+            }
+        }
+
+        fun notifyPositionKeyboardHiding() {
+            runningService?.mainHandler?.post {
+                runningService?.onPositionKeyboardHiding()
+            }
+        }
+
+        fun notifyPositionKeyboardShowing() {
+            runningService?.mainHandler?.post {
+                runningService?.onPositionKeyboardShowing()
             }
         }
 

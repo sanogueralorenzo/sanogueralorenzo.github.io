@@ -3,8 +3,10 @@ package com.sanogueralorenzo.voice.overlay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,7 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -52,6 +57,8 @@ fun OverlayPositionScreen() {
     var numberInput by rememberSaveable { mutableStateOf("") }
     val inputFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    TrackKeyboardAnimation()
 
     LaunchedEffect(Unit) {
         inputFocusRequester.requestFocus()
@@ -108,6 +115,28 @@ fun OverlayPositionScreen() {
                 .padding(top = 12.dp, bottom = 16.dp),
             singleLine = true
         )
+    }
+}
+
+@Composable
+private fun TrackKeyboardAnimation() {
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    var previousImeBottom by remember { mutableIntStateOf(imeBottom) }
+    var animationDirection by remember { mutableIntStateOf(0) }
+
+    SideEffect {
+        when {
+            imeBottom < previousImeBottom && animationDirection != -1 -> {
+                animationDirection = -1
+                OverlayAccessibilityService.notifyPositionKeyboardHiding()
+            }
+            imeBottom > previousImeBottom && animationDirection != 1 -> {
+                animationDirection = 1
+                OverlayAccessibilityService.notifyPositionKeyboardShowing()
+            }
+        }
+        previousImeBottom = imeBottom
     }
 }
 
