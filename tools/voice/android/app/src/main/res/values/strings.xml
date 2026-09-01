@@ -26,7 +26,7 @@
     <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>
 
     <string name="overlay_position_instructions_body">Drag the dot onto your keyboard’s mic. Use the arrows for precise placement.</string>
-    <string name="overlay_position_mic_indicator_note">The dot disappears when you’re done.</string>
+    <string name="overlay_position_mic_indicator_note">It stays visible here, but disappears when your keyboard closes.</string>
     <string name="overlay_position_size_label">Size: %1$ddp</string>
     <string name="overlay_position_size_decrease">Make smaller</string>
     <string name="overlay_position_size_increase">Make larger</string>
