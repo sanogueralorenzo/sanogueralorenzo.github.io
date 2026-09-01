@@ -13,7 +13,7 @@
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap to record</string>
     <string name="product_step_record_body">Open a text field, tap the mic, and speak. Tap again to stop; Voice’s local models do the rest.</string>
-    <string name="product_status">Status</string>
+    <string name="product_status">Setup</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Permissions</string>
     <string name="product_status_service">Keyboard mic</string>
