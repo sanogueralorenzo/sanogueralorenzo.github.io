@@ -5,18 +5,24 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.progressSemantics
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -31,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -45,7 +52,6 @@ import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun VoiceHomeScreen(
-    onOpenModels: () -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
     val context = LocalContext.current
@@ -59,7 +65,7 @@ fun VoiceHomeScreen(
 
     VoiceHomeContent(
         state = state,
-        onOpenModels = onOpenModels,
+        onDownloadModels = viewModel::downloadLocalModels,
         onGrantMicrophone = {
             microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         },
@@ -73,7 +79,7 @@ fun VoiceHomeScreen(
 @Composable
 private fun VoiceHomeContent(
     state: VoiceHomeState,
-    onOpenModels: () -> Unit,
+    onDownloadModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenMicPosition: () -> Unit
@@ -88,7 +94,7 @@ private fun VoiceHomeContent(
         item {
             StatusSection(
                 state = state,
-                onOpenModels = onOpenModels,
+                onDownloadModels = onDownloadModels,
                 onGrantMicrophone = onGrantMicrophone,
                 onOpenVoiceService = onOpenVoiceService
             )
@@ -160,17 +166,20 @@ private fun ProductStep(number: Int, text: String) {
 @Composable
 private fun StatusSection(
     state: VoiceHomeState,
-    onOpenModels: () -> Unit,
+    onDownloadModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit
 ) {
     Section(title = stringResource(R.string.product_status)) {
-        StatusRow(
+        LocalModelsStatusRow(
             title = stringResource(R.string.product_status_models),
             ready = state.modelsReady,
             loading = state.loading,
+            downloading = state.modelsDownloading,
+            progress = state.modelsDownloadProgress,
+            error = state.modelsDownloadError,
             actionLabel = stringResource(R.string.product_action_download),
-            onAction = onOpenModels
+            onAction = onDownloadModels
         )
         HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
         StatusRow(
@@ -187,6 +196,85 @@ private fun StatusSection(
             loading = state.loading,
             actionLabel = stringResource(R.string.product_action_enable),
             onAction = onOpenVoiceService
+        )
+    }
+}
+
+@Composable
+private fun LocalModelsStatusRow(
+    title: String,
+    ready: Boolean,
+    loading: Boolean,
+    downloading: Boolean,
+    progress: Int,
+    error: String?,
+    actionLabel: String,
+    onAction: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val statusColor = if (ready) Color(0xFF16883B) else MaterialTheme.colorScheme.error
+            Icon(
+                imageVector = if (ready) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                contentDescription = null,
+                tint = if (loading || downloading) MaterialTheme.colorScheme.outline else statusColor,
+                modifier = Modifier.size(24.dp)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            when {
+                downloading -> InlineDownloadProgress(progress = progress)
+                !ready && !loading -> Button(onClick = onAction) {
+                    Text(text = actionLabel)
+                }
+            }
+        }
+        if (!error.isNullOrBlank()) {
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 36.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun InlineDownloadProgress(progress: Int) {
+    val safeProgress = progress.coerceIn(0, 100)
+    val progressFraction = safeProgress / 100f
+    Box(
+        modifier = Modifier
+            .width(112.dp)
+            .height(36.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .progressSemantics(progressFraction)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(progressFraction)
+                .background(MaterialTheme.colorScheme.primaryContainer)
+        )
+        Text(
+            text = "$safeProgress%",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.align(Alignment.Center)
         )
     }
 }

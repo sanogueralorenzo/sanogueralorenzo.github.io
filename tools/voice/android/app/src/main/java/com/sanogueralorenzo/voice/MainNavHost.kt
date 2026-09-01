@@ -20,11 +20,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.overlay.OverlayPositionScreen
 import com.sanogueralorenzo.voice.product.VoiceHomeScreen
-import com.sanogueralorenzo.voice.setup.SetupStep3ModelsDownloadScreen
 
 private object VoiceRoute {
     const val HOME = "voice_home"
-    const val MODELS = "voice_models"
     const val MIC_POSITION = "voice_mic_position"
 }
 
@@ -42,7 +40,6 @@ fun MainNavHost() {
                 title = {
                     Text(
                         text = when (route) {
-                            VoiceRoute.MODELS -> stringResource(R.string.product_models_title)
                             VoiceRoute.MIC_POSITION -> stringResource(R.string.product_mic_position_title)
                             else -> stringResource(R.string.app_name)
                         }
@@ -70,13 +67,7 @@ fun MainNavHost() {
         ) {
             composable(VoiceRoute.HOME) {
                 VoiceHomeScreen(
-                    onOpenModels = { navController.navigate(VoiceRoute.MODELS) },
                     onOpenMicPosition = { navController.navigate(VoiceRoute.MIC_POSITION) }
-                )
-            }
-            composable(VoiceRoute.MODELS) {
-                SetupStep3ModelsDownloadScreen(
-                    onModelsReady = { navController.popBackStack() }
                 )
             }
             composable(VoiceRoute.MIC_POSITION) {
