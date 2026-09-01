@@ -8,7 +8,7 @@
     <string name="product_step_two_chip">Step 2</string>
     <string name="product_step_three_chip">Step 3</string>
     <string name="product_step_setup_title">Set up Voice</string>
-    <string name="product_step_setup_body">Allow permissions, enable the keyboard mic, and download models.</string>
+    <string name="product_step_setup_body">Allow permissions and download the model.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap and speak</string>
@@ -24,10 +24,11 @@
     <string name="product_mic_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>
 
-    <string name="overlay_position_instructions_title">Position Voice</string>
-    <string name="overlay_position_instructions_body">Open the keyboard below, then drag the dot onto its microphone. Use the arrows if needed.</string>
+    <string name="overlay_position_instructions_body">Drag the dot onto your keyboard’s mic. Use the arrows for precise placement.</string>
     <string name="overlay_position_mic_indicator_note">The dot disappears when you’re done.</string>
     <string name="overlay_position_size_label">Size: %1$ddp</string>
+    <string name="overlay_position_size_decrease">Make smaller</string>
+    <string name="overlay_position_size_increase">Make larger</string>
     <string name="overlay_position_number_input_label">Input test</string>
     <string name="overlay_position_nudge_label">Fine position (1dp)</string>
     <string name="overlay_position_nudge_up">Move up</string>
