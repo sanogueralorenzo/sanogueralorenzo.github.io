@@ -53,6 +53,7 @@ internal enum class CompactKeyboardMode {
 
 internal data class CompactKeyboardState(
     val mode: CompactKeyboardMode = CompactKeyboardMode.IDLE,
+    val speechActive: Boolean = false,
     val bottomInsetPx: Int = 0
 )
 
@@ -192,6 +193,7 @@ internal fun CompactKeyboardContent(
                                 ) {
                                     ActiveKeyboardContent(
                                         mode = mode,
+                                        speechActive = state.speechActive,
                                         colors = colors,
                                         onDiscardTap = onDiscardTap,
                                         onSendTap = onSendTap
@@ -209,13 +211,18 @@ internal fun CompactKeyboardContent(
 @Composable
 private fun ActiveKeyboardContent(
     mode: CompactKeyboardMode,
+    speechActive: Boolean,
     colors: CompactKeyboardColors,
     onDiscardTap: () -> Unit,
     onSendTap: () -> Unit
 ) {
     val isRecording = mode == CompactKeyboardMode.RECORDING
     val visualizerMode = when (mode) {
-        CompactKeyboardMode.RECORDING -> KeyboardVisualizerMode.RECORDING_BARS
+        CompactKeyboardMode.RECORDING -> if (speechActive) {
+            KeyboardVisualizerMode.RECORDING_BARS_ACTIVE
+        } else {
+            KeyboardVisualizerMode.RECORDING_BARS_IDLE
+        }
         CompactKeyboardMode.PROCESSING -> KeyboardVisualizerMode.PROCESSING_DOTS
         CompactKeyboardMode.IDLE -> KeyboardVisualizerMode.IDLE_HIDDEN
     }

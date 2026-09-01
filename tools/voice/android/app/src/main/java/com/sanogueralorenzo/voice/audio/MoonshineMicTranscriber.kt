@@ -3,6 +3,7 @@ package com.sanogueralorenzo.voice.audio
 import ai.moonshine.voice.JNI
 import ai.moonshine.voice.MicTranscriber
 import ai.moonshine.voice.TranscriberOption
+import ai.moonshine.voice.TranscriptEvent
 import ai.moonshine.voice.TranscriptLine
 import android.content.Context
 import android.util.Log
@@ -16,7 +17,8 @@ class MoonshineMicTranscriber(context: Context) {
     data class Callbacks(
         val onText: (String) -> Unit,
         val onLine: (TranscriptLine) -> Unit,
-        val onError: (Throwable) -> Unit
+        val onError: (Throwable) -> Unit,
+        val onSpeechStateChanged: (Boolean) -> Unit = {}
     )
 
     private val appContext = context.applicationContext
@@ -76,6 +78,7 @@ class MoonshineMicTranscriber(context: Context) {
                 .onLine(Consumer { line -> activeCallbacks?.onLine?.invoke(line) })
                 .onError(Consumer { error -> activeCallbacks?.onError?.invoke(error) })
                 .also { mic ->
+                    mic.addListener(Consumer(::onTranscriptEvent))
                     mic.loadFromFiles(
                         modelDirectory.absolutePath,
                         JNI.MOONSHINE_MODEL_ARCH_MEDIUM_STREAMING
@@ -85,6 +88,15 @@ class MoonshineMicTranscriber(context: Context) {
         }.onFailure {
             Log.w(TAG, "Moonshine load failed", it)
         }.getOrNull()
+    }
+
+    private fun onTranscriptEvent(event: TranscriptEvent) {
+        val speechActive = when (event) {
+            is TranscriptEvent.LineStarted -> true
+            is TranscriptEvent.LineCompleted -> false
+            else -> return
+        }
+        activeCallbacks?.onSpeechStateChanged?.invoke(speechActive)
     }
 
     private fun ensureModelDirectory(): File? {

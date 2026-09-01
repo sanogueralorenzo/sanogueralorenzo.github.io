@@ -36,7 +36,8 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 internal enum class KeyboardVisualizerMode {
-    RECORDING_BARS,
+    RECORDING_BARS_IDLE,
+    RECORDING_BARS_ACTIVE,
     PROCESSING_DOTS,
     IDLE_HIDDEN
 }
@@ -59,7 +60,7 @@ internal fun KeyboardVisualizer(
     )
 
     LaunchedEffect(mode) {
-        if (mode != KeyboardVisualizerMode.RECORDING_BARS) {
+        if (mode != KeyboardVisualizerMode.RECORDING_BARS_ACTIVE) {
             bars.forEach { it.snapTo(IDLE_BAR_FLOOR) }
             return@LaunchedEffect
         }
@@ -98,7 +99,8 @@ internal fun KeyboardVisualizer(
         }
     }
 
-    val showBars = mode == KeyboardVisualizerMode.RECORDING_BARS
+    val showBars = mode == KeyboardVisualizerMode.RECORDING_BARS_IDLE ||
+        mode == KeyboardVisualizerMode.RECORDING_BARS_ACTIVE
     Box(
         modifier = modifier
             .height(VISUALIZER_HEIGHT)

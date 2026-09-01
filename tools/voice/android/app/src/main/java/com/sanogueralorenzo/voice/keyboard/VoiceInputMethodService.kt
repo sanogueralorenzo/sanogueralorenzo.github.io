@@ -178,13 +178,19 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             textBuffer = DictationTextBuffer("")
         )
         activeSession = session
-        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.RECORDING)
+        keyboardState = keyboardState.copy(
+            mode = CompactKeyboardMode.RECORDING,
+            speechActive = false
+        )
         runOnTranscriberThread {
             val started = moonshineTranscriber.start(
                 MoonshineMicTranscriber.Callbacks(
                     onText = { text -> onMoonshineText(session.id, text) },
                     onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
-                    onError = { onMoonshineError(session.id) }
+                    onError = { onMoonshineError(session.id) },
+                    onSpeechStateChanged = { active ->
+                        mainHandler.post { onMoonshineSpeechStateChanged(session.id, active) }
+                    }
                 )
             )
             mainHandler.post {
@@ -199,7 +205,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val session = activeSession ?: return
         if (session.stopping) return
         session.stopping = true
-        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.PROCESSING)
+        keyboardState = keyboardState.copy(
+            mode = CompactKeyboardMode.PROCESSING,
+            speechActive = false
+        )
         runOnTranscriberThread {
             moonshineTranscriber.stop()
             mainHandler.post {
@@ -238,6 +247,15 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private fun onMoonshineError(sessionId: Int) {
         if (activeSession?.id != sessionId) return
         failRecording(sessionId)
+    }
+
+    private fun onMoonshineSpeechStateChanged(sessionId: Int, active: Boolean) {
+        if (activeSession?.id != sessionId || keyboardState.mode != CompactKeyboardMode.RECORDING) {
+            return
+        }
+        if (keyboardState.speechActive != active) {
+            keyboardState = keyboardState.copy(speechActive = active)
+        }
     }
 
     private fun scheduleRecordingFinish(sessionId: Int, delayMs: Long) {
@@ -291,7 +309,10 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun showIdle() {
-        keyboardState = keyboardState.copy(mode = CompactKeyboardMode.IDLE)
+        keyboardState = keyboardState.copy(
+            mode = CompactKeyboardMode.IDLE,
+            speechActive = false
+        )
     }
 
     private fun updateBottomInset(insets: WindowInsetsCompat?) {
