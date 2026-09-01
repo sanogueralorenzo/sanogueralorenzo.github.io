@@ -29,7 +29,6 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.OpenWith
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.Button
@@ -168,12 +167,6 @@ private fun HowItWorksCard() {
             chipLabel = stringResource(R.string.product_step_three_chip),
             title = stringResource(R.string.product_step_record_title),
             body = stringResource(R.string.product_step_record_body)
-        )
-        ProductStep(
-            icon = Icons.Outlined.StopCircle,
-            chipLabel = stringResource(R.string.product_step_four_chip),
-            title = stringResource(R.string.product_step_stop_title),
-            body = stringResource(R.string.product_step_stop_body)
         )
     }
 }
