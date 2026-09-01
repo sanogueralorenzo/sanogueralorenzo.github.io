@@ -3,8 +3,7 @@
 
     <style name="Theme.Voice.Launch" parent="Theme.Voice">
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/avd_splash_bars</item>
-        <item name="android:windowSplashScreenAnimationDuration">600</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>
