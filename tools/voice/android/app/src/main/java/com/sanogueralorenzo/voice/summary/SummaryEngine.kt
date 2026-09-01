@@ -83,7 +83,8 @@ class SummaryEngine(
     private var initializedMaxNumTokens: Int = 0
 
     fun isModelAvailable(): Boolean {
-        return ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm) &&
+        return LiteRtRuntimeConfig.ENABLE_LLM &&
+            ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm) &&
             promptTemplateStore.isPromptReady()
     }
 

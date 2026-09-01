@@ -3,6 +3,7 @@ package com.sanogueralorenzo.voice.models
 import android.content.Context
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
+import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.flow.StateFlow
 
 data class ModelReadiness(
@@ -27,15 +28,21 @@ class ModelSetupRepository(
     fun isConnectedToWifi(): Boolean = connectivityRepository.isConnectedToWifi()
 
     fun readModelReadiness(): ModelReadiness {
-        val liteRtReady = ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
+        val liteRtReady = !LiteRtRuntimeConfig.ENABLE_LLM ||
+            ModelStore.isModelReadyStrict(appContext, ModelCatalog.liteRtLm)
         val moonshineReady = ModelCatalog.moonshineMediumStreamingSpecs.all {
             ModelStore.isModelReadyStrict(appContext, it)
         }
+        val promptReady = !LiteRtRuntimeConfig.ENABLE_LLM || promptTemplateStore.isPromptReady()
         return ModelReadiness(
             liteRtReady = liteRtReady,
             moonshineReady = moonshineReady,
-            promptReady = promptTemplateStore.isPromptReady(),
-            promptVersion = promptTemplateStore.currentPromptVersion()
+            promptReady = promptReady,
+            promptVersion = if (LiteRtRuntimeConfig.ENABLE_LLM) {
+                promptTemplateStore.currentPromptVersion()
+            } else {
+                null
+            }
         )
     }
 

@@ -9,6 +9,7 @@ import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
+import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -39,18 +40,23 @@ class LocalModelsDownloader(
         downloader: ModelDownloader,
         onProgress: (Int) -> Unit
     ): LocalModelsDownloadResult {
-        val modelSpecs = ModelCatalog.moonshineMediumStreamingSpecs + ModelCatalog.liteRtLm
+        val modelSpecs = ModelCatalog.moonshineMediumStreamingSpecs +
+            listOfNotNull(ModelCatalog.liteRtLm.takeIf { LiteRtRuntimeConfig.ENABLE_LLM })
         val readyModels = withContext(Dispatchers.IO) {
             modelSpecs.associateWith { spec ->
                 ModelStore.isModelReadyStrict(appContext, spec)
             }
         }
-        val promptReady = withContext(Dispatchers.IO) {
+        val promptReady = !LiteRtRuntimeConfig.ENABLE_LLM || withContext(Dispatchers.IO) {
             modelSetupRepository.readModelReadiness().promptReady
         }
         val modelWeights = modelSpecs.associateWith { it.sizeBytes.coerceAtLeast(1L) }
         val totalModelWeight = modelWeights.values.sum()
-        val promptWeight = (totalModelWeight / 99L).coerceAtLeast(1L)
+        val promptWeight = if (LiteRtRuntimeConfig.ENABLE_LLM) {
+            (totalModelWeight / 99L).coerceAtLeast(1L)
+        } else {
+            0L
+        }
         val totalWeight = totalModelWeight + promptWeight
         var completedWeight = modelSpecs.sumOf { spec ->
             if (readyModels.getValue(spec)) modelWeights.getValue(spec) else 0L

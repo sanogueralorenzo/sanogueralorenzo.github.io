@@ -8,6 +8,8 @@ package com.sanogueralorenzo.voice.summary
  * - `reportSnapshot()` returns a human-readable multi-line config summary.
  */
 object LiteRtRuntimeConfig {
+    // Temporary Moonshine-only build; keep the LiteRT pipeline intact for easy re-enabling.
+    const val ENABLE_LLM: Boolean = false
     const val TOP_K: Int = 1
     const val TOP_P: Double = 1.0
     const val TEMPERATURE: Double = 0.0
@@ -20,6 +22,7 @@ object LiteRtRuntimeConfig {
 
     fun reportSnapshot(): String {
         return buildString {
+            appendLine("enable_llm: $ENABLE_LLM")
             appendLine("top_k: $TOP_K")
             appendLine("top_p: $TOP_P")
             appendLine("temperature: $TEMPERATURE")
