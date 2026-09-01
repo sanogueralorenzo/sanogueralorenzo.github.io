@@ -34,9 +34,8 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.sanogueralorenzo.voice.MainActivity
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationTextBuffer
+import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
-import com.sanogueralorenzo.voice.models.ModelCatalog
-import com.sanogueralorenzo.voice.models.ModelStore
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -101,7 +100,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     CompactKeyboardContent(
                         state = keyboardState,
                         isDarkTheme = darkTheme,
-                        onIdleTap = ::startRecording,
+                        onIdleTap = { startRecording(DictationLanguage.ENGLISH) },
+                        onIdleLongPress = { startRecording(DictationLanguage.SPANISH) },
                         onDiscardTap = ::discardRecording,
                         onSendTap = ::stopRecording
                     )
@@ -158,9 +158,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
     }
 
-    private fun startRecording() {
+    private fun startRecording(language: DictationLanguage) {
         if (activeSession != null || keyboardState.mode != CompactKeyboardMode.IDLE) return
-        if (!hasMicrophonePermission() || !modelsReady()) {
+        if (!hasMicrophonePermission() || !moonshineTranscriber.isReady(language)) {
             startActivity(
                 Intent(this, MainActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -184,7 +184,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         )
         runOnTranscriberThread {
             val started = moonshineTranscriber.start(
-                MoonshineMicTranscriber.Callbacks(
+                language = language,
+                callbacks = MoonshineMicTranscriber.Callbacks(
                     onText = { text -> onMoonshineText(session.id, text) },
                     onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
                     onError = { onMoonshineError(session.id) },
@@ -354,12 +355,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             this,
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun modelsReady(): Boolean {
-        return ModelCatalog.moonshineMediumStreamingSpecs.all { spec ->
-            ModelStore.isModelReadyStrict(this, spec)
-        }
     }
 
     private fun isSystemDarkTheme(): Boolean {

@@ -36,7 +36,7 @@ class LocalModelsDownloader(
         downloader: ModelDownloader,
         onProgress: (Int) -> Unit
     ): LocalModelsDownloadResult {
-        val modelSpecs = ModelCatalog.moonshineMediumStreamingSpecs
+        val modelSpecs = ModelCatalog.moonshineStreamingSpecs
         val readyModels = withContext(Dispatchers.IO) {
             modelSpecs.associateWith { spec ->
                 ModelStore.isModelReadyStrict(appContext, spec)

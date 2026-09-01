@@ -35,10 +35,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationTextBuffer
+import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
-import com.sanogueralorenzo.voice.models.ModelCatalog
-import com.sanogueralorenzo.voice.models.ModelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -424,13 +423,21 @@ class OverlayAccessibilityService : AccessibilityService() {
             }
             elevation = 0f
             setOnClickListener { onBubbleTapped() }
+            setOnLongClickListener {
+                if (recordingSession == null) {
+                    startRecording(DictationLanguage.SPANISH)
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
     private fun onBubbleTapped() {
         val session = recordingSession
         if (session == null) {
-            startRecording()
+            startRecording(DictationLanguage.ENGLISH)
         } else if (!session.stopping) {
             stopRecordingAndProcess()
         }
@@ -450,13 +457,13 @@ class OverlayAccessibilityService : AccessibilityService() {
         return true
     }
 
-    private fun startRecording() {
+    private fun startRecording(language: DictationLanguage) {
         if (recordingSession != null) return
         if (!overlayRepository.hasRecordAudioPermission()) {
             showToast(getString(R.string.overlay_microphone_required))
             return
         }
-        if (!isMoonshineReady()) {
+        if (!moonshineTranscriber.isReady(language)) {
             showToast(getString(R.string.overlay_asr_not_ready))
             return
         }
@@ -469,7 +476,8 @@ class OverlayAccessibilityService : AccessibilityService() {
         startForegroundForRecording()
         runOnTranscriberThread {
             val started = moonshineTranscriber.start(
-                MoonshineMicTranscriber.Callbacks(
+                language = language,
+                callbacks = MoonshineMicTranscriber.Callbacks(
                     onText = { text -> onMoonshineText(session.id, text) },
                     onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
                     onError = { onMoonshineError(session.id) }
@@ -597,12 +605,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             }
         }
         return null
-    }
-
-    private fun isMoonshineReady(): Boolean {
-        return ModelCatalog.moonshineMediumStreamingSpecs.all { spec ->
-            ModelStore.isModelReadyStrict(applicationContext, spec)
-        }
     }
 
     private fun stopRecordingDiscard(updateOverlayVisibility: Boolean = true) {

@@ -11,6 +11,11 @@ import com.sanogueralorenzo.voice.models.ModelStore
 import java.io.File
 import java.util.function.Consumer
 
+enum class DictationLanguage {
+    ENGLISH,
+    SPANISH
+}
+
 /** Owns Moonshine's microphone transcriber and exposes one active dictation session. */
 class MoonshineMicTranscriber(context: Context) {
     data class Callbacks(
@@ -26,13 +31,18 @@ class MoonshineMicTranscriber(context: Context) {
     @Volatile
     private var activeCallbacks: Callbacks? = null
     private var transcriber: MicTranscriber? = null
+    private var loadedLanguage: DictationLanguage? = null
 
     fun warmup(): Boolean = synchronized(lock) {
-        ensureLoadedLocked() != null
+        ensureLoadedLocked(DictationLanguage.ENGLISH) != null
     }
 
-    fun start(callbacks: Callbacks): Boolean = synchronized(lock) {
-        val loaded = ensureLoadedLocked() ?: return false
+    fun isReady(language: DictationLanguage): Boolean = modelSpecs(language).all { spec ->
+        ModelStore.isModelReadyStrict(appContext, spec)
+    }
+
+    fun start(language: DictationLanguage, callbacks: Callbacks): Boolean = synchronized(lock) {
+        val loaded = ensureLoadedLocked(language) ?: return false
         activeCallbacks = callbacks
         val started = runCatching {
             loaded.start()
@@ -68,15 +78,23 @@ class MoonshineMicTranscriber(context: Context) {
         runCatching { transcriber?.close() }
             .onFailure { Log.w(TAG, "Moonshine close failed", it) }
         transcriber = null
+        loadedLanguage = null
     }
 
-    private fun ensureLoadedLocked(): MicTranscriber? {
-        transcriber?.let { return it }
-        val modelDirectory = ensureModelDirectory() ?: return null
+    private fun ensureLoadedLocked(language: DictationLanguage): MicTranscriber? {
+        if (loadedLanguage == language) {
+            transcriber?.let { return it }
+        }
+        val modelDirectory = ensureModelDirectory(language) ?: return null
+        runCatching { transcriber?.close() }
+            .onFailure { Log.w(TAG, "Moonshine model switch close failed", it) }
+        transcriber = null
+        loadedLanguage = null
+        val configuration = modelConfiguration(language)
         return runCatching {
             MicTranscriber(appContext)
-                .language("en")
-                .modelArch(JNI.MOONSHINE_MODEL_ARCH_MEDIUM_STREAMING)
+                .language(configuration.languageCode)
+                .modelArch(configuration.architecture)
                 .options(OPTIONS)
                 .callbacksOnMainThread(true)
                 .onText(Consumer { text -> activeCallbacks?.onText?.invoke(text) })
@@ -85,21 +103,44 @@ class MoonshineMicTranscriber(context: Context) {
                 .also { mic ->
                     mic.loadFromFiles(
                         modelDirectory.absolutePath,
-                        JNI.MOONSHINE_MODEL_ARCH_MEDIUM_STREAMING
+                        configuration.architecture
                     )
                     transcriber = mic
+                    loadedLanguage = language
                 }
         }.onFailure {
             Log.w(TAG, "Moonshine load failed", it)
         }.getOrNull()
     }
 
-    private fun ensureModelDirectory(): File? {
-        val modelFiles = ModelCatalog.moonshineMediumStreamingSpecs.map { spec ->
+    private fun ensureModelDirectory(language: DictationLanguage): File? {
+        val modelFiles = modelSpecs(language).map { spec ->
             ModelStore.ensureModelFile(appContext, spec) ?: return null
         }
         return modelFiles.firstOrNull()?.parentFile
     }
+
+    private fun modelSpecs(language: DictationLanguage) = when (language) {
+        DictationLanguage.ENGLISH -> ModelCatalog.moonshineMediumStreamingSpecs
+        DictationLanguage.SPANISH -> ModelCatalog.moonshineSmallStreamingSpanishSpecs
+    }
+
+    private fun modelConfiguration(language: DictationLanguage) = when (language) {
+        DictationLanguage.ENGLISH -> ModelConfiguration(
+            languageCode = "en",
+            architecture = JNI.MOONSHINE_MODEL_ARCH_MEDIUM_STREAMING
+        )
+
+        DictationLanguage.SPANISH -> ModelConfiguration(
+            languageCode = "es",
+            architecture = JNI.MOONSHINE_MODEL_ARCH_SMALL_STREAMING
+        )
+    }
+
+    private data class ModelConfiguration(
+        val languageCode: String,
+        val architecture: Int
+    )
 
     private companion object {
         private const val TAG = "MoonshineMic"

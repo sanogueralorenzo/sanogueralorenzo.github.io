@@ -21,7 +21,7 @@ class ModelSetupRepository(
     fun isConnectedToWifi(): Boolean = connectivityRepository.isConnectedToWifi()
 
     fun readModelReadiness(): ModelReadiness {
-        val moonshineReady = ModelCatalog.moonshineMediumStreamingSpecs.all {
+        val moonshineReady = ModelCatalog.moonshineStreamingSpecs.all {
             ModelStore.isModelReadyStrict(appContext, it)
         }
         return ModelReadiness(

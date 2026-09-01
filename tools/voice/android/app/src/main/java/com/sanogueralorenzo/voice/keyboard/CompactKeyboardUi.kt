@@ -10,6 +10,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,6 +72,7 @@ internal fun CompactKeyboardContent(
     state: CompactKeyboardState,
     isDarkTheme: Boolean,
     onIdleTap: () -> Unit,
+    onIdleLongPress: () -> Unit,
     onDiscardTap: () -> Unit,
     onSendTap: () -> Unit,
     modifier: Modifier = Modifier
@@ -148,11 +150,12 @@ internal fun CompactKeyboardContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(EXPANDED_PILL_HEIGHT)
-                    .clickable(
+                    .combinedClickable(
                         enabled = state.mode == CompactKeyboardMode.IDLE,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = onIdleTap
+                        onClick = onIdleTap,
+                        onLongClick = onIdleLongPress
                     ),
                 contentAlignment = Alignment.Center
             ) {

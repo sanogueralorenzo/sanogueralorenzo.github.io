@@ -78,6 +78,69 @@ object ModelCatalog {
         moonshineMediumStreamingTokenizer
     )
 
-    val moonshineMediumStreamingTotalBytes: Long =
-        moonshineMediumStreamingSpecs.sumOf { it.sizeBytes.coerceAtLeast(0L) }
+    private const val SPANISH_SMALL_BASE_URL =
+        "https://download.moonshine.ai/model/small-streaming-es/quantized_26_08_24"
+    private const val SPANISH_SMALL_SUBDIR = "moonshine/small-streaming-es"
+
+    val moonshineSmallStreamingSpanishSpecs = listOf(
+        ModelSpec(
+            id = "moonshine-small-streaming-es-adapter",
+            fileName = "adapter.ort",
+            url = "$SPANISH_SMALL_BASE_URL/adapter.ort",
+            sizeBytes = 2_869_296L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-cross-kv",
+            fileName = "cross_kv.ort",
+            url = "$SPANISH_SMALL_BASE_URL/cross_kv.ort",
+            sizeBytes = 5_358_752L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-decoder-kv",
+            fileName = "decoder_kv.ort",
+            url = "$SPANISH_SMALL_BASE_URL/decoder_kv.ort",
+            sizeBytes = 61_314_512L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-encoder",
+            fileName = "encoder.ort",
+            url = "$SPANISH_SMALL_BASE_URL/encoder.ort",
+            sizeBytes = 44_358_376L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-frontend-model",
+            fileName = "frontend.model.ort",
+            url = "$SPANISH_SMALL_BASE_URL/frontend.model.ort",
+            sizeBytes = 26_776L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-frontend-weights",
+            fileName = "frontend.weights.ort",
+            url = "$SPANISH_SMALL_BASE_URL/frontend.weights.ort",
+            sizeBytes = 7_769_280L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-config",
+            fileName = "streaming_config.json",
+            url = "$SPANISH_SMALL_BASE_URL/streaming_config.json",
+            sizeBytes = 512L,
+            subdir = SPANISH_SMALL_SUBDIR
+        ),
+        ModelSpec(
+            id = "moonshine-small-streaming-es-tokenizer",
+            fileName = "tokenizer.bin",
+            url = "$SPANISH_SMALL_BASE_URL/tokenizer.bin",
+            sizeBytes = 102_888L,
+            subdir = SPANISH_SMALL_SUBDIR
+        )
+    )
+
+    val moonshineStreamingSpecs =
+        moonshineMediumStreamingSpecs + moonshineSmallStreamingSpanishSpecs
 }
