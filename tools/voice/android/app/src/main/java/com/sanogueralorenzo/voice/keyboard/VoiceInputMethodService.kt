@@ -188,8 +188,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     onText = { text -> onMoonshineText(session.id, text) },
                     onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
                     onError = { onMoonshineError(session.id) },
-                    onSpeechStateChanged = { active ->
-                        mainHandler.post { onMoonshineSpeechStateChanged(session.id, active) }
+                    onAudioLevel = { level ->
+                        mainHandler.post { onMoonshineAudioLevel(session.id, level) }
                     }
                 )
             )
@@ -249,10 +249,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         failRecording(sessionId)
     }
 
-    private fun onMoonshineSpeechStateChanged(sessionId: Int, active: Boolean) {
+    private fun onMoonshineAudioLevel(sessionId: Int, level: Float) {
         if (activeSession?.id != sessionId || keyboardState.mode != CompactKeyboardMode.RECORDING) {
             return
         }
+        val active = KeyboardSpeechGate.isActive(
+            currentlyActive = keyboardState.speechActive,
+            audioLevel = level
+        )
         if (keyboardState.speechActive != active) {
             keyboardState = keyboardState.copy(speechActive = active)
         }
