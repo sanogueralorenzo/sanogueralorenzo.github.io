@@ -2,19 +2,18 @@ package com.sanogueralorenzo.voice
 
 import android.os.Build
 import android.os.Bundle
-import android.os.SystemClock
-import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
+import java.time.Duration
+import java.time.Instant
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashStartedAt = SystemClock.uptimeMillis()
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            keepSplashVisibleUntil(splashStartedAt + SplashDurationMs)
+            keepSplashVisibleThroughAnimation()
         }
         enableEdgeToEdge()
         setContent {
@@ -24,16 +23,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun keepSplashVisibleUntil(endTime: Long) {
-        window.decorView.viewTreeObserver.addOnPreDrawListener(
-            object : ViewTreeObserver.OnPreDrawListener {
-                override fun onPreDraw(): Boolean {
-                    if (SystemClock.uptimeMillis() < endTime) return false
-                    window.decorView.viewTreeObserver.removeOnPreDrawListener(this)
-                    return true
-                }
+    private fun keepSplashVisibleThroughAnimation() {
+        splashScreen.setOnExitAnimationListener { splashView ->
+            val animationStart = splashView.iconAnimationStart
+            val animationDuration = splashView.iconAnimationDuration
+            val remainingDuration = if (animationStart != null && animationDuration != null) {
+                Duration.between(
+                    Instant.now(),
+                    animationStart.plus(animationDuration)
+                ).toMillis().coerceAtLeast(0L)
+            } else {
+                SplashDurationMs
             }
-        )
+            splashView.postDelayed(splashView::remove, remainingDuration)
+        }
     }
 
     private companion object {

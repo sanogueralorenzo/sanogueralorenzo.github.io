@@ -7,6 +7,6 @@
         <keyframe android:fraction="0" android:value="0.70" />
         <keyframe android:fraction="0.32" android:value="1.00" />
         <keyframe android:fraction="0.68" android:value="0.62" />
-        <keyframe android:fraction="1" android:value="0.82" />
+        <keyframe android:fraction="1" android:value="1.00" />
     </propertyValuesHolder>
 </objectAnimator>
