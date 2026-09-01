@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlin.math.roundToInt
 
 private val Context.overlayDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -49,18 +48,16 @@ class OverlayRepository(context: Context) {
     private val hasCustomBubblePositionState = sharedHasCustomBubblePositionState
 
     init {
-        val initialSnapshot = runBlocking { dataStore.data.first() }
-        overlayEnabledState.value = initialSnapshot[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-        applyStoredBubblePosition(initialSnapshot)
-        bubbleSizeDpState.value = initialSnapshot[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
-
         scope.launch {
             dataStore.data.collectLatest { prefs ->
-                overlayEnabledState.value = prefs[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-                applyStoredBubblePosition(prefs)
-                bubbleSizeDpState.value = prefs[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
+                applyStoredConfig(prefs)
             }
         }
+    }
+
+    suspend fun readConfig(): OverlayConfig {
+        applyStoredConfig(dataStore.data.first())
+        return currentConfig()
     }
 
     fun currentConfig(): OverlayConfig {
@@ -167,6 +164,12 @@ class OverlayRepository(context: Context) {
         hasCustomBubblePositionState.value = true
         bubbleXState.value = storedX
         bubbleYState.value = storedY
+    }
+
+    private fun applyStoredConfig(preferences: Preferences) {
+        applyStoredBubblePosition(preferences)
+        bubbleSizeDpState.value = preferences[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
+        overlayEnabledState.value = preferences[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
     }
 
     fun hasRecordAudioPermission(): Boolean {

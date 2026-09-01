@@ -110,7 +110,10 @@ class OverlayAccessibilityService : AccessibilityService() {
             notificationTimeout = 0
         }
         warmupMoonshine()
-        evaluateOverlayVisibility()
+        serviceScope.launch {
+            overlayRepository.readConfig()
+            evaluateOverlayVisibility()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {

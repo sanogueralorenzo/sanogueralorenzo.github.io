@@ -1,32 +1,54 @@
 package com.sanogueralorenzo.voice.overlay
 
+import com.airbnb.mvrx.Async
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
+import com.airbnb.mvrx.Success
+import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
+import kotlinx.coroutines.Dispatchers
 
 data class OverlayPositionState(
+    val positionConfig: Async<OverlayConfig> = Uninitialized,
     val bubbleSizeDp: Int = 36,
     val bubbleX: Int = 0,
     val bubbleY: Int = 0,
     val hasCustomBubblePosition: Boolean = false,
     val accessibilityServiceEnabled: Boolean = false
-) : MavericksState
+) : MavericksState {
+    val positionLoaded: Boolean
+        get() = positionConfig is Success
+}
 
 class OverlayPositionViewModel(
     initialState: OverlayPositionState,
     private val repository: OverlayRepository
 ) : MavericksViewModel<OverlayPositionState>(initialState) {
 
+    init {
+        loadPositionConfig()
+        refreshStatus()
+    }
+
+    private fun loadPositionConfig() {
+        suspend { repository.readConfig() }.execute(Dispatchers.IO) { asyncConfig ->
+            val config = asyncConfig()
+            copy(
+                positionConfig = asyncConfig,
+                bubbleSizeDp = config?.bubbleSizeDp ?: bubbleSizeDp,
+                bubbleX = config?.bubbleX ?: bubbleX,
+                bubbleY = config?.bubbleY ?: bubbleY,
+                hasCustomBubblePosition =
+                    config?.hasCustomBubblePosition ?: hasCustomBubblePosition
+            )
+        }
+    }
+
     fun refreshStatus() {
-        val config = repository.currentConfig()
         setState {
             copy(
-                bubbleSizeDp = config.bubbleSizeDp,
-                bubbleX = config.bubbleX,
-                bubbleY = config.bubbleY,
-                hasCustomBubblePosition = config.hasCustomBubblePosition,
                 accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
             )
         }
@@ -36,6 +58,7 @@ class OverlayPositionViewModel(
         val config = repository.adjustBubbleSizeDp(deltaDp)
         setState {
             copy(
+                positionConfig = Success(config),
                 bubbleSizeDp = config.bubbleSizeDp,
                 bubbleX = config.bubbleX,
                 bubbleY = config.bubbleY,
@@ -49,6 +72,7 @@ class OverlayPositionViewModel(
         val config = repository.currentConfig()
         setState {
             copy(
+                positionConfig = Success(config),
                 bubbleX = config.bubbleX,
                 bubbleY = config.bubbleY,
                 hasCustomBubblePosition = config.hasCustomBubblePosition
@@ -58,37 +82,33 @@ class OverlayPositionViewModel(
 
     fun setBubblePosition(x: Int, y: Int) {
         repository.setBubblePosition(x, y)
+        val config = repository.currentConfig()
         setState {
             copy(
-                bubbleX = x.coerceAtLeast(0),
-                bubbleY = y.coerceAtLeast(0),
-                hasCustomBubblePosition = true
+                positionConfig = Success(config),
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition
             )
         }
     }
 
     fun setDefaultBubblePosition(x: Int, y: Int) {
         repository.setDefaultBubblePosition(x, y)
+        val config = repository.currentConfig()
         setState {
             copy(
-                bubbleX = x.coerceAtLeast(0),
-                bubbleY = y.coerceAtLeast(0),
-                hasCustomBubblePosition = false
+                positionConfig = Success(config),
+                bubbleX = config.bubbleX,
+                bubbleY = config.bubbleY,
+                hasCustomBubblePosition = config.hasCustomBubblePosition
             )
         }
     }
 
     companion object : MavericksViewModelFactory<OverlayPositionViewModel, OverlayPositionState> {
         override fun initialState(viewModelContext: ViewModelContext): OverlayPositionState {
-            val repository = OverlayRepository(context = viewModelContext.app<VoiceApp>())
-            val config = repository.currentConfig()
-            return OverlayPositionState(
-                bubbleSizeDp = config.bubbleSizeDp,
-                bubbleX = config.bubbleX,
-                bubbleY = config.bubbleY,
-                hasCustomBubblePosition = config.hasCustomBubblePosition,
-                accessibilityServiceEnabled = repository.isAccessibilityServiceEnabled()
-            )
+            return OverlayPositionState()
         }
 
         override fun create(

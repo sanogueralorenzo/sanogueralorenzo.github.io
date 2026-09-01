@@ -27,7 +27,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,25 +65,30 @@ fun OverlayPositionScreen() {
 
     DisposableEffect(positionPreview) {
         OverlayAccessibilityService.setPositioningActive(true)
-        positionPreview.show(
-            x = state.bubbleX,
-            y = state.bubbleY,
-            sizeDp = state.bubbleSizeDp,
-            hasCustomPosition = state.hasCustomBubblePosition
-        )
         onDispose {
             positionPreview.dismiss()
             OverlayAccessibilityService.setPositioningActive(false)
         }
     }
 
-    SideEffect {
-        positionPreview.update(
-            x = state.bubbleX,
-            y = state.bubbleY,
-            sizeDp = state.bubbleSizeDp,
-            hasCustomPosition = state.hasCustomBubblePosition
-        )
+    LaunchedEffect(
+        positionPreview,
+        state.positionLoaded,
+        state.bubbleX,
+        state.bubbleY,
+        state.bubbleSizeDp,
+        state.hasCustomBubblePosition
+    ) {
+        if (state.positionLoaded) {
+            positionPreview.show(
+                x = state.bubbleX,
+                y = state.bubbleY,
+                sizeDp = state.bubbleSizeDp,
+                hasCustomPosition = state.hasCustomBubblePosition
+            )
+        } else {
+            positionPreview.dismiss()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -95,12 +99,14 @@ fun OverlayPositionScreen() {
     OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
         viewModel.refreshStatus()
         OverlayAccessibilityService.setPositioningActive(true)
-        positionPreview.show(
-            x = state.bubbleX,
-            y = state.bubbleY,
-            sizeDp = state.bubbleSizeDp,
-            hasCustomPosition = state.hasCustomBubblePosition
-        )
+        if (state.positionLoaded) {
+            positionPreview.show(
+                x = state.bubbleX,
+                y = state.bubbleY,
+                sizeDp = state.bubbleSizeDp,
+                hasCustomPosition = state.hasCustomBubblePosition
+            )
+        }
     }
     OnLifecycle(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP) {
         positionPreview.dismiss()
@@ -121,12 +127,14 @@ fun OverlayPositionScreen() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PositionInstructions()
-            PositionControls(
-                bubbleSizeDp = state.bubbleSizeDp,
-                onDecreaseSize = { viewModel.adjustBubbleSizeDp(-1) },
-                onIncreaseSize = { viewModel.adjustBubbleSizeDp(1) },
-                onNudge = viewModel::nudgeBubblePosition
-            )
+            if (state.positionLoaded) {
+                PositionControls(
+                    bubbleSizeDp = state.bubbleSizeDp,
+                    onDecreaseSize = { viewModel.adjustBubbleSizeDp(-1) },
+                    onIncreaseSize = { viewModel.adjustBubbleSizeDp(1) },
+                    onNudge = viewModel::nudgeBubblePosition
+                )
+            }
 
             if (!state.accessibilityServiceEnabled) {
                 Text(

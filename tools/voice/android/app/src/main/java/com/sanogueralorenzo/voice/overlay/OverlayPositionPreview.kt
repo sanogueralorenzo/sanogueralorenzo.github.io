@@ -30,6 +30,11 @@ internal class OverlayPositionPreview(
     private var bubbleY = 0
     private var bubbleSizeDp = 36
     private var hasCustomPosition = false
+    private var attachRetryScheduled = false
+    private val attachRetry = Runnable {
+        attachRetryScheduled = false
+        attachIfRequested()
+    }
 
     fun show(
         x: Int,
@@ -58,12 +63,13 @@ internal class OverlayPositionPreview(
         if (hasCustomPosition) {
             bubbleX = x
             bubbleY = y
-        } else {
-            val position = defaultPosition()
-            bubbleX = position.first
-            bubbleY = position.second
-            if (bubbleX != x || bubbleY != y) {
-                onDefaultPositionChanged(bubbleX, bubbleY)
+        } else if (layoutParams != null) {
+            defaultPositionOrNull()?.let { position ->
+                bubbleX = position.first
+                bubbleY = position.second
+                if (bubbleX != x || bubbleY != y) {
+                    onDefaultPositionChanged(bubbleX, bubbleY)
+                }
             }
         }
         applyGeometry()
@@ -71,6 +77,8 @@ internal class OverlayPositionPreview(
 
     fun dismiss() {
         showRequested = false
+        hostView.removeCallbacks(attachRetry)
+        attachRetryScheduled = false
         layoutParams?.let {
             runCatching { windowManager.removeView(bubbleView) }
         }
@@ -79,11 +87,18 @@ internal class OverlayPositionPreview(
 
     private fun attachIfRequested() {
         if (!showRequested || layoutParams != null) return
+        if (hostView.applicationWindowToken == null) {
+            scheduleAttachRetry()
+            return
+        }
         val sizePx = dpToPx(bubbleSizeDp)
         val initialPosition = if (hasCustomPosition) {
             clampPosition(bubbleX, bubbleY, sizePx)
         } else {
-            defaultPosition()
+            defaultPositionOrNull() ?: run {
+                scheduleAttachRetry()
+                return
+            }
         }
         bubbleX = initialPosition.first
         bubbleY = initialPosition.second
@@ -111,6 +126,15 @@ internal class OverlayPositionPreview(
         }
         windowManager.addView(bubbleView, params)
         layoutParams = params
+        if (!hasCustomPosition) {
+            onDefaultPositionChanged(bubbleX, bubbleY)
+        }
+    }
+
+    private fun scheduleAttachRetry() {
+        if (!showRequested || attachRetryScheduled) return
+        attachRetryScheduled = true
+        hostView.postDelayed(attachRetry, ATTACH_RETRY_MS)
     }
 
     private fun applyGeometry() {
@@ -204,7 +228,7 @@ internal class OverlayPositionPreview(
         }
     }
 
-    private fun defaultPosition(): Pair<Int, Int> {
+    private fun defaultPositionOrNull(): Pair<Int, Int>? {
         val displaySize = displaySize()
         val bubbleSizePx = dpToPx(bubbleSizeDp)
         val keyboardTopPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -215,6 +239,9 @@ internal class OverlayPositionPreview(
                 ?.let { displaySize.y - it }
         } else {
             null
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && keyboardTopPx == null) {
+            return null
         }
         return OverlayDefaultPosition.calculate(
             displayWidthPx = displaySize.x,
@@ -252,5 +279,9 @@ internal class OverlayPositionPreview(
 
     private fun dpToPx(dp: Int): Int {
         return (dp * context.resources.displayMetrics.density).roundToInt()
+    }
+
+    private companion object {
+        const val ATTACH_RETRY_MS = 32L
     }
 }
