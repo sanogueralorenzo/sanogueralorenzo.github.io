@@ -121,7 +121,7 @@ private fun ProductHero() {
             )
             Text(
                 text = stringResource(R.string.product_hero_title),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
         }
