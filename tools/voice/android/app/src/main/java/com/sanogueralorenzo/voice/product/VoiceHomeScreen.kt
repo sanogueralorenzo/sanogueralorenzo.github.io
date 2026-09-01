@@ -137,11 +137,13 @@ private fun ProductHero() {
 @Composable
 private fun HowItWorksCard() {
     Section(title = stringResource(R.string.product_how_it_works)) {
-        ProductStep(number = 1, text = stringResource(R.string.product_step_open_field))
+        ProductStep(number = 1, text = stringResource(R.string.product_step_complete_setup))
         HorizontalDivider()
-        ProductStep(number = 2, text = stringResource(R.string.product_step_tap_mic))
+        ProductStep(number = 2, text = stringResource(R.string.product_step_position_mic))
         HorizontalDivider()
-        ProductStep(number = 3, text = stringResource(R.string.product_step_text_appears))
+        ProductStep(number = 3, text = stringResource(R.string.product_step_record))
+        HorizontalDivider()
+        ProductStep(number = 4, text = stringResource(R.string.product_step_stop))
     }
 }
 

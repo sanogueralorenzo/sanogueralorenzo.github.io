@@ -4,9 +4,10 @@
 
     <string name="product_hero_title">Private, local dictation for your keyboard.</string>
     <string name="product_how_it_works">How it works</string>
-    <string name="product_step_open_field">Open any text field</string>
-    <string name="product_step_tap_mic">Tap your keyboard’s mic and speak</string>
-    <string name="product_step_text_appears">Tap again — your text appears</string>
+    <string name="product_step_complete_setup">Complete setup below</string>
+    <string name="product_step_position_mic">Position Voice over your keyboard’s mic</string>
+    <string name="product_step_record">Open a text field, tap the mic, and speak</string>
+    <string name="product_step_stop">Tap again to stop — Voice writes your text</string>
     <string name="product_status">Status</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Microphone allowed</string>
