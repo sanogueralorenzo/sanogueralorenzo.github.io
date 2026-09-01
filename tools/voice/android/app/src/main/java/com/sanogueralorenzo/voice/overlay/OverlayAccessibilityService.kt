@@ -65,8 +65,22 @@ class OverlayAccessibilityService : AccessibilityService() {
     private var imeSettingsObserverRegistered = false
     private var keyboardCloseStopScheduled = false
     private var isBubbleDragging = false
+    private var positionPreviewVisible = false
     private var resizeAnchorCenterX: Float? = null
     private var resizeAnchorCenterY: Float? = null
+    private val showPositionPreviewRunnable = Runnable {
+        if (!positionPreviewActive) return@Runnable
+        overlayView?.alpha = 0f
+        positionPreviewVisible = true
+        evaluateOverlayVisibility()
+        overlayView?.let { bubble ->
+            bubble.alpha = 0f
+            bubble.animate()
+                .alpha(1f)
+                .setDuration(POSITION_PREVIEW_FADE_DURATION_MS)
+                .start()
+        }
+    }
     private val keyboardCloseStopRunnable = Runnable {
         keyboardCloseStopScheduled = false
         if (!isInputMethodWindowVisible()) {
@@ -115,7 +129,11 @@ class OverlayAccessibilityService : AccessibilityService() {
             notificationTimeout = 0
         }
         warmupMoonshine()
-        evaluateOverlayVisibility()
+        if (positionPreviewActive) {
+            updatePositionPreview(active = true)
+        } else {
+            evaluateOverlayVisibility()
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -131,19 +149,13 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_REFRESH) {
-            evaluateOverlayVisibility()
-        }
-        return super.onStartCommand(intent, flags, startId)
-    }
-
     override fun onDestroy() {
         if (runningService === this) {
             runningService = null
         }
         serviceScope.cancel()
         cancelKeyboardCloseStop()
+        mainHandler.removeCallbacks(showPositionPreviewRunnable)
         unregisterSystemDialogReceiverIfNeeded()
         unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
@@ -171,6 +183,17 @@ class OverlayAccessibilityService : AccessibilityService() {
             showOrUpdateBubble(config)
         } else {
             hideBubble()
+        }
+    }
+
+    private fun updatePositionPreview(active: Boolean) {
+        mainHandler.removeCallbacks(showPositionPreviewRunnable)
+        overlayView?.animate()?.cancel()
+        overlayView?.alpha = 1f
+        positionPreviewVisible = false
+        evaluateOverlayVisibility()
+        if (active) {
+            mainHandler.postDelayed(showPositionPreviewRunnable, POSITION_PREVIEW_DELAY_MS)
         }
     }
 
@@ -459,7 +482,10 @@ class OverlayAccessibilityService : AccessibilityService() {
         isBubbleDragging = false
         clearResizeAnchor()
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        overlayView?.let { view -> runCatching { wm.removeView(view) } }
+        overlayView?.let { view ->
+            view.animate().cancel()
+            runCatching { wm.removeView(view) }
+        }
         overlayView = null
         overlayParams = null
     }
@@ -781,20 +807,21 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun updateBubbleVisual() {
         val bubble = overlayView ?: return
-        val color = if (positionPreviewActive) {
+        val showPositionPreview = positionPreviewActive && positionPreviewVisible
+        val color = if (showPositionPreview) {
             if (isSystemInDarkTheme()) Color.WHITE else Color.BLACK
         } else {
             Color.TRANSPARENT
         }
         val background = bubble.background as? GradientDrawable ?: return
         background.setColor(color)
-        val strokeColor = if (positionPreviewActive) {
+        val strokeColor = if (showPositionPreview) {
             Color.parseColor("#1B1F23")
         } else {
             Color.TRANSPARENT
         }
         background.setStroke(dpToPx(2), strokeColor)
-        bubble.elevation = if (positionPreviewActive) dpToPx(10).toFloat() else 0f
+        bubble.elevation = if (showPositionPreview) dpToPx(10).toFloat() else 0f
         bubble.text = ""
         bubble.gravity = Gravity.CENTER
         bubble.setPadding(0, 0, 0, 0)
@@ -837,17 +864,12 @@ class OverlayAccessibilityService : AccessibilityService() {
     )
 
     companion object {
-        const val ACTION_REFRESH = "com.sanogueralorenzo.voice.overlay.REFRESH"
-
-        fun requestRefresh(context: Context) {
-            runningService?.mainHandler?.post {
-                runningService?.evaluateOverlayVisibility()
-            }
-        }
-
-        fun setPositionPreviewActive(context: Context, active: Boolean) {
+        fun setPositionPreviewActive(active: Boolean) {
+            if (positionPreviewActive == active) return
             positionPreviewActive = active
-            requestRefresh(context)
+            runningService?.mainHandler?.post {
+                runningService?.updatePositionPreview(active)
+            }
         }
 
         @Volatile
@@ -860,5 +882,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
         private const val FINAL_LINE_SETTLE_MS = 50L
         private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
+        private const val POSITION_PREVIEW_DELAY_MS = 500L
+        private const val POSITION_PREVIEW_FADE_DURATION_MS = 200L
     }
 }

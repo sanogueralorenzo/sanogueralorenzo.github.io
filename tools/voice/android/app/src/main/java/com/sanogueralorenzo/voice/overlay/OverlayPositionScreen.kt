@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -48,7 +47,6 @@ import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
 fun OverlayPositionScreen() {
-    val context = LocalContext.current
     val viewModel = mavericksViewModel<OverlayPositionViewModel, OverlayPositionState>()
     val state by viewModel.collectAsStateWithLifecycle()
     var numberInput by rememberSaveable { mutableStateOf("") }
@@ -62,10 +60,10 @@ fun OverlayPositionScreen() {
 
     OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
         viewModel.refreshStatus()
-        OverlayAccessibilityService.setPositionPreviewActive(context, true)
+        OverlayAccessibilityService.setPositionPreviewActive(true)
     }
     OnLifecycle(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP) {
-        OverlayAccessibilityService.setPositionPreviewActive(context, false)
+        OverlayAccessibilityService.setPositionPreviewActive(false)
     }
 
     Column(
