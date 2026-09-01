@@ -30,22 +30,6 @@ internal class OverlayPositionPreview(
     private var bubbleSizeDp = 36
     private var hasCustomPosition = false
 
-    private val revealRunnable = Runnable {
-        if (!showRequested || layoutParams == null) return@Runnable
-        if (!hasCustomPosition) {
-            val position = defaultPosition()
-            bubbleX = position.first
-            bubbleY = position.second
-            hasCustomPosition = true
-            applyGeometry()
-            onPositionChanged(bubbleX, bubbleY)
-        }
-        bubbleView.animate()
-            .alpha(1f)
-            .setDuration(FADE_DURATION_MS)
-            .start()
-    }
-
     fun show(
         x: Int,
         y: Int,
@@ -77,8 +61,6 @@ internal class OverlayPositionPreview(
 
     fun dismiss() {
         showRequested = false
-        hostView.removeCallbacks(revealRunnable)
-        bubbleView.animate().cancel()
         layoutParams?.let {
             runCatching { windowManager.removeView(bubbleView) }
         }
@@ -117,11 +99,12 @@ internal class OverlayPositionPreview(
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
         }
-        bubbleView.alpha = 0f
         windowManager.addView(bubbleView, params)
         layoutParams = params
-        hostView.removeCallbacks(revealRunnable)
-        hostView.postDelayed(revealRunnable, REVEAL_DELAY_MS)
+        if (!hasCustomPosition) {
+            hasCustomPosition = true
+            onPositionChanged(bubbleX, bubbleY)
+        }
     }
 
     private fun applyGeometry() {
@@ -263,10 +246,5 @@ internal class OverlayPositionPreview(
 
     private fun dpToPx(dp: Int): Int {
         return (dp * context.resources.displayMetrics.density).roundToInt()
-    }
-
-    private companion object {
-        const val REVEAL_DELAY_MS = 500L
-        const val FADE_DURATION_MS = 200L
     }
 }

@@ -159,11 +159,11 @@ private fun PositionInstructions() {
     ) {
         Text(
             text = stringResource(R.string.overlay_position_instructions_body),
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.titleMedium
         )
         Text(
             text = stringResource(R.string.overlay_position_mic_indicator_note),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
