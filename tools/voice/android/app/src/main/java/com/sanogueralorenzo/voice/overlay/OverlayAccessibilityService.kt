@@ -26,6 +26,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -248,15 +249,20 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun showOrUpdateBubble(config: OverlayConfig) {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val bubbleSizePx = dpToPx(config.bubbleSizeDp)
-        val desiredX = if (isBubbleDragging) {
-            overlayParams?.x ?: config.bubbleX
+        val configuredPosition = if (config.hasCustomBubblePosition) {
+            config.bubbleX to config.bubbleY
         } else {
-            config.bubbleX
+            defaultBubblePosition(bubbleSizePx = bubbleSizePx, windowManager = wm)
+        }
+        val desiredX = if (isBubbleDragging) {
+            overlayParams?.x ?: configuredPosition.first
+        } else {
+            configuredPosition.first
         }
         val desiredY = if (isBubbleDragging) {
-            overlayParams?.y ?: config.bubbleY
+            overlayParams?.y ?: configuredPosition.second
         } else {
-            config.bubbleY
+            configuredPosition.second
         }
         val safePosition = clampBubblePosition(
             x = desiredX,
@@ -264,8 +270,14 @@ class OverlayAccessibilityService : AccessibilityService() {
             bubbleSizePx = bubbleSizePx,
             windowManager = wm
         )
-        if (!isBubbleDragging && (safePosition.first != config.bubbleX || safePosition.second != config.bubbleY)) {
-            overlayRepository.setBubblePosition(safePosition.first, safePosition.second)
+        if (!isBubbleDragging) {
+            if (config.hasCustomBubblePosition) {
+                if (safePosition.first != config.bubbleX || safePosition.second != config.bubbleY) {
+                    overlayRepository.setBubblePosition(safePosition.first, safePosition.second)
+                }
+            } else {
+                overlayRepository.setDefaultBubblePosition(safePosition.first, safePosition.second)
+            }
         }
         val view = overlayView
         if (view == null) {
@@ -352,6 +364,11 @@ class OverlayAccessibilityService : AccessibilityService() {
         val params = overlayParams ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val newSizePx = dpToPx(sizeDp)
+        val config = overlayRepository.currentConfig()
+        if (!config.hasCustomBubblePosition) {
+            showOrUpdateBubble(config)
+            return
+        }
         val oldSizePx = params.width.coerceAtLeast(1)
         val centerX = resizeAnchorCenterX ?: (params.x + (oldSizePx / 2f))
         val centerY = resizeAnchorCenterY ?: (params.y + (oldSizePx / 2f))
@@ -386,16 +403,41 @@ class OverlayAccessibilityService : AccessibilityService() {
         bubbleSizePx: Int,
         windowManager: WindowManager
     ): Pair<Int, Int> {
-        val displaySize = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val displaySize = displaySize(windowManager)
+        val maxX = (displaySize.x - bubbleSizePx).coerceAtLeast(0)
+        val maxY = (displaySize.y - bubbleSizePx).coerceAtLeast(0)
+        return x.coerceIn(0, maxX) to y.coerceIn(0, maxY)
+    }
+
+    private fun defaultBubblePosition(
+        bubbleSizePx: Int,
+        windowManager: WindowManager
+    ): Pair<Int, Int> {
+        val displaySize = displaySize(windowManager)
+        val imeBottomInsetPx = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.windowInsets
+                .getInsets(WindowInsets.Type.ime())
+                .bottom
+        } else {
+            0
+        }
+        return OverlayDefaultPosition.calculate(
+            displayWidthPx = displaySize.x,
+            displayHeightPx = displaySize.y,
+            imeBottomInsetPx = imeBottomInsetPx,
+            bubbleSizePx = bubbleSizePx,
+            density = resources.displayMetrics.density
+        )
+    }
+
+    private fun displaySize(windowManager: WindowManager): Point {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val bounds = windowManager.currentWindowMetrics.bounds
             Point(bounds.width(), bounds.height())
         } else {
             @Suppress("DEPRECATION")
             Point().also { point -> windowManager.defaultDisplay.getRealSize(point) }
         }
-        val maxX = (displaySize.x - bubbleSizePx).coerceAtLeast(0)
-        val maxY = (displaySize.y - bubbleSizePx).coerceAtLeast(0)
-        return x.coerceIn(0, maxX) to y.coerceIn(0, maxY)
     }
 
     private fun hideBubble() {

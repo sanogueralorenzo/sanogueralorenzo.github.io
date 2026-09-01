@@ -33,7 +33,8 @@ data class OverlayConfig(
     val overlayEnabled: Boolean,
     val bubbleX: Int,
     val bubbleY: Int,
-    val bubbleSizeDp: Int
+    val bubbleSizeDp: Int,
+    val hasCustomBubblePosition: Boolean
 )
 
 class OverlayRepository(context: Context) {
@@ -45,19 +46,18 @@ class OverlayRepository(context: Context) {
     private val bubbleXState = sharedBubbleXState
     private val bubbleYState = sharedBubbleYState
     private val bubbleSizeDpState = sharedBubbleSizeDpState
+    private val hasCustomBubblePositionState = sharedHasCustomBubblePositionState
 
     init {
         val initialSnapshot = runBlocking { dataStore.data.first() }
         overlayEnabledState.value = initialSnapshot[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-        bubbleXState.value = initialSnapshot[KEY_BUBBLE_X] ?: DEFAULT_BUBBLE_X_PX
-        bubbleYState.value = initialSnapshot[KEY_BUBBLE_Y] ?: DEFAULT_BUBBLE_Y_PX
+        applyStoredBubblePosition(initialSnapshot)
         bubbleSizeDpState.value = initialSnapshot[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
 
         scope.launch {
             dataStore.data.collectLatest { prefs ->
                 overlayEnabledState.value = prefs[KEY_OVERLAY_ENABLED] ?: DEFAULT_OVERLAY_ENABLED
-                bubbleXState.value = prefs[KEY_BUBBLE_X] ?: DEFAULT_BUBBLE_X_PX
-                bubbleYState.value = prefs[KEY_BUBBLE_Y] ?: DEFAULT_BUBBLE_Y_PX
+                applyStoredBubblePosition(prefs)
                 bubbleSizeDpState.value = prefs[KEY_BUBBLE_SIZE_DP] ?: DEFAULT_BUBBLE_SIZE_DP
             }
         }
@@ -68,7 +68,8 @@ class OverlayRepository(context: Context) {
             overlayEnabled = overlayEnabledState.value,
             bubbleX = bubbleXState.value,
             bubbleY = bubbleYState.value,
-            bubbleSizeDp = bubbleSizeDpState.value
+            bubbleSizeDp = bubbleSizeDpState.value,
+            hasCustomBubblePosition = hasCustomBubblePositionState.value
         )
     }
 
@@ -86,12 +87,19 @@ class OverlayRepository(context: Context) {
         val clampedY = y.coerceAtLeast(0)
         bubbleXState.value = clampedX
         bubbleYState.value = clampedY
+        hasCustomBubblePositionState.value = true
         scope.launch {
             dataStore.edit { prefs ->
                 prefs[KEY_BUBBLE_X] = clampedX
                 prefs[KEY_BUBBLE_Y] = clampedY
             }
         }
+    }
+
+    fun setDefaultBubblePosition(x: Int, y: Int) {
+        if (hasCustomBubblePositionState.value) return
+        bubbleXState.value = x.coerceAtLeast(0)
+        bubbleYState.value = y.coerceAtLeast(0)
     }
 
     fun nudgeBubblePositionByDp(deltaXDp: Int, deltaYDp: Int) {
@@ -134,6 +142,18 @@ class OverlayRepository(context: Context) {
         ).roundToInt()
     }
 
+    private fun applyStoredBubblePosition(preferences: Preferences) {
+        val storedX = preferences[KEY_BUBBLE_X]
+        val storedY = preferences[KEY_BUBBLE_Y]
+        if (storedX == null || storedY == null) {
+            hasCustomBubblePositionState.value = false
+            return
+        }
+        hasCustomBubblePositionState.value = true
+        bubbleXState.value = storedX
+        bubbleYState.value = storedY
+    }
+
     fun hasRecordAudioPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
             appContext,
@@ -170,15 +190,14 @@ class OverlayRepository(context: Context) {
         private val KEY_BUBBLE_SIZE_DP = intPreferencesKey("overlay_bubble_size_dp")
 
         private const val DEFAULT_OVERLAY_ENABLED = false
-        private const val DEFAULT_BUBBLE_X_PX = 24
-        private const val DEFAULT_BUBBLE_Y_PX = 520
         private const val DEFAULT_BUBBLE_SIZE_DP = 32
         private const val MIN_BUBBLE_SIZE_DP = 32
         private const val MAX_BUBBLE_SIZE_DP = 96
 
         // Shared across repository instances (UI + service) so size changes propagate immediately.
-        private val sharedBubbleXState = MutableStateFlow(DEFAULT_BUBBLE_X_PX)
-        private val sharedBubbleYState = MutableStateFlow(DEFAULT_BUBBLE_Y_PX)
+        private val sharedBubbleXState = MutableStateFlow(0)
+        private val sharedBubbleYState = MutableStateFlow(0)
         private val sharedBubbleSizeDpState = MutableStateFlow(DEFAULT_BUBBLE_SIZE_DP)
+        private val sharedHasCustomBubblePositionState = MutableStateFlow(false)
     }
 }
