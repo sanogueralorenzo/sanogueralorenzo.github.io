@@ -15,18 +15,10 @@ forms:
 - `delete milk` (or `delete milk and eggs`)
 - `replace milk with oat milk`
 
-Voice also offers three on-device LLM commands for existing text. Each command
-runs only when the complete dictated text is that single word:
-
-- `fix` corrects transcription, spelling, grammar, and punctuation.
-- `short` makes the text more concise without dropping essential details.
-- `message` turns rough notes into a natural, send-ready message.
-
 ## Structure
 
 - `android/` contains the Android product UI and existing-keyboard microphone overlay.
 - `engine/` contains shared deterministic text cleanup, edit commands, and guardrails.
-- `evals/` contains developer-only prompts, datasets, and evaluation tools.
 
 Android is the first supported platform. iOS, macOS, Linux, and Windows versions are coming soon.
 

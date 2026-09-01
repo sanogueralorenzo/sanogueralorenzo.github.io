@@ -6,22 +6,8 @@ import org.junit.Test
 
 class ModelReadinessTest {
     @Test
-    fun allReadyRequiresEveryRuntimeAsset() {
-        assertTrue(
-            ModelReadiness(
-                liteRtReady = true,
-                moonshineReady = true,
-                promptReady = true,
-                promptVersion = "2026-09-01"
-            ).allReady
-        )
-        assertFalse(
-            ModelReadiness(
-                liteRtReady = true,
-                moonshineReady = true,
-                promptReady = false,
-                promptVersion = null
-            ).allReady
-        )
+    fun allReadyReflectsMoonshineAssets() {
+        assertTrue(ModelReadiness(moonshineReady = true).allReady)
+        assertFalse(ModelReadiness(moonshineReady = false).allReady)
     }
 }

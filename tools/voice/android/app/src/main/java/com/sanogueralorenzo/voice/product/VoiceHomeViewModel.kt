@@ -107,8 +107,7 @@ class VoiceHomeViewModel(
                     app.appGraph.modelSetupRepository.readModelReadiness().allReady
                 },
                 localModelsDownloader = LocalModelsDownloader(
-                    context = app,
-                    modelSetupRepository = app.appGraph.modelSetupRepository
+                    context = app
                 )
             )
         }

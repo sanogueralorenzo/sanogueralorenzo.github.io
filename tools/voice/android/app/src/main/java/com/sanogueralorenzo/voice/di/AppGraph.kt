@@ -5,8 +5,6 @@ import android.content.Context
 import com.sanogueralorenzo.voice.asr.AsrRuntimeStatusStore
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelSetupRepository
-import com.sanogueralorenzo.voice.preferences.PreferencesRepository
-import com.sanogueralorenzo.voice.summary.SummaryEngine
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -15,22 +13,12 @@ import dev.zacsweers.metro.SingleIn
 @SingleIn(AppScope::class)
 @DependencyGraph(AppScope::class)
 interface AppGraph {
-    val preferencesRepository: PreferencesRepository
     val asrRuntimeStatusStore: AsrRuntimeStatusStore
-    val summaryEngine: SummaryEngine
     val connectivityRepository: ConnectivityRepository
     val modelSetupRepository: ModelSetupRepository
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
-
-    @Provides
-    @SingleIn(AppScope::class)
-    fun provideSummaryEngine(
-        context: Context
-    ): SummaryEngine = SummaryEngine(
-        context = context
-    )
 
     @Provides
     fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)

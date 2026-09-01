@@ -5,11 +5,8 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelDownloadResult
 import com.sanogueralorenzo.voice.models.ModelDownloader
-import com.sanogueralorenzo.voice.models.ModelSetupRepository
 import com.sanogueralorenzo.voice.models.ModelSpec
 import com.sanogueralorenzo.voice.models.ModelStore
-import com.sanogueralorenzo.voice.prompt.PromptTemplateStore
-import com.sanogueralorenzo.voice.summary.LiteRtRuntimeConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -22,8 +19,7 @@ sealed interface LocalModelsDownloadResult {
 
 /** Owns the complete local-model download so product UI only starts it and observes progress. */
 class LocalModelsDownloader(
-    context: Context,
-    private val modelSetupRepository: ModelSetupRepository
+    context: Context
 ) {
     private val appContext = context.applicationContext
 
@@ -40,27 +36,17 @@ class LocalModelsDownloader(
         downloader: ModelDownloader,
         onProgress: (Int) -> Unit
     ): LocalModelsDownloadResult {
-        val modelSpecs = ModelCatalog.moonshineMediumStreamingSpecs +
-            listOfNotNull(ModelCatalog.liteRtLm.takeIf { LiteRtRuntimeConfig.ENABLE_LLM })
+        val modelSpecs = ModelCatalog.moonshineMediumStreamingSpecs
         val readyModels = withContext(Dispatchers.IO) {
             modelSpecs.associateWith { spec ->
                 ModelStore.isModelReadyStrict(appContext, spec)
             }
         }
-        val promptReady = !LiteRtRuntimeConfig.ENABLE_LLM || withContext(Dispatchers.IO) {
-            modelSetupRepository.readModelReadiness().promptReady
-        }
         val modelWeights = modelSpecs.associateWith { it.sizeBytes.coerceAtLeast(1L) }
-        val totalModelWeight = modelWeights.values.sum()
-        val promptWeight = if (LiteRtRuntimeConfig.ENABLE_LLM) {
-            (totalModelWeight / 99L).coerceAtLeast(1L)
-        } else {
-            0L
-        }
-        val totalWeight = totalModelWeight + promptWeight
+        val totalWeight = modelWeights.values.sum()
         var completedWeight = modelSpecs.sumOf { spec ->
             if (readyModels.getValue(spec)) modelWeights.getValue(spec) else 0L
-        } + if (promptReady) promptWeight else 0L
+        }
 
         fun reportProgress(currentWeight: Long = 0L, currentPercent: Int = 0) {
             val currentCompleted = currentWeight.toDouble() *
@@ -83,14 +69,6 @@ class LocalModelsDownloader(
             }
             completedWeight += weight
             reportProgress()
-        }
-
-        if (!promptReady) {
-            val result = modelSetupRepository.ensurePromptDownloaded(force = false)
-            if (!result.isSuccess) {
-                return LocalModelsDownloadResult.Failure(promptErrorMessage(result))
-            }
-            completedWeight += promptWeight
         }
 
         onProgress(100)
@@ -152,36 +130,7 @@ class LocalModelsDownloader(
             )
         }
     }
-
-    private fun promptErrorMessage(result: PromptTemplateStore.DownloadResult): String {
-        return when (result) {
-            is PromptTemplateStore.DownloadResult.Success,
-            is PromptTemplateStore.DownloadResult.AlreadyAvailable ->
-                error("Successful downloads do not have an error message.")
-
-            is PromptTemplateStore.DownloadResult.HttpError -> appContext.getString(
-                R.string.product_prompt_error_http,
-                result.code
-            )
-
-            is PromptTemplateStore.DownloadResult.NetworkError ->
-                appContext.getString(R.string.product_prompt_error_network)
-
-            is PromptTemplateStore.DownloadResult.InvalidPayload ->
-                appContext.getString(R.string.product_prompt_error_invalid)
-
-            is PromptTemplateStore.DownloadResult.StorageError ->
-                appContext.getString(R.string.product_prompt_error_storage)
-
-            is PromptTemplateStore.DownloadResult.UnknownError ->
-                appContext.getString(R.string.product_prompt_error_unknown)
-        }
-    }
 }
 
 private val ModelDownloadResult.isSuccess: Boolean
     get() = this is ModelDownloadResult.Success || this is ModelDownloadResult.AlreadyAvailable
-
-private val PromptTemplateStore.DownloadResult.isSuccess: Boolean
-    get() = this is PromptTemplateStore.DownloadResult.Success ||
-        this is PromptTemplateStore.DownloadResult.AlreadyAvailable

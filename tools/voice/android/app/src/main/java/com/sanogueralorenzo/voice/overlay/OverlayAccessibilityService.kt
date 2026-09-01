@@ -110,8 +110,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         ImeSpeechProcessorEntryPoint.create(
             moonshineTranscriber = moonshineTranscriber,
             asrRuntimeStatusStore = appGraph.asrRuntimeStatusStore,
-            preferencesRepository = appGraph.preferencesRepository,
-            summaryEngine = appGraph.summaryEngine,
             logTag = TAG
         )
     }
@@ -600,10 +598,7 @@ class OverlayAccessibilityService : AccessibilityService() {
                     chunkSessionId = chunkSessionId
                 ),
                 awaitChunkSessionQuiescence = { awaitChunkSessionQuiescence(it) },
-                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) },
-                onShowRewriting = {
-                    mainHandler.post { updateBubbleVisual(BubbleVisualState.PROCESSING) }
-                }
+                finalizeMoonshineTranscript = { finalizeMoonshineTranscript(it) }
             )
         } catch (_: Throwable) {
             cancelPendingChunkWork(chunkSessionId)

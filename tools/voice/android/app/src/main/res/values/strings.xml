@@ -52,9 +52,4 @@
     <string name="product_models_error_storage">Failed downloading %1$s (storage error).</string>
     <string name="product_models_error_unknown">Failed downloading %1$s (unknown error).</string>
     <string name="product_models_error_invalid">Failed downloading %1$s (invalid model spec).</string>
-    <string name="product_prompt_error_http">Failed downloading prompt (HTTP %1$d).</string>
-    <string name="product_prompt_error_network">Failed downloading prompt (network error).</string>
-    <string name="product_prompt_error_storage">Failed downloading prompt (storage error).</string>
-    <string name="product_prompt_error_invalid">Failed downloading prompt (invalid JSON payload).</string>
-    <string name="product_prompt_error_unknown">Failed downloading prompt (unknown error).</string>
 </resources>
