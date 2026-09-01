@@ -26,7 +26,7 @@
 
     <string name="overlay_position_instructions_title">Position Voice</string>
     <string name="overlay_position_instructions_body">Open the keyboard below, then drag the dot onto its microphone. Use the arrows if needed.</string>
-    <string name="overlay_position_mic_indicator_note">The dot disappears when you’re done and turns red while Voice is listening.</string>
+    <string name="overlay_position_mic_indicator_note">The dot disappears when you’re done.</string>
     <string name="overlay_position_size_label">Size: %1$ddp</string>
     <string name="overlay_position_number_input_label">Input test</string>
     <string name="overlay_position_nudge_label">Fine position (1dp)</string>
@@ -42,8 +42,6 @@
     <string name="overlay_notification_channel">Overlay recording</string>
     <string name="overlay_notification_title">Voice overlay recording</string>
     <string name="overlay_notification_text">Recording from overlay bubble.</string>
-    <string name="overlay_status_listening">Listening…  Tap to finish</string>
-    <string name="overlay_status_processing">Writing…</string>
     <string name="overlay_accessibility_description">Voice records speech and inserts text into focused fields.</string>
     <string name="product_models_error_http">Failed downloading %1$s (HTTP %2$d).</string>
     <string name="product_models_error_hash">Failed downloading %1$s (hash mismatch).</string>
