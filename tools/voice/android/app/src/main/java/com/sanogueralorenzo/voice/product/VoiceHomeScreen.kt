@@ -173,17 +173,6 @@ private fun StatusSection(
     onOpenVoiceService: () -> Unit
 ) {
     Section(title = stringResource(R.string.product_status)) {
-        LocalModelsStatusRow(
-            title = stringResource(R.string.product_status_models),
-            ready = state.modelsReady,
-            loading = state.loading,
-            downloading = state.modelsDownloading,
-            progress = state.modelsDownloadProgress,
-            error = state.modelsDownloadError,
-            actionLabel = stringResource(R.string.product_action_download),
-            onAction = onDownloadModels
-        )
-        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
         StatusRow(
             title = stringResource(R.string.product_status_microphone),
             ready = state.microphoneAllowed,
@@ -198,6 +187,17 @@ private fun StatusSection(
             loading = state.loading,
             actionLabel = stringResource(R.string.product_action_enable),
             onAction = onOpenVoiceService
+        )
+        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
+        LocalModelsStatusRow(
+            title = stringResource(R.string.product_status_models),
+            ready = state.modelsReady,
+            loading = state.loading,
+            downloading = state.modelsDownloading,
+            progress = state.modelsDownloadProgress,
+            error = state.modelsDownloadError,
+            actionLabel = stringResource(R.string.product_action_download),
+            onAction = onDownloadModels
         )
     }
 }
