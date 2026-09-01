@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Voice</string>
     <string name="main_back">Back</string>
+    <string name="main_done">Done</string>
 
     <string name="product_hero_title">Private, local dictation for your keyboard.</string>
     <string name="product_get_started">Get started</string>
