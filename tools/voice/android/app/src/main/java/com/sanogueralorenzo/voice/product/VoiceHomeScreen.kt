@@ -32,15 +32,21 @@ import androidx.compose.material.icons.outlined.OpenWith
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +61,7 @@ import androidx.lifecycle.Lifecycle
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
@@ -87,6 +94,8 @@ fun VoiceHomeScreen(
                 context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
             }
         },
+        onSelectPrimaryLanguage = viewModel::selectPrimaryLanguage,
+        onSelectSecondaryLanguage = viewModel::selectSecondaryLanguage,
         onOpenMicPosition = onOpenMicPosition
     )
 }
@@ -98,8 +107,12 @@ private fun VoiceHomeContent(
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenVoiceKeyboard: () -> Unit,
+    onSelectPrimaryLanguage: (DictationLanguage) -> Unit,
+    onSelectSecondaryLanguage: (DictationLanguage) -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
+    var selectedLanguageSlot by remember { mutableStateOf<LanguageSlot?>(null) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -117,12 +130,38 @@ private fun VoiceHomeContent(
             )
         }
         item {
+            LanguagesSection(
+                primary = state.primaryLanguage,
+                secondary = state.secondaryLanguage,
+                onPrimaryClick = { selectedLanguageSlot = LanguageSlot.PRIMARY },
+                onSecondaryClick = { selectedLanguageSlot = LanguageSlot.SECONDARY }
+            )
+        }
+        item {
             MicPositionCard(
                 enabled = state.voiceServiceEnabled,
                 onClick = onOpenMicPosition
             )
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
+    }
+
+    selectedLanguageSlot?.let { slot ->
+        LanguagePickerDialog(
+            slot = slot,
+            selected = when (slot) {
+                LanguageSlot.PRIMARY -> state.primaryLanguage
+                LanguageSlot.SECONDARY -> state.secondaryLanguage
+            },
+            onSelect = { language ->
+                when (slot) {
+                    LanguageSlot.PRIMARY -> onSelectPrimaryLanguage(language)
+                    LanguageSlot.SECONDARY -> onSelectSecondaryLanguage(language)
+                }
+                selectedLanguageSlot = null
+            },
+            onDismiss = { selectedLanguageSlot = null }
+        )
     }
 }
 
@@ -316,6 +355,123 @@ private fun StatusSection(
             onAction = onOpenVoiceKeyboard
         )
     }
+}
+
+private enum class LanguageSlot {
+    PRIMARY,
+    SECONDARY
+}
+
+@Composable
+private fun LanguagesSection(
+    primary: DictationLanguage,
+    secondary: DictationLanguage,
+    onPrimaryClick: () -> Unit,
+    onSecondaryClick: () -> Unit
+) {
+    Section(title = stringResource(R.string.product_languages)) {
+        LanguageRow(
+            title = stringResource(R.string.product_language_primary),
+            language = primary,
+            onClick = onPrimaryClick
+        )
+        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+        LanguageRow(
+            title = stringResource(R.string.product_language_secondary),
+            language = secondary,
+            onClick = onSecondaryClick
+        )
+    }
+}
+
+@Composable
+private fun LanguageRow(
+    title: String,
+    language: DictationLanguage,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = languageLabel(language),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    slot: LanguageSlot,
+    selected: DictationLanguage,
+    onSelect: (DictationLanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(
+                    if (slot == LanguageSlot.PRIMARY) {
+                        R.string.product_select_primary_language
+                    } else {
+                        R.string.product_select_secondary_language
+                    }
+                )
+            )
+        },
+        text = {
+            Column {
+                DictationLanguage.entries.forEach { language ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(language) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = language == selected,
+                            onClick = null
+                        )
+                        Text(
+                            text = languageLabel(language),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.product_action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun languageLabel(language: DictationLanguage): String {
+    return stringResource(
+        when (language) {
+            DictationLanguage.ENGLISH -> R.string.product_language_english
+            DictationLanguage.SPANISH -> R.string.product_language_spanish
+        }
+    )
 }
 
 @Composable

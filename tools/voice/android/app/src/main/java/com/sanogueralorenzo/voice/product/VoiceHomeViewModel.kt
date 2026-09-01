@@ -7,6 +7,8 @@ import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.VoiceApp
+import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatus
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.overlay.OverlayRepository
@@ -23,7 +25,9 @@ data class VoiceHomeState(
     val microphoneAllowed: Boolean = false,
     val voiceServiceEnabled: Boolean = false,
     val voiceKeyboardEnabled: Boolean = false,
-    val voiceKeyboardSelected: Boolean = false
+    val voiceKeyboardSelected: Boolean = false,
+    val primaryLanguage: DictationLanguage = DictationLanguage.ENGLISH,
+    val secondaryLanguage: DictationLanguage = DictationLanguage.SPANISH
 ) : MavericksState {
     val ready: Boolean
         get() = modelsReady && microphoneAllowed && voiceServiceEnabled
@@ -34,7 +38,8 @@ class VoiceHomeViewModel(
     private val overlayRepository: OverlayRepository,
     private val readModelsReady: () -> Boolean,
     private val readKeyboardStatus: () -> VoiceKeyboardStatus,
-    private val localModelsDownloader: LocalModelsDownloader
+    private val localModelsDownloader: LocalModelsDownloader,
+    private val languagePreferences: DictationLanguagePreferences
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
 
     init {
@@ -47,6 +52,7 @@ class VoiceHomeViewModel(
             val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
             val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
             val keyboardStatus = readKeyboardStatus()
+            val languages = languagePreferences.read()
 
             if (voiceServiceEnabled && !overlayRepository.currentConfig().overlayEnabled) {
                 overlayRepository.setOverlayEnabled(true)
@@ -59,9 +65,31 @@ class VoiceHomeViewModel(
                     microphoneAllowed = microphoneAllowed,
                     voiceServiceEnabled = voiceServiceEnabled,
                     voiceKeyboardEnabled = keyboardStatus.enabled,
-                    voiceKeyboardSelected = keyboardStatus.selected
+                    voiceKeyboardSelected = keyboardStatus.selected,
+                    primaryLanguage = languages.primary,
+                    secondaryLanguage = languages.secondary
                 )
             }
+        }
+    }
+
+    fun selectPrimaryLanguage(language: DictationLanguage) {
+        val languages = languagePreferences.setPrimary(language)
+        setState {
+            copy(
+                primaryLanguage = languages.primary,
+                secondaryLanguage = languages.secondary
+            )
+        }
+    }
+
+    fun selectSecondaryLanguage(language: DictationLanguage) {
+        val languages = languagePreferences.setSecondary(language)
+        setState {
+            copy(
+                primaryLanguage = languages.primary,
+                secondaryLanguage = languages.secondary
+            )
         }
     }
 
@@ -119,7 +147,8 @@ class VoiceHomeViewModel(
                 },
                 localModelsDownloader = LocalModelsDownloader(
                     context = app
-                )
+                ),
+                languagePreferences = DictationLanguagePreferences(app)
             )
         }
     }

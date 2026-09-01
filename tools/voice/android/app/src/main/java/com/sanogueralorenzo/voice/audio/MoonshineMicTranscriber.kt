@@ -33,8 +33,8 @@ class MoonshineMicTranscriber(context: Context) {
     private var transcriber: MicTranscriber? = null
     private var loadedLanguage: DictationLanguage? = null
 
-    fun warmup(): Boolean = synchronized(lock) {
-        ensureLoadedLocked(DictationLanguage.ENGLISH) != null
+    fun warmup(language: DictationLanguage = DictationLanguage.ENGLISH): Boolean = synchronized(lock) {
+        ensureLoadedLocked(language) != null
     }
 
     fun isReady(language: DictationLanguage): Boolean = modelSpecs(language).all { spec ->

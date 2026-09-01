@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationTextBuffer
 import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +91,9 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) {
         MoonshineMicTranscriber(this)
+    }
+    private val languagePreferences by lazy(LazyThreadSafetyMode.NONE) {
+        DictationLanguagePreferences(this)
     }
 
     override fun onServiceConnected() {
@@ -425,7 +429,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             setOnClickListener { onBubbleTapped() }
             setOnLongClickListener {
                 if (recordingSession == null) {
-                    startRecording(DictationLanguage.SPANISH)
+                    startRecording(languagePreferences.secondary())
                     true
                 } else {
                     false
@@ -437,7 +441,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun onBubbleTapped() {
         val session = recordingSession
         if (session == null) {
-            startRecording(DictationLanguage.ENGLISH)
+            startRecording(languagePreferences.primary())
         } else if (!session.stopping) {
             stopRecordingAndProcess()
         }
@@ -547,7 +551,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun warmupMoonshine() {
         runOnTranscriberThread {
-            moonshineTranscriber.warmup()
+            moonshineTranscriber.warmup(languagePreferences.primary())
         }
     }
 

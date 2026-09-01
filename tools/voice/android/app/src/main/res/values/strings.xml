@@ -18,7 +18,7 @@
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap and speak</string>
-    <string name="product_step_record_body">Tap for English. Hold for Spanish.</string>
+    <string name="product_step_record_body">Tap for primary. Hold for secondary.</string>
     <string name="product_status">Setup</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Permissions</string>
@@ -28,6 +28,14 @@
     <string name="product_action_allow">Allow</string>
     <string name="product_action_enable">Enable</string>
     <string name="product_action_select">Select</string>
+    <string name="product_languages">Languages</string>
+    <string name="product_language_primary">Primary</string>
+    <string name="product_language_secondary">Secondary</string>
+    <string name="product_language_english">English</string>
+    <string name="product_language_spanish">Spanish</string>
+    <string name="product_select_primary_language">Primary language</string>
+    <string name="product_select_secondary_language">Secondary language</string>
+    <string name="product_action_cancel">Cancel</string>
     <string name="product_mic_position_title">Mic position</string>
     <string name="product_mic_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>

@@ -35,6 +35,7 @@ import com.sanogueralorenzo.voice.MainActivity
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationTextBuffer
 import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import java.util.concurrent.Executors
@@ -49,6 +50,9 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) {
         MoonshineMicTranscriber(this)
+    }
+    private val languagePreferences by lazy(LazyThreadSafetyMode.NONE) {
+        DictationLanguagePreferences(this)
     }
 
     private var nextSessionId = 0
@@ -100,8 +104,8 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                     CompactKeyboardContent(
                         state = keyboardState,
                         isDarkTheme = darkTheme,
-                        onIdleTap = { startRecording(DictationLanguage.ENGLISH) },
-                        onIdleLongPress = { startRecording(DictationLanguage.SPANISH) },
+                        onIdleTap = { startRecording(languagePreferences.primary()) },
+                        onIdleLongPress = { startRecording(languagePreferences.secondary()) },
                         onDiscardTap = ::discardRecording,
                         onSendTap = ::stopRecording
                     )
@@ -339,7 +343,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun warmupMoonshine() {
-        runOnTranscriberThread { moonshineTranscriber.warmup() }
+        runOnTranscriberThread { moonshineTranscriber.warmup(languagePreferences.primary()) }
     }
 
     private fun runOnTranscriberThread(block: () -> Unit) {
