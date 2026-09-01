@@ -66,10 +66,14 @@ class OverlayAccessibilityService : AccessibilityService() {
     private var keyboardCloseStopScheduled = false
     private var isBubbleDragging = false
     private var positionPreviewVisible = false
+    private var positionPreviewRevealScheduled = false
+    private var positionPreviewFadingOut = false
+    private var inputMethodWasVisible = false
     private var resizeAnchorCenterX: Float? = null
     private var resizeAnchorCenterY: Float? = null
     private val showPositionPreviewRunnable = Runnable {
-        if (!positionPreviewActive) return@Runnable
+        positionPreviewRevealScheduled = false
+        if (!positionPreviewActive || !isInputMethodWindowVisible()) return@Runnable
         overlayView?.alpha = 0f
         positionPreviewVisible = true
         evaluateOverlayVisibility()
@@ -169,6 +173,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
         val inputMethodVisible = isInputMethodWindowVisible()
+        updatePositionPreviewForKeyboard(inputMethodVisible)
         if (inputMethodVisible || recordingSession == null) {
             cancelKeyboardCloseStop()
         } else {
@@ -181,20 +186,76 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         if (shouldShow) {
             showOrUpdateBubble(config)
-        } else {
+        } else if (!positionPreviewFadingOut) {
             hideBubble()
         }
     }
 
     private fun updatePositionPreview(active: Boolean) {
-        mainHandler.removeCallbacks(showPositionPreviewRunnable)
+        cancelPositionPreviewReveal()
         overlayView?.animate()?.cancel()
         overlayView?.alpha = 1f
         positionPreviewVisible = false
+        positionPreviewFadingOut = false
+        inputMethodWasVisible = isInputMethodWindowVisible()
         evaluateOverlayVisibility()
-        if (active) {
-            mainHandler.postDelayed(showPositionPreviewRunnable, POSITION_PREVIEW_DELAY_MS)
+        if (active && inputMethodWasVisible) {
+            schedulePositionPreviewReveal()
         }
+    }
+
+    private fun updatePositionPreviewForKeyboard(inputMethodVisible: Boolean) {
+        if (positionPreviewActive) {
+            when {
+                inputMethodVisible && !inputMethodWasVisible -> {
+                    cancelPositionPreviewFadeOut()
+                    schedulePositionPreviewReveal()
+                }
+                !inputMethodVisible && inputMethodWasVisible -> {
+                    cancelPositionPreviewReveal()
+                    fadeOutPositionPreview()
+                }
+            }
+        }
+        inputMethodWasVisible = inputMethodVisible
+    }
+
+    private fun schedulePositionPreviewReveal() {
+        if (positionPreviewRevealScheduled || positionPreviewVisible) return
+        positionPreviewRevealScheduled = true
+        mainHandler.postDelayed(showPositionPreviewRunnable, POSITION_PREVIEW_DELAY_MS)
+    }
+
+    private fun cancelPositionPreviewReveal() {
+        mainHandler.removeCallbacks(showPositionPreviewRunnable)
+        positionPreviewRevealScheduled = false
+    }
+
+    private fun fadeOutPositionPreview() {
+        val bubble = overlayView ?: return
+        if (!positionPreviewVisible || positionPreviewFadingOut) return
+        positionPreviewFadingOut = true
+        bubble.animate().cancel()
+        bubble.animate()
+            .alpha(0f)
+            .setDuration(POSITION_PREVIEW_FADE_DURATION_MS)
+            .withEndAction {
+                if (overlayView === bubble && positionPreviewFadingOut) {
+                    positionPreviewVisible = false
+                    positionPreviewFadingOut = false
+                    hideBubble()
+                }
+            }
+            .start()
+    }
+
+    private fun cancelPositionPreviewFadeOut() {
+        if (!positionPreviewFadingOut) return
+        overlayView?.animate()?.cancel()
+        overlayView?.alpha = 1f
+        positionPreviewFadingOut = false
+        positionPreviewVisible = false
+        updateBubbleVisual()
     }
 
     private fun isInputMethodWindowVisible(): Boolean {
