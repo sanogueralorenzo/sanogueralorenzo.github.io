@@ -19,6 +19,20 @@ class OverlayDefaultPositionTest {
     }
 
     @Test
+    fun anchorsToSamsungKeyboardInLandscape() {
+        assertEquals(
+            2222 to 530,
+            OverlayDefaultPosition.calculate(
+                displayWidthPx = 2340,
+                displayHeightPx = 1080,
+                keyboardTopPx = 517,
+                bubbleSizePx = 101,
+                density = 450f / 160f
+            )
+        )
+    }
+
+    @Test
     fun scalesOffsetsWithDisplayDensity() {
         assertEquals(
             916 to 1209,

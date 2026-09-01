@@ -92,6 +92,7 @@ class OverlayRepository(context: Context) {
             dataStore.edit { prefs ->
                 prefs[KEY_BUBBLE_X] = clampedX
                 prefs[KEY_BUBBLE_Y] = clampedY
+                prefs[KEY_HAS_CUSTOM_BUBBLE_POSITION] = true
             }
         }
     }
@@ -158,7 +159,8 @@ class OverlayRepository(context: Context) {
     private fun applyStoredBubblePosition(preferences: Preferences) {
         val storedX = preferences[KEY_BUBBLE_X]
         val storedY = preferences[KEY_BUBBLE_Y]
-        if (storedX == null || storedY == null) {
+        val hasCustomPosition = preferences[KEY_HAS_CUSTOM_BUBBLE_POSITION] == true
+        if (!hasCustomPosition || storedX == null || storedY == null) {
             hasCustomBubblePositionState.value = false
             return
         }
@@ -200,6 +202,8 @@ class OverlayRepository(context: Context) {
         private val KEY_OVERLAY_ENABLED = booleanPreferencesKey("overlay_enabled")
         private val KEY_BUBBLE_X = intPreferencesKey("overlay_bubble_x")
         private val KEY_BUBBLE_Y = intPreferencesKey("overlay_bubble_y")
+        private val KEY_HAS_CUSTOM_BUBBLE_POSITION =
+            booleanPreferencesKey("overlay_has_custom_bubble_position")
         private val KEY_BUBBLE_SIZE_DP = intPreferencesKey("overlay_bubble_size_dp")
 
         private const val DEFAULT_OVERLAY_ENABLED = false

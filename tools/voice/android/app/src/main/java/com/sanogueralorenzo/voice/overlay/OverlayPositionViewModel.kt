@@ -67,6 +67,17 @@ class OverlayPositionViewModel(
         }
     }
 
+    fun setDefaultBubblePosition(x: Int, y: Int) {
+        repository.setDefaultBubblePosition(x, y)
+        setState {
+            copy(
+                bubbleX = x.coerceAtLeast(0),
+                bubbleY = y.coerceAtLeast(0),
+                hasCustomBubblePosition = false
+            )
+        }
+    }
+
     companion object : MavericksViewModelFactory<OverlayPositionViewModel, OverlayPositionState> {
         override fun initialState(viewModelContext: ViewModelContext): OverlayPositionState {
             val repository = OverlayRepository(context = viewModelContext.app<VoiceApp>())

@@ -59,7 +59,8 @@ fun OverlayPositionScreen() {
     val positionPreview = remember(hostView) {
         OverlayPositionPreview(
             hostView = hostView,
-            onPositionChanged = viewModel::setBubblePosition
+            onPositionChanged = viewModel::setBubblePosition,
+            onDefaultPositionChanged = viewModel::setDefaultBubblePosition
         )
     }
 

@@ -17,7 +17,8 @@ import kotlin.math.roundToInt
 
 internal class OverlayPositionPreview(
     private val hostView: View,
-    private val onPositionChanged: (x: Int, y: Int) -> Unit
+    private val onPositionChanged: (x: Int, y: Int) -> Unit,
+    private val onDefaultPositionChanged: (x: Int, y: Int) -> Unit
 ) {
     private val context = hostView.context
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -52,10 +53,19 @@ internal class OverlayPositionPreview(
         sizeDp: Int,
         hasCustomPosition: Boolean
     ) {
-        bubbleX = x
-        bubbleY = y
         bubbleSizeDp = sizeDp
         this.hasCustomPosition = hasCustomPosition
+        if (hasCustomPosition) {
+            bubbleX = x
+            bubbleY = y
+        } else {
+            val position = defaultPosition()
+            bubbleX = position.first
+            bubbleY = position.second
+            if (bubbleX != x || bubbleY != y) {
+                onDefaultPositionChanged(bubbleX, bubbleY)
+            }
+        }
         applyGeometry()
     }
 
@@ -101,10 +111,6 @@ internal class OverlayPositionPreview(
         }
         windowManager.addView(bubbleView, params)
         layoutParams = params
-        if (!hasCustomPosition) {
-            hasCustomPosition = true
-            onPositionChanged(bubbleX, bubbleY)
-        }
     }
 
     private fun applyGeometry() {
