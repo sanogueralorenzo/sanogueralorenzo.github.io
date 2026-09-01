@@ -1,6 +1,5 @@
 package com.sanogueralorenzo.overlay.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,53 +47,6 @@ fun SectionCard(
 }
 
 @Composable
-fun StatusSection(
-    icon: ImageVector,
-    label: String,
-    status: String,
-    statusColor: Color,
-    statusContainerColor: Color,
-    body: String?,
-    actionLabel: String?,
-    onAction: (() -> Unit)?,
-    helperText: String? = null,
-    onSectionClick: (() -> Unit)? = null
-) {
-    Column(
-        modifier = Modifier
-            .then(
-                if (onSectionClick != null) {
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            onClick = onSectionClick
-                        )
-                } else {
-                    Modifier.fillMaxWidth()
-                }
-            )
-    ) {
-        StatusRow(
-            icon = icon,
-            label = label,
-            status = status,
-            statusColor = statusColor,
-            statusContainerColor = statusContainerColor
-        )
-        if (body != null) {
-            StatusActionBlock(
-                text = body,
-                buttonLabel = actionLabel,
-                onClick = onAction,
-                helperText = helperText
-            )
-        }
-    }
-}
-
-@Composable
 fun StepSection(
     icon: ImageVector,
     chipLabel: String,
@@ -104,40 +55,10 @@ fun StepSection(
 ) {
     Column {
         StepRow(icon = icon, title = title, chipLabel = chipLabel)
-        StatusActionBlock(text = body, buttonLabel = null, onClick = null)
-    }
-}
-
-@Composable
-private fun StatusRow(
-    icon: ImageVector,
-    label: String,
-    status: String,
-    statusColor: Color,
-    statusContainerColor: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
-        StatusChip(
-            text = status,
-            contentColor = statusColor,
-            containerColor = statusContainerColor
+        Text(
+            text = body,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
         )
     }
 }
@@ -157,36 +78,6 @@ private fun StatusChip(
             color = contentColor,
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-        )
-    }
-}
-
-@Composable
-private fun StatusActionBlock(
-    text: String,
-    buttonLabel: String?,
-    onClick: (() -> Unit)?,
-    helperText: String? = null
-) {
-    Text(
-        text = text,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 8.dp)
-    )
-    if (buttonLabel != null && onClick != null) {
-        Button(
-            onClick = onClick,
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Text(text = buttonLabel)
-        }
-    }
-    if (helperText != null) {
-        Text(
-            text = helperText,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(top = 8.dp)
         )
     }
 }
