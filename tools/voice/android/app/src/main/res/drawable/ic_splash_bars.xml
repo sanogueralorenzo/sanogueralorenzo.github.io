@@ -5,43 +5,49 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group
-        android:name="bar_1"
-        android:pivotX="25"
-        android:pivotY="68">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M25,40A5,5 0,0 1,30 45L30,63A5,5 0,0 1,25 68A5,5 0,0 1,20 63L20,45A5,5 0,0 1,25 40z" />
-    </group>
-    <group
-        android:name="bar_2"
-        android:pivotX="39"
-        android:pivotY="74">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M39,34A5,5 0,0 1,44 39L44,69A5,5 0,0 1,39 74A5,5 0,0 1,34 69L34,39A5,5 0,0 1,39 34z" />
-    </group>
-    <group
-        android:name="bar_3"
-        android:pivotX="53"
-        android:pivotY="70">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M53,38A5,5 0,0 1,58 43L58,65A5,5 0,0 1,53 70A5,5 0,0 1,48 65L48,43A5,5 0,0 1,53 38z" />
-    </group>
-    <group
-        android:name="bar_4"
-        android:pivotX="67"
-        android:pivotY="76">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M67,32A5,5 0,0 1,72 37L72,71A5,5 0,0 1,67 76A5,5 0,0 1,62 71L62,37A5,5 0,0 1,67 32z" />
-    </group>
-    <group
-        android:name="bar_5"
-        android:pivotX="81"
-        android:pivotY="72">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M81,36A5,5 0,0 1,86 41L86,67A5,5 0,0 1,81 72A5,5 0,0 1,76 67L76,41A5,5 0,0 1,81 36z" />
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.5"
+        android:scaleY="0.5">
+        <group
+            android:name="bar_1"
+            android:pivotX="25"
+            android:pivotY="68">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M25,40A5,5 0,0 1,30 45L30,63A5,5 0,0 1,25 68A5,5 0,0 1,20 63L20,45A5,5 0,0 1,25 40z" />
+        </group>
+        <group
+            android:name="bar_2"
+            android:pivotX="39"
+            android:pivotY="74">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M39,34A5,5 0,0 1,44 39L44,69A5,5 0,0 1,39 74A5,5 0,0 1,34 69L34,39A5,5 0,0 1,39 34z" />
+        </group>
+        <group
+            android:name="bar_3"
+            android:pivotX="53"
+            android:pivotY="70">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M53,38A5,5 0,0 1,58 43L58,65A5,5 0,0 1,53 70A5,5 0,0 1,48 65L48,43A5,5 0,0 1,53 38z" />
+        </group>
+        <group
+            android:name="bar_4"
+            android:pivotX="67"
+            android:pivotY="76">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M67,32A5,5 0,0 1,72 37L72,71A5,5 0,0 1,67 76A5,5 0,0 1,62 71L62,37A5,5 0,0 1,67 32z" />
+        </group>
+        <group
+            android:name="bar_5"
+            android:pivotX="81"
+            android:pivotY="72">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M81,36A5,5 0,0 1,86 41L86,67A5,5 0,0 1,81 72A5,5 0,0 1,76 67L76,41A5,5 0,0 1,81 36z" />
+        </group>
     </group>
 </vector>

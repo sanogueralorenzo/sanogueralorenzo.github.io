@@ -49,9 +49,6 @@ class MainActivity : ComponentActivity() {
                     return
                 }
 
-                val targetScale = target.width() / iconView.width
-                iconView.scaleX = targetScale
-                iconView.scaleY = targetScale
                 val travelDelay = (centeredAnimationEnd - now).coerceAtLeast(0L)
 
                 splashView.postDelayed(
