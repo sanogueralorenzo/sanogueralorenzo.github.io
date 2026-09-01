@@ -2,6 +2,11 @@
     <string name="app_name">Voice</string>
     <string name="main_back">Back</string>
     <string name="main_done">Done</string>
+    <string name="keyboard_name">Voice Keyboard</string>
+    <string name="keyboard_description">Compact, private voice keyboard</string>
+    <string name="keyboard_discard_recording">Discard recording</string>
+    <string name="keyboard_send_recording">Finish dictation</string>
+    <string name="keyboard_recording_start_failed">Could not start keyboard recording.</string>
 
     <string name="product_hero_title">Private, local dictation for your keyboard.</string>
     <string name="product_get_started">Get started</string>
@@ -18,9 +23,11 @@
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Permissions</string>
     <string name="product_status_service">Keyboard mic</string>
+    <string name="product_status_voice_keyboard">Voice keyboard</string>
     <string name="product_action_download">Download</string>
     <string name="product_action_allow">Allow</string>
     <string name="product_action_enable">Enable</string>
+    <string name="product_action_select">Select</string>
     <string name="product_mic_position_title">Mic position</string>
     <string name="product_mic_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>

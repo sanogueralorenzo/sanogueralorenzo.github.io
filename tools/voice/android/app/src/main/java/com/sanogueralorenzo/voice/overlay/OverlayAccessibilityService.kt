@@ -35,6 +35,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
+import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import kotlinx.coroutines.CoroutineScope
@@ -150,7 +151,8 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
         val shouldShowByContext = config.overlayEnabled &&
             inputMethodVisible &&
-            !positioningActive
+            !positioningActive &&
+            !VoiceKeyboardStatusReader.read(this).selected
         val shouldKeepVisibleForActiveWork = recordingSession != null
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 

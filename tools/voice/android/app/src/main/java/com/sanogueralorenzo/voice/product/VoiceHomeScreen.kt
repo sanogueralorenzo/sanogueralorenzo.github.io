@@ -3,6 +3,7 @@ package com.sanogueralorenzo.voice.product
 import android.Manifest
 import android.content.Intent
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -78,6 +79,14 @@ fun VoiceHomeScreen(
         onOpenVoiceService = {
             context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         },
+        onOpenVoiceKeyboard = {
+            if (state.voiceKeyboardEnabled) {
+                context.getSystemService(InputMethodManager::class.java)
+                    ?.showInputMethodPicker()
+            } else {
+                context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+            }
+        },
         onOpenMicPosition = onOpenMicPosition
     )
 }
@@ -88,6 +97,7 @@ private fun VoiceHomeContent(
     onDownloadModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
+    onOpenVoiceKeyboard: () -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
     LazyColumn(
@@ -102,7 +112,8 @@ private fun VoiceHomeContent(
                 state = state,
                 onDownloadModels = onDownloadModels,
                 onGrantMicrophone = onGrantMicrophone,
-                onOpenVoiceService = onOpenVoiceService
+                onOpenVoiceService = onOpenVoiceService,
+                onOpenVoiceKeyboard = onOpenVoiceKeyboard
             )
         }
         item {
@@ -254,7 +265,8 @@ private fun StatusSection(
     state: VoiceHomeState,
     onDownloadModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
-    onOpenVoiceService: () -> Unit
+    onOpenVoiceService: () -> Unit,
+    onOpenVoiceKeyboard: () -> Unit
 ) {
     Section(title = stringResource(R.string.product_status)) {
         StatusRow(
@@ -282,6 +294,20 @@ private fun StatusSection(
             error = state.modelsDownloadError,
             actionLabel = stringResource(R.string.product_action_download),
             onAction = onDownloadModels
+        )
+        HorizontalDivider(modifier = Modifier.padding(start = 54.dp))
+        StatusRow(
+            title = stringResource(R.string.product_status_voice_keyboard),
+            ready = state.voiceKeyboardSelected,
+            loading = state.loading,
+            actionLabel = stringResource(
+                if (state.voiceKeyboardEnabled) {
+                    R.string.product_action_select
+                } else {
+                    R.string.product_action_enable
+                }
+            ),
+            onAction = onOpenVoiceKeyboard
         )
     }
 }

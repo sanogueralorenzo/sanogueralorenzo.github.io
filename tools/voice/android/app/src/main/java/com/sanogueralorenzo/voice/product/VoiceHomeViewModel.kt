@@ -7,6 +7,8 @@ import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.airbnb.mvrx.withState
 import com.sanogueralorenzo.voice.VoiceApp
+import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatus
+import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.overlay.OverlayRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,7 +21,9 @@ data class VoiceHomeState(
     val modelsDownloadProgress: Int = 0,
     val modelsDownloadError: String? = null,
     val microphoneAllowed: Boolean = false,
-    val voiceServiceEnabled: Boolean = false
+    val voiceServiceEnabled: Boolean = false,
+    val voiceKeyboardEnabled: Boolean = false,
+    val voiceKeyboardSelected: Boolean = false
 ) : MavericksState {
     val ready: Boolean
         get() = modelsReady && microphoneAllowed && voiceServiceEnabled
@@ -29,6 +33,7 @@ class VoiceHomeViewModel(
     initialState: VoiceHomeState,
     private val overlayRepository: OverlayRepository,
     private val readModelsReady: () -> Boolean,
+    private val readKeyboardStatus: () -> VoiceKeyboardStatus,
     private val localModelsDownloader: LocalModelsDownloader
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
 
@@ -41,6 +46,7 @@ class VoiceHomeViewModel(
             val modelsReady = withContext(Dispatchers.IO) { readModelsReady() }
             val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
             val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
+            val keyboardStatus = readKeyboardStatus()
 
             if (voiceServiceEnabled && !overlayRepository.currentConfig().overlayEnabled) {
                 overlayRepository.setOverlayEnabled(true)
@@ -51,7 +57,9 @@ class VoiceHomeViewModel(
                     loading = false,
                     modelsReady = modelsReady,
                     microphoneAllowed = microphoneAllowed,
-                    voiceServiceEnabled = voiceServiceEnabled
+                    voiceServiceEnabled = voiceServiceEnabled,
+                    voiceKeyboardEnabled = keyboardStatus.enabled,
+                    voiceKeyboardSelected = keyboardStatus.selected
                 )
             }
         }
@@ -105,6 +113,9 @@ class VoiceHomeViewModel(
                 overlayRepository = overlayRepository,
                 readModelsReady = {
                     app.appGraph.modelSetupRepository.readModelReadiness().allReady
+                },
+                readKeyboardStatus = {
+                    VoiceKeyboardStatusReader.read(app)
                 },
                 localModelsDownloader = LocalModelsDownloader(
                     context = app

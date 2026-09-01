@@ -40,6 +40,21 @@
         </activity>
 
         <service
+            android:name=".keyboard.VoiceInputMethodService"
+            android:description="@string/keyboard_description"
+            android:exported="true"
+            android:label="@string/keyboard_name"
+            android:theme="@style/Theme.Voice.Ime"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/voice_ime" />
+        </service>
+
+        <service
             android:name=".overlay.OverlayAccessibilityService"
             android:enabled="true"
             android:exported="true"

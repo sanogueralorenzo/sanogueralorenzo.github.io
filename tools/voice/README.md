@@ -1,8 +1,7 @@
 # Voice
 
-Voice is private, local dictation for the keyboard you already use. Position Voice over your
-keyboard's microphone, tap once to record, and tap again to insert the transcript into the focused
-field.
+Voice is private, local dictation through either the keyboard you already use or the optional
+compact Voice keyboard.
 
 The product is built around a simple pipeline:
 
@@ -10,7 +9,8 @@ The product is built around a simple pipeline:
 
 ## Structure
 
-- `android/` contains the Android product UI and existing-keyboard microphone overlay.
+- `android/` contains the Android product UI, existing-keyboard microphone overlay, and compact
+  voice keyboard.
 
 Android is the first supported platform. iOS, macOS, Linux, and Windows versions are coming soon.
 
