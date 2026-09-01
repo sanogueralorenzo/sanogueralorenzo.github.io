@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -61,7 +62,7 @@ fun NavGraphBuilder.permissionsRoute(
     composable(route) {
         val viewModel: PermissionsViewModel = mavericksViewModel()
         val state by viewModel.mavericksCollectAsState()
-        val activity = LocalContext.current as? ComponentActivity
+        val activity = LocalActivity.current as? ComponentActivity
         PermissionsScreen(
             state = state,
             onBack = onBack,
@@ -85,6 +86,7 @@ fun PermissionsScreen(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val commandCopiedMessage = stringResource(R.string.adb_command_copied_message)
     var showSecureSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var selectedDesktopOs by rememberSaveable { mutableStateOf(DesktopOsOption.Windows) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -101,7 +103,7 @@ fun PermissionsScreen(
         clipboardManager.setText(AnnotatedString(command))
         Toast.makeText(
             context,
-            context.getString(R.string.adb_command_copied_message),
+            commandCopiedMessage,
             Toast.LENGTH_SHORT
         ).show()
     }
