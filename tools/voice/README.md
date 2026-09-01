@@ -19,7 +19,7 @@ Voice also offers three on-device LLM commands for existing text. Each command
 runs only when the complete dictated text is that single word:
 
 - `fix` corrects transcription, spelling, grammar, and punctuation.
-- `shorten` makes the text more concise without dropping essential details.
+- `short` makes the text more concise without dropping essential details.
 - `message` turns rough notes into a natural, send-ready message.
 
 ## Structure

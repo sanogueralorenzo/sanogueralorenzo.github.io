@@ -11,7 +11,7 @@ class LiteRtPromptTemplatesTest {
             Transform TEXT according to COMMAND.
 
             FIX: Correct transcription, spelling, grammar, and punctuation. Preserve meaning and wording.
-            SHORTEN: Make the text shorter. Preserve meaning and essential details.
+            SHORT: Make the text shorter. Preserve meaning and essential details.
             MESSAGE: Turn rough notes into a concise, natural message. Do not invent details.
 
             Return only the final text. Never add labels, explanations, or commentary.
