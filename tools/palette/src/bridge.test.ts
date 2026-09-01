@@ -9,6 +9,7 @@ test('bridge dispatches typed search, execution, clipboard, and copy requests', 
   const backend = {
     searchCommands: async (query: string) => [{ id: query, title: query, mode: 'visible' as const }],
     executeCommand: async (commandId: string) => ({ status: 'success' as const, output: commandId }),
+    listRunHistory: async () => [],
     listClipboard: async (query: string) => [{ id: query, kind: 'text' as const, content: query, createdAt: 1, pinned: false }],
     copyClipboard: async (itemId: string) => itemId === 'known',
     captureClipboard: async (item: ClipboardCapture) => item.content === 'capture me',
@@ -23,6 +24,10 @@ test('bridge dispatches typed search, execution, clipboard, and copy requests', 
   const result = await handleBridgeRequest({ id: '2', type: 'executeCommand', commandId: 'tonal-local' }, backend);
   assert.equal(result.ok, true);
   if (result.ok && result.payload.type === 'commandResult') assert.equal(result.payload.result.output, 'tonal-local');
+
+  const history = await handleBridgeRequest({ id: '2b', type: 'listRunHistory', limit: 10 }, backend);
+  assert.equal(history.ok, true);
+  if (history.ok) assert.equal(history.payload.type, 'runHistory');
 
   const clipboard = await handleBridgeRequest({ id: '3', type: 'listClipboard', query: 'hello' }, backend);
   assert.equal(clipboard.ok, true);
@@ -49,6 +54,7 @@ test('bridge turns backend errors into response errors', async () => {
   const response = await handleBridgeRequest({ id: 'x', type: 'executeCommand', commandId: 'broken' }, {
     searchCommands: async () => [],
     executeCommand: async () => { throw new Error('backend offline'); },
+    listRunHistory: async () => [],
     listClipboard: async () => [],
     copyClipboard: async () => false,
     captureClipboard: async () => false,

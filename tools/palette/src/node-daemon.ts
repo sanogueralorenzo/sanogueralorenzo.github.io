@@ -16,9 +16,11 @@ import type { Notification } from './contracts.ts';
 import { LocalSearchProvider } from './local-search.ts';
 import { RustSearchProvider } from './rust-search-provider.ts';
 import { loadConfiguredCommands } from './command-config.ts';
+import { loadLocalExtensions } from './local-extensions.ts';
 import { NodeProcessRunner } from './node-process-runner.ts';
 
 const dataDirectory = process.env.PALETTE_DATA_DIR || join(homedir(), '.palette');
+const configDirectory = process.env.PALETTE_CONFIG_DIR || join(homedir(), '.palette');
 const configuredKey = process.env.PALETTE_CLIPBOARD_KEY;
 await mkdir(dataDirectory, { recursive: true });
 
@@ -104,13 +106,17 @@ const service = new PaletteService({
 });
 
 const processRunner = new NodeProcessRunner();
-for (const command of await loadConfiguredCommands(join(dataDirectory, 'commands.json'), processRunner)) {
+for (const command of [
+  ...await loadConfiguredCommands(join(configDirectory, 'commands.json'), processRunner),
+  ...await loadLocalExtensions(join(configDirectory, 'extensions'), processRunner),
+]) {
   try { service.registry.register(command); } catch {}
 }
 
 const backend = {
   searchCommands: async (query: string) => service.searchCommands(query),
   executeCommand: async (commandId: string) => service.executeCommand(commandId),
+  listRunHistory: async (limit?: number) => service.listRunHistory(limit),
   listClipboard: async (query: string) => service.listClipboard(query),
   copyClipboard: async (itemId: string) => service.copyClipboard(itemId),
   captureClipboard: async (item: Parameters<PaletteService['captureClipboard']>[0]) => service.captureClipboard(item),

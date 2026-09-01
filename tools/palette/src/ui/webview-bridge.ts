@@ -1,10 +1,10 @@
-import type { BridgeRequest, BridgeRequestBody, BridgeResponse } from '../bridge-protocol.ts';
-import type { ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary } from '../contracts.ts';
+import type { BridgeRequest, BridgeRequestBody, BridgeResponse, HostBridgeMessage } from '../bridge-protocol.ts';
+import type { ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary, RunHistoryEntry } from '../contracts.ts';
 import type { PaletteBridge } from './PaletteApp.tsx';
 
-type WebKitMessageHandler = { postMessage(message: BridgeRequest): void };
+type WebKitMessageHandler = { postMessage(message: BridgeRequest | HostBridgeMessage): void };
 type WebView2Bridge = {
-  postMessage(message: BridgeRequest): void;
+  postMessage(message: BridgeRequest | HostBridgeMessage): void;
   addEventListener(type: 'message', listener: (event: MessageEvent<BridgeResponse>) => void): void;
 };
 type PaletteWindow = Window & {
@@ -41,6 +41,16 @@ export function createWebViewBridge(): PaletteBridge {
     });
   }
 
+  function hostMessage(message: HostBridgeMessage): void {
+    const handler = target.webkit?.messageHandlers?.palette;
+    const webview2 = target.chrome?.webview;
+    if (handler) handler.postMessage(message);
+    else if (webview2) webview2.postMessage(message);
+    else if (message.type === 'dismissLauncher') window.close();
+  }
+
+  hostMessage({ type: 'hostReady' });
+
   return {
     searchCommands: async (query): Promise<CommandSummary[]> => {
       const response = await request({ type: 'searchCommands', query });
@@ -50,6 +60,10 @@ export function createWebViewBridge(): PaletteBridge {
       const response = await request({ type: 'executeCommand', commandId });
       if (response.ok && response.payload.type === 'commandResult') return response.payload.result;
       throw new Error('Invalid command response');
+    },
+    listRunHistory: async (limit): Promise<RunHistoryEntry[]> => {
+      const response = await request({ type: 'listRunHistory', limit });
+      return response.ok && response.payload.type === 'runHistory' ? response.payload.entries : [];
     },
     listClipboard: async (query): Promise<ClipboardItem[]> => {
       const response = await request({ type: 'listClipboard', query });
@@ -68,5 +82,6 @@ export function createWebViewBridge(): PaletteBridge {
       const response = await request({ type: 'setClipboardPolicy', policy });
       if (!response.ok || response.payload.type !== 'clipboardPolicy') throw new Error('Invalid clipboard policy response');
     },
+    dismissLauncher: () => hostMessage({ type: 'dismissLauncher' }),
   };
 }

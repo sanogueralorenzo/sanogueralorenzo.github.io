@@ -4,6 +4,7 @@ import type {
   MenubarHost,
   Platform,
   ClipboardPolicy,
+  RunHistoryEntry,
   RunHistoryStore,
 } from './contracts.ts';
 import { PolicyClipboardHistory } from './clipboard-history.ts';
@@ -27,6 +28,7 @@ export class PaletteService {
   private readonly clipboard: PolicyClipboardHistory;
   private readonly localSearch?: SearchProvider;
   private readonly writeClipboard: (content: string) => Promise<void>;
+  private readonly history: RunHistoryStore;
   private clipboardPolicy: ClipboardPolicy;
 
   constructor(options: PaletteServiceOptions) {
@@ -34,6 +36,7 @@ export class PaletteService {
     this.clipboardPolicy = options.clipboardPolicy;
     this.localSearch = options.localSearch;
     this.writeClipboard = options.host.writeClipboard;
+    this.history = options.history;
     this.dispatcher = new CommandDispatcher(this.registry, options.host, options.history, {
       platform: options.platform,
       signal: new AbortController().signal,
@@ -47,6 +50,15 @@ export class PaletteService {
       category: 'command',
       shortcut: { kind: 'accelerator', value: '⌘⇧V' },
       run: async () => ({ status: 'success', nextView: 'clipboard' }),
+    });
+    this.registry.register({
+      id: 'run-history',
+      title: 'Run History',
+      subtitle: 'Review recent command results',
+      keywords: ['recent', 'runs', 'output', 'errors'],
+      mode: 'visible',
+      category: 'command',
+      run: async () => ({ status: 'success', nextView: 'history' }),
     });
   }
 
@@ -64,6 +76,10 @@ export class PaletteService {
 
   executeCommand(commandId: string): Promise<CommandResult> {
     return this.dispatcher.execute(commandId);
+  }
+
+  listRunHistory(limit?: number): Promise<RunHistoryEntry[]> {
+    return this.history.list(limit);
   }
 
   listClipboard(query?: string): Promise<ClipboardItem[]> {

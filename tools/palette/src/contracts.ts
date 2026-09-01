@@ -18,7 +18,7 @@ export type CommandResult = {
   message?: string;
   output?: string;
   exitCode?: number;
-  nextView?: 'clipboard';
+  nextView?: 'clipboard' | 'history';
 };
 
 export type CommandContext = {
@@ -37,7 +37,7 @@ export type CommandDefinition = {
   shortcut?: Shortcut;
   /** A command that starts a process without requiring a visible terminal. */
   background?: boolean;
-  category?: 'command' | 'app' | 'file';
+  category?: 'command' | 'app' | 'file' | 'extension';
   run: (context: CommandContext) => Promise<CommandResult>;
 };
 
