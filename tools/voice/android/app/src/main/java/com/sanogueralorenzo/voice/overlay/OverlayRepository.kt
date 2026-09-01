@@ -203,7 +203,7 @@ class OverlayRepository(context: Context) {
         private val KEY_BUBBLE_X = intPreferencesKey("overlay_bubble_x")
         private val KEY_BUBBLE_Y = intPreferencesKey("overlay_bubble_y")
         private val KEY_HAS_CUSTOM_BUBBLE_POSITION =
-            booleanPreferencesKey("overlay_has_custom_bubble_position")
+            booleanPreferencesKey("overlay_has_custom_bubble_position_v2")
         private val KEY_BUBBLE_SIZE_DP = intPreferencesKey("overlay_bubble_size_dp")
 
         private const val DEFAULT_OVERLAY_ENABLED = false

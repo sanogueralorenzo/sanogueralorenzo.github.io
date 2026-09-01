@@ -21,11 +21,25 @@ class OverlayDefaultPositionTest {
     @Test
     fun anchorsToSamsungKeyboardInLandscape() {
         assertEquals(
-            2222 to 530,
+            2216 to 524,
             OverlayDefaultPosition.calculate(
                 displayWidthPx = 2340,
                 displayHeightPx = 1080,
                 keyboardTopPx = 517,
+                bubbleSizePx = 101,
+                density = 450f / 160f
+            )
+        )
+    }
+
+    @Test
+    fun usesLandscapeFallbackWhenKeyboardBoundsAreUnavailable() {
+        assertEquals(
+            2216 to 525,
+            OverlayDefaultPosition.calculate(
+                displayWidthPx = 2340,
+                displayHeightPx = 1080,
+                keyboardTopPx = null,
                 bubbleSizePx = 101,
                 density = 450f / 160f
             )
