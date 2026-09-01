@@ -76,9 +76,17 @@ class OverlayAccessibilityService : AccessibilityService() {
     private var overlayParams: WindowManager.LayoutParams? = null
     private var systemDialogReceiverRegistered = false
     private var imeSettingsObserverRegistered = false
+    private var keyboardCloseStopScheduled = false
     private var isBubbleDragging = false
     private var resizeAnchorCenterX: Float? = null
     private var resizeAnchorCenterY: Float? = null
+    private val keyboardCloseStopRunnable = Runnable {
+        keyboardCloseStopScheduled = false
+        if (!isInputMethodWindowVisible()) {
+            stopRecordingAndProcess()
+            evaluateOverlayVisibility()
+        }
+    }
 
     private val systemDialogReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -132,7 +140,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
         if (event?.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK) {
-            cancelRecordingIfActive()
+            stopRecordingAndProcess()
         }
         return super.onKeyEvent(event)
     }
@@ -151,6 +159,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             runningService = null
         }
         serviceScope.cancel()
+        cancelKeyboardCloseStop()
         unregisterSystemDialogReceiverIfNeeded()
         unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
@@ -166,8 +175,14 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
+        val inputMethodVisible = isInputMethodWindowVisible()
+        if (inputMethodVisible || recorder == null) {
+            cancelKeyboardCloseStop()
+        } else {
+            scheduleKeyboardCloseStop()
+        }
         val shouldShowByContext = (config.overlayEnabled || positionPreviewActive) &&
-            isInputMethodWindowVisible()
+            inputMethodVisible
         val shouldKeepVisibleForActiveWork = recorder != null || inFlight != null
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 
@@ -175,9 +190,6 @@ class OverlayAccessibilityService : AccessibilityService() {
             showOrUpdateBubble(config)
         } else {
             hideBubble()
-            if (recorder != null) {
-                stopRecordingDiscard()
-            }
         }
     }
 
@@ -185,6 +197,18 @@ class OverlayAccessibilityService : AccessibilityService() {
         return windows.any { window ->
             window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD
         }
+    }
+
+    private fun scheduleKeyboardCloseStop() {
+        if (keyboardCloseStopScheduled) return
+        keyboardCloseStopScheduled = true
+        mainHandler.postDelayed(keyboardCloseStopRunnable, KEYBOARD_CLOSE_CONFIRMATION_MS)
+    }
+
+    private fun cancelKeyboardCloseStop() {
+        if (!keyboardCloseStopScheduled) return
+        mainHandler.removeCallbacks(keyboardCloseStopRunnable)
+        keyboardCloseStopScheduled = false
     }
 
     private fun cancelRecordingIfActive() {
@@ -522,15 +546,22 @@ class OverlayAccessibilityService : AccessibilityService() {
     private fun onBubbleTapped() {
         if (inFlight != null) return
 
-        val activeRecorder = recorder
-        if (activeRecorder == null) {
+        if (recorder == null) {
             startRecording()
         } else {
-            recorder = null
-            val chunkSessionId = recorderChunkSessionId
-            recorderChunkSessionId = 0
-            submitProcessing(activeRecorder, chunkSessionId)
+            stopRecordingAndProcess()
         }
+    }
+
+    private fun stopRecordingAndProcess(): Boolean {
+        if (inFlight != null) return false
+        val activeRecorder = recorder ?: return false
+        cancelKeyboardCloseStop()
+        val chunkSessionId = recorderChunkSessionId
+        recorder = null
+        recorderChunkSessionId = 0
+        submitProcessing(activeRecorder, chunkSessionId)
+        return true
     }
 
     private fun startRecording() {
@@ -601,6 +632,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         mainHandler.post {
             inFlight = null
             stopForegroundIfNeeded()
+            evaluateOverlayVisibility()
         }
     }
 
@@ -915,5 +947,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val CHUNK_WAIT_TOTAL_MS = 7_000L
         private const val CHUNK_WAIT_SLICE_MS = 180L
         private const val MOONSHINE_FINALIZE_WAIT_MS = 4_500L
+        private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
     }
 }
