@@ -247,18 +247,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private fun onMoonshineLine(sessionId: Int, lineId: Long, text: String) {
         val session = activeSession?.takeIf { it.id == sessionId } ?: return
-        val liveOutput = session.textBuffer.completeLine(lineId, text)
-        val command = session.textBuffer.command()
-        if (command != null) {
-            clearComposition(session)
-            replaceEditorText(session, command.applyTo(session.sourceText))
-            session.commandApplied = true
-            if (!session.stopping) {
-                stopRecording()
-            }
-        } else {
-            updateComposition(session, liveOutput)
-        }
+        updateComposition(session, session.textBuffer.completeLine(lineId, text))
         if (session.stopping) {
             scheduleRecordingFinish(sessionId, FINAL_LINE_SETTLE_MS)
         }
@@ -300,7 +289,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         moonshineTranscriber.detachCallbacks()
         val hasTranscript = session.textBuffer.hasTranscript
         val command = session.textBuffer.command()
-        if (command != null && !session.commandApplied) {
+        if (command != null) {
             clearComposition(session)
             replaceEditorText(session, command.applyTo(session.sourceText))
         } else if (hasTranscript) {
@@ -451,8 +440,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val prefix: String,
         val textBuffer: DictationTextBuffer,
         var stopping: Boolean = false,
-        var submitAfterFinish: Boolean = false,
-        var commandApplied: Boolean = false
+        var submitAfterFinish: Boolean = false
     )
 
     private companion object {

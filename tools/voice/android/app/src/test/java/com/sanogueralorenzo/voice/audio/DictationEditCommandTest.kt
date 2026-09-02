@@ -28,6 +28,9 @@ class DictationEditCommandTest {
     fun commandsMustMatchTheWholeTranscript() {
         assertNull(DictationEditCommands.parse("please clear"))
         assertNull(DictationEditCommands.parse("clear this field"))
+        assertNull(DictationEditCommands.parse("some dictation then clear"))
+        assertNull(DictationEditCommands.parse("some dictation then delete milk"))
+        assertNull(DictationEditCommands.parse("some dictation then replace milk with oat milk"))
         assertNull(DictationEditCommands.parse("replace milk"))
     }
 
