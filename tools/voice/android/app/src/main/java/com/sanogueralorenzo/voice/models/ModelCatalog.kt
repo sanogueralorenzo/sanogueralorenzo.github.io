@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.models
 
-import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 
 data class ModelSpec(
     val id: String,

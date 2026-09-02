@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.audio
+package com.sanogueralorenzo.voice.moonshine
 
 import ai.moonshine.voice.MicCaptureProcessor
 import ai.moonshine.voice.MicTranscriber

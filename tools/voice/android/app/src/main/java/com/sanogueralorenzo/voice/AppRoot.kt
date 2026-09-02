@@ -7,8 +7,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.overlay.OverlayPositionScreen
-import com.sanogueralorenzo.voice.product.LocalModelsScreen
-import com.sanogueralorenzo.voice.product.VoiceHomeScreen
+import com.sanogueralorenzo.voice.models.LocalModelsScreen
+import com.sanogueralorenzo.voice.home.VoiceHomeScreen
 
 @Composable
 fun AppRoot() {

@@ -2,8 +2,8 @@ package com.sanogueralorenzo.voice.models
 
 import android.content.Context
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguagePreferences
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn

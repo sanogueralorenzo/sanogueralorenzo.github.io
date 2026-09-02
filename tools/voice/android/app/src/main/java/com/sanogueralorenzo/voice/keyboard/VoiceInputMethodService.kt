@@ -7,8 +7,6 @@ import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.view.View
-import android.view.inputmethod.ExtractedTextRequest
-import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -32,9 +30,9 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.sanogueralorenzo.voice.MainActivity
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
-import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguagePreferences
+import com.sanogueralorenzo.voice.moonshine.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.dictation.DictationSession
 import com.sanogueralorenzo.voice.ui.theme.VoiceTheme
 import kotlin.math.max
@@ -68,7 +66,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
                 }
 
                 override fun onTextChanged(text: String) {
-                    activeEditorSession?.let { updateComposition(it, text) }
+                    activeEditor?.update(text)
                 }
 
                 override fun onAudioLevel(level: Float) {
@@ -95,7 +93,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         )
     }
 
-    private var activeEditorSession: EditorSession? = null
+    private var activeEditor: KeyboardEditor? = null
     private var keyboardState by mutableStateOf(CompactKeyboardState())
 
     override val lifecycle: Lifecycle
@@ -190,14 +188,14 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     override fun onDestroy() {
-        activeEditorSession = null
+        activeEditor = null
         dictationSession.destroy()
         super.onDestroy()
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
     }
 
     private fun startRecording(language: DictationLanguage) {
-        if (activeEditorSession != null || keyboardState.mode != CompactKeyboardMode.IDLE) return
+        if (activeEditor != null || keyboardState.mode != CompactKeyboardMode.IDLE) return
         if (!hasMicrophonePermission() || !dictationSession.isReady(language)) {
             startActivity(
                 Intent(this, MainActivity::class.java)
@@ -206,34 +204,25 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
             return
         }
         val connection = currentInputConnection ?: return
-        val beforeCursor = runCatching {
-            connection.getTextBeforeCursor(1, 0)?.toString().orEmpty()
-        }.getOrDefault("")
-        val session = EditorSession(
-            inputConnection = connection,
-            sourceText = readEditorText(connection),
-            editorAction = KeyboardEditorAction.resolve(currentInputEditorInfo),
-            prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else ""
-        )
-        activeEditorSession = session
+        activeEditor = KeyboardEditor.create(connection, currentInputEditorInfo)
         if (!dictationSession.start(language = language, originalText = "")) {
-            activeEditorSession = null
+            activeEditor = null
         }
     }
 
     private fun stopRecording(submitAfterFinish: Boolean = false) {
-        val session = activeEditorSession ?: return
-        session.submitAfterFinish = submitAfterFinish
+        val editor = activeEditor ?: return
+        editor.submitAfterFinish = submitAfterFinish
         dictationSession.stop()
     }
 
     private fun discardRecording() {
-        if (activeEditorSession == null) return
+        if (activeEditor == null) return
         dictationSession.cancel()
     }
 
     private fun onDictationAudioLevel(level: Float) {
-        if (activeEditorSession == null || keyboardState.mode != CompactKeyboardMode.RECORDING) {
+        if (activeEditor == null || keyboardState.mode != CompactKeyboardMode.RECORDING) {
             return
         }
         val active = KeyboardSpeechGate.isActive(
@@ -246,70 +235,16 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     }
 
     private fun completeEditorSession(result: DictationSession.Result) {
-        val session = activeEditorSession ?: return
-        val command = result.command
-        if (command != null) {
-            clearComposition(session)
-            replaceEditorText(session, command.applyTo(session.sourceText))
-        } else if (result.hasTranscript) {
-            updateComposition(session, result.text)
-            runCatching { session.inputConnection.finishComposingText() }
-        } else {
-            clearComposition(session)
-        }
-        activeEditorSession = null
+        val editor = activeEditor ?: return
+        editor.complete(result)
+        activeEditor = null
         showIdle()
-        if (command == null && result.hasTranscript && session.submitAfterFinish) {
-            session.editorAction?.let { action ->
-                runCatching { session.inputConnection.performEditorAction(action) }
-            }
-        }
     }
 
     private fun clearActiveEditorSession() {
-        activeEditorSession?.let(::clearComposition)
-        activeEditorSession = null
+        activeEditor?.clear()
+        activeEditor = null
         showIdle()
-    }
-
-    private fun updateComposition(session: EditorSession, text: String) {
-        val composingText = if (text.isBlank()) "" else session.prefix + text
-        runCatching { session.inputConnection.setComposingText(composingText, 1) }
-    }
-
-    private fun clearComposition(session: EditorSession) {
-        runCatching {
-            session.inputConnection.setComposingText("", 1)
-            session.inputConnection.finishComposingText()
-        }
-    }
-
-    private fun readEditorText(connection: InputConnection): String {
-        val extracted = runCatching {
-            connection.getExtractedText(ExtractedTextRequest(), 0)?.text?.toString()
-        }.getOrNull()
-        if (extracted != null) return extracted
-
-        val before = runCatching {
-            connection.getTextBeforeCursor(MAX_EDITOR_TEXT_CHARS, 0)?.toString().orEmpty()
-        }.getOrDefault("")
-        val after = runCatching {
-            connection.getTextAfterCursor(MAX_EDITOR_TEXT_CHARS, 0)?.toString().orEmpty()
-        }.getOrDefault("")
-        return before + after
-    }
-
-    private fun replaceEditorText(session: EditorSession, text: String) {
-        runCatching {
-            session.inputConnection.beginBatchEdit()
-            try {
-                session.inputConnection.finishComposingText()
-                session.inputConnection.setSelection(0, session.sourceText.length)
-                session.inputConnection.commitText(text, 1)
-            } finally {
-                session.inputConnection.endBatchEdit()
-            }
-        }
     }
 
     private fun showIdle() {
@@ -374,16 +309,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         window?.window?.decorView?.setViewTreeSavedStateRegistryOwner(this)
     }
 
-    private data class EditorSession(
-        val inputConnection: InputConnection,
-        val sourceText: String,
-        val editorAction: Int?,
-        val prefix: String,
-        var submitAfterFinish: Boolean = false
-    )
-
     private companion object {
-        const val MAX_EDITOR_TEXT_CHARS = 100_000
         const val KEYBOARD_BACKGROUND_LIGHT = 0xFFE8EAED.toInt()
         const val KEYBOARD_BACKGROUND_DARK = 0xFF131519.toInt()
     }

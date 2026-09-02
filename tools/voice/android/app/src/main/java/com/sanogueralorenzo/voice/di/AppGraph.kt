@@ -2,10 +2,10 @@ package com.sanogueralorenzo.voice.di
 
 import android.app.Application
 import android.content.Context
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
+import com.sanogueralorenzo.voice.dictation.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.models.LocalModelsRepository
 import com.sanogueralorenzo.voice.overlay.OverlayRepository
-import com.sanogueralorenzo.voice.product.VoiceInputTypePreferences
+import com.sanogueralorenzo.voice.setup.VoiceInputTypePreferences
 import com.sanogueralorenzo.voice.setup.VoiceSetupRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph

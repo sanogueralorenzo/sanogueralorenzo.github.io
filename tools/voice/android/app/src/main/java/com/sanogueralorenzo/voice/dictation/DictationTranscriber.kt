@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.dictation
 
-import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 
 /** Minimal speech-to-text boundary used by the shared dictation lifecycle. */
 internal interface DictationTranscriber {

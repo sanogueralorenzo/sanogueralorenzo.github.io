@@ -1,7 +1,7 @@
 package com.sanogueralorenzo.voice.dictation
 
-import com.sanogueralorenzo.voice.audio.DictationEditCommand
-import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationEditCommand
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

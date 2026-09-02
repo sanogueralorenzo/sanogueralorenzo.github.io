@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.audio
+package com.sanogueralorenzo.voice.dictation
 
 /** Combines existing editor text with Moonshine's finalized and provisional lines. */
 internal class DictationTextBuffer(originalText: String) {

@@ -2,9 +2,9 @@ package com.sanogueralorenzo.voice.dictation
 
 import android.os.Handler
 import android.os.Looper
-import com.sanogueralorenzo.voice.audio.DictationEditCommand
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.audio.DictationTextBuffer
+import com.sanogueralorenzo.voice.dictation.DictationEditCommand
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationTextBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException

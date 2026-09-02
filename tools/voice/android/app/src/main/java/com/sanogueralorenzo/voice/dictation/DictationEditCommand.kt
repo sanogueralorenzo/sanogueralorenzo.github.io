@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.audio
+package com.sanogueralorenzo.voice.dictation
 
 internal sealed interface DictationEditCommand {
     fun applyTo(source: String): String

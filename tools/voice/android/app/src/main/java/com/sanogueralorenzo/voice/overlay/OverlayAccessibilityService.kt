@@ -17,9 +17,9 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.VoiceApp
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
-import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguagePreferences
+import com.sanogueralorenzo.voice.moonshine.MoonshineMicTranscriber
 import com.sanogueralorenzo.voice.dictation.DictationSession
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import kotlinx.coroutines.CoroutineScope

@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.product
+package com.sanogueralorenzo.voice.setup
 
 import android.content.Context
 import dev.zacsweers.metro.AppScope

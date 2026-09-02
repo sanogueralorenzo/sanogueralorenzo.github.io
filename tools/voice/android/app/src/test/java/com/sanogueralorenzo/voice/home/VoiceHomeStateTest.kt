@@ -1,5 +1,6 @@
-package com.sanogueralorenzo.voice.product
+package com.sanogueralorenzo.voice.home
 
+import com.sanogueralorenzo.voice.setup.VoiceInputType
 import com.sanogueralorenzo.voice.setup.VoiceSetupStatus
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

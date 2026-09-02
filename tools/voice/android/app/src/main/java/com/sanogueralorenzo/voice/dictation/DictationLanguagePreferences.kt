@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.audio
+package com.sanogueralorenzo.voice.dictation
 
 import android.content.Context
 import dev.zacsweers.metro.AppScope

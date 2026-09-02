@@ -5,12 +5,12 @@ import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
+import com.sanogueralorenzo.voice.dictation.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.models.LocalModelsRepository
 import com.sanogueralorenzo.voice.overlay.OverlayRepository
-import com.sanogueralorenzo.voice.product.VoiceInputType
-import com.sanogueralorenzo.voice.product.VoiceInputTypePreferences
+import com.sanogueralorenzo.voice.setup.VoiceInputType
+import com.sanogueralorenzo.voice.setup.VoiceInputTypePreferences
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn

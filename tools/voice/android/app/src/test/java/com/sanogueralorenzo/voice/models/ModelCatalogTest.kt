@@ -1,6 +1,6 @@
 package com.sanogueralorenzo.voice.models
 
-import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

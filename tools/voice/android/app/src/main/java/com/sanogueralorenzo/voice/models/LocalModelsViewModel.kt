@@ -1,14 +1,11 @@
-package com.sanogueralorenzo.voice.product
+package com.sanogueralorenzo.voice.models
 
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.models.LanguageModelStatus
-import com.sanogueralorenzo.voice.models.LocalModelsRepository
-import com.sanogueralorenzo.voice.models.LocalModelsStatus
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 
 data class LocalModelsState(
     val status: LocalModelsStatus = LocalModelsStatus()

@@ -1,20 +1,16 @@
-package com.sanogueralorenzo.voice.audio
+package com.sanogueralorenzo.voice.moonshine
 
 import ai.moonshine.voice.JNI
 import ai.moonshine.voice.MicTranscriber
 import ai.moonshine.voice.TranscriberOption
 import android.content.Context
 import android.util.Log
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 import com.sanogueralorenzo.voice.dictation.DictationTranscriber
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import java.io.File
 import java.util.function.Consumer
-
-enum class DictationLanguage {
-    ENGLISH,
-    SPANISH
-}
 
 /** Owns Moonshine's microphone transcriber and exposes one active dictation session. */
 internal class MoonshineMicTranscriber(context: Context) : DictationTranscriber {

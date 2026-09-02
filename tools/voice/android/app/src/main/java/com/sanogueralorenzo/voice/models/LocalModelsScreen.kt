@@ -1,4 +1,4 @@
-package com.sanogueralorenzo.voice.product
+package com.sanogueralorenzo.voice.models
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.dictation.DictationLanguage
 import com.sanogueralorenzo.voice.models.LanguageModelStatus
 import com.sanogueralorenzo.voice.ui.components.DestinationScaffold
 
