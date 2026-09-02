@@ -48,6 +48,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
@@ -55,10 +57,13 @@ import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun OverlayPositionScreen(
-    onKeyboardSelectionRequiredChanged: (Boolean) -> Unit = {}
+    onKeyboardSelectionRequiredChanged: (Boolean) -> Unit = {},
+    doneRequested: Boolean = false,
+    onDone: () -> Unit = {}
 ) {
     val viewModel = mavericksViewModel<OverlayPositionViewModel, OverlayPositionState>()
     val state by viewModel.collectAsStateWithLifecycle()
@@ -136,6 +141,22 @@ fun OverlayPositionScreen(
         }
     }
 
+    LaunchedEffect(doneRequested) {
+        if (!doneRequested) return@LaunchedEffect
+
+        keyboardController?.hide()
+        hostView.clearFocus()
+        withTimeoutOrNull(KEYBOARD_HIDE_TIMEOUT_MS) {
+            while (
+                ViewCompat.getRootWindowInsets(hostView)
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+            ) {
+                delay(KEYBOARD_VISIBILITY_POLL_MS)
+            }
+        }
+        onDone()
+    }
+
     OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
         viewModel.refreshStatus()
         OverlayAccessibilityService.setPositioningActive(true)
@@ -207,6 +228,9 @@ fun OverlayPositionScreen(
         }
     }
 }
+
+private const val KEYBOARD_HIDE_TIMEOUT_MS = 1_000L
+private const val KEYBOARD_VISIBILITY_POLL_MS = 16L
 
 @Composable
 private fun KeyboardSelectionPrompt(onChooseKeyboard: () -> Unit) {
