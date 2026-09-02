@@ -21,10 +21,15 @@ data class VoiceHomeState(
     val microphoneAllowed: Boolean = false,
     val voiceServiceEnabled: Boolean = false,
     val voiceKeyboardEnabled: Boolean = false,
-    val voiceKeyboardSelected: Boolean = false
+    val voiceKeyboardSelected: Boolean = false,
+    val inputType: VoiceInputType? = null
 ) : MavericksState {
     val ready: Boolean
-        get() = modelsReady && microphoneAllowed && voiceServiceEnabled
+        get() = modelsReady && microphoneAllowed && when (inputType) {
+            VoiceInputType.KEYBOARD -> voiceKeyboardSelected
+            VoiceInputType.OVERLAY -> voiceServiceEnabled
+            null -> false
+        }
 }
 
 class VoiceHomeViewModel(
@@ -32,7 +37,8 @@ class VoiceHomeViewModel(
     private val overlayRepository: OverlayRepository,
     private val readDownloadedLanguages: () -> Set<DictationLanguage>,
     private val readKeyboardStatus: () -> VoiceKeyboardStatus,
-    private val languagePreferences: DictationLanguagePreferences
+    private val languagePreferences: DictationLanguagePreferences,
+    private val inputTypePreferences: VoiceInputTypePreferences
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
 
     init {
@@ -46,9 +52,8 @@ class VoiceHomeViewModel(
             val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
             val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
             val keyboardStatus = readKeyboardStatus()
-            if (voiceServiceEnabled && !overlayRepository.currentConfig().overlayEnabled) {
-                overlayRepository.setOverlayEnabled(true)
-            }
+            val inputType = inputTypePreferences.read()
+            applyInputType(inputType)
 
             setState {
                 copy(
@@ -57,9 +62,23 @@ class VoiceHomeViewModel(
                     microphoneAllowed = microphoneAllowed,
                     voiceServiceEnabled = voiceServiceEnabled,
                     voiceKeyboardEnabled = keyboardStatus.enabled,
-                    voiceKeyboardSelected = keyboardStatus.selected
+                    voiceKeyboardSelected = keyboardStatus.selected,
+                    inputType = inputType
                 )
             }
+        }
+    }
+
+    fun selectInputType(inputType: VoiceInputType) {
+        inputTypePreferences.write(inputType)
+        applyInputType(inputType)
+        setState { copy(inputType = inputType) }
+    }
+
+    private fun applyInputType(inputType: VoiceInputType?) {
+        val overlayEnabled = inputType == VoiceInputType.OVERLAY
+        if (overlayRepository.currentConfig().overlayEnabled != overlayEnabled) {
+            overlayRepository.setOverlayEnabled(overlayEnabled)
         }
     }
 
@@ -79,7 +98,8 @@ class VoiceHomeViewModel(
                 readKeyboardStatus = {
                     VoiceKeyboardStatusReader.read(app)
                 },
-                languagePreferences = app.appGraph.languagePreferences
+                languagePreferences = app.appGraph.languagePreferences,
+                inputTypePreferences = app.appGraph.voiceInputTypePreferences
             )
         }
     }

@@ -2,6 +2,9 @@ package com.sanogueralorenzo.voice.product
 
 import android.Manifest
 import android.content.Intent
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,12 +34,14 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,7 +70,22 @@ fun VoiceHomeScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { viewModel.refreshStatus() }
 
-    OnLifecycle(Lifecycle.Event.ON_RESUME) { viewModel.refreshStatus() }
+    OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshStatus()
+    }
+    DisposableEffect(context, viewModel) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                viewModel.refreshStatus()
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD),
+            false,
+            observer
+        )
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
 
     VoiceHomeContent(
         state = state,
@@ -84,6 +104,7 @@ fun VoiceHomeScreen(
                 context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
             }
         },
+        onSelectInputType = viewModel::selectInputType,
         onOpenMicPosition = onOpenMicPosition
     )
 }
@@ -95,6 +116,7 @@ private fun VoiceHomeContent(
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenVoiceKeyboard: () -> Unit,
+    onSelectInputType: (VoiceInputType) -> Unit,
     onOpenMicPosition: () -> Unit
 ) {
     LazyColumn(
@@ -103,21 +125,24 @@ private fun VoiceHomeContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item { ProductHero() }
-        item { HowItWorksCard() }
+        item { HowItWorksCard(inputType = state.inputType) }
         item {
             StatusSection(
                 state = state,
                 onOpenLocalModels = onOpenLocalModels,
                 onGrantMicrophone = onGrantMicrophone,
                 onOpenVoiceService = onOpenVoiceService,
-                onOpenVoiceKeyboard = onOpenVoiceKeyboard
+                onOpenVoiceKeyboard = onOpenVoiceKeyboard,
+                onSelectInputType = onSelectInputType
             )
         }
-        item {
-            MicPositionCard(
-                enabled = state.voiceServiceEnabled,
-                onClick = onOpenMicPosition
-            )
+        if (state.inputType == VoiceInputType.OVERLAY) {
+            item {
+                MicPositionCard(
+                    enabled = state.voiceServiceEnabled,
+                    onClick = onOpenMicPosition
+                )
+            }
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }
@@ -163,7 +188,7 @@ private fun ProductHero() {
 }
 
 @Composable
-private fun HowItWorksCard() {
+private fun HowItWorksCard(inputType: VoiceInputType?) {
     StepSectionCard(title = stringResource(R.string.product_get_started)) {
         ProductStep(
             icon = Icons.Outlined.Settings,
@@ -171,15 +196,23 @@ private fun HowItWorksCard() {
             title = stringResource(R.string.product_step_setup_title),
             body = stringResource(R.string.product_step_setup_body)
         )
-        ProductStep(
-            icon = Icons.Outlined.OpenWith,
-            chipLabel = stringResource(R.string.product_step_two_chip),
-            title = stringResource(R.string.product_step_position_title),
-            body = stringResource(R.string.product_step_position_body)
-        )
+        if (inputType == VoiceInputType.OVERLAY) {
+            ProductStep(
+                icon = Icons.Outlined.OpenWith,
+                chipLabel = stringResource(R.string.product_step_two_chip),
+                title = stringResource(R.string.product_step_position_title),
+                body = stringResource(R.string.product_step_position_body)
+            )
+        }
         ProductStep(
             icon = Icons.Outlined.Mic,
-            chipLabel = stringResource(R.string.product_step_three_chip),
+            chipLabel = stringResource(
+                if (inputType == VoiceInputType.OVERLAY) {
+                    R.string.product_step_three_chip
+                } else {
+                    R.string.product_step_two_chip
+                }
+            ),
             title = stringResource(R.string.product_step_record_title),
             body = stringResource(R.string.product_step_record_body)
         )
@@ -270,9 +303,16 @@ private fun StatusSection(
     onOpenLocalModels: () -> Unit,
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
-    onOpenVoiceKeyboard: () -> Unit
+    onOpenVoiceKeyboard: () -> Unit,
+    onSelectInputType: (VoiceInputType) -> Unit
 ) {
     Section(title = stringResource(R.string.product_status)) {
+        TypeStatusRow(
+            selected = state.inputType,
+            loading = state.loading,
+            onSelect = onSelectInputType
+        )
+        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
             title = stringResource(R.string.product_status_microphone),
             ready = state.microphoneAllowed,
@@ -280,34 +320,87 @@ private fun StatusSection(
             actionLabel = stringResource(R.string.product_action_allow),
             onAction = onGrantMicrophone
         )
-        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
-        StatusRow(
-            title = stringResource(R.string.product_status_service),
-            subtitle = stringResource(R.string.product_status_service_hint),
-            ready = state.voiceServiceEnabled,
-            loading = state.loading,
-            actionLabel = stringResource(R.string.product_action_enable),
-            onAction = onOpenVoiceService
-        )
-        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
-        StatusRow(
-            title = stringResource(R.string.product_status_voice_keyboard),
-            ready = state.voiceKeyboardSelected,
-            loading = state.loading,
-            actionLabel = stringResource(
-                if (state.voiceKeyboardEnabled) {
-                    R.string.product_action_select
-                } else {
-                    R.string.product_action_enable
-                }
-            ),
-            onAction = onOpenVoiceKeyboard
-        )
+        when (state.inputType) {
+            VoiceInputType.OVERLAY -> {
+                HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
+                StatusRow(
+                    title = stringResource(R.string.product_status_service),
+                    subtitle = stringResource(R.string.product_status_service_hint),
+                    ready = state.voiceServiceEnabled,
+                    loading = state.loading,
+                    actionLabel = stringResource(R.string.product_action_enable),
+                    onAction = onOpenVoiceService
+                )
+            }
+
+            VoiceInputType.KEYBOARD -> {
+                HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
+                StatusRow(
+                    title = stringResource(R.string.product_status_voice_keyboard),
+                    ready = state.voiceKeyboardSelected,
+                    loading = state.loading,
+                    actionLabel = stringResource(
+                        if (state.voiceKeyboardEnabled) {
+                            R.string.product_action_select
+                        } else {
+                            R.string.product_action_enable
+                        }
+                    ),
+                    onAction = onOpenVoiceKeyboard
+                )
+            }
+
+            null -> Unit
+        }
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         LocalModelsStatusRow(
             ready = state.modelsReady,
             loading = state.loading,
             onClick = onOpenLocalModels
+        )
+    }
+}
+
+@Composable
+private fun TypeStatusRow(
+    selected: VoiceInputType?,
+    loading: Boolean,
+    onSelect: (VoiceInputType) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = SETUP_ROW_HEIGHT)
+            .padding(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = if (selected != null) Icons.Rounded.Check else Icons.Outlined.ErrorOutline,
+            contentDescription = null,
+            tint = when {
+                loading -> MaterialTheme.colorScheme.outline
+                selected != null -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.error
+            },
+            modifier = Modifier.size(24.dp)
+        )
+        Text(
+            text = stringResource(R.string.product_status_type),
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+        FilterChip(
+            selected = selected == VoiceInputType.KEYBOARD,
+            onClick = { onSelect(VoiceInputType.KEYBOARD) },
+            enabled = !loading,
+            label = { Text(stringResource(R.string.product_type_keyboard)) }
+        )
+        FilterChip(
+            selected = selected == VoiceInputType.OVERLAY,
+            onClick = { onSelect(VoiceInputType.OVERLAY) },
+            enabled = !loading,
+            label = { Text(stringResource(R.string.product_type_overlay)) }
         )
     }
 }
