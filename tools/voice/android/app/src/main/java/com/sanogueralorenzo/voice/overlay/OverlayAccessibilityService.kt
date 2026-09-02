@@ -474,6 +474,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         val session = RecordingSession(
             id = ++nextRecordingSessionId,
+            language = language,
             textBuffer = DictationTextBuffer(readFocusedInputText())
         )
         recordingSession = session
@@ -547,6 +548,9 @@ class OverlayAccessibilityService : AccessibilityService() {
             }
         }
         stopForegroundIfNeeded()
+        runOnTranscriberThread {
+            moonshineTranscriber.releaseMicrophoneAndWarmup(session.language)
+        }
         evaluateOverlayVisibility()
     }
 
@@ -731,6 +735,7 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private data class RecordingSession(
         val id: Int,
+        val language: DictationLanguage,
         val textBuffer: DictationTextBuffer,
         var stopping: Boolean = false
     )
