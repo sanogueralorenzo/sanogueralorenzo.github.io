@@ -210,9 +210,10 @@ private fun KeyboardSelectionPrompt(onChooseKeyboard: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp)
+            .padding(top = 64.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
         Text(
             text = stringResource(R.string.overlay_position_choose_keyboard_title),

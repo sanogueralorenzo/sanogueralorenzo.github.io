@@ -58,9 +58,9 @@
     <string name="overlay_position_nudge_down">Move down</string>
     <string name="overlay_position_nudge_right">Move right</string>
     <string name="overlay_position_enable_accessibility_note">Enable the keyboard mic first to preview and position the dot.</string>
-    <string name="overlay_position_choose_keyboard_title">Choose another keyboard</string>
-    <string name="overlay_position_choose_keyboard_body">Choose the keyboard you want to place the floating mic over.</string>
-    <string name="overlay_position_choose_keyboard_action">Choose keyboard</string>
+    <string name="overlay_position_choose_keyboard_title">Select your usual keyboard</string>
+    <string name="overlay_position_choose_keyboard_body">It needs to be open while you position the floating mic.</string>
+    <string name="overlay_position_choose_keyboard_action">Continue</string>
     <string name="overlay_microphone_required">Microphone permission is required.</string>
     <string name="overlay_asr_not_ready">ASR model is not ready yet.</string>
     <string name="overlay_recording_start_failed">Could not start recording.</string>
