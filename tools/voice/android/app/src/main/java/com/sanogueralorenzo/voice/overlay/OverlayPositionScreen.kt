@@ -6,6 +6,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -54,11 +56,12 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.ui.OnLifecycle
+import com.sanogueralorenzo.voice.ui.components.DestinationScaffold
 import kotlinx.coroutines.delay
 
 @Composable
 fun OverlayPositionScreen(
-    onKeyboardSelectionRequiredChanged: (Boolean) -> Unit = {}
+    onBack: () -> Unit
 ) {
     val viewModel = mavericksViewModel<OverlayPositionViewModel, OverlayPositionState>()
     val state by viewModel.collectAsStateWithLifecycle()
@@ -125,7 +128,6 @@ fun OverlayPositionScreen(
     }
 
     LaunchedEffect(voiceKeyboardSelected) {
-        onKeyboardSelectionRequiredChanged(voiceKeyboardSelected)
         if (voiceKeyboardSelected) {
             keyboardController?.hide()
             inputMethodManager?.showInputMethodPicker()
@@ -155,55 +157,76 @@ fun OverlayPositionScreen(
         OverlayAccessibilityService.setPositioningActive(false)
     }
 
-    if (voiceKeyboardSelected) {
-        KeyboardSelectionPrompt(
-            onChooseKeyboard = { inputMethodManager?.showInputMethodPicker() }
-        )
-    } else {
-        Column(
+    DestinationScaffold(
+        title = stringResource(R.string.product_mic_position_title),
+        onBack = onBack,
+        actions = {
+            if (!voiceKeyboardSelected) {
+                TextButton(onClick = {
+                    keyboardController?.hide()
+                    onBack()
+                }) {
+                    Text(text = stringResource(R.string.main_done))
+                }
+            }
+        }
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding()
-                .padding(horizontal = 20.dp)
+                .padding(innerPadding)
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                PositionInstructions()
-                if (state.positionLoaded) {
-                    PositionControls(
-                        bubbleSizeDp = state.bubbleSizeDp,
-                        onDecreaseSize = { viewModel.adjustBubbleSizeDp(-1) },
-                        onIncreaseSize = { viewModel.adjustBubbleSizeDp(1) },
-                        onNudge = viewModel::nudgeBubblePosition
-                    )
-                }
+            if (voiceKeyboardSelected) {
+                KeyboardSelectionPrompt(
+                    onChooseKeyboard = { inputMethodManager?.showInputMethodPicker() }
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        PositionInstructions()
+                        if (state.positionLoaded) {
+                            PositionControls(
+                                bubbleSizeDp = state.bubbleSizeDp,
+                                onDecreaseSize = { viewModel.adjustBubbleSizeDp(-1) },
+                                onIncreaseSize = { viewModel.adjustBubbleSizeDp(1) },
+                                onNudge = viewModel::nudgeBubblePosition
+                            )
+                        }
 
-                if (!state.accessibilityServiceEnabled) {
-                    Text(
-                        text = stringResource(R.string.overlay_position_enable_accessibility_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        if (!state.accessibilityServiceEnabled) {
+                            Text(
+                                text = stringResource(R.string.overlay_position_enable_accessibility_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    TextField(
+                        value = numberInput,
+                        onValueChange = { value -> numberInput = value },
+                        placeholder = {
+                            Text(text = stringResource(R.string.overlay_position_message_placeholder))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(inputFocusRequester)
+                            .padding(top = 12.dp, bottom = 16.dp),
+                        singleLine = true
                     )
                 }
             }
-
-            TextField(
-                value = numberInput,
-                onValueChange = { value -> numberInput = value },
-                placeholder = {
-                    Text(text = stringResource(R.string.overlay_position_message_placeholder))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(inputFocusRequester)
-                    .padding(top = 12.dp, bottom = 16.dp),
-                singleLine = true
-            )
         }
     }
 }

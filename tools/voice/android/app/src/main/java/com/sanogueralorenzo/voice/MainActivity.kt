@@ -12,7 +12,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             VoiceTheme {
-                MainNavHost()
+                AppRoot()
             }
         }
     }

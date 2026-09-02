@@ -38,14 +38,35 @@ import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.models.LanguageModelStatus
+import com.sanogueralorenzo.voice.ui.components.DestinationScaffold
 
 @Composable
-fun LocalModelsScreen() {
+fun LocalModelsScreen(onBack: () -> Unit) {
     val viewModel = mavericksViewModel<LocalModelsViewModel, LocalModelsState>()
     val state = viewModel.collectAsStateWithLifecycle().value
 
+    DestinationScaffold(
+        title = stringResource(R.string.models_title),
+        onBack = onBack
+    ) { innerPadding ->
+        LocalModelsContent(
+            state = state,
+            onDownload = viewModel::download,
+            onSwapLanguages = viewModel::swapLanguages,
+            modifier = Modifier.padding(innerPadding)
+        )
+    }
+}
+
+@Composable
+private fun LocalModelsContent(
+    state: LocalModelsState,
+    onDownload: (DictationLanguage) -> Unit,
+    onSwapLanguages: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -65,7 +86,7 @@ fun LocalModelsScreen() {
                             downloadedCount = state.downloadedCount,
                             loading = state.loading,
                             operationInProgress = state.operationInProgress,
-                            onDownload = { viewModel.download(model.language) }
+                            onDownload = { onDownload(model.language) }
                         )
                         if (index < state.models.lastIndex) {
                             HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
@@ -77,7 +98,7 @@ fun LocalModelsScreen() {
         if (state.downloadedCount > 1) {
             item {
                 FilledTonalButton(
-                    onClick = viewModel::swapLanguages,
+                    onClick = onSwapLanguages,
                     enabled = !state.operationInProgress,
                     modifier = Modifier.fillMaxWidth()
                 ) {
