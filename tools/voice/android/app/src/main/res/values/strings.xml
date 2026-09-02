@@ -32,7 +32,6 @@
     <string name="product_action_allow">Allow</string>
     <string name="product_action_enable">Enable</string>
     <string name="product_action_select">Select</string>
-    <string name="product_action_cancel">Cancel</string>
     <string name="models_title">Local Models</string>
     <string name="models_explanation">Download the languages you want. With two models, you can swap tap and long press.</string>
     <string name="models_tap_gesture">Tap</string>
