@@ -34,10 +34,10 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.audio.DictationTextBuffer
 import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
+import com.sanogueralorenzo.voice.dictation.DictationSession
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,17 +45,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.util.concurrent.Executors
-import java.util.concurrent.RejectedExecutionException
 
 class OverlayAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val transcriberExecutor = Executors.newSingleThreadExecutor()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private var recordingSession: RecordingSession? = null
-    private var nextRecordingSessionId = 0
-    private var finishRecordingRunnable: Runnable? = null
+    private var activeRecording: OverlayRecording? = null
 
     private var overlayView: TextView? = null
     private var overlayParams: WindowManager.LayoutParams? = null
@@ -89,11 +84,43 @@ class OverlayAccessibilityService : AccessibilityService() {
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
         OverlayRepository(context = applicationContext)
     }
-    private val moonshineTranscriber by lazy(LazyThreadSafetyMode.NONE) {
-        MoonshineMicTranscriber(this)
-    }
     private val languagePreferences by lazy(LazyThreadSafetyMode.NONE) {
         DictationLanguagePreferences(this)
+    }
+    private val dictationSession by lazy(LazyThreadSafetyMode.NONE) {
+        DictationSession(
+            transcriber = MoonshineMicTranscriber(this),
+            listener = object : DictationSession.Listener {
+                override fun onTextChanged(text: String) {
+                    replaceFocusedInputText(text)
+                }
+
+                override fun onCompleted(result: DictationSession.Result) {
+                    activeRecording = null
+                    if (result.hasTranscript && !replaceFocusedInputText(result.text)) {
+                        showToast(getString(R.string.overlay_commit_failed))
+                    }
+                    stopForegroundIfNeeded()
+                    evaluateOverlayVisibility()
+                }
+
+                override fun onCancelled() {
+                    restoreOriginalText()
+                    stopForegroundIfNeeded()
+                    evaluateOverlayVisibility()
+                }
+
+                override fun onError(error: Throwable?) {
+                    if (error != null) {
+                        android.util.Log.w(TAG, "Moonshine overlay recording failed", error)
+                    }
+                    restoreOriginalText()
+                    stopForegroundIfNeeded()
+                    evaluateOverlayVisibility()
+                    showToast(getString(R.string.overlay_recording_start_failed))
+                }
+            }
+        )
     }
 
     override fun onServiceConnected() {
@@ -141,17 +168,17 @@ class OverlayAccessibilityService : AccessibilityService() {
         unregisterSystemDialogReceiverIfNeeded()
         unregisterImeSettingsObserverIfNeeded()
         stopForegroundIfNeeded()
-        stopRecordingDiscard(updateOverlayVisibility = false)
+        activeRecording?.let { replaceFocusedInputText(it.originalText) }
+        activeRecording = null
+        dictationSession.destroy()
         hideBubble()
-        transcriberExecutor.shutdownNow()
-        runCatching { moonshineTranscriber.close() }
         super.onDestroy()
     }
 
     private fun evaluateOverlayVisibility() {
         val config = overlayRepository.currentConfig()
         val inputMethodVisible = isInputMethodWindowVisible()
-        if (inputMethodVisible || recordingSession == null) {
+        if (inputMethodVisible || !dictationSession.isActive) {
             cancelKeyboardCloseStop()
         } else {
             scheduleKeyboardCloseStop()
@@ -160,7 +187,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             inputMethodVisible &&
             !positioningActive &&
             !VoiceKeyboardStatusReader.read(this).selected
-        val shouldKeepVisibleForActiveWork = recordingSession != null
+        val shouldKeepVisibleForActiveWork = dictationSession.isActive
         val shouldShow = shouldShowByContext || shouldKeepVisibleForActiveWork
 
         if (shouldShow) {
@@ -428,7 +455,7 @@ class OverlayAccessibilityService : AccessibilityService() {
             elevation = 0f
             setOnClickListener { onBubbleTapped() }
             setOnLongClickListener {
-                if (recordingSession == null) {
+                if (!dictationSession.isActive) {
                     startRecording(languagePreferences.secondaryOrPrimary())
                     true
                 } else {
@@ -439,132 +466,40 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun onBubbleTapped() {
-        val session = recordingSession
-        if (session == null) {
+        if (!dictationSession.isActive) {
             startRecording(languagePreferences.primary())
-        } else if (!session.stopping) {
+        } else if (dictationSession.state == DictationSession.State.RECORDING) {
             stopRecordingAndProcess()
         }
     }
 
     private fun stopRecordingAndProcess(): Boolean {
-        val session = recordingSession ?: return false
-        if (session.stopping) return false
         cancelKeyboardCloseStop()
-        session.stopping = true
-        runOnTranscriberThread {
-            moonshineTranscriber.stop()
-            mainHandler.post {
-                scheduleRecordingFinish(session.id, FINAL_TRANSCRIPT_TIMEOUT_MS)
-            }
-        }
-        return true
+        return dictationSession.stop()
     }
 
     private fun startRecording(language: DictationLanguage) {
-        if (recordingSession != null) return
+        if (dictationSession.isActive || activeRecording != null) return
         if (!overlayRepository.hasRecordAudioPermission()) {
             showToast(getString(R.string.overlay_microphone_required))
             return
         }
-        if (!moonshineTranscriber.isReady(language)) {
+        if (!dictationSession.isReady(language)) {
             showToast(getString(R.string.overlay_asr_not_ready))
             return
         }
 
-        val session = RecordingSession(
-            id = ++nextRecordingSessionId,
-            textBuffer = DictationTextBuffer(readFocusedInputText())
-        )
-        recordingSession = session
+        val originalText = readFocusedInputText()
+        activeRecording = OverlayRecording(originalText)
         startForegroundForRecording()
-        runOnTranscriberThread {
-            val started = moonshineTranscriber.start(
-                language = language,
-                callbacks = MoonshineMicTranscriber.Callbacks(
-                    onText = { text -> onMoonshineText(session.id, text) },
-                    onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
-                    onError = { error -> onMoonshineError(session.id, error) }
-                )
-            )
-            mainHandler.post {
-                val current = recordingSession
-                if (!started && current?.id == session.id) {
-                    finishRecording(session.id, restoreOriginalText = true)
-                    showToast(getString(R.string.overlay_recording_start_failed))
-                }
-            }
+        if (!dictationSession.start(language = language, originalText = originalText)) {
+            activeRecording = null
+            stopForegroundIfNeeded()
         }
-    }
-
-    private fun onMoonshineText(sessionId: Int, text: String) {
-        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
-        val output = session.textBuffer.updatePartial(text)
-        replaceFocusedInputText(output)
-        if (session.stopping) {
-            scheduleRecordingFinish(sessionId, FINAL_TRANSCRIPT_TIMEOUT_MS)
-        }
-    }
-
-    private fun onMoonshineLine(sessionId: Int, lineId: Long, text: String) {
-        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
-        val output = session.textBuffer.completeLine(lineId, text)
-        replaceFocusedInputText(output)
-        if (session.stopping) {
-            scheduleRecordingFinish(sessionId, FINAL_LINE_SETTLE_MS)
-        }
-    }
-
-    private fun onMoonshineError(sessionId: Int, error: Throwable) {
-        if (recordingSession?.id != sessionId) return
-        android.util.Log.w(TAG, "Moonshine overlay recording failed", error)
-        stopRecordingDiscard()
-        showToast(getString(R.string.overlay_recording_start_failed))
-    }
-
-    private fun scheduleRecordingFinish(sessionId: Int, delayMs: Long) {
-        if (recordingSession?.id != sessionId) return
-        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
-        finishRecordingRunnable = Runnable {
-            finishRecordingRunnable = null
-            finishRecording(sessionId, restoreOriginalText = false)
-        }.also { runnable ->
-            mainHandler.postDelayed(runnable, delayMs)
-        }
-    }
-
-    private fun finishRecording(sessionId: Int, restoreOriginalText: Boolean) {
-        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
-        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
-        finishRecordingRunnable = null
-        moonshineTranscriber.detachCallbacks()
-        recordingSession = null
-        if (restoreOriginalText) {
-            replaceFocusedInputText(session.textBuffer.originalText())
-        } else if (session.textBuffer.hasTranscript) {
-            if (!replaceFocusedInputText(session.textBuffer.currentText())) {
-                showToast(getString(R.string.overlay_commit_failed))
-            }
-        }
-        stopForegroundIfNeeded()
-        runOnTranscriberThread {
-            moonshineTranscriber.close()
-        }
-        evaluateOverlayVisibility()
     }
 
     private fun warmupMoonshine() {
-        runOnTranscriberThread {
-            moonshineTranscriber.warmup(languagePreferences.primary())
-        }
-    }
-
-    private fun runOnTranscriberThread(block: () -> Unit) {
-        try {
-            transcriberExecutor.execute(block)
-        } catch (_: RejectedExecutionException) {
-            // Ignore late work while the accessibility service is shutting down.
-        }
+        dictationSession.warmup(languagePreferences.primary())
     }
 
     private fun readFocusedInputText(): String {
@@ -658,20 +593,14 @@ class OverlayAccessibilityService : AccessibilityService() {
         return null
     }
 
-    private fun stopRecordingDiscard(updateOverlayVisibility: Boolean = true) {
-        val session = recordingSession ?: return
-        finishRecordingRunnable?.let(mainHandler::removeCallbacks)
-        finishRecordingRunnable = null
-        recordingSession = null
-        moonshineTranscriber.detachCallbacks()
-        replaceFocusedInputText(session.textBuffer.originalText())
-        runOnTranscriberThread {
-            moonshineTranscriber.cancel()
-        }
-        stopForegroundIfNeeded()
-        if (updateOverlayVisibility) {
-            evaluateOverlayVisibility()
-        }
+    private fun stopRecordingDiscard() {
+        dictationSession.cancel()
+    }
+
+    private fun restoreOriginalText() {
+        val recording = activeRecording ?: return
+        activeRecording = null
+        replaceFocusedInputText(recording.originalText)
     }
 
     private fun startForegroundForRecording() {
@@ -732,11 +661,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         ).toInt()
     }
 
-    private data class RecordingSession(
-        val id: Int,
-        val textBuffer: DictationTextBuffer,
-        var stopping: Boolean = false
-    )
+    private data class OverlayRecording(val originalText: String)
 
     companion object {
         fun setPositioningActive(active: Boolean) {
@@ -754,8 +679,6 @@ class OverlayAccessibilityService : AccessibilityService() {
 
         private const val NOTIFICATION_CHANNEL_ID = "overlay_recording"
         private const val NOTIFICATION_ID = 12057
-        private const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
-        private const val FINAL_LINE_SETTLE_MS = 50L
         private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
         private const val TAG = "VoiceOverlay"
     }

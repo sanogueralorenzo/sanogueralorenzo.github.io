@@ -3,9 +3,9 @@ package com.sanogueralorenzo.voice.audio
 import ai.moonshine.voice.JNI
 import ai.moonshine.voice.MicTranscriber
 import ai.moonshine.voice.TranscriberOption
-import ai.moonshine.voice.TranscriptLine
 import android.content.Context
 import android.util.Log
+import com.sanogueralorenzo.voice.dictation.DictationTranscriber
 import com.sanogueralorenzo.voice.models.ModelCatalog
 import com.sanogueralorenzo.voice.models.ModelStore
 import java.io.File
@@ -17,31 +17,27 @@ enum class DictationLanguage {
 }
 
 /** Owns Moonshine's microphone transcriber and exposes one active dictation session. */
-class MoonshineMicTranscriber(context: Context) {
-    data class Callbacks(
-        val onText: (String) -> Unit,
-        val onLine: (TranscriptLine) -> Unit,
-        val onError: (Throwable) -> Unit,
-        val onAudioLevel: ((Float) -> Unit)? = null
-    )
-
+internal class MoonshineMicTranscriber(context: Context) : DictationTranscriber {
     private val appContext = context.applicationContext
     private val lock = Any()
 
     @Volatile
-    private var activeCallbacks: Callbacks? = null
+    private var activeCallbacks: DictationTranscriber.Callbacks? = null
     private var transcriber: MicTranscriber? = null
     private var loadedLanguage: DictationLanguage? = null
 
-    fun warmup(language: DictationLanguage = DictationLanguage.ENGLISH): Boolean = synchronized(lock) {
+    override fun warmup(language: DictationLanguage): Boolean = synchronized(lock) {
         ensureLoadedLocked(language) != null
     }
 
-    fun isReady(language: DictationLanguage): Boolean = modelSpecs(language).all { spec ->
+    override fun isReady(language: DictationLanguage): Boolean = modelSpecs(language).all { spec ->
         ModelStore.isModelReadyStrict(appContext, spec)
     }
 
-    fun start(language: DictationLanguage, callbacks: Callbacks): Boolean = synchronized(lock) {
+    override fun start(
+        language: DictationLanguage,
+        callbacks: DictationTranscriber.Callbacks
+    ): Boolean = synchronized(lock) {
         val loaded = ensureLoadedLocked(language) ?: return false
         activeCallbacks = callbacks
         val started = runCatching {
@@ -58,22 +54,17 @@ class MoonshineMicTranscriber(context: Context) {
         started
     }
 
-    fun stop() = synchronized(lock) {
+    override fun stop() = synchronized(lock) {
         runCatching { transcriber?.stop() }
             .onFailure { Log.w(TAG, "Moonshine microphone stop failed", it) }
         Unit
     }
 
-    fun detachCallbacks() {
+    override fun detachCallbacks() {
         activeCallbacks = null
     }
 
-    fun cancel() {
-        detachCallbacks()
-        stop()
-    }
-
-    fun close() = synchronized(lock) {
+    override fun close() = synchronized(lock) {
         closeLocked()
     }
 
@@ -102,7 +93,9 @@ class MoonshineMicTranscriber(context: Context) {
                 .options(OPTIONS)
                 .callbacksOnMainThread(true)
                 .onText(Consumer { text -> activeCallbacks?.onText?.invoke(text) })
-                .onLine(Consumer { line -> activeCallbacks?.onLine?.invoke(line) })
+                .onLine(Consumer { line ->
+                    activeCallbacks?.onLine?.invoke(line.id, line.text.orEmpty())
+                })
                 .onError(Consumer { error -> activeCallbacks?.onError?.invoke(error) })
                 .also { mic ->
                     mic.loadFromFiles(
