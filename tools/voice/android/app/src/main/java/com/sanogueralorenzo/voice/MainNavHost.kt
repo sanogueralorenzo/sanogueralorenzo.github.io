@@ -13,13 +13,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sanogueralorenzo.voice.overlay.OverlayPositionScreen
+import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
 import com.sanogueralorenzo.voice.product.LocalModelsScreen
 import com.sanogueralorenzo.voice.product.VoiceHomeScreen
 
@@ -32,10 +37,12 @@ private object VoiceRoute {
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun MainNavHost() {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
     val isHome = route == null || route == VoiceRoute.HOME
+    var keyboardSelectionRequired by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -61,7 +68,7 @@ fun MainNavHost() {
                         }
                     },
                     actions = {
-                        if (route == VoiceRoute.MIC_POSITION) {
+                        if (route == VoiceRoute.MIC_POSITION && !keyboardSelectionRequired) {
                             TextButton(onClick = { navController.popBackStack() }) {
                                 Text(text = stringResource(R.string.main_done))
                             }
@@ -81,14 +88,21 @@ fun MainNavHost() {
             composable(VoiceRoute.HOME) {
                 VoiceHomeScreen(
                     onOpenLocalModels = { navController.navigate(VoiceRoute.LOCAL_MODELS) },
-                    onOpenMicPosition = { navController.navigate(VoiceRoute.MIC_POSITION) }
+                    onOpenMicPosition = {
+                        keyboardSelectionRequired = VoiceKeyboardStatusReader.read(context).selected
+                        navController.navigate(VoiceRoute.MIC_POSITION)
+                    }
                 )
             }
             composable(VoiceRoute.LOCAL_MODELS) {
                 LocalModelsScreen()
             }
             composable(VoiceRoute.MIC_POSITION) {
-                OverlayPositionScreen()
+                OverlayPositionScreen(
+                    onKeyboardSelectionRequiredChanged = { required ->
+                        keyboardSelectionRequired = required
+                    }
+                )
             }
         }
     }

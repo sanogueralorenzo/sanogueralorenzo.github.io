@@ -57,7 +57,9 @@ import com.sanogueralorenzo.voice.ui.OnLifecycle
 import kotlinx.coroutines.delay
 
 @Composable
-fun OverlayPositionScreen() {
+fun OverlayPositionScreen(
+    onKeyboardSelectionRequiredChanged: (Boolean) -> Unit = {}
+) {
     val viewModel = mavericksViewModel<OverlayPositionViewModel, OverlayPositionState>()
     val state by viewModel.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -123,6 +125,7 @@ fun OverlayPositionScreen() {
     }
 
     LaunchedEffect(voiceKeyboardSelected) {
+        onKeyboardSelectionRequiredChanged(voiceKeyboardSelected)
         if (voiceKeyboardSelected) {
             keyboardController?.hide()
             inputMethodManager?.showInputMethodPicker()
