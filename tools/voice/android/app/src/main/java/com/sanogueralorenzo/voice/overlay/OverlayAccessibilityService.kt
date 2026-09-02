@@ -508,8 +508,16 @@ class OverlayAccessibilityService : AccessibilityService() {
 
     private fun onMoonshineLine(sessionId: Int, lineId: Long, text: String) {
         val session = recordingSession?.takeIf { it.id == sessionId } ?: return
-        val output = session.textBuffer.completeLine(lineId, text)
+        val liveOutput = session.textBuffer.completeLine(lineId, text)
+        val command = session.textBuffer.command()
+        val output = command?.applyTo(session.textBuffer.originalText()) ?: liveOutput
         replaceFocusedInputText(output)
+        if (command != null) {
+            session.commandApplied = true
+            if (!session.stopping) {
+                stopRecordingAndProcess()
+            }
+        }
         if (session.stopping) {
             scheduleRecordingFinish(sessionId, FINAL_LINE_SETTLE_MS)
         }
@@ -541,7 +549,7 @@ class OverlayAccessibilityService : AccessibilityService() {
         recordingSession = null
         if (restoreOriginalText) {
             replaceFocusedInputText(session.textBuffer.originalText())
-        } else if (session.textBuffer.hasTranscript) {
+        } else if (session.textBuffer.hasTranscript && !session.commandApplied) {
             if (!replaceFocusedInputText(session.textBuffer.currentText())) {
                 showToast(getString(R.string.overlay_commit_failed))
             }
@@ -735,7 +743,8 @@ class OverlayAccessibilityService : AccessibilityService() {
     private data class RecordingSession(
         val id: Int,
         val textBuffer: DictationTextBuffer,
-        var stopping: Boolean = false
+        var stopping: Boolean = false,
+        var commandApplied: Boolean = false
     )
 
     companion object {
