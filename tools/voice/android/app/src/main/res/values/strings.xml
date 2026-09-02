@@ -30,7 +30,7 @@
     <string name="product_action_select">Select</string>
     <string name="product_action_cancel">Cancel</string>
     <string name="models_title">Local Models</string>
-    <string name="models_explanation">Download the languages you want. With two models, drag to choose tap and long press.</string>
+    <string name="models_explanation">Download the languages you want. With two models, you can swap tap and long press.</string>
     <string name="models_tap_gesture">Tap</string>
     <string name="models_long_press_gesture">Long press</string>
     <string name="models_only_gesture">Tap or long press</string>
@@ -41,7 +41,7 @@
     <string name="models_downloaded">Downloaded</string>
     <string name="models_download_required">Download required</string>
     <string name="models_download">Download</string>
-    <string name="models_drag_language">Drag to reorder language</string>
+    <string name="models_swap_languages">Swap languages</string>
     <string name="product_mic_position_title">Mic position</string>
     <string name="product_mic_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_mic_position_requires_service">Enable the keyboard mic first.</string>

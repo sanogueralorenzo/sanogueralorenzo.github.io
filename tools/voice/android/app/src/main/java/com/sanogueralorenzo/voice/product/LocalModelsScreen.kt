@@ -1,16 +1,12 @@
 package com.sanogueralorenzo.voice.product
 
-import android.content.ClipData
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,22 +19,18 @@ import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draganddrop.DragAndDropEvent
-import androidx.compose.ui.draganddrop.DragAndDropTarget
-import androidx.compose.ui.draganddrop.DragAndDropTransferData
-import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
@@ -72,13 +64,29 @@ fun LocalModelsScreen() {
                             downloadedCount = state.downloadedCount,
                             loading = state.loading,
                             operationInProgress = state.operationInProgress,
-                            onDownload = { viewModel.download(model.language) },
-                            onSwap = viewModel::swap
+                            onDownload = { viewModel.download(model.language) }
                         )
                         if (index < state.models.lastIndex) {
                             HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
                         }
                     }
+                }
+            }
+        }
+        if (state.downloadedCount > 1) {
+            item {
+                FilledTonalButton(
+                    onClick = viewModel::swapLanguages,
+                    enabled = !state.operationInProgress,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SwapVert,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.models_swap_languages))
                 }
             }
         }
@@ -91,37 +99,11 @@ private fun LanguageModelRow(
     downloadedCount: Int,
     loading: Boolean,
     operationInProgress: Boolean,
-    onDownload: () -> Unit,
-    onSwap: (DictationLanguage, DictationLanguage) -> Unit
+    onDownload: () -> Unit
 ) {
-    val reorderEnabled = downloadedCount > 1 && model.ready && !operationInProgress
-    val dropTarget = remember(model.language, onSwap) {
-        object : DragAndDropTarget {
-            override fun onDrop(event: DragAndDropEvent): Boolean {
-                val dragged = event.toAndroidDragEvent().localState as? DictationLanguage
-                    ?: return false
-                if (dragged == model.language) return false
-                onSwap(dragged, model.language)
-                return true
-            }
-        }
-    }
-    val dropModifier = if (reorderEnabled) {
-        Modifier.dragAndDropTarget(
-            shouldStartDragAndDrop = { event ->
-                val dragged = event.toAndroidDragEvent().localState as? DictationLanguage
-                dragged != null && dragged != model.language
-            },
-            target = dropTarget
-        )
-    } else {
-        Modifier
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .then(dropModifier)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -143,7 +125,6 @@ private fun LanguageModelRow(
             }
             when {
                 model.downloading -> ModelDownloadProgress(model.progress)
-                model.ready && reorderEnabled -> DragHandle(model.language)
                 model.ready -> Icon(
                     imageVector = Icons.Rounded.Check,
                     contentDescription = stringResource(R.string.models_downloaded),
@@ -166,33 +147,6 @@ private fun LanguageModelRow(
             )
         }
     }
-}
-
-@Composable
-@OptIn(ExperimentalFoundationApi::class)
-@Suppress("DEPRECATION")
-private fun DragHandle(language: DictationLanguage) {
-    Icon(
-        imageVector = Icons.Rounded.DragHandle,
-        contentDescription = stringResource(R.string.models_drag_language),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .size(48.dp)
-            .dragAndDropSource(block = {
-                detectDragGestures(
-                    onDragStart = {
-                        startTransfer(
-                            DragAndDropTransferData(
-                                clipData = ClipData.newPlainText(DRAG_LABEL, language.name),
-                                localState = language
-                            )
-                        )
-                    },
-                    onDrag = { change, _ -> change.consume() }
-                )
-            })
-            .padding(12.dp)
-    )
 }
 
 @Composable
@@ -252,5 +206,3 @@ private fun modelSize(language: DictationLanguage): String {
         }
     )
 }
-
-private const val DRAG_LABEL = "Voice language"

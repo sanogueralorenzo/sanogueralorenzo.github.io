@@ -61,14 +61,13 @@ class LocalModelsViewModel(
         }
     }
 
-    fun swap(first: DictationLanguage, second: DictationLanguage) {
-        val canMove = withState(this) { state ->
-            !state.loading && !state.operationInProgress && state.downloadedCount > 1 &&
-                state.models.any { it.language == first && it.ready } &&
-                state.models.any { it.language == second && it.ready }
+    fun swapLanguages() {
+        val languages = withState(this) { state ->
+            if (state.loading || state.operationInProgress) emptyList()
+            else state.models.filter { it.ready }.map { it.language }
         }
-        if (!canMove) return
-        updateOrdering(languagePreferences.swap(first, second))
+        if (languages.size != 2) return
+        updateOrdering(languagePreferences.swap(languages[0], languages[1]))
     }
 
     fun download(language: DictationLanguage) {
