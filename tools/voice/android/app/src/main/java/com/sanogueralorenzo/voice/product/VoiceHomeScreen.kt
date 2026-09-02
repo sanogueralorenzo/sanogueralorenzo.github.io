@@ -282,6 +282,7 @@ private fun StatusSection(
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
             title = stringResource(R.string.product_status_service),
+            subtitle = stringResource(R.string.product_status_service_hint),
             ready = state.voiceServiceEnabled,
             loading = state.loading,
             actionLabel = stringResource(R.string.product_action_enable),
@@ -365,6 +366,7 @@ private fun LocalModelsStatusRow(
 @Composable
 private fun StatusRow(
     title: String,
+    subtitle: String? = null,
     ready: Boolean,
     loading: Boolean,
     actionLabel: String,
@@ -388,11 +390,19 @@ private fun StatusRow(
             tint = if (loading) MaterialTheme.colorScheme.outline else statusColor,
             modifier = Modifier.size(24.dp)
         )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            subtitle?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         if (!ready && !loading) {
             Button(onClick = onAction) {
                 Text(text = actionLabel)
