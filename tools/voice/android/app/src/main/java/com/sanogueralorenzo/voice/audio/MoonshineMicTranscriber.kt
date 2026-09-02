@@ -73,12 +73,6 @@ class MoonshineMicTranscriber(context: Context) {
         stop()
     }
 
-    /** Releases Moonshine's persistent microphone capture, then reloads without recording. */
-    fun releaseMicrophoneAndWarmup(language: DictationLanguage): Boolean = synchronized(lock) {
-        closeLocked()
-        ensureLoadedLocked(language) != null
-    }
-
     fun close() = synchronized(lock) {
         closeLocked()
     }

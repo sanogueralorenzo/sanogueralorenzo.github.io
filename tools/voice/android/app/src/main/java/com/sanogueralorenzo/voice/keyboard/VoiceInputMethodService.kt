@@ -177,7 +177,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         }.getOrDefault("")
         val session = RecordingSession(
             id = ++nextSessionId,
-            language = language,
             inputConnection = connection,
             editorAction = KeyboardEditorAction.resolve(currentInputEditorInfo),
             prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else "",
@@ -296,7 +295,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         activeSession = null
         showIdle()
         runOnTranscriberThread {
-            moonshineTranscriber.releaseMicrophoneAndWarmup(session.language)
+            moonshineTranscriber.close()
         }
         if (hasTranscript && session.submitAfterFinish) {
             session.editorAction?.let { action ->
@@ -401,7 +400,6 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
 
     private data class RecordingSession(
         val id: Int,
-        val language: DictationLanguage,
         val inputConnection: InputConnection,
         val editorAction: Int?,
         val prefix: String,
