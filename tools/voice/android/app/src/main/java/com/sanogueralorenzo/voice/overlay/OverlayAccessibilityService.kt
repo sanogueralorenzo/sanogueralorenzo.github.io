@@ -484,7 +484,7 @@ class OverlayAccessibilityService : AccessibilityService() {
                 callbacks = MoonshineMicTranscriber.Callbacks(
                     onText = { text -> onMoonshineText(session.id, text) },
                     onLine = { line -> onMoonshineLine(session.id, line.id, line.text.orEmpty()) },
-                    onError = { onMoonshineError(session.id) }
+                    onError = { error -> onMoonshineError(session.id, error) }
                 )
             )
             mainHandler.post {
@@ -515,9 +515,10 @@ class OverlayAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun onMoonshineError(sessionId: Int) {
-        val session = recordingSession?.takeIf { it.id == sessionId } ?: return
-        finishRecording(session.id, restoreOriginalText = true)
+    private fun onMoonshineError(sessionId: Int, error: Throwable) {
+        if (recordingSession?.id != sessionId) return
+        android.util.Log.w(TAG, "Moonshine overlay recording failed", error)
+        stopRecordingDiscard()
         showToast(getString(R.string.overlay_recording_start_failed))
     }
 
@@ -753,5 +754,6 @@ class OverlayAccessibilityService : AccessibilityService() {
         private const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
         private const val FINAL_LINE_SETTLE_MS = 50L
         private const val KEYBOARD_CLOSE_CONFIRMATION_MS = 200L
+        private const val TAG = "VoiceOverlay"
     }
 }
