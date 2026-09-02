@@ -13,6 +13,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,16 +39,18 @@ data class OverlayConfig(
     val hasCustomBubblePosition: Boolean
 )
 
+@Inject
+@SingleIn(AppScope::class)
 class OverlayRepository(context: Context) {
     private val appContext = context.applicationContext
     private val dataStore = appContext.overlayDataStore
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val overlayEnabledState = MutableStateFlow(DEFAULT_OVERLAY_ENABLED)
-    private val bubbleXState = sharedBubbleXState
-    private val bubbleYState = sharedBubbleYState
-    private val bubbleSizeDpState = sharedBubbleSizeDpState
-    private val hasCustomBubblePositionState = sharedHasCustomBubblePositionState
+    private val bubbleXState = MutableStateFlow(0)
+    private val bubbleYState = MutableStateFlow(0)
+    private val bubbleSizeDpState = MutableStateFlow(DEFAULT_BUBBLE_SIZE_DP)
+    private val hasCustomBubblePositionState = MutableStateFlow(false)
 
     init {
         scope.launch {
@@ -213,11 +218,5 @@ class OverlayRepository(context: Context) {
         private const val DEFAULT_BUBBLE_SIZE_DP = 36
         private const val MIN_BUBBLE_SIZE_DP = 32
         private const val MAX_BUBBLE_SIZE_DP = 96
-
-        // Shared across repository instances (UI + service) so size changes propagate immediately.
-        private val sharedBubbleXState = MutableStateFlow(0)
-        private val sharedBubbleYState = MutableStateFlow(0)
-        private val sharedBubbleSizeDpState = MutableStateFlow(DEFAULT_BUBBLE_SIZE_DP)
-        private val sharedHasCustomBubblePositionState = MutableStateFlow(false)
     }
 }

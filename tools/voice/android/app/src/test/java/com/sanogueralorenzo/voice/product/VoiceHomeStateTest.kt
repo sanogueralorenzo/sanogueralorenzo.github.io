@@ -1,5 +1,6 @@
 package com.sanogueralorenzo.voice.product
 
+import com.sanogueralorenzo.voice.setup.VoiceSetupStatus
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,18 +10,22 @@ class VoiceHomeStateTest {
     fun keyboardReadyRequiresSelectedVoiceKeyboard() {
         assertTrue(
             VoiceHomeState(
-                modelsReady = true,
-                microphoneAllowed = true,
-                voiceKeyboardSelected = true,
-                inputType = VoiceInputType.KEYBOARD
+                setup = VoiceSetupStatus(
+                    modelsReady = true,
+                    microphoneAllowed = true,
+                    keyboardSelected = true,
+                    inputType = VoiceInputType.KEYBOARD
+                )
             ).ready
         )
         assertFalse(
             VoiceHomeState(
-                modelsReady = true,
-                microphoneAllowed = true,
-                voiceServiceEnabled = true,
-                inputType = VoiceInputType.KEYBOARD
+                setup = VoiceSetupStatus(
+                    modelsReady = true,
+                    microphoneAllowed = true,
+                    overlayServiceEnabled = true,
+                    inputType = VoiceInputType.KEYBOARD
+                )
             ).ready
         )
     }
@@ -29,18 +34,22 @@ class VoiceHomeStateTest {
     fun overlayReadyRequiresVoiceService() {
         assertTrue(
             VoiceHomeState(
-                modelsReady = true,
-                microphoneAllowed = true,
-                voiceServiceEnabled = true,
-                inputType = VoiceInputType.OVERLAY
+                setup = VoiceSetupStatus(
+                    modelsReady = true,
+                    microphoneAllowed = true,
+                    overlayServiceEnabled = true,
+                    inputType = VoiceInputType.OVERLAY
+                )
             ).ready
         )
         assertFalse(
             VoiceHomeState(
-                modelsReady = true,
-                microphoneAllowed = true,
-                voiceKeyboardSelected = true,
-                inputType = VoiceInputType.OVERLAY
+                setup = VoiceSetupStatus(
+                    modelsReady = true,
+                    microphoneAllowed = true,
+                    keyboardSelected = true,
+                    inputType = VoiceInputType.OVERLAY
+                )
             ).ready
         )
     }
@@ -49,10 +58,12 @@ class VoiceHomeStateTest {
     fun readyRequiresAnExplicitInputType() {
         assertFalse(
             VoiceHomeState(
-                modelsReady = true,
-                microphoneAllowed = true,
-                voiceServiceEnabled = true,
-                voiceKeyboardSelected = true
+                setup = VoiceSetupStatus(
+                    modelsReady = true,
+                    microphoneAllowed = true,
+                    overlayServiceEnabled = true,
+                    keyboardSelected = true
+                )
             ).ready
         )
     }

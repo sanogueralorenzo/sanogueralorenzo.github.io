@@ -5,7 +5,9 @@ import android.content.Context
 import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.connectivity.ConnectivityRepository
 import com.sanogueralorenzo.voice.models.ModelSetupRepository
+import com.sanogueralorenzo.voice.overlay.OverlayRepository
 import com.sanogueralorenzo.voice.product.VoiceInputTypePreferences
+import com.sanogueralorenzo.voice.setup.VoiceSetupRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
@@ -17,30 +19,12 @@ interface AppGraph {
     val connectivityRepository: ConnectivityRepository
     val languagePreferences: DictationLanguagePreferences
     val modelSetupRepository: ModelSetupRepository
+    val overlayRepository: OverlayRepository
     val voiceInputTypePreferences: VoiceInputTypePreferences
+    val voiceSetupRepository: VoiceSetupRepository
 
     @Provides
     fun provideApplicationContext(application: Application): Context = application
-
-    @Provides
-    fun provideConnectivityRepository(context: Context): ConnectivityRepository = ConnectivityRepository(context)
-
-    @Provides
-    fun provideLanguagePreferences(context: Context): DictationLanguagePreferences =
-        DictationLanguagePreferences(context)
-
-    @Provides
-    fun provideModelSetupRepository(
-        context: Context,
-        connectivityRepository: ConnectivityRepository
-    ): ModelSetupRepository = ModelSetupRepository(
-        context = context,
-        connectivityRepository = connectivityRepository
-    )
-
-    @Provides
-    fun provideVoiceInputTypePreferences(context: Context): VoiceInputTypePreferences =
-        VoiceInputTypePreferences(context)
 
     @DependencyGraph.Factory
     fun interface Factory {

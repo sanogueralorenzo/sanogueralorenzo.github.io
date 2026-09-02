@@ -1,85 +1,42 @@
 package com.sanogueralorenzo.voice.product
 
-import androidx.lifecycle.viewModelScope
 import com.airbnb.mvrx.MavericksState
 import com.airbnb.mvrx.MavericksViewModel
 import com.airbnb.mvrx.MavericksViewModelFactory
 import com.airbnb.mvrx.ViewModelContext
 import com.sanogueralorenzo.voice.VoiceApp
-import com.sanogueralorenzo.voice.audio.DictationLanguage
-import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
-import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatus
-import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
-import com.sanogueralorenzo.voice.overlay.OverlayRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.sanogueralorenzo.voice.setup.VoiceSetupRepository
+import com.sanogueralorenzo.voice.setup.VoiceSetupStatus
 
 data class VoiceHomeState(
-    val loading: Boolean = true,
-    val modelsReady: Boolean = false,
-    val microphoneAllowed: Boolean = false,
-    val voiceServiceEnabled: Boolean = false,
-    val voiceKeyboardEnabled: Boolean = false,
-    val voiceKeyboardSelected: Boolean = false,
-    val inputType: VoiceInputType? = null
+    val setup: VoiceSetupStatus = VoiceSetupStatus()
 ) : MavericksState {
-    val ready: Boolean
-        get() = modelsReady && microphoneAllowed && when (inputType) {
-            VoiceInputType.KEYBOARD -> voiceKeyboardSelected
-            VoiceInputType.OVERLAY -> voiceServiceEnabled
-            null -> false
-        }
+    val loading: Boolean get() = setup.loading
+    val modelsReady: Boolean get() = setup.modelsReady
+    val microphoneAllowed: Boolean get() = setup.microphoneAllowed
+    val voiceServiceEnabled: Boolean get() = setup.overlayServiceEnabled
+    val voiceKeyboardEnabled: Boolean get() = setup.keyboardEnabled
+    val voiceKeyboardSelected: Boolean get() = setup.keyboardSelected
+    val inputType: VoiceInputType? get() = setup.inputType
+    val ready: Boolean get() = setup.ready
 }
 
 class VoiceHomeViewModel(
     initialState: VoiceHomeState,
-    private val overlayRepository: OverlayRepository,
-    private val readDownloadedLanguages: () -> Set<DictationLanguage>,
-    private val readKeyboardStatus: () -> VoiceKeyboardStatus,
-    private val languagePreferences: DictationLanguagePreferences,
-    private val inputTypePreferences: VoiceInputTypePreferences
+    private val setupRepository: VoiceSetupRepository
 ) : MavericksViewModel<VoiceHomeState>(initialState) {
 
     init {
-        refreshStatus()
+        setupRepository.status.setOnEach { status -> copy(setup = status) }
+        setupRepository.refresh()
     }
 
     fun refreshStatus() {
-        viewModelScope.launch {
-            val downloadedLanguages = withContext(Dispatchers.IO) { readDownloadedLanguages() }
-            val modelsReady = languagePreferences.syncDownloaded(downloadedLanguages).isNotEmpty()
-            val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
-            val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
-            val keyboardStatus = readKeyboardStatus()
-            val inputType = inputTypePreferences.read()
-            applyInputType(inputType)
-
-            setState {
-                copy(
-                    loading = false,
-                    modelsReady = modelsReady,
-                    microphoneAllowed = microphoneAllowed,
-                    voiceServiceEnabled = voiceServiceEnabled,
-                    voiceKeyboardEnabled = keyboardStatus.enabled,
-                    voiceKeyboardSelected = keyboardStatus.selected,
-                    inputType = inputType
-                )
-            }
-        }
+        setupRepository.refresh()
     }
 
     fun selectInputType(inputType: VoiceInputType) {
-        inputTypePreferences.write(inputType)
-        applyInputType(inputType)
-        setState { copy(inputType = inputType) }
-    }
-
-    private fun applyInputType(inputType: VoiceInputType?) {
-        val overlayEnabled = inputType == VoiceInputType.OVERLAY
-        if (overlayRepository.currentConfig().overlayEnabled != overlayEnabled) {
-            overlayRepository.setOverlayEnabled(overlayEnabled)
-        }
+        setupRepository.selectInputType(inputType)
     }
 
     companion object : MavericksViewModelFactory<VoiceHomeViewModel, VoiceHomeState> {
@@ -88,18 +45,9 @@ class VoiceHomeViewModel(
             state: VoiceHomeState
         ): VoiceHomeViewModel {
             val app = viewModelContext.app<VoiceApp>()
-            val overlayRepository = OverlayRepository(context = app)
             return VoiceHomeViewModel(
                 initialState = state,
-                overlayRepository = overlayRepository,
-                readDownloadedLanguages = {
-                    app.appGraph.modelSetupRepository.readDownloadedLanguages()
-                },
-                readKeyboardStatus = {
-                    VoiceKeyboardStatusReader.read(app)
-                },
-                languagePreferences = app.appGraph.languagePreferences,
-                inputTypePreferences = app.appGraph.voiceInputTypePreferences
+                setupRepository = app.appGraph.voiceSetupRepository
             )
         }
     }

@@ -115,7 +115,7 @@ class OverlayPositionViewModel(
             viewModelContext: ViewModelContext,
             state: OverlayPositionState
         ): OverlayPositionViewModel {
-            val repository = OverlayRepository(context = viewModelContext.app<VoiceApp>())
+            val repository = viewModelContext.app<VoiceApp>().appGraph.overlayRepository
             return OverlayPositionViewModel(
                 initialState = state,
                 repository = repository

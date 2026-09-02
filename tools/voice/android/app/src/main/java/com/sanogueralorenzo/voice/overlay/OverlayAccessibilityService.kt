@@ -16,6 +16,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.sanogueralorenzo.voice.R
+import com.sanogueralorenzo.voice.VoiceApp
 import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.audio.MoonshineMicTranscriber
@@ -61,7 +62,7 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private val overlayRepository by lazy(LazyThreadSafetyMode.NONE) {
-        OverlayRepository(context = applicationContext)
+        (application as VoiceApp).appGraph.overlayRepository
     }
     private val languagePreferences by lazy(LazyThreadSafetyMode.NONE) {
         DictationLanguagePreferences(this)

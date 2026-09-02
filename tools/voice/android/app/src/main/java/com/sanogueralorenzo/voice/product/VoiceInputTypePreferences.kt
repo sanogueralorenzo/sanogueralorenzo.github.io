@@ -1,6 +1,9 @@
 package com.sanogueralorenzo.voice.product
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 enum class VoiceInputType {
     KEYBOARD,
@@ -8,6 +11,8 @@ enum class VoiceInputType {
 }
 
 /** Owns the user's explicit choice between the Voice keyboard and floating overlay. */
+@Inject
+@SingleIn(AppScope::class)
 class VoiceInputTypePreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,

@@ -1,6 +1,9 @@
 package com.sanogueralorenzo.voice.audio
 
 import android.content.Context
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 
 data class DictationLanguages(
     val ordered: List<DictationLanguage>
@@ -28,6 +31,8 @@ data class DictationLanguages(
 }
 
 /** Persists downloaded languages in tap/long-press priority order. */
+@Inject
+@SingleIn(AppScope::class)
 class DictationLanguagePreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,

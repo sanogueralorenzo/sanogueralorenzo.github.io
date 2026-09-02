@@ -2,9 +2,6 @@ package com.sanogueralorenzo.voice.product
 
 import android.Manifest
 import android.content.Intent
-import android.database.ContentObserver
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -41,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,20 +69,6 @@ fun VoiceHomeScreen(
     OnLifecycle(Lifecycle.Event.ON_START) {
         viewModel.refreshStatus()
     }
-    DisposableEffect(context, viewModel) {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                viewModel.refreshStatus()
-            }
-        }
-        context.contentResolver.registerContentObserver(
-            Settings.Secure.getUriFor(Settings.Secure.DEFAULT_INPUT_METHOD),
-            false,
-            observer
-        )
-        onDispose { context.contentResolver.unregisterContentObserver(observer) }
-    }
-
     VoiceHomeContent(
         state = state,
         onOpenLocalModels = onOpenLocalModels,
