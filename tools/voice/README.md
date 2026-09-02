@@ -5,7 +5,14 @@ compact Voice keyboard.
 
 The product is built around a simple pipeline:
 
-`capture audio -> transcribe with Moonshine -> insert text`
+`capture audio -> transcribe with Moonshine -> apply an edit command or insert text`
+
+When an input already contains text, Voice recognizes three case-insensitive commands. Periods
+and commas added by transcription are ignored when matching them:
+
+- `clear`
+- `delete milk`
+- `replace milk with oat milk`
 
 ## Structure
 

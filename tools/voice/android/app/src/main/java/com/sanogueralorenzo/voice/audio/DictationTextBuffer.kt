@@ -11,7 +11,7 @@ internal class DictationTextBuffer(originalText: String) {
 
     fun updatePartial(text: String): String {
         partialText = text.trim()
-        return currentText()
+        return liveText()
     }
 
     fun completeLine(id: Long, text: String): String {
@@ -20,16 +20,34 @@ internal class DictationTextBuffer(originalText: String) {
             completedLines[id] = finalText
         }
         partialText = ""
-        return currentText()
+        return liveText()
     }
 
     fun originalText(): String = originalText
 
+    fun command(): DictationEditCommand? = DictationEditCommands.parse(transcriptText())
+
     fun currentText(): String {
-        val transcript = buildList {
-            addAll(completedLines.values)
-            if (partialText.isNotBlank()) add(partialText)
-        }.joinToString(" ").trim()
+        val transcript = transcriptText()
+        command()?.let { return it.applyTo(originalText) }
+        return combineWithOriginal(transcript)
+    }
+
+    fun transcriptText(): String = buildList {
+        addAll(completedLines.values)
+        if (partialText.isNotBlank()) add(partialText)
+    }.joinToString(" ").trim()
+
+    private fun liveText(): String {
+        val transcript = transcriptText()
+        return if (DictationEditCommands.isPotentialCommand(transcript)) {
+            originalText
+        } else {
+            combineWithOriginal(transcript)
+        }
+    }
+
+    private fun combineWithOriginal(transcript: String): String {
         return when {
             originalText.isBlank() -> transcript
             transcript.isBlank() -> originalText

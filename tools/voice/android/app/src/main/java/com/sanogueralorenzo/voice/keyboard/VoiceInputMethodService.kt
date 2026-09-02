@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.inputmethod.ExtractedTextRequest
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -178,6 +179,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         val session = RecordingSession(
             id = ++nextSessionId,
             inputConnection = connection,
+            sourceText = readEditorText(connection),
             editorAction = KeyboardEditorAction.resolve(currentInputEditorInfo),
             prefix = if (beforeCursor.isNotEmpty() && !beforeCursor.last().isWhitespace()) " " else "",
             textBuffer = DictationTextBuffer("")
@@ -286,7 +288,11 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         finishRecordingRunnable = null
         moonshineTranscriber.detachCallbacks()
         val hasTranscript = session.textBuffer.hasTranscript
-        if (hasTranscript) {
+        val command = session.textBuffer.command()
+        if (command != null) {
+            clearComposition(session)
+            replaceEditorText(session, command.applyTo(session.sourceText))
+        } else if (hasTranscript) {
             updateComposition(session, session.textBuffer.currentText())
             runCatching { session.inputConnection.finishComposingText() }
         } else {
@@ -297,7 +303,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         runOnTranscriberThread {
             moonshineTranscriber.close()
         }
-        if (hasTranscript && session.submitAfterFinish) {
+        if (command == null && hasTranscript && session.submitAfterFinish) {
             session.editorAction?.let { action ->
                 runCatching { session.inputConnection.performEditorAction(action) }
             }
@@ -325,6 +331,34 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
         runCatching {
             session.inputConnection.setComposingText("", 1)
             session.inputConnection.finishComposingText()
+        }
+    }
+
+    private fun readEditorText(connection: InputConnection): String {
+        val extracted = runCatching {
+            connection.getExtractedText(ExtractedTextRequest(), 0)?.text?.toString()
+        }.getOrNull()
+        if (extracted != null) return extracted
+
+        val before = runCatching {
+            connection.getTextBeforeCursor(MAX_EDITOR_TEXT_CHARS, 0)?.toString().orEmpty()
+        }.getOrDefault("")
+        val after = runCatching {
+            connection.getTextAfterCursor(MAX_EDITOR_TEXT_CHARS, 0)?.toString().orEmpty()
+        }.getOrDefault("")
+        return before + after
+    }
+
+    private fun replaceEditorText(session: RecordingSession, text: String) {
+        runCatching {
+            session.inputConnection.beginBatchEdit()
+            try {
+                session.inputConnection.finishComposingText()
+                session.inputConnection.setSelection(0, session.sourceText.length)
+                session.inputConnection.commitText(text, 1)
+            } finally {
+                session.inputConnection.endBatchEdit()
+            }
         }
     }
 
@@ -401,6 +435,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private data class RecordingSession(
         val id: Int,
         val inputConnection: InputConnection,
+        val sourceText: String,
         val editorAction: Int?,
         val prefix: String,
         val textBuffer: DictationTextBuffer,
@@ -411,6 +446,7 @@ class VoiceInputMethodService : InputMethodService(), LifecycleOwner, SavedState
     private companion object {
         const val FINAL_TRANSCRIPT_TIMEOUT_MS = 800L
         const val FINAL_LINE_SETTLE_MS = 50L
+        const val MAX_EDITOR_TEXT_CHARS = 100_000
         const val KEYBOARD_BACKGROUND_LIGHT = 0xFFE8EAED.toInt()
         const val KEYBOARD_BACKGROUND_DARK = 0xFF131519.toInt()
     }
