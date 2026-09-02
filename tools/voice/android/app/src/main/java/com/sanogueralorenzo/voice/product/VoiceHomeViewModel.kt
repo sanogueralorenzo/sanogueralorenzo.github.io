@@ -18,7 +18,6 @@ import kotlinx.coroutines.withContext
 data class VoiceHomeState(
     val loading: Boolean = true,
     val modelsReady: Boolean = false,
-    val activeLanguages: List<DictationLanguage> = emptyList(),
     val microphoneAllowed: Boolean = false,
     val voiceServiceEnabled: Boolean = false,
     val voiceKeyboardEnabled: Boolean = false,
@@ -43,7 +42,7 @@ class VoiceHomeViewModel(
     fun refreshStatus() {
         viewModelScope.launch {
             val downloadedLanguages = withContext(Dispatchers.IO) { readDownloadedLanguages() }
-            val activeLanguages = languagePreferences.syncDownloaded(downloadedLanguages)
+            val modelsReady = languagePreferences.syncDownloaded(downloadedLanguages).isNotEmpty()
             val microphoneAllowed = overlayRepository.hasRecordAudioPermission()
             val voiceServiceEnabled = overlayRepository.isAccessibilityServiceEnabled()
             val keyboardStatus = readKeyboardStatus()
@@ -54,8 +53,7 @@ class VoiceHomeViewModel(
             setState {
                 copy(
                     loading = false,
-                    modelsReady = activeLanguages.isNotEmpty(),
-                    activeLanguages = activeLanguages,
+                    modelsReady = modelsReady,
                     microphoneAllowed = microphoneAllowed,
                     voiceServiceEnabled = voiceServiceEnabled,
                     voiceKeyboardEnabled = keyboardStatus.enabled,

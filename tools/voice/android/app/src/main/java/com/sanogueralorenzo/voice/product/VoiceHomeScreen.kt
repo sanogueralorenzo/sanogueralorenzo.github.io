@@ -50,7 +50,6 @@ import androidx.lifecycle.Lifecycle
 import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
-import com.sanogueralorenzo.voice.audio.DictationLanguage
 import com.sanogueralorenzo.voice.ui.OnLifecycle
 
 @Composable
@@ -306,7 +305,6 @@ private fun StatusSection(
         LocalModelsStatusRow(
             ready = state.modelsReady,
             loading = state.loading,
-            activeLanguages = state.activeLanguages,
             onClick = onOpenLocalModels
         )
     }
@@ -316,17 +314,8 @@ private fun StatusSection(
 private fun LocalModelsStatusRow(
     ready: Boolean,
     loading: Boolean,
-    activeLanguages: List<DictationLanguage>,
     onClick: () -> Unit
 ) {
-    val englishName = stringResource(R.string.models_english_name)
-    val spanishName = stringResource(R.string.models_spanish_name)
-    val activeSummary = activeLanguages.joinToString(" + ") { language ->
-        when (language) {
-            DictationLanguage.ENGLISH -> englishName
-            DictationLanguage.SPANISH -> spanishName
-        }
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -351,15 +340,13 @@ private fun LocalModelsStatusRow(
                 text = stringResource(R.string.product_status_models),
                 style = MaterialTheme.typography.bodyLarge
             )
-            Text(
-                text = if (!ready && !loading) {
-                    stringResource(R.string.models_download_required)
-                } else {
-                    activeSummary
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (!ready && !loading) {
+                Text(
+                    text = stringResource(R.string.models_download_required),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         if (!ready && !loading) {
             Button(onClick = onClick) {
