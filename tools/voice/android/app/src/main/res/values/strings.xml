@@ -14,11 +14,11 @@
     <string name="product_step_two_chip">Step 2</string>
     <string name="product_step_three_chip">Step 3</string>
     <string name="product_step_setup_title">Set up Voice</string>
-    <string name="product_step_setup_body">Complete setup and download the models.</string>
+    <string name="product_step_setup_body">Complete setup and download models.</string>
     <string name="product_step_position_title">Position the mic</string>
     <string name="product_step_position_body">Place Voice over your keyboard’s mic.</string>
     <string name="product_step_record_title">Tap and speak</string>
-    <string name="product_step_record_body">Tap to dictate. Hold for a second language.</string>
+    <string name="product_step_record_body">Tap the mic to start and stop.</string>
     <string name="product_status">Setup</string>
     <string name="product_status_models">Local Models</string>
     <string name="product_status_microphone">Permissions</string>
