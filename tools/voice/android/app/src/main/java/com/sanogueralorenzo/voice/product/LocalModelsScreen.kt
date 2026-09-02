@@ -2,6 +2,8 @@ package com.sanogueralorenzo.voice.product
 
 import android.content.ClipData
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
@@ -71,7 +73,7 @@ fun LocalModelsScreen() {
                             loading = state.loading,
                             operationInProgress = state.operationInProgress,
                             onDownload = { viewModel.download(model.language) },
-                            onMoveBefore = viewModel::moveBefore
+                            onSwap = viewModel::swap
                         )
                         if (index < state.models.lastIndex) {
                             HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
@@ -90,16 +92,16 @@ private fun LanguageModelRow(
     loading: Boolean,
     operationInProgress: Boolean,
     onDownload: () -> Unit,
-    onMoveBefore: (DictationLanguage, DictationLanguage) -> Unit
+    onSwap: (DictationLanguage, DictationLanguage) -> Unit
 ) {
     val reorderEnabled = downloadedCount > 1 && model.ready && !operationInProgress
-    val dropTarget = remember(model.language, onMoveBefore) {
+    val dropTarget = remember(model.language, onSwap) {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
                 val dragged = event.toAndroidDragEvent().localState as? DictationLanguage
                     ?: return false
                 if (dragged == model.language) return false
-                onMoveBefore(dragged, model.language)
+                onSwap(dragged, model.language)
                 return true
             }
         }
@@ -167,20 +169,29 @@ private fun LanguageModelRow(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
+@Suppress("DEPRECATION")
 private fun DragHandle(language: DictationLanguage) {
     Icon(
         imageVector = Icons.Rounded.DragHandle,
         contentDescription = stringResource(R.string.models_drag_language),
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier
-            .size(40.dp)
-            .dragAndDropSource(transferData = {
-                DragAndDropTransferData(
-                    clipData = ClipData.newPlainText(DRAG_LABEL, language.name),
-                    localState = language
+            .size(48.dp)
+            .dragAndDropSource(block = {
+                detectDragGestures(
+                    onDragStart = {
+                        startTransfer(
+                            DragAndDropTransferData(
+                                clipData = ClipData.newPlainText(DRAG_LABEL, language.name),
+                                localState = language
+                            )
+                        )
+                    },
+                    onDrag = { change, _ -> change.consume() }
                 )
             })
-            .padding(8.dp)
+            .padding(12.dp)
     )
 }
 

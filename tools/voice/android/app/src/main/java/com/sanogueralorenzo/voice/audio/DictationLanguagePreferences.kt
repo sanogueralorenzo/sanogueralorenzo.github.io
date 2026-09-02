@@ -16,11 +16,13 @@ data class DictationLanguages(
     val secondaryOrPrimary: DictationLanguage
         get() = ordered.getOrElse(1) { primary }
 
-    fun moveBefore(language: DictationLanguage, target: DictationLanguage): DictationLanguages {
-        if (language == target || language !in ordered || target !in ordered) return this
+    fun swap(first: DictationLanguage, second: DictationLanguage): DictationLanguages {
+        val firstIndex = ordered.indexOf(first)
+        val secondIndex = ordered.indexOf(second)
+        if (firstIndex == -1 || secondIndex == -1 || firstIndex == secondIndex) return this
         val reordered = ordered.toMutableList()
-        reordered.remove(language)
-        reordered.add(reordered.indexOf(target), language)
+        reordered[firstIndex] = second
+        reordered[secondIndex] = first
         return DictationLanguages(reordered)
     }
 }
@@ -52,11 +54,11 @@ class DictationLanguagePreferences(context: Context) {
         return write(DictationLanguages(existingOrder + missing)).ordered
     }
 
-    fun moveBefore(
-        language: DictationLanguage,
-        target: DictationLanguage
+    fun swap(
+        first: DictationLanguage,
+        second: DictationLanguage
     ): DictationLanguages {
-        return write(read().moveBefore(language, target))
+        return write(read().swap(first, second))
     }
 
     private fun write(languages: DictationLanguages): DictationLanguages {
