@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -320,8 +321,9 @@ private fun LocalModelsStatusRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = SETUP_ROW_HEIGHT)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -375,7 +377,8 @@ private fun StatusRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .heightIn(min = SETUP_ROW_HEIGHT)
+            .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -458,3 +461,5 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         }
     }
 }
+
+private val SETUP_ROW_HEIGHT = 56.dp
