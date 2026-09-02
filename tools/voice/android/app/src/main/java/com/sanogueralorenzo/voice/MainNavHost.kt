@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,12 +39,12 @@ private object VoiceRoute {
 @OptIn(ExperimentalMaterial3Api::class)
 fun MainNavHost() {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
     val isHome = route == null || route == VoiceRoute.HOME
     var keyboardSelectionRequired by remember { mutableStateOf(false) }
-    var micPositionDoneRequested by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -70,10 +71,10 @@ fun MainNavHost() {
                     },
                     actions = {
                         if (route == VoiceRoute.MIC_POSITION && !keyboardSelectionRequired) {
-                            TextButton(
-                                onClick = { micPositionDoneRequested = true },
-                                enabled = !micPositionDoneRequested
-                            ) {
+                            TextButton(onClick = {
+                                keyboardController?.hide()
+                                navController.popBackStack()
+                            }) {
                                 Text(text = stringResource(R.string.main_done))
                             }
                         }
@@ -94,7 +95,6 @@ fun MainNavHost() {
                     onOpenLocalModels = { navController.navigate(VoiceRoute.LOCAL_MODELS) },
                     onOpenMicPosition = {
                         keyboardSelectionRequired = VoiceKeyboardStatusReader.read(context).selected
-                        micPositionDoneRequested = false
                         navController.navigate(VoiceRoute.MIC_POSITION)
                     }
                 )
@@ -106,11 +106,6 @@ fun MainNavHost() {
                 OverlayPositionScreen(
                     onKeyboardSelectionRequiredChanged = { required ->
                         keyboardSelectionRequired = required
-                    },
-                    doneRequested = micPositionDoneRequested,
-                    onDone = {
-                        micPositionDoneRequested = false
-                        navController.popBackStack()
                     }
                 )
             }
