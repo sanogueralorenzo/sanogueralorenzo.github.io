@@ -572,11 +572,54 @@ class OverlayAccessibilityService : AccessibilityService() {
     }
 
     private fun isHintText(node: AccessibilityNodeInfo, text: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
-        if (node.isShowingHintText) return true
-        val hint = node.hintText?.toString()?.trim().orEmpty()
-        if (hint.isBlank()) return false
-        return text.equals(hint, ignoreCase = true)
+        val showingHintText = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            node.isShowingHintText
+        val hintText = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            node.hintText?.toString()
+        } else {
+            null
+        }
+        return textRepresentsHint(
+            text = text,
+            showingHintText = showingHintText,
+            hintText = hintText,
+            hasEditableContent = { selectionConfirmsEditableContent(node, text.length) }
+        )
+    }
+
+    private fun selectionConfirmsEditableContent(
+        node: AccessibilityNodeInfo,
+        textLength: Int
+    ): Boolean {
+        val originalStart = node.textSelectionStart
+        val originalEnd = node.textSelectionEnd
+        if (originalStart == textLength && originalEnd == textLength) return true
+
+        val supportsSelection = node.actionList.any { action ->
+            action.id == AccessibilityNodeInfo.ACTION_SET_SELECTION
+        }
+        if (!supportsSelection) return true
+
+        val moveToEndArgs = Bundle().apply {
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, textLength)
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, textLength)
+        }
+        if (!node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, moveToEndArgs)) {
+            return false
+        }
+
+        val refreshed = node.refresh()
+        val reachesReportedTextEnd = !refreshed ||
+            (node.textSelectionStart == textLength && node.textSelectionEnd == textLength)
+
+        if (originalStart >= 0 && originalEnd >= 0) {
+            val restoreArgs = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, originalStart)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, originalEnd)
+            }
+            node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, restoreArgs)
+        }
+        return reachesReportedTextEnd
     }
 
     private fun replaceFocusedInputText(text: String): Boolean {
