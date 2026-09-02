@@ -59,7 +59,7 @@
     <string name="overlay_position_nudge_right">Move right</string>
     <string name="overlay_position_enable_accessibility_note">Enable the keyboard mic first to preview and position the dot.</string>
     <string name="overlay_position_choose_keyboard_title">Switch keyboards</string>
-    <string name="overlay_position_choose_keyboard_body">Select one to position the floating mic.</string>
+    <string name="overlay_position_choose_keyboard_body">Voice overlay is only available for non-Voice keyboards.</string>
     <string name="overlay_position_choose_keyboard_action">Continue</string>
     <string name="overlay_microphone_required">Microphone permission is required.</string>
     <string name="overlay_asr_not_ready">ASR model is not ready yet.</string>
