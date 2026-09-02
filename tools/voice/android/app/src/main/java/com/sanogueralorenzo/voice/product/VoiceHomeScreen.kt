@@ -133,16 +133,9 @@ private fun VoiceHomeContent(
                 onGrantMicrophone = onGrantMicrophone,
                 onOpenVoiceService = onOpenVoiceService,
                 onOpenVoiceKeyboard = onOpenVoiceKeyboard,
-                onSelectInputType = onSelectInputType
+                onSelectInputType = onSelectInputType,
+                onOpenMicPosition = onOpenMicPosition
             )
-        }
-        if (state.inputType == VoiceInputType.OVERLAY) {
-            item {
-                MicPositionCard(
-                    enabled = state.voiceServiceEnabled,
-                    onClick = onOpenMicPosition
-                )
-            }
         }
         item { Spacer(modifier = Modifier.height(4.dp)) }
     }
@@ -304,7 +297,8 @@ private fun StatusSection(
     onGrantMicrophone: () -> Unit,
     onOpenVoiceService: () -> Unit,
     onOpenVoiceKeyboard: () -> Unit,
-    onSelectInputType: (VoiceInputType) -> Unit
+    onSelectInputType: (VoiceInputType) -> Unit,
+    onOpenMicPosition: () -> Unit
 ) {
     Section(title = stringResource(R.string.product_status)) {
         TypeStatusRow(
@@ -326,10 +320,13 @@ private fun StatusSection(
                 StatusRow(
                     title = stringResource(R.string.product_status_service),
                     subtitle = stringResource(R.string.product_status_service_hint),
+                    completedTitle = stringResource(R.string.product_mic_position_title),
+                    completedSubtitle = stringResource(R.string.product_mic_position_body),
                     ready = state.voiceServiceEnabled,
                     loading = state.loading,
                     actionLabel = stringResource(R.string.product_action_enable),
-                    onAction = onOpenVoiceService
+                    onAction = onOpenVoiceService,
+                    onCompletedAction = onOpenMicPosition
                 )
             }
 
@@ -462,15 +459,25 @@ private fun LocalModelsStatusRow(
 private fun StatusRow(
     title: String,
     subtitle: String? = null,
+    completedTitle: String? = null,
+    completedSubtitle: String? = null,
     ready: Boolean,
     loading: Boolean,
     actionLabel: String,
-    onAction: () -> Unit
+    onAction: () -> Unit,
+    onCompletedAction: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SETUP_ROW_HEIGHT)
+            .then(
+                if (ready && onCompletedAction != null) {
+                    Modifier.clickable(onClick = onCompletedAction)
+                } else {
+                    Modifier
+                }
+            )
             .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -488,10 +495,11 @@ private fun StatusRow(
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = if (ready) completedTitle ?: title else title,
                 style = MaterialTheme.typography.bodyLarge
             )
-            subtitle?.let {
+            val displayedSubtitle = if (ready) completedSubtitle ?: subtitle else subtitle
+            displayedSubtitle?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.bodySmall,
@@ -503,39 +511,11 @@ private fun StatusRow(
             Button(onClick = onAction) {
                 Text(text = actionLabel)
             }
-        }
-    }
-}
-
-@Composable
-private fun MicPositionCard(enabled: Boolean, onClick: () -> Unit) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.product_mic_position_title),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = stringResource(
-                        if (enabled) R.string.product_mic_position_body
-                        else R.string.product_mic_position_requires_service
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        } else if (ready && onCompletedAction != null) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.outline
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
