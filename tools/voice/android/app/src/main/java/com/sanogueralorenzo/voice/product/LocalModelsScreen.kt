@@ -37,6 +37,7 @@ import com.airbnb.mvrx.compose.collectAsStateWithLifecycle
 import com.airbnb.mvrx.compose.mavericksViewModel
 import com.sanogueralorenzo.voice.R
 import com.sanogueralorenzo.voice.audio.DictationLanguage
+import com.sanogueralorenzo.voice.models.LanguageModelStatus
 
 @Composable
 fun LocalModelsScreen() {
@@ -95,7 +96,7 @@ fun LocalModelsScreen() {
 
 @Composable
 private fun LanguageModelRow(
-    model: LanguageModelState,
+    model: LanguageModelStatus,
     downloadedCount: Int,
     loading: Boolean,
     operationInProgress: Boolean,
@@ -176,7 +177,7 @@ private fun ModelDownloadProgress(progress: Int) {
 }
 
 @Composable
-private fun modelSubtitle(model: LanguageModelState, downloadedCount: Int): String {
+private fun modelSubtitle(model: LanguageModelStatus, downloadedCount: Int): String {
     if (!model.ready) return modelSize(model.language)
     return if (downloadedCount == 1) {
         stringResource(R.string.models_only_gesture)

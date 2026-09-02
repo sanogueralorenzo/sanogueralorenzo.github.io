@@ -7,7 +7,7 @@ import android.os.Looper
 import android.provider.Settings
 import com.sanogueralorenzo.voice.audio.DictationLanguagePreferences
 import com.sanogueralorenzo.voice.keyboard.VoiceKeyboardStatusReader
-import com.sanogueralorenzo.voice.models.ModelSetupRepository
+import com.sanogueralorenzo.voice.models.LocalModelsRepository
 import com.sanogueralorenzo.voice.overlay.OverlayRepository
 import com.sanogueralorenzo.voice.product.VoiceInputType
 import com.sanogueralorenzo.voice.product.VoiceInputTypePreferences
@@ -20,6 +20,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,7 +51,7 @@ data class VoiceSetupStatus(
 class VoiceSetupRepository(
     context: Context,
     private val overlayRepository: OverlayRepository,
-    private val modelSetupRepository: ModelSetupRepository,
+    private val localModelsRepository: LocalModelsRepository,
     private val languagePreferences: DictationLanguagePreferences,
     private val inputTypePreferences: VoiceInputTypePreferences
 ) {
@@ -78,6 +81,13 @@ class VoiceSetupRepository(
                 settingsObserver
             )
         }
+        scope.launch {
+            localModelsRepository.status
+                .map { it.downloadedLanguages }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { refresh() }
+        }
         refresh()
     }
 
@@ -85,7 +95,7 @@ class VoiceSetupRepository(
         scope.launch {
             refreshMutex.withLock {
                 val nextStatus = withContext(Dispatchers.IO) {
-                    val downloadedLanguages = modelSetupRepository.readDownloadedLanguages()
+                    val downloadedLanguages = localModelsRepository.readDownloadedLanguages()
                     val modelsReady = languagePreferences
                         .syncDownloaded(downloadedLanguages)
                         .isNotEmpty()
