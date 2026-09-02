@@ -70,7 +70,7 @@ fun VoiceHomeScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { viewModel.refreshStatus() }
 
-    OnLifecycle(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME) {
+    OnLifecycle(Lifecycle.Event.ON_START) {
         viewModel.refreshStatus()
     }
     DisposableEffect(context, viewModel) {
