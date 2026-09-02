@@ -289,13 +289,6 @@ private fun StatusSection(
             onAction = onOpenVoiceService
         )
         HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
-        LocalModelsStatusRow(
-            ready = state.modelsReady,
-            loading = state.loading,
-            activeLanguages = state.activeLanguages,
-            onClick = onOpenLocalModels
-        )
-        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
         StatusRow(
             title = stringResource(R.string.product_status_voice_keyboard),
             ready = state.voiceKeyboardSelected,
@@ -308,6 +301,13 @@ private fun StatusSection(
                 }
             ),
             onAction = onOpenVoiceKeyboard
+        )
+        HorizontalDivider(modifier = Modifier.padding(start = 50.dp))
+        LocalModelsStatusRow(
+            ready = state.modelsReady,
+            loading = state.loading,
+            activeLanguages = state.activeLanguages,
+            onClick = onOpenLocalModels
         )
     }
 }

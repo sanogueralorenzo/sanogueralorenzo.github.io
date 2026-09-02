@@ -31,13 +31,13 @@
     <string name="product_action_cancel">Cancel</string>
     <string name="models_title">Local Models</string>
     <string name="models_explanation">Download the languages you want. With two models, drag to choose tap and long press.</string>
-    <string name="models_first_gesture">First · Tap</string>
-    <string name="models_second_gesture">Second · Long press</string>
+    <string name="models_tap_gesture">Tap</string>
+    <string name="models_long_press_gesture">Long press</string>
     <string name="models_only_gesture">Tap or long press</string>
     <string name="models_english_name">English</string>
     <string name="models_spanish_name">Spanish</string>
-    <string name="models_english_detail">Medium streaming · 303 MB</string>
-    <string name="models_spanish_detail">Small streaming · 122 MB</string>
+    <string name="models_english_size">303 MB</string>
+    <string name="models_spanish_size">122 MB</string>
     <string name="models_downloaded">Downloaded</string>
     <string name="models_download_required">Download required</string>
     <string name="models_download">Download</string>

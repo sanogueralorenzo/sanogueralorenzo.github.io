@@ -212,16 +212,14 @@ private fun ModelDownloadProgress(progress: Int) {
 
 @Composable
 private fun modelSubtitle(model: LanguageModelState, downloadedCount: Int): String {
-    val detail = modelDetail(model.language)
-    if (!model.ready) return detail
-    val gesture = if (downloadedCount == 1) {
+    if (!model.ready) return modelSize(model.language)
+    return if (downloadedCount == 1) {
         stringResource(R.string.models_only_gesture)
     } else if (model.orderIndex == 0) {
-        stringResource(R.string.models_first_gesture)
+        stringResource(R.string.models_tap_gesture)
     } else {
-        stringResource(R.string.models_second_gesture)
+        stringResource(R.string.models_long_press_gesture)
     }
-    return "$detail · $gesture"
 }
 
 @Composable
@@ -235,11 +233,11 @@ private fun languageName(language: DictationLanguage): String {
 }
 
 @Composable
-private fun modelDetail(language: DictationLanguage): String {
+private fun modelSize(language: DictationLanguage): String {
     return stringResource(
         when (language) {
-            DictationLanguage.ENGLISH -> R.string.models_english_detail
-            DictationLanguage.SPANISH -> R.string.models_spanish_detail
+            DictationLanguage.ENGLISH -> R.string.models_english_size
+            DictationLanguage.SPANISH -> R.string.models_spanish_size
         }
     )
 }
