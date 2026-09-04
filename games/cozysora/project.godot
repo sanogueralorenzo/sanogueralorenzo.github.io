@@ -1,0 +1,31 @@
+; Entirely procedural Godot 4 recreation.
+config_version=5
+
+[application]
+config/name="Cozysora — 夏の道"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.4", "Forward Plus")
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="forward_plus"
+textures/default_filters/use_nearest_mipmap_filter=false
+anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/size=4096
+textures/default_filters/anisotropic_filtering_level=3
+
+[audio]
+driver/enable_input=false
+
+[shader_globals]
+cat_position={
+"type": "vec3",
+"value": Vector3(0,-100,0)
+}
