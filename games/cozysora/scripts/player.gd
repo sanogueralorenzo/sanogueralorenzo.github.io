@@ -1,6 +1,6 @@
 class_name CozyPlayer
 extends CharacterBody3D
-## Procedural characters and locomotion translated from Natsu no Michi's controllers.
+## Procedural cat and seagull characters, locomotion, camera, and synthesized audio.
 signal mode_changed(mode: String)
 signal menu_changed(open: bool)
 

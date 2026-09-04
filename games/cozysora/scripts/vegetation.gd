@@ -1,10 +1,10 @@
 class_name CozyVegetation
 extends Node3D
-## Original procedural Godot reconstruction of the reference's seeded foliage.
+## Seeded procedural foliage for Cozy Sora.
 ## Leaf silhouettes, lobed card canopies and curved grass blades are generated here.
 
 var _world: Node3D
-class ReferenceRandom:
+class SeededRandom:
 	extends RefCounted
 	var state: int = 1
 	var seed: int = 1:
@@ -21,7 +21,7 @@ class ReferenceRandom:
 	func randi_range(low: int, high: int) -> int:
 		return low + floori(randf() * (high - low + 1))
 
-var _rng := ReferenceRandom.new()
+var _rng := SeededRandom.new()
 var _trees: Array[Dictionary] = []
 var _bushes: Array[Dictionary] = []
 var _placed: Array[Vector3] = []
@@ -189,7 +189,7 @@ func _tapered_branch(st: SurfaceTool, start: Vector3, end: Vector3, radius: floa
 			st.add_vertex(points[k])
 
 func _leaf_texture(seed_value: int, small: bool = false) -> Texture2D:
-	var random := ReferenceRandom.new()
+	var random := SeededRandom.new()
 	random.seed = seed_value
 	var image := Image.create(256, 256, false, Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
@@ -447,7 +447,7 @@ func _grass_fields() -> void:
 	var transforms: Array = []
 	var samples := {}
 	var attempts: int = 0
-	# Same 380,000-clump population as the reference. Spatial batches let Godot cull
+	# Grow up to 380,000 clumps. Spatial batches let Godot cull
 	# fields behind the camera and beyond the atmospheric distance.
 	while transforms.size()<380000 and attempts<1140000:
 		attempts += 1
@@ -548,7 +548,7 @@ func _rosettes(rows: Array = [], plant_color: Color = Color("2f6a36"), second_co
 			_world.cylinder(self,Vector3(row[0],_world.height_at(row[0],row[1])+lift*0.5,row[1]),0.05,0.03,lift,_world.mat("3a5936"))
 
 func _flower_texture(color: Color, seed_value: int) -> Texture2D:
-	var random := ReferenceRandom.new()
+	var random := SeededRandom.new()
 	random.seed = seed_value
 	var image := Image.create(256,256,false,Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
@@ -685,7 +685,7 @@ func _pine_tier(center: Vector3,radius: float,tree_height: float) -> ArrayMesh:
 	return st.commit()
 
 func _pine_needle_texture() -> Texture2D:
-	var random := ReferenceRandom.new()
+	var random := SeededRandom.new()
 	random.seed = 79
 	var image := Image.create(512,512,false,Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
@@ -796,7 +796,7 @@ func _shrine_flowers(center: Vector2, radius: float, count: int, color: Color, s
 	_batch(mesh,material,transforms,"Shrine wildflowers",90)
 
 func _shrine_flower_texture(kind: String,seed_value: int) -> Texture2D:
-	var random := ReferenceRandom.new()
+	var random := SeededRandom.new()
 	random.seed = seed_value
 	var image := Image.create(128,384,false,Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
@@ -895,7 +895,7 @@ func _giant_shrine_tree() -> void:
 	add_child(body)
 
 func _giant_bark_material(origin: Vector3) -> ShaderMaterial:
-	var random := ReferenceRandom.new()
+	var random := SeededRandom.new()
 	random.seed = 21
 	var image := Image.create(128,512,false,Image.FORMAT_RGBA8)
 	image.fill(Color8(118,118,108))

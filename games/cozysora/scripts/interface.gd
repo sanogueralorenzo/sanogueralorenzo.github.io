@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Source-matched, responsive title card. All UI uses engine controls and system fonts.
+## Cozy Sora title card, built with responsive engine controls and system fonts.
 var player: CozyPlayer
 var root: Control
 var panel: PanelContainer
@@ -31,10 +31,12 @@ func setup(character: CozyPlayer) -> void:
 	content.add_theme_constant_override("separation", 0)
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(content)
-	var title := _label("夏の道", 34, Color("f4efe4"))
+	var title := _label("Cozy Sora", 34, Color("f4efe4"))
 	content.add_child(title)
-	var subtitle := _label("N A T S U   N O   M I C H I", 14, Color(0.957, 0.937, 0.894, 0.7))
-	content.add_child(subtitle)
+	var title_spacing := Control.new()
+	title_spacing.custom_minimum_size.y = 18
+	title_spacing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content.add_child(title_spacing)
 	var prompt := _label("Click to head out into the summer heat.", 14, Color(0.957, 0.937, 0.894, 0.85))
 	prompt.custom_minimum_size.y = 46
 	prompt.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM

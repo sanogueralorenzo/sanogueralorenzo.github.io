@@ -1,8 +1,9 @@
-; Entirely procedural Godot 4 recreation.
+; Cozy Sora — an original procedural Godot 4 game.
 config_version=5
 
 [application]
-config/name="Cozysora — 夏の道"
+config/name="Cozy Sora"
+config/description="An original procedural Godot game inspired by Japanese coastal summers and cozy exploration games."
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 

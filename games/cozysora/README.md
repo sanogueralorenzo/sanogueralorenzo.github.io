@@ -1,6 +1,6 @@
-# Cozysora — 夏の道
+# Cozy Sora
 
-A standalone Godot 4 recreation of [Natsu no Michi](https://cosy-japan.vercel.app/): explore a summer coastal village as a tabby cat or a seagull. The world, characters, textures, animation, and sound are generated at runtime. There are no downloaded models, images, fonts, recordings, animation files, or JavaScript dependencies in the project.
+Cozy Sora is an original procedural Godot game inspired by Japanese coastal summers and cozy exploration games. Explore a summer coastal village as a tabby cat or a seagull. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
 
 Open `project.godot` in Godot 4.7 or run:
 
@@ -36,17 +36,15 @@ The seagull glides without input and can settle on the ground. Switching back to
 - `scripts/summer_life.gd` animates butterflies and drifting particles.
 - `shaders/` contains original Godot implementations of wind, foliage lighting, ground materials, cloud and sea fields, and a painterly screen treatment.
 
-## Reference and verification views
+## Scenic capture views
 
-The technical specification was the deployed site's client bundles, inspected on 4 September 2026. Their source-specific formulas, dimensions, palette, area coordinates, camera presets, and control constants informed the implementation; the original JavaScript is not included or executed. See [REFERENCE.md](REFERENCE.md) for the system mapping.
-
-For repeatable runtime visual inspection, the project exposes the same named viewpoints as the reference:
+The world provides fixed viewpoints for screenshots and runtime inspection. See [DESIGN.md](DESIGN.md) for its procedural systems and world dimensions.
 
 ```sh
 godot --path games/cozysora -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
 godot --path games/cozysora -- --shot --capture-dir=/tmp/cozysora-views --quit-after-capture
 ```
 
-Available views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` starts as the seagull. Capture mode hides the menu; the named views preserve the reference's camera position, eye-height offset, pitch, yaw, and vertical field of view. Captures are written only to the explicitly supplied path.
+Available views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` starts as the seagull. Capture mode hides the menu; each named view uses a fixed camera position, eye height, pitch, yaw, and vertical field of view. Captures are written only to the explicitly supplied path.
 
 Verification uses rendered runtime inspection and manual play, not a test suite. See [VERIFICATION.md](VERIFICATION.md) for the reviewed behavior, performance observations, and remaining manual verification gap.

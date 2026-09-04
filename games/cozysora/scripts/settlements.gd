@@ -1,6 +1,6 @@
 class_name CozySettlements
 extends Node3D
-## Original procedural translation of the reference's settlement composition.
+## Procedural buildings, village props, farmland, and railway for Cozy Sora.
 var w: Node3D
 var rng := RandomNumberGenerator.new()
 var textures := {}
@@ -109,7 +109,7 @@ func roof(p: Node3D, center: Vector3, width: float, depth: float, rise: float, t
 	var trim := tint if trim_tint.is_empty() else trim_tint
 	var half := width*.5
 	var ridge := maxf(.25,half-depth*.5) if hip else half
-	# Build the source's curved profile in two dimensions: the corners turn upward
+	# Build the curved roof profile in two dimensions: the corners turn upward
 	# more strongly than the center of an eave, which keeps the Japanese silhouette.
 	for side in [-1.0,1.0]:
 		for j in 10:
@@ -585,8 +585,8 @@ func bicycle(x: float,z: float,yaw: float,tint: String) -> void:
 func railway() -> void:
 	rail_signs()
 	var controls: Array[Vector3]=[Vector3(-80,11.5,36),Vector3(-52,11.5,54),Vector3(-44,11.5,68),Vector3(-40,11.5,84),Vector3(-20,11.5,96),Vector3(60,11.5,96),Vector3(108,11.5,70)]
-	# Interpolating Catmull-Rom points match the reference's world track, rather than
-	# allowing cubic Bezier handles to shortcut the pronounced western turn.
+	# Catmull-Rom interpolation carries the railway through its control points
+	# and preserves the pronounced western turn.
 	for i in range(controls.size()-1):
 		var a: Vector3=controls[maxi(0,i-1)]
 		var q: Vector3=controls[i]

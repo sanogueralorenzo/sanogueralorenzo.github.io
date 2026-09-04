@@ -1,6 +1,6 @@
 extends Node3D
 ## Coordinate system, deterministic height field and shared primitive construction.
-## Units and placements reconstructed from the deployed September 2026 reference.
+## World dimensions and authored placements for Cozy Sora.
 
 var roads: Array = []
 var rail_points: Array[Vector2] = []
@@ -60,14 +60,14 @@ func _ready() -> void:
 	_loading_layer.queue_free()
 	_profile_enabled = "--profile" in OS.get_cmdline_user_args()
 	_ready_world = true
-	print("COZYSORA_READY build_ms=",Time.get_ticks_msec()-start," nodes=",get_tree().get_node_count())
+	print("Cozy Sora READY build_ms=",Time.get_ticks_msec()-start," nodes=",get_tree().get_node_count())
 
 func _process(_delta: float) -> void:
 	if _ready_world and _profile_enabled:
 		_profile_elapsed += _delta
 		if _profile_elapsed>=5:
 			_profile_elapsed=0
-			print("COZYSORA_RUNTIME fps=",Engine.get_frames_per_second()," process_ms=",Performance.get_monitor(Performance.TIME_PROCESS)*1000," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
+			print("Cozy Sora RUNTIME fps=",Engine.get_frames_per_second()," process_ms=",Performance.get_monitor(Performance.TIME_PROCESS)*1000," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
 	if is_instance_valid(player): RenderingServer.global_shader_parameter_set("cat_position",player.global_position)
 	if _ready_world and not _capture.is_empty():
 		_capture_frames += 1
@@ -76,7 +76,7 @@ func _process(_delta: float) -> void:
 			var process_ms: float = Performance.get_monitor(Performance.TIME_PROCESS)*1000
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png(_capture)
-			print("COZYSORA_CAPTURE ",_capture," fps=",fps," drawcalls=",Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)," process_ms=",process_ms," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
+			print("Cozy Sora CAPTURE ",_capture," fps=",fps," drawcalls=",Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)," process_ms=",process_ms," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
 			if not _capture_views.is_empty():
 				var next_view: String = _capture_views.pop_front()
 				player.set_view(next_view)
@@ -293,7 +293,7 @@ func _build_terrain() -> void:
 			image.set_pixel(i,j,Color(minf(ri.d,16)/16,fposmod(ri.s,8)/8,zone,1))
 	var layout := ImageTexture.create_from_image(image)
 	ResourceSaver.save(layout,layout_cache)
-	# Match the reference's 360m terrain and .818m height sampling.
+	# Sample the 360m terrain at .818m intervals.
 	var verts:=PackedVector3Array()
 	var normals:=PackedVector3Array()
 	var uv:=PackedVector2Array()
