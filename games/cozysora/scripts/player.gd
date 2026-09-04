@@ -40,6 +40,7 @@ var bank := 0.0
 var camera_distance := 4.2
 var camera_look := Vector3.ZERO
 var last_cat_position := Vector3(-6.4, 0, 0.2)
+var registered_spawn := Vector3.ZERO
 var ambience: Dictionary = {}
 var audio: AudioStreamPlayer
 var audio_playback: AudioStreamGeneratorPlayback
@@ -117,6 +118,7 @@ func setup(level: Node3D, spawn: Dictionary = {}) -> void:
 	var spawn_position: Vector3 = spawn.get("position", Vector3(-6.4, 0, 0.2))
 	position = Vector3(spawn_position.x, _height(spawn_position.x, spawn_position.z) + spawn_position.y, spawn_position.z)
 	last_cat_position = position
+	registered_spawn = position
 	cam_yaw = float(spawn.get("yaw", -0.08))
 	cam_pitch = float(spawn.get("pitch", 0.09))
 	heading = cam_yaw
@@ -156,20 +158,52 @@ func set_view(view_name: String) -> void:
 	camera.position = position + Vector3(0, 1.6801, 0)
 	camera.rotation = Vector3(view[4], view[3], 0)
 
+func _support_height() -> float:
+	var ground := _height(position.x, position.z)
+	var query := PhysicsRayQueryParameters3D.create(position + Vector3.UP * 0.45, Vector3(position.x, ground - 1, position.z), 1, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty() and hit.normal.y > 0.6:return maxf(ground, hit.position.y)
+	return ground
+
+func _safe_surface_position(candidate: Vector3) -> Vector3:
+	for at: Vector3 in [candidate, last_cat_position, registered_spawn]:
+		if not world.walkable(at.x, at.z):continue
+		var ground := _height(at.x, at.z)
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, maxf(at.y + .5, ground + .5), at.z), Vector3(at.x, ground - 1, at.z), 1, [get_rid()])
+		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+		if hit.is_empty() or hit.normal.y < .6:continue
+		var support: Vector3 = hit.position + Vector3.UP * .025
+		var clearance := PhysicsShapeQueryParameters3D.new()
+		var capsule := CapsuleShape3D.new();capsule.radius = .22;capsule.height = .6
+		clearance.shape = capsule;clearance.transform.origin = support + Vector3.UP * .31
+		clearance.collision_mask = 1;clearance.exclude = [get_rid()]
+		if get_world_3d().direct_space_state.intersect_shape(clearance, 1).is_empty():return support
+	return registered_spawn + Vector3.UP * .05
+
 func set_mode(value: String) -> void:
 	if fixed_view or mode == value or value not in ["cat", "gull"]: return
 	if mode == "cat": last_cat_position = position
 	mode = value
 	velocity = Vector3.ZERO
 	if mode == "gull":
-		position.y = _height(position.x, position.z) + 1.2
+		if world.supports_surface_traversal:
+			var launch := PhysicsShapeQueryParameters3D.new()
+			var capsule := CapsuleShape3D.new();capsule.radius=.22;capsule.height=.6
+			launch.shape=capsule;launch.transform.origin=position+Vector3.UP*.31
+			launch.motion=Vector3.UP*1.2;launch.collision_mask=1;launch.exclude=[get_rid()]
+			var sweep := get_world_3d().direct_space_state.cast_motion(launch)
+			position.y += maxf(0,sweep[0]*1.2-.04)
+		else:position.y = _height(position.x, position.z) + 1.2
 		velocity.y = 1.5
 		perched = false
 		flap = 1
 		_play_sound("cry")
 	else:
-		if not world.walkable(position.x, position.z): position = last_cat_position
-		position.y = _height(position.x, position.z)
+		if world.supports_surface_traversal:
+			position = _safe_surface_position(position)
+		else:
+			if not world.walkable(position.x, position.z): position = last_cat_position
+			position.y = _height(position.x, position.z)
 		grounded = true
 		cam_pitch = clampf(cam_pitch, 0.05, 1)
 		camera_distance = 4.2
@@ -309,6 +343,9 @@ func _update_cat(dt: float) -> void:
 	cat.rotation.z = clampf(turn * 0.03, -0.25, 0.25) * minf(1, speed / 3)
 	var direction := Vector3(sin(heading), 0, -cos(heading)) * 0.4
 	var slope := _height(position.x + direction.x, position.z + direction.z) - _height(position.x - direction.x, position.z - direction.z)
+	if world.supports_surface_traversal and is_on_floor():
+		var normal := get_floor_normal()
+		slope = -2.0*(normal.x*direction.x+normal.z*direction.z)/maxf(.1,normal.y)
 	cat.rotation.x = -atan2(slope, 0.8) * 0.8
 	_animate_cat(dt)
 
@@ -325,6 +362,9 @@ func _update_gull(dt: float) -> void:
 	var horizontal := sqrt(maxf(0, 1 - vertical * vertical))
 	var direction := Vector3(sin(cam_yaw) * horizontal, vertical, -cos(cam_yaw) * horizontal)
 	var flat_direction := Vector3(sin(cam_yaw), 0, -cos(cam_yaw))
+	if perched and world.supports_surface_traversal and position.y-(maxf(_support_height(),flight_bounds.position.y+.05)+.17)>.65:
+		perched=false
+		velocity.y=-.6
 	if perched:
 		if forward > 0 or climb:
 			perched = false
@@ -335,7 +375,7 @@ func _update_gull(dt: float) -> void:
 			heading += clampf(wrapf(cam_yaw - heading, -PI, PI) * 4, -3, 3) * dt
 			bird_pitch = lerpf(bird_pitch, 0, minf(1, dt * 6))
 			bank = lerpf(bank, 0, minf(1, dt * 6))
-			position.y = maxf(_height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
+			position.y = maxf(_support_height() if world.supports_surface_traversal else _height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
 			_animate_gull(dt)
 			return
 	var target_speed := 17.0 if boost else 9.5
@@ -348,14 +388,14 @@ func _update_gull(dt: float) -> void:
 	if not active_input: target = Vector3(sin(heading) * 3, -0.9, -cos(heading) * 3)
 	velocity = velocity.lerp(target, minf(1, dt * (3.2 if active_input else 0.9)))
 	if forward > 0 and direction.y < -0.3: velocity.y += direction.y * 4 * dt
-	if position.y - _height(position.x, position.z) < 2.2: move_and_slide()
+	if world.supports_surface_traversal or position.y - _height(position.x, position.z) < 2.2: move_and_slide()
 	else: position += velocity * dt
 	position.x = clampf(position.x, flight_bounds.position.x, flight_bounds.end.x)
 	position.z = clampf(position.z, flight_bounds.position.z, flight_bounds.end.z)
 	if position.y > flight_bounds.end.y:
 		position.y = flight_bounds.end.y
 		velocity.y = minf(0, velocity.y)
-	var floor_y := maxf(_height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
+	var floor_y := maxf(_support_height() if world.supports_surface_traversal else _height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 	if position.y <= floor_y:
 		position.y = floor_y
@@ -386,16 +426,20 @@ func _place_camera(dt: float, immediate := false) -> void:
 	var focus := position + Vector3(0, 0.25 if bird else 0.5, 0)
 	var offset := Vector3(-sin(cam_yaw) * cos(cam_pitch), sin(cam_pitch), cos(cam_yaw) * cos(cam_pitch))
 	var distance := (3.4 if perched else 4.5) if bird else 4.2
-	if not bird and is_inside_tree():
+	if (not bird or world.supports_surface_traversal) and is_inside_tree():
 		var ray := PhysicsRayQueryParameters3D.create(focus, focus + offset * distance, 1, [get_rid()])
 		var hit := get_world_3d().direct_space_state.intersect_ray(ray)
-		if not hit.is_empty(): distance = clampf(focus.distance_to(hit.position) - 0.55, 1.3, 4.2)
+		if not hit.is_empty(): distance = clampf(focus.distance_to(hit.position) - 0.55, .35 if world.supports_surface_traversal else 1.3, 4.2)
 		camera_distance = distance if immediate else lerpf(camera_distance, distance, minf(1, dt * (12 if distance < camera_distance else 2)))
 		distance = camera_distance
 	var destination := focus + offset * distance + Vector3(0, 0.315 if bird else 0.385, 0)
 	var clearance := (1.6 if perched else 0.7) if bird else 1.1
 	destination.y = maxf(destination.y, maxf(_height(destination.x, destination.z), flight_bounds.position.y) + clearance)
 	camera.position = destination if immediate else camera.position.lerp(destination, 1 - exp(-dt * (5.5 if bird else 6.5)))
+	if world.supports_surface_traversal:
+		var final_ray := PhysicsRayQueryParameters3D.create(focus,camera.position,1,[get_rid()])
+		var obstruction := get_world_3d().direct_space_state.intersect_ray(final_ray)
+		if not obstruction.is_empty():camera.position = obstruction.position + (focus-obstruction.position).normalized()*.14
 	camera_look = focus if immediate else camera_look.lerp(focus, 1 - exp(-dt * 9))
 	camera.look_at(camera_look)
 	camera.rotation.z += bank * 0.12 if bird else sin(elapsed * 9) * 0.0025 * minf(1, speed / 4)

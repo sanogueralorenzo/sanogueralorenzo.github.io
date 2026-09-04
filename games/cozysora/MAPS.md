@@ -15,6 +15,8 @@ A map scene's root extends `CozyMap`. All map coordinates share the session's id
 - `walkable(x,z)` identifies safe cat ground. Collision bodies provide building and prop collision.
 - `flight_bounds` is an AABB defining horizontal flight limits and minimum/maximum landscape elevation.
 - `ambience` is a dictionary consumed by the shared synthesizer: `wind_gain`, `wave_base`, `wave_swell`, `cicada_frequencies` (Vector2), `cicada_gain`, and `birds`. Omitted values are silent; character sounds remain available.
+- `supports_surface_traversal` defaults to `false`. Harbor Hills opts in to collision-aware gull flight, floor-normal cat alignment, downward surface queries for perching, clearance-checked character switching, and a close obstruction-aware camera. Seabreeze retains its existing terrain-based controller path.
+- `set_paused(value)` pauses map-owned audio streams; session processing already pauses simulation. Harbor Hills uses it for its spatial cable-car bell.
 - Optional `scenic_views` maps names to `[x,z,height,yaw,pitch]` arrays for inspection. The shared camera adds its scenic eye-height offset.
 
 The base class supplies a flat ground plane's height/walkability contract and silent ambience. A map still owns its visible ground, collision, and environment. Seabreeze Village overrides the ground contract and builds its full procedural landscape. Shared shaders and generator helpers can be reused without making a map depend on another map's scene instance.
@@ -36,3 +38,11 @@ Pause disables processing for the complete session and pauses its audio stream. 
 Returning locks navigation and covers the viewport, clears touch input, frees the entire session, waits for scene-tree and physics cleanup, resets the global player-position shader parameter, and restores selector focus. Player, camera, sounds, map nodes, collision, particles, and world post-processing all leave together. No generation thread or timer remains active. ResourceLoader's threaded request is awaited before the session becomes playable.
 
 Generated terrain and foliage caches live in `user://` and contain only project-generated resources. They are invalidated by generator script signatures. The on-disk cache may remain after unloading; it is not a live map. Do not cache scene-tree instances or player state in the registry.
+
+## Harbor Hills ownership and cache
+
+Harbor Hills registers `maps/harbor_hills/map.tres` with ID `harbor_hills`; its scene root is `world.gd`. `geometry.gd` batches static primitives by material and 40 m cell. `neighborhood.gd` and `nature.gd` construct the district beneath the map root. `transit.gd` owns moving bodies, background gulls and synthesized spatial bell audio. Nothing in this folder creates application UI, a camera or a player.
+
+The static scene is packed into `user://harbor_hills_<signature>.scn`. The signature incorporates the map's generator and surface/foliage shader sources. It contains generated meshes, material resources and collision shapes, never runtime player state. Environment, water, moving fog, post-processing and transit are recreated outside that cache for every visit. Seabreeze keeps its existing separate procedural caches. Returning to selection frees all loaded map instances; cache files alone persist.
+
+No Seabreeze terrain, layout, palette, vegetation or ambience generator changes are part of this integration. Shared additions are opt-in surface traversal, a map-owned audio pause hook, counting spatial audio players in lifecycle diagnostics, and settling the selector scroll position after variable-height cards lay out. The welcome header remains visible on entry; normal focus navigation continues to scroll to each destination.

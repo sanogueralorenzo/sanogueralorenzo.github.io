@@ -142,6 +142,7 @@ func _menu_changed(open:bool) -> void:
 	screen=Screen.PAUSED if open else Screen.PLAYING
 	session.process_mode=Node.PROCESS_MODE_DISABLED if open else Node.PROCESS_MODE_INHERIT
 	if player.audio!=null:player.audio.stream_paused=open
+	map.set_paused(open)
 	hud.set_paused(open)
 	touch.visible=touch_enabled and not open
 	_report_session("paused" if open else "playing")
@@ -195,7 +196,8 @@ func _process(delta:float) -> void:
 		_profile_clock+=delta
 		if _profile_clock>5:
 			_profile_clock=0
-			print("Cozy Sora RUNTIME screen=",Screen.keys()[screen]," fps=",Engine.get_frames_per_second()," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
+			print("Cozy Sora RUNTIME screen=",Screen.keys()[screen]," fps=",Engine.get_frames_per_second()," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000," viewport=",get_viewport().get_visible_rect().size," audio_db=",AudioServer.get_bus_peak_volume_left_db(0,0))
+			if is_instance_valid(player):print("Cozy Sora PLAYER mode=",player.mode," position=",player.position," grounded=",player.grounded," perched=",player.perched)
 	if not _capture.is_empty() and screen in [Screen.SELECTOR,Screen.PLAYING] and not _quitting:
 		_capture_frames+=1
 		if _capture_frames==45:
@@ -221,7 +223,7 @@ func _report_session(label:String) -> void:
 func _count_nodes(node:Node,counts:Dictionary) -> void:
 	if node is CozyPlayer:counts.players+=1
 	if node is Camera3D:counts.cameras+=1
-	if node is AudioStreamPlayer:counts.audio+=1
+	if node is AudioStreamPlayer or node is AudioStreamPlayer3D:counts.audio+=1
 	for child in node.get_children():_count_nodes(child,counts)
 
 func _build_transition() -> void:

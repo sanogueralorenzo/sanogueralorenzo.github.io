@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CozyMapDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/map_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://maps/harbor_hills/preview.png" id="2"]
+[resource]
+script = ExtResource("1")
+id = &"harbor_hills"
+title = "Harbor Hills"
+subtitle = "HILLSIDE STREETS · BAY BREEZES"
+description = "Follow the cable car past corner cafés and colorful homes. Find a quiet garden above the bay, or drift through the cypress trees on open wings."
+scene = "res://maps/harbor_hills/map.tscn"
+preview = ExtResource("2")
+spawn_position = Vector3(14.8,0.25,-79)
+spawn_yaw = 3.32
+spawn_pitch = 0.12
+spawn_mode = "cat"

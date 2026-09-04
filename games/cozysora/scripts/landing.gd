@@ -212,6 +212,10 @@ func _link_focus() -> void:
 func focus_default() -> void:
 	if not _busy and not _buttons.is_empty():
 		_buttons[0].grab_focus()
+		# Let variable-height destination cards settle before showing the welcome header.
+		await get_tree().process_frame
+		await get_tree().process_frame
+		if not _busy and is_visible_in_tree() and get_viewport().gui_get_focus_owner()==_buttons[0]:_scroll.scroll_vertical=0
 
 func set_busy(value: bool) -> void:
 	_busy = value

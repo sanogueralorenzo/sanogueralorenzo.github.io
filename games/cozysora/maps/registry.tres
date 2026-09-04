@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="CozyMapRegistry" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="CozyMapRegistry" load_steps=5 format=3]
 [ext_resource type="Script" path="res://scripts/map_registry.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/map_definition.gd" id="2"]
 [ext_resource type="Resource" path="res://maps/seabreeze_village/map.tres" id="3"]
+[ext_resource type="Resource" path="res://maps/harbor_hills/map.tres" id="4"]
 [resource]
 script = ExtResource("1")
-maps = Array[ExtResource("2")]([ExtResource("3")])
+maps = Array[ExtResource("2")]([ExtResource("3"),ExtResource("4")])
