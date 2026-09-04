@@ -1,4 +1,4 @@
-extends Node3D
+extends CozyMap
 ## Coordinate system, deterministic height field and shared primitive construction.
 ## World dimensions and authored placements for Cozy Sora.
 
@@ -7,16 +7,18 @@ var rail_points: Array[Vector2] = []
 var _segments: Array = []
 var _road_grid: Dictionary = {}
 var _materials: Dictionary = {}
-var player: CharacterBody3D
-var _capture := ""
-var _capture_frames := 0
-var _capture_dir := ""
-var _capture_views: Array[String] = []
-var _ready_world := false
-var _loading_layer: CanvasLayer
-var _loading_label: Label
-var _profile_elapsed := 0.0
-var _profile_enabled := false
+const SCENIC_VIEWS = {
+	"coast": [-8.0, -9.3, 1.05, -1.2, -0.06],
+	"paddy": [55.2, -2.6, 0.25, -2.31, 0.29],
+	"farm": [53.6, 60.2, 3.0, 2.98, 0.1],
+	"rail": [19.2, 80.0, 2.7, -3.02, 0.41],
+	"village": [-4.6, 74.7, 2.55, 1.32, 0.0],
+	"alley": [-26.4, 77.9, 2.65, 3.55, 0.2],
+	"vending": [-61.65, 26.2, 1.22, 1.571, 0.16],
+	"viaduct": [-64.3, 58.6, 2.9, -1.95, 0.52],
+	"shrine": [-0.7, 8.0, 5.7, -3.16, 0.48],
+	"top": [0.0, 30.0, 140.0, 0.0, -1.5],
+}
 const ZONES := {
 	"paddy": Rect2(63,-8,39,52), "paddy_in": Rect2(42,0,10,30),
 	"farm": Rect2(28,42,36,34), "yard": Rect2(36,50,18,14),
@@ -25,64 +27,32 @@ const ZONES := {
 	"gully": Rect2(10,88,36,18), "bed": Rect2(14,91,30,10)
 }
 
-func _ready() -> void:
-	var start := Time.get_ticks_msec()
-	_show_loading()
+func build() -> void:
+	scenic_views = SCENIC_VIEWS
+	ambience = {"wind_gain":.12,"wave_base":.022,"wave_swell":.018,"cicada_frequencies":Vector2(3820,4075),"cicada_gain":.0018,"birds":true}
+	load_progress.emit("Tracing the coastal lanes…",.08)
 	await get_tree().process_frame
 	_build_roads()
 	_build_environment()
-	_loading_label.text="GROWING THE WORLD…"
+	load_progress.emit("Shaping fields and shoreline…",.14)
 	await get_tree().process_frame
-	_build_terrain()
+	await _build_terrain()
 	_build_coast_props()
+	load_progress.emit("Opening the village…",.38)
+	await get_tree().process_frame
 	var settlement = load("res://scripts/settlements.gd").new()
 	add_child(settlement)
-	settlement.build(self)
-	_loading_label.text="GROWING THE SUMMER GARDENS…"
+	await settlement.build(self)
+	load_progress.emit("Growing the summer gardens…",.60)
 	await get_tree().process_frame
 	var vegetation = load("res://scripts/vegetation.gd").new()
 	add_child(vegetation)
-	vegetation.build(self)
+	await vegetation.build(self)
 	var life = load("res://scripts/summer_life.gd").new()
 	add_child(life)
 	life.build(self)
-	player = load("res://scripts/player.gd").new()
-	add_child(player)
-	player.setup(self)
 	_build_post()
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--capture="): _capture = arg.trim_prefix("--capture=")
-		if arg.begins_with("--capture-dir="):
-			_capture_dir = arg.trim_prefix("--capture-dir=")
-			DirAccess.make_dir_recursive_absolute(_capture_dir)
-			_capture_views.assign(["coast","paddy","farm","rail","village","alley","vending","viaduct","shrine","top"])
-			_capture = _capture_dir.path_join("start.png")
-	_loading_layer.queue_free()
-	_profile_enabled = "--profile" in OS.get_cmdline_user_args()
-	_ready_world = true
-	print("Cozy Sora READY build_ms=",Time.get_ticks_msec()-start," nodes=",get_tree().get_node_count())
-
-func _process(_delta: float) -> void:
-	if _ready_world and _profile_enabled:
-		_profile_elapsed += _delta
-		if _profile_elapsed>=5:
-			_profile_elapsed=0
-			print("Cozy Sora RUNTIME fps=",Engine.get_frames_per_second()," process_ms=",Performance.get_monitor(Performance.TIME_PROCESS)*1000," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
-	if is_instance_valid(player): RenderingServer.global_shader_parameter_set("cat_position",player.global_position)
-	if _ready_world and not _capture.is_empty():
-		_capture_frames += 1
-		if _capture_frames == 45:
-			var fps: float = Engine.get_frames_per_second()
-			var process_ms: float = Performance.get_monitor(Performance.TIME_PROCESS)*1000
-			await RenderingServer.frame_post_draw
-			get_viewport().get_texture().get_image().save_png(_capture)
-			print("Cozy Sora CAPTURE ",_capture," fps=",fps," drawcalls=",Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)," process_ms=",process_ms," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
-			if not _capture_views.is_empty():
-				var next_view: String = _capture_views.pop_front()
-				player.set_view(next_view)
-				_capture = _capture_dir.path_join(next_view+".png")
-				_capture_frames = 0
-			elif "--quit-after-capture" in OS.get_cmdline_user_args(): get_tree().quit()
+	load_progress.emit("The coast is ready.",.98)
 
 static func curve(x: float) -> float:
 	return -.0022*x*x + .00001*x*x*x
@@ -280,6 +250,9 @@ func _build_terrain() -> void:
 		return
 	var image:=Image.create(1024,1024,false,Image.FORMAT_RGBA8)
 	for j in 1024:
+		if j%64 == 0:
+			load_progress.emit("Shaping fields and shoreline…",.14+.12*j/1024.0)
+			await get_tree().process_frame
 		var z := -180+(j+.5)*360/1024
 		for i in 1024:
 			var x := -180+(i+.5)*360/1024
@@ -490,23 +463,6 @@ func _build_coast_props() -> void:
 			var wheel:=cylinder(car,Vector3(x,.37,z),.36,.36,.2,mat("1c1c1c"))
 			wheel.rotation.x=PI/2
 	for z in [-.56,.56]: box(car,Vector3(-2.31,.74,z),Vector3(.045,.2,.32),mat("c83332"))
-
-func _show_loading() -> void:
-	_loading_layer=CanvasLayer.new()
-	_loading_layer.layer=10
-	add_child(_loading_layer)
-	var backdrop:=ColorRect.new()
-	backdrop.color=Color("101e27")
-	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_loading_layer.add_child(backdrop)
-	_loading_label=Label.new()
-	_loading_label.text="GROWING THE WORLD…"
-	_loading_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-	_loading_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
-	_loading_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_loading_label.add_theme_color_override("font_color",Color("dcd9cc"))
-	_loading_label.add_theme_font_size_override("font_size",16)
-	_loading_layer.add_child(_loading_label)
 
 func surface_at(x:float,z:float) -> String:
 	var relative_z:=z-curve(x)

@@ -4,18 +4,6 @@ extends CharacterBody3D
 signal mode_changed(mode: String)
 signal menu_changed(open: bool)
 
-const VIEWS = {
-	"coast": [-8.0, -9.3, 1.05, -1.2, -0.06],
-	"paddy": [55.2, -2.6, 0.25, -2.31, 0.29],
-	"farm": [53.6, 60.2, 3.0, 2.98, 0.1],
-	"rail": [19.2, 80.0, 2.7, -3.02, 0.41],
-	"village": [-4.6, 74.7, 2.55, 1.32, 0.0],
-	"alley": [-26.4, 77.9, 2.65, 3.55, 0.2],
-	"vending": [-61.65, 26.2, 1.22, 1.571, 0.16],
-	"viaduct": [-64.3, 58.6, 2.9, -1.95, 0.52],
-	"shrine": [-0.7, 8.0, 5.7, -3.16, 0.48],
-	"top": [0.0, 30.0, 140.0, 0.0, -1.5],
-}
 var world: Node3D
 var camera: Camera3D
 var cat: Node3D
@@ -52,7 +40,7 @@ var bank := 0.0
 var camera_distance := 4.2
 var camera_look := Vector3.ZERO
 var last_cat_position := Vector3(-6.4, 0, 0.2)
-var ui: CanvasLayer
+var ambience: Dictionary = {}
 var audio: AudioStreamPlayer
 var audio_playback: AudioStreamGeneratorPlayback
 var audio_time := 0.0
@@ -60,9 +48,50 @@ var audio_noise := 0.0
 var sound_events: Array[Dictionary] = []
 var next_bird := 4.0
 var _tap_until: Dictionary = {}
+var _touch_actions: Dictionary = {}
+var _materials: Dictionary = {}
+var touch_move := Vector2.ZERO # Screen-space convention: right +X, backward +Y.
+var mouse_capture_enabled := not OS.has_feature("mobile")
+var flight_bounds := AABB(Vector3(-135, -30, -95), Vector3(270, 140, 213))
 
-func setup(level: Node3D) -> void:
+static func configure_input() -> void:
+	# Shared bindings are installed once; registry entries and maps never define input.
+	var keys := {
+		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
+		"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN],
+		"jump": [KEY_SPACE], "descend": [KEY_C, KEY_CTRL], "sprint": [KEY_SHIFT],
+		"switch": [KEY_TAB], "pause": [KEY_ESCAPE], "cry": [],
+		"look_left": [], "look_right": [], "look_up": [], "look_down": [],
+	}
+	var buttons := {"jump": JOY_BUTTON_A, "descend": JOY_BUTTON_B, "sprint": JOY_BUTTON_LEFT_SHOULDER, "switch": JOY_BUTTON_Y, "pause": JOY_BUTTON_START, "cry": JOY_BUTTON_X}
+	var axes := {"move_left": [JOY_AXIS_LEFT_X, -1.0], "move_right": [JOY_AXIS_LEFT_X, 1.0], "move_forward": [JOY_AXIS_LEFT_Y, -1.0], "move_back": [JOY_AXIS_LEFT_Y, 1.0], "look_left": [JOY_AXIS_RIGHT_X, -1.0], "look_right": [JOY_AXIS_RIGHT_X, 1.0], "look_up": [JOY_AXIS_RIGHT_Y, -1.0], "look_down": [JOY_AXIS_RIGHT_Y, 1.0]}
+	for suffix: String in keys:
+		var action := "cozy_" + suffix
+		if InputMap.has_action(action): continue
+		InputMap.add_action(action, 0.2)
+		for code: int in keys[suffix]:
+			var key := InputEventKey.new()
+			key.physical_keycode = code
+			InputMap.action_add_event(action, key)
+		if buttons.has(suffix):
+			var button := InputEventJoypadButton.new()
+			button.button_index = buttons[suffix]
+			InputMap.action_add_event(action, button)
+		if axes.has(suffix):
+			var axis := InputEventJoypadMotion.new()
+			axis.axis = axes[suffix][0]
+			axis.axis_value = axes[suffix][1]
+			InputMap.action_add_event(action, axis)
+		if suffix == "cry":
+			var mouse := InputEventMouseButton.new()
+			mouse.button_index = MOUSE_BUTTON_LEFT
+			InputMap.action_add_event(action, mouse)
+
+func setup(level: Node3D, spawn: Dictionary = {}) -> void:
 	world = level
+	configure_input()
+	flight_bounds = world.flight_bounds
+	ambience = world.ambience
 	name = "Player"
 	floor_snap_length = 0.25
 	floor_max_angle = 0.9
@@ -83,37 +112,43 @@ func setup(level: Node3D) -> void:
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.near = 0.08
 	camera.far = 2500
-	world.add_child(camera)
+	get_parent().add_child(camera)
 	camera.current = true
-	position = Vector3(-6.4, _height(-6.4, 0.2), 0.2)
+	var spawn_position: Vector3 = spawn.get("position", Vector3(-6.4, 0, 0.2))
+	position = Vector3(spawn_position.x, _height(spawn_position.x, spawn_position.z) + spawn_position.y, spawn_position.z)
+	last_cat_position = position
+	cam_yaw = float(spawn.get("yaw", -0.08))
+	cam_pitch = float(spawn.get("pitch", 0.09))
+	heading = cam_yaw
+	move_direction = cam_yaw
+	mode = "gull" if spawn.get("mode", "cat") == "gull" else "cat"
 	var requested_view := ""
+	var cli_gull := false
 	for argument in OS.get_cmdline_user_args():
 		if argument == "--shot": shot_mode = true
 		if argument.begins_with("--view="): requested_view = argument.trim_prefix("--view=")
-		if argument == "--gull" or argument == "--bird": mode = "gull"
+		if argument == "--gull" or argument == "--bird":
+			mode = "gull"
+			cli_gull = true
 	gull.visible = mode == "gull"
 	cat.visible = mode == "cat"
 	if mode == "gull":
 		position.y += 3.0
-		cam_pitch = 0.18
-	if not requested_view.is_empty() and VIEWS.has(requested_view):
+		cam_pitch = 0.18 if cli_gull else float(spawn.get("pitch", 0.18))
+	if not requested_view.is_empty() and world.scenic_views.has(requested_view):
 		set_view(requested_view)
 	else:
 		_place_camera(0.016, true)
 	menu_open = not shot_mode
-	ui = load("res://scripts/interface.gd").new()
-	add_child(ui)
-	ui.setup(self)
 	_animate_cat(0)
 	_animate_gull(0)
-	if shot_mode: ui.hide()
 
 func _height(x: float, z: float) -> float:
 	return float(world.height_at(x, z))
 
 func set_view(view_name: String) -> void:
-	if not VIEWS.has(view_name): return
-	var view: Array = VIEWS[view_name]
+	if not world.scenic_views.has(view_name): return
+	var view: Array = world.scenic_views[view_name]
 	fixed_view = true
 	cat.hide()
 	gull.hide()
@@ -122,7 +157,7 @@ func set_view(view_name: String) -> void:
 	camera.rotation = Vector3(view[4], view[3], 0)
 
 func set_mode(value: String) -> void:
-	if fixed_view or mode == value: return
+	if fixed_view or mode == value or value not in ["cat", "gull"]: return
 	if mode == "cat": last_cat_position = position
 	mode = value
 	velocity = Vector3.ZERO
@@ -146,53 +181,99 @@ func set_mode(value: String) -> void:
 	mode_changed.emit(mode)
 
 func set_menu(open: bool) -> void:
-	if shot_mode: return
+	if shot_mode or menu_open == open: return
 	menu_open = open
-	_tap_until.clear()
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED
+	clear_input()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if not open and mouse_capture_enabled else Input.MOUSE_MODE_VISIBLE
 	if not open and audio == null: _start_audio()
 	menu_changed.emit(open)
 
+func clear_input() -> void:
+	_tap_until.clear()
+	_touch_actions.clear()
+	touch_move = Vector2.ZERO
+
+func touch_look(delta: Vector2) -> void:
+	if menu_open or shot_mode: return
+	cam_yaw += delta.x * 0.0022
+	cam_pitch = clampf(cam_pitch + delta.y * 0.0016, -1.05 if mode == "gull" else 0.05, 1.15 if mode == "gull" else 1.0)
+
+func touch_action(action: String, pressed: bool) -> void:
+	var suffix := action.trim_prefix("cozy_")
+	if menu_open or shot_mode: return
+	_touch_actions[suffix] = pressed
+	if not pressed: return
+	match suffix:
+		"switch": set_mode("gull" if mode == "cat" else "cat")
+		"pause": set_menu(true)
+		"cry":
+			if mode == "gull": _play_sound("cry")
+		_: _tap_until[suffix] = Time.get_ticks_msec() + 100
+
 func _unhandled_input(event: InputEvent) -> void:
 	if shot_mode: return
-	if event is InputEventKey and event.pressed and not event.echo:
-		# Retain quick taps across the input/physics boundary instead of dropping them.
-		var code: int = event.physical_keycode if event.physical_keycode else event.keycode
-		_tap_until[code] = Time.get_ticks_msec()+100
-		if event.keycode == KEY_ESCAPE:
-			set_menu(not menu_open)
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_TAB and not menu_open:
-			set_mode("gull" if mode == "cat" else "cat")
-			get_viewport().set_input_as_handled()
-	elif event is InputEventMouseMotion and not menu_open:
-		cam_yaw += event.relative.x * 0.0022
-		cam_pitch = clampf(cam_pitch + event.relative.y * 0.0016, -1.05 if mode == "gull" else 0.05, 1.15 if mode == "gull" else 1.0)
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and not menu_open and mode == "gull":
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		mouse_capture_enabled = false
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if event.is_action_pressed("cozy_pause"):
+		set_menu(not menu_open)
+		get_viewport().set_input_as_handled()
+		return
+	if menu_open: return
+	if event is InputEventKey or event is InputEventJoypadButton:
+		if event.is_pressed() and not event.is_echo():
+			# Retain quick taps across the input/physics boundary.
+			for action: String in ["move_left", "move_right", "move_forward", "move_back", "jump", "descend", "sprint"]:
+				if event.is_action_pressed("cozy_" + action): _tap_until[action] = Time.get_ticks_msec() + 100
+	if event.is_action_pressed("cozy_switch"):
+		set_mode("gull" if mode == "cat" else "cat")
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		touch_look(event.relative)
+	elif event.is_action_pressed("cozy_cry") and mode == "gull":
 		_play_sound("cry")
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and is_inside_tree() and not shot_mode:
 		set_menu(true)
 
-func _key(code: int, alternate: int = 0) -> bool:
-	return not menu_open and not shot_mode and (Input.is_physical_key_pressed(code) or int(_tap_until.get(code,0))>Time.get_ticks_msec() or (alternate != 0 and (Input.is_physical_key_pressed(alternate) or int(_tap_until.get(alternate,0))>Time.get_ticks_msec())))
+func _strength(action: String) -> float:
+	if menu_open or shot_mode: return 0.0
+	return maxf(Input.get_action_strength("cozy_" + action), 1.0 if _touch_actions.get(action, false) or int(_tap_until.get(action, 0)) > Time.get_ticks_msec() else 0.0)
+
+func _held(action: String) -> bool:
+	return _strength(action) > 0.2
+
+func _movement_input() -> Vector2:
+	if menu_open or shot_mode: return Vector2.ZERO
+	return Vector2(clampf(_strength("move_right") - _strength("move_left") + touch_move.x, -1, 1), clampf(_strength("move_back") - _strength("move_forward") + touch_move.y, -1, 1))
 
 func _physics_process(delta: float) -> void:
-	if world == null or fixed_view: return
+	if world == null or fixed_view or menu_open: return
 	var dt := minf(delta, 0.05)
+	if not shot_mode:
+		var look := Input.get_vector("cozy_look_left", "cozy_look_right", "cozy_look_up", "cozy_look_down", 0.2)
+		cam_yaw += look.x * 2.2 * dt
+		cam_pitch = clampf(cam_pitch + look.y * 1.6 * dt, -1.05 if mode == "gull" else 0.05, 1.15 if mode == "gull" else 1.0)
 	elapsed = 3.0 if shot_mode else elapsed + dt
 	if mode == "cat": _update_cat(dt)
 	else: _update_gull(dt)
 	_place_camera(dt)
 
+func _exit_tree() -> void:
+	clear_input()
+	if is_instance_valid(audio): audio.stop()
+	audio_playback = null
+	sound_events.clear()
+
 func _update_cat(dt: float) -> void:
-	var horizontal := float(_key(KEY_D, KEY_RIGHT)) - float(_key(KEY_A, KEY_LEFT))
-	var forward := float(_key(KEY_W, KEY_UP)) - float(_key(KEY_S, KEY_DOWN))
+	var movement_input := _movement_input()
+	var horizontal := movement_input.x
+	var forward := -movement_input.y
 	var moving := horizontal != 0 or forward != 0
 	var turn := clampf(wrapf(cam_yaw - heading, -PI, PI) * 12, -9, 9)
 	heading += turn * dt
-	var target_speed := (6.4 if _key(KEY_SHIFT) else 3.6) if moving else 0.0
+	var target_speed := (6.4 if _held("sprint") else 3.6) * minf(1, movement_input.length()) if moving else 0.0
 	speed = lerpf(speed, target_speed, minf(1, (5.0 if target_speed > speed else 8.0) * dt))
 	if moving: move_direction = cam_yaw + atan2(horizontal, forward)
 	elif speed < 0.05: speed = 0
@@ -207,7 +288,7 @@ func _update_cat(dt: float) -> void:
 	velocity.x = movement.x
 	velocity.z = movement.z
 	velocity.y -= 22.0 * dt
-	if _key(KEY_SPACE) and grounded:
+	if _held("jump") and grounded:
 		velocity.y = 6.2
 		grounded = false
 		_play_sound("meow")
@@ -232,11 +313,12 @@ func _update_cat(dt: float) -> void:
 	_animate_cat(dt)
 
 func _update_gull(dt: float) -> void:
-	var forward := float(_key(KEY_W, KEY_UP)) - float(_key(KEY_S, KEY_DOWN))
-	var lateral := float(_key(KEY_D, KEY_RIGHT)) - float(_key(KEY_A, KEY_LEFT))
-	var climb := _key(KEY_SPACE)
-	var descend := _key(KEY_C, KEY_CTRL)
-	var boost := _key(KEY_SHIFT)
+	var movement_input := _movement_input()
+	var forward := -movement_input.y
+	var lateral := movement_input.x
+	var climb := _held("jump")
+	var descend := _held("descend")
+	var boost := _held("sprint")
 	var active_input := forward != 0 or lateral != 0 or climb or descend
 	var response_pitch := signf(cam_pitch) * maxf(0, absf(cam_pitch) - 0.16) / 0.84
 	var vertical := -sin(response_pitch * 1.35)
@@ -253,13 +335,13 @@ func _update_gull(dt: float) -> void:
 			heading += clampf(wrapf(cam_yaw - heading, -PI, PI) * 4, -3, 3) * dt
 			bird_pitch = lerpf(bird_pitch, 0, minf(1, dt * 6))
 			bank = lerpf(bank, 0, minf(1, dt * 6))
-			position.y = maxf(_height(position.x, position.z), -29.95) + 0.17
+			position.y = maxf(_height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
 			_animate_gull(dt)
 			return
 	var target_speed := 17.0 if boost else 9.5
 	var target := Vector3.ZERO
-	if forward > 0: target += direction * target_speed
-	elif forward < 0: target -= flat_direction * 3.5
+	if forward > 0: target += direction * target_speed * forward
+	elif forward < 0: target += flat_direction * 3.5 * forward
 	target += Vector3(cos(cam_yaw), 0, sin(cam_yaw)) * lateral * (5 if forward > 0 else 6)
 	if climb: target.y += 4.5 if forward > 0 else 5.5
 	if descend: target.y -= 6
@@ -268,12 +350,12 @@ func _update_gull(dt: float) -> void:
 	if forward > 0 and direction.y < -0.3: velocity.y += direction.y * 4 * dt
 	if position.y - _height(position.x, position.z) < 2.2: move_and_slide()
 	else: position += velocity * dt
-	position.x = clampf(position.x, -135, 135)
-	position.z = clampf(position.z, -95, 118)
-	if position.y > 110:
-		position.y = 110
+	position.x = clampf(position.x, flight_bounds.position.x, flight_bounds.end.x)
+	position.z = clampf(position.z, flight_bounds.position.z, flight_bounds.end.z)
+	if position.y > flight_bounds.end.y:
+		position.y = flight_bounds.end.y
 		velocity.y = minf(0, velocity.y)
-	var floor_y := maxf(_height(position.x, position.z), -29.95) + 0.17
+	var floor_y := maxf(_height(position.x, position.z), flight_bounds.position.y + 0.05) + 0.17
 	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
 	if position.y <= floor_y:
 		position.y = floor_y
@@ -312,14 +394,21 @@ func _place_camera(dt: float, immediate := false) -> void:
 		distance = camera_distance
 	var destination := focus + offset * distance + Vector3(0, 0.315 if bird else 0.385, 0)
 	var clearance := (1.6 if perched else 0.7) if bird else 1.1
-	destination.y = maxf(destination.y, maxf(_height(destination.x, destination.z), -30) + clearance)
+	destination.y = maxf(destination.y, maxf(_height(destination.x, destination.z), flight_bounds.position.y) + clearance)
 	camera.position = destination if immediate else camera.position.lerp(destination, 1 - exp(-dt * (5.5 if bird else 6.5)))
 	camera_look = focus if immediate else camera_look.lerp(focus, 1 - exp(-dt * 9))
 	camera.look_at(camera_look)
 	camera.rotation.z += bank * 0.12 if bird else sin(elapsed * 9) * 0.0025 * minf(1, speed / 4)
 
 func _material(hex: String) -> Material:
-	return world.mat(hex)
+	if _materials.has(hex): return _materials[hex]
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(hex)
+	material.roughness = 1
+	material.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	_materials[hex] = material
+	return material
 
 func _group(parent: Node3D, at := Vector3.ZERO) -> Node3D:
 	var result := Node3D.new()
@@ -502,20 +591,26 @@ func _start_audio() -> void:
 	audio_playback = audio.get_stream_playback()
 
 func _play_sound(kind: String) -> void:
-	if audio == null: return
+	if audio == null or menu_open or shot_mode: return
 	sound_events.append({"kind": kind, "start": audio_time, "phase": 0.0, "seed": randf()})
 
 func _process(_delta: float) -> void:
-	if audio_playback == null: return
+	if audio_playback == null or menu_open: return
+	# Maps select their soundscape; the shared synthesizer also serves character sounds.
+	var wind_gain := float(ambience.get("wind_gain", 0.0))
+	var wave_base := float(ambience.get("wave_base", 0.0))
+	var wave_swell := float(ambience.get("wave_swell", 0.0))
+	var cicada_frequencies: Vector2 = ambience.get("cicada_frequencies", Vector2.ZERO)
+	var cicada_gain := float(ambience.get("cicada_gain", 0.0))
 	var frames := audio_playback.get_frames_available()
 	for index in frames:
 		audio_time += 1.0 / 22050.0
 		var noise := randf_range(-1, 1)
 		audio_noise = audio_noise * 0.975 + noise * 0.025
-		var sea := 0.022 + 0.018 * sin(audio_time * 0.55) * sin(audio_time * 0.137 + 1.3)
-		var sample_value := audio_noise * (0.12 + sea * 4)
+		var sea := wave_base + wave_swell * sin(audio_time * 0.55) * sin(audio_time * 0.137 + 1.3)
+		var sample_value := audio_noise * (wind_gain + sea * 4)
 		# Summer cicadas: several gently beating high partials, softened by distance.
-		var cicada := (sin(audio_time * TAU * 3820) + sin(audio_time * TAU * 4075)) * 0.0018
+		var cicada := (sin(audio_time * TAU * cicada_frequencies.x) + sin(audio_time * TAU * cicada_frequencies.y)) * cicada_gain
 		sample_value += cicada * (0.45 + 0.55 * pow(sin(audio_time * 33), 2))
 		for sound in sound_events:
 			var age: float = audio_time - sound.start
@@ -538,6 +633,6 @@ func _process(_delta: float) -> void:
 				sample_value += (sin(sound.phase) + sin(sound.phase * 2) * 0.25 + sin(sound.phase * 3) * 0.15) * envelope
 		audio_playback.push_frame(Vector2(sample_value, sample_value * 0.97))
 	sound_events = sound_events.filter(func(event: Dictionary) -> bool: return audio_time - event.start < 1.1)
-	if audio_time > next_bird:
+	if bool(ambience.get("birds", false)) and audio_time > next_bird:
 		_play_sound("bird")
 		next_bird = audio_time + randf_range(8, 19)

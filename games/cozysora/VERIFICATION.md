@@ -1,19 +1,31 @@
 # Cozy Sora runtime verification
 
-Verified on 4 September 2026 with Godot 4.7.2, Forward+, Metal, Apple M3 Max, at 1280 × 720.
+Verified on 4 September 2026 with Godot 4.7.2, Forward+, Metal, Apple M3 Max. No automated tests were created. Verification used native play, rendered captures, source review, and engine logs.
 
-Rendered runtime inspection covered the normal cat view and ten scenic viewpoints: coast, paddy, farm, rail, village, alley, vending, viaduct, shrine, and top. Visual review covered camera visibility, vegetation density, materials, buildings, props, flowers, bridge structure, signs, water, and rice fields. See [DESIGN.md](DESIGN.md) for the procedural systems.
+## Destination selection and lifecycle
 
-Native play exercised the title card, character selection, Escape/menu transitions, cat movement along the approach and coastal road, gull gliding, ascent and descent, landing, Tab switching, and returning safely to land after switching over the sea. Jump input was exercised with a stable landing; the inspection tool did not capture its apex. Captured-mouse relative look could not be exercised reliably through the UI automation interface, so its event handling and camera math were inspected in code instead. This is the remaining manual verification gap.
+The game starts on Cozy Sora destination selection without generating the map. Seabreeze Village is the only registered destination. Its preview is a capture of the playable procedural coast. Final layouts were inspected at 320 × 640, 390 × 844, 844 × 390, 1280 × 720, and 1920 × 1080. Narrow and short layouts retain accessible Settings and Play actions; larger layouts use a landscape preview beside the map description. Short screens omit secondary copy where needed, and content can scroll.
 
-The normal native play session held 120 FPS after loading, with approximately 0.3–0.8 ms physics processing. Screenshot generation and concurrent browser rendering reduce observed capture-run FPS, so those numbers are not representative gameplay benchmarks. A complete fresh terrain/vegetation generation took approximately 21 seconds; warm launches reused the generated cache. The final capture run and native play produced no script errors or crashes.
+Native interaction covered keyboard selection and focus outlines, mouse buttons, settings focus cycling, volume and mute changes, restoring settings, map loading, pause/resume, cat/seagull selection, returning, and repeated re-entry. An independent reviewer completed two full entry/return cycles; the primary review completed additional cycles. Each playing session reported one player, one camera, and one audio player. Every observed return reported zero players, cameras, audio players, and orphan nodes. Settings were restored to 100% sound, unmuted, with manual touch controls disabled.
 
-No tests were created. Verification consisted of rendered runtime inspection, native interaction, source review, and engine log inspection. No external game assets or source code are bundled.
+Touch controls were exercised through their native mouse interaction path: movement pad, right-side look, mode switch, pause, and return. The final seeded map was also played after the foliage correction: the cat walked clear of the starting foliage, and the seagull climbed and flew toward the coast. Real touch events ignore emulated mouse duplicates. The 320-pixel layout keeps the pad and action hit areas separate. Controller bindings and menu focus paths were inspected in code.
 
-## Branding verification
+## Preserving Seabreeze Village
 
-The title screen and reopened character menu display only “Cozy Sora” as the game name. The native debug window shows “Cozy Sora (DEBUG)”; the suffix is added by the engine. Project metadata and all documentation use “Cozy Sora.” There is no separate export preset with a title override.
+Before/after runtime captures covered the normal cat camera and ten scenic views: coast, paddy, farm, rail, village, alley, vending, viaduct, shrine, and top. An independent critic initially rejected the comparison because foliage placements changed when the cache regenerated.
 
-The branding update was launched in Godot 4.7.2. Gameplay entry, character switching, ascent input, and Escape/menu reopening ran without script errors. Rendering returned to approximately 120 FPS after loading. Gameplay algorithms, world parameters, shaders, controls, and rendering settings were unchanged.
+Fresh runs of the original code also produced different foliage. Two helper methods in the custom seeded generator called bare `randf()`, which Godot resolves to its global random function. Qualifying those two calls as `self.randf()` fixes the preexisting nondeterminism. This is the only intentional change to the map's generation algorithm; authored terrain, roads, landmarks, buildings, props, palette, atmosphere, and placement rules remain unchanged.
 
-Case-insensitive content and filename searches covered the project, including hidden files, and the repository's current distributable files. The audit also normalized spacing, punctuation, Unicode, escaped characters, and URL encoding to check title and domain variants. No former branding, external web URLs, or obsolete attribution remains in the project. Git history is retained unchanged.
+The original application and the refactored application were then freshly rendered with that identical two-line correction. Both generated 833 trees and shrubs. The independent critic inspected all eleven paired views and confirmed matching foliage placements, canopy shapes, roads, fields, architecture, props, camera composition, materials, and fog. Remaining frame differences were consistent with shader wind, water/cloud timing, and particles. Older randomly generated caches can have different canopies; the corrected seed now gives a repeatable world. The selector preview was refreshed from this final coast.
+
+## Performance and review
+
+The immediate pre-refactor warm capture loaded in 13.1 seconds during concurrent workstation load. Refactored native review entries took 13.3–14.4 seconds under contention and 6.1 seconds in the final run. Fresh corrected generation took 14.3 seconds in the original application and 15.6 seconds in the refactored application, including its transition and frame yields. The final native gameplay usually held 120 FPS with roughly 0.4–0.7 ms physics processing. Capture and heavily contended runs varied substantially; these observations are runtime checks, not controlled benchmarks.
+
+Independent reviews approved the landing design, ownership boundaries, repeated scene lifecycle, and final paired village views after fixing focus handling, settings isolation, invalid scene handling, narrow layouts, and the seeded-generator bug. Final runtime and import logs contained no script errors or crashes.
+
+## Platform limits
+
+Physical controller hardware, genuine simultaneous multi-finger input, and audible output were not independently verified. Native input handling, settings, synthesized audio lifecycle, pause, and teardown were exercised or inspected. The responsive UI was rendered at mobile and desktop sizes; no browser or mobile export was built. Forward+ remains the intended gameplay renderer and does not support Godot's web export. A browser release would require a separate renderer/export compatibility pass. Captured-mouse look remains difficult to assess through native UI automation; its original camera math is retained, and drag-look was exercised with touch controls enabled.
+
+All bundled previews, shaders, meshes, textures, and sounds are project-owned or generated by the project. No external game assets, fonts, models, animations, audio, or map data were added.

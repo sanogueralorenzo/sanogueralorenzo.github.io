@@ -17,9 +17,9 @@ class SeededRandom:
 		mixed = ((mixed + (((mixed ^ (mixed >> 7)) * (61 | mixed)) & 0xffffffff)) ^ mixed) & 0xffffffff
 		return float((mixed ^ (mixed >> 14)) & 0xffffffff) / 4294967296.0
 	func randf_range(low: float, high: float) -> float:
-		return low + (high - low) * randf()
+		return low + (high - low) * self.randf()
 	func randi_range(low: int, high: int) -> int:
-		return low + floori(randf() * (high - low + 1))
+		return low + floori(self.randf() * (high - low + 1))
 
 var _rng := SeededRandom.new()
 var _trees: Array[Dictionary] = []
@@ -54,9 +54,11 @@ func build(world: Node3D) -> void:
 	for i in range(6):
 		_trees.append(_tree_mesh(i + 1, i == 2 or i == 4))
 		_tree_batches.append([])
+		await get_tree().process_frame
 	for i in range(7):
 		_bushes.append(_bush_mesh(i))
 		_bush_batches.append([])
+		await get_tree().process_frame
 	_landmark_foliage()
 	_forest_distribution()
 	var palette := [Color("4c7a3a"), Color("3f7a4a"), Color("3c7052"), Color("3f7a4a"), Color("3c7052"), Color("3f7a4a")]
@@ -67,9 +69,13 @@ func build(world: Node3D) -> void:
 	for i in range(7):
 		var colors := [Color("5a7d34"), Color("5a7d34"), Color("9a9a38"), Color("3d6e3c"), Color("6a9340"), Color("8a923c"), Color("6a9340")]
 		_batch(_bushes[i].leaves, _foliage_material(_leaf_textures[2 if i >= 4 else i % 2], colors[i], 0.10), _bush_batches[i], "Hedges %s" % i)
-	_grass_fields()
+	_world.load_progress.emit("Planting the meadows…",.72)
+	await get_tree().process_frame
+	await _grass_fields()
 	_flowers()
 	_rosettes()
+	_world.load_progress.emit("Adding the last summer details…",.90)
+	await get_tree().process_frame
 	_area_flora()
 	print("Vegetation: ", _placed.size(), " trees and shrubs, procedural grass and flowers")
 	_own_cache_children(self)
@@ -451,6 +457,8 @@ func _grass_fields() -> void:
 	# fields behind the camera and beyond the atmospheric distance.
 	while transforms.size()<380000 and attempts<1140000:
 		attempts += 1
+		if attempts%10000 == 0:
+			await get_tree().process_frame
 		var x: float = _rng.randf_range(-125,125)
 		var z: float = _rng.randf_range(-30,100)
 		var cell := Vector2i(floori(x*2),floori(z*2))

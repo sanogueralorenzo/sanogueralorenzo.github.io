@@ -14,11 +14,17 @@ func build(world: Node3D) -> void:
 	w = world
 	rng.seed = 808
 	farm()
+	await get_tree().process_frame
 	village()
+	await get_tree().process_frame
 	shrine()
+	await get_tree().process_frame
 	paddies()
+	await get_tree().process_frame
 	vending_area()
+	await get_tree().process_frame
 	railway()
+	await get_tree().process_frame
 	consolidate_static_meshes()
 
 func m(hex: String) -> StandardMaterial3D:

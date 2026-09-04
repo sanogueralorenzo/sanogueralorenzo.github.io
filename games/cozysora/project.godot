@@ -12,7 +12,7 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/stretch/mode="canvas_items"
+window/stretch/mode="disabled"
 
 [rendering]
 renderer/rendering_method="forward_plus"
@@ -30,3 +30,6 @@ cat_position={
 "type": "vec3",
 "value": Vector3(0,-100,0)
 }
+
+[input_devices]
+pointing/emulate_mouse_from_touch=true

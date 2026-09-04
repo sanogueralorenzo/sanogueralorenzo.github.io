@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CozyMapDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/map_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/seabreeze_village.png" id="2"]
+[resource]
+script = ExtResource("1")
+id = &"seabreeze_village"
+title = "Seabreeze Village"
+subtitle = "COASTAL LANES · OPEN SKIES"
+description = "Follow sun-warmed lanes past rice fields and sleepy homes. Wander as a cat, or catch the sea breeze as a seagull. There's no hurry here."
+scene = "res://maps/seabreeze_village/map.tscn"
+preview = ExtResource("2")
+spawn_position = Vector3(-6.4,0,0.2)
+spawn_yaw = -0.08
+spawn_pitch = 0.09
+spawn_mode = "cat"

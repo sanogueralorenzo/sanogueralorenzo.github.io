@@ -1,50 +1,57 @@
 # Cozy Sora
 
-Cozy Sora is an original procedural Godot game inspired by Japanese coastal summers and cozy exploration games. Explore a summer coastal village as a tabby cat or a seagull. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
+Cozy Sora is an original procedural Godot game inspired by Japanese coastal summers and cozy exploration games. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
 
-Open `project.godot` in Godot 4.7 or run:
+Open `project.godot` in Godot 4.7 and run the main scene, or use:
 
 ```sh
 godot --path games/cozysora
 ```
 
-Forward+ is the intended renderer. The first launch grows the terrain and foliage; later launches reuse generated resources in Godot's application user-data directory. Removing those caches is safe: they are regenerated from the source. The project does not need a network connection.
+Choose **Seabreeze Village** on the destination screen and press **Play**. Wander sun-warmed lanes as a cat or fly above the fields as a seagull. The preview is an in-game capture made by this project. Only playable destinations appear in the registry.
+
+Forward+ is the intended gameplay renderer. First entry generates terrain and vegetation; subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. No network connection is needed. The selector itself builds immediately without generating the world.
 
 ## Controls
 
-Click the title card to start. Choose a character there, or press **Tab** while playing.
+The selector and menus use standard Godot focus navigation: click or tap a button, use Tab / Shift+Tab or arrow keys and Enter / Space, or use a controller's D-pad and confirm button. Gold outlines identify focused controls. Scroll when a short viewport cannot show the whole panel.
 
-| Control | Cat | Seagull |
-| --- | --- | --- |
-| Mouse | Look around | Aim flight |
-| W / A / S / D | Move relative to camera | Fly / bank left / brake / bank right |
-| Shift | Sprint | Boost |
-| Space | Jump and meow | Climb / take off |
-| C | — | Descend |
-| Left click | — | Cry |
-| Escape | Release mouse / show menu | Release mouse / show menu |
+| Action | Keyboard / mouse | Controller | Touch controls |
+| --- | --- | --- | --- |
+| Move / aim flight | WASD or arrow keys | Left stick | Left pad |
+| Look | Mouse | Right stick | Drag on the right |
+| Jump / climb | Space | A | Jump / Climb |
+| Descend as seagull | C or Ctrl | B | Drop |
+| Sprint / boost | Shift | LB | Hold Boost |
+| Switch cat / seagull | Tab | Y | Switch |
+| Seagull cry | Left click | X | Switching / takeoff also vocalizes |
+| Pause / resume | Escape or Menu | Start | Menu |
 
 The seagull glides without input and can settle on the ground. Switching back to the cat returns to traversable ground; unsafe coastal positions fall back to the cat's last location.
 
-## Construction
+**Menu → Back to destinations** unloads the map. Entering it again starts at its registered spawn. Menu pauses movement, map simulation, and audio; Settings changes sound volume, mute, and touch controls. Settings persist across maps and launches. Touch controls are enabled automatically on detected touch screens and can be enabled manually in Settings.
 
-- `scripts/world.gd` owns the deterministic height field, Catmull–Rom road network and spatial queries, generated road/zone map, terrain collision, coastal furniture, sky, ocean, light, fog, and scene assembly.
-- `scripts/vegetation.gd` generates leaf silhouettes and bark textures, branching trees, card canopies, hedges, broad leaves, rice-adjacent flora, grass, flowers, and location-specific planting. Instancing and spatial batches retain the dense world without creating a node per blade.
-- `scripts/settlements.gd` owns the farm, paddies, village houses and utility yard, shrine, vending areas, elevated railway and moving train. Timber, metal, roof tile, concrete, stone, chain-link, and vending surfaces are generated from code. Static details are combined by material and spatial cell.
-- `scripts/player.gd` generates and animates the characters, handles locomotion and collision, follows the player with the camera, and synthesizes the soundscape and vocalizations.
-- `scripts/interface.gd` builds the title card and controls with engine UI and installed system-font fallbacks. No font is bundled.
-- `scripts/summer_life.gd` animates butterflies and drifting particles.
-- `shaders/` contains original Godot implementations of wind, foliage lighting, ground materials, cloud and sea fields, and a painterly screen treatment.
+## Maps and ownership
 
-## Scenic capture views
+- `scripts/application.gd` owns navigation, transitions, settings, loading, pause state, screenshot capture, and one disposable gameplay session.
+- `maps/registry.tres` lists `CozyMapDefinition` resources. Each contains a stable ID, title, subtitle, description, scene path, project-owned preview, and spawn position / camera angles / character.
+- `scripts/map.gd` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
+- `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its construction lives in `world.gd`, `settlements.gd`, `vegetation.gd`, and `summer_life.gd`.
+- `scripts/player.gd` owns the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
+- `landing.gd`, `interface.gd`, `touch_controls.gd`, and `ui_theme.gd` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
 
-The world provides fixed viewpoints for screenshots and runtime inspection. See [DESIGN.md](DESIGN.md) for its procedural systems and world dimensions.
+See [MAPS.md](MAPS.md) for the scene lifecycle and exact registration steps. [DESIGN.md](DESIGN.md) describes Seabreeze Village's procedural systems; [VERIFICATION.md](VERIFICATION.md) records runtime inspection and platform limits.
+
+## Scenic captures and diagnostics
+
+The normal launch always opens destination selection. These explicit development options enter a map directly:
 
 ```sh
+godot --path games/cozysora -- --map=seabreeze_village --profile
 godot --path games/cozysora -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
-godot --path games/cozysora -- --shot --capture-dir=/tmp/cozysora-views --quit-after-capture
+godot --path games/cozysora -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
-Available views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` starts as the seagull. Capture mode hides the menu; each named view uses a fixed camera position, eye height, pitch, yaw, and vertical field of view. Captures are written only to the explicitly supplied path.
+`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough. `--profile` reports frame rate, lifecycle state, and live player / camera / audio / orphan counts on transitions.
 
-Verification uses rendered runtime inspection and manual play, not a test suite. See [VERIFICATION.md](VERIFICATION.md) for the reviewed behavior, performance observations, and remaining manual verification gap.
+Verification uses runtime rendering, native interaction, and code review. No automated tests are included.
