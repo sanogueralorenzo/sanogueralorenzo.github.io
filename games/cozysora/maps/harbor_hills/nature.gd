@@ -41,7 +41,9 @@ func build(world,geometry) -> void:
 		if _on_path(x,z,2):continue
 		var p=map.point(x,z)
 		g.add("leaf",p+Vector3(0,.45,0),Vector3(1.5,.9,1.4),["758959","657c58","949a69"][i%3])
-		for j in range(3):g.add("sphere",p+Vector3(rng.randf_range(-.4,.4),.9,rng.randf_range(-.4,.4)),Vector3(.13,.12,.13),"d2bb7c")
+		for j in range(3):
+			var at=p+Vector3(rng.randf_range(-.4,.4),.9,rng.randf_range(-.4,.4))
+			if not map.road_end_contains(at.x,at.z,.4):g.add("sphere",at,Vector3(.13,.12,.13),"d2bb7c")
 	# Street trees fit the planting strip, never a doorway or the rail alignment.
 	for x in [-85.0,99.0]:
 		for z in range(-82,130,19):_cypress(map.point(x,z),rng.randf_range(4.5,6.0),z)
@@ -61,7 +63,9 @@ func build(world,geometry) -> void:
 		var p=map.point(x,z)
 		g.add("leaf",p+Vector3(0,.3,0),Vector3(rng.randf_range(.6,1.5),rng.randf_range(.55,1.3),rng.randf_range(.6,1.5)),["677f5a","89946a","55765b","9b9c6e"][i%4])
 		if i%3==0:
-			for j in range(4):g.add("sphere",p+Vector3(rng.randf_range(-.5,.5),.6+rng.randf()*.3,rng.randf_range(-.5,.5)),Vector3(.12,.12,.12),["d3bf80","b9979c","ddd3a8"][i%3])
+			for j in range(4):
+				var at=p+Vector3(rng.randf_range(-.5,.5),.6+rng.randf()*.3,rng.randf_range(-.5,.5))
+				if not map.road_end_contains(at.x,at.z,.4):g.add("sphere",at,Vector3(.12,.12,.12),["d3bf80","b9979c","ddd3a8"][i%3])
 	# A composed overlook with a low wall, relief plaque and warm stone terraces.
 	var p=map.point(-110,99)
 	g.add("cylinder",p-Vector3(0,.12,0),Vector3(21,.3,17),"b3ae93",Vector3.ZERO,true)
@@ -77,19 +81,21 @@ func build(world,geometry) -> void:
 	_grass()
 
 func _cypress(p:Vector3,h:float,index:int) -> void:
-	tree_count+=1
+	var clear=not map.road_end_contains(p.x,p.z,1.0)
+	if clear:tree_count+=1
 	var lean=Vector3(-h*.16,0,h*.03)
-	g.beam(p,p+lean+Vector3(0,h*.75,0),h*.031,"776e59")
-	g.box_collision(p+lean*.35+Vector3.UP*h*.3,Vector3(h*.075,h*.6,h*.075))
+	if clear:g.beam(p,p+lean+Vector3(0,h*.75,0),h*.031,"776e59")
+	if clear:g.box_collision(p+lean*.35+Vector3.UP*h*.3,Vector3(h*.075,h*.6,h*.075))
 	for i in range(5):
 		var phase=i*2.39+index*.38
 		var tip=p+Vector3(cos(phase)*h*.25,h*(.52+i*.085),sin(phase)*h*.2)+lean
-		g.beam(p+Vector3(0,h*.4,0)+lean*.6,tip,h*.018,"776e59")
+		if clear:g.beam(p+Vector3(0,h*.4,0)+lean*.6,tip,h*.018,"776e59")
 		for j in range(12):
 			var a=rng.randf()*TAU;var r=sqrt(rng.randf())*h*.19
 			var at=tip+Vector3(cos(a)*r,rng.randf_range(-.3,.3)*h*.12,sin(a)*r)
 			var size=rng.randf_range(.65,1.25)*h*.22
-			g.add("leaf",at,Vector3(size*1.4,size*.68,size),["416c42","557c45","365e46","6b874e"][j%4],Vector3(0,a,rng.randf_range(-.1,.1)))
+			var rotation=Vector3(0,a,rng.randf_range(-.1,.1))
+			if clear:g.add("leaf",at,Vector3(size*1.4,size*.68,size),["416c42","557c45","365e46","6b874e"][j%4],rotation)
 
 func _skyline_and_bridge() -> void:
 	# Distant fictional city blocks remain outside the playable 360 m district.
@@ -194,7 +200,8 @@ func _grass() -> void:
 		if absf(x+147-sin(z*.018)*9)<2.5 or absf(x-151-sin(z*.018)*9)<2.5:continue
 		if Vector2(x+110,z-99).length()<12 or Vector2(x+56,z-62).length()<9:continue
 		if _on_path(x,z,2):continue
-		positions.append(Transform3D(Basis(Vector3.UP,rng.randf()*TAU).scaled(Vector3.ONE*rng.randf_range(.55,1.3)),map.point(x,z)))
+		var transform=Transform3D(Basis(Vector3.UP,rng.randf()*TAU).scaled(Vector3.ONE*rng.randf_range(.55,1.3)),map.point(x,z))
+		if not map.road_end_contains(x,z,.45):positions.append(transform)
 	# Spatial grass batches let the renderer discard fields outside the camera frustum.
 	var cells={}
 	for transform in positions:
@@ -218,13 +225,15 @@ func _on_path(x:float,z:float,width:float) -> bool:
 	return false
 
 func _street_tree(p:Vector3,h:float) -> void:
-	tree_count+=1
-	g.beam(p,p+Vector3(.18,h*.72,-.1),.13,"716d4e")
-	g.box_collision(p+Vector3(0,h*.3,0),Vector3(.26,h*.6,.26))
+	var clear=not map.road_end_contains(p.x,p.z,1.0)
+	if clear:tree_count+=1
+	if clear:g.beam(p,p+Vector3(.18,h*.72,-.1),.13,"716d4e")
+	if clear:g.box_collision(p+Vector3(0,h*.3,0),Vector3(.26,h*.6,.26))
 	for branch in range(5):
 		var angle=branch*2.399
 		var tip=p+Vector3(cos(angle)*1.2,h*(.7+rng.randf()*.18),sin(angle)*1.2)
-		g.beam(p+Vector3(0,h*.47,0),tip,.075,"716d4e")
+		if clear:g.beam(p+Vector3(0,h*.47,0),tip,.075,"716d4e")
 		for j in range(9):
 			var a=rng.randf()*TAU;var r=sqrt(rng.randf())*1.2
-			g.add("leaf",tip+Vector3(cos(a)*r,rng.randf_range(-.6,.8),sin(a)*r),Vector3(1.6,1.8,1.6),["628641","487740","789448","3c7148"][j%4],Vector3(0,a,0))
+			var at=tip+Vector3(cos(a)*r,rng.randf_range(-.6,.8),sin(a)*r)
+			if clear:g.add("leaf",at,Vector3(1.6,1.8,1.6),["628641","487740","789448","3c7148"][j%4],Vector3(0,a,0))

@@ -58,4 +58,4 @@ godot --path games/cozysora -- --shot --capture-dir=/tmp/cozy-sora-views --quit-
 
 Verification uses runtime rendering, native interaction, and code review. No automated tests are included.
 
-Harbor Hills capture views: `waterfront`, `commercial`, `residential`, `park`, `cable_car`, `stairs`, `garden`, `rooftops`, `flight`, and `top`. Pass `--map=harbor_hills` with the capture options to select that map.
+Harbor Hills capture views: `waterfront`, `commercial`, `residential`, `park`, `cable_car`, `stairs`, `garden`, `rooftops`, `flight`, `street_end`, and `top`. Pass `--map=harbor_hills` with the capture options to select that map.

@@ -6,6 +6,7 @@ var materials = {}
 var primitives = {}
 var collision: PhysicsBody3D
 var ground_height: Callable
+var plant_clearance: Callable
 var leaf_texture: Texture2D
 
 func _init(parent: Node3D,moving:bool=false) -> void:
@@ -57,7 +58,9 @@ func shape(kind: String) -> Mesh:
 	return mesh
 
 func add(kind: String,pos: Vector3,size: Vector3,color: String,rotation: Vector3=Vector3.ZERO,solid: bool=false,finish: String="plaster") -> void:
-	if kind=="leaf":finish="foliage"
+	if kind=="leaf":
+		if plant_clearance.is_valid() and plant_clearance.call(pos.x,pos.z,.4):return
+		finish="foliage"
 	var transform=Transform3D(Basis.from_euler(rotation)*Basis.from_scale(size),pos)
 	var cell=Vector2i(floori(pos.x/40),floori(pos.z/40))
 	var key=kind+color+finish+str(cell)
@@ -95,6 +98,23 @@ func ribbon(points: Array,width: float,color: String,solid: bool=false,drape: bo
 				var left:Vector3=corners[edge[0]];var right:Vector3=corners[edge[1]]
 				for vertex in [left,right,right-Vector3.UP*.18,left,right-Vector3.UP*.18,left-Vector3.UP*.18]:st.add_vertex(vertex)
 	st.generate_normals();var mesh=st.commit();var node=MeshInstance3D.new();node.mesh=mesh;node.material_override=material(color,finish);root.add_child(node)
+	if solid:
+		var c=CollisionShape3D.new();c.shape=mesh.create_trimesh_shape();collision.add_child(c)
+
+func semicircle(center:Vector2,forward:Vector2,inner:float,outer:float,lift:float,color:String,solid:bool=false,finish:String="plaster") -> void:
+	# Shared polar vertices close every seam; short radial bands conform to the hill.
+	var st=SurfaceTool.new();st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var side=forward.orthogonal()
+	var bands=ceili((outer-inner)/.9)
+	for ring in range(bands):
+		for segment in range(48):
+			for corner in [Vector2(0,0),Vector2(1,0),Vector2(1,1),Vector2(0,0),Vector2(1,1),Vector2(0,1)]:
+				var radius=lerpf(inner,outer,(ring+corner.x)/bands)
+				var angle=PI*(segment+corner.y)/48.
+				var at=center+(side*cos(angle)+forward*sin(angle))*radius
+				st.add_vertex(Vector3(at.x,ground_height.call(at.x,at.y)+lift,at.y))
+	st.generate_normals()
+	var mesh=st.commit();var node=MeshInstance3D.new();node.mesh=mesh;node.material_override=material(color,finish);root.add_child(node)
 	if solid:
 		var c=CollisionShape3D.new();c.shape=mesh.create_trimesh_shape();collision.add_child(c)
 

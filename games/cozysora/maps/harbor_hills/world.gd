@@ -13,8 +13,10 @@ var transit:Node3D
 var fog_banks:Array=[]
 var time=0.0
 var terrace_cells:Dictionary={}
+var street_ends:Array=[]
 
 func build() -> void:
+	street_ends=road_ends()
 	for plot in Architecture.plots():
 		var turn=Basis(Vector3.UP,plot.yaw)
 		var front=Vector3(plot.x,0,plot.z)+turn*Vector3(0,0,plot.d*.5+2)
@@ -38,8 +40,9 @@ func build() -> void:
 		"garden":[-34.0,-68.0,29.0,1.75,-.03],
 		"rooftops":[51.0,-10.0,45.0,1.8,-.28],
 		"flight":[-48.0,105.0,88.0,-.25,-.52],
+		"street_end":[94.0,125.0,0.0,3.14,-.1],
 		"top":[0.0,5.0,305.0,0.0,-1.57]}
-	for key in ["commercial","residential","park","cable_car","stairs","garden"]:
+	for key in ["commercial","residential","park","cable_car","stairs","garden","street_end"]:
 		var v=scenic_views[key]
 		v[2]=height_at(v[0],v[1])+(2.0 if key=="park" else .0 if key in ["residential","garden","cable_car"] else 1.0)
 	_environment()
@@ -56,7 +59,7 @@ func build() -> void:
 		print("Harbor Hills static cache restored: ",cache)
 	else:
 		static_content=Node3D.new();static_content.name="Harbor Hills district";add_child(static_content)
-		geo=Geometry.new(static_content);geo.ground_height=height_at;rng.seed=1947
+		geo=Geometry.new(static_content);geo.ground_height=height_at;geo.plant_clearance=road_end_contains;rng.seed=1947
 		_terrain()
 		_backdrop_land()
 		load_progress.emit("Paving streets above the bay…",.22)
@@ -180,12 +183,12 @@ func _backdrop_land() -> void:
 func _streets() -> void:
 	for x in STREETS_X:
 		var path=[]
-		for z in range(-108,133,2):path.append(point(x,z,.025))
+		for z in range(-108,135,2):path.append(point(x,z,.025))
 		geo.ribbon(path,10.8,"5c5e5a",false,true,"asphalt")
 		for side in [-1,1]:
 			_sidewalk(x+side*6.8,true,-108,134,STREETS_Z)
 			path=[]
-			for z in range(-108,134,2):path.append(point(x+side*5.45,z,.13))
+			for z in range(-108,135,2):path.append(point(x+side*5.45,z,.13))
 			geo.ribbon(path,.2,"ddd4bd")
 		# Broken centre lines keep the carriageway quiet and human-scaled.
 		for z in range(-93,130,9):
@@ -195,7 +198,7 @@ func _streets() -> void:
 				for dx in [-.15,.15]:geo.ribbon([point(x+dx,z,.04),point(x+dx,z+3,.04)],.09,"d4b563")
 	for z in STREETS_Z:
 		var path=[]
-		for x in range(-119,127,2):path.append(point(x,z,.032))
+		for x in range(-119,129):path.append(point(x,z,.032))
 		geo.ribbon(path,10.8,"5c5e5a",false,true,"asphalt")
 		for side in [-1,1]:
 			_sidewalk(z+side*6.8,false,-119,128,STREETS_X)
@@ -203,6 +206,8 @@ func _streets() -> void:
 			for side in [-1,1]:
 				for stripe in range(-4,5):
 					geo.ribbon([point(street_x+stripe,z+side*6-.9,.051),point(street_x+stripe,z+side*6+.9,.051)],.5,"e3dcc5")
+	# Semicircular ends continue both pavements around the carriageway.
+	for end in street_ends:_round_street_end(end[0],end[1])
 	# Cable rails and cable slot follow the full main grade into the turning circle.
 	for dx in [-.76,.76,0]:
 		var path=[]
@@ -214,6 +219,26 @@ func _streets() -> void:
 		circle.append(point(8+sin(angle)*5,96+cos(angle)*5,.075))
 	geo.ribbon(circle,.08,"abb0a6")
 	geo.add("cylinder",point(8,96,.015),Vector3(9.7,.09,9.7),"635e50")
+
+func road_ends() -> Array:
+	var ends=[]
+	for x in STREETS_X:ends.append([Vector2(x,134),Vector2(0,1)])
+	for z in STREETS_Z:
+		ends.append([Vector2(-119,z),Vector2(-1,0)])
+		ends.append([Vector2(128,z),Vector2(1,0)])
+	return ends
+
+func road_end_contains(x:float,z:float,margin:float=0.0) -> bool:
+	# Includes the sidewalk arc. The inward half already belongs to the street.
+	for end in street_ends:
+		var delta=Vector2(x,z)-end[0]
+		if delta.dot(end[1])>=-margin and delta.length_squared()<pow(8.2+margin,2):return true
+	return false
+
+func _round_street_end(center:Vector2,forward:Vector2) -> void:
+	geo.semicircle(center,forward,0,5.4,.032,"5c5e5a",false,"asphalt")
+	geo.semicircle(center,forward,5.4,8.2,.172,"b9b7a5",true,"paving")
+	geo.semicircle(center,forward,5.35,5.55,.18,"ddd4bd")
 
 func _sidewalk(fixed:float,vertical:bool,start:int,end:int,crossings:Array) -> void:
 	var path=[]
