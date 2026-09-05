@@ -107,6 +107,7 @@ func _enter_map(id:StringName) -> void:
 	player.shot_mode=_shot
 	player.mouse_capture_enabled=not touch_enabled
 	player.setup(map,destination.spawn())
+	_keep_pause_surfaces(session)
 	player.menu_changed.connect(_menu_changed)
 	player.mode_changed.connect(_character_changed)
 	touch.player=player
@@ -133,6 +134,12 @@ func _enter_map(id:StringName) -> void:
 	_capture_frames=0
 	print("Cozy Sora MAP_READY id=",id," build_ms=",Time.get_ticks_msec()-started)
 	_report_session("playing")
+
+func _keep_pause_surfaces(node:Node) -> void:
+	# Menu character changes still need roof/ground clearance queries while paused.
+	# Freeze physics bodies in place instead of removing them with disabled processing.
+	if node is CollisionObject3D:node.disable_mode=CollisionObject3D.DISABLE_MODE_MAKE_STATIC
+	for child in node.get_children():_keep_pause_surfaces(child)
 
 func _menu_changed(open:bool) -> void:
 	if screen not in [Screen.PLAYING,Screen.PAUSED]:return

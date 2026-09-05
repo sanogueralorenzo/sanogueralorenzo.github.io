@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CozyAirParticles" load_steps=2 format=3]
+[ext_resource type="Script" path="res://shared/air_particles.gd" id="1"]
+[resource]
+script = ExtResource("1")
+amount = 35
+lifetime = 12.0
+bounds = AABB(-25, -3, -25, 50, 15, 50)
+extents = Vector3(18, 3, 18)
+direction = Vector3(0.6, 0.05, 0.4)
+velocity = Vector2(0.09, 0.23)
+particle_scale = Vector2(0.012, 0.027)
+color = Color(0.94, 0.9, 0.68, 1)
+cast_shadows = false

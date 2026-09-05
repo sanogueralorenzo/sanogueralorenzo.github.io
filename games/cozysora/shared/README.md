@@ -15,9 +15,9 @@ Map generators compose these components. Layout coordinates, placement exclusion
 
 ## Change a shared mechanic
 
-Edit the owning component, then inspect both destinations using the native capture commands in the project README. Keep RNG draws in the same order: shared rasterization and batching do not draw random numbers. Spatial groups preserve insertion order; rebasing instance transforms and visibility margins are part of the visual/performance contract. Static merging retains collision siblings, labels, and the explicit excluded animation roots.
+Edit the owning component, then inspect all destinations using the native capture commands in the project README. Keep RNG draws in the same order: shared rasterization and batching do not draw random numbers. Spatial groups preserve insertion order; rebasing instance transforms and visibility margins are part of the visual/performance contract. Static merging retains collision siblings, labels, and the explicit excluded animation roots.
 
-Cache signatures include sorted paths and contents for generation sources (`gd`, `gdshader`, `gdshaderinc`, `tres`, `tscn`) in the selected map folder, `shared/`, and common `shaders/`. A shared source change invalidates both maps. A map source change invalidates only that map. Added helper files within those folders are included automatically. UIDs, documentation, previews and generated files do not influence the signature. Terrain/layout resources and packed foliage/district scenes keep separate cache namespaces. Never store characters or active map instances in these caches.
+Cache signatures include sorted paths and contents for generation sources (`gd`, `gdshader`, `gdshaderinc`, `tres`, `tscn`) in the selected map folder, `shared/`, and common `shaders/`. A shared source change invalidates all maps. A map source change invalidates only that map. Added helper files within those folders are included automatically. UIDs, documentation, previews and generated files do not influence the signature. Terrain/layout resources and packed foliage/district scenes keep separate cache namespaces. Never store characters or active map instances in these caches.
 
 ## Change map content
 

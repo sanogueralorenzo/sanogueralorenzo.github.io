@@ -1,6 +1,6 @@
 # Cozy Sora
 
-Cozy Sora is an original procedural Godot game about quiet coastal exploration. Seabreeze Village evokes Japanese summers; Harbor Hills is a fictional district of steep streets, cypress gardens and bay views. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
+Cozy Sora is an original procedural Godot game about quiet summer exploration. Seabreeze Village evokes Japanese summers; Harbor Hills is a fictional district of steep streets, cypress gardens and bay views; Daan Gardens is a shaded urban park inspired by Taipei. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
 
 Open `project.godot` in Godot 4.7 and run the main scene, or use:
 
@@ -8,7 +8,7 @@ Open `project.godot` in Godot 4.7 and run the main scene, or use:
 godot --path games/cozysora
 ```
 
-Choose **Seabreeze Village** or **Harbor Hills** on the destination screen and press **Play**. Wander Japanese coastal lanes and fields, or follow a cable car through a fictional hillside district above the bay. Explore as a cat or take flight as a seagull. Destination previews are in-game captures made by this project.
+Choose **Seabreeze Village**, **Harbor Hills**, or **Daan Gardens** on the destination screen and press **Play**. Wander Japanese coastal lanes and fields, follow a cable car through a hillside district above the bay, or explore a living pond and café street beneath subtropical trees. Explore as a cat or take flight as a seagull. Destination previews are in-game captures made by this project.
 
 Forward+ is the intended gameplay renderer. First entry generates terrain and vegetation; subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. No network connection is needed. The selector itself builds immediately without generating the world.
 
@@ -27,7 +27,7 @@ The selector and menus use standard Godot focus navigation: click or tap a butto
 | Seagull cry | Left click | X | Switching / takeoff also vocalizes |
 | Pause / resume | Escape or Menu | Start | Menu |
 
-The seagull glides without input and can settle on the ground. Harbor Hills also supports rooftop perching and switching on safe building surfaces; its low garden roofs have cat access ramps. Unsafe coastal positions fall back to the cat's last safe location or registered spawn.
+The seagull glides without input and can settle on the ground. Harbor Hills and Daan Gardens also support rooftop perching and switching on safe building surfaces; Harbor’s low garden roofs have cat access ramps. Unsafe coastal positions fall back to the cat's last safe location or registered spawn.
 
 **Menu → Back to destinations** unloads the map. Entering it again starts at its registered spawn. Menu pauses movement, map simulation, and audio; Settings changes sound volume, mute, and touch controls. Settings persist across maps and launches. Touch controls are enabled automatically on detected touch screens and can be enabled manually in Settings.
 
@@ -38,6 +38,7 @@ The seagull glides without input and can settle on the ground. Harbor Hills also
 - `scripts/map.gd` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
 - `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
 - `maps/harbor_hills/` owns the second district: sloping streets, row houses, shops, courtyards, cypress park, waterfront, moving cable car, local bell, vehicles, distant city, bridge and fog. See [its map notes](maps/harbor_hills/README.md).
+- `maps/daan_gardens/` owns the third destination: connected park loops, ecological pond, bird island, banyan court, bamboo groves, pavilion, apartment cafés and surrounding city. See [its map notes](maps/daan_gardens/README.md).
 - `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. See [component ownership and update guidance](shared/README.md).
 - `scripts/player.gd` owns the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
 - `landing.gd`, `interface.gd`, `touch_controls.gd`, and `ui_theme.gd` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
@@ -51,6 +52,7 @@ The normal launch always opens destination selection. These explicit development
 ```sh
 godot --path games/cozysora -- --map=seabreeze_village --profile
 godot --path games/cozysora -- --map=harbor_hills --profile
+godot --path games/cozysora -- --map=daan_gardens --profile
 godot --path games/cozysora -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
 godot --path games/cozysora -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```

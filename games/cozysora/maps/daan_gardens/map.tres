@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CozyMapDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/map_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://maps/daan_gardens/preview.png" id="2"]
+[resource]
+script = ExtResource("1")
+id = &"daan_gardens"
+title = "Daan Gardens"
+subtitle = "BANYAN SHADE · A QUIET CITY AFTERNOON"
+description = "Take the long way around the living pond. Rest beneath the banyans, wander into a tea pavilion, or cross the street for a café tucked beneath tiled balconies."
+scene = "res://maps/daan_gardens/map.tscn"
+preview = ExtResource("2")
+spawn_position = Vector3(59,0.05,-58)
+spawn_yaw = -1.1
+spawn_pitch = 0.05
+spawn_mode = "cat"

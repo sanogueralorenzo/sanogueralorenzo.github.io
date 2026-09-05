@@ -15,7 +15,7 @@ A map scene's root extends `CozyMap`. All map coordinates share the session's id
 - `walkable(x,z)` identifies safe cat ground. Collision bodies provide building and prop collision.
 - `flight_bounds` is an AABB defining horizontal flight limits and minimum/maximum landscape elevation.
 - `ambience` is a dictionary consumed by the shared synthesizer: `wind_gain`, `wave_base`, `wave_swell`, `cicada_frequencies` (Vector2), `cicada_gain`, and `birds`. Omitted values are silent; character sounds remain available.
-- `supports_surface_traversal` defaults to `false`. Harbor Hills opts in to collision-aware gull flight, floor-normal cat alignment, downward surface queries for perching, clearance-checked character switching, and a close obstruction-aware camera. Seabreeze retains its existing terrain-based controller path.
+- `supports_surface_traversal` defaults to `false`. Harbor Hills and Daan Gardens opt in to collision-aware gull flight, floor-normal cat alignment, downward surface queries for perching, clearance-checked character switching, and a close obstruction-aware camera. Seabreeze retains its existing terrain-based controller path.
 - `set_paused(value)` pauses map-owned audio streams; session processing already pauses simulation. Harbor Hills uses it for its spatial cable-car bell.
 - Optional `scenic_views` maps names to `[x,z,height,yaw,pitch]` arrays for inspection. The shared camera adds its scenic eye-height offset.
 
@@ -33,7 +33,7 @@ The base class supplies a flat ground plane's height/walkability contract and si
 
 The application starts with shared UI and metadata only. Play locks navigation, fades to a loading screen, loads the selected scene resource, and creates one `GameplaySession`. The map builds beneath that session while its processing is disabled. Once construction finishes, the application adds one shared player and camera, applies the registered spawn, reveals the scene, and enables play.
 
-Pause disables processing for the complete session and pauses its audio stream. The application and menu remain responsive. Cosmetic shader wind can continue while the simulation is paused. Settings temporarily isolate menu focus and persist in `user://settings.cfg`.
+Pause disables processing for the complete session and pauses its audio stream. Collision bodies use `DISABLE_MODE_MAKE_STATIC`, so they remain frozen and available to surface/clearance queries when the paused menu changes characters. Resuming restores their original physics modes. The application and menu remain responsive. Cosmetic shader wind can continue while the simulation is paused. Settings temporarily isolate menu focus and persist in `user://settings.cfg`.
 
 Returning locks navigation and covers the viewport, clears touch input, frees the entire session, waits for scene-tree and physics cleanup, resets the global player-position shader parameter, and restores selector focus. Player, camera, sounds, map nodes, collision, particles, and world post-processing all leave together. No generation thread or timer remains active. The small generator scene is loaded on the main thread, avoiding observed Godot 4.7.2 threaded custom-resource shutdown leaks; expensive map construction still yields and reports progress.
 
@@ -49,4 +49,8 @@ No Seabreeze terrain, layout, palette, vegetation or ambience generator changes 
 
 ## Shared construction
 
-Both maps compose the components described in [shared/README.md](shared/README.md). Seabreeze generation has moved out of `scripts/` into `maps/seabreeze_village/`, including its terrain and rice shaders. Map-specific plant meshes, texture recipes, building finishes, distributions and artistic profiles stay there; common gameplay remains centrally owned.
+All three maps compose the components described in [shared/README.md](shared/README.md). Seabreeze generation has moved out of `scripts/` into `maps/seabreeze_village/`, including its terrain and rice shaders. Map-specific plant meshes, texture recipes, building finishes, distributions and artistic profiles stay there; common gameplay remains centrally owned.
+
+## Daan Gardens ownership and cache
+
+Daan Gardens registers `maps/daan_gardens/map.tres` with ID `daan_gardens`. Its locally owned generators build connected park paths, pond habitat, subtropical planting, furniture and accessible apartment cafés. It composes the shared primitives, leaf painter, batches, collision helpers, atmosphere, particles and cache. The source-aware static scene lives in `user://daan_gardens_<signature>.scn`; dynamic egrets, environment and particles remain outside it. It opts into shared surface traversal without map-ID branches in the controller or changes to the existing maps.
