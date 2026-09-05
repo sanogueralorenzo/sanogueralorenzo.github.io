@@ -16,7 +16,6 @@ var gull_button: Button
 var controls: Label
 var heading: Label
 var menu_button: Button
-var destination_label: Label
 var dot: ColorRect
 var _buttons: Array[Button] = []
 
@@ -24,12 +23,6 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = UI.make_theme()
-	destination_label = Label.new()
-	destination_label.position = Vector2(24,24)
-	destination_label.add_theme_color_override("font_color",Color("fffdf5"))
-	destination_label.add_theme_color_override("font_shadow_color",Color("193c3a"))
-	destination_label.add_theme_constant_override("shadow_offset_y",1)
-	add_child(destination_label)
 	menu_button = _button("Menu",func():pause_requested.emit())
 	menu_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	menu_button.offset_left=-118
@@ -124,7 +117,6 @@ func _button(text:String, action:Callable) -> Button:
 	return button
 
 func configure(destination:String) -> void:
-	destination_label.text=destination
 	heading.text=destination+" · Paused"
 
 func set_character(mode:String, touch:bool) -> void:
@@ -141,7 +133,6 @@ func set_paused(paused:bool) -> void:
 	shade.visible=paused
 	pause_scroll.visible=paused
 	menu_button.visible=not paused
-	destination_label.visible=not paused
 	dot.visible=not paused
 	if paused: resume_button.grab_focus.call_deferred()
 	else:
@@ -151,4 +142,3 @@ func set_paused(paused:bool) -> void:
 func _resize() -> void:
 	if panel==null:return
 	panel.custom_minimum_size.x=minf(490,maxf(280,size.x-40))
-	destination_label.visible=size.x>=500 and not pause_scroll.visible
