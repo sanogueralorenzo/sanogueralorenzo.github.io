@@ -128,8 +128,18 @@ func setup(level: Node3D, spawn: Dictionary = {}) -> void:
 	mode = "gull" if spawn.get("mode", "cat") == "gull" else "cat"
 	var requested_view := ""
 	var cli_gull := false
+	var requested_pose := false
 	for argument in OS.get_cmdline_user_args():
 		if argument == "--shot": shot_mode = true
+		# Explicit inspection poses use the normal character camera and ground contract.
+		if argument.begins_with("--pose="):
+			var pose := argument.trim_prefix("--pose=").split(",")
+			if pose.size() == 5:
+				requested_pose = true
+				position = Vector3(float(pose[0]), _height(float(pose[0]), float(pose[1])) + float(pose[2]), float(pose[1]))
+				cam_yaw = float(pose[3]); cam_pitch = float(pose[4])
+				heading = cam_yaw; move_direction = cam_yaw
+				last_cat_position = position
 		if argument.begins_with("--view="): requested_view = argument.trim_prefix("--view=")
 		if argument == "--gull" or argument == "--bird":
 			mode = "gull"
@@ -138,7 +148,7 @@ func setup(level: Node3D, spawn: Dictionary = {}) -> void:
 	cat.visible = mode == "cat"
 	if mode == "gull":
 		position.y += 3.0
-		cam_pitch = 0.18 if cli_gull else float(spawn.get("pitch", 0.18))
+		if not requested_pose: cam_pitch = 0.18 if cli_gull else float(spawn.get("pitch", 0.18))
 	if not requested_view.is_empty() and world.scenic_views.has(requested_view):
 		set_view(requested_view)
 	else:

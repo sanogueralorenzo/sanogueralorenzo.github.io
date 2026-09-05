@@ -58,6 +58,8 @@ func shape(kind: String) -> Mesh:
 		mesh = CozyPrimitives.box_mesh()
 	elif kind == "sphere":
 		mesh = CozyPrimitives.sphere_mesh()
+	elif kind == "branch":
+		mesh = CozyPrimitives.cylinder_mesh(.5, .26, 1, 9)
 	elif kind == "leaf":
 		var st = SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -130,6 +132,19 @@ func beam(a: Vector3, b: Vector3, radius: float, color: String) -> void:
 		false,
 		"metal"
 	)
+
+
+func branch(a: Vector3, b: Vector3, radius: float, color: String) -> void:
+	var delta = b - a
+	add(
+		"branch",
+		(a + b) * .5,
+		Vector3(radius * 2, delta.length(), radius * 2),
+		color,
+		Quaternion(Vector3.UP, delta.normalized()).get_euler()
+	)
+	if radius >= .065:
+		CozyCollision.limb(collision, a, b, radius * .8)
 
 
 func ribbon(

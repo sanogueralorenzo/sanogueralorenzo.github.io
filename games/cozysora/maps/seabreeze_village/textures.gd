@@ -13,7 +13,7 @@ static func leaf_texture(seed_value: int, small: bool = false) -> Texture2D:
 			var angle: float = random.randf() * TAU
 			var radius: float = sqrt(random.randf()) * (56 if pass_index == 0 else 77)
 			var p := Vector2(128 + cos(angle) * radius, 128 + sin(angle) * radius * 0.9)
-			var factor: float = 0.55 if small else 1
+			var factor: float = 0.45 if small else .62
 			var length: float = random.randf_range(40, 75) * factor
 			var width: float = random.randf_range(22, 40) * factor
 			var rotation: float = random.randf() * TAU

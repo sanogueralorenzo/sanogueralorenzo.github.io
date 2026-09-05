@@ -1,9 +1,8 @@
 shader_type spatial;
 render_mode diffuse_toon, specular_disabled;
+#include "res://shared/surface_noise.gdshaderinc"
 uniform sampler2D layout_map : filter_linear, repeat_disable;
 varying vec3 world_pos;
-float hash(vec2 p) {return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float noise(vec2 p) {vec2 f=fract(p);vec2 i=floor(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p) {return noise(p)*.53+noise(p*2.07)*.27+noise(p*4.28)*.13+noise(p*8.86)*.07;}
 void vertex(){world_pos=(MODEL_MATRIX*vec4(VERTEX,1)).xyz;}
 void fragment(){
@@ -26,7 +25,7 @@ void fragment(){
  ground=mix(ground,soil,dirt);
  float shoulder=(1.-smoothstep(0.,.9,abs(distance-4.)));
  ground=mix(ground,vec3(.44,.39,.32),shoulder*.7);
- vec3 asphalt=mix(vec3(.40,.36,.33),vec3(.48,.43,.39),smoothstep(.45,.6,fbm(p*.5+40.))*.7+noise(p*6.)*.12);
+ vec3 asphalt=mix(vec3(.40,.36,.33),vec3(.48,.43,.39),fbm(p*.32+40.)*.55+noise(p*6.)*.035);
  float edge=1.-smoothstep(.055,.13,abs(distance-3.65));
  float center=(1.-smoothstep(.04,.10,distance))*step(.45,layout.g);
  float wear=smoothstep(.3,.55,fbm(p*2.5+9.));

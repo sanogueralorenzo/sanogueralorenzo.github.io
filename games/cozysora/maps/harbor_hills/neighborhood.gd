@@ -277,6 +277,21 @@ func _fire_escape(o:Vector3,yaw:float,w:float,d:float,h:float) -> void:
 		g.beam(_local(o,yaw,Vector3(-2,y+.9,z+.7)),_local(o,yaw,Vector3(2,y+.9,z+.7)),.035,"495b59")
 		for j in range(12):_box(o,yaw,Vector3(-1.5+j*.24,y+.12+j*.23,z),Vector3(.45,.08,1.1),"495b59")
 
+		# The existing treads sit on stringers, with a continuous handrail and wall brackets.
+		for side in [-1, 1]:
+			var a = Vector3(-1.65, y + .03, z + side * .58)
+			var b = Vector3(1.32, y + 2.89, z + side * .58)
+			g.beam(_local(o, yaw, a), _local(o, yaw, b), .045, "495b59")
+			g.beam(_local(o, yaw, a + Vector3.UP * .94), _local(o, yaw, b + Vector3.UP * .94), .032, "495b59")
+			for step in range(5):
+				var p = a.lerp(b, step / 4.)
+				g.beam(_local(o, yaw, p), _local(o, yaw, p + Vector3.UP * .94), .023, "495b59")
+			g.beam(
+				_local(o, yaw, Vector3(side * 1.7, y - .75, d * .5)),
+				_local(o, yaw, Vector3(side * 1.7, y, z + .55)),
+				.04, "495b59"
+			)
+
 func _cafe_table(at:Vector3,yaw:float=0) -> void:
 	g.add("cylinder",at+Vector3(0,.72,0),Vector3(.82,.08,.82),"bba37b")
 	g.beam(at,at+Vector3(0,.69,0),.06,"536462")

@@ -121,27 +121,27 @@ func _cypress(p: Vector3, h: float, index: int) -> void:
 	var clear = not map.road_end_contains(p.x, p.z, 1.0)
 	if clear:
 		tree_count += 1
-	var lean = Vector3(-h * .16, 0, h * .03)
+	var lean = Vector3(-h * (.075 + .065 * sin(index * 1.7)), 0, h * .06 * cos(index * 2.3))
 	if clear:
-		g.beam(p, p + lean + Vector3(0, h * .75, 0), h * .031, "776e59")
-	if clear:
-		g.box_collision(p + lean * .35 + Vector3.UP * h * .3, Vector3(h * .075, h * .6, h * .075))
+		g.branch(p, p + lean * .45 + Vector3(0, h * .48, 0), h * .035, "827058")
+		g.branch(p + lean * .45 + Vector3(0, h * .48, 0), p + lean + Vector3(0, h * .91, 0), h * .024, "827058")
 	for i in range(5):
 		var phase = i * 2.39 + index * .38
-		var tip = p + Vector3(cos(phase) * h * .25, h * (.52 + i * .085), sin(phase) * h * .2) + lean
+		var spread = h * (.21 - i * .026)
+		var tip = p + Vector3(cos(phase) * spread, h * (.43 + i * .12 + .024 * sin(phase)), sin(phase) * spread) + lean
 		if clear:
-			g.beam(p + Vector3(0, h * .4, 0) + lean * .6, tip, h * .018, "776e59")
+			g.branch(p + Vector3(0, h * (.35 + i * .09), 0) + lean * .6, tip, h * .018, "827058")
 		for j in range(12):
 			var a = rng.randf() * TAU
 			var r = sqrt(rng.randf()) * h * .19
-			var at = tip + Vector3(cos(a) * r, rng.randf_range(-.3, .3) * h * .12, sin(a) * r)
+			var at = tip + Vector3(cos(a) * r, rng.randf_range(-.3, .3) * h * .29, sin(a) * r)
 			var size = rng.randf_range(.65, 1.25) * h * .22
 			var rotation = Vector3(0, a, rng.randf_range(-.1, .1))
 			if clear:
 				g.add(
 					"leaf",
 					at,
-					Vector3(size * 1.4, size * .68, size),
+					Vector3(size * 1.15, size * 1.18, size),
 					["416c42", "557c45", "365e46", "6b874e"][j % 4],
 					rotation
 				)
@@ -378,14 +378,16 @@ func _street_tree(p: Vector3, h: float) -> void:
 	if clear:
 		tree_count += 1
 	if clear:
-		g.beam(p, p + Vector3(.18, h * .72, -.1), .13, "716d4e")
-	if clear:
-		g.box_collision(p + Vector3(0, h * .3, 0), Vector3(.26, h * .6, .26))
+		g.branch(p, p + Vector3(.12, h * .4, -.08), .16, "827058")
+		g.branch(p + Vector3(.12, h * .4, -.08), p + Vector3(.35, h * .78, -.15), .11, "827058")
 	for branch in range(5):
 		var angle = branch * 2.399
 		var tip = p + Vector3(cos(angle) * 1.2, h * (.7 + rng.randf() * .18), sin(angle) * 1.2)
 		if clear:
-			g.beam(p + Vector3(0, h * .47, 0), tip, .075, "716d4e")
+			var origin = p + Vector3(.12, h * (.39 + branch * .045), -.08)
+			var elbow = origin.lerp(tip, .55) + Vector3(0, .24, 0)
+			g.branch(origin, elbow, .075, "827058")
+			g.branch(elbow, tip, .045, "827058")
 		for j in range(9):
 			var a = rng.randf() * TAU
 			var r = sqrt(rng.randf()) * 1.2

@@ -30,6 +30,8 @@ var _capture_views: Array = []
 var _capture_frames := 0
 var _profile := false
 var _profile_clock := 0.0
+var _frame_times: Array[float] = []
+var _last_frame_usec := 0
 var _shot := false
 var _quitting := false
 
@@ -46,6 +48,7 @@ func _ready() -> void:
 		if arg.begins_with("--map="):automatic_id=StringName(arg.trim_prefix("--map="))
 		if arg.begins_with("--capture="):_capture=arg.trim_prefix("--capture=")
 		if arg.begins_with("--capture-dir="):_capture_dir=arg.trim_prefix("--capture-dir=")
+	if _profile:RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(),true)
 	canvas=CanvasLayer.new()
 	canvas.layer=20
 	add_child(canvas)
@@ -197,9 +200,16 @@ func _unhandled_input(event:InputEvent) -> void:
 func _process(delta:float) -> void:
 	if is_instance_valid(player):RenderingServer.global_shader_parameter_set("cat_position",player.global_position)
 	if _profile:
+		var now_usec:=Time.get_ticks_usec()
+		if _last_frame_usec>0:_frame_times.append((now_usec-_last_frame_usec)/1000.)
+		_last_frame_usec=now_usec
 		_profile_clock+=delta
-		if _profile_clock>5:
+		if _profile_clock>5 and not _frame_times.is_empty():
 			_profile_clock=0
+			_frame_times.sort()
+			var viewport_rid:=get_viewport().get_viewport_rid()
+			print("Cozy Sora FRAME screen=",Screen.keys()[screen]," median_ms=",_frame_times[_frame_times.size()/2]," p95_ms=",_frame_times[int((_frame_times.size()-1)*.95)]," max_ms=",_frame_times[-1]," render_cpu_ms=",RenderingServer.viewport_get_measured_render_time_cpu(viewport_rid)," render_gpu_ms=",RenderingServer.viewport_get_measured_render_time_gpu(viewport_rid))
+			_frame_times.clear()
 			print("Cozy Sora RUNTIME screen=",Screen.keys()[screen]," fps=",Engine.get_frames_per_second()," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000," viewport=",get_viewport().get_visible_rect().size," audio_db=",AudioServer.get_bus_peak_volume_left_db(0,0))
 			if is_instance_valid(player):print("Cozy Sora PLAYER mode=",player.mode," position=",player.position," grounded=",player.grounded," perched=",player.perched)
 	if not _capture.is_empty() and screen in [Screen.SELECTOR,Screen.PLAYING] and not _quitting:
@@ -208,6 +218,9 @@ func _process(delta:float) -> void:
 			await RenderingServer.frame_post_draw
 			get_viewport().get_texture().get_image().save_png(_capture)
 			print("Cozy Sora CAPTURE ",_capture)
+			if _profile:
+				var rid:=get_viewport().get_viewport_rid()
+				print("Cozy Sora CAPTURE_COST cpu_ms=",RenderingServer.viewport_get_measured_render_time_cpu(rid)," gpu_ms=",RenderingServer.viewport_get_measured_render_time_gpu(rid)," physics_ms=",Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)*1000)
 			if not _capture_views.is_empty():
 				var view:String=_capture_views.pop_front()
 				player.set_view(view)
@@ -220,9 +233,13 @@ func _process(delta:float) -> void:
 
 func _report_session(label:String) -> void:
 	if not _profile:return
+	# Loading, screenshots and menu transitions are not steady gameplay windows.
+	_frame_times.clear()
+	_profile_clock=0.
+	_last_frame_usec=0
 	var counts:Dictionary={"players":0,"cameras":0,"audio":0}
 	_count_nodes(get_tree().root,counts)
-	print("Cozy Sora SESSION ",label," active=",int(is_instance_valid(session))," players=",counts.players," cameras=",counts.cameras," audio=",counts.audio," orphans=",Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
+	print("Cozy Sora SESSION ",label," active=",int(is_instance_valid(session))," players=",counts.players," cameras=",counts.cameras," audio=",counts.audio," orphans=",Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)," fps_cap=",Engine.max_fps," vsync=",DisplayServer.window_get_vsync_mode())
 
 func _count_nodes(node:Node,counts:Dictionary) -> void:
 	if node is CozyPlayer:counts.players+=1

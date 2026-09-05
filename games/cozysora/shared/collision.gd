@@ -29,3 +29,14 @@ static func mesh(body: PhysicsBody3D, geometry: Mesh) -> CollisionShape3D:
 	shape.shape = geometry.create_trimesh_shape()
 	body.add_child(shape)
 	return shape
+
+
+static func limb(body: PhysicsBody3D, start: Vector3, end: Vector3, radius: float) -> void:
+	var shape := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = radius
+	capsule.height = maxf(radius * 2, start.distance_to(end))
+	shape.shape = capsule
+	shape.position = (start + end) * .5
+	shape.rotation = Quaternion(Vector3.UP, (end - start).normalized()).get_euler()
+	body.add_child(shape)

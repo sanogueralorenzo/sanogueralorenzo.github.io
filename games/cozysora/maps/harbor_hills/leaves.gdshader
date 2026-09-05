@@ -13,7 +13,7 @@ void vertex(){
  float wind=sin(TIME*1.1+world.x*.22+world.z*.17)+.35*sin(TIME*2.1+world.z*.8);
  VERTEX.x+=wind*.09*weight;VERTEX.z+=cos(TIME*.81+world.x*.16)*.04*weight;
  if(!leaf_cards){vec2 delta=world.xz-cat_position.xz;float d=length(delta);float push=(1.-smoothstep(0.,1.25,d))*weight*step(abs(world.y-cat_position.y),1.5);VERTEX.xz+=delta/max(d,.05)*push*.6;VERTEX.y-=push*.26;}
- tint=COLOR.rgb;crown_normal=normalize((MODELVIEW_MATRIX*vec4(NORMAL,0.)).xyz);
+ tint=COLOR.rgb;crown_normal=normalize(MODELVIEW_NORMAL_MATRIX*NORMAL);
 }
 void fragment(){
  if(leaf_cards && length(VERTEX)<.8){discard;}

@@ -191,16 +191,33 @@ func _plant_bush(
 		if special_scale == Vector3.ZERO
 		else special_scale
 	)
-	# Keep roadside wayfinding boards above nearby shrubs, preserving each seed's planting footprint.
+	# Compress only toward the route, retaining the long, layered verge behind it.
+	# Project the rotated crown bounds and reserve room for wind, not just its center.
+	var bounds: AABB = _bushes[kind].leaves.get_aabb()
+	var road: Dictionary = _world.road_info(x, z)
+	var toward := Vector3(-road.tz, 0, road.tx).normalized()
+	var room: float = road.d - 4.4
+	var layby_room := -9.8 - x if x < -9.6 else x + 2.9
+	if local_z > -10 and local_z < 9 and (x < -9.6 or x > -3.2) and layby_room < room:
+		room = layby_room
+		toward = Vector3.RIGHT
+	var basis := Basis(Vector3.UP, rotation).scaled(size)
+	var extent := 0.
+	for ix in [bounds.position.x, bounds.end.x]:
+		for iz in [bounds.position.z, bounds.end.z]:
+			extent = maxf(extent, absf((basis * Vector3(ix, 0, iz)).dot(toward)))
+	var pruning := clampf((room - .24) / maxf(extent, .1), .01, 1.)
+	size.y *= lerpf(.65, 1., pruning)
 	for sign_position in [
 		Vector2(-8.75, 3.2), Vector2(-1, -17.05), Vector2(40, -17.1 + _coast(40)), Vector2(-12.5, -17.2 + _coast(-12.5))
 	]:
 		if Vector2(x, z).distance_to(sign_position) < radius + .7:
 			var canopy_height: float = _bushes[kind].leaves.get_aabb().end.y
 			size.y = minf(size.y, .9 / maxf(.1, canopy_height))
-	_bush_batches[kind].append(
-		Transform3D(Basis(Vector3.UP, rotation).scaled(size), Vector3(x, _world.height_at(x, z) - 0.2, z))
-	)
+	basis = Basis(Vector3.UP, rotation).scaled(size)
+	for axis in range(3):
+		basis[axis] -= toward * basis[axis].dot(toward) * (1. - pruning)
+	_bush_batches[kind].append(Transform3D(basis, Vector3(x, _world.height_at(x, z) - 0.2, z)))
 	_placed.append(Vector3(x, radius * 0.8, z))
 
 
@@ -406,6 +423,8 @@ func _grass_fields() -> void:
 			size *= 0.35
 		if x < -9 and x > -11.6 and z - _coast(x) > -8.5 and z < 8:
 			size *= 0.3
+		if x > -3.8 and x < -.5 and z > -9 and z < 8:
+			size *= lerpf(.35, .8, smoothstep(-3.8, -.5, x))
 		size *= (0.9 + (1 - minf(1, distance / 40)) * 0.3) * (1.35 if density < 1 else 1)
 		var ground: float = _world.height_at(x, z) if distance < 25 else sample.y
 		transforms.append(
@@ -421,6 +440,7 @@ func _grass_fields() -> void:
 		var x: float = _rng.randf_range(-2.6, -1.8) if seaside else _rng.randf_range(-3.7, -2.4)
 		var z: float = _rng.randf_range(-8, -3.6) if seaside else _rng.randf_range(-3.6, 1.4)
 		var size: float = _rng.randf_range(0.9, 1.3) if seaside else _rng.randf_range(1, 1.4)
+		size *= lerpf(.36, .72, smoothstep(-3.7, -1.8, x))
 		transforms.append(
 			Transform3D(
 				Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3.ONE * size),
@@ -480,7 +500,7 @@ func _rosettes(rows: Array = [], plant_color: Color = Color("2f6a36"), second_co
 		for i in range(count):
 			var angle: float = float(i) / count * TAU + _rng.randf() * 0.6
 			var lean: float = _rng.randf_range(0.5, 1.2)
-			var size: float = _rng.randf_range(0.7, 1.2) * row[2]
+			var size: float = _rng.randf_range(0.7, 1.2) * row[2] * .72
 			var basis := Basis(Vector3.UP, -angle) * Basis(Vector3.RIGHT, -lean)
 			for segment in range(2):
 				for k in [0, 2, 1, 1, 2, 3]:

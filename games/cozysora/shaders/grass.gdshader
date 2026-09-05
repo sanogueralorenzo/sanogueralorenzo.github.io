@@ -19,7 +19,7 @@ void vertex() {
     VERTEX.xz += dc/max(distance_to_cat,0.05)*push*0.9;
     VERTEX.y -= push*0.55 + bend*(1.0-smoothstep(0.6,3.2,distance_to_cat))*near_cat*0.55;
     NORMAL = normalize(mix(NORMAL,vec3(0.0,1.0,0.0),0.7));
-    canopy_normal = normalize((MODELVIEW_MATRIX * vec4(NORMAL,0.0)).xyz);
+    canopy_normal = normalize(MODELVIEW_NORMAL_MATRIX * NORMAL);
     tint = COLOR.rgb;
 }
 void fragment() {

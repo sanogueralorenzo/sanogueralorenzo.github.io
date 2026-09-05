@@ -1,26 +1,26 @@
 class_name CozyAtmosphere
 extends Resource
 ## Map-owned profiles share the sky, lighting, ocean and painterly presentation.
-@export var ambient_color := Color("7fb0d8")
-@export var ambient_energy := 0.52
+@export var ambient_color := Color("a4b2bc")
+@export var ambient_energy := 0.48
 @export var fog_color := Color("c9d6de")
 @export var fog_begin := 40.0
 @export var fog_end := 260.0
 @export var fog_curve := 1.0
 @export var fog_sky := 0.1
-@export var sun_color := Color("ffcf9c")
-@export var sun_energy := 1.15
+@export var sun_color := Color("ffdfb6")
+@export var sun_energy := 1.32
 @export var shadow_distance := 110.0
-@export var shadow_normal_bias := 0.7
+@export var shadow_normal_bias := 0.35
 @export var sun_position := Vector3(-66, 84, -45.6)
 @export var sun_rotation_degrees := Vector3.ZERO
 @export var aim_sun_at_origin := true
 @export var fill_color := Color("c9d6ec")
-@export var fill_energy := 0.25
+@export var fill_energy := 0.16
 @export var fill_position := Vector3(60, 50, 90)
 @export var ocean_size := Vector2(4000, 4000)
 @export var ocean_position := Vector3(0, -30, 0)
-@export var brush_radius := 4.0
+@export var brush_radius := 2.0
 
 
 func install(parent: Node3D) -> void:
@@ -39,6 +39,12 @@ func install(parent: Node3D) -> void:
 	env.ambient_light_energy = ambient_energy
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.0
+	# Small-scale ambient contact keeps feet, pots and architectural joins grounded.
+	env.ssao_enabled = true
+	env.ssao_radius = .75
+	env.ssao_intensity = .8
+	env.ssao_power = 1.3
+	env.ssao_detail = .6
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = fog_color
@@ -53,7 +59,11 @@ func install(parent: Node3D) -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = shadow_distance
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.shadow_bias = 0.03
+	sun.directional_shadow_split_1 = .16
+	sun.directional_shadow_blend_splits = true
+	# Filtered shadows retain quiet edges on the broad, untextured road surfaces.
+	sun.shadow_blur = 2.0
+	sun.shadow_bias = 0.1
 	sun.shadow_normal_bias = shadow_normal_bias
 	parent.add_child(sun)
 	if aim_sun_at_origin:

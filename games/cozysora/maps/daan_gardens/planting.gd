@@ -7,6 +7,7 @@ var leaf_groups: Array = [[], [], [], []]
 var tree_positions: Array = []
 var leaf_mesh: Mesh
 var leaf_materials: Array = []
+var reed_surface: SurfaceTool
 
 
 func build(world, geometry) -> void:
@@ -119,25 +120,32 @@ func _leaves(at: Vector3, size: Vector3, index: int) -> void:
 
 
 func _limb(a: Vector3, b: Vector3, radius: float) -> void:
-	g.add(
-		"branch",
-		(a + b) * .5,
-		Vector3(radius * 2, a.distance_to(b), radius * 2),
-		"8d8970",
-		Quaternion(Vector3.UP, (b - a).normalized()).get_euler(),
-		false,
-		4
-	)
-
-	if radius >= .085:
-		var collision = CollisionShape3D.new()
-		var shape = CapsuleShape3D.new()
-		shape.radius = radius * .72
-		shape.height = maxf(shape.radius * 2, a.distance_to(b))
-		collision.shape = shape
-		collision.position = (a + b) * .5
-		collision.rotation = Quaternion(Vector3.UP, (b - a).normalized()).get_euler()
-		g.body.add_child(collision)
+	var direction = (b - a).normalized()
+	var side = direction.cross(Vector3.UP)
+	if side.length_squared() < .01:
+		side = Vector3.RIGHT
+	var middle = (a + b) * .5 + side.normalized() * a.distance_to(b) * .045
+	for part in range(2):
+		var from: Vector3 = a if part == 0 else middle
+		var to: Vector3 = middle if part == 0 else b
+		var thick: float = radius if part == 0 else radius * .75
+		# Bury the end caps across the bend instead of exposing a transverse joint.
+		var overlap = (to - from).normalized() * radius * .18
+		if part == 0:
+			to += overlap
+		else:
+			from -= overlap
+		g.add(
+			"branch_base" if part == 0 else "branch_tip",
+			(from + to) * .5,
+			Vector3(thick * 2, from.distance_to(to), thick * 2),
+			"948367",
+			Quaternion(Vector3.UP, (to - from).normalized()).get_euler(),
+			false,
+			4
+		)
+		if radius >= .085:
+			CozyCollision.limb(g.body, from, to, thick * .72)
 
 
 func _tree(p: Vector3, h: float, banyan: bool) -> void:
@@ -160,8 +168,9 @@ func _tree(p: Vector3, h: float, banyan: bool) -> void:
 		var angle = branch * 2.399 + rng.randf() * .6
 		var spread = h * rng.randf_range(.33, .49) if banyan else h * rng.randf_range(.23, .40)
 		var tip = p + lean + Vector3(cos(angle) * spread, h * rng.randf_range(.64, .96), sin(angle) * spread)
-		var elbow = fork.lerp(tip, .5) + Vector3(0, rng.randf_range(.2, 1), 0)
-		_limb(fork + Vector3(0, branch * .12, 0), elbow, trunk * .55)
+		var origin = fork + lean * (branch * .09) + Vector3.UP * (branch % 3 - 1) * h * .055
+		var elbow = origin.lerp(tip, .52) + Vector3(0, rng.randf_range(.2, 1), 0)
+		_limb(origin, elbow, trunk * .55)
 		_limb(elbow, tip, trunk * .31)
 		for j in range(8):
 			var a = rng.randf() * TAU
@@ -232,6 +241,8 @@ func _bamboo() -> void:
 
 
 func _pond_plants() -> void:
+	reed_surface = SurfaceTool.new()
+	reed_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in range(50):
 		var p = map.ISLAND + Vector2(rng.randf_range(-8, 8), rng.randf_range(-6, 6))
 		if map.island_radius(p.x, p.y) > 1.04:
@@ -256,8 +267,18 @@ func _pond_plants() -> void:
 			g.beam(q, q + Vector3(.07, h, .06), .018, "74834f")
 			if j == 0:
 				g.add("cylinder", q + Vector3(.07, h, .06), Vector3(.055, .18, .055), "887857")
+			_reed_leaves(q, h, angle + j * 2.399)
 		if i % 3 == 0:
 			_leaves(p + Vector3(0, .25, 0), Vector3(.8, .6, .8), i)
+	# Distinct low and middle layers frame existing viewing windows without crossing paths.
+	for i in range(34):
+		var angle = i * 2.399
+		var p = map.POND + Vector2(cos(angle) * 33.5, sin(angle) * 26)
+		if map.planted_clear(p.x, p.y, 1.1):
+			_fern(map.point(p.x, p.y), .85 + .3 * sin(i * 1.7))
+	reed_surface.generate_normals()
+	g.mesh(reed_surface.commit(), "74894b")
+	reed_surface = null
 	for i in range(110):
 		var p = map.POND + Vector2(rng.randf_range(-23, 18), rng.randf_range(-15, 13))
 		if map.pond_radius(p.x, p.y) > .87 or map.island_radius(p.x, p.y) < 1.25:
@@ -326,6 +347,20 @@ func _grass() -> void:
 		g.root, st.commit(), mat, instances, "Park grass", 24, 105, 12, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	)
 	print("Daan Gardens grass: ", instances.size(), " in ", batches, " batches")
+
+
+func _reed_leaves(p: Vector3, height: float, phase: float) -> void:
+	for leaf in range(3):
+		var angle = phase + leaf * 2.399
+		var direction = Vector3(cos(angle), 0, sin(angle))
+		var side = direction.cross(Vector3.UP)
+		var root = p + Vector3.UP * height * (.15 + leaf * .13)
+		for segment in range(4):
+			for k in [0, 2, 1, 1, 2, 3]:
+				var t = (segment + k / 2) / 4.
+				var point = root + direction * t * height * .5 + Vector3.UP * sin(t * PI * .85) * height * .32
+				point += side * (-1 if k % 2 == 0 else 1) * sin(t * PI) * height * .047
+				reed_surface.add_vertex(point)
 
 
 func _fern(p: Vector3, size: float) -> void:

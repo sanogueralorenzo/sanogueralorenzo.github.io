@@ -57,7 +57,11 @@ godot --path games/cozysora -- --shot --view=coast --capture=/tmp/coast.png --qu
 godot --path games/cozysora -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
-`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough. `--profile` reports frame rate, lifecycle state, and live player / camera / audio / orphan counts on transitions.
+`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.
+
+`--pose=x,z,height_offset,yaw,pitch` stages a repeatable position through the normal character camera and ground-height contract. Angles are radians; `--gull` adds its usual 3 m takeoff clearance. This is useful for paired gameplay captures and focused native traversal without editing the registered spawn. For example, `--map=daan_gardens --shot --pose=-6,-44,.05,2.39,.09 --capture=/tmp/pond-cat.png --quit-after-capture` shows the pond from the cat camera.
+
+`--profile` reports lifecycle counts, player positions, wall-clock frame-time median/p95/max, physics time and viewport render CPU/GPU timing. Statistics reset on session transitions. GPU timing may be unavailable on the active driver (reported as zero); it does not mean zero GPU cost. Use normal play without capture options for performance observations, since image readback and PNG saving interrupt rendering. The global 60 FPS cap remains active for play and captures. Session diagnostics print the effective cap and VSync mode.
 
 Verification uses runtime rendering, native interaction, and code review. No automated tests are included.
 

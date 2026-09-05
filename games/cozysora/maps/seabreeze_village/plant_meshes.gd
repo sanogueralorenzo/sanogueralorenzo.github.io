@@ -185,7 +185,12 @@ func grass_mesh() -> ArrayMesh:
 				st.set_uv(Vector2(0 if sign_x < 0 else 1, t))
 				st.set_normal(basis * Vector3(0, 0.3, 1).normalized())
 				st.set_color(Color.WHITE)
-				st.add_vertex(offset + basis * Vector3(sign_x * width * (1 - t * t) * 0.5, t, bend * t * t))
+				st.add_vertex(
+					(
+						offset
+						+ basis * Vector3(sign_x * width * pow(1 - t, .7) * 0.42, t * (1. - blade * .13), bend * t * t)
+					)
+				)
 	return st.commit()
 
 

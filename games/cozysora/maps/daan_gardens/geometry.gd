@@ -33,8 +33,10 @@ func shape(kind: String) -> Mesh:
 				meshes[kind] = CozyPrimitives.box_mesh()
 			"sphere":
 				meshes[kind] = CozyPrimitives.sphere_mesh()
-			"branch":
-				meshes[kind] = CozyPrimitives.cylinder_mesh(.5, .25, 1, 9)
+			"branch_base":
+				meshes[kind] = CozyPrimitives.cylinder_mesh(.5, .375, 1, 9)
+			"branch_tip":
+				meshes[kind] = CozyPrimitives.cylinder_mesh(.5, .3333333, 1, 9)
 			_:
 				meshes[kind] = CozyPrimitives.cylinder_mesh(.5, .5, 1, 12)
 	return meshes[kind]

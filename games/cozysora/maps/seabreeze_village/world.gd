@@ -228,7 +228,9 @@ func height_at(x: float, z: float) -> float:
 	var lay := smooth(-12, -8, x) * (1 - smooth(-4.8, .2, x)) * (1 - smooth(6, 11, zr)) * smooth(-11.5, -8.5, zr)
 	h = lerpf(h, 0, lay) + lay * (noise2(x * .6, z * .6) - .5) * .12
 	if z < -4:
-		h -= smooth(17, 26, -zr) * 34
+		# Inland hills must converge to the seabed too; a fixed subtraction left
+		# fog-white terrain islands protruding through the distant ocean.
+		h = lerpf(h, -34, smooth(17, 26, -zr))
 	return maxf(h, -34)
 
 

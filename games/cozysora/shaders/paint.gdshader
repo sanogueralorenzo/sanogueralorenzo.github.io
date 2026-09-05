@@ -17,11 +17,11 @@ void fragment(){
   mean/=16.;float v=dot(abs(square/16.-mean*mean),vec3(1));
   if(v<variance){variance=v;best=mean;}
  }
- vec3 color=mix(center,best,.72);float light=luma(color);
+ vec3 color=mix(center,best,.46);float light=luma(color);
  float green=clamp((color.g-max(color.r,color.b))*5.,0.,1.);
- color=mix(vec3(light),color,.86-.22*green);
- color+=pow(1.-light,2.)*vec3(-.015,.025,.085)+light*light*vec3(.025,.015,-.016);
- color=mix(color,color*color*(3.-2.*color),.35);
- vec2 q=SCREEN_UV-.5;color*=1.-dot(q,q)*.2;
+ color=mix(vec3(light),color,.93-.10*green);
+ color+=pow(1.-light,2.)*vec3(.009,.016,.030)+light*light*vec3(.018,.012,-.008);
+ color=mix(color,color*color*(3.-2.*color),.22);
+ vec2 q=SCREEN_UV-.5;color*=1.-dot(q,q)*.12;
  COLOR=vec4(color,1.);
 }
