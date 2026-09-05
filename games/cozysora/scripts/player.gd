@@ -95,6 +95,8 @@ func setup(level: Node3D, spawn: Dictionary = {}) -> void:
 	ambience = world.ambience
 	name = "Player"
 	floor_snap_length = 0.25
+	# Small capsules need room to recover cleanly from Harbor’s sloped mesh seams.
+	if world.supports_surface_traversal: safe_margin = 0.015
 	floor_max_angle = 0.9
 	collision_layer = 2
 	collision_mask = 1

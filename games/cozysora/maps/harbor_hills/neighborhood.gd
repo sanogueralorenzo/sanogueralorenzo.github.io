@@ -3,35 +3,32 @@ extends RefCounted
 var map
 var g
 var rng=RandomNumberGenerator.new()
-var house_index=0
 const WALLS=["c5bba0","bf8e77","8faca1","bcb4a8","acb5c2","d4bf8b","b8969b","90a4b1"]
 const TRIMS=["ece0c6","dbd9c8","f0e7d3"]
 
 func build(world,geometry) -> void:
 	map=world;g=geometry;rng.seed=98213
-	for block in range(2):
-		for row in range(2):
-			var z=[-87.0,-46.0,-17.0,31.0][block*2+row]
-			for side in range(2):
-				for col in range(4):
-					var x=(-59 if side==0 else 28)+col*14
-					_house(x,z,11.8,12.0,PI if row==0 else 0,block==0 and row==0,house_index)
-					house_index+=1
-		map.load_progress.emit("Opening neighborhood windows…",.34+block*.12)
-		await map.get_tree().process_frame
-	# Main-street corner stores and apartments bind all four blocks together.
-	for z in [-68.0,7.0]:
-		for side in [-1,1]:
-			_house(-10 if side==-1 else 26,z,15,12,PI*.5 if side==-1 else -PI*.5,true,house_index);house_index+=1
-	# Upper terraces overlook the gardens and connect into the turning plaza.
-	for x in [30.0,44.0,58.0,72.0]:
-		_house(x,80,11.6,13,PI,true if x==30 else false,house_index);house_index+=1
-	for z in [61.0,78.0,95.0,115.0]:
-		_house(116,z,12,12,-PI*.5,false,house_index);house_index+=1
+	for plot in plots():
+		_house(plot.x,plot.z,plot.w,plot.d,plot.yaw,plot.shop,plot.index)
+		if plot.index%12==0:
+			map.load_progress.emit("Opening neighborhood windows…",.34+plot.index*.006)
+			await map.get_tree().process_frame
 	_courtyard_infill()
 	_gardens_and_routes()
 	_street_furniture()
 	_waterfront()
+
+static func plots() -> Array:
+	var result=[]
+	for row in range(4):
+		for side in range(2):
+			for col in range(4):
+				result.append({"x":float((-59 if side==0 else 28)+col*14),"z":[-87.,-49.,-14.,28.][row],"w":11.8,"d":12.,"yaw":PI if row%2==0 else 0.,"shop":row==0,"index":result.size()})
+	for z in [-68.,7.]:
+		for side in [-1,1]:result.append({"x":-12. if side==-1 else 28.,"z":z,"w":15.,"d":12.,"yaw":PI*.5 if side==-1 else -PI*.5,"shop":true,"index":result.size()})
+	for x in [30.,44.,58.,72.]:result.append({"x":x,"z":80.,"w":11.6,"d":13.,"yaw":PI,"shop":x==30.,"index":result.size()})
+	for z in [61.,78.,95.,115.]:result.append({"x":116.,"z":z,"w":12.,"d":12.,"yaw":-PI*.5,"shop":false,"index":result.size()})
+	return result
 
 func _local(origin:Vector3,yaw:float,p:Vector3) -> Vector3:
 	return origin+Basis(Vector3.UP,yaw)*p
@@ -41,7 +38,7 @@ func _box(origin:Vector3,yaw:float,p:Vector3,size:Vector3,color:String,solid:boo
 
 func _house(x:float,z:float,w:float,d:float,yaw:float,shop:bool,index:int) -> void:
 	var front=Vector3(x,0,z)+Basis(Vector3.UP,yaw)*Vector3(0,0,d*.5+2.0)
-	var y=map.height_at(front.x,front.z)+.2
+	var y=map.terrain_height(front.x,front.z)+.2
 	var origin=Vector3(x,y,z)
 	var floors=3 if shop or index%4==0 else 2
 	var h=floors*3.0+.5
@@ -140,10 +137,23 @@ func _house(x:float,z:float,w:float,d:float,yaw:float,shop:bool,index:int) -> vo
 func _approach(o:Vector3,yaw:float,w:float,d:float,index:int) -> void:
 	# Level forecourt with masonry retaining walls, then a short accessible street ramp.
 	var depth=2.4 if absf(cos(yaw))>.5 else 3.8
-	_box(o,yaw,Vector3(0,-1.4,d*.5+depth*.5),Vector3(w+.15,2.85,depth),"959783",true,"brick")
+	var foundation=2.85
+	for side in [-1,1]:
+		var corner=_local(o,yaw,Vector3(side*w*.5,0,d*.5+depth))
+		foundation=maxf(foundation,o.y-map.terrain_height(corner.x,corner.z)+.35)
+	_box(o,yaw,Vector3(0,-foundation*.5+.025,d*.5+depth*.5),Vector3(w+.15,foundation,depth),"959783",true,"brick")
 	_box(o,yaw,Vector3(0,.075,d*.5+depth*.5),Vector3(w+.25,.12,depth+.1),"b8b59c")
 	var a=_local(o,yaw,Vector3(0,.17,d*.5+depth-.2))
-	var b=_local(o,yaw,Vector3(0,0,d*.5+depth+1.0));b.y=map.height_at(b.x,b.z)+.19
+	var b=_local(o,yaw,Vector3(0,0,d*.5+depth+1.0))
+	var forward=Basis(Vector3.UP,yaw)*Vector3.BACK
+	var closest=INF
+	for street in (map.STREETS_X if absf(forward.x)>.5 else map.STREETS_Z):
+		var distance=(street-o.x)*forward.x if absf(forward.x)>.5 else (street-o.z)*forward.z
+		if distance>0 and distance<closest:
+			closest=distance
+			if absf(forward.x)>.5:b.x=street-forward.x*8.0
+			else:b.z=street-forward.z*8.0
+	b.y=map.height_at(b.x,b.z)+.18
 	g.ribbon([a,b],2.2,"b8b59c",true,false)
 	for side in [-1,1]:
 		_box(o,yaw,Vector3(side*(w*.5-.35),.36,d*.5+2.1),Vector3(.48,.6,2.7),"778b72",true)
@@ -175,7 +185,7 @@ func _courtyard_infill() -> void:
 				g.ribbon([shed+Vector3(-3.3,3.1,0),shed+Vector3(-1.6,3.1,0)],1.4,"a3a78e",true,false)
 			var patio=map.point(x,z+1)
 			g.add("cylinder",patio,Vector3(6.2,.12,6.2),"b1ad93")
-			_cafe_table(patio+Vector3(0,.07,0))
+			_garden_table(patio+Vector3(0,.07,0))
 			for dz in [-2.5,2.5]:
 				for dx in [-2.5,2.5]:g.beam(patio+Vector3(dx,0,dz),patio+Vector3(dx,2.8,dz),.075,"8b8f72")
 			for i in range(9):g.box(patio+Vector3(-2.6+i*.65,2.85,0),Vector3(.12,.14,5.5),"9c9b7b")
@@ -241,9 +251,19 @@ func _shop(o:Vector3,yaw:float,w:float,d:float,index:int,trim:String) -> void:
 		g.add("box",_local(o,yaw,Vector3(x,2.75,d*.5+.88)),Vector3(w/16,.1,1.7),color if stripe%2==0 else "e8d9ba",Vector3(.18,yaw,0))
 		_box(o,yaw,Vector3(x,2.5,d*.5+1.7),Vector3(w/16,.35,.08),color if stripe%2==0 else "e8d9ba")
 	for side in [-1,1]:
-		var at=_local(o,yaw,Vector3(side*w*.35,0,d*.5+2.7))
-		if index%3!=2:_cafe_table(at,yaw)
+		var at=_local(o,yaw,Vector3(side*w*.35,.15,d*.5+1.65))
+		if index%3!=2 or side==-1:_cafe_table(at,yaw)
 		else:_planter(at,1.1)
+	_box(o,yaw,Vector3(w*.22,.5,d*.5+.72),Vector3(1.8,1.,.6),"9e815c")
+	for shelf in range(2):
+		for item in range(5):
+			var at=_local(o,yaw,Vector3(w*.22-.65+item*.32,.85+shelf*.32,d*.5+1.04))
+			g.add("sphere",at,Vector3(.27,.24,.25),["d8a950","c0824d","a4ac6c"][item%3])
+	_box(o,yaw,Vector3(-w*.42,1.55,d*.5+.22),Vector3(.85,1.18,.08),"365f51")
+	g.label("FRESH DAILY\nCOFFEE · TEA\nBREAD\n& GOOD BOOKS",_local(o,yaw,Vector3(-w*.42,1.55,d*.5+.28)),.7,"ead4a6",yaw,48)
+	var pot=_local(o,yaw,Vector3(-w*.44,.46,d*.5+1.1))
+	g.add("cylinder",pot,Vector3(.65,.9,.65),"b4815d")
+	g.add("leaf",pot+Vector3.UP*.8,Vector3(1.1,1.6,1.1),"73934c")
 	var board=_local(o,yaw,Vector3(w*.44,.75,d*.5+2.35))
 	g.box(board,Vector3(.75,1.1,.13),"3f625a",false,yaw)
 	g.label("TAKE IT\nSLOW",board+Basis(Vector3.UP,yaw)*Vector3(0,0,.075),.55,"e9dcc0",yaw,48)
@@ -287,7 +307,7 @@ func _gardens_and_routes() -> void:
 			for i in range(6):_planter(map.point(x+(-1 if i%2 else 1)*5,z0+3+i*4),1.4)
 			# Laundry lines, a garden potting bench and a reading nook.
 			var a=map.point(x-4,z0+12,2.7);var b=map.point(x+4,z0+12,2.7);g.beam(a,b,.018,"78847d")
-			for i in range(6):g.box(a.lerp(b,(i+1)/7.0)-Vector3(0,.37,0),Vector3(.65,.74,.04),["eee2c6","c3cfc4","afbac7"][i%3])
+			for i in range(6):g.cloth(a.lerp(b,(i+1)/7.0),Vector2(.65,.74),["eee2c6","c3cfc4","afbac7"][i%3])
 			_bench(map.point(x+4,z0+21),PI*.5)
 	# A real stair street on a smooth collider reaches the wooded hilltop.
 	for x in [-38.0,-104.0]:
@@ -423,3 +443,19 @@ func _waterfront() -> void:
 	g.box(Vector3(-114,5.8,-134),Vector3(6.2,.3,6.6),"75837e")
 	for i in range(6):g.box(Vector3(-117+i%2*1.2,2.95+floori(i/2)*.5,-147),Vector3(1,.45,.8),"8a8064")
 	g.label("TIDELINE\nBOAT HOUSE",Vector3(-114,4.25,-130.94),3.3,"eee0bc",0)
+
+func _garden_table(at:Vector3) -> void:
+	for i in range(6):g.box(at+Vector3(-.55+i*.22,.78,0),Vector3(.19,.1,2.1),"b39d76")
+	for x in [-.42,.42]:
+		for z in [-.8,.8]:g.beam(at+Vector3(x,0,z),at+Vector3(x,.75,z),.035,"566c5b")
+	for side in [-1,1]:
+		for z in [-.65,.65]:
+			var p=at+Vector3(side*1.05,0,z)
+			g.box(p+Vector3.UP*.43,Vector3(.55,.08,.55),"799077")
+			g.box(p+Vector3(side*.23,.73,0),Vector3(.07,.6,.55),"799077")
+			for dx in [-.2,.2]:
+				for dz in [-.2,.2]:g.beam(p+Vector3(dx,0,dz),p+Vector3(dx,.42,dz),.025,"566c5b")
+	g.add("cylinder",at+Vector3(0,.99,0),Vector3(.26,.32,.26),"b68760")
+	g.add("leaf",at+Vector3(0,1.23,0),Vector3(.45,.45,.45),"75904c")
+	g.box(at+Vector3(.2,.86,.67),Vector3(.43,.06,.57),"9c8265")
+	g.box(at+Vector3(.2,.9,.67),Vector3(.39,.025,.54),"e0d0aa")

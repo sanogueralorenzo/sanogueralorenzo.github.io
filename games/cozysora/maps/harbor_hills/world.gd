@@ -12,8 +12,19 @@ var rng=RandomNumberGenerator.new()
 var transit:Node3D
 var fog_banks:Array=[]
 var time=0.0
+var terrace_cells:Dictionary={}
 
 func build() -> void:
+	for plot in Architecture.plots():
+		var turn=Basis(Vector3.UP,plot.yaw)
+		var front=Vector3(plot.x,0,plot.z)+turn*Vector3(0,0,plot.d*.5+2)
+		var depth=2.4 if absf(cos(plot.yaw))>.5 else 3.8
+		var pad={"center":Vector2(plot.x,plot.z),"yaw":plot.yaw,"half_width":plot.w*.5+.13,"back":-plot.d*.5,"front":plot.d*.5+depth,"level":terrain_height(front.x,front.z)+.15}
+		for cell_x in range(floori((plot.x-15)/16),floori((plot.x+15)/16)+1):
+			for cell_z in range(floori((plot.z-15)/16),floori((plot.z+15)/16)+1):
+				var cell=Vector2i(cell_x,cell_z)
+				if not terrace_cells.has(cell):terrace_cells[cell]=[]
+				terrace_cells[cell].append(pad)
 	supports_surface_traversal=true
 	flight_bounds=AABB(Vector3(-178,-1,-178),Vector3(356,157,356))
 	ambience={"wind_gain":.16,"wave_base":.032,"wave_swell":.014,"cicada_frequencies":Vector2(3200,3600),"cicada_gain":0.0,"birds":true}
@@ -35,7 +46,7 @@ func build() -> void:
 	load_progress.emit("Finding the way to Harbor Hills…",.08)
 	await get_tree().process_frame
 	var source="harbor_hills_v1"
-	for file in ["world.gd","geometry.gd","neighborhood.gd","nature.gd","transit.gd","surface.gdshader","leaves.gdshader"]:
+	for file in ["world.gd","geometry.gd","neighborhood.gd","nature.gd","transit.gd","surface.gdshader","leaves.gdshader","textures.gd","ground.gdshader","details.gd","cloth.gdshader"]:
 		source+=FileAccess.get_file_as_string("res://maps/harbor_hills/"+file)
 	var cache="user://harbor_hills_"+source.sha256_text().substr(0,16)+".scn"
 	if FileAccess.file_exists(cache):
@@ -56,6 +67,7 @@ func build() -> void:
 		load_progress.emit("Growing the cypress gardens…",.72)
 		await get_tree().process_frame
 		var nature=Nature.new();nature.build(self,geo)
+		var details=preload("res://maps/harbor_hills/details.gd").new();details.build(self,geo)
 		geo.finish()
 		_own(static_content)
 		var packed=PackedScene.new()
@@ -66,6 +78,7 @@ func build() -> void:
 	await get_tree().process_frame
 	transit=Transit.new();add_child(transit);transit.build(self)
 	_fog_and_birds()
+	_summer_air()
 	_post()
 	load_progress.emit("The bay is waiting.",1.0)
 
@@ -84,6 +97,18 @@ func height_at(x:float,z:float) -> float:
 		if absf(x-stair_x)<2.6 and z>=47 and z<=91:
 			var landing=terrain_height(-110,99) if stair_x==-104.0 else terrain_height(x,91)
 			return lerpf(terrain_height(x,47),landing,(z-47)/44.0)
+	var public_way=false
+	for street in STREETS_X:
+		if absf(x-street)<8.3:public_way=true
+	for street in STREETS_Z:
+		if absf(z-street)<8.3:public_way=true
+	# Each building and its forecourt share a graded pad, preventing uphill soil
+	# from swallowing café tables and downhill foundations from floating.
+	for pad in ([] if public_way else terrace_cells.get(Vector2i(floori(x/16),floori(z/16)),[])):
+		if absf(x-pad.center.x)>15 or absf(z-pad.center.y)>15:continue
+		var local=(Vector2(x,z)-pad.center).rotated(pad.yaw)
+		var edge=maxf(absf(local.x)-pad.half_width,maxf(pad.back-local.y,local.y-pad.front))
+		if edge<.75:return minf(terrain_height(x,z),lerpf(pad.level,terrain_height(x,z),smoothstep(0,.75,edge)))
 	# Small graded terraces keep occupied courtyards level within the larger hill.
 	var ground=terrain_height(x,z)
 	for court_x in [-40.0,52.0]:
@@ -116,7 +141,7 @@ func _terrain() -> void:
 			var x=-180+ix*1.0;var z=-180+iz*1.0
 			var a=point(x,z);var b=point(x+1,z);var c=point(x+1,z+1);var d=point(x,z+1)
 			for v in [a,b,c,a,c,d]:st.add_vertex(v)
-	st.generate_normals();var mesh=st.commit();var n=MeshInstance3D.new();n.mesh=mesh;n.material_override=geo.material("728362");static_content.add_child(n)
+	st.generate_normals();var mesh=st.commit();var n=MeshInstance3D.new();n.mesh=mesh;var mat=ShaderMaterial.new();mat.shader=load("res://maps/harbor_hills/ground.gdshader");n.material_override=mat;static_content.add_child(n)
 	var shape=CollisionShape3D.new();shape.shape=mesh.create_trimesh_shape();geo.collision.add_child(shape)
 	# Seawall face, coping and broad waterfront promenade.
 	geo.box(Vector3(0,.0,-119),Vector3(352,6.4,2.2),"7c827b",true,0,"brick")
@@ -156,7 +181,7 @@ func _streets() -> void:
 	for x in STREETS_X:
 		var path=[]
 		for z in range(-108,133,2):path.append(point(x,z,.025))
-		geo.ribbon(path,10.8,"455459")
+		geo.ribbon(path,10.8,"5c5e5a",false,true,"asphalt")
 		for side in [-1,1]:
 			_sidewalk(x+side*6.8,true,-108,134,STREETS_Z)
 			path=[]
@@ -171,7 +196,7 @@ func _streets() -> void:
 	for z in STREETS_Z:
 		var path=[]
 		for x in range(-119,127,2):path.append(point(x,z,.032))
-		geo.ribbon(path,10.8,"455459")
+		geo.ribbon(path,10.8,"5c5e5a",false,true,"asphalt")
 		for side in [-1,1]:
 			_sidewalk(z+side*6.8,false,-119,128,STREETS_X)
 		for street_x in STREETS_X:
@@ -197,20 +222,20 @@ func _sidewalk(fixed:float,vertical:bool,start:int,end:int,crossings:Array) -> v
 		for cross in crossings:distance=minf(distance,absf(coordinate-cross))
 		var stair_crossing=not vertical and absf(fixed-52.8)<.1 and (absf(coordinate+104)<2.6 or absf(coordinate+38)<2.6 or absf(coordinate+56)<1.5)
 		if distance<5.2 or stair_crossing:
-			if path.size()>1:geo.ribbon(path,2.8,"acb09f",true)
+			if path.size()>1:geo.ribbon(path,2.8,"b9b7a5",true,true,"paving")
 			path=[]
 			continue
 		var lift=.032+.14*smoothstep(8.2,10.5,distance)
 		path.append(point(fixed,coordinate,lift) if vertical else point(coordinate,fixed,lift))
-	if path.size()>1:geo.ribbon(path,2.8,"acb09f",true)
+	if path.size()>1:geo.ribbon(path,2.8,"b9b7a5",true,true,"paving")
 
 func _environment() -> void:
 	var environment=WorldEnvironment.new();var env=Environment.new();environment.environment=env;add_child(environment)
 	env.background_mode=Environment.BG_SKY;var sky=Sky.new();var material=ShaderMaterial.new();material.shader=load("res://shaders/sky.gdshader");sky.sky_material=material;env.sky=sky
-	env.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.ambient_light_color=Color("9db9c4");env.ambient_light_energy=.46
+	env.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;env.ambient_light_color=Color("87b5d2");env.ambient_light_energy=.52
 	env.tonemap_mode=Environment.TONE_MAPPER_FILMIC;env.tonemap_exposure=1.0
-	env.fog_enabled=true;env.fog_mode=Environment.FOG_MODE_DEPTH;env.fog_light_color=Color("91adb8");env.fog_depth_begin=85;env.fog_depth_end=1250;env.fog_depth_curve=1.35;env.fog_sky_affect=.22
-	var sun=DirectionalLight3D.new();sun.light_color=Color("ffddaf");sun.light_energy=1.08;sun.shadow_enabled=true;sun.directional_shadow_max_distance=125;sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS;sun.shadow_bias=.03;sun.shadow_normal_bias=.65;sun.rotation_degrees=Vector3(-39,-38,0);add_child(sun)
+	env.fog_enabled=true;env.fog_mode=Environment.FOG_MODE_DEPTH;env.fog_light_color=Color("bbcdd4");env.fog_depth_begin=70;env.fog_depth_end=1050;env.fog_depth_curve=1.2;env.fog_sky_affect=.22
+	var sun=DirectionalLight3D.new();sun.light_color=Color("ffd4a2");sun.light_energy=1.15;sun.shadow_enabled=true;sun.directional_shadow_max_distance=125;sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS;sun.shadow_bias=.03;sun.shadow_normal_bias=.65;sun.rotation_degrees=Vector3(-39,-38,0);add_child(sun)
 	var water=MeshInstance3D.new();var plane=PlaneMesh.new();plane.size=Vector2(3000,3000);water.mesh=plane;water.position=Vector3(0,-1,-1200);var water_mat=ShaderMaterial.new();water_mat.shader=load("res://shaders/ocean.gdshader");water.material_override=water_mat;add_child(water)
 
 func _fog_and_birds() -> void:
@@ -223,3 +248,15 @@ func _process(delta:float) -> void:
 
 func _post() -> void:
 	var layer=CanvasLayer.new();layer.layer=-1;var rect=ColorRect.new();rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);rect.mouse_filter=Control.MOUSE_FILTER_IGNORE;var effect=ShaderMaterial.new();effect.shader=load("res://shaders/paint.gdshader");effect.set_shader_parameter("brush_radius",3.3);rect.material=effect;layer.add_child(rect);add_child(layer)
+
+func _summer_air() -> void:
+	# Sparse moving seed heads catch the sunlight around planted gathering places.
+	for at in [Vector2(-53,106),Vector2(-108,78),Vector2(-40,-68),Vector2(52,7)]:
+		var particles=GPUParticles3D.new();particles.name="Drifting garden seeds"
+		particles.amount=28;particles.lifetime=12.;particles.preprocess=12.;particles.visibility_aabb=AABB(Vector3(-14,-2,-14),Vector3(28,12,28));particles.position=point(at.x,at.y,1.5)
+		var motion=ParticleProcessMaterial.new();motion.emission_shape=ParticleProcessMaterial.EMISSION_SHAPE_BOX;motion.emission_box_extents=Vector3(8,1.2,8)
+		motion.direction=Vector3(.7,.12,.4);motion.spread=25.;motion.initial_velocity_min=.18;motion.initial_velocity_max=.45;motion.gravity=Vector3(0,.005,0);motion.scale_min=.45;motion.scale_max=1.0
+		particles.process_material=motion
+		var mesh=SphereMesh.new();mesh.radius=.018;mesh.height=.055;mesh.radial_segments=5;mesh.rings=3
+		var material=StandardMaterial3D.new();material.albedo_color=Color("d7d3a7");material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;mesh.material=material;particles.draw_pass_1=mesh
+		particles.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;add_child(particles)
