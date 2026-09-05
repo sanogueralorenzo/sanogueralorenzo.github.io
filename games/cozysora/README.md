@@ -36,8 +36,9 @@ The seagull glides without input and can settle on the ground. Harbor Hills also
 - `scripts/application.gd` owns navigation, transitions, settings, loading, pause state, screenshot capture, and one disposable gameplay session.
 - `maps/registry.tres` lists `CozyMapDefinition` resources. Each contains a stable ID, title, subtitle, description, scene path, project-owned preview, and spawn position / camera angles / character.
 - `scripts/map.gd` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
-- `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its construction lives in `world.gd`, `settlements.gd`, `vegetation.gd`, and `summer_life.gd`.
+- `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
 - `maps/harbor_hills/` owns the second district: sloping streets, row houses, shops, courtyards, cypress park, waterfront, moving cable car, local bell, vehicles, distant city, bridge and fog. See [its map notes](maps/harbor_hills/README.md).
+- `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. See [component ownership and update guidance](shared/README.md).
 - `scripts/player.gd` owns the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
 - `landing.gd`, `interface.gd`, `touch_controls.gd`, and `ui_theme.gd` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
 

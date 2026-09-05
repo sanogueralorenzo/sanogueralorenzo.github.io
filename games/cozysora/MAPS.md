@@ -35,14 +35,18 @@ The application starts with shared UI and metadata only. Play locks navigation, 
 
 Pause disables processing for the complete session and pauses its audio stream. The application and menu remain responsive. Cosmetic shader wind can continue while the simulation is paused. Settings temporarily isolate menu focus and persist in `user://settings.cfg`.
 
-Returning locks navigation and covers the viewport, clears touch input, frees the entire session, waits for scene-tree and physics cleanup, resets the global player-position shader parameter, and restores selector focus. Player, camera, sounds, map nodes, collision, particles, and world post-processing all leave together. No generation thread or timer remains active. ResourceLoader's threaded request is awaited before the session becomes playable.
+Returning locks navigation and covers the viewport, clears touch input, frees the entire session, waits for scene-tree and physics cleanup, resets the global player-position shader parameter, and restores selector focus. Player, camera, sounds, map nodes, collision, particles, and world post-processing all leave together. No generation thread or timer remains active. The small generator scene is loaded on the main thread, avoiding observed Godot 4.7.2 threaded custom-resource shutdown leaks; expensive map construction still yields and reports progress.
 
-Generated terrain and foliage caches live in `user://` and contain only project-generated resources. They are invalidated by generator script signatures. The on-disk cache may remain after unloading; it is not a live map. Do not cache scene-tree instances or player state in the registry.
+Generated terrain and foliage caches live in `user://` and contain only project-generated resources. They are invalidated by signatures covering the selected map folder, shared components and common shaders. The on-disk cache may remain after unloading; it is not a live map. Do not cache scene-tree instances or player state in the registry.
 
 ## Harbor Hills ownership and cache
 
 Harbor Hills registers `maps/harbor_hills/map.tres` with ID `harbor_hills`; its scene root is `world.gd`. `geometry.gd` batches static primitives by material and 40 m cell. `neighborhood.gd` and `nature.gd` construct the district beneath the map root. `transit.gd` owns moving bodies, background gulls and synthesized spatial bell audio. Nothing in this folder creates application UI, a camera or a player.
 
-The static scene is packed into `user://harbor_hills_<signature>.scn`. The signature incorporates the map's generator and surface/foliage shader sources. It contains generated meshes, material resources and collision shapes, never runtime player state. Environment, water, moving fog, post-processing and transit are recreated outside that cache for every visit. Seabreeze keeps its existing separate procedural caches. Returning to selection frees all loaded map instances; cache files alone persist.
+The static scene is packed into `user://harbor_hills_<signature>.scn`. The shared signature incorporates the map folder, shared components and common shaders, including resource profiles. It contains generated meshes, material resources and collision shapes, never runtime player state. Environment, water, moving fog, post-processing and transit are recreated outside that cache for every visit. Seabreeze keeps its existing separate procedural caches. Returning to selection frees all loaded map instances; cache files alone persist.
 
 No Seabreeze terrain, layout, palette, vegetation or ambience generator changes are part of this integration. Shared additions are opt-in surface traversal, a map-owned audio pause hook, counting spatial audio players in lifecycle diagnostics, and settling the selector scroll position after variable-height cards lay out. The welcome header remains visible on entry; normal focus navigation continues to scroll to each destination.
+
+## Shared construction
+
+Both maps compose the components described in [shared/README.md](shared/README.md). Seabreeze generation has moved out of `scripts/` into `maps/seabreeze_village/`, including its terrain and rice shaders. Map-specific plant meshes, texture recipes, building finishes, distributions and artistic profiles stay there; common gameplay remains centrally owned.

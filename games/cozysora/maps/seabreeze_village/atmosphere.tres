@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="CozyAtmosphere" load_steps=2 format=3]
+[ext_resource type="Script" path="res://shared/atmosphere.gd" id="1"]
+[resource]
+script = ExtResource("1")
+ambient_color = Color(0.49803922, 0.6901961, 0.84705883, 1)
+fog_color = Color(0.7882353, 0.8392157, 0.87058824, 1)
+sun_color = Color(1, 0.8117647, 0.6117647, 1)
+fill_color = Color(0.7882353, 0.8392157, 0.9254902, 1)

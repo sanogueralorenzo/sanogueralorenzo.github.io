@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CozyAtmosphere" load_steps=2 format=3]
+[ext_resource type="Script" path="res://shared/atmosphere.gd" id="1"]
+[resource]
+script = ExtResource("1")
+ambient_color = Color(0.5294118, 0.7098039, 0.8235294, 1)
+fog_color = Color(0.7333333, 0.8039216, 0.8313726, 1)
+fog_begin = 70.0
+fog_end = 1050.0
+fog_curve = 1.2
+fog_sky = 0.22
+sun_color = Color(1, 0.8313726, 0.6352941, 1)
+shadow_distance = 125.0
+shadow_normal_bias = 0.65
+sun_rotation_degrees = Vector3(-39, -38, 0)
+aim_sun_at_origin = false
+fill_energy = 0.0
+ocean_size = Vector2(3000, 3000)
+ocean_position = Vector3(0, -1, -1200)
+brush_radius = 3.3

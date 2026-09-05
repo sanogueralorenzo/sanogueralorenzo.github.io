@@ -50,7 +50,7 @@ var sound_events: Array[Dictionary] = []
 var next_bird := 4.0
 var _tap_until: Dictionary = {}
 var _touch_actions: Dictionary = {}
-var _materials: Dictionary = {}
+var palette := CozySolidMaterials.new()
 var touch_move := Vector2.ZERO # Screen-space convention: right +X, backward +Y.
 var mouse_capture_enabled := not OS.has_feature("mobile")
 var flight_bounds := AABB(Vector3(-135, -30, -95), Vector3(270, 140, 213))
@@ -446,38 +446,14 @@ func _place_camera(dt: float, immediate := false) -> void:
 	camera.look_at(camera_look)
 	camera.rotation.z += bank * 0.12 if bird else sin(elapsed * 9) * 0.0025 * minf(1, speed / 4)
 
-func _material(hex: String) -> Material:
-	if _materials.has(hex): return _materials[hex]
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(hex)
-	material.roughness = 1
-	material.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-	material.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	_materials[hex] = material
-	return material
-
 func _group(parent: Node3D, at := Vector3.ZERO) -> Node3D:
 	var result := Node3D.new()
 	parent.add_child(result)
 	result.position = at
 	return result
 
-func _mesh(parent: Node3D, mesh: Mesh, at: Vector3, material: Material, scale_value := Vector3.ONE) -> MeshInstance3D:
-	var result := MeshInstance3D.new()
-	result.mesh = mesh
-	result.material_override = material
-	result.position = at
-	result.scale = scale_value
-	parent.add_child(result)
-	return result
-
 func _sphere(parent: Node3D, at: Vector3, radius: float, material: Material, scale_value := Vector3.ONE) -> MeshInstance3D:
-	var mesh := SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 2
-	mesh.radial_segments = 12
-	mesh.rings = 8
-	return _mesh(parent, mesh, at, material, scale_value)
+	return CozyPrimitives.instance(parent, CozyPrimitives.sphere_mesh(radius, radius * 2, 12, 8), at, material, scale_value)
 
 func _capsule(parent: Node3D, at: Vector3, radius: float, length: float, material: Material) -> MeshInstance3D:
 	var mesh := CapsuleMesh.new()
@@ -485,32 +461,22 @@ func _capsule(parent: Node3D, at: Vector3, radius: float, length: float, materia
 	mesh.height = length + radius * 2
 	mesh.radial_segments = 10
 	mesh.rings = 5
-	return _mesh(parent, mesh, at, material)
-
-func _box(parent: Node3D, at: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	return _mesh(parent, mesh, at, material)
+	return CozyPrimitives.instance(parent, mesh, at, material)
 
 func _cone(parent: Node3D, at: Vector3, radius: float, height: float, material: Material) -> MeshInstance3D:
-	var mesh := CylinderMesh.new()
-	mesh.bottom_radius = radius
-	mesh.top_radius = 0
-	mesh.height = height
-	mesh.radial_segments = 6
-	return _mesh(parent, mesh, at, material)
+	return CozyPrimitives.instance(parent, CozyPrimitives.cylinder_mesh(radius, 0, height, 6), at, material)
 
 func _build_cat() -> void:
 	cat = _group(self)
 	cat.name = "TabbyCat"
 	cat.scale = Vector3.ONE * 1.35
 	cat_body = _group(cat)
-	var orange := _material("df8b3c")
-	var cream := _material("f5e9d2")
-	var stripe := _material("8a4a22")
-	var green := _material("5ea34a")
-	var black := _material("1a1410")
-	var pink := _material("e9a3a0")
+	var orange := palette.color("df8b3c")
+	var cream := palette.color("f5e9d2")
+	var stripe := palette.color("8a4a22")
+	var green := palette.color("5ea34a")
+	var black := palette.color("1a1410")
+	var pink := palette.color("e9a3a0")
 	_capsule(cat_body, Vector3(0, 0.26, 0), 0.105, 0.27, orange).rotation.x = PI / 2
 	_capsule(cat_body, Vector3(0, 0.215, 0), 0.075, 0.22, cream).rotation.x = PI / 2
 	_sphere(cat_body, Vector3(0, 0.28, 0.13), 0.11, orange)
@@ -526,9 +492,9 @@ func _build_cat() -> void:
 		inner.rotation = ear.rotation
 		_sphere(cat_head, Vector3(side * 0.045, 0.015, 0.09), 0.017, green)
 		_sphere(cat_head, Vector3(side * 0.045, 0.015, 0.104), 0.008, black)
-		_box(cat_head, Vector3(side * 0.06, 0.05, 0.03), Vector3(0.02, 0.006, 0.05), stripe).rotation.y = side * 0.5
+		CozyPrimitives.box(cat_head, Vector3(side * 0.06, 0.05, 0.03), Vector3(0.02, 0.006, 0.05), stripe).rotation.y = side * 0.5
 	for index in 4:
-		_box(cat_body, Vector3(0, 0.362, 0.1 - index * 0.07), Vector3(0.11, 0.006, 0.014), stripe).rotation.z = 0.08 if index % 2 else -0.08
+		CozyPrimitives.box(cat_body, Vector3(0, 0.362, 0.1 - index * 0.07), Vector3(0.11, 0.006, 0.014), stripe).rotation.z = 0.08 if index % 2 else -0.08
 	for index in 4:
 		var x := -0.06 if index % 2 == 0 else 0.06
 		var z := 0.13 if index < 2 else -0.12
@@ -569,11 +535,11 @@ func _build_gull() -> void:
 	gull.name = "Seagull"
 	gull.scale = Vector3.ONE * 1.25
 	gull_body = _group(gull)
-	var white := _material("f6f3ea")
-	var grey := _material("a9b1b8")
-	var black := _material("2a2a2e")
-	var yellow := _material("e8b64a")
-	var red := _material("d0503a")
+	var white := palette.color("f6f3ea")
+	var grey := palette.color("a9b1b8")
+	var black := palette.color("2a2a2e")
+	var yellow := palette.color("e8b64a")
+	var red := palette.color("d0503a")
 	var body := _capsule(gull_body, Vector3.ZERO, 0.085, 0.24, white)
 	body.rotation.x = PI / 2
 	body.scale.y = 0.9
@@ -586,19 +552,19 @@ func _build_gull() -> void:
 	_sphere(gull_head, Vector3(0, -0.022, 0.12), 0.008, red)
 	for side in [-1, 1]: _sphere(gull_head, Vector3(side * 0.045, 0.02, 0.045), 0.011, black)
 	gull_tail = _group(gull_body, Vector3(0, 0, -0.16))
-	_box(gull_tail, Vector3(0, 0, -0.07), Vector3(0.14, 0.012, 0.14), white)
-	_box(gull_tail, Vector3(0, 0, -0.135), Vector3(0.15, 0.014, 0.03), black)
+	CozyPrimitives.box(gull_tail, Vector3(0, 0, -0.07), Vector3(0.14, 0.012, 0.14), white)
+	CozyPrimitives.box(gull_tail, Vector3(0, 0, -0.135), Vector3(0.15, 0.014, 0.03), black)
 	for side in [-1, 1]:
 		var shoulder := _group(gull_body, Vector3(side * 0.06, 0.05, 0.02))
-		_box(shoulder, Vector3(side * 0.17, 0, -0.02), Vector3(0.34, 0.012, 0.19), grey)
-		_box(shoulder, Vector3(side * 0.17, -0.002, -0.14), Vector3(0.34, 0.01, 0.06), white)
+		CozyPrimitives.box(shoulder, Vector3(side * 0.17, 0, -0.02), Vector3(0.34, 0.012, 0.19), grey)
+		CozyPrimitives.box(shoulder, Vector3(side * 0.17, -0.002, -0.14), Vector3(0.34, 0.01, 0.06), white)
 		var elbow := _group(shoulder, Vector3(side * 0.34, 0, 0))
-		_box(elbow, Vector3(side * 0.16, 0, -0.05), Vector3(0.32, 0.01, 0.15), grey)
-		_box(elbow, Vector3(side * 0.29, 0, -0.07), Vector3(0.1, 0.011, 0.12), black)
+		CozyPrimitives.box(elbow, Vector3(side * 0.16, 0, -0.05), Vector3(0.32, 0.01, 0.15), grey)
+		CozyPrimitives.box(elbow, Vector3(side * 0.29, 0, -0.07), Vector3(0.1, 0.011, 0.12), black)
 		gull_wings.append({"shoulder": shoulder, "elbow": elbow, "side": side})
 		var leg := _group(gull_body, Vector3(side * 0.035, -0.05, -0.03))
 		_capsule(leg, Vector3(0, -0.05, 0), 0.008, 0.084, yellow)
-		_box(leg, Vector3(0, -0.1, 0.015), Vector3(0.04, 0.008, 0.05), yellow)
+		CozyPrimitives.box(leg, Vector3(0, -0.1, 0.015), Vector3(0.04, 0.008, 0.05), yellow)
 		gull_legs.append(leg)
 
 func _animate_gull(dt: float) -> void:

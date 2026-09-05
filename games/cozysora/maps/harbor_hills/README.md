@@ -11,7 +11,7 @@ Movement and menu controls are shared with Seabreeze Village: WASD, mouse look, 
 ## Construction
 
 - `world.gd`: terrain, ground contract, terrain-draped streets/sidewalks, rails, lighting, water, moving fog, static cache and scenic views.
-- `geometry.gd`: material and mesh generation, spatially batched primitives, labels, collision and ribbon surfaces. Ordinary ribbon edges sample ground independently; authored access ramps and stairs preserve their intended planes.
+- `geometry.gd`: Harbor material recipes, leaf-card geometry, labels and ribbon surfaces, composing shared primitive meshes, collision shapes and spatial batches. Ordinary ribbon edges sample ground independently; authored access ramps and stairs preserve their intended planes.
 - `neighborhood.gd`: shared building-plot definitions, façades, grounded foundations, street-connected forecourts, roof routes, shop displays, café furniture, yards, stairs, utility wires and parked vehicles.
 - `nature.gd`: wind-shaped cypress and rounded street trees, curved grass, wildflowers, park paths, overlook, surrounding land, fictional far shore, suspension bridge and shaped boat hulls with rigged sails.
 - `details.gd`: planted street edges, bicycles, stoops, market displays, communal garden tables, retaining borders, shaded waterfront seating and dock fittings.
@@ -26,3 +26,5 @@ The map owns its generated content and special behavior. Its registry definition
 `preview.png` is an unmodified 1280 × 720 native render of the map's `cable_car` viewpoint, captured on 5 September 2026 using the final procedural generators. It contains only project-owned content.
 
 The current planting includes 288 trees and 295,676 five-blade grass clumps in 83 spatial batches. Grass draws within 110 m of its batch, with a 12 m visibility margin. Trees cast broken shade across the main street; flower beds occupy the curb edge while crossings and sidewalk routes stay open. Building plots are set back within their existing blocks, uphill soil is cut to their occupied level, and foundations extend down to the original terrain. Forecourt ramps meet the nearest sidewalk. A small Harbor-only character recovery margin prevents capsule contact from sticking on sloped mesh seams.
+
+`atmosphere.tres` and `air.tres` configure shared lighting, fog, ocean, paint and drifting particles. `textures.gd` keeps the leaf-spray seed and brush distribution while using shared bounded leaf rasterization. See [shared component guidance](../../shared/README.md) for mechanics that should benefit both maps.

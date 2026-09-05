@@ -83,13 +83,10 @@ func _enter_map(id:StringName) -> void:
 	await _cover("On our way to "+destination.title,"Packing a little summer…")
 	landing.hide()
 	var started:=Time.get_ticks_msec()
-	var request:=ResourceLoader.load_threaded_request(destination.scene)
-	if request!=OK:_show_error("We couldn't open this destination. Please try again.");return
-	while ResourceLoader.load_threaded_get_status(destination.scene)==ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-		await get_tree().process_frame
-	if ResourceLoader.load_threaded_get_status(destination.scene)!=ResourceLoader.THREAD_LOAD_LOADED:
-		_show_error("We couldn't open this destination. Please try again.");return
-	var loaded:Resource=ResourceLoader.load_threaded_get(destination.scene)
+	# These roots contain generator scripts, not authored world geometry. Loading
+	# them here avoids threaded GDScript/custom-resource leaks on Godot 4.7.2.
+	# The expensive build below continues to yield and report progress.
+	var loaded: Resource = load(destination.scene)
 	if not loaded is PackedScene:
 		_show_error("This destination scene is not a playable scene.");return
 	var instance:Node=(loaded as PackedScene).instantiate()
