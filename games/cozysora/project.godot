@@ -5,6 +5,7 @@ config_version=5
 config/name="Cozy Sora"
 config/description="An original procedural coastal exploration game with Seabreeze Village and Harbor Hills."
 run/main_scene="res://main.tscn"
+run/max_fps=60
 config/features=PackedStringArray("4.4", "Forward Plus")
 
 [display]
