@@ -65,7 +65,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private let historyScroll = NSScrollView()
     private let emptyState = NSView()
     private let emptyLabel = NSTextField(labelWithString: "No matching clips")
-    private let tutorialCard = NSBox()
     private let emptyRows = NSStackView()
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private let clearNowItem = NSMenuItem(title: "Now", action: nil, keyEquivalent: "")
@@ -160,19 +159,17 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         add(scroll, to: stack)
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
-        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 8
-        for text in ["Copies appear here.", "Click to copy it again.", "Preview image with hover + space"] {
+        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 5
+        emptyRows.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+        for (index, text) in ["Copies appear here.", "Click to copy it again.", "Preview image with hover + space"].enumerated() {
             let label = NSTextField(wrappingLabelWithString: text)
-            label.font = .systemFont(ofSize: 12)
-            label.preferredMaxLayoutWidth = 236
-            add(label, to: emptyRows)
+            label.font = .systemFont(ofSize: 12, weight: index == 0 ? .medium : .regular)
+            label.textColor = index == 0 ? .labelColor : .secondaryLabelColor
+            label.preferredMaxLayoutWidth = 248
+            emptyRows.addArrangedSubview(label)
+            label.widthAnchor.constraint(equalTo: emptyRows.widthAnchor, constant: -12).isActive = true
         }
-        tutorialCard.boxType = .custom; tutorialCard.titlePosition = .noTitle; tutorialCard.borderWidth = 0
-        tutorialCard.cornerRadius = 8; tutorialCard.fillColor = .quaternaryLabelColor
-        tutorialCard.contentViewMargins = NSSize(width: 12, height: 10)
-        tutorialCard.contentView = emptyRows
-        tutorialCard.heightAnchor.constraint(equalToConstant: 96).isActive = true
-        for view in [tutorialCard, emptyLabel] {
+        for view in [emptyRows, emptyLabel] {
             view.translatesAutoresizingMaskIntoConstraints = false
             emptyState.addSubview(view)
             NSLayoutConstraint.activate([view.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), view.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), view.topAnchor.constraint(equalTo: emptyState.topAnchor)])
@@ -285,10 +282,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private func updateContentSize() {
         let showEmpty = historyAvailable == true && filtered.isEmpty
         emptyState.isHidden = !showEmpty
-        tutorialCard.isHidden = !clips.isEmpty
+        emptyRows.isHidden = !clips.isEmpty
         emptyLabel.isHidden = clips.isEmpty
         historyScroll.isHidden = showEmpty || (filtered.isEmpty && !searchExpanded)
-        let bodyHeight = showEmpty ? (clips.isEmpty ? 96.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = searchExpanded ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
