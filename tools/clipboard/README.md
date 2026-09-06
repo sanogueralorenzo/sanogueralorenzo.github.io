@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.g
 
 Installs in `~/Applications` and preserves your history and settings.
 
-**⌥⇧V** opens Clipboard · **⌘F** searches · **Click** copies · **Space** previews images or opens links. Paste with **⌘V** in your destination app.
+**⌥⇧V** opens Clipboard · **Click** copies · **Space** previews images or opens links. Click the search field to filter clips. Paste with **⌘V** in your destination app.
 
 **Clear** sets expiration. **Now** clears saved history and the current clipboard. Defaults: 200 clips, 7 days.
 

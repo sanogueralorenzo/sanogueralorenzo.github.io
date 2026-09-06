@@ -12,13 +12,6 @@ final class ClipboardSearch: NSSearchField {
     }
     func endSearch() { isSearching = false }
     override func mouseDown(with event: NSEvent) { focus(); super.mouseDown(with: event) }
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        if event.type == .keyDown, modifiers == .command, event.charactersIgnoringModifiers == "f" {
-            focus(); return true
-        }
-        return super.performKeyEquivalent(with: event)
-    }
 }
 
 final class ClipboardRow: NSTableRowView {
@@ -30,15 +23,15 @@ final class ClipboardRow: NSTableRowView {
 
 final class ClipboardItemView: NSStackView {
     let imageView = NSImageView()
-    let titleField: NSTextField
+    let titleField = NSTextField(labelWithString: "")
     let shortcutField = NSTextField(labelWithString: "")
     private var titleTrailing: NSLayoutConstraint!
     private var shortcutTrailing: NSLayoutConstraint!
 
-    init(icon: NSImage? = nil, title: NSTextField = NSTextField(labelWithString: ""), shortcut: String? = nil) {
-        titleField = title
+    init() {
         super.init(frame: .zero)
-        imageView.image = icon; imageView.imageScaling = .scaleProportionallyUpOrDown
+        let title = titleField
+        imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.widthAnchor.constraint(equalToConstant: 22).isActive = true
         imageView.heightAnchor.constraint(equalToConstant: 22).isActive = true
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -51,7 +44,7 @@ final class ClipboardItemView: NSStackView {
         spacing = 8; edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
         titleTrailing = title.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
         shortcutTrailing = shortcutField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
-        setShortcut(shortcut)
+        setShortcut(nil)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
@@ -177,17 +170,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         search.delegate = self
         search.didFocus = { [weak self] in self?.updateSpaceShortcut() }
         search.sendsSearchStringImmediately = true
-        search.isBordered = false; search.isBezeled = false; search.drawsBackground = false
-        search.focusRingType = .none
-        (search.cell as? NSSearchFieldCell)?.searchButtonCell = nil
-        let searchIcon = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
-        let searchRow = ClipboardItemView(icon: searchIcon, title: search, shortcut: "⌘F")
-        (searchRow.arrangedSubviews.first as? NSImageView)?.contentTintColor = .secondaryLabelColor
-        (searchRow.arrangedSubviews.first as? NSImageView)?.imageScaling = .scaleNone
         search.font = .systemFont(ofSize: 13)
         search.setAccessibilityLabel("Search clips or apps")
-        add(searchRow, to: stack)
-        searchRow.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        add(search, to: stack)
+        search.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = content.frame.width - 22
         table.addTableColumn(column)
         table.headerView = nil; table.backgroundColor = .clear
