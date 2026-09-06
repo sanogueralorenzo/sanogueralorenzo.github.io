@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Palette</string>
+	<string>Clipboard</string>
 	<key>CFBundleExecutable</key>
-	<string>PaletteHost</string>
+	<string>ClipboardHost</string>
 	<key>CFBundleIdentifier</key>
-	<string>sh.palette.Desktop</string>
+	<string>sh.clipboard.Desktop</string>
 	<key>CFBundleIconFile</key>
-	<string>Palette</string>
+	<string>Clipboard</string>
 	<key>CFBundleName</key>
-	<string>Palette</string>
+	<string>Clipboard</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

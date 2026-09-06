@@ -17,7 +17,7 @@ for size in [16, 32, 64, 128, 256, 512, 1024] {
     let width = height * symbol.size.width / symbol.size.height
     symbol.draw(in: NSRect(x: (1024 - width) / 2, y: (1024 - height) / 2, width: width, height: height))
     image.unlockFocus()
-    guard let data = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: data), let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Could not render Palette icon") }
+    guard let data = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: data), let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Could not render Clipboard icon") }
     // iconutil expects both standard and Retina variants.
     if size <= 512 { try png.write(to: output.appendingPathComponent("icon_\(size)x\(size).png")) }
     if size >= 32 { try png.write(to: output.appendingPathComponent("icon_\(size / 2)x\(size / 2)@2x.png")) }

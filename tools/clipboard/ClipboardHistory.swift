@@ -32,7 +32,7 @@ struct ClipboardPolicy: Decodable {
 final class ClipboardStore {
     private struct Settings: Decodable { var clipboard: ClipboardPolicy }
     private struct Envelope: Codable { var version: Int; var iv: Data; var authTag: Data; var ciphertext: Data }
-    private let queue = DispatchQueue(label: "sh.palette.history", qos: .utility)
+    private let queue = DispatchQueue(label: "sh.clipboard.history", qos: .utility)
     private let directory: URL
     private let review: Bool
     private var key: SymmetricKey?
@@ -143,7 +143,7 @@ final class ClipboardStore {
             try write(key.withUnsafeBytes { Data($0) }, to: url)
             return key
         }
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "sh.palette.Desktop.clipboard", kSecAttrAccount as String: "default"]
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "sh.clipboard.Desktop.clipboard", kSecAttrAccount as String: "default"]
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query.merging([kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]) { _, new in new } as CFDictionary, &result)
         if status == errSecSuccess, let data = result as? Data, data.count == 32 { return SymmetricKey(data: data) }
@@ -154,5 +154,5 @@ final class ClipboardStore {
         return key
     }
 
-    private static func failure(_ message: String) -> NSError { NSError(domain: "Palette", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    private static func failure(_ message: String) -> NSError { NSError(domain: "Clipboard", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }

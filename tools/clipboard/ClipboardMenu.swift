@@ -82,7 +82,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         clearItem.isEnabled = available && !clips.isEmpty
         reload()
     }
-    func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Palette · ⌥⇧V" }
+    func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥⇧V" }
     func toggle() { menuOpen ? dismiss() : show() }
     func show() { if !menuOpen { statusItem.button?.performClick(nil) } }
     func dismiss() { clipboardMenu.cancelTracking() }
@@ -156,7 +156,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
         for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images")] {
-            let row = makeRow(icon: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Palette"), title: title)
+            let row = makeRow(icon: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard"), title: title)
             add(row, to: emptyRows)
             row.heightAnchor.constraint(equalToConstant: 30).isActive = true
         }
@@ -194,7 +194,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
 
     private func configureMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Palette")
+        statusItem.button?.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard")
         statusItem.button?.image?.isTemplate = true
         clipboardMenu.delegate = self
         clipboardMenu.autoenablesItems = false
@@ -205,7 +205,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         clearItem.target = self; clearItem.action = #selector(clearHistory)
         clearItem.isEnabled = false
         clipboardMenu.addItem(clearItem)
-        clipboardMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        clipboardMenu.addItem(withTitle: "Quit Clipboard", action: #selector(quit), keyEquivalent: "q").target = self
         for index in 0..<9 {
             let item = NSMenuItem(title: "Copy item \(index + 1)", action: #selector(copyNumbered(_:)), keyEquivalent: "\(index + 1)")
             item.target = self; item.tag = index; item.keyEquivalentModifierMask = .command
@@ -219,7 +219,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        appMenu.addItem(withTitle: "Quit Clipboard", action: #selector(quit), keyEquivalent: "q").target = self
         appItem.submenu = appMenu; menu.addItem(appItem)
         let edit = NSMenuItem(); let editMenu = NSMenu(title: "Edit")
         for (name, action, key) in [("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] { editMenu.addItem(NSMenuItem(title: name, action: Selector(action), keyEquivalent: key)) }

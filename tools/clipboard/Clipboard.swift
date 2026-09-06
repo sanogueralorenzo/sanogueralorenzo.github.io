@@ -4,7 +4,7 @@ import ApplicationServices
 
 @main
 @MainActor
-final class Palette: NSObject, NSApplicationDelegate {
+final class Clipboard: NSObject, NSApplicationDelegate {
     private lazy var menu = ClipboardMenu()
     private let preview = ClipboardPreview()
     private var store: ClipboardStore!
@@ -16,7 +16,7 @@ final class Palette: NSObject, NSApplicationDelegate {
 
     static func main() {
         let app = NSApplication.shared
-        let delegate = Palette()
+        let delegate = Clipboard()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)
         withExtendedLifetime(delegate) { app.run() }
@@ -40,7 +40,7 @@ final class Palette: NSObject, NSApplicationDelegate {
             self.menu.report(self.shortcutError); self.store.clear()
         }
         installShortcut()
-        let standard = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Palette")
+        let standard = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Clipboard")
         let args = CommandLine.arguments
         let review = args.contains("--review")
         var directory = standard
@@ -84,7 +84,7 @@ final class Palette: NSObject, NSApplicationDelegate {
     }
     private func restore(_ clip: Clip, paste: Bool) {
         if paste && !AXIsProcessTrusted() {
-            report("Direct paste needs Accessibility permission. Press ⌘C to copy, or enable Palette in System Settings → Privacy & Security → Accessibility.")
+            report("Direct paste needs Accessibility permission. Press ⌘C to copy, or enable Clipboard in System Settings → Privacy & Security → Accessibility.")
             return
         }
         let target = previousApp
@@ -113,14 +113,14 @@ final class Palette: NSObject, NSApplicationDelegate {
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let callback: EventHandlerUPP = { _, _, pointer in
             guard let pointer else { return noErr }
-            let owner = Unmanaged<Palette>.fromOpaque(pointer).takeUnretainedValue()
+            let owner = Unmanaged<Clipboard>.fromOpaque(pointer).takeUnretainedValue()
             MainActor.assumeIsolated { owner.menu.toggle() }
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), nil)
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 1), GetApplicationEventTarget(), 0, nil)
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, nil)
         if status != noErr || registered != noErr {
-            shortcutError = "⌥⇧V is in use. Open Palette from its menu bar icon."
+            shortcutError = "⌥⇧V is in use. Open Clipboard from its menu bar icon."
             report(shortcutError!)
         }
     }

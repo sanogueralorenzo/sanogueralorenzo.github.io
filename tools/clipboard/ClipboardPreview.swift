@@ -4,7 +4,7 @@ import QuickLookUI
 @MainActor
 final class ClipboardPreview: NSResponder, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     var onError: ((String) -> Void)?
-    private let previewDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("sh.palette.Desktop-preview", isDirectory: true)
+    private let previewDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("sh.clipboard.Desktop-preview", isDirectory: true)
     private var previewURL: URL?
 
     func show(_ clip: Clip) {

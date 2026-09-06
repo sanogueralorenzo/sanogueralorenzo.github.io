@@ -128,7 +128,7 @@ enum ClipboardSupport {
         return urls.isEmpty ? clip.content.split(separator: "\n").map { URL(fileURLWithPath: String($0)) } : urls
     }
 
-    static func failure(_ message: String) -> NSError { NSError(domain: "Palette.Clipboard", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    static func failure(_ message: String) -> NSError { NSError(domain: "Clipboard.Clipboard", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }
 
 @MainActor

@@ -1,0 +1,20 @@
+name: Clipboard
+
+on:
+  push:
+    paths:
+      - "tools/clipboard/**"
+      - ".github/workflows/clipboard.yml"
+  pull_request:
+    paths:
+      - "tools/clipboard/**"
+      - ".github/workflows/clipboard.yml"
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native app
+        working-directory: tools/clipboard
+        run: ./build.sh
