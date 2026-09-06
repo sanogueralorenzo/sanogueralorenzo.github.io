@@ -90,15 +90,7 @@ enum ClipboardSupport {
                     return NSImage(data: data) != nil
                 }
             }
-            if !hasImage {
-                guard let encoded = clip.thumbnail?.split(separator: ",", maxSplits: 1).last,
-                      let data = Data(base64Encoded: String(encoded)), NSImage(data: data) != nil else {
-                    throw failure("This image has no saved image data.")
-                }
-                let item = NSPasteboardItem()
-                item.setData(data, forType: .png)
-                restored = [item]
-            }
+            guard hasImage else { throw failure("This image has no saved image data. Copy the original image again.") }
         }
         if restored.isEmpty {
             if kind == .file {

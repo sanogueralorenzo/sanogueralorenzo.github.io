@@ -16,10 +16,9 @@ final class ClipboardPreview: NSResponder, QLPreviewPanelDataSource, QLPreviewPa
                 previewURL = url
             } else {
                 let format = clip.representations?.flatMap({ $0 }).first { [NSPasteboard.PasteboardType.png.rawValue, NSPasteboard.PasteboardType.tiff.rawValue].contains($0.type) }
-                let encoded = format?.data ?? clip.thumbnail?.split(separator: ",", maxSplits: 1).last.map(String.init)
-                guard let encoded, let data = Data(base64Encoded: encoded) else { throw ClipboardSupport.failure("This image has no saved preview data.") }
+                guard let format, let data = Data(base64Encoded: format.data) else { throw ClipboardSupport.failure("This image has no saved image data. Copy the original image again.") }
                 try FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-                let url = previewDirectory.appendingPathComponent(format?.type == NSPasteboard.PasteboardType.tiff.rawValue ? "Image.tiff" : "Image.png")
+                let url = previewDirectory.appendingPathComponent(format.type == NSPasteboard.PasteboardType.tiff.rawValue ? "Image.tiff" : "Image.png")
                 try data.write(to: url, options: .atomic)
                 try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
                 previewURL = url

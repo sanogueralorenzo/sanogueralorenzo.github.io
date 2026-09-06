@@ -14,7 +14,7 @@ A small macOS clipboard menu. Copy something, find it by content or source app, 
 
 Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear History → Now immediately removes all saved clips.** The timed options remove each clip once it reaches 30 minutes, 8 hours, or 7 days old; 7 days is selected by default. Expiry is checked every minute while running and when the app or menu opens. Quit stops capture; launching Clipboard starts it again.
 
-Images retain their original data. Older history entries that only saved a thumbnail copy that smaller image.
+Images retain their original data for copying and Quick Look; thumbnails are only used in the menu. Older history entries that only saved a thumbnail must be copied again from the original source before they can be reused or previewed.
 
 History stays encrypted locally in `~/Library/Application Support/Clipboard`, with a key in macOS Keychain. Defaults are 200 clips and 7 days. Private clipboard markers and obvious secrets are skipped, but detection is limited. Source apps are inferred from the foreground app, so background copies can be misattributed. Unreadable history is preserved and capture stops; failures appear in the menu-bar tooltip.
 
@@ -41,4 +41,4 @@ build/Clipboard.app/Contents/MacOS/ClipboardHost --review --data-dir /tmp/clipbo
 
 Review mode still observes the shared clipboard. Quit it when finished.
 
-Run history retention checks with `./tests/run.sh`. They use temporary profiles without accessing your clipboard or Keychain.
+Run history retention and image restore checks with `./tests/run.sh`. They use temporary profiles and a private test pasteboard without accessing your current clipboard or Keychain.
