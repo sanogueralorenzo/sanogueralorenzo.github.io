@@ -135,3 +135,11 @@ Removed the native Pause/Resume row, toggle action, saved enabled policy, and se
 In disposable `/tmp/palette-lifecycle-review.FyxIS1`, legacy settings still contained enabled:false. Native CUA copying from a synthetic TextEdit document saved marker A. Normal application termination and process absence were verified; marker B was copied while quit. Reopening the same app/profile and copying marker C saved C. Reading the disposable encrypted history confirmed A present, B absent, C present, while the legacy settings file remained unchanged. The native environment attributed A to ChatGPT despite the TextEdit interaction, so this check confirms capture lifecycle, not source-app attribution. No production history was cleared or migrated.
 
 Independent reliability source review approved the removed pause state and retained history-readiness, exclusions, encryption, and accepted-write shutdown guards. The macOS build, installed signature, and diff checks pass. No automated tests were created or run.
+
+## Search-first content and empty placeholder
+
+Removed the permanent Palette header, icon, label, and title tooltip. Content now starts with search and results. Available but empty history shows the overlapping-squares icon with “Copied items appear here”; a search with no results uses “No matching clips”. Both use a centered, compact native view with a 64-point minimum and secondary label colors. Populated results hide the placeholder and clear its text. Loading or unavailable history does not show an empty-history reassurance; failures remain in the menu-bar icon tooltip.
+
+Content sizing now accounts only for search, margins, and the results/placeholder body. The 236-point content maximum, 305-point overall maximum, and per-opening expanded-search behavior remain unchanged. Native Clear History and Quit rows remain at the bottom.
+
+The independent usability reviewer inspected the implementation and found no substantive source issue. The build, installed signature, and diff checks pass. A disposable empty profile was launched for inspection, but CUA timed out on the menu-only window and no fresh visual or transition confirmation is claimed. No production history was cleared. No automated tests were created or run.

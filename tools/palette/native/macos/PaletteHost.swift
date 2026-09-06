@@ -74,7 +74,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var changeCount = NSPasteboard.general.changeCount
     private var iconCache: [String: NSImage] = [:]
     private var previewVisible = false
-    private let title = NSTextField(labelWithString: "Palette")
+    private let emptyState = NSView()
+    private let emptyLabel = NSTextField(labelWithString: "Copied items appear here")
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private var issue: String?
     private var shortcutError: String?
@@ -144,14 +145,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
-        let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
-        mark.contentTintColor = .white
-        mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
-        title.textColor = .white
-        let heading = NSStackView(views: [mark, title, NSView()]); heading.spacing = 8
-        heading.heightAnchor.constraint(equalToConstant: 22).isActive = true
-        add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
         search.delegate = self
         search.didFocus = { [weak self] in
@@ -173,6 +166,21 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
+        let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
+        mark.contentTintColor = .secondaryLabelColor
+        mark.imageScaling = .scaleProportionallyUpOrDown
+        mark.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        mark.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        emptyLabel.font = .systemFont(ofSize: 12)
+        emptyLabel.textColor = .secondaryLabelColor
+        let message = NSStackView(views: [mark, emptyLabel])
+        message.orientation = .vertical; message.alignment = .centerX; message.spacing = 8
+        message.translatesAutoresizingMaskIntoConstraints = false
+        emptyState.addSubview(message)
+        NSLayoutConstraint.activate([message.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor), message.centerYAnchor.constraint(equalTo: emptyState.centerYAnchor)])
+        add(emptyState, to: stack)
+        emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 64).isActive = true
+        emptyState.isHidden = true
         previewImage.imageScaling = .scaleProportionallyUpOrDown
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
@@ -300,9 +308,12 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     }
 
     private func updateContentSize() {
-        historyScroll.isHidden = previewVisible || (filtered.isEmpty && !searchExpanded)
-        let rowsHeight = CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
-        let naturalHeight = 20 + 22 + 8 + 26 + (filtered.isEmpty ? 0 : 8 + rowsHeight)
+        let showEmpty = historyAvailable == true && filtered.isEmpty && !previewVisible
+        emptyState.isHidden = !showEmpty
+        emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copied items appear here" : "No matching clips") : ""
+        historyScroll.isHidden = previewVisible || showEmpty || (filtered.isEmpty && !searchExpanded)
+        let bodyHeight = showEmpty ? 64 : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
@@ -365,7 +376,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     }
     private func report(_ text: String?) {
         issue = text
-        title.toolTip = text
         clearItem.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? "Palette · ⌘⇧V"
     }

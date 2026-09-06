@@ -108,3 +108,7 @@ The empty attachment now avoids directing focus to a hidden table. The coordinat
 ### Final height closure
 
 The coordinator's native checks exposed unstable header fitting and automatic text-selection expansion. Final source uses a fixed 22-point header and explicit mouseDown, Command+F, and typing expansion; the selectText hook was removed. The independent reviewer rechecked these final paths and found no remaining source blocker. Coordinator native evidence measured empty121 → search305, query-clear305, and reopen121; the final two-row menu measured193. Input-injection limitations for subsequent keyboard/AX attempts are recorded in VERIFICATION.md.
+
+## Search-first empty-state source review
+
+Independent source review confirms the permanent header/title is removed, search is first, and the shared empty view centers the 24-point Palette mark and short secondary label within a 64-point minimum. Available empty history and no-match results have distinct concise text; unavailable history suppresses the placeholder. Populated results hide it and clear its text. The status-item tooltip retains failure information, the 236-point cap/search latch remains, and native Clear History/Quit remain. No substantive source finding; CUA menu-window timeout left visual and transition confirmation unavailable in this pass.
