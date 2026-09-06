@@ -1,0 +1,308 @@
+{
+  "aim": 1,
+  "ball_world": "(-3.131531, 3.108567, -4.767568)",
+  "best_rally": 3,
+  "block_lane": 1,
+  "camera_inspection": false,
+  "camera_position": "(1.2, 4.312961, 11.83888)",
+  "contacts": 0,
+  "crowns": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "feedback": "RIVAL SERVE",
+  "flight_remaining": 1.63,
+  "fps": 30.0,
+  "hud_compact_left": true,
+  "hud_compact_right": true,
+  "landing_history": [],
+  "ledger": [
+    {
+      "contacts": 3,
+      "reason": "BLOCK \u2022 no cover underneath",
+      "round": 1,
+      "score": [
+        1,
+        0
+      ],
+      "season": 2,
+      "time": 6.7
+    },
+    {
+      "contacts": 3,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        1,
+        1
+      ],
+      "season": 2,
+      "time": 15.6
+    }
+  ],
+  "match_seconds": 19.9,
+  "offers": [],
+  "paused": false,
+  "performance": {
+    "draw_calls": 1288.0,
+    "frames": 600,
+    "mean_ms": 38.6437166666667,
+    "p95_ms": 36.572,
+    "p99_ms": 40.882,
+    "primitives": 1188386.0,
+    "seconds": 23.18623,
+    "worst_ms": 3213.155
+  },
+  "phase": "receive",
+  "players": [
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 8.42569602966309,
+      "feet_world": [
+        "(-3.350061, 0.06, 3.85433)",
+        "(-3.030113, 0.06, 3.856164)"
+      ],
+      "feet_yaw": [
+        -0.00418751453980803,
+        -0.00727870548143983
+      ],
+      "hands": [
+        "(-3.421959, 0.989621, 3.495835)",
+        "(-2.952358, 0.989621, 3.499734)"
+      ],
+      "id": 0,
+      "missed_dig": false,
+      "root_yaw": -0.00830316729843616,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        -3.20000004768372,
+        4.90000009536743
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": -2.9,
+      "y": 4.8
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 7.38212217330933,
+      "feet_world": [
+        "(-0.129193, 0.06, 2.175572)",
+        "(0.132606, 0.084173, 2.059866)"
+      ],
+      "feet_yaw": [
+        -18.306116104126,
+        -18.1584600230612
+      ],
+      "hands": [
+        "(-0.35136, 0.989621, 1.859092)",
+        "(0.079676, 0.989621, 1.672684)"
+      ],
+      "id": 1,
+      "missed_dig": false,
+      "root_yaw": -18.4413795471191,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        0.0,
+        3.59999990463257
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 0.0,
+      "y": 2.6
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 10.4399782562256,
+      "feet_world": [
+        "(3.085521, 0.06, 3.962103)",
+        "(3.30858, 0.096786, 3.81972)"
+      ],
+      "feet_yaw": [
+        0.769545137882233,
+        0.924588339198862
+      ],
+      "hands": [
+        "(2.801096, 0.989621, 3.695058)",
+        "(3.185289, 0.989621, 3.424992)"
+      ],
+      "id": 2,
+      "missed_dig": false,
+      "root_yaw": 0.612700402736664,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        2.79999995231628,
+        3.59999990463257
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 2.9,
+      "y": 4.8
+    },
+    {
+      "action": 0.153333333333334,
+      "anim": "spike",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 1.80125106811523,
+      "feet_world": [
+        "(-2.878715, 0.263804, -5.982346)",
+        "(-3.267194, 0.263804, -6.016754)"
+      ],
+      "feet_yaw": [
+        -3.22266131972752,
+        -3.22266133296838
+      ],
+      "hands": [
+        "(-2.745941, 1.313857, -5.89392)",
+        "(-3.000188, 1.407249, -5.628468)"
+      ],
+      "id": 0,
+      "missed_dig": false,
+      "root_yaw": -3.2299325466156,
+      "swinging": [
+        false,
+        false
+      ],
+      "target": [
+        -2.79999995231628,
+        -7.40000009536743
+      ],
+      "team": 1,
+      "turn_step": [
+        0.534333333333333,
+        0
+      ],
+      "x": -2.8,
+      "y": -7.4
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 4.22008050918579,
+      "feet_world": [
+        "(-0.114987, 0.06, -1.967737)",
+        "(0.106107, 0.06, -2.200691)"
+      ],
+      "feet_yaw": [
+        0.679931104183197,
+        0.943091571331024
+      ],
+      "hands": [
+        "(-0.408942, 0.989621, -2.150858)",
+        "(-0.081043, 0.989621, -2.487046)"
+      ],
+      "id": 1,
+      "missed_dig": false,
+      "root_yaw": 0.797879934310913,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        0.0,
+        -2.59999990463257
+      ],
+      "team": 1,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 0.0,
+      "y": -2.6
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-3.131531, 3.108567, -4.767568)",
+      "contact_blend": 0.0,
+      "contact_error": 6.28900159835815,
+      "feet_world": [
+        "(3.190253, 0.06, -3.668674)",
+        "(3.224383, 0.06, -3.99698)"
+      ],
+      "feet_yaw": [
+        -4.72661918228624,
+        -4.83453559875488
+      ],
+      "hands": [
+        "(2.807502, 0.989621, -3.678911)",
+        "(2.902062, 0.989621, -4.138909)"
+      ],
+      "id": 2,
+      "missed_dig": false,
+      "root_yaw": -4.91513109207153,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        2.90000009536743,
+        -4.80000019073486
+      ],
+      "team": 1,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 2.9,
+      "y": -4.8
+    }
+  ],
+  "receiving": 0,
+  "rival_cover_short": false,
+  "rival_deep_lane": -1,
+  "rival_lane": 0,
+  "rival_shot": 1,
+  "round": 1,
+  "route_history": [],
+  "run_seconds": 19.9,
+  "save_error": "",
+  "score": [
+    1,
+    1
+  ],
+  "screen": "match",
+  "season": 2,
+  "short_history": [],
+  "shot": 0,
+  "speed": 1.0,
+  "unlocked": 9,
+  "upgrades": []
+}

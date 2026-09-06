@@ -3,23 +3,31 @@ config_version=5
 
 [application]
 config/name="Spike Season"
+run/max_fps=60
 config/icon="res://icon.svg"
 run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/description="A summer volleyball roguelike"
 
 [display]
 window/size/viewport_width=1440
-window/size/viewport_height=900
+window/size/viewport_height=810
 window/size/window_width_override=1280
-window/size/window_height_override=800
+window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 
 [rendering]
-renderer/rendering_method="gl_compatibility"
+renderer/rendering_method="forward_plus"
+rendering_device/fallback_to_opengl3=false
+textures/vram_compression/import_etc2_astc=true
 textures/default_filters/use_nearest_mipmap_filter=false
 environment/defaults/default_clear_color=Color(0.32,0.65,0.77,1)
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.mobile="forward_plus"
+
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=2
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 
 [audio]
 default_bus_layout="res://default_bus_layout.tres"

@@ -1,0 +1,3 @@
+47800 Ts   godot --path /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/spikeseason -- --review-port=45911 --review-profile=visual-comparison-20260905 --capture-dir=/Users/mario/Documents/Codex/2026-09-05/ho/work/spike-review
+49163 Ts   /Applications/Godot.app/Contents/MacOS/Godot --path /Users/mario/Documents/Codex/2026-09-05/ho/work/lastcast-review/game
+72444 Ts   /tmp/SpikeSeasonBeginnerReview20260906.app/Contents/MacOS/Godot --path games/spikeseason --position 80,80 -- --review-port=45901 --review-profile=3d-art-final --capture-dir=/Users/mario/AndroidStudioProjects/spikeseason-worktree/games/spikeseason/evidence/3d

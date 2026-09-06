@@ -1,0 +1,19 @@
+{
+  "cpu_gpu": "Apple M3 Max (Apple9)",
+  "memory_gib": 36,
+  "cpu_cores": 14,
+  "os": "26.5.2",
+  "godot": "4.7.2.stable.official.ed1daf0bf",
+  "default_window": [
+    1280,
+    720
+  ],
+  "logical_canvas": [
+    1440,
+    810
+  ],
+  "renderer": "forward_plus",
+  "driver": "metal",
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22675555)\t69%; charging; (no estimate) present: true",
+  "concurrency": "Other game processes suspended; individual runtime lock used. See process inventory and measurement records."
+}

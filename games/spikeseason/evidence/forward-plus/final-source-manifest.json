@@ -1,0 +1,32 @@
+{
+  "godot": "4.7.2.stable.official.ed1daf0bf",
+  "files_sha256": {
+    "main.tscn": "f769fcd82c77ff806b82ecea465606274fc7621a7b8c7f0d55b87d5484372f9c",
+    "launch.sh": "74bc6f2299ee82fce220092739477e050f906f28610f2111ecf2e94d33dafb2b",
+    "project.godot": "ae00a492777aeed1041dd6f8c8f010e17beeed47fd3c84684b87782da2c116a6",
+    "export_presets.cfg": "94a9004523eef6c728cb324a627840413885a3c05b1796bc67626901399ec59e",
+    "scripts/main.gd": "28a75f7f72a7024118e05b74a93cd13d45e0aa1800147efe48f8fb7c03e53ead",
+    "scripts/review_bridge.gd": "89d686615ecf71d2b25558781f9d5160b55f768c011bd2126631d91f4bc8b2ac",
+    "scripts/sound.gd": "62dbe7cb31e9ee3cce653d9806cd1d9cbbd8aaf0e75bea7b4b2b8ab3d08c34a9",
+    "scripts/leaf_painter.gd": "c03e734db7c1cfa60c4fbdc689ef1b8729d3f8c5861aeedc0b2eec25d0147f78",
+    "scripts/interface.gd": "055b3bd27824ec7ab8968fcca4db7f885218dd79cdc6e9b176c8ba3cf22ff14d",
+    "shaders/three_d/uniform.gdshader": "cf10e8fa6a59dfada8bb6f7dd48e517b9ba6a1e312643e16917182223606e5cb",
+    "shaders/three_d/surface.gdshader": "775357b510f5440619449ef5883b81f8419016038a24a614572a22407459cc56",
+    "shaders/three_d/ball.gdshader": "c33cde322bc754d6f0b842cf47bf8530b1a09ffcf375a46c34a3cf686b856c93",
+    "shaders/three_d/ink.gdshader": "94dc645b806a51bb33a2335fd1166c000f72012f233bc98e9846471dde1bbb4f",
+    "shaders/three_d/headland.gdshader": "431a2ab874487fe913be736680c6500af8856a0b628dd35d361bdee40b638d55",
+    "shaders/three_d/surface_noise.gdshaderinc": "b5963280cce5ca306010b787a707b0009162c5e84dddacefd91a1226a13f2efb",
+    "shaders/three_d/ocean.gdshader": "5995c659b8889053e679cdadc6fc43c1794c425ee9b7a264dc9cd1e0bb8c0975",
+    "shaders/three_d/sky.gdshader": "82a96db4c0497e2b72c0ce81f4ff47fbdeb61e6ea6950ce76b1d1e0522ad5deb",
+    "shaders/three_d/grade.gdshader": "8e9568170ae7e990c238b1587ea9cc291240c5e71b51594307b6d8806e622e08",
+    "shaders/three_d/skin.gdshader": "642faa9cb678e556f55aa195f9a855e806292ef2a270ddf88c19b3dcafff00c9",
+    "shaders/three_d/foliage.gdshader": "71d6acb42e8d4a276e2342d5b28ed675b7db4ac29f6f269375fc778e1df3cd5d",
+    "scripts/three_d/geometry.gd": "8c137969a39742a71e4f362d564ac07a6eeb11153e5511c3ef301f9ee026ce4a",
+    "scripts/three_d/presentation.gd": "d4c8daf81f4cec10b23c592bf66c70ce3acbf4b264efd93a44b9521c7ca823e2",
+    "scripts/three_d/athlete.gd": "6e48c86664523f84e90a985065ee8c6b366dd37f1d2c01f38fa450a5edc23055",
+    "scripts/three_d/gardens.gd": "93b96406bd4a3f9036cd966614ae2daf6b31142baab4bcd6d695aaecc46d986d",
+    "scripts/three_d/coast.gd": "c33b80d70879178dd79ba94f2a3154d72a4a89ba1edc10c9da9231683fe75104",
+    "scripts/three_d/ball_effects.gd": "6d722387c7c80baed23f82d63093502b4d23bf526600cab122503f921c845fa4",
+    "scripts/three_d/harbor.gd": "0dc992b9c934fecbe5ce705f068f0af728f916431cf6f39b798844030fd6fa06"
+  }
+}

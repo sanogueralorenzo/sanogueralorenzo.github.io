@@ -1,30 +1,29 @@
 extends Node2D
+# Compact 3v3 court: logical X/Z are mapped to 9.9 × 12.8 world metres.
+const COURT_SCALE:=Vector2(1.1,0.8)
 ## Match director: finite movement, deterministic contacts, championship and saves.
-const Scenery = preload("res://scripts/scenery.gd")
-const Athlete = preload("res://scripts/athlete.gd")
+const Scenery = preload("res://scripts/three_d/presentation.gd")
 const Sound = preload("res://scripts/sound.gd")
 const Interface = preload("res://scripts/interface.gd")
 var SAVE_PATH := "user://progress.json"
 const MAPS := ["MAREA HILLS", "LANTERN HARBOR", "CITRUS GARDENS"]
 const SEASONS := ["First light", "Sea glass", "Golden hour", "Fair winds", "High tide", "Harbor lights", "Green canopy", "Summer thunder", "Endless summer"]
 const RIVALS := ["Sandpipers", "Sunbreak", "Marea Club", "Harbor Foxes", "Crosscurrent", "Lighthouse Six", "Garden Owls", "Citrus Storm", "Summer Aces"]
-const SCOUTS := ["Patient receivers. Open corners reward a change of aim.", "Quick wings; their front court opens when they retreat.", "A committed middle block. Try a high roll past it.", "They defend deep. A short tip makes them travel.", "They remember short shots. Pull them forward, then attack deep.", "Strong net coverage; use height and the outside lanes.", "They spot empty space early. Keep all three teammates involved.", "They disguise short shots. Recovery matters as much as power.", "Complete, adaptive rivals. Read the block and vary your finish."]
+const SCOUTS := ["Patient receivers. Open corners reward a change of aim.", "Quick wings; their front court opens when they retreat.", "A committed middle block. Try a high roll past it.", "They defend deep. A short tip makes them travel.", "They remember short shots. Pull them forward, then attack deep.", "Strong net coverage; use height and the outside lanes.", "One wing holds deep cover when the other comes forward. Read both sides.", "They remember your hitter route. Switch attackers or roll over the block.", "Complete, adaptive rivals. Read the block and vary your finish."]
 const UPGRADE_POOL := [
-	{"id":"reach","title":"Sand instincts","desc":"Receivers reach 0.18 m farther. Helps save balls at the edge of a dive.","tag":"DEFENSE"},
+	{"id":"reach","title":"Sand instincts","desc":"Adds extra reach to every dive. Rescue balls just outside normal range.","tag":"DEFENSE"},
 	{"id":"tempo","title":"First step","desc":"Your team reacts 0.08 s sooner to an incoming attack.","tag":"RECOVERY"},
 	{"id":"window","title":"Quiet confidence","desc":"The excellent contact window grows by 0.05 s. Automatic contacts stay safe.","tag":"TIMING"},
-	{"id":"power","title":"Heavy hand","desc":"Power attacks travel 8% faster. A waiting block still stops them.","tag":"ATTACK"},
-	{"id":"tip","title":"Soft touch","desc":"Tips land 0.7 m closer to the net, pulling deep defenders forward.","tag":"PLACEMENT"},
-	{"id":"roll","title":"High horizon","desc":"Roll shots travel 8% faster and clear every committed block.","tag":"ATTACK"},
-	{"id":"speed","title":"Together, faster","desc":"All three teammates move 0.22 m/s faster, up to the shared 4.6 m/s cap.","tag":"TEAMWORK"},
+	{"id":"power","title":"Heavy hand","desc":"Power attacks arrive 8% sooner. A waiting block still stops them.","tag":"ATTACK"},
+	{"id":"tip","title":"Soft touch","desc":"Tips land closer to the net, making deep defenders travel farther.","tag":"PLACEMENT"},
+	{"id":"roll","title":"High horizon","desc":"Roll shots arrive 8% sooner and clear every committed block.","tag":"ATTACK"},
+	{"id":"speed","title":"Together, faster","desc":"All three teammates move about 5% faster, within the shared speed limit.","tag":"TEAMWORK"},
 	{"id":"set","title":"Perfect connection","desc":"Automatic set quality gains 8 percentage points. Timing can still improve it.","tag":"TEAMWORK"},
 	{"id":"read","title":"Court vision","desc":"Show the rival's target during their set. Aim at that lane to react 0.13 s sooner on defense.","tag":"SCOUTING"}
 ]
-var scenery: Node2D
-var scenery_viewport: SubViewport
+var scenery: Node3D
 var sound: Node
 var ui: Control
-var painter := Athlete.new()
 var screen := "intro"
 var season := 0
 var unlocked := 1
@@ -59,13 +58,15 @@ var flight_elapsed := 0.0
 var ball := Vector2.ZERO
 var ball_height := 1.0
 var ball_spin := 0.0
-var ball_trail: Array[Vector2] = []
 var contact_quality := 0.68
 var set_quality := 0.68
 var receive_quality := 0.68
 var lane_history: Array[int] = []
 var short_history: Array[bool] = []
 var rival_cover_short := false
+var landing_history:Array[Dictionary]=[]
+var route_history:Array[int]=[]
+var rival_deep_lane:=-1
 var timing_press := -99.0
 var timing_result := ""
 var rally_contacts := 0
@@ -84,13 +85,13 @@ var last_lane := -1
 var repeat_lane := 0
 var enemy_blocker := -1
 var blocker_lane := 1
+var committed_block_target:=Vector2.ZERO
 var block_checked := false
 var flight_is_attack := false
 var flight_source := "attack"
 var attack_team := 0
 var reaction_remaining := 0.0
 var particles: Array[Dictionary] = []
-var shake := 0.0
 var reduced_motion := false
 var save_error := ""
 var ledger: Array = []
@@ -101,31 +102,26 @@ var toast := ""
 var toast_time := 0.0
 
 func _ready() -> void:
-	scenery_viewport=SubViewport.new()
-	scenery_viewport.size=Vector2i(1440,900)
-	scenery_viewport.disable_3d=true
-	scenery_viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
-	add_child(scenery_viewport)
+	# Check the active renderer: command-line overrides bypass project defaults.
+	var renderer:=RenderingServer.get_current_rendering_method()
+	var driver:=RenderingServer.get_current_rendering_driver_name()
+	if renderer!="forward_plus" or RenderingServer.get_rendering_device()==null:
+		push_error("Spike Season requires Forward+ with a working Metal, Vulkan, or Direct3D 12 device. Active renderer: "+renderer+"; driver: "+driver)
+		set_process(false)
+		set_process_unhandled_key_input(false)
+		get_tree().quit(1)
+		return
+	print("SPIKE RENDERER method="+renderer+" driver="+driver+" gpu="+RenderingServer.get_video_adapter_name()+" window="+str(DisplayServer.window_get_size()))
 	scenery=Scenery.new()
-	scenery_viewport.add_child(scenery)
-	var background:=Sprite2D.new()
-	background.centered=false
-	background.texture=scenery_viewport.get_texture()
-	background.show_behind_parent=true
-	add_child(background)
+	scenery.game=self
+	add_child(scenery)
 	sound=Sound.new()
 	add_child(sound)
-	var post:=ColorRect.new()
-	post.size=Vector2(1440,900)
-	post.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	var painted:=ShaderMaterial.new()
-	painted.shader=preload("res://shaders/paint.gdshader")
-	painted.set_shader_parameter("brush_radius",1.5)
-	post.material=painted
-	add_child(post)
 	ui=Interface.new()
 	ui.game=self
 	add_child(ui)
+	ui.scale=Vector2.ONE*0.9
+	ui.position=Vector2(72,0)
 	var review_port:=0
 	var review_dir:="user://review-captures"
 	for arg in OS.get_cmdline_user_args():
@@ -190,6 +186,9 @@ func start_run(index:int, training:bool=false) -> void:
 	repeat_lane=0
 	lane_history.clear()
 	short_history.clear()
+	landing_history.clear()
+	route_history.clear()
+	rival_deep_lane=-1
 	rival_cover_short=false
 	screen="match"
 	scenery.map_index=season/3
@@ -225,7 +224,6 @@ func begin_point(server:int) -> void:
 	feedback="YOUR SERVE" if server==0 else "RIVAL SERVE"
 	feedback_timer=1.5
 	rally_contacts=0
-	ball_trail.clear()
 
 func _process(delta:float) -> void:
 	simulation_accumulator+=delta
@@ -241,7 +239,6 @@ func tick(delta:float) -> void:
 	if toast_time>0: toast_time-=delta
 	if not pause:
 		feedback_timer=maxf(0,feedback_timer-delta)
-		shake=maxf(0,shake-delta*28)
 		for p in players:
 			p.action=maxf(0,p.action-delta*1.6)
 			p.contact_blend=maxf(0.0,p.get("contact_blend",0.0)-delta*5.0)
@@ -279,6 +276,10 @@ func tick(delta:float) -> void:
 					if until_net>0 and until_net<0.20:
 						players[enemy_blocker].anim="block"
 						players[enemy_blocker].action=0.5+until_net*2.5
+						var crossing_fraction:=cross_time/flight_duration
+						players[enemy_blocker].block_target=flight_start.lerp(flight_end,crossing_fraction)
+						players[enemy_blocker].block_height=lerpf(flight_start_height,flight_end_height,crossing_fraction)+sin(crossing_fraction*PI)*flight_arc
+						players[enemy_blocker].contact_blend=1.0-smoothstep(0.0,0.20,until_net)
 				if flight_is_attack and not block_checked and ((attack_team==0 and ball.y<=0) or (attack_team==1 and ball.y>=0)):
 					block_checked=true
 					check_block()
@@ -286,9 +287,6 @@ func tick(delta:float) -> void:
 			elif phase=="point" and phase_time>2.0:
 				if match_over(): finish_match()
 				else: begin_point(serve_team)
-			var projected:=project_ball()
-			ball_trail.push_front(projected)
-			if ball_trail.size()>9: ball_trail.pop_back()
 		for p in particles:
 			p.life-=delta
 			p.pos+=p.vel*delta
@@ -340,7 +338,6 @@ func launch(start:Vector2,end:Vector2,duration:float,arc:float,next_phase:String
 	block_checked=false
 	flight_is_attack=false
 	flight_source="attack"
-	ball_trail.clear()
 
 func prepare_receive() -> void:
 	var offset:=receiving*3
@@ -397,6 +394,12 @@ func quality() -> float:
 	timing_result="EARLY • steady assist"
 	return 0.66
 
+func dig_reach(team:int,contact_quality_value:float) -> float:
+	var reach:=1.05+(0.18*upgrades.count("reach") if team==0 else 0.0)
+	if team==0 and squad==0: reach+=0.12
+	if contact_quality_value>=0.95: reach+=0.15
+	return reach
+
 func resolve_contact() -> void:
 	if phase=="receive":
 		# Everyone can make a last-ditch save; no invisible receiver lockout.
@@ -405,9 +408,7 @@ func resolve_contact() -> void:
 			var d:float=players[i].pos.distance_to(flight_end)
 			if d<best_dist: best_dist=d; toucher=i
 		var dig_quality:=quality()
-		var reach:=1.05+(0.18*upgrades.count("reach") if receiving==0 else 0.0)
-		if receiving==0 and squad==0: reach+=0.12
-		if dig_quality>=0.95: reach+=0.15
+		var reach:=dig_reach(receiving,dig_quality)
 		if best_dist>reach:
 			award_point(1-receiving,"BLOCK • no cover underneath" if flight_source=="block" else "OPEN COURT • beyond the dive")
 			return
@@ -455,7 +456,19 @@ func prepare_block() -> void:
 		blocker_lane=counts.find(counts.max())
 	enemy_blocker=defending*3+1
 	var x:float=[-2.35,0.0,2.35][blocker_lane]
-	players[enemy_blocker].target=Vector2(x,0.75*(1 if defending==0 else -1))
+	if defending==1 and season>=7 and route_history.size()>=3:
+		var route_counts:=[0,0,0]
+		for route in route_history: route_counts[route]+=1
+		var familiar_route:int=route_counts.find(route_counts.max())
+		if route_counts[familiar_route]>=2:
+			# Shade the remembered hitter's corridor, before the next contact.
+			# A new hitter or a high roll can beat this visible commitment.
+			x=lerpf([-3.0,0.0,3.0][familiar_route],[-3.8,0.0,3.8][blocker_lane],.17)
+	elif defending==0 and season>=7 and aim_lane==rival_lane:
+		# The player's matching block-lane choice gets the same route coverage.
+		x=lerpf(players[attacker].target.x,[-3.8,0.0,3.8][aim_lane],.17)
+	committed_block_target=Vector2(x,0.75*(1 if defending==0 else -1))
+	players[enemy_blocker].target=committed_block_target
 	var bias:=0.0
 	var depth:=4.6
 	var spread:=1.85
@@ -472,9 +485,18 @@ func prepare_block() -> void:
 			bias*=0.25
 	else:
 		bias=(aim_lane-1)*0.6
+	rival_deep_lane=-1
+	if defending==1 and season>=6 and rival_cover_short:
+		var deep_pressure:=[0.0,0.0,0.0]
+		for landing in landing_history:
+			deep_pressure[landing.lane]+=1.0 if landing.deep else -1.25
+		rival_deep_lane=0 if deep_pressure[0]>=deep_pressure[2] else 2
 	for i in range(defending*3,defending*3+3):
 		if i!=enemy_blocker:
 			players[i].target=Vector2((-spread if i%3==0 else spread)+bias,depth*(1 if defending==0 else -1))
+			if defending==1 and i%3==rival_deep_lane:
+				# Only one wing comes forward; never abandon both deep corners.
+				players[i].target=Vector2(-3.25 if i%3==0 else 3.25,-6.15)
 
 func target_for(team:int,lane:int,kind:int,deep:bool=true) -> Vector2:
 	var y:=7.5 if deep else 4.1
@@ -493,6 +515,10 @@ func perform_attack() -> void:
 		if kind==1: duration*=pow(0.92,upgrades.count("power"))
 		if kind==0: duration*=pow(0.92,upgrades.count("roll"))
 		if squad==2 and attacker%3==2: duration*=0.96
+		landing_history.append({"lane":lane,"deep":absf(target.y)>=4.2})
+		if landing_history.size()>6: landing_history.pop_front()
+		route_history.append(attacker%3)
+		if route_history.size()>4: route_history.pop_front()
 		short_history.append(absf(target.y)<4.2)
 		if short_history.size()>4: short_history.pop_front()
 		lane_history.append(lane)
@@ -516,18 +542,26 @@ func perform_attack() -> void:
 	prepare_receive()
 	# Blocker must commit to the net instead of also chasing a deep ball.
 	if enemy_blocker>=0 and enemy_blocker!=toucher:
-		players[enemy_blocker].target=Vector2([-2.35,0.0,2.35][blocker_lane],0.75*(1 if receiving==0 else -1))
+		players[enemy_blocker].target=committed_block_target
 
 func check_block() -> void:
 	if int(get_meta("flight_kind",0))!=1 or enemy_blocker<0: return
 	var blocker:Dictionary=players[enemy_blocker]
-	if absf(blocker.pos.y)>1.65 or absf(blocker.pos.x-ball.x)>0.8: return
-	# Height and hands are shared physical limits for both sides.
-	if ball_height>3.3: return
+	# Both teams use the articulated jump's shoulder height, lean, and finite arms.
+	# The compact court uses the same metric for both teams.
+	var vertical:=ball_height-0.115-2.15
+	var arm_depth_squared:=0.615*0.615-vertical*vertical-0.14*0.14
+	if arm_depth_squared<=0 or ball_height>2.9: return
+	var horizontal:float=((blocker.pos-ball)*COURT_SCALE).length()
+	if horizontal>0.48+sqrt(arm_depth_squared): return
 	players[enemy_blocker].anim="block"
 	players[enemy_blocker].action=0.5
+	players[enemy_blocker].block_target=ball
+	players[enemy_blocker].block_height=ball_height
+	players[enemy_blocker].contact_blend=1.0
 	players[enemy_blocker].recovery=0.40
 	sound.contact(0.9)
+	scenery.ball_effects.contact(scenery.world(ball,ball_height),0.9,reduced_motion)
 	burst(project_ball(),Color("e6f4df"),16)
 	feedback="ROOFED! • cover the rebound"
 	feedback_timer=1.4
@@ -548,8 +582,8 @@ func animate_contact(index:int,animation:String,q:float) -> void:
 	current_match_contacts+=1
 	best_rally=maxi(best_rally,rally_contacts)
 	sound.contact(q if animation=="spike" else q*0.45)
+	scenery.ball_effects.contact(scenery.world(ball,ball_height),q,reduced_motion)
 	burst(project_ball(),Color("ffe39a") if q>0.95 else Color("fff0d1"),14 if q>0.95 else 7)
-	if not reduced_motion: shake=3.5 if animation=="spike" else 1.0
 	if receiving==0:
 		feedback=timing_result
 		feedback_timer=0.9
@@ -657,91 +691,14 @@ func capture() -> void:
 	print("SCREENSHOT "+ProjectSettings.globalize_path(path))
 
 func project_ball() -> Vector2:
-	return scenery.court(ball)-Vector2(0,ball_height*(75+(ball.y+8)*1.2))
+	return scenery.ball_screen()
 
 func _draw() -> void:
-	if players.is_empty(): return
-	var camera_offset:=Vector2(sin(time*91),cos(time*77))*shake if not reduced_motion else Vector2.ZERO
-	draw_set_transform(camera_offset)
-	# Projected shadows anchor all six athletes and the ball to the clay.
-	for i in range(6):
-		var p:Vector2=scenery.court(players[i].pos)
-		var shadow_scale:float=0.91+(players[i].pos.y+8)*0.032
-		painter.draw_shadow(self,p,shadow_scale,players[i],time,Color("c6af80") if season/3==1 else Color("cfa276"))
-		draw_set_transform(camera_offset)
-	if screen=="match":
-		var selected_pos:Vector2=scenery.court(players[active].pos)
-		draw_set_transform(selected_pos+camera_offset,0,Vector2(1,0.34))
-		draw_arc(Vector2.ZERO,31,0,TAU,48,Color("ffe18a"),4,true)
-		draw_arc(Vector2.ZERO,35,0,TAU,48,Color(1,0.91,0.59,0.3),2,true)
-		draw_set_transform(camera_offset)
-		# Dashed target is the chosen landing zone, not a promise of a point.
-		var aim:Vector2=scenery.court(target_for(0,aim_lane,shot,aim_deep))
-		draw_set_transform(aim+camera_offset,0,Vector2(1,0.36))
-		for i in range(8): draw_arc(Vector2.ZERO,23,i*TAU/8,i*TAU/8+0.42,6,Color("fff2bf"),2,true)
-		draw_set_transform(camera_offset)
-		draw_string(ThemeDB.fallback_font,aim+Vector2(-14,21),"AIM",HORIZONTAL_ALIGNMENT_LEFT,-1,10,Color("fff4d6"))
-		if phase in ["receive","set","attack"]:
-			var landing:Vector2=scenery.court(flight_end)
-			draw_set_transform(landing+camera_offset,0,Vector2(1,0.35))
-			draw_arc(Vector2.ZERO,16,0,TAU,36,Color(1,0.98,0.82,0.8),2,true)
-			draw_set_transform(camera_offset)
-		if receiving==1 and phase in ["set","attack"] and upgrades.has("read"):
-			var danger:Vector2=scenery.court(target_for(1,rival_lane,rival_shot))
-			draw_arc(danger,24,0,TAU,32,Color("d77857"),3,true)
-	var order:Array[int]=[0,1,2,3,4,5]
-	order.sort_custom(func(a,b): return players[a].pos.y<players[b].pos.y)
-	for i in order:
-		if players[i].pos.y<=0: draw_athlete(i)
-	draw_net()
-	for i in order:
-		if players[i].pos.y>0: draw_athlete(i)
-	if screen=="match":
-		var floor_pos:Vector2=scenery.court(ball)
-		draw_set_transform(floor_pos+camera_offset,0,Vector2(1,0.32))
-		draw_circle(Vector2.ZERO,maxf(4,12-ball_height),Color(0.15,0.24,0.23,0.32))
-		draw_set_transform(camera_offset)
-		for i in range(ball_trail.size()-1,0,-1):
-			draw_line(ball_trail[i],ball_trail[i-1],Color(1,0.94,0.71,0.22*(1-float(i)/9)),maxf(2,12-i),true)
-		draw_volleyball(project_ball(),12+(ball.y+8)*0.14)
 	for p in particles:
-		var c:Color=p.color
-		c.a=minf(1,p.life*2)
-		draw_circle(p.pos,2.5,c)
-	draw_set_transform(Vector2.ZERO)
-
-func draw_athlete(i:int) -> void:
-	var p:Vector2=players[i].pos
-	painter.draw_player(self,scenery.court(p),0.91+(p.y+8)*0.032,players[i],time,i==active and screen=="match")
-
-func draw_net() -> void:
-	var a:Vector2=scenery.court(Vector2(-4.65,0))
-	var b:Vector2=scenery.court(Vector2(4.65,0))
-	var h:=183.0
-	for i in range(45):
-		var x:=lerpf(a.x,b.x,float(i)/44)
-		draw_line(Vector2(x,a.y-h+3),Vector2(x,a.y-102),Color(0.15,0.28,0.28,0.54),0.9,true)
-	for j in range(10): draw_line(Vector2(a.x,a.y-h+j*9),Vector2(b.x,b.y-h+j*9),Color(0.13,0.27,0.28,0.55),0.9,true)
-	draw_line(a-Vector2(0,h),b-Vector2(0,h),Color("fff2d2"),6,true)
-	draw_line(a-Vector2(0,102),b-Vector2(0,102),Color("ded5ae"),3,true)
-	for p in [a,b]:
-		draw_line(p+Vector2(0,5),p-Vector2(0,210),Color("355e69"),10,true)
-		draw_line(p+Vector2(-2,3),p-Vector2(2,65),Color("407683"),15,true)
-		draw_line(p-Vector2(0,185),p-Vector2(0,225),Color("f5e7c8"),3,true)
-		for j in range(3): draw_line(p-Vector2(0,191+j*12),p-Vector2(0,197+j*12),Color("ca7860"),3,true)
-
-func draw_volleyball(p:Vector2,r:float) -> void:
-	draw_circle(p+Vector2(2,3),r+1,Color(0.1,0.23,0.26,0.2))
-	draw_circle(p,r+1.5,Color("294a51"))
-	draw_circle(p,r,Color("fff1cc"))
-	for i in range(3):
-		var ang:=ball_spin+float(i)*TAU/3.0
-		var points:=PackedVector2Array([p])
-		for j in range(10): points.append(p+Vector2.from_angle(ang+j*0.095)*r)
-		draw_colored_polygon(points,Color("dfb249") if i==0 else Color("406477"))
-		draw_arc(p,r*0.72,ang,ang+1.0,12,Color("365361"),0.7,true)
-	draw_arc(p-Vector2(2,3),r*0.7,3.4,4.5,12,Color(1,1,0.91,0.8),2,true)
+		var color:Color=p.color
+		color.a=minf(1,p.life*2)
+		draw_circle(p.pos,2.0,color)
 
 func refresh_scenery() -> void:
-	scenery.queue_redraw()
-	scenery_viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+	scenery.refresh()
+	sound.set_atmosphere(scenery.map_index,scenery.variant)

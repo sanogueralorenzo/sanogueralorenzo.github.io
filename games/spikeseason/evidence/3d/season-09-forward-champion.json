@@ -1,0 +1,486 @@
+{
+  "aim": 0,
+  "ball_world": "(-4.18, 0.0, -6.0)",
+  "best_rally": 9,
+  "block_lane": 0,
+  "camera_inspection": false,
+  "camera_position": "(1.2, 4.30001, 11.80002)",
+  "contacts": 6,
+  "crowns": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "feedback": "SOL POINT",
+  "flight_remaining": 0.0,
+  "fps": 60.0,
+  "hud_compact_left": false,
+  "hud_compact_right": false,
+  "ledger": [
+    {
+      "contacts": 9,
+      "reason": "BLOCK \u2022 no cover underneath",
+      "round": 1,
+      "score": [
+        1,
+        0
+      ],
+      "season": 9,
+      "time": 13.0
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        2,
+        0
+      ],
+      "season": 9,
+      "time": 25.3
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        3,
+        0
+      ],
+      "season": 9,
+      "time": 37.4
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        4,
+        0
+      ],
+      "season": 9,
+      "time": 49.5
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        5,
+        0
+      ],
+      "season": 9,
+      "time": 61.5
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        1,
+        0
+      ],
+      "season": 9,
+      "time": 10.2
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        2,
+        0
+      ],
+      "season": 9,
+      "time": 22.5
+    },
+    {
+      "contacts": 9,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        2,
+        1
+      ],
+      "season": 9,
+      "time": 37.7
+    },
+    {
+      "contacts": 3,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        3,
+        1
+      ],
+      "season": 9,
+      "time": 46.7
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        4,
+        1
+      ],
+      "season": 9,
+      "time": 58.8
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        5,
+        1
+      ],
+      "season": 9,
+      "time": 70.9
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        1,
+        0
+      ],
+      "season": 9,
+      "time": 10.2
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        2,
+        0
+      ],
+      "season": 9,
+      "time": 22.5
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        3,
+        0
+      ],
+      "season": 9,
+      "time": 34.6
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        4,
+        0
+      ],
+      "season": 9,
+      "time": 46.7
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        5,
+        0
+      ],
+      "season": 9,
+      "time": 58.7
+    }
+  ],
+  "match_seconds": 60.8,
+  "offers": [
+    {
+      "desc": "Your team reacts 0.08 s sooner to an incoming attack.",
+      "id": "tempo",
+      "tag": "RECOVERY",
+      "title": "First step"
+    },
+    {
+      "desc": "Roll shots travel 8% faster and clear every committed block.",
+      "id": "roll",
+      "tag": "ATTACK",
+      "title": "High horizon"
+    },
+    {
+      "desc": "Receivers reach 0.18 m farther. Helps save balls at the edge of a dive.",
+      "id": "reach",
+      "tag": "DEFENSE",
+      "title": "Sand instincts"
+    }
+  ],
+  "paused": false,
+  "performance": {
+    "draw_calls": 1263.0,
+    "frames": 600,
+    "mean_ms": 16.6663033333333,
+    "p95_ms": 16.935,
+    "p99_ms": 17.075,
+    "primitives": 2035858.0,
+    "seconds": 9.999782,
+    "worst_ms": 17.879
+  },
+  "phase": "point",
+  "players": [
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 6.88820613861084,
+      "feet_world": [
+        "(-3.457142, 0.06, 1.273636)",
+        "(-3.139313, 0.06, 1.242144)"
+      ],
+      "feet_yaw": [
+        0.117387965321541,
+        0.0801350921392441
+      ],
+      "hands": [
+        "(-3.534808, 0.989621, 0.897773)",
+        "(-3.065192, 0.989621, 0.897773)"
+      ],
+      "id": 0,
+      "missed_dig": false,
+      "root_yaw": 0.0,
+      "swinging": [
+        false,
+        false
+      ],
+      "target": [
+        -3.0,
+        1.54999995231628
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": -3.0,
+      "y": 1.55
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 10.1701284790039,
+      "feet_world": [
+        "(-0.280388, 0.06, 3.914682)",
+        "(0.022148, 0.06, 3.852153)"
+      ],
+      "feet_yaw": [
+        -49.8756332397461,
+        -50.2477035522461
+      ],
+      "hands": [
+        "(-0.372906, 0.989621, 3.497775)",
+        "(0.096711, 0.989621, 3.497771)"
+      ],
+      "id": 1,
+      "missed_dig": false,
+      "root_yaw": -50.2654724121094,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        -0.125539854168892,
+        4.80000019073486
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": -0.13,
+      "y": 4.8
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 8.66811431884766,
+      "feet_world": [
+        "(0.610646, 0.06, 1.70077)",
+        "(0.930055, 0.06, 1.694406)"
+      ],
+      "feet_yaw": [
+        0.0361337848007679,
+        0.00371345644816756
+      ],
+      "hands": [
+        "(0.535192, 0.989621, 1.337773)",
+        "(1.004808, 0.989621, 1.337773)"
+      ],
+      "id": 2,
+      "missed_dig": false,
+      "root_yaw": 0.0,
+      "swinging": [
+        false,
+        false
+      ],
+      "target": [
+        0.699999988079071,
+        2.09999990463257
+      ],
+      "team": 0,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 0.7,
+      "y": 2.1
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 0.963128461837769,
+      "feet_world": [
+        "(-4.019317, 0.06, -5.997572)",
+        "(-4.339822, 0.06, -6.016785)"
+      ],
+      "feet_yaw": [
+        -3.25017738342285,
+        -3.15275192260742
+      ],
+      "hands": [
+        "(-3.945192, 0.989621, -5.657773)",
+        "(-4.414808, 0.989621, -5.657773)"
+      ],
+      "id": 0,
+      "missed_dig": false,
+      "root_yaw": -3.14159321784973,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        -3.79999995231628,
+        -7.5
+      ],
+      "team": 1,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": -3.8,
+      "y": -7.5
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 5.87352909088135,
+      "feet_world": [
+        "(-2.426246, 0.06, -0.575053)",
+        "(-2.744563, 0.06, -0.619095)"
+      ],
+      "feet_yaw": [
+        21.7418060302734,
+        21.9655227661133
+      ],
+      "hands": [
+        "(-2.350194, 0.989621, -0.257771)",
+        "(-2.81981, 0.989621, -0.257774)"
+      ],
+      "id": 1,
+      "missed_dig": false,
+      "root_yaw": 21.9911422729492,
+      "swinging": [
+        false,
+        false
+      ],
+      "target": [
+        -2.34999990463257,
+        -0.75
+      ],
+      "team": 1,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": -2.35,
+      "y": -0.75
+    },
+    {
+      "action": 0.0,
+      "anim": "ready",
+      "contact_anchor": "(-4.18, 0.0, -6.0)",
+      "contact_blend": 0.0,
+      "contact_error": 7.78428043365478,
+      "feet_world": [
+        "(3.240473, 0.06, -2.871439)",
+        "(2.920244, 0.06, -2.897411)"
+      ],
+      "feet_yaw": [
+        2.99482220014463,
+        9.40969467163086
+      ],
+      "hands": [
+        "(3.314807, 0.989621, -2.537772)",
+        "(2.845191, 0.989621, -2.537773)"
+      ],
+      "id": 2,
+      "missed_dig": false,
+      "root_yaw": 9.42477512359619,
+      "swinging": [
+        false,
+        true
+      ],
+      "target": [
+        2.79999995231628,
+        -3.59999990463257
+      ],
+      "team": 1,
+      "turn_step": [
+        0,
+        0
+      ],
+      "x": 2.8,
+      "y": -3.6
+    }
+  ],
+  "receiving": 1,
+  "rival_cover_short": true,
+  "rival_lane": 2,
+  "rival_shot": 1,
+  "round": 3,
+  "run_seconds": 197.2,
+  "save_error": "",
+  "score": [
+    5,
+    0
+  ],
+  "screen": "champion",
+  "season": 9,
+  "short_history": [
+    true,
+    false,
+    false,
+    false
+  ],
+  "shot": 1,
+  "speed": 1.0,
+  "unlocked": 9,
+  "upgrades": [
+    "window",
+    "roll"
+  ]
+}

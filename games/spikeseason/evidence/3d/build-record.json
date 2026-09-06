@@ -1,0 +1,46 @@
+{
+  "engine": "Godot 4.7.2",
+  "renderer": "Forward+ / Metal",
+  "source_sha256": {
+    "project.godot": "5005dc74b69768f7f093c0981183010a03e64a250091f5326467815b2d31abd8",
+    "scripts/main.gd": "71be3f4b51aa8095c0288afcc5075441f221c0d505dbee053c3c957b312b7228",
+    "scripts/interface.gd": "055b3bd27824ec7ab8968fcca4db7f885218dd79cdc6e9b176c8ba3cf22ff14d",
+    "scripts/sound.gd": "62dbe7cb31e9ee3cce653d9806cd1d9cbbd8aaf0e75bea7b4b2b8ab3d08c34a9",
+    "scripts/three_d/athlete.gd": "054f690d9696646918aed8b4953fd2e51dc511ec3ff7ce84c91b465917ce992d",
+    "scripts/three_d/ball_effects.gd": "6d722387c7c80baed23f82d63093502b4d23bf526600cab122503f921c845fa4",
+    "scripts/three_d/coast.gd": "ca8f1c7882db0334d99a26b1841e86909cd6d6a1c195fc0ff0e96dcbb99fbd26",
+    "scripts/three_d/gardens.gd": "93b96406bd4a3f9036cd966614ae2daf6b31142baab4bcd6d695aaecc46d986d",
+    "scripts/three_d/geometry.gd": "8c137969a39742a71e4f362d564ac07a6eeb11153e5511c3ef301f9ee026ce4a",
+    "scripts/three_d/harbor.gd": "0dc992b9c934fecbe5ce705f068f0af728f916431cf6f39b798844030fd6fa06",
+    "scripts/three_d/presentation.gd": "17bf8a3d7f9752ce17bc3d72c93f9997555248e570b6e0dd922381680083f705",
+    "shaders/three_d/ball.gdshader": "1d5a6b1bdbbb05942de20e0f8a7331938ea91241be0999d2941318f9fafd71a0",
+    "shaders/three_d/foliage.gdshader": "8514dca103991f20df32728068464c2588c25bd08ebed06a92f03c94768f0ae8",
+    "shaders/three_d/headland.gdshader": "431a2ab874487fe913be736680c6500af8856a0b628dd35d361bdee40b638d55",
+    "shaders/three_d/ink.gdshader": "82c0e144d42885a4dd7ff5af05590a56a84674a514d005b7d100503995605517",
+    "shaders/three_d/ocean.gdshader": "955b4826aebbd276d8b7af1090b14825e779a0ac73ddb388de400c590cc91714",
+    "shaders/three_d/paint.gdshader": "679c8edde953e155bd4caf3e29fea4427ba2916c7040e430e7edff0ed13e1c62",
+    "shaders/three_d/sky.gdshader": "74bae56bad1cabceff01377079dc5d67e442a0aa212638b23a27b12fc8643389",
+    "shaders/three_d/surface.gdshader": "775357b510f5440619449ef5883b81f8419016038a24a614572a22407459cc56",
+    "shaders/three_d/uniform.gdshader": "c899f6ba6e271e50e7fa060f3803df178b8528bbe5d2f38678f2344f46ec1c09"
+  },
+  "recordings": {
+    "representative-coast.mp4": {
+      "frames": 5400,
+      "fps": 60,
+      "seconds": 90,
+      "width": 1280,
+      "height": 720,
+      "audio": "AAC stereo 48000 Hz",
+      "method": "Godot Movie Maker fixed-frame; manual input; game speed 1x; 111 seconds wall capture"
+    },
+    "harbor-gardens-gameplay.mp4": {
+      "frames": 3600,
+      "fps": 60,
+      "seconds": 60,
+      "width": 1280,
+      "height": 720,
+      "audio": "AAC stereo 48000 Hz",
+      "method": "Godot Movie Maker fixed-frame; manual input and leave/replay transition; game speed 1x; 84 seconds wall capture"
+    }
+  }
+}

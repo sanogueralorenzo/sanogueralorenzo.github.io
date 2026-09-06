@@ -1,0 +1,524 @@
+{
+  "pid": 85860,
+  "command": [
+    "godot",
+    "--path",
+    "/tmp/spikeseason-forward-review/baseline",
+    "--script",
+    "/tmp/spikeseason-forward-review/profile.gd",
+    "--",
+    "--review-port=45925",
+    "--review-profile=forward-baseline",
+    "--venue=8",
+    "--output=/tmp/spikeseason-forward-review/evidence/baseline-season-8-final-performance",
+    "--seconds=30"
+  ],
+  "exit_code": 0,
+  "samples": [
+    {
+      "elapsed_s": 75024.0,
+      "rss_kib": 288,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75024.511,
+      "rss_kib": 201632,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75025.018,
+      "rss_kib": 280640,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75025.525,
+      "rss_kib": 289456,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75026.036,
+      "rss_kib": 339888,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75026.542,
+      "rss_kib": 357376,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75027.052,
+      "rss_kib": 381120,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75027.558,
+      "rss_kib": 393088,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75028.068,
+      "rss_kib": 520240,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75028.58,
+      "rss_kib": 547936,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75029.09,
+      "rss_kib": 506512,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75029.6,
+      "rss_kib": 544048,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75030.113,
+      "rss_kib": 676384,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75030.622,
+      "rss_kib": 523936,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75031.135,
+      "rss_kib": 524016,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75031.643,
+      "rss_kib": 524048,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75032.154,
+      "rss_kib": 524480,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75032.668,
+      "rss_kib": 524480,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75033.177,
+      "rss_kib": 524496,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75033.689,
+      "rss_kib": 524496,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75034.2,
+      "rss_kib": 524784,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75034.713,
+      "rss_kib": 524816,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75035.223,
+      "rss_kib": 524832,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75035.735,
+      "rss_kib": 524848,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75036.243,
+      "rss_kib": 524896,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75036.755,
+      "rss_kib": 524896,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75037.266,
+      "rss_kib": 525024,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75037.779,
+      "rss_kib": 525024,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75038.29,
+      "rss_kib": 525072,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75038.801,
+      "rss_kib": 525088,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75039.311,
+      "rss_kib": 525088,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75039.818,
+      "rss_kib": 525104,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75040.324,
+      "rss_kib": 525104,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75040.833,
+      "rss_kib": 525120,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75041.344,
+      "rss_kib": 525120,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75041.854,
+      "rss_kib": 525152,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75042.366,
+      "rss_kib": 525152,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75042.876,
+      "rss_kib": 520560,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75043.383,
+      "rss_kib": 520560,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75043.895,
+      "rss_kib": 520672,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75044.408,
+      "rss_kib": 520704,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75044.918,
+      "rss_kib": 520704,
+      "measuring": false
+    },
+    {
+      "elapsed_s": 75045.431,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75045.945,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75046.457,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75046.966,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75047.478,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75047.989,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75048.498,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75049.01,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75049.521,
+      "rss_kib": 520704,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75050.034,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75050.546,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75051.058,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75051.568,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75052.076,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75052.587,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75053.1,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75053.612,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75054.124,
+      "rss_kib": 520720,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75054.633,
+      "rss_kib": 520736,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75055.146,
+      "rss_kib": 520736,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75055.658,
+      "rss_kib": 520736,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75056.17,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75056.682,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75057.194,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75057.706,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75058.216,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75058.728,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75059.239,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75059.751,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75060.263,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75060.775,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75061.283,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75061.792,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75062.301,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75062.81,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75063.321,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75063.832,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75064.344,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75064.856,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75065.365,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75065.876,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75066.388,
+      "rss_kib": 520912,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75066.9,
+      "rss_kib": 520928,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75067.41,
+      "rss_kib": 520928,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75067.918,
+      "rss_kib": 520928,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75068.429,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75068.941,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75069.452,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75069.964,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75070.477,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75070.988,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75071.498,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75072.01,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75072.521,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75073.033,
+      "rss_kib": 520944,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75073.541,
+      "rss_kib": 520976,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75074.053,
+      "rss_kib": 520976,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75074.563,
+      "rss_kib": 520976,
+      "measuring": true
+    },
+    {
+      "elapsed_s": 75075.074,
+      "rss_kib": 520976,
+      "measuring": true
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "fps": 32.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 34.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 34.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 33.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 33.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 34.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 30.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  },
+  {
+    "fps": 30.0,
+    "phase": "point",
+    "match_seconds": 65.4,
+    "season": 9,
+    "speed": 1.0,
+    "camera_inspection": false
+  }
+]
