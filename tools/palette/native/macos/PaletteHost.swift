@@ -53,7 +53,7 @@ final class ClipboardTable: NSTableView {
 @MainActor
 final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     private let clipboardMenu = NSMenu()
-    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 260))
+    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 236))
     private var menuOpen = false
     private let search = ClipboardSearch()
     private var searchExpanded = false
@@ -74,22 +74,12 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var changeCount = NSPasteboard.general.changeCount
     private var iconCache: [String: NSImage] = [:]
     private var previewVisible = false
-    private let pause = NSButton()
+    private let title = NSTextField(labelWithString: "Palette")
+    private let captureItem = NSMenuItem(title: "Resume", action: nil, keyEquivalent: "")
     private let clear = NSButton()
     private var issue: String?
     private var shortcutError: String?
     private var historyAvailable: Bool?
-    private let captureOnColor = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(srgbRed: 168/255, green: 213/255, blue: 181/255, alpha: 1)
-            : NSColor(srgbRed: 47/255, green: 112/255, blue: 70/255, alpha: 1)
-    }
-    private let captureOffColor = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(srgbRed: 231/255, green: 165/255, blue: 165/255, alpha: 1)
-            : NSColor(srgbRed: 164/255, green: 63/255, blue: 63/255, alpha: 1)
-    }
-    private let accent = NSColor(calibratedRed: 0.75, green: 0.69, blue: 0.9, alpha: 1)
 
     static func main() {
         let app = NSApplication.shared
@@ -157,19 +147,16 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         root.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
         let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
-        mark.contentTintColor = accent
+        mark.contentTintColor = .white
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        pause.title = "Palette"
-        pause.font = .systemFont(ofSize: 13, weight: .semibold)
-        pause.contentTintColor = captureOffColor
-        pause.target = self; pause.action = #selector(toggleCapture)
-        pause.isBordered = false; pause.isEnabled = false
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        title.textColor = .white
         clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
         clear.target = self; clear.action = #selector(clearHistory)
         clear.isBordered = false; clear.isEnabled = false
         clear.toolTip = "Clear all clipboard history"
         clear.setAccessibilityLabel("Clear all clipboard history")
-        let heading = NSStackView(views: [mark, pause, NSView(), clear]); heading.spacing = 8
+        let heading = NSStackView(views: [mark, title, NSView(), clear]); heading.spacing = 8
         heading.heightAnchor.constraint(equalToConstant: 22).isActive = true
         add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
@@ -218,6 +205,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         clipboard.view = content
         clipboardMenu.addItem(clipboard)
         clipboardMenu.addItem(.separator())
+        captureItem.target = self; captureItem.action = #selector(toggleCapture)
+        captureItem.isEnabled = false
+        clipboardMenu.addItem(captureItem)
         clipboardMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
@@ -320,7 +310,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         historyScroll.isHidden = previewVisible || (filtered.isEmpty && !searchExpanded)
         let rowsHeight = CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 22 + 8 + 26 + (filtered.isEmpty ? 0 : 8 + rowsHeight)
-        let height = searchExpanded || previewVisible ? 260 : min(260, naturalHeight)
+        let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))
@@ -383,10 +373,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private func report(_ text: String?) {
         issue = text
         let action = policy.enabled ? "Pause capture" : "Resume capture"
-        pause.setAccessibilityLabel("Palette · \(action)")
-        pause.toolTip = text.map { "\(action)\n\($0)" } ?? action
-        pause.contentTintColor = historyAvailable == true && policy.enabled ? captureOnColor : captureOffColor
-        pause.isEnabled = historyAvailable == true
+        captureItem.title = policy.enabled ? "Pause" : "Resume"
+        captureItem.toolTip = text.map { "\(action)\n\($0)" } ?? action
+        captureItem.isEnabled = historyAvailable == true
+        title.toolTip = text
         clear.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
     }

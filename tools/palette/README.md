@@ -2,7 +2,7 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide and grows with history up to 260 points tall. An empty history wraps the title and search. Focusing search expands it to its maximum height until the menu closes, keeping results steady while typing. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide and grows with history up to 236 points tall, preserving the overall menu height with its native Pause/Resume and Quit rows. An empty history wraps the title and search. Focusing search expands it to its maximum height until the menu closes, keeping results steady while typing. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the menu. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
@@ -11,7 +11,7 @@ Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compa
 
 Direct paste needs Palette's existing macOS Accessibility permission; ⌘C works without it. If the destination cannot regain focus, the clip remains copied for manual paste. macOS does not report whether a destination accepted a paste.
 
-Click the **Palette title** to pause or resume capture; its text is soft mint when capture is on and muted rose when off, with darker shades in light mode. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no additional options menu or settings panel. The native bottom **Quit Palette** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
+The overlapping-squares header icon and Palette title are white. Choose **Pause** or **Resume** in the native row directly above Quit to control capture. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no additional options menu or settings panel. The native bottom **Quit Palette** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
 
 ## Clipboard and privacy
 
