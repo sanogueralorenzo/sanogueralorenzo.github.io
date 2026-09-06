@@ -76,7 +76,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var filtered: [Clip] = []
     private var iconCache: [String: NSImage] = [:]
     private var menuOpen = false
-    private var searchExpanded = false
     private var historyAvailable = false
 
     override init() { super.init(); configureContent(); configureMenu(); report(nil) }
@@ -93,12 +92,12 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     func dismiss() { clipboardMenu.cancelTracking() }
     func menuWillOpen(_ menu: NSMenu) {
         menuOpen = true; onOpen?()
-        searchExpanded = false; search.endSearch(); search.stringValue = ""
+        search.endSearch(); search.stringValue = ""
         table.clearHover(); table.deselectAll(nil); reload()
     }
     func menuDidClose(_ menu: NSMenu) { menuOpen = false; search.endSearch() }
     func controlTextDidEndEditing(_ obj: Notification) { search.endSearch(); updatePreviewShortcut() }
-    func controlTextDidChange(_ obj: Notification) { searchExpanded = true; reload() }
+    func controlTextDidChange(_ obj: Notification) { reload() }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         switch commandSelector {
         case #selector(NSResponder.moveDown(_:)): moveSelection(by: 1)
@@ -135,16 +134,19 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
         search.placeholderString = "Search"
         search.delegate = self
-        search.didFocus = { [weak self] in
-            self?.searchExpanded = true
-            self?.updateContentSize()
-            self?.updatePreviewShortcut()
-        }
+        search.didFocus = { [weak self] in self?.updatePreviewShortcut() }
         search.sendsSearchStringImmediately = true
+        search.isBordered = false; search.isBezeled = false; search.drawsBackground = false
+        search.focusRingType = .none
+        (search.cell as? NSSearchFieldCell)?.searchButtonCell = nil
+        let searchIcon = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
+        let searchRow = makeRow(icon: searchIcon, title: search, shortcut: "⌘F")
+        (searchRow.arrangedSubviews.first as? NSImageView)?.contentTintColor = .secondaryLabelColor
+        (searchRow.arrangedSubviews.first as? NSImageView)?.imageScaling = .scaleNone
         search.font = .systemFont(ofSize: 13)
         search.setAccessibilityLabel("Search clips or apps")
-        add(search, to: stack)
-        search.heightAnchor.constraint(equalToConstant: 26).isActive = true
+        add(searchRow, to: stack)
+        searchRow.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = content.frame.width - 22
         table.addTableColumn(column)
         table.headerView = nil; table.backgroundColor = .clear
@@ -286,10 +288,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         emptyState.isHidden = !showEmpty
         emptyRows.isHidden = !clips.isEmpty
         emptyLabel.isHidden = clips.isEmpty
-        historyScroll.isHidden = showEmpty || (filtered.isEmpty && !searchExpanded)
+        historyScroll.isHidden = showEmpty || filtered.isEmpty
         let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
-        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
-        let height = searchExpanded ? 236 : min(236, naturalHeight)
+        let naturalHeight = 20 + 30 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
+        let height = min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))
