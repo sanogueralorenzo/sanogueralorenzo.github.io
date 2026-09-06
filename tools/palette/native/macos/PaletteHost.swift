@@ -75,7 +75,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var iconCache: [String: NSImage] = [:]
     private var previewVisible = false
     private let emptyState = NSView()
-    private let emptyLabel = NSTextField(labelWithString: "Copied items appear here")
+    private let emptyLabel = NSTextField(labelWithString: "Copy something to start")
     private let emptyRows = NSStackView()
     private var copyItems: [NSMenuItem] = []
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
@@ -327,7 +327,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private func updateContentSize() {
         let showEmpty = historyAvailable == true && filtered.isEmpty && !previewVisible
         emptyState.isHidden = !showEmpty
-        emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copied items appear here" : "No matching clips") : ""
+        emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copy something to start" : "No matching clips") : ""
         historyScroll.isHidden = previewVisible || showEmpty || (filtered.isEmpty && !searchExpanded)
         for row in emptyRows.arrangedSubviews.dropFirst() { row.isHidden = !clips.isEmpty }
         let bodyHeight = showEmpty ? (clips.isEmpty ? 62.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
