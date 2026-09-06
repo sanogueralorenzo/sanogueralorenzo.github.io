@@ -159,15 +159,17 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         add(scroll, to: stack)
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
-        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 5
-        emptyRows.edgeInsets = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+        emptyRows.orientation = .vertical; emptyRows.alignment = .centerX; emptyRows.spacing = 4
+        emptyRows.edgeInsets = NSEdgeInsets(top: 12, left: 4, bottom: 12, right: 4)
         for (index, text) in ["Copies appear here.", "Click to copy it again.", "Preview image with hover + space"].enumerated() {
             let label = NSTextField(wrappingLabelWithString: text)
             label.font = .systemFont(ofSize: 12, weight: index == 0 ? .medium : .regular)
             label.textColor = index == 0 ? .labelColor : .secondaryLabelColor
-            label.preferredMaxLayoutWidth = 248
+            label.alignment = .center
+            label.preferredMaxLayoutWidth = 252
             emptyRows.addArrangedSubview(label)
-            label.widthAnchor.constraint(equalTo: emptyRows.widthAnchor, constant: -12).isActive = true
+            label.widthAnchor.constraint(equalTo: emptyRows.widthAnchor, constant: -8).isActive = true
+            if index == 0 { emptyRows.setCustomSpacing(10, after: label) }
         }
         for view in [emptyRows, emptyLabel] {
             view.translatesAutoresizingMaskIntoConstraints = false
