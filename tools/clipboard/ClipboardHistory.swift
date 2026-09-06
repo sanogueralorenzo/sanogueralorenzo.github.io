@@ -16,7 +16,6 @@ struct Clip: Codable, Equatable {
     var height: Int?
     var representations: [[Format]]?
     var createdAt: Double
-    var pinned: Bool
 
     var appName: String { sourceAppName ?? "Unknown app" }
     var summary: String { title ?? content }
@@ -28,7 +27,7 @@ struct ClipboardPolicy: Codable {
     var excludedAppIds: [String] = []
 }
 
-/// One serial owner for encrypted history and settings. Publish only successful writes.
+/// History and settings are owned by the serial queue.
 final class ClipboardStore {
     private struct Settings: Codable { var clipboard: ClipboardPolicy }
     private struct Envelope: Codable { var version: Int; var iv: Data; var authTag: Data; var ciphertext: Data }
@@ -78,7 +77,7 @@ final class ClipboardStore {
         change { clips in
             var clip = clip
             let existing = clips.first { $0.sourceAppId == clip.sourceAppId && $0.kind == clip.kind && $0.content == clip.content && $0.representations == clip.representations }
-            if let existing { clip.id = existing.id; clip.pinned = existing.pinned }
+            if let existing { clip.id = existing.id }
             let next = self.pruned([clip] + clips.filter { $0.id != clip.id })
             guard next.contains(where: { $0.id == clip.id }) else {
                 throw Self.failure("This copy exceeds the saved history limits.")
@@ -112,11 +111,14 @@ final class ClipboardStore {
         queue.async {
             guard self.ready, let key = self.key else { return }
             do {
-                let next = try transform(self.saved)
+                var next = try transform(self.saved)
                 guard next != self.saved else { return }
-                let data = try JSONEncoder().encode(next)
-                // Never discard history just to fit a binary budget.
-                guard data.count <= 64 * 1024 * 1024 else { throw Self.failure("History is full (64 MB). Clear history to save new copies.") }
+                var data = try JSONEncoder().encode(next)
+                while data.count > 64 * 1024 * 1024, next.count > 1 {
+                    next.removeLast()
+                    data = try JSONEncoder().encode(next)
+                }
+                guard data.count <= 64 * 1024 * 1024 else { throw Self.failure("This copy exceeds the 64 MB history limit.") }
                 let box = try AES.GCM.seal(data, using: key)
                 let envelope = Envelope(version: 1, iv: Data(box.nonce), authTag: box.tag, ciphertext: box.ciphertext)
                 try self.write(JSONEncoder().encode(envelope), to: self.historyURL)

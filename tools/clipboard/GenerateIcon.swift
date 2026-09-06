@@ -1,6 +1,5 @@
 import AppKit
 
-// The same native overlapping-documents symbol used in the menu.
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 for size in [16, 32, 64, 128, 256, 512, 1024] {

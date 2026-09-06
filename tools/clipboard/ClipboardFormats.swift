@@ -2,7 +2,6 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Native pasteboard representations stay inside encrypted history. Preview images are local.
 @MainActor
 enum ClipboardSupport {
     static let supportedTypes: [NSPasteboard.PasteboardType] = [.string, .html, .rtf, .png, .tiff, .fileURL, .URL]
@@ -17,8 +16,7 @@ enum ClipboardSupport {
         for item in pasteboard.pasteboardItems ?? [] {
             var formats: [Clip.Format] = []
             for type in supportedTypes where item.types.contains(type) {
-                // PNG and TIFF are interchangeable image representations. Keep one lossless
-                // representation rather than charging the same screenshot twice.
+                // Avoid counting the same image twice toward the size limit.
                 if type == .tiff && item.types.contains(.png) { continue }
                 guard let data = item.data(forType: type) else { continue }
                 bytes += data.count
@@ -30,8 +28,7 @@ enum ClipboardSupport {
         guard !representations.isEmpty else { return nil }
         var clip = Clip(id: UUID().uuidString, kind: .text, content: "",
                         sourceAppId: source?.bundleIdentifier, sourceAppName: source?.localizedName,
-                        representations: representations, createdAt: Double(Int(Date().timeIntervalSince1970 * 1000)), pinned: false)
-        // Only actual file URLs are files; web URLs must never become path fragments.
+                        representations: representations, createdAt: Double(Int(Date().timeIntervalSince1970 * 1000)))
         let files = (pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
         if !files.isEmpty {
             clip.kind = .file

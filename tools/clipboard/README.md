@@ -18,6 +18,8 @@ Images retain their original data. Older history entries that only saved a thumb
 
 History stays encrypted locally in `~/Library/Application Support/Clipboard`, with a key in macOS Keychain. Defaults are 200 clips and 7 days. Private clipboard markers and obvious secrets are skipped, but detection is limited. Source apps are inferred from the foreground app, so background copies can be misattributed. Unreadable history is preserved and capture stops; failures appear in the menu-bar tooltip.
 
+New copies replace the oldest entries when history reaches 200 clips or 64 MiB of serialized data (before encryption). A copy can evict several older entries to fit. Individual copies above 8 MiB of native data and images above the image dimension limits (40 megapixels or 16,000 pixels per side) are skipped.
+
 Quick Look temporarily writes the selected image privately. Clipboard removes its temporary file on close, Quit, or next launch; macOS manages its own preview cache.
 
 ## Build
@@ -38,3 +40,5 @@ build/Clipboard.app/Contents/MacOS/ClipboardHost --review --data-dir /tmp/clipbo
 ```
 
 Review mode still observes the shared clipboard. Quit it when finished.
+
+Run history retention checks with `./tests/run.sh`. They use temporary profiles without accessing your clipboard or Keychain.
