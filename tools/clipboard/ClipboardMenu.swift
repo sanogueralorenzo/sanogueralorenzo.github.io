@@ -12,6 +12,13 @@ final class ClipboardSearch: NSSearchField {
     }
     func endSearch() { isSearching = false }
     override func mouseDown(with event: NSEvent) { focus(); super.mouseDown(with: event) }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        if event.type == .keyDown, modifiers == .command, event.charactersIgnoringModifiers == "f" {
+            focus(); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 }
 
 final class ClipboardRow: NSTableRowView {
@@ -298,7 +305,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         guard menuOpen else { return false }
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         if event.keyCode == 53 { dismiss(); return true }
-        if modifiers == .command, event.charactersIgnoringModifiers == "f" { search.focus(); return true }
         if modifiers == .command, event.charactersIgnoringModifiers == "c" {
             if let hovered { onCopy?(hovered, false); return true }
             if search.isSearching { return false }
