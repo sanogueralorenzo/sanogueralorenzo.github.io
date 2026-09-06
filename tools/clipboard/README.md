@@ -16,4 +16,4 @@ Installs in `~/Applications` and preserves your history and settings.
 
 **Clear** sets expiration. **Now** clears saved history and the current clipboard. Defaults: 200 clips, 7 days.
 
-Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Include UI: `./tests/run.sh --ui` · Full coverage report: `./tests/run.sh --coverage`.
+Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Coverage report: `./tests/run.sh --coverage` (history and formats tested; UI untested).
