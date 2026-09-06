@@ -28,6 +28,41 @@ final class ClipboardRow: NSTableRowView {
     }
 }
 
+final class ClipboardItemView: NSStackView {
+    let imageView = NSImageView()
+    let titleField: NSTextField
+    let shortcutField = NSTextField(labelWithString: "")
+    private var titleTrailing: NSLayoutConstraint!
+    private var shortcutTrailing: NSLayoutConstraint!
+
+    init(icon: NSImage? = nil, title: NSTextField = NSTextField(labelWithString: ""), shortcut: String? = nil) {
+        titleField = title
+        super.init(frame: .zero)
+        imageView.image = icon; imageView.imageScaling = .scaleProportionallyUpOrDown
+        imageView.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        imageView.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
+        shortcutField.font = .systemFont(ofSize: 11); shortcutField.textColor = .secondaryLabelColor
+        shortcutField.setContentHuggingPriority(.required, for: .horizontal)
+        shortcutField.setContentCompressionResistancePriority(.required, for: .horizontal)
+        for view in [imageView, title, shortcutField] { addArrangedSubview(view) }
+        spacing = 8; edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
+        titleTrailing = title.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
+        shortcutTrailing = shortcutField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
+        setShortcut(shortcut)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func setShortcut(_ shortcut: String?) {
+        titleTrailing.isActive = false; shortcutTrailing.isActive = false
+        shortcutField.stringValue = shortcut ?? ""
+        shortcutField.isHidden = shortcut == nil
+        (shortcut == nil ? titleTrailing : shortcutTrailing)?.isActive = true
+    }
+}
+
 final class ClipboardTable: NSTableView {
     var onKey: ((NSEvent) -> Bool)?
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); window?.makeFirstResponder(self) }
@@ -82,14 +117,16 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var clips: [Clip] = []
     private var filtered: [Clip] = []
     private var iconCache: [String: NSImage] = [:]
+    private let thumbnailCache = NSCache<NSString, NSImage>()
     private var menuOpen = false
 
-    override init() { super.init(); configureContent(); configureMenu(); report(nil) }
+    override init() { super.init(); thumbnailCache.countLimit = 200; configureContent(); configureMenu(); report(nil) }
     func update(clips: [Clip], retentionDays: Double?) {
         self.clips = clips
         clearNowItem.isEnabled = !clips.isEmpty
         for item in retentionItems { item.state = retentionDays == Double(item.tag) / 1440 ? .on : .off }
-        reload()
+        if clips.isEmpty { thumbnailCache.removeAllObjects() }
+        if menuOpen { reload() }
     }
     func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥⇧V" }
     func toggle() { menuOpen ? dismiss() : show() }
@@ -144,7 +181,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         search.focusRingType = .none
         (search.cell as? NSSearchFieldCell)?.searchButtonCell = nil
         let searchIcon = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?.withSymbolConfiguration(.init(pointSize: 13, weight: .regular))
-        let searchRow = makeRow(icon: searchIcon, title: search, shortcut: "⌘F")
+        let searchRow = ClipboardItemView(icon: searchIcon, title: search, shortcut: "⌘F")
         (searchRow.arrangedSubviews.first as? NSImageView)?.contentTintColor = .secondaryLabelColor
         (searchRow.arrangedSubviews.first as? NSImageView)?.imageScaling = .scaleNone
         search.font = .systemFont(ofSize: 13)
@@ -194,24 +231,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private func add(_ view: NSView, to stack: NSStackView) {
         stack.addArrangedSubview(view)
         view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-    }
-
-    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil) -> NSStackView {
-        let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
-        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
-        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
-        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
-        if let shortcut {
-            let key = NSTextField(labelWithString: shortcut)
-            key.font = .systemFont(ofSize: 11); key.textColor = .secondaryLabelColor
-            key.setContentHuggingPriority(.required, for: .horizontal)
-            key.setContentCompressionResistancePriority(.required, for: .horizontal)
-            cell.addArrangedSubview(key)
-            key.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
-        } else { title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true }
-        return cell
     }
 
     private func configureMenu() {
@@ -271,18 +290,35 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var selected: Clip? { filtered.indices.contains(table.selectedRow) ? filtered[table.selectedRow] : nil }
     private var hovered: Clip? { filtered.indices.contains(table.hoveredRow) ? filtered[table.hoveredRow] : nil }
     func numberOfRows(in tableView: NSTableView) -> Int { filtered.count }
-    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { ClipboardRow() }
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let identifier = NSUserInterfaceItemIdentifier("ClipboardRow")
+        let view = tableView.makeView(withIdentifier: identifier, owner: self) as? ClipboardRow ?? ClipboardRow()
+        view.identifier = identifier
+        return view
+    }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let clip = filtered[row]
         let icon: NSImage?
-        if clip.kind == .image, let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last, let data = Data(base64Encoded: String(thumb)) { icon = NSImage(data: data) }
+        if clip.kind == .image, let thumbnail = clip.thumbnail {
+            if let cached = thumbnailCache.object(forKey: thumbnail as NSString) { icon = cached }
+            else if let thumb = thumbnail.split(separator: ",", maxSplits: 1).last,
+                    let data = Data(base64Encoded: String(thumb)), let image = NSImage(data: data) {
+                thumbnailCache.setObject(image, forKey: thumbnail as NSString)
+                icon = image
+            } else { icon = nil }
+        }
         else if let id = clip.sourceAppId {
             if let cached = iconCache[id] { icon = cached }
             else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { let image = NSWorkspace.shared.icon(forFile: url.path); iconCache[id] = image; icon = image }
             else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
         } else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
         let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
-        let cell = makeRow(icon: icon, title: NSTextField(labelWithString: summary), shortcut: row < 9 ? "⌘\(row + 1)" : nil)
+        let identifier = NSUserInterfaceItemIdentifier("ClipboardItem")
+        let cell = tableView.makeView(withIdentifier: identifier, owner: self) as? ClipboardItemView ?? ClipboardItemView()
+        cell.identifier = identifier
+        cell.imageView.image = icon
+        cell.titleField.stringValue = summary
+        cell.setShortcut(row < 9 ? "⌘\(row + 1)" : nil)
         cell.toolTip = clip.spaceHint
         cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell

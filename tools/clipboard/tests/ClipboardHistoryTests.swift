@@ -31,6 +31,41 @@ enum ClipboardHistoryTests {
             return try JSONDecoder().decode([Clip].self, from: plaintext)
         }
 
+        let escaped = clip("escaped", content: "quote \" slash / newline\n emoji 🌱")
+        let exactBytes = try JSONEncoder().encode([escaped]).count
+        let (retained, encoded) = try ClipboardStore.encodeHistory([escaped, clip("older")], maximumBytes: exactBytes)
+        precondition(retained == [escaped] && encoded.count == exactBytes)
+        let decoded = try JSONDecoder().decode([Clip].self, from: encoded)
+        precondition(decoded == retained)
+        do {
+            _ = try ClipboardStore.encodeHistory([escaped], maximumBytes: exactBytes - 1)
+            preconditionFailure("One byte over the limit must fail")
+        } catch {}
+        let (_, empty) = try ClipboardStore.encodeHistory([])
+        precondition(empty == Data("[]".utf8))
+        print("PASS: exact JSON byte boundaries, escaping, and empty history")
+
+        let pending = DispatchSemaphore(value: 0)
+        let beforeClear = clip("before-clear"), afterClear = clip("after-clear")
+        store.capture {
+            precondition(!Thread.isMainThread, "Capture preparation must run off the main thread")
+            pending.wait()
+            return beforeClear
+        }
+        store.clear()
+        store.capture { afterClear }
+        pending.signal()
+        store.finishWrites()
+        let ordered = try history()
+        precondition(ordered == [afterClear], "Clear must run after earlier captures and before later ones")
+        store.capture { throw NSError(domain: "test", code: 1) }
+        store.finishWrites()
+        let afterFailure = try history()
+        precondition(afterFailure == ordered)
+        store.clear()
+        store.finishWrites()
+        print("PASS: background preparation, Clear ordering, shutdown drain, and failure preservation")
+
         for index in 0..<201 { capture(clip("\(index)")) }
         var saved = try history()
         precondition(saved.count == 200 && saved.first?.id == "200" && saved.last?.id == "1")

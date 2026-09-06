@@ -2,9 +2,9 @@ import Foundation
 import CryptoKit
 import Security
 
-struct Clip: Codable, Equatable {
-    struct Format: Codable, Equatable { var type: String; var data: String }
-    enum Kind: String, Codable { case text, url, image, file }
+struct Clip: Codable, Equatable, Sendable {
+    struct Format: Codable, Equatable, Sendable { var type: String; var data: String }
+    enum Kind: String, Codable, Sendable { case text, url, image, file }
     var id: String
     var kind: Kind
     var content: String
@@ -71,9 +71,12 @@ final class ClipboardStore {
         }
     }
 
-    func capture(_ clip: Clip) {
+    func capture(_ clip: Clip) { capture { clip } }
+
+    // Preparation shares the write queue so Clear and shutdown also wait for pending captures.
+    func capture(_ prepare: @escaping () throws -> Clip?) {
         change { clips in
-            var clip = clip
+            guard var clip = try prepare() else { return clips }
             let existing = clips.first { $0.sourceAppId == clip.sourceAppId && $0.kind == clip.kind && $0.content == clip.content && $0.representations == clip.representations }
             if let existing { clip.id = existing.id }
             let next = self.pruned([clip] + clips.filter { $0.id != clip.id })
@@ -109,21 +112,36 @@ final class ClipboardStore {
         queue.async {
             guard self.ready, let key = self.key else { return }
             do {
-                var next = try transform(self.saved)
+                let next = try transform(self.saved)
                 guard next != self.saved else { return }
-                var data = try JSONEncoder().encode(next)
-                while data.count > 64 * 1024 * 1024, next.count > 1 {
-                    next.removeLast()
-                    data = try JSONEncoder().encode(next)
-                }
-                guard data.count <= 64 * 1024 * 1024 else { throw Self.failure("This copy exceeds the 64 MB history limit.") }
+                let (retained, data) = try Self.encodeHistory(next)
                 let box = try AES.GCM.seal(data, using: key)
                 let envelope = Envelope(version: 1, iv: Data(box.nonce), authTag: box.tag, ciphertext: box.ciphertext)
                 try self.write(JSONEncoder().encode(envelope), to: self.historyURL)
-                self.saved = next
+                self.saved = retained
                 self.publish()
             } catch { self.publish("Could not save history. Existing clips are preserved. \(error.localizedDescription)") }
         }
+    }
+
+    static func encodeHistory(_ clips: [Clip], maximumBytes: Int = 64 * 1024 * 1024) throws -> ([Clip], Data) {
+        let encoder = JSONEncoder()
+        var data = Data([0x5B])
+        var count = 0
+        for clip in clips {
+            let encoded = try encoder.encode(clip)
+            let separatorBytes = count == 0 ? 0 : 1
+            // Reserve the closing bracket; everything after the first overflow is older.
+            guard data.count + separatorBytes + encoded.count + 1 <= maximumBytes else {
+                if count == 0 { throw failure("This copy exceeds the 64 MB history limit.") }
+                break
+            }
+            if count > 0 { data.append(0x2C) }
+            data.append(encoded)
+            count += 1
+        }
+        data.append(0x5D)
+        return (Array(clips.prefix(count)), data)
     }
 
     private func publish(_ error: String? = nil) {

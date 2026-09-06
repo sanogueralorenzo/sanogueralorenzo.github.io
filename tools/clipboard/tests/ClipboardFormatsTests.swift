@@ -17,13 +17,28 @@ enum ClipboardFormatsTests {
         for (type, data) in [(NSPasteboard.PasteboardType.png, png), (.tiff, tiff)] {
             pasteboard.clearContents()
             precondition(pasteboard.setData(data, forType: type))
-            let clip = try ClipboardSupport.capture(pasteboard, source: nil)!
+            let snapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)!
+            pasteboard.clearContents()
+            pasteboard.setString("copied while image preparation is pending", forType: .string)
+            let clip = try DispatchQueue(label: "clipboard.test.prepare").sync {
+                try ClipboardSupport.prepare(snapshot)!
+            }
             precondition(clip.kind == .image && clip.thumbnail != nil)
             pasteboard.clearContents()
             try ClipboardSupport.restore(clip, to: pasteboard)
             precondition(pasteboard.data(forType: type) == data)
         }
         print("PASS: PNG and TIFF restore their original data")
+
+        pasteboard.clearContents()
+        pasteboard.setString("", forType: .string)
+        let richText = NSAttributedString(string: "Rich text fallback")
+        pasteboard.setData(try richText.data(from: NSRange(location: 0, length: richText.length),
+                                            documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf]), forType: .rtf)
+        let richSnapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)!
+        let richClip = try ClipboardSupport.prepare(richSnapshot)
+        precondition(richClip?.content == "Rich text fallback")
+        print("PASS: empty plain text still falls back to RTF")
 
         var legacy = Clip(id: "legacy", kind: .image, content: "Image",
                           thumbnail: "data:image/png;base64," + png.base64EncodedString(), createdAt: 0)

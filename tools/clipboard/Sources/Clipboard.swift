@@ -87,7 +87,11 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         let source = source ?? NSWorkspace.shared.frontmostApplication
         guard historyAvailable, source?.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               !policy.excludedAppIds.contains(source?.bundleIdentifier ?? "") else { return }
-        do { if let clip = try ClipboardSupport.capture(pb, source: source) { store.capture(clip) } }
+        do {
+            if let snapshot = try ClipboardSupport.snapshot(pb, source: source) {
+                store.capture { try ClipboardSupport.prepare(snapshot) }
+            }
+        }
         catch { report(error.localizedDescription) }
     }
     private func restore(_ clip: Clip) {
