@@ -26,8 +26,8 @@ const kindNames = { text: 'Text', url: 'Link', image: 'Image', file: 'File' };
 const appName = (item: ClipboardItem) => item.sourceAppName || item.sourceAppId || 'Unknown app';
 const appId = (item: ClipboardItem) => item.sourceAppId || 'unknown';
 const title = (item: ClipboardItem) => item.title || (item.kind === 'file' ? item.content.split('/').pop() : item.content.split('\n').find((line) => line.trim())) || kindNames[item.kind];
-function age(time: number) {
-  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+function age(time: number, now: number) {
+  const minutes = Math.max(0, Math.floor((now - time) / 60000));
   if (minutes < 1) return 'Just now';
   if (minutes < 60) return `${minutes} min ago`;
   if (minutes < 1440) return `${Math.floor(minutes / 60)} hr ago`;
@@ -53,11 +53,20 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
   const [settings, setSettings] = useState(false);
   const [actions, setActions] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [listHeight, setListHeight] = useState(600);
+  const [displayTime, setDisplayTime] = useState(Date.now);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const operation = useRef(false);
   const refreshVersion = useRef(0);
   useEffect(() => { if (!actions && !settings) input.current?.focus(); }, [actions, settings]);
+  useEffect(() => {
+    if (!list.current) return;
+    const observer = new ResizeObserver(([entry]) => setListHeight(entry.contentRect.height));
+    observer.observe(list.current);
+    return () => observer.disconnect();
+  }, []);
 
   function report(message: string, failed = false) { setFeedback(message); setError(failed); }
   async function refresh() {
@@ -69,14 +78,19 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
   useEffect(() => {
     let alive = true;
     let visible = true;
+    let refreshing = false;
     const hide = () => { visible = false; };
     const show = () => { visible = true; };
     window.addEventListener("paletteShown", show);
     window.addEventListener("paletteHidden", hide);
     const update = async () => {
-      if (operation.current || !visible) return;
+      if (operation.current || !visible || refreshing) return;
+      refreshing = true;
       try { await refresh(); } catch (failure) { if (alive) report(String(failure instanceof Error ? failure.message : failure), true); }
-      finally { if (alive) setLoading(false); }
+      finally {
+        refreshing = false;
+        if (alive) { setLoading(false); setDisplayTime((previous) => Date.now() - previous >= 60000 ? Date.now() : previous); }
+      }
     };
     void update();
     void bridge.getClipboardPolicy?.().then((next) => { if (alive) setPolicy(next); }).catch((failure) => report(failure.message, true));
@@ -94,10 +108,26 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
     return [...grouped.values()].sort((a, b) => b.count - a.count || appName(a.item).localeCompare(appName(b.item)));
   }, [items]);
   const scoped = useMemo(() => items.filter((item) => (scope === 'all' || (scope === 'pinned' ? item.pinned : appId(item) === scope)) && [item.content, item.title, appName(item)].some((value) => value?.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))), [items, scope, query]);
-  const visible = scoped.filter((item) => kind === 'all' || item.kind === kind);
+  const visible = useMemo(() => scoped.filter((item) => kind === 'all' || item.kind === kind), [scoped, kind]);
   const selected = visible.find((item) => item.id === selectedId) || visible[0];
+  const rowHeight = 75;
+  const windowStart = Math.max(0, Math.min(visible.length - 1, Math.floor(scrollTop / rowHeight) - 4));
+  const windowEnd = Math.min(visible.length, windowStart + Math.ceil(listHeight / rowHeight) + 9);
+  const selectedIndex = visible.findIndex((item) => item.id === selected?.id);
+  const activeDescendant = selected && selectedIndex >= windowStart && selectedIndex < windowEnd ? `clip-${selected.id}` : undefined;
   useEffect(() => { setSelectedId(undefined); }, [scope, query, kind]);
-  useEffect(() => { if (selected) setSelectedId(selected.id); list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' }); }, [selected?.id]);
+  function revealRow(index: number) {
+    const element = list.current;
+    if (!element) return;
+    const top = Math.max(0, index) * rowHeight;
+    if (top < element.scrollTop) element.scrollTop = top;
+    else if (top + rowHeight > element.scrollTop + element.clientHeight) element.scrollTop = top + rowHeight - element.clientHeight;
+    setScrollTop(element.scrollTop);
+  }
+  useEffect(() => {
+    if (selected) setSelectedId(selected.id);
+    revealRow(selectedIndex);
+  }, [selected?.id, scope, query, kind]);
 
   async function perform(action: () => Promise<void>) {
     if (operation.current) return;
@@ -137,7 +167,9 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
   function navigate(event: KeyboardEvent, delta: number) {
     event.preventDefault();
     const index = Math.max(0, visible.findIndex((item) => item.id === selected?.id));
-    setSelectedId(visible[Math.max(0, Math.min(visible.length - 1, index + delta))]?.id);
+    const next = Math.max(0, Math.min(visible.length - 1, index + delta));
+    setSelectedId(visible[next]?.id);
+    revealRow(next);
   }
   function onKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (settings || event.nativeEvent.isComposing) return;
@@ -160,7 +192,11 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
     } else if (!editing && event.altKey && event.shiftKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
       event.preventDefault(); setKind(kinds[(kinds.findIndex((value) => value.id === kind) + (event.key === 'ArrowRight' ? 1 : kinds.length - 1)) % kinds.length].id);
     } else if (!actions && (target === input.current || target.closest('[role="listbox"]'))) {
-      if (event.key === 'ArrowDown') navigate(event, 1);
+      if (target === list.current && event.key === 'Home') navigate(event, -visible.length);
+      else if (target === list.current && event.key === 'End') navigate(event, visible.length);
+      else if (target === list.current && event.key === 'PageDown') navigate(event, Math.max(1, Math.floor(listHeight / rowHeight)));
+      else if (target === list.current && event.key === 'PageUp') navigate(event, -Math.max(1, Math.floor(listHeight / rowHeight)));
+      else if (event.key === 'ArrowDown') navigate(event, 1);
       else if (event.key === 'ArrowUp') navigate(event, -1);
       else if (event.key === 'Enter' && (target === input.current || target === list.current)) { event.preventDefault(); copy(true); }
     }
@@ -175,7 +211,7 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
         <button className="clip-icon-button" aria-label="Clipboard settings" title="Clipboard settings" onClick={() => setSettings(true)}><Icon name="settings" /></button>
       </div>
     </header>
-    <div className="clip-search"><Icon name="search" size={20} /><input ref={input} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clipboard…" aria-label="Search clipboard" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="clip-results" aria-activedescendant={selected ? `clip-${selected.id}` : undefined} autoComplete="off" spellCheck={false} /><kbd>⌘ F</kbd></div>
+    <div className="clip-search"><Icon name="search" size={20} /><input ref={input} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clipboard…" aria-label="Search clipboard" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="clip-results" aria-activedescendant={activeDescendant} autoComplete="off" spellCheck={false} /><kbd>⌘ F</kbd></div>
     <div className="clip-workspace">
       <aside className="clip-sidebar" aria-label="Clipboard sources">
         <nav aria-label="History views"><button className={scope === 'all' ? 'active' : ''} aria-pressed={scope === 'all'} onClick={() => setScope('all')}><Icon name="grid" /><span>All apps</span><small>{items.length}</small></button><button className={scope === 'pinned' ? 'active' : ''} aria-pressed={scope === 'pinned'} onClick={() => setScope('pinned')}><Icon name="pin" /><span>Pinned</span><small>{items.filter((item) => item.pinned).length}</small></button></nav>
@@ -186,10 +222,12 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
       <section className="clip-history" aria-label="Clipboard history">
         <div className="clip-types" aria-label="Content types">{kinds.map((filter) => <button key={filter.id} aria-pressed={kind === filter.id} className={kind === filter.id ? 'active' : ''} onClick={() => setKind(filter.id)}>{filter.name}</button>)}</div>
         <div className="clip-results-label"><span>{query ? 'Search results' : scope === 'pinned' ? 'Pinned clips' : 'Recent copies'}</span><small>{visible.length}</small></div>
-        <div ref={list} id="clip-results" role="listbox" aria-label="Clipboard items" className="clip-list" tabIndex={0} aria-activedescendant={selected ? `clip-${selected.id}` : undefined}>
-          {visible.map((item) => <div key={item.id} id={`clip-${item.id}`} role="option" aria-selected={selected?.id === item.id} className={`clip-row ${selected?.id === item.id ? 'selected' : ''}`} onClick={() => { setSelectedId(item.id); list.current?.focus(); }}>
-            <Thumbnail item={item} /><div className="clip-row-body"><strong>{title(item)}</strong><span><AppIcon item={item} /><small>{appName(item)} · {age(item.createdAt)}</small></span></div><div className="clip-row-end">{item.pinned && <Icon name="pin" size={13} />}<small>{kindNames[item.kind]}</small></div>
+        <div ref={list} id="clip-results" role="listbox" aria-label="Clipboard items" className="clip-list" tabIndex={0} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)} aria-activedescendant={activeDescendant}>
+          <div aria-hidden="true" style={{ height: windowStart * rowHeight }} />
+          {visible.slice(windowStart, windowEnd).map((item, index) => <div key={item.id} id={`clip-${item.id}`} role="option" aria-posinset={windowStart + index + 1} aria-setsize={visible.length} aria-selected={selected?.id === item.id} className={`clip-row ${selected?.id === item.id ? 'selected' : ''}`} onClick={() => { setSelectedId(item.id); list.current?.focus(); }}>
+            <Thumbnail item={item} /><div className="clip-row-body"><strong>{title(item)}</strong><span><AppIcon item={item} /><small>{appName(item)} · {age(item.createdAt, displayTime)}</small></span></div><div className="clip-row-end">{item.pinned && <Icon name="pin" size={13} />}<small>{kindNames[item.kind]}</small></div>
           </div>)}
+          <div aria-hidden="true" style={{ height: Math.max(0, visible.length - windowEnd) * rowHeight }} />
           {!visible.length && <div className="clip-empty"><Icon name="squares" size={34} /><strong>{loading ? 'Loading clipboard…' : items.length ? 'No matching clips' : policy?.enabled === false ? 'Capture is paused' : 'Your next copy starts here'}</strong><p>{items.length ? 'Try another app, type, or search.' : 'Copy text, a link, an image, or a file in another app.'}</p>{!!items.length && <button onClick={() => { setQuery(''); setKind('all'); setScope('all'); }}>Clear filters</button>}</div>}
         </div>
       </section>

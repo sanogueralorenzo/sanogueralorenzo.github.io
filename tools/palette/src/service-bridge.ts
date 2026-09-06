@@ -1,4 +1,5 @@
 import type { BridgeRequest, BridgeResponse } from './bridge-protocol.ts';
+import { createHash } from 'node:crypto';
 import type { ClipboardCapture, ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary, RunHistoryEntry } from './contracts.ts';
 
 export type PaletteBridgeBackend = {
@@ -28,8 +29,15 @@ export async function handleBridgeRequest(
         return { id: request.id, ok: true, payload: { type: 'commandResult', result: await backend.executeCommand(request.commandId) } };
       case 'listRunHistory':
         return { id: request.id, ok: true, payload: { type: 'runHistory', entries: await backend.listRunHistory(request.limit) } };
-      case 'listClipboard':
-        return { id: request.id, ok: true, payload: { type: 'clipboard', items: await backend.listClipboard(request.query) } };
+      case 'listClipboard': {
+        const items = await backend.listClipboard(request.query);
+        if (request.revision === undefined) return { id: request.id, ok: true, payload: { type: 'clipboard', items } };
+        // Stored clips are immutable apart from pins; recapture updates createdAt.
+        // Avoid serializing and transferring binary previews on unchanged polls.
+        const revision = createHash('sha256').update(JSON.stringify(items.map(({ id, createdAt, pinned }) => [id, createdAt, pinned]))).digest('hex');
+        const unchanged = request.revision === revision;
+        return { id: request.id, ok: true, payload: { type: 'clipboard', items: unchanged ? [] : items, revision, unchanged } };
+      }
       case 'copyClipboard':
         return { id: request.id, ok: true, payload: { type: 'copied', copied: await backend.copyClipboard(request.itemId) } };
       case 'pasteClipboard':

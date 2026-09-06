@@ -16,4 +16,3 @@ body { margin: 0; min-width: 420px; min-height: 100vh; overflow: hidden; backgro
 .palette-history small { max-width: 540px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-history kbd.success { color: #8ecf98; }
 .palette-history kbd.failure { color: #ef8b8b; }
-.palette-policy { position: absolute; top: 22px; right: 22px; border: 0; background: transparent; color: #9b9ba3; font-size: 11px; cursor: pointer; }

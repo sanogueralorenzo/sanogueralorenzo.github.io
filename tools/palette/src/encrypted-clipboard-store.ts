@@ -13,6 +13,8 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
   private items: ClipboardItem[] | null = null;
   private readonly path: string;
   private readonly key: Buffer;
+  private readonly fingerprints = new WeakMap<ClipboardItem, string>();
+  private readonly sizes = new WeakMap<ClipboardItem, number>();
 
   constructor(path: string, key: Buffer) {
     this.path = path;
@@ -30,17 +32,15 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
   async add(item: ClipboardItem): Promise<boolean> {
     const items = await this.load();
     // Identical copies from different apps belong to their respective app histories.
-    const fingerprint = (clip: ClipboardItem) => createHash('sha256')
-      .update(JSON.stringify([clip.kind, clip.content, clip.representations ?? null])).digest('hex');
-    const identity = fingerprint(item);
-    const existing = items.find((candidate) => candidate.sourceAppId === item.sourceAppId && fingerprint(candidate) === identity);
+    const identity = this.fingerprint(item);
+    const existing = items.find((candidate) => candidate.sourceAppId === item.sourceAppId && this.fingerprint(candidate) === identity);
     const next = [{ ...item, id: existing?.id ?? item.id, pinned: existing?.pinned ?? item.pinned },
       ...items.filter((candidate) => candidate.id !== existing?.id)];
     // Bound encrypted JSON writes, including binary formats. Never evict a pin.
-    let bytes = Buffer.byteLength(JSON.stringify(next));
+    let bytes = 2 + Math.max(0, next.length - 1) + next.reduce((total, clip) => total + this.serializedSize(clip), 0);
     for (let index = next.length - 1; bytes > 64 * 1024 * 1024 && index >= 0; index--) {
       if (next[index].pinned) continue;
-      bytes -= Buffer.byteLength(JSON.stringify(next[index])) + 1;
+      bytes -= this.serializedSize(next[index]) + (next.length > 1 ? 1 : 0);
       next.splice(index, 1);
     }
     if (bytes > 64 * 1024 * 1024) throw new Error('Pinned history is full. Unpin or delete a clip to make space.');
@@ -74,6 +74,21 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
 
   async clear(): Promise<void> {
     await this.save([]);
+  }
+
+  private fingerprint(item: ClipboardItem): string {
+    let value = this.fingerprints.get(item);
+    if (!value) {
+      value = createHash('sha256').update(JSON.stringify([item.kind, item.content, item.representations ?? null])).digest('hex');
+      this.fingerprints.set(item, value);
+    }
+    return value;
+  }
+
+  private serializedSize(item: ClipboardItem): number {
+    let value = this.sizes.get(item);
+    if (value === undefined) { value = Buffer.byteLength(JSON.stringify(item)); this.sizes.set(item, value); }
+    return value;
   }
 
   private async load(): Promise<ClipboardItem[]> {

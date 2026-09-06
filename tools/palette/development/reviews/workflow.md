@@ -74,3 +74,45 @@ No additional source blockers identified in the reviewed scope. No automated tes
 Verified the final focused corrections in `ClipboardView.tsx`: both Option+Shift filter branches now exclude input, textarea, and contenteditable targets, preserving horizontal word-selection editing; shortcut help explains list focus. Both native HTML dialogs explicitly close during cleanup, and the parent view restores search focus in an effect after actions/settings close. That addresses the earlier pre-unmount focus-ordering concern in source.
 
 No remaining concrete blocker found in these reviewed changes. This is source sign-off for the keyboard/focus fixes, not a claim that the entire goal's manual acceptance matrix passed. The parent is performing the final native action-to-typing check; actual paste destinations, timed retrieval, VoiceOver, and native IME behavior require the recorded runtime evidence. No automated tests or UI control were performed by this reviewer.
+
+## Large-history iteration — virtualization review
+
+Independently reviewed the uncommitted windowed result list. Fixed CSS row height (75px) agrees with virtual offsets; spacer nodes are hidden from assistive technology; rendered options expose one-based `aria-posinset` and the full filtered `aria-setsize`; overscan and ResizeObserver provide bounded row rendering across window sizes. Existing selection is still stored by item identity.
+
+**Medium regression:** the selected-row scroll effect now depends on the entire `visible` array. Every successful two-second poll replaces items and recreates that array even when its contents are unchanged. A user scrolling away from the selected row to browse older history is therefore snapped back to the selected row at the next poll. Depend on the selected identity/index and relevant actual geometry instead of the whole result-array reference; retain manual browsing scroll when neither selection nor its position changed. Manually scroll midway through 500+ entries without clicking, wait longer than one poll, and verify position remains stable; then use arrows to verify explicit selection navigation still scrolls correctly.
+
+The parent is adding list-focused Home/End/PageUp/PageDown and suppressing active-descendant IDs for unrendered options; those announced follow-up changes were not yet present in the source read and need final inspection. Current unrendered selected options otherwise leave a dangling active-descendant reference until keyboard selection causes scroll/render. Validate first/last/page navigation, filtering a deeply scrolled history to a handful of matches, deleting near the last row, and VoiceOver option position announcements on the final build.
+
+No automated tests, runtime controls, or implementation edits performed in this review.
+
+### Virtualization follow-up
+
+Confirmed that selection scrolling now depends on selected ID and filter inputs, so fresh polling arrays and newly inserted items no longer trigger it. Both search and list omit active-descendant when the selected option is unrendered. Home/End/PageUp/PageDown are implemented only when the result list owns focus, preserving those keys in search.
+
+**Medium remaining navigation edge:** Home/End only change selected ID and rely on the selection effect to scroll. If the requested boundary item is already selected but manually scrolled offscreen, its unchanged ID does not trigger the effect: open history with its first item selected, scroll far down without selecting another row, then press Home; the viewport stays down. End has the equivalent case. Explicit navigation should ensure its requested row is visible even when selection identity does not change, while passive refresh remains non-scrolling. Verify this alongside the parent’s unchanged-poll scroll check.
+
+### Virtualization source closure
+
+Verified the final `revealRow(index)` helper is used both by selection changes and explicit `navigate()`. Home/End now route through navigation and reveal the requested boundary even when its ID is unchanged; page and arrow navigation share that behavior. Passive refresh still does not depend on the new items-array reference. Conditional active-descendant and complete option positions remain present. Both virtualization findings are resolved in source; no additional concrete blocker found in this focused recheck. Final large-history performance, scroll stability, and keyboard behavior must be confirmed by the parent's native runtime evidence. No automated tests or UI control performed.
+
+## Native editing follow-up — proposed Edit menu
+
+Parent runtime evidence reports that 1,000-item Home/End and manual scrolling across polls work, and a synthetic search-and-copy action completed in 978ms. Parent also observed Command+A appending instead of replacing search text and a settings-number-field selection issue. Source inspection confirms the native host currently has no `NSApp.mainMenu` or standard Edit responder-chain actions; adding these is a reasonable targeted correction.
+
+The proposed Copy menu equivalent introduces an interaction risk with React's custom Command+C: native menu dispatch may consume the key before the DOM handler or perform an unintended second copy. Actual AppKit/WKWebView ordering is not established by this source review. Keep standard text Copy targeted through the responder chain and do not manually dispatch both copy paths. Validate final native behavior with (1) no selected text in search: Command+C restores the selected historical item; (2) selected search/preview text: Command+C copies only that text; (3) settings fields: Select All/Cut/Copy/Paste/Undo/Redo edit the field without restoring a history item. If history Copy stops working, make one explicit copy owner choose between selection copy and history restore rather than layering another unconditional handler.
+
+This review advises on the planned native menu; it does not mark that unimplemented change or its runtime behavior passed. No automated tests or UI control performed.
+
+### Native editing closure — coordinator runtime evidence
+
+Independently inspected the implemented `configureApplicationMenu()` and its launch call. Undo/Redo/Cut/Copy/Paste/Select All use standard selectors with nil targets, allowing the focused responder to own editing; there is no added unconditional copy dispatch alongside React.
+
+The coordinating agent reports these checks passed in the running native app, using synthetic review content:
+
+- Command+A visibly selected the entire search query; typing `0999` replaced it.
+- With no query text selected, Command+C restored historical `Release note 0999`, verified by pasting into a scratch TextEdit document.
+- With the complete query selected, Command+C copied only `0999`, verified in the scratch destination.
+- In the settings textarea, Select All/Cut cleared the field, Paste restored `review.excluded`, Undo cleared it, and Shift+Command+Z restored it. The settings draft was cancelled.
+- With 1,000 clips, native End/Home navigation worked. Space scrolling with list focus preserved the preview and viewport across polling refreshes. The earlier coordinator-measured synthetic search `0999` plus Copy completed in 978ms.
+
+These observations address the native Edit-menu interaction risk and the focused large-history navigation checks. They are explicitly coordinator-supplied runtime evidence, not UI actions independently performed by this reviewer, and a single measured lookup does not establish every retrieval scenario's five-second target. No additional blocker identified by this source follow-up; no automated tests were created or run.

@@ -67,7 +67,8 @@ export class PolicyClipboardHistory {
     const expired = cutoff === null
       ? []
       : items.filter((item) => !item.pinned && item.createdAt < cutoff);
-    const remaining = items.filter((item) => !expired.some((removed) => removed.id === item.id));
+    const expiredIds = new Set(expired.map((item) => item.id));
+    const remaining = items.filter((item) => !expiredIds.has(item.id));
     const allowedUnpinned = Math.max(0, this.policy.maxItems - remaining.filter((item) => item.pinned).length);
     const overflow = remaining.filter((item) => !item.pinned).slice(allowedUnpinned);
     const removed = [...expired, ...overflow].map((item) => item.id);

@@ -4,7 +4,7 @@ export type BridgeRequestBody =
   | { type: 'searchCommands'; query: string }
   | { type: 'executeCommand'; commandId: string }
   | { type: 'listRunHistory'; limit?: number }
-  | { type: 'listClipboard'; query: string }
+  | { type: 'listClipboard'; query: string; revision?: string }
   | { type: 'copyClipboard'; itemId: string }
   | { type: 'pasteClipboard'; itemId: string }
   | { type: 'getClipboardItem'; itemId: string }
@@ -20,7 +20,7 @@ export type BridgePayload =
   | { type: 'commands'; commands: CommandSummary[] }
   | { type: 'commandResult'; result: CommandResult }
   | { type: 'runHistory'; entries: RunHistoryEntry[] }
-  | { type: 'clipboard'; items: ClipboardItem[] }
+  | { type: 'clipboard'; items: ClipboardItem[]; revision?: string; unchanged?: boolean }
   | { type: 'copied'; copied: boolean }
   | { type: 'clipboardItem'; item: ClipboardItem | null }
   | { type: 'removed'; removed: boolean }

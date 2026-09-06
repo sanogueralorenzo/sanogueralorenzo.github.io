@@ -17,6 +17,8 @@ type PaletteWindow = Window & {
 export function createWebViewBridge(): PaletteBridge {
   const target = window as PaletteWindow;
   let sequence = 0;
+  let clipboardRevision = '';
+  let clipboardItems: ClipboardItem[] = [];
   const pending = new Map<string, { resolve: (response: BridgeResponse) => void; reject: (error: Error) => void }>();
 
   target.__paletteResolve = (response) => {
@@ -66,8 +68,12 @@ export function createWebViewBridge(): PaletteBridge {
       return response.ok && response.payload.type === 'runHistory' ? response.payload.entries : [];
     },
     listClipboard: async (query): Promise<ClipboardItem[]> => {
-      const response = await request({ type: 'listClipboard', query });
-      return response.ok && response.payload.type === 'clipboard' ? response.payload.items : [];
+      const response = await request({ type: 'listClipboard', query, revision: query ? undefined : clipboardRevision });
+      if (!response.ok || response.payload.type !== 'clipboard') throw new Error('Invalid clipboard response');
+      if (query) return response.payload.items;
+      if (!response.payload.unchanged) clipboardItems = response.payload.items;
+      clipboardRevision = response.payload.revision ?? '';
+      return clipboardItems;
     },
     copyClipboard: async (itemId): Promise<boolean> => {
       const response = await request({ type: 'copyClipboard', itemId });

@@ -105,6 +105,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     func applicationDidFinishLaunching(_ notification: Notification) {
         probe.record("delegate-launched")
         installGlobalShortcut()
+        configureApplicationMenu()
         configureStatusItem()
         startClipboardMonitor()
         if !CommandLine.arguments.contains("--background") {
@@ -142,6 +143,26 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    private func configureApplicationMenu() {
+        let menu = NSMenu()
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu(title: "Palette")
+        let quitItem = NSMenuItem(title: "Quit Palette", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        applicationMenu.addItem(quitItem)
+        applicationItem.submenu = applicationMenu
+        menu.addItem(applicationItem)
+        let editItem = NSMenuItem()
+        let editMenu = NSMenu(title: "Edit")
+        for (title, action, key) in [("Undo", "undo:", "z"), ("Redo", "redo:", "Z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
+            // Nil targets follow the responder chain into the focused WebView editor.
+            editMenu.addItem(NSMenuItem(title: title, action: Selector(action), keyEquivalent: key))
+        }
+        editItem.submenu = editMenu
+        menu.addItem(editItem)
+        NSApp.mainMenu = menu
     }
 
     private func configureStatusItem() {
@@ -299,6 +320,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        // Optional side-by-side inspection of an isolated review profile.
+        if isReview && CommandLine.arguments.contains("--keep-visible") { return }
         DispatchQueue.main.async { [weak self] in
             guard let self, self.launcherPanel?.isVisible == true, self.launcherPanel?.isKeyWindow == false else { return }
             self.dismissLauncher(restoreFocus: false)
@@ -723,7 +746,6 @@ private final class NodeServiceProcess {
     private var input: Pipe?
     private var output: Pipe?
     private var pending: [String: ([String: Any]) -> Void] = [:]
-    private var buffer = Data()
     private let writer = DispatchQueue(label: "sh.palette.service-writer")
 
     init(
@@ -760,9 +782,11 @@ private final class NodeServiceProcess {
         service.standardInput = input
         service.standardOutput = output
         service.standardError = FileHandle.standardError
-        output.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            DispatchQueue.main.async { self?.consume(data) }
+        let reader = ServiceResponseReader { [weak self] response in
+            DispatchQueue.main.async { self?.receive(response) }
+        }
+        output.fileHandleForReading.readabilityHandler = { handle in
+            reader.enqueue(handle.availableData)
         }
         service.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async { self?.didTerminate() }
@@ -805,20 +829,13 @@ private final class NodeServiceProcess {
         }
     }
 
-    private func consume(_ data: Data) {
-        guard !data.isEmpty else { return }
-        buffer.append(data)
-        while let newline = buffer.firstIndex(of: 0x0A) {
-            let line = buffer.prefix(upTo: newline)
-            buffer.removeSubrange(...newline)
-            guard let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { continue }
-            if response["type"] as? String == "notification" {
-                notificationHandler(response)
-                continue
-            }
-            guard let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { continue }
-            completion(response)
+    private func receive(_ response: [String: Any]) {
+        if response["type"] as? String == "notification" {
+            notificationHandler(response)
+            return
         }
+        guard let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { return }
+        completion(response)
     }
 
     private func didTerminate() {
@@ -830,5 +847,29 @@ private final class NodeServiceProcess {
             completion(["id": id, "ok": false, "error": "Palette service stopped"])
         }
         pending.removeAll()
+    }
+}
+
+/// Owns framing and JSON decoding on one ordered queue, away from AppKit.
+private final class ServiceResponseReader {
+    private let queue = DispatchQueue(label: "sh.palette.service-reader")
+    private var buffer = Data()
+    private var scannedBytes = 0
+    private let deliver: ([String: Any]) -> Void
+
+    init(deliver: @escaping ([String: Any]) -> Void) { self.deliver = deliver }
+
+    func enqueue(_ data: Data) {
+        guard !data.isEmpty else { return }
+        queue.async {
+            self.buffer.append(data)
+            while let newline = self.buffer.dropFirst(self.scannedBytes).firstIndex(of: 0x0A) {
+                let line = self.buffer.prefix(upTo: newline)
+                self.buffer.removeSubrange(...newline)
+                self.scannedBytes = 0
+                if let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any] { self.deliver(response) }
+            }
+            self.scannedBytes = self.buffer.count
+        }
     }
 }

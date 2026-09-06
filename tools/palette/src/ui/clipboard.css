@@ -36,7 +36,7 @@
 .clip-results-label { display: flex; justify-content: space-between; color: #9895a2; font-size: 11px; padding: 8px 7px 10px; }
 .clip-results-label small { font-size: inherit; }
 .clip-list { min-height: 0; overflow: auto; padding: 1px 2px 8px; }
-.clip-row { display: flex; align-items: center; gap: 11px; padding: 10px 8px; min-height: 75px; border: 1px solid transparent; border-bottom-color: #ffffff09; border-radius: 8px; cursor: default; }
+.clip-row { display: flex; align-items: center; gap: 11px; padding: 10px 8px; height: 75px; box-sizing: border-box; border: 1px solid transparent; border-bottom-color: #ffffff09; border-radius: 8px; cursor: default; }
 .clip-row.selected { background: #373140; border-color: #a394c1; box-shadow: 0 0 0 1px #a394c110; }
 .clip-row:not(.selected):hover { background: #ffffff06; }
 .clip-thumbnail { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; flex-shrink: 0; background: #ffffff06; border-radius: 7px; overflow: hidden; color: #b5b1c1; }

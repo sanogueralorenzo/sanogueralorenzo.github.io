@@ -137,7 +137,8 @@ Copy works without that permission. Files refer to their original locations;
 restoration reports missing files rather than copying a path as text.
 
 Use `⌘ F` to focus search, arrows to select, `⌘ C` to copy, `⌘ P` to pin/unpin,
-and `⌘ K` for actions. With the history list focused, `⌘ ⌫` deletes and
+and `⌘ K` for actions. Home/End and Page Up/Down navigate a focused history list.
+With the history list focused, `⌘ ⌫` deletes and
 `⌥ ⇧` plus up/down or left/right cycles app or type filters. Search keeps native
 text-editing shortcuts. Escape dismisses the panel or its current dialog.
 
@@ -163,7 +164,9 @@ iteration is macOS-specific; other hosts report unsupported rich restores.
 
 For isolated native review, launch the built app with `--review --clipboard
 --data-dir /absolute/path/to/review-profile`. Review mode requires a separate
-data directory and uses a local permission-restricted random key instead of
+data directory. Add `--keep-visible` for side-by-side visual inspection; this
+review-only option keeps the panel open on focus loss and must be omitted when
+verifying ordinary dismissal. Review mode uses a local permission-restricted random key instead of
 Keychain. Pause capture between checks and use synthetic content; the system
 clipboard is still shared with other apps. See [verification evidence](development/VERIFICATION.md)
 and the [independent reviews](development/reviews/).

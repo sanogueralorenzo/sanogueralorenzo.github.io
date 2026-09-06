@@ -46,3 +46,17 @@ Independently reviewed `final-native-text.png`, `final-native-image.png`, `final
 - The interface and generated macOS application asset both use two diagonally overlapping rounded outlined squares; the menu bar uses the matching `square.on.square` template symbol. Source confirms replacement and the header appearance is verified. Finder/Dock/menu-bar rendered appearance remains unverified in the supplied evidence.
 
 Limits: these four captures do not establish link/file detail layout, long-text/code behavior, extremely tall images, many source apps, empty/no-match rendering, or narrow/small-screen behavior. Source-label accuracy on synthetic background writes is explicitly outside this visual pass and remains subject to the native review. This is a visual assessment, not a claim that clipboard fidelity, retrieval timing, or every goal criterion has passed.
+
+# Visual review — large-history final iteration
+
+Reviewed `large-native-history.png`, `large-native-empty.png`, and `restored-rich-text.png`, plus current virtualization logic and row CSS. No live UI control or automated tests were used.
+
+**Assessment: no new blocking visual regression in the supplied final captures.** The 1,000-clip history preserves the approved three-column hierarchy and the previous pass's spacing, typography, selected-row treatment, and visible actions. Four-digit totals and three-digit source counts fit. The populated app list scrolls within its column while the local-storage label stays in place. Source names that exceed available width truncate, consistent with the existing design.
+
+The native URL selection now supplies evidence for link preview layout: recognizable link tile, recoverable full URL, source/type/time metadata, and unobscured primary actions. The no-match capture clearly shows a zero result count, explanatory message, Clear filters action, and an empty preview without stale selected content. A prior copy notification remains in its dedicated strip, without overlapping either empty state or keyboard footer.
+
+Source inspection finds that virtual row height and CSS agree at 75px, including the existing smaller-window media rule, and spacers preserve full list extent. Overscan and selected-row reveal are present; these captures do not independently establish deep-scroll continuity or frame-rate performance, which require runtime evidence.
+
+The restored-rich-text capture visibly contains a bold first-line title and a second body line in the destination editor. It is consistent with preserved formatting but does not by itself prove exact original rich-text fidelity; the native review owns that comparison.
+
+The prior default-size visual pass stands. Previously documented limits remain for narrow rendered layouts, extreme content dimensions, and rendered OS icon surfaces. The new evidence covers large-history layout, link preview, and no-match presentation that were previously unverified.
