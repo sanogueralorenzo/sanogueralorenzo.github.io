@@ -1,6 +1,6 @@
 # Clipboard
 
-![Clipboard — sample history mockup](docs/Clipboard.png)
+![Clipboard — everyday clipboard history mockup](docs/Clipboard.png)
 
 A small macOS clipboard menu for text, links, images, and files. History stays encrypted on your Mac and survives restarts.
 
