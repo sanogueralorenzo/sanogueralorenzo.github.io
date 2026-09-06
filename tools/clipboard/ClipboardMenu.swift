@@ -185,6 +185,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         }
         emptyLabel.font = .systemFont(ofSize: 13)
         emptyLabel.textColor = .secondaryLabelColor
+        emptyLabel.alignment = .center
         emptyLabel.heightAnchor.constraint(equalToConstant: 30).isActive = true
         add(emptyState, to: stack)
         emptyState.isHidden = true
