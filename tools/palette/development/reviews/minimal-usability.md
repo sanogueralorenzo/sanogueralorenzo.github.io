@@ -116,3 +116,7 @@ Independent source review confirms the permanent header/title is removed, search
 ## Regular placeholder row and shortcut guide
 
 Independent source closure passed: empty and real clips share a small row builder, the empty row remains inert, right-side Command-number labels retain their width while titles truncate, and a fixed-height guide accurately limits preview guidance to images. First-nine numbering follows filtered order. Search expansion and the existing maximum height remain. No substantive source finding; native layout/numbered-copy verification was assigned to the coordinator/user because the menu-only desktop tool cannot inspect this window.
+
+### Option–Shift–V and empty guidance rows
+
+Focused independent source recheck found no substantive issue: tutorial rows share the normal row builder, empty sizing accounts for three 30-point rows and two 2-point gaps, no-match search hides the two instructional rows, and search retains its maximum-height latch. Removed footer hints leave real-row numbered hints intact. Native follow-up opened the empty menu with Option–Shift–V and measured the expected 280×217 bounds; AppKit measured the longest title at 206.66 points within 218 available. Accessibility inspection of the menu-only surface timed out, so a fresh visual/transition pass is not claimed.

@@ -2,9 +2,9 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide and grows with history up to 236 points tall, preserving the overall menu height with its native Clear History and Quit rows. The content starts with search, followed by results. An empty history shows a regular-sized, non-interactive row with the overlapping-squares icon and “Copied items appear here”; searches with no results show “No matching clips”. Focusing search expands it to its maximum height until the menu closes, keeping results steady while typing. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌥⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide and grows with history up to 236 points tall, preserving the overall menu height with its native Clear History and Quit rows. The content starts with search, followed by results. An empty history shows three non-interactive clipboard-style rows with the overlapping-squares icon: “Copied items appear here”, “Hover + Space to preview images”, and “⌘ + number to copy”. These are guidance, not saved clips. Searches with no results show “No matching clips”. Focusing search expands it to its maximum height until the menu closes, keeping results steady while typing. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
-- **⌘1–⌘9** copies the corresponding numbered result, including filtered search results, and dismisses the menu. The compact guide below the list shows available shortcuts.
+- **⌘1–⌘9** copies the corresponding numbered result, including filtered search results, and dismisses the menu. Each of the first nine rows shows its shortcut; there is no footer guide.
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the menu. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
 - **Space** previews the hovered or keyboard-selected image, replacing the list with a full-area image preview. Text, links, and files stay in the list. Press Space again to return; **⌘F** returns to search.
@@ -36,7 +36,7 @@ open build/Palette.app
 
 The build compiles three Swift source files, renders the existing overlapping-squares icon, and ad-hoc signs the application. No package installation, downloaded runtime, Node daemon, WebView, or file indexer is needed. Quit the installed Palette before replacing `~/Applications/Palette.app` with `build/Palette.app`.
 
-Palette has no Dock icon and stays resident when dismissed. Launching or reopening the app adds its menu-bar icon without opening a window. Click the icon or press **⌘⇧V** when you need it. Use macOS Login Items for automatic launch. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
+Palette has no Dock icon and stays resident when dismissed. Launching or reopening the app adds its menu-bar icon without opening a window. Click the icon or press **⌥⇧V** when you need it. Use macOS Login Items for automatic launch. The only global shortcut is ⌥⇧V. If another app owns it, the menu bar icon remains available.
 
 For native verification with disposable synthetic content:
 

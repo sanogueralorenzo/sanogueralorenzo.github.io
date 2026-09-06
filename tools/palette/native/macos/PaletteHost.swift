@@ -76,7 +76,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var previewVisible = false
     private let emptyState = NSView()
     private let emptyLabel = NSTextField(labelWithString: "Copied items appear here")
-    private let shortcuts = NSTextField(labelWithString: "")
+    private let emptyRows = NSStackView()
     private var copyItems: [NSMenuItem] = []
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private var issue: String?
@@ -168,23 +168,22 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
-        let emptyRow = makeRow(icon: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette"), title: emptyLabel)
-        emptyLabel.textColor = .secondaryLabelColor
-        emptyRow.translatesAutoresizingMaskIntoConstraints = false
-        emptyState.addSubview(emptyRow)
-        NSLayoutConstraint.activate([emptyRow.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), emptyRow.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), emptyRow.topAnchor.constraint(equalTo: emptyState.topAnchor), emptyRow.heightAnchor.constraint(equalToConstant: 30)])
+        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
+        for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images"), NSTextField(labelWithString: "⌘ + number to copy")] {
+            let row = makeRow(icon: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette"), title: title)
+            add(row, to: emptyRows)
+            row.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        }
+        emptyRows.translatesAutoresizingMaskIntoConstraints = false
+        emptyState.addSubview(emptyRows)
+        NSLayoutConstraint.activate([emptyRows.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), emptyRows.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), emptyRows.topAnchor.constraint(equalTo: emptyState.topAnchor)])
         add(emptyState, to: stack)
-        emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 32).isActive = true
+        emptyState.heightAnchor.constraint(greaterThanOrEqualTo: emptyRows.heightAnchor).isActive = true
         emptyState.isHidden = true
         previewImage.imageScaling = .scaleProportionallyUpOrDown
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         add(previewImage, to: stack); previewImage.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; previewImage.isHidden = true
-        shortcuts.font = .systemFont(ofSize: 11)
-        shortcuts.textColor = .secondaryLabelColor
-        add(shortcuts, to: stack)
-        shortcuts.heightAnchor.constraint(equalToConstant: 16).isActive = true
-        shortcuts.isHidden = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { self?.handleKey(event) == true }
             return handled ? nil : event
@@ -330,14 +329,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         emptyState.isHidden = !showEmpty
         emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copied items appear here" : "No matching clips") : ""
         historyScroll.isHidden = previewVisible || showEmpty || (filtered.isEmpty && !searchExpanded)
-        let showGuide = historyAvailable == true && (clips.isEmpty || !filtered.isEmpty)
-        shortcuts.isHidden = !showGuide
-        let count = min(9, filtered.count)
-        let copyHint = count == 1 ? "⌘1 Copy" : "⌘1–\(count == 0 ? 9 : count) Copy"
-        let previewHint = previewVisible ? "Space Back" : (clips.isEmpty ? "Hover + Space: images" : ((hovered ?? selected)?.kind == .image ? "Hover + Space Preview" : nil))
-        shortcuts.stringValue = showGuide ? [previewHint, copyHint].compactMap { $0 }.joined(separator: " · ") : ""
-        let bodyHeight = showEmpty ? 32 : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
-        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0) + (showGuide ? 8 + 16 : 0)
+        for row in emptyRows.arrangedSubviews.dropFirst() { row.isHidden = !clips.isEmpty }
+        let bodyHeight = showEmpty ? (clips.isEmpty ? 94.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
@@ -405,7 +399,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private func report(_ text: String?) {
         issue = text
         clearItem.isEnabled = historyAvailable == true && !clips.isEmpty
-        statusItem?.button?.toolTip = text ?? "Palette · ⌘⇧V"
+        statusItem?.button?.toolTip = text ?? "Palette · ⌥⇧V"
     }
     @objc private func clearHistory() {
         guard historyAvailable == true, !clips.isEmpty else { return }
@@ -423,9 +417,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), &eventHandlerRef)
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(cmdKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 1), GetApplicationEventTarget(), 0, &shortcutRef)
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 1), GetApplicationEventTarget(), 0, &shortcutRef)
         if status != noErr || registered != noErr {
-            shortcutError = "⌘⇧V is in use. Open Palette from its menu bar icon."
+            shortcutError = "⌥⇧V is in use. Open Palette from its menu bar icon."
             report(shortcutError!)
         }
     }

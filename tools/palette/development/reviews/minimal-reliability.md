@@ -120,3 +120,7 @@ Coordinator native lifecycle evidence used a disposable legacy-disabled profile:
 ## Native numbered-copy equivalents
 
 Independent review approved nine native Command-number equivalents scoped to clipboardMenu. Tags map to the first nine current filtered indices; absent indices are disabled and the action bounds-checks before invoking existing copy-only restoration. The reviewer identified that menu tracking may close before action dispatch; the menuOpen guard was removed accordingly. Native-format restoration, self-capture suppression, Command+C and image-only Space handling remain unchanged. There is no duplicate digit monitor or fallback routing layer. Native keyboard delivery still requires the requested runtime confirmation.
+
+### Option–Shift–V and empty guidance rows
+
+Focused independent source recheck passed: Carbon registration, tooltip, conflict text, and README agree on Option–Shift–V. The guidance views stay outside filtered clipboard data, so numbered actions cannot target or persist them. Capture, encryption, history ownership, restore, and numbered-copy mapping are unchanged. Native shortcut opening and Escape dismissal were observed in a disposable empty profile; numbered-copy delivery remains unconfirmed. No automated tests were created or run.
