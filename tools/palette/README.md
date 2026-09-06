@@ -11,7 +11,7 @@ Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compa
 
 Direct paste needs Palette's existing macOS Accessibility permission; ⌘C works without it. If the destination cannot regain focus, the clip remains copied for manual paste. macOS does not report whether a destination accepted a paste.
 
-Click the **Palette title** to pause or resume capture; its inline icon shows the available action. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no additional options menu or settings panel. The native bottom **Quit Palette** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
+Click the **Palette title** to pause or resume capture; its text is soft mint when capture is on and muted rose when off, with darker shades in light mode. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no additional options menu or settings panel. The native bottom **Quit Palette** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
 
 ## Clipboard and privacy
 
@@ -19,7 +19,7 @@ Supports plain text, web links, images (PNG/TIFF), files, and useful HTML/RTF fo
 
 History and thumbnails stay local, encrypted with AES-256-GCM and a key in macOS Keychain. Private/transient pasteboard markers and obvious credential-shaped text are always skipped. Excluded apps use macOS's foreground app at copy time. macOS supplies no authoritative clipboard-writer identity: background writes can be attributed to the foreground app, and exclusions cannot guarantee protection from those writes. Secret detection is deliberately limited; pause capture when handling sensitive material.
 
-Each captured copy is limited to 8 MB; image decoding is bounded to 40 megapixels and 16,000 pixels per edge. The encrypted history payload is limited to 64 MB. Reaching that limit reports an error and preserves saved clips, rather than silently evicting them. If an operation fails, the pause/resume icon turns amber and its tooltip explains the failure. Details remain until the next explicit pause/resume or clear action; background success does not erase them. Unreadable settings, keys, or history pause capture and preserve existing files.
+Each captured copy is limited to 8 MB; image decoding is bounded to 40 megapixels and 16,000 pixels per edge. The encrypted history payload is limited to 64 MB. Reaching that limit reports an error and preserves saved clips, rather than silently evicting them. If an operation fails, the Palette title and menu-bar icon tooltips explain the failure. Details remain until the next explicit pause/resume or clear action; background success does not erase them. Unreadable settings, keys, or history pause capture and preserve existing files.
 
 Existing `~/Library/Application Support/Palette/clipboard.json` history, pins, app provenance, native representations, retention, pause state, and exclusions remain compatible. The Keychain service/account and version-1 encrypted envelope are unchanged. The new implementation needs no migration export or replacement key. Pending writes finish before a normal Quit. Quitting before history has loaded does not wait on an unavailable Keychain read.
 

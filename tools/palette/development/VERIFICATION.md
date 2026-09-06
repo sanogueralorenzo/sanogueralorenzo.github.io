@@ -101,3 +101,9 @@ The macOS build, installed signature, and diff checks pass. Source inspection co
 Removed automatic menu presentation on launch/reopen and the manually positioned NSMenu.popUp path. Launch now only adds the menu-bar icon. The shortcut invokes the status-item button's native click, sharing its attached menu behavior with an actual icon click. Invalid review arguments report through the existing icon tooltip without forcing a popup. The obsolete background-launch option is no longer needed.
 
 The installed build was launched normally with no arguments, then reopened through macOS Launch Services. Native CGWindow inspection found no Palette windows after either operation. A real Command+Shift+V keyboard event opened its 280×305 native menu at screen coordinates (1048, 34), beneath the menu bar rather than at the bottom-left corner. Escape removed the menu; a subsequent native window query returned no Palette windows. Build, installed signature, and diff checks pass. Independent source review approved the simplified opening path and unchanged capture/quit lifecycle. No automated tests were created or run.
+
+## Capture state in the title
+
+Removed the play/pause symbol and its layout configuration. Palette's clickable title now indicates capture state: soft mint #A8D5B5 when on, muted rose #E7A5A5 when off. Dynamic native colors use darker #2F7046 / #A43F3F in light appearance for legibility. Tooltip and accessibility action labels retain Pause capture / Resume capture, and failures remain in the title and menu-bar tooltips. Capture and persistence behavior are unchanged.
+
+Build, installed signature, and diff checks pass. Color selection and symbol removal were checked in source; this change has no fresh visual or toggle interaction confirmation. No automated tests were created or run.

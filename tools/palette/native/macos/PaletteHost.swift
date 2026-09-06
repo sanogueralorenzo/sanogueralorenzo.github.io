@@ -70,6 +70,16 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var issue: String?
     private var shortcutError: String?
     private var historyAvailable: Bool?
+    private let captureOnColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 168/255, green: 213/255, blue: 181/255, alpha: 1)
+            : NSColor(srgbRed: 47/255, green: 112/255, blue: 70/255, alpha: 1)
+    }
+    private let captureOffColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 231/255, green: 165/255, blue: 165/255, alpha: 1)
+            : NSColor(srgbRed: 164/255, green: 63/255, blue: 63/255, alpha: 1)
+    }
     private let accent = NSColor(calibratedRed: 0.75, green: 0.69, blue: 0.9, alpha: 1)
 
     static func main() {
@@ -142,9 +152,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
         pause.title = "Palette"
         pause.font = .systemFont(ofSize: 13, weight: .semibold)
-        pause.imagePosition = .imageTrailing
-        pause.imageHugsTitle = true
-        pause.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold, scale: .small)
+        pause.contentTintColor = captureOffColor
         pause.target = self; pause.action = #selector(toggleCapture)
         pause.isBordered = false; pause.isEnabled = false
         clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
@@ -350,10 +358,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private func report(_ text: String?) {
         issue = text
         let action = policy.enabled ? "Pause capture" : "Resume capture"
-        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)
         pause.setAccessibilityLabel("Palette · \(action)")
         pause.toolTip = text.map { "\(action)\n\($0)" } ?? action
-        pause.contentTintColor = text == nil ? .labelColor : .systemOrange
+        pause.contentTintColor = historyAvailable == true && policy.enabled ? captureOnColor : captureOffColor
         pause.isEnabled = historyAvailable == true
         clear.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
