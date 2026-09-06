@@ -20,15 +20,12 @@ struct Clip: Codable, Equatable {
 
     var appName: String { sourceAppName ?? "Unknown app" }
     var summary: String { title ?? content }
-    var dictionary: [String: Any] { get throws { try JSONSerialization.jsonObject(with: JSONEncoder().encode(self)) as! [String: Any] } }
 }
 
 struct ClipboardPolicy: Decodable {
     var maxItems = 200
     var retentionDays: Double? = 30
     var excludedAppIds: [String] = []
-    // Retained in the file for compatibility. Private copies are always skipped.
-    var ignoreSensitive = true
 }
 
 /// One serial owner for encrypted history and settings. Publish only successful writes.
@@ -79,7 +76,6 @@ final class ClipboardStore {
 
     func capture(_ clip: Clip) {
         change { clips in
-            guard !self.policy.excludedAppIds.contains(clip.sourceAppId ?? "") else { return clips }
             var clip = clip
             let existing = clips.first { $0.sourceAppId == clip.sourceAppId && $0.kind == clip.kind && $0.content == clip.content && $0.representations == clip.representations }
             if let existing { clip.id = existing.id; clip.pinned = existing.pinned }
