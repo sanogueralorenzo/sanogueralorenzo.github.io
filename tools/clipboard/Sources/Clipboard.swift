@@ -40,7 +40,9 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         }
         menu.onClear = { [weak self] in
             guard let self, self.historyAvailable else { return }
-            self.menu.report(self.shortcutError); self.store.clear()
+            self.menu.report(self.shortcutError)
+            self.changeCount = NSPasteboard.general.clearContents()
+            self.store.clear()
         }
         installShortcut()
         menu.onRetentionChange = { [weak self] in self?.store?.setRetention(days: $0) }
