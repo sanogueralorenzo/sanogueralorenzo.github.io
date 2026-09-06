@@ -1,6 +1,5 @@
 import AppKit
 import Carbon.HIToolbox
-import ApplicationServices
 import ServiceManagement
 
 @main
@@ -11,7 +10,6 @@ final class Clipboard: NSObject, NSApplicationDelegate {
     private var store: ClipboardStore!
     private var policy = ClipboardPolicy()
     private var historyAvailable = false
-    private var previousApp: NSRunningApplication?
     private var changeCount = NSPasteboard.general.changeCount
     private var shortcutError: String?
     private var hotKey: EventHotKeyRef?
@@ -30,12 +28,11 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         menu.onOpen = { [weak self] in
             guard let self else { return }
             self.store?.prune()
-            self.previousApp = nil
             if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
-                self.capture(source: app); self.previousApp = app
+                self.capture(source: app)
             }
         }
-        menu.onCopy = { [weak self] in self?.restore($0, paste: $1) }
+        menu.onCopy = { [weak self] in self?.restore($0) }
         menu.onSpace = { [weak self] clip in
             if let url = clip.webURL {
                 if !NSWorkspace.shared.open(url) { self?.report("The link could not be opened.") }
@@ -93,30 +90,11 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         do { if let clip = try ClipboardSupport.capture(pb, source: source) { store.capture(clip) } }
         catch { report(error.localizedDescription) }
     }
-    private func restore(_ clip: Clip, paste: Bool) {
-        if paste && !AXIsProcessTrusted() {
-            report("Direct paste needs Accessibility permission. Press ⌘C to copy, or enable Clipboard in System Settings → Privacy & Security → Accessibility.")
-            return
-        }
-        let target = previousApp
-        if paste && (target == nil || target!.isTerminated) { report("No destination app. Press ⌘C, then paste where you need it."); return }
+    private func restore(_ clip: Clip) {
         do {
             try ClipboardSupport.restore(clip, to: .general)
             changeCount = NSPasteboard.general.changeCount
             menu.dismiss()
-            if paste, let target {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
-                          let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
-                          let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else {
-                        self?.report("Could not focus the destination. The clip is copied; paste it manually.")
-                        RunLoop.main.perform { MainActor.assumeIsolated { self?.menu.show() } }
-                        return
-                    }
-                    down.flags = .maskCommand; up.flags = .maskCommand
-                    down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
-                }
-            }
         } catch { report(error.localizedDescription) }
     }
     private func report(_ text: String) { menu.report(text) }

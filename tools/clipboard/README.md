@@ -9,7 +9,7 @@ A small macOS clipboard menu. Copy something, find it by content or source app, 
 - **⌥⇧V** opens or closes Clipboard. Escape or clicking away dismisses it.
 - **⌘F** searches; **↑ / ↓** selects a clip.
 - **Click** or **hover + ⌘C** copies an item. **⌘1–9** copies a numbered result.
-- **Return** copies the selected clip, closes Clipboard, and sends ⌘V to the app you were using. This automatic paste requires macOS Accessibility permission; clicking to copy and pasting yourself does not.
+- After copying an item, press **⌘V** in the app where you want to paste it.
 - **Space** previews copied images and image files in macOS Quick Look, or opens links in your default browser. Image rows show “Space to Preview” on hover; links show “Space to Open”. Other rows have no hover hint. Quick Look interaction is under verification.
 
 Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear → Now immediately removes all saved clips.** Clear is always available; Now is disabled when history is empty. The timed options remove each clip once it reaches 30 minutes, 8 hours, or 7 days old; 7 days is selected by default. Expiry is checked every minute while running and when the app or menu opens. Quit stops capture; launching Clipboard starts it again.

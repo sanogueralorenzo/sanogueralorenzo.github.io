@@ -61,7 +61,7 @@ final class ClipboardTable: NSTableView {
 @MainActor
 final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     var onOpen: (() -> Void)?
-    var onCopy: ((Clip, Bool) -> Void)?
+    var onCopy: ((Clip) -> Void)?
     var onSpace: ((Clip) -> Void)?
     var onClear: (() -> Void)?
     var onRetentionChange: ((Double) -> Void)?
@@ -107,7 +107,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         switch commandSelector {
         case #selector(NSResponder.moveDown(_:)): moveSelection(by: 1)
         case #selector(NSResponder.moveUp(_:)): moveSelection(by: -1)
-        case #selector(NSResponder.insertNewline(_:)): pasteClip()
         case #selector(NSResponder.cancelOperation(_:)): dismiss()
         default: return false
         }
@@ -307,24 +306,22 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         if event.keyCode == 53 { dismiss(); return true }
         if modifiers == .command, event.charactersIgnoringModifiers == "c" {
-            if let hovered { onCopy?(hovered, false); return true }
+            if let hovered { onCopy?(hovered); return true }
             if search.isSearching { return false }
-            if let selected { onCopy?(selected, false) }
+            if let selected { onCopy?(selected) }
             return true
         }
-        if event.keyCode == 36, modifiers.isEmpty { pasteClip(); return true }
         if [125, 126].contains(event.keyCode), modifiers.isEmpty { moveSelection(by: event.keyCode == 125 ? 1 : -1); return true }
         return false
     }
     @objc private func copyNumbered(_ sender: NSMenuItem) {
         guard filtered.indices.contains(sender.tag) else { return }
-        onCopy?(filtered[sender.tag], false)
+        onCopy?(filtered[sender.tag])
     }
     @objc private func copyClicked() {
         guard filtered.indices.contains(table.clickedRow) else { return }
-        onCopy?(filtered[table.clickedRow], false)
+        onCopy?(filtered[table.clickedRow])
     }
-    @objc private func pasteClip() { if let selected { onCopy?(selected, true) } }
     @objc private func clearHistory() { onClear?() }
     @objc private func changeRetention(_ sender: NSMenuItem) { onRetentionChange?(Double(sender.tag) / 1440) }
     @objc private func quit() { NSApp.terminate(nil) }
