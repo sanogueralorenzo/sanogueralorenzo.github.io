@@ -53,7 +53,7 @@ final class ClipboardTable: NSTableView {
 @MainActor
 final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     private let clipboardMenu = NSMenu()
-    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 212))
+    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 236))
     private var menuOpen = false
     private let search = ClipboardSearch()
     private var searchExpanded = false
@@ -75,7 +75,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var iconCache: [String: NSImage] = [:]
     private var previewVisible = false
     private let title = NSTextField(labelWithString: "Palette")
-    private let captureItem = NSMenuItem(title: "Resume", action: nil, keyEquivalent: "")
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private var issue: String?
     private var shortcutError: String?
@@ -107,7 +106,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
             }
         }
         store = ClipboardStore(directory: directory, review: review)
-        policy.enabled = false
         store.onChange = { [weak self] clips, policy, error, available in
             guard let self else { return }
             self.clips = clips; self.policy = policy; self.historyAvailable = available
@@ -200,9 +198,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         clipboard.view = content
         clipboardMenu.addItem(clipboard)
         clipboardMenu.addItem(.separator())
-        captureItem.target = self; captureItem.action = #selector(toggleCapture)
-        captureItem.isEnabled = false
-        clipboardMenu.addItem(captureItem)
         clearItem.target = self; clearItem.action = #selector(clearHistory)
         clearItem.isEnabled = false
         clipboardMenu.addItem(clearItem)
@@ -244,7 +239,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         guard pb.changeCount != changeCount else { return }
         changeCount = pb.changeCount
         let source = source ?? NSWorkspace.shared.frontmostApplication
-        guard policy.enabled, source?.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+        guard historyAvailable == true, source?.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               !policy.excludedAppIds.contains(source?.bundleIdentifier ?? "") else { return }
         do {
             guard let item = try ClipboardSupport.capture(pb, source: source, ignoreSensitive: true) else { return }
@@ -308,7 +303,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         historyScroll.isHidden = previewVisible || (filtered.isEmpty && !searchExpanded)
         let rowsHeight = CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 22 + 8 + 26 + (filtered.isEmpty ? 0 : 8 + rowsHeight)
-        let height = searchExpanded || previewVisible ? 212 : min(212, naturalHeight)
+        let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))
@@ -370,17 +365,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     }
     private func report(_ text: String?) {
         issue = text
-        let action = policy.enabled ? "Pause capture" : "Resume capture"
-        captureItem.title = policy.enabled ? "Pause" : "Resume"
-        captureItem.toolTip = text.map { "\(action)\n\($0)" } ?? action
-        captureItem.isEnabled = historyAvailable == true
         title.toolTip = text
         clearItem.isEnabled = historyAvailable == true && !clips.isEmpty
-        statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
-    }
-    @objc private func toggleCapture() {
-        report(shortcutError)
-        store?.toggleCapture()
+        statusItem?.button?.toolTip = text ?? "Palette · ⌘⇧V"
     }
     @objc private func clearHistory() {
         guard historyAvailable == true, !clips.isEmpty else { return }

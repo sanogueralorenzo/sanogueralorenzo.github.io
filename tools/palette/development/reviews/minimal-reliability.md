@@ -110,3 +110,9 @@ Menu-window keyboard delivery, editable-search behavior, hover tracking and call
 Confirmed termination now drains captures/writes only after a successful history load, so an unresolved startup Keychain read cannot block Quit. Confirmed paste focus failure records its message first and schedules the reopening through the main run loop rather than entering synchronous menu tracking from the dispatch callback. Both findings are closed by focused source inspection.
 
 The coordinator's native sample contains `NSMenuTrackingSession` beneath AppKit's menu popup, establishing that this build uses native menu tracking. CUA accessibility calls currently time out against the menu-only app. That tool limitation leaves interactive keyboard/hover/copy verification of this latest menu revision incomplete; the sample alone is not a substitute for those checks.
+
+## Process lifetime replaces pause state
+
+Independent source review approved removing enabled from the decoded clipboard policy and deleting toggle persistence. Legacy enabled:false is ignored without a settings/history migration. Host capture remains gated by historyAvailable==true; store mutations still require ready and a key, and exclusions, strict settings/history loading, and ready-only shutdown draining remain intact. No hidden pause-state or history-loss blocker remained.
+
+Coordinator native lifecycle evidence used a disposable legacy-disabled profile: marker A copied before Quit was saved, B copied while quit was absent, and C copied after reopening was saved. The old settings content remained unchanged. This is coordinator runtime evidence, separate from the independent source review; the source-attribution limitation is recorded in VERIFICATION.md.

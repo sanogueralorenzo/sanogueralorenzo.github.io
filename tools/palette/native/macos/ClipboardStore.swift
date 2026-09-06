@@ -23,8 +23,7 @@ struct Clip: Codable, Equatable {
     var dictionary: [String: Any] { get throws { try JSONSerialization.jsonObject(with: JSONEncoder().encode(self)) as! [String: Any] } }
 }
 
-struct ClipboardPolicy: Codable {
-    var enabled = true
+struct ClipboardPolicy: Decodable {
     var maxItems = 200
     var retentionDays: Double? = 30
     var excludedAppIds: [String] = []
@@ -34,7 +33,7 @@ struct ClipboardPolicy: Codable {
 
 /// One serial owner for encrypted history and settings. Publish only successful writes.
 final class ClipboardStore {
-    private struct Settings: Codable { var clipboard: ClipboardPolicy }
+    private struct Settings: Decodable { var clipboard: ClipboardPolicy }
     private struct Envelope: Codable { var version: Int; var iv: Data; var authTag: Data; var ciphertext: Data }
     private let queue = DispatchQueue(label: "sh.palette.history", qos: .utility)
     private let directory: URL
@@ -73,7 +72,6 @@ final class ClipboardStore {
                 self.change { self.pruned($0) }
             } catch {
                 self.ready = false
-                self.policy.enabled = false
                 self.publish("History is unavailable. Capture is paused and existing files are untouched. \(error.localizedDescription)")
             }
         }
@@ -81,7 +79,7 @@ final class ClipboardStore {
 
     func capture(_ clip: Clip) {
         change { clips in
-            guard self.policy.enabled, !self.policy.excludedAppIds.contains(clip.sourceAppId ?? "") else { return clips }
+            guard !self.policy.excludedAppIds.contains(clip.sourceAppId ?? "") else { return clips }
             var clip = clip
             let existing = clips.first { $0.sourceAppId == clip.sourceAppId && $0.kind == clip.kind && $0.content == clip.content && $0.representations == clip.representations }
             if let existing { clip.id = existing.id; clip.pinned = existing.pinned }
@@ -94,19 +92,6 @@ final class ClipboardStore {
     }
 
     func clear() { change { _ in [] } }
-
-    func toggleCapture() {
-        queue.async {
-            guard self.ready else { return }
-            do {
-                var next = self.policy
-                next.enabled.toggle()
-                try self.write(JSONEncoder().encode(Settings(clipboard: next)), to: self.settingsURL)
-                self.policy = next
-                self.publish()
-            } catch { self.publish("Capture could not be changed. Your previous setting is still active.") }
-        }
-    }
 
     private func pruned(_ clips: [Clip]) -> [Clip] {
         let cutoff = policy.retentionDays.map { Date().timeIntervalSince1970 * 1000 - $0 * 86_400_000 }
