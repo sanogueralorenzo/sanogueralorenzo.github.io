@@ -161,7 +161,9 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
         for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images")] {
-            let row = makeRow(icon: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard"), title: title)
+            let icon = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard")?
+                .withSymbolConfiguration(.init(hierarchicalColor: .secondaryLabelColor))
+            let row = makeRow(icon: icon, title: title, iconSize: 14)
             add(row, to: emptyRows)
             row.heightAnchor.constraint(equalToConstant: 30).isActive = true
         }
@@ -179,9 +181,9 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
     }
 
-    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil) -> NSStackView {
+    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil, iconSize: CGFloat = 22) -> NSStackView {
         let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
-        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        image.widthAnchor.constraint(equalToConstant: iconSize).isActive = true; image.heightAnchor.constraint(equalToConstant: iconSize).isActive = true
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
         title.setContentHuggingPriority(.defaultLow, for: .horizontal)
