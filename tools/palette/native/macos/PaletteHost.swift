@@ -53,7 +53,7 @@ final class ClipboardTable: NSTableView {
 @MainActor
 final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     private let clipboardMenu = NSMenu()
-    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 236))
+    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 212))
     private var menuOpen = false
     private let search = ClipboardSearch()
     private var searchExpanded = false
@@ -76,7 +76,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var previewVisible = false
     private let title = NSTextField(labelWithString: "Palette")
     private let captureItem = NSMenuItem(title: "Resume", action: nil, keyEquivalent: "")
-    private let clear = NSButton()
+    private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private var issue: String?
     private var shortcutError: String?
     private var historyAvailable: Bool?
@@ -151,12 +151,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
         title.font = .systemFont(ofSize: 13, weight: .semibold)
         title.textColor = .white
-        clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
-        clear.target = self; clear.action = #selector(clearHistory)
-        clear.isBordered = false; clear.isEnabled = false
-        clear.toolTip = "Clear all clipboard history"
-        clear.setAccessibilityLabel("Clear all clipboard history")
-        let heading = NSStackView(views: [mark, title, NSView(), clear]); heading.spacing = 8
+        let heading = NSStackView(views: [mark, title, NSView()]); heading.spacing = 8
         heading.heightAnchor.constraint(equalToConstant: 22).isActive = true
         add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
@@ -208,6 +203,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         captureItem.target = self; captureItem.action = #selector(toggleCapture)
         captureItem.isEnabled = false
         clipboardMenu.addItem(captureItem)
+        clearItem.target = self; clearItem.action = #selector(clearHistory)
+        clearItem.isEnabled = false
+        clipboardMenu.addItem(clearItem)
         clipboardMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
@@ -310,7 +308,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         historyScroll.isHidden = previewVisible || (filtered.isEmpty && !searchExpanded)
         let rowsHeight = CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 22 + 8 + 26 + (filtered.isEmpty ? 0 : 8 + rowsHeight)
-        let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
+        let height = searchExpanded || previewVisible ? 212 : min(212, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))
@@ -377,7 +375,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         captureItem.toolTip = text.map { "\(action)\n\($0)" } ?? action
         captureItem.isEnabled = historyAvailable == true
         title.toolTip = text
-        clear.isEnabled = historyAvailable == true && !clips.isEmpty
+        clearItem.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
     }
     @objc private func toggleCapture() {
@@ -388,7 +386,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         guard historyAvailable == true, !clips.isEmpty else { return }
         report(shortcutError)
         store.clear()
-        content.window?.makeFirstResponder(table)
     }
     @objc private func quit() { NSApp.terminate(nil) }
 
