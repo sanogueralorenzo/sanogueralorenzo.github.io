@@ -90,3 +90,21 @@ The coordinator reports the running app is in a healthy native menu tracking ses
 **Independent source recheck:** hover tracking now uses `.activeAlways` with `.inVisibleRect`, removing reliance on the menu window becoming key. The Palette pause/resume button uses `imageHugsTitle = true`, a 13-point semibold title, and a matching 13-point semibold symbol configuration at `.small` scale. These directly address native-menu hover delivery and the title/symbol alignment finding.
 
 **User-observed native closure, relayed by the coordinator:** the user confirmed the menu now has the desired system appearance, initially reported the play/resume icon was off-center, and after the focused correction explicitly selected “Alignment and interactions work.” That confirmation followed a request to check alignment, hover → Space, hover → Command+C, and typing an app name. This closes the final menu appearance and interaction checks against user evidence, not an independent CUA pass. No further substantive usability finding remains open.
+
+## Content-fitting menu height — focused design review
+
+The user's proposed behavior is coherent: preserve the current 260-point custom view as the maximum, wrap empty/few-item history, and expand to that maximum on the first search focus for the rest of the opening. A single per-opening search latch and one sizing calculation are sufficient; no animation, timers, or extra sizing modes are needed.
+
+Requested implementation details: compute from the actual heading fitting height, fixed search height, margins/gaps, and native row pitch; when the list is empty, hide it and omit its adjacent gap. Search expansion must cover a click into an empty search field as well as Command+F, stay expanded after clearing the query or returning focus to history, and reset on the next opening. Image previews should use the maximum. Clear stale hover targeting when geometry changes so an expansion cannot make a previously hovered coordinate silently refer to a different clip.
+
+This is a focused source/design review before implementation; native resizing and focus checks remain with the coordinator. No GUI interaction, implementation edit, or automated test performed.
+
+### Height implementation source follow-up
+
+Independently inspected the implementation: one `searchExpanded` latch resets on opening, one `updateContentSize()` calculates content height and caps it at 260, empty history hides the scroll view and omits its gap, image preview uses the maximum, and resizing clears stale hover targeting. The coordinator observed that the initial `becomeFirstResponder` hook did not receive actual native search focus; it was replaced with `mouseDown`/`selectText` hooks plus explicit Command+F expansion. Those final paths were inspected in source and are concise.
+
+The empty attachment now avoids directing focus to a hidden table. The coordinator independently measured empty opening at 115 points total (70 content + 45 native menu), with no accidental expansion even before that adjustment. Native click-without-typing, query-clear height stability, and close/reopen restoration remain the focused runtime checks. No additional source blocker identified.
+
+### Final height closure
+
+The coordinator's native checks exposed unstable header fitting and automatic text-selection expansion. Final source uses a fixed 22-point header and explicit mouseDown, Command+F, and typing expansion; the selectText hook was removed. The independent reviewer rechecked these final paths and found no remaining source blocker. Coordinator native evidence measured empty121 → search305, query-clear305, and reopen121; the final two-row menu measured193. Input-injection limitations for subsequent keyboard/AX attempts are recorded in VERIFICATION.md.

@@ -107,3 +107,11 @@ The installed build was launched normally with no arguments, then reopened throu
 Removed the play/pause symbol and its layout configuration. Palette's clickable title now indicates capture state: soft mint #A8D5B5 when on, muted rose #E7A5A5 when off. Dynamic native colors use darker #2F7046 / #A43F3F in light appearance for legibility. Tooltip and accessibility action labels retain Pause capture / Resume capture, and failures remain in the title and menu-bar tooltips. Capture and persistence behavior are unchanged.
 
 Build, installed signature, and diff checks pass. Color selection and symbol removal were checked in source; this change has no fresh visual or toggle interaction confirmation. No automated tests were created or run.
+
+## Content-fitting height with stable search
+
+The clipboard view now wraps empty/short history and stops at its existing 260-point maximum. The title row is fixed at 22 points, search at 26, and history uses its native 32-point row pitch. Empty history hides the scroll area. Clicking search, using Command+F, or typing sets a per-opening expansion flag; clearing the query does not collapse it. Opening the menu again resets that flag. Image previews retain the maximum height, and geometry changes clear stale hover targeting.
+
+Native interaction in paused disposable `/tmp/palette-height-review.lyH6nC` measured 121 points total for empty history, 193 for two synthetic clips, and 305 for search. A pointer click into search followed by typing `whatsap` confirmed the field value and expansion; clearing the query retained 305, and Escape/reopening restored 121. Native focus checks caught an ineffective becomeFirstResponder hook, and reopen checks caught unstable fitted-header sizing; both were simplified and rechecked. Some subsequent injected keyboard/AX actions did not reach the field, so Command+F and populated-result filtering are source-checked, not claimed as consistent native passes in this session. No production clips were cleared or changed for these checks.
+
+The final build, installed signature, and diff checks pass. The independent usability reviewer closed the source and observed resizing findings. No automated tests were created or run.

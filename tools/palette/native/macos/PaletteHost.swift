@@ -10,6 +10,14 @@ final class ClipboardContent: NSView {
     }
 }
 
+final class ClipboardSearch: NSSearchField {
+    var didFocus: (() -> Void)?
+    override func mouseDown(with event: NSEvent) {
+        didFocus?()
+        super.mouseDown(with: event)
+    }
+}
+
 final class ClipboardRow: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
         NSColor(calibratedRed: 0.64, green: 0.54, blue: 0.84, alpha: 0.24).setFill()
@@ -47,7 +55,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private let clipboardMenu = NSMenu()
     private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 260))
     private var menuOpen = false
-    private let search = NSSearchField()
+    private let search = ClipboardSearch()
+    private var searchExpanded = false
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
     private let previewImage = NSImageView()
@@ -140,7 +149,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         let root = content
         content.didAttach = { [weak self] in
             guard let self else { return }
-            self.content.window?.makeFirstResponder(self.table)
+            self.content.window?.makeFirstResponder(self.filtered.isEmpty ? nil : self.table)
         }
         let stack = NSStackView()
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
@@ -161,9 +170,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         clear.toolTip = "Clear all clipboard history"
         clear.setAccessibilityLabel("Clear all clipboard history")
         let heading = NSStackView(views: [mark, pause, NSView(), clear]); heading.spacing = 8
+        heading.heightAnchor.constraint(equalToConstant: 22).isActive = true
         add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
         search.delegate = self
+        search.didFocus = { [weak self] in
+            self?.searchExpanded = true
+            self?.updateContentSize()
+        }
         search.sendsSearchStringImmediately = true
         search.font = .systemFont(ofSize: 13)
         search.setAccessibilityLabel("Search clips or apps")
@@ -179,7 +193,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
-        scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
         previewImage.imageScaling = .scaleProportionallyUpOrDown
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
@@ -228,6 +241,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
             capture(source: front)
             previousApp = front
         }
+        searchExpanded = false
         search.stringValue = ""; previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
     }
     func menuDidClose(_ menu: NSMenu) {
@@ -251,7 +265,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         } catch { report(error.localizedDescription) }
     }
 
-    func controlTextDidChange(_ obj: Notification) { previewVisible = false; reload() }
+    func controlTextDidChange(_ obj: Notification) { searchExpanded = true; previewVisible = false; reload() }
     private func reload() {
         let id = selected?.id
         let query = search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -290,6 +304,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         return cell
     }
     private func updatePreview() {
+        defer { updateContentSize() }
         previewImage.isHidden = true; historyScroll.isHidden = false
         guard previewVisible, let clip = selected, clip.kind == .image,
               let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last,
@@ -301,12 +316,22 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         previewImage.image = image; previewImage.setAccessibilityLabel(clip.summary); previewImage.isHidden = false
     }
 
+    private func updateContentSize() {
+        historyScroll.isHidden = previewVisible || (filtered.isEmpty && !searchExpanded)
+        let rowsHeight = CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let naturalHeight = 20 + 22 + 8 + 26 + (filtered.isEmpty ? 0 : 8 + rowsHeight)
+        let height = searchExpanded || previewVisible ? 260 : min(260, naturalHeight)
+        guard content.frame.height != height else { return }
+        table.clearHover()
+        content.setFrameSize(NSSize(width: content.frame.width, height: height))
+    }
+
     private func handleKey(_ event: NSEvent) -> Bool {
         guard menuOpen, let window = content.window else { return false }
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         let editingSearch = window.firstResponder === search.currentEditor()
         if event.keyCode == 53 { dismiss(); return true }
-        if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { previewVisible = false; updatePreview(); window.makeFirstResponder(search); return true }
+        if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { searchExpanded = true; previewVisible = false; updatePreview(); window.makeFirstResponder(search); return true }
         if modifiers.contains(.command), event.charactersIgnoringModifiers == "c" {
             if let hovered { restore(hovered, paste: false); return true }
             if editingSearch { return false }

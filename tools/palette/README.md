@@ -2,7 +2,7 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide and grows with history up to 260 points tall. An empty history wraps the title and search. Focusing search expands it to its maximum height until the menu closes, keeping results steady while typing. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the menu. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
