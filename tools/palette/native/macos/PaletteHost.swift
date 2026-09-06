@@ -145,7 +145,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
-        search.placeholderString = "Search clips or apps"
+        search.placeholderString = "Search"
         search.delegate = self
         search.didFocus = { [weak self] in
             self?.searchExpanded = true
