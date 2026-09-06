@@ -73,3 +73,9 @@ Native interaction used `/tmp/palette-header-review.K5FV9Z`, a disposable clone 
 ## Panel alignment correction
 
 The latest direction supersedes the earlier left-extending alignment: the panel now starts at the icon’s left edge (`anchor.minX`) and extends right. Existing screen-edge constraints remain. The focused source change builds successfully and the installed signature verifies; no automated tests were created or run.
+
+## Narrow panel and direct controls
+
+Reduced the panel from 340×300 to 280×300. Pause/resume is now part of the clickable Palette title, retaining the overlapping-squares identity. The bin clears history immediately without a confirmation, as requested. A separated full-width Quit row displays ⌘Q at the bottom. Removed the obsolete confirmation and sheet guards; preview text uses the scroll view’s available width.
+
+Native interaction in disposable `/tmp/palette-title-review.xxbxW7` confirmed both title toggle states, immediate clearing to an empty list with no sheet, and termination through the Quit row. Native screenshots showed image preview and wrapped text preview contained within 280×300 with Quit still visible. Production history was not cleared. Build and installed-signature checks pass; no automated tests were created or run.

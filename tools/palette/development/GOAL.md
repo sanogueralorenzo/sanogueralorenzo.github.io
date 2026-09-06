@@ -6,7 +6,7 @@ Palette's core loop is copy → find by source app → reuse. Use one compact pa
 
 Remove launcher features, redundant services, dependencies, and speculative extensibility. Preserve existing encrypted history, pins, provenance, privacy exclusions, and pause state. Fail clearly without replacing unreadable history or silently losing saved clips.
 
-Expose only pause/resume and clear-all icons in the header. Remove the options menu and settings panel. Use sensible defaults and honor existing policy values and pins until the user explicitly clears history.
+Make the Palette title toggle pause/resume, clear all immediately from the bin, and provide a bottom Quit row with ⌘Q. Remove the options menu and settings panel. Use sensible defaults and honor existing policy values and pins until the user explicitly clears history.
 
 Independent reviewers must challenge usability/visual coherence and implementation simplicity/clipboard reliability, inspect native behavior, request concrete fixes, and recheck substantive findings. No automated tests. Verify through native interaction and record limitations honestly.
 

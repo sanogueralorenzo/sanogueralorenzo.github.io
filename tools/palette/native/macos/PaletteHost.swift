@@ -41,7 +41,7 @@ final class ClipboardTable: NSTableView {
 @main
 @MainActor
 final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
-    private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
+    private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
     private let search = NSSearchField()
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
@@ -147,8 +147,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
         mark.contentTintColor = accent
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
-        let title = NSTextField(labelWithString: "Palette")
-        title.font = .systemFont(ofSize: 14, weight: .semibold)
+        pause.title = "Palette"
+        pause.font = .systemFont(ofSize: 14, weight: .semibold)
+        pause.imagePosition = .imageTrailing
         pause.target = self; pause.action = #selector(toggleCapture)
         pause.isBordered = false; pause.isEnabled = false
         clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
@@ -156,7 +157,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         clear.isBordered = false; clear.isEnabled = false
         clear.toolTip = "Clear all clipboard history"
         clear.setAccessibilityLabel("Clear all clipboard history")
-        let heading = NSStackView(views: [mark, title, NSView(), pause, clear]); heading.spacing = 8
+        let heading = NSStackView(views: [mark, pause, NSView(), clear]); heading.spacing = 8
         add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
         search.delegate = self
@@ -165,7 +166,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         search.setAccessibilityLabel("Search clips or apps")
         add(search, to: stack)
         search.heightAnchor.constraint(equalToConstant: 26).isActive = true
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = 318
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = panel.frame.width - 22
         table.addTableColumn(column)
         table.headerView = nil; table.backgroundColor = .clear
         table.rowHeight = 30; table.intercellSpacing = NSSize(width: 0, height: 2)
@@ -186,6 +187,18 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         add(previewImage, to: stack); previewImage.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; previewImage.isHidden = true
+        let separator = NSBox(); separator.boxType = .separator
+        add(separator, to: stack)
+        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        let quitRow = NSButton(title: "", target: self, action: #selector(quit))
+        quitRow.isBordered = false; quitRow.alignment = .left
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.tabStops = [NSTextTab(textAlignment: .right, location: panel.frame.width - 32)]
+        quitRow.attributedTitle = NSAttributedString(string: "Quit\t⌘Q", attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph])
+        quitRow.setAccessibilityLabel("Quit Palette")
+        quitRow.keyEquivalent = "q"; quitRow.keyEquivalentModifierMask = .command
+        add(quitRow, to: stack)
+        quitRow.heightAnchor.constraint(equalToConstant: 24).isActive = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { self?.handleKey(event) == true }
             return handled ? nil : event
@@ -235,7 +248,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
     func windowDidResignKey(_ notification: Notification) {
         DispatchQueue.main.async { [weak self] in
-            guard let self, !self.panel.isKeyWindow, self.panel.attachedSheet == nil else { return }
+            guard let self, !self.panel.isKeyWindow else { return }
             self.dismiss(restoreFocus: false)
         }
     }
@@ -302,14 +315,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             previewImage.image = NSImage(data: data); previewImage.setAccessibilityLabel(clip.summary); previewImage.isHidden = false
         } else {
             previewText.string = clip.content
-            previewText.frame.size.width = 318
+            previewText.frame.size.width = preview.contentSize.width
             preview.isHidden = false
             previewText.scrollToBeginningOfDocument(nil)
         }
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
-        guard panel.isKeyWindow, panel.attachedSheet == nil else { return false }
+        guard panel.isKeyWindow else { return false }
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
         let editingSearch = panel.firstResponder === search.currentEditor()
         if event.keyCode == 53 { dismiss(); return true }
@@ -362,10 +375,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private func report(_ text: String?) {
         issue = text
         let action = policy.enabled ? "Pause capture" : "Resume capture"
-        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)
-        pause.setAccessibilityLabel(action)
+        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 9, weight: .medium))
+        pause.setAccessibilityLabel("Palette · \(action)")
         pause.toolTip = text.map { "\(action)\n\($0)" } ?? action
-        pause.contentTintColor = text == nil ? .secondaryLabelColor : .systemOrange
+        pause.contentTintColor = text == nil ? .labelColor : .systemOrange
         pause.isEnabled = historyAvailable == true
         clear.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
@@ -376,19 +389,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
     @objc private func clearHistory() {
         guard historyAvailable == true, !clips.isEmpty else { return }
-        let alert = NSAlert()
-        alert.messageText = "Clear all clipboard history?"
-        alert.informativeText = "All saved clips will be deleted. This cannot be undone."
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Clear history")
-        alert.beginSheetModal(for: panel) { [weak self] response in
-            guard let self else { return }
-            if response == .alertSecondButtonReturn {
-                self.report(self.shortcutError)
-                self.store.clear()
-            }
-            self.panel.makeFirstResponder(self.table)
-        }
+        report(shortcutError)
+        store.clear()
+        panel.makeFirstResponder(table)
     }
     @objc private func quit() { NSApp.terminate(nil) }
 

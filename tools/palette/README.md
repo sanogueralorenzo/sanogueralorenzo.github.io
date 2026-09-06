@@ -2,7 +2,7 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel beneath that icon, with its left edge aligned to the icon and extending right. The panel stays within the screen edges. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 280 × 300 panel beneath that icon, with its left edge aligned to the icon and extending right. The panel stays within the screen edges. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the panel. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
@@ -11,7 +11,7 @@ Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 �
 
 Direct paste needs Palette's existing macOS Accessibility permission; ⌘C works without it. If the destination cannot regain focus, the clip remains copied for manual paste. macOS does not report whether a destination accepted a paste.
 
-The header has two actions: **Pause / Resume** capture and a **bin** to clear all saved clips after confirmation, including legacy pinned clips. There is no options menu or settings panel. **⌘Q** quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
+Click the **Palette title** to pause or resume capture; its inline icon shows the available action. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no options menu or settings panel. The bottom **Quit** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
 
 ## Clipboard and privacy
 
