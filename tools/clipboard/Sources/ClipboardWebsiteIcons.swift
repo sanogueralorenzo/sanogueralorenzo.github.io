@@ -105,7 +105,7 @@ final class ClipboardWebsiteIcons {
               width > 0, height > 0, width <= 4096, height <= 4096 else { return nil }
         return CGImageSourceCreateThumbnailAtIndex(source, 0, [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceThumbnailMaxPixelSize: 44,
+            kCGImageSourceThumbnailMaxPixelSize: 52,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true
         ] as CFDictionary)

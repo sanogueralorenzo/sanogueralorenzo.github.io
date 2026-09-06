@@ -31,9 +31,11 @@ final class ClipboardItemView: NSStackView {
     init() {
         super.init(frame: .zero)
         let title = titleField
+        imageView.wantsLayer = true
+        imageView.layer?.masksToBounds = true
         imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.widthAnchor.constraint(equalToConstant: 22).isActive = true
-        imageView.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        imageView.widthAnchor.constraint(equalToConstant: 26).isActive = true
+        imageView.heightAnchor.constraint(equalToConstant: 26).isActive = true
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         title.setContentHuggingPriority(.defaultLow, for: .horizontal)
         title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
@@ -41,7 +43,7 @@ final class ClipboardItemView: NSStackView {
         shortcutField.setContentHuggingPriority(.required, for: .horizontal)
         shortcutField.setContentCompressionResistancePriority(.required, for: .horizontal)
         for view in [imageView, title, shortcutField] { addArrangedSubview(view) }
-        spacing = 8; edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
+        spacing = 8; edgeInsets = NSEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
         titleTrailing = title.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
         shortcutTrailing = shortcutField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6)
         setShortcut(nil)
@@ -94,7 +96,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     var onClear: (() -> Void)?
     var onRetentionChange: ((Double) -> Void)?
     private let clipboardMenu = NSMenu()
-    private let content = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 236))
+    private let content = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 240))
     private let search = ClipboardSearch()
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
@@ -177,7 +179,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor)])
         search.placeholderString = "Search"
         search.delegate = self
         search.didFocus = { [weak self] in self?.updateSpaceShortcut() }
@@ -300,6 +302,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         let identifier = NSUserInterfaceItemIdentifier("ClipboardItem")
         let cell = tableView.makeView(withIdentifier: identifier, owner: self) as? ClipboardItemView ?? ClipboardItemView()
         cell.identifier = identifier
+        cell.imageView.layer?.cornerRadius = clip.kind == .image ? 4 : 0
         cell.imageView.image = icon(for: clip)
         cell.titleField.stringValue = summary
         cell.setShortcut(row < 9 ? "⌘\(row + 1)" : nil)
@@ -318,7 +321,12 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         if clip.kind == .image, let thumbnail = clip.thumbnail {
             if let cached = thumbnailCache.object(forKey: thumbnail as NSString) { return cached }
             guard let thumb = thumbnail.split(separator: ",", maxSplits: 1).last,
-                  let data = Data(base64Encoded: String(thumb)), let image = NSImage(data: data) else { return nil }
+                  let data = Data(base64Encoded: String(thumb)),
+                  let source = NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+            let side = min(source.width, source.height)
+            let rect = CGRect(x: (source.width - side) / 2, y: (source.height - side) / 2, width: side, height: side)
+            guard let cropped = source.cropping(to: rect) else { return nil }
+            let image = NSImage(cgImage: cropped, size: .zero)
             thumbnailCache.setObject(image, forKey: thumbnail as NSString)
             return image
         }
@@ -339,9 +347,8 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         emptyRows.isHidden = !clips.isEmpty
         emptyLabel.isHidden = clips.isEmpty
         historyScroll.isHidden = showEmpty
-        let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
-        let naturalHeight = 20 + 30 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
-        let height = min(236, naturalHeight)
+        let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(min(filtered.count, 6)) * (table.rowHeight + table.intercellSpacing.height)
+        let height = 10 + 30 + 8 + bodyHeight
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))
