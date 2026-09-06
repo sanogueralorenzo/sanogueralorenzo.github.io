@@ -161,7 +161,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 8
-        for text in ["Copied items appear here.", "Click to copy it again.", "Hover an image and press Space to preview."] {
+        for text in ["Copied items appear here.", "Click to copy it again.", "Preview image with hover + space"] {
             let label = NSTextField(wrappingLabelWithString: text)
             label.font = .systemFont(ofSize: 12)
             label.preferredMaxLayoutWidth = 236
