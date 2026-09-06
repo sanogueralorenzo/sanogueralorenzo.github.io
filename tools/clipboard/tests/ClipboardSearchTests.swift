@@ -1,8 +1,7 @@
 import AppKit
-@main
 @MainActor
 enum ClipboardSearchTests {
-    static func main() {
+    static func run() {
         _ = NSApplication.shared
         let menu = ClipboardMenu()
         let content = Mirror(reflecting: menu).children.first { $0.label == "content" }!.value as! NSView

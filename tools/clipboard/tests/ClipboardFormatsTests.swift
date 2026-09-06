@@ -1,11 +1,49 @@
 import AppKit
 
-@main
 @MainActor
 enum ClipboardFormatsTests {
-    static func main() throws {
+    static func run() throws {
         let pasteboard = NSPasteboard.withUniqueName()
         defer { pasteboard.releaseGlobally() }
+        for marker in ClipboardSupport.privateTypes {
+            pasteboard.clearContents()
+            pasteboard.setString("private copy", forType: .string)
+            pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType(marker))
+            let snapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)
+            precondition(snapshot == nil)
+        }
+        for text in ["password: example", "api_key=example", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature", ""] {
+            pasteboard.clearContents()
+            pasteboard.setString(text, forType: .string)
+            let snapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)!
+            let clip = try ClipboardSupport.prepare(snapshot)
+            precondition(clip == nil)
+        }
+        print("PASS: private markers, secret patterns, and empty text are not captured")
+
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".txt")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try Data("sample file".utf8).write(to: file)
+        pasteboard.clearContents()
+        pasteboard.writeObjects([file as NSURL])
+        let fileSnapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)!
+        let fileClip = try ClipboardSupport.prepare(fileSnapshot)!
+        precondition(fileClip.kind == .file && fileClip.content == file.path)
+        pasteboard.clearContents()
+        try ClipboardSupport.restore(fileClip, to: pasteboard)
+        precondition(pasteboard.string(forType: .fileURL) == file.absoluteString)
+        try FileManager.default.removeItem(at: file)
+        pasteboard.clearContents()
+        pasteboard.setString("keep this", forType: .string)
+        let beforeMissingFile = pasteboard.changeCount
+        do {
+            try ClipboardSupport.restore(fileClip, to: pasteboard)
+            preconditionFailure("Restoring a missing file must fail")
+        } catch {
+            precondition(pasteboard.changeCount == beforeMissingFile && pasteboard.string(forType: .string) == "keep this")
+        }
+        print("PASS: files round-trip and missing originals preserve the current clipboard")
+
         let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 2, pixelsHigh: 2,
                                       bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
                                       isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!

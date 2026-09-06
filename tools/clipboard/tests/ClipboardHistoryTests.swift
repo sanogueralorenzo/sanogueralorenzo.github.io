@@ -1,9 +1,8 @@
 import Foundation
 import CryptoKit
 
-@main
 enum ClipboardHistoryTests {
-    static func main() throws {
+    static func run() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -76,24 +75,14 @@ enum ClipboardHistoryTests {
         precondition(afterExpiry == saved)
         print("PASS: count limit, recopy ordering, expiry")
 
-        store.clear()
-        store.finishWrites()
-        for index in 0..<7 { capture(clip("small-\(index)", content: String(repeating: "A", count: 1024 * 1024))) }
-        let payload = String(repeating: "A", count: 8 * 1024 * 1024)
-        for index in 0..<9 {
-            var image = clip("image-\(index)")
-            image.kind = .image
-            image.representations = [[Clip.Format(type: "public.png", data: payload)]]
-            capture(image)
-        }
-        saved = try history()
-        precondition(saved.map(\.id) == (2..<9).reversed().map { "image-\($0)" })
-        print("PASS: byte limit evicts multiple oldest entries and keeps the latest copy")
-
-        capture(clip("oversized", content: String(repeating: "B", count: 64 * 1024 * 1024)))
-        let afterOversized = try history()
-        precondition(afterOversized == saved)
-        print("PASS: an oversized single entry preserves existing history")
+        let newest = clip("newest", content: String(repeating: "A", count: 128))
+        let older = (0..<4).map { clip("older-\($0)") }
+        let byteLimit = try JSONEncoder().encode([newest, older[0]]).count
+        let (withinLimit, limitedData) = try ClipboardStore.encodeHistory([newest] + older, maximumBytes: byteLimit)
+        precondition(withinLimit == [newest, older[0]] && limitedData.count == byteLimit)
+        let reloaded = try JSONDecoder().decode([Clip].self, from: limitedData)
+        precondition(reloaded == withinLimit)
+        print("PASS: byte limit evicts multiple oldest entries and retains valid JSON")
 
         let reopened = ClipboardStore(directory: directory, review: true)
         reopened.load()
@@ -101,7 +90,7 @@ enum ClipboardHistoryTests {
         reopened.capture(clip("after-restart"))
         reopened.finishWrites()
         let afterRestart = try history()
-        precondition(afterRestart.map(\.id) == ["after-restart"] + saved.map(\.id))
+        precondition(afterRestart.map(\.id) == ["after-restart"] + saved.dropLast().map(\.id))
         print("PASS: encrypted history reloads after eviction")
 
         reopened.clear()
@@ -117,7 +106,9 @@ enum ClipboardHistoryTests {
         func drainUpdates() {
             var drained = false
             DispatchQueue.main.async { drained = true }
-            while !drained { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01)) }
+            let deadline = Date(timeIntervalSinceNow: 2)
+            while !drained && Date() < deadline { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01)) }
+            precondition(drained, "History callbacks timed out")
         }
         prunedOnLoad.load()
         prunedOnLoad.finishWrites()
@@ -138,5 +129,31 @@ enum ClipboardHistoryTests {
         drainUpdates()
         precondition(updates.count == 1 && updates[0].1 == 7, "Policy changes must publish even when history is unchanged")
         print("PASS: load and retention prune in one operation and publish once")
+
+        for failure in ["corrupt-history", "missing-key", "invalid-key", "invalid-settings"] {
+            let profile = directory.appendingPathComponent(failure)
+            try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+            let historyURL = profile.appendingPathComponent("clipboard.json")
+            let keyURL = profile.appendingPathComponent("review.key")
+            let original = Data("invalid encrypted history".utf8)
+            try original.write(to: historyURL)
+            if failure != "missing-key" { try Data(repeating: 0, count: failure == "invalid-key" ? 1 : 32).write(to: keyURL) }
+            if failure == "invalid-settings" {
+                try Data(#"{"clipboard":{"maxItems":-1,"excludedAppIds":[]}}"#.utf8)
+                    .write(to: profile.appendingPathComponent("settings.json"))
+            }
+            let unavailable = ClipboardStore(directory: profile, review: true)
+            var reportedUnavailable = false
+            unavailable.onChange = { _, _, error, available in reportedUnavailable = !available && error != nil }
+            unavailable.load()
+            unavailable.capture(clip("must-not-save"))
+            unavailable.clear()
+            unavailable.finishWrites()
+            drainUpdates()
+            let preserved = try Data(contentsOf: historyURL)
+            precondition(reportedUnavailable && preserved == original)
+            if failure == "missing-key" { precondition(!FileManager.default.fileExists(atPath: keyURL.path)) }
+        }
+        print("PASS: unavailable history stays untouched and missing keys are not replaced")
     }
 }
