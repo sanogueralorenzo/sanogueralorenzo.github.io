@@ -119,6 +119,14 @@ enum ClipboardSupport {
 
 @MainActor
 extension Clip {
+    var webURL: URL? {
+        let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard kind == .url, let url = URL(string: text),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil,
+              !text.contains(where: { $0.isWhitespace }) else { return nil }
+        return url
+    }
+
     var imageFileURL: URL? {
         guard kind == .file else { return nil }
         let urls = ClipboardSupport.fileURLs(self)
@@ -126,4 +134,5 @@ extension Clip {
         return url
     }
     var canPreview: Bool { kind == .image || imageFileURL != nil }
+    var spaceHint: String? { webURL != nil ? "Space to Open" : (canPreview ? "Space to Preview" : nil) }
 }

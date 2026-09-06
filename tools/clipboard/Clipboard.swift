@@ -36,7 +36,11 @@ final class Clipboard: NSObject, NSApplicationDelegate {
             }
         }
         menu.onCopy = { [weak self] in self?.restore($0, paste: $1) }
-        menu.onPreview = { [weak self] in self?.preview.show($0) }
+        menu.onSpace = { [weak self] clip in
+            if let url = clip.webURL {
+                if !NSWorkspace.shared.open(url) { self?.report("The link could not be opened.") }
+            } else { self?.preview.show(clip) }
+        }
         menu.onClear = { [weak self] in
             guard let self, self.historyAvailable else { return }
             self.menu.report(self.shortcutError); self.store.clear()

@@ -55,7 +55,7 @@ final class ClipboardTable: NSTableView {
 final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     var onOpen: (() -> Void)?
     var onCopy: ((Clip, Bool) -> Void)?
-    var onPreview: ((Clip) -> Void)?
+    var onSpace: ((Clip) -> Void)?
     var onClear: (() -> Void)?
     var onRetentionChange: ((Double) -> Void)?
     private let clipboardMenu = NSMenu()
@@ -70,7 +70,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private let clearNowItem = NSMenuItem(title: "Now", action: nil, keyEquivalent: "")
     private var retentionItems: [NSMenuItem] = []
     private var statusItem: NSStatusItem!
-    private let previewItem = NSMenuItem(title: "Preview", action: nil, keyEquivalent: " ")
+    private let spaceItem = NSMenuItem(title: "Open or Preview", action: nil, keyEquivalent: " ")
     private var copyItems: [NSMenuItem] = []
     private var clips: [Clip] = []
     private var filtered: [Clip] = []
@@ -94,7 +94,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         table.clearHover(); table.deselectAll(nil); reload()
     }
     func menuDidClose(_ menu: NSMenu) { menuOpen = false; search.endSearch() }
-    func controlTextDidEndEditing(_ obj: Notification) { search.endSearch(); updatePreviewShortcut() }
+    func controlTextDidEndEditing(_ obj: Notification) { search.endSearch(); updateSpaceShortcut() }
     func controlTextDidChange(_ obj: Notification) { reload() }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         switch commandSelector {
@@ -110,7 +110,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         guard !filtered.isEmpty else { return }
         let row = max(0, min(filtered.count - 1, table.selectedRow + offset))
         table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-        table.scrollRowToVisible(row); search.endSearch(); content.window?.makeFirstResponder(table); updatePreviewShortcut()
+        table.scrollRowToVisible(row); search.endSearch(); content.window?.makeFirstResponder(table); updateSpaceShortcut()
     }
     private func reload() {
         let id = selected?.id
@@ -121,7 +121,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         for item in copyItems { item.isEnabled = filtered.indices.contains(item.tag) }
         table.reloadData()
         if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: filtered.firstIndex { $0.id == id } ?? 0), byExtendingSelection: false) }
-        updateContentSize(); updatePreviewShortcut()
+        updateContentSize(); updateSpaceShortcut()
     }
     private func configureContent() {
         let root = content
@@ -132,7 +132,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
         search.placeholderString = "Search"
         search.delegate = self
-        search.didFocus = { [weak self] in self?.updatePreviewShortcut() }
+        search.didFocus = { [weak self] in self?.updateSpaceShortcut() }
         search.sendsSearchStringImmediately = true
         search.isBordered = false; search.isBezeled = false; search.drawsBackground = false
         search.focusRingType = .none
@@ -152,13 +152,13 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         table.style = .plain; table.selectionHighlightStyle = .regular
         table.dataSource = self; table.delegate = self
         table.onKey = { [weak self] in self?.handleKey($0) == true }
-        table.onHoverChange = { [weak self] in self?.updatePreviewShortcut() }
+        table.onHoverChange = { [weak self] in self?.updateSpaceShortcut() }
         table.target = self; table.action = #selector(copyClicked)
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
         scroll.contentView.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateSpaceShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .centerX; emptyRows.spacing = 4
         emptyRows.edgeInsets = NSEdgeInsets(top: 12, left: 4, bottom: 12, right: 4)
         for (index, text) in ["Clipboard History", "Copy something to get started.", "Preview image with hover + space."].enumerated() {
@@ -237,10 +237,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
             item.isHidden = true; item.allowsKeyEquivalentWhenHidden = true; item.isEnabled = false
             clipboardMenu.addItem(item); copyItems.append(item)
         }
-        previewItem.target = self; previewItem.action = #selector(previewClip(_:))
-        previewItem.keyEquivalentModifierMask = []
-        previewItem.isHidden = true; previewItem.allowsKeyEquivalentWhenHidden = true; previewItem.isEnabled = false
-        clipboardMenu.addItem(previewItem)
+        spaceItem.target = self; spaceItem.action = #selector(performSpaceAction(_:))
+        spaceItem.keyEquivalentModifierMask = []
+        spaceItem.isHidden = true; spaceItem.allowsKeyEquivalentWhenHidden = true; spaceItem.isEnabled = false
+        clipboardMenu.addItem(spaceItem)
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
@@ -251,15 +251,15 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         edit.submenu = editMenu; menu.addItem(edit); NSApp.mainMenu = menu
     }
 
-    func tableViewSelectionDidChange(_ notification: Notification) { updatePreviewShortcut() }
-    @objc private func updatePreviewShortcut() {
+    func tableViewSelectionDidChange(_ notification: Notification) { updateSpaceShortcut() }
+    @objc private func updateSpaceShortcut() {
         let clip = hovered ?? selected
-        previewItem.isEnabled = !search.isSearching && clip?.canPreview == true
-        previewItem.representedObject = clip
+        spaceItem.isEnabled = !search.isSearching && clip?.spaceHint != nil
+        spaceItem.representedObject = clip
     }
-    @objc private func previewClip(_ sender: NSMenuItem) {
+    @objc private func performSpaceAction(_ sender: NSMenuItem) {
         guard let clip = sender.representedObject as? Clip else { return }
-        dismiss(); onPreview?(clip)
+        dismiss(); onSpace?(clip)
     }
     private var selected: Clip? { filtered.indices.contains(table.selectedRow) ? filtered[table.selectedRow] : nil }
     private var hovered: Clip? { filtered.indices.contains(table.hoveredRow) ? filtered[table.hoveredRow] : nil }
@@ -276,7 +276,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         } else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
         let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
         let cell = makeRow(icon: icon, title: NSTextField(labelWithString: summary), shortcut: row < 9 ? "⌘\(row + 1)" : nil)
-        cell.toolTip = "\(clip.appName) · ⌘C Copy" + (clip.canPreview ? " · Space Preview" : "")
+        cell.toolTip = clip.spaceHint
         cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell
     }

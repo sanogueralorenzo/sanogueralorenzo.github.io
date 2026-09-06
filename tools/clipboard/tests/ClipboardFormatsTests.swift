@@ -42,5 +42,19 @@ enum ClipboardFormatsTests {
             }
         }
         print("PASS: missing or invalid original image data leaves the clipboard untouched")
+
+        var link = Clip(id: "link", kind: .url, content: " https://example.com/path?q=hello#section\n", createdAt: 0)
+        precondition(link.webURL?.absoluteString == "https://example.com/path?q=hello#section")
+        precondition(link.spaceHint == "Space to Open")
+        for content in ["file:///tmp/example.png", "javascript:alert(1)", "https://", "https://example.com/two words"] {
+            link.content = content
+            precondition(link.webURL == nil && link.spaceHint == nil)
+        }
+        let text = Clip(id: "text", kind: .text, content: "hello", createdAt: 0)
+        let imageFile = Clip(id: "file", kind: .file, content: "/tmp/example.png", createdAt: 0)
+        let document = Clip(id: "document", kind: .file, content: "/tmp/example.txt", createdAt: 0)
+        precondition(text.spaceHint == nil && document.spaceHint == nil)
+        precondition(legacy.spaceHint == "Space to Preview" && imageFile.spaceHint == "Space to Preview")
+        print("PASS: hover hints and Space actions match images, web links, and other clips")
     }
 }
