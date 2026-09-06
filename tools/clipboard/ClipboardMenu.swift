@@ -161,16 +161,11 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 8
-        for text in ["Copy -> show here.", "Click to copy it again.", "Hover an image and press Space to preview."] {
-            let dot = NSTextField(labelWithString: "•")
-            dot.textColor = .secondaryLabelColor
-            dot.widthAnchor.constraint(equalToConstant: 6).isActive = true
+        for text in ["Copied items appear here.", "Click to copy it again.", "Hover an image and press Space to preview."] {
             let label = NSTextField(wrappingLabelWithString: text)
             label.font = .systemFont(ofSize: 12)
-            label.preferredMaxLayoutWidth = 222
-            let row = NSStackView(views: [dot, label])
-            row.alignment = .firstBaseline; row.spacing = 8
-            add(row, to: emptyRows)
+            label.preferredMaxLayoutWidth = 236
+            add(label, to: emptyRows)
         }
         tutorialCard.boxType = .custom; tutorialCard.titlePosition = .noTitle; tutorialCard.borderWidth = 0
         tutorialCard.cornerRadius = 8; tutorialCard.fillColor = .quaternaryLabelColor
