@@ -69,3 +69,7 @@ Native checks in the paused synthetic profile confirmed immediate Space preview 
 Replaced More with pause/resume and clear-all icons. Removed SettingsPanel.swift, its build input, the settings and Details menus, and the unused per-item pin/delete actions. The native Quit shortcut remains. The serial store now owns capture toggling and clear-all directly, while honoring legacy privacy policy and pinned-history retention. Ordinary failures tint the existing pause/resume icon amber and remain readable in its tooltip; no extra panel or menu is added.
 
 Native interaction used `/tmp/palette-header-review.K5FV9Z`, a disposable clone of the four-item migration profile containing legacy pins. Resume switched to Pause; Pause switched back to Resume. Clear opened a native confirmation, Cancel preserved all four clips, and confirmation removed every clip and disabled the empty-history bin. A normal quit/relaunch preserved both the empty history and paused capture. Original profiles and production history were not cleared. Build and installed signature checks pass; no automated tests were created or run.
+
+## Panel alignment correction
+
+The latest direction supersedes the earlier left-extending alignment: the panel now starts at the icon’s left edge (`anchor.minX`) and extends right. Existing screen-edge constraints remain. The focused source change builds successfully and the installed signature verifies; no automated tests were created or run.

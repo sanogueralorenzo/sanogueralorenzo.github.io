@@ -222,7 +222,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let anchor = window.convertToScreen(button.convert(button.bounds, to: nil))
         let frame = screen.visibleFrame
         // A hidden menu-bar item can have an offscreen frame. Keep shortcut access visible.
-        let preferredX = anchor.midY >= frame.maxY ? anchor.maxX - panel.frame.width : frame.maxX - panel.frame.width - 8
+        let preferredX = anchor.midY >= frame.maxY ? anchor.minX : frame.maxX - panel.frame.width - 8
         let x = min(max(preferredX, frame.minX + 8), frame.maxX - panel.frame.width - 8)
         panel.setFrameOrigin(NSPoint(x: x, y: frame.maxY - panel.frame.height - 6))
         search.stringValue = ""; previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
