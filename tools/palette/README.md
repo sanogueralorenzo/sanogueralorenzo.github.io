@@ -12,7 +12,7 @@ Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 �
 
 Direct paste needs Palette's existing macOS Accessibility permission. If unavailable, More → Details explains how to enable it; ⌘C works without it. If the destination cannot regain focus, the clip remains copied and details are available from More. macOS does not report whether a destination accepted a paste.
 
-The **More** menu offers Pause capture, Settings, and Quit. The small settings sheet contains capture, retention, and excluded apps selected with the native app picker. Defaults are 200 clips and 30 days. Existing capacity settings are preserved. Retention and capacity remove older unpinned clips; shorter retention applies when saved. Clear unpinned history requires confirmation.
+The **More** menu offers Pause capture, Settings, and Quit. The small settings sheet contains retention and excluded apps selected with the native app picker. Defaults are 200 clips and 30 days. Existing capacity settings are preserved. Retention and capacity remove older unpinned clips; shorter retention applies when saved. Clear unpinned history requires confirmation.
 
 ## Clipboard and privacy
 

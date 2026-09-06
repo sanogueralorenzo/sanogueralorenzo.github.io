@@ -5,22 +5,19 @@ final class SettingsPanel: NSPanel {
     var onSave: ((ClipboardPolicy) -> Void)?
     var onClear: (() -> Void)?
     private var policy: ClipboardPolicy
-    private let capture = NSButton(checkboxWithTitle: "Save clipboard history", target: nil, action: nil)
     private let retention = NSPopUpButton()
     private let excluded = NSPopUpButton()
     private let remove = NSButton(title: "Remove", target: nil, action: nil)
 
     init(policy: ClipboardPolicy, count: Int) {
         self.policy = policy
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 360, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 360, height: 260), styleMask: [.titled], backing: .buffered, defer: false)
         title = "Settings"
         appearance = NSAppearance(named: .darkAqua)
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
         contentView!.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: contentView!.topAnchor, constant: 22)])
-        capture.state = policy.enabled ? .on : .off
-        stack.addArrangedSubview(capture)
         for (name, days) in [("7 days", 7.0), ("30 days", 30.0), ("90 days", 90.0), ("Until deleted", -1.0)] { retention.addItem(withTitle: name); retention.lastItem?.representedObject = days }
         if let days = policy.retentionDays, ![7.0, 30, 90].contains(days) { retention.addItem(withTitle: "\(Int(days)) days"); retention.lastItem?.representedObject = days }
         retention.select(retention.itemArray.first { $0.representedObject as? Double == (policy.retentionDays ?? -1) })
@@ -76,7 +73,6 @@ final class SettingsPanel: NSPanel {
         alert.beginSheetModal(for: self) { [weak self] response in if response == .alertSecondButtonReturn { self?.onClear?() } }
     }
     @objc private func save() {
-        policy.enabled = capture.state == .on
         let days = retention.selectedItem?.representedObject as? Double ?? 30
         policy.retentionDays = days < 0 ? nil : days
         policy.ignoreSensitive = true

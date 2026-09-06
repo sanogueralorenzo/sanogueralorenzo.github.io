@@ -6,7 +6,7 @@ Palette's core loop is copy → find by source app → reuse. Use one compact co
 
 Remove launcher features, redundant services, dependencies, and speculative extensibility. Preserve existing encrypted history, pins, provenance, privacy exclusions, and pause state. Fail clearly without replacing unreadable history or silently losing saved clips.
 
-Settings should expose only capture, retention, and excluded apps. Use sensible defaults and preserve existing policy values where changing them would discard history.
+Settings should expose only retention and excluded apps; Pause capture belongs in the More menu. Use sensible defaults and preserve existing policy values where changing them would discard history.
 
 Independent reviewers must challenge usability/visual coherence and implementation simplicity/clipboard reliability, inspect native behavior, request concrete fixes, and recheck substantive findings. No automated tests. Verify through native interaction and record limitations honestly.
 

@@ -47,3 +47,7 @@ The independent reviewer verified hover + Command+C takes priority over a differ
 The reliability reviewer closed a final source finding: if pins or a preserved legacy retention/capacity policy prevent a new capture from surviving pruning, capture now reports through the existing on-demand Details path. It preserves saved history and pinned recopies. This specific capacity guard received source review; the ordinary failure path had already been exercised natively.
 
 The final signed bundle was installed at `~/Applications/Palette.app` and launched with `--background`. Its executable matches the verified build, and signature verification passes. The preceding installed bundle is preserved under the ignored build directory.
+
+## Settings simplification follow-up
+
+Removed the duplicate Save clipboard history checkbox; Pause/Resume capture remains in More. The settings sheet is now 360×260. A native review-profile inspection confirmed the checkbox is absent and the remaining controls fit. Saving through the native Save button preserved the paused state in settings.json. The build and installed signature pass; no automated tests were created or run.
