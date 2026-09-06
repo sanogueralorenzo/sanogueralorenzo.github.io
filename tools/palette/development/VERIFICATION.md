@@ -51,3 +51,9 @@ The final signed bundle was installed at `~/Applications/Palette.app` and launch
 ## Settings simplification follow-up
 
 Removed the duplicate Save clipboard history checkbox; Pause/Resume capture remains in More. The settings sheet is now 360×260. A native review-profile inspection confirmed the checkbox is absent and the remaining controls fit. Saving through the native Save button preserved the paused state in settings.json. The build and installed signature pass; no automated tests were created or run.
+
+## Menu-bar anchoring follow-up
+
+The primary panel now uses the menu-bar button’s screen and bounds, aligns its right edge with the icon, and extends to the left with a 6-point gap beneath the menu bar. Horizontal placement is constrained to the screen. If macOS supplies an offscreen status-item frame, shortcut access remains onscreen below the menu bar.
+
+The user confirmed a native click opened the panel beneath the icon, then requested the final right-edge alignment. That alignment change passed compilation and source inspection. Native window inspection confirmed the final 340×300 panel remains onscreen; the invalid-anchor path was encountered during launch and corrected before completion. The installed signature passes. No automated tests were created or run.

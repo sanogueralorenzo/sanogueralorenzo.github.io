@@ -229,8 +229,13 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             capture(source: front)
             previousApp = front
         }
-        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
-        if let frame = screen?.visibleFrame { panel.setFrameOrigin(NSPoint(x: frame.maxX - panel.frame.width - 12, y: frame.maxY - panel.frame.height - 12)) }
+        guard let button = statusItem.button, let window = button.window, let screen = window.screen else { return }
+        let anchor = window.convertToScreen(button.convert(button.bounds, to: nil))
+        let frame = screen.visibleFrame
+        // A hidden menu-bar item can have an offscreen frame. Keep shortcut access visible.
+        let preferredX = anchor.midY >= frame.maxY ? anchor.maxX - panel.frame.width : frame.maxX - panel.frame.width - 8
+        let x = min(max(preferredX, frame.minX + 8), frame.maxX - panel.frame.width - 8)
+        panel.setFrameOrigin(NSPoint(x: x, y: frame.maxY - panel.frame.height - 6))
         search.stringValue = ""; apps.selectItem(at: 0); previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
         NSApp.activate(ignoringOtherApps: true); panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(search)
     }

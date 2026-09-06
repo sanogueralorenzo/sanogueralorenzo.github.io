@@ -2,7 +2,7 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel near the upper-right corner of the current screen. Search your history or choose an app. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel beneath that icon, extending to its left. The panel stays within the screen edges. Search your history or choose an app. Escape, the shortcut, or clicking away dismisses it.
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the panel. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
