@@ -169,7 +169,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
-        for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images"), NSTextField(labelWithString: "⌘ + number to copy")] {
+        for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images")] {
             let row = makeRow(icon: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette"), title: title)
             add(row, to: emptyRows)
             row.heightAnchor.constraint(equalToConstant: 30).isActive = true
@@ -330,7 +330,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copied items appear here" : "No matching clips") : ""
         historyScroll.isHidden = previewVisible || showEmpty || (filtered.isEmpty && !searchExpanded)
         for row in emptyRows.arrangedSubviews.dropFirst() { row.isHidden = !clips.isEmpty }
-        let bodyHeight = showEmpty ? (clips.isEmpty ? 94.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let bodyHeight = showEmpty ? (clips.isEmpty ? 62.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }

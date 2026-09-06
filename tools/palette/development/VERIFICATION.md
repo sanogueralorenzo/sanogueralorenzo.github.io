@@ -159,3 +159,7 @@ Changed the sole global shortcut to Option–Shift–V, including registration, 
 Both independent reviewers found no substantive source issue. Native AppKit measurement gives the longest tutorial title a width of 206.66 points within its 218-point space. In disposable `/tmp/palette-empty-rows.dmIG0G`, a CUA Option–Shift–V keypress from Finder opened Palette; native window metadata measured 280×217 beneath the menu bar, matching the three-row empty layout. Palette accessibility inspection still timed out, so no fresh visual or search-transition pass is claimed. Escape dismissed the menu and allowed the requested normal Quit to complete; process absence was verified. The previous numbered-copy native check remains unconfirmed.
 
 Build, installed signature, and diff checks pass. The updated app is installed and reopened with normal history; disposable review instances are stopped. Production history was not cleared or migrated. No automated tests were created or run.
+
+## Remove redundant numbered-copy instruction
+
+Removed “⌘ + number to copy” from the empty-state rows; actual result rows retain their numbered shortcuts. Reduced the empty body height from 94 to 62 points to fit the remaining two rows. Search expansion and the maximum height are unchanged. Build, installed signature, and diff checks pass. Normal termination and process absence were verified before installation; the updated app reopened with existing history. No fresh visual check or automated tests were performed for this two-line UI change.
