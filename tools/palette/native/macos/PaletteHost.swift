@@ -43,7 +43,6 @@ final class ClipboardTable: NSTableView {
 final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuItemValidation {
     private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
     private let search = NSSearchField()
-    private let apps = NSPopUpButton()
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
     private let preview = NSScrollView()
@@ -101,7 +100,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             guard let self else { return }
             self.clips = clips; self.policy = policy; self.historyAvailable = available
             self.report(error ?? self.issue ?? self.shortcutError)
-            self.refreshApps(); self.reload()
+            self.reload()
         }
         store.load()
         timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.capture() } }
@@ -156,21 +155,13 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         more.setAccessibilityLabel("More")
         let heading = NSStackView(views: [mark, title, NSView(), more]); heading.spacing = 8
         add(heading, to: stack)
-        search.placeholderString = "Search clipboard"
+        search.placeholderString = "Search clips or apps"
         search.delegate = self
         search.sendsSearchStringImmediately = true
         search.font = .systemFont(ofSize: 13)
-        search.setAccessibilityLabel("Search clipboard")
+        search.setAccessibilityLabel("Search clips or apps")
         add(search, to: stack)
         search.heightAnchor.constraint(equalToConstant: 26).isActive = true
-        apps.target = self; apps.action = #selector(filterChanged)
-        apps.setAccessibilityLabel("Source app")
-        apps.addItems(withTitles: ["All apps", "Pinned"])
-        apps.item(at: 0)?.representedObject = "all"; apps.item(at: 1)?.representedObject = "pinned"
-        apps.controlSize = .small; apps.font = .systemFont(ofSize: 11)
-        let filters = NSStackView(views: [apps, NSView()]); filters.spacing = 8
-        add(filters, to: stack)
-        apps.widthAnchor.constraint(lessThanOrEqualToConstant: 280).isActive = true
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = 318
         table.addTableColumn(column)
         table.headerView = nil; table.backgroundColor = .clear
@@ -236,8 +227,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let preferredX = anchor.midY >= frame.maxY ? anchor.maxX - panel.frame.width : frame.maxX - panel.frame.width - 8
         let x = min(max(preferredX, frame.minX + 8), frame.maxX - panel.frame.width - 8)
         panel.setFrameOrigin(NSPoint(x: x, y: frame.maxY - panel.frame.height - 6))
-        search.stringValue = ""; apps.selectItem(at: 0); previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
-        NSApp.activate(ignoringOtherApps: true); panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(search)
+        search.stringValue = ""; previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
+        NSApp.activate(ignoringOtherApps: true); panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(table)
     }
     private func dismiss(restoreFocus: Bool = true) {
         panel.orderOut(nil)
@@ -267,28 +258,12 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         } catch { report(error.localizedDescription) }
     }
 
-    private func refreshApps() {
-        let selected = apps.selectedItem?.representedObject as? String ?? "all"
-        apps.removeAllItems()
-        for (name, id) in [("All apps", "all"), ("Pinned", "pinned")] { apps.addItem(withTitle: name); apps.lastItem?.representedObject = id }
-        apps.menu?.addItem(.separator())
-        var seen: Set<String> = []
-        for clip in clips.sorted(by: { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }) {
-            let id = clip.sourceAppId ?? "unknown"
-            guard seen.insert(id).inserted else { continue }
-            apps.addItem(withTitle: clip.appName); apps.lastItem?.representedObject = id
-        }
-        apps.select(apps.itemArray.first { $0.representedObject as? String == selected } ?? apps.item(at: 0))
-    }
-    @objc private func filterChanged() { previewVisible = false; reload(); panel.makeFirstResponder(search) }
     func controlTextDidChange(_ obj: Notification) { previewVisible = false; reload() }
     private func reload() {
         let id = selected?.id
-        let app = apps.selectedItem?.representedObject as? String ?? "all"
         let query = search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         filtered = clips.filter { clip in
-            (app == "all" || (app == "pinned" && clip.pinned) || (clip.sourceAppId ?? "unknown") == app) &&
-            (query.isEmpty || [clip.content, clip.title ?? "", clip.appName].contains { $0.localizedCaseInsensitiveContains(query) })
+            query.isEmpty || [clip.content, clip.title ?? "", clip.appName].contains { $0.localizedCaseInsensitiveContains(query) }
         }
         table.reloadData()
         if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: filtered.firstIndex { $0.id == id } ?? 0), byExtendingSelection: false) }
@@ -422,7 +397,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         settings.onSave = { [weak self] next in self?.store.setPolicy(next) }
         settings.onClear = { [weak self] in self?.store.clearUnpinned() }
         settingsPanel = settings
-        panel.beginSheet(settings) { [weak self] _ in self?.settingsPanel = nil; self?.panel.makeFirstResponder(self?.search) }
+        panel.beginSheet(settings) { [weak self] _ in self?.settingsPanel = nil; self?.panel.makeFirstResponder(self?.table) }
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {

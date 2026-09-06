@@ -2,12 +2,12 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel beneath that icon, extending to its left. The panel stays within the screen edges. Search your history or choose an app. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel beneath that icon, extending to its left. The panel stays within the screen edges. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the panel. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
-- **Space**, with the list focused, previews the hovered or keyboard-selected clip, replacing the list with a full-area text, link, image, or file preview. Press Space again to return; **⌘F** returns to search.
-- Right-click for **Pin / Unpin** and **Delete**. **⌘P** pins the selected list item. Pins have their own app-filter entry and survive automatic cleanup.
+- **Space** previews the hovered or keyboard-selected clip immediately after opening, replacing the list with a full-area text, link, image, or file preview. Press Space again to return; **⌘F** returns to search.
+- Right-click for **Pin / Unpin** and **Delete**. **⌘P** pins the selected list item. Pins survive automatic cleanup.
 - Search and selectable preview text retain native text-editing shortcuts.
 
 Direct paste needs Palette's existing macOS Accessibility permission. If unavailable, More → Details explains how to enable it; ⌘C works without it. If the destination cannot regain focus, the clip remains copied and details are available from More. macOS does not report whether a destination accepted a paste.

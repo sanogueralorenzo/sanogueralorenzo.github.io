@@ -57,3 +57,9 @@ Removed the duplicate Save clipboard history checkbox; Pause/Resume capture rema
 The primary panel now uses the menu-bar button’s screen and bounds, aligns its right edge with the icon, and extends to the left with a 6-point gap beneath the menu bar. Horizontal placement is constrained to the screen. If macOS supplies an offscreen status-item frame, shortcut access remains onscreen below the menu bar.
 
 The user confirmed a native click opened the panel beneath the icon, then requested the final right-edge alignment. That alignment change passed compilation and source inspection. Native window inspection confirmed the final 340×300 panel remains onscreen; the invalid-anchor path was encountered during launch and corrected before completion. The installed signature passes. No automated tests were created or run.
+
+## Search and default-preview simplification
+
+Removed the All apps/Pinned dropdown and its population/filtering code. Search remains case-insensitive across clip content, titles, and source-app names. The list receives focus on opening and after Settings closes; search is entered by clicking it or Command+F. Pins remain available in the item context menu.
+
+Native checks in the paused synthetic profile confirmed immediate Space preview after opening; pointer-row Space preview despite a different keyboard selection; `microsof` matching the Microsoft Edge clip by its source; and clicking search then entering `steam`, an actual Space key, and `helper` showing all three Steam Helper clips. The 340×300 screenshot has no dropdown. Build and installed signature pass; no automated tests were created or run.
