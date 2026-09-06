@@ -298,31 +298,36 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let clip = filtered[row]
-        let icon: NSImage?
-        if clip.kind == .image, let thumbnail = clip.thumbnail {
-            if let cached = thumbnailCache.object(forKey: thumbnail as NSString) { icon = cached }
-            else if let thumb = thumbnail.split(separator: ",", maxSplits: 1).last,
-                    let data = Data(base64Encoded: String(thumb)), let image = NSImage(data: data) {
-                thumbnailCache.setObject(image, forKey: thumbnail as NSString)
-                icon = image
-            } else { icon = nil }
-        }
-        else if let id = clip.sourceAppId {
-            if let cached = iconCache[id] { icon = cached }
-            else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { let image = NSWorkspace.shared.icon(forFile: url.path); iconCache[id] = image; icon = image }
-            else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
-        } else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
         let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
         let identifier = NSUserInterfaceItemIdentifier("ClipboardItem")
         let cell = tableView.makeView(withIdentifier: identifier, owner: self) as? ClipboardItemView ?? ClipboardItemView()
         cell.identifier = identifier
-        cell.imageView.image = icon
+        cell.imageView.image = icon(for: clip)
         cell.titleField.stringValue = summary
         cell.setShortcut(row < 9 ? "⌘\(row + 1)" : nil)
         cell.toolTip = clip.spaceHint
         cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell
     }
+    private func icon(for clip: Clip) -> NSImage? {
+        if clip.kind == .image, let thumbnail = clip.thumbnail {
+            if let cached = thumbnailCache.object(forKey: thumbnail as NSString) { return cached }
+            guard let thumb = thumbnail.split(separator: ",", maxSplits: 1).last,
+                  let data = Data(base64Encoded: String(thumb)), let image = NSImage(data: data) else { return nil }
+            thumbnailCache.setObject(image, forKey: thumbnail as NSString)
+            return image
+        }
+        if let id = clip.sourceAppId {
+            if let cached = iconCache[id] { return cached }
+            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+                let image = NSWorkspace.shared.icon(forFile: url.path)
+                iconCache[id] = image
+                return image
+            }
+        }
+        return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+    }
+
     private func updateContentSize() {
         let showEmpty = filtered.isEmpty
         emptyState.isHidden = !showEmpty

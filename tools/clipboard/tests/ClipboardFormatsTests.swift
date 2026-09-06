@@ -65,6 +65,17 @@ enum ClipboardFormatsTests {
             link.content = content
             precondition(link.webURL == nil && link.spaceHint == nil)
         }
+        for (content, isLink) in [(" https://example.com/path?q=hello#section\n", true), ("HTTP://example.com", true),
+                                  ("file:///tmp/example.png", false), ("javascript:alert(1)", false),
+                                  ("https://", false), ("https://example.com/two words", false), ("hello", false)] {
+            pasteboard.clearContents()
+            pasteboard.setString(content, forType: .string)
+            let snapshot = try ClipboardSupport.snapshot(pasteboard, source: nil)!
+            let captured = try ClipboardSupport.prepare(snapshot)!
+            precondition((captured.kind == .url) == isLink && (captured.webURL != nil) == isLink)
+            precondition(captured.content == content)
+        }
+        print("PASS: capture and link opening agree on URL validation")
         let text = Clip(id: "text", kind: .text, content: "hello", createdAt: 0)
         let imageFile = Clip(id: "file", kind: .file, content: "/tmp/example.png", createdAt: 0)
         let document = Clip(id: "document", kind: .file, content: "/tmp/example.txt", createdAt: 0)

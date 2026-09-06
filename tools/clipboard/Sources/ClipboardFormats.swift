@@ -73,10 +73,7 @@ enum ClipboardSupport {
                 }
             }
         } else if let text = snapshot.text, !text.isEmpty {
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let url = URL(string: trimmed)
-            let isURL = ["http", "https"].contains(url?.scheme?.lowercased() ?? "") && url?.host != nil && !trimmed.contains(where: { $0.isWhitespace })
-            clip.kind = isURL ? .url : .text
+            clip.kind = webURL(text) == nil ? .text : .url
             clip.content = text
         } else if let text = snapshot.richText {
             clip.content = text
@@ -140,18 +137,20 @@ enum ClipboardSupport {
         return urls.isEmpty ? clip.content.split(separator: "\n").map { URL(fileURLWithPath: String($0)) } : urls
     }
 
+    nonisolated static func webURL(_ content: String) -> URL? {
+        let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: text),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil,
+              !text.contains(where: { $0.isWhitespace }) else { return nil }
+        return url
+    }
+
     nonisolated static func failure(_ message: String) -> NSError { NSError(domain: "Clipboard.Clipboard", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
 }
 
 @MainActor
 extension Clip {
-    var webURL: URL? {
-        let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard kind == .url, let url = URL(string: text),
-              ["http", "https"].contains(url.scheme?.lowercased() ?? ""), url.host != nil,
-              !text.contains(where: { $0.isWhitespace }) else { return nil }
-        return url
-    }
+    var webURL: URL? { kind == .url ? ClipboardSupport.webURL(content) : nil }
 
     var imageFileURL: URL? {
         guard kind == .file else { return nil }

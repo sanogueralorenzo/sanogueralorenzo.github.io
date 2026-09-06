@@ -10,7 +10,6 @@ enum ClipboardHistoryTests {
         let store = ClipboardStore(directory: directory, review: true)
         store.load()
         store.finishWrites()
-        store.finishWrites()
 
         func clip(_ id: String, content: String = "text", age: Double = 0) -> Clip {
             Clip(id: id, kind: .text, content: content, sourceAppId: id,
@@ -99,11 +98,45 @@ enum ClipboardHistoryTests {
         let reopened = ClipboardStore(directory: directory, review: true)
         reopened.load()
         reopened.finishWrites()
-        reopened.finishWrites()
         reopened.capture(clip("after-restart"))
         reopened.finishWrites()
         let afterRestart = try history()
         precondition(afterRestart.map(\.id) == ["after-restart"] + saved.map(\.id))
         print("PASS: encrypted history reloads after eviction")
+
+        reopened.clear()
+        reopened.capture(clip("yesterday", age: 86_400))
+        reopened.capture(clip("recent"))
+        reopened.finishWrites()
+        // Simulate a shorter interval saved before the app restarts.
+        try Data(#"{"clipboard":{"maxItems":200,"retentionDays":0.5,"excludedAppIds":[]}}"#.utf8)
+            .write(to: directory.appendingPathComponent("settings.json"))
+        let prunedOnLoad = ClipboardStore(directory: directory, review: true)
+        var updates: [([Clip], Double?, String?, Bool)] = []
+        prunedOnLoad.onChange = { clips, policy, error, available in updates.append((clips, policy.retentionDays, error, available)) }
+        func drainUpdates() {
+            var drained = false
+            DispatchQueue.main.async { drained = true }
+            while !drained { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.01)) }
+        }
+        prunedOnLoad.load()
+        prunedOnLoad.finishWrites()
+        let afterLoad = try history()
+        precondition(afterLoad.map(\.id) == ["recent"], "One drain must include startup pruning")
+        drainUpdates()
+        precondition(updates.count == 1 && updates[0].0 == afterLoad && updates[0].3 && updates[0].2 == nil)
+        updates.removeAll()
+        prunedOnLoad.setRetention(days: 0)
+        prunedOnLoad.finishWrites()
+        let afterRetention = try history()
+        precondition(afterRetention.isEmpty, "One drain must include retention pruning")
+        drainUpdates()
+        precondition(updates.count == 1 && updates[0].0.isEmpty && updates[0].1 == 0 && updates[0].2 == nil)
+        updates.removeAll()
+        prunedOnLoad.setRetention(days: 7)
+        prunedOnLoad.finishWrites()
+        drainUpdates()
+        precondition(updates.count == 1 && updates[0].1 == 7, "Policy changes must publish even when history is unchanged")
+        print("PASS: load and retention prune in one operation and publish once")
     }
 }

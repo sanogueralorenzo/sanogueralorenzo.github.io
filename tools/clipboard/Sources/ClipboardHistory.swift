@@ -62,8 +62,7 @@ final class ClipboardStore {
                     self.saved = try JSONDecoder().decode([Clip].self, from: AES.GCM.open(box, using: self.key!))
                 }
                 self.ready = true
-                self.publish()
-                self.change { self.pruned($0) }
+                self.apply({ self.pruned($0) }, publishUnchanged: true)
             } catch {
                 self.ready = false
                 self.publish("History is unavailable. Capture is paused and existing files are untouched. \(error.localizedDescription)")
@@ -97,8 +96,7 @@ final class ClipboardStore {
                 next.retentionDays = days
                 try self.write(JSONEncoder().encode(Settings(clipboard: next)), to: self.settingsURL)
                 self.policy = next
-                self.publish()
-                self.prune()
+                self.apply({ self.pruned($0) }, publishUnchanged: true)
             } catch { self.publish("Could not save the history interval: \(error.localizedDescription)") }
         }
     }
@@ -109,19 +107,22 @@ final class ClipboardStore {
     }
 
     private func change(_ transform: @escaping ([Clip]) throws -> [Clip]) {
-        queue.async {
-            guard self.ready, let key = self.key else { return }
-            do {
-                let next = try transform(self.saved)
-                guard next != self.saved else { return }
+        queue.async { self.apply(transform) }
+    }
+
+    private func apply(_ transform: ([Clip]) throws -> [Clip], publishUnchanged: Bool = false) {
+        guard ready, let key else { return }
+        do {
+            let next = try transform(saved)
+            if next != saved {
                 let (retained, data) = try Self.encodeHistory(next)
                 let box = try AES.GCM.seal(data, using: key)
                 let envelope = Envelope(version: 1, iv: Data(box.nonce), authTag: box.tag, ciphertext: box.ciphertext)
-                try self.write(JSONEncoder().encode(envelope), to: self.historyURL)
-                self.saved = retained
-                self.publish()
-            } catch { self.publish("Could not save history. Existing clips are preserved. \(error.localizedDescription)") }
-        }
+                try write(JSONEncoder().encode(envelope), to: historyURL)
+                saved = retained
+            } else if !publishUnchanged { return }
+            publish()
+        } catch { publish("Could not save history. Existing clips are preserved. \(error.localizedDescription)") }
     }
 
     static func encodeHistory(_ clips: [Clip], maximumBytes: Int = 64 * 1024 * 1024) throws -> ([Clip], Data) {
