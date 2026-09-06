@@ -7,6 +7,9 @@ export type PaletteBridgeBackend = {
   listRunHistory(limit?: number): Promise<RunHistoryEntry[]>;
   listClipboard(query: string): Promise<ClipboardItem[]>;
   copyClipboard(itemId: string): Promise<boolean>;
+  getClipboardItem?(itemId: string): Promise<ClipboardItem | null>;
+  removeClipboard?(itemId: string): Promise<boolean>;
+  pinClipboard?(itemId: string, pinned: boolean): Promise<ClipboardItem | null>;
   captureClipboard(item: ClipboardCapture): Promise<boolean>;
   getClipboardPolicy(): Promise<ClipboardPolicy>;
   setClipboardPolicy(policy: ClipboardPolicy): Promise<ClipboardPolicy>;
@@ -29,6 +32,14 @@ export async function handleBridgeRequest(
         return { id: request.id, ok: true, payload: { type: 'clipboard', items: await backend.listClipboard(request.query) } };
       case 'copyClipboard':
         return { id: request.id, ok: true, payload: { type: 'copied', copied: await backend.copyClipboard(request.itemId) } };
+      case 'pasteClipboard':
+        throw new Error('Direct paste requires the native macOS host. Use Copy instead.');
+      case 'getClipboardItem':
+        return { id: request.id, ok: true, payload: { type: 'clipboardItem', item: await backend.getClipboardItem?.(request.itemId) ?? null } };
+      case 'removeClipboard':
+        return { id: request.id, ok: true, payload: { type: 'removed', removed: await backend.removeClipboard?.(request.itemId) ?? false } };
+      case 'pinClipboard':
+        return { id: request.id, ok: true, payload: { type: 'clipboardItem', item: await backend.pinClipboard?.(request.itemId, request.pinned) ?? null } };
       case 'captureClipboard':
         return { id: request.id, ok: true, payload: { type: 'captured', captured: await backend.captureClipboard(request.item) } };
       case 'getClipboardPolicy':

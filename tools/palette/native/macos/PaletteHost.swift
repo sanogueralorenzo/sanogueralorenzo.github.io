@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Security
+import ApplicationServices
 @preconcurrency import UserNotifications
 import WebKit
 
@@ -84,9 +85,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var nodeService: NodeServiceProcess?
     private var clipboardTimer: Timer?
     private var clipboardChangeCount = NSPasteboard.general.changeCount
-    private var lastCapturedClipboard = ""
+    private var captureError: String?
+    private var capturePolicy: [String: Any]?
+    private var appIcons: [String: String] = [:]
+    private var clipboardShortcutRef: EventHotKeyRef?
+    private var activationObserver: NSObjectProtocol?
     private var shortcutLabel = "⌥ Space"
     private var smokeStarted = false
+    private var isReview: Bool { CommandLine.arguments.contains("--review") && CommandLine.arguments.contains("--data-dir") }
 
     static func main() {
         let application = NSApplication.shared
@@ -102,7 +108,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         configureStatusItem()
         startClipboardMonitor()
         if !CommandLine.arguments.contains("--background") {
-            DispatchQueue.main.async { [weak self] in self?.showLauncher() }
+            DispatchQueue.main.async { [weak self] in self?.showLauncher(view: CommandLine.arguments.contains("--clipboard") ? .clipboard : .launcher) }
         }
     }
 
@@ -115,6 +121,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     func applicationWillTerminate(_ notification: Notification) {
         if let shortcutRef { UnregisterEventHotKey(shortcutRef) }
+        if let clipboardShortcutRef { UnregisterEventHotKey(clipboardShortcutRef) }
+        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
         if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
         clipboardTimer?.invalidate()
         nodeService?.stop()
@@ -139,7 +147,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private func configureStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "command.circle", accessibilityDescription: "Palette")
+            button.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")
             button.image?.isTemplate = true
             button.toolTip = "Palette"
         }
@@ -167,6 +175,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private func showLauncher(view: LauncherView = .launcher) {
         pendingView = view
         let panel = ensureLauncherPanel()
+        resizePanel(view: view)
         position(panel)
         if let frontmost = NSWorkspace.shared.frontmostApplication,
            frontmost.processIdentifier != ProcessInfo.processInfo.processIdentifier {
@@ -180,6 +189,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     private func dismissLauncher(restoreFocus: Bool) {
         guard let panel = launcherPanel, panel.isVisible else { return }
+        webView?.evaluateJavaScript("window.dispatchEvent(new Event('paletteHidden'))")
         panel.orderOut(nil)
         if restoreFocus, let previousApplication, !previousApplication.isTerminated {
             previousApplication.activate(options: [])
@@ -226,6 +236,15 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         return panel
     }
 
+    private func resizePanel(view: LauncherView) {
+        guard let panel = launcherPanel else { return }
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
+        let available = screen?.visibleFrame.size ?? NSSize(width: 1200, height: 800)
+        let size = view == .clipboard ? NSSize(width: min(1040, available.width - 40), height: min(680, available.height - 40)) : NSSize(width: 680, height: 420)
+        panel.setContentSize(size)
+        position(panel)
+    }
+
     private func position(_ panel: NSPanel) {
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
@@ -233,7 +252,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let size = panel.frame.size
         let origin = NSPoint(
             x: frame.midX - size.width / 2,
-            y: frame.minY + frame.height * 0.62 - size.height / 2
+            y: max(frame.minY + 12, min(frame.maxY - size.height - 12, frame.minY + frame.height * 0.56 - size.height / 2))
         )
         panel.setFrameOrigin(origin)
     }
@@ -293,13 +312,44 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             return
         }
         if type == "hostReady" {
+            presentPendingView()
             probe.record("webview-bridge-ready")
             runSmokeTestIfNeeded()
             return
         }
+        if type == "clearCaptureError" { captureError = nil; return }
+        if type == "setView" {
+            if body["view"] as? String == "clipboard", let captureError { reportCaptureError(captureError) }
+            resizePanel(view: body["view"] as? String == "clipboard" ? .clipboard : .launcher)
+            return
+        }
         guard body["id"] is String else { return }
+        if type == "copyClipboard" || type == "pasteClipboard" {
+            restoreClipboard(body, paste: type == "pasteClipboard")
+            return
+        }
         service().send(body) { [weak self] response in
-            self?.resolveInWebView(response)
+            guard let self else { return }
+            var enriched = response
+            if var payload = response["payload"] as? [String: Any] {
+                if let policy = payload["policy"] as? [String: Any] { self.capturePolicy = policy }
+                if let items = payload["items"] as? [[String: Any]] {
+                    payload["items"] = items.map { item in
+                        var result = item
+                        if let id = item["sourceAppId"] as? String {
+                            if let icon = self.appIcons[id] { result["sourceAppIcon"] = icon }
+                            else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id),
+                                    let data = ClipboardSupport.png(NSWorkspace.shared.icon(forFile: url.path), maximumEdge: 40) {
+                                let icon = "data:image/png;base64," + data.base64EncodedString()
+                                self.appIcons[id] = icon; result["sourceAppIcon"] = icon
+                            }
+                        }
+                        return result
+                    }
+                }
+                enriched["payload"] = payload
+            }
+            self.resolveInWebView(enriched)
         }
     }
 
@@ -317,14 +367,13 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     private func service() -> NodeServiceProcess {
         if let nodeService { return nodeService }
+        let key = probe.isEnabled ? Data(repeating: 0x50, count: 32).base64EncodedString() : isReview ? Self.reviewStorageKey() : Self.clipboardStorageKey()
         let service = NodeServiceProcess(
             scriptURL: Self.nodeDaemonURL(),
             nodeURL: Self.nodeExecutableURL(),
             dataDirectory: Self.dataDirectoryURL(),
             indexerURL: Self.indexerURL(),
-            clipboardKey: probe.isEnabled
-                ? Data(repeating: 0x50, count: 32).base64EncodedString()
-                : Self.clipboardStorageKey(),
+            clipboardKey: key,
             notificationHandler: Self.deliverNotification
         )
         self.nodeService = service
@@ -338,41 +387,101 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
 
     private func startClipboardMonitor() {
         clipboardChangeCount = NSPasteboard.general.changeCount
-        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+        service().send(["id": "initial-policy", "type": "getClipboardPolicy"]) { [weak self] response in
+            self?.capturePolicy = (response["payload"] as? [String: Any])?["policy"] as? [String: Any]
+        }
+        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.captureClipboardIfChanged() }
+        }
+        // Flush a pending copy before focus moves to another app.
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
+            let source = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            MainActor.assumeIsolated { self?.captureClipboardIfChanged(source: source) }
         }
     }
 
-    private func captureClipboardIfChanged() {
+    private func captureClipboardIfChanged(source: NSRunningApplication? = nil) {
         let pasteboard = NSPasteboard.general
         guard pasteboard.changeCount != clipboardChangeCount else { return }
         clipboardChangeCount = pasteboard.changeCount
-        let fileURL = (pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [NSURL])?.first
-        let content: String
-        let kind: String
-        if let fileURL, let path = fileURL.path, !path.isEmpty {
-            content = path
-            kind = "file"
-        } else if let text = pasteboard.string(forType: .string), !text.isEmpty {
-            content = text
-            kind = text.contains("://") ? "url" : "text"
-        } else {
-            return
+        guard let policy = capturePolicy, policy["enabled"] as? Bool == true else { return }
+        let source = source ?? NSWorkspace.shared.frontmostApplication
+        guard source?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        if let id = source?.bundleIdentifier, (policy["excludedAppIds"] as? [String] ?? []).contains(id) { return }
+        let item: [String: Any]
+        do {
+            guard let captured = try ClipboardSupport.capture(pasteboard, source: source, ignoreSensitive: policy["ignoreSensitive"] as? Bool ?? true) else { return }
+            item = captured
+        } catch { reportCaptureError(error.localizedDescription); return }
+        guard let id = item["id"] as? String else { return }
+        service().send(["id": "capture-\(id)", "type": "captureClipboard", "item": item]) { [weak self] response in
+            if response["ok"] as? Bool == false {
+                self?.reportCaptureError(response["error"] as? String ?? "Clipboard capture failed")
+            }
         }
-        guard content != lastCapturedClipboard else { return }
-        lastCapturedClipboard = content
-        let itemID = UUID().uuidString
-        var item: [String: Any] = [
-            "id": itemID,
-            "kind": kind,
-            "content": content,
-            "createdAt": Int(Date().timeIntervalSince1970 * 1000),
-            "pinned": false,
-        ]
-        if let sourceAppID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier {
-            item["sourceAppId"] = sourceAppID
+    }
+
+    private func reportCaptureError(_ message: String) {
+        captureError = message
+        webView?.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('paletteCaptureError', {detail: message}))", arguments: ["message": message], in: nil, in: .page, completionHandler: nil)
+    }
+
+    private func restoreClipboard(_ request: [String: Any], paste: Bool) {
+        guard let requestID = request["id"] as? String, let itemID = request["itemId"] as? String else { return }
+        let target = previousApplication
+        if paste {
+            guard let target, !target.isTerminated else {
+                resolveInWebView(["id": requestID, "ok": false, "error": "No previous app is available. Use Copy, then paste where you need it."])
+                return
+            }
+            guard AXIsProcessTrusted() else {
+                resolveInWebView(["id": requestID, "ok": false, "error": "Enable Palette in System Settings → Privacy & Security → Accessibility to paste directly. Copy works without this permission."])
+                return
+            }
         }
-        service().send(["id": "capture-\(itemID)", "type": "captureClipboard", "item": item]) { _ in }
+        service().send(["id": "restore-\(requestID)", "type": "getClipboardItem", "itemId": itemID]) { [weak self] response in
+            guard let self else { return }
+            guard response["ok"] as? Bool == true, let payload = response["payload"] as? [String: Any], let item = payload["item"] as? [String: Any] else {
+                self.resolveInWebView(["id": requestID, "ok": false, "error": response["error"] as? String ?? "This clip is no longer available."])
+                return
+            }
+            do {
+                try ClipboardSupport.restore(item, to: .general)
+                self.clipboardChangeCount = NSPasteboard.general.changeCount
+                if paste, let target {
+                    self.dismissLauncher(restoreFocus: true)
+                    self.sendPaste(to: target, requestID: requestID, attempts: 10)
+                } else {
+                    self.resolveInWebView(["id": requestID, "ok": true, "payload": ["type": "copied", "copied": true]])
+                }
+            } catch { self.resolveInWebView(["id": requestID, "ok": false, "error": error.localizedDescription]) }
+        }
+    }
+
+    private func sendPaste(to target: NSRunningApplication, requestID: String, attempts: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self else { return }
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier {
+                guard let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+                      let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else {
+                    self.recoverPasteFailure(requestID: requestID, message: "Could not send the paste shortcut. The clip is copied; paste it manually.")
+                    return
+                }
+                down.flags = .maskCommand; up.flags = .maskCommand
+                down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+                self.resolveInWebView(["id": requestID, "ok": true, "payload": ["type": "copied", "copied": true]])
+            } else if attempts > 0 { self.sendPaste(to: target, requestID: requestID, attempts: attempts - 1) }
+            else {
+                self.recoverPasteFailure(requestID: requestID, message: "Could not focus the previous app. The clip is copied; paste it manually.")
+            }
+        }
+    }
+
+    private func recoverPasteFailure(requestID: String, message: String) {
+        NSApp.activate(ignoringOtherApps: true)
+        launcherPanel?.makeKeyAndOrderFront(nil)
+        webView?.evaluateJavaScript("window.dispatchEvent(new Event('paletteShown'))")
+        resolveInWebView(["id": requestID, "ok": false, "error": message])
     }
 
     private func runSmokeTestIfNeeded() {
@@ -453,9 +562,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
                 nil,
                 &pressedID
             )
-            guard status == noErr, pressedID.id == 1 else { return noErr }
+            guard status == noErr, [1, 2].contains(pressedID.id) else { return noErr }
             let delegate = Unmanaged<PaletteAppDelegate>.fromOpaque(userData).takeUnretainedValue()
-            DispatchQueue.main.async { delegate.toggleLauncher() }
+            let isClipboard = pressedID.id == 2
+            DispatchQueue.main.async { if isClipboard { delegate.openClipboardHistory() } else { delegate.toggleLauncher() } }
             return noErr
         }
 
@@ -469,6 +579,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             configured.keyCode, configured.modifiers, hotKeyID,
             GetApplicationEventTarget(), 0, &shortcutRef
         )
+        let clipboardStatus = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(cmdKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 2), GetApplicationEventTarget(), 0, &clipboardShortcutRef)
+        if clipboardStatus != noErr { NSLog("Palette: clipboard shortcut unavailable (%d); use the menu item", clipboardStatus) }
         if handlerStatus == noErr, shortcutStatus == noErr {
             probe.record("global-shortcut-ready")
         } else {
@@ -535,6 +647,20 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             .appendingPathComponent("Palette", isDirectory: true)
     }
 
+    private static func reviewStorageKey() -> String {
+        let file = dataDirectoryURL().appendingPathComponent("review.key")
+        if let data = try? Data(contentsOf: file), data.count == 32 { return data.base64EncodedString() }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return "" }
+        do {
+            try FileManager.default.createDirectory(at: dataDirectoryURL(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            let data = Data(bytes)
+            try data.write(to: file, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+            return data.base64EncodedString()
+        } catch { return "" }
+    }
+
     fileprivate static func clipboardStorageKey() -> String {
         let service = "sh.palette.Desktop.clipboard"
         let account = "default"
@@ -559,7 +685,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
         ]
-        SecItemAdd(add as CFDictionary, nil)
+        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return "" }
         return data.base64EncodedString()
     }
 
@@ -598,6 +724,7 @@ private final class NodeServiceProcess {
     private var output: Pipe?
     private var pending: [String: ([String: Any]) -> Void] = [:]
     private var buffer = Data()
+    private let writer = DispatchQueue(label: "sh.palette.service-writer")
 
     init(
         scriptURL: URL,
@@ -617,7 +744,7 @@ private final class NodeServiceProcess {
 
     func start() -> Bool {
         if process?.isRunning == true { return true }
-        guard let nodeURL, FileManager.default.fileExists(atPath: scriptURL.path) else { return false }
+        guard !clipboardKey.isEmpty, let nodeURL, FileManager.default.fileExists(atPath: scriptURL.path) else { return false }
         let input = Pipe()
         let output = Pipe()
         let service = Process()
@@ -661,14 +788,21 @@ private final class NodeServiceProcess {
     func send(_ request: [String: Any], completion: @escaping ([String: Any]) -> Void) {
         guard let id = request["id"] as? String,
               JSONSerialization.isValidJSONObject(request),
-              let data = try? JSONSerialization.data(withJSONObject: request),
               start(), let input else {
             completion(["id": request["id"] as? String ?? "invalid", "ok": false, "error": "Palette service is unavailable"])
             return
         }
         pending[id] = completion
-        input.fileHandleForWriting.write(data)
-        input.fileHandleForWriting.write(Data([0x0A]))
+        writer.async { [weak self] in
+            do {
+                let data = try JSONSerialization.data(withJSONObject: request)
+                try input.fileHandleForWriting.write(contentsOf: data + Data([0x0A]))
+            } catch {
+                DispatchQueue.main.async {
+                    self?.pending.removeValue(forKey: id)?(["id": id, "ok": false, "error": "Palette service connection closed"])
+                }
+            }
+        }
     }
 
     private func consume(_ data: Data) {

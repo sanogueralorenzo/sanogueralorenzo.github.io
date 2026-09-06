@@ -8,6 +8,8 @@
 	<string>PaletteHost</string>
 	<key>CFBundleIdentifier</key>
 	<string>sh.palette.Desktop</string>
+	<key>CFBundleIconFile</key>
+	<string>Palette</string>
 	<key>CFBundleName</key>
 	<string>Palette</string>
 	<key>CFBundlePackageType</key>

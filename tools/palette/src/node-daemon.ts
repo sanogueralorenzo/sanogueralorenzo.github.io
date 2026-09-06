@@ -117,14 +117,19 @@ const backend = {
   searchCommands: async (query: string) => service.searchCommands(query),
   executeCommand: async (commandId: string) => service.executeCommand(commandId),
   listRunHistory: async (limit?: number) => service.listRunHistory(limit),
-  listClipboard: async (query: string) => service.listClipboard(query),
+  listClipboard: async (query: string) => (await service.listClipboard(query)).map(({ representations: _formats, ...item }) => item),
+  getClipboardItem: async (id: string) => service.getClipboardItem(id),
+  removeClipboard: async (id: string) => service.removeClipboard(id),
+  pinClipboard: async (id: string, pinned: boolean) => service.pinClipboard(id, pinned),
   copyClipboard: async (itemId: string) => service.copyClipboard(itemId),
   captureClipboard: async (item: Parameters<PaletteService['captureClipboard']>[0]) => service.captureClipboard(item),
   getClipboardPolicy: async () => service.getClipboardPolicy(),
   setClipboardPolicy: async (policy: Parameters<PaletteService['setClipboardPolicy']>[0]) => {
+    const previous = service.getClipboardPolicy();
     service.setClipboardPolicy(policy);
     const next = service.getClipboardPolicy();
-    await settingsStore.save({ clipboard: next });
+    try { await settingsStore.save({ clipboard: next }); }
+    catch (error) { service.setClipboardPolicy(previous); throw error; }
     return next;
   },
 };

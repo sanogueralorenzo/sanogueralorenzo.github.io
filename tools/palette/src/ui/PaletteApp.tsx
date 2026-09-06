@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { ClipboardItem, ClipboardPolicy, CommandResult, CommandSummary, RunHistoryEntry } from '../contracts.ts';
-import { CommandRegistry } from '../command-registry.ts';
+import { ClipboardView } from './ClipboardView.tsx';
 
 export type PaletteBridge = {
   searchCommands(query: string): Promise<CommandSummary[]>;
@@ -8,6 +8,12 @@ export type PaletteBridge = {
   listRunHistory?: (limit?: number) => Promise<RunHistoryEntry[]>;
   listClipboard?: (query: string) => Promise<ClipboardItem[]>;
   copyClipboard?: (id: string) => Promise<boolean>;
+  pasteClipboard?: (id: string) => Promise<boolean>;
+  pinClipboard?: (id: string, pinned: boolean) => Promise<ClipboardItem | null>;
+  removeClipboard?: (id: string) => Promise<boolean>;
+  ready?: () => void;
+  clearCaptureError?: () => void;
+  setView?: (view: 'launcher' | 'clipboard') => void;
   getClipboardPolicy?: () => Promise<ClipboardPolicy>;
   setClipboardPolicy?: (policy: ClipboardPolicy) => Promise<void>;
   dismissLauncher?: () => void;
@@ -27,32 +33,26 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
   const [selected, setSelected] = useState(0);
   const [feedback, setFeedback] = useState<string>('');
   const [activeView, setActiveView] = useState<'launcher' | 'clipboard' | 'history'>('launcher');
-  const [clipboardItems, setClipboardItems] = useState<ClipboardItem[]>([]);
+  const [clipboardSession, setClipboardSession] = useState(0);
   const [historyEntries, setHistoryEntries] = useState<RunHistoryEntry[]>([]);
-  const [clipboardPolicy, setClipboardPolicyState] = useState<ClipboardPolicy | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const hostWindow = window as Window & { __paletteOpen?: () => void; __paletteOpenClipboard?: () => void };
     const focus = () => requestAnimationFrame(() => inputRef.current?.focus());
     hostWindow.__paletteOpen = () => { setActiveView('launcher'); setQuery(''); setFeedback(''); focus(); };
-    hostWindow.__paletteOpenClipboard = () => { setActiveView('clipboard'); setQuery(''); setFeedback(''); focus(); };
+    hostWindow.__paletteOpenClipboard = () => { setClipboardSession((value) => value + 1); setActiveView('clipboard'); setQuery(''); setFeedback(''); };
+    bridge.ready?.();
     return () => { delete hostWindow.__paletteOpen; delete hostWindow.__paletteOpenClipboard; };
   }, []);
 
   useEffect(() => {
     const failed = (error: unknown) => setFeedback(error instanceof Error ? error.message : String(error));
-    if (activeView === 'clipboard' && bridge.listClipboard) void bridge.listClipboard(query).then(setClipboardItems).catch(failed);
-    else if (activeView === 'history' && bridge.listRunHistory) void bridge.listRunHistory(50).then(setHistoryEntries).catch(failed);
+    if (activeView === 'history' && bridge.listRunHistory) void bridge.listRunHistory(50).then(setHistoryEntries).catch(failed);
     else if (activeView === 'launcher') void bridge.searchCommands(query).then(setCommands).catch(failed);
   }, [activeView, bridge, query]);
-  useEffect(() => {
-    if (activeView === 'clipboard' && bridge.getClipboardPolicy) {
-      void bridge.getClipboardPolicy().then(setClipboardPolicyState)
-        .catch((error: unknown) => setFeedback(error instanceof Error ? error.message : String(error)));
-    }
-  }, [activeView, bridge]);
-  useEffect(() => { setSelected(0); }, [activeView, query, commands.length, clipboardItems.length, historyEntries.length]);
+  useEffect(() => { setSelected(0); }, [activeView, query, commands.length, historyEntries.length]);
+  useEffect(() => { bridge.setView?.(activeView === 'clipboard' ? 'clipboard' : 'launcher'); }, [activeView, bridge]);
   useEffect(() => { inputRef.current?.focus(); }, [activeView]);
 
   async function execute(command: CommandSummary | undefined): Promise<void> {
@@ -80,13 +80,12 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    const count = activeView === 'launcher' ? commands.length : activeView === 'clipboard' ? clipboardItems.length : historyEntries.length;
+    const count = activeView === 'launcher' ? commands.length : historyEntries.length;
     if (event.key === 'ArrowDown') { event.preventDefault(); setSelected((value) => Math.min(value + 1, Math.max(0, count - 1))); }
     if (event.key === 'ArrowUp') { event.preventDefault(); setSelected((value) => Math.max(value - 1, 0)); }
     if (event.key === 'Enter') {
       event.preventDefault();
       if (activeView === 'launcher') void execute(commands[selected]);
-      else if (activeView === 'clipboard' && clipboardItems[selected]) void copyClipboard(clipboardItems[selected]);
     }
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -95,40 +94,7 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
     }
   }
 
-  async function copyClipboard(item: ClipboardItem): Promise<void> {
-    try {
-      const copied = await bridge.copyClipboard?.(item.id);
-      setFeedback(copied === false ? 'Could not copy item' : 'Copied to clipboard');
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  async function toggleClipboardCapture(): Promise<void> {
-    if (!clipboardPolicy || !bridge.setClipboardPolicy) return;
-    const next = { ...clipboardPolicy, enabled: !clipboardPolicy.enabled };
-    try {
-      await bridge.setClipboardPolicy(next);
-      setClipboardPolicyState(next);
-      setFeedback(next.enabled ? 'Clipboard capture resumed' : 'Clipboard capture paused');
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  if (activeView === 'clipboard') {
-    return (
-      <main className="palette-shell">
-        <input ref={inputRef} className="palette-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={onKeyDown} placeholder="Search clipboard history" aria-label="Search clipboard history" />
-        {clipboardPolicy && bridge.setClipboardPolicy && <button className="palette-policy" onClick={() => void toggleClipboardCapture()}>{clipboardPolicy.enabled ? 'Pause capture' : 'Resume capture'}</button>}
-        <section className="palette-results" aria-live="polite">
-          {clipboardItems.map((item, index) => <button key={item.id} className={`palette-row${index === selected ? ' selected' : ''}`} onClick={() => void copyClipboard(item)}><span><strong>{item.content.slice(0, 120) || '(empty)'}</strong><small>{item.kind}{item.pinned ? ' · pinned' : ''}</small></span></button>)}
-          {!clipboardItems.length && <p className="palette-empty">No clipboard items</p>}
-        </section>
-        {feedback && <p className="palette-feedback" role="status">{feedback}</p>}
-      </main>
-    );
-  }
+  if (activeView === 'clipboard') return <ClipboardView key={clipboardSession} bridge={bridge} onBack={() => setActiveView('launcher')} />;
 
   if (activeView === 'history') {
     return (
@@ -170,14 +136,4 @@ export function PaletteApp({ bridge = emptyBridge }: PaletteAppProps) {
       {feedback && <p className="palette-feedback" role="status">{feedback}</p>}
     </main>
   );
-}
-
-// Keep the first UI slice independently previewable before a host bridge exists.
-export function createPreviewBridge(commands: CommandSummary[]): PaletteBridge {
-  const registry = new CommandRegistry();
-  for (const command of commands) registry.register({ ...command, run: async () => ({ status: 'success', output: `${command.title} executed` }) });
-  return {
-    searchCommands: async (query) => registry.summaries(query),
-    executeCommand: async (id) => registry.execute(id, { platform: 'macos', invocation: 'visible', signal: new AbortController().signal }),
-  };
 }

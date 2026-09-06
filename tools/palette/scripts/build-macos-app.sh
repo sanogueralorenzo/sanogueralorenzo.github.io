@@ -51,9 +51,11 @@ bundle_dir=$(mktemp -d "${TMPDIR:-/tmp}/palette-app.XXXXXX")
 trap 'rm -rf "$bundle_dir"' EXIT HUP INT TERM
 app="$bundle_dir/Palette.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources/ui" "$app/Contents/Resources/node"
-swiftc -parse-as-library native/macos/PaletteHost.swift \
+swiftc -parse-as-library native/macos/PaletteHost.swift native/macos/ClipboardSupport.swift \
   -o "$app/Contents/MacOS/PaletteHost" \
   -framework AppKit -framework Carbon -framework Security -framework UserNotifications -framework WebKit
+swift native/macos/GenerateIcon.swift "$bundle_dir/Palette.iconset"
+iconutil -c icns "$bundle_dir/Palette.iconset" -o "$app/Contents/Resources/Palette.icns"
 cp native/macos/Info.plist "$app/Contents/Info.plist"
 cp -R dist/ui/. "$app/Contents/Resources/ui/"
 cp dist/node/node-daemon.mjs "$app/Contents/Resources/node/node-daemon.mjs"

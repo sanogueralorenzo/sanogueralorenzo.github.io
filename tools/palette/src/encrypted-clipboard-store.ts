@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { ClipboardItem, ClipboardStore } from './contracts.ts';
@@ -24,15 +24,28 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
     const items = await this.load();
     if (!query?.trim()) return [...items];
     const needle = query.toLocaleLowerCase();
-    return items.filter((item) => item.content.toLocaleLowerCase().includes(needle));
+    return items.filter((item) => [item.content, item.title, item.sourceAppName, item.sourceAppId].some((value) => value?.toLocaleLowerCase().includes(needle)));
   }
 
   async add(item: ClipboardItem): Promise<boolean> {
     const items = await this.load();
-    const existing = items.findIndex((candidate) => candidate.content === item.content && candidate.kind === item.kind);
-    if (existing >= 0) items.splice(existing, 1);
-    items.unshift(item);
-    await this.save(items);
+    // Identical copies from different apps belong to their respective app histories.
+    const fingerprint = (clip: ClipboardItem) => createHash('sha256')
+      .update(JSON.stringify([clip.kind, clip.content, clip.representations ?? null])).digest('hex');
+    const identity = fingerprint(item);
+    const existing = items.find((candidate) => candidate.sourceAppId === item.sourceAppId && fingerprint(candidate) === identity);
+    const next = [{ ...item, id: existing?.id ?? item.id, pinned: existing?.pinned ?? item.pinned },
+      ...items.filter((candidate) => candidate.id !== existing?.id)];
+    // Bound encrypted JSON writes, including binary formats. Never evict a pin.
+    let bytes = Buffer.byteLength(JSON.stringify(next));
+    for (let index = next.length - 1; bytes > 64 * 1024 * 1024 && index >= 0; index--) {
+      if (next[index].pinned) continue;
+      bytes -= Buffer.byteLength(JSON.stringify(next[index])) + 1;
+      next.splice(index, 1);
+    }
+    if (bytes > 64 * 1024 * 1024) throw new Error('Pinned history is full. Unpin or delete a clip to make space.');
+    if (!next.some((clip) => clip.id === (existing?.id ?? item.id))) throw new Error('History is full of pinned clips. Unpin or delete a clip to make space.');
+    await this.save(next);
     return true;
   }
 
@@ -45,13 +58,18 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
     return true;
   }
 
+  async removeMany(ids: string[]): Promise<void> {
+    const removed = new Set(ids);
+    await this.save((await this.load()).filter((item) => !removed.has(item.id)));
+  }
+
   async setPinned(id: string, pinned: boolean): Promise<ClipboardItem | null> {
     const items = await this.load();
     const item = items.find((candidate) => candidate.id === id);
     if (!item) return null;
-    item.pinned = pinned;
-    await this.save(items);
-    return item;
+    const updated = { ...item, pinned };
+    await this.save(items.map((candidate) => candidate.id === id ? updated : candidate));
+    return updated;
   }
 
   async clear(): Promise<void> {
@@ -66,8 +84,9 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
       const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(envelope.iv, 'base64'));
       decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
       this.items = JSON.parse(Buffer.concat([decipher.update(Buffer.from(envelope.ciphertext, 'base64')), decipher.final()]).toString('utf8'));
-      if (!Array.isArray(this.items)) this.items = [];
-    } catch {
+      if (!Array.isArray(this.items)) { this.items = null; throw new Error('Invalid clipboard storage'); }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new Error('Clipboard history could not be decrypted. Existing data has been preserved.');
       this.items = [];
     }
     return this.items;
@@ -85,7 +104,7 @@ export class EncryptedJsonClipboardStore implements ClipboardStore {
     };
     await mkdir(dirname(this.path), { recursive: true });
     const tempPath = `${this.path}.${process.pid}.tmp`;
-    await writeFile(tempPath, JSON.stringify(envelope), 'utf8');
+    await writeFile(tempPath, JSON.stringify(envelope), { encoding: 'utf8', mode: 0o600 });
     await rename(tempPath, this.path);
     this.items = items;
   }

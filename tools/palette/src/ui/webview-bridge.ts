@@ -73,6 +73,21 @@ export function createWebViewBridge(): PaletteBridge {
       const response = await request({ type: 'copyClipboard', itemId });
       return response.ok && response.payload.type === 'copied' ? response.payload.copied : false;
     },
+    pasteClipboard: async (itemId): Promise<boolean> => {
+      const response = await request({ type: 'pasteClipboard', itemId });
+      return response.ok && response.payload.type === 'copied' && response.payload.copied;
+    },
+    pinClipboard: async (itemId, pinned) => {
+      const response = await request({ type: 'pinClipboard', itemId, pinned });
+      return response.ok && response.payload.type === 'clipboardItem' ? response.payload.item : null;
+    },
+    removeClipboard: async (itemId) => {
+      const response = await request({ type: 'removeClipboard', itemId });
+      return response.ok && response.payload.type === 'removed' && response.payload.removed;
+    },
+    clearCaptureError: () => hostMessage({ type: 'clearCaptureError' }),
+    ready: () => hostMessage({ type: 'hostReady' }),
+    setView: (view) => hostMessage({ type: 'setView', view }),
     getClipboardPolicy: async (): Promise<ClipboardPolicy> => {
       const response = await request({ type: 'getClipboardPolicy' });
       if (response.ok && response.payload.type === 'clipboardPolicy') return response.payload.policy;

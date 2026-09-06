@@ -46,7 +46,11 @@ Everything else should earn its place through demonstrated user need.
 
 The platform-neutral core and preview launcher live in `src/`. Install the
 package dependencies, then use `npm run dev` for the React preview or run the
-focused checks with `npm run typecheck`, `npm test`, and `npm run build:all`.
+checks with `npm run typecheck` and `npm run build:all`. The current
+[clipboard improvement goal](development/GOAL.md) requires independent reviewer
+iterations and manual runtime verification; do not create or run automated tests.
+Use `http://localhost:5173/?preview` for synthetic clipboard layout development.
+That browser preview has no access to the system clipboard or direct paste.
 
 ### macOS
 
@@ -61,8 +65,7 @@ open build/Palette.app
 ```
 
 The first build downloads the official Node 22 runtime and verifies it against
-Node's published SHA-256 manifest. Run `npm run test:macos-app` for the
-LaunchServices smoke test. To install locally, quit any older Palette instance,
+Node's published SHA-256 manifest. To install locally, quit any older Palette instance,
 then copy `build/Palette.app` to `~/Applications/Palette.app` and open it once.
 
 Palette is an accessory application: it has no Dock icon, opens its floating
@@ -85,7 +88,7 @@ Copy `commands.example.json` to `~/.palette/commands.json` to add direct-process
 commands. Arguments are passed without a shell; use `mode: "silent"` for
 background actions and assign either an accelerator or a chord shortcut. Chord
 definitions are validated and conflict-checked in the shared shortcut registry;
-native hosts reserve only the single launcher accelerator today.
+the macOS host reserves the launcher and clipboard accelerators.
 
 A local extension is a directory under `~/.palette/extensions` containing an
 `extension.json` manifest. It is deliberately just a named group of direct
@@ -123,9 +126,44 @@ the launcher accelerator through the XDG Desktop Portal GlobalShortcuts API
 when that portal is available. Desktop portals intentionally own only the
 single global launcher accelerator.
 
+### Clipboard on macOS
+
+Open history with `⌘ ⇧ V` or the launcher's Clipboard command. The clipboard panel
+groups history by app, with All apps and Pinned views, combined search/type/app
+filters, and text, link, image, and file previews. Select a row to preview it;
+use Copy to restore its native formats, or Return to paste into the previously
+active app. Direct paste requires macOS Accessibility permission for Palette.
+Copy works without that permission. Files refer to their original locations;
+restoration reports missing files rather than copying a path as text.
+
+Use `⌘ F` to focus search, arrows to select, `⌘ C` to copy, `⌘ P` to pin/unpin,
+and `⌘ K` for actions. With the history list focused, `⌘ ⌫` deletes and
+`⌥ ⇧` plus up/down or left/right cycles app or type filters. Search keeps native
+text-editing shortcuts. Escape dismisses the panel or its current dialog.
+
+Pause/resume and Settings expose capture, retention, capacity, sensitive-content
+handling, and excluded app identifiers. Pins survive retention and count limits;
+reducing either removes older unpinned items. Capture supports text, HTML/RTF,
+PNG/TIFF, file URLs, and links, with an 8 MiB per-copy payload limit and a 64 MiB
+serialized-history limit. Images over 40 megapixels or 16,000 pixels on an edge
+are skipped with an error. Thumbnails are downsampled before display.
+
+Source apps are inferred from the foreground app when the clipboard changes,
+including the outgoing app on activation changes. macOS does not provide an
+authoritative writer identity: background writers can be mislabeled, and app
+exclusions therefore cannot guarantee exclusion of background writes. Sensitive
+pasteboard markers and obvious credential-shaped text are skipped when enabled;
+this does not detect every secret.
+
 Clipboard history is encrypted at rest. macOS supplies its key from Keychain;
 the development Node daemon keeps a permission-restricted `clipboard.key` in
 the data directory on other hosts until native DPAPI/Secret-service adapters
-are available. The clipboard view exposes a pause/resume capture control, while
-retention, exclusions, and sensitive-content handling remain policy fields in
-`settings.json`.
+are available. Native capture and restoration of rich clipboard formats in this
+iteration is macOS-specific; other hosts report unsupported rich restores.
+
+For isolated native review, launch the built app with `--review --clipboard
+--data-dir /absolute/path/to/review-profile`. Review mode requires a separate
+data directory and uses a local permission-restricted random key instead of
+Keychain. Pause capture between checks and use synthetic content; the system
+clipboard is still shared with other apps. See [verification evidence](development/VERIFICATION.md)
+and the [independent reviews](development/reviews/).

@@ -45,8 +45,17 @@ export class PolicyClipboardHistory {
     return captured;
   }
 
-  list(query?: string): Promise<ClipboardItem[]> {
+  async list(query?: string): Promise<ClipboardItem[]> {
+    await this.prune();
     return this.store.list(query);
+  }
+
+  remove(id: string): Promise<boolean> { return this.store.remove(id); }
+
+  async setPinned(id: string, pinned: boolean): Promise<ClipboardItem | null> {
+    const item = await this.store.setPinned(id, pinned);
+    await this.prune();
+    return item;
   }
 
   private async prune(): Promise<void> {
@@ -58,12 +67,12 @@ export class PolicyClipboardHistory {
     const expired = cutoff === null
       ? []
       : items.filter((item) => !item.pinned && item.createdAt < cutoff);
-    for (const item of expired) await this.store.remove(item.id);
-
-    const remaining = (await this.store.list())
-      .filter((item) => !expired.some((removed) => removed.id === item.id));
+    const remaining = items.filter((item) => !expired.some((removed) => removed.id === item.id));
     const allowedUnpinned = Math.max(0, this.policy.maxItems - remaining.filter((item) => item.pinned).length);
     const overflow = remaining.filter((item) => !item.pinned).slice(allowedUnpinned);
-    for (const item of overflow) await this.store.remove(item.id);
+    const removed = [...expired, ...overflow].map((item) => item.id);
+    if (!removed.length) return;
+    if (this.store.removeMany) await this.store.removeMany(removed);
+    else for (const id of removed) await this.store.remove(id);
   }
 }

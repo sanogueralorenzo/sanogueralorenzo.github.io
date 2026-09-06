@@ -6,6 +6,10 @@ export type BridgeRequestBody =
   | { type: 'listRunHistory'; limit?: number }
   | { type: 'listClipboard'; query: string }
   | { type: 'copyClipboard'; itemId: string }
+  | { type: 'pasteClipboard'; itemId: string }
+  | { type: 'getClipboardItem'; itemId: string }
+  | { type: 'removeClipboard'; itemId: string }
+  | { type: 'pinClipboard'; itemId: string; pinned: boolean }
   | { type: 'captureClipboard'; item: ClipboardCapture }
   | { type: 'getClipboardPolicy' }
   | { type: 'setClipboardPolicy'; policy: ClipboardPolicy };
@@ -18,6 +22,8 @@ export type BridgePayload =
   | { type: 'runHistory'; entries: RunHistoryEntry[] }
   | { type: 'clipboard'; items: ClipboardItem[] }
   | { type: 'copied'; copied: boolean }
+  | { type: 'clipboardItem'; item: ClipboardItem | null }
+  | { type: 'removed'; removed: boolean }
   | { type: 'captured'; captured: boolean }
   | { type: 'clipboardPolicy'; policy: ClipboardPolicy };
 
@@ -29,4 +35,4 @@ export type BridgeResponse =
 export type BridgeEvent = { type: 'notification'; notification: Notification };
 
 /** Messages consumed by a native host instead of the Node service. */
-export type HostBridgeMessage = { type: 'dismissLauncher' } | { type: 'hostReady' };
+export type HostBridgeMessage = { type: 'dismissLauncher' } | { type: 'hostReady' } | { type: 'setView'; view: 'launcher' | 'clipboard' } | { type: 'clearCaptureError' };

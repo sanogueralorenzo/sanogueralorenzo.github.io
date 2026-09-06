@@ -86,6 +86,13 @@ export class PaletteService {
     return this.clipboard.list(query);
   }
 
+  async getClipboardItem(id: string): Promise<ClipboardItem | null> {
+    return (await this.clipboard.list()).find((item) => item.id === id) ?? null;
+  }
+
+  removeClipboard(id: string): Promise<boolean> { return this.clipboard.remove(id); }
+  pinClipboard(id: string, pinned: boolean): Promise<ClipboardItem | null> { return this.clipboard.setPinned(id, pinned); }
+
   async captureClipboard(item: ClipboardItem & { sensitive?: boolean }): Promise<boolean> {
     return this.clipboard.capture(item);
   }
@@ -95,6 +102,7 @@ export class PaletteService {
   }
 
   setClipboardPolicy(policy: ClipboardPolicy): void {
+    if (typeof policy.enabled !== 'boolean' || typeof policy.ignoreSensitive !== 'boolean' || !Number.isInteger(policy.maxItems) || policy.maxItems < 0 || policy.maxItems > 10000 || (policy.retentionDays !== null && (!Number.isFinite(policy.retentionDays) || policy.retentionDays < 0)) || !Array.isArray(policy.excludedAppIds) || policy.excludedAppIds.some((id) => typeof id !== 'string')) throw new Error('Invalid clipboard settings');
     this.clipboardPolicy = structuredClone(policy);
     this.clipboard.setPolicy(this.clipboardPolicy);
   }
@@ -102,6 +110,7 @@ export class PaletteService {
   async copyClipboard(id: string): Promise<boolean> {
     const item = (await this.clipboard.list()).find((candidate) => candidate.id === id);
     if (!item) return false;
+    if (item.kind === 'image' || item.kind === 'file') throw new Error('Restoring this format requires the native macOS host.');
     await this.writeClipboard(item.content);
     return true;
   }

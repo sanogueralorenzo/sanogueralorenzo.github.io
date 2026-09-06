@@ -92,6 +92,15 @@ export type ClipboardItem = {
   kind: ClipboardKind;
   content: string;
   sourceAppId?: string;
+  sourceAppName?: string;
+  /** Resolved by the host; never needed to identify a clip. */
+  sourceAppIcon?: string;
+  title?: string;
+  thumbnail?: string;
+  width?: number;
+  height?: number;
+  /** Each pasteboard item contains its supported native representations. */
+  representations?: { type: string; data: string }[][];
   createdAt: number;
   pinned: boolean;
 };
@@ -111,6 +120,7 @@ export interface ClipboardStore {
   list(query?: string): Promise<ClipboardItem[]>;
   add(item: ClipboardItem): Promise<boolean>;
   remove(id: string): Promise<boolean>;
+  removeMany?(ids: string[]): Promise<void>;
   setPinned(id: string, pinned: boolean): Promise<ClipboardItem | null>;
   clear(): Promise<void>;
 }
