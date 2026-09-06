@@ -8,8 +8,7 @@ app="$bundle_dir/Clipboard.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 swiftc -O -parse-as-library Sources/Clipboard.swift Sources/ClipboardMenu.swift Sources/ClipboardPreview.swift Sources/ClipboardFormats.swift Sources/ClipboardHistory.swift \
   -o "$app/Contents/MacOS/ClipboardHost" -framework AppKit -framework Carbon -framework Security
-swift scripts/GenerateIcon.swift "$bundle_dir/Clipboard.iconset"
-iconutil -c icns "$bundle_dir/Clipboard.iconset" -o "$app/Contents/Resources/Clipboard.icns"
+cp Resources/Clipboard.icns "$app/Contents/Resources/Clipboard.icns"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 plutil -lint "$app/Contents/Info.plist"
 codesign --force --deep --sign - "$app"
