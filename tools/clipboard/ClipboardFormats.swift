@@ -39,8 +39,8 @@ enum ClipboardSupport {
             let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? 0
             let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? 0
             guard width > 0, height > 0, width <= 16000, height <= 16000, width * height <= 40_000_000 else { throw failure("This image exceeds the 40 megapixel history limit and was not saved.") }
-            clip.kind = .image; clip.width = width; clip.height = height
-            clip.content = "Image · \(width) × \(height)"; clip.title = clip.content
+            clip.kind = .image
+            clip.content = "Image · \(width) × \(height)"
             let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 128, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceShouldCacheImmediately: false]
             if let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary),
                let preview = NSBitmapImageRep(cgImage: thumbnail).representation(using: .png, properties: [:]) {
@@ -64,11 +64,8 @@ enum ClipboardSupport {
         let content = clip.content
         // Check before clearing the user's current clipboard.
         if kind == .file {
-            let paths = fileURLs(clip).map(\.path)
-            let originalNames = content.split(separator: "\n").map { URL(fileURLWithPath: String($0)).lastPathComponent }
-            for (index, path) in paths.enumerated() {
-                let name = originalNames.indices.contains(index) ? originalNames[index] : "Saved file"
-                guard FileManager.default.fileExists(atPath: path) else { throw failure("The original file is no longer available: \(name)") }
+            for url in fileURLs(clip) {
+                guard FileManager.default.fileExists(atPath: url.path) else { throw failure("The original file is no longer available: \(url.lastPathComponent)") }
             }
         }
         var restored: [NSPasteboardItem] = []

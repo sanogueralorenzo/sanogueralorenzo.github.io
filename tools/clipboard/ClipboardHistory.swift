@@ -12,8 +12,6 @@ struct Clip: Codable, Equatable {
     var sourceAppName: String?
     var title: String?
     var thumbnail: String?
-    var width: Int?
-    var height: Int?
     var representations: [[Format]]?
     var createdAt: Double
 
