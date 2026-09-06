@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
+#include "res://shaders/pigment.gdshaderinc"
 varying vec3 local;
 float h(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+1.0),f.x),f.y);}
@@ -16,5 +17,5 @@ void fragment(){
  wood*=mix(.48,1.0,fissure)*(.88+chips*.20);
  float moss=(1.0-smoothstep(.5,5.0,local.y))*smoothstep(.39,.67,n(local.xz*1.6+local.y*.4));
  wood=mix(wood,mix(vec3(.20,.26,.12),vec3(.39,.43,.21),chips),moss*.74);
- ALBEDO=wood;ROUGHNESS=1.0;
+ ALBEDO=pigment_to_linear(wood);ROUGHNESS=1.0;
 }

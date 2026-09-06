@@ -4,7 +4,7 @@ An endless downhill glide through a living mountainside. Bank into a sunlit mead
 
 ## Play
 
-Install Godot 4 (developed and played with **Godot 4.7.2**, Compatibility renderer). From the repository root:
+Install **Godot 4.7.2** and use a GPU supporting **Forward+** (Metal on Apple Silicon; Vulkan or Direct3D 12 on supported desktops). Forward+ is mandatory in the editor, development runs, and exports. Game launches with unsupported renderer overrides exit with an error; automatic OpenGL fallback is disabled. From the repository root:
 
 ```sh
 godot --path games/squirrelswoop
@@ -47,8 +47,24 @@ Settings offer sound volume, gentle ground assistance, reduced camera motion, an
 
 Records and settings are saved in Godot's `user://swoop.cfg` (on macOS, `~/Library/Application Support/Godot/app_userdata/Squirrel Swoop/`). Records are preserved when returning to the summit or quitting as well as after a collision. Screenshots use that same directory.
 
+## Desktop exports and rendering
+
+The default window and captured gameplay resolution is **1280 × 800**, with a 1440 × 900 logical interface layout. Native 3D MSAA keeps geometry and needle edges crisp; the interface is drawn separately. Startup prints the actual renderer, driver, and GPU, for example `forward_plus / metal / Apple M3 Max (Apple9)`.
+
+Install the matching 4.7.2 export templates, then run from the repository root:
+
+```sh
+mkdir -p games/squirrelswoop/build
+godot --headless --path games/squirrelswoop --export-release "macOS"
+# Other included presets: "Windows Desktop", "Linux Desktop"
+```
+
+Open `games/squirrelswoop/build/Squirrel Swoop.app` on macOS. The app contains the complete procedural game and requires neither this repository nor Godot to be installed. macOS exports use local ad-hoc signing; public distribution would require your own signing/notarization. Windows and Linux builds are exportable presets; native execution on those operating systems has not been verified.
+
+[Forward+ verification and comparisons](development/forward-plus/VERIFICATION.md) records the selected effects, rejected alternatives, renderer confirmation, manual play, desktop exports, and measured performance.
+
 ## Development and evidence
 
 [Refinement evidence](development/refinement/REFINEMENT.md) records the improvement cycles, comparable captures, final runtime findings, frame times, and remaining limits. The [original verification notes](development/VERIFICATION.md) separate observed runtime behavior, code review, and subjective visual/feel judgments. No automated tests were created. The optional loopback review console in `game.gd` exists for discrete manual flight controls, scene inspection, screenshots, and live telemetry; it is disabled in normal play. See [manual review controls](development/REVIEWING.md).
 
-Everything rendered and heard in the game is generated locally: terrain, tree and rock meshes, pine textures, fur, gliding membranes, animation, shaders, motes, wind, birds, and feedback tones. The supplied image lives under `development/visual-target.png` as a reference and is excluded from Godot's asset scan. It is never displayed as gameplay. The locally copied sky and brush-filter shaders derive from this repository's **Cozy Sora** project; Squirrel Swoop has no runtime dependency on it.
+Everything rendered and heard in the game is generated locally: terrain, tree and rock meshes, pine textures, fur, gliding membranes, animation, shaders, motes, wind, birds, and feedback tones. The supplied image lives under `development/visual-target.png` as a reference and is excluded from Godot's asset scan. It is never displayed as gameplay. The locally adapted sky derives from this repository's **Cozy Sora** project; its restrained ambient-contact and filtered-shadow techniques also informed the lighting. Squirrel Swoop has no runtime dependency on it.

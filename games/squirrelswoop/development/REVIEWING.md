@@ -24,3 +24,7 @@ Connect to `127.0.0.1:45871`, write one JSON command per line, and read one JSON
 - `{"action":"quit"}` saves and exits.
 
 F3 diagnostics and F12 screenshots are also available without the console. Discrete console inputs can demonstrate motion and reproducibility, but do not establish how a physical keyboard/controller feels to a human player.
+
+Forward+ telemetry also includes the actual `renderer`, `driver`, `camera_transform`, viewport texture size, and pitch-inversion setting. PNG dimensions are the authoritative capture resolution; the viewport proxy can report scaled logical dimensions with `canvas_items` stretch.
+
+`{"action":"rendering","taa":false,"msaa":2,"ssao_enabled":true}` changes an opt-in manual comparison instance only. Supported fields also include `ssr_enabled`, `ssil_enabled`, `sdfgi_enabled`, `angular_distance`, volumetric-fog enable/density/length/reprojection, ambient-light energy/sky contribution, and `background_energy_multiplier`. Restart to recover the shipped profile; these choices are never saved as player settings. An SDFGI study must additionally classify moving geometry correctly; toggling the environment alone is insufficient. Do not use comparison toggles for final-default benchmarks.

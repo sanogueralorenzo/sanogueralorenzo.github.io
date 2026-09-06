@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode diffuse_burley;
+#include "res://shaders/pigment.gdshaderinc"
 varying vec3 world;
 uniform float mountain_seed = 0.0;
 float hash(vec2 p) { vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z); }
@@ -20,5 +21,5 @@ void fragment(){
  float litter=noise(world.xz*2.5+7.0);
  col*=0.90+litter*0.18;
  col=mix(col,vec3(.25,.20,.12),woodland*smoothstep(.58,.75,litter)*.38);
- ALBEDO=col;ROUGHNESS=1.0;
+ ALBEDO=pigment_to_linear(col);ROUGHNESS=1.0;
 }

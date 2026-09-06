@@ -1,4 +1,5 @@
 shader_type sky;
+#include "res://shaders/pigment.gdshaderinc"
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 q=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(q),hash(q+vec2(1,0)),f.x),mix(hash(q+vec2(0,1)),hash(q+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){return noise(p)*.5+noise(p*2.)*.25+noise(p*4.)*.125+noise(p*8.)*.0625;}
@@ -32,5 +33,5 @@ void sky(){
  cc=mix(cc,vec3(.63,.68,.73),smoothstep(.50,.85,shade));
  col=mix(col,cc,mask*.58);
  }
- COLOR=pow(col,vec3(2.2));
+ COLOR=pigment_to_linear(col);
 }

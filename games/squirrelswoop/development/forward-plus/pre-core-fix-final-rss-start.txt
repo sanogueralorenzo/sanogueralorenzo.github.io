@@ -1,0 +1,3 @@
+79567 419104  31.4 godot --path /Users/mario/AndroidStudioProjects/squirrelswoop-forward-plus/games/squirrelswoop --resolution 1280x800 --position 0,40 -- --review-port=45872 --seed=752041
+79580   2400   0.0 /bin/zsh -c python3 /tmp/swoop-forward-review/console.py 45872 '{"action":"launch"}'; ps -axo pid,rss,%cpu,command | rg 'godot --path /Users/mario/AndroidStudioProjects/squirrelswoop-forward-plus' > /tmp/swoop-forward-review/final-rss-start.txt; cat /tmp/swoop-forward-review/final-rss-start.txt; tail -6 /tmp/swoop-forward-review/final-source.log
+79583    608   0.0 rg godot --path /Users/mario/AndroidStudioProjects/squirrelswoop-forward-plus

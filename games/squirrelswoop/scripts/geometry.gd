@@ -189,17 +189,6 @@ static func crown(detailed := true, variant := 0) -> ArrayMesh:
    bough_card(st,root,tip,side,length*0.52+0.10,tint,detailed)
    # A second, angled spray gives needles depth from the trailing ground-level view.
    bough_card(st,root+outward*0.20,tip+Vector3(0,-0.48,0),side.rotated(outward,0.95),length*0.44,tint.darkened(0.09),detailed)
-   # A compact opaque core is hidden inside the alpha sprays, never their silhouette.
-   st.set_uv(Vector2(-1,-1))
-   var core := root+outward*length*0.22
-   var top := core+Vector3(0,0.28,0)
-   var edge := side*length*0.10
-   var end := root+outward*length*0.48+Vector3(0,-0.16,0)
-   var dark := Color(0.06,0.095,0.036)
-   tri(st,root,core-edge,top,dark)
-   tri(st,root,top,core+edge,dark)
-   tri(st,core-edge,end,top,dark)
-   tri(st,top,end,core+edge,dark)
  var mat := ShaderMaterial.new()
  mat.shader=preload("res://shaders/foliage.gdshader")
  mat.set_shader_parameter("bough_texture",pine_texture())

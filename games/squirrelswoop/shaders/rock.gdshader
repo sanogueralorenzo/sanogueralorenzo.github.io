@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
+#include "res://shaders/pigment.gdshaderinc"
 varying vec3 local;
 varying vec3 normal_world;
 float h(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
@@ -12,5 +13,5 @@ void fragment(){
  stone*=.68+.32*fissure;
  float patch=smoothstep(.15,.68,normal_world.y)*smoothstep(.27,.64,n(local*3.0)+local.y*.13);
  vec3 moss=mix(vec3(.11,.18,.045),vec3(.36,.41,.14),n(local*23.0));
- ALBEDO=mix(stone,moss,patch*.80);ROUGHNESS=1.0;
+ ALBEDO=pigment_to_linear(mix(stone,moss,patch*.80));ROUGHNESS=1.0;
 }

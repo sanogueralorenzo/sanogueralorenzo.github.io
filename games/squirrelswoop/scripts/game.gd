@@ -14,6 +14,7 @@ var squirrel: Squirrel
 var camera: Camera3D
 var ui: HUD
 var sound: Sound
+var environment: Environment
 var sun: DirectionalLight3D
 var motes: CPUParticles3D
 var state := "summit"
@@ -67,6 +68,14 @@ var frame_metrics := FrameMetrics.new()
 var camera_ground_aim := 0.0
 
 func _ready() -> void:
+ var renderer := RenderingServer.get_current_rendering_method()
+ var driver := RenderingServer.get_current_rendering_driver_name()
+ print("Squirrel Swoop renderer: %s / %s / %s" % [renderer,driver,RenderingServer.get_video_adapter_name()])
+ if renderer!="forward_plus":
+  push_error("Squirrel Swoop requires Forward+. Remove renderer overrides and use a RenderingDevice-capable GPU.")
+  process_mode=Node.PROCESS_MODE_DISABLED
+  get_tree().quit(1)
+  return
  for argument in OS.get_cmdline_user_args():
   if argument.begins_with("--review-port="): save_path="user://development.cfg"
  load_save()
@@ -94,7 +103,6 @@ func _ready() -> void:
  ui.quit_requested.connect(func():save_progress();get_tree().quit())
  ui.settings_changed.connect(func():sound.volume=sound_volume;save_progress())
  create_motes()
- install_paint()
  create_backdrop()
  var args := OS.get_cmdline_user_args()
  for arg in args:
@@ -112,21 +120,34 @@ func _ready() -> void:
 func create_environment() -> void:
  var world := WorldEnvironment.new()
  var env := Environment.new()
+ environment=env
  env.background_mode=Environment.BG_SKY
  var sky := Sky.new()
+ # Cloud drift is slow; spread radiance updates instead of rebuilding every frame.
+ sky.process_mode=Sky.PROCESS_MODE_INCREMENTAL
  var sky_mat := ShaderMaterial.new()
  sky_mat.shader=preload("res://shaders/sky.gdshader")
  sky.sky_material=sky_mat
  env.sky=sky
- env.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
- env.ambient_light_color=Color(0.40,0.53,0.64)
- env.ambient_light_energy=0.34
+ env.ambient_light_source=Environment.AMBIENT_SOURCE_SKY
+ env.ambient_light_color=Color(0.62,0.70,0.80)
+ env.ambient_light_sky_contribution=0.35
+ env.ambient_light_energy=0.8
  env.tonemap_mode=Environment.TONE_MAPPER_FILMIC
- env.tonemap_exposure=0.95
+ env.tonemap_exposure=1.0
+ env.ssao_enabled=true
+ env.ssao_radius=0.8
+ env.ssao_intensity=0.7
+ env.ssao_power=1.2
+ env.ssao_detail=0.4
  env.fog_enabled=true
  env.fog_light_color=Color(0.26,0.38,0.41)
  env.fog_light_energy=0.68
- env.fog_density=0.0022
+ env.fog_density=0.0015
+ env.volumetric_fog_enabled=true
+ env.volumetric_fog_density=0.0012
+ env.volumetric_fog_length=100.0
+ env.volumetric_fog_temporal_reprojection_enabled=false
  env.fog_sky_affect=0.18
  world.environment=env
  add_child(world)
@@ -137,29 +158,12 @@ func create_environment() -> void:
  sun.shadow_enabled=true
  sun.directional_shadow_max_distance=135
  sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
- sun.shadow_bias=0.20
- sun.shadow_normal_bias=1.80
+ sun.shadow_bias=0.2
+ sun.shadow_normal_bias=1.4
+ sun.light_angular_distance=0.0
+ sun.shadow_blur=1.4
  sun.directional_shadow_blend_splits=true
  add_child(sun)
- var fill := DirectionalLight3D.new()
- fill.rotation_degrees=Vector3(-24,145,0)
- fill.light_color=Color(0.58,0.70,0.83)
- fill.light_energy=0.16
- add_child(fill)
-
-func install_paint() -> void:
- # Adapted locally from Cozy Sora's calm-region brush filter. UI stays crisp.
- var layer := CanvasLayer.new()
- layer.layer=-1
- var rect := ColorRect.new()
- rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- rect.mouse_filter=Control.MOUSE_FILTER_IGNORE
- var material := ShaderMaterial.new()
- material.shader=preload("res://shaders/paint.gdshader")
- material.set_shader_parameter("brush_radius",0.9)
- rect.material=material
- layer.add_child(rect)
- add_child(layer)
 
 func distant_height(x: float, d: float) -> float:
  return -d*0.52-18.0+sin(x*0.006+d*0.012)*12.0+sin(x*0.021+d*0.01)*7.0
@@ -581,12 +585,24 @@ func poll_review() -> void:
    snapshot["building"]=mountain.building
    snapshot["cached_vertices"]=mountain.vertex_heights.size()
    snapshot["metrics"]=frame_metrics.snapshot()
+   snapshot["renderer"]=RenderingServer.get_current_rendering_method()
+   snapshot["driver"]=RenderingServer.get_current_rendering_driver_name()
+   snapshot["viewport_size"]=str(get_viewport().get_texture().get_size())
+   snapshot["camera_transform"]=str(camera.global_transform)
+   snapshot["invert_pitch"]=invert_pitch
    snapshot["recovery_intensity"]=flight.recovery_intensity
    snapshot["flight_state"]=flight.flight_state
    review_peer.put_data((JSON.stringify(snapshot)+"\n").to_utf8_buffer())
 
 func handle_review(c: Dictionary) -> void:
  match str(c.get("action","status")):
+  "rendering":
+   # Opt-in manual A/B controls. Defaults are always the shipped profile.
+   for property in ["ssao_enabled","ssr_enabled","ssil_enabled","sdfgi_enabled","volumetric_fog_enabled","volumetric_fog_density","volumetric_fog_length","volumetric_fog_temporal_reprojection_enabled","ambient_light_energy","ambient_light_sky_contribution","background_energy_multiplier"]:
+    if c.has(property): environment.set(property,c[property])
+   if c.has("taa"): get_viewport().use_taa=bool(c.taa)
+   if c.has("msaa"): get_viewport().msaa_3d=int(c.msaa)
+   if c.has("angular_distance"): sun.light_angular_distance=float(c.angular_distance)
   "shadow":
    sun.shadow_enabled=bool(c.get("enabled",true))
    sun.shadow_bias=float(c.get("bias",sun.shadow_bias))

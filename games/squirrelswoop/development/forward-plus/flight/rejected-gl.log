@@ -1,0 +1,8 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 4.1 Metal - 90.5 - Compatibility - Using Device: Apple - Apple M3 Max
+
+Squirrel Swoop renderer: gl_compatibility / opengl3 / Apple M3 Max
+ERROR: Squirrel Swoop requires Forward+. Remove renderer overrides and use a RenderingDevice-capable GPU.
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://scripts/game.gd:75)
