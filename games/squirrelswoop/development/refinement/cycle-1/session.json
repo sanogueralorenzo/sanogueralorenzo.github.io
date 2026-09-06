@@ -1,0 +1,1113 @@
+[
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/summit-482193.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.2,
+      "distance": 0.0,
+      "flight_state": "gliding",
+      "focus": "@Button@724:<Button#62394469362>",
+      "forest_passages": [
+        54.0396385192871,
+        81.1511840820312
+      ],
+      "fps": 60.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 594.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 800.0,
+        "objects": 3114.0,
+        "peak_static_mb": 0.0,
+        "physics_ms": 0.043,
+        "process_ms": 17.155,
+        "samples": 0,
+        "static_mb": 91.4814872741699,
+        "triangles": 1484789.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -29.9320850372314,
+        6.2797794342041,
+        0.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.0,
+      "screen": "summit",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.0,
+      "state": "summit",
+      "vertical_speed": -8.5,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "launch"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.2,
+      "distance": 0.0,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        54.0396385192871,
+        81.1511840820312
+      ],
+      "fps": 47.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 594.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 800.0,
+        "objects": 3116.0,
+        "peak_static_mb": 0.0,
+        "physics_ms": 0.037,
+        "process_ms": 241.559,
+        "samples": 0,
+        "static_mb": 92.122859954834,
+        "triangles": 1484789.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -29.9320850372314,
+        6.2797794342041,
+        0.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.0,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.0,
+      "state": "flying",
+      "vertical_speed": -8.5,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "input",
+      "steer": 1
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.21308208805637,
+      "distance": 0.333666682243347,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        54.0054244995117,
+        81.1166076660156
+      ],
+      "fps": 47.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 461.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 665.0,
+        "objects": 2862.0,
+        "peak_static_mb": 80.8456230163574,
+        "physics_ms": 0.037,
+        "process_ms": 241.559,
+        "samples": 0,
+        "static_mb": 80.8488273620605,
+        "triangles": 1118114.0
+      },
+      "passes": 0,
+      "pending": 9,
+      "position": [
+        -29.9320850372314,
+        6.13694763183594,
+        -0.333666682243347
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.36700001557668,
+      "screen": "flight",
+      "sections": 54,
+      "seed": 482193,
+      "speed": 20.02,
+      "state": "flying",
+      "vertical_speed": -8.56991799459599,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "input",
+      "steer": 0.35
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.11468535347538,
+      "distance": 74.3413925170898,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        48.6447525024414,
+        76.692512512207
+      ],
+      "fps": 39.0,
+      "generated": 88,
+      "metrics": {
+        "draw_calls": 649.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.68,
+        "frame_ms_p95": 36.754,
+        "nodes": 794.0,
+        "objects": 3110.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 6.19,
+        "process_ms": 71.669,
+        "samples": 184,
+        "static_mb": 91.2677488327026,
+        "triangles": 1948654.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        17.6570205688477,
+        -28.6557159423828,
+        -74.3413925170898
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 1,
+      "score": 81.6080591837565,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.5984999402258,
+      "state": "flying",
+      "vertical_speed": -9.68669350887398,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "status"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        47.6913108825684,
+        76.4144821166992
+      ],
+      "fps": 60.0,
+      "generated": 88,
+      "metrics": {
+        "draw_calls": 647.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 794.0,
+        "objects": 3111.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 2.524,
+        "process_ms": 18.387,
+        "samples": 261,
+        "static_mb": 91.27552318573,
+        "triangles": 2018181.0
+      },
+      "passes": 1,
+      "pending": 0,
+      "position": [
+        28.153205871582,
+        -41.3577766418457,
+        -101.366912841797
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "crashing",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/woods-flight-482193.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        47.6913108825684,
+        76.4144821166992
+      ],
+      "fps": 60.0,
+      "generated": 88,
+      "metrics": {
+        "draw_calls": 647.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 794.0,
+        "objects": 3112.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 2.524,
+        "process_ms": 18.387,
+        "samples": 261,
+        "static_mb": 91.2778234481812,
+        "triangles": 2018181.0
+      },
+      "passes": 1,
+      "pending": 0,
+      "position": [
+        28.153205871582,
+        -41.3577766418457,
+        -101.366912841797
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "crashing",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "pause"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        47.6913108825684,
+        76.4144821166992
+      ],
+      "fps": 60.0,
+      "generated": 88,
+      "metrics": {
+        "draw_calls": 647.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 794.0,
+        "objects": 3110.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 2.524,
+        "process_ms": 18.387,
+        "samples": 261,
+        "static_mb": 91.2734746932983,
+        "triangles": 2018181.0
+      },
+      "passes": 1,
+      "pending": 0,
+      "position": [
+        28.153205871582,
+        -41.3577766418457,
+        -101.366912841797
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "crashing",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "inspect",
+      "distance": 650,
+      "x": 68,
+      "height": 6
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        39.5583457946777,
+        79.1874694824219
+      ],
+      "fps": 60.0,
+      "generated": 88,
+      "metrics": {
+        "draw_calls": 647.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 794.0,
+        "objects": 3110.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 2.524,
+        "process_ms": 18.387,
+        "samples": 261,
+        "static_mb": 56.2921018600464,
+        "triangles": 2018181.0
+      },
+      "passes": 1,
+      "pending": 63,
+      "position": [
+        68.0,
+        -304.930023193359,
+        -650.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 0,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "crashing",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/woods-study-482193-d650.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "@Button@1089:<Button#144569272527>",
+      "forest_passages": [
+        39.5583457946777,
+        79.1874694824219
+      ],
+      "fps": 30.0,
+      "generated": 151,
+      "metrics": {
+        "draw_calls": 705.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 840.0,
+        "objects": 3218.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 0.031,
+        "process_ms": 74.592,
+        "samples": 261,
+        "static_mb": 88.702953338623,
+        "triangles": 1692704.0
+      },
+      "passes": 1,
+      "pending": 0,
+      "position": [
+        68.0,
+        -304.930023193359,
+        -650.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "results",
+      "sections": 63,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "results",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "inspect",
+      "distance": 2300,
+      "x": 76,
+      "height": 5.5
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        31.4888076782227,
+        71.095344543457
+      ],
+      "fps": 25.0,
+      "generated": 151,
+      "metrics": {
+        "draw_calls": 705.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 840.0,
+        "objects": 3217.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 0.029,
+        "process_ms": 314.57,
+        "samples": 261,
+        "static_mb": 58.8537178039551,
+        "triangles": 1692704.0
+      },
+      "passes": 1,
+      "pending": 63,
+      "position": [
+        76.0,
+        -1074.99731445312,
+        -2300.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 0,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "results",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/woods-study-482193-d2300.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 9.22276903764123,
+      "distance": 101.366912841797,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        31.4888076782227,
+        71.095344543457
+      ],
+      "fps": 23.0,
+      "generated": 201,
+      "metrics": {
+        "draw_calls": 605.0,
+        "frame_ms_max": 78.135,
+        "frame_ms_p50": 16.664,
+        "frame_ms_p95": 28.467,
+        "nodes": 701.0,
+        "objects": 2953.0,
+        "peak_static_mb": 92.6983070373535,
+        "physics_ms": 0.031,
+        "process_ms": 87.918,
+        "samples": 261,
+        "static_mb": 92.9225845336914,
+        "triangles": 2493578.0
+      },
+      "passes": 1,
+      "pending": 13,
+      "position": [
+        76.0,
+        -1074.99731445312,
+        -2300.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 2,
+      "score": 186.233579508464,
+      "screen": "flight",
+      "sections": 50,
+      "seed": 482193,
+      "speed": 20.9581047020929,
+      "state": "results",
+      "vertical_speed": -9.95532975783182,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "seed",
+      "value": 752041
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.2,
+      "distance": 0.0,
+      "flight_state": "gliding",
+      "focus": "@Button@2953:<Button#222147120111>",
+      "forest_passages": [
+        50.3789367675781,
+        87.9359741210938
+      ],
+      "fps": 23.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 623.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 765.0,
+        "objects": 3104.0,
+        "peak_static_mb": 0.0,
+        "physics_ms": 0.031,
+        "process_ms": 87.918,
+        "samples": 0,
+        "static_mb": 77.0641212463379,
+        "triangles": 2545146.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -28.149076461792,
+        6.39084720611572,
+        0.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.0,
+      "screen": "summit",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 20.0,
+      "state": "summit",
+      "vertical_speed": -8.5,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "launch"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.2,
+      "distance": 0.0,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        50.3789367675781,
+        87.9359741210938
+      ],
+      "fps": 23.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 565.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 764.0,
+        "objects": 3063.0,
+        "peak_static_mb": 0.0,
+        "physics_ms": 0.031,
+        "process_ms": 87.918,
+        "samples": 0,
+        "static_mb": 77.2410850524902,
+        "triangles": 976005.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -28.149076461792,
+        6.39084720611572,
+        0.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.0,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 20.0,
+      "state": "flying",
+      "vertical_speed": -8.5,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "input",
+      "steer": -0.85
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 6.21153952178087,
+      "distance": 0.333666682243347,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        50.3407707214355,
+        87.8974990844727
+      ],
+      "fps": 9.0,
+      "generated": 63,
+      "metrics": {
+        "draw_calls": 460.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 629.0,
+        "objects": 2802.0,
+        "peak_static_mb": 70.0521774291992,
+        "physics_ms": 0.029,
+        "process_ms": 892.502,
+        "samples": 0,
+        "static_mb": 70.0553970336914,
+        "triangles": 754088.0
+      },
+      "passes": 0,
+      "pending": 9,
+      "position": [
+        -28.149076461792,
+        6.24801540374756,
+        -0.333666682243347
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 0.36700001557668,
+      "screen": "flight",
+      "sections": 54,
+      "seed": 752041,
+      "speed": 20.02,
+      "state": "flying",
+      "vertical_speed": -8.56991799459599,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "input"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 8.07608202466663,
+      "distance": 62.2178039550781,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        45.0795021057129,
+        82.2766036987305
+      ],
+      "fps": 60.0,
+      "generated": 72,
+      "metrics": {
+        "draw_calls": 477.0,
+        "frame_ms_max": 20.585,
+        "frame_ms_p50": 16.701,
+        "frame_ms_p95": 17.184,
+        "nodes": 693.0,
+        "objects": 2920.0,
+        "peak_static_mb": 71.8383703231812,
+        "physics_ms": 0.394,
+        "process_ms": 16.846,
+        "samples": 182,
+        "static_mb": 71.8417844772339,
+        "triangles": 574318.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -61.1655349731445,
+        -22.6065921783447,
+        -62.2178039550781
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 68.2844706217448,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 20.7001774713821,
+      "state": "flying",
+      "vertical_speed": -9.72397874788701,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "metrics_reset"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 8.08821325388617,
+      "distance": 62.5628356933594,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        45.0623016357422,
+        82.2555847167969
+      ],
+      "fps": 60.0,
+      "generated": 72,
+      "metrics": {
+        "draw_calls": 477.0,
+        "frame_ms_max": 0.0,
+        "frame_ms_p50": 0.0,
+        "frame_ms_p95": 0.0,
+        "nodes": 693.0,
+        "objects": 2920.0,
+        "peak_static_mb": 0.0,
+        "physics_ms": 0.394,
+        "process_ms": 16.846,
+        "samples": 0,
+        "static_mb": 71.8404417037964,
+        "triangles": 574318.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -61.3751449584961,
+        -22.7686653137207,
+        -62.5628356933594
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 68.6628356933594,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 20.7019432647896,
+      "state": "flying",
+      "vertical_speed": -9.72443502058474,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "status"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 5.10293142279303,
+      "distance": 233.841430664062,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        41.4018363952637,
+        73.5231475830078
+      ],
+      "fps": 60.0,
+      "generated": 102,
+      "metrics": {
+        "draw_calls": 481.0,
+        "frame_ms_max": 44.556,
+        "frame_ms_p50": 16.681,
+        "frame_ms_p95": 19.991,
+        "nodes": 653.0,
+        "objects": 2840.0,
+        "peak_static_mb": 71.957631111145,
+        "physics_ms": 0.317,
+        "process_ms": 17.073,
+        "samples": 467,
+        "static_mb": 68.5336971282959,
+        "triangles": 542196.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -66.076171875,
+        -103.56086730957,
+        -233.841430664062
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 255.974763997396,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 21.4986064390012,
+      "state": "flying",
+      "vertical_speed": -10.1042181731751,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/meadow-flight-752041.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 5.10161444878895,
+      "distance": 234.199737548828,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        41.3766136169434,
+        73.4815826416016
+      ],
+      "fps": 60.0,
+      "generated": 102,
+      "metrics": {
+        "draw_calls": 481.0,
+        "frame_ms_max": 44.556,
+        "frame_ms_p50": 16.681,
+        "frame_ms_p95": 19.991,
+        "nodes": 653.0,
+        "objects": 2841.0,
+        "peak_static_mb": 71.957631111145,
+        "physics_ms": 0.317,
+        "process_ms": 17.073,
+        "samples": 468,
+        "static_mb": 68.5360088348389,
+        "triangles": 542196.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -66.076171875,
+        -103.729270935059,
+        -234.199737548828
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 256.366404215495,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 21.4986250198146,
+      "state": "flying",
+      "vertical_speed": -10.1042285975328,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "pause"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 5.00730208240901,
+      "distance": 240.291000366211,
+      "flight_state": "gliding",
+      "focus": "@Button@3268:<Button#258587233041>",
+      "forest_passages": [
+        40.9282722473145,
+        72.7541656494141
+      ],
+      "fps": 44.0,
+      "generated": 102,
+      "metrics": {
+        "draw_calls": 481.0,
+        "frame_ms_max": 298.968,
+        "frame_ms_p50": 16.68,
+        "frame_ms_p95": 20.138,
+        "nodes": 645.0,
+        "objects": 2871.0,
+        "peak_static_mb": 71.957631111145,
+        "physics_ms": 0.331,
+        "process_ms": 297.145,
+        "samples": 477,
+        "static_mb": 69.164213180542,
+        "triangles": 545959.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        -66.076171875,
+        -106.592132568359,
+        -240.291000366211
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 0,
+      "score": 263.024333699545,
+      "screen": "pause",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 21.498905554355,
+      "state": "paused",
+      "vertical_speed": -10.1043859852819,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "inspect",
+      "distance": 820,
+      "x": 0,
+      "height": 6
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 5.00730208240901,
+      "distance": 240.291000366211,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        38.7670822143555,
+        79.3087768554688
+      ],
+      "fps": 44.0,
+      "generated": 102,
+      "metrics": {
+        "draw_calls": 494.0,
+        "frame_ms_max": 298.968,
+        "frame_ms_p50": 16.68,
+        "frame_ms_p95": 20.138,
+        "nodes": 645.0,
+        "objects": 2833.0,
+        "peak_static_mb": 71.957631111145,
+        "physics_ms": 0.331,
+        "process_ms": 297.145,
+        "samples": 477,
+        "static_mb": 58.9904384613037,
+        "triangles": 548089.0
+      },
+      "passes": 0,
+      "pending": 63,
+      "position": [
+        0.0,
+        -383.415618896484,
+        -820.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 1,
+      "score": 263.024333699545,
+      "screen": "flight",
+      "sections": 0,
+      "seed": 752041,
+      "speed": 21.498905554355,
+      "state": "paused",
+      "vertical_speed": -10.1043859852819,
+      "volume": 0.7
+    }
+  },
+  {
+    "command": {
+      "action": "capture",
+      "path": "res://development/refinement/cycle-1/stream-study-752041-d820.png"
+    },
+    "status": {
+      "assistance": true,
+      "best_distance": 2427.6953,
+      "best_score": 2441.02864583333,
+      "clearance": 5.00730208240901,
+      "distance": 240.291000366211,
+      "flight_state": "gliding",
+      "focus": "<Object#null>",
+      "forest_passages": [
+        38.7670822143555,
+        79.3087768554688
+      ],
+      "fps": 34.0,
+      "generated": 165,
+      "metrics": {
+        "draw_calls": 559.0,
+        "frame_ms_max": 298.968,
+        "frame_ms_p50": 16.68,
+        "frame_ms_p95": 20.138,
+        "nodes": 770.0,
+        "objects": 3084.0,
+        "peak_static_mb": 71.957631111145,
+        "physics_ms": 0.028,
+        "process_ms": 64.166,
+        "samples": 477,
+        "static_mb": 87.195240020752,
+        "triangles": 1193233.0
+      },
+      "passes": 0,
+      "pending": 0,
+      "position": [
+        0.0,
+        -383.415618896484,
+        -820.0
+      ],
+      "recovery_intensity": 0.0,
+      "reduced_motion": false,
+      "route": 1,
+      "score": 263.024333699545,
+      "screen": "flight",
+      "sections": 63,
+      "seed": 752041,
+      "speed": 21.498905554355,
+      "state": "paused",
+      "vertical_speed": -10.1043859852819,
+      "volume": 0.7
+    }
+  }
+]

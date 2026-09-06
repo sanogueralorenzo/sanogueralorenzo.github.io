@@ -1,0 +1,10 @@
+Corrected3km start
+  PID    RSS COMMAND
+56769 375920 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
+Corrected3km after45s
+  PID    RSS COMMAND
+56769 377904 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
+  PID    RSS COMMAND
+56769 380768 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
+  PID    RSS COMMAND
+56769 379728 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193

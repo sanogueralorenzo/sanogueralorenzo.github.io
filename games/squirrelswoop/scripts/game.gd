@@ -5,6 +5,8 @@ const Mountain = preload("res://scripts/mountain.gd")
 const Squirrel = preload("res://scripts/squirrel.gd")
 const HUD = preload("res://scripts/hud.gd")
 const Sound = preload("res://scripts/sound.gd")
+const FlightModel = preload("res://scripts/flight_model.gd")
+const FrameMetrics = preload("res://scripts/frame_metrics.gd")
 const SAVE_PATH := "user://swoop.cfg"
 
 var mountain: Mountain
@@ -54,10 +56,15 @@ var review_steer := 0.0
 var review_pitch := 0.0
 var review_dive := false
 var review_controls := false
+var review_staged := false
 var elapsed := 0.0
 var backdrop: Node3D
 var perch: MeshInstance3D
 var last_notice := -20.0
+var flight := FlightModel.new()
+var last_ground_warning := -20.0
+var frame_metrics := FrameMetrics.new()
+var camera_ground_aim := 0.0
 
 func _ready() -> void:
  for argument in OS.get_cmdline_user_args():
@@ -113,13 +120,13 @@ func create_environment() -> void:
  env.sky=sky
  env.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
  env.ambient_light_color=Color(0.40,0.53,0.64)
- env.ambient_light_energy=0.46
+ env.ambient_light_energy=0.34
  env.tonemap_mode=Environment.TONE_MAPPER_FILMIC
  env.tonemap_exposure=0.95
  env.fog_enabled=true
- env.fog_light_color=Color(0.55,0.65,0.62)
- env.fog_light_energy=0.72
- env.fog_density=0.0024
+ env.fog_light_color=Color(0.26,0.38,0.41)
+ env.fog_light_energy=0.68
+ env.fog_density=0.0022
  env.fog_sky_affect=0.18
  world.environment=env
  add_child(world)
@@ -130,13 +137,14 @@ func create_environment() -> void:
  sun.shadow_enabled=true
  sun.directional_shadow_max_distance=135
  sun.directional_shadow_mode=DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
- sun.shadow_bias=0.06
- sun.shadow_normal_bias=1.1
+ sun.shadow_bias=0.20
+ sun.shadow_normal_bias=1.80
+ sun.directional_shadow_blend_splits=true
  add_child(sun)
  var fill := DirectionalLight3D.new()
  fill.rotation_degrees=Vector3(-24,145,0)
  fill.light_color=Color(0.58,0.70,0.83)
- fill.light_energy=0.38
+ fill.light_energy=0.16
  add_child(fill)
 
 func install_paint() -> void:
@@ -148,32 +156,56 @@ func install_paint() -> void:
  rect.mouse_filter=Control.MOUSE_FILTER_IGNORE
  var material := ShaderMaterial.new()
  material.shader=preload("res://shaders/paint.gdshader")
- material.set_shader_parameter("brush_radius",1.8)
+ material.set_shader_parameter("brush_radius",0.9)
  rect.material=material
  layer.add_child(rect)
  add_child(layer)
 
+func distant_height(x: float, d: float) -> float:
+ return -d*0.52-18.0+sin(x*0.006+d*0.012)*12.0+sin(x*0.021+d*0.01)*7.0
+
 func create_backdrop() -> void:
+ # A receding forest floor, not a vertical silhouette wall at the horizon.
  backdrop=Node3D.new()
  add_child(backdrop)
- for ridge in 3:
-  var st := SurfaceTool.new()
-  st.begin(Mesh.PRIMITIVE_TRIANGLES)
-  var z := -440.0-float(ridge)*50.0
-  for i in 70:
-   var x := float(i-35)*35.0
-   var x2 := x+35.0
-   var h1 := -80.0+sin(x*0.005+float(ridge)*3.0)*95.0+sin(x*0.017+float(ridge))*19.0
-   var h2 := -80.0+sin(x2*0.005+float(ridge)*3.0)*95.0+sin(x2*0.017+float(ridge))*19.0
-   var col := Color(0.11,0.19,0.18).lerp(Color(0.34,0.43,0.40),float(ridge)/3.0)
-   Geometry.tri(st,Vector3(x,h1,z),Vector3(x,-400,z),Vector3(x2,h2,z),col)
-   Geometry.tri(st,Vector3(x,-400,z),Vector3(x2,-400,z),Vector3(x2,h2,z),col)
-  var node := MeshInstance3D.new()
-  var mat := Geometry.material(Color.WHITE,true)
-  mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-  mat.cull_mode=BaseMaterial3D.CULL_DISABLED
-  node.mesh=Geometry.finish(st,mat)
-  backdrop.add_child(node)
+ var st := SurfaceTool.new()
+ st.begin(Mesh.PRIMITIVE_TRIANGLES)
+ var rng := RandomNumberGenerator.new()
+ rng.seed=5206
+ for row in 13:
+  var d := 290.0+float(row)*24.0
+  for column in 40:
+   var x := float(column-20)*24.0
+   var tint := Color(0.075,0.135,0.145).lerp(Color(0.15,0.22,0.23),float(row)/13.0)
+   var a := Vector3(x,distant_height(x,d),-d)
+   var b := Vector3(x+24,distant_height(x+24,d),-d)
+   var c := Vector3(x,distant_height(x,d+24),-d-24)
+   var e := Vector3(x+24,distant_height(x+24,d+24),-d-24)
+   Geometry.tri(st,a,c,b,tint)
+   Geometry.tri(st,b,c,e,tint)
+   if row==12:
+    Geometry.tri(st,c,Vector3(c.x,-950,c.z),e,tint)
+    Geometry.tri(st,e,Vector3(c.x,-950,c.z),Vector3(e.x,-950,e.z),tint)
+   var center := Vector3(x+rng.randf()*20,distant_height(x,d),-d-rng.randf()*20)
+   var tall := rng.randf_range(20,43)
+   # Broken, overlapping needle tiers remain small in screen space.
+   for tier in 5:
+    var y := tall*(0.32+float(tier)*0.135)
+    var width := (6.4-float(tier)*1.05)*rng.randf_range(.8,1.2)
+    for side in 4:
+     var angle := float(side)*TAU/4.0
+     var next := float(side+1)*TAU/4.0
+     var tip := center+Vector3(0,y+tall*.27,0)
+     var v1 := center+Vector3(cos(angle)*width,y,sin(angle)*width)
+     var v2 := center+Vector3(cos(next)*width,y,sin(next)*width)
+     Geometry.tri(st,tip,v1,v2,tint.lightened(float(side%2)*0.025))
+ var node := MeshInstance3D.new()
+ var mat := Geometry.material(Color.WHITE,true)
+ mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+ mat.cull_mode=BaseMaterial3D.CULL_DISABLED
+ node.mesh=Geometry.finish(st,mat)
+ node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+ backdrop.add_child(node)
 
 func create_motes() -> void:
  motes=CPUParticles3D.new()
@@ -201,6 +233,9 @@ func create_motes() -> void:
  add_child(motes)
 
 func reset_run() -> void:
+ frame_metrics.reset()
+ flight.reset()
+ last_ground_warning=-20
  mountain.reset(run_seed)
  player_pos=Vector3(mountain.stream_x(0)-34.0,0,0)
  player_pos.y=mountain.height_at(player_pos.x,0)+6.2
@@ -223,6 +258,7 @@ func reset_run() -> void:
  camera_blend=0
  last_notice=-20
  review_controls=false
+ review_staged=false
  review_steer=0
  review_pitch=0
  review_dive=false
@@ -239,6 +275,7 @@ func reset_run() -> void:
  camera.position=player_pos+Vector3(20,19,30)
  camera.look_at(player_pos+Vector3(25,-27,-85))
  camera.fov=76
+ camera_ground_aim=player_pos.y-14.0
 
 func launch() -> void:
  if state!="summit": return
@@ -298,10 +335,13 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
  elapsed+=delta
+ RenderingServer.global_shader_parameter_set("swoop_player",player_pos)
+ if state=="flying": frame_metrics.sample()
+ else: frame_metrics.last_tick=0
  if review_server!=null: poll_review()
  # Spread generation across frames; the visible area is always preloaded.
  mountain.stream_next()
- sound.update(delta,speed,diving,state=="flying")
+ sound.update(delta,speed,diving,state=="flying",bank,flight.recovery_intensity,clearance)
  if state=="flying":
   perch.visible=distance<80
   camera_blend=minf(1.0,camera_blend+delta*0.58)
@@ -327,35 +367,14 @@ func _physics_process(delta: float) -> void:
  clean_time+=delta
  flow=mini(4,1+int(clean_time/12.0))
  max_flow=maxi(max_flow,flow)
- bank=lerpf(bank,review_steer if review_controls else axis_steer(),1.0-exp(-delta*6.5))
+ var steer := review_steer if review_controls else axis_steer()
  var pitch := pitch_input
  # Potential energy feeds speed; pulling up pays for lift with momentum.
- var acceleration := 0.0
- if diving:
-  acceleration=7.0-(speed-24.0)*0.22
- else:
-  var drag := 0.38 if speed>21.5 else 0.8
-  acceleration=(21.5-speed)*drag-pitch*4.0-absf(bank)*0.7
- speed=clampf(speed+acceleration*delta,12.5,40.0)
- var side_target := bank*speed*(0.72 if not diving else 0.49)
- lateral_speed=lerpf(lateral_speed,side_target,1.0-exp(-delta*(4.0 if not diving else 2.8)))
- var d := -player_pos.z
- clearance=player_pos.y-mountain.height_at(player_pos.x,d)
- var sink := -speed*0.47
- # Stable trim gently converges on the terrain's average grade, never allowing hovering.
- var trim := clampf((6.0-clearance)*0.65,-speed*0.34,speed*0.15)
- var lift_authority := clampf((speed-13.0)/10.0,0.15,1.0) if pitch>0 else 1.0
- var vertical_target := sink+trim+pitch*speed*0.30*lift_authority
- if diving: vertical_target=-speed*(0.91-pitch*0.14)
- elif assistance:
-  var ahead_d := d+speed*0.75
-  var ahead_x := player_pos.x+lateral_speed*0.65
-  var ahead_height := mountain.height_at(ahead_x,ahead_d)
-  var recovery := (ahead_height+2.9-player_pos.y)/0.75
-  vertical_target=maxf(vertical_target,minf(-speed*0.12,recovery))
- vertical_target=minf(-speed*0.09,vertical_target)
- vertical_speed=lerpf(vertical_speed,vertical_target,1.0-exp(-delta*(2.5 if diving else 4.8)))
- player_pos+=Vector3(lateral_speed,vertical_speed,-speed)*delta
+ player_pos=flight.step(delta,player_pos,steer,pitch,diving,assistance,mountain)
+ speed=flight.speed
+ vertical_speed=flight.vertical_speed
+ lateral_speed=flight.lateral_speed
+ bank=flight.bank
  distance=-player_pos.z
  score=distance+bonus_score+clean_time*2.0
  var cause := collision_between(old_pos,player_pos)
@@ -372,9 +391,9 @@ func _physics_process(delta: float) -> void:
  current_route=r
  var terrain_rate := (mountain.height_at(player_pos.x+lateral_speed*0.5,distance+speed*0.5)-mountain.height_at(player_pos.x,distance))/0.5
  var time_to_ground := (clearance-0.4)/maxf(0.1,terrain_rate-vertical_speed)
- if diving and time_to_ground<1.1 and run_time-last_notice>1.2:
-  ui.notice("SPREAD YOUR WINGS  /  release dive")
-  last_notice=run_time
+ if time_to_ground<1.15 and run_time-last_ground_warning>1.2:
+  ui.notice("SPREAD YOUR WINGS  /  release dive" if diving else "GROUND AHEAD  /  pull gently",2)
+  last_ground_warning=run_time
 
 func axis_steer() -> float:
  var key := float(Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT))-float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
@@ -403,14 +422,20 @@ func read_controls() -> void:
 
 func update_camera(delta: float) -> void:
  var velocity_lead := Vector3(lateral_speed,vertical_speed,-speed)*0.18 if state=="flying" else Vector3.ZERO
- var follow := player_pos+Vector3(-lateral_speed*0.06,4.3,4.9)+velocity_lead
+ var follow := player_pos+Vector3(-lateral_speed*0.06,8.2,5.6)+velocity_lead
  var start := player_pos+Vector3(20,19,30)
  var desired := start.lerp(follow,smoothstep(0,1,camera_blend))
  camera.position=camera.position.lerp(desired,1.0-exp(-delta*5.0))
- var look := player_pos+Vector3(lateral_speed*0.12,-6.5,-21)
+ var ahead := 24.0
+ var aim_x := player_pos.x+lateral_speed*0.42
+ var terrain_aim := mountain.height_at(aim_x,-player_pos.z+ahead)-6.0
+ # Look into the descending ground; damp shelves instead of nodding at each bump.
+ terrain_aim=clampf(terrain_aim,player_pos.y-32.0,player_pos.y-19.0)
+ camera_ground_aim=lerpf(camera_ground_aim,terrain_aim,1.0-exp(-delta*2.3))
+ var look := Vector3(aim_x,camera_ground_aim,player_pos.z-ahead)
  camera.look_at(look)
- if not reduced_motion: camera.rotation.z=-bank*0.035
- var fov_target := 70.0 if reduced_motion else 69.0+(speed-20.0)*0.34
+ if not reduced_motion: camera.rotation.z=-bank*0.025
+ var fov_target := 60.0 if reduced_motion else 59.0+(speed-20.0)*0.20
  camera.fov=lerpf(camera.fov,fov_target,1.0-exp(-delta*2.5))
 
 func segment_distance(a: Vector3,b: Vector3,p: Vector3) -> float:
@@ -447,7 +472,7 @@ func collision_between(a: Vector3,b: Vector3) -> String:
    return "The mountainside caught you. Release dive sooner to regain lift."
  for o in mountain.obstacles_near(b):
   var pos: Vector3=o.pos
-  if absf(pos.z-b.z)>35 or absf(pos.x-b.x)>12: continue
+  if o.kind!="wood" and (absf(pos.z-b.z)>35 or absf(pos.x-b.x)>12): continue
   var gap := 100.0
   match o.kind:
    "tree":
@@ -455,20 +480,32 @@ func collision_between(a: Vector3,b: Vector3) -> String:
     var trunk_radius := lerpf(float(o.radius),float(o.radius)*0.087,relative_height)
     gap=segment_segment_distance(a,b,pos,pos+Vector3(0,o.height,0))-trunk_radius
    "branch": gap=segment_segment_distance(a,b,pos,o.end)-o.radius
+   "wood":
+    # Four tapered intervals keep large buttresses accurate without a wide capsule
+    # around thin branch tips. Sweep the player against every interval.
+    var end: Vector3=o.end
+    var rad_a := float(o.radius)
+    var rad_b := float(o.radius_end)
+    for part in 4:
+     var t0 := float(part)/4.0
+     var t1 := float(part+1)/4.0
+     var rad := lerpf(rad_a,rad_b,(t0+t1)*0.5)
+     gap=minf(gap,segment_segment_distance(a,b,pos.lerp(end,t0),pos.lerp(end,t1))-rad)
    "rock":
     var extents: Vector3=o.extents
     var inverse_rotation: Basis=o.inverse_rotation
     gap=(segment_distance((inverse_rotation*(a-pos))/extents,(inverse_rotation*(b-pos))/extents,Vector3.ZERO)-1.0)*minf(extents.x,minf(extents.y,extents.z))
   if gap<0.29:
    if o.kind=="tree": return "A tree caught your line. Bank early and look beyond the next trunk."
-   if o.kind=="branch": return "A branch caught you. Look for a clear opening between the limbs."
+   if o.kind=="branch" or o.kind=="wood": return "A branch caught you. Look for a clear opening between the limbs."
    return "A mossy rock ended this descent. A little more clearance next time."
-  if gap<1.8 and gap>0.32 and pos.z>b.z and not near_seen.has(o.id):
-   near_seen[o.id]=distance
+  var pass_id: String=o.get("pass_id",o.id)
+  if gap<1.8 and gap>0.32 and pos.z>b.z and not near_seen.has(pass_id):
+   near_seen[pass_id]=distance
    close_passes+=1
    bonus_score+=75.0*flow
    ui.notice("CLOSE PASS  +%d"%(75*flow))
-   sound.cue("pass")
+   sound.cue("pass",clampf((pos.x-player_pos.x)/4.0,-1,1))
  if near_seen.size()>150:
   for id in near_seen.keys():
    if distance-float(near_seen[id])>200: near_seen.erase(id)
@@ -538,10 +575,23 @@ func poll_review() -> void:
    snapshot["forest_passages"]=[passage.x,passage.y]
    snapshot["focus"]=str(get_viewport().gui_get_focus_owner())
    snapshot["screen"]=ui.screen
+   snapshot["staged"]=review_staged
+   snapshot["generation_ms"]=mountain.generation_ms
+   snapshot["generation_slice_ms"]=mountain.generation_slice_ms
+   snapshot["building"]=mountain.building
+   snapshot["cached_vertices"]=mountain.vertex_heights.size()
+   snapshot["metrics"]=frame_metrics.snapshot()
+   snapshot["recovery_intensity"]=flight.recovery_intensity
+   snapshot["flight_state"]=flight.flight_state
    review_peer.put_data((JSON.stringify(snapshot)+"\n").to_utf8_buffer())
 
 func handle_review(c: Dictionary) -> void:
  match str(c.get("action","status")):
+  "shadow":
+   sun.shadow_enabled=bool(c.get("enabled",true))
+   sun.shadow_bias=float(c.get("bias",sun.shadow_bias))
+   sun.shadow_normal_bias=float(c.get("normal_bias",sun.shadow_normal_bias))
+  "metrics_reset": frame_metrics.reset()
   "launch": launch()
   "input":
    review_controls=true
@@ -568,6 +618,8 @@ func handle_review(c: Dictionary) -> void:
   "inspect":
    # Move only the review camera for visual inspection; normal play uses no teleportation.
    if state!="flying":
+    state="paused"
+    review_staged=true
     var d := float(c.get("distance",100))
     var x := float(c.get("x",mountain.stream_x(d)+50))
     player_pos=Vector3(x,mountain.height_at(x,d)+float(c.get("height",5)),-d)

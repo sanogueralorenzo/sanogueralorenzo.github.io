@@ -6,4 +6,4 @@ void vertex(){
  VERTEX.x+=sin(p.x*.6+p.z*.3+TIME*1.8)*VERTEX.y*.06;
  ink=COLOR.rgb;
 }
-void fragment(){ALBEDO=pow(ink,vec3(2.2));ROUGHNESS=1.0;BACKLIGHT=ALBEDO*.08;}
+void fragment(){ALBEDO=ink;ROUGHNESS=1.0;BACKLIGHT=ALBEDO*.08;}

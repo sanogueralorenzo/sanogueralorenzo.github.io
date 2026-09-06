@@ -1,0 +1,8 @@
+UTC start2026-09-06T07:09:30Z
+Target PID55730, port45891, configured1280x800 window/1440x900 logical viewport; OpenGL compatibility; 4 other Godot games remain active.
+
+Observed Godot processes at07:11UTC:
+47800 220160 godot --path /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/spikeseason -- --review-port=45911 --review-profile=visual-comparison-20260905 --capture-dir=/Users/mario/Documents/Codex/2026-09-05/ho/work/spike-review
+55058 451392 godot --path games/spikeseason -- --review-port=45903 --review-profile=animation3d --capture-dir=/tmp/spike-animation3d-review
+55476 451408 /opt/homebrew/bin/godot --path games/spikeseason --position 80,80 -- --review-port=45901 --review-profile=3d-coastal --capture-dir=/Users/mario/AndroidStudioProjects/spikeseason-worktree/games/spikeseason/evidence/3d
+55730 431008 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=915772

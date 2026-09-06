@@ -24,6 +24,7 @@ var screen := "summit"
 var serif: SystemFont
 var sans: SystemFont
 var feedback_left := 0.0
+var feedback_priority := 0
 var margin := Color(0.94,0.93,0.84)
 
 func _ready() -> void:
@@ -210,7 +211,7 @@ func show_settings(back: String) -> void:
   var property: String=properties[i]
   check.toggled.connect(func(value: bool):game.set(property,value);settings_changed.emit())
   panel.add_child(check)
- label(panel,"Assistance adds lift near the ground when you release dive.\nSteering and obstacles are always yours to manage.",Vector2(0,318),13)
+ label(panel,"Assistance trades speed for lift near the ground.\nRelease dive early to preserve momentum.",Vector2(0,318),13)
  button(panel,"Done",Vector2(0,380),Vector2(470,51),func():
   if back=="pause": show_pause()
   else: show_summit()
@@ -244,7 +245,9 @@ func play_mode() -> void:
  menu.visible=false
  hud.visible=true
 
-func notice(text: String) -> void:
+func notice(text: String, priority := 0) -> void:
+ if feedback_left>0 and priority<feedback_priority: return
+ feedback_priority=priority
  feedback.text=text
  feedback_left=1.8
 
@@ -260,8 +263,10 @@ func update(delta: float) -> void:
  feedback_left=maxf(0,feedback_left-delta)
  feedback.modulate.a=minf(feedback_left*2,1)
  distance_label.text="%s m"%format_number(game.distance)
+ if game.review_staged: distance_label.text="%s m · STUDY"%format_number(-game.player_pos.z)
  score_label.text="%s  /  ×%d"%[format_number(game.score),game.flow]
  route_label.text=["SUNLIT MEADOW  /  OPEN LINES","WINDING WATER  /  FOLLOW THE BENDS","DEEP WOODS  /  THREAD THE TREES"][game.current_route]
  speed_label.text="%d km/h"%int(game.speed*3.6)
- trim_label.text="TUCKED  /  RELEASE TO RECOVER" if game.diving else "%.1f m CLEARANCE  /  GLIDING"%game.clearance
+ var states := {"tucked":"BUILDING SPEED · RELEASE TO SPREAD","recovering":"RECOVERING · TRADING SPEED FOR LIFT","pulling_up":"SPREADING · SPENDING MOMENTUM","low_energy":"LOW ENERGY · EASE PITCH","carrying_speed":"CARRYING SPEED","gliding":"GLIDING"}
+ trim_label.text="%.1f m  /  %s"%[game.clearance,states.get(game.flight.flight_state,"GLIDING")]
  diagnostics.text="FPS %d  |  %d sections  |  %d generated  |  build %.1f ms\nSeed %d  •  x %.1f / descent %.1f / altitude %.1f\nPitch %.2f  •  vertical %.1f m/s  •  near passes %d"%[Engine.get_frames_per_second(),game.mountain.chunks.size(),game.mountain.generated_count,game.mountain.generation_ms,game.run_seed,game.player_pos.x,game.distance,game.player_pos.y,game.pitch_input,game.vertical_speed,game.close_passes]

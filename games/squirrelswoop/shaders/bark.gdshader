@@ -1,19 +1,20 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled;
 varying vec3 local;
-float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float h(vec2 p){vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}
 float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+1.0),f.x),f.y);}
 void vertex(){local=VERTEX;}
 void fragment(){
- float angle=atan(local.z,local.x);
- vec2 p=vec2(angle*9.0,local.y*0.8);
- p.x+=n(p*vec2(.32,.6))*0.85;
- float plates=n(p*vec2(1.6,.55));
- float cracks=smoothstep(.30,.42,n(p*vec2(2.5,.48)+n(p)*.4));
- float chip=n(p*vec2(7.0,3.0));
- vec3 wood=mix(vec3(.25,.18,.11),vec3(.52,.39,.25),plates);
- wood*=mix(.65,1.0,cracks)*(.87+chip*.22);
- float moss=(1.0-smoothstep(.5,6.0,local.y))*smoothstep(.37,.68,n(local.xz*2.4+local.y*.5));
- wood=mix(wood,mix(vec3(.15,.22,.08),vec3(.32,.36,.13),chip),moss*.85);
- ALBEDO=pow(wood,vec3(2.2));ROUGHNESS=1.0;
+ // UV grain follows each bent limb and log, with broad overlapping bark plates.
+ vec2 p=UV*vec2(8.0,0.95);
+ p.x+=n(p*vec2(.20,.7))*1.1;
+ float ridges=n(p*vec2(1.0,.35));
+ float fissure=smoothstep(.24,.39,ridges);
+ float plate=n(p*vec2(2.0,1.1));
+ float chips=n(p*vec2(5.0,3.5));
+ vec3 wood=mix(vec3(.31,.245,.17),vec3(.62,.48,.31),plate*.62+ridges*.38);
+ wood*=mix(.48,1.0,fissure)*(.88+chips*.20);
+ float moss=(1.0-smoothstep(.5,5.0,local.y))*smoothstep(.39,.67,n(local.xz*1.6+local.y*.4));
+ wood=mix(wood,mix(vec3(.20,.26,.12),vec3(.39,.43,.21),chips),moss*.74);
+ ALBEDO=wood;ROUGHNESS=1.0;
 }

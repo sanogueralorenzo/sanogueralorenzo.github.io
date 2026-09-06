@@ -1,158 +1,149 @@
 class_name SwoopSquirrel
 extends Node3D
 
-const Geometry = preload("res://scripts/geometry.gd")
+const CharacterMesh = preload("res://scripts/character_mesh.gd")
 
 var membrane: MeshInstance3D
-var limbs: Array[Node3D]=[]
 var tail: Node3D
-var chestnut := Geometry.material(Color(0.30,0.105,0.032))
-var fur_light := Geometry.material(Color(0.44,0.20,0.069))
-var cream := Geometry.material(Color(0.61,0.42,0.23))
-var skin := Geometry.material(Color(0.49,0.24,0.105))
+var paws: Array[Node3D]=[]
+var bones: Array[Node3D]=[]
+var ears: Array[Node3D]=[]
+var fur_material: ShaderMaterial
+var membrane_material: ShaderMaterial
 var time := 0.0
 var tuck := 0.0
+var bank_pose := 0.0
 
-func ellipsoid(parent: Node3D, pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
+func add_mesh(parent: Node3D, mesh: Mesh, position_at := Vector3.ZERO) -> MeshInstance3D:
  var node := MeshInstance3D.new()
- var mesh := SphereMesh.new()
- mesh.radius=1.0
- mesh.height=2.0
- mesh.radial_segments=20
- mesh.rings=12
  node.mesh=mesh
- node.material_override=mat
- node.position=pos
- node.scale=size
+ node.position=position_at
  parent.add_child(node)
  return node
 
+func eye(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
+ var material := StandardMaterial3D.new()
+ material.albedo_color=color
+ material.roughness=0.32
+ var mesh := SphereMesh.new()
+ mesh.radius=1.0
+ mesh.height=2.0
+ mesh.radial_segments=16
+ mesh.rings=8
+ mesh.material=material
+ var node := add_mesh(parent,mesh,pos)
+ node.scale=size
+
 func _ready() -> void:
- skin.vertex_color_use_as_albedo=true
- skin.albedo_color=Color.WHITE
- skin.cull_mode=BaseMaterial3D.CULL_DISABLED
- skin.roughness=0.86
- ellipsoid(self,Vector3(0,0,0),Vector3(0.35,0.25,0.79),chestnut)
- ellipsoid(self,Vector3(0,-0.065,-0.08),Vector3(0.31,0.18,0.69),cream)
- ellipsoid(self,Vector3(0,0.08,-0.76),Vector3(0.30,0.27,0.33),fur_light)
- ellipsoid(self,Vector3(0,-0.02,-1.0),Vector3(0.19,0.15,0.22),chestnut)
- var dark := Geometry.material(Color(0.033,0.019,0.009))
- dark.roughness=0.25
- ellipsoid(self,Vector3(0,0.005,-1.17),Vector3(0.065,0.047,0.04),dark)
- for s in [-1.0,1.0]:
-  var ear := ellipsoid(self,Vector3(s*0.23,0.28,-0.65),Vector3(0.125,0.19,0.08),chestnut)
-  ear.rotation.z=-s*0.25
-  ellipsoid(self,Vector3(s*0.235,0.29,-0.714),Vector3(0.075,0.12,0.025),cream)
-  ellipsoid(self,Vector3(s*0.248,0.13,-0.896),Vector3(0.069,0.075,0.055),dark)
-  ellipsoid(self,Vector3(s*0.265,0.16,-0.935),Vector3(0.018,0.021,0.012),Geometry.material(Color(0.97,0.94,0.80)))
+ fur_material=ShaderMaterial.new()
+ fur_material.shader=preload("res://shaders/character_fur.gdshader")
+ membrane_material=ShaderMaterial.new()
+ membrane_material.shader=preload("res://shaders/membrane.gdshader")
+ # One continuous profile joins muzzle, cheeks, shoulders, waist and haunches.
+ var torso: Array[Vector4]=[
+  Vector4(-1.20,0.025,0.026,0.015),Vector4(-1.13,0.10,0.065,0.025),
+  Vector4(-1.03,0.18,0.13,0.060),Vector4(-0.88,0.255,0.22,0.10),
+  Vector4(-0.73,0.27,0.24,0.085),Vector4(-0.57,0.285,0.215,0.045),
+  Vector4(-0.39,0.325,0.215,0.020),Vector4(-0.13,0.335,0.205,0.015),
+  Vector4(0.15,0.31,0.20,0.005),Vector4(0.39,0.29,0.195,-0.005),
+  Vector4(0.57,0.235,0.17,-0.01),Vector4(0.73,0.12,0.10,0.0),
+  Vector4(0.79,0.035,0.035,0.0)]
+ add_mesh(self,CharacterMesh.loft(torso,Color(0.46,0.285,0.16),fur_material))
+ add_mesh(self,CharacterMesh.coat_locks(torso,fur_material))
+ var nose := CharacterMesh.surface()
+ CharacterMesh.triangle(nose,Vector3(-0.05,0.045,-1.16),Vector3(0.05,0.045,-1.16),Vector3(0,0.005,-1.235),Color(0.16,0.12,0.085))
+ CharacterMesh.triangle(nose,Vector3(-0.05,0.045,-1.16),Vector3(0,0.005,-1.235),Vector3(0,-0.02,-1.17),Color(0.19,0.135,0.09))
+ CharacterMesh.triangle(nose,Vector3(0.05,0.045,-1.16),Vector3(0,-0.02,-1.17),Vector3(0,0.005,-1.235),Color(0.19,0.135,0.09))
+ add_mesh(self,CharacterMesh.finish(nose,fur_material))
+ var ear_mesh := CharacterMesh.ear(fur_material)
+ var limb_mesh := CharacterMesh.tapered_limb(fur_material)
+ var front_paw := CharacterMesh.paw(fur_material,false)
+ var rear_paw := CharacterMesh.paw(fur_material,true)
+ for side in [-1.0,1.0]:
+  var ear := add_mesh(self,ear_mesh,Vector3(side*0.215,0.245,-0.725))
+  ear.rotation.z=-side*0.22
+  ears.append(ear)
+  eye(self,Vector3(side*0.239,0.14,-0.95),Vector3(0.053,0.060,0.043),Color(0.035,0.022,0.015))
+  eye(self,Vector3(side*0.258,0.166,-0.978),Vector3(0.012,0.014,0.009),Color(0.82,0.79,0.68))
+  for i in 4: bones.append(add_mesh(self,limb_mesh))
+  paws.append(add_mesh(self,front_paw))
+  paws.append(add_mesh(self,rear_paw))
+ # A few broad cheek/shoulder locks define fur direction without hiding the anatomy.
+ var locks := CharacterMesh.surface()
+ for side in [-1.0,1.0]:
+  for i in 9:
+   var z := -0.65+float(i)*0.145
+   var width := 0.28+sin(float(i)/8.0*PI)*0.045
+   var y := 0.08 if i<3 else 0.055
+   var a := Vector3(side*width,y,z)
+   CharacterMesh.triangle(locks,a+Vector3(-side*0.05,0.045,-0.025),a+Vector3(side*0.025,-0.008,0.115),a+Vector3(-side*0.02,-0.025,0.05),Color(0.47,0.30,0.17))
+ add_mesh(self,CharacterMesh.finish(locks,fur_material))
  membrane=MeshInstance3D.new()
  add_child(membrane)
- for i in 4:
-  var limb := Node3D.new()
-  add_child(limb)
-  limbs.append(limb)
-  ellipsoid(limb,Vector3.ZERO,Vector3(0.11,0.07,0.17),chestnut)
-  for toe in 3:
-   ellipsoid(limb,Vector3(float(toe-1)*0.058,-0.025,-0.12),Vector3(0.024,0.025,0.11),cream)
  tail=Node3D.new()
- tail.position=Vector3(0,0.015,0.62)
+ tail.position=Vector3(0,0.005,0.68)
  add_child(tail)
- # A continuous flattened brush, with a jagged fur silhouette and tapered tip.
- var tail_surface := SurfaceTool.new()
- tail_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
- tail_surface.set_smooth_group(0)
- var tail_rng := RandomNumberGenerator.new()
- tail_rng.seed=771
- var rings: Array[PackedVector3Array]=[]
- for i in 17:
-  var t := float(i)/16.0
-  var width := 0.025+sin(t*PI)*0.32+(1.0-t)*0.055
-  var thickness := 0.025+sin(t*PI)*0.070
-  var ring := PackedVector3Array()
-  for j in 18:
-   var a := float(j)/18.0*TAU
-   var irregular := tail_rng.randf_range(0.94,1.06)
-   ring.append(Vector3(sin(t*1.4)*0.10+cos(a)*width*irregular,0.08+sin(t*2.6)*0.12+sin(a)*thickness,t*1.70))
-  rings.append(ring)
- for i in 16:
-  for j in 18:
-   var k := (j+1)%18
-   var shade := Color(0.37,0.17,0.055)
-   Geometry.tri(tail_surface,rings[i][j],rings[i+1][j],rings[i+1][k],shade)
-   Geometry.tri(tail_surface,rings[i][j],rings[i+1][k],rings[i][k],shade)
- var tail_shape := MeshInstance3D.new()
- var tail_material := ShaderMaterial.new()
- tail_material.shader=preload("res://shaders/fur.gdshader")
- tail_shape.mesh=Geometry.finish(tail_surface,tail_material)
- tail.add_child(tail_shape)
- var tail_fur_surface := SurfaceTool.new()
- tail_fur_surface.begin(Mesh.PRIMITIVE_TRIANGLES)
- for i in 600:
-  var t := tail_rng.randf_range(0.02,0.96)
-  var a := tail_rng.randf()*TAU
-  var width := 0.025+sin(t*PI)*0.32+(1.0-t)*0.055
-  var thickness := 0.025+sin(t*PI)*0.070
-  var p := Vector3(sin(t*1.4)*0.10+cos(a)*width,0.08+sin(t*2.6)*0.12+sin(a)*thickness,t*1.70)
-  var normal := Vector3(cos(a)*0.8,sin(a)*0.5,0.8).normalized()
-  var strand_side := Vector3(-sin(a),cos(a),0)*tail_rng.randf_range(0.007,0.014)
-  var length := tail_rng.randf_range(0.065,0.16)
-  Geometry.tri(tail_fur_surface,p-strand_side,p+normal*length,p+strand_side,Color(0.29,0.11,0.029).lerp(Color(0.50,0.26,0.09),tail_rng.randf()))
- var strand_material := Geometry.material(Color.WHITE,true)
- strand_material.cull_mode=BaseMaterial3D.CULL_DISABLED
- var tail_fur := MeshInstance3D.new()
- tail_fur.mesh=Geometry.finish(tail_fur_surface,strand_material)
- tail.add_child(tail_fur)
- var st := SurfaceTool.new()
- st.begin(Mesh.PRIMITIVE_TRIANGLES)
- var rng := RandomNumberGenerator.new()
- rng.seed=452
- for i in 1100:
-  var a := rng.randf()*TAU
-  var z := rng.randf_range(-0.64,0.70)
-  var r := sqrt(maxf(0.0,1.0-pow(z/0.82,2.0)))
-  var p := Vector3(cos(a)*0.35*r,sin(a)*0.25*r,z)
-  var normal := Vector3(cos(a),sin(a),0.1).normalized()
-  var length := rng.randf_range(0.025,0.085)
-  var side := Vector3(-sin(a),cos(a),0)*0.009
-  Geometry.tri(st,p-side,p+normal*length+Vector3(0,0,length*0.6),p+side,Color(0.30,0.12,0.037).lerp(Color(0.54,0.29,0.105),rng.randf()))
- var fur := MeshInstance3D.new()
- fur.mesh=Geometry.finish(st,strand_material)
- add_child(fur)
+ add_mesh(tail,CharacterMesh.brush_tail(fur_material))
  update_pose(0.016,0,0,0)
+
+func pose_bone(node: Node3D, start: Vector3, end: Vector3, width: float, flatten := 1.0) -> void:
+ var direction := end-start
+ node.position=(start+end)*0.5
+ node.quaternion=Quaternion(Vector3.BACK,direction.normalized())
+ node.scale=Vector3(width,width*flatten,direction.length()*0.5)
 
 func update_pose(delta: float, bank: float, pitch: float, dive: float) -> void:
  time+=delta
  tuck=lerpf(tuck,dive,1.0-exp(-delta*9.0))
- rotation.z=lerpf(rotation.z,-bank*0.65,1.0-exp(-delta*8.0))
+ bank_pose=lerpf(bank_pose,bank,1.0-exp(-delta*8.0))
+ rotation.z=-bank_pose*0.65
  rotation.x=lerpf(rotation.x,pitch*0.78,1.0-exp(-delta*7.0))
- tail.rotation.y=sin(time*2.8)*0.09-bank*0.3
- tail.rotation.x=-tuck*0.18+sin(time*3.2)*0.035
- var st := SurfaceTool.new()
- st.begin(Mesh.PRIMITIVE_TRIANGLES)
- st.set_smooth_group(0)
- for side in [-1.0,1.0]:
-  for j in 16:
-   var t0 := float(j)/16.0
-   var t1 := float(j+1)/16.0
-   var pts: Array[Vector3]=[]
-   for t in [t0,t1]:
-    var z := lerpf(-0.72,0.78,t)
-    var edge := lerpf(1.32,1.04,t)-sin(t*PI)*0.20
-    edge=lerpf(edge,0.37,tuck)
-    var billow := sin(t*PI)*0.24*(1.0-tuck)
-    var flutter := sin(time*13.0+t*9.0)*0.012*(1.0-tuck)*sin(t*PI)
-    pts.append(Vector3(side*0.24,-0.07,z))
-    pts.append(Vector3(side*(edge*0.57+0.1),billow-0.055,z))
-    pts.append(Vector3(side*edge,-0.09+flutter,z))
-   var color := Color(0.36,0.17,0.058).lerp(Color(0.67,0.44,0.23),sin(t0*PI)*0.86)
-   for band in 2:
-    if side>0:
-     Geometry.tri(st,pts[band],pts[band+1],pts[band+3],color)
-     Geometry.tri(st,pts[band+1],pts[band+4],pts[band+3],color)
-    else:
-     Geometry.tri(st,pts[band],pts[band+3],pts[band+1],color)
-     Geometry.tri(st,pts[band+1],pts[band+3],pts[band+4],color)
-  var ix := 0 if side<0 else 2
-  limbs[ix].position=Vector3(side*lerpf(1.32,0.37,tuck),-0.075,-0.72)
-  limbs[ix+1].position=Vector3(side*lerpf(1.04,0.37,tuck),-0.075,0.78)
- membrane.mesh=Geometry.finish(st,skin)
+ # The tail steers into a bank and aligns with a dive; no periodic wing beats.
+ tail.rotation.y=lerpf(tail.rotation.y,-bank_pose*0.28+sin(time*1.8)*0.018,1.0-exp(-delta*5.0))
+ tail.rotation.x=lerpf(tail.rotation.x,-tuck*0.17+pitch*0.10,1.0-exp(-delta*6.0))
+ tail.rotation.z=-bank_pose*0.07
+ for i in ears.size(): ears[i].rotation.x=tuck*0.28
+ var st := CharacterMesh.surface()
+ for side_index in 2:
+  var side := -1.0 if side_index==0 else 1.0
+  var load := side*bank_pose*(1.0-tuck)
+  var wrist := Vector3(side*lerpf(1.20,0.37,tuck),-0.055+load*0.055,lerpf(-0.74,-0.53,tuck))
+  var ankle := Vector3(side*lerpf(0.89,0.31,tuck),-0.07-load*0.02,lerpf(0.74,0.67,tuck))
+  var shoulder := Vector3(side*0.23,0.02,-0.45)
+  var elbow := Vector3(side*lerpf(0.69,0.34,tuck),0.01+load*0.035,-0.48)
+  var hip := Vector3(side*0.23,0.005,0.38)
+  var knee := Vector3(side*lerpf(0.56,0.30,tuck),-0.025,0.48)
+  var offset := side_index*4
+  pose_bone(bones[offset],shoulder,elbow,0.078)
+  pose_bone(bones[offset+1],elbow,wrist,0.049,0.82)
+  pose_bone(bones[offset+2],hip,knee,0.092)
+  pose_bone(bones[offset+3],knee,ankle,0.051,0.8)
+  paws[side_index*2].position=wrist
+  paws[side_index*2].rotation=Vector3(-0.08,-side*lerpf(0.52,0.05,tuck),-load*0.1)
+  paws[side_index*2+1].position=ankle
+  paws[side_index*2+1].rotation=Vector3(-0.12,-side*lerpf(2.35,2.85,tuck),0)
+  # Patagium stays attached from forelimb to ankle, pulling taut as the limbs spread.
+  for row in 16:
+   for band in 4:
+    var values := [Vector2(float(band)/4.0,float(row)/16.0),Vector2(float(band+1)/4.0,float(row)/16.0),Vector2(float(band)/4.0,float(row+1)/16.0),Vector2(float(band+1)/4.0,float(row+1)/16.0)]
+    var points: Array[Vector3]=[]
+    for uv: Vector2 in values:
+     var t := uv.y
+     var u := uv.x
+     var edge := lerpf(absf(wrist.x),absf(ankle.x),t)-sin(t*PI)*0.26*(1.0-tuck)
+     var x := lerpf(0.18,edge,u)
+     var z := lerpf(wrist.z,ankle.z,t)+sin(t*PI)*u*0.03
+     var tension := sin(t*PI)*sin(u*PI)
+     var camber := tension*0.18*(1.0-tuck)
+     var y := -0.065+camber+lerpf(wrist.y+0.055,ankle.y+0.07,t)*u
+     y+=sin(time*10.0+t*7.0)*0.004*sin(t*PI)*u*u*(1.0-tuck)
+     points.append(Vector3(side*x,y,z))
+    var indices := [0,1,2,1,3,2] if side>0 else [0,2,1,1,2,3]
+    for index: int in indices:
+     var uv: Vector2 = values[index]
+     var border := sin(uv.y*PI)
+     var shade := Color(0.43,0.27,0.15).lerp(Color(0.66,0.50,0.32),pow(uv.x,0.7)*pow(border,0.35)*0.85)
+     st.set_color(shade)
+     st.set_uv(uv)
+     st.add_vertex(points[index])
+ membrane.mesh=CharacterMesh.finish(st,membrane_material)

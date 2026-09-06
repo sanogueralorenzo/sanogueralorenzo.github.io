@@ -22,3 +22,9 @@ textures/default_filters/use_nearest_mipmap_filter=false
 anti_aliasing/quality/msaa_3d=0
 lights_and_shadows/directional_shadow/size=4096
 textures/default_filters/anisotropic_filtering_level=3
+
+[shader_globals]
+swoop_player={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}

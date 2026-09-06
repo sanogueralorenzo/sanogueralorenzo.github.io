@@ -1,0 +1,9 @@
+First continuous checkpoint
+  PID    RSS COMMAND
+55730 422256 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=915772
+After no-capture window1
+  PID    RSS COMMAND
+55730 431824 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=915772
+After no-capture window2
+  PID    RSS COMMAND
+55730 454640 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=915772

@@ -35,20 +35,20 @@ godot --path games/squirrelswoop -- --seed=482193
 
 To get comfortable, bank left into the meadow and release the controls. Neutral trim settles into a descent. Short dives trade clearance for speed. Pulling up spends that speed; low momentum limits lift, so holding up cannot climb above the mountain indefinitely. You always descend; the squirrel does not flap or hover. Look several trees ahead and release dive early.
 
-Settings offer sound volume, gentle ground assistance, reduced camera motion, and inverted pitch. Ground assistance adds lift near rising terrain after dive is released; it does not steer or avoid trees. Close passes reward risk, but distance and uninterrupted flight also earn points. No unlocks or grinding.
+Settings offer sound volume, gentle ground assistance, reduced camera motion, and inverted pitch. Ground assistance trades some momentum for lift near rising terrain after dive is released. An early manual recovery preserves more speed. Turning assistance off removes the automatic ground rescue; steering and obstacles always remain yours to manage. Close passes reward risk, but distance and uninterrupted flight also earn points. No unlocks or grinding.
 
 ## The mountain
 
-- Terrain uses a continuous world-coordinate height field. The stream and its banks use the same centerline.
-- A seeded section generator mixes groves, rocky shelves, boulder gardens, fern clearings, and recovery stretches. Each 320 m section changes the local formations. Difficulty builds gradually outside preserved passages; meadow density stays low.
-- Each landscape has multiple broad passages, and a long diagonal clearing connects them. Corridors reserve obstacle clearance across bends, rather than clearing only the exact center of a tree. There are no lanes, route selectors, gates, or side walls.
-- A moving 7 × 9 section window generates ahead and unloads behind. Mesh resources are shared, vegetation is instanced, and distant pine crowns use simpler geometry.
-- Collision sweeps the squirrel's forgiving body volume through terrain, tapered trunks, solid branches, and rock volumes each physics frame. Foliage, fur, and wing tips are soft.
+- Terrain uses a continuous world-coordinate height field; flight collision samples the exact triangles rendered on screen. The variable-width stream, stones, and fitted roots share that ground surface.
+- A seeded section generator mixes groves, rocky shelves, boulder gardens, fern clearings, and recovery stretches. Unequal, seed-derived formation spans combine anticipation, challenge, and recovery. Difficulty builds gradually outside preserved passages; meadow density stays low.
+- Each landscape has multiple passages, and a long diagonal clearing connects them. Placement reserves clearance across bends and neighboring landscapes. The low woodland openings protect ordinary gliding height; higher lines can meet solid overhead limbs. There are no route selectors, gates, or side walls.
+- A moving 7 × 9 section window generates ahead and unloads behind. Live generation is divided into short work intervals; retries cancel unfinished sections. Mesh resources are shared, vegetation is instanced, and distant pine crowns use simpler geometry. Per-section collision cells avoid scanning entire groves every frame.
+- Collision sweeps the squirrel's forgiving body volume through terrain, curved tapered trunks, projecting branches, roots, fallen timber, and rock volumes each physics frame. Foliage, fur, and wing tips are soft.
 
 Records and settings are saved in Godot's `user://swoop.cfg` (on macOS, `~/Library/Application Support/Godot/app_userdata/Squirrel Swoop/`). Records are preserved when returning to the summit or quitting as well as after a collision. Screenshots use that same directory.
 
 ## Development and evidence
 
-[Verification notes](development/VERIFICATION.md) separate observed runtime behavior, code review, and subjective visual/feel judgments. No automated tests were created. The optional loopback review console in `game.gd` exists for discrete manual flight controls, scene inspection, screenshots, and live telemetry; it is disabled in normal play. See [manual review controls](development/REVIEWING.md).
+[Refinement evidence](development/refinement/REFINEMENT.md) records the improvement cycles, comparable captures, final runtime findings, frame times, and remaining limits. The [original verification notes](development/VERIFICATION.md) separate observed runtime behavior, code review, and subjective visual/feel judgments. No automated tests were created. The optional loopback review console in `game.gd` exists for discrete manual flight controls, scene inspection, screenshots, and live telemetry; it is disabled in normal play. See [manual review controls](development/REVIEWING.md).
 
 Everything rendered and heard in the game is generated locally: terrain, tree and rock meshes, pine textures, fur, gliding membranes, animation, shaders, motes, wind, birds, and feedback tones. The supplied image lives under `development/visual-target.png` as a reference and is excluded from Godot's asset scan. It is never displayed as gameplay. The locally copied sky and brush-filter shaders derive from this repository's **Cozy Sora** project; Squirrel Swoop has no runtime dependency on it.
