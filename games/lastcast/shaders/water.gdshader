@@ -1,0 +1,12 @@
+shader_type spatial;
+render_mode cull_disabled;
+uniform vec4 shallow : source_color = vec4(0.10,0.65,0.64,1.0);
+uniform vec4 deep : source_color = vec4(0.035,0.32,0.44,1.0);
+uniform float wind = 1.0;
+varying vec3 world;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float cells(vec2 p){vec2 i=floor(p),f=fract(p);float d=8.0,d2=8.0;for(int y=-1;y<=1;y++){for(int x=-1;x<=1;x++){vec2 o=vec2(float(x),float(y));vec2 r=o+vec2(hash(i+o),hash(i+o+19.2))-f;float dd=length(r);if(dd<d){d2=d;d=dd;}else{d2=min(d2,dd);}}}return exp(-38.0*(d2-d));}
+float school(vec2 p,vec2 center,float phase){if(length(p-center)>3.8){return 0.0;}float silhouette=0.0;for(int i=0;i<4;i++){float fi=float(i);float t=TIME*.23+phase+fi*.55;vec2 fish_center=center+vec2(sin(t)*1.1+(fi-1.5)*.55,cos(t*.8)*.65+sin(fi*2.1)*.95);vec2 q=p-fish_center;float angle=sin(t)*.6+.8;vec2 r=vec2(q.x*cos(angle)-q.y*sin(angle),q.x*sin(angle)+q.y*cos(angle));float body=1.0-smoothstep(.83,1.16,length(r/vec2(.13,.38)));float tail_width=max(0.0,(-r.y-.30)*.60);float tail=smoothstep(.30,.38,-r.y)*(1.0-smoothstep(.59,.63,-r.y))*(1.0-smoothstep(tail_width,tail_width+.035,abs(r.x)));silhouette=max(silhouette,max(body,tail*.72)*(.60+.40*sin(t+fi)*sin(t+fi)));}return silhouette;}
+void vertex(){world=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;VERTEX.y+=sin(world.x*.8+TIME*1.2)*.025*wind+sin(world.z*.9-TIME*.9)*.02*wind;}
+void fragment(){vec2 p=world.xz;float n=noise(p*.22+TIME*.035);float swell=sin(p.x*2.8+p.y*1.8+TIME*1.8)*.5+.5;vec2 warp=vec2(noise(p*1.4+TIME*.15),noise(p*1.6-TIME*.12))*1.1;float c=cells(p*2.9+warp+vec2(sin(TIME*.25),cos(TIME*.2))*.32);float caustic=c;float shore=1.0-smoothstep(2.0,35.0,p.y);vec3 col=mix(deep.rgb,shallow.rgb,shore*.65+n*.30);col+=vec3(.075,.11,.085)*caustic*shore*.45;float fish=max(max(school(p,vec2(-12,9),0.0),school(p,vec2(0,12),2.0)),max(school(p,vec2(9,24),4.0),school(p,vec2(-13,30),7.0)));col*=1.0-fish*.32;float ripple=noise(p*vec2(2.0,7.0)+vec2(TIME*.5,TIME*.13));NORMAL=normalize((VIEW_MATRIX*vec4(normalize(vec3((noise(p*1.6+TIME*.22)-.5)*.15*wind,1.0,(ripple-.5)*.12*wind)),0.0)).xyz);ALBEDO=pow(col,vec3(2.2));ROUGHNESS=.20;METALLIC=.08;SPECULAR=.75;float glitter=smoothstep(.92,.99,ripple)*swell;EMISSION=vec3(.5,.65,.57)*glitter*.12;}

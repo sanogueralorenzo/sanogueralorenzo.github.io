@@ -1,0 +1,33 @@
+{
+  "active": true,
+  "bait": 8,
+  "basket": 1,
+  "boat": true,
+  "catches": [],
+  "coins": 456,
+  "collection": {
+    "common_0_0": 3.0,
+    "common_0_1_0": 1.0,
+    "signature_0": 1.0,
+    "signature_1": 1.0,
+    "signature_2": 1.0
+  },
+  "day": 7,
+  "daylight": 239.900927666667,
+  "focus_pace": false,
+  "landed": 0,
+  "mastery": 3,
+  "muted": false,
+  "pending_perk": false,
+  "perks": [
+    2.0
+  ],
+  "presentation": 0,
+  "region": 0,
+  "rod": 1,
+  "season": 0,
+  "tackle": 0,
+  "toggle_controls": true,
+  "unlocked": 2,
+  "version": 1
+}
