@@ -223,7 +223,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         clearNowItem.isEnabled = false
         clearMenu.addItem(clearNowItem)
         clearMenu.addItem(.separator())
-        for (title, minutes) in [("Every 30 Minutes", 30), ("Every 8 Hours", 480), ("Every 7 Days", 10080)] {
+        for (title, minutes) in [("After 30 Minutes", 30), ("After 8 Hours", 480), ("After 7 Days", 10080)] {
             let item = NSMenuItem(title: title, action: #selector(changeRetention(_:)), keyEquivalent: "")
             item.target = self; item.tag = minutes; item.state = minutes == 10080 ? .on : .off
             clearMenu.addItem(item); retentionItems.append(item)
