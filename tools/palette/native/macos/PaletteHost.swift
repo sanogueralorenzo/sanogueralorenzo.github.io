@@ -76,6 +76,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private var previewVisible = false
     private let emptyState = NSView()
     private let emptyLabel = NSTextField(labelWithString: "Copied items appear here")
+    private let shortcuts = NSTextField(labelWithString: "")
+    private var copyItems: [NSMenuItem] = []
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private var issue: String?
     private var shortcutError: String?
@@ -166,25 +168,23 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
-        let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
-        mark.contentTintColor = .secondaryLabelColor
-        mark.imageScaling = .scaleProportionallyUpOrDown
-        mark.widthAnchor.constraint(equalToConstant: 24).isActive = true
-        mark.heightAnchor.constraint(equalToConstant: 24).isActive = true
-        emptyLabel.font = .systemFont(ofSize: 12)
+        let emptyRow = makeRow(icon: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette"), title: emptyLabel)
         emptyLabel.textColor = .secondaryLabelColor
-        let message = NSStackView(views: [mark, emptyLabel])
-        message.orientation = .vertical; message.alignment = .centerX; message.spacing = 8
-        message.translatesAutoresizingMaskIntoConstraints = false
-        emptyState.addSubview(message)
-        NSLayoutConstraint.activate([message.centerXAnchor.constraint(equalTo: emptyState.centerXAnchor), message.centerYAnchor.constraint(equalTo: emptyState.centerYAnchor)])
+        emptyRow.translatesAutoresizingMaskIntoConstraints = false
+        emptyState.addSubview(emptyRow)
+        NSLayoutConstraint.activate([emptyRow.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), emptyRow.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), emptyRow.topAnchor.constraint(equalTo: emptyState.topAnchor), emptyRow.heightAnchor.constraint(equalToConstant: 30)])
         add(emptyState, to: stack)
-        emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 64).isActive = true
+        emptyState.heightAnchor.constraint(greaterThanOrEqualToConstant: 32).isActive = true
         emptyState.isHidden = true
         previewImage.imageScaling = .scaleProportionallyUpOrDown
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         add(previewImage, to: stack); previewImage.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; previewImage.isHidden = true
+        shortcuts.font = .systemFont(ofSize: 11)
+        shortcuts.textColor = .secondaryLabelColor
+        add(shortcuts, to: stack)
+        shortcuts.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        shortcuts.isHidden = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { self?.handleKey(event) == true }
             return handled ? nil : event
@@ -194,6 +194,24 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private func add(_ view: NSView, to stack: NSStackView) {
         stack.addArrangedSubview(view)
         view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+    }
+
+    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil) -> NSStackView {
+        let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
+        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
+        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
+        if let shortcut {
+            let key = NSTextField(labelWithString: shortcut)
+            key.font = .systemFont(ofSize: 11); key.textColor = .secondaryLabelColor
+            key.setContentHuggingPriority(.required, for: .horizontal)
+            key.setContentCompressionResistancePriority(.required, for: .horizontal)
+            cell.addArrangedSubview(key)
+            key.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
+        } else { title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true }
+        return cell
     }
 
     private func configureMenu() {
@@ -210,6 +228,12 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         clearItem.isEnabled = false
         clipboardMenu.addItem(clearItem)
         clipboardMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        for index in 0..<9 {
+            let item = NSMenuItem(title: "Copy item \(index + 1)", action: #selector(copyNumbered(_:)), keyEquivalent: "\(index + 1)")
+            item.target = self; item.tag = index; item.keyEquivalentModifierMask = .command
+            item.isHidden = true; item.allowsKeyEquivalentWhenHidden = true; item.isEnabled = false
+            clipboardMenu.addItem(item); copyItems.append(item)
+        }
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
@@ -263,6 +287,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         filtered = clips.filter { clip in
             query.isEmpty || [clip.content, clip.title ?? "", clip.appName].contains { $0.localizedCaseInsensitiveContains(query) }
         }
+        for item in copyItems { item.isEnabled = filtered.indices.contains(item.tag) }
         table.reloadData()
         if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: filtered.firstIndex { $0.id == id } ?? 0), byExtendingSelection: false) }
         updatePreview()
@@ -281,15 +306,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
             else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { let image = NSWorkspace.shared.icon(forFile: url.path); iconCache[id] = image; icon = image }
             else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
         } else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
-        let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
-        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
         let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
-        let title = NSTextField(labelWithString: summary)
-        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
-        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
-        title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
+        let cell = makeRow(icon: icon, title: NSTextField(labelWithString: summary), shortcut: row < 9 ? "⌘\(row + 1)" : nil)
         cell.toolTip = "\(clip.appName) · ⌘C Copy" + (clip.kind == .image ? " · Space Preview" : "")
         cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell
@@ -312,8 +330,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         emptyState.isHidden = !showEmpty
         emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copied items appear here" : "No matching clips") : ""
         historyScroll.isHidden = previewVisible || showEmpty || (filtered.isEmpty && !searchExpanded)
-        let bodyHeight = showEmpty ? 64 : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
-        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
+        let showGuide = historyAvailable == true && (clips.isEmpty || !filtered.isEmpty)
+        shortcuts.isHidden = !showGuide
+        let count = min(9, filtered.count)
+        let copyHint = count == 1 ? "⌘1 Copy" : "⌘1–\(count == 0 ? 9 : count) Copy"
+        let previewHint = previewVisible ? "Space Back" : (clips.isEmpty ? "Hover + Space: images" : ((hovered ?? selected)?.kind == .image ? "Hover + Space Preview" : nil))
+        shortcuts.stringValue = showGuide ? [previewHint, copyHint].compactMap { $0 }.joined(separator: " · ") : ""
+        let bodyHeight = showEmpty ? 32 : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0) + (showGuide ? 8 + 16 : 0)
         let height = searchExpanded || previewVisible ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
         table.clearHover()
@@ -345,6 +369,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
             return true
         }
         return false
+    }
+    @objc private func copyNumbered(_ sender: NSMenuItem) {
+        guard filtered.indices.contains(sender.tag) else { return }
+        restore(filtered[sender.tag], paste: false)
     }
     @objc private func pasteClip() { restore(selected, paste: true) }
     private func restore(_ clip: Clip?, paste: Bool) {

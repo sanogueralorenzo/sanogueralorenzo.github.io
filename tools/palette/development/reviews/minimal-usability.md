@@ -112,3 +112,7 @@ The coordinator's native checks exposed unstable header fitting and automatic te
 ## Search-first empty-state source review
 
 Independent source review confirms the permanent header/title is removed, search is first, and the shared empty view centers the 24-point Palette mark and short secondary label within a 64-point minimum. Available empty history and no-match results have distinct concise text; unavailable history suppresses the placeholder. Populated results hide it and clear its text. The status-item tooltip retains failure information, the 236-point cap/search latch remains, and native Clear History/Quit remain. No substantive source finding; CUA menu-window timeout left visual and transition confirmation unavailable in this pass.
+
+## Regular placeholder row and shortcut guide
+
+Independent source closure passed: empty and real clips share a small row builder, the empty row remains inert, right-side Command-number labels retain their width while titles truncate, and a fixed-height guide accurately limits preview guidance to images. First-nine numbering follows filtered order. Search expansion and the existing maximum height remain. No substantive source finding; native layout/numbered-copy verification was assigned to the coordinator/user because the menu-only desktop tool cannot inspect this window.

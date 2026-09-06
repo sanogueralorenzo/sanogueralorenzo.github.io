@@ -116,3 +116,7 @@ The coordinator's native sample contains `NSMenuTrackingSession` beneath AppKit'
 Independent source review approved removing enabled from the decoded clipboard policy and deleting toggle persistence. Legacy enabled:false is ignored without a settings/history migration. Host capture remains gated by historyAvailable==true; store mutations still require ready and a key, and exclusions, strict settings/history loading, and ready-only shutdown draining remain intact. No hidden pause-state or history-loss blocker remained.
 
 Coordinator native lifecycle evidence used a disposable legacy-disabled profile: marker A copied before Quit was saved, B copied while quit was absent, and C copied after reopening was saved. The old settings content remained unchanged. This is coordinator runtime evidence, separate from the independent source review; the source-attribution limitation is recorded in VERIFICATION.md.
+
+## Native numbered-copy equivalents
+
+Independent review approved nine native Command-number equivalents scoped to clipboardMenu. Tags map to the first nine current filtered indices; absent indices are disabled and the action bounds-checks before invoking existing copy-only restoration. The reviewer identified that menu tracking may close before action dispatch; the menuOpen guard was removed accordingly. Native-format restoration, self-capture suppression, Command+C and image-only Space handling remain unchanged. There is no duplicate digit monitor or fallback routing layer. Native keyboard delivery still requires the requested runtime confirmation.

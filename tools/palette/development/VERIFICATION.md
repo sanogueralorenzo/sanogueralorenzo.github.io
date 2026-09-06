@@ -143,3 +143,11 @@ Removed the permanent Palette header, icon, label, and title tooltip. Content no
 Content sizing now accounts only for search, margins, and the results/placeholder body. The 236-point content maximum, 305-point overall maximum, and per-opening expanded-search behavior remain unchanged. Native Clear History and Quit rows remain at the bottom.
 
 The independent usability reviewer inspected the implementation and found no substantive source issue. The build, installed signature, and diff checks pass. A disposable empty profile was launched for inspection, but CUA timed out on the menu-only window and no fresh visual or transition confirmation is claimed. No production history was cleared. No automated tests were created or run.
+
+## Item-shaped placeholder, guide, and numbered copy
+
+The empty placeholder now uses the same native row builder as saved clips: 22-point icon, 13-point medium text, 30-point row, and matching insets. It remains outside the table's data and cannot be copied or pasted. A fixed 16-point shortcut guide sits below the body; it specifies images in the empty tutorial, shows preview only for an image target, and shows Back while previewing. The first nine filtered results display compact Command-number hints.
+
+Command+1 through Command+9 use native menu key equivalents, with the extra action items hidden from the menu. Only existing filtered indices are enabled; the action validates the index and uses the existing copy-only native-format restoration path. No second digit handler or fallback event route was added. The independent reliability review caught that native tracking can close before dispatching an action, so the unnecessary menuOpen guard was removed before completion. Both reviewers approved the resulting source.
+
+Build and diff checks pass. Native font measurement places the longest guide at approximately 190 points within the 260-point content width. The 236-point content maximum and 305-point overall maximum remain unchanged. The menu-only desktop tool cannot inspect this surface; the user was asked to verify search-focused Command+2 in disposable `/tmp/palette-numbered-review.dx3Dwg`, containing two synthetic TextEdit clips. Native confirmation is pending. No automated tests were created or run.
