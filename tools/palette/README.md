@@ -8,11 +8,13 @@ A small macOS clipboard menu. Copy something, find it by content or source app, 
 
 - **⌥⇧V** opens or closes Palette. Escape or clicking away dismisses it.
 - **⌘F** searches; **↑ / ↓** selects a clip.
-- **⌘1–9** copies a numbered result. **Hover + ⌘C** copies that item.
-- **Return** or double-click pastes into the previous app. Direct paste requires macOS Accessibility permission; copying does not.
+- **Click** or **hover + ⌘C** copies an item. **⌘1–9** copies a numbered result.
+- **Return** pastes into the previous app. Direct paste requires macOS Accessibility permission; copying does not.
 - **Space** opens copied images and image files in macOS Quick Look. This interaction is under verification.
 
 Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear History immediately removes all saved clips.** Quit stops capture; launching Palette starts it again.
+
+Images retain their original data. Older history entries that only saved a thumbnail copy that smaller image.
 
 History stays encrypted locally with a key in macOS Keychain. Defaults are 200 clips and 30 days; older pinned clips stay protected. Existing history and retention/exclusion settings in `~/Library/Application Support/Palette` remain usable. Private clipboard markers and obvious secrets are skipped, but detection is limited. Source apps are inferred from the foreground app, so background copies can be misattributed. Unreadable history is preserved and capture stops; failures appear in the menu-bar tooltip.
 

@@ -86,8 +86,24 @@ enum ClipboardSupport {
                 if !item.types.isEmpty { restored.append(item) }
             }
         }
+        if kind == .image {
+            let hasImage = restored.contains { item in
+                [NSPasteboard.PasteboardType.png, .tiff].contains { type in
+                    guard let data = item.data(forType: type) else { return false }
+                    return NSImage(data: data) != nil
+                }
+            }
+            if !hasImage {
+                guard let encoded = clip.thumbnail?.split(separator: ",", maxSplits: 1).last,
+                      let data = Data(base64Encoded: String(encoded)), NSImage(data: data) != nil else {
+                    throw failure("This image has no saved image data.")
+                }
+                let item = NSPasteboardItem()
+                item.setData(data, forType: .png)
+                restored = [item]
+            }
+        }
         if restored.isEmpty {
-            guard kind != .image else { throw failure("This older image has no saved image data.") }
             if kind == .file {
                 for path in content.split(separator: "\n") {
                     let item = NSPasteboardItem()

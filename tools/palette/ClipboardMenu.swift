@@ -148,7 +148,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         table.dataSource = self; table.delegate = self
         table.onKey = { [weak self] in self?.handleKey($0) == true }
         table.onHoverChange = { [weak self] in self?.updatePreviewShortcut() }
-        table.target = self; table.doubleAction = #selector(pasteClip)
+        table.target = self; table.action = #selector(copyClicked)
         table.setAccessibilityLabel("Clipboard history")
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
@@ -287,6 +287,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     @objc private func copyNumbered(_ sender: NSMenuItem) {
         guard filtered.indices.contains(sender.tag) else { return }
         onCopy?(filtered[sender.tag], false)
+    }
+    @objc private func copyClicked() {
+        guard filtered.indices.contains(table.clickedRow) else { return }
+        onCopy?(filtered[table.clickedRow], false)
     }
     @objc private func pasteClip() { if let selected { onCopy?(selected, true) } }
     @objc private func clearHistory() { onClear?() }
