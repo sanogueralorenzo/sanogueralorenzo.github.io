@@ -12,7 +12,7 @@ A small macOS clipboard menu. Copy something, find it by content or source app, 
 - **Return** pastes into the previous app. Direct paste requires macOS Accessibility permission; copying does not.
 - **Space** opens copied images and image files in macOS Quick Look. This interaction is under verification.
 
-Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear History → Now immediately removes all saved clips.** The timed options remove each clip once it reaches 30 minutes, 8 hours, or 7 days old; 7 days is selected by default. Expiry is checked every minute while running and when the app or menu opens. Quit stops capture; launching Clipboard starts it again.
+Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear → Now immediately removes all saved clips.** Clear is always available; Now is disabled when history is empty. The timed options remove each clip once it reaches 30 minutes, 8 hours, or 7 days old; 7 days is selected by default. Expiry is checked every minute while running and when the app or menu opens. Quit stops capture; launching Clipboard starts it again.
 
 Images retain their original data for copying and Quick Look; thumbnails are only used in the menu. Older history entries that only saved a thumbnail must be copied again from the original source before they can be reused or previewed.
 

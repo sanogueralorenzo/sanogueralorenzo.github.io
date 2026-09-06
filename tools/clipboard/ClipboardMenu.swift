@@ -66,7 +66,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private let emptyState = NSView()
     private let emptyLabel = NSTextField(labelWithString: "No matching clips")
     private let emptyRows = NSStackView()
-    private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
+    private let clearItem = NSMenuItem(title: "Clear", action: nil, keyEquivalent: "")
     private let clearNowItem = NSMenuItem(title: "Now", action: nil, keyEquivalent: "")
     private var retentionItems: [NSMenuItem] = []
     private var statusItem: NSStatusItem!
@@ -78,10 +78,9 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var menuOpen = false
 
     override init() { super.init(); configureContent(); configureMenu(); report(nil) }
-    func update(clips: [Clip], available: Bool, retentionDays: Double?) {
+    func update(clips: [Clip], retentionDays: Double?) {
         self.clips = clips
-        clearItem.isEnabled = available
-        clearNowItem.isEnabled = available && !clips.isEmpty
+        clearNowItem.isEnabled = !clips.isEmpty
         for item in retentionItems { item.state = retentionDays == Double(item.tag) / 1440 ? .on : .off }
         reload()
     }
@@ -230,9 +229,8 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
             clearMenu.addItem(item); retentionItems.append(item)
         }
         clearItem.submenu = clearMenu
-        clearItem.isEnabled = false
         clipboardMenu.addItem(clearItem)
-        clipboardMenu.addItem(withTitle: "Quit Clipboard", action: #selector(quit), keyEquivalent: "q").target = self
+        clipboardMenu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q").target = self
         for index in 0..<9 {
             let item = NSMenuItem(title: "Copy item \(index + 1)", action: #selector(copyNumbered(_:)), keyEquivalent: "\(index + 1)")
             item.target = self; item.tag = index; item.keyEquivalentModifierMask = .command
@@ -246,7 +244,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         statusItem.menu = clipboardMenu
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Quit Clipboard", action: #selector(quit), keyEquivalent: "q").target = self
+        appMenu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q").target = self
         appItem.submenu = appMenu; menu.addItem(appItem)
         let edit = NSMenuItem(); let editMenu = NSMenu(title: "Edit")
         for (name, action, key) in [("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] { editMenu.addItem(NSMenuItem(title: name, action: Selector(action), keyEquivalent: key)) }

@@ -62,7 +62,7 @@ final class Clipboard: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.policy = policy; self.historyAvailable = available
             if let error { self.report(error) }
-            self.menu.update(clips: clips, available: available, retentionDays: policy.retentionDays)
+            self.menu.update(clips: clips, retentionDays: policy.retentionDays)
         }
         store.load()
         let timer = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.capture() } }
