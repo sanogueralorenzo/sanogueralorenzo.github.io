@@ -26,7 +26,5 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>Palette uses notifications to report completed background actions.</string>
 </dict>
 </plist>

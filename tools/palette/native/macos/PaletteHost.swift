@@ -1,875 +1,443 @@
 import AppKit
 import Carbon.HIToolbox
-import Security
 import ApplicationServices
-@preconcurrency import UserNotifications
-import WebKit
 
-private final class LauncherPanel: NSPanel {
+final class ClipboardPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
 
-private final class BundleResourceSchemeHandler: NSObject, WKURLSchemeHandler {
-    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
-        guard let url = urlSchemeTask.request.url,
-              url.scheme == "palette", url.host == "app" else {
-            urlSchemeTask.didFailWithError(URLError(.badURL))
-            return
-        }
-        let relativePath = String(url.path.drop(while: { $0 == "/" }))
-        guard !relativePath.isEmpty, !relativePath.split(separator: "/").contains(".."),
-              let resources = Bundle.main.resourceURL else {
-            urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
-            return
-        }
-        let fileURL = resources.appendingPathComponent("ui", isDirectory: true).appendingPathComponent(relativePath)
-        guard let data = try? Data(contentsOf: fileURL) else {
-            urlSchemeTask.didFailWithError(URLError(.fileDoesNotExist))
-            return
-        }
-        let mimeType: String
-        switch fileURL.pathExtension.lowercased() {
-        case "html": mimeType = "text/html"
-        case "js": mimeType = "text/javascript"
-        case "css": mimeType = "text/css"
-        case "svg": mimeType = "image/svg+xml"
-        case "png": mimeType = "image/png"
-        default: mimeType = "application/octet-stream"
-        }
-        let response = URLResponse(url: url, mimeType: mimeType, expectedContentLength: data.count, textEncodingName: "utf-8")
-        urlSchemeTask.didReceive(response)
-        urlSchemeTask.didReceive(data)
-        urlSchemeTask.didFinish()
+final class ClipboardRow: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        NSColor(calibratedRed: 0.64, green: 0.54, blue: 0.84, alpha: 0.24).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 0), xRadius: 8, yRadius: 8).fill()
     }
-
-    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 }
 
-private final class RuntimeProbe {
-    private let path: String?
-
-    init(arguments: [String] = CommandLine.arguments) {
-        guard let index = arguments.firstIndex(of: "--smoke-test-log"), arguments.indices.contains(index + 1) else {
-            path = nil
-            return
-        }
-        path = arguments[index + 1]
+final class ClipboardTable: NSTableView {
+    private var hoverTracking: NSTrackingArea?
+    private var hoverPoint: NSPoint?
+    var hoveredRow: Int {
+        guard let hoverPoint else { return -1 }
+        let point = convert(hoverPoint, from: nil)
+        return visibleRect.contains(point) ? row(at: point) : -1
     }
-
-    var isEnabled: Bool { path != nil }
-
-    func record(_ event: String) {
-        guard let path else { return }
-        let previous = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
-        try? (previous + event + "\n").write(toFile: path, atomically: true, encoding: .utf8)
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let tracking = NSTrackingArea(rect: .zero, options: [.inVisibleRect, .activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited], owner: self)
+        addTrackingArea(tracking); hoverTracking = tracking
     }
+    override func mouseMoved(with event: NSEvent) {
+        hoverPoint = event.locationInWindow
+        if hoveredRow >= 0 { selectRowIndexes(IndexSet(integer: hoveredRow), byExtendingSelection: false) }
+    }
+    override func mouseEntered(with event: NSEvent) { mouseMoved(with: event) }
+    override func mouseExited(with event: NSEvent) { hoverPoint = nil }
+    override func mouseDown(with event: NSEvent) { mouseMoved(with: event); super.mouseDown(with: event) }
+    func clearHover() { hoverPoint = nil }
 }
 
 @main
 @MainActor
-final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKScriptMessageHandler {
-    private enum LauncherView { case launcher, clipboard }
-
-    private let shortcutID = EventHotKeyID(signature: 0x50414C54, id: 1) // PALT
-    private let probe = RuntimeProbe()
-    private var statusItem: NSStatusItem?
-    private let resourceSchemeHandler = BundleResourceSchemeHandler()
-    private var launcherPanel: LauncherPanel?
-    private var webView: WKWebView?
-    private var webViewLoaded = false
-    private var pendingView: LauncherView = .launcher
-    private var previousApplication: NSRunningApplication?
+final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuItemValidation {
+    private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
+    private let search = NSSearchField()
+    private let apps = NSPopUpButton()
+    private let table = ClipboardTable()
+    private let historyScroll = NSScrollView()
+    private let preview = NSScrollView()
+    private let previewText = NSTextView()
+    private let previewImage = NSImageView()
+    private var statusItem: NSStatusItem!
+    private var settingsPanel: SettingsPanel?
+    private var store: ClipboardStore!
+    private var clips: [Clip] = []
+    private var filtered: [Clip] = []
+    private var policy = ClipboardPolicy()
+    private var previousApp: NSRunningApplication?
+    private var timer: Timer?
+    private var activationObserver: NSObjectProtocol?
+    private var keyMonitor: Any?
     private var shortcutRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
-    private var nodeService: NodeServiceProcess?
-    private var clipboardTimer: Timer?
-    private var clipboardChangeCount = NSPasteboard.general.changeCount
-    private var captureError: String?
-    private var capturePolicy: [String: Any]?
-    private var appIcons: [String: String] = [:]
-    private var clipboardShortcutRef: EventHotKeyRef?
-    private var activationObserver: NSObjectProtocol?
-    private var shortcutLabel = "⌥ Space"
-    private var smokeStarted = false
-    private var isReview: Bool { CommandLine.arguments.contains("--review") && CommandLine.arguments.contains("--data-dir") }
+    private var changeCount = NSPasteboard.general.changeCount
+    private var iconCache: [String: NSImage] = [:]
+    private var previewVisible = false
+    private let more = NSButton()
+    private var issue: String?
+    private var shortcutError: String?
+    private var historyAvailable: Bool?
+    private let accent = NSColor(calibratedRed: 0.75, green: 0.69, blue: 0.9, alpha: 1)
 
     static func main() {
-        let application = NSApplication.shared
+        let app = NSApplication.shared
         let delegate = PaletteAppDelegate()
-        application.delegate = delegate
-        application.setActivationPolicy(.accessory)
-        application.run()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        app.run()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        probe.record("delegate-launched")
-        installGlobalShortcut()
-        configureApplicationMenu()
-        configureStatusItem()
-        startClipboardMonitor()
-        if !CommandLine.arguments.contains("--background") {
-            DispatchQueue.main.async { [weak self] in self?.showLauncher(view: CommandLine.arguments.contains("--clipboard") ? .clipboard : .launcher) }
+        configurePanel()
+        configureMenu()
+        installShortcut()
+        let standard = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Palette")
+        let args = CommandLine.arguments
+        let review = args.contains("--review")
+        var directory = standard
+        if review {
+            guard let index = args.firstIndex(of: "--data-dir"), args.indices.contains(index + 1), args[index + 1].hasPrefix("/") else {
+                report("Review mode requires --data-dir /absolute/path to a separate profile."); show(); return
+            }
+            directory = URL(fileURLWithPath: args[index + 1])
+            guard directory.resolvingSymlinksInPath().standardizedFileURL != standard.resolvingSymlinksInPath().standardizedFileURL else {
+                report("Review mode requires a separate profile."); show(); return
+            }
         }
+        store = ClipboardStore(directory: directory, review: review)
+        policy.enabled = false
+        store.onChange = { [weak self] clips, policy, error, available in
+            guard let self else { return }
+            self.clips = clips; self.policy = policy; self.historyAvailable = available
+            self.report(error ?? self.issue ?? self.shortcutError)
+            self.refreshApps(); self.reload()
+        }
+        store.load()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.capture() } }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
+            MainActor.assumeIsolated { self?.capture(source: notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication) }
+        }
+        if !args.contains("--background") { show() }
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { showLauncher() }
-        return true
-    }
-
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !panel.isVisible { show() }; return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-
     func applicationWillTerminate(_ notification: Notification) {
+        capture()
+        store?.finishWrites()
+        timer?.invalidate()
         if let shortcutRef { UnregisterEventHotKey(shortcutRef) }
-        if let clipboardShortcutRef { UnregisterEventHotKey(clipboardShortcutRef) }
-        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
         if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
-        clipboardTimer?.invalidate()
-        nodeService?.stop()
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
     }
 
-    @objc private func toggleLauncher() {
-        if launcherPanel?.isVisible == true {
-            dismissLauncher(restoreFocus: true)
-        } else {
-            showLauncher()
-        }
-    }
-
-    @objc private func openClipboardHistory() {
-        showLauncher(view: .clipboard)
-    }
-
-    @objc private func quit() {
-        NSApp.terminate(nil)
-    }
-
-    private func configureApplicationMenu() {
-        let menu = NSMenu()
-        let applicationItem = NSMenuItem()
-        let applicationMenu = NSMenu(title: "Palette")
-        let quitItem = NSMenuItem(title: "Quit Palette", action: #selector(quit), keyEquivalent: "q")
-        quitItem.target = self
-        applicationMenu.addItem(quitItem)
-        applicationItem.submenu = applicationMenu
-        menu.addItem(applicationItem)
-        let editItem = NSMenuItem()
-        let editMenu = NSMenu(title: "Edit")
-        for (title, action, key) in [("Undo", "undo:", "z"), ("Redo", "redo:", "Z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] {
-            // Nil targets follow the responder chain into the focused WebView editor.
-            editMenu.addItem(NSMenuItem(title: title, action: Selector(action), keyEquivalent: key))
-        }
-        editItem.submenu = editMenu
-        menu.addItem(editItem)
-        NSApp.mainMenu = menu
-    }
-
-    private func configureStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        if let button = item.button {
-            button.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")
-            button.image?.isTemplate = true
-            button.toolTip = "Palette"
-        }
-
-        let menu = NSMenu()
-        let openItem = NSMenuItem(title: "Open Palette", action: #selector(toggleLauncher), keyEquivalent: "")
-        openItem.target = self
-        openItem.keyEquivalentModifierMask = []
-        openItem.representedObject = shortcutLabel
-        openItem.toolTip = shortcutLabel
-        menu.addItem(openItem)
-        let clipboardItem = NSMenuItem(title: "Clipboard History", action: #selector(openClipboardHistory), keyEquivalent: "")
-        clipboardItem.target = self
-        clipboardItem.toolTip = "⌘⇧V"
-        menu.addItem(clipboardItem)
-        menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
-        quitItem.target = self
-        menu.addItem(quitItem)
-        item.menu = menu
-        statusItem = item
-        probe.record("status-item-ready")
-    }
-
-    private func showLauncher(view: LauncherView = .launcher) {
-        pendingView = view
-        let panel = ensureLauncherPanel()
-        resizePanel(view: view)
-        position(panel)
-        if let frontmost = NSWorkspace.shared.frontmostApplication,
-           frontmost.processIdentifier != ProcessInfo.processInfo.processIdentifier {
-            previousApplication = frontmost
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        panel.makeKeyAndOrderFront(nil)
-        presentPendingView()
-        probe.record("panel-shown")
-    }
-
-    private func dismissLauncher(restoreFocus: Bool) {
-        guard let panel = launcherPanel, panel.isVisible else { return }
-        webView?.evaluateJavaScript("window.dispatchEvent(new Event('paletteHidden'))")
-        panel.orderOut(nil)
-        if restoreFocus, let previousApplication, !previousApplication.isTerminated {
-            previousApplication.activate(options: [])
-        }
-        previousApplication = nil
-        probe.record("panel-hidden-resident")
-    }
-
-    private func ensureLauncherPanel() -> LauncherPanel {
-        if let launcherPanel { return launcherPanel }
-
-        let contentRect = NSRect(x: 0, y: 0, width: 680, height: 420)
-        let panel = LauncherPanel(
-            contentRect: contentRect,
-            styleMask: [.borderless, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
+    private func configurePanel() {
+        panel.title = "Palette"
         panel.delegate = self
         panel.level = .floating
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
         panel.isReleasedWhenClosed = false
-        panel.isMovableByWindowBackground = false
-        panel.hidesOnDeactivate = true
         panel.hasShadow = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.animationBehavior = .utilityWindow
-
-        let configuration = WKWebViewConfiguration()
-        configuration.userContentController.add(self, name: "palette")
-        configuration.setURLSchemeHandler(resourceSchemeHandler, forURLScheme: "palette")
-        let webView = WKWebView(frame: contentRect, configuration: configuration)
-        webView.navigationDelegate = self
-        webView.autoresizingMask = [.width, .height]
-        webView.wantsLayer = true
-        webView.layer?.cornerRadius = 14
-        webView.layer?.masksToBounds = true
-        panel.contentView = webView
-
-        self.launcherPanel = panel
-        self.webView = webView
-        loadInterface(in: webView)
-        return panel
+        panel.appearance = NSAppearance(named: .darkAqua)
+        let root = NSView()
+        root.wantsLayer = true
+        root.layer?.backgroundColor = NSColor(calibratedRed: 0.105, green: 0.098, blue: 0.12, alpha: 1).cgColor
+        root.layer?.cornerRadius = 16
+        root.layer?.borderWidth = 1
+        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        panel.contentView = root
+        let stack = NSStackView()
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(stack)
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10)])
+        let mark = NSImageView(image: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")!)
+        mark.contentTintColor = accent
+        mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
+        let title = NSTextField(labelWithString: "Palette")
+        title.font = .systemFont(ofSize: 14, weight: .semibold)
+        more.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "More")
+        more.target = self; more.action = #selector(openMenu(_:))
+        more.isBordered = false
+        more.setAccessibilityLabel("More")
+        let heading = NSStackView(views: [mark, title, NSView(), more]); heading.spacing = 8
+        add(heading, to: stack)
+        search.placeholderString = "Search clipboard"
+        search.delegate = self
+        search.sendsSearchStringImmediately = true
+        search.font = .systemFont(ofSize: 13)
+        search.setAccessibilityLabel("Search clipboard")
+        add(search, to: stack)
+        search.heightAnchor.constraint(equalToConstant: 26).isActive = true
+        apps.target = self; apps.action = #selector(filterChanged)
+        apps.setAccessibilityLabel("Source app")
+        apps.addItems(withTitles: ["All apps", "Pinned"])
+        apps.item(at: 0)?.representedObject = "all"; apps.item(at: 1)?.representedObject = "pinned"
+        apps.controlSize = .small; apps.font = .systemFont(ofSize: 11)
+        let filters = NSStackView(views: [apps, NSView()]); filters.spacing = 8
+        add(filters, to: stack)
+        apps.widthAnchor.constraint(lessThanOrEqualToConstant: 280).isActive = true
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = 318
+        table.addTableColumn(column)
+        table.headerView = nil; table.backgroundColor = .clear
+        table.rowHeight = 30; table.intercellSpacing = NSSize(width: 0, height: 2)
+        table.style = .plain; table.selectionHighlightStyle = .regular
+        table.dataSource = self; table.delegate = self
+        table.target = self; table.doubleAction = #selector(pasteClip)
+        table.setAccessibilityLabel("Clipboard history")
+        let context = NSMenu()
+        context.addItem(withTitle: "Pin / Unpin", action: #selector(pinContextClip), keyEquivalent: "").target = self
+        context.addItem(withTitle: "Delete", action: #selector(deleteClip), keyEquivalent: "") .target = self
+        table.menu = context
+        let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
+        add(scroll, to: stack)
+        scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
+        preview.documentView = previewText; preview.hasVerticalScroller = true; preview.drawsBackground = false
+        previewText.isEditable = false; previewText.isSelectable = true; previewText.drawsBackground = false
+        previewText.font = .systemFont(ofSize: 13); previewText.textColor = .labelColor
+        previewText.textContainerInset = NSSize(width: 8, height: 8)
+        previewText.autoresizingMask = [.width]; previewText.textContainer?.widthTracksTextView = true
+        add(preview, to: stack); preview.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; preview.isHidden = true
+        previewImage.imageScaling = .scaleProportionallyUpOrDown
+        previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        add(previewImage, to: stack); previewImage.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; previewImage.isHidden = true
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let handled = MainActor.assumeIsolated { self?.handleKey(event) == true }
+            return handled ? nil : event
+        }
     }
 
-    private func resizePanel(view: LauncherView) {
-        guard let panel = launcherPanel else { return }
-        let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
-        let available = screen?.visibleFrame.size ?? NSSize(width: 1200, height: 800)
-        let size = view == .clipboard ? NSSize(width: min(1040, available.width - 40), height: min(680, available.height - 40)) : NSSize(width: 680, height: 420)
-        panel.setContentSize(size)
-        position(panel)
+    private func add(_ view: NSView, to stack: NSStackView) {
+        stack.addArrangedSubview(view)
+        view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
     }
 
-    private func position(_ panel: NSPanel) {
-        let mouse = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
-        guard let frame = screen?.visibleFrame else { panel.center(); return }
-        let size = panel.frame.size
-        let origin = NSPoint(
-            x: frame.midX - size.width / 2,
-            y: max(frame.minY + 12, min(frame.maxY - size.height - 12, frame.minY + frame.height * 0.56 - size.height / 2))
-        )
-        panel.setFrameOrigin(origin)
+    private func configureMenu() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")
+        statusItem.button?.image?.isTemplate = true
+        statusItem.button?.target = self; statusItem.button?.action = #selector(toggle)
+        let menu = NSMenu()
+        let appItem = NSMenuItem(); let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        appMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        appItem.submenu = appMenu; menu.addItem(appItem)
+        let edit = NSMenuItem(); let editMenu = NSMenu(title: "Edit")
+        for (name, action, key) in [("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] { editMenu.addItem(NSMenuItem(title: name, action: Selector(action), keyEquivalent: key)) }
+        edit.submenu = editMenu; menu.addItem(edit); NSApp.mainMenu = menu
     }
 
-    private func loadInterface(in webView: WKWebView) {
-        if let uiURL = Self.uiURL() {
-            probe.record("ui-resource-ready")
-            _ = uiURL
-            webView.load(URLRequest(url: URL(string: "palette://app/index.html")!))
+    @objc private func toggle() { panel.isVisible ? dismiss() : show() }
+    private func show() {
+        store?.prune()
+        if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+            capture(source: front)
+            previousApp = front
+        }
+        let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
+        if let frame = screen?.visibleFrame { panel.setFrameOrigin(NSPoint(x: frame.maxX - panel.frame.width - 12, y: frame.maxY - panel.frame.height - 12)) }
+        search.stringValue = ""; apps.selectItem(at: 0); previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
+        NSApp.activate(ignoringOtherApps: true); panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(search)
+    }
+    private func dismiss(restoreFocus: Bool = true) {
+        panel.orderOut(nil)
+        if restoreFocus { previousApp?.activate(options: []) }
+        previousApp = nil
+    }
+    func windowDidResignKey(_ notification: Notification) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.panel.isKeyWindow, self.panel.attachedSheet == nil else { return }
+            self.dismiss(restoreFocus: false)
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { dismiss(); return false }
+
+    private func capture(source: NSRunningApplication? = nil) {
+        guard let store else { return }
+        let pb = NSPasteboard.general
+        guard pb.changeCount != changeCount else { return }
+        changeCount = pb.changeCount
+        let source = source ?? NSWorkspace.shared.frontmostApplication
+        guard policy.enabled, source?.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              !policy.excludedAppIds.contains(source?.bundleIdentifier ?? "") else { return }
+        do {
+            guard let item = try ClipboardSupport.capture(pb, source: source, ignoreSensitive: true) else { return }
+            let clip = try JSONDecoder().decode(Clip.self, from: JSONSerialization.data(withJSONObject: item))
+            store.capture(clip)
+        } catch { report(error.localizedDescription) }
+    }
+
+    private func refreshApps() {
+        let selected = apps.selectedItem?.representedObject as? String ?? "all"
+        apps.removeAllItems()
+        for (name, id) in [("All apps", "all"), ("Pinned", "pinned")] { apps.addItem(withTitle: name); apps.lastItem?.representedObject = id }
+        apps.menu?.addItem(.separator())
+        var seen: Set<String> = []
+        for clip in clips.sorted(by: { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }) {
+            let id = clip.sourceAppId ?? "unknown"
+            guard seen.insert(id).inserted else { continue }
+            apps.addItem(withTitle: clip.appName); apps.lastItem?.representedObject = id
+        }
+        apps.select(apps.itemArray.first { $0.representedObject as? String == selected } ?? apps.item(at: 0))
+    }
+    @objc private func filterChanged() { previewVisible = false; reload(); panel.makeFirstResponder(search) }
+    func controlTextDidChange(_ obj: Notification) { previewVisible = false; reload() }
+    private func reload() {
+        let id = selected?.id
+        let app = apps.selectedItem?.representedObject as? String ?? "all"
+        let query = search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        filtered = clips.filter { clip in
+            (app == "all" || (app == "pinned" && clip.pinned) || (clip.sourceAppId ?? "unknown") == app) &&
+            (query.isEmpty || [clip.content, clip.title ?? "", clip.appName].contains { $0.localizedCaseInsensitiveContains(query) })
+        }
+        table.reloadData()
+        if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: filtered.firstIndex { $0.id == id } ?? 0), byExtendingSelection: false) }
+        updatePreview()
+    }
+    private var selected: Clip? { filtered.indices.contains(table.selectedRow) ? filtered[table.selectedRow] : nil }
+    private var hovered: Clip? { !previewVisible && filtered.indices.contains(table.hoveredRow) ? filtered[table.hoveredRow] : nil }
+    private var contextClip: Clip? { filtered.indices.contains(table.clickedRow) ? filtered[table.clickedRow] : selected }
+    func numberOfRows(in tableView: NSTableView) -> Int { filtered.count }
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { ClipboardRow() }
+    func tableViewSelectionDidChange(_ notification: Notification) { updatePreview() }
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        let clip = filtered[row]
+        let icon: NSImage?
+        if clip.kind == .image, let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last, let data = Data(base64Encoded: String(thumb)) { icon = NSImage(data: data) }
+        else if let id = clip.sourceAppId {
+            if let cached = iconCache[id] { icon = cached }
+            else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) { let image = NSWorkspace.shared.icon(forFile: url.path); iconCache[id] = image; icon = image }
+            else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
+        } else { icon = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil) }
+        let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
+        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
+        let title = NSTextField(labelWithString: (clip.pinned ? "★ " : "") + summary)
+        title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
+        title.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
+        title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
+        cell.toolTip = "\(clip.appName) · ⌘C to copy · Space to preview"
+        cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)\(clip.pinned ? ", pinned" : "")")
+        return cell
+    }
+    private func updatePreview() {
+        preview.isHidden = true; previewImage.isHidden = true; historyScroll.isHidden = false
+        guard previewVisible, let clip = selected else { return }
+        historyScroll.isHidden = true
+        if clip.kind == .image, let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last, let data = Data(base64Encoded: String(thumb)) {
+            previewImage.image = NSImage(data: data); previewImage.setAccessibilityLabel(clip.summary); previewImage.isHidden = false
         } else {
-            probe.record("ui-resource-missing")
-            webView.loadHTMLString(Self.fallbackHTML, baseURL: nil)
+            previewText.string = clip.content
+            previewText.frame.size.width = 318
+            preview.isHidden = false
+            previewText.scrollToBeginningOfDocument(nil)
         }
     }
 
-    private func presentPendingView() {
-        guard webViewLoaded, let webView else { return }
-        let script = pendingView == .clipboard ? "window.__paletteOpenClipboard?.()" : "window.__paletteOpen?.()"
-        webView.evaluateJavaScript(script)
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        webViewLoaded = true
-        presentPendingView()
-        probe.record("webview-loaded")
-        guard probe.isEnabled else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self, weak webView] in
-            webView?.evaluateJavaScript("typeof window.__paletteResolve === 'function' && document.querySelector('.palette-search') !== null") { result, _ in
-                Task { @MainActor [weak self] in
-                    guard let self, result as? Bool == true else {
-                        self?.probe.record("webview-bridge-failed")
-                        return
-                    }
-                    self.probe.record("webview-bridge-ready")
-                    self.runSmokeTestIfNeeded()
-                }
-            }
+    private func handleKey(_ event: NSEvent) -> Bool {
+        guard panel.isKeyWindow, panel.attachedSheet == nil else { return false }
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        let editingSearch = panel.firstResponder === search.currentEditor()
+        if event.keyCode == 53 { dismiss(); return true }
+        if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { previewVisible = false; updatePreview(); panel.makeFirstResponder(search); return true }
+        if modifiers.contains(.command), event.charactersIgnoringModifiers == "c" {
+            if let hovered { restore(hovered, paste: false); return true }
+            if editingSearch || (panel.firstResponder === previewText && previewText.selectedRange().length > 0) { return false }
+            restore(selected, paste: false); return true
         }
-    }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        dismissLauncher(restoreFocus: true)
+        if modifiers.contains(.command), event.charactersIgnoringModifiers == "p", !editingSearch { pinClip(); return true }
+        if event.keyCode == 36, modifiers.isEmpty { pasteClip(); return true }
+        if [125, 126].contains(event.keyCode), modifiers.isEmpty {
+            let row = max(0, min(filtered.count - 1, table.selectedRow + (event.keyCode == 125 ? 1 : -1)))
+            if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row); panel.makeFirstResponder(previewVisible ? nil : table) }
+            return true
+        }
+        if event.keyCode == 49, modifiers.isEmpty, !editingSearch {
+            if let hovered, let index = filtered.firstIndex(where: { $0.id == hovered.id }) { table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+            previewVisible.toggle(); updatePreview()
+            panel.makeFirstResponder(previewVisible ? nil : table)
+            return true
+        }
         return false
     }
-
-    func windowDidResignKey(_ notification: Notification) {
-        // Optional side-by-side inspection of an isolated review profile.
-        if isReview && CommandLine.arguments.contains("--keep-visible") { return }
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.launcherPanel?.isVisible == true, self.launcherPanel?.isKeyWindow == false else { return }
-            self.dismissLauncher(restoreFocus: false)
-        }
-    }
-
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "palette", let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
-        if type == "dismissLauncher" {
-            dismissLauncher(restoreFocus: true)
+    @objc private func pasteClip() { restore(selected, paste: true) }
+    private func restore(_ clip: Clip?, paste: Bool) {
+        guard let clip else { return }
+        if paste && !AXIsProcessTrusted() {
+            report("Direct paste needs Accessibility permission. Press ⌘C to copy, or enable Palette in System Settings → Privacy & Security → Accessibility.")
             return
         }
-        if type == "hostReady" {
-            presentPendingView()
-            probe.record("webview-bridge-ready")
-            runSmokeTestIfNeeded()
-            return
-        }
-        if type == "clearCaptureError" { captureError = nil; return }
-        if type == "setView" {
-            if body["view"] as? String == "clipboard", let captureError { reportCaptureError(captureError) }
-            resizePanel(view: body["view"] as? String == "clipboard" ? .clipboard : .launcher)
-            return
-        }
-        guard body["id"] is String else { return }
-        if type == "copyClipboard" || type == "pasteClipboard" {
-            restoreClipboard(body, paste: type == "pasteClipboard")
-            return
-        }
-        service().send(body) { [weak self] response in
-            guard let self else { return }
-            var enriched = response
-            if var payload = response["payload"] as? [String: Any] {
-                if let policy = payload["policy"] as? [String: Any] { self.capturePolicy = policy }
-                if let items = payload["items"] as? [[String: Any]] {
-                    payload["items"] = items.map { item in
-                        var result = item
-                        if let id = item["sourceAppId"] as? String {
-                            if let icon = self.appIcons[id] { result["sourceAppIcon"] = icon }
-                            else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id),
-                                    let data = ClipboardSupport.png(NSWorkspace.shared.icon(forFile: url.path), maximumEdge: 40) {
-                                let icon = "data:image/png;base64," + data.base64EncodedString()
-                                self.appIcons[id] = icon; result["sourceAppIcon"] = icon
-                            }
-                        }
-                        return result
-                    }
-                }
-                enriched["payload"] = payload
-            }
-            self.resolveInWebView(enriched)
-        }
-    }
-
-    private func resolveInWebView(_ response: [String: Any]) {
-        guard let webView else { return }
-        Task {
-            _ = try? await webView.callAsyncJavaScript(
-                "window.__paletteResolve(response)",
-                arguments: ["response": response],
-                in: nil,
-                contentWorld: .page
-            )
-        }
-    }
-
-    private func service() -> NodeServiceProcess {
-        if let nodeService { return nodeService }
-        let key = probe.isEnabled ? Data(repeating: 0x50, count: 32).base64EncodedString() : isReview ? Self.reviewStorageKey() : Self.clipboardStorageKey()
-        let service = NodeServiceProcess(
-            scriptURL: Self.nodeDaemonURL(),
-            nodeURL: Self.nodeExecutableURL(),
-            dataDirectory: Self.dataDirectoryURL(),
-            indexerURL: Self.indexerURL(),
-            clipboardKey: key,
-            notificationHandler: Self.deliverNotification
-        )
-        self.nodeService = service
-        if service.start() {
-            probe.record("node-service-ready")
-        } else {
-            probe.record("node-service-failed")
-        }
-        return service
-    }
-
-    private func startClipboardMonitor() {
-        clipboardChangeCount = NSPasteboard.general.changeCount
-        service().send(["id": "initial-policy", "type": "getClipboardPolicy"]) { [weak self] response in
-            self?.capturePolicy = (response["payload"] as? [String: Any])?["policy"] as? [String: Any]
-        }
-        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.captureClipboardIfChanged() }
-        }
-        // Flush a pending copy before focus moves to another app.
-        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
-            let source = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            MainActor.assumeIsolated { self?.captureClipboardIfChanged(source: source) }
-        }
-    }
-
-    private func captureClipboardIfChanged(source: NSRunningApplication? = nil) {
-        let pasteboard = NSPasteboard.general
-        guard pasteboard.changeCount != clipboardChangeCount else { return }
-        clipboardChangeCount = pasteboard.changeCount
-        guard let policy = capturePolicy, policy["enabled"] as? Bool == true else { return }
-        let source = source ?? NSWorkspace.shared.frontmostApplication
-        guard source?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-        if let id = source?.bundleIdentifier, (policy["excludedAppIds"] as? [String] ?? []).contains(id) { return }
-        let item: [String: Any]
+        let target = previousApp
+        if paste && (target == nil || target!.isTerminated) { report("No destination app. Press ⌘C, then paste where you need it."); return }
         do {
-            guard let captured = try ClipboardSupport.capture(pasteboard, source: source, ignoreSensitive: policy["ignoreSensitive"] as? Bool ?? true) else { return }
-            item = captured
-        } catch { reportCaptureError(error.localizedDescription); return }
-        guard let id = item["id"] as? String else { return }
-        service().send(["id": "capture-\(id)", "type": "captureClipboard", "item": item]) { [weak self] response in
-            if response["ok"] as? Bool == false {
-                self?.reportCaptureError(response["error"] as? String ?? "Clipboard capture failed")
-            }
-        }
-    }
-
-    private func reportCaptureError(_ message: String) {
-        captureError = message
-        webView?.callAsyncJavaScript("window.dispatchEvent(new CustomEvent('paletteCaptureError', {detail: message}))", arguments: ["message": message], in: nil, in: .page, completionHandler: nil)
-    }
-
-    private func restoreClipboard(_ request: [String: Any], paste: Bool) {
-        guard let requestID = request["id"] as? String, let itemID = request["itemId"] as? String else { return }
-        let target = previousApplication
-        if paste {
-            guard let target, !target.isTerminated else {
-                resolveInWebView(["id": requestID, "ok": false, "error": "No previous app is available. Use Copy, then paste where you need it."])
-                return
-            }
-            guard AXIsProcessTrusted() else {
-                resolveInWebView(["id": requestID, "ok": false, "error": "Enable Palette in System Settings → Privacy & Security → Accessibility to paste directly. Copy works without this permission."])
-                return
-            }
-        }
-        service().send(["id": "restore-\(requestID)", "type": "getClipboardItem", "itemId": itemID]) { [weak self] response in
-            guard let self else { return }
-            guard response["ok"] as? Bool == true, let payload = response["payload"] as? [String: Any], let item = payload["item"] as? [String: Any] else {
-                self.resolveInWebView(["id": requestID, "ok": false, "error": response["error"] as? String ?? "This clip is no longer available."])
-                return
-            }
-            do {
-                try ClipboardSupport.restore(item, to: .general)
-                self.clipboardChangeCount = NSPasteboard.general.changeCount
-                if paste, let target {
-                    self.dismissLauncher(restoreFocus: true)
-                    self.sendPaste(to: target, requestID: requestID, attempts: 10)
-                } else {
-                    self.resolveInWebView(["id": requestID, "ok": true, "payload": ["type": "copied", "copied": true]])
+            try ClipboardSupport.restore(clip.dictionary, to: .general)
+            changeCount = NSPasteboard.general.changeCount
+            dismiss()
+            if paste, let target {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
+                          let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+                          let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else {
+                        self?.show(); self?.report("Could not focus the destination. The clip is copied; paste it manually."); return
+                    }
+                    down.flags = .maskCommand; up.flags = .maskCommand
+                    down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
                 }
-            } catch { self.resolveInWebView(["id": requestID, "ok": false, "error": error.localizedDescription]) }
-        }
-    }
-
-    private func sendPaste(to target: NSRunningApplication, requestID: String, attempts: Int) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            guard let self else { return }
-            if NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier {
-                guard let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
-                      let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else {
-                    self.recoverPasteFailure(requestID: requestID, message: "Could not send the paste shortcut. The clip is copied; paste it manually.")
-                    return
-                }
-                down.flags = .maskCommand; up.flags = .maskCommand
-                down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
-                self.resolveInWebView(["id": requestID, "ok": true, "payload": ["type": "copied", "copied": true]])
-            } else if attempts > 0 { self.sendPaste(to: target, requestID: requestID, attempts: attempts - 1) }
-            else {
-                self.recoverPasteFailure(requestID: requestID, message: "Could not focus the previous app. The clip is copied; paste it manually.")
             }
+        } catch { report(error.localizedDescription) }
+    }
+    private func report(_ text: String?) {
+        issue = text
+        more.image = NSImage(systemSymbolName: text == nil ? "ellipsis" : "exclamationmark.circle", accessibilityDescription: "More")
+        more.toolTip = text
+        statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
+    }
+    @objc private func showIssue() {
+        guard let issue else { return }
+        let alert = NSAlert(); alert.messageText = "Palette"; alert.informativeText = issue
+        alert.beginSheetModal(for: panel) { [weak self] _ in
+            guard let self, self.historyAvailable == true else { return }
+            self.report(self.shortcutError)
         }
     }
-
-    private func recoverPasteFailure(requestID: String, message: String) {
-        NSApp.activate(ignoringOtherApps: true)
-        launcherPanel?.makeKeyAndOrderFront(nil)
-        webView?.evaluateJavaScript("window.dispatchEvent(new Event('paletteShown'))")
-        resolveInWebView(["id": requestID, "ok": false, "error": message])
+    @objc private func pinClip() { if let clip = selected { store?.pin(clip.id) } }
+    @objc private func pinContextClip() { if let clip = contextClip { store?.pin(clip.id) } }
+    @objc private func deleteClip() { if let clip = contextClip { store?.remove(clip.id) } }
+    @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func openMenu(_ sender: NSButton) {
+        let menu = NSMenu()
+        if issue != nil { menu.addItem(withTitle: "Details…", action: #selector(showIssue), keyEquivalent: "").target = self; menu.addItem(.separator()) }
+        menu.addItem(withTitle: policy.enabled ? "Pause capture" : "Resume capture", action: #selector(toggleCapture), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 4), in: sender)
+    }
+    @objc private func toggleCapture() { var next = policy; next.enabled.toggle(); store?.setPolicy(next) }
+    @objc private func openSettings() {
+        guard store != nil, historyAvailable == true else { return }
+        let settings = SettingsPanel(policy: policy, count: clips.filter { !$0.pinned }.count)
+        settings.onSave = { [weak self] next in self?.store.setPolicy(next) }
+        settings.onClear = { [weak self] in self?.store.clearUnpinned() }
+        settingsPanel = settings
+        panel.beginSheet(settings) { [weak self] _ in self?.settingsPanel = nil; self?.panel.makeFirstResponder(self?.search) }
     }
 
-    private func runSmokeTestIfNeeded() {
-        guard probe.isEnabled, !smokeStarted else { return }
-        smokeStarted = true
-        let originalWebView = webView
-        let eventStatus = postRegisteredShortcutEvent()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            guard let self else { return }
-            if eventStatus == noErr, self.launcherPanel?.isVisible == false {
-                self.probe.record("global-shortcut-toggle-ready")
-            }
-            self.showLauncher()
-            self.runStorageSmokeTest(originalWebView: originalWebView)
-        }
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(openSettings) || menuItem.action == #selector(toggleCapture) { return historyAvailable == true }
+        return true
     }
 
-    private func runStorageSmokeTest(originalWebView: WKWebView?) {
-        let sample = "palette-smoke-\(UUID().uuidString)"
-        let item: [String: Any] = [
-            "id": "smoke-item",
-            "kind": "text",
-            "content": sample,
-            "createdAt": Int(Date().timeIntervalSince1970 * 1000),
-            "pinned": false,
-        ]
-        service().send(["id": "smoke-capture", "type": "captureClipboard", "item": item]) { [weak self] response in
-            guard let self else { return }
-            if response["ok"] as? Bool == true { self.probe.record("clipboard-capture-ready") }
-            self.service().send(["id": "smoke-list", "type": "listClipboard", "query": sample]) { [weak self] listResponse in
-                guard let self else { return }
-                if listResponse["ok"] as? Bool == true { self.probe.record("clipboard-retrieval-ready") }
-                self.dismissLauncher(restoreFocus: false)
-                self.showLauncher()
-                if self.webView === originalWebView { self.probe.record("webview-reused") }
-                self.dismissLauncher(restoreFocus: false)
-                self.probe.record("SMOKE-COMPLETE")
-                NSApp.terminate(nil)
-            }
-        }
-    }
-
-    private func postRegisteredShortcutEvent() -> OSStatus {
-        var event: EventRef?
-        let createStatus = CreateEvent(
-            nil,
-            OSType(kEventClassKeyboard),
-            UInt32(kEventHotKeyPressed),
-            GetCurrentEventTime(),
-            EventAttributes(kEventAttributeNone),
-            &event
-        )
-        guard createStatus == noErr, let event else { return createStatus }
-        var hotKeyID = shortcutID
-        let parameterStatus = SetEventParameter(
-            event,
-            EventParamName(kEventParamDirectObject),
-            EventParamType(typeEventHotKeyID),
-            MemoryLayout<EventHotKeyID>.size,
-            &hotKeyID
-        )
-        guard parameterStatus == noErr else { return parameterStatus }
-        return SendEventToEventTarget(event, GetApplicationEventTarget())
-    }
-
-    private func installGlobalShortcut() {
-        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        let userData = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        let callback: EventHandlerUPP = { _, event, userData in
-            guard let event, let userData else { return noErr }
-            var pressedID = EventHotKeyID()
-            let status = GetEventParameter(
-                event,
-                EventParamName(kEventParamDirectObject),
-                EventParamType(typeEventHotKeyID),
-                nil,
-                MemoryLayout<EventHotKeyID>.size,
-                nil,
-                &pressedID
-            )
-            guard status == noErr, [1, 2].contains(pressedID.id) else { return noErr }
-            let delegate = Unmanaged<PaletteAppDelegate>.fromOpaque(userData).takeUnretainedValue()
-            let isClipboard = pressedID.id == 2
-            DispatchQueue.main.async { if isClipboard { delegate.openClipboardHistory() } else { delegate.toggleLauncher() } }
+    private func installShortcut() {
+        var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        let callback: EventHandlerUPP = { _, _, pointer in
+            guard let pointer else { return noErr }
+            let owner = Unmanaged<PaletteAppDelegate>.fromOpaque(pointer).takeUnretainedValue()
+            DispatchQueue.main.async { owner.toggle() }
             return noErr
         }
-
-        let handlerStatus = InstallEventHandler(
-            GetApplicationEventTarget(), callback, 1, &eventType, userData, &eventHandlerRef
-        )
-        let configured = Self.configuredShortcut()
-        shortcutLabel = configured.label
-        let hotKeyID = shortcutID
-        let shortcutStatus = RegisterEventHotKey(
-            configured.keyCode, configured.modifiers, hotKeyID,
-            GetApplicationEventTarget(), 0, &shortcutRef
-        )
-        let clipboardStatus = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(cmdKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 2), GetApplicationEventTarget(), 0, &clipboardShortcutRef)
-        if clipboardStatus != noErr { NSLog("Palette: clipboard shortcut unavailable (%d); use the menu item", clipboardStatus) }
-        if handlerStatus == noErr, shortcutStatus == noErr {
-            probe.record("global-shortcut-ready")
-        } else {
-            NSLog("Palette: global shortcut unavailable (handler %d, shortcut %d)", handlerStatus, shortcutStatus)
-            probe.record("global-shortcut-failed")
-        }
-    }
-
-    private static func configuredShortcut() -> (keyCode: UInt32, modifiers: UInt32, label: String) {
-        let argument: String? = {
-            guard let index = CommandLine.arguments.firstIndex(of: "--hotkey"),
-                  CommandLine.arguments.indices.contains(index + 1) else { return nil }
-            return CommandLine.arguments[index + 1]
-        }()
-        let stored = UserDefaults.standard.string(forKey: "launcherShortcut")
-        let raw = (argument ?? stored ?? ProcessInfo.processInfo.environment["PALETTE_HOTKEY"] ?? "option+space")
-            .lowercased().replacingOccurrences(of: " ", with: "")
-        switch raw {
-        case "cmd+space", "command+space": return (UInt32(kVK_Space), UInt32(cmdKey), "⌘ Space")
-        case "cmd+shift+space", "command+shift+space": return (UInt32(kVK_Space), UInt32(cmdKey | shiftKey), "⌘⇧ Space")
-        case "ctrl+space", "control+space": return (UInt32(kVK_Space), UInt32(controlKey), "⌃ Space")
-        case "ctrl+shift+space", "control+shift+space": return (UInt32(kVK_Space), UInt32(controlKey | shiftKey), "⌃⇧ Space")
-        default: return (UInt32(kVK_Space), UInt32(optionKey), "⌥ Space")
-        }
-    }
-
-    private static func uiURL() -> URL? {
-        Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "ui")
-    }
-
-    private static func nodeDaemonURL() -> URL {
-        if let configured = ProcessInfo.processInfo.environment["PALETTE_NODE_DAEMON"] {
-            return URL(fileURLWithPath: configured)
-        }
-        return Bundle.main.url(forResource: "node-daemon", withExtension: "mjs", subdirectory: "node")
-            ?? URL(fileURLWithPath: "dist/node/node-daemon.mjs")
-    }
-
-    private static func nodeExecutableURL() -> URL? {
-        let fileManager = FileManager.default
-        let candidates = [
-            ProcessInfo.processInfo.environment["PALETTE_NODE_EXECUTABLE"],
-            Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/node").path,
-            "/opt/homebrew/bin/node",
-            "/usr/local/bin/node",
-            "/usr/bin/node",
-        ].compactMap { $0 }
-        return candidates.first(where: fileManager.isExecutableFile(atPath:)).map(URL.init(fileURLWithPath:))
-    }
-
-    private static func indexerURL() -> URL? {
-        if let configured = ProcessInfo.processInfo.environment["PALETTE_INDEXER"] {
-            return URL(fileURLWithPath: configured)
-        }
-        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/palette-indexer")
-        return FileManager.default.isExecutableFile(atPath: bundled.path) ? bundled : nil
-    }
-
-    private static func dataDirectoryURL() -> URL {
-        if let index = CommandLine.arguments.firstIndex(of: "--data-dir"), CommandLine.arguments.indices.contains(index + 1) {
-            return URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)
-        }
-        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("Palette", isDirectory: true)
-    }
-
-    private static func reviewStorageKey() -> String {
-        let file = dataDirectoryURL().appendingPathComponent("review.key")
-        if let data = try? Data(contentsOf: file), data.count == 32 { return data.base64EncodedString() }
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return "" }
-        do {
-            try FileManager.default.createDirectory(at: dataDirectoryURL(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            let data = Data(bytes)
-            try data.write(to: file, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
-            return data.base64EncodedString()
-        } catch { return "" }
-    }
-
-    fileprivate static func clipboardStorageKey() -> String {
-        let service = "sh.palette.Desktop.clipboard"
-        let account = "default"
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var result: CFTypeRef?
-        if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-           let data = result as? Data, data.count == 32 {
-            return data.base64EncodedString()
-        }
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { return "" }
-        let data = Data(bytes)
-        let add: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: data,
-        ]
-        guard SecItemAdd(add as CFDictionary, nil) == errSecSuccess else { return "" }
-        return data.base64EncodedString()
-    }
-
-    private static func deliverNotification(_ body: [String: Any]) {
-        guard let notification = body["notification"] as? [String: Any],
-              let title = notification["title"] as? String else { return }
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = notification["body"] as? String ?? ""
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert]) { granted, _ in
-            if granted { center.add(request) }
-        }
-    }
-
-    private static let fallbackHTML = """
-    <!doctype html><html><head><meta name="viewport" content="width=device-width"><style>
-    :root{color-scheme:dark;font:17px -apple-system}body{margin:0;padding:16px;background:#18181b;color:#f5f5f7}
-    input{box-sizing:border-box;width:100%;border:0;border-radius:10px;padding:14px;background:#29292e;color:inherit;font:inherit}
-    p{color:#9b9ba3;font-size:13px}</style></head><body><input autofocus placeholder="Search apps, files, and commands">
-    <p>Palette could not find its packaged interface. Rebuild the application bundle.</p></body></html>
-    """
-}
-
-@MainActor
-private final class NodeServiceProcess {
-    private let scriptURL: URL
-    private let nodeURL: URL?
-    private let dataDirectory: URL
-    private let indexerURL: URL?
-    private let clipboardKey: String
-    private let notificationHandler: ([String: Any]) -> Void
-    private var process: Process?
-    private var input: Pipe?
-    private var output: Pipe?
-    private var pending: [String: ([String: Any]) -> Void] = [:]
-    private let writer = DispatchQueue(label: "sh.palette.service-writer")
-
-    init(
-        scriptURL: URL,
-        nodeURL: URL?,
-        dataDirectory: URL,
-        indexerURL: URL?,
-        clipboardKey: String,
-        notificationHandler: @escaping ([String: Any]) -> Void
-    ) {
-        self.scriptURL = scriptURL
-        self.nodeURL = nodeURL
-        self.dataDirectory = dataDirectory
-        self.indexerURL = indexerURL
-        self.clipboardKey = clipboardKey
-        self.notificationHandler = notificationHandler
-    }
-
-    func start() -> Bool {
-        if process?.isRunning == true { return true }
-        guard !clipboardKey.isEmpty, let nodeURL, FileManager.default.fileExists(atPath: scriptURL.path) else { return false }
-        let input = Pipe()
-        let output = Pipe()
-        let service = Process()
-        service.executableURL = nodeURL
-        service.arguments = scriptURL.pathExtension == "mjs"
-            ? [scriptURL.path]
-            : ["--experimental-strip-types", scriptURL.path]
-        var environment = ProcessInfo.processInfo.environment
-        if !clipboardKey.isEmpty { environment["PALETTE_CLIPBOARD_KEY"] = clipboardKey }
-        environment["PALETTE_DATA_DIR"] = dataDirectory.path
-        if let indexerURL { environment["PALETTE_INDEXER"] = indexerURL.path }
-        service.environment = environment
-        service.standardInput = input
-        service.standardOutput = output
-        service.standardError = FileHandle.standardError
-        let reader = ServiceResponseReader { [weak self] response in
-            DispatchQueue.main.async { self?.receive(response) }
-        }
-        output.fileHandleForReading.readabilityHandler = { handle in
-            reader.enqueue(handle.availableData)
-        }
-        service.terminationHandler = { [weak self] _ in
-            DispatchQueue.main.async { self?.didTerminate() }
-        }
-        do {
-            try service.run()
-            self.input = input
-            self.output = output
-            process = service
-            return true
-        } catch {
-            output.fileHandleForReading.readabilityHandler = nil
-            return false
-        }
-    }
-
-    func stop() {
-        output?.fileHandleForReading.readabilityHandler = nil
-        if process?.isRunning == true { process?.terminate() }
-        didTerminate()
-    }
-
-    func send(_ request: [String: Any], completion: @escaping ([String: Any]) -> Void) {
-        guard let id = request["id"] as? String,
-              JSONSerialization.isValidJSONObject(request),
-              start(), let input else {
-            completion(["id": request["id"] as? String ?? "invalid", "ok": false, "error": "Palette service is unavailable"])
-            return
-        }
-        pending[id] = completion
-        writer.async { [weak self] in
-            do {
-                let data = try JSONSerialization.data(withJSONObject: request)
-                try input.fileHandleForWriting.write(contentsOf: data + Data([0x0A]))
-            } catch {
-                DispatchQueue.main.async {
-                    self?.pending.removeValue(forKey: id)?(["id": id, "ok": false, "error": "Palette service connection closed"])
-                }
-            }
-        }
-    }
-
-    private func receive(_ response: [String: Any]) {
-        if response["type"] as? String == "notification" {
-            notificationHandler(response)
-            return
-        }
-        guard let id = response["id"] as? String, let completion = pending.removeValue(forKey: id) else { return }
-        completion(response)
-    }
-
-    private func didTerminate() {
-        output?.fileHandleForReading.readabilityHandler = nil
-        process = nil
-        input = nil
-        output = nil
-        for (id, completion) in pending {
-            completion(["id": id, "ok": false, "error": "Palette service stopped"])
-        }
-        pending.removeAll()
-    }
-}
-
-/// Owns framing and JSON decoding on one ordered queue, away from AppKit.
-private final class ServiceResponseReader {
-    private let queue = DispatchQueue(label: "sh.palette.service-reader")
-    private var buffer = Data()
-    private var scannedBytes = 0
-    private let deliver: ([String: Any]) -> Void
-
-    init(deliver: @escaping ([String: Any]) -> Void) { self.deliver = deliver }
-
-    func enqueue(_ data: Data) {
-        guard !data.isEmpty else { return }
-        queue.async {
-            self.buffer.append(data)
-            while let newline = self.buffer.dropFirst(self.scannedBytes).firstIndex(of: 0x0A) {
-                let line = self.buffer.prefix(upTo: newline)
-                self.buffer.removeSubrange(...newline)
-                self.scannedBytes = 0
-                if let response = try? JSONSerialization.jsonObject(with: line) as? [String: Any] { self.deliver(response) }
-            }
-            self.scannedBytes = self.buffer.count
+        let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), &eventHandlerRef)
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(cmdKey | shiftKey), EventHotKeyID(signature: 0x50414C54, id: 1), GetApplicationEventTarget(), 0, &shortcutRef)
+        if status != noErr || registered != noErr {
+            shortcutError = "⌘⇧V is in use. Open Palette from its menu bar icon."
+            report(shortcutError!)
         }
     }
 }

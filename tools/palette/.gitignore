@@ -1,6 +1,3 @@
-node_modules/
-dist/
 build/
-.cache/
-native/**/target/
 *.log
+.DS_Store

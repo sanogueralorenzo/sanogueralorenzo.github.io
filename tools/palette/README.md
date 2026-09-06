@@ -1,172 +1,58 @@
 # Palette
 
-Palette is a minimalist, keyboard-first desktop launcher. It provides one fast
-place to find apps and files, run commands, and invoke small extensions without
-turning the launcher into a full desktop environment.
+A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-## Product principles
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 340 × 300 panel near the upper-right corner of the current screen. Search your history or choose an app. Escape, the shortcut, or clicking away dismisses it.
 
-- Open instantly, search immediately, and dismiss cleanly.
-- Keep the default experience small; add capabilities through extensions.
-- Rank local results quickly and predictably.
-- Prefer native operating-system behavior for windows, shortcuts, permissions,
-  accessibility, and menus.
-- Keep user data local by default and make background work observable.
+- Hover a clip and press **⌘C** to restore its native formats and dismiss the panel. Paste normally wherever you need it.
+- **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
+- **Space**, with the list focused, previews the hovered or keyboard-selected clip, replacing the list with a full-area text, link, image, or file preview. Press Space again to return; **⌘F** returns to search.
+- Right-click for **Pin / Unpin** and **Delete**. **⌘P** pins the selected list item. Pins have their own app-filter entry and survive automatic cleanup.
+- Search and selectable preview text retain native text-editing shortcuts.
 
-## Architecture
+Direct paste needs Palette's existing macOS Accessibility permission. If unavailable, More → Details explains how to enable it; ⌘C works without it. If the destination cannot regain focus, the clip remains copied and details are available from More. macOS does not report whether a destination accepted a paste.
 
-Palette uses the operating system's native WebView inside a thin platform host,
-backed by shared application services and a portable high-performance core.
+The **More** menu offers Pause capture, Settings, and Quit. The small settings sheet contains capture, retention, and excluded apps selected with the native app picker. Defaults are 200 clips and 30 days. Existing capacity settings are preserved. Retention and capacity remove older unpinned clips; shorter retention applies when saved. Clear unpinned history requires confirmation.
 
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Shared interface | React + TypeScript | Launcher UI and extension surfaces shared by every platform |
-| Application services | Node.js + TypeScript | Commands, extensions, database access, and background services |
-| macOS host | Swift + AppKit + WKWebView | Windows, global shortcuts, menus, permissions, and native integration |
-| Windows host | C# + .NET 8/WPF + WebView2 | Windows, global shortcuts, tray integration, permissions, and native integration |
-| Linux host | Rust + GTK4/libadwaita + WebKitGTK | Windows, global shortcuts, desktop portals, menus, and native integration |
-| Portable core | Rust | File indexing, search primitives, data models, and synchronization |
+## Clipboard and privacy
 
-Typed IPC contracts connect the host, WebView frontend, Node.js services, and
-Rust core. Platform-specific code stays in each host; product behavior stays in
-the shared TypeScript layers; performance-sensitive or portable systems code
-stays in Rust.
+Supports plain text, web links, images (PNG/TIFF), files, and useful HTML/RTF formatting. Files refer to their original locations; unavailable files report an error before changing the clipboard. Old text-only records still copy as text. Old images without saved image data report that they cannot be restored.
 
-## Initial scope
+History and thumbnails stay local, encrypted with AES-256-GCM and a key in macOS Keychain. Private/transient pasteboard markers and obvious credential-shaped text are always skipped. Excluded apps use macOS's foreground app at copy time. macOS supplies no authoritative clipboard-writer identity: background writes can be attributed to the foreground app, and exclusions cannot guarantee protection from those writes. Secret detection is deliberately limited; pause capture when handling sensitive material.
 
-1. Global shortcut and launcher window.
-2. App, command, and file search.
-3. Keyboard navigation and action execution.
-4. Local settings and result ranking.
-5. A small, permission-aware extension API.
+Each captured copy is limited to 8 MB; image decoding is bounded to 40 megapixels and 16,000 pixels per edge. The encrypted history payload is limited to 64 MB. Reaching that limit reports an error and preserves saved clips, rather than silently evicting them. Failure details stay in More → Details; the small More icon indicates when attention is needed. Unreadable settings, keys, or history pause capture and preserve existing files.
 
-Everything else should earn its place through demonstrated user need.
+Existing `~/Library/Application Support/Palette/clipboard.json` history, pins, app provenance, native representations, retention, pause state, and exclusions remain compatible. The Keychain service/account and version-1 encrypted envelope are unchanged. The new implementation needs no migration export or replacement key. Pending writes finish before a normal Quit.
 
-## Development
+## Build and run
 
-The platform-neutral core and preview launcher live in `src/`. Install the
-package dependencies, then use `npm run dev` for the React preview or run the
-checks with `npm run typecheck` and `npm run build:all`. The current
-[clipboard improvement goal](development/GOAL.md) requires independent reviewer
-iterations and manual runtime verification; do not create or run automated tests.
-Use `http://localhost:5173/?preview` for synthetic clipboard layout development.
-That browser preview has no access to the system clipboard or direct paste.
-
-### macOS
-
-Build a self-contained, ad-hoc-signed application with the production UI,
-Node daemon, Node 22 runtime, and Rust indexer:
+Requires macOS 13 or later and Xcode Command Line Tools:
 
 ```sh
 cd tools/palette
-npm ci
-npm run build:macos
+./scripts/build-macos-app.sh
 open build/Palette.app
 ```
 
-The first build downloads the official Node 22 runtime and verifies it against
-Node's published SHA-256 manifest. To install locally, quit any older Palette instance,
-then copy `build/Palette.app` to `~/Applications/Palette.app` and open it once.
+The build compiles four Swift source files, renders the existing overlapping-squares icon, and ad-hoc signs the application. No package installation, downloaded runtime, Node daemon, WebView, or file indexer is needed. Quit the installed Palette before replacing `~/Applications/Palette.app` with `build/Palette.app`.
 
-Palette is an accessory application: it has no Dock icon, opens its floating
-launcher on manual launch, and stays resident after dismissal. The default
-shortcut is `⌥ Space`. Configure it without relying on Finder's environment:
+Palette has no Dock icon and stays resident when dismissed. It opens on a manual launch. Use macOS Login Items for automatic launch; `--background` suppresses the initial panel. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
+
+For native verification with disposable synthetic content:
 
 ```sh
-defaults write sh.palette.Desktop launcherShortcut 'ctrl+space'
+build/Palette.app/Contents/MacOS/PaletteHost --review --data-dir /tmp/palette-review
 ```
 
-Supported values are `option+space`, `ctrl+space`, `ctrl+shift+space`,
-`cmd+space`, and `cmd+shift+space`. Restart Palette after changing it. Palette
-does not install a LaunchAgent; automatic background launch is intentionally
-left to the user's macOS Login Items choice so a manual launch remains visible
-and background operation never appears unexpectedly.
+Review mode requires a separate absolute directory and uses its own permission-restricted `review.key`. It still observes the shared system clipboard; pause capture while inspecting other work. Do not launch the normal and review instances together.
 
-### Commands and local extensions
+## Ownership
 
-Copy `commands.example.json` to `~/.palette/commands.json` to add direct-process
-commands. Arguments are passed without a shell; use `mode: "silent"` for
-background actions and assign either an accelerator or a chord shortcut. Chord
-definitions are validated and conflict-checked in the shared shortcut registry;
-the macOS host reserves the launcher and clipboard accelerators.
+- `PaletteHost.swift`: one panel, app lifecycle, native interactions, capture monitoring.
+- `ClipboardSupport.swift`: supported pasteboard capture and restoration.
+- `ClipboardStore.swift`: one serial owner for history, settings, encryption, and persistence.
+- `SettingsPanel.swift`: the small native settings sheet.
 
-A local extension is a directory under `~/.palette/extensions` containing an
-`extension.json` manifest. It is deliberately just a named group of direct
-process commands—there is no remote marketplace or arbitrary in-process code:
+Palette now supports macOS. The earlier launcher and incomplete Windows/Linux hosts were removed along with commands, extensions, file search, run history, shared services, IPC, Rust, Node, React, and their build/test infrastructure.
 
-```json
-{
-  "id": "project-tools",
-  "name": "Project Tools",
-  "commands": [
-    {
-      "id": "serve",
-      "title": "Serve Project",
-      "command": "./serve.sh",
-      "mode": "silent"
-    }
-  ]
-}
-```
-
-Relative executables and working directories resolve inside the extension
-directory. Command output, failures, notifications, and recent run history are
-available through the launcher.
-
-### Other hosts
-
-Windows requires Node 22, .NET 8, and the WebView2 runtime. Build the production
-resources before `dotnet build native/windows/PaletteHost.csproj`. Linux
-requires Node 22 plus GTK4, libadwaita, and WebKitGTK 6 development libraries;
-use `npm run build:linux-host` after building the UI and daemon. The platform
-README files contain the host-specific details.
-
-On Linux, the resident host publishes a StatusNotifier tray item and registers
-the launcher accelerator through the XDG Desktop Portal GlobalShortcuts API
-when that portal is available. Desktop portals intentionally own only the
-single global launcher accelerator.
-
-### Clipboard on macOS
-
-Open history with `⌘ ⇧ V` or the launcher's Clipboard command. The clipboard panel
-groups history by app, with All apps and Pinned views, combined search/type/app
-filters, and text, link, image, and file previews. Select a row to preview it;
-use Copy to restore its native formats, or Return to paste into the previously
-active app. Direct paste requires macOS Accessibility permission for Palette.
-Copy works without that permission. Files refer to their original locations;
-restoration reports missing files rather than copying a path as text.
-
-Use `⌘ F` to focus search, arrows to select, `⌘ C` to copy, `⌘ P` to pin/unpin,
-and `⌘ K` for actions. Home/End and Page Up/Down navigate a focused history list.
-With the history list focused, `⌘ ⌫` deletes and
-`⌥ ⇧` plus up/down or left/right cycles app or type filters. Search keeps native
-text-editing shortcuts. Escape dismisses the panel or its current dialog.
-
-Pause/resume and Settings expose capture, retention, capacity, sensitive-content
-handling, and excluded app identifiers. Pins survive retention and count limits;
-reducing either removes older unpinned items. Capture supports text, HTML/RTF,
-PNG/TIFF, file URLs, and links, with an 8 MiB per-copy payload limit and a 64 MiB
-serialized-history limit. Images over 40 megapixels or 16,000 pixels on an edge
-are skipped with an error. Thumbnails are downsampled before display.
-
-Source apps are inferred from the foreground app when the clipboard changes,
-including the outgoing app on activation changes. macOS does not provide an
-authoritative writer identity: background writers can be mislabeled, and app
-exclusions therefore cannot guarantee exclusion of background writes. Sensitive
-pasteboard markers and obvious credential-shaped text are skipped when enabled;
-this does not detect every secret.
-
-Clipboard history is encrypted at rest. macOS supplies its key from Keychain;
-the development Node daemon keeps a permission-restricted `clipboard.key` in
-the data directory on other hosts until native DPAPI/Secret-service adapters
-are available. Native capture and restoration of rich clipboard formats in this
-iteration is macOS-specific; other hosts report unsupported rich restores.
-
-For isolated native review, launch the built app with `--review --clipboard
---data-dir /absolute/path/to/review-profile`. Review mode requires a separate
-data directory. Add `--keep-visible` for side-by-side visual inspection; this
-review-only option keeps the panel open on focus loss and must be omitted when
-verifying ordinary dismissal. Review mode uses a local permission-restricted random key instead of
-Keychain. Pause capture between checks and use synthetic content; the system
-clipboard is still shared with other apps. See [verification evidence](development/VERIFICATION.md)
-and the [independent reviews](development/reviews/).
+See [native verification](development/VERIFICATION.md) and independent [usability](development/reviews/minimal-usability.md) and [reliability](development/reviews/minimal-reliability.md) reviews. No automated tests were created or run for this refinement.
