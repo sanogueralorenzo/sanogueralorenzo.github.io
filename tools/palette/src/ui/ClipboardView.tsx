@@ -48,6 +48,7 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
   const [kind, setKind] = useState<ClipboardKind | 'all'>('all');
   const [selectedId, setSelectedId] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [historyFailure, setHistoryFailure] = useState('');
   const [feedback, setFeedback] = useState('');
   const [error, setError] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -60,6 +61,7 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
   const list = useRef<HTMLDivElement>(null);
   const operation = useRef(false);
   const refreshVersion = useRef(0);
+  const feedbackIsCapture = useRef(false);
   useEffect(() => { if (!actions && !settings) input.current?.focus(); }, [actions, settings]);
   useEffect(() => {
     if (!list.current) return;
@@ -68,12 +70,17 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
     return () => observer.disconnect();
   }, []);
 
-  function report(message: string, failed = false) { setFeedback(message); setError(failed); }
+  function report(message: string, failed = false, capture = false) { feedbackIsCapture.current = capture; setFeedback(message); setError(failed); }
   async function refresh() {
     const version = ++refreshVersion.current;
-    if (!bridge.listClipboard) throw new Error('Clipboard history is unavailable in this host.');
-    const next = await bridge.listClipboard('');
-    if (version === refreshVersion.current) setItems(next);
+    try {
+      if (!bridge.listClipboard) throw new Error('Clipboard history is unavailable in this host.');
+      const next = await bridge.listClipboard('');
+      if (version === refreshVersion.current) { setItems(next); setHistoryFailure(''); }
+    } catch (failure) {
+      if (version === refreshVersion.current) setHistoryFailure(failure instanceof Error ? failure.message : String(failure));
+      throw failure;
+    }
   }
   useEffect(() => {
     let alive = true;
@@ -86,7 +93,7 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
     const update = async () => {
       if (operation.current || !visible || refreshing) return;
       refreshing = true;
-      try { await refresh(); } catch (failure) { if (alive) report(String(failure instanceof Error ? failure.message : failure), true); }
+      try { await refresh(); } catch { /* The current refresh owns its visible error. */ }
       finally {
         refreshing = false;
         if (alive) { setLoading(false); setDisplayTime((previous) => Date.now() - previous >= 60000 ? Date.now() : previous); }
@@ -94,7 +101,7 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
     };
     void update();
     void bridge.getClipboardPolicy?.().then((next) => { if (alive) setPolicy(next); }).catch((failure) => report(failure.message, true));
-    const captureError = (event: Event) => report((event as CustomEvent<string>).detail, true);
+    const captureError = (event: Event) => report((event as CustomEvent<string>).detail, true, true);
     window.addEventListener('paletteCaptureError', captureError);
     const interval = window.setInterval(update, 2000);
     bridge.setView?.('clipboard');
@@ -208,27 +215,27 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
       <span className="clip-breadcrumb">›</span><span>Clipboard</span>
       <div className="clip-header-actions">
         <button disabled={!policy || busy} onClick={() => policy && void perform(async () => { await savePolicy({ ...policy, enabled: !policy.enabled }); report(policy.enabled ? 'Capture paused' : 'Capture resumed'); })}>{policy?.enabled === false ? '▶ Resume capture' : 'Ⅱ Pause capture'}</button>
-        <button className="clip-icon-button" aria-label="Clipboard settings" title="Clipboard settings" onClick={() => setSettings(true)}><Icon name="settings" /></button>
+        <button className="clip-icon-button" aria-label="Clipboard settings" title="Clipboard settings" disabled={!policy || busy} onClick={() => setSettings(true)}><Icon name="settings" /></button>
       </div>
     </header>
     <div className="clip-search"><Icon name="search" size={20} /><input ref={input} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search clipboard…" aria-label="Search clipboard" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-controls="clip-results" aria-activedescendant={activeDescendant} autoComplete="off" spellCheck={false} /><kbd>⌘ F</kbd></div>
     <div className="clip-workspace">
       <aside className="clip-sidebar" aria-label="Clipboard sources">
-        <nav aria-label="History views"><button className={scope === 'all' ? 'active' : ''} aria-pressed={scope === 'all'} onClick={() => setScope('all')}><Icon name="grid" /><span>All apps</span><small>{items.length}</small></button><button className={scope === 'pinned' ? 'active' : ''} aria-pressed={scope === 'pinned'} onClick={() => setScope('pinned')}><Icon name="pin" /><span>Pinned</span><small>{items.filter((item) => item.pinned).length}</small></button></nav>
+        <nav aria-label="History views"><button className={scope === 'all' ? 'active' : ''} aria-pressed={scope === 'all'} onClick={() => setScope('all')}><Icon name="grid" /><span>All apps</span><small>{!items.length && (loading || historyFailure) ? "—" : items.length}</small></button><button className={scope === 'pinned' ? 'active' : ''} aria-pressed={scope === 'pinned'} onClick={() => setScope('pinned')}><Icon name="pin" /><span>Pinned</span><small>{!items.length && (loading || historyFailure) ? "—" : items.filter((item) => item.pinned).length}</small></button></nav>
         <p className="clip-section-label">Copied from</p>
         <nav className="clip-apps" aria-label="Filter by app">{apps.map(({ item, count }) => <button key={appId(item)} className={scope === appId(item) ? 'active' : ''} aria-pressed={scope === appId(item)} title={appName(item)} onClick={() => setScope(appId(item))}><AppIcon item={item} /><span>{appName(item)}</span><small>{count}</small></button>)}</nav>
         <div className="clip-local"><Icon name="lock" size={15} /><span>Stored on this Mac</span></div>
       </aside>
       <section className="clip-history" aria-label="Clipboard history">
         <div className="clip-types" aria-label="Content types">{kinds.map((filter) => <button key={filter.id} aria-pressed={kind === filter.id} className={kind === filter.id ? 'active' : ''} onClick={() => setKind(filter.id)}>{filter.name}</button>)}</div>
-        <div className="clip-results-label"><span>{query ? 'Search results' : scope === 'pinned' ? 'Pinned clips' : 'Recent copies'}</span><small>{visible.length}</small></div>
+        <div className="clip-results-label"><span>{query ? 'Search results' : scope === 'pinned' ? 'Pinned clips' : 'Recent copies'}</span><small>{!items.length && (loading || historyFailure) ? "—" : visible.length}</small></div>
         <div ref={list} id="clip-results" role="listbox" aria-label="Clipboard items" className="clip-list" tabIndex={0} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)} aria-activedescendant={activeDescendant}>
           <div aria-hidden="true" style={{ height: windowStart * rowHeight }} />
           {visible.slice(windowStart, windowEnd).map((item, index) => <div key={item.id} id={`clip-${item.id}`} role="option" aria-posinset={windowStart + index + 1} aria-setsize={visible.length} aria-selected={selected?.id === item.id} className={`clip-row ${selected?.id === item.id ? 'selected' : ''}`} onClick={() => { setSelectedId(item.id); list.current?.focus(); }}>
             <Thumbnail item={item} /><div className="clip-row-body"><strong>{title(item)}</strong><span><AppIcon item={item} /><small>{appName(item)} · {age(item.createdAt, displayTime)}</small></span></div><div className="clip-row-end">{item.pinned && <Icon name="pin" size={13} />}<small>{kindNames[item.kind]}</small></div>
           </div>)}
           <div aria-hidden="true" style={{ height: Math.max(0, visible.length - windowEnd) * rowHeight }} />
-          {!visible.length && <div className="clip-empty"><Icon name="squares" size={34} /><strong>{loading ? 'Loading clipboard…' : items.length ? 'No matching clips' : policy?.enabled === false ? 'Capture is paused' : 'Your next copy starts here'}</strong><p>{items.length ? 'Try another app, type, or search.' : 'Copy text, a link, an image, or a file in another app.'}</p>{!!items.length && <button onClick={() => { setQuery(''); setKind('all'); setScope('all'); }}>Clear filters</button>}</div>}
+          {!visible.length && <div className="clip-empty"><Icon name="squares" size={34} /><strong>{historyFailure ? 'History unavailable' : loading ? 'Loading clipboard…' : items.length ? 'No matching clips' : policy?.enabled === false ? 'Capture is paused' : 'Your next copy starts here'}</strong><p>{historyFailure ? 'Clipboard history could not be loaded.' : items.length ? 'Try another app, type, or search.' : 'Copy text, a link, an image, or a file in another app.'}</p>{!!items.length && <button onClick={() => { setQuery(''); setKind('all'); setScope('all'); }}>Clear filters</button>}</div>}
         </div>
       </section>
       <section className="clip-preview" aria-label="Selected clip preview">
@@ -241,7 +248,8 @@ export function ClipboardView({ bridge, onBack }: { bridge: PaletteBridge; onBac
         </> : <div className="clip-empty"><Icon name="image" size={38} /><p>Select a clip to preview it.</p></div>}
       </section>
     </div>
-    {feedback && <div className={`clip-feedback ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}><span>{feedback}</span><button aria-label="Dismiss message" onClick={() => { setFeedback(''); bridge.clearCaptureError?.(); }}><Icon name="close" size={14} /></button></div>}
+    {historyFailure && <div className="clip-feedback error" role="alert"><span>{historyFailure}</span></div>}
+    {feedback && <div className={`clip-feedback ${error ? 'error' : ''}`} role={error ? 'alert' : 'status'}><span>{feedback}</span><button aria-label="Dismiss message" onClick={() => { setFeedback(''); if (feedbackIsCapture.current) bridge.clearCaptureError?.(); feedbackIsCapture.current = false; }}><Icon name="close" size={14} /></button></div>}
     <footer className="clip-footer"><span><kbd>↑ ↓</kbd> Navigate</span><span><kbd>↵</kbd> Paste</span><span><kbd>⌘ C</kbd> Copy</span><button onClick={() => setActions((value) => !value)}><kbd>⌘ K</kbd> Actions</button><span className="clip-footer-end"><kbd>esc</kbd> Close</span></footer>
     {actions && <ActionsDialog onClose={() => { setActions(false); input.current?.focus(); }}><p>Clip actions</p><button autoFocus disabled={!selected || busy} onClick={() => copy(true)}>Paste to previous app <kbd>↵</kbd></button><button disabled={!selected || busy} onClick={() => copy()}>Copy <kbd>⌘ C</kbd></button><button disabled={!selected || busy} onClick={pin}>{selected?.pinned ? 'Unpin clip' : 'Pin clip'} <kbd>⌘ P</kbd></button><button className="danger" disabled={!selected || busy} onClick={remove}>Delete clip <kbd>⌘ ⌫</kbd></button><div className="clip-shortcut-help">With the list focused:<br />⌥ ⇧ ↑ ↓ Switch app<br />⌥ ⇧ ← → Switch type</div><button onClick={() => { setActions(false); input.current?.focus(); }}>Close actions <kbd>esc</kbd></button></ActionsDialog>}
     {settings && <ClipboardSettings policy={policy} apps={apps.map(({ item }) => item)} onClose={() => { setSettings(false); input.current?.focus(); }} onSave={savePolicy} />}

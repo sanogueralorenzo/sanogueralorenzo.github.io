@@ -71,18 +71,17 @@ encryption keys, and pasted fixture files remain under ignored `build/`.
 - Accessibility authorization is pending. Permission-enabled paste, app-activation
   failure recovery, and representative five-second keyboard retrieval remain to
   be exercised in the native app.
-- Sensitive pasteboard markers and rich HTML restoration,
-  multi-file copying, missing-file errors, time-based expiration, image/payload
-  rejection limits, and corrupted-storage recovery have source review coverage
-  but do not yet have complete native runtime evidence.
+- Sensitive pasteboard markers, TIFF-only and rich HTML restoration, and
+  image/payload rejection limits still lack complete native runtime evidence.
+  Multi-file restoration, missing files, time-based expiration, and malformed
+  storage were exercised in the third iteration below.
 - The narrow layout now stacks the preview below the history instead of removing
   it. Smaller native window sizes, long-content scrolling,
   empty-history states, histories at the full supported limit, and broader
   image-heavy workloads still need runtime coverage. The 1,000-clip observations
   below cover a limited workload and do not establish all performance acceptance.
-- Header icon rendering is verified. Bundle icon generation and the menu-bar
-  overlapping-square symbol are implemented; rendered OS icon surfaces still
-  need a final visual check.
+- Header and Finder bundle icon rendering are verified. The menu-bar
+  overlapping-square symbol is implemented but still needs a rendered check.
 
 Continue the active goal with the same three review roles and no automated tests.
 Do not treat this checkpoint or the reviewers' scoped approvals as full acceptance.
@@ -176,3 +175,43 @@ performed follow-up review; their reports distinguish source conclusions from th
 coordinator's runtime evidence. No automated tests were created or run. The active
 goal remains incomplete pending the remaining acceptance work above, particularly
 permission-enabled paste and controlled foreground-app attribution/exclusions.
+
+
+## Third iteration: failures and native file handling
+
+The UI now distinguishes history that failed to load from an empty history.
+Unavailable initial counts display an em dash, and a persistent load alert clears
+only after a successful refresh. Refresh failures are version guarded so stale
+requests cannot overwrite newer results. Action feedback remains separately
+visible, settings cannot open before their policy arrives, and dismissing an
+unrelated action message no longer clears a native capture diagnostic.
+
+Hands-on checks used isolated profiles and synthetic files:
+
+- Finder Get Info displayed the built overlapping-square application icon; see
+  [native app icon](evidence/native-app-icon.png).
+- Restoring a missing file displayed its explicit error without replacing the
+  existing synthetic clipboard marker; see [missing file](evidence/native-missing-file.png).
+- Under a 30-day policy, a synthetic 40-day-old unpinned item expired while an
+  equally old pin remained. Unpinning the old item removed it on refresh.
+- Actual Finder copying captured two files as one entry. Palette Copy followed by
+  Finder Paste restored both files into a scratch destination; read-only byte
+  comparisons matched both originals. [Multi-file history](evidence/native-multiple-files.png)
+  is filtered to the synthetic pin to exclude unrelated shared clipboard activity.
+- A repeat-copy attempt could not establish same-source deduplication: other
+  activity changed the inferred foreground source. It is not counted as a pass.
+- A deliberately malformed encrypted envelope displayed the preserved-data error.
+  Its SHA256 stayed unchanged across polling and review-app restart:
+  `e4c4c7b7dcbb5e4cb2323b31de0842a507727bf905021ace882484fa98a8bfd6`.
+  The final [unavailable state](evidence/native-history-unavailable.jpg) shows
+  unknown counts. Replacing only this deliberately damaged review fixture with
+  valid encrypted synthetic history let polling recover without app restart;
+  the alert disappeared and counts/preview loaded correctly, as shown in the
+  [recovered state](evidence/native-history-recovered.jpg).
+
+Final TypeScript checks and the complete macOS build passed. Workflow and
+reliability reviewers cleared the final source changes; the visual reviewer
+inspected the fresh evidence. These reviews are documented separately.
+
+No automated tests were created or run. Accessibility approval and the remaining
+acceptance gaps above remain open; these changes do not establish goal completion.

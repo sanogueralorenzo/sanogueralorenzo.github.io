@@ -60,3 +60,16 @@ Source inspection finds that virtual row height and CSS agree at 75px, including
 The restored-rich-text capture visibly contains a bold first-line title and a second body line in the destination editor. It is consistent with preserved formatting but does not by itself prove exact original rich-text fidelity; the native review owns that comparison.
 
 The prior default-size visual pass stands. Previously documented limits remain for narrow rendered layouts, extreme content dimensions, and rendered OS icon surfaces. The new evidence covers large-history layout, link preview, and no-match presentation that were previously unverified.
+
+# Visual review — bounded pre-commit pass
+
+Inspected fresh `native-history-unavailable.jpg`, `native-app-icon.png`, `native-missing-file.png`, and `native-multiple-files.png`, plus the final history-error rendering in `ClipboardView.tsx`. No automated tests or live UI control; no implementation changes.
+
+**Assessment: pass for this bounded visual cycle; no blocking visual findings.**
+
+- Unavailable history has a distinct central state, unknown counts shown as dashes, and a persistent red alert explaining the decryption failure and preserved data. The error strip remains clear of the footer. Source confirms history failure is separate from dismissible operation feedback and clears on a successful refresh.
+- Missing-file feedback identifies the missing filename and visibly reports failure without a success state. File title, wrapping path, metadata, and copy/paste controls remain within their regions.
+- The pinned multiple-file capture shows “2 files,” a clear selected row and pin state, and both paths contained in the preview. The two long paths are relatively dense at 11px; a future refinement could present each basename as a separate row with its directory secondary. This is a minor readability observation, not a blocker or additional requirement for this cycle.
+- Finder Get Info now verifies the actual application icon at both small and preview sizes. Its overlapping rounded outlined squares are crisp and consistent with the approved interface mark. This closes the prior bundle-icon rendering evidence gap; no new menu-bar or narrow-layout runtime evidence was supplied.
+
+The previous visual pass remains valid. These captures additionally cover unavailable storage, missing files, multiple-file preview, and the built review bundle’s application icon; functional clipboard semantics remain owned by native/runtime review.

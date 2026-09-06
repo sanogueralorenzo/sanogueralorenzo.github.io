@@ -116,3 +116,30 @@ The coordinating agent reports these checks passed in the running native app, us
 - With 1,000 clips, native End/Home navigation worked. Space scrolling with list focus preserved the preview and viewport across polling refreshes. The earlier coordinator-measured synthetic search `0999` plus Copy completed in 978ms.
 
 These observations address the native Edit-menu interaction risk and the focused large-history navigation checks. They are explicitly coordinator-supplied runtime evidence, not UI actions independently performed by this reviewer, and a single measured lookup does not establish every retrieval scenario's five-second target. No additional blocker identified by this source follow-up; no automated tests were created or run.
+
+## Error-state iteration — source review
+
+Parent observed preserved-data errors with malformed isolated storage alongside misleading zero counts/empty-history messaging. Source confirms initial `items = []` is also used after load failure, while generic feedback carries the only failure indicator. A separate history-load error with unknown counts and a persistent alert is an appropriate focused correction; successful refresh should clear only the history-load error, preserving unrelated action/capture feedback.
+
+Additional concrete interaction concerns in the current code:
+
+- **Medium — obsolete failed refreshes can replace newer feedback.** `refreshVersion` guards successful item assignment, but refresh rejection reaches its caller without checking whether the request was superseded. Scope history-error updates to the current version on both success and failure; a slow failed poll must not overwrite a later successful load.
+- **Medium — opening settings during policy loading creates a false permanent failure view.** Settings can open while `policy` is undefined. Its local draft initializes once and does not adopt the policy when the request later succeeds, so the modal says loading failed until closed/reopened. Disable opening until policy is available or distinguish loading and initialize the draft when policy arrives without replacing user edits.
+- **Medium — dismissing an unrelated action message also clears the capture diagnostic.** The generic feedback dismiss button always calls `clearCaptureError`, including when current text describes copy/pin/delete. Track capture feedback ownership or provide separate capture-error dismissal; an unrelated dismissed message must not erase a pending native capture failure.
+
+These are source findings; the new history-specific implementation is in progress with the parent. No automated tests or UI control performed.
+
+### Error-state follow-up
+
+Verified all three prior findings are addressed: current refresh version owns history failure/success; polling no longer republishes obsolete errors through generic feedback; settings stays disabled until a policy exists and while operations are busy; generic feedback tracks capture ownership before clearing native capture errors. Initial failed history now presents “History unavailable” and unknown counts instead of a known empty history, and successful refresh clears its separate failure state.
+
+Two focused issues remain in the new rendering:
+
+- **Medium — persistent history failure masks actionable copy/paste feedback.** The shared region renders `historyFailure || feedback`, so when previous rows remain visible after a failed refresh, their copy/paste/pin/delete outcomes are hidden. In particular, permission-denied paste guidance can be masked. Present the persistent history error and current operation feedback independently.
+- **Medium — generic failure text overclaims unchanged data.** “Existing data has not been changed” is rendered for every refresh failure, including one following a successful delete or policy mutation. Keep generic text neutral (“Clipboard history could not be loaded”), reserving preserved-data assurances for typed storage errors that establish them.
+
+No automated tests, UI control, or source implementation edits performed. Final native build verification is coordinated by the parent.
+
+### Error-state source closure
+
+Verified the final view now renders persistent history failure and dismissible action feedback in separate regions, preserving copy/paste guidance during a load failure. Generic empty-state text is neutral: “Clipboard history could not be loaded.” Both findings from the preceding follow-up are resolved in source. No additional concrete blocker identified in this bounded recheck. Runtime verification remains attributed to the coordinator; no automated tests or UI control performed by this reviewer.

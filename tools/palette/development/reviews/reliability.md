@@ -111,3 +111,17 @@ The coordinator reports the following deliberate native checks; this reviewer di
 - Background CUA source attribution remained incorrect (an unrelated foreground Godot app). The documented foreground-inference and app-exclusion limitations continue to apply.
 
 Reviewed the additional native source changes: `--keep-visible` bypasses focus-loss dismissal only when `isReview` is true, and the new Edit menu uses nil-target standard responder-chain actions. No new reliability source blocker identified. Menu interaction was exercised by the coordinator's Copy checks above. Permission-enabled direct paste remains outside this evidence until Accessibility authorization is available. Existing source approval stands with the stated scope and remaining acceptance work.
+
+## Final storage-failure presentation review
+
+Reviewed the `ClipboardView` history-failure changes read-only. No tests or live UI actions. The latest-request version now owns both loaded data and load errors: stale requests cannot replace the current failure, successful refresh clears it, and failed refresh retains existing cached rows instead of reporting an empty successful load. An initial failed load shows unknown counts and “History unavailable” with the actual error. Polling failures no longer overwrite action/capture feedback. Capture-error dismissal is explicitly distinguished from dismissing unrelated status feedback, so an unrelated message cannot silently clear the host's pending capture error. Settings are disabled until policy is available and while an operation runs. No new concrete reliability regression identified in this bounded source change.
+
+Additional coordinator-reported native checks this cycle:
+
+- A multi-file capture restored both files through Finder; both pasted files were byte-identical to their originals.
+- Restoring a missing file was rejected before changing the replacement clipboard marker, confirming preservation of the current clipboard on that failure path.
+- In an isolated fixture dated 40 days earlier, an unpinned item expired while a pinned item remained; unpinning the old pinned item then expired it.
+- A malformed encrypted envelope retained the same SHA-256 hash while the native app polled its history, supporting the claim that load failure preserves the existing file.
+- Same-source recopy verification was inconclusive because other clipboard activity and foreground attribution changed during the check. This is not a deduplication runtime pass; source coverage and previously observed self-restore stability remain distinct evidence.
+
+Source review remains approved for committing this checkpoint, with no additional concrete blocker from these changes. Permission-enabled paste, controlled same-source recopy/exclusion checks and other still-open acceptance work remain explicitly outside that approval. The reviewer did not commit, push, run tests or control the app.
