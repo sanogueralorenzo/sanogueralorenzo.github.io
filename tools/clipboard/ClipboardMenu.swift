@@ -161,7 +161,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .centerX; emptyRows.spacing = 4
         emptyRows.edgeInsets = NSEdgeInsets(top: 12, left: 4, bottom: 12, right: 4)
-        for (index, text) in ["Clipboard History", "Copy something to get started.", "Preview image with hover + space"].enumerated() {
+        for (index, text) in ["Clipboard History", "Copy something to get started.", "Preview image with hover + space."].enumerated() {
             let label = NSTextField(wrappingLabelWithString: text)
             label.font = .systemFont(ofSize: 12, weight: index == 0 ? .medium : .regular)
             label.textColor = index == 0 ? .labelColor : .secondaryLabelColor
