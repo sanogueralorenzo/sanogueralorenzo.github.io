@@ -74,3 +74,19 @@ No further layout or copy-interaction blocker found. The excluded-app placeholde
 ### Final search-space closure
 
 The coordinator reports the rebuilt 340 × 300 native app passed the exact focused scenario: click a row and leave the pointer there; Command+F; type `ordinary`; press Space; type `privacy`. Accessibility output showed the complete query `ordinary privacy`, one matching result, search still focused, and no preview. This closes the search-Space concern against coordinator-supplied native evidence. The excluded-app empty placeholder is now the untruncated “None.” No remaining substantive usability finding is open.
+
+## Actual macOS menu component — source review
+
+The user subsequently requested the actual macOS menu component. Independently inspected `PaletteHost.swift`: the primary surface now uses `NSMenu`, a custom `NSMenuItem.view` for clipboard content, a native separator, and a native Quit Palette item. The custom `NSPanel`, outer background/corner treatment, window placement, and imitation Quit button are removed. This implements the requested native container rather than another styled panel.
+
+The local AppKit SDK's `NSMenuItem.h` documents that custom menu views receive ordinary mouse/keyboard events and are attached to a window on each opening, then removed on close. The existing `viewDidMoveToWindow` focus hook therefore covers reopening. The native item frame is 280 × 260; final outer menu dimensions and positioning belong to AppKit. Documentation describing a fixed 280 × 300 panel and prescribed corner alignment should be updated accordingly.
+
+No new source-confirmed usability blocker found. One focused runtime check remains: hover tracking uses `.activeInKeyWindow`, so verify actual menu-window mouse delivery with hover → Space and hover → Command+C, plus ordinary search editing. Prior panel-runtime passes do not establish these behaviors in the new menu container.
+
+The coordinator reports the running app is in a healthy native menu tracking session, but CUA menu-only observations time out. The user is inspecting the menu directly; this reviewer deliberately did not take desktop control or interrupt that interaction. Native appearance and final menu interaction closure must therefore be attributed to user/coordinator evidence when available. No automated tests, code edits, or clip mutations performed in this source pass.
+
+### Native menu final closure — source and user evidence
+
+**Independent source recheck:** hover tracking now uses `.activeAlways` with `.inVisibleRect`, removing reliance on the menu window becoming key. The Palette pause/resume button uses `imageHugsTitle = true`, a 13-point semibold title, and a matching 13-point semibold symbol configuration at `.small` scale. These directly address native-menu hover delivery and the title/symbol alignment finding.
+
+**User-observed native closure, relayed by the coordinator:** the user confirmed the menu now has the desired system appearance, initially reported the play/resume icon was off-center, and after the focused correction explicitly selected “Alignment and interactions work.” That confirmation followed a request to check alignment, hover → Space, hover → Command+C, and typing an app name. This closes the final menu appearance and interaction checks against user evidence, not an independent CUA pass. No further substantive usability finding remains open.

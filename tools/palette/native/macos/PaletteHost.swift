@@ -2,9 +2,12 @@ import AppKit
 import Carbon.HIToolbox
 import ApplicationServices
 
-final class ClipboardPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { false }
+final class ClipboardContent: NSView {
+    var didAttach: (() -> Void)?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil { didAttach?() }
+    }
 }
 
 final class ClipboardRow: NSTableRowView {
@@ -25,7 +28,7 @@ final class ClipboardTable: NSTableView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let hoverTracking { removeTrackingArea(hoverTracking) }
-        let tracking = NSTrackingArea(rect: .zero, options: [.inVisibleRect, .activeInKeyWindow, .mouseMoved, .mouseEnteredAndExited], owner: self)
+        let tracking = NSTrackingArea(rect: .zero, options: [.inVisibleRect, .activeAlways, .mouseMoved, .mouseEnteredAndExited], owner: self)
         addTrackingArea(tracking); hoverTracking = tracking
     }
     override func mouseMoved(with event: NSEvent) {
@@ -40,8 +43,10 @@ final class ClipboardTable: NSTableView {
 
 @main
 @MainActor
-final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
-    private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 280, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
+final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
+    private let clipboardMenu = NSMenu()
+    private let content = ClipboardContent(frame: NSRect(x: 0, y: 0, width: 280, height: 260))
+    private var menuOpen = false
     private let search = NSSearchField()
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
@@ -78,7 +83,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        configurePanel()
+        configureContent()
         configureMenu()
         installShortcut()
         let standard = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Palette")
@@ -104,17 +109,20 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         }
         store.load()
         timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.capture() } }
+        RunLoop.main.add(timer!, forMode: .common)
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
             MainActor.assumeIsolated { self?.capture(source: notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication) }
         }
-        if !args.contains("--background") { show() }
+        if !args.contains("--background") { RunLoop.main.perform { MainActor.assumeIsolated { self.show() } } }
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !panel.isVisible { show() }; return true }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !menuOpen { show() }; return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
-        capture()
-        store?.finishWrites()
+        if historyAvailable == true {
+            capture()
+            store?.finishWrites()
+        }
         timer?.invalidate()
         if let shortcutRef { UnregisterEventHotKey(shortcutRef) }
         if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
@@ -122,23 +130,12 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         if let activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(activationObserver) }
     }
 
-    private func configurePanel() {
-        panel.title = "Palette"
-        panel.delegate = self
-        panel.level = .floating
-        panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
-        panel.isReleasedWhenClosed = false
-        panel.hasShadow = true
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.appearance = NSAppearance(named: .darkAqua)
-        let root = NSView()
-        root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor(calibratedRed: 0.105, green: 0.098, blue: 0.12, alpha: 1).cgColor
-        root.layer?.cornerRadius = 16
-        root.layer?.borderWidth = 1
-        root.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
-        panel.contentView = root
+    private func configureContent() {
+        let root = content
+        content.didAttach = { [weak self] in
+            guard let self else { return }
+            self.content.window?.makeFirstResponder(self.table)
+        }
         let stack = NSStackView()
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -148,8 +145,10 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         mark.contentTintColor = accent
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
         pause.title = "Palette"
-        pause.font = .systemFont(ofSize: 14, weight: .semibold)
+        pause.font = .systemFont(ofSize: 13, weight: .semibold)
         pause.imagePosition = .imageTrailing
+        pause.imageHugsTitle = true
+        pause.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold, scale: .small)
         pause.target = self; pause.action = #selector(toggleCapture)
         pause.isBordered = false; pause.isEnabled = false
         clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
@@ -166,7 +165,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         search.setAccessibilityLabel("Search clips or apps")
         add(search, to: stack)
         search.heightAnchor.constraint(equalToConstant: 26).isActive = true
-        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = panel.frame.width - 22
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("clip")); column.width = content.frame.width - 22
         table.addTableColumn(column)
         table.headerView = nil; table.backgroundColor = .clear
         table.rowHeight = 30; table.intercellSpacing = NSSize(width: 0, height: 2)
@@ -187,18 +186,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         add(previewImage, to: stack); previewImage.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; previewImage.isHidden = true
-        let separator = NSBox(); separator.boxType = .separator
-        add(separator, to: stack)
-        separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
-        let quitRow = NSButton(title: "", target: self, action: #selector(quit))
-        quitRow.isBordered = false; quitRow.alignment = .left
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.tabStops = [NSTextTab(textAlignment: .right, location: panel.frame.width - 32)]
-        quitRow.attributedTitle = NSAttributedString(string: "Quit\t⌘Q", attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph])
-        quitRow.setAccessibilityLabel("Quit Palette")
-        quitRow.keyEquivalent = "q"; quitRow.keyEquivalentModifierMask = .command
-        add(quitRow, to: stack)
-        quitRow.heightAnchor.constraint(equalToConstant: 24).isActive = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated { self?.handleKey(event) == true }
             return handled ? nil : event
@@ -214,7 +201,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")
         statusItem.button?.image?.isTemplate = true
-        statusItem.button?.target = self; statusItem.button?.action = #selector(toggle)
+        clipboardMenu.delegate = self
+        clipboardMenu.autoenablesItems = false
+        let clipboard = NSMenuItem()
+        clipboard.view = content
+        clipboardMenu.addItem(clipboard)
+        clipboardMenu.addItem(.separator())
+        clipboardMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
+        statusItem.menu = clipboardMenu
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
         appMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
@@ -224,35 +218,25 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         edit.submenu = editMenu; menu.addItem(edit); NSApp.mainMenu = menu
     }
 
-    @objc private func toggle() { panel.isVisible ? dismiss() : show() }
+    @objc private func toggle() { menuOpen ? dismiss() : show() }
     private func show() {
+        guard !menuOpen, let button = statusItem.button else { return }
+        clipboardMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
+    }
+    func menuWillOpen(_ menu: NSMenu) {
+        menuOpen = true
         store?.prune()
         if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != ProcessInfo.processInfo.processIdentifier {
             capture(source: front)
             previousApp = front
         }
-        guard let button = statusItem.button, let window = button.window, let screen = window.screen else { return }
-        let anchor = window.convertToScreen(button.convert(button.bounds, to: nil))
-        let frame = screen.visibleFrame
-        // A hidden menu-bar item can have an offscreen frame. Keep shortcut access visible.
-        let preferredX = anchor.midY >= frame.maxY ? anchor.minX : frame.maxX - panel.frame.width - 8
-        let x = min(max(preferredX, frame.minX + 8), frame.maxX - panel.frame.width - 8)
-        panel.setFrameOrigin(NSPoint(x: x, y: frame.maxY - panel.frame.height - 6))
         search.stringValue = ""; previewVisible = false; table.clearHover(); table.deselectAll(nil); reload()
-        NSApp.activate(ignoringOtherApps: true); panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(table)
     }
-    private func dismiss(restoreFocus: Bool = true) {
-        panel.orderOut(nil)
-        if restoreFocus { previousApp?.activate(options: []) }
+    func menuDidClose(_ menu: NSMenu) {
+        menuOpen = false
         previousApp = nil
     }
-    func windowDidResignKey(_ notification: Notification) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self, !self.panel.isKeyWindow else { return }
-            self.dismiss(restoreFocus: false)
-        }
-    }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { dismiss(); return false }
+    private func dismiss() { clipboardMenu.cancelTracking() }
 
     private func capture(source: NSRunningApplication? = nil) {
         guard let store else { return }
@@ -322,26 +306,26 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
-        guard panel.isKeyWindow else { return false }
+        guard menuOpen, let window = content.window else { return false }
         let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        let editingSearch = panel.firstResponder === search.currentEditor()
+        let editingSearch = window.firstResponder === search.currentEditor()
         if event.keyCode == 53 { dismiss(); return true }
-        if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { previewVisible = false; updatePreview(); panel.makeFirstResponder(search); return true }
+        if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { previewVisible = false; updatePreview(); window.makeFirstResponder(search); return true }
         if modifiers.contains(.command), event.charactersIgnoringModifiers == "c" {
             if let hovered { restore(hovered, paste: false); return true }
-            if editingSearch || (panel.firstResponder === previewText && previewText.selectedRange().length > 0) { return false }
+            if editingSearch || (window.firstResponder === previewText && previewText.selectedRange().length > 0) { return false }
             restore(selected, paste: false); return true
         }
         if event.keyCode == 36, modifiers.isEmpty { pasteClip(); return true }
         if [125, 126].contains(event.keyCode), modifiers.isEmpty {
             let row = max(0, min(filtered.count - 1, table.selectedRow + (event.keyCode == 125 ? 1 : -1)))
-            if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row); panel.makeFirstResponder(previewVisible ? nil : table) }
+            if !filtered.isEmpty { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row); window.makeFirstResponder(previewVisible ? nil : table) }
             return true
         }
         if event.keyCode == 49, modifiers.isEmpty, !editingSearch {
             if let hovered, let index = filtered.firstIndex(where: { $0.id == hovered.id }) { table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
             previewVisible.toggle(); updatePreview()
-            panel.makeFirstResponder(previewVisible ? nil : table)
+            window.makeFirstResponder(previewVisible ? nil : table)
             return true
         }
         return false
@@ -364,7 +348,9 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
                     guard NSWorkspace.shared.frontmostApplication?.processIdentifier == target.processIdentifier,
                           let down = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
                           let up = CGEvent(keyboardEventSource: nil, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false) else {
-                        self?.show(); self?.report("Could not focus the destination. The clip is copied; paste it manually."); return
+                        self?.report("Could not focus the destination. The clip is copied; paste it manually.")
+                        RunLoop.main.perform { MainActor.assumeIsolated { self?.show() } }
+                        return
                     }
                     down.flags = .maskCommand; up.flags = .maskCommand
                     down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
@@ -375,7 +361,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private func report(_ text: String?) {
         issue = text
         let action = policy.enabled ? "Pause capture" : "Resume capture"
-        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 9, weight: .medium))
+        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)
         pause.setAccessibilityLabel("Palette · \(action)")
         pause.toolTip = text.map { "\(action)\n\($0)" } ?? action
         pause.contentTintColor = text == nil ? .labelColor : .systemOrange
@@ -391,7 +377,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         guard historyAvailable == true, !clips.isEmpty else { return }
         report(shortcutError)
         store.clear()
-        panel.makeFirstResponder(table)
+        content.window?.makeFirstResponder(table)
     }
     @objc private func quit() { NSApp.terminate(nil) }
 
@@ -400,7 +386,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let callback: EventHandlerUPP = { _, _, pointer in
             guard let pointer else { return noErr }
             let owner = Unmanaged<PaletteAppDelegate>.fromOpaque(pointer).takeUnretainedValue()
-            DispatchQueue.main.async { owner.toggle() }
+            MainActor.assumeIsolated { owner.toggle() }
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), &eventHandlerRef)

@@ -2,16 +2,16 @@
 
 A quiet macOS clipboard utility. Copy something, find it by its source app, and reuse it.
 
-Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a 280 × 300 panel beneath that icon, with its left edge aligned to the icon and extending right. The panel stays within the screen edges. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
+Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compact native macOS menu. AppKit provides its appearance, placement, screen-edge handling, dismissal, separator, and Quit row; the clipboard view is 280 points wide. Click search (or press **⌘F**) to find clip content or a source app; for example, `whatsap` matches WhatsApp copies. Escape, the shortcut, or clicking away dismisses it.
 
-- Hover a clip and press **⌘C** to restore its native formats and dismiss the panel. Paste normally wherever you need it.
+- Hover a clip and press **⌘C** to restore its native formats and dismiss the menu. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
 - **Space** previews the hovered or keyboard-selected clip immediately after opening, replacing the list with a full-area text, link, image, or file preview. Press Space again to return; **⌘F** returns to search.
 - Search and selectable preview text retain native text-editing shortcuts.
 
 Direct paste needs Palette's existing macOS Accessibility permission; ⌘C works without it. If the destination cannot regain focus, the clip remains copied for manual paste. macOS does not report whether a destination accepted a paste.
 
-Click the **Palette title** to pause or resume capture; its inline icon shows the available action. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no options menu or settings panel. The bottom **Quit** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
+Click the **Palette title** to pause or resume capture; its inline icon shows the available action. The **bin** immediately clears all saved clips, including legacy pinned clips, without confirmation. There is no additional options menu or settings panel. The native bottom **Quit Palette** row shows **⌘Q**; either quits Palette. Defaults are 200 clips and 30 days; existing retention, capacity, exclusions, and pins remain honored. Automatic cleanup removes only older unpinned clips.
 
 ## Clipboard and privacy
 
@@ -21,7 +21,7 @@ History and thumbnails stay local, encrypted with AES-256-GCM and a key in macOS
 
 Each captured copy is limited to 8 MB; image decoding is bounded to 40 megapixels and 16,000 pixels per edge. The encrypted history payload is limited to 64 MB. Reaching that limit reports an error and preserves saved clips, rather than silently evicting them. If an operation fails, the pause/resume icon turns amber and its tooltip explains the failure. Details remain until the next explicit pause/resume or clear action; background success does not erase them. Unreadable settings, keys, or history pause capture and preserve existing files.
 
-Existing `~/Library/Application Support/Palette/clipboard.json` history, pins, app provenance, native representations, retention, pause state, and exclusions remain compatible. The Keychain service/account and version-1 encrypted envelope are unchanged. The new implementation needs no migration export or replacement key. Pending writes finish before a normal Quit.
+Existing `~/Library/Application Support/Palette/clipboard.json` history, pins, app provenance, native representations, retention, pause state, and exclusions remain compatible. The Keychain service/account and version-1 encrypted envelope are unchanged. The new implementation needs no migration export or replacement key. Pending writes finish before a normal Quit. Quitting before history has loaded does not wait on an unavailable Keychain read.
 
 ## Build and run
 
@@ -35,7 +35,7 @@ open build/Palette.app
 
 The build compiles three Swift source files, renders the existing overlapping-squares icon, and ad-hoc signs the application. No package installation, downloaded runtime, Node daemon, WebView, or file indexer is needed. Quit the installed Palette before replacing `~/Applications/Palette.app` with `build/Palette.app`.
 
-Palette has no Dock icon and stays resident when dismissed. It opens on a manual launch. Use macOS Login Items for automatic launch; `--background` suppresses the initial panel. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
+Palette has no Dock icon and stays resident when dismissed. It opens on a manual launch. Use macOS Login Items for automatic launch; `--background` suppresses the initial menu. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
 
 For native verification with disposable synthetic content:
 
@@ -47,7 +47,7 @@ Review mode requires a separate absolute directory and uses its own permission-r
 
 ## Ownership
 
-- `PaletteHost.swift`: one panel, app lifecycle, native interactions, capture monitoring.
+- `PaletteHost.swift`: native menu and clipboard view, app lifecycle, interactions, capture monitoring.
 - `ClipboardSupport.swift`: supported pasteboard capture and restoration.
 - `ClipboardStore.swift`: one serial owner for history, settings, encryption, and persistence.
 

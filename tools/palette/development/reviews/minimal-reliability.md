@@ -93,3 +93,20 @@ Confirmed Space now requires that search is not being edited; only `⌘C` retain
 ### Final capture-capacity source closure
 
 The coordinator identified that a capacity entirely occupied by pinned clips could prune away a new unpinned copy and return an unchanged history silently. Confirmed the final capture path now requires its stable captured ID to survive pruning and throws a history-limits error otherwise. The existing serial mutation error path preserves saved memory/ciphertext and exposes the issue through Details. Paused/excluded captures still return without an error, and a recopy of an existing pinned item retains its ID/pin and survives. The same guard covers zero-retention rejection. No new state layer, automated test or runtime claim was added in this focused recheck. Source closure is approved.
+
+## Native NSMenu lifecycle review
+
+Reviewed the subsequent NSMenu implementation without editing code, running tests or taking native UI control. One custom clipboard content view, a real separator and native Quit item give menu tracking to AppKit. The timer is also registered in common run-loop modes. `menuWillOpen` flushes a pending copy using the outgoing foreground app, and paste retains a local destination before `menuDidClose` clears the remembered app. Those ownership decisions are consistent.
+
+Two concrete issues were returned for correction:
+
+- **P2 — Paste failure reopens a blocking menu from a main-dispatch callback.** The focus-failure closure invokes `show()` before `report()`. Since `NSMenu.popUp` tracks synchronously, its failure detail is not installed until that menu closes. It also recreates the main-dispatch-owned nested menu loop that the startup change deliberately avoided. Record the failure before scheduling menu presentation through `RunLoop.main.perform`.
+- **P1 — Quit still blocks behind an unfinished Keychain lookup.** The coordinator's `/tmp/palette-before-menu.sample` shows the main thread waiting in `ClipboardStore.finishWrites` while the history queue is blocked in `SecItemCopyMatching`. The current unconditional termination drain preserves that problem. Only drain accepted writes once the main-thread availability snapshot confirms history loaded successfully. Before readiness, capture and mutation controls are disabled, so quitting need not wait for a Keychain read. Keep the existing write drain for a ready store.
+
+Menu-window keyboard delivery, editable-search behavior, hover tracking and callback publication while a menu is open require the coordinator's current native check; this source pass does not claim them verified.
+
+### Native-menu source closure
+
+Confirmed termination now drains captures/writes only after a successful history load, so an unresolved startup Keychain read cannot block Quit. Confirmed paste focus failure records its message first and schedules the reopening through the main run loop rather than entering synchronous menu tracking from the dispatch callback. Both findings are closed by focused source inspection.
+
+The coordinator's native sample contains `NSMenuTrackingSession` beneath AppKit's menu popup, establishing that this build uses native menu tracking. CUA accessibility calls currently time out against the menu-only app. That tool limitation leaves interactive keyboard/hover/copy verification of this latest menu revision incomplete; the sample alone is not a substitute for those checks.
