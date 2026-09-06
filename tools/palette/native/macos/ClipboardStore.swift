@@ -87,25 +87,24 @@ final class ClipboardStore {
             if let existing { clip.id = existing.id; clip.pinned = existing.pinned }
             let next = self.pruned([clip] + clips.filter { $0.id != clip.id })
             guard next.contains(where: { $0.id == clip.id }) else {
-                throw Self.failure("This copy exceeds the history limits. Unpin older clips or choose a longer retention in Settings.")
+                throw Self.failure("This copy exceeds the saved history limits.")
             }
             return next
         }
     }
 
-    func pin(_ id: String) { change { clips in self.pruned(clips.map { clip in var clip = clip; if clip.id == id { clip.pinned.toggle() }; return clip }) } }
-    func remove(_ id: String) { change { $0.filter { $0.id != id } } }
-    func clearUnpinned() { change { $0.filter(\.pinned) } }
+    func clear() { change { _ in [] } }
 
-    func setPolicy(_ policy: ClipboardPolicy) {
+    func toggleCapture() {
         queue.async {
             guard self.ready else { return }
             do {
-                try self.write(JSONEncoder().encode(Settings(clipboard: policy)), to: self.settingsURL)
-                self.policy = policy
+                var next = self.policy
+                next.enabled.toggle()
+                try self.write(JSONEncoder().encode(Settings(clipboard: next)), to: self.settingsURL)
+                self.policy = next
                 self.publish()
-                self.change { self.pruned($0) }
-            } catch { self.publish("Settings could not be saved. Your previous settings are still active.") }
+            } catch { self.publish("Capture could not be changed. Your previous setting is still active.") }
         }
     }
 
@@ -129,7 +128,7 @@ final class ClipboardStore {
                 guard next != self.saved else { return }
                 let data = try JSONEncoder().encode(next)
                 // Never discard history just to fit a binary budget.
-                guard data.count <= 64 * 1024 * 1024 else { throw Self.failure("History is full (64 MB). Delete older clips to save new copies.") }
+                guard data.count <= 64 * 1024 * 1024 else { throw Self.failure("History is full (64 MB). Clear history to save new copies.") }
                 let box = try AES.GCM.seal(data, using: key)
                 let envelope = Envelope(version: 1, iv: Data(box.nonce), authTag: box.tag, ciphertext: box.ciphertext)
                 try self.write(JSONEncoder().encode(envelope), to: self.historyURL)

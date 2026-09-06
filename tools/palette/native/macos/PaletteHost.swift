@@ -40,7 +40,7 @@ final class ClipboardTable: NSTableView {
 
 @main
 @MainActor
-final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuItemValidation {
+final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     private let panel = ClipboardPanel(contentRect: NSRect(x: 0, y: 0, width: 340, height: 300), styleMask: [.borderless], backing: .buffered, defer: false)
     private let search = NSSearchField()
     private let table = ClipboardTable()
@@ -49,7 +49,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private let previewText = NSTextView()
     private let previewImage = NSImageView()
     private var statusItem: NSStatusItem!
-    private var settingsPanel: SettingsPanel?
     private var store: ClipboardStore!
     private var clips: [Clip] = []
     private var filtered: [Clip] = []
@@ -63,7 +62,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     private var changeCount = NSPasteboard.general.changeCount
     private var iconCache: [String: NSImage] = [:]
     private var previewVisible = false
-    private let more = NSButton()
+    private let pause = NSButton()
+    private let clear = NSButton()
     private var issue: String?
     private var shortcutError: String?
     private var historyAvailable: Bool?
@@ -149,11 +149,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         mark.widthAnchor.constraint(equalToConstant: 18).isActive = true
         let title = NSTextField(labelWithString: "Palette")
         title.font = .systemFont(ofSize: 14, weight: .semibold)
-        more.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "More")
-        more.target = self; more.action = #selector(openMenu(_:))
-        more.isBordered = false
-        more.setAccessibilityLabel("More")
-        let heading = NSStackView(views: [mark, title, NSView(), more]); heading.spacing = 8
+        pause.target = self; pause.action = #selector(toggleCapture)
+        pause.isBordered = false; pause.isEnabled = false
+        clear.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear history")
+        clear.target = self; clear.action = #selector(clearHistory)
+        clear.isBordered = false; clear.isEnabled = false
+        clear.toolTip = "Clear all clipboard history"
+        clear.setAccessibilityLabel("Clear all clipboard history")
+        let heading = NSStackView(views: [mark, title, NSView(), pause, clear]); heading.spacing = 8
         add(heading, to: stack)
         search.placeholderString = "Search clips or apps"
         search.delegate = self
@@ -170,10 +173,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         table.dataSource = self; table.delegate = self
         table.target = self; table.doubleAction = #selector(pasteClip)
         table.setAccessibilityLabel("Clipboard history")
-        let context = NSMenu()
-        context.addItem(withTitle: "Pin / Unpin", action: #selector(pinContextClip), keyEquivalent: "").target = self
-        context.addItem(withTitle: "Delete", action: #selector(deleteClip), keyEquivalent: "") .target = self
-        table.menu = context
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
         scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
@@ -205,7 +204,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         statusItem.button?.target = self; statusItem.button?.action = #selector(toggle)
         let menu = NSMenu()
         let appItem = NSMenuItem(); let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
         appMenu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
         appItem.submenu = appMenu; menu.addItem(appItem)
         let edit = NSMenuItem(); let editMenu = NSMenu(title: "Edit")
@@ -271,7 +269,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
     private var selected: Clip? { filtered.indices.contains(table.selectedRow) ? filtered[table.selectedRow] : nil }
     private var hovered: Clip? { !previewVisible && filtered.indices.contains(table.hoveredRow) ? filtered[table.hoveredRow] : nil }
-    private var contextClip: Clip? { filtered.indices.contains(table.clickedRow) ? filtered[table.clickedRow] : selected }
     func numberOfRows(in tableView: NSTableView) -> Int { filtered.count }
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { ClipboardRow() }
     func tableViewSelectionDidChange(_ notification: Notification) { updatePreview() }
@@ -287,14 +284,14 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
         let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
         image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
         let summary = String(clip.summary.prefix(180)).replacingOccurrences(of: "\n", with: " ")
-        let title = NSTextField(labelWithString: (clip.pinned ? "★ " : "") + summary)
+        let title = NSTextField(labelWithString: summary)
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
         title.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
         title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
         cell.toolTip = "\(clip.appName) · ⌘C to copy · Space to preview"
-        cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)\(clip.pinned ? ", pinned" : "")")
+        cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell
     }
     private func updatePreview() {
@@ -322,7 +319,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
             if editingSearch || (panel.firstResponder === previewText && previewText.selectedRange().length > 0) { return false }
             restore(selected, paste: false); return true
         }
-        if modifiers.contains(.command), event.charactersIgnoringModifiers == "p", !editingSearch { pinClip(); return true }
         if event.keyCode == 36, modifiers.isEmpty { pasteClip(); return true }
         if [125, 126].contains(event.keyCode), modifiers.isEmpty {
             let row = max(0, min(filtered.count - 1, table.selectedRow + (event.keyCode == 125 ? 1 : -1)))
@@ -365,45 +361,36 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegat
     }
     private func report(_ text: String?) {
         issue = text
-        more.image = NSImage(systemSymbolName: text == nil ? "ellipsis" : "exclamationmark.circle", accessibilityDescription: "More")
-        more.toolTip = text
+        let action = policy.enabled ? "Pause capture" : "Resume capture"
+        pause.image = NSImage(systemSymbolName: policy.enabled ? "pause.fill" : "play.fill", accessibilityDescription: action)
+        pause.setAccessibilityLabel(action)
+        pause.toolTip = text.map { "\(action)\n\($0)" } ?? action
+        pause.contentTintColor = text == nil ? .secondaryLabelColor : .systemOrange
+        pause.isEnabled = historyAvailable == true
+        clear.isEnabled = historyAvailable == true && !clips.isEmpty
         statusItem?.button?.toolTip = text ?? (policy.enabled ? "Palette · ⌘⇧V" : "Palette · Capture paused")
     }
-    @objc private func showIssue() {
-        guard let issue else { return }
-        let alert = NSAlert(); alert.messageText = "Palette"; alert.informativeText = issue
-        alert.beginSheetModal(for: panel) { [weak self] _ in
-            guard let self, self.historyAvailable == true else { return }
-            self.report(self.shortcutError)
+    @objc private func toggleCapture() {
+        report(shortcutError)
+        store?.toggleCapture()
+    }
+    @objc private func clearHistory() {
+        guard historyAvailable == true, !clips.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "Clear all clipboard history?"
+        alert.informativeText = "All saved clips will be deleted. This cannot be undone."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Clear history")
+        alert.beginSheetModal(for: panel) { [weak self] response in
+            guard let self else { return }
+            if response == .alertSecondButtonReturn {
+                self.report(self.shortcutError)
+                self.store.clear()
+            }
+            self.panel.makeFirstResponder(self.table)
         }
     }
-    @objc private func pinClip() { if let clip = selected { store?.pin(clip.id) } }
-    @objc private func pinContextClip() { if let clip = contextClip { store?.pin(clip.id) } }
-    @objc private func deleteClip() { if let clip = contextClip { store?.remove(clip.id) } }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func openMenu(_ sender: NSButton) {
-        let menu = NSMenu()
-        if issue != nil { menu.addItem(withTitle: "Details…", action: #selector(showIssue), keyEquivalent: "").target = self; menu.addItem(.separator()) }
-        menu.addItem(withTitle: policy.enabled ? "Pause capture" : "Resume capture", action: #selector(toggleCapture), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Palette", action: #selector(quit), keyEquivalent: "q").target = self
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 4), in: sender)
-    }
-    @objc private func toggleCapture() { var next = policy; next.enabled.toggle(); store?.setPolicy(next) }
-    @objc private func openSettings() {
-        guard store != nil, historyAvailable == true else { return }
-        let settings = SettingsPanel(policy: policy, count: clips.filter { !$0.pinned }.count)
-        settings.onSave = { [weak self] next in self?.store.setPolicy(next) }
-        settings.onClear = { [weak self] in self?.store.clearUnpinned() }
-        settingsPanel = settings
-        panel.beginSheet(settings) { [weak self] _ in self?.settingsPanel = nil; self?.panel.makeFirstResponder(self?.table) }
-    }
-
-    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(openSettings) || menuItem.action == #selector(toggleCapture) { return historyAvailable == true }
-        return true
-    }
 
     private func installShortcut() {
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))

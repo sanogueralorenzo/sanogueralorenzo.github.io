@@ -63,3 +63,9 @@ The user confirmed a native click opened the panel beneath the icon, then reques
 Removed the All apps/Pinned dropdown and its population/filtering code. Search remains case-insensitive across clip content, titles, and source-app names. The list receives focus on opening and after Settings closes; search is entered by clicking it or Command+F. Pins remain available in the item context menu.
 
 Native checks in the paused synthetic profile confirmed immediate Space preview after opening; pointer-row Space preview despite a different keyboard selection; `microsof` matching the Microsoft Edge clip by its source; and clicking search then entering `steam`, an actual Space key, and `helper` showing all three Steam Helper clips. The 340×300 screenshot has no dropdown. Build and installed signature pass; no automated tests were created or run.
+
+## Two-action header follow-up
+
+Replaced More with pause/resume and clear-all icons. Removed SettingsPanel.swift, its build input, the settings and Details menus, and the unused per-item pin/delete actions. The native Quit shortcut remains. The serial store now owns capture toggling and clear-all directly, while honoring legacy privacy policy and pinned-history retention. Ordinary failures tint the existing pause/resume icon amber and remain readable in its tooltip; no extra panel or menu is added.
+
+Native interaction used `/tmp/palette-header-review.K5FV9Z`, a disposable clone of the four-item migration profile containing legacy pins. Resume switched to Pause; Pause switched back to Resume. Clear opened a native confirmation, Cancel preserved all four clips, and confirmation removed every clip and disabled the empty-history bin. A normal quit/relaunch preserved both the empty history and paused capture. Original profiles and production history were not cleared. Build and installed signature checks pass; no automated tests were created or run.
