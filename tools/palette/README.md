@@ -6,8 +6,8 @@ Click the overlapping-squares menu bar icon or press **⌘⇧V** to open a compa
 
 - Hover a clip and press **⌘C** to restore its native formats and dismiss the menu. Paste normally wherever you need it.
 - **↑ / ↓** selects a clip; **Return** or double-click pastes into the previous app. With the pointer outside the list, **⌘C** copies the keyboard selection.
-- **Space** previews the hovered or keyboard-selected clip immediately after opening, replacing the list with a full-area text, link, image, or file preview. Press Space again to return; **⌘F** returns to search.
-- Search and selectable preview text retain native text-editing shortcuts.
+- **Space** previews the hovered or keyboard-selected image, replacing the list with a full-area image preview. Text, links, and files stay in the list. Press Space again to return; **⌘F** returns to search.
+- Search retains native text-editing shortcuts.
 
 Direct paste needs Palette's existing macOS Accessibility permission; ⌘C works without it. If the destination cannot regain focus, the clip remains copied for manual paste. macOS does not report whether a destination accepted a paste.
 

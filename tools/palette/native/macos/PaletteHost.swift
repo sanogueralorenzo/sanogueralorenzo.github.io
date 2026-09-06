@@ -50,8 +50,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
     private let search = NSSearchField()
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
-    private let preview = NSScrollView()
-    private let previewText = NSTextView()
     private let previewImage = NSImageView()
     private var statusItem: NSStatusItem!
     private var store: ClipboardStore!
@@ -176,12 +174,6 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         let scroll = historyScroll; scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         add(scroll, to: stack)
         scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true
-        preview.documentView = previewText; preview.hasVerticalScroller = true; preview.drawsBackground = false
-        previewText.isEditable = false; previewText.isSelectable = true; previewText.drawsBackground = false
-        previewText.font = .systemFont(ofSize: 13); previewText.textColor = .labelColor
-        previewText.textContainerInset = NSSize(width: 8, height: 8)
-        previewText.autoresizingMask = [.width]; previewText.textContainer?.widthTracksTextView = true
-        add(preview, to: stack); preview.heightAnchor.constraint(greaterThanOrEqualToConstant: 100).isActive = true; preview.isHidden = true
         previewImage.imageScaling = .scaleProportionallyUpOrDown
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         previewImage.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
@@ -287,22 +279,20 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         title.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let cell = NSStackView(views: [image, title]); cell.spacing = 8; cell.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
         title.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6).isActive = true
-        cell.toolTip = "\(clip.appName) · ⌘C to copy · Space to preview"
+        cell.toolTip = "\(clip.appName) · ⌘C Copy" + (clip.kind == .image ? " · Space Preview" : "")
         cell.setAccessibilityElement(true); cell.setAccessibilityLabel("\(summary), \(clip.appName), \(clip.kind.rawValue)")
         return cell
     }
     private func updatePreview() {
-        preview.isHidden = true; previewImage.isHidden = true; historyScroll.isHidden = false
-        guard previewVisible, let clip = selected else { return }
-        historyScroll.isHidden = true
-        if clip.kind == .image, let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last, let data = Data(base64Encoded: String(thumb)) {
-            previewImage.image = NSImage(data: data); previewImage.setAccessibilityLabel(clip.summary); previewImage.isHidden = false
-        } else {
-            previewText.string = clip.content
-            previewText.frame.size.width = preview.contentSize.width
-            preview.isHidden = false
-            previewText.scrollToBeginningOfDocument(nil)
+        previewImage.isHidden = true; historyScroll.isHidden = false
+        guard previewVisible, let clip = selected, clip.kind == .image,
+              let thumb = clip.thumbnail?.split(separator: ",", maxSplits: 1).last,
+              let data = Data(base64Encoded: String(thumb)), let image = NSImage(data: data) else {
+            previewVisible = false
+            return
         }
+        historyScroll.isHidden = true
+        previewImage.image = image; previewImage.setAccessibilityLabel(clip.summary); previewImage.isHidden = false
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
@@ -313,7 +303,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         if modifiers.contains(.command), event.charactersIgnoringModifiers == "f" { previewVisible = false; updatePreview(); window.makeFirstResponder(search); return true }
         if modifiers.contains(.command), event.charactersIgnoringModifiers == "c" {
             if let hovered { restore(hovered, paste: false); return true }
-            if editingSearch || (window.firstResponder === previewText && previewText.selectedRange().length > 0) { return false }
+            if editingSearch { return false }
             restore(selected, paste: false); return true
         }
         if event.keyCode == 36, modifiers.isEmpty { pasteClip(); return true }
@@ -324,6 +314,7 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         }
         if event.keyCode == 49, modifiers.isEmpty, !editingSearch {
             if let hovered, let index = filtered.firstIndex(where: { $0.id == hovered.id }) { table.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+            guard previewVisible || selected?.kind == .image else { return true }
             previewVisible.toggle(); updatePreview()
             window.makeFirstResponder(previewVisible ? nil : table)
             return true
