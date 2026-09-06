@@ -13,6 +13,7 @@ final class Clipboard: NSObject, NSApplicationDelegate {
     private var previousApp: NSRunningApplication?
     private var changeCount = NSPasteboard.general.changeCount
     private var shortcutError: String?
+    private var hotKey: EventHotKeyRef?
 
     static func main() {
         let app = NSApplication.shared
@@ -118,9 +119,9 @@ final class Clipboard: NSObject, NSApplicationDelegate {
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), nil)
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, nil)
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, &hotKey)
         if status != noErr || registered != noErr {
-            shortcutError = "⌥⇧V is in use. Open Clipboard from its menu bar icon."
+            shortcutError = "Could not register ⌥⇧V (\(status != noErr ? status : registered)). Open Clipboard from its menu bar icon."
             report(shortcutError!)
         }
     }
