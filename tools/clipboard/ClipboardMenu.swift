@@ -64,7 +64,8 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private let table = ClipboardTable()
     private let historyScroll = NSScrollView()
     private let emptyState = NSView()
-    private let emptyLabel = NSTextField(labelWithString: "Copy something to start")
+    private let emptyLabel = NSTextField(labelWithString: "No matching clips")
+    private let tutorialCard = NSBox()
     private let emptyRows = NSStackView()
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
     private let clearNowItem = NSMenuItem(title: "Now", action: nil, keyEquivalent: "")
@@ -159,19 +160,32 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         add(scroll, to: stack)
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
-        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
-        for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images")] {
-            let icon = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Clipboard")?
-                .withSymbolConfiguration(.init(hierarchicalColor: .secondaryLabelColor))
-            let row = makeRow(icon: icon, title: title, iconSize: 14)
+        emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 8
+        for text in ["Copy -> show here.", "Click to copy it again.", "Hover an image and press Space to preview."] {
+            let dot = NSTextField(labelWithString: "•")
+            dot.textColor = .secondaryLabelColor
+            dot.widthAnchor.constraint(equalToConstant: 6).isActive = true
+            let label = NSTextField(wrappingLabelWithString: text)
+            label.font = .systemFont(ofSize: 12)
+            label.preferredMaxLayoutWidth = 222
+            let row = NSStackView(views: [dot, label])
+            row.alignment = .firstBaseline; row.spacing = 8
             add(row, to: emptyRows)
-            row.heightAnchor.constraint(equalToConstant: 30).isActive = true
         }
-        emptyRows.translatesAutoresizingMaskIntoConstraints = false
-        emptyState.addSubview(emptyRows)
-        NSLayoutConstraint.activate([emptyRows.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), emptyRows.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), emptyRows.topAnchor.constraint(equalTo: emptyState.topAnchor)])
+        tutorialCard.boxType = .custom; tutorialCard.titlePosition = .noTitle; tutorialCard.borderWidth = 0
+        tutorialCard.cornerRadius = 8; tutorialCard.fillColor = .quaternaryLabelColor
+        tutorialCard.contentViewMargins = NSSize(width: 12, height: 10)
+        tutorialCard.contentView = emptyRows
+        tutorialCard.heightAnchor.constraint(equalToConstant: 96).isActive = true
+        for view in [tutorialCard, emptyLabel] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            emptyState.addSubview(view)
+            NSLayoutConstraint.activate([view.leadingAnchor.constraint(equalTo: emptyState.leadingAnchor), view.trailingAnchor.constraint(equalTo: emptyState.trailingAnchor), view.topAnchor.constraint(equalTo: emptyState.topAnchor)])
+        }
+        emptyLabel.font = .systemFont(ofSize: 13)
+        emptyLabel.textColor = .secondaryLabelColor
+        emptyLabel.heightAnchor.constraint(equalToConstant: 30).isActive = true
         add(emptyState, to: stack)
-        emptyState.heightAnchor.constraint(greaterThanOrEqualTo: emptyRows.heightAnchor).isActive = true
         emptyState.isHidden = true
 
     }
@@ -181,9 +195,9 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
     }
 
-    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil, iconSize: CGFloat = 22) -> NSStackView {
+    private func makeRow(icon: NSImage?, title: NSTextField, shortcut: String? = nil) -> NSStackView {
         let image = NSImageView(); image.image = icon; image.imageScaling = .scaleProportionallyUpOrDown
-        image.widthAnchor.constraint(equalToConstant: iconSize).isActive = true; image.heightAnchor.constraint(equalToConstant: iconSize).isActive = true
+        image.widthAnchor.constraint(equalToConstant: 22).isActive = true; image.heightAnchor.constraint(equalToConstant: 22).isActive = true
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         title.lineBreakMode = .byTruncatingTail; title.font = .systemFont(ofSize: 13, weight: .medium)
         title.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -276,10 +290,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private func updateContentSize() {
         let showEmpty = historyAvailable == true && filtered.isEmpty
         emptyState.isHidden = !showEmpty
-        emptyLabel.stringValue = showEmpty ? (clips.isEmpty ? "Copy something to start" : "No matching clips") : ""
+        tutorialCard.isHidden = !clips.isEmpty
+        emptyLabel.isHidden = clips.isEmpty
         historyScroll.isHidden = showEmpty || (filtered.isEmpty && !searchExpanded)
-        for row in emptyRows.arrangedSubviews.dropFirst() { row.isHidden = !clips.isEmpty }
-        let bodyHeight = showEmpty ? (clips.isEmpty ? 62.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
+        let bodyHeight = showEmpty ? (clips.isEmpty ? 96.0 : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 26 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = searchExpanded ? 236 : min(236, naturalHeight)
         guard content.frame.height != height else { return }
