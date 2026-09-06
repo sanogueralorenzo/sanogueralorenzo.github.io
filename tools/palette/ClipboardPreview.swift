@@ -2,7 +2,7 @@ import AppKit
 import QuickLookUI
 
 @MainActor
-final class ClipboardPreview: NSResponder, @preconcurrency QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+final class ClipboardPreview: NSResponder, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     var onError: ((String) -> Void)?
     private let previewDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("sh.palette.Desktop-preview", isDirectory: true)
     private var previewURL: URL?
@@ -45,8 +45,11 @@ final class ClipboardPreview: NSResponder, @preconcurrency QLPreviewPanelDataSou
         panel.dataSource = nil; panel.delegate = nil
         clear()
     }
-    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { previewURL == nil ? 0 : 1 }
-    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! { previewURL as NSURL? }
+    nonisolated func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { MainActor.assumeIsolated { previewURL == nil ? 0 : 1 } }
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        let url = MainActor.assumeIsolated { previewURL }
+        return url as NSURL?
+    }
     func windowWillClose(_ notification: Notification) { clear() }
     func clear() {
         previewURL = nil
