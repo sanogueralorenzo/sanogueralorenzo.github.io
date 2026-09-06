@@ -1,0 +1,25 @@
+; Spike Season — all visuals and audio generated locally.
+config_version=5
+
+[application]
+config/name="Spike Season"
+config/icon="res://icon.svg"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/description="A summer volleyball roguelike"
+
+[display]
+window/size/viewport_width=1440
+window/size/viewport_height=900
+window/size/window_width_override=1280
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.32,0.65,0.77,1)
+renderer/rendering_method.mobile="gl_compatibility"
+
+[audio]
+default_bus_layout="res://default_bus_layout.tres"

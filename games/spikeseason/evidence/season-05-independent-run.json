@@ -1,0 +1,300 @@
+{
+  "aim": 0,
+  "best_rally": 9,
+  "block_lane": 2,
+  "contacts": 6,
+  "crowns": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "feedback": "SOL POINT",
+  "flight_remaining": -0.01,
+  "fps": 60.0,
+  "ledger": [
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        1,
+        0
+      ],
+      "season": 5,
+      "time": 10.3
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 1,
+      "score": [
+        2,
+        0
+      ],
+      "season": 5,
+      "time": 22.6
+    },
+    {
+      "contacts": 9,
+      "reason": "BLOCK \u2022 no cover underneath",
+      "round": 1,
+      "score": [
+        3,
+        0
+      ],
+      "season": 5,
+      "time": 37.6
+    },
+    {
+      "contacts": 9,
+      "reason": "BLOCK \u2022 no cover underneath",
+      "round": 1,
+      "score": [
+        4,
+        0
+      ],
+      "season": 5,
+      "time": 52.7
+    },
+    {
+      "contacts": 9,
+      "reason": "BLOCK \u2022 no cover underneath",
+      "round": 1,
+      "score": [
+        5,
+        0
+      ],
+      "season": 5,
+      "time": 67.8
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        1,
+        0
+      ],
+      "season": 5,
+      "time": 10.6
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        2,
+        0
+      ],
+      "season": 5,
+      "time": 23.3
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        3,
+        0
+      ],
+      "season": 5,
+      "time": 35.9
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        4,
+        0
+      ],
+      "season": 5,
+      "time": 48.2
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 2,
+      "score": [
+        5,
+        0
+      ],
+      "season": 5,
+      "time": 60.5
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        1,
+        0
+      ],
+      "season": 5,
+      "time": 10.1
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        2,
+        0
+      ],
+      "season": 5,
+      "time": 22.3
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        3,
+        0
+      ],
+      "season": 5,
+      "time": 34.4
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        4,
+        0
+      ],
+      "season": 5,
+      "time": 46.7
+    },
+    {
+      "contacts": 6,
+      "reason": "OPEN COURT \u2022 beyond the dive",
+      "round": 3,
+      "score": [
+        5,
+        0
+      ],
+      "season": 5,
+      "time": 59.0
+    }
+  ],
+  "match_seconds": 61.0,
+  "offers": [
+    {
+      "desc": "The excellent contact window grows by 0.05 s. Automatic contacts stay safe.",
+      "id": "window",
+      "tag": "TIMING",
+      "title": "Quiet confidence"
+    },
+    {
+      "desc": "All three teammates move 0.22 m/s faster, up to the shared 4.6 m/s cap.",
+      "id": "speed",
+      "tag": "TEAMWORK",
+      "title": "Together, faster"
+    },
+    {
+      "desc": "Your team reacts 0.08 s sooner to an incoming attack.",
+      "id": "tempo",
+      "tag": "RECOVERY",
+      "title": "First step"
+    }
+  ],
+  "paused": false,
+  "phase": "point",
+  "players": [
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -2.79999995231628,
+        3.59999990463257
+      ],
+      "team": 0,
+      "x": -2.8,
+      "y": 3.6
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        0.0,
+        1.54999995231628
+      ],
+      "team": 0,
+      "x": 0.0,
+      "y": 1.55
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        0.699999988079071,
+        2.09999990463257
+      ],
+      "team": 0,
+      "x": 0.7,
+      "y": 2.1
+    },
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -3.79999995231628,
+        -1.60000002384186
+      ],
+      "team": 1,
+      "x": -3.8,
+      "y": -1.6
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        2.34999990463257,
+        -0.75
+      ],
+      "team": 1,
+      "x": 2.35,
+      "y": -0.75
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        2.79999995231628,
+        -3.59999990463257
+      ],
+      "team": 1,
+      "x": 2.8,
+      "y": -3.6
+    }
+  ],
+  "receiving": 1,
+  "rival_cover_short": false,
+  "rival_lane": 2,
+  "rival_shot": 1,
+  "round": 3,
+  "run_seconds": 193.3,
+  "save_error": "",
+  "score": [
+    5,
+    0
+  ],
+  "screen": "champion",
+  "season": 5,
+  "short_history": [
+    false,
+    false,
+    true,
+    true
+  ],
+  "shot": 2,
+  "speed": 4.0,
+  "unlocked": 6,
+  "upgrades": [
+    "read",
+    "tempo"
+  ]
+}

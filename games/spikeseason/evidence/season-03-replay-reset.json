@@ -1,0 +1,124 @@
+{
+  "aim": 0,
+  "best_rally": 0,
+  "block_lane": 2,
+  "contacts": 0,
+  "crowns": [
+    1,
+    2,
+    3
+  ],
+  "feedback": "YOUR SERVE",
+  "flight_remaining": -0.01,
+  "fps": 36.0,
+  "ledger": [],
+  "match_seconds": 0.0,
+  "offers": [
+    {
+      "desc": "Automatic set quality gains 8 percentage points. Timing can still improve it.",
+      "id": "set",
+      "tag": "TEAMWORK",
+      "title": "Perfect connection"
+    },
+    {
+      "desc": "The excellent contact window grows by 0.05 s. Automatic contacts stay safe.",
+      "id": "window",
+      "tag": "TIMING",
+      "title": "Quiet confidence"
+    },
+    {
+      "desc": "All three teammates move 0.22 m/s faster, up to the shared 4.6 m/s cap.",
+      "id": "speed",
+      "tag": "TEAMWORK",
+      "title": "Together, faster"
+    }
+  ],
+  "paused": false,
+  "phase": "serve",
+  "players": [
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -2.79999995231628,
+        7.40000009536743
+      ],
+      "team": 0,
+      "x": -2.9,
+      "y": 4.8
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        0.0,
+        2.59999990463257
+      ],
+      "team": 0,
+      "x": 0.0,
+      "y": 3.1
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        2.90000009536743,
+        4.80000019073486
+      ],
+      "team": 0,
+      "x": 2.9,
+      "y": 4.8
+    },
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -2.90000009536743,
+        -4.80000019073486
+      ],
+      "team": 1,
+      "x": -2.9,
+      "y": -4.8
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        0.0,
+        -2.59999990463257
+      ],
+      "team": 1,
+      "x": 0.0,
+      "y": -3.1
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        2.90000009536743,
+        -4.80000019073486
+      ],
+      "team": 1,
+      "x": 2.9,
+      "y": -4.8
+    }
+  ],
+  "receiving": 1,
+  "rival_cover_short": false,
+  "rival_lane": 0,
+  "rival_shot": 1,
+  "round": 1,
+  "run_seconds": 0.0,
+  "save_error": "",
+  "score": [
+    0,
+    0
+  ],
+  "screen": "match",
+  "season": 3,
+  "short_history": [],
+  "shot": 2,
+  "speed": 1.0,
+  "unlocked": 4,
+  "upgrades": []
+}

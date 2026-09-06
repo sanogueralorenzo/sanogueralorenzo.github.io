@@ -1,0 +1,111 @@
+{
+  "aim": 1,
+  "best_rally": 0,
+  "block_lane": 1,
+  "contacts": 0,
+  "crowns": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "feedback": "",
+  "flight_remaining": 1.5,
+  "fps": 60.0,
+  "ledger": [],
+  "match_seconds": 0.0,
+  "offers": [],
+  "paused": false,
+  "phase": "idle",
+  "players": [
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -2.90000009536743,
+        4.80000019073486
+      ],
+      "team": 0,
+      "x": -2.9,
+      "y": 4.8
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        0.0,
+        3.09999990463257
+      ],
+      "team": 0,
+      "x": 0.0,
+      "y": 3.1
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        2.90000009536743,
+        4.80000019073486
+      ],
+      "team": 0,
+      "x": 2.9,
+      "y": 4.8
+    },
+    {
+      "anim": "ready",
+      "id": 0,
+      "target": [
+        -2.90000009536743,
+        -4.80000019073486
+      ],
+      "team": 1,
+      "x": -2.9,
+      "y": -4.8
+    },
+    {
+      "anim": "ready",
+      "id": 1,
+      "target": [
+        0.0,
+        -3.09999990463257
+      ],
+      "team": 1,
+      "x": 0.0,
+      "y": -3.1
+    },
+    {
+      "anim": "ready",
+      "id": 2,
+      "target": [
+        2.90000009536743,
+        -4.80000019073486
+      ],
+      "team": 1,
+      "x": 2.9,
+      "y": -4.8
+    }
+  ],
+  "receiving": 0,
+  "rival_cover_short": false,
+  "rival_lane": 1,
+  "rival_shot": 0,
+  "round": 1,
+  "run_seconds": 0.0,
+  "save_error": "",
+  "score": [
+    0,
+    0
+  ],
+  "screen": "seasons",
+  "season": 1,
+  "short_history": [],
+  "shot": 0,
+  "speed": 1.0,
+  "unlocked": 9,
+  "upgrades": []
+}
