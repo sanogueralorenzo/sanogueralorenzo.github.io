@@ -3,6 +3,7 @@ extends Node3D
 const World = preload("res://scripts/world.gd")
 const Actor = preload("res://scripts/actor.gd")
 const Fishing = preload("res://scripts/fishing.gd")
+const FishingHud = preload("res://scripts/fishing_hud.gd")
 const REGIONS = ["Sunwake Harbor", "Jade Lagoon", "Stormglass Reach"]
 const SEASONS = ["Summer", "Autumn", "Winter"]
 const TACKLE = ["Float", "Spinner", "Jig"]
@@ -40,9 +41,13 @@ var landed_this_run := 0
 var toggle_controls := false
 var focus_pace := false
 var muted := false
+var detailed_guidance := false
+var catch_reveal := 0.0
+var landed_pending: Dictionary = {}
 var reel_latch := false
 var steer_latch := 0.0
 var pending_perk := false
+var pause_when_unfocused := not OS.get_cmdline_user_args().has("--keep-running-unfocused")
 var modal := false
 var initialized := false
 var toast_time := 0.0
@@ -56,13 +61,7 @@ var resources_label: Label
 var goal_label: Label
 var context_label: Label
 var toast_label: Label
-var fight_panel: PanelContainer
-var fight_title: Label
-var fight_instruction: Label
-var fight_phase: Label
-var progress_bar: ProgressBar
-var tension_bar: ProgressBar
-var line_label: Label
+var fishing_hud: Control
 var overlay: ColorRect
 var modal_panel: PanelContainer
 var modal_box: VBoxContainer
@@ -86,7 +85,7 @@ func _ready() -> void:
 	initialized = true
 	if day == 0: _intro()
 	else: _welcome()
-	_log("launch", {"continued_expedition":active, "coins":coins, "unlocked":unlocked})
+	_log("launch", {"pause_when_unfocused":pause_when_unfocused,"continued_expedition":active, "coins":coins, "unlocked":unlocked})
 
 func _input(event: InputEvent) -> void:
 	if not initialized or not event is InputEventKey or not event.pressed or event.echo: return
@@ -96,7 +95,7 @@ func _input(event: InputEvent) -> void:
 		if modal: _close_modal()
 		else: _pause_menu()
 		get_viewport().set_input_as_handled(); return
-	if modal: return
+	if modal or catch_reveal > 0: return
 	match event.keycode:
 		KEY_SPACE:
 			if fishing.state in ["casting","hook"]: fishing.press(); reel_latch=false
@@ -110,36 +109,52 @@ func _input(event: InputEvent) -> void:
 		KEY_X:
 			if fishing.state != "idle": fishing.cancel(); actor.set_fishing(false); _save()
 		KEY_E: _interact()
-		KEY_T: if fishing.state == "idle": tackle = (tackle + 1) % 3; _sound("tick")
-		KEY_G: if fishing.state == "idle": presentation = (presentation + 1) % 3; _sound("tick")
+		KEY_T: if fishing.state == "idle": tackle = (tackle + 1) % 3; _setup_changed()
+		KEY_G: if fishing.state == "idle": presentation = (presentation + 1) % 3; _setup_changed()
 		KEY_J: _journal()
 		KEY_H: _help()
 		KEY_R:
 			if fishing.state == "idle" and actor.position.z < 9: _return_menu()
 
+func _setup_changed() -> void:
+	_sound("tick")
+	var quarry := Fishing.preview(region,season,_spot(),tackle,presentation)
+	_toast(quarry.hint,7)
+
 func _process(dt: float) -> void:
 	if not initialized: return
 	elapsed += dt
 	_synthesize()
-	actor.locked = modal or fishing.state != "idle"
+	actor.locked = modal or fishing.state != "idle" or catch_reveal > 0
 	actor.fish_fighting = fishing.state == "fight"
 	actor.fish_surge = fishing.phase_label.begins_with("DASH •")
 	actor.line_tension = fishing.tension
+	actor.visual_reeling = fishing.state in ["presentation", "fight"] and (reel_latch if toggle_controls else Input.is_physical_key_pressed(KEY_SPACE))
+	actor.fish_exhaustion = fishing.progress if fishing.state == "fight" else 0.0
 	fishing.focus_assist = focus_pace
 	if not modal:
-		if active:
+		if catch_reveal > 0:
+			catch_reveal = maxf(0.0, catch_reveal - dt / Engine.time_scale)
+			if catch_reveal == 0: _show_landing_menu()
+		if active and not modal and catch_reveal == 0:
 			daylight = maxf(0, daylight - dt)
 			if world.has_method("set_daylight"): world.set_daylight(clampf(daylight/240.0,0,1))
 			if daylight <= 0: _fail()
 		if fishing.state != "idle":
 			fishing.update(dt, reel_latch if toggle_controls else Input.is_physical_key_pressed(KEY_SPACE), steer_latch if toggle_controls else float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)))
-			actor.set_line_target(cast_target + Vector3(fishing.fish_dir * 1.6, sin(elapsed * 8) * .08, 0), true)
+			var pull := smoothstep(.15, 1.0, fishing.progress) if fishing.state == "fight" else 0.0
+			var reach := actor.position.lerp(cast_target, lerpf(1.0,.42,pull))
+			reach.y = .15
+			if not actor.sailing:
+				reach.z = maxf(reach.z,5.4 if actor.position.x < -4 else 8.4)
+				reach.x = minf(reach.x,-14.7 if actor.position.x < -4 else -2.7)
+			actor.set_line_target(reach + Vector3(-fishing.fish_dir * lerpf(1.6,.6,pull),0,0), true)
 		else: actor.set_line_target(Vector3.ZERO, false)
 		toast_time = maxf(0, toast_time - dt)
 		save_timer += dt
 		if save_timer > 5: save_timer = 0; _save()
 	if fishing.state != last_state:
-		_log("fishing_state", {"state":fishing.state, "tension":snappedf(fishing.tension,.01), "progress":snappedf(fishing.progress,.01)})
+		_log("fishing_state", {"focus_pace":focus_pace,"toggle_controls":toggle_controls,"state":fishing.state, "tension":snappedf(fishing.tension,.01), "progress":snappedf(fishing.progress,.01)})
 		last_state = fishing.state
 	_update_ui()
 	for i in signal_rings.size():
@@ -185,7 +200,7 @@ func _cast() -> void:
 	if bait <= 0: _toast("No bait left. Bank your catch at the buyer; each new expedition restocks for free."); return
 	bait -= 1
 	reel_latch=false;steer_latch=0.0
-	cast_target = actor.position + Vector3(0,-actor.position.y + .15,6)
+	cast_target = actor.position + Vector3(0 if actor.sailing else -4,-actor.position.y + .15,6)
 	fishing.begin(region,season,_spot(),tackle,presentation,_bonuses())
 	actor.set_fish_appearance(fishing.fish)
 	actor.set_fishing(true)
@@ -196,15 +211,23 @@ func _landed(fish: Dictionary) -> void:
 	catch_data["value"] = int(catch_data.value)
 	catches.append(catch_data); landed_this_run += 1
 	actor.set_fishing(false); pending_perk=landed_this_run % 2 == 0; _save()
-	_log("landed", {"fish":catch_data,"basket":catches.size()})
-	_open_modal("A little silver. A big decision.", "%s  •  %d shells\n%s\n\nBasket %d / %d · %ds of light · %d bait\nCatch is unbanked until you return to the buyer." % [fish.name,catch_data.value,fish.get("behavior",""),catches.size(),_capacity(),ceili(daylight),bait])
+	_log("landed", {"focus_pace":focus_pace,"fish":catch_data,"basket":catches.size()})
+	landed_pending = catch_data
+	catch_reveal = 1.8
+	actor.locked = true
+
+func _show_landing_menu() -> void:
+	var fish := landed_pending
+	if fish.is_empty(): return
+	_open_modal("%s landed" % fish.name, "%s  •  %d shells\n%s\n\nBasket %d / %d · %ds of light · %d bait\nCatch is unbanked until you return to the buyer." % [fish.name,fish.value,fish.get("behavior",""),catches.size(),_capacity(),ceili(daylight),bait])
 	_button("Keep fishing", func():
 		_close_modal()
 		if pending_perk: _perk_menu(false))
 	_button("Plan my return", func(): _close_modal(); _toast("Harbor buyer: cream awning at the right of the square. [R] near harbor also opens banking."))
+	landed_pending = {}
 
 func _escaped(reason: String) -> void:
-	actor.set_fishing(false); _toast(reason + "  Only this cast’s bait is lost.",6); _save(); _log("escaped",{"reason":reason})
+	actor.set_fishing(false); _toast(reason,6); _save(); _log("escaped",{"reason":reason})
 
 func _interact() -> void:
 	if fishing.state != "idle": return
@@ -224,6 +247,7 @@ func _interact() -> void:
 	_toast("Tackle shop: left awning. Buyer: right awning. Board at the anchor on the long pier.")
 
 func _begin_run() -> void:
+	catch_reveal=0.0; landed_pending={}
 	active = true; day += 1; daylight = 240; bait = 8; catches.clear(); perks.clear(); landed_this_run = 0; pending_perk=true
 	_save(); _log("expedition_begin",{"day":day,"region":region,"season":season})
 	_perk_menu(true)
@@ -256,6 +280,7 @@ func _return_menu() -> void:
 	_button("Back", _close_modal)
 
 func _bank() -> void:
+	catch_reveal=0.0; landed_pending={}
 	var income := _value()
 	coins += income
 	var new_region := false
@@ -277,6 +302,7 @@ func _bank() -> void:
 	_button("Walk the harbor", _close_modal)
 
 func _fail() -> void:
+	catch_reveal=0.0; landed_pending={}
 	fishing.cancel(); actor.set_fishing(false)
 	var lost := catches.size(); var value := _value()
 	active=false; pending_perk=false; catches.clear(); perks.clear(); _home(); world.set_daylight(1.0); _save(); _log("rescue",{"lost_fish":lost,"lost_value":value,"coins_preserved":coins,"boat_preserved":boat_owned})
@@ -302,7 +328,7 @@ func _welcome() -> void:
 	_button("Field guide",_help)
 
 func _help() -> void:
-	_open_modal("A field guide to one more fish", "WASD  Move / steer boat     Shift  Run     Right-drag  Look     Wheel  Zoom\nE  Shop / buyer / board / dock     R  Bank near harbor     Esc  Pause\n\n1  READ: small silver rings mark easy fish. The long pier and outer water hold signature fish. The HUD tells you their recipe.\n2  CHOOSE: [T] Float / Spinner / Jig. [G] Drift / Twitch / Deep.\n3  CAST: [F], then [Space] at 55–80% on the casting meter. Follow the presentation cue; [Space] hooks when the strike appears.\n4  FIGHT: hold Space to reel in calm water. Release during surges. Use A / D to follow the COUNTER direction. Keep tension below full. Releasing safely cools the line. Signatures need TWO dashes with release + correct counter-steering; the tally is shown.\n\nYou lose only one bait on an escaped fish. Bank before daylight ends to keep your catch. Menus pause daylight. [J] shows your basket and records.\nACCESSIBILITY: Esc offers toggle controls and a slower Focus pace.")
+	_open_modal("A field guide to one more fish", "WASD  Move / steer boat     Shift  Run     Right-drag  Look     Wheel  Zoom\nE  Shop / buyer / board / dock     R  Bank near harbor     Esc  Pause\n\n1  READ: small dimples and fish shadows mark feeding water. The long pier and outer water hold signature fish. [J] lists their recipes.\n2  CHOOSE: [T] Float / Spinner / Jig. [G] Drift / Twitch / Deep.\n3  CAST: [F], then [Space] at 55–80% on the casting meter. Follow the presentation cue; [Space] hooks when the strike appears.\n4  FIGHT: hold Space to reel in calm water. Release during surges. Use A / D to follow the COUNTER direction. Keep tension below full. Releasing safely cools the line. Signatures need TWO dashes with release + correct counter-steering; the tally is shown.\n\nYou lose only one bait on an escaped fish. Bank before daylight ends to keep your catch. Menus pause daylight. [J] shows your basket and records.\nACCESSIBILITY: Esc offers toggle controls and a slower Focus pace.")
 	_button("Ready for the water",_close_modal)
 
 func _journal() -> void:
@@ -331,6 +357,7 @@ func _pause_menu() -> void:
 	_button("Catch notebook",_journal)
 	_button("Held controls: %s" % ("TOGGLE — tap again to release" if toggle_controls else "HOLD — standard controls"),func():toggle_controls=not toggle_controls;actor.toggle_controls=toggle_controls;actor.clear_controls();reel_latch=false;steer_latch=0;_save();_pause_menu())
 	_button("Fishing pace: %s" % ("FOCUS — slow, extended cues" if focus_pace else "NORMAL"),func():focus_pace=not focus_pace;Engine.time_scale=.10 if focus_pace else 1.0;_save();_pause_menu())
+	_button("On-screen guidance: %s" % ("DETAILED" if detailed_guidance else "COMPACT"),func():detailed_guidance=not detailed_guidance;_save();_pause_menu())
 	_button("Sound: %s" % ("MUTED" if muted else "ON"),func():muted=not muted;AudioServer.set_bus_mute(0,muted);_save();_pause_menu())
 	if active: _button("Call rescue — lose unbanked catch",func():
 		_open_modal("Leave the catch behind?", "Rescue ends this expedition. All %d unbanked fish will be lost; purchased equipment, shells, and unlocks remain." % catches.size())
@@ -338,7 +365,7 @@ func _pause_menu() -> void:
 	_button("Save & quit",func():_save();get_tree().quit())
 
 func _save() -> void:
-	var data := {"version":1,"toggle_controls":toggle_controls,"focus_pace":focus_pace,"muted":muted,"pending_perk":pending_perk,"coins":coins,"boat":boat_owned,"rod":rod_level,"basket":basket_level,"unlocked":unlocked,"mastery":mastery,"day":day,"region":region,"season":season,"active":active,"daylight":daylight,"bait":bait,"catches":catches,"perks":perks,"collection":collection,"tackle":tackle,"presentation":presentation,"landed":landed_this_run}
+	var data := {"version":1,"detailed_guidance":detailed_guidance,"toggle_controls":toggle_controls,"focus_pace":focus_pace,"muted":muted,"pending_perk":pending_perk,"coins":coins,"boat":boat_owned,"rod":rod_level,"basket":basket_level,"unlocked":unlocked,"mastery":mastery,"day":day,"region":region,"season":season,"active":active,"daylight":daylight,"bait":bait,"catches":catches,"perks":perks,"collection":collection,"tackle":tackle,"presentation":presentation,"landed":landed_this_run}
 	var file := FileAccess.open(SAVE+".tmp",FileAccess.WRITE)
 	if file:
 		file.store_string(JSON.stringify(data));file.close()
@@ -349,6 +376,7 @@ func _load() -> void:
 	var file:=FileAccess.open(SAVE,FileAccess.READ)
 	var data = JSON.parse_string(file.get_as_text()) if file else null
 	if not data is Dictionary:return
+	detailed_guidance=bool(data.get("detailed_guidance",false))
 	toggle_controls=bool(data.get("toggle_controls",false));focus_pace=bool(data.get("focus_pace",false));muted=bool(data.get("muted",false));pending_perk=bool(data.get("pending_perk",false))
 	coins=int(data.get("coins",0));boat_owned=bool(data.get("boat",false));rod_level=clampi(int(data.get("rod",0)),0,2);basket_level=clampi(int(data.get("basket",0)),0,2)
 	unlocked=clampi(int(data.get("unlocked",0)),0,2);mastery=int(data.get("mastery",0));day=int(data.get("day",0));region=clampi(int(data.get("region",0)),0,unlocked);season=clampi(int(data.get("season",0)),0,2)
@@ -365,11 +393,11 @@ func _capture() -> void:
 	var path := "user://last_cast_%d.png" % Time.get_unix_time_from_system()
 	get_viewport().get_texture().get_image().save_png(path)
 	print("CAPTURE ",ProjectSettings.globalize_path(path))
-	_log("screenshot",{"file":path,"position":str(actor.position),"sailing":actor.sailing,"state":fishing.state,"fps":Engine.get_frames_per_second(),"draw_calls":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"focus_pace":focus_pace,"toggle_controls":toggle_controls})
+	_log("screenshot",{"file":path,"position":str(actor.position),"sailing":actor.sailing,"boat_speed":snappedf(actor.boat_speed,.01),"boat_heading":snappedf(actor.boat_heading,.01),"state":fishing.state,"fps":Engine.get_frames_per_second(),"draw_calls":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"frame_cpu_ms":snappedf(Performance.get_monitor(Performance.TIME_PROCESS)*1000,.01),"camera":str(actor.camera.global_position),"phase":fishing.phase_label,"focus_pace":focus_pace,"toggle_controls":toggle_controls})
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST: _save()
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and initialized and not modal:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and pause_when_unfocused and initialized and not modal:
 		await get_tree().create_timer(.3,true,false,true).timeout
 		if not DisplayServer.window_is_focused() and not modal: _pause_menu()
 
@@ -401,42 +429,26 @@ func _build_ui()->void:
 	for s in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]:theme.set_color(s,"Button",Color("244951"))
 	theme.set_color("font_disabled_color","Button",Color("7b837b"))
 	root_ui.theme=theme
-	var top_left:=_panel(root_ui,Vector2(26,24),Vector2(280,96))
-	region_label=_label("",23);top_left.add_child(region_label)
-	var top_right:=_panel(root_ui,Vector2(1092,24),Vector2(320,96))
-	resources_label=_label("",22);top_right.add_child(resources_label)
-	var goal_panel:=_panel(root_ui,Vector2(26,137),Vector2(390,72))
-	goal_label=_label("",17);goal_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;goal_label.custom_minimum_size.x=350;goal_panel.add_child(goal_label)
-	var bottom:=_panel(root_ui,Vector2(220,798),Vector2(1000,80))
-	context_label=_label("",18);context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;context_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;context_label.custom_minimum_size.x=950;bottom.add_child(context_label)
-	toast_label=_label("",21,Color("fff7dd"));root_ui.add_child(toast_label);toast_label.position=Vector2(160,708);toast_label.size=Vector2(1120,68);toast_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;toast_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var top_left:=_panel(root_ui,Vector2(26,24),Vector2(270,84))
+	region_label=_label("",20);top_left.add_child(region_label)
+	var top_right:=_panel(root_ui,Vector2(1150,24),Vector2(262,84))
+	resources_label=_label("",20);top_right.add_child(resources_label)
+	var goal_panel:=_panel(root_ui,Vector2(26,121),Vector2(330,58))
+	goal_label=_label("",15);goal_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;goal_label.custom_minimum_size.x=286;goal_panel.add_child(goal_label)
+	var bottom:=_panel(root_ui,Vector2(430,814),Vector2(580,60))
+	context_label=_label("",16);context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;context_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;context_label.custom_minimum_size.x=536;bottom.add_child(context_label)
+	toast_label=_label("",21,Color("fff7dd"));root_ui.add_child(toast_label);toast_label.position=Vector2(180,750);toast_label.size=Vector2(1120,68);toast_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;toast_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	toast_label.add_theme_color_override("font_shadow_color",Color("142e36"));toast_label.add_theme_constant_override("shadow_outline_size",7)
 	var credit:=_label("LAST CAST  /  [H] Field guide  ·  [J] Notebook",14,Color("fff5dd"));root_ui.add_child(credit);credit.position=Vector2(28,866)
-	fight_panel=_panel(root_ui,Vector2(818,450),Vector2(600,224));fight_panel.visible=false
-	var box:=VBoxContainer.new();fight_panel.add_child(box);box.add_theme_constant_override("separation",7)
-	fight_title=_label("",25);box.add_child(fight_title)
-	fight_phase=_label("",20);box.add_child(fight_phase)
-	progress_bar=_bar(Color("438e83"));box.add_child(progress_bar);progress_bar.draw.connect(_draw_cast_band)
-	line_label=_label("",16);box.add_child(line_label)
-	tension_bar=_bar(Color("d99753"));box.add_child(tension_bar)
-	fight_instruction=_label("",17);fight_instruction.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(fight_instruction)
+	fishing_hud=FishingHud.new();root_ui.add_child(fishing_hud);fishing_hud.font=font
 	overlay=ColorRect.new();root_ui.add_child(overlay);overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);overlay.color=Color(.04,.14,.17,.43);overlay.visible=false
 	modal_panel=_panel(overlay,Vector2(345,100),Vector2(750,0))
 	modal_box=VBoxContainer.new();modal_box.add_theme_constant_override("separation",12);modal_panel.add_child(modal_box)
 	# Compass chart is drawn from actual player position and harbor coordinates.
-	map=Control.new();root_ui.add_child(map);map.position=Vector2(28,660);map.size=Vector2(168,168);map.mouse_filter=Control.MOUSE_FILTER_IGNORE;map.draw.connect(_draw_map)
-
-func _bar(color:Color)->ProgressBar:
-	var p:=ProgressBar.new();p.custom_minimum_size=Vector2(540,22);p.max_value=1;p.step=.001;p.show_percentage=false
-	var background := _style(Color("d1d4c5"),Color("b1bcac"),5)
-	var fill := _style(color,color,5)
-	for style in [background,fill]:
-		style.content_margin_left=0;style.content_margin_right=0;style.content_margin_top=0;style.content_margin_bottom=0
-	p.add_theme_stylebox_override("background",background)
-	p.add_theme_stylebox_override("fill",fill);return p
+	map=Control.new();root_ui.add_child(map);map.position=Vector2(28,710);map.scale=Vector2.ONE*.82;map.size=Vector2(168,168);map.mouse_filter=Control.MOUSE_FILTER_IGNORE;map.draw.connect(_draw_map)
 
 func _open_modal(title:String,body:String)->void:
-	modal=true;overlay.visible=true;actor.locked=true
+	modal=true;overlay.visible=true;actor.locked=true;actor.clear_controls()
 	for child in modal_box.get_children():modal_box.remove_child(child);child.queue_free()
 	var heading:=_label(title,34)
 	var serif:=SystemFont.new();serif.font_names=PackedStringArray(["Georgia","Noto Serif","DejaVu Serif"]);heading.add_theme_font_override("font",serif)
@@ -458,36 +470,38 @@ func _toast(text_value:String,duration:=4.0)->void:
 	toast_label.text=text_value;toast_time=duration
 
 func _update_ui()->void:
-	region_label.text="%s\n%s · Day %02d  %s" % [REGIONS[region],SEASONS[season],maxi(day,1),"☀ %02d:%02d" % [int(daylight)/60,int(daylight)%60] if active else "AT HARBOR"]
-	resources_label.text="◉  %d shells     %s\n▣  %d / %d catch    •    %d bait" % [coins,"SKIFF" if boat_owned else "SHORE",catches.size(),_capacity(),bait]
-	goal_label.text="FIRST BOAT  ·  %d / 65 shells\nBank catches at the harbor buyer" % coins if not boat_owned else "NEXT CHAPTER  ·  " + (["Bank the Sunscale Mullet","Bank the Moonpetal Koi","Master the Sailfish, then harder seasons"][unlocked])
-	if boat_owned and mastery > 0: goal_label.text="COAST JOURNEY COMPLETE\nStormglass %s · fill your notebook" % SEASONS[clampi(mastery-1,0,2)]
-	if active and daylight < 45: goal_label.text="SUNSET APPROACHES  ·  %ds\nReturn to the harbor buyer to bank!" % ceili(daylight)
-	fight_panel.visible=fishing.state!="idle" and not modal
-	context_label.get_parent().visible=fishing.state=="idle" and not modal
-	if fishing.state!="idle":
-		fight_title.text=fishing.title;fight_phase.text=fishing.phase_label + ("   %d%%" % roundi(fishing.progress*100))
-		progress_bar.value=fishing.progress;progress_bar.queue_redraw();tension_bar.value=fishing.tension;tension_bar.visible=fishing.state=="fight"
-		line_label.visible=fishing.state=="fight"
-		line_label.text="LINE TENSION  %d%%  ·  %s" % [roundi(fishing.tension*100),"RELEASE TO COOL" if fishing.tension>.7 else "room to breathe"]
-		var line_style: StyleBoxFlat=tension_bar.get_theme_stylebox("fill")
-		line_style.bg_color=Color("d96a50") if fishing.tension>.7 else Color("d99753")
-		line_style.border_color=line_style.bg_color
-		var guidance: String = fishing.instruction
-		if fishing.state == "fight":
-			guidance = "Counter %s · zero tension is safe." % ("A ←" if fishing.target_dir < 0 else "D →")
-			if fishing.required_clean_dashes > 0:
-				guidance += "\nDash reads %d / %d · release + counter during DASH." % [fishing.clean_dashes, fishing.required_clean_dashes]
-		fight_instruction.text=guidance + ("\nTap controls · Reel %s · Counter %s" % ["ON" if reel_latch else "OFF", "A" if steer_latch<0 else ("D" if steer_latch>0 else "neutral")] if toggle_controls else "\n[X] abandon cast · one bait already spent")
-		fight_panel.size.y=0.0
-		context_label.text="SPACE  Cast / hook / hold to reel     A / D  Counter-steer\nRelease Space during surges · tension recovers before the line breaks"
-	else:
+	region_label.text="%s\n%s · Day %02d   %s" % [REGIONS[region],SEASONS[season],maxi(day,1),"%02d:%02d" % [int(daylight)/60,int(daylight)%60] if active else "HARBOR"]
+	resources_label.text="◉  %d shells\n▣  %d / %d catch   ·   %d bait" % [coins,catches.size(),_capacity(),bait]
+	goal_label.text="FIRST BOAT · %d / 65 shells\nBank at Fresh Catch" % coins if not boat_owned else "NEXT CATCH\n" + ["Sunscale Mullet","Moonpetal Koi","Stormglass Sailfish"][unlocked]
+	if boat_owned and mastery>0: goal_label.text="COAST JOURNEY COMPLETE\nStormglass %s" % SEASONS[clampi(mastery-1,0,2)]
+	if active and daylight<45: goal_label.text="SUNSET · %ds\nReturn to bank your catch" % ceili(daylight)
+	goal_label.get_parent().visible=not modal and (fishing.state=="idle" or (active and daylight<45))
+	fishing_hud.visible=not modal and catch_reveal<=0
+	fishing_hud.state=fishing.state
+	fishing_hud.species=str(fishing.fish.get("name",""))
+	fishing_hud.phase=fishing.phase_label
+	fishing_hud.progress=fishing.progress
+	fishing_hud.tension=fishing.tension
+	fishing_hud.counter=fishing.target_dir
+	fishing_hud.clean_reads=fishing.clean_dashes
+	fishing_hud.required_reads=fishing.required_clean_dashes
+	fishing_hud.reel_active=reel_latch if toggle_controls else Input.is_physical_key_pressed(KEY_SPACE)
+	fishing_hud.steer_active=steer_latch if toggle_controls else float(Input.is_physical_key_pressed(KEY_D))-float(Input.is_physical_key_pressed(KEY_A))
+	fishing_hud.toggle_controls=toggle_controls
+	fishing_hud.detailed=detailed_guidance
+	fishing_hud.instruction=fishing.instruction
+	var cue_node: Node3D=actor.hooked_fish if fishing.state=="fight" else actor.bobber
+	fishing_hud.show_world_cue=fishing.state in ["hook","fight"] and cue_node.visible and not actor.camera.is_position_behind(cue_node.global_position)
+	if fishing_hud.show_world_cue: fishing_hud.fish_screen=actor.camera.unproject_position(cue_node.global_position)
+	fishing_hud.queue_redraw()
+	context_label.get_parent().visible=fishing.state=="idle" and not modal and catch_reveal<=0
+	if fishing.state=="idle":
 		var fish:Dictionary=Fishing.preview(region,season,_spot(),tackle,presentation)
-		var interaction := ("Dock" if _near_dock() else "Return to pier") if actor.sailing else ("Board skiff" if boat_owned and absf(actor.position.x)<3 and actor.position.z>2 else "Interact")
+		var interaction := ("E Dock" if _near_dock() else "E Return to pier") if actor.sailing else ("E Board" if boat_owned and absf(actor.position.x)<3 and actor.position.z>2 else "E Interact")
 		if _can_fish():
-			context_label.text="[F] %s  ·  [T] %s  ·  [G] %s  ·  [E] %s\n%s — %s" % ["Cast" if active else "Begin expedition",TACKLE[tackle],PRESENTATION[presentation],interaction,fish.name,fish.hint]
-		else:context_label.text="WASD  Walk   ·   Shift  Run   ·   Right-drag  Look   ·   E  Interact\nTackle & Tide ←    Fresh Catch →    Long pier ↓    [R] Bank near harbor"
-	toast_label.visible=toast_time>0 and not modal
+			context_label.text="F %s   ·   %s   ·   H Guide\nT %s  /  G %s   ·   %s" % ["Fish" if active else "Begin",interaction,TACKLE[tackle],PRESENTATION[presentation],fish.name]
+		else: context_label.text="WASD Walk   ·   Shift Run   ·   E Interact\nTackle & Tide ←    Fresh Catch →"
+	toast_label.visible=toast_time>0 and not modal and fishing.state=="idle"
 	map.visible=not modal;map.queue_redraw()
 
 func _draw_map()->void:
@@ -505,11 +519,26 @@ func _make_rings()->void:
 		if is_instance_valid(ring):ring.queue_free()
 	signal_rings.clear()
 	for point in [Vector3(-12,.13,9),Vector3(0,.13,12),Vector3(9,.13,24),Vector3(-13,.13,30)]:
-		for r in 3:
-			var mesh:=TorusMesh.new();mesh.inner_radius=1.1+r*.55;mesh.outer_radius=mesh.inner_radius+.025;mesh.rings=40;mesh.ring_segments=6
-			var node:=MeshInstance3D.new();node.mesh=mesh;node.position=point
-			var mat:=StandardMaterial3D.new();mat.albedo_color=Color("b8f1d7");mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;node.material_override=mat
-			add_child(node);signal_rings.append(node)
+		# Broken dimples indicate a feeding shoal without drawing targets over the sea.
+		var mesh := ImmediateMesh.new()
+		mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+		for r in 2:
+			for arc in 3:
+				var start := arc * TAU / 3 + r * .7
+				var radius := .75 + r * .6
+				for segment in 10:
+					var a := start + segment * .065
+					var b := a + .065
+					var v0 := Vector3(cos(a)*radius,0,sin(a)*radius)
+					var v1 := Vector3(cos(b)*radius,0,sin(b)*radius)
+					var v2 := Vector3(cos(b)*(radius+.022),0,sin(b)*(radius+.022))
+					var v3 := Vector3(cos(a)*(radius+.022),0,sin(a)*(radius+.022))
+					for vertex in [v0,v2,v1,v0,v3,v2]: mesh.surface_add_vertex(vertex)
+		mesh.surface_end()
+		var node := MeshInstance3D.new(); node.mesh=mesh; node.position=point
+		var mat := StandardMaterial3D.new();mat.albedo_color=Color("a3c8b5");mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED;mat.cull_mode=BaseMaterial3D.CULL_DISABLED;node.material_override=mat
+		node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(node);signal_rings.append(node)
 
 func _start_audio()->void:
 	audio=AudioStreamPlayer.new();add_child(audio)
@@ -525,6 +554,11 @@ func _synthesize()->void:
 		audio_time+=1.0/22050.0
 		var n:=randf_range(-1,1);noise_smooth=lerpf(noise_smooth,n,.025)
 		var sample_value:=noise_smooth*(.13+.06*sin(audio_time*.55))
+		if actor and actor.visual_reeling:
+			var click_age := fmod(audio_time,.115)
+			sample_value += sin(click_age*TAU*1750)*exp(-click_age*260)*.065
+		if fishing and fishing.state == "fight" and fishing.tension > .55:
+			sample_value += sin(audio_time*TAU*(115+18*sin(audio_time*11))) * (fishing.tension-.55)*.085
 		# Quiet wind, water and a soft two-note distant gull, all synthesized.
 		var gull:=fmod(audio_time,17.0)
 		if gull<.5:sample_value+=sin(audio_time*TAU*(950+120*sin(gull*9)))*sin(gull*PI*2)*.018
@@ -546,13 +580,6 @@ func _exit_tree() -> void:
 	if audio: audio.stop()
 	playback = null
 	fishing = null
-
-func _draw_cast_band() -> void:
-	if fishing.state != "casting": return
-	var width := progress_bar.size.x
-	progress_bar.draw_rect(Rect2(width*.55,0,width*.25,progress_bar.size.y),Color(1,.83,.38,.3))
-	for fraction in [.55,.8]:
-		progress_bar.draw_line(Vector2(width*fraction,0),Vector2(width*fraction,progress_bar.size.y),Color("dfb967"),2)
 
 func _fit_modal() -> void:
 	if not modal: return

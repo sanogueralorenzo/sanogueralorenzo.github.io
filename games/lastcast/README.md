@@ -24,10 +24,12 @@ open 'games/lastcast/build/Last Cast.app'
 
 The export uses a dedicated application identifier so it can run alongside other Godot games. The local app is ad hoc signed; distribution signing and notarization are not configured. Generated builds are ignored by Git.
 
+Normal launches pause when the window loses focus. For recording or deliberate background play, launch with `godot --path games/lastcast -- --keep-running-unfocused` (or append `--args -- --keep-running-unfocused` to the macOS `open` command). This only changes focus-loss pausing; it does not change fishing rules, game speed, rewards, or input. Use Esc to pause manually.
+
 ## Your first tide
 
 1. Close the introduction and press **F** on the little shore pier. Pick a region/season and one expedition upgrade.
-2. **T** cycles Float, Spinner, Jig. **G** cycles Drift, Twitch, Deep. The water hint states exactly what your current setup attracts.
+2. **T** cycles Float, Spinner, Jig. **G** cycles Drift, Twitch, Deep. The bottom cue names the current quarry. Changing setup shows its water hint; **J** lists signature recipes.
 3. **F** starts a cast. Press **Space** when the placement meter reaches 55–80%. Every cast remains fishable; a precise cast brings the strike sooner.
 4. Hold **Space** on **LURE**, release on **REST**, then press it once on **STRIKE**. Common fish forgive rough presentation; signatures need settled lure pulses.
 5. Hold **Space** to reel during calm. Release on **DASH** and hold the displayed **A/D counter direction**. Tension at zero is safe; full tension breaks the line. All fish have readable, deterministic behavior.
@@ -53,7 +55,7 @@ The export uses a dedicated application identifier so it can run alongside other
 | Esc | Pause, settings, rescue, save and quit |
 | F12 | Save a gameplay screenshot in the Godot user-data folder |
 
-**Accessibility:** The pause menu offers toggle controls (tap instead of holding; tap again to release) and Focus pace (10% world speed, longer hook windows, and extended signature lure/dash cues). Directional controls latch independently, and clear when movement is locked. Focus pace changes timing, never rewards or unlock eligibility. Normal pace remains the default. Keyboard menus support Tab, arrows, and Enter.
+**Accessibility:** The pause menu offers toggle controls (tap instead of holding; tap again to release) and Focus pace (10% world speed, longer hook windows, and extended signature lure/dash cues). Directional controls latch independently, and clear when movement is locked. Focus pace changes timing, never rewards or unlock eligibility. Normal pace remains the default. Compact fishing instruments are the default; **Esc → On-screen guidance** adds current step instructions. The counter cue shows when your held or latched direction matches. Keyboard menus support Tab, arrows, and Enter.
 
 ## Expedition and progression
 
@@ -87,10 +89,13 @@ To start fresh, quit and move `last_cast.json` somewhere safe. The game has no n
 
 - `scripts/main.gd`: expedition rules, shops, progression, save/load, interface and synthesized sound.
 - `scripts/fishing.gd`: deterministic fishing state machine and fish definitions.
-- `scripts/actor.gd`: walking, boat steering, collision-safe camera, procedural sailor/boat, line and fishing effects.
+- `scripts/actor.gd`: walking, boat steering, collision-safe camera, line and fishing effects.
+- `scripts/actor_visuals.gd`: authored procedural sailor and curved skiff meshes, articulated hand/foot targets, clothing detail, and animation.
+- `scripts/fishing_hud.gd`: compact fishing instruments, physical cue projection, and optional guidance.
+- `scripts/waterbed.gd`: sloping underwater terrain.
 - `scripts/world.gd`: generated harbor, regional scenery, lighting and geometry batching.
-- `shaders/`: procedural water, foliage, plaster, roof and sky materials.
+- `shaders/`: procedural water, seabed, foliage, plaster, timber, terrain, roof and sky materials.
 
 The requested `games/crazysora` was found as **`games/cozysora`**. Its project-owned primitive factories, material palettes, leaf generation, mesh batching, water noise, camera collision, and audio synthesis were inspected for techniques. Last Cast has its own implementations and no runtime dependency on Cozy Sora; the existing game was preserved. No external models, textures, images, animation, fonts, or audio files are bundled. Fonts use installed system fallbacks. The supplied fishing-boat image was used only for visual comparison.
 
-See [VERIFICATION.md](VERIFICATION.md) for runtime evidence, review findings, and limitations.
+See [POLISH_VERIFICATION.md](POLISH_VERIFICATION.md) for fresh before/after runtime evidence, independent reviews, and limitations. [VERIFICATION.md](VERIFICATION.md) preserves the earlier build record.
