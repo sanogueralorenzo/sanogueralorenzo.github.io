@@ -76,11 +76,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var filtered: [Clip] = []
     private var iconCache: [String: NSImage] = [:]
     private var menuOpen = false
-    private var historyAvailable = false
 
     override init() { super.init(); configureContent(); configureMenu(); report(nil) }
     func update(clips: [Clip], available: Bool, retentionDays: Double?) {
-        self.clips = clips; historyAvailable = available
+        self.clips = clips
         clearItem.isEnabled = available
         clearNowItem.isEnabled = available && !clips.isEmpty
         for item in retentionItems { item.state = retentionDays == Double(item.tag) / 1440 ? .on : .off }
@@ -284,11 +283,11 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         return cell
     }
     private func updateContentSize() {
-        let showEmpty = historyAvailable == true && filtered.isEmpty
+        let showEmpty = filtered.isEmpty
         emptyState.isHidden = !showEmpty
         emptyRows.isHidden = !clips.isEmpty
         emptyLabel.isHidden = clips.isEmpty
-        historyScroll.isHidden = showEmpty || filtered.isEmpty
+        historyScroll.isHidden = showEmpty
         let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(filtered.count) * (table.rowHeight + table.intercellSpacing.height)
         let naturalHeight = 20 + 30 + (bodyHeight > 0 ? 8 + bodyHeight : 0)
         let height = min(236, naturalHeight)
