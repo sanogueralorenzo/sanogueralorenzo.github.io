@@ -16,4 +16,6 @@ Installs in `~/Applications` and preserves your history and settings.
 
 **Clear** sets expiration. **Now** clears saved history and the current clipboard. Defaults: 200 clips, 7 days.
 
-Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Coverage report: `./tests/run.sh --coverage` (history and formats tested; UI untested).
+Links fetch icons directly from the website, with the browser icon as fallback. Only the site root and icon URLs are requested; icons are cached in memory.
+
+Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Coverage report: `./tests/run.sh --coverage` (history, formats, and website icons tested; UI untested).

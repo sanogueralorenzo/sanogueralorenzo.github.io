@@ -11,8 +11,8 @@ for option in "$@"; do
 done
 test_dir=$(mktemp -d "${TMPDIR:-/tmp}/clipboard-tests.XXXXXX")
 trap 'rm -rf "$test_dir"' EXIT HUP INT TERM
-set -- -module-name ClipboardTests Sources/ClipboardHistory.swift Sources/ClipboardFormats.swift \
-  tests/ClipboardTests.swift tests/ClipboardHistoryTests.swift tests/ClipboardFormatsTests.swift
+set -- -module-name ClipboardTests Sources/ClipboardHistory.swift Sources/ClipboardFormats.swift Sources/ClipboardWebsiteIcons.swift \
+  tests/ClipboardTests.swift tests/ClipboardHistoryTests.swift tests/ClipboardFormatsTests.swift tests/ClipboardWebsiteIconsTests.swift
 if "$coverage"; then set -- "$@" -profile-generate -profile-coverage-mapping; fi
 swiftc "$@" -o "$test_dir/tests"
 LLVM_PROFILE_FILE="$test_dir/tests.profraw" "$test_dir/tests"

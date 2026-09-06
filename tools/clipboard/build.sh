@@ -6,7 +6,7 @@ bundle_dir=$(mktemp -d "${TMPDIR:-/tmp}/clipboard-app.XXXXXX")
 trap 'rm -rf "$bundle_dir"' EXIT HUP INT TERM
 app="$bundle_dir/Clipboard.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-swiftc -O -parse-as-library Sources/Clipboard.swift Sources/ClipboardMenu.swift Sources/ClipboardPreview.swift Sources/ClipboardFormats.swift Sources/ClipboardHistory.swift \
+swiftc -O -parse-as-library Sources/Clipboard.swift Sources/ClipboardMenu.swift Sources/ClipboardPreview.swift Sources/ClipboardFormats.swift Sources/ClipboardHistory.swift Sources/ClipboardWebsiteIcons.swift \
   -o "$app/Contents/MacOS/ClipboardHost" -framework AppKit -framework Carbon -framework Security
 cp Resources/Clipboard.icns "$app/Contents/Resources/Clipboard.icns"
 cp Resources/Info.plist "$app/Contents/Info.plist"

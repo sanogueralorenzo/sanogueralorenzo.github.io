@@ -110,15 +110,27 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var clips: [Clip] = []
     private var filtered: [Clip] = []
     private var iconCache: [String: NSImage] = [:]
+    private lazy var browserIds = NSWorkspace.shared.urlsForApplications(toOpen: URL(string: "https://example.com")!).compactMap { Bundle(url: $0)?.bundleIdentifier }
     private let thumbnailCache = NSCache<NSString, NSImage>()
+    private let websiteIcons = ClipboardWebsiteIcons()
     private var menuOpen = false
 
-    override init() { super.init(); thumbnailCache.countLimit = 200; configureContent(); configureMenu(); report(nil) }
+    override init() {
+        super.init(); thumbnailCache.countLimit = 200; configureContent(); configureMenu(); report(nil)
+        websiteIcons.onChange = { [weak self] origin in
+            guard let self, menuOpen else { return }
+            for (row, clip) in filtered.enumerated() {
+                guard let url = clip.webURL, ClipboardWebsiteIcons.origin(for: url) == origin,
+                      let cell = table.view(atColumn: 0, row: row, makeIfNecessary: false) as? ClipboardItemView else { continue }
+                cell.imageView.image = icon(for: clip)
+            }
+        }
+    }
     func update(clips: [Clip], retentionDays: Double?) {
         self.clips = clips
         clearNowItem.isEnabled = !clips.isEmpty
         for item in retentionItems { item.state = retentionDays == Double(item.tag) / 1440 ? .on : .off }
-        if clips.isEmpty { thumbnailCache.removeAllObjects() }
+        if clips.isEmpty { thumbnailCache.removeAllObjects(); websiteIcons.clear() }
         if menuOpen { reload() }
     }
     func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥⇧V" }
@@ -296,6 +308,13 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         return cell
     }
     private func icon(for clip: Clip) -> NSImage? {
+        if let url = clip.webURL {
+            if let image = websiteIcons.image(for: url) { return image }
+            let browserId = clip.sourceAppId.flatMap { browserIds.contains($0) ? $0 : nil } ?? browserIds.first
+            if let browserId, let image = appIcon(for: browserId) {
+                return image
+            }
+        }
         if clip.kind == .image, let thumbnail = clip.thumbnail {
             if let cached = thumbnailCache.object(forKey: thumbnail as NSString) { return cached }
             guard let thumb = thumbnail.split(separator: ",", maxSplits: 1).last,
@@ -303,15 +322,15 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
             thumbnailCache.setObject(image, forKey: thumbnail as NSString)
             return image
         }
-        if let id = clip.sourceAppId {
-            if let cached = iconCache[id] { return cached }
-            if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
-                let image = NSWorkspace.shared.icon(forFile: url.path)
-                iconCache[id] = image
-                return image
-            }
-        }
-        return NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+        return clip.sourceAppId.flatMap { appIcon(for: $0) } ?? NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil)
+    }
+
+    private func appIcon(for id: String) -> NSImage? {
+        if let cached = iconCache[id] { return cached }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return nil }
+        let image = NSWorkspace.shared.icon(forFile: url.path)
+        iconCache[id] = image
+        return image
     }
 
     private func updateContentSize() {
