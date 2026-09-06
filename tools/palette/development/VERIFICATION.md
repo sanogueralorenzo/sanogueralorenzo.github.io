@@ -95,3 +95,9 @@ Desktop CUA inspection timed out for the menu-only window, so previous panel int
 Shortened row hints to `⌘C Copy`, adding `Space Preview` only for images. Space opens previews only for images; text, links, and files remain in the list. Removed the text-preview scroll view and its selection/shortcut handling. Moving from an image preview to a non-image restores the list.
 
 The macOS build, installed signature, and diff checks pass. Source inspection covers the image-only hint and Space guards. Native desktop inspection timed out for the menu-only app, so this follow-up has no fresh native interaction confirmation. The existing instance was still waiting on its initial Keychain read, with no accepted history writes, and was stopped before installing the update. History files and the Keychain key were retained. No automated tests were created or run.
+
+## Quiet launch and native status-item opening
+
+Removed automatic menu presentation on launch/reopen and the manually positioned NSMenu.popUp path. Launch now only adds the menu-bar icon. The shortcut invokes the status-item button's native click, sharing its attached menu behavior with an actual icon click. Invalid review arguments report through the existing icon tooltip without forcing a popup. The obsolete background-launch option is no longer needed.
+
+The installed build was launched normally with no arguments, then reopened through macOS Launch Services. Native CGWindow inspection found no Palette windows after either operation. A real Command+Shift+V keyboard event opened its 280×305 native menu at screen coordinates (1048, 34), beneath the menu bar rather than at the bottom-left corner. Escape removed the menu; a subsequent native window query returned no Palette windows. Build, installed signature, and diff checks pass. Independent source review approved the simplified opening path and unchanged capture/quit lifecycle. No automated tests were created or run.

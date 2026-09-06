@@ -35,7 +35,7 @@ open build/Palette.app
 
 The build compiles three Swift source files, renders the existing overlapping-squares icon, and ad-hoc signs the application. No package installation, downloaded runtime, Node daemon, WebView, or file indexer is needed. Quit the installed Palette before replacing `~/Applications/Palette.app` with `build/Palette.app`.
 
-Palette has no Dock icon and stays resident when dismissed. It opens on a manual launch. Use macOS Login Items for automatic launch; `--background` suppresses the initial menu. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
+Palette has no Dock icon and stays resident when dismissed. Launching or reopening the app adds its menu-bar icon without opening a window. Click the icon or press **⌘⇧V** when you need it. Use macOS Login Items for automatic launch. The only global shortcut is ⌘⇧V. If another app owns it, the menu bar icon remains available.
 
 For native verification with disposable synthetic content:
 

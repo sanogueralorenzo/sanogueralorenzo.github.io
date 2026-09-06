@@ -90,11 +90,11 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         var directory = standard
         if review {
             guard let index = args.firstIndex(of: "--data-dir"), args.indices.contains(index + 1), args[index + 1].hasPrefix("/") else {
-                report("Review mode requires --data-dir /absolute/path to a separate profile."); show(); return
+                report("Review mode requires --data-dir /absolute/path to a separate profile."); return
             }
             directory = URL(fileURLWithPath: args[index + 1])
             guard directory.resolvingSymlinksInPath().standardizedFileURL != standard.resolvingSymlinksInPath().standardizedFileURL else {
-                report("Review mode requires a separate profile."); show(); return
+                report("Review mode requires a separate profile."); return
             }
         }
         store = ClipboardStore(directory: directory, review: review)
@@ -111,10 +111,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
         activationObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
             MainActor.assumeIsolated { self?.capture(source: notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication) }
         }
-        if !args.contains("--background") { RunLoop.main.perform { MainActor.assumeIsolated { self.show() } } }
     }
 
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { if !menuOpen { show() }; return true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
         if historyAvailable == true {
@@ -212,8 +210,8 @@ final class PaletteAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate,
 
     @objc private func toggle() { menuOpen ? dismiss() : show() }
     private func show() {
-        guard !menuOpen, let button = statusItem.button else { return }
-        clipboardMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
+        guard !menuOpen else { return }
+        statusItem.button?.performClick(nil)
     }
     func menuWillOpen(_ menu: NSMenu) {
         menuOpen = true
