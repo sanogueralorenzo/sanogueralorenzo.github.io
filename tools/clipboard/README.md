@@ -12,11 +12,11 @@ A small macOS clipboard menu. Copy something, find it by content or source app, 
 - **Return** pastes into the previous app. Direct paste requires macOS Accessibility permission; copying does not.
 - **Space** opens copied images and image files in macOS Quick Look. This interaction is under verification.
 
-Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear History immediately removes all saved clips.** Quit stops capture; launching Clipboard starts it again.
+Supports text, links, PNG/TIFF images, files, and useful native rich text. Files remain at their original locations. **Clear History → Now immediately removes all saved clips.** The timed options remove each clip once it reaches 30 minutes, 8 hours, or 7 days old; 7 days is selected by default. Expiry is checked every minute while running and when the app or menu opens. Quit stops capture; launching Clipboard starts it again.
 
 Images retain their original data. Older history entries that only saved a thumbnail copy that smaller image.
 
-History stays encrypted locally in `~/Library/Application Support/Clipboard`, with a key in macOS Keychain. Defaults are 200 clips and 30 days. Private clipboard markers and obvious secrets are skipped, but detection is limited. Source apps are inferred from the foreground app, so background copies can be misattributed. Unreadable history is preserved and capture stops; failures appear in the menu-bar tooltip.
+History stays encrypted locally in `~/Library/Application Support/Clipboard`, with a key in macOS Keychain. Defaults are 200 clips and 7 days. Private clipboard markers and obvious secrets are skipped, but detection is limited. Source apps are inferred from the foreground app, so background copies can be misattributed. Unreadable history is preserved and capture stops; failures appear in the menu-bar tooltip.
 
 Quick Look temporarily writes the selected image privately. Clipboard removes its temporary file on close, Quit, or next launch; macOS manages its own preview cache.
 
@@ -29,7 +29,7 @@ Requires macOS 13+ and Xcode Command Line Tools. From this directory:
 open build/Clipboard.app
 ```
 
-Quit the installed app before replacing it. Use macOS Login Items to launch automatically.
+Quit the installed app before replacing it. Clipboard registers to launch at login on its first normal launch. You can disable this in System Settings → General → Login Items; Clipboard respects that choice.
 
 For isolated manual review:
 

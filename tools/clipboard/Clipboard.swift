@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import ApplicationServices
+import ServiceManagement
 
 @main
 @MainActor
@@ -41,6 +42,7 @@ final class Clipboard: NSObject, NSApplicationDelegate {
             self.menu.report(self.shortcutError); self.store.clear()
         }
         installShortcut()
+        menu.onRetentionChange = { [weak self] in self?.store?.setRetention(days: $0) }
         let standard = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Clipboard")
         let args = CommandLine.arguments
         let review = args.contains("--review")
@@ -54,16 +56,20 @@ final class Clipboard: NSObject, NSApplicationDelegate {
                 report("Review mode requires a separate profile."); return
             }
         }
+        if !review { registerAtLogin() }
         store = ClipboardStore(directory: directory, review: review)
         store.onChange = { [weak self] clips, policy, error, available in
             guard let self else { return }
             self.policy = policy; self.historyAvailable = available
             if let error { self.report(error) }
-            self.menu.update(clips: clips, available: available)
+            self.menu.update(clips: clips, available: available, retentionDays: policy.retentionDays)
         }
         store.load()
         let timer = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.capture() } }
         RunLoop.main.add(timer, forMode: .common)
+        let expiryTimer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in MainActor.assumeIsolated { self?.store?.prune() } }
+        expiryTimer.tolerance = 5
+        RunLoop.main.add(expiryTimer, forMode: .common)
         _ = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didDeactivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
             MainActor.assumeIsolated { self?.capture(source: notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication) }
         }
@@ -110,6 +116,18 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         } catch { report(error.localizedDescription) }
     }
     private func report(_ text: String) { menu.report(text) }
+    private func registerAtLogin() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "loginRegistrationComplete") else { return }
+        do {
+            let service = SMAppService.mainApp
+            if service.status != .enabled && service.status != .requiresApproval { try service.register() }
+            defaults.set(true, forKey: "loginRegistrationComplete")
+            if service.status == .requiresApproval {
+                report("Enable Clipboard in System Settings → General → Login Items to start it automatically.")
+            }
+        } catch { report("Could not enable launch at login: \(error.localizedDescription)") }
+    }
     private func installShortcut() {
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let callback: EventHandlerUPP = { _, _, pointer in

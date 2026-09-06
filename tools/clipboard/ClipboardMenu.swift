@@ -57,6 +57,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     var onCopy: ((Clip, Bool) -> Void)?
     var onPreview: ((Clip) -> Void)?
     var onClear: (() -> Void)?
+    var onRetentionChange: ((Double) -> Void)?
     private let clipboardMenu = NSMenu()
     private let content = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: 236))
     private let search = ClipboardSearch()
@@ -66,6 +67,8 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private let emptyLabel = NSTextField(labelWithString: "Copy something to start")
     private let emptyRows = NSStackView()
     private let clearItem = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
+    private let clearNowItem = NSMenuItem(title: "Now", action: nil, keyEquivalent: "")
+    private var retentionItems: [NSMenuItem] = []
     private var statusItem: NSStatusItem!
     private let previewItem = NSMenuItem(title: "Preview", action: nil, keyEquivalent: " ")
     private var copyItems: [NSMenuItem] = []
@@ -77,9 +80,11 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     private var historyAvailable = false
 
     override init() { super.init(); configureContent(); configureMenu(); report(nil) }
-    func update(clips: [Clip], available: Bool) {
+    func update(clips: [Clip], available: Bool, retentionDays: Double?) {
         self.clips = clips; historyAvailable = available
-        clearItem.isEnabled = available && !clips.isEmpty
+        clearItem.isEnabled = available
+        clearNowItem.isEnabled = available && !clips.isEmpty
+        for item in retentionItems { item.state = retentionDays == Double(item.tag) / 1440 ? .on : .off }
         reload()
     }
     func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥⇧V" }
@@ -202,7 +207,18 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         clipboard.view = content
         clipboardMenu.addItem(clipboard)
         clipboardMenu.addItem(.separator())
-        clearItem.target = self; clearItem.action = #selector(clearHistory)
+        let clearMenu = NSMenu()
+        clearMenu.autoenablesItems = false
+        clearNowItem.target = self; clearNowItem.action = #selector(clearHistory)
+        clearNowItem.isEnabled = false
+        clearMenu.addItem(clearNowItem)
+        clearMenu.addItem(.separator())
+        for (title, minutes) in [("Every 30 Minutes", 30), ("Every 8 Hours", 480), ("Every 7 Days", 10080)] {
+            let item = NSMenuItem(title: title, action: #selector(changeRetention(_:)), keyEquivalent: "")
+            item.target = self; item.tag = minutes; item.state = minutes == 10080 ? .on : .off
+            clearMenu.addItem(item); retentionItems.append(item)
+        }
+        clearItem.submenu = clearMenu
         clearItem.isEnabled = false
         clipboardMenu.addItem(clearItem)
         clipboardMenu.addItem(withTitle: "Quit Clipboard", action: #selector(quit), keyEquivalent: "q").target = self
@@ -294,5 +310,6 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     }
     @objc private func pasteClip() { if let selected { onCopy?(selected, true) } }
     @objc private func clearHistory() { onClear?() }
+    @objc private func changeRetention(_ sender: NSMenuItem) { onRetentionChange?(Double(sender.tag) / 1440) }
     @objc private func quit() { NSApp.terminate(nil) }
 }

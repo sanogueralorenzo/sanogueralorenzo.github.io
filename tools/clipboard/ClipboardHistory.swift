@@ -22,15 +22,15 @@ struct Clip: Codable, Equatable {
     var summary: String { title ?? content }
 }
 
-struct ClipboardPolicy: Decodable {
+struct ClipboardPolicy: Codable {
     var maxItems = 200
-    var retentionDays: Double? = 30
+    var retentionDays: Double? = 7
     var excludedAppIds: [String] = []
 }
 
 /// One serial owner for encrypted history and settings. Publish only successful writes.
 final class ClipboardStore {
-    private struct Settings: Decodable { var clipboard: ClipboardPolicy }
+    private struct Settings: Codable { var clipboard: ClipboardPolicy }
     private struct Envelope: Codable { var version: Int; var iv: Data; var authTag: Data; var ciphertext: Data }
     private let queue = DispatchQueue(label: "sh.clipboard.history", qos: .utility)
     private let directory: URL
@@ -89,16 +89,23 @@ final class ClipboardStore {
 
     func clear() { change { _ in [] } }
 
+    func setRetention(days: Double) {
+        queue.async {
+            guard self.ready, self.policy.retentionDays != days else { return }
+            do {
+                var next = self.policy
+                next.retentionDays = days
+                try self.write(JSONEncoder().encode(Settings(clipboard: next)), to: self.settingsURL)
+                self.policy = next
+                self.publish()
+                self.prune()
+            } catch { self.publish("Could not save the history interval: \(error.localizedDescription)") }
+        }
+    }
+
     private func pruned(_ clips: [Clip]) -> [Clip] {
         let cutoff = policy.retentionDays.map { Date().timeIntervalSince1970 * 1000 - $0 * 86_400_000 }
-        var available = max(0, policy.maxItems - clips.filter(\.pinned).count)
-        return clips.filter { clip in
-            if clip.pinned { return true }
-            if let cutoff, clip.createdAt < cutoff { return false }
-            guard available > 0 else { return false }
-            available -= 1
-            return true
-        }
+        return Array(clips.filter { clip in cutoff.map { clip.createdAt >= $0 } ?? true }.prefix(policy.maxItems))
     }
 
     private func change(_ transform: @escaping ([Clip]) throws -> [Clip]) {
