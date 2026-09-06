@@ -22,16 +22,28 @@ New copies replace the oldest entries when history reaches 200 clips or 64 MiB o
 
 Quick Look temporarily writes the selected image privately. Clipboard removes its temporary file on close, Quit, or next launch; macOS manages its own preview cache.
 
-## Build
+## Install or update
 
-Requires macOS 13+ and Xcode Command Line Tools. From this directory:
+Requires macOS 13+ and Xcode Command Line Tools (`xcode-select --install`). Run:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/clipboard/install.sh | sh
+```
+
+The installer fetches the latest `main` into a temporary checkout, compiles and verifies the app, stops Clipboard, installs it in `~/Applications/Clipboard.app`, and launches it. Saved history and settings are preserved. From an existing checkout, `./install.sh` does the same; it always builds the published `main`, including when your local checkout has edits.
+
+Clipboard registers to launch at login on its first normal launch. You can disable this in System Settings → General → Login Items; Clipboard respects that choice.
+
+## Build local changes
+
+From this directory:
 
 ```sh
 ./build.sh
 open build/Clipboard.app
 ```
 
-Quit the installed app before replacing it. Clipboard registers to launch at login on its first normal launch. You can disable this in System Settings → General → Login Items; Clipboard respects that choice.
+`build.sh` only compiles the local source. It does not fetch or install anything. Quit the installed app before running a local build.
 
 For isolated manual review:
 
