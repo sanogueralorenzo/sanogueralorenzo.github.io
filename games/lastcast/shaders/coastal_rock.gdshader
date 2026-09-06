@@ -8,7 +8,7 @@ void vertex(){world=(MODEL_MATRIX*vec4(VERTEX,1.)).xyz;normal_world=normalize(MO
 void fragment(){
  float mottling=noise(world*2.1)*.65+noise(world*7.8)*.35;
  float grain=noise(world*39.);
- vec3 stone=pow(COLOR.rgb,vec3(2.15))*(.84+mottling*.26+grain*.055);
+ vec3 stone=COLOR.rgb*(.84+mottling*.26+grain*.055);
  float moss=smoothstep(.35,.82,normal_world.y)*smoothstep(.35,.78,noise(world*1.7))*smoothstep(.2,1.7,world.y);
  float wet=1.-smoothstep(-.10,.40,world.y);
  ALBEDO=mix(stone,stone*vec3(.67,.78,.49),moss*.44)*(1.-wet*.12);

@@ -5,7 +5,7 @@ config_version=5
 config/name="Last Cast"
 config/icon="res://icon.svg"
 run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.7", "GL Compatibility")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/description="One more fish before the light fades."
 
 [display]
@@ -16,8 +16,12 @@ window/size/window_height_override=800
 window/stretch/mode="canvas_items"
 
 [rendering]
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="forward_plus"
 textures/default_filters/use_nearest_mipmap_filter=false
+rendering_device/fallback_to_opengl3=false
+textures/vram_compression/import_s3tc_bptc=true
 textures/vram_compression/import_etc2_astc=true
 anti_aliasing/quality/msaa_3d=2
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3

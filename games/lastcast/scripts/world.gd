@@ -18,13 +18,15 @@ var material_cache: Dictionary = {}
 var daylight_environment: Environment
 var daylight_sun: DirectionalLight3D
 var daylight_sky: ShaderMaterial
-var daylight_top := Color("4a91bd")
-var daylight_horizon := Color("c4dbd6")
+var daylight_top := Color("3876a8")
+var daylight_horizon := Color("9ac3cc")
+var applied_sunset := -1.0
 
 func build(region: int = 0, season: int = 0) -> void:
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
+	applied_sunset = -1.0
 	rng.seed = 41973 + region * 51
 	region_index = region
 	material_cache.clear()
@@ -128,23 +130,28 @@ func _environment(season: int) -> void:
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://shaders/sky.gdshader")
 	daylight_sky=sky_mat
-	daylight_top=Color("4a91bd")
-	daylight_horizon=Color("c4dbd6")
+	daylight_top=Color("3876a8")
+	daylight_horizon=Color("9ac3cc")
 	if region_index == 1:
-		daylight_top=Color("527e9a")
-		sky_mat.set_shader_parameter("sky_top", daylight_top)
+		daylight_top=Color("416988")
 	elif region_index == 2:
-		daylight_top=Color("496b83")
-		daylight_horizon=Color("c6cbd0")
-		sky_mat.set_shader_parameter("sky_top", daylight_top)
-		sky_mat.set_shader_parameter("sky_horizon", Color("c6cbd0"))
+		daylight_top=Color("3b586f")
+		daylight_horizon=Color("a2b1bf")
+	sky_mat.set_shader_parameter("sky_top", daylight_top)
+	sky_mat.set_shader_parameter("sky_horizon", daylight_horizon)
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("b9d8df")
-	env.ambient_light_energy = .56
+	env.ambient_light_energy = .24
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.0
+	env.tonemap_exposure = .9
+	# Local contact shading grounds foliage, masonry and the sailor without a flat fill light.
+	env.ssao_enabled = true
+	env.ssao_radius = .65
+	env.ssao_intensity = .65
+	env.ssao_power = 1.15
+	env.ssao_detail = .4
 	env.fog_enabled = true
 	env.fog_sky_affect = .08
 	env.fog_light_color = Color("aac7c9")
@@ -155,22 +162,30 @@ func _environment(season: int) -> void:
 	daylight_sun=sun
 	sun.rotation_degrees = Vector3(-43, -34, 0)
 	sun.light_color = Color("ffedce") if season == 0 else Color("ffe0bf")
-	sun.light_energy = .72
+	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 95
-	sun.shadow_bias = .035
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_blend_splits = true
+	sun.directional_shadow_split_1 = .08
+	sun.directional_shadow_split_2 = .22
+	sun.directional_shadow_split_3 = .50
+	# Filtered soft edges stay stable on the curved hull without temporal AA.
+	sun.shadow_blur = 1.6
+	sun.shadow_bias = .025
+	sun.shadow_normal_bias = .4
 	add_child(sun)
 
 func _water(season: int) -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(700, 700)
-	plane.subdivide_width = 120
-	plane.subdivide_depth = 120
 	var item := MeshInstance3D.new()
 	item.mesh = plane
 	item.position = Vector3(0, .08, 90)
 	var material := ShaderMaterial.new()
 	material.shader = load("res://shaders/water.gdshader")
+	# Draw the sea before above-water wake, line and strike effects at every orbit.
+	material.render_priority = -1
 	if region_index == 1:
 		material.set_shader_parameter("shallow", Color("328d7c"))
 		material.set_shader_parameter("deep", Color("155462"))
@@ -688,7 +703,8 @@ func _instances(mesh: Mesh, transforms: Array[Transform3D], colors: Array[Color]
 	multi.instance_count=transforms.size()
 	for i in range(transforms.size()):
 		multi.set_instance_transform(i,transforms[i])
-		multi.set_instance_color(i,colors[i].srgb_to_linear() if material == null else colors[i])
+		# Vertex/instance colors are linear data; source_color uniforms convert in Godot.
+		multi.set_instance_color(i,colors[i].srgb_to_linear())
 	var instance := MultiMeshInstance3D.new()
 	instance.multimesh=multi
 	if not cast_shadows:
@@ -1011,10 +1027,13 @@ func set_daylight(fraction: float) -> void:
 	if daylight_environment == null or not is_instance_valid(daylight_sun):
 		return
 	var sunset := 1.0-smoothstep(0.0,.46,clampf(fraction,0,1))
+	# Identical midday uniforms needlessly invalidate the sky radiance cache.
+	if is_equal_approx(sunset, applied_sunset): return
+	applied_sunset = sunset
 	daylight_sun.light_color=Color("ffedce").lerp(Color("ffbd7e"),sunset)
-	daylight_sun.light_energy=lerpf(.72,.43,sunset)
+	daylight_sun.light_energy=lerpf(1.15,.68,sunset)
 	daylight_sun.rotation_degrees.x=lerpf(-43.0,-18.0,sunset)
-	daylight_environment.ambient_light_energy=lerpf(.56,.45,sunset)
+	daylight_environment.ambient_light_energy=lerpf(.24,.22,sunset)
 	daylight_environment.ambient_light_color=Color("b9d8df").lerp(Color("c5bccb"),sunset)
 	daylight_environment.fog_light_color=Color("aac7c9").lerp(Color("d8b7a0"),sunset)
 	daylight_sky.set_shader_parameter("sky_top",daylight_top.lerp(Color("78799b"),sunset))

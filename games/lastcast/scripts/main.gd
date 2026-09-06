@@ -74,6 +74,13 @@ var sounds: Array = []
 var signal_rings: Array = []
 
 func _ready() -> void:
+	var renderer := RenderingServer.get_current_rendering_method()
+	var driver := RenderingServer.get_current_rendering_driver_name()
+	print("LAST_CAST_RENDERER method=%s driver=%s device=%s" % [renderer, driver, RenderingServer.get_video_adapter_name()])
+	if renderer != "forward_plus" or RenderingServer.get_rendering_device() == null:
+		push_error("Last Cast requires Forward+. Remove renderer overrides and use a RenderingDevice-capable desktop GPU.")
+		get_tree().quit(1)
+		return
 	_load()
 	world = World.new(); add_child(world); world.build(region, season)
 	actor = Actor.new(); add_child(actor); actor.setup(); actor.toggle_controls = toggle_controls
@@ -396,7 +403,7 @@ func _capture() -> void:
 	_log("screenshot",{"file":path,"position":str(actor.position),"sailing":actor.sailing,"boat_speed":snappedf(actor.boat_speed,.01),"boat_heading":snappedf(actor.boat_heading,.01),"state":fishing.state,"fps":Engine.get_frames_per_second(),"draw_calls":Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),"frame_cpu_ms":snappedf(Performance.get_monitor(Performance.TIME_PROCESS)*1000,.01),"camera":str(actor.camera.global_position),"phase":fishing.phase_label,"focus_pace":focus_pace,"toggle_controls":toggle_controls})
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST: _save()
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and initialized: _save()
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and pause_when_unfocused and initialized and not modal:
 		await get_tree().create_timer(.3,true,false,true).timeout
 		if not DisplayServer.window_is_focused() and not modal: _pause_menu()

@@ -1,0 +1,30 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M3 Max (Apple9)
+
+LAST_CAST_RENDERER method=forward_plus driver=metal device=Apple M3 Max (Apple9)
+LAST_CAST launch {"coins":0,"continued_expedition":false,"pause_when_unfocused":false,"unlocked":0}
+INSPECT_READY forward_plus metal
+LAST_CAST fishing_state {"focus_pace":false,"progress":0.0,"state":"idle","tension":0.0,"toggle_controls":true}
+INSPECT _close_modal() => <null> 
+INSPECT set("active",false) => <null> 
+INSPECT set("focus_pace",false) => <null> 
+INSPECT actor.reset_home() => <null> 
+INSPECT actor.set("camera_yaw",.28) => <null> 
+INSPECT actor.set("camera_pitch",.46) => <null> 
+INSPECT actor.set("camera_distance",10.5) => <null> 
+INSPECT actor.set("camera_ready",false) => <null> 
+INSPECT_PROFILE final-after-shore 16.6672733333333 p95 18.291
+INSPECT actor.board() => <null> 
+INSPECT actor.set("position",Vector3(18,.35,16)) => <null> 
+INSPECT actor.set("camera_ready",false) => <null> 
+INSPECT_PROFILE final-after-boat 16.6671578654809 p95 18.471
+INSPECT actor.set("toggle_controls",true) => <null> 
+INSPECT actor.set("move_latch",Vector2(.7,-1)) => <null> 
+INSPECT_PROFILE final-after-sailing 16.6769065628476 p95 17.556
+INSPECT actor.board() => <null> 
+INSPECT actor.set("position",Vector3(18,.35,16)) => <null> 
+INSPECT actor.set("camera_ready",false) => <null> 
+INSPECT set("daylight",45.0) => <null> 
+INSPECT set("active",true) => <null> 
+INSPECT_PROFILE final-after-sunset 16.6673827777778 p95 18.068
+INSPECT get_tree().quit() => <null> 

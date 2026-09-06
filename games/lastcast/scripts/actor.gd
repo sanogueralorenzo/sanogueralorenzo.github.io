@@ -97,9 +97,8 @@ func setup() -> void:
 	wake_mesh = ImmediateMesh.new()
 	wake_node = MeshInstance3D.new()
 	wake_node.mesh = wake_mesh
-	var wake_material := _material("foam", Color("d3e5d8"), true)
-	wake_material.vertex_color_use_as_albedo = true
-	wake_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var wake_material := ShaderMaterial.new()
+	wake_material.shader = load("res://shaders/wake.gdshader")
 	wake_node.material_override = wake_material
 	wake_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	get_parent().add_child(wake_node)

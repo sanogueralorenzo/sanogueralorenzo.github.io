@@ -1,9 +1,11 @@
 shader_type spatial;
-render_mode cull_back, depth_draw_always;
+render_mode cull_back;
 // Long, restrained ripples leave the bright highlights to the lure and wake.
-uniform vec4 shallow : source_color = vec4(0.13, 0.58, 0.60, 1.0);
-uniform vec4 deep : source_color = vec4(0.055, 0.34, 0.45, 1.0);
+uniform vec4 shallow : source_color = vec4(0.09, 0.46, 0.53, 1.0);
+uniform vec4 deep : source_color = vec4(0.035, 0.255, 0.37, 1.0);
 uniform float wind = 1.0;
+// Forward+ reverse Z depth is already in [0, 1]. Only screen XY needs remapping.
+uniform sampler2D depth_texture : hint_depth_texture, repeat_disable, filter_nearest;
 varying vec3 world;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -44,7 +46,10 @@ void vertex() {
 void fragment() {
 	vec2 p = world.xz;
 	float distance_to_camera = length(world - CAMERA_POSITION_WORLD);
-	float shoal = 1.0 - smoothstep(3.0, 29.0, p.y + sin(p.x * .18) * 3.0);
+	float scene_depth = textureLod(depth_texture, SCREEN_UV, 0.0).r;
+	vec4 behind = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, scene_depth, 1.0);
+	float thickness = max(0.0, -behind.z / behind.w + VERTEX.z);
+	float shoal = exp(-thickness * .20);
 	float broad = noise(p * .075);
 	vec3 col = mix(deep.rgb, shallow.rgb, shoal * .82 + broad * .045);
 	// Irregular cross-ripples, with no continuous sine train spanning the horizon.
@@ -53,17 +58,18 @@ void fragment() {
 	vec2 rotated = vec2(p.x * .80 + p.y * .60, p.x * -.60 + p.y * .80);
 	vec3 fine_wave = wave_noise(rotated * vec2(3.40, 4.30) + vec2(-TIME * .22, TIME * .15));
 	vec2 fine_gradient = vec2(fine_wave.y * .80 - fine_wave.z * .60, fine_wave.y * .60 + fine_wave.z * .80);
-	vec2 slope = long_wave.yz * vec2(.039, .052) * (.40 + .60 * close) + fine_gradient * .023 * close;
+	vec2 slope = long_wave.yz * vec2(.047, .062) * (.40 + .60 * close) + fine_gradient * .028 * close;
 	vec3 normal_world = normalize(vec3(slope.x * wind, 1.0, slope.y * wind));
 	NORMAL = normalize((VIEW_MATRIX * vec4(normal_world, 0.0)).xyz);
 	float fish = max(max(school(p, vec2(-12, 9), 0.0), school(p, vec2(0, 12), 2.0)), max(school(p, vec2(9, 24), 4.0), school(p, vec2(-13, 30), 7.0)));
 	col *= 1.0 - fish * .45;
-	ALBEDO = pow(col, vec3(2.2));
-	ROUGHNESS = .34;
-	METALLIC = .02;
+	ALBEDO = col;
+	ROUGHNESS = .26;
+	METALLIC = 0.0;
 	SPECULAR = .36;
 	// Actual transparency exposes a sloping seabed; glancing views remain reflective.
 	float facing = clamp(dot(normalize(CAMERA_POSITION_WORLD - world), normal_world), 0.0, 1.0);
 	float fresnel = pow(1.0 - facing, 3.0);
-	ALPHA = clamp(mix(.90, .65, shoal) + fresnel * .10 + fish * .07, .62, .99);
+	// Beer–Lambert absorption follows the actual seabed and submerged hull/piles.
+	ALPHA = clamp(1.0 - exp(-thickness * .65) + fresnel * .30 + fish * .07, .06, .98);
 }

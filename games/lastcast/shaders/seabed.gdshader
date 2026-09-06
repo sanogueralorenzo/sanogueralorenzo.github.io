@@ -2,6 +2,7 @@ shader_type spatial;
 // Procedural submerged stone, sand pockets and eelgrass: no imported textures.
 uniform vec4 sand : source_color = vec4(.44, .55, .43, 1.0);
 uniform vec4 depths : source_color = vec4(.035, .21, .27, 1.0);
+uniform vec4 eelgrass : source_color = vec4(.12,.27,.20,1.0);
 varying vec3 world;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -17,7 +18,7 @@ void fragment() {
 	float stones = smoothstep(.42, .69, noise(p * 3.8 + vec2(noise(p * .8))));
 	float grass = smoothstep(.57, .76, patch);
 	vec3 base = sand.rgb * (.84 + stones * .14 + grain * .035);
-	base = mix(base, vec3(.12, .27, .20), grass * .25);
+	base = mix(base, eelgrass.rgb, grass * .25);
 	// Fine broken light filaments, formed by intersecting unrelated noise fields.
 	// A slow patch mask breaks the contours before they become a white lattice.
 	vec2 flow = vec2(TIME * .085, -TIME * .065);
@@ -29,9 +30,9 @@ void fragment() {
 	float broken = smoothstep(.40, .72, noise(p * 1.35 + flow * .45));
 	float nearby = 1.0 - smoothstep(25.0, 70.0, length(world - CAMERA_POSITION_WORLD));
 	float caustic = filament * broken * nearby;
-	base += vec3(.11, .15, .085) * caustic * exp(-depth * .27);
+	base += vec3(.025, .035, .018) * caustic * exp(-depth * .27);
 	base = mix(base, depths.rgb, 1.0 - exp(-depth * .16));
-	ALBEDO = pow(base, vec3(2.2));
+	ALBEDO = base;
 	ROUGHNESS = .96;
 	SPECULAR = .05;
 }

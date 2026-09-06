@@ -4,7 +4,7 @@ A small, independently runnable Godot 4 fishing roguelike. Walk a sunlit coastal
 
 ## Launch
 
-Developed and verified with **Godot 4.7.2** on macOS, using GL Compatibility. Earlier Godot 4 releases have not been verified.
+Developed and verified with **Godot 4.7.2** on macOS, using **Forward+**. Earlier Godot 4 releases have not been verified. A desktop GPU supporting Godot’s RenderingDevice backend is required; the verified Apple Silicon setup uses native Metal. OpenGL fallback is disabled, and the game refuses other rendering methods before loading a save.
 
 From this repository:
 
@@ -23,6 +23,8 @@ open 'games/lastcast/build/Last Cast.app'
 ```
 
 The export uses a dedicated application identifier so it can run alongside other Godot games. The local app is ad hoc signed; distribution signing and notarization are not configured. Generated builds are ignored by Git.
+
+The default window and verified framebuffer are **1280×800** (1440×900 UI design coordinates). Startup prints `LAST_CAST_RENDERER method=forward_plus driver=metal device=…` on the verified Mac; Vulkan or Direct3D 12 may be used on other capable desktops. Do not supply `--rendering-method` overrides.
 
 Normal launches pause when the window loses focus. For recording or deliberate background play, launch with `godot --path games/lastcast -- --keep-running-unfocused` (or append `--args -- --keep-running-unfocused` to the macOS `open` command). This only changes focus-loss pausing; it does not change fishing rules, game speed, rewards, or input. Use Esc to pause manually.
 
@@ -98,4 +100,4 @@ To start fresh, quit and move `last_cast.json` somewhere safe. The game has no n
 
 The requested `games/crazysora` was found as **`games/cozysora`**. Its project-owned primitive factories, material palettes, leaf generation, mesh batching, water noise, camera collision, and audio synthesis were inspected for techniques. Last Cast has its own implementations and no runtime dependency on Cozy Sora; the existing game was preserved. No external models, textures, images, animation, fonts, or audio files are bundled. Fonts use installed system fallbacks. The supplied fishing-boat image was used only for visual comparison.
 
-See [POLISH_VERIFICATION.md](POLISH_VERIFICATION.md) for fresh before/after runtime evidence, independent reviews, and limitations. [VERIFICATION.md](VERIFICATION.md) preserves the earlier build record.
+See [FORWARD_PLUS_VERIFICATION.md](FORWARD_PLUS_VERIFICATION.md) for the Forward+ checkpoint: renderer decisions, matching views, independent reviews, measured performance, and unfinished fishing/save verification after the requested stop. [POLISH_VERIFICATION.md](POLISH_VERIFICATION.md) and [VERIFICATION.md](VERIFICATION.md) preserve the earlier Compatibility build records.
