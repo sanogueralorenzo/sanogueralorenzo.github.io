@@ -156,7 +156,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NotificationCenter.default.addObserver(self, selector: #selector(updatePreviewShortcut), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         emptyRows.orientation = .vertical; emptyRows.alignment = .leading; emptyRows.spacing = 2
         for title in [emptyLabel, NSTextField(labelWithString: "Hover + Space to preview images")] {
-            let row = makeRow(icon: NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette"), title: title)
+            let row = makeRow(icon: NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Palette"), title: title)
             add(row, to: emptyRows)
             row.heightAnchor.constraint(equalToConstant: 30).isActive = true
         }
@@ -194,7 +194,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
 
     private func configureMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "square.on.square", accessibilityDescription: "Palette")
+        statusItem.button?.image = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Palette")
         statusItem.button?.image?.isTemplate = true
         clipboardMenu.delegate = self
         clipboardMenu.autoenablesItems = false
