@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>Minutes</string>
+<key>CFBundleDisplayName</key><string>Minutes</string>
+<key>CFBundleIdentifier</key><string>io.github.sanogueralorenzo.Minutes</string>
+<key>CFBundleExecutable</key><string>MinutesHost</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>1.0</string>
+<key>LSMinimumSystemVersion</key><string>15.0</string>
+<key>LSUIElement</key><true/>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSMicrophoneUsageDescription</key><string>Minutes records your microphone so your side of a meeting is included in its local transcript.</string>
+<key>NSScreenCaptureUsageDescription</key><string>Minutes captures meeting and system audio. It does not save screen images or video.</string>
+</dict></plist>
