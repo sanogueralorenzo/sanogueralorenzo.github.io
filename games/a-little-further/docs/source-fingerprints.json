@@ -1,0 +1,26 @@
+{
+  "sunwake-bundle": {
+    "sha256": "6228450ecc46f327393ec610cf1a2f0d708932f9ab0e74bc64c79c60da84e6fc",
+    "bytes": 1258282
+  },
+  "sunwake-boat": {
+    "sha256": "897916b88c3fa20d3ce8b6a3d3c6726766e1dd8c08e4f6524e8b8025b6e38ae2",
+    "bytes": 919720
+  },
+  "sno-assembly": {
+    "sha256": "80fbad61c5aaef3c1c0fc7748033e5396166a5dc930630c074739ad4cda53697",
+    "bytes": 1493504
+  },
+  "hike-assembly": {
+    "sha256": "6c2b825311055aacc24d07ac123c8d666d62a47da6672b67da4b5174a436a93e",
+    "bytes": 889344
+  },
+  "megabonk-native": {
+    "sha256": "4350a7ae25ba7aec35677c213fdceabbb638676bb00ab59131d7d9c37b6e3d9e",
+    "bytes": 54771712
+  },
+  "megabonk-metadata": {
+    "sha256": "17b506a77616b943b414b9a42d35e3acbdaf71eec5dc6c470fc4da338010d550",
+    "bytes": 13728368
+  }
+}

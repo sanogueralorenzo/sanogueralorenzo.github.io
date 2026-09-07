@@ -1,0 +1,7 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><EnableDynamicLoading>true</EnableDynamicLoading><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><Compile Remove="tests/**/*.cs" /></ItemGroup>
+  <Target Name="RequirePrivateSources" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('Local/PrivateSources.cs')" Text="Private recovered sources are missing. Run tools/restore-local.sh. See docs/PROVENANCE.md." />
+  </Target>
+</Project>

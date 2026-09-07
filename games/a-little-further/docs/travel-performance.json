@@ -1,0 +1,23 @@
+{
+  "seed": 1701,
+  "seconds": 180.00000938773155,
+  "mode": "Sailing",
+  "Gold": 0,
+  "Kills": 0,
+  "Shrines": 0,
+  "IslandsVisited": 0,
+  "ShiftCount": 6,
+  "loaded": 25,
+  "frames": 12161,
+  "medianMs": 16.57,
+  "p95Ms": 17.347,
+  "p99Ms": 20.656,
+  "sampleKind": "monotonic process callback interval",
+  "recordedMovie": false,
+  "renderer": "forward_plus",
+  "adapter": "Apple M3 Max (Apple9)",
+  "drawCalls": 220,
+  "objects": 512,
+  "processMs": 17.022,
+  "physicsMs": 0.098
+}
