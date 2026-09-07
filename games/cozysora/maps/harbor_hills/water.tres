@@ -6,3 +6,7 @@ Amplitude = 0.55
 Wind = 0.22
 Swell = 0.18
 RippleStrength = 0.7
+Roughness = 0.23
+FoamStrength = 0.14
+ShoreWidth = 2.4
+DeepColor = Color(0.125, 0.286, 0.384, 1)

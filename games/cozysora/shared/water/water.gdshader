@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx, fog_disabled;
+render_mode diffuse_burley, specular_schlick_ggx;
 
 uniform vec4 wave_shape[24];
 uniform vec3 wave_phase[24];
@@ -10,7 +10,12 @@ uniform vec4 depth_bounds;
 uniform vec4 water_bounds;
 uniform vec4 deep_color : source_color = vec4(.094,.286,.435,1.);
 uniform vec4 scatter_color : source_color = vec4(.16,.46,.49,1.);
-uniform vec4 fog_color : source_color = vec4(.78,.84,.87,1.);
+uniform sampler2D shore_distance : filter_linear, repeat_disable;
+uniform sampler2D surface_field : filter_linear_mipmap, repeat_enable;
+uniform float shore_width=2.4;
+uniform vec4 shore_color : source_color = vec4(.443,.537,.522,1.);
+uniform vec4 fog_color : source_color;
+uniform vec4 fog_range=vec4(40.,260.,1.,1.);
 uniform vec3 absorption=vec3(.56,.185,.072);
 uniform vec3 sun_direction=vec3(-.55,.7,-.38);
 uniform float wind=.3;
@@ -34,6 +39,17 @@ float depth_at(vec2 p) {
  // Fade to open-sea depth before the generated field ends, including its corners.
  float edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
  return ocean_surface?mix(48.,depth,smoothstep(0.,.18,edge)):depth;
+}
+float shore_at(vec2 p) {
+ vec2 uv=(p-depth_bounds.xy)/depth_bounds.zw;
+ float distance_to_shore=32.;
+ if(all(greaterThanEqual(uv,vec2(0.))) && all(lessThanEqual(uv,vec2(1.)))) {
+  distance_to_shore=texture(shore_distance,(uv*256.+.5)/257.).r;
+  float edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
+  if(ocean_surface) distance_to_shore=mix(32.,distance_to_shore,smoothstep(0.,.18,edge));
+ }
+ if(!ocean_surface) distance_to_shore=min(distance_to_shore,min(min(p.x-water_bounds.x,p.y-water_bounds.y),min(water_bounds.z-p.x,water_bounds.w-p.y)));
+ return max(0.,distance_to_shore);
 }
 float spectral_spacing(float distance_to_center) {
  float s=mix(1.125,4.9,smoothstep(108.,210.,distance_to_center));
@@ -78,6 +94,12 @@ void fragment() {
  float footprint=max(length(dFdx(p)),length(dFdy(p)));
  float depth=depth_at(p);
  if(p.x<water_bounds.x || p.y<water_bounds.y || p.x>water_bounds.z || p.y>water_bounds.w || depth<=.002) discard;
+ // Slow world-space wind patches leave resting water between fine ripples.
+ float gust=texture(surface_field,p/96.+water_time*vec2(-.00048,.00019)).r;
+ float breeze=mix(.38,1.08,smoothstep(.25,.73,gust));
+ float shore_distance_m=shore_at(p);
+ float shoreline_noise=texture(surface_field,p/14.).g;
+ float shore=1.-smoothstep(0.,shore_width*mix(.72,1.24,shoreline_noise),shore_distance_m);
  vec2 slope=vec2(0.);
  for(int octave=0;octave<6;octave++) {
   float band=float(octave),angle=.42+band*2.3999632;
@@ -111,13 +133,13 @@ void fragment() {
    macro_crest=mix(crest,height/max(wave_height_max,.001),analytic_blend);
   }
  }
- vec3 normal=normalize(macro_normal+vec3(-slope.x,0.,-slope.y)*.86*ripple_strength);
+ vec3 normal=normalize(macro_normal+vec3(-slope.x,0.,-slope.y)*.86*ripple_strength*breeze*mix(1.,.65,shore));
  vec3 view=normalize(CAMERA_POSITION_WORLD-water_world);
  float facing=clamp(dot(normal,view),0.,1.);
  float crest_light=smoothstep(-.48,.7,macro_crest);
  float optical_depth=min(max(optical_depth_min,depth),mix(7.1,1.65,crest_light))/max(facing+.23,.3);
  vec3 transmission=exp(-absorption*optical_depth);
- vec3 body=deep_color.rgb+scatter_color.rgb*transmission*(.22+crest_light*.38);
+ vec3 body=deep_color.rgb+scatter_color.rgb*transmission*(.22+crest_light*.28);
  float warp=sin(dot(p,vec2(.39,.71))-water_time*(.71+wind*.28));
  float satin=.5+.5*sin(dot(p+vec2(warp*.29,-warp*.18),vec2(2.08,1.34))-water_time*1.72);
  float capillary=.5+.5*sin(dot(p+vec2(-warp*.13,warp*.21),vec2(-3.57,4.22))+water_time*2.43);
@@ -126,21 +148,27 @@ void fragment() {
  specular_visibility=1.-smoothstep(.20,.86,footprint);
  float backscatter=pow(max(dot(view,-sun_direction),0.),4.)*smoothstep(.4,.92,crest_light)*smoothstep(.06,.38,length(macro_normal.xz));
  body+=scatter_color.rgb*backscatter*.34;
- float shore=1.-smoothstep(.08,.85,depth);
- float ripple=.5+.5*sin(p.x*2.08+p.y*1.34-water_time*1.72+sin(p.x*.39+p.y*.71-water_time*.8)*.29);
- float foam=shore*smoothstep(.5,.85,ripple)*foam_strength;
- body=mix(body,vec3(.45,.55,.52),foam);
- float distance_to_camera=length(water_world-CAMERA_POSITION_WORLD);
- float haze=ocean_surface?smoothstep(280.,2300.,distance_to_camera)*.72:0.;
+ // A bank-local optical transition also works for a pond with a flat floor.
+ body=mix(body,shore_color.rgb,shore*.32);
+ float wash=.5+.5*sin(shore_distance_m*2.7-water_time*.72+shoreline_noise*5.);
+ float breakup=texture(surface_field,p/9.+water_time*vec2(.002,-.001)).g;
+ float foam=shore*smoothstep(.57,.76,breakup)*smoothstep(.65,.92,wash)*foam_strength;
+ body=mix(body,vec3(.64,.67,.59),foam);
  NORMAL=normalize((VIEW_MATRIX*vec4(normal,0.)).xyz);
- ALBEDO=mix(body,fog_color.rgb,haze);
- // Godot supplies filtered live sky radiance. SPECULAR * .08 preserves water F0.
- SPECULAR=.254625;
+ ALBEDO=body;
+ // Godot's dielectric F0 = .16 * SPECULAR²; sqrt(.02037/.16).
+ SPECULAR=.3568095;
  METALLIC=0.;
  // Unresolved normal variance widens the sky lobe rather than sparkling.
  float normal_variance=max(dot(dFdx(normal),dFdx(normal)),dot(dFdy(normal),dFdy(normal)));
- ROUGHNESS=clamp(sqrt(pow(roughness+wind*.11+foam*.2,2.)+normal_variance*2.),.14,.43);
- EMISSION=mix(body*.12,fog_color.rgb*.45,haze);
+ ROUGHNESS=clamp(sqrt(pow(roughness+wind*.11+(1.-breeze)*.045+foam*.2,2.)+normal_variance*2.),.14,.43);
+ EMISSION=body*.12;
+ // Same depth-fog curve/color as the map. An authored upper bound retains
+ // faint water identity from Seabreeze's elevated, foggy coastal road.
+ float fog_amount=pow(smoothstep(fog_range.x,fog_range.y,length(water_world-CAMERA_POSITION_WORLD)),fog_range.z);
+ float aerial=smoothstep(50.,100.,CAMERA_POSITION_WORLD.y-MODEL_MATRIX[3].y);
+ float fog_limit=mix(mix(fog_range.w,1.,aerial),1.,smoothstep(fog_range.y*1.15,fog_range.y*4.,length(water_world-CAMERA_POSITION_WORLD)));
+ FOG=vec4(fog_color.rgb,fog_limit*(1.-pow(1.-fog_amount,1./max(fog_limit,.01))));
 }
 
 // The reference bounds the sun lobe and filters subpixel highlights separately
@@ -155,7 +183,7 @@ void light() {
  float k=pow(ROUGHNESS+1.,2.)*.125;
  float geometry=(nv/(nv*(1.-k)+k))*(nl/max(nl*(1.-k)+k,.001));
  float fresnel=.02037+.97963*pow(1.-vh,5.);
- float specular=min(distribution*geometry*fresnel/max(4.*nv*max(nl,.018),.025)*nl,.34);
+ float specular=min(distribution*geometry*fresnel/max(4.*nv*max(nl,.018),.025)*nl,.18);
  DIFFUSE_LIGHT+=nl*ATTENUATION*LIGHT_COLOR/3.14159265;
  SPECULAR_LIGHT+=specular*specular_visibility*ATTENUATION*LIGHT_COLOR/3.14159265;
 }

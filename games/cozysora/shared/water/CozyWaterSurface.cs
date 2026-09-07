@@ -39,10 +39,21 @@ public partial class CozyWaterSurface : Node3D
         var phases = water._spectrum.Waves.Select(w => new Vector3(w.Number, w.Speed, w.Phase)).ToArray();
         m.SetShaderParameter("wave_shape", shapes); m.SetShaderParameter("wave_phase", phases);
         m.SetShaderParameter("bathymetry", ImageTexture.CreateFromImage(depthImage)); depthImage.Dispose();
+        var shore = WaterFields.ShoreDistance(water._depth, DepthResolution,
+            water._depthBounds.Size.X / (DepthResolution - 1), water._depthBounds.Size.Y / (DepthResolution - 1));
+        var shoreBytes = new byte[shore.Length * sizeof(float)]; Buffer.BlockCopy(shore, 0, shoreBytes, 0, shoreBytes.Length);
+        using var shoreImage = Image.CreateFromData(DepthResolution, DepthResolution, false, Image.Format.Rf, shoreBytes);
+        m.SetShaderParameter("shore_distance", ImageTexture.CreateFromImage(shoreImage));
+        using var windImage = Image.CreateFromData(128, 128, false, Image.Format.Rg8, WaterFields.WindAndShore(128));
+        windImage.GenerateMipmaps();
+        m.SetShaderParameter("surface_field", ImageTexture.CreateFromImage(windImage));
+        m.SetShaderParameter("shore_width", profile.ShoreWidth); m.SetShaderParameter("shore_color", profile.ShoreColor);
         m.SetShaderParameter("depth_bounds", new Vector4(water._depthBounds.Position.X, water._depthBounds.Position.Y, water._depthBounds.Size.X, water._depthBounds.Size.Y));
         m.SetShaderParameter("water_bounds", new Vector4(bounds.Position.X, bounds.Position.Y, bounds.End.X, bounds.End.Y));
         m.SetShaderParameter("deep_color", profile.DeepColor); m.SetShaderParameter("scatter_color", profile.ScatterColor);
-        m.SetShaderParameter("absorption", profile.Absorption); m.SetShaderParameter("fog_color", atmosphere.FogColor);
+        m.SetShaderParameter("absorption", profile.Absorption);
+        m.SetShaderParameter("fog_color", atmosphere.FogColor);
+        m.SetShaderParameter("fog_range", new Vector4(atmosphere.FogBegin, atmosphere.FogEnd, atmosphere.FogCurve, Mathf.Clamp(profile.MaximumFogOpacity, .1f, 1)));
         m.SetShaderParameter("wind", profile.Wind); m.SetShaderParameter("ripple_strength", profile.RippleStrength);
         m.SetShaderParameter("roughness", profile.Roughness); m.SetShaderParameter("optical_depth_min", profile.MinimumOpticalDepth);
         m.SetShaderParameter("shore_damping", profile.ShoreDampingDepth); m.SetShaderParameter("foam_strength", profile.FoamStrength);
