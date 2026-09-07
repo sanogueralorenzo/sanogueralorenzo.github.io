@@ -25,6 +25,7 @@ public partial class CozyApplication : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        GetTree().AutoAcceptQuit = false;
         CozyPlayer.ConfigureInput();
         LoadSettings();
         GetViewport().SizeChanged += ResizeSettings;
@@ -64,6 +65,23 @@ public partial class CozyApplication : Node
         if (_shot && automaticId.IsEmpty) automaticId = _registry.Maps[0].Id;
         if (!automaticId.IsEmpty) Callable.From(() => EnterMap(automaticId)).CallDeferred();
         else ReportSession("selector");
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationWMCloseRequest) _ = FinishQuit();
+    }
+
+    private async Task FinishQuit()
+    {
+        if (_quitting) return;
+        _quitting = true;
+        if (IsInstanceValid(_player)) _player!.StopAudio();
+        // The audio mixer releases stopped playbacks on its next mix. Movie
+        // Maker also needs rendered frames to drain that reference before exit.
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        GetTree().Quit();
     }
 
     private async void EnterMap(StringName id)
@@ -123,7 +141,7 @@ public partial class CozyApplication : Node
             _session.ProcessMode = ProcessModeEnum.Inherit;
             _hud.Visible = !_shot;
             _hud.SetPaused(false);
-            if (!_shot) _player.SetMenu(false);
+            if (!_shot && !_quitting) _player.SetMenu(false);
             _touch.Visible = _touchEnabled && !_shot;
             _captureFrames = 0;
             GD.Print("Cozy Sora MAP_READY id=", id, " build_ms=", Time.GetTicksMsec() - started);

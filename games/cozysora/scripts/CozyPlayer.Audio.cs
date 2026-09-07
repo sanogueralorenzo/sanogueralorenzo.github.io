@@ -24,6 +24,14 @@ public partial class CozyPlayer
         _audioPlayback = (AudioStreamGeneratorPlayback)Audio.GetStreamPlayback();
     }
 
+    internal void StopAudio()
+    {
+        if (IsInstanceValid(Audio)) Audio!.Stop();
+        _audioPlayback?.Dispose();
+        _audioPlayback = null;
+        _soundEvents.Clear();
+    }
+
     private void PlaySound(string kind)
     {
         if (Audio == null || MenuOpen || ShotMode) return;

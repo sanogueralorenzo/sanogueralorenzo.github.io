@@ -35,6 +35,7 @@ public partial class SeabreezeWorld : CozyMap
         {
             ["coast"] = [-8, -9.3f, 1.05f, -1.2f, -.06f],
             ["paddy"] = [55.2f, -2.6f, .25f, -2.31f, .29f],
+            ["paddy_water"] = [42.15f, 13, -.82f, -.12f, -.27f],
             ["farm"] = [53.6f, 60.2f, 3, 2.98f, .1f],
             ["rail"] = [19.2f, 80, 2.7f, -3.02f, .41f],
             ["village"] = [-4.6f, 74.7f, 2.55f, 1.32f, 0],

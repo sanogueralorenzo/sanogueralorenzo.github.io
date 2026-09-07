@@ -23,7 +23,7 @@ Main uphill streets run at X = −76, 8 and 90 m. Cross streets run at Z = −10
 
 The map owns its generated content and special behavior. Its registry definition supplies presentation and spawn data; the application supplies a disposable gameplay session and the shared characters, camera, UI, settings and ambient synthesizer. See the project [map lifecycle](../../MAPS.md) and [verification record](../../VERIFICATION.md).
 
-`preview.png` is an unmodified 1280 × 720 native render of the map's `cable_car` viewpoint, captured on 5 September 2026 using the final procedural generators. It contains only project-owned content.
+`preview.png` is an unmodified 1280 × 720 native render of the map's `cable_car` viewpoint, refreshed on 7 September 2026 with the shared procedural water. It contains only project-owned content.
 
 The current planting includes 288 trees and 295,676 five-blade grass clumps in 83 spatial batches. Grass draws within 110 m of its batch, with a 12 m visibility margin. Trees cast broken shade across the main street; flower beds occupy the curb edge while crossings and sidewalk routes stay open. Building plots are set back within their existing blocks, uphill soil is cut to their occupied level, and foundations extend down to the original terrain. Forecourt ramps meet the nearest sidewalk. A small Harbor-only character recovery margin prevents capsule contact from sticking on sloped mesh seams.
 

@@ -213,10 +213,12 @@ public partial class CozyPlayer : CharacterBody3D
             if (World.SupportsSurfaceTraversal) Position = SafeSurfacePosition(Position);
             else
             {
-                if (!World.Walkable(Position.X, Position.Z)) Position = _lastCatPosition;
+                if (!World.Walkable(Position.X, Position.Z))
+                    Position = World.Walkable(_lastCatPosition.X, _lastCatPosition.Z) ? _lastCatPosition : _registeredSpawn;
                 Position = new(Position.X, Height(Position.X, Position.Z), Position.Z);
             }
             Grounded = true;
+            Perched = false;
             _camPitch = Mathf.Clamp(_camPitch, .05f, 1);
             _cameraDistance = 4.2f;
         }
@@ -329,9 +331,7 @@ public partial class CozyPlayer : CharacterBody3D
     public override void _ExitTree()
     {
         ClearInput();
-        if (IsInstanceValid(Audio)) Audio!.Stop();
-        _audioPlayback = null;
-        _soundEvents.Clear();
+        StopAudio();
     }
 
     private void UpdateCat(float dt)
@@ -400,7 +400,7 @@ public partial class CozyPlayer : CharacterBody3D
         float horizontal = Mathf.Sqrt(Mathf.Max(0, 1 - vertical * vertical));
         var direction = new Vector3(Mathf.Sin(_camYaw) * horizontal, vertical, -Mathf.Cos(_camYaw) * horizontal);
         var flatDirection = new Vector3(Mathf.Sin(_camYaw), 0, -Mathf.Cos(_camYaw));
-        if (Perched && World.SupportsSurfaceTraversal && Position.Y - (Mathf.Max(SupportHeight(), _flightBounds.Position.Y + .05f) + .17f) > .65f)
+        if (Perched && World.SupportsSurfaceTraversal && Position.Y - GullFloor() > .65f)
         {
             Perched = false;
             Velocity = new(Velocity.X, -.6f, Velocity.Z);
@@ -472,7 +472,11 @@ public partial class CozyPlayer : CharacterBody3D
         AnimateGull(dt);
     }
 
-    private float GullFloor() => Mathf.Max(World.SupportsSurfaceTraversal ? SupportHeight() : Height(Position.X, Position.Z), _flightBounds.Position.Y + .05f) + .17f;
+    private float GullFloor()
+    {
+        float ground = Mathf.Max(World.SupportsSurfaceTraversal ? SupportHeight() : Height(Position.X, Position.Z), _flightBounds.Position.Y + .05f);
+        return World.WaterSupportHeight(Position.X, Position.Z, ground) + .17f;
+    }
 
     public void PlaceCamera(float dt, bool immediate = false)
     {

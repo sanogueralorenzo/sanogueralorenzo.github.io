@@ -451,11 +451,8 @@ public partial class SeabreezeSettlements : Node3D
         PaddyGuardrail();
         foreach (var area in new[] { new Rect2(63.5f, -8, 35.5f, 52), new Rect2(42, 0, 10, 30) })
         {
-            var water = new StandardMaterial3D();
-            water.AlbedoColor = new Color("#77999a");
-            water.Metallic = .28f;
-            water.Roughness = .23f;
-            B(this, new Vector3(area.GetCenter().X, .405f, area.GetCenter().Y), new Vector3(area.Size.X, .025f, area.Size.Y), water);
+            CozyWaterSurface.Create(_world, area, .4175f, (_, _) => .35f,
+                GD.Load<CozyWaterProfile>("res://maps/seabreeze_village/paddy_water.tres"), _world.Atmosphere!);
             var canopy = new MeshInstance3D();
             var canopy_mesh = new PlaneMesh();
             canopy_mesh.Size = area.Size - new Vector2(.8f, .8f);

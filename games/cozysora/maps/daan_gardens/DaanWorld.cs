@@ -79,6 +79,8 @@ public partial class DaanWorld : CozyMap
             CozySceneCache.Save(StaticContent, cache);
             GD.Print("Daan Gardens generated: ", cache);
         }
+        CozyWaterSurface.Create(this, new Rect2(Pond - new Vector2(35, 29), new Vector2(70, 58)), .51f, HeightAt,
+            GD.Load<CozyWaterProfile>("res://maps/daan_gardens/water.tres"), atmosphere);
         BirdLife();
         var air = GD.Load<CozyAirParticles>("res://maps/daan_gardens/air.tres");
         foreach (var at in new Vector2[] { new(5, 42), new(-70, 44), new(47, -45) }) air.Install(this, Point(at.X, at.Y, 3));
@@ -213,20 +215,7 @@ public partial class DaanWorld : CozyMap
         surface.GenerateNormals();
         var terrain = geometry.Mesh(surface.Commit(), "7c9252", true);
         terrain.MaterialOverride = new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/daan_gardens/ground.gdshader") };
-        var water = new SurfaceTool();
-        water.Begin(Mesh.PrimitiveType.Triangles);
-        for (int i = 0; i < 128; i++)
-        {
-            water.AddVertex(new(Pond.X, .51f, Pond.Y));
-            foreach (float angle in new[] { i * Mathf.Tau / 128, (i + 1) * Mathf.Tau / 128 })
-            {
-                float r = 1 + .065f * Mathf.Sin(angle * 3) + .035f * Mathf.Cos(angle * 5);
-                water.AddVertex(new(Pond.X + Mathf.Cos(angle) * 30 * r, .51f, Pond.Y + Mathf.Sin(angle) * 23 * r));
-            }
-        }
-        water.GenerateNormals();
-        CozyPrimitives.Instance(StaticContent, water.Commit(), Vector3.Zero,
-            new ShaderMaterial { Shader = GD.Load<Shader>("res://maps/daan_gardens/pond.gdshader") });
+
     }
 
     private void Paving(DaanGeometry geometry)

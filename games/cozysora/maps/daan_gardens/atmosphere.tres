@@ -18,3 +18,5 @@ AimSunAtOrigin = false
 FillEnergy = 0.13
 OceanPosition = Vector3(0, -35, 0)
 BrushRadius = 2.0
+
+OceanEnabled = false

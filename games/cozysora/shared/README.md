@@ -10,6 +10,7 @@ Map generators compose these components. Layout coordinates, placement exclusion
 | `CozySolidMaterials.cs` | Per-owner toon material cache | Palette colors remain with the owning map or character; mutable materials are not global singletons |
 | `CozyLeafPainter.cs` | Bounded image rasterization for rounded and pointed leaf silhouettes | Profile, center, dimensions, orientation, shade and outline; distributions and random draws remain map-owned |
 | `CozyAtmosphere.cs` | Sky, ambient light, sun, optional fill, depth fog, ocean and screen paint | Each map's `atmosphere.tres` supplies its palette, lighting, fog, ocean extent and paint radius |
+| `water/` | Shared C# wave spectrum, adaptive ocean mesh, bathymetry, water material and seagull support | Map-owned sea, pond and paddy profiles and terrain samplers; see [water notes](water/README.md) |
 | `CozyAirParticles.cs` | Box emitters and procedural particle mesh/material | Each map's `air.tres` supplies quantity, motion, scale, shape and color; emitter positions stay in the map |
 | `CozySceneCache.cs` | Source signatures, recursive scene ownership, saving and restoring generated branches | Map folder and cache namespace; each map decides which content is static |
 

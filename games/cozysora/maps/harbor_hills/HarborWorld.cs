@@ -101,6 +101,10 @@ public partial class HarborWorld : CozyMap
             GD.Print("Harbor Hills district generated: ", cache);
             _geometry = null!;
         }
+        var sea = WaterSurfaces.FirstOrDefault();
+        if (sea != null)
+            foreach (var prop in StaticContent.GetChildren().OfType<Node3D>().Where(n => n.HasMeta("water_float")))
+                CozyWaterFloat.Attach(prop, sea, prop.HasMeta("water_offset") ? (float)prop.GetMeta("water_offset") : .25f);
         ReportProgress("Ringing the last departure bell…", .92f);
         await NextFrame();
         _transit = new HarborTransit();

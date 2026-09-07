@@ -325,6 +325,11 @@ public sealed class HarborNature
             {
                 p = new Vector3(-123.7f, -.35f, -143);
             }
+            var boat = new Node3D { Name = "MooredBoat" + i, Position = p };
+            boat.SetMeta("water_float", true);
+            _g.Root.AddChild(boat);
+            var boatGeometry = new HarborGeometry(boat);
+            p = Vector3.Zero;
             var yaw = _rng.RandfRange(-.35f, .35f);
             var st = new SurfaceTool();
             st.Begin(Mesh.PrimitiveType.Triangles);
@@ -355,26 +360,26 @@ public sealed class HarborNature
             mat.AlbedoColor = new Color(new[] { "d8d9bf", "72958b", "b56d50" }[i % 3]);
             mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
             n.MaterialOverride = mat;
-            _g.Root.AddChild(n);
+            boatGeometry.Root.AddChild(n);
             var turn = new Basis(Vector3.Up, yaw);
-            _g.Box(p + turn * new Vector3(0, .32f, .2f), new Vector3(1.55f, .12f, 5.1f), "9c896a", false, yaw);
-            _g.Box(p + turn * new Vector3(0, .76f, -.7f), new Vector3(1.45f, .82f, 2.2f), "ded7b9", false, yaw);
-            _g.Box(p + turn * new Vector3(0, .9f, -1.83f), new Vector3(1.2f, .35f, .035f), "537f89", false, yaw);
+            boatGeometry.Box(p + turn * new Vector3(0, .32f, .2f), new Vector3(1.55f, .12f, 5.1f), "9c896a", false, yaw);
+            boatGeometry.Box(p + turn * new Vector3(0, .76f, -.7f), new Vector3(1.45f, .82f, 2.2f), "ded7b9", false, yaw);
+            boatGeometry.Box(p + turn * new Vector3(0, .9f, -1.83f), new Vector3(1.2f, .35f, .035f), "537f89", false, yaw);
             foreach (var side in new[] { -1, 1 })
             {
                 var previous = p + turn * new Vector3(0, .62f, -3.9f);
                 foreach (var section in sections.Skip(1))
                 {
                     var next = p + turn * new Vector3(section.X * side, .62f, section.Z);
-                    _g.Beam(previous, next, .045f, "d3c39e");
+                    boatGeometry.Beam(previous, next, .045f, "d3c39e");
                     previous = next;
                 }
-                _g.Box(p + turn * new Vector3(side * .92f, .62f, 1.65f), new Vector3(.22f, .18f, 2.1f), "c6b291", false, yaw);
+                boatGeometry.Box(p + turn * new Vector3(side * .92f, .62f, 1.65f), new Vector3(.22f, .18f, 2.1f), "c6b291", false, yaw);
             }
             if (i % 2 == 0)
             {
-                _g.Beam(p + turn * new Vector3(0, .4f, -.8f), p + turn * new Vector3(0, 8.9f, -.8f), .046f, "b3b6a0");
-                _g.Beam(p + turn * new Vector3(0, 1.7f, -.8f), p + turn * new Vector3(0, 1.7f, 2.8f), .035f, "b3b6a0");
+                boatGeometry.Beam(p + turn * new Vector3(0, .4f, -.8f), p + turn * new Vector3(0, 8.9f, -.8f), .046f, "b3b6a0");
+                boatGeometry.Beam(p + turn * new Vector3(0, 1.7f, -.8f), p + turn * new Vector3(0, 1.7f, 2.8f), .035f, "b3b6a0");
                 var sail = new SurfaceTool();
                 sail.Begin(Mesh.PrimitiveType.Triangles);
                 for (int row = 0; row < 12; row += 1)
@@ -396,10 +401,18 @@ public sealed class HarborNature
                 mat.AlbedoColor = new Color("e6dfc4");
                 mat.CullMode = BaseMaterial3D.CullModeEnum.Disabled;
                 n.MaterialOverride = mat;
-                _g.Root.AddChild(n);
-                _g.Beam(p + turn * new Vector3(0, 8.8f, -.8f), p + turn * new Vector3(0, .6f, -3.8f), .011f, "a6afa6");
+                boatGeometry.Root.AddChild(n);
+                boatGeometry.Beam(p + turn * new Vector3(0, 8.8f, -.8f), p + turn * new Vector3(0, .6f, -3.8f), .011f, "a6afa6");
             }
-            _g.Add("sphere", p + new Vector3(3, .4f, 2), new Vector3(.4f, .5f, .4f), "ce9472");
+            // The mooring buoy remains a separate floating object.
+            var buoy = new Node3D { Name = "MooringBuoy" + i, Position = boat.Position + new Vector3(3, -.45f, 2) };
+            buoy.SetMeta("water_float", true);
+            buoy.SetMeta("water_offset", .08f);
+            _g.Root.AddChild(buoy);
+            var buoyGeometry = new HarborGeometry(buoy);
+            buoyGeometry.Add("sphere", Vector3.Zero, new Vector3(.4f, .5f, .4f), "ce9472");
+            buoyGeometry.Finish();
+            boatGeometry.Finish();
         }
     }
     private void Grass()

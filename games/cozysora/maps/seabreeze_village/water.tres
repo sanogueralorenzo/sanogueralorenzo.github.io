@@ -1,0 +1,8 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://shared/water/CozyWaterProfile.cs" id="1"]
+[resource]
+script = ExtResource("1")
+Amplitude = 0.9
+Wind = 0.3
+Swell = 0.35
+RippleStrength = 0.7

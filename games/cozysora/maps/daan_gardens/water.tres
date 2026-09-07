@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://shared/water/CozyWaterProfile.cs" id="1"]
+[resource]
+script = ExtResource("1")
+Amplitude = 0.024
+WavelengthScale = 0.28
+Swell = 0.0
+Wind = 0.06
+RippleStrength = 0.5
+Roughness = 0.19
+MinimumOpticalDepth = 0.8
+ShoreDampingDepth = 0.1
+FoamStrength = 0.0
+DeepColor = Color(0.137, 0.231, 0.169, 1)
+ScatterColor = Color(0.282, 0.408, 0.282, 1)
+Absorption = Vector3(0.4, 0.12, 0.32)

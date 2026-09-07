@@ -31,7 +31,7 @@ The selector and menus use standard Godot focus navigation: click or tap a butto
 | Seagull cry | Left click | X | Switching / takeoff also vocalizes |
 | Pause / resume | Escape or Menu | Start | Menu |
 
-The seagull glides without input and can settle on the ground. Harbor Hills and Daan Gardens also support rooftop perching and switching on safe building surfaces; Harbor’s low garden roofs have cat access ramps. Unsafe coastal positions fall back to the cat's last safe location or registered spawn.
+The seagull glides without input and can settle on the ground or float on the shared moving water. Harbor Hills and Daan Gardens also support rooftop perching and switching on safe building surfaces; Harbor’s low garden roofs have cat access ramps. Unsafe coastal positions fall back to the cat's last safe location or registered spawn.
 
 **Menu → Back to destinations** unloads the map. Entering it again starts at its registered spawn. Menu pauses movement, map simulation, and audio; Settings changes sound volume, mute, and touch controls. Settings persist across maps and launches. Touch controls are enabled automatically on detected touch screens and can be enabled manually in Settings.
 
@@ -43,7 +43,7 @@ The seagull glides without input and can settle on the ground. Harbor Hills and 
 - `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
 - `maps/harbor_hills/` owns the second district: sloping streets, row houses, shops, courtyards, cypress park, waterfront, moving cable car, local bell, vehicles, distant city, bridge and fog. See [its map notes](maps/harbor_hills/README.md).
 - `maps/daan_gardens/` owns the third destination: connected park loops, ecological pond, bird island, banyan court, bamboo groves, pavilion, apartment cafés and surrounding city. See [its map notes](maps/daan_gardens/README.md).
-- `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. See [component ownership and update guidance](shared/README.md).
+- `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. Its [shared water component](shared/water/README.md) supplies the C# wave spectrum, adaptive sea mesh, generated bathymetry and Godot material used by both coasts, the pond and rice paddies. See [component ownership and update guidance](shared/README.md).
 - `scripts/CozyPlayer.cs` and its Characters/Audio partials own the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
 - `CozyLanding.cs`, `CozyInterface.cs`, `CozyTouchControls.cs`, and `CozyUITheme.cs` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
 
@@ -61,7 +61,7 @@ The normal launch always opens destination selection. These explicit development
 ./games/cozysora/run.sh -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
-`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.
+`--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `paddy_water`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.
 
 `--pose=x,z,height_offset,yaw,pitch` stages a repeatable position through the normal character camera and ground-height contract. Angles are radians; `--gull` adds its usual 3 m takeoff clearance. This is useful for paired gameplay captures and focused native traversal without editing the registered spawn. For example, `--map=daan_gardens --shot --pose=-6,-44,.05,2.39,.09 --capture=/tmp/pond-cat.png --quit-after-capture` shows the pond from the cat camera.
 

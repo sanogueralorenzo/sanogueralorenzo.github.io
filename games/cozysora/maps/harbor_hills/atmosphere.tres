@@ -1,5 +1,6 @@
-[gd_resource type="Resource" load_steps=2 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 [ext_resource type="Script" path="res://shared/CozyAtmosphere.cs" id="1"]
+[ext_resource type="Resource" path="res://maps/harbor_hills/water.tres" id="2"]
 [resource]
 script = ExtResource("1")
 AmbientColor = Color(0.66, 0.71, 0.75, 1)
@@ -17,3 +18,5 @@ FillEnergy = 0.10
 OceanSize = Vector2(3000, 3000)
 OceanPosition = Vector3(0, -1, -1200)
 BrushRadius = 2.0
+
+WaterProfile = ExtResource("2")

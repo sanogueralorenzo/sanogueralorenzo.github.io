@@ -25,6 +25,8 @@ public partial class CozyAtmosphere : Resource
     [Export] public Vector3 FillPosition { get; set; } = new(60, 50, 90);
     [Export] public Vector2 OceanSize { get; set; } = new(4000, 4000);
     [Export] public Vector3 OceanPosition { get; set; } = new(0, -30, 0);
+    [Export] public bool OceanEnabled { get; set; } = true;
+    [Export] public CozyWaterProfile? WaterProfile { get; set; }
     [Export] public float BrushRadius { get; set; } = 2;
 
     public void Install(Node3D parent)
@@ -76,8 +78,13 @@ public partial class CozyAtmosphere : Resource
             fill.Position = FillPosition;
             fill.LookAt(Vector3.Zero);
         }
-        var water = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/ocean.gdshader") };
-        CozyPrimitives.Instance(parent, new PlaneMesh { Size = OceanSize }, OceanPosition, water);
+        if (parent is CozyMap map)
+        {
+            map.Atmosphere = this;
+            if (OceanEnabled)
+                CozyWaterSurface.Create(map, new Rect2(new Vector2(OceanPosition.X, OceanPosition.Z) - OceanSize * .5f, OceanSize),
+                    OceanPosition.Y, map.HeightAt, WaterProfile ?? new CozyWaterProfile(), this, true);
+        }
     }
 
     public void InstallPost(Node parent)

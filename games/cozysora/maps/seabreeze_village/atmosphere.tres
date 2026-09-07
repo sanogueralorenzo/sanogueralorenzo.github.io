@@ -1,8 +1,11 @@
-[gd_resource type="Resource" load_steps=2 format=3]
+[gd_resource type="Resource" load_steps=3 format=3]
 [ext_resource type="Script" path="res://shared/CozyAtmosphere.cs" id="1"]
+[ext_resource type="Resource" path="res://maps/seabreeze_village/water.tres" id="2"]
 [resource]
 script = ExtResource("1")
 AmbientColor = Color(0.64, 0.70, 0.75, 1)
 FogColor = Color(0.7882353, 0.8392157, 0.87058824, 1)
 SunColor = Color(1, 0.88, 0.73, 1)
 FillColor = Color(0.7882353, 0.8392157, 0.9254902, 1)
+
+WaterProfile = ExtResource("2")

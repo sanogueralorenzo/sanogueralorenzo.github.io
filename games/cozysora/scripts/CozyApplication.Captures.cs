@@ -59,8 +59,7 @@ public partial class CozyApplication
         }
         else if (OS.GetCmdlineUserArgs().Contains("--quit-after-capture"))
         {
-            _quitting = true;
-            GetTree().Quit();
+            await FinishQuit();
         }
         else _capture = "";
     }
