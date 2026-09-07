@@ -1,6 +1,6 @@
 # Verification
 
-Verified on macOS 26.5.2, Apple silicon, 7 September 2026. Built for macOS 15+. No live meeting or personal transcript was sent to a provider during testing; provider tests used invented discussions and generated speech.
+Verified on macOS 26.5.2, Apple silicon, 7 September 2026, with Codex CLI 0.153.2 and Claude Code 2.1.179. Built for macOS 15+. No live meeting or personal transcript was sent to a provider during testing; provider tests used invented discussions and generated speech.
 
 ## Automated checks
 
@@ -16,6 +16,8 @@ Verified on macOS 26.5.2, Apple silicon, 7 September 2026. Built for macOS 15+. 
 - Cloud model names and custom aliases with remote backing are rejected before transcript submission.
 
 `./build.sh`, shell syntax checks, Python compilation, bundle plist validation, and ad-hoc signature verification pass.
+
+After publishing, ran `./install.sh` against `main`. The sparse checkout, clean build, runtime/model setup, signature verification, installation to `~/Applications/Minutes.app`, and first launch all succeeded.
 
 ## Runtime and visual checks
 
