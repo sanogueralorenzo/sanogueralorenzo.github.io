@@ -2,15 +2,19 @@
 
 Cozy Sora is an original procedural Godot game about quiet summer exploration. Seabreeze Village evokes Japanese summers; Harbor Hills is a fictional district of steep streets, cypress gardens and bay views; Daan Gardens is a shaded urban park inspired by Taipei. Its code, shaders, meshes, textures, animation, and audio are authored or generated specifically for this project. No external game assets or source code are bundled.
 
-Open `project.godot` in Godot 4.7 and run the main scene, or use:
+Use **Godot 4.7.2 .NET** and the **.NET 10 SDK**. The standard Godot build cannot load the C# scripts. From the repository root:
 
 ```sh
-godot --path games/cozysora
+./games/cozysora/run.sh
 ```
+
+The launcher builds `CozySora.csproj`, imports the project-owned previews and script metadata, then starts Godot. Set `GODOT_BIN` to your Godot .NET executable if it is not found automatically. To edit, use `./games/cozysora/run.sh --editor`, or open `project.godot` in the .NET editor and build before running. `global.json` selects an installed .NET 10 feature release; the first build restores the Godot SDK package from NuGet.
+
+On macOS, a user-installed SDK needs `DOTNET_ROOT` pointing to its installation directory (usually `$HOME/.dotnet`). The launcher handles that location. If a Finder-launched editor reports **Failed to load .NET runtime / hostfxr**, run `launchctl setenv DOTNET_ROOT "$HOME/.dotnet"` and restart the editor; its GUI environment must see the SDK as well as your shell. Use a login LaunchAgent for persistence, or launch through `run.sh`. The SDK and engine architectures must match.
 
 Choose **Seabreeze Village**, **Harbor Hills**, or **Daan Gardens** on the destination screen and press **Play**. Wander Japanese coastal lanes and fields, follow a cable car through a hillside district above the bay, or explore a living pond and café street beneath subtropical trees. Explore as a cat or take flight as a seagull. Destination previews are in-game captures made by this project.
 
-Forward+ is the intended gameplay renderer. First entry generates terrain and vegetation; subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. No network connection is needed. The selector itself builds immediately without generating the world.
+C# owns gameplay and procedural construction; authored Godot shaders retain the existing Forward+ rendering. The migration preserves the current appearance and rendering settings. C# does not by itself improve GPU rendering or guarantee faster frames. First entry generates terrain and vegetation; subsequent visits reuse generated resources in Godot's application user-data directory. The loading screen reports the current stage. After the initial SDK/package setup, gameplay needs no network connection. The selector itself builds immediately without generating the world.
 
 ## Controls
 
@@ -33,15 +37,15 @@ The seagull glides without input and can settle on the ground. Harbor Hills and 
 
 ## Maps and ownership
 
-- `scripts/application.gd` owns navigation, transitions, settings, loading, pause state, screenshot capture, and one disposable gameplay session.
+- `scripts/CozyApplication.cs` and its Settings/Captures partials own navigation, transitions, settings, loading, pause state, screenshot capture, and one disposable gameplay session.
 - `maps/registry.tres` lists `CozyMapDefinition` resources. Each contains a stable ID, title, subtitle, description, scene path, project-owned preview, and spawn position / camera angles / character.
-- `scripts/map.gd` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
+- `scripts/CozyMap.cs` is the small `CozyMap` scene contract. A map builds its own content, reports progress, and exposes ground height, walkable space, flight bounds, ambience parameters, and optional scenic viewpoints.
 - `maps/seabreeze_village/map.tscn` owns the existing terrain, roads, coast, farm, paddies, village, shrine, vending areas, railway, train, vegetation, lighting, fog, particles, and world post-processing. Its generators, plant meshes, texture recipes and artistic profiles live alongside the scene. See [its map notes](maps/seabreeze_village/README.md).
 - `maps/harbor_hills/` owns the second district: sloping streets, row houses, shops, courtyards, cypress park, waterfront, moving cable car, local bell, vehicles, distant city, bridge and fog. See [its map notes](maps/harbor_hills/README.md).
 - `maps/daan_gardens/` owns the third destination: connected park loops, ecological pond, bird island, banyan court, bamboo groves, pavilion, apartment cafés and surrounding city. See [its map notes](maps/daan_gardens/README.md).
 - `shared/` owns common procedural meshes, collisions, batching, leaf rasterization, material caching, atmosphere, particles and source-aware caches. See [component ownership and update guidance](shared/README.md).
-- `scripts/player.gd` owns the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
-- `landing.gd`, `interface.gd`, `touch_controls.gd`, and `ui_theme.gd` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
+- `scripts/CozyPlayer.cs` and its Characters/Audio partials own the common cat and seagull geometry, animation, locomotion, camera behavior, input, and audio synthesis. Ambient parameters belong to the map. Its camera and character nodes live inside the disposable session.
+- `CozyLanding.cs`, `CozyInterface.cs`, `CozyTouchControls.cs`, and `CozyUITheme.cs` are shared UI owned by the application. A map never creates a player, camera, menu, or settings panel.
 
 See [MAPS.md](MAPS.md) for the scene lifecycle and exact registration steps. [DESIGN.md](DESIGN.md) describes Seabreeze Village's procedural systems; [VERIFICATION.md](VERIFICATION.md) records runtime inspection and platform limits.
 
@@ -50,11 +54,11 @@ See [MAPS.md](MAPS.md) for the scene lifecycle and exact registration steps. [DE
 The normal launch always opens destination selection. These explicit development options enter a map directly:
 
 ```sh
-godot --path games/cozysora -- --map=seabreeze_village --profile
-godot --path games/cozysora -- --map=harbor_hills --profile
-godot --path games/cozysora -- --map=daan_gardens --profile
-godot --path games/cozysora -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
-godot --path games/cozysora -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
+./games/cozysora/run.sh -- --map=seabreeze_village --profile
+./games/cozysora/run.sh -- --map=harbor_hills --profile
+./games/cozysora/run.sh -- --map=daan_gardens --profile
+./games/cozysora/run.sh -- --shot --view=coast --capture=/tmp/coast.png --quit-after-capture
+./games/cozysora/run.sh -- --shot --capture-dir=/tmp/cozy-sora-views --quit-after-capture
 ```
 
 `--shot` hides shared UI. Available Seabreeze Village views: `coast`, `paddy`, `farm`, `rail`, `village`, `alley`, `vending`, `viaduct`, `shrine`, `top`. Omitting `--view` uses the normal cat camera. `--gull` chooses the seagull for a direct map launch. `--capture=/tmp/landing.png` without a map or shot option captures the selector. `--touch` enables touch controls for a native pointer walkthrough.

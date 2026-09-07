@@ -12,17 +12,17 @@ Movement uses the shared keyboard, gamepad and touch controls. The seagull can p
 
 ## Construction and ownership
 
-- `world.gd` owns the height/walkability contract, Catmull–Rom path network, pond and island outline, collision terrain, paving, scenic viewpoints, cache and animated egrets.
-- `geometry.gd` composes shared primitive meshes, collision helpers and spatial batches. Ribbons use joined vertices and sample terrain at both edges. Planar access ramps preserve their authored grade.
-- `planting.gd` paints leaf sprays into generated image textures, builds varied tapered branching and roots, distributes crowns and understory, and creates bamboo, fern fronds, reeds, lilies and short lawn grass. Major wooden limbs have oriented capsule collisions. Grass and small leaves bend near the player through the shared shaders.
-- `neighborhood.gd` owns tiled apartment composition, accessible cafés, façade details, courtyards, scooters and muted skyline buildings.
-- `furnishings.gd` owns slatted benches, lamps, bins, signs, stone banks, the deck and the pavilion's tiled hip roof and wooden underside.
+- `DaanWorld.cs` owns the height/walkability contract, Catmull–Rom path network, pond and island outline, collision terrain, paving, scenic viewpoints, cache and animated egrets.
+- `DaanGeometry.cs` composes shared primitive meshes, collision helpers and spatial batches. Ribbons use joined vertices and sample terrain at both edges. Planar access ramps preserve their authored grade.
+- `DaanPlanting.cs` paints leaf sprays into generated image textures, builds varied tapered branching and roots, distributes crowns and understory, and creates bamboo, fern fronds, reeds, lilies and short lawn grass. Major wooden limbs have oriented capsule collisions. Grass and small leaves bend near the player through the shared shaders.
+- `DaanNeighborhood.cs` owns tiled apartment composition, accessible cafés, façade details, courtyards, scooters and muted skyline buildings.
+- `DaanFurnishings.cs` owns slatted benches, lamps, bins, signs, stone banks, the deck and the pavilion's tiled hip roof and wooden underside.
 - `ground.gdshader`, `surface.gdshader` and `pond.gdshader` provide smooth ground variation, correctly oriented finish patterns and calm moving pond reflections. Screen-space reflections are enabled only for this map.
 - `atmosphere.tres` and `air.tres` configure the shared summer lighting, haze, painterly post effect and drifting seed particles. The shared player synthesizes local wind, cicadas and birds; no audio files are used.
 
 Static meshes, generated textures and collision shapes are packed into `user://daan_gardens_<signature>.scn`. Source changes in this map or shared components invalidate that cache. Environment, particles and animated birds are recreated for each visit. No player, camera, UI, audio stream or live map instance is cached.
 
-All content is authored in GDScript and Godot shaders or constructed from engine primitives. No external models, textures, animations, visual assets or audio are imported.
+All content is authored in C# and Godot shaders or constructed from engine primitives. No external models, textures, animations, visual assets or audio are imported.
 
 Reference: [Taipei Travel's Daan Forest Park guide](https://www.travel.taipei/en/media/audio-guide/details/230), describing the park's subtropical trees and ecological pond.
 

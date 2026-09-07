@@ -3,10 +3,10 @@ config_version=5
 
 [application]
 config/name="Cozy Sora"
-config/description="An original procedural coastal exploration game with Seabreeze Village and Harbor Hills."
+config/description="An original procedural coastal exploration game with Seabreeze Village, Harbor Hills and Daan Gardens."
 run/main_scene="res://main.tscn"
 run/max_fps=60
-config/features=PackedStringArray("4.4", "Forward Plus")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [display]
 window/size/viewport_width=1280
@@ -36,3 +36,6 @@ cat_position={
 
 [input_devices]
 pointing/emulate_mouse_from_touch=true
+
+[dotnet]
+project/assembly_name="CozySora"

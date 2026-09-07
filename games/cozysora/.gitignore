@@ -1,2 +1,4 @@
 .godot/
 *.tmp
+bin/
+obj/

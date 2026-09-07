@@ -4,29 +4,29 @@
 
 `maps/registry.tres` is a `CozyMapRegistry` resource with an ordered array of `CozyMapDefinition` resources. The landing screen reads that array; it contains no map IDs, scene paths, descriptions, or previews of its own. IDs must be unique and stable. Every registered entry must be playable and provide a scene and preview.
 
-A definition supplies `id`, `title`, `subtitle`, `description`, `scene`, `preview`, `spawn_position`, `spawn_yaw`, `spawn_pitch`, and `spawn_mode`. Position X/Z are map coordinates. Position Y is an offset above `height_at(X,Z)`. Camera angles are radians; spawn mode is `cat` or `gull`.
+A definition supplies `Id`, `Title`, `Subtitle`, `Description`, `Scene`, `Preview`, `SpawnPosition`, `SpawnYaw`, `SpawnPitch`, and `SpawnMode`. Position X/Z are map coordinates. Position Y is an offset above `HeightAt(X,Z)`. Camera angles are radians; spawn mode is `cat` or `gull`.
 
 ## Scene contract
 
 A map scene's root extends `CozyMap`. All map coordinates share the session's identity transform. Build terrain, architecture, props, collision bodies, lights, environment, particles, and map-specific animation beneath that root.
 
-- `build()` constructs map-owned content. It can await frames between expensive stages. Emit `load_progress(message, fraction)` with progress from 0 to 1. Do not create navigation or loading UI.
-- `height_at(x,z)` returns the ground height used by the player and camera.
-- `walkable(x,z)` identifies safe cat ground. Collision bodies provide building and prop collision.
-- `flight_bounds` is an AABB defining horizontal flight limits and minimum/maximum landscape elevation.
-- `ambience` is a dictionary consumed by the shared synthesizer: `wind_gain`, `wave_base`, `wave_swell`, `cicada_frequencies` (Vector2), `cicada_gain`, and `birds`. Omitted values are silent; character sounds remain available.
-- `supports_surface_traversal` defaults to `false`. Harbor Hills and Daan Gardens opt in to collision-aware gull flight, floor-normal cat alignment, downward surface queries for perching, clearance-checked character switching, and a close obstruction-aware camera. Seabreeze retains its existing terrain-based controller path.
-- `set_paused(value)` pauses map-owned audio streams; session processing already pauses simulation. Harbor Hills uses it for its spatial cable-car bell.
-- Optional `scenic_views` maps names to `[x,z,height,yaw,pitch]` arrays for inspection. The shared camera adds its scenic eye-height offset.
+- `Task Build()` constructs map-owned content. It can await frames between expensive stages. Call `ReportProgress(message, fraction)` with progress from 0 to 1. Do not create navigation or loading UI.
+- `HeightAt(x,z)` returns the ground height used by the player and camera.
+- `Walkable(x,z)` identifies safe cat ground. Collision bodies provide building and prop collision.
+- `FlightBounds` is an AABB defining horizontal flight limits and minimum/maximum landscape elevation.
+- `Ambience` is a dictionary consumed by the shared synthesizer: `wind_gain`, `wave_base`, `wave_swell`, `cicada_frequencies` (Vector2), `cicada_gain`, and `birds`. Omitted values are silent; character sounds remain available.
+- `SupportsSurfaceTraversal` defaults to `false`. Harbor Hills and Daan Gardens opt in to collision-aware gull flight, floor-normal cat alignment, downward surface queries for perching, clearance-checked character switching, and a close obstruction-aware camera. Seabreeze retains its existing terrain-based controller path.
+- `SetPaused(value)` pauses map-owned audio streams; session processing already pauses simulation. Harbor Hills uses it for its spatial cable-car bell.
+- Optional `ScenicViews` maps names to `[x,z,height,yaw,pitch]` arrays for inspection. The shared camera adds its scenic eye-height offset.
 
 The base class supplies a flat ground plane's height/walkability contract and silent ambience. A map still owns its visible ground, collision, and environment. Seabreeze Village overrides the ground contract and builds its full procedural landscape. Shared shaders and generator helpers can be reused without making a map depend on another map's scene instance.
 
 ## Register another map
 
-1. Create a folder under `maps/` and its scene. Attach a script extending `CozyMap`; implement the terrain queries and `build()` if content is procedural. Authored engine primitives may also be children in the scene. Keep world-specific ambience and behavior here.
+1. Create a folder under `maps/` and its scene. Attach a script extending `CozyMap`; implement the terrain queries and `Task Build()` if content is procedural. Authored engine primitives may also be children in the scene. Keep world-specific ambience and behavior here.
 2. Create an in-game preview from that scene using only project-owned content. Save it in the map folder or `assets/`.
 3. Create a `CozyMapDefinition` resource in the Inspector. Set a unique ID, display metadata, its `.tscn` scene path, preview texture, and a safe spawn. Save it beside the scene.
-4. Open `maps/registry.tres` and append that definition to `maps`. The landing screen automatically renders it. No landing, player, camera, or navigation changes are needed.
+4. Open `maps/registry.tres` and append that definition to `Maps`. The landing screen automatically renders it. No landing, player, camera, or navigation changes are needed.
 5. Run the main scene. Verify entry, both characters, pause/settings, return, and repeated re-entry. Inspect the scene with `--map=your_id --profile`; confirm the selector returns to zero live players, cameras, and audio players after unloading.
 
 ## Ownership and transitions
@@ -41,11 +41,11 @@ Generated terrain and foliage caches live in `user://` and contain only project-
 
 ## Harbor Hills ownership and cache
 
-Harbor Hills registers `maps/harbor_hills/map.tres` with ID `harbor_hills`; its scene root is `world.gd`. `geometry.gd` batches static primitives by material and 40 m cell. `neighborhood.gd` and `nature.gd` construct the district beneath the map root. `transit.gd` owns moving bodies, background gulls and synthesized spatial bell audio. Nothing in this folder creates application UI, a camera or a player.
+Harbor Hills registers `maps/harbor_hills/map.tres` with ID `harbor_hills`; its scene root is `HarborWorld.cs`. `HarborGeometry.cs` batches static primitives by material and 40 m cell. `HarborNeighborhood.cs` and `HarborNature.cs` construct the district beneath the map root. `HarborTransit.cs` owns moving bodies, background gulls and synthesized spatial bell audio. Nothing in this folder creates application UI, a camera or a player.
 
 The static scene is packed into `user://harbor_hills_<signature>.scn`. The shared signature incorporates the map folder, shared components and common shaders, including resource profiles. It contains generated meshes, material resources and collision shapes, never runtime player state. Environment, water, moving fog, post-processing and transit are recreated outside that cache for every visit. Seabreeze keeps its existing separate procedural caches. Returning to selection frees all loaded map instances; cache files alone persist.
 
-No Seabreeze terrain, layout, palette, vegetation or ambience generator changes are part of this integration. Shared additions are opt-in surface traversal, a map-owned audio pause hook, counting spatial audio players in lifecycle diagnostics, and settling the selector scroll position after variable-height cards lay out. The welcome header remains visible on entry; normal focus navigation continues to scroll to each destination.
+The maps retain their authored terrain, layout, palette, vegetation and ambience. Shared capabilities include opt-in surface traversal, map-owned audio pause hooks and lifecycle diagnostics. Normal focus navigation scrolls to each destination.
 
 ## Shared construction
 

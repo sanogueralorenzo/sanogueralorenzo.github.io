@@ -129,3 +129,41 @@ Final measurements used Godot 4.7.2, Forward+ / Metal, Apple M3 Max, 1280 × 720
 The earlier sustained 13–47 FPS slowdown did not recur. Quiet paused medians remained near 16.67 ms through the final Harbor and Daan views. Isolated outliers remain: Harbor recorded a 101.9 ms maximum frame and a 56 FPS counter sample; Daan recorded 47.7 ms and 57 FPS. These did not become sustained degradation. The effective cap remained 60 and VSync remained enabled. Metal GPU timing returned zero and is treated as unavailable. These are observations from one workstation, not a guarantee of uninterrupted 60 FPS on every machine; physical controller and simultaneous multi-touch limitations remain as previously recorded.
 
 Evidence is under `/tmp/cozysora-summer`: `before` and `before-play` contain baseline views; `final-two` and `final-two-play` contain final scenic and normal views; `performance-clean` contains the isolated frame-time comparisons and shadow diagnosis; `runtime-baseline` and `runtime-two` contain the extended native cycles. Capture and pose commands are documented in the README. No script, shader or import errors occurred in the final 48 captures and preview import.
+
+
+## C# / Godot .NET migration — 7 September 2026
+
+Migrated all game scripts to C# targeting .NET 10 with Godot.NET.Sdk 4.7.2. Forward+ and its existing lighting, fog, shadow, post-processing and antialiasing settings are preserved. The three map generators, materials, procedural images, meshes, particles, characters, motion, collision queries, synthesized audio, menus, touch controls, resource profiles and generated-cache lifecycle are now owned by the corresponding C# classes. No GDScript runtime remains, and no tests or external game assets were added.
+
+The desktop editor's hostfxr error was resolved by making the installed ARM64 .NET 10 SDK discoverable to GUI applications, shell sessions and Godot's build tool. The SDK lives outside the repository. The delivered launcher resolves a user SDK, checks for a .NET Godot build, builds from the canonical project path and launches the game or editor. A clean .NET build and Godot editor import/build both completed successfully.
+
+Visual baseline source was archived from `4d8eb357a3605650845a7ae99a6322f833ef6994`. Native Forward+ captures compare the same 39 views: eleven Seabreeze, twelve Harbor and sixteen Daan views, including their normal cat cameras. An independent critic compared geometry, seeded planting, paths, roads, architecture, props, camera framing, palette and atmosphere. The review caught an alpha-texture migration error: transparent white padding brightened Seabreeze's chain-link wires under bilinear/mipmap filtering. Restoring the original transparent black padding corrected the fence. The final native captures include that correction. The independent critic accepted all 39 final views with no remaining substantive visual migration differences. Time-dependent wind, birds, clouds, water and moving vehicles naturally differ between sequential captures.
+
+Native C# play covered all three destinations in a single session, walking/jumping, cat/seagull switching, gull climbing and automatic flight, collision with trees, safe recovery from water, pause/resume, keyboard menu navigation, touch-pad movement and character switching, mute and settings restoration. Each playing session had one player and camera, with two audio players in Harbor and one in the other maps. Every return to selection reported zero active sessions, players, cameras, audio players and orphan nodes. Settings were restored to full volume, unmuted, with manual touch disabled. Capture-only runs omit the player synthesizer by design.
+
+Fresh generation preserved Seabreeze's 833 trees/shrubs, Harbor's 288 trees and 295,676 grass clumps in 83 batches, and Daan's 285 trees and 222,703 grass clumps in 99 batches. C# cache signatures include sorted `.cs`, shader and resource/scene sources; their namespace is separate from the previous GDScript caches. Cold generation and subsequent cache restoration were exercised without storing live characters or application state.
+
+Evidence for this migration is under `/tmp/cozysora-csharp`: `baseline-captures`, `final-captures`, `performance-final`, `seabreeze-play.log` (the complete three-map session), and the final editor import/build logs. The README's capture commands reproduce the images. Physical gamepad hardware, genuine simultaneous multi-touch and exported builds remain outside this native macOS verification. Metal GPU timing reports zero and is treated as unavailable.
+
+
+The launch script also succeeded from a fresh copied checkout with no `.godot`, `bin` or `obj` directory: package restore, C# build, project import and headless selector launch all completed without errors. This checks that local editor caches are not required to launch a new checkout.
+
+Measured with Godot 4.7.2, Forward+ / Metal, Apple M3 Max, 1280 × 720, the unchanged 60 FPS cap and VSync enabled. Values below are individual warm entries, with generation-cache restoration confirmed in each log; they exclude .NET compilation and editor import.
+
+| Map | GDScript warm load | C# warm load |
+| --- | --- | --- |
+| Seabreeze Village | 10.157 s | 8.536 s |
+| Harbor Hills | 1.036 s | 1.073 s |
+| Daan Gardens | 0.718 s | 0.847 s |
+
+Seabreeze cold construction was observed at 31.781 s in GDScript and 16.413 s in C#. Its subsequent active gameplay frame windows had GDScript medians of 16.653–16.676 ms (p95 17.229–17.340 ms), compared with C# medians of 16.673–16.681 ms (p95 17.020–17.090 ms). Both retained the 60 FPS cadence at this pose. These observations suggest a construction benefit for Seabreeze in these runs; they do not demonstrate a general rendering speedup.
+
+Another independently running game repeatedly rendered and took application focus during parts of the measurement session. Cozy Sora correctly auto-paused on focus loss. Paused samples were excluded from the active-play comparison above; the other maps' paused rendering samples are retained in the raw logs, not presented as gameplay benchmarks. The warm-load differences and cold-build ratio are therefore workstation observations under variable contention, not controlled benchmark claims. No renderer or gameplay behavior was changed to obtain the measurements.
+
+
+A focused final-repository Daan rooftop check staged the ordinary player at the second café roof. The cat settled at Y = 16.075 m; paused-menu switching produced the gull above that roof and returned the cat to Y = 16.060 m, preserving supported height while physics remained frozen. The native process exited cleanly. This separately checks the translated surface queries and pause-time collision-body policy against the final scene/resource wiring.
+
+
+The final native Harbor scenic run completed the entire 160-second cable-car circuit and continued into a second circuit. Route samples reached the hilltop at Z = 96 with reversed heading at 80 seconds, returned through Z = 66.799, 30.950 and −29, and reached the waterfront at Z = −100 with the original heading at 160 seconds. Bell triggers continued through both turnarounds. This run used the existing scenic mode to keep the camera fixed; character input and the shared player synthesizer were disabled, while map simulation and the spatial bell remained active. It exited with code 0 and no errors. Active rendering varied from approximately 43–60 FPS during the extended run; no general 60 FPS guarantee is claimed.
+
+A second independent reviewer accepted the inspected migration code and native evidence for session ownership, pause handling, camera/audio cleanup, supported character switching, clean builds/import and fresh-checkout launch. The primary agent separately confirmed the complete transit circuit after that review. Both reviewers' acceptance is limited to the documented native scope, with the platform and measurement limitations retained above.
