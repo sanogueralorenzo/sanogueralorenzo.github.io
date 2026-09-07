@@ -37,7 +37,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         window.contentView = NSHostingView(rootView: MinutesView(model: model))
         let mainMenu = NSMenu()
         let appMenu = NSMenu(); let appItem = NSMenuItem(); appItem.submenu = appMenu; mainMenu.addItem(appItem)
-        appMenu.addItem(withTitle: "Quit Minutes", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let editMenu = NSMenu(title: "Edit"); let editItem = NSMenuItem(); editItem.submenu = editMenu; mainMenu.addItem(editItem)
         for (title, action, key) in [("Undo", Selector(("undo:")), "z"), ("Cut", #selector(NSText.cut(_:)), "x"), ("Copy", #selector(NSText.copy(_:)), "c"), ("Paste", #selector(NSText.paste(_:)), "v"), ("Select All", #selector(NSText.selectAll(_:)), "a")] {
             editMenu.addItem(withTitle: title, action: action, keyEquivalent: key)
@@ -48,10 +48,10 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         menu.autoenablesItems = false
         recordItem = menu.addItem(withTitle: "Start recording    ⌥⇧M", action: #selector(toggleRecording), keyEquivalent: ""); recordItem.target = self
         menu.addItem(.separator())
-        let open = menu.addItem(withTitle: "Recent meetings…", action: #selector(showWindow), keyEquivalent: ""); open.target = self
-        let settings = menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ""); settings.target = self
+        let open = menu.addItem(withTitle: "Recent meetings", action: #selector(showWindow), keyEquivalent: ""); open.target = self
+        let settings = menu.addItem(withTitle: "Settings", action: #selector(showSettings), keyEquivalent: ""); settings.target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Minutes", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
         model.changed = { [weak self] in self?.updateStatus() }
         model.openWindow = { [weak self] in self?.showWindow() }
