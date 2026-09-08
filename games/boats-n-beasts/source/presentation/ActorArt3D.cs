@@ -6,7 +6,7 @@ using System.Collections.Generic;
 namespace BoatsNBeasts;
 
 /// <summary>Reusable, code-built tactile actors. One shared mesh/material draw per actor.</summary>
-public static class ActorArt3D
+public static partial class ActorArt3D
 {
     static readonly Dictionary<string, ArrayMesh> Cache = new();
     static readonly StandardMaterial3D Material = new()
@@ -16,23 +16,31 @@ public static class ActorArt3D
     };
     static readonly Color Cream = new("ecd8a4"), Wood = new("98633b"), Deck = new("bb8c53"),
         DarkWood = new("694731"), Brass = new("caa467"), Glass = new("284958"),
-        Coral = new("d86239"), Shell = new("e77b45"), DarkCoral = new("ae432d"),
+        Coral = new("cb4829"), Shell = new("cf5531"), DarkCoral = new("9d3224"),
         Eye = new("fff1c7"), Pupil = new("192e31"), Teal = new("438d88"), Purple = new("9358bd");
 
     public static Node3D Boat(BoatKind kind, int[] weapons)
     {
-        int mask = 0;
-        for (int i = 0; i < Math.Min(6, weapons.Length); i++) if (weapons[i] > 0) mask |= 1 << i;
-        string key = $"boat-{kind}-{mask}";
+        var ranks = new int[6];
+        for (int i = 0; i < Math.Min(6, weapons.Length); i++) ranks[i] = Math.Clamp(weapons[i], 0, 8);
+        string key = $"boat-{kind}-{string.Join('-', ranks)}";
         if (!Cache.TryGetValue(key, out var mesh))
         {
             var b = new ActorGeometry();
-            BuildBoat(b, kind, mask);
+            BuildBoat(b, kind, ranks);
             // The visual hull is deliberately larger than its unchanged simulation collider.
-            b.Scale(new Vector3(1.22f, 1.15f, 1.30f));
+            b.Scale(BoatScale);
             Cache[key] = mesh = b.Mesh(Material);
         }
-        return Instance(mesh, key);
+        var root = Instance(mesh, key);
+        int starter = Starter(kind);
+        if (starter == 0) AddAimedWeapon(root, 0, Math.Max(1, ranks[0]), new(0, .26f, -.325f), 1, "AimPrimary");
+        for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
+        {
+            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], new(0, .24f, .4f), .69f, "AimSecondary");
+            break;
+        }
+        return root;
     }
 
     public static Node3D Creature(EnemyKind kind)
@@ -91,7 +99,7 @@ public static class ActorArt3D
         return p.ToArray();
     }
 
-    static void BuildBoat(ActorGeometry b, BoatKind kind, int mask)
+    static void BuildBoat(ActorGeometry b, BoatKind kind, int[] ranks)
     {
         Color stripe = kind == BoatKind.Mage ? new("685577") : kind == BoatKind.Trawler ? new("43867e") : new("496d77");
         b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.073f, .94f), HullRing(.139f, .987f), HullRing(.17f, 1), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Wood, Cream, Wood });
@@ -137,38 +145,14 @@ public static class ActorArt3D
         b.RoundBox(new(-.1f, .578f, .18f), new(.082f, .021f, .084f), .007f, Brass);
         b.Tube(new[] { new Vector3(.11f, .48f, .22f), new Vector3(.11f, .645f, .22f) }, .008f, Wood, 7);
         b.Tube(new[] { new Vector3(.11f, .625f, .22f), new Vector3(.04f, .60f, .22f) }, .008f, Brass, 7);
-        if (kind == BoatKind.Mage) Crystal(b, new(0, .247f, -.345f), .95f);
-        else if (kind == BoatKind.Trawler)
+        int starter = Starter(kind);
+        if (starter != 0) Equipment(b, starter, Math.Max(1, ranks[starter]), new(0, .25f, -.34f), starter == 5 ? .95f : 1);
+        // One compact stern fitting represents the second weapon slot.
+        for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
         {
-            b.Sphere(new(0, .25f, -.337f), new(.132f, .045f, .12f), DarkWood);
-            b.Ring(new(0, .295f, -.337f), .108f, .017f, Brass);
-            b.Sphere(new(0, .309f, -.337f), new(.083f, .049f, .083f), Teal);
-            for (int j = 0; j < 4; j++)
-            {
-                float a = j * Mathf.Tau / 4;
-                b.Tube(new[] { new Vector3(.10f * MathF.Cos(a), .3f, -.337f + .10f * MathF.Sin(a)), new Vector3(.13f * MathF.Cos(a), .39f, -.337f + .13f * MathF.Sin(a)) }, .012f, Brass, 7);
-            }
-        }
-        else Cannon(b, new(0, .25f, -.32f), 1);
-        // Show the second equipped weapon as a compact stern fitting without masking identity.
-        int starter = kind == BoatKind.Cutter ? 0 : kind == BoatKind.Mage ? 5 : 4;
-        for (int i = 0; i < 6; i++) if (i != starter && (mask & (1 << i)) != 0)
-        {
-            var p = new Vector3(0, .22f, .405f);
-            if (i == 0 || i == 1) Cannon(b, p, .55f);
-            else if (i == 5) Crystal(b, p, .46f);
-            else { b.Sphere(p + Vector3.Up * .045f, new(.07f, .055f, .06f), i == 2 ? Glass : Teal); b.Ring(p + Vector3.Up * .074f, .055f, .009f, Brass); }
+            if (i is not (0 or 1)) Equipment(b, i, ranks[i], new(0, .22f, .405f), .58f);
             break;
         }
-    }
-
-    static void Cannon(ActorGeometry b, Vector3 p, float s)
-    {
-        b.Sphere(p, new Vector3(.11f, .044f, .105f) * s, Wood);
-        b.Sphere(p + new Vector3(0, .055f, 0) * s, new Vector3(.077f, .068f, .075f) * s, new("61787a"));
-        b.Tube(new[] { p + new Vector3(0, .067f, -.028f) * s, p + new Vector3(0, .089f, -.205f) * s }, .035f * s, Glass, 12);
-        b.Tube(new[] { p + new Vector3(0, .087f, -.172f) * s, p + new Vector3(0, .092f, -.215f) * s }, .043f * s, new("8b9a91"), 12);
-        b.Sphere(p + new Vector3(0, .093f, -.218f) * s, new Vector3(.03f, .03f, .003f) * s, Pupil, 12, 7);
     }
 
     static void Crystal(ActorGeometry b, Vector3 p, float s)
@@ -195,23 +179,40 @@ public static class ActorArt3D
                 b.Sphere(knee, P(.028f, .028f, .028f), Shell, 10, 7);
             }
             b.Tube(new[] { P(side * .18f, .13f, -.095f), P(side * .32f, .16f, -.16f), P(side * .35f, .18f, -.26f) }, .036f * s, Coral, 10);
-            b.Sphere(P(side * .34f, .18f, -.27f), P(.075f, .063f, .10f), Shell, 14, 9);
-            b.Tube(new[] { P(side * .304f, .18f, -.315f), P(side * .295f, .175f, -.39f), P(side * .329f, .168f, -.409f) }, new[] { .036f * s, .021f * s, .004f * s }, Coral, 8);
-            b.Tube(new[] { P(side * .375f, .18f, -.306f), P(side * .383f, .172f, -.373f), P(side * .348f, .168f, -.408f) }, new[] { .03f * s, .02f * s, .003f * s }, Shell, 8);
+            b.Sphere(P(side * .34f, .192f, -.27f), P(.094f, .077f, .11f), Shell, 14, 9);
+            b.Tube(new[] { P(side * .301f, .19f, -.323f), P(side * .285f, .18f, -.418f), P(side * .333f, .175f, -.445f) }, new[] { .044f * s, .027f * s, .006f * s }, Coral, 8);
+            b.Tube(new[] { P(side * .388f, .19f, -.319f), P(side * .404f, .18f, -.409f), P(side * .356f, .175f, -.444f) }, new[] { .04f * s, .026f * s, .004f * s }, Shell, 8);
             b.Tube(new[] { P(side * .105f, .228f, -.15f), P(side * .12f, .322f, -.20f) }, .016f * s, DarkCoral, 8);
             b.Sphere(P(side * .12f, .322f, -.204f), P(.050f, .055f, .047f), Eye, 14, 9);
             b.Sphere(P(side * .116f, .347f, -.239f), P(.025f, .027f, .018f), Pupil, 12, 8);
             b.Sphere(P(side * .11f - .006f, .36f, -.252f), P(.006f, .007f, .003f), Eye, 8, 5);
+            // Swept brows and a cheek plate give the face intent even at small camera scale.
+            b.Tube(new[] { P(side * .07f, .365f, -.217f), P(side * .116f, .378f, -.205f), P(side * .164f, .349f, -.18f) }, new[] { .012f * s, .019f * s, .012f * s }, DarkCoral, 8);
+            b.Sphere(P(side * .125f, .20f, -.184f), P(.071f, .035f, .045f), Coral, 12, 7);
             // Small horn and brow connect the eyes to the sculpted shell.
             b.Tube(new[] { P(side * .164f, .255f, -.14f), P(side * .17f, .323f, -.124f) }, new[] { .025f * s, .003f * s }, Coral, 8);
         }
-        b.Sphere(P(0, .11f, -.223f), P(.07f, .026f, .008f), DarkWood, 12, 7);
+        b.Sphere(P(0, .146f, -.23f), P(.087f, .036f, .018f), DarkWood, 12, 7);
+        foreach (int side in new[] { -1, 1 })
+            b.Tube(new[] { P(side * .036f, .171f, -.248f), P(side * .031f, .144f, -.251f) }, new[] { .012f * s, .004f * s }, Cream, 7);
+        var shellEdge = new Vector3[24];
+        for (int i = 0; i < shellEdge.Length; i++)
+        {
+            float a = i * Mathf.Tau / shellEdge.Length;
+            shellEdge[i] = P(MathF.Cos(a) * .24f, .192f, .015f + MathF.Sin(a) * .207f);
+        }
+        b.ClosedTube(shellEdge, .009f * s, DarkCoral, 6);
+        for (int i = 0; i < 5; i++)
+        {
+            float a = .14f + i * .7f;
+            b.Sphere(P(MathF.Cos(a) * .209f, .22f, .015f + MathF.Sin(a) * .175f), P(.04f, .019f, .031f), Coral, 10, 6);
+        }
         for (int j = 0; j < (s > 2 ? 14 : 7); j++)
         {
             float a = j * 2.39996f, r = .17f * MathF.Sqrt((j + .5f) / (s > 2 ? 14 : 7));
             float x = MathF.Cos(a) * r, z = .018f + MathF.Sin(a) * r;
             float y = .20f + .127f * MathF.Sqrt(MathF.Max(.1f, 1 - x * x / .061f - (z - .015f) * (z - .015f) / .045f));
-            b.Sphere(P(x, y, z), P(.018f, .009f, .017f), Coral, 8, 5);
+            b.Sphere(P(x, y, z), P(.024f, .012f, .021f), j % 3 == 0 ? new Color("e17a46") : DarkCoral.Lightened(.08f), 8, 5);
             if (s > 2 && j % 2 == 0) b.Tube(new[] { P(x, y, z), P(x * 1.07f, y + .068f, z + .014f) }, new[] { .026f * s, .002f * s }, Shell, 8);
         }
     }
