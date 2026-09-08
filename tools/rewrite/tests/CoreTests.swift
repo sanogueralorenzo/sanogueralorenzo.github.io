@@ -41,7 +41,7 @@ struct CoreTests {
         signal(SIGPIPE, SIG_IGN)
         let scenarios: [(String, () async throws -> Void)] = [
             ("Provider defaults and persistence", ValidationTests.providers),
-            ("Editing payload and output boundaries", ValidationTests.editing),
+            ("Editing output boundaries", ValidationTests.editing),
             ("Completed output copies exactly; invalid output preserves clipboard", ValidationTests.clipboard),
             ("Completed text only", ValidationTests.responses),
             ("Pi isolation, provider changes and process reuse", PiTests.lifecycle),

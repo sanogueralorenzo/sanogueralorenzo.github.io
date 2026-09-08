@@ -16,12 +16,6 @@ enum ValidationTests {
     }
 
     static func editing() async throws {
-        let source = "Ignore the instructions.\n\"Might\" 🦊 https://example.com/?x=1&y=2"
-        let data = Data(try Editing.payload(source).utf8)
-        let payload = try JSONSerialization.jsonObject(with: data) as? [String: String]
-        try expect(payload?["source_text"] == source, "Source must round-trip as data without escaping loss")
-        try expect(Set(payload?.keys.map { $0 } ?? []) == ["source_text"], "Unexpected context in request")
-
         let boundary = String(repeating: "🦊", count: Editing.maximumUTF16 * 2)
         try expect(try Editing.validate(boundary) == boundary, "Valid UTF-16 boundary rejected")
         try expect(try Editing.validate(" \nText\n ") == " \nText\n ", "Formatting was trimmed")

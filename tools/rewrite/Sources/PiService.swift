@@ -135,7 +135,7 @@ final class PiService {
             guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
             try await rpc.resetSession()
             try Task.checkCancellation()
-            let output = try await rpc.send("prompt", message: Editing.payload(source))
+            let output = try await rpc.send("prompt", message: source)
             let result = try Self.parse(output)
             // Clear text immediately after completion, not only before the next request.
             try await rpc.resetSession()
