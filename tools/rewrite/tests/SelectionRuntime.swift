@@ -63,7 +63,7 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                 } else if CommandLine.arguments.contains("--unsupported") {
                     do {
                         try await captured.replace(with: Self.edited)
-                        throw RewriteError.message("FAIL expected copy-only fallback")
+                        throw RewriteError.message("FAIL expected unsupported replacement")
                     } catch {
                         guard (Accessibility.value(captured.element, kAXSelectedTextAttribute) as? String) == Self.source,
                               Accessibility.fingerprint(captured.element) == captured.fingerprint,
@@ -80,10 +80,9 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                         }
                         status.setRewriting(.grammar)
                         let service = ProcessorService()
-                        let models = try await service.models(for: .ollama)
-                        guard let model = models.first else { throw RewriteError.message("No local Ollama model is available.") }
-                        print("Rewriting the disposable fixture with Ollama; busy indicator is visible."); fflush(stdout)
-                        edited = try await service.rewrite(Self.source, action: .grammar, configuration: ProcessorConfiguration(kind: .ollama, model: model))
+                        let kind: ProcessorKind = CommandLine.arguments.contains("--anthropic") ? .anthropic : .openai
+                        print("Rewriting the disposable fixture with Pi; busy indicator is visible."); fflush(stdout)
+                        edited = try await service.rewrite(Self.source, action: .grammar, configuration: ProcessorConfiguration(kind: kind, model: kind.preferredModel))
                     }
                     try await captured.replace(with: edited, requireForeground: automatic)
                     status.setRewriting(nil)

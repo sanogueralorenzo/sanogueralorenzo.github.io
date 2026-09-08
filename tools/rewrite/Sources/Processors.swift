@@ -1,19 +1,15 @@
 import Foundation
 
 enum ProcessorKind: String, CaseIterable {
-    case codex = "Codex CLI", claude = "Claude CLI", ollama = "Ollama (local)"
-    var notice: String {
-        switch self {
-        case .codex: return "Uses your Codex sign-in. Selected text is sent to OpenAI."
-        case .claude: return "Uses your Claude sign-in. Selected text is sent to Anthropic."
-        case .ollama: return "Runs on this Mac through Ollama at 127.0.0.1:11434. Cloud models are refused."
-        }
-    }
-    var preferredModel: String {
-        switch self {
-        case .codex: return "gpt-5.6-luna"
-        case .claude: return "claude-haiku-4-5-20251001"
-        case .ollama: return ""
+    case openai = "OpenAI", anthropic = "Anthropic"
+    var providerID: String { self == .openai ? "openai-codex" : "anthropic" }
+    var notice: String { "Uses your Pi sign-in. Selected text is sent to \(rawValue)." }
+    var preferredModel: String { self == .openai ? "gpt-5.6-luna" : "claude-haiku-4-5-20251001" }
+    static func saved(_ value: String?) -> ProcessorKind? {
+        switch value {
+        case "Codex CLI": return .openai
+        case "Claude CLI": return .anthropic
+        default: return value.flatMap(Self.init(rawValue:))
         }
     }
     func modelID(_ value: String) -> String {
@@ -21,18 +17,16 @@ enum ProcessorKind: String, CaseIterable {
         return value
     }
     func modelLabel(_ value: String) -> String {
-        if self == .codex && value == preferredModel { return "GPT 5.6 Luna · Light reasoning" }
-        if self == .claude && value == preferredModel { return "Claude Haiku 4.5 · Thinking off" }
+        if value == preferredModel { return self == .openai ? "GPT 5.6 Luna · Light reasoning" : "Claude Haiku 4.5 · Thinking off" }
         return value
     }
-    var command: String { self == .codex ? "codex" : "claude" }
 }
 
 struct ProcessorConfiguration {
     var kind: ProcessorKind
     var model: String
     var resolvedModel: String { kind.modelID(model) }
-    var disablesThinking: Bool { kind == .claude && (resolvedModel == "haiku" || resolvedModel.hasPrefix("claude-haiku-4-5")) }
+    var thinking: String { kind == .openai ? "low" : "off" }
 }
 
 enum CLIDiscovery {
@@ -46,198 +40,145 @@ enum CLIDiscovery {
             let url = URL(fileURLWithPath: directory).appendingPathComponent(command)
             if FileManager.default.isExecutableFile(atPath: url.path) { return url }
         }
-        // The desktop app may include Codex even when no shell installation exists.
-        if command == "codex" {
-            let bundled = URL(fileURLWithPath: "/Applications/Codex.app/Contents/Resources/codex")
-            if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
-        }
         return nil
     }
     static var environment: [String: String] {
-        // Do not inherit project variables, debugging, custom endpoint overrides, or hooks.
         var result = ["PATH": searchPath, "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
-                      "LANG": "en_US.UTF-8", "TERM": "dumb", "NO_COLOR": "1"]
-        for key in ["USER", "TMPDIR", "SSL_CERT_FILE", "SSL_CERT_DIR"] {
-            result[key] = ProcessInfo.processInfo.environment[key]
-        }
+                      "LANG": "en_US.UTF-8", "TERM": "dumb", "NO_COLOR": "1", "PI_OFFLINE": "1", "PI_TELEMETRY": "0"]
+        for key in ["USER", "TMPDIR", "SSL_CERT_FILE", "SSL_CERT_DIR"] { result[key] = ProcessInfo.processInfo.environment[key] }
         return result
     }
 }
 
-// Reject redirects as well as non-loopback endpoints: local must stay local.
-private final class NoRedirects: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) { completionHandler(nil) }
+// Only the resolved credential enters this disposable Pi configuration. The normal
+// auth command refreshes the original store with Pi's own locking; no auth symlinks.
+final class PiRequest {
+    let directory: URL
+    var environment: [String: String] {
+        var result = CLIDiscovery.environment
+        result["PI_CODING_AGENT_DIR"] = directory.path
+        return result
+    }
+    init(provider: String, credential: String, oauth: Bool = false) throws {
+        directory = FileManager.default.temporaryDirectory.appendingPathComponent("rewrite-request-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        do {
+            // The parent auth command refreshes OAuth before this short-lived snapshot.
+            // Never copy the refresh token or let this disposable store rotate it.
+            let snapshot: [String: Any] = oauth
+                ? ["type": "oauth", "access": credential, "refresh": "", "expires": (Date().timeIntervalSince1970 + 600) * 1000]
+                : ["type": "api_key", "key": credential]
+            let auth = try JSONSerialization.data(withJSONObject: [provider: snapshot])
+            try auth.write(to: directory.appendingPathComponent("auth.json"))
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: directory.appendingPathComponent("auth.json").path)
+            try Data("{\"compaction\":{\"enabled\":false},\"retry\":{\"enabled\":false}}".utf8).write(to: directory.appendingPathComponent("settings.json"))
+        } catch { try? FileManager.default.removeItem(at: directory); throw error }
+    }
+    deinit { try? FileManager.default.removeItem(at: directory) }
 }
 
 @MainActor
 final class ProcessorService {
     private var runner: ProcessRunner?
-    private let session: URLSession
-    private let port: UInt16
-    init(port: UInt16 = 11434) {
-        self.port = port
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 90; config.timeoutIntervalForResource = 100
-        config.connectionProxyDictionary = [:]
-        session = URLSession(configuration: config, delegate: NoRedirects(), delegateQueue: nil)
-    }
-    deinit { session.invalidateAndCancel() }
+    private var checkedExecutable: URL?
+    private let executableOverride: URL?
+    init(executable: URL? = nil) { executableOverride = executable }
     func cancel() { runner?.cancel() }
 
-    func models(for kind: ProcessorKind) async throws -> [String] {
-        if kind == .ollama {
-            let data = try await local("tags")
-            guard let models = data["models"] as? [[String: Any]] else { throw unavailableLocal() }
-            return models.compactMap { model in
-                guard model["remote_host"] == nil, model["remote_model"] == nil,
-                      let name = model["name"] as? String, !name.lowercased().contains("cloud") else { return nil }
-                return name
-            }.sorted()
-        }
-        guard let executable = CLIDiscovery.executable(kind.command) else { throw unavailableCLI(kind) }
+    static let isolationArguments = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
+                                     "--no-prompt-templates", "--no-context-files", "--no-themes", "--no-approve"]
+    private func run(_ executable: URL, _ arguments: [String], environment: [String: String], directory: URL,
+                     input: String = "", timeout: Double = 90) async throws -> ProcessOutput {
         let runner = ProcessRunner(); self.runner = runner
-        let result = try await runner.run(executable: executable, arguments: kind == .codex ? ["exec", "--help"] : ["--help"], environment: CLIDiscovery.environment, directory: URL(fileURLWithPath: "/private/tmp"), timeout: 10)
-        let help = String(decoding: result.stdout, as: UTF8.self)
-        let required = kind == .codex ? ["--ephemeral", "--ignore-user-config", "--ignore-rules", "--sandbox", "--json"] : ["--safe-mode", "--tools", "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "--system-prompt"]
-        guard result.status == 0, required.allSatisfy({ help.contains($0) }) else {
-            throw RewriteError.message("Update \(kind.rawValue): this version lacks the isolation options Rewrite requires.")
-        }
-        if kind == .claude { return [kind.preferredModel, "sonnet", "opus"] }
-        // Read only public model metadata, never project settings or conversation history.
-        let cache = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/models_cache.json")
-        if let data = try? Data(contentsOf: cache), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let models = json["models"] as? [[String: Any]] {
-            return [kind.preferredModel] + models.filter { $0["visibility"] as? String != "hide" }.compactMap { $0["slug"] as? String }.filter { !$0.isEmpty && $0 != kind.preferredModel }.sorted()
-        }
-        return [kind.preferredModel]
+        return try await runner.run(executable: executable, arguments: arguments, environment: environment,
+                                    directory: directory, input: input, timeout: timeout)
     }
-
-    func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
-        let payload = try Editing.payload(source, action: action)
-        if configuration.kind == .ollama {
-            guard !configuration.model.isEmpty, configuration.model != "default" else { throw unavailableLocal() }
-            let info = try await local("show", body: ["model": configuration.model])
-            guard Self.isLocalModel(info, name: configuration.model) else {
-                throw RewriteError.message("Choose a downloaded local model. Rewrite refuses Ollama cloud models.")
-            }
-            let declaredContext = (info["model_info"] as? [String: Any])?.first(where: { $0.key.hasSuffix(".context_length") })?.value as? Int ?? 16384
-            let context = min(16384, declaredContext)
-            guard payload.utf8.count + Editing.rules.utf8.count + 2048 <= context else {
-                throw RewriteError.message("This passage is too long for the local model’s context. Select a shorter passage and try again.")
-            }
-            let response = try await local("chat", body: ["model": configuration.model, "stream": false, "think": false,
-                "messages": [["role": "system", "content": Editing.rules], ["role": "user", "content": payload]],
-                "options": ["temperature": 0.2, "num_ctx": context]])
-            guard response["done_reason"] as? String != "length" else {
-                throw RewriteError.message("The local model stopped before finishing. Select a shorter passage and try again.")
-            }
-            guard response["done"] as? Bool == true, let message = response["message"] as? [String: Any],
-                  let content = message["content"] as? String else { throw unavailableLocal() }
-            return try Editing.validate(content)
+    private func executable() async throws -> URL {
+        guard let executable = executableOverride ?? CLIDiscovery.executable("pi") else {
+            throw RewriteError.message("Install Pi, run pi in Terminal and use /login, then click Refresh.")
         }
-        _ = try await models(for: configuration.kind) // Fail closed if installed flags changed.
-        try Task.checkCancellation()
-        guard let executable = CLIDiscovery.executable(configuration.kind.command) else { throw unavailableCLI(configuration.kind) }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("rewrite-request-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let work = directory.appendingPathComponent("work")
-        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        if checkedExecutable != executable {
+            let request = try PiRequest(provider: "openai-codex", credential: "")
+            defer { withExtendedLifetime(request) {} }
+            let result = try await run(executable, Self.isolationArguments + ["--help"], environment: request.environment, directory: request.directory, timeout: 10)
+            let help = String(decoding: result.stdout, as: UTF8.self)
+            guard result.status == 0, (Self.isolationArguments + ["--system-prompt", "--mode", "--thinking"]).allSatisfy({ help.contains($0) }) else {
+                throw RewriteError.message("Update Pi: this version lacks the isolation options Rewrite requires.")
+            }
+            checkedExecutable = executable
+        }
+        return executable
+    }
+    private func request(_ executable: URL, kind: ProcessorKind) async throws -> PiRequest {
         var environment = CLIDiscovery.environment
-        var arguments: [String]
-        var input = payload
-        if configuration.kind == .codex {
-            let existingHome = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
-            // Preserve the authentication store's identity so token refresh and Keychain
-            // access work normally. All request state and logs use the temporary directory.
-            environment["CODEX_HOME"] = existingHome.path
-            environment["RUST_LOG"] = "off"
-            let rules = directory.appendingPathComponent("instructions.txt")
-            try Editing.rules.write(to: rules, atomically: true, encoding: .utf8)
-            arguments = Self.codexArguments(rules: rules)
-            arguments += ["-c", "sqlite_home=\"\(directory.path)\"", "-c", "log_dir=\"\(directory.path)\""]
-        } else {
-            if configuration.disablesThinking { environment["MAX_THINKING_TOKENS"] = "0" }
-            environment["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1"
-            environment["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
-            environment["DISABLE_TELEMETRY"] = "1"
-            environment["DISABLE_ERROR_REPORTING"] = "1"
-            // Discard debug output, which some Claude versions otherwise write by default.
-            arguments = ["--print", "--output-format", "json", "--no-session-persistence", "--safe-mode",
-                         "--tools", "", "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}",
-                         "--setting-sources", "", "--system-prompt", Editing.rules, "--debug-file", "/dev/null"]
+        environment["PI_CODING_AGENT_DIR"] = ProcessInfo.processInfo.environment["PI_CODING_AGENT_DIR"]
+        // This dedicated Pi command does not load extensions, prompts, or custom model endpoints.
+        // Credentials stay in memory and the private request directory, never logs or argv.
+        let auth = try await run(executable, ["auth", "check", "--provider", kind.providerID, "--json", "--credentials"],
+                                 environment: environment, directory: URL(fileURLWithPath: "/private/tmp"), timeout: 20)
+        guard auth.status == 0, let json = try? JSONSerialization.jsonObject(with: auth.stdout) as? [String: Any],
+              json["status"] as? String == "ready", let credential = json["credentials"] as? String,
+              !credential.isEmpty, !credential.hasPrefix("!"), !credential.contains("\n") else {
+            throw RewriteError.message("Sign in to \(kind.rawValue) in Pi: open pi in Terminal, use /login, then Refresh. Codex and Claude CLI sign-ins are not used.")
         }
-        arguments += ["--model", configuration.resolvedModel]
-        if configuration.kind == .codex { arguments.append("-"); input = payload }
-        let runner = ProcessRunner(); self.runner = runner
-        let output = try await runner.run(executable: executable, arguments: arguments, environment: environment, directory: work, input: input)
+        try Task.checkCancellation()
+        return try PiRequest(provider: kind.providerID, credential: credential, oauth: json["authType"] as? String == "oauth")
+    }
+    func models(for kind: ProcessorKind) async throws -> [String] {
+        let executable = try await executable(), request = try await request(executable, kind: kind)
+        defer { withExtendedLifetime(request) {} }
+        let result = try await run(executable, Self.isolationArguments + ["--list-models"], environment: request.environment, directory: request.directory, timeout: 20)
+        guard result.status == 0 else { throw RewriteError.message("Pi could not list models. Update Pi and check your sign-in, then Refresh.") }
+        let models = Self.parseModels(result.stdout, kind: kind)
+        guard !models.isEmpty else { throw RewriteError.message("Pi has no models for \(kind.rawValue). Update Pi and check your sign-in, then Refresh.") }
+        return models
+    }
+    static func parseModels(_ data: Data, kind: ProcessorKind) -> [String] {
+        let models = String(decoding: data, as: UTF8.self).components(separatedBy: "\n").compactMap { line -> String? in
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count == 6, fields[0] == kind.providerID else { return nil }
+            return String(fields[1])
+        }
+        return Array(Set(models)).sorted { a, b in
+            if a == kind.preferredModel { return true }; if b == kind.preferredModel { return false }; return a < b
+        }
+    }
+    static func arguments(_ configuration: ProcessorConfiguration) throws -> [String] {
+        let model = configuration.resolvedModel
+        guard !model.isEmpty, model.count < 160,
+              model.range(of: "^[A-Za-z0-9][A-Za-z0-9._-]*$", options: .regularExpression) != nil else {
+            throw RewriteError.message("Enter a model ID for the selected provider, without a provider prefix or reasoning suffix.")
+        }
+        return isolationArguments + ["--print", "--mode", "json", "--provider", configuration.kind.providerID,
+            "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
+    }
+    func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
+        let arguments = try Self.arguments(configuration)
+        let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
+        defer { withExtendedLifetime(request) {} }
+        let output = try await run(executable, arguments, environment: request.environment, directory: request.directory,
+                                   input: try Editing.payload(source, action: action))
         guard output.status == 0 else {
-            if configuration.kind == .claude,
-               let envelope = try? JSONSerialization.jsonObject(with: output.stdout) as? [String: Any],
-               let message = envelope["result"] as? String,
-               ["not logged in", "authenticate", "token has expired"].contains(where: { message.lowercased().contains($0) }) {
-                throw RewriteError.message("Claude’s sign-in is missing or expired. Open claude in Terminal and run /login, then try again.")
-            }
-            throw RewriteError.message("\(configuration.kind.rawValue) failed. Check your sign-in, connection, usage limit, and model in Terminal, then retry. Your original text is unchanged.")
+            throw RewriteError.message("Pi could not finish the rewrite. Check your Pi sign-in, connection, usage limit, and model, then retry.")
         }
-        return try Self.parse(output.stdout, kind: configuration.kind)
+        return try Self.parse(output.stdout)
     }
-
-    static func codexArguments(rules: URL) -> [String] {
-        var args = ["exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never"]
-        for setting in ["model_reasoning_effort=\"low\"", "approval_policy=\"never\"", "project_doc_max_bytes=0", "web_search=\"disabled\"",
-                        "history.persistence=\"none\"", "analytics.enabled=false", "feedback.enabled=false",
-                        "model_instructions_file=\"\(rules.path)\""] { args += ["-c", setting] }
-        for feature in ["shell_tool", "unified_exec", "shell_snapshot", "apps", "plugins", "hooks", "memories", "multi_agent",
-                        "multi_agent_v2", "browser_use", "computer_use", "image_generation", "view_image", "code_mode", "code_mode_host",
-                        "skill_search", "workspace_dependencies", "tool_suggest"] { args += ["--disable", feature] }
-        args += ["--enable", "skip_host_skill_discovery"]
-        return args
-    }
-
-    static func parse(_ data: Data, kind: ProcessorKind) throws -> String {
-        if kind == .claude {
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any], json["is_error"] as? Bool != true,
-                  let result = json["result"] as? String else { throw RewriteError.message("Claude did not return a completed edit. Check your sign-in and model in Settings.") }
-            return try Editing.validate(result)
-        }
+    static func parse(_ data: Data) throws -> String {
+        let failure = RewriteError.message("Pi did not return a completed rewrite. Check your sign-in and model, then retry.")
         var result: String?, completed = false
-        for line in String(decoding: data, as: UTF8.self).split(separator: "\n") {
-            guard let json = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any] else { continue }
-            if json["type"] as? String == "turn.completed" { completed = true }
-            if json["type"] as? String == "item.completed", let item = json["item"] as? [String: Any] {
-                if item["type"] as? String == "agent_message" { result = item["text"] as? String }
-                if ["command_execution", "mcp_tool_call", "file_change", "web_search"].contains(item["type"] as? String ?? "") {
-                    throw RewriteError.message("The processor attempted a tool action. The edit was discarded; update the CLI before retrying.")
-                }
+        for line in String(decoding: data, as: UTF8.self).components(separatedBy: "\n") where !line.isEmpty {
+            guard let event = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let type = event["type"] as? String else { throw failure }
+            if type.hasPrefix("tool_execution") || type == "error" { throw failure }
+            if type == "message_end", let message = event["message"] as? [String: Any], message["role"] as? String == "assistant" {
+                guard result == nil, message["stopReason"] as? String == "stop",
+                      let content = message["content"] as? [[String: Any]],
+                      content.allSatisfy({ ["text", "thinking"].contains($0["type"] as? String ?? "") }) else { throw failure }
+                result = content.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined()
             }
+            if type == "agent_end" { guard result != nil else { throw failure }; completed = true }
         }
-        guard completed, let result else { throw RewriteError.message("Codex did not return a completed edit. Check your sign-in and model in Settings.") }
+        guard completed, let result else { throw failure }
         return try Editing.validate(result)
     }
-
-    static func isLocalModel(_ info: [String: Any], name: String) -> Bool {
-        guard !name.lowercased().contains("cloud"), info["remote_host"] == nil, info["remote_model"] == nil,
-              let details = info["details"] as? [String: Any], let size = details["parameter_size"] as? String, !size.isEmpty,
-              let capabilities = info["capabilities"] as? [String], capabilities.contains("completion") else { return false }
-        return true
-    }
-    private func local(_ endpoint: String, body: [String: Any]? = nil) async throws -> [String: Any] {
-        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/api/" + endpoint)!)
-        if let body { request.httpMethod = "POST"; request.httpBody = try JSONSerialization.data(withJSONObject: body); request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
-        do {
-            let (data, response) = try await session.data(for: request)
-            try Task.checkCancellation()
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200,
-                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw unavailableLocal() }
-            return json
-        } catch is CancellationError { throw CancellationError() }
-        catch let error as URLError where error.code == .timedOut {
-            throw RewriteError.message("The local model timed out. Try a shorter passage or a smaller model.")
-        }
-        catch { if Task.isCancelled { throw CancellationError() }; throw unavailableLocal() }
-    }
-    private func unavailableCLI(_ kind: ProcessorKind) -> RewriteError { .message("Install \(kind.rawValue), sign in with \(kind.command) in Terminal, then click Refresh. Rewrite checks ~/.local/bin, Homebrew, and PATH.") }
-    private func unavailableLocal() -> RewriteError { .message("Start Ollama on this Mac and download a text model with ollama pull <model>. Then choose the model in Settings. Only 127.0.0.1:11434 is supported.") }
 }

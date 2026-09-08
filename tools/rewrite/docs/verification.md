@@ -10,18 +10,19 @@ The automatic selection toolbar, background selection polling, and result/Copy w
 
 ## Checks
 
-- All 36 offline processor checks pass: request encoding, model resolution, parsing, local-model restrictions, subprocess cancellation/timeouts, output limits, and child cleanup.
+- All 50 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
+- `tests/run.sh --pi-check` passes against Pi 0.85.1 and checks the installed Pi's model discovery in a disposable configuration with a fake credential; it makes no provider inference call.
 - `tests/feedback.sh` passes busy/idle/error states, disabled re-entry, cancellation dispatch, no new error window, shortcut migration, Carbon registration/conflict/callback, and all six native Option-number key equivalents (including Option-generated characters).
 - A live AppKit popup was opened from the production `ActionMenu` in a test window. Computer use pressed Option-1; the menu closed and the grammar callback assertion passed. This tests menu tracking in addition to calling `performKeyEquivalent` directly.
 - The optimized native bundle builds and its signature verifies. The selection integration executable also compiles after removal of the result window.
 - Earlier on September 8, a real local Ollama rewrite automatically changed the disposable TextEdit sentence to `She went to the library yesterday.` through the production replacement method. Native Command-Z restored the original. Clipboard types, bytes, item order, and change count were unchanged.
 - The same replacement code rejected an app switch and a changed selected range, preserving the source and clipboard. This change keeps that delivery behavior and moves its error messages into the menu bar.
 
-No new provider inference was required for the shortcut change. A physical global Option-R through every provider and editor has not been verified. Native Undo is controlled by the destination app, not Rewrite. Locally signed updates can require refreshing Accessibility permission.
+The Pi migration requires a separate Pi sign-in for live inference; neither provider was signed in at the start of verification. Native Undo is controlled by the destination app. Locally signed updates can require refreshing Accessibility permission.
 
-## Processor and app compatibility
+## Provider and app compatibility
 
-On September 7, Codex CLI 0.153.2 completed a real isolated grammar request. Claude CLI 2.1.179 exposed the required flags, but its existing OAuth token was expired; successful Claude inference remains unverified without signing in again. Ollama 0.33.3 with qwen3:8b completed a real request. The loopback protocol fixture passed three discovery/chat/local-only checks.
+Rewrite now uses only Pi (updated to 0.85.1). OpenAI uses `openai-codex` as Pi's provider ID; this is a connection inside Pi, not execution of Codex CLI. Anthropic uses Pi's `anthropic` provider. Local inference and the old CLI adapters/fixtures were removed. Earlier Codex/Claude/Ollama results do not establish live Pi compatibility.
 
 TextEdit's targeted AX replacement and native Undo work. Previously tested Microsoft Edge textarea and contenteditable fields exposed readable selections but claimed AX write support without applying the write. Rewrite detects this and now reports it in the menu bar. Browser/custom-editor behavior was not newly tested. No clipboard or paste-keystroke fallback was added.
 
@@ -36,7 +37,7 @@ TextEdit's targeted AX replacement and native Undo work. Previously tested Micro
 # Select exactly this disposable sentence in TextEdit:
 # She go to the library yesterday.
 ./tests/selection.sh --app com.apple.TextEdit --automatic
-# Requires running local Ollama with an existing downloaded text model.
+# Requires Pi signed in to OpenAI. Add --anthropic to test Anthropic.
 # Then press Command-Z in TextEdit to verify native Undo.
 
 ./tests/selection.sh --app com.apple.TextEdit --background
