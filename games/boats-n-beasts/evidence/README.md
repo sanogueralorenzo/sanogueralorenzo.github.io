@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Fishing keeps time running — 2026-09-08
+
+[Fishing A](live-fishing-a.png)/[B](live-fishing-b.png), with paired TXT telemetry, show advancing combat time, moving/spawning enemies and automatic shots while boat position stays fixed. These precede the text correction. [Final UI](live-fishing-ui.png) says “Combat active.” [Timeout](live-fishing-timeout.png) and [manual reel miss](live-fishing-reel.png) return to Sailing. Logs: [simulation check](live-fishing-runtime.txt), [final UI/reel](live-fishing-final-runtime.txt).
+
 ## Downward dockside heading — 2026-09-08
 
 [Title](dock-down-title.png) and [voyage start](dock-down-start.png) show the downward-facing boat with a small extra gap beside the dock. Paired TXT reports retain position `(55,-315)` and zero velocity.

@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Fishing keeps time running — 2026-09-08
+
+Supersedes the historical fishing-freeze requirement. Sailing and fishing share the active simulation gate: voyage time, spawning, enemies, damage, weapon/ability cooldowns, projectiles and effects continue during a cast. Casting stops the boat and clears active boost/flow. Reel or cancel restores sailing; timeout still ends the cast after eight seconds. Earned upgrades wait until the cast ends, while defeat/victory discard the active fishing place. Pause, upgrade and harbor screens retain their time gates. Fishing HUD and handbook now say combat remains active.
+
+Debug/Release pass with zero warnings/errors; native logs are clean. Paired native fishing captures show the combat clock advancing 9.424 → 11.649 as fishing time advances 0.557 → 2.782, with identical boat position and zero velocity. Enemy positions/timers advance, a new crab spawns and automatic cannon shots continue. An eight-second timeout returns to Sailing; a separate manual reel miss also returns immediately. The final UI capture shows “Combat active.” These captures and logs are indexed in [evidence/README.md](../evidence/README.md). No automated tests or injected state. Damage/death, boss victory, pending upgrades, successful catches and focus-pause during an active cast were reviewed in code but not separately replayed in this focused pass.
+
 ## Downward dockside heading — 2026-09-08
 
 All new voyages initialize heading to π and spawn 20 units farther right at `(55,-315)`, leaving a small water gap beside the dock. Native title and post-start captures show the downward bow, identical position and zero velocity. Debug/Release pass with zero warnings/errors; native log clean. Gunboat was checked natively; all boats share the constructor. No automated tests.

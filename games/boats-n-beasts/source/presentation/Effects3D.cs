@@ -59,9 +59,9 @@ public partial class Effects3D : Node3D
     public void Sync(Voyage voyage, float clock, float dt)
     {
         EnsureReady();
-        // `clock` may continue for menus. All transient animation uses this sailing-only clock.
-        bool sailing = voyage.Mode == VoyageMode.Sailing;
-        float step = sailing ? Mathf.Clamp(dt, 0, .1f) : 0;
+        // `clock` may continue for menus. Transient animation follows the active voyage, including fishing.
+        bool active = voyage.IsActive;
+        float step = active ? Mathf.Clamp(dt, 0, .1f) : 0;
         time += step;
         fish.SetShaderParameter("school_time", time);
         if (step > 0)

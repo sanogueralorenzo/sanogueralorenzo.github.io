@@ -48,7 +48,7 @@ public partial class OceanView3D : Node3D
     public void Advance(float dt)
     {
         var start = System.Diagnostics.Stopwatch.GetTimestamp();
-        if (Menu || Voyage.Mode == VoyageMode.Sailing) Clock += dt;
+        if (Menu || Voyage.IsActive) Clock += dt;
         if (Menu) Camera = HomeCamera();
         else if (Voyage.Mode == VoyageMode.Sailing && (Voyage.Velocity.LengthSquared() > .01f || DepartureTime > 0))
         {

@@ -37,6 +37,7 @@ public sealed partial class Voyage
     float SilverInterval() => 45 + silverRandom.NextSingle() * 45;
     public SpawnDirector Director { get; } = new();
     public VoyageMode Mode = VoyageMode.Sailing;
+    public bool IsActive => Mode is VoyageMode.Sailing or VoyageMode.Fishing;
     public BoatKind Boat { get; }
     public Vector2 Position, Velocity;
     public float Heading, Health, Boost = 100, CombatTime, Invulnerable, Distance, MaxDistance;
@@ -83,17 +84,21 @@ public sealed partial class Voyage
     public void Tick(float dt, SailInput input)
     {
         dt = Math.Clamp(dt, 0, .05f);
-        if (Mode == VoyageMode.Fishing)
+        if (!IsActive) return;
+        bool fishing = Mode == VoyageMode.Fishing;
+        if (fishing)
         {
+            Boost = Math.Min(100, Boost + dt * 23);
             FishingTime += dt;
             FishCursor = .5f + .46f * MathF.Sin(FishingTime * (2.7f + Tier * .07f));
             if (Mode == VoyageMode.Fishing && FishingTime >= 8) FinishFishing(false);
-            return;
         }
-        if (Mode != VoyageMode.Sailing) return;
         CombatTime += dt; Invulnerable = Math.Max(0, Invulnerable - dt);
-        UpdateMovement(dt, input);
-        CollectEncounters();
+        if (!fishing)
+        {
+            UpdateMovement(dt, input);
+            CollectEncounters();
+        }
         bool safe = Safe;
         int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
@@ -113,11 +118,11 @@ public sealed partial class Voyage
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
-        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
+        if (Health <= 0) { Health = 0; FishingPlace = null; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
         else
         {
             while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
-            if (PendingUpgrades > 0) PrepareNextUpgrade();
+            if (PendingUpgrades > 0 && Mode != VoyageMode.Fishing) PrepareNextUpgrade();
         }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
@@ -231,7 +236,7 @@ public sealed partial class Voyage
     }
     void DamagePlayer(float damage)
     {
-        if (Invulnerable > 0 || Safe || Mode != VoyageMode.Sailing) return;
+        if (Invulnerable > 0 || Safe || !IsActive) return;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
     }
     void Hit(Enemy e, float damage)
@@ -250,7 +255,7 @@ public sealed partial class Voyage
         Events.Add(new("kill", e.Position, e.Kind == EnemyKind.Leviathan ? 2 : 1));
         if (e.Kind == EnemyKind.Leviathan)
         {
-            BossSlain = true; Coins += 150; Mode = VoyageMode.Victory;
+            BossSlain = true; Coins += 150; FishingPlace = null; Mode = VoyageMode.Victory;
             // The defeated sovereign disperses its escort and ends the voyage.
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
             foreach (var other in Enemies) other.Health = 0;
@@ -265,6 +270,7 @@ public sealed partial class Voyage
         var fish = World.FishAt(Position);
         if (fish == null) return false;
         FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
+        Velocity = Vector2.Zero; CurrentFlow = Vector2.Zero; IsBoosting = false; BoostExhausted = false;
         fishRandom = new(SeedRandom.Hash(World.Seed, OceanWorld.KeyAt(fish.Position).X, OceanWorld.KeyAt(fish.Position).Y, fish.Style ^ (uint)World.Depletion.GetValueOrDefault(fish.Id)));
         World.Depletion[fish.Id] = 1; // One cast per school, including a cancelled attempt.
         FishCursor = .5f; FishTarget = fishRandom.Range(.25f, .75f); Events.Add(new("cast", fish.Position)); return true;
