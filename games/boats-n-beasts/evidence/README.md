@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Remove enemy warning lines — 2026-09-08
+
+[Windup](no-warning-windup.png) and [dash](no-warning-dash.png), with same-name TXT telemetry, show puffer/serpent preattack states without warning lines and the subsequent serpent dash. Actual hostile projectiles remain visible. [Runtime log](no-warning-runtime.txt).
+
 ## Flat-shaded nautical diorama — 2026-09-08
 
 The [selected reference](../docs/visual-restart/flat-diorama-reference.png) is documentation only. Images below are unedited native captures. Every gameplay PNG has a same-name TXT report.

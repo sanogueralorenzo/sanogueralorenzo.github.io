@@ -72,7 +72,7 @@ public partial class Game : Node2D
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
                 if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveProgress(); Toast("BULWARK · shots cleared, nearby beasts pushed away"); }
-                if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
+                if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving.");
                 if (e.Kind == "sold") Toast($"Catch sold · +{e.Value:0} gold");
             }
             Run.Events.Clear(); ocean.Advance(dt);

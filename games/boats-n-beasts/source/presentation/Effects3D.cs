@@ -80,7 +80,7 @@ public partial class Effects3D : Node3D
         {
             if (enemy.Health <= 0) continue;
             if (creatureWakes.TryGetValue(enemy.Id, out var history)) DrawWake(history, enemy.Radius * .006f, .85f, .38f);
-            DrawTelegraph(voyage, enemy);
+            DrawEmergence(enemy);
         }
         foreach (var shot in voyage.Shots) if (shot.Life > 0) DrawShot(shot);
         foreach (var b in bursts) DrawBurst(b);
@@ -219,33 +219,14 @@ public partial class Effects3D : Node3D
             }
         }
     }
-    void DrawTelegraph(Voyage v, Enemy e)
+    void DrawEmergence(Enemy e)
     {
-        var p=World(e.Position,.065f);
-        if(e.Emerging)
-        {
-            float t=e.Time/Enemy.EmergenceDuration;
-            foam.Arc(p,e.Radius*.01f*(.7f+t*.5f),e.Id,1.2f,.016f,Fade(Foam,(1-t)*.6f));
-            foam.Arc(p,e.Radius*.01f*(.7f+t*.5f),e.Id+3.1f,1.7f,.016f,Fade(Foam,(1-t)*.5f));
-        }
-        if(e.Telegraph<=0) return;
-        float opacity=.7f+.15f*Mathf.Sin(time*20); float radius=e.Radius*.01f+.13f;
-        // Coral arcs are attack tells, not ambient decorative rings.
-        for(int i=0;i<4;i++) foam.Arc(p,radius,i*Mathf.Pi*.5f+.1f,1.3f,.023f,Fade(Coral,opacity));
-        var direction=e.Kind==EnemyKind.Serpent?e.Direction:OceanWorld.Unit(v.Position-e.Position);
-        var dir=World(direction,0)*100; var side=new Vector3(-dir.Z,0,dir.X);
-        if(e.Kind==EnemyKind.Serpent)
-        {
-            var end=p+dir*2.3f;
-            foam.Ribbon(p+dir*radius,end,.13f,.16f,Fade(Coral,.13f));
-            foam.Ribbon(p+dir*radius+side*.15f,end+side*.15f,.011f,.017f,Fade(Coral,.6f));
-            foam.Ribbon(p+dir*radius-side*.15f,end-side*.15f,.011f,.017f,Fade(Coral,.6f));
-        }
-        else if(e.Kind is EnemyKind.Ray or EnemyKind.Puffer)
-        {
-            int fan=e.Kind==EnemyKind.Ray?1:0;
-            for(int i=-fan;i<=fan;i++) { var d=dir.Rotated(Vector3.Up,i*.24f); foam.Ribbon(p+d*radius,p+d*(radius+.68f),.018f,.009f,Fade(Coral,.5f)); }
-        }
+        if (!e.Emerging) return;
+        var p = World(e.Position, .065f);
+        float t = e.Time / Enemy.EmergenceDuration;
+        float radius = e.Radius * .01f * (.7f + t * .5f);
+        foam.Arc(p, radius, e.Id, 1.2f, .016f, Fade(Foam, (1 - t) * .6f));
+        foam.Arc(p, radius, e.Id + 3.1f, 1.7f, .016f, Fade(Foam, (1 - t) * .5f));
     }
     void Ball(Vector3 p, Vector3 scale, Color color)
     {

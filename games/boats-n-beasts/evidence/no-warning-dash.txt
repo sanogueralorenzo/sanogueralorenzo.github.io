@@ -1,0 +1,60 @@
+Mouse viewport=(-18, 555.75) global=(-18, 555.75) boatScreen=(720.0258, 449.9988) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1625.7374, -187.06027>; destination=
+Native runtime capture: 20260908-131023-865-sailing
+Renderer: forward_plus
+Seed: 1392155251
+Mode: Sailing
+Game speed: x1
+Finished runs: 73; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 58.59986
+Boat: Cutter
+Position: <2623.0696, -357.1876>
+Health: 42.999992/100
+Coins: 30; cargo: 0; kills: 9; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 15; shots: 13
+Actual sailing seconds: 25.7; peak enemies: 15; peak shots: 14
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2623.0347, -357.18564); departure seconds=23.798588; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<0.19608176, -0.010880387>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=21; pulls=0
+Combat clock=25.665226; director=1.2749606/1.2713981; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.40001553,0,0,0,0,0
+Depletion=
+Enemy 1: Crab position=<1975.2355, -261.2831> hp=12 time=21.915281 attack=-19.064966 tell=0 dash=0
+Enemy 8: Puffer position=<1844.5837, -251.63695> hp=32.5 time=15.415382 attack=2.841694 tell=0 dash=0
+Enemy 10: Puffer position=<2267.3665, -516.49194> hp=17.5 time=14.1153965 attack=0.35846302 tell=0.65 dash=0
+Enemy 12: Puffer position=<2160.4543, -123.34498> hp=47.5 time=13.465369 attack=1.0584376 tell=0 dash=0
+Enemy 13: Puffer position=<1981.4158, -69.84917> hp=47.5 time=10.565248 attack=0.35846302 tell=0.65 dash=0
+Enemy 15: Puffer position=<1696.3356, -656.79755> hp=47.5 time=7.265219 attack=2.641703 tell=0 dash=0
+Enemy 16: Puffer position=<1659.449, -580.7207> hp=47.5 time=7.265219 attack=3.1833491 tell=0 dash=0
+Enemy 17: Puffer position=<2453.99, -708.0666> hp=47.5 time=4.791491 attack=0.9751073 tell=0 dash=0
+Enemy 18: Puffer position=<2700.5625, -160.20087> hp=2.5 time=4.791491 attack=1.0084394 tell=0 dash=0
+Enemy 19: Puffer position=<2586.0264, -745.2956> hp=42 time=3.458207 attack=1.8084061 tell=0 dash=0
+Enemy 20: Serpent position=<2515.9895, 323.65094> hp=78 time=3.458207 attack=3.3250282 tell=-0.008306062 dash=0.55000013
+Enemy 21: Serpent position=<1909.4114, -699.7655> hp=78 time=2.7915695 attack=0.36284515 tell=0 dash=0
+Enemy 22: Serpent position=<1909.4016, 73.016365> hp=78 time=2.7915695 attack=3.9833298 tell=0.5163835 dash=0
+Enemy 23: Serpent position=<3107.6667, -343.9152> hp=78 time=2.1249278 attack=1.0279043 tell=0 dash=0
+Enemy 24: Puffer position=<1929.0176, -781.99457> hp=57 time=1.2916267 attack=1.2491091 tell=0 dash=0
+Shot Cannon hostile=True position=<2045.0237, -89.89084> life=1.008536
+Shot Cannon hostile=True position=<2408.029, -508.4158> life=1.2085286
+Shot Cannon hostile=True position=<2089.6064, -201.37119> life=1.5585136
+Shot Cannon hostile=True position=<1997.2888, 123.87593> life=2.5418038
+Shot Cannon hostile=True position=<2239.6626, -437.3202> life=2.5418038
+Shot Cannon hostile=True position=<2275.6802, -325.69693> life=3.1584435
+Shot Cannon hostile=True position=<2092.4634, -396.7785> life=3.1917753
+Shot Cannon hostile=True position=<2369.5608, -411.03024> life=3.2417731
+Shot Cannon hostile=True position=<2503.5515, -460.1314> life=3.9917314
+Shot Cannon hostile=True position=<1835.6692, -611.14343> life=4.825028
+Shot Cannon hostile=True position=<1965.139, -268.03516> life=5.025019
+Shot Cannon hostile=True position=<1736.4307, -562.8433> life=5.3666744
+Shot Cannon hostile=False position=<2678.0386, -329.4496> life=1.9333491
+CPU simulation average ms=0.159; draw submission average ms=1.131; cached scenery=10; engine FPS=58; draw calls=183; objects=781
+Frame ms mean: 16.73; p95: 16.67; p99: 16.67

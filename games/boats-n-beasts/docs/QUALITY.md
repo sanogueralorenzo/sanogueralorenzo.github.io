@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Remove enemy warning lines — 2026-09-08
+
+Removed coral attack-warning arcs, serpent lanes and puffer/ray aiming lines from presentation. Emergence foam, hostile projectiles, impact effects and health bars remain. Attack timing and simulation are unchanged. The Crownclaw arrival message no longer instructs players to watch warning rings.
+
+Debug and Release builds pass with zero warnings/errors. Native [windup](../evidence/no-warning-windup.png) and [dash](../evidence/no-warning-dash.png) captures show combat without red warning geometry. Paired telemetry records a puffer windup, a serpent windup transitioning into a dash, and active hostile projectiles. The native log is clean. This focused pass did not separately replay ray or boss attacks; their warning geometry used the same removed drawing path. No automated tests or injected state.
+
 ## Flat-shaded nautical diorama — 2026-09-08
 
 This is the current visual acceptance record. The [exact selected reference](visual-restart/flat-diorama-reference.png) replaces the earlier Direction B/doodle directions. The native result uses quiet petrol-teal water, simple polygon shallows, warm sand terraces, irregular faceted slate rocks, folded broad palm leaves, solid pitched cottage roofs, matte boat hulls and expressive flat-shaded creatures. Surface grain, fine rock fractures, sand flecks, deck seams, roof tiles and detailed water normals were removed. Low swimming teal serpents have coral fins; Crownclaw retains broad claws, readable eyes and a pale crown; Mage carries a larger upright violet crystal. Existing cream/navy/turquoise HUD and menus fit the new palette and retain their controls.
