@@ -3,9 +3,9 @@ import ApplicationServices
 
 @MainActor
 enum Accessibility {
-    static func application(_ pid: pid_t, timeout: Float = 1) -> AXUIElement {
+    static func application(_ pid: pid_t) -> AXUIElement {
         let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, timeout)
+        AXUIElementSetMessagingTimeout(app, 1)
         return app
     }
     static func value(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -38,7 +38,6 @@ final class CapturedSelection {
     let element: AXUIElement
     let window: AXUIElement?
     let text: String
-    let selectedRange: NSRange?
     let fingerprint: SelectionFingerprint?
     let point: NSPoint
     let supportsReplacement: Bool
@@ -48,7 +47,6 @@ final class CapturedSelection {
     init(app: NSRunningApplication, element: AXUIElement, text: String) {
         self.app = app; self.element = element; self.text = text
         self.window = Accessibility.element(element, kAXWindowAttribute)
-        self.selectedRange = Accessibility.range(element)
         self.fingerprint = Accessibility.fingerprint(element)
         var settable = DarwinBoolean(false)
         supportsReplacement = AXUIElementIsAttributeSettable(element, kAXSelectedTextAttribute as CFString, &settable) == .success && settable.boolValue && fingerprint != nil
@@ -73,15 +71,15 @@ final class CapturedSelection {
         if let observer { CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes) }
     }
 
-    static func capture(sourceApp: NSRunningApplication? = nil, timeout: Float = 1) throws -> CapturedSelection {
+    static func capture(sourceApp: NSRunningApplication? = nil) throws -> CapturedSelection {
         guard AXIsProcessTrusted() else {
             throw RewriteError.message("Allow Rewrite in System Settings → Privacy & Security → Accessibility, then select text and try again.")
         }
         guard let app = sourceApp ?? NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
-              let focused = Accessibility.element(Accessibility.application(app.processIdentifier, timeout: timeout), kAXFocusedUIElementAttribute) else {
+              let focused = Accessibility.element(Accessibility.application(app.processIdentifier), kAXFocusedUIElementAttribute) else {
             throw RewriteError.message("Select text in an app, then press the Rewrite shortcut again.")
         }
-        AXUIElementSetMessagingTimeout(focused, timeout)
+        AXUIElementSetMessagingTimeout(focused, 1)
         guard Accessibility.value(focused, kAXSubroleAttribute) as? String != kAXSecureTextFieldSubrole,
               let text = Accessibility.value(focused, kAXSelectedTextAttribute) as? String,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -93,34 +91,27 @@ final class CapturedSelection {
         return CapturedSelection(app: app, element: focused, text: text)
     }
 
-    func matches(_ other: CapturedSelection) -> Bool {
-        app.processIdentifier == other.app.processIdentifier && CFEqual(element, other.element) &&
-            text == other.text && fingerprint == other.fingerprint &&
-            selectedRange == other.selectedRange &&
-            ((window == nil && other.window == nil) || (window != nil && other.window != nil && CFEqual(window!, other.window!)))
-    }
-
     func replacementLimitation() -> String? {
-        guard supportsReplacement else { return "This app does not support safe replacement. Copy the result and paste it yourself." }
+        guard supportsReplacement else { return "This app does not support direct replacement. Try a standard text field in another app." }
         guard !app.isTerminated, !invalidated, let fingerprint,
               Accessibility.fingerprint(element) == fingerprint else {
-            return "The original text or selection changed. Copy the result, or select the text and start again."
+            return "The original text or selection changed. Select the text and try again."
         }
         let application = Accessibility.application(app.processIdentifier)
         guard let focused = Accessibility.element(application, kAXFocusedUIElementAttribute), CFEqual(focused, element),
               let window, let current = Accessibility.element(application, kAXFocusedWindowAttribute), CFEqual(window, current) else {
-            return "The original field is no longer focused. Copy the result, or start again from that field."
+            return "The original field is no longer focused. Select the text in that field and try again."
         }
         return nil
     }
 
     func replace(with result: String, requireForeground: Bool = false) async throws {
         if requireForeground && NSWorkspace.shared.frontmostApplication?.processIdentifier != app.processIdentifier {
-            throw RewriteError.message("You switched apps before the rewrite finished. Copy the result, or select the text and try again.")
+            throw RewriteError.message("You switched apps before the rewrite finished. Return to the original app, select the text, and try again.")
         }
         if let reason = replacementLimitation() { throw RewriteError.message(reason) }
         if !requireForeground {
-            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier || app.activate(options: []) else { throw RewriteError.message("Could not return to the original app. Copy the result instead.") }
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier || app.activate(options: []) else { throw RewriteError.message("Could not return to the original app. Select the text and try again.") }
         }
         // Activation is asynchronous. Verify the destination again after it takes effect.
         for _ in 0..<20 {
@@ -129,13 +120,13 @@ final class CapturedSelection {
         }
         try Task.checkCancellation()
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else {
-            throw RewriteError.message("The original app could not take focus. Copy the result instead.")
+            throw RewriteError.message("The original app could not take focus. Select the text and try again.")
         }
         if let reason = replacementLimitation() { throw RewriteError.message(reason) }
         // Target the captured AX element directly. No global paste event, clipboard mutation,
         // selection restoration, or whole-document setter can affect an unintended field.
         guard AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, result as CFString) == .success else {
-            throw RewriteError.message("This app refused replacement. Copy the result instead.")
+            throw RewriteError.message("This app refused replacement. Try a standard text field in another app.")
         }
         // Some web editors report success without implementing AXSelectedText writes.
         // Wait for acknowledgement, but never retry a mutation or replace the full value.
@@ -145,9 +136,9 @@ final class CapturedSelection {
             try await Task.sleep(nanoseconds: 25_000_000)
         }
         if Accessibility.fingerprint(element) == fingerprint {
-            throw RewriteError.message("This app did not apply the replacement. Copy the result and paste it yourself.")
+            throw RewriteError.message("This app did not apply the replacement. Try a standard text field in another app.")
         }
-        throw RewriteError.message("Could not verify the replacement. Check the original field before pasting; the result is still available to copy.")
+        throw RewriteError.message("Could not verify the replacement. Check the original field and use Undo if needed.")
     }
 
     func restoreFocus() {

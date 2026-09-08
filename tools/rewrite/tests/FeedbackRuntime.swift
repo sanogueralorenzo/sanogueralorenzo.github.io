@@ -4,22 +4,17 @@ import Carbon.HIToolbox
 @main
 @MainActor
 final class FeedbackRuntime: NSObject, NSApplicationDelegate {
-    let notice = ResultNotice()
     let shortcut = GlobalShortcut()
     static func main() {
         let app = NSApplication.shared, owner = FeedbackRuntime()
         app.delegate = owner; app.setActivationPolicy(.accessory)
         withExtendedLifetime(owner) { app.run() }
     }
-    func buttons(_ view: NSView) -> [NSButton] {
-        (view as? NSButton).map { [$0] } ?? view.subviews.flatMap { buttons($0) }
-    }
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
             do {
                 let output = CommandLine.arguments[1]
-                var cancelled = 0, copied = 0, pressed = 0
-                notice.onClose = { cancelled += 1 }; notice.onCopy = { copied += 1 }
+                var pressed = 0
                 let status = MenuBarStatus(); defer { status.remove() }
                 let menu = status.item.menu!
                 let button = status.item.button!
@@ -38,26 +33,39 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 precondition(menuCancelled, "menu dispatches cancellation")
                 status.setRewriting(nil)
                 precondition(dot.isHidden && menu.items.first { $0.title == "Rewrite Selection" }!.isEnabled, "completion or failure clears busy state")
-                notice.show("The original text or selection changed. Copy the result, or select the text and start again.", result: "She went to the library yesterday.", at: NSPoint(x: 300, y: 700))
-                if CommandLine.arguments.contains("--inspect") {
-                    print("Inspect the fallback notice now."); fflush(stdout)
-                    try await Task.sleep(nanoseconds: 30_000_000_000)
+                let windows = NSApp.windows.count
+                status.showError("The selection changed. Select the text and try again.")
+                precondition(NSApp.windows.count == windows, "errors do not open windows")
+                precondition(menu.items.contains { !$0.isHidden && $0.title == "Rewrite needs attention" }, "errors are shown in menu bar")
+                precondition(menu.items.contains { !$0.isHidden && $0.view != nil }, "menu includes error detail")
+                status.setRewriting(.shorter)
+                precondition(menu.items.filter { $0.view != nil }.allSatisfy { $0.isHidden }, "new request clears error detail")
+                status.setRewriting(nil)
+                precondition(Shortcut.standard.modifiers == UInt32(optionKey) && Shortcut.standard.keyCode == UInt32(kVK_ANSI_R), "Option-R opens Rewrite")
+                let legacy = Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(optionKey | shiftKey), label: "⌥⇧R")
+                precondition(legacy.migratingLegacyShortcut == .standard, "old shortcut migrates")
+                let custom = Shortcut(keyCode: UInt32(kVK_ANSI_T), modifiers: UInt32(controlKey), label: "⌃T")
+                precondition(custom.migratingLegacyShortcut == custom, "custom shortcut preserved")
+                let actions = ActionMenu()
+                var choices: [EditAction] = []
+                actions.onChoose = { choices.append($0) }
+                let codes = [kVK_ANSI_1, kVK_ANSI_2, kVK_ANSI_3, kVK_ANSI_4, kVK_ANSI_5, kVK_ANSI_6]
+                for index in 0..<6 {
+                    let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .option, timestamp: 0, windowNumber: 0, context: nil,
+                        characters: ["¡", "™", "£", "¢", "∞", "§"][index], charactersIgnoringModifiers: String(index + 1), isARepeat: false, keyCode: UInt16(codes[index]))!
+                    precondition(actions.menu.performKeyEquivalent(with: event), "Option-number activates menu action")
                 }
-                try await Task.sleep(nanoseconds: 150_000_000)
-                let view = notice.panel.contentView!
-                view.layoutSubtreeIfNeeded()
-                let controls = buttons(view)
-                precondition(!controls.contains { $0.title == "Replace" }, "no acceptance step")
-                let copyButton = controls.first { $0.title == "Copy" }!
-                precondition(!copyButton.isHidden, "unapplied result can be copied")
-                copyButton.performClick(nil); precondition(copied == 1, "copy dispatch")
-                let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
-                view.cacheDisplay(in: view.bounds, to: bitmap)
-                try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: output + "-notice.png"))
-                controls.first { $0.title == "Close" }!.performClick(nil)
-                precondition(cancelled == 1, "notice dismissal")
-                notice.show("The processor could not complete the rewrite.")
-                precondition(copyButton.isHidden, "request failures have no empty result to copy")
+                precondition(choices == EditAction.allCases, "Option-1 through Option-6 choose the six styles in order")
+                if CommandLine.arguments.contains("--menu") {
+                    choices.removeAll()
+                    let window = NSWindow(contentRect: NSRect(x: 280, y: 300, width: 320, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+                    window.title = "Rewrite keyboard test"; window.isReleasedWhenClosed = false
+                    NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+                    print("Choose Fix grammar with Option-1 in the menu now."); fflush(stdout)
+                    let picked = actions.menu.popUp(positioning: actions.menu.items.first, at: NSPoint(x: 300, y: 600), in: nil)
+                    precondition(picked && choices == [.grammar], "live popup Option-1 dispatch")
+                    window.orderOut(nil)
+                }
                 shortcut.onPress = { pressed += 1 }
                 let testShortcut = Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "test")
                 precondition(shortcut.register(testShortcut), "Hotkey registration")
@@ -69,8 +77,7 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 SetEventParameter(event!, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size, &id)
                 SendEventToEventTarget(event!, GetApplicationEventTarget()); ReleaseEvent(event!)
                 precondition(pressed == 1, "Carbon callback dispatch")
-                notice.closePanel()
-                print("PASS busy badge, menu status/cancel, fallback notice, shortcut registration/conflict/callback")
+                print("PASS busy badge, menu status/cancel, window-free errors, Option-1 through Option-6, shortcut migration/registration/conflict/callback")
                 NSApp.terminate(nil)
             } catch { print(error.localizedDescription); exit(1) }
         }

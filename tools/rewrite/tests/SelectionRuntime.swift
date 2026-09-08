@@ -31,8 +31,9 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                 guard captured.text == Self.source else { throw RewriteError.message("Select only the documented disposable fixture before running this test.") }
                 print("PASS capture: \(captured.app.localizedName ?? "app"); consistent range: \(captured.fingerprint != nil); direct replacement: \(captured.supportsReplacement)")
                 if CommandLine.arguments.contains("--background") {
-                    let notice = ResultNotice()
-                    notice.show("Checking that a background field cannot be rewritten.")
+                    let window = NSWindow(contentRect: NSRect(x: 300, y: 300, width: 300, height: 80), styleMask: [.titled], backing: .buffered, defer: false)
+                    window.title = "App-switch protection test"; window.isReleasedWhenClosed = false
+                    NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
                     try await Task.sleep(nanoseconds: 250_000_000)
                     guard NSWorkspace.shared.frontmostApplication?.processIdentifier != captured.app.processIdentifier else {
                         throw RewriteError.message("FAIL test app did not become foreground")
@@ -43,7 +44,7 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                     } catch {
                         guard error.localizedDescription.contains("switched apps"), Accessibility.fingerprint(captured.element) == captured.fingerprint else { throw error }
                     }
-                    notice.closePanel(); captured.restoreFocus()
+                    window.orderOut(nil); captured.restoreFocus()
                     print("PASS app switch prevents automatic replacement without changing source")
                 } else if CommandLine.arguments.contains("--changed") {
                     print("Change the selected range now; checking for up to 30 seconds."); fflush(stdout)
@@ -59,15 +60,15 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                         guard Accessibility.value(captured.element, kAXValueAttribute) as? String == captured.fingerprint?.value else { throw error }
                     }
                     print("PASS changed selection rejected without changing source")
-                } else if CommandLine.arguments.contains("--copy-only") {
+                } else if CommandLine.arguments.contains("--unsupported") {
                     do {
                         try await captured.replace(with: Self.edited)
                         throw RewriteError.message("FAIL expected copy-only fallback")
                     } catch {
                         guard (Accessibility.value(captured.element, kAXSelectedTextAttribute) as? String) == Self.source,
                               Accessibility.fingerprint(captured.element) == captured.fingerprint,
-                              error.localizedDescription.contains("Copy") else { throw error }
-                        print("PASS unsupported replacement leaves original untouched and explains Copy")
+                              error.localizedDescription.contains("replacement") else { throw error }
+                        print("PASS unsupported replacement leaves original untouched and explains the limitation")
                     }
                 } else if CommandLine.arguments.contains("--replace") || CommandLine.arguments.contains("--automatic") {
                     var edited = Self.edited

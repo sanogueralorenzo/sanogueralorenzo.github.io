@@ -5,7 +5,10 @@ struct Shortcut: Codable, Equatable {
     var keyCode: UInt32
     var modifiers: UInt32
     var label: String
-    static let standard = Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(optionKey | shiftKey), label: "⌥⇧R")
+    var migratingLegacyShortcut: Shortcut {
+        keyCode == UInt32(kVK_ANSI_R) && modifiers == UInt32(optionKey | shiftKey) ? .standard : self
+    }
+    static let standard = Shortcut(keyCode: UInt32(kVK_ANSI_R), modifiers: UInt32(optionKey), label: "⌥R")
 }
 
 @MainActor

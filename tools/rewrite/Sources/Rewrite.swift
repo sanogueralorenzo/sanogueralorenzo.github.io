@@ -4,18 +4,15 @@ import AppKit
 @MainActor
 final class Rewrite: NSObject, NSApplicationDelegate {
     private let shortcut = GlobalShortcut()
-    private let notice = ResultNotice()
-    private let toolbar = SelectionToolbar()
-    private let watcher = SelectionWatcher()
-    private var toolbarSelection: CapturedSelection?
     private let settings = Settings()
     private let processor = ProcessorService()
     private let menuBar = MenuBarStatus()
     private var selection: CapturedSelection?
-    private var result: String?
     private var task: Task<Void, Never>?
     private var generation = UUID()
     private var actionMenu: NSMenu?
+    private var escapeMonitor: Any?
+    private var localEscapeMonitor: Any?
 
     static func main() {
         signal(SIGPIPE, SIG_IGN)
@@ -35,26 +32,13 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         withExtendedLifetime(owner) { app.run() }
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
-        watcher.isEnabled = { [weak self] in
-            guard let self else { return false }
-            return self.settings.automaticToolbar && self.settings.isConfigured && self.selection == nil &&
-                self.task == nil && !self.notice.panel.isVisible && !self.settings.isVisible
+        escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { MainActor.assumeIsolated { if self?.task != nil { self?.cancel() } } }
         }
-        watcher.onSelection = { [weak self] selection in
-            self?.toolbarSelection = selection; self?.toolbar.show(at: selection.point)
+        localEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 && self?.task != nil { self?.cancel() }
+            return event
         }
-        watcher.onHide = { [weak self] in self?.toolbar.hide(); self?.toolbarSelection = nil }
-        toolbar.onDismiss = { [weak self] in self?.watcher.dismiss() }
-        toolbar.onChoose = { [weak self] action in
-            guard let self, let selected = self.toolbarSelection,
-                  !selected.invalidated, let current = try? CapturedSelection.capture(), selected.matches(current) else {
-                self?.watcher.dismiss(); return
-            }
-            self.selection = selected; self.watcher.dismiss(); self.run(action)
-        }
-        watcher.onEscape = { [weak self] in if self?.task != nil { self?.cancel() } }
-        watcher.interactionWindow = toolbar.panel
-        watcher.start()
         menuBar.onRewrite = { [weak self] in self?.begin() }
         menuBar.onCancel = { [weak self] in self?.cancel() }
         menuBar.onSettings = { [weak self] in self?.showSettings() }
@@ -63,41 +47,32 @@ final class Rewrite: NSObject, NSApplicationDelegate {
             guard let self, self.shortcut.register(value) else { return false }
             self.menuBar.shortcutLabel = value.label; return true
         }
-        notice.onClose = { [weak self] in self?.cancel() }
-        notice.onCopy = { [weak self] in self?.copy() }
         settings.onSave = { [weak self] in self?.selection?.restoreFocus(); self?.selection = nil }
         menuBar.shortcutLabel = settings.shortcut.label
-        if !shortcut.register(settings.shortcut) { notice.show("The shortcut is already in use. Choose another in Rewrite Settings.") }
+        if !shortcut.register(settings.shortcut) { menuBar.showError("The shortcut is already in use. Choose another in Rewrite Settings.") }
         else if !settings.isConfigured { settings.show() }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { watcher.stop(); toolbar.hide(); task?.cancel(); processor.cancel(); notice.closePanel() }
+    func applicationWillTerminate(_ notification: Notification) {
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
+        if let localEscapeMonitor { NSEvent.removeMonitor(localEscapeMonitor) }
+        task?.cancel(); processor.cancel(); menuBar.remove()
+    }
 
     @objc private func begin() {
-        watcher.dismiss()
         if task != nil || selection != nil { cancel(); return }
         do {
             selection = try CapturedSelection.capture()
             guard settings.isConfigured else { settings.show(); return }
             guard let selection else { return }
-            let menu = NSMenu(); menu.autoenablesItems = false
-            for (index, action) in EditAction.allCases.prefix(3).enumerated() { menu.addItem(actionItem(action, index: index)) }
-            let tone = NSMenuItem(title: "Change tone", action: nil, keyEquivalent: "")
-            let tones = NSMenu()
-            for (index, action) in EditAction.allCases.suffix(3).enumerated() { tones.addItem(actionItem(action, index: index + 3)) }
-            tone.submenu = tones; menu.addItem(tone)
+            let actions = ActionMenu()
+            actions.onChoose = { [weak self] action in self?.run(action) }
+            let menu = actions.menu
             actionMenu = menu
-            let picked = menu.popUp(positioning: menu.items.first, at: selection.point, in: nil)
+            let picked = withExtendedLifetime(actions) { menu.popUp(positioning: menu.items.first, at: selection.point, in: nil) }
             actionMenu = nil
             if !picked { cancel() }
-        } catch { notice.show(error.localizedDescription) }
-    }
-    private func actionItem(_ action: EditAction, index: Int) -> NSMenuItem {
-        let item = NSMenuItem(title: action.rawValue, action: #selector(choose(_:)), keyEquivalent: "")
-        item.target = self; item.tag = index; return item
-    }
-    @objc private func choose(_ sender: NSMenuItem) {
-        run(EditAction.allCases[sender.tag])
+        } catch { selection = nil; menuBar.showError(error.localizedDescription) }
     }
     private func run(_ action: EditAction) {
         guard let selection else { return }
@@ -111,30 +86,20 @@ final class Rewrite: NSObject, NSApplicationDelegate {
             do {
                 let output = try await processor.rewrite(selection.text, action: action, configuration: configuration)
                 try Task.checkCancellation(); guard generation == current else { return }
-                result = output
                 try await selection.replace(with: output, requireForeground: true)
                 guard generation == current else { return }
                 task = nil; cancel()
             } catch {
                 guard generation == current, !Task.isCancelled else { return }
-                task = nil; menuBar.setRewriting(nil)
-                notice.show(error.localizedDescription, result: result, at: selection.point)
+                task = nil; self.selection = nil
+                menuBar.showError(error.localizedDescription)
             }
         }
     }
     private func cancel() {
-        watcher.dismiss(); menuBar.setRewriting(nil)
+        menuBar.setRewriting(nil)
         generation = UUID(); task?.cancel(); task = nil; processor.cancel(); actionMenu?.cancelTracking()
-        notice.closePanel(); selection?.restoreFocus(); selection = nil; result = nil
-    }
-    private func copy() {
-        guard let result else { return }
-        // Copy is the only action that intentionally changes the clipboard.
-        NSPasteboard.general.clearContents()
-        guard NSPasteboard.general.setString(result, forType: .string) else {
-            notice.show("Could not write to the clipboard. Try Copy again.", result: result); return
-        }
-        cancel()
+        selection?.restoreFocus(); selection = nil
     }
     @objc private func showSettings() { cancel(); settings.show() }
 }

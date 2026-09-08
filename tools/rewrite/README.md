@@ -10,11 +10,22 @@ curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.g
 
 Installs in `~/Applications`. On first launch, choose a processor and model. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**. The pencil menu provides Settings and Quit. Click the shortcut in Settings to record another combination (include Command, Control, or Option).
 
-Select text and pause briefly: a small toolbar appears beside the selection without taking focus. Click **Fix grammar**, **Make clearer**, **Make shorter**, **Professional**, **Casual**, or **Friendly** directly. Typing, scrolling, clicking outside, Escape, or the toolbar’s × dismisses it. A dismissed selection stays dismissed until the selection changes. Turn this off with **Show rewrite toolbar when text is selected** in Settings.
+Select text, press **⌥R (Option-R)**, then choose a style with its shortcut:
 
-The keyboard shortcut **⌥⇧R** and **pencil menu → Rewrite Selection** also remain available. In the keyboard menu, choose **Fix grammar**, **Make clearer**, **Make shorter**, or **Change tone → Professional / Casual / Friendly**. Use arrow keys and Return in the native menu. Choosing an action starts the rewrite and replaces the selected text automatically when it finishes. There is no acceptance dialog. Use **⌘Z** in the original app to undo (Undo support is controlled by that app).
+| Shortcut | Style |
+| --- | --- |
+| ⌥1 | Fix grammar |
+| ⌥2 | Make clearer |
+| ⌥3 | Make shorter |
+| ⌥4 | Professional |
+| ⌥5 | Casual |
+| ⌥6 | Friendly |
 
-While working, a small dot appears at the upper-right corner of the pencil menu-bar icon. Open that menu to see **Rewriting…**, the selected action, and **Cancel Rewrite**. Escape or pressing the Rewrite shortcut again also cancels processing. The dot clears on completion, cancellation, or failure. Requests time out after 90 seconds.
+You can also click a style or use arrow keys and Return. The pencil menu’s **Rewrite Selection** opens the same menu. There is no automatic popup when selecting text.
+
+The result replaces the selected text automatically, without a preview, Replace button, or Copy window. Use **⌘Z** in the source app to undo (Undo support is controlled by that app).
+
+While working, a small dot appears at the upper-right of the pencil menu-bar icon. Open the menu to see **Rewriting…**, the style, and **Cancel Rewrite**. Escape or pressing the Rewrite shortcut again also cancels processing. Errors appear in that menu with an orange dot and instructions; they never open a result window. Requests time out after 90 seconds.
 
 Processor choices:
 
@@ -26,13 +37,11 @@ Processor choices:
 
 CLI discovery checks `~/.local/bin`, Homebrew, inherited PATH, and the bundled Codex executable. Model names can also be entered directly. The model picker starts with **GPT 5.6 Luna · Light reasoning** for Codex and **Claude Haiku 4.5 · Thinking off** for Claude. Codex requests use Light reasoning (`low`), including when selecting another model. Haiku 4.5 requests disable extended thinking (`MAX_THINKING_TOKENS=0`) for quick, economical edits. Previously saved automatic model choices resolve to these named models. Codex's project/user configuration is intentionally not loaded. The existing authentication store stays in place so token refresh works normally. Provider account limits and service-side data policies still apply.
 
-Each request contains the selected text plus editing instructions. Source text is encoded as data and never interpreted by Rewrite as a command. Requests run outside your project. Codex uses an ephemeral session, temporary state/log directories with logging disabled, replacement editing instructions, read-only sandbox, and disabled shell, app, plugin, hook, browser, and other tool features. Claude uses safe mode, an empty tool/MCP set, a replacement system prompt, and no session persistence. Automatic detection reads the foreground app’s exposed selection locally while Rewrite is idle; no processor request is sent until an action is chosen. Rewrite stores only processor, model, shortcut, and toolbar preferences; it does not log text, results, or raw processor errors.
+Each request contains the selected text plus editing instructions. Source text is encoded as data and never interpreted by Rewrite as a command. Requests run outside your project. Codex uses an ephemeral session, temporary state/log directories with logging disabled, replacement editing instructions, read-only sandbox, and disabled shell, app, plugin, hook, browser, and other tool features. Claude uses safe mode, an empty tool/MCP set, a replacement system prompt, and no session persistence. Rewrite reads the selection only when invoked and sends no processor request until a style is chosen. Rewrite stores only processor, model, and shortcut preferences; it does not log text, results, or raw processor errors.
 
-Replacement uses the captured Accessibility element directly, without changing the clipboard or simulating paste. Automatic replacement also requires the original app to remain in the foreground. It requires the original field, window, full field value, and UTF-16 selection to still match. Observed text/selection changes permanently invalidate the request. **Capture and Replace never change the clipboard or send a global paste keystroke.** Copy intentionally puts the result on the clipboard. The destination app controls Undo and formatting behavior.
+Replacement uses the captured Accessibility element directly, without changing the clipboard or simulating paste. Automatic replacement also requires the original app to remain in the foreground. It requires the original field, window, full field value, and UTF-16 selection to still match. Observed text/selection changes permanently invalidate the request. **Capture and replacement never change the clipboard or send a global paste keystroke.** The destination app controls Undo and formatting behavior.
 
-The automatic toolbar requires Accessibility permission and an exposed text selection. It waits for the selection to settle (typically under a second), stays hidden during processing and Settings, and ignores secure, empty, oversized, or unreadable selections. Apps with custom selection handling may require the shortcut or may not work at all.
-
-Some apps expose readable text but cannot safely replace it. Those results open a small notice with **Copy** (⌘⇧C) and **Close**. The same fallback is used if the selection changes or you switch apps before completion. Apps that do not expose selected text (including secure fields, some browser content, terminals, and custom editors) show a short message. There is no blind copy/paste fallback. Selections are limited to 24,000 UTF-16 units; rich styling is not transmitted, but textual structure is preserved. AI edits can still be imperfect: check the text after replacement and use Undo if needed.
+Some apps expose readable text but cannot safely replace it. Rewrite leaves the text untouched and explains the limitation in the menu bar. Changed selections or app switches cancel delivery instead of editing a stale or background field. Apps that do not expose selected text (including secure fields, some browser content, terminals, and custom editors) cannot be rewritten. There is no clipboard or paste-keystroke fallback. Selections are limited to 24,000 UTF-16 units; rich styling is not transmitted, but textual structure is preserved. AI edits can still be imperfect: check the text after replacement and use Undo if needed.
 
 Local development:
 
@@ -43,9 +52,7 @@ Local development:
 ./tests/run.sh --live codex
 ./tests/run.sh --live claude
 ./tests/run.sh --live ollama
-./tests/feedback.sh        # busy badge, menu status, Copy notice, and shortcut checks
-./tests/toolbar.sh         # toolbar layout, action dispatch, and dismissal
-./tests/toolbar.sh --selection --changed # live TextEdit selection checks
+./tests/feedback.sh        # Option-R, six style shortcuts, and menu-bar status/error checks
 ./tests/selection.sh --app com.apple.TextEdit --replace
 ./tests/selection.sh --app com.apple.TextEdit --automatic # live Ollama rewrite + automatic replacement
 ./tests/selection.sh --app com.apple.TextEdit --background # reject background replacement
