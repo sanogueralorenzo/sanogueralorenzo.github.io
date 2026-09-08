@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Smooth matching island contours — 2026-09-08
+
+[Before](coast-before.png), [rounded title islands](coast-smooth-title.png) and [gameplay shoreline](coast-smooth-gameplay.png) show the same contour used by sand and both blue bands. Same-name TXT reports accompany each capture. [Native log](coast-smooth-runtime.txt).
+
 ## Exposed harbors — 2026-09-08
 
 [Before opening E](harbor-exposed.png) shows damage beside the starting dock. [Harbor menu A](harbor-menu-freeze-a.png)/[B](harbor-menu-freeze-b.png), captured 2.025 seconds apart, have identical simulation telemetry. [After closing](harbor-combat-resumed.png) shows resumed combat and further damage at the same position. Each PNG has a same-name TXT report. [Native log](harbor-exposed-runtime.txt).

@@ -63,20 +63,20 @@ public static class EnvironmentArt3D
         return art.Finish("Cottage");
     }
 
-    private static float Coast(float a, uint seed) => 1 + .055f * Mathf.Sin(a * 3 + seed % 17) + .040f * Mathf.Cos(a * 5 + seed % 11) + .024f * Mathf.Sin(a * 7 + seed % 23);
+    private static float Coast(float a, uint seed) => 1 + .040f * Mathf.Sin(a * 2 + seed % 17) + .025f * Mathf.Cos(a * 3 + seed % 11);
 
     private static void Land(Sculptor art, float r, uint seed, bool rock)
     {
-        const int sides = 20;
+        const int sides = 96;
         float[] radii = [0, .72f, .94f, 1.04f, 1.16f, 1.42f];
         float[] heights = [.18f, .18f, .09f, .025f, .009f, .006f];
         Color[] colors = [Sand, Sand, new("f3daa4"), new("f8e5b5"), new("2ca4a8"), new("188695")];
         if (rock) { heights = [.06f, .05f, .024f, .014f, .009f, .006f]; colors[1] = colors[2] = colors[3] = new("2ca4a8"); }
+        // Sand and both shallow-water bands share one smooth, rounded contour.
         Vector3 Point(int layer, int i)
         {
             float a = i * Mathf.Tau / sides;
             float radius = radii[layer] * Coast(a, seed);
-            if (layer >= 4) radius += .09f * Mathf.Sin(a * 3 + seed % 13);
             return new(Mathf.Cos(a) * radius * r, heights[layer], Mathf.Sin(a) * radius * r);
         }
         for (int layer = 0; layer < radii.Length - 1; layer++)

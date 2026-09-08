@@ -5,7 +5,7 @@ The selected reference is [flat-diorama-reference.png](visual-restart/flat-diora
 ## Visual contract
 
 - Quiet petrol-teal sea with only broad, slow color variation. No fine water textures, ripple normal maps, reflective highlights or foam networks.
-- Warm sand terraces, two simple organic turquoise shallow bands and a few short ivory shoreline arcs. Angular rocks use broad unequal slate faces and pale caps; palms use a handful of thick folded leaf shapes. Cottages have cream walls and simple solid pitched roofs.
+- Smooth rounded sand terraces and two turquoise shallow bands that follow the exact same seeded contour and a few short ivory shoreline arcs. Angular rocks use broad unequal slate faces and pale caps; palms use a handful of thick folded leaf shapes. Cottages have cream walls and simple solid pitched roofs.
 - Matte cream/navy boats with clear silhouettes and visible starter fittings. Gunboat retains its aiming cannon, Aura its teal fitting and radius curls, and Mage its upright violet crystal. Coral crabs, crowned boss, gold puffers, low teal serpents and blue rays retain distinct identities.
 - Flat face shading and restrained bevels; no surface grain, fine sand flecks, rock fractures or detailed deck seams. Warm directional light, cool ambient fill and soft contact shadows give depth without glossy or cinematic effects.
 - Two tapered wake ribbons follow actual movement. Creature direction changes are smoothed, reversals start a new trail, and adjacent bank vertices join continuously. Violet trails and coral enemy shots remain distinct; fish are submerged teal silhouettes without overhead markers.

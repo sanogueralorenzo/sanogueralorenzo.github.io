@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Smooth matching island contours — 2026-09-08
+
+Island, harbor and offshore-rock shoreline meshes now sample 96 points instead of 20. Their shared seeded radius uses two gentle low-frequency curves, removing the smaller bumps. Sand terraces and both blue shallow bands use that same contour at every angle; the extra distortion formerly applied only to water bands is removed. Shore foam follows the same coast function. Scenery placement, collision radii, buildings and rock shapes are unchanged.
+
+Debug/Release pass with zero warnings/errors; native log clean. Reviewed the title and sailed beside the home island, checking rounded sand, aligned blue bands and rock shallows at gameplay scale. [Before/after captures](../evidence/README.md) document the visual change. No automated tests or injected state. This focused pass did not repeat sustained performance or every procedural island seed; geometry remains cached and uses the existing merged surfaces.
+
 ## Harbor protection requires opening the menu — 2026-09-08
 
 Removed location-based harbor immunity, spawn suppression/exclusion, enemy repulsion, puffer disarming, hostile-shot deletion and automatic-weapon suppression. Harbor range only exposes the E interaction and upgrade offers. Pressing E opens the harbor menu, which freezes the voyage; closing it resumes combat immediately. Menu heading now says “Combat paused,” and the handbook explains that dockside water is exposed. Normal land collision, hit cooldowns and other paused menus retain their behavior.
