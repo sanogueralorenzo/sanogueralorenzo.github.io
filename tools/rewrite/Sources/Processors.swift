@@ -4,7 +4,7 @@ enum ProcessorKind: String, CaseIterable {
     case codex = "Codex CLI", claude = "Claude CLI", ollama = "Ollama (local)"
     var notice: String {
         switch self {
-        case .codex: return "Uses your Codex sign-in. Selected text is sent to OpenAI."
+        case .codex: return "Default: GPT-5.6 Luna · Light reasoning. Uses your Codex sign-in. Selected text is sent to OpenAI."
         case .claude: return "Uses your Claude sign-in. Selected text is sent to Anthropic."
         case .ollama: return "Runs on this Mac through Ollama at 127.0.0.1:11434. Cloud models are refused."
         }
@@ -167,7 +167,7 @@ final class ProcessorService {
 
     static func codexArguments(rules: URL) -> [String] {
         var args = ["exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never"]
-        for setting in ["approval_policy=\"never\"", "project_doc_max_bytes=0", "web_search=\"disabled\"",
+        for setting in ["model=\"gpt-5.6-luna\"", "model_reasoning_effort=\"low\"", "approval_policy=\"never\"", "project_doc_max_bytes=0", "web_search=\"disabled\"",
                         "history.persistence=\"none\"", "analytics.enabled=false", "feedback.enabled=false",
                         "model_instructions_file=\"\(rules.path)\""] { args += ["-c", setting] }
         for feature in ["shell_tool", "unified_exec", "shell_snapshot", "apps", "plugins", "hooks", "memories", "multi_agent",

@@ -66,6 +66,7 @@ struct RewriteTests {
         check(!ProcessorService.isLocalModel(remote, name: "innocent-name"), "renamed cloud model rejected")
         check(!ProcessorService.isLocalModel([:], name: "unknown"), "unverifiable model rejected")
         let args = ProcessorService.codexArguments(rules: URL(fileURLWithPath: "/private/tmp/rules"))
+        check(args.contains("model=\"gpt-5.6-luna\"") && args.contains("model_reasoning_effort=\"low\""), "Codex defaults to Luna with light reasoning")
         check(args.contains("--ephemeral") && args.contains("--ignore-user-config") && args.contains("project_doc_max_bytes=0") && args.contains("read-only"), "Codex isolation")
         check(args.contains("shell_tool") && args.contains("apps") && args.contains("hooks") && args.contains("plugins"), "tools and customization disabled")
         let directory = URL(fileURLWithPath: "/private/tmp")
