@@ -506,4 +506,3 @@ Enemy 23: Leviathan position=<3352.3596, -778.88995> hp=1837.5 time=3.714271 att
 Shot Arcane hostile=False position=<2951.6643, -499.76932> life=2.0416825 target=<0, 0> age=0.35831892 flight=0
 CPU simulation average ms=0.043; draw submission average ms=1.022; cached scenery=1; engine FPS=116; draw calls=197; objects=678
 Frame ms mean: 8.37; p95: 8.33; p99: 8.43
-
