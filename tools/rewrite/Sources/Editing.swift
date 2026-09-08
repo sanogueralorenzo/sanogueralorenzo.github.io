@@ -1,17 +1,13 @@
 import Foundation
 
 enum EditAction: String, CaseIterable {
-    case grammar = "Fix grammar", clearer = "Make clearer", shorter = "Make shorter"
-    case professional = "Professional", casual = "Casual", friendly = "Friendly"
+    case shorter = "Make shorter", clearer = "Make clearer", grammar = "Fix grammar"
 
     var instruction: String {
         switch self {
         case .grammar: return "Correct spelling, grammar, and punctuation."
         case .clearer: return "Improve readability and phrasing."
         case .shorter: return "Remove unnecessary words while preserving meaning."
-        case .professional: return "Change the tone to professional."
-        case .casual: return "Change the tone to casual."
-        case .friendly: return "Change the tone to friendly."
         }
     }
 }

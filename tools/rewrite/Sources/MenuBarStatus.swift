@@ -18,7 +18,6 @@ final class MenuBarStatus: NSObject {
     private var errorMessage: String?
     private let dot = StatusDot(frame: .zero)
     private var action: EditAction?
-    var shortcutLabel = "⌥R" { didSet { updateTooltip() } }
 
     override init() {
         super.init()
@@ -60,7 +59,7 @@ final class MenuBarStatus: NSObject {
     }
     func remove() { NSStatusBar.system.removeStatusItem(item) }
     private func updateTooltip() {
-        let label = errorMessage.map { "Rewrite: \($0)" } ?? action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewrite · \(shortcutLabel)"
+        let label = errorMessage.map { "Rewrite: \($0)" } ?? action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewrite · ⌥R"
         item.button?.toolTip = label; item.button?.setAccessibilityLabel(label)
     }
     @objc private func begin() { onRewrite?() }

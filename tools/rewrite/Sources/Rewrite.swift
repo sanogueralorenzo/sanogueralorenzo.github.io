@@ -40,13 +40,8 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         menuBar.onCancel = { [weak self] in self?.controller.cancel() }
         menuBar.onSettings = { [weak self] in self?.controller.showSettings() }
         shortcut.onPress = { [weak self] in self?.controller.begin() }
-        settings.onShortcut = { [weak self] value in
-            guard let self, self.shortcut.register(value) else { return false }
-            self.menuBar.shortcutLabel = value.label; return true
-        }
         settings.onSave = { [weak self] in self?.controller.settingsSaved() }
-        menuBar.shortcutLabel = settings.shortcut.label
-        if !shortcut.register(settings.shortcut) { menuBar.showError("The shortcut is already in use. Choose another in Rewrite Settings.") }
+        if !shortcut.register() { menuBar.showError("Could not register ⌥R. Use Rewrite in the pencil menu, or free ⌥R in the other app and restart Rewrite.") }
         else if !settings.isConfigured { settings.show() }
         warmPi()
     }

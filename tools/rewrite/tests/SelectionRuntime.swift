@@ -28,7 +28,7 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                 let appID = args.firstIndex(of: "--app").flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
                 let sourceApp = appID.flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }
                 let captured = try CapturedSelection.capture(sourceApp: sourceApp)
-                guard captured.text == Self.source else { throw RewriteError.message("Select only the documented disposable fixture before running this test.") }
+                guard captured.text == Self.source else { throw RewriteError.message("Select exactly this disposable fixture before running this test: \(Self.source)") }
                 print("PASS capture: \(captured.app.localizedName ?? "app"); consistent range: \(captured.fingerprint != nil); direct replacement: \(captured.supportsReplacement)")
                 if CommandLine.arguments.contains("--background") {
                     let window = NSWindow(contentRect: NSRect(x: 300, y: 300, width: 300, height: 80), styleMask: [.titled], backing: .buffered, defer: false)

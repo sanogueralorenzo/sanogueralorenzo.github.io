@@ -1,1 +1,0 @@
-Hey team, I reviewed the new onboarding flow, and it looks good overall. A few things feel confusing, especially the import step. Could we make the error message clearer and add a link to the example file? I can review it again tomorrow if that helps.
