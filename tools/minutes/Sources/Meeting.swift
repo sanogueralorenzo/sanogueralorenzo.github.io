@@ -18,9 +18,21 @@ struct Meeting: Codable, Identifiable, Equatable {
     var copied: String { "\(title)\n\(metadata)\n\n\(body)" }
 }
 struct ProcessorSettings: Codable {
-    var provider = "local"
-    var model = "qwen3:8b"
-    var configured = false
+    var provider = "openai"
+    static let choices = [(id: "openai", label: "OpenAI · Luna"), (id: "anthropic", label: "Anthropic · Haiku")]
+    var label: String { Self.choices.first { $0.id == provider }?.label ?? "Choose a provider" }
+    var hasProvider: Bool { Self.choices.contains { $0.id == provider } }
+    init() {}
+    enum CodingKeys: String, CodingKey { case provider }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let saved = try values.decodeIfPresent(String.self, forKey: .provider) ?? ""
+        switch saved {
+        case "codex", "openai": provider = "openai"
+        case "claude", "anthropic": provider = "anthropic"
+        default: provider = ""
+        }
+    }
 }
 struct NoteResult: Decodable { let title: String; let body: String }
 

@@ -10,14 +10,21 @@ struct MinutesView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                if model.busy != nil || model.transitioning { ProgressView().controlSize(.small) }
-                else { Image(systemName: model.recording == nil ? "waveform" : "record.circle.fill").foregroundStyle(model.recording == nil ? Color.secondary : Color.red) }
+                if model.activity.showsProgress { ProgressView().controlSize(.small) }
+                else { Image(systemName: model.activity.recordingID == nil ? "waveform" : "record.circle.fill").foregroundStyle(model.activity.recordingID == nil ? Color.secondary : Color.red) }
                 Text(model.status).font(.system(size: 12)).foregroundStyle(.secondary)
                 Spacer()
-                Button(model.recording == nil ? "Record" : "Stop", action: model.toggle)
-                    .disabled(model.busy != nil || model.transitioning)
+                Button(model.activity.recordingID == nil ? "Record" : "Stop", action: model.toggle)
+                    .disabled(model.activity.showsProgress)
                     .help("Start or stop recording · ⌥⇧M")
-                Button { model.settingsOpen = true } label: { Image(systemName: "gearshape") }.help("Settings").disabled(model.isWorking)
+                Menu("Provider") {
+                    Picker("Provider", selection: Binding(get: { model.settings.provider }, set: model.selectProvider)) {
+                        ForEach(ProcessorSettings.choices, id: \.id) { Text($0.label).tag($0.id) }
+                    }
+                    Divider()
+                    Text("Transcripts are sent through Pi. Transcription stays local.")
+                }.fixedSize().disabled(model.isWorking)
+
             }.padding(.horizontal, 14).padding(.vertical, 10)
             Divider()
             HSplitView {
@@ -66,7 +73,6 @@ struct MinutesView: View {
             }
         }
         .frame(minWidth: 620, minHeight: 420)
-        .sheet(isPresented: $model.settingsOpen) { SettingsView(model: model) }
         .sheet(isPresented: Binding(get: { transcript != nil }, set: { if !$0 { transcript = nil } })) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Full transcript").font(.headline); Spacer(); Button("Done") { transcript = nil }.keyboardShortcut(.cancelAction) }
@@ -119,39 +125,10 @@ struct MinutesView: View {
                 Spacer()
                 Menu {
                     Button("Open saved files") { model.reveal(meeting.id) }
-                    Button("Delete meeting…", role: .destructive) { deleting = meeting.id }.disabled(model.recording == meeting.id || model.busy == meeting.id)
+                    Button("Delete meeting…", role: .destructive) { deleting = meeting.id }.disabled(model.activity.meetingID == meeting.id)
                 } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize().help("Meeting actions")
             }.padding(.top, 12)
         }.padding(22)
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var model: MinutesModel
-    @State private var draft = ProcessorSettings()
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Minutes settings").font(.system(size: 18, weight: .semibold))
-            Text("Transcription always runs locally with Moonshine. Choose how to turn your transcript into a note.").font(.system(size: 13)).foregroundStyle(.secondary)
-            Picker("Processor", selection: $draft.provider) {
-                Text("Local model · Ollama").tag("local")
-                Text("Codex CLI · may use remote services").tag("codex")
-                Text("Claude CLI · may use remote services").tag("claude")
-            }
-            if draft.provider == "local" {
-                TextField("Installed Ollama model", text: $draft.model)
-                Text("Uses Ollama at 127.0.0.1:11434. Install Ollama and download a local model first. Cloud models are rejected.").font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text("The transcript is passed to your signed-in CLI provider, which may send it to remote services. Its account, billing, and data policies apply.").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            Divider()
-            Text("⌥⇧M  Start / stop recording\nMicrophone + system audio · English transcription\nHeadphones help prevent echo in the transcript.").font(.system(size: 12)).lineSpacing(5)
-            HStack {
-                Button("Cancel") { model.settingsOpen = false }
-                Spacer()
-                Button("Save") { model.settings = draft; model.saveSettings() }.keyboardShortcut(.defaultAction)
-            }
-        }.padding(24).frame(width: 410).disabled(model.isWorking).onAppear { draft = model.settings }
     }
 }
 

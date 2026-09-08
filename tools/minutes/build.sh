@@ -10,7 +10,7 @@ swiftc -O -parse-as-library -target "$(uname -m)-apple-macos15.0" Sources/*.swif
   -o "$app/Contents/MacOS/MinutesHost" -framework AppKit -framework SwiftUI -framework Carbon \
   -framework ScreenCaptureKit -framework AVFoundation -framework UserNotifications
 cp Resources/Info.plist "$app/Contents/Info.plist"
-cp Resources/worker.py "$app/Contents/Resources/worker.py"
+cp Resources/*.py "$app/Contents/Resources/"
 plutil -lint "$app/Contents/Info.plist"
 codesign --force --deep --sign - "$app"
 mkdir -p build

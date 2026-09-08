@@ -18,10 +18,10 @@ for index, (title, body, duration, state) in enumerate(fixtures):
     uid = str(uuid.uuid5(uuid.NAMESPACE_DNS, 'minutes-review-' + title)).upper()
     folder = root / 'meetings' / uid
     folder.mkdir(parents=True, exist_ok=True)
-    meeting = dict(id=uid, date=810586800 - index * 86400, duration=duration, title=title, body=body, state=state, processor='Local · qwen3:8b')
+    meeting = dict(id=uid, date=810586800 - index * 86400, duration=duration, title=title, body=body, state=state, processor='OpenAI · Luna')
     if state == 'failed':
-        meeting['error'] = 'The local model is not running. Start Ollama, then retry.'
+        meeting['error'] = 'Sign in to OpenAI in Pi, then retry.'
     (folder / 'meeting.json').write_text(json.dumps(meeting))
     (folder / 'transcript.txt').write_text('[00:01] Microphone: Let’s launch Thursday with the current pricing.\n[00:06] System: Agreed. Maya will finish the checklist by Wednesday.\n[00:13] Microphone: Leo will send the revised proposal. The annual discount is still an open question.')
-(root / 'settings.json').write_text(json.dumps(dict(provider='local', model='qwen3:8b', configured=True)))
+(root / 'settings.json').write_text(json.dumps(dict(provider='openai')))
 print(root)
