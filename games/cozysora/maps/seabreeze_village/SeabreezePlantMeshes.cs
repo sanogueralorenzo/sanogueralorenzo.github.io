@@ -17,20 +17,30 @@ public sealed class SeabreezePlantMeshes
         _rng.Seed = (uint)seed_value;
         float h = (tall ? _rng.RandfRange(7, 11) : _rng.RandfRange(4.5f, 7.5f));
         var radii = new Vector3(_rng.RandfRange(2.4f, 4.2f), _rng.RandfRange(2, 3.4f), _rng.RandfRange(2.4f, 4.2f));
+        float plantingRadius = Mathf.Max(radii.X, radii.Z) + 1;
+        int form = seed_value % 3;
+        radii *= form switch { 0 => new Vector3(.86f, 1.15f, .91f), 1 => new Vector3(1, .86f, .92f), _ => new Vector3(.93f, 1, 1) };
         var center = new Vector3(0, h + radii.Y * 0.35f, 0);
         var leaves = Canopy(center, radii, _rng.RandiRange(6, 9), _rng.RandiRange(52, 69), 7, _rng.RandfRange(1.2f, 1.6f), _rng.RandfRange(0.9f, 1.3f), h * 0.5f, h + radii.Y * 1.6f);
         var trunk = new SurfaceTool();
         trunk.Begin(Mesh.PrimitiveType.Triangles);
         float trunk_h = h + radii.Y * 0.2f;
         float radius = _rng.RandfRange(0.22f, 0.36f);
-        TaperedBranch(trunk, Vector3.Zero, new Vector3(0, trunk_h, 0), radius, radius * 0.55f, 9);
+        var bend = new Vector3(Mathf.Sin(seed_value * 2.3f), 0, Mathf.Cos(seed_value * 1.7f)) * radius * 1.2f;
+        var fork = new Vector3(0, trunk_h * .62f, 0) + bend;
+        TaperedBranch(trunk, new Vector3(0, -.12f, 0), new Vector3(0, .6f, 0), radius * 1.45f, radius, 12);
+        TaperedBranch(trunk, new Vector3(0, .6f, 0), fork, radius, radius * .73f, 12);
+        TaperedBranch(trunk, fork, new Vector3(0, trunk_h, 0) + bend * 1.6f, radius * .73f, radius * .37f, 10);
         for (int j = 0; j < 4; j += 1)
         {
             var end = new Vector3(_rng.RandfRange(-0.6f, 0.6f) * radii.X, h + radii.Y * _rng.RandfRange(0.1f, 0.7f), _rng.RandfRange(-0.6f, 0.6f) * radii.Z);
-            TaperedBranch(trunk, new Vector3(0, trunk_h, 0), end, radius * 0.36f, radius * 0.16f, 6);
+            var origin = fork.Lerp(new Vector3(0, trunk_h, 0) + bend * 1.6f, j * .16f);
+            var elbow = origin.Lerp(end, .58f) + Vector3.Up * .25f;
+            TaperedBranch(trunk, origin, elbow, radius * .44f, radius * .27f, 9);
+            TaperedBranch(trunk, elbow, end, radius * .27f, radius * .07f, 8);
         }
         trunk.GenerateNormals();
-        var result = new Plant(leaves, Mathf.Max(radii.X, radii.Z) + 1, trunk.Commit());
+        var result = new Plant(leaves, plantingRadius, trunk.Commit());
         _rng.State = saved;
         return result;
     }

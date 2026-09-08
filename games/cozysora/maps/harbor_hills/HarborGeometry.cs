@@ -53,6 +53,7 @@ public sealed class HarborGeometry
                 "roof" => 3,
                 "asphalt" => 4,
                 "paving" => 5,
+                "bark" => 6,
                 _ => 0
             });
         }
@@ -68,7 +69,7 @@ public sealed class HarborGeometry
         {
             case "box": mesh = CozyPrimitives.BoxMesh(); break;
             case "sphere": mesh = CozyPrimitives.SphereMesh(); break;
-            case "branch": mesh = CozyPrimitives.CylinderMesh(.5f, .26f, 1, 9); break;
+            case "branch": mesh = CozyTreeForms.Limb(.26f); break;
             case "leaf":
                 var surface = new SurfaceTool();
                 surface.Begin(Mesh.PrimitiveType.Triangles);
@@ -129,7 +130,7 @@ public sealed class HarborGeometry
     {
         var delta = b - a;
         Add("branch", (a + b) * .5f, new Vector3(radius * 2, delta.Length(), radius * 2), color,
-            new Quaternion(Vector3.Up, delta.Normalized()).GetEuler());
+            new Quaternion(Vector3.Up, delta.Normalized()).GetEuler(), false, "bark");
         if (radius >= .065f) CozyCollision.Limb(Collision, a, b, radius * .8f);
     }
 

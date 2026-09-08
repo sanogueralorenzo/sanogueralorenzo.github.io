@@ -576,12 +576,19 @@ public partial class SeabreezeVegetation : Node3D
         var ends = new List<Vector3>();
         for (int i = 0; i < 4; i += 1)
         {
-            ends.Add(new Vector3(_rng.RandfRange(-0.65f, 0.65f) * radius, height + 1 + (float)_rng.Randf() * 2.5f, _rng.RandfRange(-0.65f, 0.65f) * radius));
+            ends.Add(new Vector3(_rng.RandfRange(-0.65f, 0.65f) * radius, height + radius * (.42f + (float)_rng.Randf() * .4f), _rng.RandfRange(-0.65f, 0.65f) * radius));
         }
-        _plants.TaperedBranch(trunk, Vector3.Zero, new Vector3(0, height + 0.5f, 0), 0.42f, 0.23f, 9);
+        float trunkRadius = Mathf.Min(.42f, .08f + height * .035f);
+        float forkHeight = height * .78f + Mathf.Min(.35f, radius * .15f);
+        var bend = new Vector3(Mathf.Sin(seed_value), 0, Mathf.Cos(seed_value * 1.7f)) * trunkRadius;
+        var fork = new Vector3(0, forkHeight, 0) + bend;
+        _plants.TaperedBranch(trunk, new Vector3(0, -.08f, 0), fork * .2f, trunkRadius * 1.45f, trunkRadius, 12);
+        _plants.TaperedBranch(trunk, fork * .2f, fork, trunkRadius, trunkRadius * .62f, 12);
         foreach (var end in ends)
         {
-            _plants.TaperedBranch(trunk, new Vector3(0, height + 0.5f, 0), end, 0.15f, 0.065f, 6);
+            var elbow = fork.Lerp(end, .55f) + Vector3.Up * radius * .08f;
+            _plants.TaperedBranch(trunk, fork, elbow, trunkRadius * .6f, trunkRadius * .32f, 9);
+            _plants.TaperedBranch(trunk, elbow, end, trunkRadius * .32f, trunkRadius * .07f, 8);
         }
         trunk.GenerateNormals();
         var stem = new MeshInstance3D();
@@ -746,6 +753,7 @@ public partial class SeabreezeVegetation : Node3D
         var position = new Vector3(-4.3f, _world.HeightAt(-4.3f, 14.5f) - 0.3f, 14.5f);
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
+        var rootFaces = new List<Vector3>();
         for (int level = 0; level < 20; level += 1)
         {
             for (int segment = 0; segment < 32; segment += 1)
@@ -758,7 +766,13 @@ public partial class SeabreezeVegetation : Node3D
                     float hollow_distance = (new Vector2(Mathf.Abs(Mathf.Wrap(angle + 1.065f, -Mathf.Pi, Mathf.Pi)) / (0.55f * 1.6f), (t * 12 - 2.7f) / (1.05f * 1.6f)).Length());
                     radius -= 0.36f * (1 - Mathf.SmoothStep(0.3f, 1.0f, hollow_distance)) * 1.15f * (1 - 0.38f * t);
                     st.SetUV(new Vector2((float)(segment + k % 2) / 32, t));
-                    st.AddVertex(new Vector3(Mathf.Cos(angle) * radius + Mathf.Sin(t * 4.5f + 0.4f) * 0.3f + Mathf.Sin(t * 11) * 0.1f, t * 12, Mathf.Sin(angle) * radius + Mathf.Cos(t * 3.2f) * 0.26f + Mathf.Sin(t * 8.5f + 1) * 0.08f));
+                    var vertex = new Vector3(Mathf.Cos(angle) * radius + Mathf.Sin(t * 4.5f + 0.4f) * 0.3f + Mathf.Sin(t * 11) * 0.1f, t * 12, Mathf.Sin(angle) * radius + Mathf.Cos(t * 3.2f) * 0.26f + Mathf.Sin(t * 8.5f + 1) * 0.08f);
+                    // Ground the existing continuous trunk flare. A second collar
+                    // would intersect this irregular surface and create a visible seam.
+                    float soil = _world.HeightAt(position.X + vertex.X, position.Z + vertex.Z) - position.Y - .12f;
+                    vertex.Y += soil * Mathf.Pow(Mathf.Max(0, 1 - vertex.Y / 2.4f), 2);
+                    st.AddVertex(vertex);
+                    if (level < 4) rootFaces.Add(vertex);
                 }
             }
         }
@@ -770,10 +784,22 @@ public partial class SeabreezeVegetation : Node3D
         trunk.MaterialOverride = bark;
         trunk.Position = position;
         AddChild(trunk);
+        var rootSurface = new SurfaceTool();
+        rootSurface.Begin(Mesh.PrimitiveType.Triangles);
+        // The authored trunk uses inward render winding; physics needs outward
+        // faces. Reuse its exact basal vertices without a second visible surface.
+        for (int i = 0; i < rootFaces.Count; i += 3)
+        {
+            rootSurface.AddVertex(rootFaces[i]);
+            rootSurface.AddVertex(rootFaces[i + 2]);
+            rootSurface.AddVertex(rootFaces[i + 1]);
+        }
+        var rootBody = new StaticBody3D { Position = position };
+        AddChild(rootBody);
+        CozyCollision.Mesh(rootBody, rootSurface.Commit());
         for (int i = 0; i < 7; i += 1)
         {
             float angle = (float)(i) / 7 * Mathf.Tau;
-            CozyPrimitives.Beam(this, position + new Vector3(Mathf.Cos(angle) * 0.5f, 0.7f, Mathf.Sin(angle) * 0.5f), position + new Vector3(Mathf.Cos(angle) * 3, 0.12f, Mathf.Sin(angle) * 3), 0.32f, bark);
             CozyPrimitives.Beam(this, position + new Vector3(0, 10.5f, 0), position + new Vector3(Mathf.Cos(angle) * 4.5f, 13 + (float)_rng.Randf() * 3, Mathf.Sin(angle) * 4.5f), 0.32f, bark);
         }
         var crown = new MeshInstance3D();

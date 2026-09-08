@@ -41,8 +41,8 @@ public sealed class DaanGeometry
         {
             "box" => (Mesh)CozyPrimitives.BoxMesh(),
             "sphere" => CozyPrimitives.SphereMesh(),
-            "branch_base" => CozyPrimitives.CylinderMesh(.5f, .375f, 1, 9),
-            "branch_tip" => CozyPrimitives.CylinderMesh(.5f, .3333333f, 1, 9),
+            "branch_base" => CozyTreeForms.Limb(.375f),
+            "branch_tip" => CozyTreeForms.Limb(.3333333f),
             _ => CozyPrimitives.CylinderMesh(.5f, .5f, 1, 12)
         };
         _meshes.Add(kind, mesh);

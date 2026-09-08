@@ -111,12 +111,23 @@ public sealed class DaanPlanting
     private void Leaves(Vector3 at, Vector3 size, int index) =>
         _leafGroups[(index % 4 + 4) % 4].Add(new Transform3D(new Basis(Vector3.Up, _rng.Randf() * Mathf.Tau) * Basis.FromScale(size), at));
 
-    private void Limb(Vector3 a, Vector3 b, float radius)
+    private static Vector3 LimbMiddle(Vector3 a, Vector3 b)
     {
         var direction = (b - a).Normalized();
         var side = direction.Cross(Vector3.Up);
         if (side.LengthSquared() < .01f) side = Vector3.Right;
-        var middle = (a + b) * .5f + side.Normalized() * a.DistanceTo(b) * .045f;
+        return (a + b) * .5f + side.Normalized() * a.DistanceTo(b) * .045f;
+    }
+
+    private static Vector3 LimbPoint(Vector3 a, Vector3 b, float t)
+    {
+        var middle = LimbMiddle(a, b);
+        return t < .5f ? a.Lerp(middle, t * 2) : middle.Lerp(b, t * 2 - 1);
+    }
+
+    private void Limb(Vector3 a, Vector3 b, float radius)
+    {
+        var middle = LimbMiddle(a, b);
         for (int part = 0; part < 2; part++)
         {
             var from = part == 0 ? a : middle;
@@ -134,41 +145,55 @@ public sealed class DaanPlanting
     private void Tree(Vector3 p, float height, bool banyan)
     {
         _treePositions.Add(new(p.X, p.Z));
+        // Shape variation is coordinate-derived, leaving the placement stream intact.
+        int form = banyan ? 0 : 1 + Mathf.Abs(Mathf.FloorToInt(p.X * .31f + p.Z * .19f)) % 3;
+        float breadth = form switch { 1 => .77f, 2 => 1.06f, 3 => .91f, _ => 1.04f };
+        float crownDepth = form switch { 1 => 1.24f, 2 => .85f, 3 => 1.02f, _ => .86f };
         float trunk = height * (banyan ? .040f : .022f);
         var lean = new Vector3(_rng.RandfRange(-.7f, .7f), 0, _rng.RandfRange(-.7f, .7f));
-        var fork = p + lean + new Vector3(0, height * _rng.RandfRange(.29f, .45f), 0);
+        var fork = p + lean + new Vector3(0, height * _rng.RandfRange(.29f, .45f) * (form == 2 ? .78f : form == 1 ? 1.1f : 1), 0);
         Limb(p, fork, trunk);
-        Limb(fork, p + lean * 1.7f + new Vector3(0, height * .79f, 0), trunk * .67f);
+        Limb(fork, p + lean * 1.7f + new Vector3(0, height * .79f, 0), trunk * .5f);
         if (banyan)
-            for (int i = 0; i < 6; i++)
-            {
-                float angle = i * Mathf.Tau / 6 + _rng.Randf() * .2f;
-                Limb(p + new Vector3(Mathf.Cos(angle) * 1.6f, .08f, Mathf.Sin(angle) * 1.6f),
-                    p + new Vector3(Mathf.Cos(angle) * .13f, 1.3f, Mathf.Sin(angle) * .13f), .14f);
-            }
+        {
+            // Retain the six original random draws so later trees stay planted.
+            float phase = 0;
+            for (int i = 0; i < 6; i++) phase += _rng.Randf() * .2f;
+            var roots = CozyTreeForms.RootFlare(p, trunk * 1.08f, Mathf.Min(1.6f, trunk * 3.3f),
+                trunk * 2.4f, phase + p.X, _map.HeightAt, lean * .25f);
+            _g.Mesh(roots, "948367", true, 4).Name = "Grounded banyan buttress";
+        }
         int count = _rng.RandiRange(5, 8);
         for (int branch = 0; branch < count; branch++)
         {
             float angle = branch * 2.399f + _rng.Randf() * .6f;
             float spread = height * (banyan ? _rng.RandfRange(.33f, .49f) : _rng.RandfRange(.23f, .40f));
             var tip = p + lean + new Vector3(Mathf.Cos(angle) * spread, height * _rng.RandfRange(.64f, .96f), Mathf.Sin(angle) * spread);
-            var origin = fork + lean * (branch * .09f) + Vector3.Up * (branch % 3 - 1) * height * .055f;
+            tip = p + new Vector3((tip.X - p.X) * breadth, tip.Y - p.Y, (tip.Z - p.Z) * breadth);
+            var origin = LimbPoint(fork, p + lean * 1.7f + Vector3.Up * height * .79f, .10f + branch * .075f);
             var elbow = origin.Lerp(tip, .52f) + new Vector3(0, _rng.RandfRange(.2f, 1), 0);
             Limb(origin, elbow, trunk * .55f);
-            Limb(elbow, tip, trunk * .31f);
+            Limb(elbow, tip, trunk * .275f);
             for (int j = 0; j < 8; j++)
             {
                 float a = _rng.Randf() * Mathf.Tau;
                 float r = Mathf.Sqrt(_rng.Randf()) * height * .19f;
                 var at = tip + new Vector3(Mathf.Cos(a) * r, _rng.RandfRange(-.08f, .09f) * height, Mathf.Sin(a) * r);
                 float size = height * _rng.RandfRange(.23f, .33f);
-                Leaves(at, new(size * 1.25f, size * .83f, size), branch + j);
+                Leaves(at, new(size * breadth * 1.12f, size * crownDepth * .83f, size * breadth), form + branch / 3 + j / 4);
             }
             if (banyan && branch % 2 == 0)
                 for (int j = 0; j < 4; j++)
                 {
-                    var hanging = tip + new Vector3(_rng.RandfRange(-.7f, .7f), -.3f, _rng.RandfRange(-.7f, .7f));
-                    _g.Beam(hanging, hanging - new Vector3(0, _rng.RandfRange(1.6f, 3), 0), .022f, "93886d");
+                    float along = .5f + _rng.RandfRange(-.7f, .7f) * .22f;
+                    float bend = _rng.RandfRange(-.7f, .7f) * .12f;
+                    float length = _rng.RandfRange(1.6f, 3) * .72f;
+                    if (j > 1) continue; // Sparse living strands; consume all placement-stream draws.
+                    var hanging = LimbPoint(elbow, tip, along);
+                    var middle = hanging + new Vector3(bend, -length * .55f, bend * .3f);
+                    _g.Beam(hanging, middle, .018f, "93886d");
+                    _g.Add("branch_tip", middle + new Vector3(0, -length * .225f, 0),
+                        new(.028f, length * .45f, .028f), "93886d", new Vector3(Mathf.Pi, 0, 0), false, 4);
                 }
         }
     }

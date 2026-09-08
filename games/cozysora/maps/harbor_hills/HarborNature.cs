@@ -190,17 +190,19 @@ public sealed class HarborNature
         {
             _treeCount += 1;
         }
+        float crownWidth = new[] { .76f, 1.05f, .91f }[Mathf.Abs(index) % 3];
         var lean = new Vector3(-h * (.075f + .065f * Mathf.Sin(index * 1.7f)), 0, h * .06f * Mathf.Cos(index * 2.3f));
         if (clear)
         {
             _g.Branch(p, p + lean * .45f + new Vector3(0, h * .48f, 0), h * .035f, "827058");
-            _g.Branch(p + lean * .45f + new Vector3(0, h * .48f, 0), p + lean + new Vector3(0, h * .91f, 0), h * .024f, "827058");
+            _g.Branch(p + lean * .45f + new Vector3(0, h * .48f, 0), p + lean + new Vector3(0, h * .91f, 0), h * .0182f, "827058");
         }
         for (int i = 0; i < 5; i += 1)
         {
             var phase = i * 2.39f + index * .38f;
-            var spread = h * (.21f - i * .026f);
-            var tip = (p + new Vector3(Mathf.Cos(phase) * spread, h * (.43f + i * .12f + .024f * Mathf.Sin(phase)), Mathf.Sin(phase) * spread) + lean);
+            var spread = h * (.21f - i * .026f) * crownWidth;
+            float tierHeight = .43f + .48f * Mathf.Pow(i / 4f, crownWidth < .8f ? .8f : 1.35f);
+            var tip = (p + new Vector3(Mathf.Cos(phase) * spread, h * (tierHeight + .024f * Mathf.Sin(phase)), Mathf.Sin(phase) * spread) + lean);
             if (clear)
             {
                 _g.Branch(p + new Vector3(0, h * (.35f + i * .09f), 0) + lean * .6f, tip, h * .018f, "827058");
@@ -214,7 +216,7 @@ public sealed class HarborNature
                 var rotation = new Vector3(0, a, _rng.RandfRange(-.1f, .1f));
                 if (clear)
                 {
-                    _g.Add("leaf", at, new Vector3(size * 1.15f, size * 1.18f, size), new[] { "416c42", "557c45", "365e46", "6b874e" }[j % 4], rotation);
+                    _g.Add("leaf", at, new Vector3(size * 1.15f * crownWidth, size * (crownWidth < .8f ? 1.3f : 1.05f), size * crownWidth), new[] { "416c42", "557c45", "365e46", "6b874e" }[j % 4], rotation);
                 }
             }
         }
@@ -519,6 +521,13 @@ public sealed class HarborNature
     }
     private void StreetTree(Vector3 p, float h)
     {
+        int form = Mathf.Abs(Mathf.FloorToInt(p.X * .27f + p.Z * .17f)) % 3;
+        float phase = p.X * .43f + p.Z * .71f;
+        float breadth = form switch { 0 => .88f, 1 => 1.14f, _ => 1f };
+        float depth = form switch { 0 => 1.16f, 1 => .82f, _ => 1f };
+        var lean = new Vector3(Mathf.Cos(phase) * .24f, 0, Mathf.Sin(phase) * .24f);
+        var fork = p + lean + Vector3.Up * h * .4f;
+        var leader = p + lean * 1.6f + Vector3.Up * h * .78f;
         var clear = !_map.RoadEndContains(p.X, p.Z, 1.0f);
         if (clear)
         {
@@ -526,19 +535,19 @@ public sealed class HarborNature
         }
         if (clear)
         {
-            _g.Branch(p, p + new Vector3(.12f, h * .4f, -.08f), .16f, "827058");
-            _g.Branch(p + new Vector3(.12f, h * .4f, -.08f), p + new Vector3(.35f, h * .78f, -.15f), .11f, "827058");
+            _g.Branch(p, fork, .16f, "827058");
+            _g.Branch(fork, leader, .0832f, "827058");
         }
         for (int branch = 0; branch < 5; branch += 1)
         {
-            var angle = branch * 2.399f;
-            var tip = p + new Vector3(Mathf.Cos(angle) * 1.2f, h * (.7f + _rng.Randf() * .18f), Mathf.Sin(angle) * 1.2f);
+            var angle = branch * 2.399f + phase;
+            var tip = p + new Vector3(Mathf.Cos(angle) * 1.2f * breadth, h * (.68f + _rng.Randf() * .21f), Mathf.Sin(angle) * 1.2f * breadth);
             if (clear)
             {
-                var origin = p + new Vector3(.12f, h * (.39f + branch * .045f), -.08f);
+                var origin = fork.Lerp(leader, .08f + branch * .13f);
                 var elbow = origin.Lerp(tip, .55f) + new Vector3(0, .24f, 0);
                 _g.Branch(origin, elbow, .075f, "827058");
-                _g.Branch(elbow, tip, .045f, "827058");
+                _g.Branch(elbow, tip, .039f, "827058");
             }
             for (int j = 0; j < 9; j += 1)
             {
@@ -547,7 +556,7 @@ public sealed class HarborNature
                 var at = tip + new Vector3(Mathf.Cos(a) * r, _rng.RandfRange(-.6f, .8f), Mathf.Sin(a) * r);
                 if (clear)
                 {
-                    _g.Add("leaf", at, new Vector3(1.6f, 1.8f, 1.6f), new[] { "628641", "487740", "789448", "3c7148" }[j % 4], new Vector3(0, a, 0));
+                    _g.Add("leaf", at, new Vector3(1.48f * breadth, 1.7f * depth, 1.48f * breadth), new[] { "628641", "487740", "789448", "3c7148" }[(form + branch / 2 + j / 4) % 4], new Vector3(.08f * Mathf.Sin(a), a, .08f * Mathf.Cos(a)));
                 }
             }
         }

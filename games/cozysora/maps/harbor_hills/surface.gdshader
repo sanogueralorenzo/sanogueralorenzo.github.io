@@ -17,5 +17,6 @@ void fragment(){
  if(pattern==3){finish*=1.-.12*seam(plane.x*4.,.035);}
  if(pattern==4){finish=.85+noise(plane*.32)*.21+noise(plane*1.7)*.09;finish*=1.-.12*smoothstep(.56,.72,noise(plane*.7+21.));}
  if(pattern==5){finish=.89+noise(plane*.45)*.17;finish*=1.-.12*max(seam(plane.x/1.6,.004),seam(plane.y/1.6,.004));}
+ if(pattern==6){float bark=noise(vec2(plane.x*17.,world.y*1.7));finish*=.83+.25*bark;finish*=1.-.10*smoothstep(.65,.8,noise(vec2(plane.x*32.+sin(world.y*.9),world.y*2.)))*(1.-smoothstep(.4,1.5,fwidth(plane.x*32.)));}
  ALBEDO=base_color.rgb*finish;ROUGHNESS=.95;
 }
