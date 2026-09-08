@@ -43,23 +43,35 @@ public sealed class OceanWorld(uint seed)
         {
             Add(PlaceKind.Harbor, new(-310, -220), 140);
             Add(PlaceKind.Fishing, new(170, 180), 76);
-            Add(PlaceKind.Island, new(410, 370), 80);
+            Add(PlaceKind.Island, new(440, 390), 125);
             Add(PlaceKind.Rock, new(390, -350), 40);
             AddEncounters(key, places);
             return new(key, places.ToArray());
         }
-        bool harbor = key.X % 3 == 0 && key.Y % 3 == 0;
-        Add(harbor ? PlaceKind.Harbor : PlaceKind.Island, center + new Vector2(rng.Range(-180, 180), rng.Range(-180, 180)), harbor ? 140 : rng.Range(75, 132));
-        int budget = 3 + rng.Index(3);
-        for (int attempt = 0; attempt < 30 && places.Count < budget; attempt++)
+        bool harbor = key.X % 2 == 0 && key.Y % 2 == 0;
+        // Larger landmarks separated by open-water chunks; all solids leave broad edge lanes.
+        if (harbor || rng.Unit() < .65f)
         {
-            // All solids stay inside the chunk, leaving continuous open lanes on every edge.
-            Vector2 p = center + new Vector2(rng.Range(-370, 370), rng.Range(-370, 370));
-            float r = rng.Range(28, 53);
-            if (places.Any(a => Vector2.Distance(a.Position, p) < a.Radius + r + 120)) continue;
-            Add(places.Count == 1 ? PlaceKind.Fishing : PlaceKind.Rock, p, places.Count == 1 ? 76 : r);
+            var land = center + new Vector2(rng.Range(-110, 110), rng.Range(-110, 110));
+            float radius = harbor ? 140 : rng.Range(145, 190);
+            Add(harbor ? PlaceKind.Harbor : PlaceKind.Island, land, radius);
+            if (!harbor)
+            {
+                float angle = rng.Range(0, MathF.Tau);
+                for (int rock = 0; rock < 2; rock++)
+                {
+                    float a = angle + rock * .42f;
+                    Add(PlaceKind.Rock, land + new Vector2(MathF.Cos(a), MathF.Sin(a)) * (radius + 85), rng.Range(24, 35));
+                }
+            }
         }
-        if (!places.Any(p => p.Kind == PlaceKind.Fishing)) Add(PlaceKind.Fishing, center + new Vector2(390, 390), 76);
+        for (int attempt = 0; attempt < 30; attempt++)
+        {
+            Vector2 p = center + new Vector2(rng.Range(-400, 400), rng.Range(-400, 400));
+            if (places.Any(a => Vector2.Distance(a.Position, p) < a.Radius + 165)) continue;
+            Add(PlaceKind.Fishing, p, 76); break;
+        }
+        if (!places.Any(p => p.Kind == PlaceKind.Fishing)) Add(PlaceKind.Fishing, center + new Vector2(430, 430), 76);
         AddEncounters(key, places);
         return new(key, places.ToArray());
     }

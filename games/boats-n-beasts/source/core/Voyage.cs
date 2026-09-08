@@ -8,7 +8,7 @@ public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Broadside }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
-    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, Mark, HitFlash, Pull;
+    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
@@ -43,8 +43,6 @@ public sealed partial class Voyage
     public readonly List<int> UpgradeChoices = new();
     public bool BossSpawned, BossSlain;
     public bool BoostExhausted { get; private set; }
-    public const float SoakedDamageMultiplier = 1.5f;
-    public const string SoakHint = "Soaked enemies take +50% damage from Mines, Lightning and Broadside.";
     public const float BroadsideHalfAngle = .72f;
     public const int BaseWeaponSlots = 2, MaxWeaponSlots = 5;
     public int WeaponSlots { get; }
@@ -63,6 +61,8 @@ public sealed partial class Voyage
     public float MaxHealth => Spec.Hull + HullRank * 25;
     public float Speed => Spec.Speed * (1 + EngineRank * .1f);
     public int Tier => OceanWorld.TierAt(Position);
+    public int PendingUpgrades { get; private set; }
+    public float WhirlpoolRadius => (138 + Math.Max(0, Weapons[4] - 1) * 30) * Area;
     public int NextXp => 7 + Level * 5;
     public bool Safe => World.HarborAt(Position) != null;
     public float FishBand => .14f;
@@ -109,7 +109,7 @@ public sealed partial class Voyage
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
         if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
-        else if (Xp >= NextXp) { Xp -= NextXp; Level++; RollUpgrades(); Mode = VoyageMode.Upgrade; Events.Add(new("level", Position)); }
+        else while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
     public bool Spawn(EnemyKind? forced = null)
@@ -136,10 +136,9 @@ public sealed partial class Voyage
             if (e.Health <= 0) continue;
             e.Time += dt;
             if (e.Emerging) continue;
-            e.AttackClock -= dt; e.Mark = Math.Max(0, e.Mark - dt); e.HitFlash = Math.Max(0, e.HitFlash - dt);
+            e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = (e.Kind == EnemyKind.Crab ? 83 : e.Kind == EnemyKind.Puffer ? 69 : e.Kind == EnemyKind.Serpent ? 111 : e.Kind == EnemyKind.Ray ? 135 : 73) * (1 + Math.Min(Tier, 12) * .045f);
-            if (e.Mark > 0) speed *= .62f;
             Vector2 motion = dir;
             if (e.Kind == EnemyKind.Puffer)
             {
@@ -232,7 +231,7 @@ public sealed partial class Voyage
     public bool Interact()
     {
         if (Mode != VoyageMode.Sailing) return false;
-        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); return true; }
+        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); PrepareHarborUpgrade(); return true; }
         var fish = World.FishAt(Position);
         if (fish == null) return false;
         FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
@@ -286,6 +285,17 @@ public sealed partial class Voyage
             if (e.Health > 0 && Vector2.Distance(e.Position, Position) < 270 + e.Radius)
                 e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(e.Position - Position) * 65, e.Radius);
     }
+    void PrepareHarborUpgrade()
+    {
+        UpgradeChoices.Clear();
+        if (PendingUpgrades == 0) { Mode = VoyageMode.Harbor; return; }
+        RollUpgrades(); Mode = VoyageMode.Upgrade;
+    }
+    public void TakeUpgradeGold()
+    {
+        if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || UpgradeChoices.Count > 0) return;
+        Coins += 40; PendingUpgrades--; PrepareHarborUpgrade();
+    }
     void RollUpgrades()
     {
         UpgradeChoices.Clear();
@@ -326,13 +336,13 @@ public sealed partial class Voyage
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;
         else AreaRank++;
-        if (free) Mode = VoyageMode.Sailing;
+        if (free) { PendingUpgrades--; PrepareHarborUpgrade(); }
         Events.Add(new("buy", Position)); return true;
     }
     public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Broadside", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [
         "Cannonballs bounce between foes and off rocks.",
-        "Pierces, pulls and soaks enemies.",
+        "Pierces enemies and pulls them closer.",
         "Drops mines behind you as you sail.",
         "Lightning jumps from enemy to enemy.",
         "A damaging ring around your boat.",

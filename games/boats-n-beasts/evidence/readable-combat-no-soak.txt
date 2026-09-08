@@ -1,0 +1,35 @@
+Mouse viewport=(632.25, 571.5) global=(632.25, 571.5) boatScreen=(720.00055, 450.00003) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1418.0431, 439.28967>; destination=<2144.7322, 182.2916>
+Native runtime capture: 20260908-064510-sailing
+Renderer: gl_compatibility
+Seed: 1766033338
+Mode: Sailing
+Game speed: x1
+Finished runs: 32; boat selection: False
+Silver: 22; earned this voyage: 2; next eligible combat time: 177.64203
+Boat: Trawler
+Position: <1536.6249, 243.82642>
+Health: 56.299995/155
+Coins: 24; cargo: 0; kills: 31; level: 3; pending upgrades: 1
+Active chunks: 25; enemies: 10; shots: 3
+Actual sailing seconds: 126.3; peak enemies: 10; peak shots: 8
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Velocity=<1.2218935E-09, 1.1974027E-09>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=6.275677; treasure=1; wrecks=0; salvos=0; mines=0/0; ricochets=0; pulls=26
+Combat clock=126.261314; director=1.0422374/0.9848592; boost=100; invulnerable=0; ability=0.043843385; fire rate=1
+Weapon ranks=0,1,0,0,1,0; cooldowns=0,0.76609576,0,0,0,0
+Depletion=0:0:encounter:4=1
+Enemy 29: Puffer position=<1343.7136, -94.784676> hp=47.5 time=14.633459 attack=3.4750094 tell=0 dash=0
+Enemy 30: Puffer position=<1151.8383, 307.2739> hp=47.5 time=13.979775 attack=0.0484308 tell=0.65 dash=0
+Enemy 31: Puffer position=<1203.6906, -37.834106> hp=47.5 time=12.67139 attack=1.4207203 tell=0 dash=0
+Enemy 32: Puffer position=<1590.3756, -78.69482> hp=47.5 time=12.022276 attack=2.1761465 tell=0 dash=0
+Enemy 36: Crab position=<1177.053, 86.34895> hp=20.75 time=8.739681 attack=-6.308966 tell=0 dash=0
+Enemy 37: Crab position=<1717.9226, -6.1300316> hp=20.75 time=7.5090175 attack=-4.9283667 tell=0 dash=0
+Enemy 38: Puffer position=<1327.2671, -317.88632> hp=47.5 time=4.451069 attack=1.3005362 tell=0 dash=0
+Enemy 39: Crab position=<1432.2151, 884.1945> hp=33.75 time=2.360221 attack=-0.7571626 tell=0 dash=0
+Enemy 40: Crab position=<1365.2037, 940.903> hp=33.75 time=1.7077873 attack=0.7331786 tell=0 dash=0
+Enemy 41: Puffer position=<1217.9879, 914.8189> hp=47.5 time=1.0505707 attack=0.8028619 tell=0 dash=0
+Shot Cannon hostile=True position=<1439.273, -17.351032> life=3.492225
+Shot Harpoon hostile=False position=<1726.3344, -23.278175> life=0.60776246
+Shot Cannon hostile=True position=<1381.9338, -39.77021> life=5.666684
+CPU simulation average ms=0.070; draw submission average ms=1.164; cached scenery=19; engine FPS=117; draw calls=685; objects=2089
+Frame ms mean: 9.91; p95: 14.73; p99: 16.67

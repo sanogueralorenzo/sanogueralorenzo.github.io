@@ -71,6 +71,7 @@ public partial class Game : Node2D
                     catchNotice = e.Kind == "catch" ? $"{Run.CatchTitle} · {e.Value:0} gold" : Run.CatchTitle;
                     catchNoticeTime = 2.5f;
                 }
+                if (e.Kind == "level") Toast($"Level {Run.Level} · {Run.PendingUpgrades} free upgrade{(Run.PendingUpgrades == 1 ? "" : "s")} at your next harbor");
                 if (e.Kind == "silver") Toast("+1 silver");
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
@@ -113,11 +114,11 @@ public partial class Game : Node2D
         string name = DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
-        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
+        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; kills: {Run.Kills}; level: {Run.Level}; pending upgrades: {Run.PendingUpgrades}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
         report += $"Fishing time={Run.FishingTime:R}; cursor={Run.FishCursor:R}; target={Run.FishTarget:R}; catch={Run.CatchTitle}; last sale={Run.LastCatchSale}; boss spawned={Run.BossSpawned}; boss slain={Run.BossSlain}\n";
         report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; wrecks={Run.WrecksSalvaged}; salvos={Run.BroadsideSalvos}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}; fire rate={Run.FireRateMultiplier:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
-        foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} mark={enemy.Mark:R}\n";
+        foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R}\n";
         foreach (var shot in Run.Shots) report += $"Shot {shot.Kind} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R}\n";
         report += $"CPU simulation average ms={simulationMs:0.000}; draw submission average ms={ocean.DrawMs:0.000}; cached scenery={ocean.CachedScenery}; engine FPS={Engine.GetFramesPerSecond()}; draw calls={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}; objects={Performance.GetMonitor(Performance.Monitor.RenderTotalObjectsInFrame)}\n";
         if (samples.Length > 0) report += $"Frame ms mean: {samples.Average():0.00}; p95: {samples[(int)(samples.Length*.95)]:0.00}; p99: {samples[(int)(samples.Length*.99)]:0.00}\n";
@@ -313,10 +314,10 @@ public partial class Game : Node2D
     }
     void UpgradeMenu()
     {
-        var col = Panel(950, $"Level {Run.Level}", "Pick an upgrade", "Choose one. It’s free.");
+        var col = Panel(950, "Harbor · free refit", "Pick an upgrade", $"{Run.PendingUpgrades} free upgrade{(Run.PendingUpgrades == 1 ? "" : "s")} waiting. Choose one.");
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 14); col.AddChild(row);
         foreach (int option in Run.UpgradeChoices) AddUpgradeCard(row, option, true);
-        if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · take 40 gold", () => { Run.Coins += 40; Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true));
+        if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · take 40 gold", () => { Run.TakeUpgradeGold(); BuildMenu(); }, true));
     }
     int lastPurchase = -1;
     void AddUpgradeCard(HBoxContainer row, int option, bool free)
@@ -352,7 +353,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nCatches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Cutter fires 65% faster while boosting. Trawler pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat during the cast. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nLevels earn free upgrades without interrupting sailing. Choose them when you dock. Catches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Cutter fires 65% faster while boosting. Trawler pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat during the cast. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()
@@ -390,7 +391,15 @@ public partial class Game : Node2D
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
             string level = $"LVL {r.Level}";
-            Text(new(size.X - 14 - TitleFont.GetStringSize(level, fontSize: 20).X, 30), level, 20, true);
+            var levelPosition = new Vector2(size.X - 14 - TitleFont.GetStringSize(level, fontSize: 20).X, 30);
+            Text(levelPosition, level, 20, true, r.PendingUpgrades > 0 ? new Color("efc46d") : OceanView.Cream);
+            if (r.PendingUpgrades > 0 && new Rect2(levelPosition-new Vector2(6,24),new Vector2(90,32)).HasPoint(Game.uiPointer))
+            {
+                string hint = $"{r.PendingUpgrades} free upgrade{(r.PendingUpgrades == 1 ? "" : "s")} at your next harbor";
+                float width = BodyFont.GetStringSize(hint, fontSize:16).X;
+                DrawStyleBox(Game.Box(new Color(OceanView.Navy,.95f),6),new Rect2(size.X-width-30,40,width+20,30));
+                Text(new(size.X-width-20,61),hint,16);
+            }
             int seconds = (int)r.CombatTime;
             string[] counters = [$"{seconds / 60:00}:{seconds % 60:00}", Game.silver.ToString(), r.Coins.ToString(), r.Kills.ToString()];
             float countersWidth = counters.Sum(value => BodyFont.GetStringSize(value, fontSize: 21).X + 48) + 12;

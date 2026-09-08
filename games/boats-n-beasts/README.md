@@ -28,7 +28,7 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 
 Sail beyond three leagues to summon the Crownclaw. Defeat it to win immediately, then start a fresh voyage or keep exploring. Fishing is optional income for upgrades and repairs.
 
-Keep as many catches as you find; there is no storage limit or cargo counter. Catches automatically sell for gold when you dock. Repair and buy upgrades at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Future between-run shop upgrades can add one slot at a time, up to five; spending remains unimplemented. Combat levels offer three varying free upgrades. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
+Keep as many catches as you find; there is no storage limit or cargo counter. Catches automatically sell for gold when you dock. Repair and buy upgrades at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Future between-run shop upgrades can add one slot at a time, up to five; spending remains unimplemented. Combat levels bank free upgrades without stopping sailing. On docking, choose one of three offers per banked level before entering the harbor shop. The level label turns gold while upgrades wait; hover it for the count. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
 
 Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull. Acquired weapons and stat upgrades appear as procedural icons with rank badges in a centered bottom row; hover for names and descriptions. Empty slots are hidden. A small turquoise arc below the boat shows boost charge while boosting or recharging; coral means exhausted, with a release cue. Bulwark explains itself once per save, then uses its short pulse effect. Monsters emerge through a brief ripple before moving or attacking. Chart harbors carry a cannon or hull symbol; hovering a discovered harbor, or sailing near one, previews its three fixed offers, prices and capacity/max-rank restrictions. Pause to review the current voyage objective.
 
@@ -44,13 +44,13 @@ Every boat can use all six weapons:
 | Weapon | What it does |
 | --- | --- |
 | Cannon | Auto-aimed cannonballs ricochet between enemies and off rocks. Each upgrade adds another cannonball per shot. |
-| Harpoon | Pierces, pulls and soaks enemies. Bosses resist most of the pull. |
+| Harpoon | Pierces enemies and pulls them closer. Bosses resist most of the pull. |
 | Mines | Drops a mine behind the moving boat. Arms after 0.5 seconds; bursts when an enemy approaches. |
 | Lightning | Jumps between enemies. Each level adds a target. |
 | Whirlpool | Damages enemies all around the boat. |
 | Broadside | Three cannons on each side fire automatically at foes alongside the boat. |
 
-Soaked enemies take **+50% damage from Mines, Lightning and Broadside**. Weapon upgrades improve one property each: Cannon adds a ball, Harpoon adds pull strength, Mines add blast radius, Lightning adds a target, Whirlpool adds radius, and Broadside adds one cannon per side. Damage and firing cadence stay fixed across weapon ranks. Upgrade cards show the next level’s benefit.
+Weapon upgrades improve one property each: Cannon adds a ball, Harpoon adds pull strength, Mines add blast radius, Lightning adds a target, Whirlpool adds radius, and Broadside adds one cannon per side. Damage and firing cadence stay fixed across weapon ranks. Upgrade cards show the next level’s benefit.
 
 Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack area). Hull upgrades leave current health unchanged; repairs are a separate harbor action. Choose your boat before setting sail; it stays fixed for the whole voyage.
 
@@ -62,7 +62,7 @@ Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+1
 - `source/presentation/Game.cs`: input, menus, HUD, saved progression and manual review captures.
 - `source/presentation/OceanView.cs`, `ProceduralArt.cs`, `CreatureAtlas.cs`, `SceneryCache.cs`, `ocean.gdshader`: original rendering, animation, water and effects.
 
-World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Each school is consumed when casting starts, so cancelling cannot retry or reroll it. Fishing and results stop all combat updates. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
+World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Each school is consumed when casting starts, so cancelling cannot retry or reroll it. Fishing casts stop all combat updates; their brief result labels do not. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
 
 See `docs/OBJECTIVE.md` for scope, `docs/QUALITY.md` for current validation and remaining gaps, and `docs/RESEARCH.md` for research provenance. No simulation harness or automated test results stand in for actual play.
 
@@ -82,4 +82,10 @@ The bow turns responsively while the hull keeps a short drift. Boost gives an im
 
 Sail over floating treasure for 12–20 run gold, or salvage wrecks between rocks for 35–55 gold. Both are collected automatically once per location per run, disappear from the chart after collection, and remain depleted when chunks reload. The home waters include one of each encounter; farther discoveries vary by seed. Encounters do not award silver.
 
-Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, slowing and soaking them; a rope briefly shows the pull. Cannonballs have one bounce at every rank. Harpoon upgrades add 160 pull speed; mine and whirlpool upgrades add 30 radius. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.
+Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, a thicker rope snap shows stronger pulls. Cannonballs have one bounce at every rank. Harpoon upgrades add 160 pull speed; mine and whirlpool upgrades add 30 radius. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.
+
+## Readability and sailing flow
+
+Treasure has a gold glint, fishing schools use five visible fish with sparse ripples, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
+
+Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Cannon and broadside barrel counts reflect their rank, lightning adds coil rings, whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.

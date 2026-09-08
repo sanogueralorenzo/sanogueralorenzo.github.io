@@ -69,33 +69,33 @@ public sealed class ProceduralArt(Node2D canvas)
             for(int side=-1;side<=1;side+=2){Box(new(side*25-5,28),new(10,16),17,Metal,Ink);Ellipse(new(side*25,11),new(5,4),Ink);}
         }
         else { Line(new(-15,22),new(-16,43),Metal,2);Ellipse(new(-16,43),new(5,3),Cream); }
-        if (weapons != null && weapons[0] > 0) Gun(new(0,-48),aimAngle,weapons[0] >= 3);
+        if (weapons != null && weapons[0] > 0) Gun(new(0,-48),aimAngle,weapons[0]);
         if (muzzle && weapons != null && weapons[0] > 0)
         {
-            int count=weapons!=null && weapons[0]>=3?2:1;
+            int count=weapons[0];
             var dir=Vector2.FromAngle(aimAngle-Mathf.Pi/2);
             for(int barrel=0;barrel<count;barrel++)
             {
-                var at=new Vector2(0,-48)+dir*25+dir.Orthogonal()*(count==2?(barrel==0?-9:9):0);
+                var at=new Vector2(0,-48)+dir*25+dir.Orthogonal()*((barrel-(count-1)/2f)*9);
                 for(int i=0;i<3;i++){float a=i*Mathf.Tau/5;Spike(at,at+Vector2.FromAngle(a)*11,3,Cream);}
             }
         }
         if(weapons!=null && weapons[5]>0)
-            for(int side=-1;side<=1;side+=2) for(int row=-1;row<=1;row++)
-            { Line(new(side*(width*.4f),row*20),new(side*(width*.58f),row*20),Ink,7); Line(new(side*(width*.42f),row*20-2),new(side*(width*.57f),row*20-2),Metal,2); }
+            for(int side=-1;side<=1;side+=2) for(int cannon=0;cannon<weapons[5]+2;cannon++)
+            { float row=(cannon-(weapons[5]+1)/2f)*2/(weapons[5]+1); Line(new(side*(width*.4f),row*(20+(weapons[5]-1)*2.5f)),new(side*(width*.58f),row*(20+(weapons[5]-1)*2.5f)),Ink,7); Line(new(side*(width*.42f),row*(20+(weapons[5]-1)*2.5f)-2),new(side*(width*.57f),row*(20+(weapons[5]-1)*2.5f)-2),Metal,2); }
         if(weapons!=null && weapons[1]>0){Line(new(width*.34f,5),new(width*.34f,-21),Metal,5);Poly([new(width*.34f,-29),new(width*.34f-5,-18),new(width*.34f+5,-18)],Cream);}
         if(weapons!=null && weapons[2]>0){Ellipse(new(0,39),new(11,9),Ink);Ellipse(new(0,37),new(8,7),Metal);Line(new(-12,37),new(12,37),Cream,2);}
-        if(weapons!=null && weapons[3]>0){Box(new(width*.24f-5,27),new(10,12),5,Metal,Ink);for(int i=0;i<3;i++)Ellipse(new(width*.24f,23-i*3),new(6,2),new Color("69e1d3"));}
+        if(weapons!=null && weapons[3]>0){Box(new(width*.24f-5,27),new(10,12),5,Metal,Ink);for(int i=0;i<weapons[3]+2;i++)Ellipse(new(width*.24f,23-i*3),new(6,2),new Color("69e1d3"));}
         if(flash)canvas.DrawPolyline(Shift(hull,new(0,-5)).Append(hull[0]+new Vector2(0,-5)).ToArray(),new Color("fff9e4"),3,true);
         canvas.DrawSetTransform(Vector2.Zero);
     }
-    void Gun(Vector2 p, float angle, bool twin)
+    void Gun(Vector2 p, float angle, int count)
     {
-        Ellipse(p+new Vector2(2,4),new(twin?17:12,10),Ink); Ellipse(p,new(twin?16:11,9),Cream); Ellipse(p+new Vector2(0,-3),new(twin?13:8,7),Metal);
+        Ellipse(p+new Vector2(2,4),new(8+count*4,10),Ink); Ellipse(p,new(7+count*4,9),Cream); Ellipse(p+new Vector2(0,-3),new(4+count*4,7),Metal);
         var d=Vector2.FromAngle(angle-Mathf.Pi/2); var side=d.Orthogonal();
-        for(int i=0;i<(twin?2:1);i++)
+        for(int i=0;i<count;i++)
         {
-            var at=p+side*(twin?(i==0?-9:9):0);
+            var at=p+side*((i-(count-1)/2f)*9);
             Poly([at-side*4,at+side*4,at+d*23+side*3,at+d*23-side*3],Ink);
             Line(at+d*4-side*1.5f,at+d*23-side*1.5f,new Color("748087"),2);
             Line(at+d*24-side*4,at+d*24+side*4,Metal,4);
@@ -263,6 +263,40 @@ public sealed class ProceduralArt(Node2D canvas)
         {
             float a=.4f+i*2.2f; var at=new Vector2(Mathf.Cos(a)*radius*.85f,Mathf.Sin(a)*radius*.68f);
             Boulder(at,radius*rocks.Range(.08f,.14f),seed+(uint)i+20);
+        }
+        if (!harbor)
+        {
+            // Each island has one legible landmark: palms, a tall rock, or a broken mast.
+            switch (seed % 3)
+            {
+                case 0:
+                    for (int tree = 0; tree < 3; tree++)
+                    {
+                        var root = new Vector2((tree - 1) * radius * .27f, -radius * .15f + tree * 7);
+                        var crown = root + new Vector2(12 - tree * 7, -radius * .42f);
+                        Line(root, crown, new Color("77583d"), 8);
+                        Line(root - new Vector2(2,0), crown - new Vector2(2,0), Sand, 2);
+                        for (int leaf = 0; leaf < 5; leaf++)
+                        {
+                            float a = leaf * Mathf.Tau / 5;
+                            var tip = crown + Vector2.FromAngle(a) * radius * .24f;
+                            var mid = crown.Lerp(tip,.5f);
+                            var side = Vector2.FromAngle(a).Orthogonal()*7;
+                            Poly([crown,mid+side,tip,mid-side], new Color(leaf%2==0?"5a895d":"3e6c55"));
+                        }
+                    }
+                    break;
+                case 1:
+                    Boulder(new(0,-radius*.16f),radius*.53f,seed);
+                    Prism([new(-20,-radius*.2f),new(17,-radius*.2f),new(11,-radius*.38f),new(-8,-radius*.4f)],radius*.55f,new Color("c0b99a"),RockDark);
+                    break;
+                default:
+                    var mast = new Vector2(radius*.12f,-radius*.17f);
+                    Line(mast+new Vector2(-38,29),mast+new Vector2(37,29),new Color("825b3c"),12);
+                    Line(mast+new Vector2(0,30),mast+new Vector2(-9,-65),new Color("72543c"),7);
+                    Poly([mast+new Vector2(-8,-59),mast+new Vector2(36,-24),mast+new Vector2(9,-29),mast+new Vector2(16,-8),mast+new Vector2(-5,-15)],Cream);
+                    break;
+            }
         }
         if(harbor)
         {

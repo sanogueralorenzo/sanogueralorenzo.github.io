@@ -53,3 +53,8 @@ Native telemetry accompanies each image. Victory capture precedes only sale-head
 
 - `catch-without-popup.png/.txt`: successful Silver sprat, its 14-gold value above the boat, Sailing mode and cargo retained without a result menu.
 - `sailing-after-catch.png/.txt`: label cleared; combat clock advanced and steering resumed after the catch.
+
+- `clear-encounter-silhouettes.png/.txt`: gold treasure, grouped fish and broken-mast wreck beside a larger landmark island.
+- `banked-level-sailing.png/.txt`: level 2, one waiting upgrade, Sailing mode.
+- `harbor-free-refit.png/.txt` and `harbor-refit-complete.png/.txt`: docking offers the banked choice; Harpoon selection returns to Harbor, keeps gold at 6 and clears the pending count while the combat clock stays frozen.
+- `readable-combat-no-soak.png/.txt`: level 3 remains Sailing, harpoon rope and hostile coral shots are distinct. These captures precede the final LVL hover hint and barrel-spacing adjustment.

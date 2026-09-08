@@ -18,7 +18,7 @@ public sealed partial class Voyage
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || safe || Shots.Count >= 360) continue;
-            float range = w == 4 ? (138 + (rank - 1) * 30) * Area : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
+            float range = w == 4 ? WhirlpoolRadius : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
                 .Where(e => w != 5 || Math.Abs(Vector2.Dot(OceanWorld.Unit(e.Position-Position),starboard)) > MathF.Cos(BroadsideHalfAngle))
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
@@ -43,12 +43,12 @@ public sealed partial class Voyage
                         var sideAim=sideTarget==null?starboard*side:OceanWorld.Unit(sideTarget.Position-Position);
                         for (int cannon = 0; cannon < rank + 2; cannon++)
                         {
-                            float row = cannon - (rank + 1) / 2f;
+                            float row = (cannon - (rank + 1) / 2f) * 2 / (rank + 1);
                             var dir = OceanWorld.Unit(sideAim + forward * row * .04f);
                             var start = Position + starboard * side * 39 + forward * row * 23;
                             Shots.Add(new() { Kind = WeaponKind.Broadside, Position = start, Previous = start, Velocity = dir * 520, Damage = damage, Life = range / 520, Radius = 8 });
                         }
-                        Events.Add(new("broadside",Position+starboard*side*40,0,Position+starboard*side*90));
+                        Events.Add(new("broadside",Position+starboard*side*40,rank+2,Position+starboard*side*90));
                     }
                     BroadsideSalvos++;
                 }
@@ -62,7 +62,7 @@ public sealed partial class Voyage
                     Vector2 from = Position; var chain = new HashSet<int>(); Enemy? hit = target;
                     for (int i = 0; i < 2 + rank && hit != null; i++)
                     {
-                        chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage * (hit.Mark > 0 ? SoakedDamageMultiplier : 1));
+                        chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage);
                         from = hit.Position;
                         hit = Enemies.Where(e => e.Health > 0 && !chain.Contains(e.Id) && Vector2.DistanceSquared(e.Position,from) < MathF.Pow(180*Area,2)).OrderBy(e => Vector2.DistanceSquared(e.Position,from)).FirstOrDefault();
                     }
@@ -74,7 +74,7 @@ public sealed partial class Voyage
                     int count = w == 0 ? rank : 1;
                     for (int i=0;i<count;i++)
                     {
-                        var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*((i-(count-1)/2f)*18);
+                        var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*((i-(count-1)/2f)*9);
                         Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?1:0, Bounces=w==0?1:0 });
                     }
                     Events.Add(new(w==0?"shot":"harpoon",mount));
@@ -108,7 +108,7 @@ public sealed partial class Voyage
                 if (s.Life>0 && s.Age>=.5f && Enemies.Any(e=>e.Health>0 && Vector2.Distance(e.Position,s.Position)<55+e.Radius))
                 {
                     s.Life=0; MinesExploded++; Events.Add(new("explosion",s.Position,s.Radius));
-                    foreach(var e in Enemies) if(e.Health>0 && Vector2.Distance(e.Position,s.Position)<s.Radius+e.Radius) Hit(e,s.Damage*(e.Mark>0?SoakedDamageMultiplier:1));
+                    foreach(var e in Enemies) if(e.Health>0 && Vector2.Distance(e.Position,s.Position)<s.Radius+e.Radius) Hit(e,s.Damage);
                 }
                 continue;
             }
@@ -127,10 +127,10 @@ public sealed partial class Voyage
             foreach(var e in Enemies)
             {
                 if(e.Health<=0 || s.Hit.Contains(e.Id) || SegmentDistance(e.Position,s.Previous,s.Position)>e.Radius+s.Radius) continue;
-                s.Hit.Add(e.Id); Hit(e,s.Damage*(s.Kind==WeaponKind.Broadside && e.Mark>0?SoakedDamageMultiplier:1));
+                s.Hit.Add(e.Id); Hit(e,s.Damage);
                 if(s.Kind==WeaponKind.Harpoon && e.Health>0)
                 {
-                    e.Mark=4.8f; e.Pull=.4f; HarpoonPulls++; Events.Add(new("pull",Position,0,e.Position));
+                    e.Pull=.4f; HarpoonPulls++; Events.Add(new("pull",Position,Weapons[1],e.Position));
                 }
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {

@@ -187,3 +187,11 @@ Removed movement-dependent mitigation and pulse charging, Cutter after-release b
 ## Single-improvement upgrades — 2026-09-08
 
 Audited all weapon-rank dependencies and replaced bundled damage/cadence/area scaling with one property per weapon. Matching card copy distinguishes acquisition from upgrading. Debug build passed without warnings/errors, diff whitespace checks passed, and native startup/sailing were checked. No automated tests or injected state. Every rank was reviewed in source; a full live run across all weapons/ranks was not performed. Balance needs a follow-up play pass because rank damage/cadence bonuses were removed.
+
+## Visual and sailing simplification — 2026-09-08
+
+Implemented distinct procedural pickup silhouettes, quieter combat particles/trails, hostile projectiles above friendly effects, larger and less frequent ordinary islands with three landmark styles and grouped rocks, rank-aware weapon visuals and shared whirlpool radius. Soaked state, slowing, damage multipliers and current copy are removed. Levels bank choices; docking resolves them before the shop. Harbor spacing is now two chunks, supporting the new refit cadence. Pending levels have a gold LVL hint.
+
+Debug/Release builds pass. Native play reached level 3 and 35 kills over roughly 141 seconds of combat, traversing home and eastern harbor waters. Captures prove a level did not interrupt sailing, a free choice appeared only on docking, and selecting Harpoon returned to Harbor with no gold cost or combat-clock advancement. A subsequent level again banked during combat. Treasure collection, repair, harpoon pulls, enemy shots and larger landmarks were observed. One initial palm polygon triangulation error was fixed; the subsequent play session ran without that error. Captured frame mean was 9.91 ms, p95 14.73 ms at 126 seconds with 25 loaded chunks.
+
+Limits: this was not a boss-victory balance run. Multiple simultaneous pending choices and the fully-maxed gold fallback were reviewed in source but not reached in native play. High-rank barrel/coil/radius visuals were checked in code; the live run used rank-one weapons. Final LVL hint and barrel-spacing adjustments followed the recorded gameplay captures. These are verification limits, not additional implemented mechanics. No automated tests, injected state or external art were used.
