@@ -308,6 +308,7 @@ public sealed partial class Voyage
     {
         if (Boat != BoatKind.Trawler) return;
         AbilityCharge += dt / 6;
+        if (Mode == VoyageMode.Fishing) { AbilityCharge = Math.Min(1, AbilityCharge); return; }
         if (AbilityCharge < 1) return;
         AbilityCharge -= 1;
         Events.Add(new("bulwark", Position, 270));

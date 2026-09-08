@@ -202,7 +202,7 @@ public partial class Effects3D : Node3D
     }
     void DrawWhirlpool(Voyage v)
     {
-        if (v.Weapons[(int)WeaponKind.Undertow] <= 0) return;
+        if (v.Mode == VoyageMode.Fishing || v.Weapons[(int)WeaponKind.Undertow] <= 0) return;
         var center = World(v.Position, .046f); float radius = v.WhirlpoolRadius * .01f;
         // Five separated curls keep the actual attack extent visible without a solid HUD circle.
         for (int arm = 0; arm < 5; arm++)

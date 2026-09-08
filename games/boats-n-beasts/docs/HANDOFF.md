@@ -16,7 +16,7 @@ Engine-independent simulation remains in `source/core`. `StartingArea.cs` now ow
 
 ## Preserved scope
 
-Gunboat starts Cannon and fires 65% faster while boosting; Aura starts Whirlpool and periodically clears shots/pushes enemies; Mage starts homing Arcane Orbs. There are two total weapon slots including the starter. Each harbor has three stable offers from one category, each upgrade has one benefit, and free level-up choices freeze combat at sea and resume sailing after selection. During fishing, choices wait until the cast ends; voyage time, enemies, damage, automatic weapons and effects continue while the boat stays still.
+Gunboat starts Cannon and fires 65% faster while boosting; Aura starts Whirlpool and periodically clears shots/pushes enemies; Mage starts homing Arcane Orbs. There are two total weapon slots including the starter. Each harbor has three stable offers from one category, each upgrade has one benefit, and free level-up choices freeze combat at sea and resume sailing after selection. During fishing, choices wait until the cast ends; voyage time, enemies, damage and existing projectiles continue while the boat stays still. New automatic attacks and Aura pulses stop for the cast; their cooldowns recharge without banking extra attacks.
 
 Schools allow one cast, results return directly to sailing, catches have no capacity limit and sell automatically on docking. Gold is voyage-local; scarce randomized silver persists. No settings, seed UI, mid-voyage boat switching, Soaked, new progression systems or audio expansion were introduced. Keep the existing boss victory/endless and defeat/retry flow. Save compatibility retains the existing `user://settings.cfg` progression storage.
 

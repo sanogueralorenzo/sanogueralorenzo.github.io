@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Weapons idle during fishing — 2026-09-08
+
+[Fishing A](fishing-idle-a.png)/[B](fishing-idle-b.png) show enemies approaching with full health, idle Whirlpool and Aura holding a ready pulse. [After timeout](fishing-attacks-resumed.png) records resumed attacks and kills. Same-name TXT telemetry accompanies each image. [Native log](fishing-idle-runtime.txt).
+
 ## Individual monster speeds — 2026-09-08
 
 [Gameplay A](individual-speed-a.png)/[B](individual-speed-b.png) show original crab, puffer and serpent colors. Same-name TXT reports show distinct speed multipliers that stay fixed as enemies move. [Native log](individual-speed-runtime.txt).

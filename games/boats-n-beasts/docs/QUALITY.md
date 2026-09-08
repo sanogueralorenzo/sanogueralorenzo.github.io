@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Weapons idle during fishing — 2026-09-08
+
+Fishing now suppresses all new automatic weapon attacks, including Whirlpool damage, and holds Aura's defensive pulse. Weapon cooldowns continue recharging; Aura charge caps at one ready pulse rather than banking several. Already-fired projectiles continue normally. Enemies, damage and voyage time remain active. Reel, cancellation or timeout resumes attacks. Whirlpool's persistent radius curls are hidden during fishing, and the panel says “Weapons idle.”
+
+Debug/Release pass with zero warnings/errors; native log clean. Aura's paired fishing captures advance from 0.533 to 5.333 cast seconds while enemy positions approach the stationary boat and all five crabs retain full health. Whirlpool stays idle at zero cooldown, with no active radius curls. Aura reaches charge 1 without pulsing during the cast. After timeout, its pulse and Whirlpool resume: charge cycles again, weapon cooldown is active and five kills are recorded. [Evidence](../evidence/README.md). No automated tests or injected state. Other weapons use the same firing guard but were not individually replayed; existing projectile travel and manual cancellation were reviewed in code.
+
 ## Individual monster speeds, original colors — 2026-09-08
 
 Replaces the normal/swift split and violet recolor. Every monster samples a continuous seeded movement multiplier from 0.85 to 1.4 when spawned, including Crownclaw. Species base speeds and distance scaling remain. The range preserves the former regular-enemy mix's mean multiplier of 1.125. Swimming animation uses the same individual rate. Normal shell/fin colors remain; the puffer's red swelling still indicates its fuse.
