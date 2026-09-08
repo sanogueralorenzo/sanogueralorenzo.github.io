@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CozyMapDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/map_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://maps/sunny_bay/preview.png" id="2"]
+[resource]
+script = ExtResource("1")
+id = &"sunny_bay"
+title = "Sunny Bay"
+subtitle = "ONE LITTLE TOWN · A WHOLE SUMMER"
+description = "Follow the harbor steps to shaded cafés and a quiet hillside pond. Take the coast path home, settle on a sunny roof, or wander down to the old wooden pier."
+scene = "res://maps/sunny_bay/map.tscn"
+preview = ExtResource("2")
+spawn_position = Vector3(-8,0.12,8)
+spawn_yaw = -2.5
+spawn_pitch = 0.14
+spawn_mode = "cat"
