@@ -40,3 +40,7 @@ Debug/Release builds and direct UI checks pass. Native `speed-x2`, `speed-x3-sta
 ## Simplified HUD follow-up — 2026-09-08
 
 Removed the top-left title/boat/status panel. Experience now fills an eight-pixel bar at the top edge with a compact level label below it; hull is a 96×8 red bar positioned above the boat through the same world-to-screen transform. Removed the replaced corner health/boost/ability readouts and bottom experience bar. Debug and Release builds pass with zero warnings/errors. The rebuilt title was observed; sailing screenshot verification was interrupted by concurrent user interaction, so no new in-game visual verification is claimed.
+
+## Centered inventory follow-up — 2026-09-08
+
+Acquired weapons and stat upgrades now share a compact, centered bottom row with ranks; unowned slots are omitted. Removed the permanent region heading, bottom control legend and objective sentence. The current objective appears in the pause menu; contextual interaction prompts and the opening controls toast remain. Direct runtime observation verified the two starting items centered, the red health bar above the boat, top experience bar, and pause objective fitting the panel. `evidence/minimal-hud.png` records the native sailing view. Debug/Release builds pass; no automated tests were added.

@@ -225,7 +225,7 @@ public partial class Game : Node2D
         switch (Run.Mode)
         {
             case VoyageMode.Paused:
-                col = Panel(510, "TAKE A BREATHER", "At anchor", "Your voyage is paused.");
+                col = Panel(510, "TAKE A BREATHER", "At anchor", Run.Retired ? "Voyage won · explore the endless ocean" : Run.BossSlain ? "Return to a harbor to claim your victory." : Run.Charts >= 3 ? "Sail beyond 3 leagues and defeat the Crownclaw." : $"Chart {Run.Charts}/3 · Fish at three different schools beyond one league.");
                 col.AddChild(Button("Resume voyage", () => { Run.Mode = beforePause; BuildMenu(); }, true));
                 col.AddChild(Button("Settings", () => { settings = true; BuildMenu(); }));
                 col.AddChild(Button("Captain’s handbook", () => { controls = true; BuildMenu(); }));
@@ -358,18 +358,21 @@ public partial class Game : Node2D
             Text(new(16, 33), $"LEVEL {r.Level}", 17);
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
             Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
-            string zone = r.Safe ? "SAFE HARBOR" : r.Tier == 0 ? "SHELTERED SHOALS" : r.Tier < 3 ? "OPEN WATERS" : "THE DEEP BLUE";
-            Text(new(size.X / 2 - 110, 43), zone, 26, true);
             Text(new(statusLeft + 16, 44), voyageStatus, 24, true);
             Text(new(statusLeft + 16, 75), $"CARGO {r.Hold.Count}/12   ·   CHART {r.Charts}/3", 18);
-            string task = r.Retired ? "Voyage won · explore the endless ocean" : r.BossSlain ? "Return to a harbor · claim your victory" : r.Charts >= 3 ? "Sail beyond 3 leagues · hunt the Crownclaw" : "Fish 3 different schools beyond 1 league";
-            Text(new(32, size.Y - 80), task, 20);
-            for (int i = 0; i < r.Weapons.Length; i++)
+            string[] itemLabels = ["CANNON", "HARPOON", "MORTAR", "COIL", "AURA", "SCATTER", "HULL", "ENGINE", "RELOAD", "AREA"];
+            var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
+            const float itemWidth = 96, gap = 8;
+            float rowWidth = equipped.Length * (itemWidth + gap) - gap;
+            for (int slot = 0; slot < equipped.Length; slot++)
             {
-                var p = new Vector2(32 + i * 108, size.Y - 60); DrawStyleBox(Game.Box(new Color(OceanView.Navy, .7f), 8, new Color(OceanView.Cream, r.Weapons[i] > 0 ? .65f : .15f)), new(p, new Vector2(100, 38)));
-                Text(p + new Vector2(10, 25), new[] { "CANNON", "HARPOON", "MORTAR", "COIL", "AURA", "SCATTER" }[i] + $" {r.Weapons[i]}", 15, true, new Color(OceanView.Cream, r.Weapons[i] > 0 ? 1 : .3f));
+                int item = equipped[slot];
+                var p = new Vector2((size.X - rowWidth) / 2 + slot * (itemWidth + gap), size.Y - 48);
+                DrawStyleBox(Game.Box(new Color(OceanView.Navy, .65f), 6), new(p, new Vector2(itemWidth, 32)));
+                string label = $"{itemLabels[item]} {r.Rank(item)}";
+                float labelWidth = TitleFont.GetStringSize(label, fontSize: 15).X;
+                Text(p + new Vector2((itemWidth - labelWidth) / 2, 22), label, 15, true);
             }
-            Text(new(size.X - 425, size.Y - 33), "WASD / CLICK SAIL   SPACE BOOST   ESC PAUSE", 16);
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, OceanView.Aqua);
             DrawCompass(size);
             if (Game.toastTime > 0) { float width = BodyFont.GetStringSize(Game.toast, fontSize: 20).X; DrawStyleBox(Game.Box(new Color(OceanView.Navy, .9f), 10), new((size.X - width) / 2 - 20, 144, width + 40, 45)); Text(new((size.X - width) / 2, 174), Game.toast, 20); }
