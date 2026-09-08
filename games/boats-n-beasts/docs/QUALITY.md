@@ -66,3 +66,7 @@ Replaced the ten-kill milestones with a core-owned random 45–90 combat-second 
 Inspected local Megabonk IL2CPP metadata and native code: ordinary silver uses a time gate and 60/SilverIncreaseMultiplier interval, not a per-kill probability. The random interval here is explicitly custom tuning; RESEARCH.md and the new disassembly excerpt document the distinction.
 
 Native play observations: initial eligibility 74.50001 seconds with zero earned silver. At 12 kills the visible balance remained 12. Final capture at 113.7367 combat seconds and 38 kills records one awarded silver (saved total 13), with next eligibility 134.96675. These demonstrate removal of fixed milestones and rescheduling; no claim of statistical distribution testing or a second drop in this run. The user also controlled the game during this review. Evidence: random-silver-start/result. Debug/Release builds pass; no automated tests were added.
+
+## Minimal nautical chart — 2026-09-08
+
+Top-right now contains only LVL and the map; removed distance/cargo/chart readouts and moved the speed control beneath the top-left counters. Replaced radar styling with code-drawn parchment, compass rose, shoreline polygons, harbor anchors, fishing wave marks and a rotating player arrow. North stays fixed; depleted schools remain hidden, and distant home/boss bearings stay within the chart rim without an external legend. Direct native runtime observation verified spacing and visible chart symbols (`nautical-chart` evidence). Debug/Release builds pass. No external assets or automated tests were added.

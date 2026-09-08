@@ -208,8 +208,8 @@ public partial class Game : Node2D
                 Text = $"×{gameSpeed}", TooltipText = "Game speed · click to cycle ×1 / ×2 / ×3",
                 FocusMode = Control.FocusModeEnum.None,
                 MouseDefaultCursorShape = Control.CursorShape.PointingHand,
-                AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -90, OffsetRight = -16,
-                OffsetTop = 100, OffsetBottom = 138
+                OffsetLeft = 14, OffsetRight = 88,
+                OffsetTop = 68, OffsetBottom = 106
             };
             speed.AddThemeFontOverride("font", bodyFont); speed.AddThemeFontSizeOverride("font_size", 20);
             speed.AddThemeColorOverride("font_color", new Color(OceanView.Cream, .75f));
@@ -358,11 +358,8 @@ public partial class Game : Node2D
         public override void _Draw()
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
-            string voyageStatus = $"{r.Position.Length() / 1000:0.00} LEAGUES";
-            float statusWidth = Math.Max(266, TitleFont.GetStringSize(voyageStatus, fontSize: 24).X + 32);
-            float statusLeft = size.X - statusWidth - 14;
-            DrawStyleBox(Game.Box(new Color(OceanView.Navy, .78f), 12), new Rect2(statusLeft, 16, statusWidth, 76));
-            Text(new(size.X / 2 - 30, 30), $"LV {r.Level}", 15);
+            string level = $"LVL {r.Level}";
+            Text(new(size.X - 100 - TitleFont.GetStringSize(level, fontSize: 20).X / 2, 38), level, 20, true);
             int seconds = (int)r.CombatTime;
             string[] counters = [$"{seconds / 60:00}:{seconds % 60:00}", Game.silver.ToString(), r.Coins.ToString(), r.Kills.ToString()];
             float countersWidth = counters.Sum(value => BodyFont.GetStringSize(value, fontSize: 21).X + 48) + 12;
@@ -376,8 +373,6 @@ public partial class Game : Node2D
             }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
             Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
-            Text(new(statusLeft + 16, 44), voyageStatus, 24, true);
-            Text(new(statusLeft + 16, 75), $"CARGO {r.Hold.Count}/12   ·   CHART {r.Charts}/3", 18);
             string[] itemLabels = ["CANNON", "HARPOON", "MORTAR", "COIL", "AURA", "SCATTER", "HULL", "ENGINE", "RELOAD", "AREA"];
             var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
             const float itemWidth = 96, gap = 8;
@@ -448,20 +443,60 @@ public partial class Game : Node2D
         }
         void DrawCompass(Vector2 size)
         {
-            var r = Game.Run; var center = new Vector2(size.X - 94, 227); DrawCircle(center, 67, new Color(OceanView.Navy, .75f)); DrawArc(center, 67, 0, Mathf.Tau, 48, new Color(OceanView.Cream, .35f), 1, true); Text(center + new Vector2(-5, -74), "N", 17, true);
-            foreach (var p in r.World.Places)
+            var r = Game.Run;
+            var center = new Vector2(size.X - 100, 140);
+            Color paper = new("e1d1a5"), ink = new("526963"), coast = new("a8ad7e");
+            DrawCircle(center + new Vector2(0, 3), 82, new Color(OceanView.Navy, .3f));
+            DrawCircle(center, 80, paper);
+            DrawArc(center, 77, 0, Mathf.Tau, 64, ink, 1.5f, true);
+            DrawArc(center, 63, 0, Mathf.Tau, 64, new Color(ink, .22f), 1, true);
+            // A quiet compass rose keeps the chart north-up.
+            for (int i = 0; i < 8; i++)
             {
-                if (!r.World.Discovered.Contains(p.Id) || p.Kind is not (PlaceKind.Harbor or PlaceKind.Fishing)) continue;
-                var offset = OceanView.G(p.Position - r.Position) / 17; if (offset.Length() > 60) continue;
-                if (p.Kind == PlaceKind.Fishing && r.World.FishLeft(p) == 0) continue;
-                DrawCircle(center + offset, p.Kind == PlaceKind.Harbor ? 4 : 2.5f, p.Kind == PlaceKind.Harbor ? OceanView.Cream : OceanView.Aqua);
+                var direction = Vector2.FromAngle(i * Mathf.Tau / 8);
+                DrawLine(center + direction * 12, center + direction * 59, new Color(ink, .15f), 1, true);
+                DrawLine(center + direction * 71, center + direction * 75, ink, 1, true);
+            }
+            Text(center + new Vector2(-5, -64), "N", 13, true, ink);
+            foreach (var place in r.World.Places)
+            {
+                if (!r.World.Discovered.Contains(place.Id)) continue;
+                var offset = OceanView.G(place.Position - r.Position) / 17;
+                if (offset.Length() > 56) continue;
+                var at = center + offset;
+                if (place.Kind == PlaceKind.Fishing)
+                {
+                    if (r.World.FishLeft(place) == 0) continue;
+                    DrawArc(at, 4, .2f, Mathf.Pi - .2f, 10, ink, 1.5f, true);
+                    DrawArc(at + new Vector2(0, 4), 4, .2f, Mathf.Pi - .2f, 10, ink, 1.5f, true);
+                }
+                else if (place.Kind == PlaceKind.Harbor) ChartAnchor(at, ink);
+                else
+                {
+                    float radius = Math.Clamp(place.Radius / 17, 3, 11);
+                    var outline = Enumerable.Range(0, 7).Select(i => at + Vector2.FromAngle(i * Mathf.Tau / 7) * radius * (i % 2 == 0 ? 1 : .8f)).ToArray();
+                    DrawColoredPolygon(outline, coast);
+                    DrawPolyline(outline.Append(outline[0]).ToArray(), ink, 1, true);
+                }
             }
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
-            if (boss != null) { var d = OceanView.G(boss.Position-r.Position)/17; if (d.Length()>57) d=d.Normalized()*57; DrawCircle(center+d, 5, OceanView.Coral); }
-            DrawColoredPolygon([center + new Vector2(0, -7), center + new Vector2(-4, 5), center + new Vector2(4, 5)], OceanView.Cream);
-            // Home-bearing remains available even after its chunk unloads.
+            if (boss != null)
+            {
+                var d = OceanView.G(boss.Position - r.Position) / 17;
+                if (d.Length() > 59) d = d.Normalized() * 59;
+                DrawCircle(center + d, 4, new Color("b45143"));
+            }
             var home = OceanView.G(new V2(-310, -220) - r.Position);
-            if (home.Length() > 700) { var p = center + home.Normalized() * 57; DrawCircle(p, 4, OceanView.Cream); Text(center + new Vector2(-42, 87), "● HOME BEARING", 14); }
+            if (home.Length() > 1000) ChartAnchor(center + home.Normalized() * 60, ink);
+            Vector2[] pointer = [new(0, -8), new(-5, 6), new(0, 3), new(5, 6)];
+            DrawColoredPolygon(pointer.Select(p => center + p.Rotated(r.Heading)).ToArray(), OceanView.Navy);
+        }
+        void ChartAnchor(Vector2 at, Color ink)
+        {
+            DrawCircle(at + new Vector2(0, -5), 2, ink, false, 1.5f, true);
+            DrawLine(at + new Vector2(0, -3), at + new Vector2(0, 6), ink, 1.5f, true);
+            DrawLine(at + new Vector2(-3, -1), at + new Vector2(3, -1), ink, 1.5f, true);
+            DrawArc(at + new Vector2(0, 1), 5, 0, Mathf.Pi, 12, ink, 1.5f, true);
         }
     }
 }

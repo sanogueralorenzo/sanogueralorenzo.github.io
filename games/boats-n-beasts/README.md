@@ -21,7 +21,7 @@ There are no external visual assets, imported fonts, audio assets, or automated 
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.
 - **Space / E while fishing:** reel inside the turquoise band. Three hits land the catch; three misses or 16 seconds lose it. Escape cancels. Assisted fishing is an optional setting that times reels for you.
 - **Escape:** pause, cancel fishing, or leave a result/harbor screen. **Enter / Tab / arrows:** operate menus. Space cannot accidentally select an upgrade while boosting.
-- **×1 / ×2 / ×3, top right:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
+- **×1 / ×2 / ×3, below the top-left counters:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
 - **F11:** fullscreen. **F12:** save a native viewport image and runtime measurements under `evidence/`.
 
 Catch fish at three different schools beyond one league. After completing the chart, sail beyond three leagues to summon the Crownclaw. Its defeat disperses the escort and gives you a calm return to any harbor. Claim victory there, then choose a fresh voyage or resume combat in endless exploration.
@@ -50,3 +50,5 @@ Every boat can use ranged cannon/harpoon/mortar, chain lightning, a damaging aur
 World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Cast randomness is tied to the school and depletion count so cancellation cannot reroll its reward. Fishing and results stop all combat updates. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
 
 See `docs/OBJECTIVE.md` for scope, `docs/QUALITY.md` for current validation and remaining gaps, and `docs/RESEARCH.md` for research provenance. No simulation harness or automated test results stand in for actual play.
+
+The top-right corner contains only LVL and a north-up nautical chart. Islands use shoreline outlines, harbors use anchors, fish use wave marks, and the center arrow follows your heading. A rim anchor points home when distant. Voyage objectives remain in pause and cargo totals are available when fishing or docking.
