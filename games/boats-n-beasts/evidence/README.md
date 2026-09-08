@@ -66,3 +66,6 @@ Native telemetry accompanies each image. Victory capture precedes only sale-head
 - `concept-style-motion.png/.txt`: upright Mage crystal, broad shallow shelves and readable combat, following foam refinement. Sparse sand grains and the final Ray body are later build-verified refinements.
 
 - `concept-depth-revision.png/.txt`: intermediate harbor/cabin/shore revision; still below the approved concept. See ART_DIRECTION follow-up gaps.
+
+- `immediate-level-up.png/.txt`: upgrade prompt earned at sea without docking.
+- `concept-water-and-refit.png/.txt`: sailing resumed after free Lightning selection; final water/shore and rock-ledge revision.

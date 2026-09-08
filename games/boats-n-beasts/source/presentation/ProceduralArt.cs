@@ -303,30 +303,7 @@ public sealed class ProceduralArt(Node2D canvas)
         var ring=IslandRing(seed);
         canvas.DrawSetTransform(p);
         var outer=ring.Select(v=>v*radius).ToArray();
-        // Irregular shoals blend outward instead of repeating the beach as hard rings.
         float shoalPhase=(seed%997)/997f*Mathf.Tau;
-        var shallow=new Vector2[outer.Length];
-        var shelf=new Vector2[outer.Length];
-        var deep=new Vector2[outer.Length];
-        for(int i=0;i<outer.Length;i++)
-        {
-            float a=i*Mathf.Tau/outer.Length;
-            float width=.65f+.2f*Mathf.Sin(a*2+shoalPhase)+.12f*Mathf.Cos(a*5-shoalPhase);
-            shallow[i]=outer[i]*1.035f+new Vector2(0,3);
-            shelf[i]=outer[i]*(1.22f+width*.7f)+new Vector2(10,9);
-            deep[i]=outer[i]*(1.39f+width*.75f)+new Vector2(12,10);
-        }
-        for(int i=0;i<outer.Length;i++)
-        {
-            int next=(i+1)%outer.Length;
-            var near=new Color(.045f,.34f,.36f,.85f);
-            var middle=new Color(.02f,.27f,.32f,.65f);
-            var far=new Color(.02f,.34f,.42f,0);
-            canvas.DrawPolygon([shallow[i],shallow[next],shelf[next]], [near,near,middle]);
-            canvas.DrawPolygon([shallow[i],shelf[next],shelf[i]], [near,middle,middle]);
-            canvas.DrawPolygon([shelf[i],shelf[next],deep[next]], [middle,middle,far]);
-            canvas.DrawPolygon([shelf[i],deep[next],deep[i]], [middle,far,far]);
-        }
         Poly(Shift(outer,new(3,8)),new Color("9b895f"));
         Poly(outer,Sand);
         var beach=outer.Select(v=>v*.975f-new Vector2(0,2)).ToArray();
@@ -422,17 +399,17 @@ public sealed class ProceduralArt(Node2D canvas)
         // An irregular three-dimensional mesh supplies consistent face lighting and ledges.
         var rng=new SeedRandom(seed^0x8e52u);
         const int sides=8;
-        var rings=new Vector3[4][];
-        float[] widths=[.37f,.29f,.20f,.105f];
-        float[] heights=[0,.30f,.73f,1.06f];
-        for(int tier=0;tier<4;tier++)
+        float[] widths=[.37f,.31f,.23f,.22f,.13f,.105f];
+        float[] heights=[0,.26f,.32f,.72f,.79f,1.06f];
+        var rings=new Vector3[widths.Length][];
+        for(int tier=0;tier<rings.Length;tier++)
         {
             rings[tier]=new Vector3[sides];
             for(int i=0;i<sides;i++)
             {
                 float angle=i*Mathf.Tau/sides;
                 float width=widths[tier]*rng.Range(.87f,1.13f)*radius;
-                rings[tier][i]=new Vector3(Mathf.Cos(angle)*width-tier*radius*.017f,
+                rings[tier][i]=new Vector3(Mathf.Cos(angle)*width-tier*radius*.009f,
                     Mathf.Sin(angle)*width*.72f,heights[tier]*radius+(tier==0?0:rng.Range(-.024f,.024f)*radius));
             }
         }
@@ -447,14 +424,14 @@ public sealed class ProceduralArt(Node2D canvas)
             canvas.DrawPolygon([center,edge,next],[new Color(.12f,.19f,.16f,.34f),new Color(.12f,.19f,.16f,0),new Color(.12f,.19f,.16f,0)]);
         }
         var faces=new List<(Vector3 A,Vector3 B,Vector3 C)>();
-        for(int tier=0;tier<3;tier++)for(int i=0;i<sides;i++)
+        for(int tier=0;tier<rings.Length-1;tier++)for(int i=0;i<sides;i++)
         {
             int next=(i+1)%sides;
             faces.Add((rings[tier][i],rings[tier][next],rings[tier+1][next]));
             faces.Add((rings[tier][i],rings[tier+1][next],rings[tier+1][i]));
         }
-        var summit=rings[3].Aggregate(Vector3.Zero,(sum,v)=>sum+v)/sides;
-        for(int i=0;i<sides;i++)faces.Add((summit,rings[3][i],rings[3][(i+1)%sides]));
+        var summit=rings[^1].Aggregate(Vector3.Zero,(sum,v)=>sum+v)/sides;
+        for(int i=0;i<sides;i++)faces.Add((summit,rings[^1][i],rings[^1][(i+1)%sides]));
         var light=new Vector3(-.65f,.3f,.8f).Normalized();
         foreach(var face in faces.OrderBy(f=>(f.A.Y+f.B.Y+f.C.Y+f.A.Z+f.B.Z+f.C.Z)/3))
         {

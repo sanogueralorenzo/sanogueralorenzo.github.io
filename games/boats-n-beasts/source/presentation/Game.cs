@@ -71,7 +71,6 @@ public partial class Game : Node2D
                     catchNotice = e.Kind == "catch" ? $"{Run.CatchTitle} · {e.Value:0} gold" : Run.CatchTitle;
                     catchNoticeTime = 2.5f;
                 }
-                if (e.Kind == "level") Toast($"Level {Run.Level} · {Run.PendingUpgrades} free upgrade{(Run.PendingUpgrades == 1 ? "" : "s")} at your next harbor");
                 if (e.Kind == "silver") Toast("+1 silver");
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
@@ -318,7 +317,7 @@ public partial class Game : Node2D
     }
     void UpgradeMenu()
     {
-        var col = Panel(950, "Harbor · free refit", "Pick an upgrade", $"{Run.PendingUpgrades} free upgrade{(Run.PendingUpgrades == 1 ? "" : "s")} waiting. Choose one.");
+        var col = Panel(950, $"Level {Run.Level}", "Pick an upgrade", "Choose one. Then keep sailing.");
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 14); col.AddChild(row);
         foreach (int option in Run.UpgradeChoices) AddUpgradeCard(row, option, true);
         if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · take 40 gold", () => { Run.TakeUpgradeGold(); BuildMenu(); }, true));
@@ -357,7 +356,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nLevels earn free upgrades without interrupting sailing. Choose them when you dock. Catches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat during the cast. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nLeveling up pauses sailing for a free upgrade. Choose one to resume. Catches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat during the cast. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()
@@ -396,14 +395,7 @@ public partial class Game : Node2D
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
             string level = $"LVL {r.Level}";
             var levelPosition = new Vector2(size.X - 14 - TitleFont.GetStringSize(level, fontSize: 20).X, 30);
-            Text(levelPosition, level, 20, true, r.PendingUpgrades > 0 ? new Color("efc46d") : OceanView.Cream);
-            if (r.PendingUpgrades > 0 && new Rect2(levelPosition-new Vector2(6,24),new Vector2(90,32)).HasPoint(Game.uiPointer))
-            {
-                string hint = $"{r.PendingUpgrades} free upgrade{(r.PendingUpgrades == 1 ? "" : "s")} at your next harbor";
-                float width = BodyFont.GetStringSize(hint, fontSize:16).X;
-                DrawStyleBox(Game.Box(new Color(OceanView.Navy,.95f),6),new Rect2(size.X-width-30,40,width+20,30));
-                Text(new(size.X-width-20,61),hint,16);
-            }
+            Text(levelPosition, level, 20, true, OceanView.Cream);
             int seconds = (int)r.CombatTime;
             string[] counters = [$"{seconds / 60:00}:{seconds % 60:00}", Game.silver.ToString(), r.Coins.ToString(), r.Kills.ToString()];
             float countersWidth = counters.Sum(value => BodyFont.GetStringSize(value, fontSize: 21).X + 48) + 12;

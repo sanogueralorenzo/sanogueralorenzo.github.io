@@ -40,7 +40,17 @@ public partial class SceneryCache : Node2D
             if (at.X < -margin || at.Y < -margin || at.X > screenSize.X + margin || at.Y > screenSize.Y + margin) continue;
             int size = (int)MathF.Ceiling(Margin(p) * 2);
             var viewport = new SubViewport { Size = new(size * 2, size * 2), TransparentBg = true, Disable3D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Once };
-            AddChild(viewport); viewport.AddChild(new Stamp { Place = p, Size = size, Scale = Vector2.One * 2 });
+            AddChild(viewport);
+            if(p.Kind!=PlaceKind.Rock)
+            {
+                float radius=p.Kind==PlaceKind.Harbor?156:p.Radius*1.15f;
+                var rng=new SeedRandom(p.Style);
+                var material=new ShaderMaterial { Shader=GD.Load<Shader>("res://source/presentation/shore.gdshader") };
+                material.SetShaderParameter("radius",radius);
+                material.SetShaderParameter("phase",rng.Range(0,Mathf.Tau));
+                viewport.AddChild(new Shoal { Radius=radius,Position=Vector2.One*size,Scale=Vector2.One*2,Material=material });
+            }
+            viewport.AddChild(new Stamp { Place = p, Size = size, Scale = Vector2.One * 2 });
             entries.Add(p.Id, new(viewport, size, Engine.GetProcessFrames() + 2, p));
             if (++created == 2) break;
         }
@@ -49,6 +59,11 @@ public partial class SceneryCache : Node2D
     {
         if (!entries.TryGetValue(p.Id, out var entry) || Engine.GetProcessFrames() < entry.ReadyFrame) return false;
         return true;
+    }
+    partial class Shoal : Node2D
+    {
+        public float Radius;
+        public override void _Draw()=>DrawRect(new Rect2(-Vector2.One*Radius*2.2f,Vector2.One*Radius*4.4f),Colors.White);
     }
     partial class Stamp : Node2D
     {

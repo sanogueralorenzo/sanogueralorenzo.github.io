@@ -108,7 +108,11 @@ public sealed partial class Voyage
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
         if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
-        else while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
+        else
+        {
+            while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
+            if (PendingUpgrades > 0) PrepareNextUpgrade();
+        }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
     public bool Spawn(EnemyKind? forced = null)
@@ -230,7 +234,7 @@ public sealed partial class Voyage
     public bool Interact()
     {
         if (Mode != VoyageMode.Sailing) return false;
-        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); PrepareHarborUpgrade(); return true; }
+        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); return true; }
         var fish = World.FishAt(Position);
         if (fish == null) return false;
         FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
@@ -284,16 +288,16 @@ public sealed partial class Voyage
             if (e.Health > 0 && Vector2.Distance(e.Position, Position) < 270 + e.Radius)
                 e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(e.Position - Position) * 65, e.Radius);
     }
-    void PrepareHarborUpgrade()
+    void PrepareNextUpgrade()
     {
         UpgradeChoices.Clear();
-        if (PendingUpgrades == 0) { Mode = VoyageMode.Harbor; return; }
+        if (PendingUpgrades == 0) { Mode = VoyageMode.Sailing; return; }
         RollUpgrades(); Mode = VoyageMode.Upgrade;
     }
     public void TakeUpgradeGold()
     {
         if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || UpgradeChoices.Count > 0) return;
-        Coins += 40; PendingUpgrades--; PrepareHarborUpgrade();
+        Coins += 40; PendingUpgrades--; PrepareNextUpgrade();
     }
     void RollUpgrades()
     {
@@ -335,7 +339,7 @@ public sealed partial class Voyage
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;
         else AreaRank++;
-        if (free) { PendingUpgrades--; PrepareHarborUpgrade(); }
+        if (free) { PendingUpgrades--; PrepareNextUpgrade(); }
         Events.Add(new("buy", Position)); return true;
     }
     public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Arcane Orbs", "Hull", "Speed", "Reload", "Reach"];
