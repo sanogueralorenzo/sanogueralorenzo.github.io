@@ -3,9 +3,9 @@ import ApplicationServices
 
 @MainActor
 enum Accessibility {
-    static func application(_ pid: pid_t) -> AXUIElement {
+    static func application(_ pid: pid_t, timeout: Float = 1) -> AXUIElement {
         let app = AXUIElementCreateApplication(pid)
-        AXUIElementSetMessagingTimeout(app, 1)
+        AXUIElementSetMessagingTimeout(app, timeout)
         return app
     }
     static func value(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
@@ -38,6 +38,7 @@ final class CapturedSelection {
     let element: AXUIElement
     let window: AXUIElement?
     let text: String
+    let selectedRange: NSRange?
     let fingerprint: SelectionFingerprint?
     let point: NSPoint
     let supportsReplacement: Bool
@@ -47,6 +48,7 @@ final class CapturedSelection {
     init(app: NSRunningApplication, element: AXUIElement, text: String) {
         self.app = app; self.element = element; self.text = text
         self.window = Accessibility.element(element, kAXWindowAttribute)
+        self.selectedRange = Accessibility.range(element)
         self.fingerprint = Accessibility.fingerprint(element)
         var settable = DarwinBoolean(false)
         supportsReplacement = AXUIElementIsAttributeSettable(element, kAXSelectedTextAttribute as CFString, &settable) == .success && settable.boolValue && fingerprint != nil
@@ -71,15 +73,15 @@ final class CapturedSelection {
         if let observer { CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .commonModes) }
     }
 
-    static func capture(sourceApp: NSRunningApplication? = nil) throws -> CapturedSelection {
+    static func capture(sourceApp: NSRunningApplication? = nil, timeout: Float = 1) throws -> CapturedSelection {
         guard AXIsProcessTrusted() else {
             throw RewriteError.message("Allow Rewrite in System Settings → Privacy & Security → Accessibility, then select text and try again.")
         }
         guard let app = sourceApp ?? NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
-              let focused = Accessibility.element(Accessibility.application(app.processIdentifier), kAXFocusedUIElementAttribute) else {
+              let focused = Accessibility.element(Accessibility.application(app.processIdentifier, timeout: timeout), kAXFocusedUIElementAttribute) else {
             throw RewriteError.message("Select text in an app, then press the Rewrite shortcut again.")
         }
-        AXUIElementSetMessagingTimeout(focused, 1)
+        AXUIElementSetMessagingTimeout(focused, timeout)
         guard Accessibility.value(focused, kAXSubroleAttribute) as? String != kAXSecureTextFieldSubrole,
               let text = Accessibility.value(focused, kAXSelectedTextAttribute) as? String,
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -89,6 +91,13 @@ final class CapturedSelection {
             throw RewriteError.message("Select a shorter passage (up to 24,000 characters) and try again.")
         }
         return CapturedSelection(app: app, element: focused, text: text)
+    }
+
+    func matches(_ other: CapturedSelection) -> Bool {
+        app.processIdentifier == other.app.processIdentifier && CFEqual(element, other.element) &&
+            text == other.text && fingerprint == other.fingerprint &&
+            selectedRange == other.selectedRange &&
+            ((window == nil && other.window == nil) || (window != nil && other.window != nil && CFEqual(window!, other.window!)))
     }
 
     func replacementLimitation() -> String? {

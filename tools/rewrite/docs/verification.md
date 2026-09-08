@@ -1,5 +1,17 @@
 # Runtime verification
 
+## Automatic selection toolbar — September 8, 2026
+
+The optimized bundle builds and its signature verifies. All 36 focused checks and the existing native preview/shortcut checks pass. The production toolbar was rendered and visually inspected: all six labeled actions fit, dispatch the correct edit, and remain within each available screen’s visible bounds. Its panel cannot become key or main.
+
+`tests/toolbar.sh --selection --foreground --changed` passed against a disposable TextEdit document using the production foreground capture and timer. It verified automatic appearance after a stable selection, no foreground-focus change, an unchanged clipboard, a safely replaceable capture, dismissal without resurfacing, a new toolbar after selecting a different range, permanent invalidation of the old capture, and suppression while disabled. The same test also supports targeting TextEdit directly by omitting `--foreground`, useful when the automation surface operates in the background. The `--changed` stage asks the tester to select just `library` within 30 seconds.
+
+The production AX replacement integration check passed again in TextEdit; native Command-Z restored the source sentence. The native preview check verifies Return/Escape and disabled replacement, and the toolbar’s six callbacks share the existing `Rewrite.run` processing/preview path. No fresh provider inference was run for this UI change.
+
+The packaged build launched, but computer-use inspection timed out twice, so a physical toolbar-click → provider → preview → Replace sequence in that bundle remains unverified. The previously installed app was restored after the smoke test; no Accessibility permissions were changed. Locally signed builds can require the user to re-enable Accessibility. Browser/custom-editor and actual macOS 14 toolbar behavior were not newly tested.
+
+The toolbar reads the foreground selection locally about every 350 ms while enabled and idle, requires two matching samples, and pauses during mouse gestures/modifier-key selection. It does not send text to a processor until an action is chosen. Outside clicks, typing, scrolling, Escape, the close control, app/field/selection changes, Settings, and active requests hide or suppress it. Some apps expose no selection, incomplete geometry, or no safe replacement; the existing shortcut and Copy fallbacks remain available.
+
 Verified on September 7, 2026, on Apple Silicon, macOS 26.5.2, Swift 6.3.3. Built for macOS 14+. The macOS 14 deployment target was compiled; an actual macOS 14 machine was not available.
 
 | Check | Result |

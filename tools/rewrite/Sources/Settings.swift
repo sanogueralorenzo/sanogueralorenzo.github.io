@@ -10,6 +10,7 @@ final class Settings: NSObject {
     private let model = NSComboBox()
     private let notice = NSTextField(wrappingLabelWithString: "")
     private let status = NSTextField(wrappingLabelWithString: "")
+    private let automatic = NSButton(checkboxWithTitle: "Show rewrite toolbar when text is selected", target: nil, action: nil)
     private let recorder = ShortcutRecorder()
     private let service = ProcessorService()
     private var refreshTask: Task<Void, Never>?
@@ -19,6 +20,8 @@ final class Settings: NSObject {
         let kind = ProcessorKind(rawValue: defaults.string(forKey: "processor") ?? "") ?? .codex
         return ProcessorConfiguration(kind: kind, model: kind.modelID(defaults.string(forKey: "model") ?? ""))
     }
+    var automaticToolbar: Bool { defaults.object(forKey: "automaticToolbar") as? Bool ?? true }
+    var isVisible: Bool { window.isVisible }
     var isConfigured: Bool { defaults.string(forKey: "processor") != nil }
     var shortcut: Shortcut {
         guard let data = defaults.data(forKey: "shortcut"), let value = try? JSONDecoder().decode(Shortcut.self, from: data) else { return .standard }
@@ -26,7 +29,7 @@ final class Settings: NSObject {
     }
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 340), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 380), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         super.init()
         window.title = "Rewrite Settings"; window.isReleasedWhenClosed = false
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
@@ -38,6 +41,7 @@ final class Settings: NSObject {
         model.usesDataSource = false; model.completes = true; model.placeholderString = "Model name"; model.setAccessibilityLabel("Model")
         let refresh = NSButton(title: "Refresh", target: self, action: #selector(refreshModels)); refresh.bezelStyle = .rounded
         let modelRow = NSStackView(views: [model, refresh]); model.widthAnchor.constraint(equalToConstant: 260).isActive = true
+        automatic.target = self; automatic.action = #selector(toggleAutomaticToolbar)
         recorder.bezelStyle = .rounded; recorder.title = shortcut.label; recorder.shortcut = shortcut
         recorder.setAccessibilityLabel("Record global shortcut")
         recorder.target = self; recorder.action = #selector(recordShortcut)
@@ -46,13 +50,14 @@ final class Settings: NSObject {
             self.defaults.set(try? JSONEncoder().encode(value), forKey: "shortcut"); return true
         }
         let shortcutRow = NSStackView(views: [NSTextField(labelWithString: "Shortcut"), recorder]); shortcutRow.spacing = 16
-        for view in [NSTextField(labelWithString: "Processor"), provider, notice, NSTextField(labelWithString: "Model"), modelRow, shortcutRow, status] { stack.addArrangedSubview(view) }
+        for view in [NSTextField(labelWithString: "Processor"), provider, notice, NSTextField(labelWithString: "Model"), modelRow, shortcutRow, automatic, status] { stack.addArrangedSubview(view) }
         for field in [notice, status] { field.font = .systemFont(ofSize: 11); field.textColor = .secondaryLabelColor; field.widthAnchor.constraint(equalToConstant: 400).isActive = true }
         save.bezelStyle = .rounded; save.keyEquivalent = "\r"; save.target = self; save.action = #selector(saveSettings)
         let permission = NSButton(title: "Accessibility…", target: self, action: #selector(openPermissions)); permission.bezelStyle = .rounded
         let row = NSStackView(views: [permission, save]); row.spacing = 190; stack.addArrangedSubview(row)
     }
     func show() {
+        automatic.state = automaticToolbar ? .on : .off
         provider.selectItem(withTitle: configuration.kind.rawValue); model.stringValue = configuration.kind.modelLabel(configuration.resolvedModel)
         notice.stringValue = configuration.kind.notice
         window.center(); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
@@ -85,6 +90,7 @@ final class Settings: NSObject {
         defaults.set(selectedKind.rawValue, forKey: "processor"); defaults.set(selectedKind.modelID(value), forKey: "model")
         window.orderOut(nil); onSave?()
     }
+    @objc private func toggleAutomaticToolbar() { defaults.set(automatic.state == .on, forKey: "automaticToolbar") }
     @objc private func recordShortcut() { recorder.record() }
     @objc private func openPermissions() {
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)

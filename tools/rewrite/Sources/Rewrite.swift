@@ -5,6 +5,9 @@ import AppKit
 final class Rewrite: NSObject, NSApplicationDelegate {
     private let shortcut = GlobalShortcut()
     private let preview = Preview()
+    private let toolbar = SelectionToolbar()
+    private let watcher = SelectionWatcher()
+    private var toolbarSelection: CapturedSelection?
     private let settings = Settings()
     private let processor = ProcessorService()
     private var statusItem: NSStatusItem!
@@ -32,6 +35,25 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         withExtendedLifetime(owner) { app.run() }
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
+        watcher.isEnabled = { [weak self] in
+            guard let self else { return false }
+            return self.settings.automaticToolbar && self.settings.isConfigured && self.selection == nil &&
+                self.task == nil && !self.preview.panel.isVisible && !self.settings.isVisible
+        }
+        watcher.onSelection = { [weak self] selection in
+            self?.toolbarSelection = selection; self?.toolbar.show(at: selection.point)
+        }
+        watcher.onHide = { [weak self] in self?.toolbar.hide(); self?.toolbarSelection = nil }
+        toolbar.onDismiss = { [weak self] in self?.watcher.dismiss() }
+        toolbar.onChoose = { [weak self] action in
+            guard let self, let selected = self.toolbarSelection,
+                  !selected.invalidated, let current = try? CapturedSelection.capture(), selected.matches(current) else {
+                self?.watcher.dismiss(); return
+            }
+            self.selection = selected; self.watcher.dismiss(); self.run(action)
+        }
+        watcher.interactionWindow = toolbar.panel
+        watcher.start()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "pencil.line", accessibilityDescription: "Rewrite")
         let menu = NSMenu()
@@ -54,9 +76,10 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         else if !settings.isConfigured { settings.show() }
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { task?.cancel(); processor.cancel(); preview.close() }
+    func applicationWillTerminate(_ notification: Notification) { watcher.stop(); toolbar.hide(); task?.cancel(); processor.cancel(); preview.close() }
 
     @objc private func begin() {
+        watcher.dismiss()
         if task != nil || selection != nil { cancel(); return }
         do {
             selection = try CapturedSelection.capture()
@@ -79,8 +102,11 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         item.target = self; item.tag = index; return item
     }
     @objc private func choose(_ sender: NSMenuItem) {
+        run(EditAction.allCases[sender.tag])
+    }
+    private func run(_ action: EditAction) {
         guard let selection else { return }
-        let action = EditAction.allCases[sender.tag], configuration = settings.configuration
+        let configuration = settings.configuration
         let current = UUID(); generation = current
         // Leave the native menu's tracking loop before activating the preview.
         task = Task { @MainActor in
@@ -99,6 +125,7 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         }
     }
     private func cancel() {
+        watcher.dismiss()
         generation = UUID(); task?.cancel(); task = nil; processor.cancel(); actionMenu?.cancelTracking()
         preview.close(); selection?.restoreFocus(); selection = nil; result = nil
     }
