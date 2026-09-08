@@ -26,7 +26,8 @@ public partial class Game : Node2D
     VoyageMode shownMode = (VoyageMode)(-1), beforePause;
     LineEdit? seedInput;
     uint selectedSeed = 73919;
-    int bestKills, completed, silver, creditedKills;
+    int bestKills, completed, silver, creditedSilver;
+    const int KillsPerSilver = 10;
     bool recorded;
     float elapsed, toastTime;
     string toast = "";
@@ -74,9 +75,10 @@ public partial class Game : Node2D
             }
             Run.Events.Clear(); ocean.Advance(dt);
         }
-        if (!title && Run.Kills > creditedKills)
+        if (!title && Run.Kills / KillsPerSilver > creditedSilver)
         {
-            silver += Run.Kills - creditedKills; creditedKills = Run.Kills; SaveSettings();
+            int earnedSilver = Run.Kills / KillsPerSilver;
+            silver += earnedSilver - creditedSilver; creditedSilver = earnedSilver; SaveSettings();
         }
         hud.QueueRedraw();
         if (!title && !settings && !controls && shownMode != Run.Mode) BuildMenu();
@@ -148,7 +150,7 @@ public partial class Game : Node2D
     void Start()
     {
         if (seedInput != null && GodotObject.IsInstanceValid(seedInput) && uint.TryParse(seedInput.Text, out uint seed)) selectedSeed = seed;
-        creditedKills = 0; gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
+        creditedSilver = 0; gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
         seedInput = null;
         Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = settings = controls = recorded = false;
         ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();

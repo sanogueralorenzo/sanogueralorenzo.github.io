@@ -50,3 +50,7 @@ Acquired weapons and stat upgrades now share a compact, centered bottom row with
 Added compact top-left combat time, persistent silver, run gold and monster-kill counters. Removed duplicate gold from the top-right distance panel and moved the small level label to the top center. Every kill grants one silver; only newly observed kills are credited, and the balance is saved immediately. New voyages reset gold/time/kills while preserving silver. Silver spending is intentionally deferred at the user’s request.
 
 Direct UI play earned 12 silver from 12 kills (`silver-earned.txt`). Relaunch showed 12 saved silver on the title screen; a new voyage retained 12 silver with 20 starting gold, zero kills and a fresh timer (`run-counters` evidence). Debug and Release builds pass with zero warnings/errors. No automated tests were added.
+
+## Scarcer silver follow-up — 2026-09-08
+
+Reduced silver awards to one per ten kills in each voyage. Integer milestone accounting credits every crossed threshold once, including multiple kills in a frame. Existing saved silver is retained; incomplete ten-kill groups reset on a new voyage. Focused build and code review validate this arithmetic change; no new live drop-rate playthrough or automated tests were performed.
