@@ -219,6 +219,13 @@ public partial class Game : Node2D
         column.AddChild(Label(eyebrow, 14, false, NauticalPalette.Aqua)); column.AddChild(Label(heading, 32, true)); column.AddChild(Label(detail, 18));
         return column;
     }
+    MenuButton MenuAction(string text, MenuGlyph glyph, Action action, bool primary = false)
+    {
+        var button = new MenuButton { Text = text, Glyph = glyph, Primary = primary };
+        button.AddThemeFontOverride("font", bodyFont);
+        button.Pressed += action;
+        return button;
+    }
     void BuildMenu()
     {
         if (menuRoot != null) { layer.RemoveChild(menuRoot); menuRoot.QueueFree(); }
@@ -257,9 +264,9 @@ public partial class Game : Node2D
         {
             case VoyageMode.Paused:
                 col = Panel(510, "Paused", "At anchor", Run.BossSlain ? "Voyage won · explore the endless ocean" : "Sail beyond 3 leagues and defeat the Crownclaw.");
-                col.AddChild(Button("Resume voyage", () => { Run.Mode = beforePause; BuildMenu(); }, true));
-                col.AddChild(Button("Captain’s handbook", () => { controls = true; BuildMenu(); }));
-                col.AddChild(Button("End voyage · return to title", BackToTitle)); break;
+                col.AddChild(MenuAction("Resume voyage", MenuGlyph.Sail, () => { Run.Mode = beforePause; BuildMenu(); }, true));
+                col.AddChild(MenuAction("Captain’s handbook", MenuGlyph.Book, () => { controls = true; BuildMenu(); }));
+                col.AddChild(MenuAction("End voyage · return to title", MenuGlyph.Harbor, BackToTitle)); break;
             case VoyageMode.Harbor: HarborMenu(); break;
             case VoyageMode.Upgrade: UpgradeMenu(); break;
             case VoyageMode.Defeat:
@@ -282,12 +289,15 @@ public partial class Game : Node2D
         var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .3f), MouseFilter = Control.MouseFilterEnum.Ignore };
         shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
-        var col = new VBoxContainer { CustomMinimumSize = new(340, 0) }; col.AddThemeConstantOverride("separation", 18); center.AddChild(col);
-        var logo = Label("BOATS n\nBEASTS", 48, true); logo.HorizontalAlignment = HorizontalAlignment.Center; col.AddChild(logo);
-        col.AddChild(Button("Play", () => { choosingBoat = true; BuildMenu(); }, true));
-        if (finishedRuns >= 1) col.AddChild(Button("Unlock", () => { }));
-        if (finishedRuns >= 2) col.AddChild(Button("Quests", () => { }));
-        if (finishedRuns >= 3) col.AddChild(Button("Shop", () => { }));
+        var col = new VBoxContainer { CustomMinimumSize = new(380, 0) }; col.AddThemeConstantOverride("separation", 12); center.AddChild(col);
+        var logo = Label("BOATS n\nBEASTS", 52, true); logo.HorizontalAlignment = HorizontalAlignment.Center;
+        logo.AddThemeColorOverride("font_shadow_color", new Color("061c29")); logo.AddThemeConstantOverride("shadow_offset_y", 3);
+        col.AddChild(logo);
+        col.AddChild(new Control { CustomMinimumSize = new(0, 10), MouseFilter = Control.MouseFilterEnum.Ignore });
+        col.AddChild(MenuAction("Play", MenuGlyph.Sail, () => { choosingBoat = true; BuildMenu(); }, true));
+        if (finishedRuns >= 1) col.AddChild(MenuAction("Unlock", MenuGlyph.Key, () => { }));
+        if (finishedRuns >= 2) col.AddChild(MenuAction("Quests", MenuGlyph.Chart, () => { }));
+        if (finishedRuns >= 3) col.AddChild(MenuAction("Shop", MenuGlyph.Chest, () => { }));
     }
     void BoatMenu()
     {

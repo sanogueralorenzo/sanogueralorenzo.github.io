@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Title and pause polish — 2026-09-08
+
+The menu-only camera frames the home harbor at 22% of viewport width / 31% of viewport height (water-plane anchor), leaving the dimensional cottage clear of the centered title. Sailing camera scale/projection and all simulation code remain unchanged. Title and pause actions share native C# buttons with inset borders, subtle depth, turquoise primary fill, gold keyboard-focus outline and six code-drawn nautical icons. Labels, progression visibility and callbacks are retained.
+
+Verified in the normal 1280×800 native window: house/title separation; all title buttons and pause captions fit; hover/focus styling; Play to boat selection; Tab/Return to handbook and back; Resume to live sailing; End voyage back to the title. Debug and Release pass with zero warnings/errors; the native runtime log is clean. No automated tests or injected state. [Before](../evidence/menu-before.png), [title](../evidence/menu-title.png), [focus](../evidence/menu-title-focus.png), [pause](../evidence/menu-pause.png) and [resumed sailing](../evidence/menu-resume.png) have same-name telemetry partners. Existing Unlock/Quests/Shop placeholder callbacks remain unchanged; no progression functionality was added. Other window sizes were not separately exercised in this focused pass.
+
 ## Direction B native acceptance — 2026-09-08
 
 This section is the current verification record. The historical entries below include removed mechanics and the old 2D renderer; they do not override [ART_DIRECTION.md](ART_DIRECTION.md) or the current README.

@@ -45,7 +45,12 @@ public partial class OceanView3D : Node3D
     {
         var start = System.Diagnostics.Stopwatch.GetTimestamp();
         if (Menu || Voyage.Mode == VoyageMode.Sailing) Clock += dt;
-        if (Menu) Camera = new(-210, 15);
+        if (Menu)
+        {
+            // Frame the home harbor in the upper-left, clear of the centered menu.
+            var size = GetViewport().GetVisibleRect().Size;
+            Camera = new Vector2(-310, -220) + size * new Vector2(.28f, .19f) / Projection;
+        }
         else if (Voyage.Mode == VoyageMode.Sailing)
         {
             var target = new Vector2(Voyage.Position.X + Voyage.Velocity.X * .16f, Voyage.Position.Y + Voyage.Velocity.Y * .16f);
