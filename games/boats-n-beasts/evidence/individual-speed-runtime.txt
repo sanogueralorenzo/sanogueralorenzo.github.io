@@ -1,0 +1,151 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M3 Max (Apple9)
+
+Boats ’n’ Beasts | renderer=forward_plus | seed=2085922147
+Mouse viewport=(573.75, 193.5) global=(573.75, 193.5) boatScreen=(720.3368, 449.98102) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1582.4432, -719.18396>; destination=
+Native runtime capture: 20260908-133455-564-sailing
+Renderer: forward_plus
+Seed: 2085922147
+Mode: Sailing
+Game speed: x1
+Finished runs: 79; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 64.11277
+Boat: Cutter
+Position: <1780.5334, -306.56967>
+Health: 100/100
+Coins: 21; cargo: 0; kills: 1; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 9; shots: 2
+Actual sailing seconds: 10.1; peak enemies: 9; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(1780.0784, -306.53906); departure seconds=8.405947; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<2.9463031, -0.19798863>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=5; pulls=0
+Combat clock=10.112644; director=0.23931397/0.972296; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.11903797,0,0,0,0,0
+Depletion=
+Puffer explosions=0; blast hits=0
+Enemy 3: Crab position=<1137.294, -730.0802> hp=27 time=6.1726065 attack=-3.5009382 tell=0 dash=0 speedMultiplier=1.2419301 fuse=0
+Enemy 4: Crab position=<1158.6052, 397.75256> hp=27 time=4.8558855 attack=-2.3307195 tell=0 dash=0 speedMultiplier=0.95259297 fuse=0
+Enemy 5: Puffer position=<1776.2507, -412.31415> hp=2.5 time=3.539199 attack=-0.96689314 tell=0 dash=0 speedMultiplier=1.0292059 fuse=0.03571563
+Enemy 6: Crab position=<1395.4796, -1014.6566> hp=33.75 time=2.8808694 attack=0.2310548 tell=0 dash=0 speedMultiplier=0.91898865 fuse=0
+Enemy 7: Puffer position=<1020.4597, -763.80975> hp=47.5 time=2.222565 attack=0.64445686 tell=0 dash=0 speedMultiplier=0.929734 fuse=0
+Enemy 8: Puffer position=<1706.9116, 379.2057> hp=47.5 time=1.5642605 attack=1.2309428 tell=0 dash=0 speedMultiplier=1.10305 fuse=0
+Enemy 9: Crab position=<1136.1083, -923.5008> hp=33.75 time=0.9059551 attack=1.1476612 tell=0 dash=0 speedMultiplier=1.2120934 fuse=0
+Enemy 10: Crab position=<1785.7311, 579.38135> hp=33.75 time=0.9059551 attack=1.8915333 tell=0 dash=0 speedMultiplier=1.1296811 fuse=0
+Enemy 11: Puffer position=<2475.623, 273.2909> hp=47.5 time=0.24764697 attack=1.1221813 tell=0 dash=0 speedMultiplier=0.8585434 fuse=0
+Shot Cannon hostile=False position=<1138.6682, 127.76488> life=0.802412
+Shot Cannon hostile=False position=<1914.7294, -9.051455> life=1.6607088
+CPU simulation average ms=0.052; draw submission average ms=0.603; cached scenery=8; engine FPS=120; draw calls=137; objects=626
+Frame ms mean: 8.39; p95: 8.33; p99: 8.33
+
+Mouse viewport=(573.75, 193.5) global=(573.75, 193.5) boatScreen=(725.01416, 449.76562) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2335.799, -761.4088>; destination=
+Native runtime capture: 20260908-133509-262-sailing
+Renderer: forward_plus
+Seed: 2085922147
+Mode: Sailing
+Game speed: x1
+Finished runs: 79; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 64.11277
+Boat: Cutter
+Position: <2540.21, -349.1411>
+Health: 76/100
+Coins: 21; cargo: 0; kills: 1; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 15; shots: 1
+Actual sailing seconds: 14.3; peak enemies: 15; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2533.434, -348.76407); departure seconds=12.62418; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<110.8345, -6.168051>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=9; pulls=0
+Combat clock=14.330877; director=1.1333326/0.776999; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.27500057,0,0,0,0,0
+Depletion=
+Puffer explosions=1; blast hits=1
+Enemy 3: Crab position=<1562.8618, -551.015> hp=27 time=10.390836 attack=-7.719174 tell=0 dash=0 speedMultiplier=1.2419301 fuse=0
+Enemy 4: Crab position=<1438.0658, 180.68256> hp=27 time=9.074111 attack=-6.548988 tell=0 dash=0 speedMultiplier=0.95259297 fuse=0
+Enemy 6: Crab position=<1661.8427, -780.99207> hp=33.75 time=7.099123 attack=-3.9872525 tell=0 dash=0 speedMultiplier=0.91898865 fuse=0
+Enemy 7: Puffer position=<1432.8896, -616.68713> hp=47.5 time=6.440834 attack=-3.573845 tell=0 dash=0 speedMultiplier=0.929734 fuse=0
+Enemy 8: Puffer position=<1968.6241, -38.851414> hp=2.5 time=5.7825356 attack=-2.9873507 tell=0 dash=0 speedMultiplier=1.10305 fuse=0
+Enemy 9: Crab position=<1517.9764, -686.9591> hp=33.75 time=5.1242394 attack=-3.0706334 tell=0 dash=0 speedMultiplier=1.2120934 fuse=0
+Enemy 10: Crab position=<1930.0066, 199.9008> hp=3.75 time=5.1242394 attack=-2.3267503 tell=0 dash=0 speedMultiplier=1.1296811 fuse=0
+Enemy 11: Puffer position=<2199.9502, 50.539528> hp=47.5 time=4.465942 attack=-2.9019153 tell=0 dash=0 speedMultiplier=0.8585434 fuse=0
+Enemy 12: Crab position=<1609.9371, -766.6511> hp=33.75 time=3.8157785 attack=-2.308479 tell=0 dash=0 speedMultiplier=1.3555123 fuse=0
+Enemy 13: Puffer position=<2092.013, -834.30664> hp=47.5 time=3.1574366 attack=-0.33852705 tell=0 dash=0 speedMultiplier=1.0541842 fuse=0
+Enemy 14: Puffer position=<2196.8228, 302.88934> hp=57 time=2.4661229 attack=0.44689512 tell=0 dash=0 speedMultiplier=1.2908955 fuse=0
+Enemy 15: Serpent position=<2737.2922, 62.300575> hp=78 time=1.7999847 attack=1.3245914 tell=0 dash=0 speedMultiplier=0.8926602 fuse=0
+Enemy 16: Serpent position=<2299.6152, 320.5752> hp=78 time=1.7999847 attack=1.1870263 tell=0 dash=0 speedMultiplier=0.87720466 fuse=0
+Enemy 17: Crab position=<1684.6168, -830.2554> hp=40.5 time=1.1416659 attack=0.95220435 tell=0 dash=0 speedMultiplier=0.96561116 fuse=0
+Enemy 18: Crab position=<2604.6187, 403.90887> hp=40.5 time=1.1416659 attack=0.9309288 tell=0 dash=0 speedMultiplier=1.0552545 fuse=0
+Shot Cannon hostile=False position=<2233.7334, -266.90356> life=1.8166617
+CPU simulation average ms=0.063; draw submission average ms=0.793; cached scenery=9; engine FPS=120; draw calls=169; objects=830
+Frame ms mean: 8.48; p95: 8.33; p99: 15.00
+
+Mouse viewport=(573.75, 193.5) global=(573.75, 193.5) boatScreen=(720.00323, 449.99994) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2366.6921, -763.1279>; destination=
+Native runtime capture: 20260908-133511-272-sailing
+Renderer: forward_plus
+Seed: 2085922147
+Mode: Sailing
+Game speed: x1
+Finished runs: 79; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 64.11277
+Boat: Cutter
+Position: <2564.3315, -350.48322>
+Health: 76/100
+Coins: 21; cargo: 0; kills: 1; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 15; shots: 3
+Actual sailing seconds: 16.3; peak enemies: 15; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2564.3271, -350.48303); departure seconds=14.632582; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<0.013169147, -0.000732876>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=11; pulls=0
+Combat clock=16.33928; director=3.1417737/1.4855815; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.8333334,0,0,0,0,0
+Depletion=
+Puffer explosions=1; blast hits=1
+Enemy 3: Crab position=<1784.1051, -506.59064> hp=27 time=12.399238 attack=-9.727572 tell=0 dash=0 speedMultiplier=1.2419301 fuse=0
+Enemy 4: Crab position=<1594.558, 106.739555> hp=27 time=11.082513 attack=-8.557386 tell=0 dash=0 speedMultiplier=0.95259297 fuse=0
+Enemy 6: Crab position=<1872.1467, -707.7795> hp=18.75 time=9.107521 attack=-5.9956503 tell=0 dash=0 speedMultiplier=0.91898865 fuse=0
+Enemy 7: Puffer position=<1640.892, -567.626> hp=47.5 time=8.449232 attack=-5.5822515 tell=0 dash=0 speedMultiplier=0.929734 fuse=0
+Enemy 8: Puffer position=<2183.5105, -169.25299> hp=2.5 time=7.7909336 attack=-4.995774 tell=0 dash=0 speedMultiplier=1.10305 fuse=0
+Enemy 9: Crab position=<1727.5951, -619.38495> hp=33.75 time=7.1326375 attack=-5.0790544 tell=0 dash=0 speedMultiplier=1.2120934 fuse=0
+Enemy 10: Crab position=<2084.838, 65.13876> hp=3.75 time=7.1326375 attack=-4.335192 tell=0 dash=0 speedMultiplier=1.1296811 fuse=0
+Enemy 11: Puffer position=<2262.067, -128.65276> hp=47.5 time=6.47434 attack=-4.910341 tell=0 dash=0 speedMultiplier=0.8585434 fuse=0
+Enemy 12: Crab position=<1835.6171, -667.9961> hp=33.75 time=5.824178 attack=-4.3169217 tell=0 dash=0 speedMultiplier=1.3555123 fuse=0
+Enemy 13: Puffer position=<2260.923, -660.5661> hp=47.5 time=5.165855 attack=-2.3469567 tell=0 dash=0 speedMultiplier=1.0541842 fuse=0
+Enemy 14: Puffer position=<2396.585, 189.40678> hp=57 time=4.474561 attack=-1.5615304 tell=0 dash=0 speedMultiplier=1.2908955 fuse=0
+Enemy 15: Serpent position=<2715.198, -73.34177> hp=48 time=3.8084354 attack=3.6166663 tell=0.15833385 dash=0 speedMultiplier=0.8926602 fuse=0
+Enemy 16: Serpent position=<2399.7612, 250.17467> hp=78 time=3.8084354 attack=3.4833312 tell=0.025000498 dash=0 speedMultiplier=0.87720466 fuse=0
+Enemy 17: Crab position=<1840.1926, -751.55707> hp=40.5 time=3.1501071 attack=-1.0562212 tell=0 dash=0 speedMultiplier=0.96561116 fuse=0
+Enemy 18: Crab position=<2593.8652, 212.47313> hp=40.5 time=3.1501071 attack=-1.0774968 tell=0 dash=0 speedMultiplier=1.0552545 fuse=0
+Shot Cannon hostile=False position=<2467.2354, -802.4504> life=0.6583295
+Shot Cannon hostile=False position=<2614.8843, -383.06302> life=1.516662
+Shot Cannon hostile=False position=<2626.143, -315.37134> life=2.3749998
+CPU simulation average ms=0.061; draw submission average ms=0.745; cached scenery=9; engine FPS=120; draw calls=172; objects=836
+Frame ms mean: 8.47; p95: 8.33; p99: 14.20
+

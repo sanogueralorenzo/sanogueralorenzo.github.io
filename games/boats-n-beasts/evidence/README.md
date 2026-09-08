@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Individual monster speeds — 2026-09-08
+
+[Gameplay A](individual-speed-a.png)/[B](individual-speed-b.png) show original crab, puffer and serpent colors. Same-name TXT reports show distinct speed multipliers that stay fixed as enemies move. [Native log](individual-speed-runtime.txt).
+
 ## Smooth matching island contours — 2026-09-08
 
 [Before](coast-before.png), [rounded title islands](coast-smooth-title.png) and [gameplay shoreline](coast-smooth-gameplay.png) show the same contour used by sand and both blue bands. Same-name TXT reports accompany each capture. [Native log](coast-smooth-runtime.txt).

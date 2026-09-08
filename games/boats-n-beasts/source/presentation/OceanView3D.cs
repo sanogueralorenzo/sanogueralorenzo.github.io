@@ -103,7 +103,7 @@ public partial class OceanView3D : Node3D
                 mesh.SetInstanceShaderParameter("creature_kind", enemy.Kind switch { EnemyKind.Crab or EnemyKind.Leviathan => 1, EnemyKind.Puffer => 2, EnemyKind.Serpent => 3, _ => 4 });
                 mesh.SetInstanceShaderParameter("creature_scale", enemy.Kind == EnemyKind.Leviathan ? 2.65f : 1);
                 mesh.SetInstanceShaderParameter("phase", enemy.Id * .73f);
-                mesh.SetInstanceShaderParameter("swift", enemy.Swift ? 1f : 0f);
+                mesh.SetInstanceShaderParameter("movement_rate", enemy.SpeedMultiplier);
             }
             float swelling = enemy.Fuse > 0 ? 1 - enemy.Fuse / Enemy.PufferFuseDuration : 0;
             root.Scale = Vector3.One * (1 + swelling * .55f);

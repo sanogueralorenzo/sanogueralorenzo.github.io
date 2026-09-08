@@ -9,8 +9,7 @@ public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
-    public bool Swift;
-    public float SpeedMultiplier => Swift ? 1.5f : 1;
+    public float SpeedMultiplier = 1;
     public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
@@ -138,7 +137,7 @@ public sealed partial class Voyage
             if (attempt == 19) return false;
         }
         float hp = (kind == EnemyKind.Leviathan ? 1050 : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52) * (1 + Tier * .25f);
-        Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3), Swift = kind != EnemyKind.Leviathan && Random.Index(4) == 0 });
+        Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3), SpeedMultiplier = Random.Range(.85f, 1.4f) });
         return true;
     }
     void UpdateEnemies(float dt)

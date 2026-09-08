@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Individual monster speeds, original colors — 2026-09-08
+
+Replaces the normal/swift split and violet recolor. Every monster samples a continuous seeded movement multiplier from 0.85 to 1.4 when spawned, including Crownclaw. Species base speeds and distance scaling remain. The range preserves the former regular-enemy mix's mean multiplier of 1.125. Swimming animation uses the same individual rate. Normal shell/fin colors remain; the puffer's red swelling still indicates its fuse.
+
+Debug/Release pass with zero warnings/errors; native log clean. Two gameplay captures about two seconds apart show ordinary crab/puffer/serpent palettes and stable individual multipliers while positions advance. Sample crabs range from 0.919 to 1.356; puffers from 0.859 to 1.291. Serpents retain distinct multipliers through their windups. Native combat and 25-chunk streaming continued. [Evidence](../evidence/README.md). No automated tests or injected state. Ray/boss appearance and long-run balance were not separately replayed; they use the same spawn assignment and material path.
+
 ## Smooth matching island contours — 2026-09-08
 
 Island, harbor and offshore-rock shoreline meshes now sample 96 points instead of 20. Their shared seeded radius uses two gentle low-frequency curves, removing the smaller bumps. Sand terraces and both blue shallow bands use that same contour at every angle; the extra distortion formerly applied only to water bands is removed. Shore foam follows the same coast function. Scenery placement, collision radii, buildings and rock shapes are unchanged.

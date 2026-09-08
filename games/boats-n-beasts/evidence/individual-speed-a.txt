@@ -1,0 +1,49 @@
+Mouse viewport=(573.75, 193.5) global=(573.75, 193.5) boatScreen=(725.01416, 449.76562) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2335.799, -761.4088>; destination=
+Native runtime capture: 20260908-133509-262-sailing
+Renderer: forward_plus
+Seed: 2085922147
+Mode: Sailing
+Game speed: x1
+Finished runs: 79; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 64.11277
+Boat: Cutter
+Position: <2540.21, -349.1411>
+Health: 76/100
+Coins: 21; cargo: 0; kills: 1; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 15; shots: 1
+Actual sailing seconds: 14.3; peak enemies: 15; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2533.434, -348.76407); departure seconds=12.62418; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<110.8345, -6.168051>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=9; pulls=0
+Combat clock=14.330877; director=1.1333326/0.776999; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.27500057,0,0,0,0,0
+Depletion=
+Puffer explosions=1; blast hits=1
+Enemy 3: Crab position=<1562.8618, -551.015> hp=27 time=10.390836 attack=-7.719174 tell=0 dash=0 speedMultiplier=1.2419301 fuse=0
+Enemy 4: Crab position=<1438.0658, 180.68256> hp=27 time=9.074111 attack=-6.548988 tell=0 dash=0 speedMultiplier=0.95259297 fuse=0
+Enemy 6: Crab position=<1661.8427, -780.99207> hp=33.75 time=7.099123 attack=-3.9872525 tell=0 dash=0 speedMultiplier=0.91898865 fuse=0
+Enemy 7: Puffer position=<1432.8896, -616.68713> hp=47.5 time=6.440834 attack=-3.573845 tell=0 dash=0 speedMultiplier=0.929734 fuse=0
+Enemy 8: Puffer position=<1968.6241, -38.851414> hp=2.5 time=5.7825356 attack=-2.9873507 tell=0 dash=0 speedMultiplier=1.10305 fuse=0
+Enemy 9: Crab position=<1517.9764, -686.9591> hp=33.75 time=5.1242394 attack=-3.0706334 tell=0 dash=0 speedMultiplier=1.2120934 fuse=0
+Enemy 10: Crab position=<1930.0066, 199.9008> hp=3.75 time=5.1242394 attack=-2.3267503 tell=0 dash=0 speedMultiplier=1.1296811 fuse=0
+Enemy 11: Puffer position=<2199.9502, 50.539528> hp=47.5 time=4.465942 attack=-2.9019153 tell=0 dash=0 speedMultiplier=0.8585434 fuse=0
+Enemy 12: Crab position=<1609.9371, -766.6511> hp=33.75 time=3.8157785 attack=-2.308479 tell=0 dash=0 speedMultiplier=1.3555123 fuse=0
+Enemy 13: Puffer position=<2092.013, -834.30664> hp=47.5 time=3.1574366 attack=-0.33852705 tell=0 dash=0 speedMultiplier=1.0541842 fuse=0
+Enemy 14: Puffer position=<2196.8228, 302.88934> hp=57 time=2.4661229 attack=0.44689512 tell=0 dash=0 speedMultiplier=1.2908955 fuse=0
+Enemy 15: Serpent position=<2737.2922, 62.300575> hp=78 time=1.7999847 attack=1.3245914 tell=0 dash=0 speedMultiplier=0.8926602 fuse=0
+Enemy 16: Serpent position=<2299.6152, 320.5752> hp=78 time=1.7999847 attack=1.1870263 tell=0 dash=0 speedMultiplier=0.87720466 fuse=0
+Enemy 17: Crab position=<1684.6168, -830.2554> hp=40.5 time=1.1416659 attack=0.95220435 tell=0 dash=0 speedMultiplier=0.96561116 fuse=0
+Enemy 18: Crab position=<2604.6187, 403.90887> hp=40.5 time=1.1416659 attack=0.9309288 tell=0 dash=0 speedMultiplier=1.0552545 fuse=0
+Shot Cannon hostile=False position=<2233.7334, -266.90356> life=1.8166617
+CPU simulation average ms=0.063; draw submission average ms=0.793; cached scenery=9; engine FPS=120; draw calls=169; objects=830
+Frame ms mean: 8.48; p95: 8.33; p99: 15.00

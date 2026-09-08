@@ -4,12 +4,12 @@ uniform float clock=0.0;
 instance uniform int creature_kind=0;
 instance uniform float creature_scale=1.0;
 instance uniform float phase=0.0;
-instance uniform float swift=0.0;
+instance uniform float movement_rate=1.0;
 instance uniform float swelling=0.0;
 vec3 linear_color(vec3 srgb) { return mix(srgb/12.92,pow((srgb+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),srgb)); }
 void vertex() {
     vec3 p=VERTEX/creature_scale;
-    float t=clock*(1.0+swift*.5)+phase;
+    float t=clock*movement_rate+phase;
     if(creature_kind==1) {
         float leg=smoothstep(.21,.34,abs(p.x))*(1.0-smoothstep(.20,.26,p.y));
         VERTEX.z+=sin(t*8.0+p.z*27.0+sign(p.x)*1.7)*.022*leg*creature_scale;
@@ -23,10 +23,7 @@ void vertex() {
     }
 }
 void fragment() {
-    // Recolor the saturated shell/fins while retaining cream eyes and dark pupils.
-    float chroma=max(COLOR.r,max(COLOR.g,COLOR.b))-min(COLOR.r,min(COLOR.g,COLOR.b));
-    vec3 shell=mix(COLOR.rgb,vec3(.60,.39,.78),swift*smoothstep(.12,.3,chroma)*.85);
-    shell=mix(shell,vec3(.94,.25,.14),swelling*.8);
+    vec3 shell=mix(COLOR.rgb,vec3(.94,.25,.14),swelling*.8);
     ALBEDO=linear_color(shell);
     ROUGHNESS=1.0; SPECULAR=0.0;
 }
