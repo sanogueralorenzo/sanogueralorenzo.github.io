@@ -1,9 +1,15 @@
 """Opt-in real provider benchmark. Uses synthetic source and temporary credentials."""
-import json, os, pathlib, re, subprocess, tempfile, time
+import argparse, json, os, pathlib, re, subprocess, tempfile, time
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-source = (HERE / 'source.txt').read_text().rstrip('\n')
+parser = argparse.ArgumentParser()
+parser.add_argument('--source', type=pathlib.Path, default=HERE / 'source.txt')
+parser.add_argument('--output', type=pathlib.Path, default=HERE)
+options = parser.parse_args()
+source = options.source.read_text().rstrip('\n')
+HERE = options.output.resolve()
+HERE.mkdir(parents=True, exist_ok=True)
 swift = (ROOT / 'Sources/Editing.swift').read_text()
 rules = '\n'.join(line[4:] for line in re.search(r'static let rules = """\n(.*?)\n    """', swift, re.S).group(1).splitlines())
 payload = json.dumps({'editing_instruction': 'Improve readability and phrasing.', 'source_text': source}, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
