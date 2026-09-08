@@ -1,0 +1,98 @@
+{
+  "source_words": 52,
+  "source": "realistic/paragraph/source.txt",
+  "model": "gpt-5.6-luna",
+  "reasoning": "none",
+  "priority_requested": true,
+  "source_revision": "db4d50567f983aa026647c8ffcb828323832c979",
+  "method": "Optimized temporary build of the production RPC service with timestamp instrumentation; one cold then three warm calls in the same process. No installed app changes. Times exclude selection capture and AX replacement. First-text wait includes local dispatch, network, backend queueing and model prefill; these components were not separately observable. Backend-served tier was not confirmed.",
+  "runs": [
+    {
+      "cold": true,
+      "output_words": 51,
+      "pid": 66518,
+      "run": 1,
+      "stages": {
+        "capability_checked": 0.20859662498696707,
+        "authenticated": 0.39353170833783224,
+        "spawned": 0.39467691667960025,
+        "ready": 0.6089168333273847,
+        "completed": 3.225428000005195,
+        "cleared": 3.233840125001734,
+        "returned": 3.233843624999281
+      },
+      "first_text_seconds": 2.3593028750037774,
+      "last_text_seconds": 3.0561746666789986,
+      "breakdown": {
+        "startup_and_reset": 0.6089168333273847,
+        "waiting_for_first_text": 1.7503860416763928,
+        "text_streaming": 0.6968717916752212,
+        "completion": 0.1692533333261963,
+        "cleanup": 0.008415624994086102
+      }
+    },
+    {
+      "cold": false,
+      "output_words": 49,
+      "pid": 66518,
+      "run": 2,
+      "stages": {
+        "ready": 0.007729958335403353,
+        "completed": 2.292769583320478,
+        "cleared": 2.3005884166632313,
+        "returned": 2.3005907499755267
+      },
+      "first_text_seconds": 1.4461834999965504,
+      "last_text_seconds": 2.0935622499964666,
+      "breakdown": {
+        "startup_and_reset": 0.007729958335403353,
+        "waiting_for_first_text": 1.438453541661147,
+        "text_streaming": 0.6473787499999162,
+        "completion": 0.19920733332401142,
+        "cleanup": 0.007821166655048728
+      }
+    },
+    {
+      "cold": false,
+      "output_words": 47,
+      "pid": 66518,
+      "run": 3,
+      "stages": {
+        "ready": 0.00700779166072607,
+        "completed": 2.6718332916498184,
+        "cleared": 2.678486333315959,
+        "returned": 2.678488624980673
+      },
+      "first_text_seconds": 1.8857481249724515,
+      "last_text_seconds": 2.5210378333285917,
+      "breakdown": {
+        "startup_and_reset": 0.00700779166072607,
+        "waiting_for_first_text": 1.8787403333117254,
+        "text_streaming": 0.6352897083561402,
+        "completion": 0.15079545832122676,
+        "cleanup": 0.0066553333308547735
+      }
+    },
+    {
+      "cold": false,
+      "output_words": 47,
+      "pid": 66518,
+      "run": 4,
+      "stages": {
+        "ready": 0.006611374992644414,
+        "completed": 4.069642041664338,
+        "cleared": 4.076190499996301,
+        "returned": 4.0761928333377
+      },
+      "first_text_seconds": 3.3997635416453704,
+      "last_text_seconds": 3.937407291668933,
+      "breakdown": {
+        "startup_and_reset": 0.006611374992644414,
+        "waiting_for_first_text": 3.393152166652726,
+        "text_streaming": 0.5376437500235625,
+        "completion": 0.13223474999540485,
+        "cleanup": 0.006550791673362255
+      }
+    }
+  ]
+}
