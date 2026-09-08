@@ -44,12 +44,12 @@ public static class EnvironmentArt3D
                 Palm(art, new(-r * .12f, .17f, r * .46f), r * .64f, place.Style + 2);
                 Rock(art, new(r * .52f, .08f, r * .52f), new(r * .38f, r * .25f, r * .31f), place.Style + 3);
             }
-            for (int i = 0; i < 8; i++)
+            for (int i = 0; i < 13; i++)
             {
-                float angle = rng.Range(0, Mathf.Tau), reach = rng.Range(.50f, .82f) * r;
+                float angle = rng.Range(0, Mathf.Tau), reach = rng.Range(.38f, .73f) * r;
                 var at = new Vector3(Mathf.Cos(angle) * reach, .13f, Mathf.Sin(angle) * reach);
                 if (place.Kind == PlaceKind.Harbor && at.Z > -.05f && at.X > -.4f * r) continue;
-                Shrub(art, at, rng.Range(.12f, .21f) * r, rng.Next());
+                Shrub(art, at, rng.Range(.15f, .24f) * r, rng.Next());
             }
             for (int i = 0; i < 10; i++)
             {
@@ -82,11 +82,11 @@ public static class EnvironmentArt3D
     {
         const int sides = 64;
         // Transparent outer seabed lets the same moving ocean continue through the shallows.
-        float[] radii = [.0f, .63f, .91f, 1.055f, 1.22f, 1.35f];
+        float[] radii = [.0f, .63f, .91f, 1.055f, 1.27f, 1.48f];
         float[] heights = [.18f, .17f, .105f, .021f, .006f, .004f];
         Color[] colors = [Sand, Sand, Sand.Darkened(.025f), new("b6a078"), new("327b79"), new("07394b")];
         if (rock) { heights = [.07f, .05f, .025f, .008f, .006f, .004f]; colors = [Stone, Stone, new("7a9d91"), new("45817e"), new("205c65"), new("07394b")]; }
-        colors[4] = new Color(colors[4], .42f);
+        colors[4] = new Color(colors[4], .72f);
         colors[5] = new Color(colors[4], 0);
         Vector3 Point(int layer, int i)
         {
@@ -107,43 +107,38 @@ public static class EnvironmentArt3D
                 art.Triangle(a, b, d, inner, inner, outer, Normal(a, slope), Normal(b, slope), Normal(d, slope), layer >= 3 ? "shelf" : "matte");
                 art.Triangle(b, c, d, inner, outer, outer, Normal(b, slope), Normal(c, slope), Normal(d, slope), layer >= 3 ? "shelf" : "matte");
             }
+        // Short, broken surf crescents follow a few exposed shore sections only.
+        var rng = new SeedRandom(seed + 881);
+        for (int patch = 0; patch < (rock ? 3 : 7); patch++)
+        {
+            float start = patch * Mathf.Tau / (rock ? 3 : 7) + rng.Range(-.22f, .22f);
+            float span = rng.Range(.06f, .18f);
+            for (int i = 0; i < 5; i++)
+            {
+                float a = start + span * i / 5, b = start + span * (i + 1) / 5;
+                float width = r * .008f * Mathf.Sin((i + .5f) * Mathf.Pi / 5);
+                Vector3 P(float t, float offset) => new(Mathf.Cos(t) * (r * 1.06f * Coast(t, seed) + offset), .029f, Mathf.Sin(t) * (r * 1.06f * Coast(t, seed) + offset));
+                art.Quad(P(a, 0), P(b, 0), P(b, width), P(a, width), new("a9c4b2"));
+            }
+        }
     }
 
     private static void Rock(Sculptor art, Vector3 at, Vector3 size, uint seed)
     {
         var rng = new SeedRandom(seed);
-        const int n = 9;
-        float[] profile = [.78f, 1, .93f, .74f, .86f, .79f, .50f];
-        float[] levels = [0, .12f, .42f, .455f, .53f, .88f, 1];
-        var ring = new Vector3[profile.Length, n];
-        float phase = rng.Range(0, Mathf.Tau);
-        for (int l = 0; l < profile.Length; l++)
-            for (int i = 0; i < n; i++)
-            {
-                float a = i * Mathf.Tau / n + phase;
-                float radial = profile[l] * (.91f + .13f * Mathf.Sin(i * 4.8f + seed % 11));
-                ring[l, i] = at + new Vector3(Mathf.Cos(a) * size.X * .5f * radial + size.X * l * .021f, size.Y * (levels[l] + (l > 0 ? rng.Range(-.022f, .022f) : 0)), Mathf.Sin(a) * size.Z * .5f * radial);
-            }
         Color color = Stone.Lightened((seed % 9) * .012f);
-        for (int l = 0; l < profile.Length - 1; l++)
-            for (int i = 0; i < n; i++)
-            {
-                int j = (i + 1) % n;
-                Color face = color.Darkened(l == 0 ? .08f : 0).Lightened(.024f * Mathf.Sin(i * 3.2f));
-                art.Quad(ring[l, i], ring[l + 1, i], ring[l + 1, j], ring[l, j], face);
-                if ((l == 1 || l == 4) && (i + seed) % 3 == 0)
-                {
-                    Vector3 edge = ring[l, j] - ring[l, i];
-                    Vector3 edgeTop = ring[l + 1, j] - ring[l + 1, i];
-                    Vector3 normal = (ring[l + 1, i] - ring[l, i]).Cross(edge).Normalized() * .002f;
-                    Vector3 start = ring[l, i] + edge * .61f + normal;
-                    Vector3 end = ring[l + 1, i] + edgeTop * .48f + normal;
-                    art.Face(start, end, end + edgeTop * .016f, face.Darkened(.29f));
-                    art.Face(start, end + edgeTop * .016f, start + edge * .008f, face.Darkened(.29f));
-                }
-            }
-        Vector3 top = at + new Vector3(size.X * .08f, size.Y * 1.012f, 0);
-        for (int i = 0; i < n; i++) art.Face(ring[profile.Length - 1, i], top, ring[profile.Length - 1, (i + 1) % n], color.Lightened(.045f));
+        var old = art.Transform;
+        art.Transform *= new Transform3D(Basis.FromEuler(new(0, rng.Range(-.55f, .55f), 0)), at);
+        if (size.Y < size.X * .85f)
+            art.Boulder(new(0, size.Y * .44f, 0), size, color, seed);
+        else
+        {
+            // Offset eroded blocks have broad rounded shoulders and real dark crevices.
+            art.Boulder(new(-size.X * .06f, size.Y * .25f, size.Z * .035f), new(size.X, size.Y * .53f, size.Z), color, seed);
+            art.Boulder(new(size.X * .075f, size.Y * .66f, -size.Z * .035f), new(size.X * .87f, size.Y * .38f, size.Z * .89f), color.Lightened(.035f), seed + 17);
+            art.Boulder(new(-size.X * .07f, size.Y * .91f, -size.Z * .05f), new(size.X * .62f, size.Y * .23f, size.Z * .72f), color.Lightened(.06f), seed + 39);
+        }
+        art.Transform = old;
     }
 
     private static void AddCottage(Sculptor art, Vector3 origin, float scale, float yaw)
@@ -284,7 +279,8 @@ public static class EnvironmentArt3D
             art.Quad(Point(t, 0), Point(n, 0), Point(n, 1), Point(t, 1), color.Lightened(.04f));
             // Closed underside gives foliage volume from any view, without alpha cards.
             art.Quad(Point(t, 1), Point(n, 1), Point(n, -1), Point(t, -1), color.Darkened(.10f));
-            if (i < steps - 1) art.Tube(Point(t, 0) + Vector3.Up * .002f, Point(n, 0) + Vector3.Up * .002f, width * .034f * (1-t), width * .034f * (1-n), color.Lightened(.10f), 5);
+            if (width < length * .125f && i < steps - 1 && i % 2 == 0)
+                art.Tube(Point(t, 0) + Vector3.Up * .002f, Point(n + 1f / steps, 0) + Vector3.Up * .002f, width * .034f * (1-t), width * .034f * (1-n), color.Lightened(.10f), 5);
         }
     }
 
@@ -343,6 +339,35 @@ public static class EnvironmentArt3D
                     return (p + clamped + normal * radius, normal);
                 }
                 for (int i = 0; i < 3; i++) for (int j = 0; j < 3; j++)
+                {
+                    var a = Point(i, j); var b = Point(i + 1, j); var c = Point(i + 1, j + 1); var d = Point(i, j + 1);
+                    if (sign < 0) (b, d) = (d, b);
+                    Triangle(a.P, b.P, c.P, color, color, color, a.N, b.N, c.N);
+                    Triangle(a.P, c.P, d.P, color, color, color, a.N, c.N, d.N);
+                }
+            }
+        }
+        public void Boulder(Vector3 p, Vector3 size, Color color, uint seed)
+        {
+            Vector3 half = size * .5f;
+            float radius = Mathf.Min(size.X, Mathf.Min(size.Y, size.Z)) * .20f;
+            Vector3 inner = half - Vector3.One * radius;
+            float[] cuts = [-1, -.83f, -.60f, .60f, .83f, 1];
+            for (int axis = 0; axis < 3; axis++) for (int sign = -1; sign <= 1; sign += 2)
+            {
+                int u = (axis + 1) % 3, v = (axis + 2) % 3;
+                (Vector3 P, Vector3 N) Point(int i, int j)
+                {
+                    Vector3 raw = Vector3.Zero; raw[axis] = half[axis] * sign; raw[u] = half[u] * cuts[i]; raw[v] = half[v] * cuts[j];
+                    Vector3 clamped = raw.Clamp(-inner, inner), normal = (raw - clamped).Normalized();
+                    Vector3 q = clamped + normal * radius;
+                    float h = q.Y / size.Y;
+                    q.X = q.X * (1 + .07f * Mathf.Sin(h * 7 + seed % 13)) + h * size.X * .06f;
+                    q.Z = q.Z * (1 + .075f * Mathf.Sin(h * 5 + seed % 19)) - h * size.Z * .04f;
+                    q.Y += size.Y * .035f * Mathf.Sin(q.X / size.X * 7 + q.Z / size.Z * 4 + seed % 17);
+                    return (p + q, normal);
+                }
+                for (int i = 0; i < cuts.Length - 1; i++) for (int j = 0; j < cuts.Length - 1; j++)
                 {
                     var a = Point(i, j); var b = Point(i + 1, j); var c = Point(i + 1, j + 1); var d = Point(i, j + 1);
                     if (sign < 0) (b, d) = (d, b);
