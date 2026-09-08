@@ -19,4 +19,9 @@ if [[ "${1:-}" == '--check' ]]; then
   exec "$DOTNET_BIN" run --project "$PROJECT_DIR/tests/CoreChecks.csproj"
 fi
 "$DOTNET_BIN" build "$PROJECT_DIR/ALittleFurther.csproj" --nologo
+ALF_PREVIOUS_ARG=""
+for ALF_ARGUMENT in "$@"; do
+  if [[ "$ALF_PREVIOUS_ARG" == '--write-movie' ]]; then mkdir -p -- "$(dirname -- "$ALF_ARGUMENT")"; fi
+  ALF_PREVIOUS_ARG="$ALF_ARGUMENT"
+done
 exec "$GODOT_BIN" --path "$PROJECT_DIR" "$@"

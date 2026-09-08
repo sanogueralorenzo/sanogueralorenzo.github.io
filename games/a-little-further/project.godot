@@ -6,8 +6,8 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 [display]
 window/size/viewport_width=1440
 window/size/viewport_height=900
-window/size/window_width_override=1280
-window/size/window_height_override=800
+window/size/window_width_override=1920
+window/size/window_height_override=1200
 window/stretch/mode="canvas_items"
 [dotnet]
 project/assembly_name="ALittleFurther"

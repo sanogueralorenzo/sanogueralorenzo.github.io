@@ -1,0 +1,178 @@
+[
+  {
+    "seed": 1,
+    "cell": {
+      "X": 0,
+      "Z": 0
+    },
+    "radius": 97,
+    "landAreaM2": 30776,
+    "highest": 26.063608,
+    "scenery": 488
+  },
+  {
+    "seed": 1,
+    "cell": {
+      "X": 1,
+      "Z": 0
+    },
+    "radius": 98,
+    "landAreaM2": 31440,
+    "highest": 33.997677,
+    "scenery": 506
+  },
+  {
+    "seed": 1,
+    "cell": {
+      "X": 0,
+      "Z": 1
+    },
+    "radius": 95,
+    "landAreaM2": 29548,
+    "highest": 22.33759,
+    "scenery": 460
+  },
+  {
+    "seed": 1,
+    "cell": {
+      "X": -1,
+      "Z": -1
+    },
+    "radius": 97,
+    "landAreaM2": 30796,
+    "highest": 24.50432,
+    "scenery": 503
+  },
+  {
+    "seed": 1701,
+    "cell": {
+      "X": 0,
+      "Z": 0
+    },
+    "radius": 97,
+    "landAreaM2": 30796,
+    "highest": 25.663525,
+    "scenery": 479
+  },
+  {
+    "seed": 1701,
+    "cell": {
+      "X": 1,
+      "Z": 0
+    },
+    "radius": 93,
+    "landAreaM2": 28288,
+    "highest": 24.823858,
+    "scenery": 447
+  },
+  {
+    "seed": 1701,
+    "cell": {
+      "X": 0,
+      "Z": 1
+    },
+    "radius": 104,
+    "landAreaM2": 35412,
+    "highest": 24.452765,
+    "scenery": 481
+  },
+  {
+    "seed": 1701,
+    "cell": {
+      "X": -1,
+      "Z": -1
+    },
+    "radius": 94,
+    "landAreaM2": 28892,
+    "highest": 22.148714,
+    "scenery": 471
+  },
+  {
+    "seed": 73919,
+    "cell": {
+      "X": 0,
+      "Z": 0
+    },
+    "radius": 97,
+    "landAreaM2": 30796,
+    "highest": 25.787819,
+    "scenery": 487
+  },
+  {
+    "seed": 73919,
+    "cell": {
+      "X": 1,
+      "Z": 0
+    },
+    "radius": 105,
+    "landAreaM2": 36116,
+    "highest": 30.639559,
+    "scenery": 507
+  },
+  {
+    "seed": 73919,
+    "cell": {
+      "X": 0,
+      "Z": 1
+    },
+    "radius": 104,
+    "landAreaM2": 35412,
+    "highest": 28.025753,
+    "scenery": 520
+  },
+  {
+    "seed": 73919,
+    "cell": {
+      "X": -1,
+      "Z": -1
+    },
+    "radius": 90,
+    "landAreaM2": 26452,
+    "highest": 33.712753,
+    "scenery": 436
+  },
+  {
+    "seed": 2147483647,
+    "cell": {
+      "X": 0,
+      "Z": 0
+    },
+    "radius": 97,
+    "landAreaM2": 30772,
+    "highest": 27.817411,
+    "scenery": 492
+  },
+  {
+    "seed": 2147483647,
+    "cell": {
+      "X": 1,
+      "Z": 0
+    },
+    "radius": 94,
+    "landAreaM2": 28924,
+    "highest": 32.52006,
+    "scenery": 469
+  },
+  {
+    "seed": 2147483647,
+    "cell": {
+      "X": 0,
+      "Z": 1
+    },
+    "radius": 93,
+    "landAreaM2": 28296,
+    "highest": 32.80762,
+    "scenery": 453
+  },
+  {
+    "seed": 2147483647,
+    "cell": {
+      "X": -1,
+      "Z": -1
+    },
+    "radius": 91,
+    "landAreaM2": 27040,
+    "highest": 23.834682,
+    "scenery": 465
+  }
+]

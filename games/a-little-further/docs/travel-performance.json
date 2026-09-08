@@ -1,23 +1,884 @@
 {
-  "seed": 1701,
-  "seconds": 180.00000938773155,
-  "mode": "Sailing",
-  "Gold": 0,
-  "Kills": 0,
-  "Shrines": 0,
-  "IslandsVisited": 0,
-  "ShiftCount": 6,
-  "loaded": 25,
-  "frames": 12161,
-  "medianMs": 16.57,
-  "p95Ms": 17.347,
-  "p99Ms": 20.656,
-  "sampleKind": "monotonic process callback interval",
-  "recordedMovie": false,
-  "renderer": "forward_plus",
-  "adapter": "Apple M3 Max (Apple9)",
-  "drawCalls": 220,
-  "objects": 512,
-  "processMs": 17.022,
-  "physicsMs": 0.098
+  "hardware": "MacBook Pro Mac15,10; M3 Max 30-core GPU; 36 GB; macOS 26.5.2; Godot .NET 4.7.2 Forward+ Metal 4",
+  "resolution": [
+    1920,
+    1200
+  ],
+  "targetFps": 60,
+  "signOff": "OPEN: repeat under isolated GPU conditions and investigate any remaining outlier",
+  "beforeCaptureFix": {
+    "conditions": "Ten-minute native run; no other game/encoder observed during that run. One untraced one-second outlier remains unexplained.",
+    "metrics": {
+      "seed": 1701,
+      "seconds": 600.1166979651898,
+      "voyages": [],
+      "position": {
+        "X": 111.266884,
+        "Y": -195
+      },
+      "autoStage": 1,
+      "coinTarget": 0,
+      "mode": "Sailing",
+      "Health": 100,
+      "crew": [
+        {
+          "role": "Gunner",
+          "Level": 1
+        }
+      ],
+      "visited": 0,
+      "claimed": 0,
+      "treasure": 0,
+      "Gold": 0,
+      "Kills": 0,
+      "Shrines": 0,
+      "IslandsVisited": 0,
+      "ShiftCount": 5,
+      "loaded": 9,
+      "frames": 35780,
+      "islandBuilds": 29,
+      "islandEvictions": 15,
+      "over33ms": 12,
+      "over50ms": 8,
+      "maxMs": 1017.835,
+      "medianMs": 16.666,
+      "p95Ms": 17.397,
+      "p99Ms": 18.501,
+      "sampleKind": "monotonic process callback interval",
+      "recordedMovie": false,
+      "renderer": "forward_plus",
+      "adapter": "Apple M3 Max (Apple9)",
+      "drawCalls": 118,
+      "objects": 163,
+      "processMs": 17.835,
+      "physicsMs": 0.13899999999999998
+    }
+  },
+  "afterCaptureFix": {
+    "conditions": "Ten-minute native run with another CozySora Godot preview concurrently active. Includes one brief native screenshot inspection around 430 seconds. Not an isolated benchmark.",
+    "metrics": {
+      "seed": 1701,
+      "seconds": 600.1166979651898,
+      "voyages": [],
+      "slowFrames": [
+        {
+          "seconds": 0.13333334028720856,
+          "ms": 143.0873333333333,
+          "Builds": 0,
+          "LastBuildMs": 0
+        },
+        {
+          "seconds": 0.23333334550261497,
+          "ms": 43.839,
+          "Builds": 0,
+          "LastBuildMs": 0
+        },
+        {
+          "seconds": 0.3166666831821203,
+          "ms": 103.445,
+          "Builds": 1,
+          "LastBuildMs": 93.176
+        },
+        {
+          "seconds": 5.000000260770321,
+          "ms": 35.243,
+          "Builds": 9,
+          "LastBuildMs": 0.261
+        },
+        {
+          "seconds": 73.45000383071601,
+          "ms": 1010.891,
+          "Builds": 12,
+          "LastBuildMs": 0.424
+        },
+        {
+          "seconds": 211.55001103319228,
+          "ms": 33.765,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 211.60001103579998,
+          "ms": 35.072,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 215.51667790673673,
+          "ms": 35.096,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 217.80001135915518,
+          "ms": 36.392,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 218.0500113721937,
+          "ms": 33.436,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 219.18334476463497,
+          "ms": 34.916,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 220.16667814925313,
+          "ms": 38.153,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 221.2833448741585,
+          "ms": 34.075,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 221.4666782170534,
+          "ms": 38.766,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 222.25001159124076,
+          "ms": 33.454,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 222.35001159645617,
+          "ms": 34.051,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 222.46667826920748,
+          "ms": 37.127,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 223.48334498889744,
+          "ms": 38.853,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 224.15001169033349,
+          "ms": 35.663,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 224.3166783656925,
+          "ms": 36.94,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 224.5333450436592,
+          "ms": 35.494,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 224.76667838916183,
+          "ms": 33.949,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.00001173466444,
+          "ms": 33.981,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.33334508538246,
+          "ms": 36.578,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.48334509320557,
+          "ms": 34.273,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.56667843088508,
+          "ms": 35.674,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.7833451088518,
+          "ms": 34.346,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 225.9333451166749,
+          "ms": 33.711,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 226.25001179985702,
+          "ms": 36.874,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 226.28334513492882,
+          "ms": 37.796,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 226.53334514796734,
+          "ms": 34.412,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 226.68334515579045,
+          "ms": 37.945,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.01667850650847,
+          "ms": 43.083,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.06667850911617,
+          "ms": 37.013,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.13334517925978,
+          "ms": 34.056,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.18334518186748,
+          "ms": 35.69,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.21667851693928,
+          "ms": 34.219,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.2833451870829,
+          "ms": 37.094,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.3833451922983,
+          "ms": 36.1,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.4166785273701,
+          "ms": 43.264,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.4500118624419,
+          "ms": 33.547,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.4833451975137,
+          "ms": 36.696,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.5166785325855,
+          "ms": 42.366,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.5833452027291,
+          "ms": 35.386,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.6833452079445,
+          "ms": 34.614,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.85001188330352,
+          "ms": 35.111,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.88334521837533,
+          "ms": 34.194,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.90001188591123,
+          "ms": 34.26,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 227.96667855605483,
+          "ms": 39.125,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.08334522880614,
+          "ms": 39.54,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.11667856387794,
+          "ms": 40.341,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.15001189894974,
+          "ms": 36.306,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.20001190155745,
+          "ms": 34.609,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.23334523662925,
+          "ms": 41.744,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.26667857170105,
+          "ms": 40.573,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.31667857430875,
+          "ms": 37.318,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.35001190938056,
+          "ms": 43.403,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.40001191198826,
+          "ms": 39.577,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.45001191459596,
+          "ms": 55.351,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.55001191981137,
+          "ms": 93.123,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.63334525749087,
+          "ms": 73.479,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.68334526009858,
+          "ms": 47.038,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.73334526270628,
+          "ms": 58.895,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.78334526531398,
+          "ms": 52.277,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.8333452679217,
+          "ms": 53.491,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.8833452705294,
+          "ms": 50.405,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.9333452731371,
+          "ms": 41.298,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 228.9666786082089,
+          "ms": 33.573,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.0000119432807,
+          "ms": 37.173,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.0500119458884,
+          "ms": 43.603,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.0833452809602,
+          "ms": 35.285,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.1500119511038,
+          "ms": 39.436,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.2000119537115,
+          "ms": 38.727,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.2333452887833,
+          "ms": 36.331,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.50001196935773,
+          "ms": 39.861,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.58334530703723,
+          "ms": 44.349,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.63334530964494,
+          "ms": 55.463,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.68334531225264,
+          "ms": 48.853,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.73334531486034,
+          "ms": 52.84,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.78334531746805,
+          "ms": 33.387,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.83334532007575,
+          "ms": 46.297,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.86667865514755,
+          "ms": 39.544,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.91667865775526,
+          "ms": 37.81,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 229.98334532789886,
+          "ms": 38.427,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.26667867600918,
+          "ms": 41.09,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.35001201368868,
+          "ms": 43.848,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.38334534876049,
+          "ms": 40.533,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.4333453513682,
+          "ms": 41.419,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.5000120215118,
+          "ms": 43.453,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.5500120241195,
+          "ms": 44.642,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.5833453591913,
+          "ms": 37.795,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.7500120345503,
+          "ms": 41.422,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 230.90001204237342,
+          "ms": 37.587,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.00001204758883,
+          "ms": 34.178,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.08334538526833,
+          "ms": 40.615,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.13334538787603,
+          "ms": 40.61,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.16667872294784,
+          "ms": 34.859,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.33334539830685,
+          "ms": 39.725,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.36667873337865,
+          "ms": 33.542,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.40001206845045,
+          "ms": 38.267,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.46667873859406,
+          "ms": 36.96,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.50001207366586,
+          "ms": 36.915,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.55001207627356,
+          "ms": 33.718,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.58334541134536,
+          "ms": 37.735,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.61667874641716,
+          "ms": 42.261,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.65001208148897,
+          "ms": 37.946,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.70001208409667,
+          "ms": 40.287,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.80001208931208,
+          "ms": 38.245,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.86667875945568,
+          "ms": 34.221,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 231.91667876206338,
+          "ms": 40.669,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.0666787698865,
+          "ms": 41.808,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.1000121049583,
+          "ms": 38.346,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.2000121101737,
+          "ms": 40.98,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.2333454452455,
+          "ms": 38.286,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.2833454478532,
+          "ms": 38.342,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.3500121179968,
+          "ms": 35.448,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.3833454530686,
+          "ms": 41.277,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.45001212321222,
+          "ms": 36.433,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.51667879335582,
+          "ms": 36.015,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.60001213103533,
+          "ms": 38.591,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.63334546610713,
+          "ms": 45.257,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.75001213885844,
+          "ms": 45.949,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.78334547393024,
+          "ms": 35.89,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.85001214407384,
+          "ms": 37.962,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.91667881421745,
+          "ms": 40.801,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 232.98334548436105,
+          "ms": 50.75,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 233.01667881943285,
+          "ms": 34.52,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        },
+        {
+          "seconds": 233.11667882464826,
+          "ms": 43.119,
+          "Builds": 17,
+          "LastBuildMs": 20.989
+        }
+      ],
+      "position": {
+        "X": 111.266884,
+        "Y": -195
+      },
+      "autoStage": 1,
+      "coinTarget": 0,
+      "mode": "Sailing",
+      "Health": 100,
+      "crew": [
+        {
+          "role": "Gunner",
+          "Level": 1
+        }
+      ],
+      "visited": 0,
+      "claimed": 0,
+      "treasure": 0,
+      "Gold": 0,
+      "Kills": 0,
+      "Shrines": 0,
+      "IslandsVisited": 0,
+      "ShiftCount": 5,
+      "loaded": 9,
+      "frames": 30741,
+      "islandBuilds": 29,
+      "islandEvictions": 15,
+      "over33ms": 1192,
+      "over50ms": 723,
+      "maxMs": 1033.767,
+      "medianMs": 16.677,
+      "p95Ms": 28.105,
+      "p99Ms": 105.714,
+      "sampleKind": "monotonic process callback interval",
+      "recordedMovie": false,
+      "renderer": "forward_plus",
+      "adapter": "Apple M3 Max (Apple9)",
+      "drawCalls": 118,
+      "objects": 163,
+      "processMs": 15.288,
+      "physicsMs": 48.974999999999994
+    }
+  },
+  "captureTrace": {
+    "synchronousPngMs": 171.156,
+    "correspondingFrameMs": 173.249,
+    "asyncStartReadbackMs": 8.078,
+    "asyncStartPngMs": 163.976,
+    "asyncEndReadbackMs": 14.218,
+    "asyncEndPngMs": 220.001,
+    "note": "Background PNG writes completed before exit. Capture timing does not explain the separate one-second outlier."
+  }
 }

@@ -22,7 +22,13 @@ export ALF_SOURCE_VAULT=/path/to/a-little-further-vault
 ./games/a-little-further/launch.sh
 ```
 
-**The Git checkout intentionally does not contain recovered game code, models, textures, animation curves, or gameplay recordings.** They remain in `Local/` and the owner's source vault. A checkout without that package refuses to build/run instead of silently substituting assets. See [provenance](docs/PROVENANCE.md).
+**The Git checkout intentionally does not contain proprietary recovered game code, models, textures, animation curves, or gameplay recordings.** They remain in `Local/` and the owner's source vault. A checkout without that package refuses to build/run instead of silently substituting assets. See [provenance](docs/PROVENANCE.md).
+
+## Islands and presentation
+
+The revised islands average about 30,600 m² of land, comparable to CozySora’s initial Seabreeze boundary, with smaller/larger variants, wooded hills, branching hikes, and four optional caches. Forest geometry, leaves, grass, and articulated cats directly adapt project-owned CozySora source. The strongest recovered coastal assets and traversal systems remain in use.
+
+New shores emerge after roughly one to two minutes of purposeful full-sail travel. The HUD keeps health, gold, and nearby actions visible; Tab opens the chart and crew, pausing play. Ashore the chart shows local paths and landing; Escape closes it. Trail coins award 8 doubloons; optional caches award 24 and visibly open when collected.
 
 ## Controls
 
@@ -45,6 +51,8 @@ export ALF_SOURCE_VAULT=/path/to/a-little-further-vault
 
 Captain and crew attack automatically. Movement and dodge timing matter: enemy exclamation marks and ground rings telegraph incoming attacks. Red damage numbers signal a captain hit. Standing among a growing horde is fatal.
 
+The default window is 1920 × 1200 with a 60 fps target and scalable UI.
+
 ## Crew
 
 - **Flint, Gunner:** a timed revolver burst; storm-marked enemies take more damage.
@@ -54,7 +62,7 @@ Captain and crew attack automatically. Movement and dodge timing matter: enemy e
 - **Reef, Harpooner:** strong single shots; chilled targets take greatly increased damage.
 - **Moss, Tidekeeper:** chills nearby enemies, reducing their speed and preparing Reef's shatter attacks.
 
-Choosing an existing role increases its rank. A new role joins an empty berth or replaces the selected hand when all four are occupied. Treasure can provision the crew between islands. The tide grows more dangerous with time and shrines claimed.
+Choosing an existing role increases its rank. A new role joins an empty berth or replaces the selected hand when all four are occupied. Treasure can provision the crew between islands. The tide grows more dangerous with time spent ashore and shrines claimed. Open-water travel does not increase threat.
 
 ## Validation and structure
 
@@ -65,7 +73,7 @@ Choosing an existing role increases its rank. A new role joins an empty berth or
 ./games/a-little-further/launch.sh -- --seed=1701 --travel-test --evidence=/absolute/local/path
 ```
 
-The validation pilot uses the same movement/combat commands as play. It is explicitly labeled in the HUD. The travel test starts in a sea lane facing east and sails normally for three minutes. It does not award progress or bypass collision.
+The validation pilot uses the same movement/combat commands as play. It is explicitly labeled in the HUD. The travel test starts in a sea lane facing east and sails normally for ten minutes; `--travel-seconds=180` selects a shorter diagnostic. It does not award progress or bypass collision.
 
 - `Core/`: deterministic islands and scenery, movement, combat, crew choices, run state, and origin shifting; no Godot dependency.
 - `Runtime/`: Godot input, geometry/material loading, camera, sound, UI, rendering, and a validation driver.

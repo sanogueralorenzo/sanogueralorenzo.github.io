@@ -1,6 +1,6 @@
 # Source recovery and reuse
 
-Recovery date: **7 September 2026**. All recovered material remains local. The public repository contains authored adapters, game rules, tooling, documentation, and source fingerprints only. The source games' licenses are not replaced by this repository's MIT license.
+Recovery date: **7 September 2026**. Proprietary recovered material remains local. The public repository contains authored adapters, game rules, tooling, documentation, source fingerprints, and adaptations of project-owned CozySora code. The source games' licenses are not replaced by this repository's MIT license.
 
 The source vault is `~/GameSourceVault/a-little-further`. `runtime/` is the restorable private runtime package; the other directories contain original downloads, decompilations, inventories, binary records, and recovery tools. `Local/` in the worktree is ignored by both Git and the Godot asset importer. Runtime loaders read the needed files directly.
 
@@ -42,26 +42,26 @@ Private evidence: `sno/*.cs` and `sno/types.txt`. **The local SNØ port was not 
 
 Source: `~/Library/Application Support/Steam/steamapps/common/A Short Hike/AShortHike.app/Contents/Resources/Data`.
 
-Recovered managed `Player`, `PhysicsMovement`, and `PlayerIKAnimator` code. UnityPy exported 290 meshes from `sharedassets2.assets`, selected additional meshes from `level2` and `sharedassets0.assets`, decoded scene transforms/material associations, extracted textures, and recovered animation-clip data. Its assets are the primary source of island scenery and captain/crew silhouettes.
+Recovered managed `Player`, `PhysicsMovement`, and `PlayerIKAnimator` code. UnityPy exported 290 meshes from `sharedassets2.assets`, selected additional meshes from `level2` and `sharedassets0.assets`, decoded scene transforms/material associations, extracted textures, and recovered animation-clip data. The redesign retains its strongest rocks, grass illustration, traversal translation, and gliding data. CozySora now supplies the forest and captain/crew anatomy, following the user’s revised art direction.
 
-Runtime selections include:
+Recovered selections and their current use:
 
 | Asset | Serialized file / path ID |
 |---|---|
-| Palm | `sharedassets2.assets` / 561 |
-| Large pine | `sharedassets2.assets` / 633 |
-| Birch | `sharedassets2.assets` / 589 |
-| Bush | `sharedassets2.assets` / 559 |
-| Coastal/land rocks | `sharedassets2.assets` / 593, 584, 585 |
-| Captain/crew bird silhouette | `sharedassets0.assets` / 21 |
+| Palm (retained in package, replaced at runtime) | `sharedassets2.assets` / 561 |
+| Large pine (retained, replaced) | `sharedassets2.assets` / 633 |
+| Birch (retained, replaced) | `sharedassets2.assets` / 589 |
+| Bush (retained, replaced by Seabreeze bushes) | `sharedassets2.assets` / 559 |
+| Rounded rock (active); earlier rock/coast variants (retained, replaced) | `sharedassets2.assets` / 585; 584, 593 |
+| Bird silhouette (retained, replaced by CozySora cat) | `sharedassets0.assets` / 21 |
 | Glide wings | `sharedassets2.assets` / 715 |
 | Grass illustration | `sharedassets2.assets` / 322 |
 
-The original palm orientation is applied before normalization. Geometry is rescaled and materials are harmonized into the game's palette. The extracted Grass texture is sampled on procedural island terrain.
+Recovered geometry is rescaled and materials are harmonized into the game's palette. The extracted Grass texture is sampled on procedural island terrain.
 
 Movement translates the desired-velocity response from `PhysicsMovement` and the jump grace, cooldown, hold-to-glide timing, terminal glide fall speed, and climbing/stamina concepts from `Player`. The original force-driven Rigidbody implementation is adapted into the engine-independent height-field controller.
 
-`FlapWings` (`sharedassets1.assets` / 83) supplies actual streamed wing-scale key data for gliding. The decoded `PlayerIKAnimator.headBobCurve` supplies the body-bob Hermite curve. The clip data and curve are read from the private package. Other recovered clips, including `NPCWalkFast` and `ChestOpen`, are retained for inspection but **are not runtime animations**. Full humanoid skeletal/IK retargeting has not been performed; the current characters combine the selected recovered meshes/curves with authored pirate accessories and feedback animation.
+`FlapWings` (`sharedassets1.assets` / 83) supplies actual streamed wing-scale key data for gliding. The decoded `PlayerIKAnimator.headBobCurve` supplies the body-bob Hermite curve. The clip data and curve are read from the private package. Other recovered clips, including `NPCWalkFast` and `ChestOpen`, are retained for inspection but **are not runtime animations**. Full humanoid skeletal/IK retargeting has not been performed; the current characters combine CozySora’s actual cat rig/gait with the recovered body-bob/glide curves and authored pirate accessories and feedback poses.
 
 Private evidence: `hike/Player.cs`, `hike/PhysicsMovement.cs`, `hike/PlayerIKAnimator.cs`, `hike/behaviours.json`, `hike/inventory.json`, extraction scripts, and runtime asset manifests. Inventory errors are retained in `hike/failures.json`; not every serialized behaviour was decoded.
 
@@ -78,7 +78,7 @@ Runtime data reuse:
 - Sword, revolver, lightning, poison-flask, bow, and frost-walker damage/cooldown/burst/projectile data underpin captain and crew attacks.
 - Skeleton and armored-skeleton health, damage, and speed underpin the two enemy classes, with explicit balance multipliers in `SourceTuning`.
 - The revolver's projectile count and burst duration drive a timed multi-shot volley.
-- `Ghost` mesh (`sharedassets1.assets` / 1843) and `Skull` (1858) are used for pirate monsters. The recovered renderer rotation offset, −90° on X, is applied before normalization.
+- `Skull` (`sharedassets1.assets` / 1858) is used for pirate monsters, with the recovered renderer rotation offset, −90° on X, applied before normalization. The recovered `Ghost` (1843) was replaced after visual review; it remains in the private package as extraction evidence. The articulated body, clothing, caps, face accents, and cutlasses are authored.
 
 Specific native-code recovery, independently disassembled with Capstone:
 
@@ -92,8 +92,23 @@ Specific native-code recovery, independently disassembled with Capstone:
 
 Private evidence: `megabonk/raw-config.json`, `megabonk/decoded-config.json`, `megabonk/wave-disassembly.txt`, `megabonk/combat-disassembly.txt`, `megabonk/targeting-disassembly.txt`, `megabonk/asset-selection.log`, and `dumper/`. Recovery tools and failures remain alongside them.
 
+## CozySora / Seabreeze Village redesign
+
+The user selected CozySora’s initial map and animals as the stronger benchmark. Read the actual **Seabreeze Village** source and native project preview in the existing checkout without modifying that checkout. Seabreeze’s horizontal playable-boundary mask measures 30,115 m²; its 360×360 m render terrain includes background/ocean and is not treated as playable area. See [redesign measurements](REDESIGN.md).
+
+These sources identify themselves as original project-owned construction under the repository’s MIT license. Concrete copied/adapted code is therefore redistributable and lives in this game, without a cross-project build dependency:
+
+- `SeabreezePlantMeshes`: actual procedural branching, canopy cards, bushes, and grass blades.
+- `SeabreezeRandom`: actual seeded Mulberry32 stream.
+- `CozyLeafPainter` and selected `SeabreezeTextures` methods: actual rasterized leaf and bark recipes.
+- `CozyPrimitives` and `CozySolidMaterials`: actual mesh helpers and palette caching.
+- `foliage.gdshader` and `grass.gdshader`: wind, canopy normals, color treatment, and player displacement, with local uniform bindings.
+- `CozyPlayer.Characters.BuildCat/AnimateCat`: actual articulated anatomy, leg/knee joints, facial geometry, segmented tail, idle and movement gait, adapted into `CharacterRig`. Scale, clothing, tricorn, role equipment, and attack poses are local additions.
+
+Runtime foliage uses batched instances, spatial grass patches, and additional distant crown silhouettes and camera-to-subject leaf clearance. These rendering adaptations and the island height/route/reward rules are authored here; the Seabreeze map itself was not copied wholesale. Exact source snapshots and hashes are in the local `cozy-benchmark` directory; public fingerprints identify every source file. Unrelated CozySora work was left untouched.
+
 ## Other material and redistribution
 
-CozySora assets/code were not used. The Last Cast was excluded. No external image generation was used. Pirate accessories, UI, progression rules, terrain profiles, input adapters, and procedural audio are authored for this project. The local Godot .NET application was copied into a separate development launcher so native testing would not target another project's open Godot editor.
+The Last Cast was excluded. No external image generation was used. Pirate accessories, UI, progression rules, terrain profiles, input adapters, and procedural audio are authored for this project. The local Godot .NET application was copied into a separate development launcher so native testing would not target another project's open Godot editor.
 
-[Source fingerprints](source-fingerprints.json) identify the exact downloaded/installed inputs without publishing them. The runtime package has its own per-file SHA-256 manifest, checked by `tools/verify-local.py`. Gameplay images/video also stay in the local vault because they depict recovered proprietary material.
+[Source fingerprints](source-fingerprints.json) identify the exact downloaded/installed inputs without publishing proprietary material. The private runtime package has its own per-file SHA-256 manifest, checked by `tools/verify-local.py`. Gameplay images/video also stay in the local vault because they depict recovered proprietary material.

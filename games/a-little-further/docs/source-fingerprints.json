@@ -22,5 +22,20 @@
   "megabonk-metadata": {
     "sha256": "17b506a77616b943b414b9a42d35e3acbdaf71eec5dc6c470fc4da338010d550",
     "bytes": 13728368
+  },
+  "cozysora-seabreeze": {
+    "source": "project-owned CozySora checkout, read-only snapshot 2026-09-07",
+    "files": {
+      "scripts/CozyPlayer.Characters.cs": "0901c7206732c733f4263a5e28feb642b52678f7cdcd45fac34d18898f91950b",
+      "maps/seabreeze_village/SeabreezeWorld.cs": "ce12d9c095f65805e481f28e48c7b4bc04382e41580ac36c60a4a47c13b3a7a6",
+      "maps/seabreeze_village/SeabreezePlantMeshes.cs": "c50ef7d7827ed07f7ba02d54cb06463b15437e415cca1448fe4030a5b85459fd",
+      "maps/seabreeze_village/SeabreezeTextures.cs": "2f7f1f53158727b0e7b33fd71c6182e37690e7366f43eae0cd6c925516523711",
+      "maps/seabreeze_village/SeabreezeRandom.cs": "a9d5aa6bff70706d09830e2c46cc139e9398e26cda73b991ec08efb5a9ce3426",
+      "shared/CozyLeafPainter.cs": "ea1103909be8357ba9faee3d86aa5477f213ebeed3b178d2ea2d39c5b65ae526",
+      "shared/CozyPrimitives.cs": "770dc0f616936fc13621d4d4ee3016fdac322936ad2f8ce4785f54abceaed6e7",
+      "shared/CozySolidMaterials.cs": "4e26bb91b1fc4d482af087d6d11b9eadb68c69f94b7568864f570586848a4f13",
+      "shaders/foliage.gdshader": "aaa05b552ea5ce357a2eba93ee26e4cea080b31595912ae089fc7c48ea791c70",
+      "shaders/grass.gdshader": "1af2b9b6e8a92dca428803d6a7591374f77cc2e96aa40e2cb6e530e7e5dc3b6f"
+    }
   }
 }

@@ -4,12 +4,12 @@ public partial class Sound : Node
 {
     readonly AudioStreamPlayer[] voices=new AudioStreamPlayer[8];
     AudioStreamPlayer sea=null!,music=null!;
-    readonly AudioStreamWav[] cues=new AudioStreamWav[4];
+    readonly AudioStreamWav[] cues=new AudioStreamWav[5];
     int voice;
     public override void _Ready()
     {
         for(int i=0;i<voices.Length;i++){voices[i]=new(){VolumeDb=-18};AddChild(voices[i]);}
-        for(int i=0;i<4;i++)cues[i]=Tone(i);
+        for(int i=0;i<4;i++)cues[i]=Tone(i);cues[4]=Bell();
         sea=new(){Stream=Sea(),VolumeDb=-29};AddChild(sea);sea.Play();
         music=new(){Stream=Music(),VolumeDb=-28};AddChild(music);music.Play();
     }
@@ -36,6 +36,12 @@ public partial class Sound : Node
     {
         int n=kind==0?15000:kind==1?6500:3500;var data=new float[n];var r=new Random(kind);
         for(int i=0;i<n;i++){float t=i/22050f,env=MathF.Exp(-t*(kind<2?10:35));float freq=kind switch{0=>i<n/2?440:660,1=>880,2=>180-300*t,_=>80};data[i]=(MathF.Sin(Mathf.Tau*freq*t)*.5f+(kind>=2?((float)r.NextDouble()*2-1)*.3f:MathF.Sin(Mathf.Tau*freq*2*t)*.12f))*env;}
+        return Build(data);
+    }
+    static AudioStreamWav Bell()
+    {
+        var data=new float[22050*3];float[] ratios=[1,2.01f,2.74f,4.07f];
+        for(int i=0;i<data.Length;i++){float t=i/22050f;for(int j=0;j<ratios.Length;j++)data[i]+=MathF.Sin(Mathf.Tau*220*ratios[j]*t)*MathF.Exp(-t*(1.2f+j*.6f))*.26f/(j+1);}
         return Build(data);
     }
     static AudioStreamWav Sea()

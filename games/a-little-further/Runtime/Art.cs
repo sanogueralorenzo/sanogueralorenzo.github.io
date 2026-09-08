@@ -38,26 +38,13 @@ public static class Art
         }
         var n=new MeshInstance3D{Mesh=mesh,Position=p,Scale=Vector3.One*height,Rotation=new(0,yaw,0)};parent.AddChild(n);return n;
     }
-    public static Node3D Pirate(Node3D parent,Color coat,float scale=1)
+    public static Node3D Pirate(Node3D parent,Color coat,float scale=1,Role? role=null)
     {
-        var n=new Node3D{Scale=Vector3.One*scale};parent.AddChild(n);
-        Source(n,"bird",Vector3.Zero,1.65f).MaterialOverride=Material(coat);
-        // Original pirate accessories sit on the recovered bird silhouette.
-        Box(n,new(0,1.39f,.03f),new(.86f,.12f,.59f),Ink);
-        var hat=Box(n,new(0,1.58f,.03f),new(.66f,.29f,.45f),Ink);hat.RotationDegrees=new(0,0,5);
-        Box(n,new(0,1.63f,.27f),new(.13f,.14f,.035f),Cream);
-        Box(n,new(0,.65f,.05f),new(.55f,.16f,.4f),coat);
-        var wings=Source(n,"arms",new(0,.65f,0),.9f);wings.Name="GlideWings";wings.Visible=false;
-        return n;
+        var n=new CharacterRig{Scale=Vector3.One*scale};parent.AddChild(n);n.Build(coat,(int)(coat.R*11),role);return n;
     }
     public static Node3D Monster(Node3D parent,int kind)
     {
-        var root=new Node3D();parent.AddChild(root);
-        Source(root,"ghost",Vector3.Zero,kind==1?2.1f:1.6f).MaterialOverride=Material(kind==1?new("666284"):new("426f67"));
-        Source(root,"skull",new(0,kind==1?1.5f:1.1f,.1f),kind==1?.72f:.58f).MaterialOverride=Material(new("d6cfaa"));
-        if(kind==1){Box(root,new(0,2.22f,0),new(1,.12f,.7f),Ink);Cylinder(root,new(.9f,.85f,0),.3f,1.7f,new("9b7252"));}
-        else{Box(root,new(0,1.58f,0),new(.64f,.13f,.52f),Coral);}
-        return root;
+        var root=new EnemyRig();parent.AddChild(root);root.Build(kind);return root;
     }
     public static Vector3 At(V2 p,float y)=>new(p.X,y,p.Y);
     public static void SailingRig(Node3D boat)
@@ -73,12 +60,29 @@ public static class Art
     public static Node3D Shrine(Node3D parent,Vector3 p)
     {
         var n=new Node3D{Position=p};parent.AddChild(n);
-        Cylinder(n,new(0,.17f,0),2.5f,.34f,new("798478"));
-        for(int i=-1;i<=1;i+=2){Box(n,new(i*1.5f,2,0),new(.5f,4,.6f),new("765843"));Box(n,new(i*1.5f,1,.02f),new(.61f,.2f,.7f),Gold);}
-        Box(n,new(0,4,0),new(3.7f,.4f,.75f),new("765843"));
-        var bell=Mesh(n,new CylinderMesh{TopRadius=.28f,BottomRadius=.85f,Height=1.25f,RadialSegments=12},new(0,2.9f,0),Gold);
-        Sphere(n,new(0,2.18f,0),.15f,Ink);
-        var light=new OmniLight3D{Position=new(0,2.4f,0),LightColor=Gold,LightEnergy=1.5f,OmniRange=9};n.AddChild(light);
+        Color wood=new("685345"),bronze=new("ad8b50"),iron=new("41494a");
+        for(int i=0;i<10;i++){float angle=i*Mathf.Tau/10;Source(n,"roundrock",new(MathF.Sin(angle)*2.3f,-.22f,MathF.Cos(angle)*2.1f),.65f,i);}
+        for(int side=-1;side<=1;side+=2)
+        {
+            Box(n,new(side*1.5f,1.9f,0),new(.35f,3.8f,.42f),wood).Rotation=new(0,0,side*.035f);
+            foreach(float h in new[]{.6f,2.9f})Box(n,new(side*1.5f,h,0),new(.39f,.12f,.46f),iron);
+            var brace=Box(n,new(side*1.05f,3.25f,0),new(.2f,1.15f,.24f),wood);brace.Rotation=new(0,0,side*-.7f);
+        }
+        Box(n,new(0,3.85f,0),new(3.9f,.34f,.5f),wood);
+        var hanging=new Node3D{Name="Bell",Position=new(0,3.61f,0)};n.AddChild(hanging);
+        var ring=Mesh(hanging,new TorusMesh{InnerRadius=.12f,OuterRadius=.18f,Rings=12,RingSegments=6},new(0,-.1f,0),bronze);ring.Rotation=new(Mathf.Pi/2,0,0);
+        // Turned outer wall and inner lip, left open around a suspended clapper.
+        Vector2[] profile=[new(.16f,-.21f),new(.35f,-.29f),new(.46f,-.46f),new(.51f,-.80f),new(.65f,-1.04f),new(.85f,-1.17f),new(.86f,-1.26f),new(.76f,-1.28f),new(.59f,-1.10f),new(.43f,-.78f),new(.38f,-.45f),new(.14f,-.30f)];
+        using var st=new SurfaceTool();st.Begin(Godot.Mesh.PrimitiveType.Triangles);
+        for(int j=1;j<profile.Length;j++)for(int i=0;i<32;i++)
+        {
+            Vector3 Point(int k,int segment){var q=profile[k];float angle=segment*Mathf.Tau/32;return new(MathF.Cos(angle)*q.X,q.Y,MathF.Sin(angle)*q.X);}
+            foreach(var v in new[]{Point(j-1,i),Point(j,i),Point(j,i+1),Point(j-1,i),Point(j,i+1),Point(j-1,i+1)})st.AddVertex(v);
+        }
+        st.GenerateNormals();hanging.AddChild(new MeshInstance3D{Mesh=st.Commit(),MaterialOverride=new StandardMaterial3D{AlbedoColor=bronze,Metallic=.6f,Roughness=.38f,CullMode=BaseMaterial3D.CullModeEnum.Disabled}});
+        Cylinder(hanging,new(0,-.86f,0),.065f,.9f,iron);Sphere(hanging,new(0,-1.29f,0),.15f,bronze);
+        Cylinder(n,new(.7f,1.65f,.3f),.024f,2.45f,new("b8a17a"));
+        var light=new OmniLight3D{Name="Lantern",Position=new(0,2.4f,0),LightColor=Gold,LightEnergy=.65f,OmniRange=7};n.AddChild(light);
         return n;
     }
 }

@@ -1,0 +1,57 @@
+{
+  "kind": "native keyboard/GUI check",
+  "renderer": "Forward+",
+  "resolution": "1920x1200",
+  "recording": "redesign-full-73919",
+  "movieFramesObserved": [
+    1317,
+    1820
+  ],
+  "before": {
+    "seed": 73919,
+    "Time": 38.883335361257195,
+    "Paused": false,
+    "Chart": true,
+    "cameraYaw": 3.1482828,
+    "auto": true,
+    "mode": "Exploring",
+    "Health": 82.4,
+    "Gold": 81,
+    "Kills": 6,
+    "Shrines": 0,
+    "IslandsVisited": 1,
+    "visited": 1,
+    "claimed": 0,
+    "treasure": 8,
+    "crew": [
+      {
+        "role": "Gunner",
+        "Level": 1
+      }
+    ]
+  },
+  "after": {
+    "seed": 73919,
+    "Time": 38.883335361257195,
+    "Paused": false,
+    "Chart": true,
+    "cameraYaw": 3.1482828,
+    "auto": true,
+    "mode": "Exploring",
+    "Health": 82.4,
+    "Gold": 81,
+    "Kills": 6,
+    "Shrines": 0,
+    "IslandsVisited": 1,
+    "visited": 1,
+    "claimed": 0,
+    "treasure": 8,
+    "crew": [
+      {
+        "role": "Gunner",
+        "Level": 1
+      }
+    ]
+  },
+  "unchanged": true
+}

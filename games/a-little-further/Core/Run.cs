@@ -4,7 +4,7 @@ public enum RunMode { Sailing, Exploring, Choosing, Dead }
 public enum Role { Gunner, Stormcaller, Cook, Duelist, Harpooner, Tidekeeper }
 public sealed class Ship
 {
-    public Vector2 Position=new(0,-82),Velocity;
+    public Vector2 Position=new(0,-180),Velocity;
     public double OriginX,OriginZ;
     public float Heading,Throttle,AngularVelocity,Height,VerticalVelocity,Pitch,Roll;
 }
@@ -34,10 +34,11 @@ public sealed class Run
     public RunMode Mode=RunMode.Sailing;
     public Vector2 Position,Velocity;
     public float Height,VerticalSpeed,Health=100,Stamina=1,DodgeTime,DodgeCooldown,Invincible,Heading;
-    public double Time;
+    public double Time,ExplorationTime;
     public int Gold,Kills,Shrines,IslandsVisited,ShiftCount;
     public bool IsGliding=>Mode==RunMode.Exploring && airTime>PrivateSources.GlideDelay && heldGlide>PrivateSources.GlideHold && Stamina>0;
-    public float Threat=>1+(float)Time/110+Shrines*.55f;
+    public float ShrineSeconds=>shrineActive?shrineBattle:0;
+    public float Threat=>1+(float)ExplorationTime/220+Shrines*.45f;
     public List<Mate> Crew {get;}=[new(Role.Gunner)];
     public List<Foe> Enemies {get;}=[];
     public List<Hit> Hits {get;}=[];
@@ -58,6 +59,7 @@ public sealed class Run
     float lightningClock;
     bool shrineActive;
     IReadOnlyList<Decoration> scenery=[];
+    Vector2[] treasureLocations=[];
     public Run(int seed,CombatTuning tuning){this.tuning=tuning;World=new(seed);random=new(seed);Position=Ship.Position;}
     public void Say(string s){Notice=s;NoticeTime=4;}
     public void Tick(float dt,Command input)
@@ -74,13 +76,13 @@ public sealed class Run
         }
         else
         {
-            MoveOnLand(dt,input);Combat(dt);
+            ExplorationTime+=dt;MoveOnLand(dt,input);Combat(dt);
             if(input.Interact)Interact();
             if(input.Provision)Provision();
             Collect();
         }
         if(Health<=0){Health=0;Mode=RunMode.Dead;Enemies.Clear();Say("The sea keeps no checkpoints.");}
-        if(Position.Length()>768)ShiftOrigin();
+        if(Position.Length()>2400)ShiftOrigin();
     }
     void ShiftOrigin()
     {
@@ -95,9 +97,9 @@ public sealed class Run
     void TryLand()
     {
         if(!CanLand){Say("Find the amber landing lantern on the beach.");return;}
-        Current=Nearest;scenery=IslandLayout.Scenery(Current);Position=Current.Landing;Height=World.Height(Position);Velocity=Vector2.Zero;Mode=RunMode.Exploring;Ship.Velocity=Vector2.Zero;
+        Current=Nearest;scenery=IslandLayout.Scenery(Current);treasureLocations=Enumerable.Range(0,IslandLayout.TreasureCount).Select(i=>IslandLayout.Treasure(Current,i)-Current.Center).ToArray();Position=Current.Landing;Height=World.Height(Position);Velocity=Vector2.Zero;Mode=RunMode.Exploring;Ship.Velocity=Vector2.Zero;
         if(Visited.Add(Current.Cell)){IslandsVisited++;Gold+=5;}
-        Say(Current.Name+" · Follow the gold trail to the summit shrine.");spawnClock=6;
+        Say(Current.Name+" · Follow the gold trail to the summit shrine.");spawnClock=IslandsVisited==1?28:12;
     }
     void MoveOnLand(float dt,Command input)
     {
@@ -123,12 +125,12 @@ public sealed class Run
     }
     public Vector2 TreasureAt(int index)
     {
-        return IslandLayout.Treasure(Current!,index);
+        return Current!.Center+treasureLocations[index];
     }
     void Collect()
     {
         if(Current==null)return;
-        for(int i=0;i<8;i++)if(!Treasure.Contains((Current.Cell,i)) && Vector2.Distance(Position,TreasureAt(i))<2.2f){Treasure.Add((Current.Cell,i));Gold+=8;Say("+8 doubloons · A little further.");}
+        for(int i=0;i<IslandLayout.TreasureCount;i++)if(!Treasure.Contains((Current.Cell,i)) && Vector2.Distance(Position,TreasureAt(i))<2.2f){Treasure.Add((Current.Cell,i));int reward=i<8?8:24;Gold+=reward;Say(i<8?"+8 doubloons":"Cache found · +24 doubloons");}
     }
     public string Prompt
     {
@@ -136,6 +138,7 @@ public sealed class Run
         {
             if(Mode==RunMode.Sailing)return CanLand?"E  ·  Drop anchor at "+Nearest.Name:"";
             if(Mode!=RunMode.Exploring || Current==null)return "";
+            if(shrineActive)return $"Defend the bell · {MathF.Ceiling(shrineBattle)}s";
             if(Vector2.Distance(Position,Current.Landing)<5)return "E  ·  Board ship     F  ·  Provision crew (40 gold)";
             if(Vector2.Distance(Position,Current.Shrine)<5)return shrineActive?$"Defend the shrine · {MathF.Ceiling(shrineBattle)}s":Claimed.Contains(Current.Cell)?"The shrine is quiet":"E  ·  Ring the Corsair’s Bell";
             return "";
