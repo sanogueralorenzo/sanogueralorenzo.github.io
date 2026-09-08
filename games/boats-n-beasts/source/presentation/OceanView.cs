@@ -178,15 +178,19 @@ public partial class OceanView : Node2D
     }
     void DrawFishing(Place place, Vector2 p)
     {
-        int left = Voyage.World.FishLeft(place); if (left <= 0) return;
-        for (int i = 0; i < 3; i++) { float pulse = (Clock * .18f + i / 3f) % 1; EllipseArc(p, new(56 + pulse * 39, 32 + pulse * 23), new Color(Aqua, .6f * (1 - pulse)), 2); }
-        for (int i = 0; i < 6; i++)
+        bool casting = Voyage.Mode == VoyageMode.Fishing && Voyage.FishingPlace?.Id == place.Id;
+        if (Voyage.World.FishLeft(place) == 0 && !casting) return;
+        float pulse = (Clock * .45f) % 1;
+        DrawEllipse(p, new(44, 25), new Color(Aqua, .13f));
+        EllipseArc(p, new(46, 26), new Color(Aqua, .9f), 3);
+        EllipseArc(p, new(46 + pulse * 20, 26 + pulse * 12), new Color(Aqua, .45f * (1 - pulse)), 2);
+        for (int i = 0; i < 3; i++)
         {
-            float a = i * 1.8f + Clock * .25f; Vector2 fish = p + new Vector2(MathF.Cos(a) * (20 + i * 3), MathF.Sin(a) * 18);
-            DrawEllipse(fish, new(8, 3), new Color(Aqua, .75f));
-            DrawColoredPolygon([fish + new Vector2(-6, 0), fish + new Vector2(-12, -4), fish + new Vector2(-12, 4)], new Color(Aqua, .75f));
+            float a = i * Mathf.Tau / 3 + Clock * .35f;
+            Vector2 fish = p + new Vector2(MathF.Cos(a) * 20, MathF.Sin(a) * 10);
+            DrawEllipse(fish, new(6, 2.5f), Cream);
+            DrawColoredPolygon([fish + new Vector2(-4, 0), fish + new Vector2(-9, -3), fish + new Vector2(-9, 3)], Cream);
         }
-        DrawArc(p + new Vector2(0, -65), 9, 0, Mathf.Pi, 16, Cream, 4, true); DrawLine(p + new Vector2(9, -65), p + new Vector2(9, -85), Cream, 4, true); DrawCircle(p + new Vector2(9, -88), 4, Cream, false, 2, true);
     }
     void DrawEllipse(Vector2 p, Vector2 radius, Color color) { DrawSetTransform(p, 0, radius); DrawCircle(Vector2.Zero, 1, color); DrawSetTransform(Vector2.Zero); }
     void EllipseArc(Vector2 p, Vector2 radius, Color color, float width)

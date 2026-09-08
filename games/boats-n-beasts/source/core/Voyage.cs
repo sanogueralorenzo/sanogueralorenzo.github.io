@@ -332,6 +332,7 @@ public sealed class Voyage
         if (fish == null || Hold.Count >= 12) return false;
         FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = ReelCooldown = 0; FishHits = FishMisses = 0;
         fishRandom = new(SeedRandom.Hash(World.Seed, OceanWorld.KeyAt(fish.Position).X, OceanWorld.KeyAt(fish.Position).Y, fish.Style ^ (uint)World.Depletion.GetValueOrDefault(fish.Id)));
+        World.Depletion[fish.Id] = 1; // One cast per school, including a cancelled attempt.
         FishCursor = .5f; FishTarget = fishRandom.Range(.25f, .75f); Events.Add(new("cast", fish.Position)); return true;
     }
     public void Reel()
@@ -346,7 +347,6 @@ public sealed class Voyage
     void FinishFishing(bool success)
     {
         if (FishingPlace == null) return;
-        World.Depletion[FishingPlace.Id] = World.Depletion.GetValueOrDefault(FishingPlace.Id) + 1;
         if (success)
         {
             string[] names = ["Silver sprat", "Coral snapper", "Moonfin tuna", "Golden lanternfish", "Abyssal stargazer"];

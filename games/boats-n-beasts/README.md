@@ -21,7 +21,7 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 - **WASD / arrows:** sail. **Left click:** sail to a point and stop. **Right click:** toggle continuous mouse helm.
 - **Space / Shift:** boost while moving. Boost reduces damage; releasing an exhausted boost lets it recharge. Settings offers a tap-to-toggle alternative.
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.
-- **Space / E while fishing:** reel inside the turquoise band. Three hits land the catch; three misses or 16 seconds lose it. Escape cancels. Assisted fishing is an optional setting that times reels for you.
+- **Space / E while fishing:** reel inside the turquoise band. Three hits land the catch; three misses or 16 seconds lose it. Each school allows one cast. Success, failure, or Escape cancellation uses it up. Assisted fishing is an optional setting that times reels for you.
 - **Escape:** pause, cancel fishing, or leave a result/harbor screen. **Enter / Tab / arrows:** operate menus. Space cannot accidentally select an upgrade while boosting.
 - **×1 / ×2 / ×3, below the top-left counters:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
 - **F11:** fullscreen. **F12:** save a native viewport image and runtime measurements under `evidence/`.
@@ -62,7 +62,7 @@ Four boat upgrades keep choices simple: **Hull** (+25 health and heal 25), **Spe
 - `source/presentation/Game.cs`: input, menus, HUD, local settings and manual review captures.
 - `source/presentation/OceanView.cs`, `ProceduralArt.cs`, `CreatureAtlas.cs`, `SceneryCache.cs`, `ocean.gdshader`: original rendering, animation, water and effects.
 
-World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Cast randomness is tied to the school and depletion count so cancellation cannot reroll its reward. Fishing and results stop all combat updates. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
+World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Each school is consumed when casting starts, so cancelling cannot retry or reroll it. Fishing and results stop all combat updates. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
 
 See `docs/OBJECTIVE.md` for scope, `docs/QUALITY.md` for current validation and remaining gaps, and `docs/RESEARCH.md` for research provenance. No simulation harness or automated test results stand in for actual play.
 

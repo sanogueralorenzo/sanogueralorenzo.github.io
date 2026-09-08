@@ -76,7 +76,7 @@ public sealed class OceanWorld(uint seed)
         activePlaces = Loaded.Values.SelectMany(c => c.Places).ToArray();
     }
     public IReadOnlyList<Place> Places => activePlaces;
-    public int FishLeft(Place p) => 3 - Depletion.GetValueOrDefault(p.Id);
+    public int FishLeft(Place p) => Math.Max(0, 1 - Depletion.GetValueOrDefault(p.Id));
     public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => p.Kind != PlaceKind.Fishing && Vector2.Distance(position, p.Position) < p.Radius + clearance);
     public Vector2 Slide(Vector2 old, Vector2 target, float radius)
     {
