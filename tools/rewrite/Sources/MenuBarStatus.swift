@@ -12,7 +12,7 @@ final class MenuBarStatus: NSObject {
     var onSettings: (() -> Void)?
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let progress = NSMenuItem(title: "Rewriting…", action: nil, keyEquivalent: "")
-    private let rewrite = NSMenuItem(title: "Rewrite Selection", action: #selector(begin), keyEquivalent: "")
+    private let rewrite = NSMenuItem(title: "Rewrite", action: #selector(begin), keyEquivalent: "")
     private let cancel = NSMenuItem(title: "Cancel Rewrite", action: #selector(cancelRewrite), keyEquivalent: "")
     private let errorDetails = NSMenuItem()
     private var errorMessage: String?
@@ -34,9 +34,9 @@ final class MenuBarStatus: NSObject {
         for entry in [progress, errorDetails, cancel, rewrite] { entry.target = self; menu.addItem(entry) }
         progress.isEnabled = false
         menu.addItem(.separator())
-        let settings = NSMenuItem(title: "Settings…", action: #selector(settingsClicked), keyEquivalent: ",")
+        let settings = NSMenuItem(title: "Settings", action: #selector(settingsClicked), keyEquivalent: "")
         settings.target = self; menu.addItem(settings)
-        menu.addItem(withTitle: "Quit Rewrite", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
         item.menu = menu; setRewriting(nil)
     }
     func setRewriting(_ action: EditAction?) {

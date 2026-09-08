@@ -22,7 +22,7 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 status.setRewriting(.grammar)
                 precondition(menu.items.contains { !$0.isHidden && $0.title == "Rewriting… · Fix grammar" }, "menu explains active action")
                 precondition(menu.items.contains { !$0.isHidden && $0.title == "Cancel Rewrite" && $0.isEnabled }, "busy menu can cancel")
-                precondition(menu.items.first { $0.title == "Rewrite Selection" }?.isEnabled == false, "no second request while busy")
+                precondition(menu.items.first { $0.title == "Rewrite" }?.isEnabled == false, "no second request while busy")
                 let dot = button.subviews.first { !$0.isHidden }!
                 precondition(dot.hitTest(.zero) == nil, "badge does not intercept menu clicks")
                 let badge = button.bitmapImageRepForCachingDisplay(in: button.bounds)!
@@ -32,7 +32,7 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 menu.performActionForItem(at: menu.items.firstIndex { $0.title == "Cancel Rewrite" }!)
                 precondition(menuCancelled, "menu dispatches cancellation")
                 status.setRewriting(nil)
-                precondition(dot.isHidden && menu.items.first { $0.title == "Rewrite Selection" }!.isEnabled, "completion or failure clears busy state")
+                precondition(dot.isHidden && menu.items.first { $0.title == "Rewrite" }!.isEnabled, "completion or failure clears busy state")
                 let windows = NSApp.windows.count
                 status.showError("The selection changed. Select the text and try again.")
                 precondition(NSApp.windows.count == windows, "errors do not open windows")

@@ -24,7 +24,7 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         app.setActivationPolicy(CommandLine.arguments.contains("--review") ? .regular : .accessory)
         let mainMenu = NSMenu(), appMenu = NSMenu(), editMenu = NSMenu()
         let appItem = NSMenuItem(); appItem.submenu = appMenu; mainMenu.addItem(appItem)
-        appMenu.addItem(withTitle: "Quit Rewrite", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         let editItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: ""); editItem.submenu = editMenu; mainMenu.addItem(editItem)
         for (title, selector, key) in [("Cut", #selector(NSText.cut(_:)), "x"), ("Copy", #selector(NSText.copy(_:)), "c"), ("Paste", #selector(NSText.paste(_:)), "v"), ("Select All", #selector(NSText.selectAll(_:)), "a")] {
             editMenu.addItem(withTitle: title, action: selector, keyEquivalent: key)
