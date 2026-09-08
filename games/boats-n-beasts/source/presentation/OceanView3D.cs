@@ -58,13 +58,18 @@ public partial class OceanView3D : Node3D
         }
         stage.Follow(Camera); stage.Advance(Clock);
         SyncScenery(); SyncActors();
-        effects.Destination = Destination; effects.Sync(Voyage, Clock, dt);
+        effects.Visible = !Menu;
+        effects.Destination = Destination;
+        if (!Menu) effects.Sync(Voyage, Clock, dt);
         DrawMs = DrawMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds * .05;
     }
     void SyncScenery()
     {
         var size = GetViewport().GetVisibleRect().Size / Projection;
-        var visible = Voyage.World.Places.Where(p => OceanWorld.IsSolid(p) &&
+        // The title is a composed home-water backdrop; distant random scenery and
+        // encounter props must not intrude behind its centered logo and actions.
+        var places = Menu ? Voyage.World.Loaded[new ChunkKey(0, 0)].Places : Voyage.World.Places;
+        var visible = places.Where(p => OceanWorld.IsSolid(p) &&
             Math.Abs(p.Position.X - Camera.X) < size.X * .5f + p.Radius + 400 &&
             Math.Abs(p.Position.Y - Camera.Y) < size.Y * .5f + p.Radius + 500).ToArray();
         var keep = visible.Select(p => p.Id).ToHashSet();
@@ -74,8 +79,17 @@ public partial class OceanView3D : Node3D
         if (incoming != null)
         {
             var root = EnvironmentArt3D.Build(incoming); AddChild(root);
-            root.Position = NativeStage3D.Point(incoming.Position); scenery.Add(incoming.Id, root);
+            scenery.Add(incoming.Id, root);
         }
+        foreach (var place in visible)
+            if (scenery.TryGetValue(place.Id, out var root))
+                root.Position = Menu && place.Kind == PlaceKind.Island ? MenuPoint(new(.79f, .84f)) :
+                    Menu && place.Id == "0:0:3" ? MenuPoint(new(.82f, .22f)) : NativeStage3D.Point(place.Position);
+    }
+    Vector3 MenuPoint(Vector2 fraction)
+    {
+        var p = Camera + (fraction - Vector2.One * .5f) * GetViewport().GetVisibleRect().Size / Projection;
+        return NativeStage3D.Point(new(p.X, p.Y));
     }
     void SyncActors()
     {
@@ -84,7 +98,7 @@ public partial class OceanView3D : Node3D
         {
             boat?.QueueFree(); boat = ActorArt3D.Boat(Voyage.Boat, Voyage.Weapons); AddChild(boat); boatSignature = signature;
         }
-        boat!.Position = NativeStage3D.Point(Voyage.Position);
+        boat!.Position = Menu ? MenuPoint(new(.28f, .65f)) : NativeStage3D.Point(Voyage.Position);
         boat.Rotation = new(0, -Voyage.Heading, 0);
         var target = Voyage.Enemies.Where(e => e.Health > 0 && V2.DistanceSquared(e.Position, Voyage.Position) < 570 * 570).OrderBy(e => V2.DistanceSquared(e.Position, Voyage.Position)).FirstOrDefault();
         var aim = target == null ? 0 : Voyage.Heading - MathF.Atan2(target.Position.X - Voyage.Position.X, Voyage.Position.Y - target.Position.Y);

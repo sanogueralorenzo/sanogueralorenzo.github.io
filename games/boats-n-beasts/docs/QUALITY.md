@@ -1,5 +1,9 @@
 # Quality and verification
 
+## Clear title backdrop — 2026-09-08
+
+The menu-only composition places the lower island at 79% viewport width / 84% height and the boat to the left. The upper rock moves right; random neighboring scenery and encounter props are excluded from the title backdrop so all logo/button bounds have open water behind them. Home scenery generation, collision and gameplay positions are unchanged. Native verification covered the [clear title](../evidence/menu-clear-title.png), boat selection, [restored sailing scenery and encounters](../evidence/menu-clear-sailing.png), and returning to the title after ending a voyage. Both captures have paired TXT telemetry. Debug/Release pass with zero warnings/errors; native log clean. No automated tests or injected state.
+
 ## Title and pause polish — 2026-09-08
 
 The menu-only camera frames the home harbor at 22% of viewport width / 31% of viewport height (water-plane anchor), leaving the dimensional cottage clear of the centered title. Sailing camera scale/projection and all simulation code remain unchanged. Title and pause actions share native C# buttons with inset borders, subtle depth, turquoise primary fill, gold keyboard-focus outline and six code-drawn nautical icons. Labels, progression visibility and callbacks are retained.

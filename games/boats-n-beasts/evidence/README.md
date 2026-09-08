@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Clear title backdrop — 2026-09-08
+
+[Clear title](menu-clear-title.png) shows the island lower-right, the boat left and open water behind all menu content. [Sailing](menu-clear-sailing.png) shows normal scenery positions and encounter props restored after Set sail. Both have same-name TXT reports. Return-to-title was also checked natively.
+
 ## Title and pause menus — 2026-09-08
 
 [Before](menu-before.png), [final title](menu-title.png), [keyboard focus](menu-title-focus.png), [pause](menu-pause.png), and [resumed sailing](menu-resume.png) are untouched native 1280×800 captures from the menu polish pass. Same-name TXT files retain the runtime state. They show the house clear of the title, consistent code-drawn icons and button styling, and normal play after Resume. Play/boat selection, keyboard handbook access/return and End voyage/title were also exercised directly. Builds and coverage are recorded in QUALITY.md.
