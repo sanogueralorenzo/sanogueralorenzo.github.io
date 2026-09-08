@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.g
 
 Installs in `~/Applications` and preserves your history and settings.
 
-**⌥⇧V** opens Clipboard · **Click** copies · **Space** previews images or opens links. Click the search field to filter clips. Paste with **⌘V** in your destination app.
+**⌥C** opens Clipboard · **Click** copies · **Space** previews images or opens links. Click the search field to filter clips. Paste with **⌘V** in your destination app.
 
 The header above search shows the Clipboard title and its opening shortcut.
 
