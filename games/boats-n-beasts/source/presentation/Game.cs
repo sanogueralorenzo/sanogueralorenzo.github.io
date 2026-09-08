@@ -147,7 +147,7 @@ public partial class Game : Node2D
         else if (Run.Mode == VoyageMode.Sailing && key.PhysicalKeycode == Key.E)
         {
             destination = null;
-            if (!Run.Interact()) Toast(Run.Hold.Count >= 12 ? "Your hold is full. Dock to sell your catch." : "Sail close to a fishing school or harbor, then press E.");
+            if (!Run.Interact()) Toast("Sail close to a fishing school or harbor, then press E.");
             BuildMenu();
         }
     }

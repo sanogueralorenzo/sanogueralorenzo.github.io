@@ -233,7 +233,7 @@ public sealed partial class Voyage
         if (Mode != VoyageMode.Sailing) return false;
         if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); return true; }
         var fish = World.FishAt(Position);
-        if (fish == null || Hold.Count >= 12) return false;
+        if (fish == null) return false;
         FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
         fishRandom = new(SeedRandom.Hash(World.Seed, OceanWorld.KeyAt(fish.Position).X, OceanWorld.KeyAt(fish.Position).Y, fish.Style ^ (uint)World.Depletion.GetValueOrDefault(fish.Id)));
         World.Depletion[fish.Id] = 1; // One cast per school, including a cancelled attempt.
