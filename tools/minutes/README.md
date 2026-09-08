@@ -19,7 +19,7 @@ pi
 
 Choose **Provider → OpenAI · Luna** (default, no reasoning) or **Anthropic · Haiku** (thinking off). Existing Local users must choose a provider before continuing. Transcription stays on this Mac; the transcript goes to your chosen provider through Pi to write the note.
 
-Allow **Microphone** and **Screen & System Audio Recording** in macOS Privacy & Security. Reopen Minutes if macOS asks. Updates may require permission again.
+When recording permissions are missing, click **Grant Permissions** in the menu bar dropdown or the window’s bottom banner. Allow **Microphone** and **Screen & System Audio Recording** when prompted or in macOS Privacy & Security. If both are missing, allow microphone access first, then click **Grant Permissions** again if needed for screen/system audio access. The buttons disappear once both are allowed. Reopen Minutes if macOS asks. Updates may require permission again.
 
 Press **⌥⇧M** to start recording microphone and system audio, and again to stop. Minutes transcribes after recording and notifies you when the note is ready. Headphones reduce echo; no video is saved. Keep the app running in the menu bar while it finishes.
 

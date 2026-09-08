@@ -10,6 +10,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     private var window: NSWindow!
     private var statusItem: NSStatusItem!
     private var recordItem: NSMenuItem!
+    private var permissionsItem: NSMenuItem!
     private var providerItems: [NSMenuItem] = []
     private var hotKey: EventHotKeyRef?
     private var timer: Timer?
@@ -48,6 +49,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         let menu = NSMenu()
         menu.autoenablesItems = false
         recordItem = menu.addItem(withTitle: "Start recording    ⌥⇧M", action: #selector(toggleRecording), keyEquivalent: ""); recordItem.target = self
+        permissionsItem = menu.addItem(withTitle: "Grant Permissions", action: #selector(grantPermissions), keyEquivalent: ""); permissionsItem.target = self
         menu.addItem(.separator())
         let open = menu.addItem(withTitle: "Recent meetings", action: #selector(showWindow), keyEquivalent: ""); open.target = self
         let providers = NSMenu(); providers.autoenablesItems = false
@@ -71,6 +73,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     }
     private func fail(_ text: String) { let alert = NSAlert(); alert.messageText = "Minutes could not open"; alert.informativeText = text; alert.runModal(); NSApp.terminate(nil) }
     @objc private func toggleRecording() { model.toggle() }
+    @objc private func grantPermissions() { model.grantPermissions() }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func selectProvider(_ sender: NSMenuItem) { if let provider = sender.representedObject as? Provider { model.selectProvider(provider) } }
     @objc private func showWindow() { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
@@ -86,7 +89,9 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         statusItem.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
         statusItem.button?.toolTip = model.status
         recordItem.title = recording ? "Stop recording    ⌥⇧M" : (processing ? "Processing…" : "Start recording    ⌥⇧M")
-        recordItem.isEnabled = !processing
+        recordItem.isEnabled = !processing && !model.requestingPermissions
+        permissionsItem.isHidden = model.permissionMessage == nil
+        permissionsItem.isEnabled = !model.isWorking && !model.requestingPermissions
         for item in providerItems {
             item.state = item.representedObject as? Provider == model.provider ? .on : .off
             item.isEnabled = !model.isWorking

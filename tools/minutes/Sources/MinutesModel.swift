@@ -1,5 +1,7 @@
 import AppKit
+import AVFoundation
 import Combine
+import CoreGraphics
 import UserNotifications
 import UniformTypeIdentifiers
 
@@ -24,6 +26,8 @@ final class MinutesModel: ObservableObject {
     @Published private(set) var activity = AppActivity.idle
     @Published var status = "Ready · ⌥⇧M to record"
     @Published var error: String?
+    @Published private(set) var permissionMessage: String?
+    @Published private(set) var requestingPermissions = false
     @Published private(set) var provider: Provider?
     @Published var elapsed = "0:00"
     let store: MeetingStore
@@ -42,6 +46,32 @@ final class MinutesModel: ObservableObject {
         selected = meetings.first?.id
         provider = try? Provider.load(from: support.appendingPathComponent("settings.json"))
         if provider == nil { error = "Choose OpenAI or Anthropic in Provider. Your transcript will be sent to that provider through Pi; transcription stays on this Mac." }
+        refreshPermissions()
+    }
+    private func refreshPermissions() {
+        var missing: [String] = []
+        if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized { missing.append("Microphone") }
+        if !CGPreflightScreenCaptureAccess() { missing.append("Screen & System Audio Recording") }
+        let message = missing.isEmpty ? nil : "Allow \(missing.joined(separator: " and ")) in macOS Privacy & Security. Reopen Minutes if macOS asks."
+        if permissionMessage != message { permissionMessage = message }
+    }
+    func grantPermissions() {
+        guard !requestingPermissions, !isWorking else { return }
+        requestingPermissions = true; changed?()
+        Task {
+            defer { requestingPermissions = false; refreshPermissions(); changed?() }
+            NSApp.activate(ignoringOtherApps: true)
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+                _ = await AVCaptureDevice.requestAccess(for: .audio)
+            }
+            if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
+                return
+            }
+            if !CGPreflightScreenCaptureAccess(), !CGRequestScreenCaptureAccess() {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+            }
+        }
     }
     func selectProvider(_ provider: Provider) {
         guard !isWorking else { return }
@@ -57,6 +87,7 @@ final class MinutesModel: ObservableObject {
         return provider
     }
     func tick() {
+        refreshPermissions()
         if let id = activity.recordingID, var meeting = meetings.first(where: { $0.id == id }) {
             meeting.duration = Date().timeIntervalSince(meeting.date)
             elapsed = Meeting.elapsed(meeting.duration)
@@ -76,6 +107,7 @@ final class MinutesModel: ObservableObject {
         changed?()
     }
     func toggle() {
+        guard !requestingPermissions else { return }
         guard activity.canToggle else { openWindow?(); return }
         if activity.recordingID != nil { Task { await stop() }; return }
         guard requireProvider() != nil else { return }
