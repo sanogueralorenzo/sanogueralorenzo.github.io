@@ -92,8 +92,16 @@ public static class EnvironmentArt3D
         {
             float a = i * Mathf.Tau / sides;
             float organic = Coast(a, seed);
-            if (layer >= 4) organic += .026f * Mathf.Sin(a * 9 + seed % 7);
-            float d = Mathf.Min(radii[layer] * organic, 1.55f) * r;
+            float radius = radii[layer] * organic;
+            if (layer >= 4)
+            {
+                // Wide sand bars occupy unequal coves; the whole coast does not get a necklace.
+                float lobe = Mathf.Pow(Mathf.Max(0, Mathf.Sin(a * 2 + seed % 17)), 2);
+                float secondary = Mathf.Pow(Mathf.Max(0, Mathf.Cos(a * 3 + seed % 11)), 4);
+                float extension = .055f + .37f * lobe + .13f * secondary;
+                radius = 1.055f * organic + extension * (layer == 4 ? .57f : 1);
+            }
+            float d = Mathf.Min(radius, 1.55f) * r;
             return new(Mathf.Cos(a) * d, heights[layer], Mathf.Sin(a) * d);
         }
         for (int layer = 0; layer < radii.Length - 1; layer++)
@@ -133,10 +141,10 @@ public static class EnvironmentArt3D
             art.Boulder(new(0, size.Y * .44f, 0), size, color, seed);
         else
         {
-            // Offset eroded blocks have broad rounded shoulders and real dark crevices.
-            art.Boulder(new(-size.X * .06f, size.Y * .25f, size.Z * .035f), new(size.X, size.Y * .53f, size.Z), color, seed);
-            art.Boulder(new(size.X * .075f, size.Y * .66f, -size.Z * .035f), new(size.X * .87f, size.Y * .38f, size.Z * .89f), color.Lightened(.035f), seed + 17);
-            art.Boulder(new(-size.X * .07f, size.Y * .91f, -size.Z * .05f), new(size.X * .62f, size.Y * .23f, size.Z * .72f), color.Lightened(.06f), seed + 39);
+            // Interlocking fractured masses overlap vertically, with no repeated horizontal tiers.
+            art.Boulder(new(size.X * .055f, size.Y * .48f, -size.Z * .07f), new(size.X * .91f, size.Y, size.Z * .84f), color, seed);
+            art.Boulder(new(-size.X * .30f, size.Y * .22f, size.Z * .17f), new(size.X * .62f, size.Y * .49f, size.Z * .70f), color.Darkened(.025f), seed + 17);
+            art.Boulder(new(size.X * .27f, size.Y * .37f, size.Z * .21f), new(size.X * .56f, size.Y * .60f, size.Z * .52f), color.Lightened(.035f), seed + 39);
         }
         art.Transform = old;
     }
@@ -349,31 +357,87 @@ public static class EnvironmentArt3D
         }
         public void Boulder(Vector3 p, Vector3 size, Color color, uint seed)
         {
-            Vector3 half = size * .5f;
-            float radius = Mathf.Min(size.X, Mathf.Min(size.Y, size.Z)) * .20f;
-            Vector3 inner = half - Vector3.One * radius;
-            float[] cuts = [-1, -.83f, -.60f, .60f, .83f, 1];
-            for (int axis = 0; axis < 3; axis++) for (int sign = -1; sign <= 1; sign += 2)
+            // Unequal oblique fracture planes define the stone. No box or cylinder is deformed.
+            var rng = new SeedRandom(seed);
+            var planes = new List<(Vector3 N, float D)>();
+            void Plane(Vector3 n, float d) => planes.Add((n.Normalized(), d));
+            float phase = rng.Range(-.7f, .7f);
+            for (int i = 0; i < 6; i++)
             {
-                int u = (axis + 1) % 3, v = (axis + 2) % 3;
-                (Vector3 P, Vector3 N) Point(int i, int j)
+                float angle = phase + i * Mathf.Tau / 6 + rng.Range(-.22f, .22f);
+                Plane(new(Mathf.Cos(angle), rng.Range(-.25f, .32f), Mathf.Sin(angle)), rng.Range(.37f, .53f));
+            }
+            Plane(new(rng.Range(-.37f, .37f), 1, rng.Range(-.3f, .3f)), .44f);
+            Plane(new(.65f, .92f, -.35f), rng.Range(.47f, .57f));
+            Plane(new(-.57f, .83f, .52f), rng.Range(.46f, .56f));
+            Plane(new(.17f, -1, -.13f), .46f);
+            Plane(new(-.55f, -.74f, -.31f), .53f);
+            var vertices = new List<Vector3>();
+            for (int i = 0; i < planes.Count; i++) for (int j = i + 1; j < planes.Count; j++) for (int k = j + 1; k < planes.Count; k++)
+            {
+                var a = planes[i]; var b = planes[j]; var c = planes[k];
+                float det = a.N.Dot(b.N.Cross(c.N));
+                if (MathF.Abs(det) < .00001f) continue;
+                Vector3 q = (b.N.Cross(c.N) * a.D + c.N.Cross(a.N) * b.D + a.N.Cross(b.N) * c.D) / det;
+                if (planes.Any(plane => plane.N.Dot(q) > plane.D + .0001f)) continue;
+                if (!vertices.Any(v => v.DistanceSquaredTo(q) < .0000001f)) vertices.Add(q);
+            }
+            var corners = vertices.Select(_ => new List<(Vector3 P, Vector3 N)>()).ToArray();
+            var edges = new Dictionary<(int, int), (Vector3 A, Vector3 B, Vector3 N)>();
+            Color Tint(Vector3 point)
+            {
+                var q = (point - p) / size;
+                float cloud = Mathf.Sin(q.X * 9 + q.Z * 7 + seed % 17) * Mathf.Sin(q.Y * 8 - q.Z * 5 + seed % 23);
+                float patch = cloud * .065f + .018f * Mathf.Sin(q.X * 23 + q.Y * 18);
+                return color.Lightened(patch).Darkened(Mathf.Max(0, -.10f - q.Y) * .10f);
+            }
+            void Tri(Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc)
+                => Triangle(a, b, c, Tint(a), Tint(b), Tint(c), na, nb, nc);
+            foreach (var plane in planes)
+            {
+                var ids = Enumerable.Range(0, vertices.Count).Where(i => MathF.Abs(plane.N.Dot(vertices[i]) - plane.D) < .0003f).ToList();
+                if (ids.Count < 3) continue;
+                Vector3 center = ids.Aggregate(Vector3.Zero, (sum, i) => sum + vertices[i]) / ids.Count;
+                Vector3 u = (vertices[ids[0]] - center).Normalized(), v = plane.N.Cross(u);
+                float Angle(int i) => Mathf.Atan2((vertices[i] - center).Dot(v), (vertices[i] - center).Dot(u));
+                ids.Sort((a, b) => Angle(a).CompareTo(Angle(b)));
+                Vector3 normal = (plane.N / size).Normalized();
+                Vector3 worldCenter = p + center * size;
+                var inset = ids.Select(i => p + vertices[i].Lerp(center, .10f) * size).ToArray();
+                for (int i = 0; i < ids.Count; i++)
                 {
-                    Vector3 raw = Vector3.Zero; raw[axis] = half[axis] * sign; raw[u] = half[u] * cuts[i]; raw[v] = half[v] * cuts[j];
-                    Vector3 clamped = raw.Clamp(-inner, inner), normal = (raw - clamped).Normalized();
-                    Vector3 q = clamped + normal * radius;
-                    float h = q.Y / size.Y;
-                    q.X = q.X * (1 + .07f * Mathf.Sin(h * 7 + seed % 13)) + h * size.X * .06f;
-                    q.Z = q.Z * (1 + .075f * Mathf.Sin(h * 5 + seed % 19)) - h * size.Z * .04f;
-                    q.Y += size.Y * .035f * Mathf.Sin(q.X / size.X * 7 + q.Z / size.Z * 4 + seed % 17);
-                    return (p + q, normal);
+                    int j = (i + 1) % ids.Count;
+                    Tri(worldCenter, inset[i], inset[j], normal, normal, normal);
+                    corners[ids[i]].Add((inset[i], normal));
+                    var key = (Math.Min(ids[i], ids[j]), Math.Max(ids[i], ids[j]));
+                    Vector3 first = ids[i] < ids[j] ? inset[i] : inset[j], second = ids[i] < ids[j] ? inset[j] : inset[i];
+                    if (edges.TryGetValue(key, out var other))
+                    {
+                        Tri(first, second, other.B, normal, normal, other.N);
+                        Tri(first, other.B, other.A, normal, other.N, other.N);
+                    }
+                    else edges[key] = (first, second, normal);
                 }
-                for (int i = 0; i < cuts.Length - 1; i++) for (int j = 0; j < cuts.Length - 1; j++)
+                // A few short, crooked surface fractures terminate within the broad plane.
+                if (normal.Y > -.1f && ids[0] % 3 == 0)
                 {
-                    var a = Point(i, j); var b = Point(i + 1, j); var c = Point(i + 1, j + 1); var d = Point(i, j + 1);
-                    if (sign < 0) (b, d) = (d, b);
-                    Triangle(a.P, b.P, c.P, color, color, color, a.N, b.N, c.N);
-                    Triangle(a.P, c.P, d.P, color, color, color, a.N, c.N, d.N);
+                    Vector3 a = worldCenter.Lerp(inset[0], .9f) + normal * .001f;
+                    Vector3 b = worldCenter.Lerp(inset[1], .21f) + normal * .001f;
+                    Vector3 c = worldCenter.Lerp(inset[^1], .55f) + normal * .001f;
+                    Vector3 width = normal.Cross((b-a).Normalized()) * Mathf.Min(size.X, size.Z) * .006f;
+                    Triangle(a, b, b + width, color.Darkened(.24f), color.Darkened(.29f), color.Darkened(.16f), normal, normal, normal);
+                    Triangle(b, c, b + width, color.Darkened(.29f), color.Darkened(.22f), color.Darkened(.16f), normal, normal, normal);
                 }
+            }
+            foreach (var corner in corners)
+            {
+                if (corner.Count < 3) continue;
+                Vector3 center = corner.Aggregate(Vector3.Zero, (sum, q) => sum + q.P) / corner.Count;
+                Vector3 normal = corner.Aggregate(Vector3.Zero, (sum, q) => sum + q.N).Normalized();
+                Vector3 u = (corner[0].P - center).Normalized(), v = normal.Cross(u);
+                float Angle(Vector3 point) => Mathf.Atan2((point-center).Dot(v), (point-center).Dot(u));
+                corner.Sort((a,b) => Angle(a.P).CompareTo(Angle(b.P)));
+                for (int i = 0; i < corner.Count; i++) Tri(center, corner[i].P, corner[(i+1)%corner.Count].P, normal, corner[i].N, corner[(i+1)%corner.Count].N);
             }
         }
         public void Tube(Vector3 a, Vector3 b, float ra, float rb, Color color, int sides = 10)
