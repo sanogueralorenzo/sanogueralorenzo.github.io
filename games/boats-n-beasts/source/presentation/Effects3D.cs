@@ -165,8 +165,12 @@ public partial class Effects3D : Node3D
         var dir = World(OceanWorld.Unit(s.Velocity),0)*100;
         if (s.Hostile)
         {
-            Ball(p,new(.19f,.16f,.19f),new("733b3c")); Ball(p+new Vector3(-.015f,.055f,-.015f),Vector3.One*.135f,Coral);
-            foam.Ribbon(p-dir*.23f,p-dir*.075f,.016f,.035f,Fade(Coral,.48f)); return;
+            float flight = Mathf.Clamp(s.Age / s.FlightDuration, 0, 1);
+            p.Y = .12f + .4f * (1 - flight) + Mathf.Sin(flight * Mathf.Pi) * 1.8f;
+            Ball(p, Vector3.One * .27f, new("733b3c"));
+            Ball(p + new Vector3(-.025f, .07f, -.025f), Vector3.One * .20f, Coral);
+            Ball(p + Vector3.Up * .17f, Vector3.One * .055f, Cream);
+            return;
         }
         if (s.Kind == WeaponKind.Arcane)
         {
@@ -236,9 +240,9 @@ public partial class Effects3D : Node3D
     }
     public void Effect(GameEvent ev)
     {
-        if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "slam" or "calm" or "pufferExplosion")
+        if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "calm" or "pufferExplosion" or "bossExplosion")
         {
-            if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind=="pufferExplosion"?.6f:.48f,Size=ev.Value*.01f});
+            if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Value*.01f});
         }
         int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"catch" or "treasure" or "salvage" or "silver"=>6,"boostStart"=>9,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
@@ -250,7 +254,7 @@ public partial class Effects3D : Node3D
     void DrawBurst(Burst b)
     {
         float t=b.Age/b.Life, alpha=1-t;
-        if (b.Kind == "pufferExplosion")
+        if (b.Kind is "pufferExplosion" or "bossExplosion")
         {
             // Actual blast: a filled faceted upper hemisphere, never an aiming line.
             float blastRadius = b.Size;
@@ -286,7 +290,7 @@ public partial class Effects3D : Node3D
         }
         float radius=b.Size>0?b.Size:1.3f;
         bool aura=b.Kind=="aura"; float r=radius*(aura?.82f+t*.18f:.3f+t*.7f);
-        var color=b.Kind=="slam"?Coral:b.Kind=="explosion"?Cream:Aqua;
+        var color=b.Kind=="explosion"?Cream:Aqua;
         int arms=aura?3:5;
         for(int i=0;i<arms;i++)
         {

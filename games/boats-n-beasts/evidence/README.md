@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Crownclaw ranged bombs only — 2026-09-08
+
+[Paused flight A](boss-bombs-pause-a.png)/[B](boss-bombs-pause-b.png) preserve identical simulation and bomb flight state. [Dodge/detonation](boss-bombs-dodge.png) shows a red dome behind the boat; [volley complete](boss-bombs-volley-complete.png) reports three explosions and zero blast hits, followed by melee defeat. [Mage flight](boss-bombs-flight.png) and [overlapping domes](boss-bombs-domes.png) show the separate stationary encounter; existing contact-hit invulnerability masks bomb damage. Same-name TXT reports include fixed targets and counters. [Native log](boss-bombs-runtime.txt). See QUALITY for coverage limits.
+
 ## Sparse scattered offshore islands — 2026-09-08
 
 [Near offshore](sparse-ocean-near.png), [scattered islands](sparse-ocean-islands.png) and [open-water stretch](sparse-ocean-open.png) follow seed `1762272320` out to `(4428,-890)`. [Fresh seed/title](sparse-ocean-fresh-seed.png) preserves home scenery with a different offshore layout. Each TXT report includes all active island/harbor coordinates and styles, plus streaming and timing measurements. [Final runtime log](sparse-ocean-runtime.txt).

@@ -17,8 +17,8 @@ public sealed class Enemy
 }
 public sealed class Shot
 {
-    public Vector2 Position, Previous, Velocity;
-    public float Damage, Life, Radius, Age; public bool Hostile;
+    public Vector2 Position, Previous, Velocity, Target;
+    public float Damage, Life, Radius, Age, FlightDuration; public bool Hostile;
     public WeaponKind Kind; public int Pierce, Bounces;
     public HashSet<int> Hit = new();
 }
@@ -57,6 +57,7 @@ public sealed partial class Voyage
     public readonly List<GameEvent> Events = new();
     public int NextEnemyId;
     public int PufferExplosions, PufferBlastHits;
+    public int BossBombsThrown, BossExplosions, BossBlastHits;
     public Place? FishingPlace;
     public float FishingTime, FishCursor, FishTarget;
     public string CatchTitle = "";
@@ -186,25 +187,17 @@ public sealed partial class Voyage
             }
             if (e.Kind == EnemyKind.Ray)
             {
-                // Circle the captain, then send a telegraphed fan across their course.
-                motion = dir * (distance > 370 ? 1 : distance < 260 ? -.6f : .1f) + new Vector2(-dir.Y, dir.X) * (e.Id % 2 == 0 ? .8f : -.8f);
-                e.Telegraph = e.AttackClock < .7f ? Math.Max(0, e.AttackClock) : 0;
-                if (e.AttackClock <= 0)
-                {
-                    for (int i = -1; i <= 1; i++) { float a = MathF.Atan2(dir.Y, dir.X) + i * .24f; FireHostile(e, new(MathF.Cos(a), MathF.Sin(a)), 230); }
-                    e.AttackClock = 4.8f;
-                }
+                // Weave toward the boat and attack by contact, never by firing.
+                var side = new Vector2(-dir.Y, dir.X);
+                motion = OceanWorld.Unit(dir + side * (.4f * MathF.Sin(e.Time * 2 + e.Id)));
             }
             if (e.Kind == EnemyKind.Leviathan)
             {
                 if (distance > 1200) e.Position = Position - dir * 1000;
-                if (e.AttackClock < 1) e.Telegraph = Math.Max(0, e.AttackClock);
                 if (e.AttackClock <= 0)
                 {
-                    int n = e.Health < e.MaxHealth * .5f ? 16 : 12;
-                    for (int i = 0; i < n; i++) { float a = MathF.Tau * i / n + e.Time * .3f; FireHostile(e, new(MathF.Cos(a), MathF.Sin(a)), 155); }
-                    e.AttackClock = e.Health < e.MaxHealth * .5f ? 2.8f : 3.7f;
-                    Events.Add(new("slam", e.Position));
+                    ThrowBossBombs(e);
+                    e.AttackClock = e.Health < e.MaxHealth * .5f ? 3.2f : 4.2f;
                 }
                 if (distance < 220) motion *= .2f;
             }
@@ -224,10 +217,26 @@ public sealed partial class Voyage
             if (e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
         }
     }
-    void FireHostile(Enemy e, Vector2 dir, float speed)
+    void ThrowBossBombs(Enemy boss)
     {
-        if (Shots.Count > 360) return;
-        Shots.Add(new() { Hostile = true, Position = e.Position, Previous = e.Position, Velocity = dir * speed, Damage = 10 + Tier * 1.4f, Life = 6, Radius = 7 });
+        var center = Position;
+        int count = boss.Health < boss.MaxHealth * .5f ? 4 : 3;
+        float phase = Random.Range(0, MathF.Tau);
+        for (int i = 0; i < count && Shots.Count < 360; i++)
+        {
+            var target = center;
+            if (i > 0)
+            {
+                float angle = phase + (i - 1) * MathF.Tau / (count - 1);
+                target += new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * Random.Range(150, 240);
+                if (!World.IsWater(target, 20)) continue;
+            }
+            float flight = 1.25f + i * .18f;
+            Shots.Add(new() { Hostile = true, Position = boss.Position, Previous = boss.Position,
+                Target = target, Velocity = (target - boss.Position) / flight, FlightDuration = flight,
+                Damage = 26 + Tier * 1.4f, Life = flight, Radius = 140 });
+            BossBombsThrown++;
+        }
     }
     void DamagePlayer(float damage)
     {

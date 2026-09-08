@@ -92,13 +92,24 @@ public sealed partial class Voyage
                 if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
             }
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;
-            if (s.Life<=0) continue;
             if (s.Hostile)
             {
-                if (SegmentDistance(Position,s.Previous,s.Position)<26+s.Radius) { DamagePlayer(s.Damage); s.Life=0; }
-                if (!World.IsWater(s.Position,1)) s.Life=0;
+                // Boss bombs pass over boats and terrain, then burst at their fixed landing point.
+                if (s.Life <= 0)
+                {
+                    s.Position = s.Target;
+                    BossExplosions++;
+                    Events.Add(new("bossExplosion", s.Target, s.Radius));
+                    if (Vector2.Distance(Position, s.Target) < s.Radius + 23)
+                    {
+                        float before = Health;
+                        DamagePlayer(s.Damage);
+                        if (Health < before) BossBlastHits++;
+                    }
+                }
                 continue;
             }
+            if (s.Life<=0) continue;
             if (s.Kind==WeaponKind.Mine)
             {
                 if (s.Life>0 && s.Age>=.5f && Enemies.Any(e=>e.Health>0 && Vector2.Distance(e.Position,s.Position)<55+e.Radius))

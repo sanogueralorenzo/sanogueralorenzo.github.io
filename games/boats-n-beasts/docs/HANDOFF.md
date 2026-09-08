@@ -4,6 +4,8 @@ The flat-shaded nautical diorama replaces Direction B’s sculpted materials and
 
 Puffers now chase and self-detonate after a 1.05-second stationary fuse inside 125 units. Their red hemisphere is the actual 155-unit blast, not a preattack line. Kills cancel the fuse; being near a harbor does not disarm it. Every monster, including the boss, receives a seeded continuous speed multiplier from 0.85 to 1.4 at spawn. Colors remain species-specific; swimming animation follows the individual multiplier. There is no separate swift variant.
 
+Regular monsters have no ranged attacks. Rays weave into contact instead of circling and firing fans. Crownclaw alone creates hostile shots: three lobbed bombs every 4.2 seconds, or four every 3.2 seconds below half health. Their targets snapshot the boat position plus scattered nearby water points; they fly for 1.25–1.79 seconds and detonate once in 140-unit red hemispheres for 26 + 1.4×tier damage. They pass over terrain and boats during flight. Existing hit cooldowns, Aura clearing and paused simulation gates still apply. No preattack lines or radial barrage remain. F12 records targets, flight timing, thrown/explosion counts and successful blast hits.
+
 Harbors provide an interaction range only. Spawning, enemy pursuit, damage, projectiles and automatic weapons continue near docks. Pressing E opens the harbor menu and pauses the voyage until it closes; `CanDock` only controls the interaction prompt.
 
 ## Runtime and ownership

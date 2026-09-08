@@ -1,0 +1,49 @@
+Mouse viewport=(1527.75, 837) global=(1527.75, 837) boatScreen=(720.00116, 449.99994) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<4176.481, 226.07117>; destination=
+Native runtime capture: 20260908-141628-013-sailing
+Renderer: forward_plus
+Seed: 1615673028
+Mode: Sailing
+Game speed: x1
+Finished runs: 88; boat selection: False
+Silver: 44; earned this voyage: 0; next eligible combat time: 59.357445
+Boat: Mage
+Position: <3084.9282, -396.51602>
+Health: 84/115
+Coins: 24; cargo: 0; kills: 3; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 9; shots: 3
+Actual sailing seconds: 18.8; peak enemies: 15; peak shots: 4
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=True; boss slain=False
+Camera world=(3084.9268, -396.51584); departure seconds=17.215014; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Velocity=<0.0035824662, -0.00020085606>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=10; mines=0/0; ricochets=0; pulls=0
+Combat clock=18.789978; director=2.74016/0.5938414; boost=100; invulnerable=0.3000188; ability=0; fire rate=1
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,0.60916585
+Depletion=
+Landmark 5:2:land: Island position=<5632.8296, 2674.006> radius=179.4726 style=3029426780
+Landmark 1:-2:land: Island position=<798.2608, -2207.5908> radius=182.49991 style=521849063
+Landmark 3:1:land: Island position=<3293.0862, 1407.1833> radius=163.88991 style=1726761352
+Landmark home:island: Island position=<990, 275> radius=125 style=921
+Landmark 4:-1:land: Harbor position=<4332.009, -828.5949> radius=140 style=1444638199
+Landmark 5:-1:land: Harbor position=<5850.0293, -1614.2693> radius=140 style=2495429028
+Landmark 2:1:land: Harbor position=<2044.2006, 1333.5151> radius=140 style=3119148159
+Landmark 3:-2:land: Harbor position=<3257.8206, -2607.1729> radius=140 style=844257352
+Landmark 4:-2:land: Harbor position=<4760.2573, -2825.7385> radius=140 style=1065913074
+Boss bombs thrown=3; explosions=0; blast hits=0
+Puffer explosions=0; blast hits=0
+Enemy 9: Puffer position=<2747.9214, -449.66138> hp=47.5 time=9.58179 attack=-6.8656564 tell=0 dash=0 speedMultiplier=1.3835204 fuse=0
+Enemy 11: Crab position=<2777.7617, -316.0132> hp=13.75 time=8.923467 attack=-7.17991 tell=0 dash=0 speedMultiplier=1.1013505 fuse=0
+Enemy 13: Serpent position=<2918.034, -414.41177> hp=58 time=6.9234967 attack=3.95834 tell=0.5000129 dash=-0.008333015 speedMultiplier=1.0357821 fuse=0
+Enemy 14: Puffer position=<2927.3074, -281.3068> hp=57 time=6.9234967 attack=-5.4491477 tell=0 dash=0 speedMultiplier=1.0665773 fuse=0
+Enemy 15: Puffer position=<2982.7876, -326.19363> hp=57 time=6.265169 attack=-2.8205578 tell=0 dash=0 speedMultiplier=1.3102571 fuse=0.4508316
+Enemy 17: Crab position=<3084.9788, -396.40182> hp=20.5 time=5.606846 attack=-3.9313505 tell=0 dash=0 speedMultiplier=1.2464141 fuse=0
+Enemy 18: Crab position=<2690.0637, -795.114> hp=40.5 time=5.606846 attack=-3.127915 tell=0 dash=0 speedMultiplier=1.1505102 fuse=0
+Enemy 20: Crab position=<3147.0645, -260.63428> hp=40.5 time=4.2901893 attack=-2.3486633 tell=0 dash=0 speedMultiplier=0.9845686 fuse=0
+Enemy 23: Leviathan position=<3393.3845, -837.53424> hp=1837.5 time=2.7484937 attack=3.2425013 tell=0 dash=0 speedMultiplier=0.8943555 fuse=0
+Shot Boss bomb hostile=True position=<3164.3384, -510.10352> life=0.28416592 target=<3084.872, -396.51306> age=0.9658351 flight=1.25
+Shot Boss bomb hostile=True position=<3256.9946, -657.0331> life=0.46416536 target=<3171.7236, -542.1029> age=0.9658351 flight=1.4300001
+Shot Boss bomb hostile=True position=<3158.1416, -484.81378> life=0.64416605 target=<2973.8784, -210.45343> age=0.9658351 flight=1.61
+CPU simulation average ms=0.045; draw submission average ms=0.844; cached scenery=1; engine FPS=120; draw calls=197; objects=680
+Frame ms mean: 8.35; p95: 8.33; p99: 8.33
