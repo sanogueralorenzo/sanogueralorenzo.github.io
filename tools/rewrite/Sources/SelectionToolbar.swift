@@ -69,6 +69,7 @@ final class SelectionWatcher {
     var isEnabled: () -> Bool = { true }
     var onSelection: ((CapturedSelection) -> Void)?
     var onHide: (() -> Void)?
+    var onEscape: (() -> Void)?
     weak var interactionWindow: NSWindow?
     private let capture: @MainActor () -> CapturedSelection?
     private var timer: Timer?
@@ -89,11 +90,15 @@ final class SelectionWatcher {
         timer.tolerance = 0.1; self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
         let mask: NSEvent.EventTypeMask = [.keyDown, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] _ in
-            MainActor.assumeIsolated { self?.dismiss() }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
+            MainActor.assumeIsolated {
+                if event.type == .keyDown && event.keyCode == 53 { self?.onEscape?() }
+                self?.dismiss()
+            }
         }
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
             MainActor.assumeIsolated {
+                if event.type == .keyDown && event.keyCode == 53 { self?.onEscape?() }
                 if event.type == .keyDown || event.window !== self?.interactionWindow { self?.dismiss() }
             }
             return event

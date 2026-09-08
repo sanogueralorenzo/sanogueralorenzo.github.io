@@ -12,7 +12,9 @@ Installs in `~/Applications`. On first launch, choose a processor and model. Ena
 
 Select text and pause briefly: a small toolbar appears beside the selection without taking focus. Click **Fix grammar**, **Make clearer**, **Make shorter**, **Professional**, **Casual**, or **Friendly** directly. Typing, scrolling, clicking outside, Escape, or the toolbar’s × dismisses it. A dismissed selection stays dismissed until the selection changes. Turn this off with **Show rewrite toolbar when text is selected** in Settings.
 
-The keyboard shortcut **⌥⇧R** and **pencil menu → Rewrite Selection** also remain available. In the keyboard menu, choose **Fix grammar**, **Make clearer**, **Make shorter**, or **Change tone → Professional / Casual / Friendly**. Use arrow keys and Return in the native menu. The result appears in a compact preview: **Return** replaces, **Copy** (⌘⇧C) copies, and **Escape** cancels. **Show original** reveals the source for comparison. Escape also cancels processing. Requests time out after 90 seconds.
+The keyboard shortcut **⌥⇧R** and **pencil menu → Rewrite Selection** also remain available. In the keyboard menu, choose **Fix grammar**, **Make clearer**, **Make shorter**, or **Change tone → Professional / Casual / Friendly**. Use arrow keys and Return in the native menu. Choosing an action starts the rewrite and replaces the selected text automatically when it finishes. There is no acceptance dialog. Use **⌘Z** in the original app to undo (Undo support is controlled by that app).
+
+While working, a small dot appears at the upper-right corner of the pencil menu-bar icon. Open that menu to see **Rewriting…**, the selected action, and **Cancel Rewrite**. Escape or pressing the Rewrite shortcut again also cancels processing. The dot clears on completion, cancellation, or failure. Requests time out after 90 seconds.
 
 Processor choices:
 
@@ -26,11 +28,11 @@ CLI discovery checks `~/.local/bin`, Homebrew, inherited PATH, and the bundled C
 
 Each request contains the selected text plus editing instructions. Source text is encoded as data and never interpreted by Rewrite as a command. Requests run outside your project. Codex uses an ephemeral session, temporary state/log directories with logging disabled, replacement editing instructions, read-only sandbox, and disabled shell, app, plugin, hook, browser, and other tool features. Claude uses safe mode, an empty tool/MCP set, a replacement system prompt, and no session persistence. Automatic detection reads the foreground app’s exposed selection locally while Rewrite is idle; no processor request is sent until an action is chosen. Rewrite stores only processor, model, shortcut, and toolbar preferences; it does not log text, results, or raw processor errors.
 
-Replacement uses the captured Accessibility element directly. It requires the original field, window, full field value, and UTF-16 selection to still match. Observed text/selection changes permanently invalidate the request. **Capture and Replace never change the clipboard or send a global paste keystroke.** Copy intentionally puts the result on the clipboard. The destination app controls Undo and formatting behavior.
+Replacement uses the captured Accessibility element directly, without changing the clipboard or simulating paste. Automatic replacement also requires the original app to remain in the foreground. It requires the original field, window, full field value, and UTF-16 selection to still match. Observed text/selection changes permanently invalidate the request. **Capture and Replace never change the clipboard or send a global paste keystroke.** Copy intentionally puts the result on the clipboard. The destination app controls Undo and formatting behavior.
 
 The automatic toolbar requires Accessibility permission and an exposed text selection. It waits for the selection to settle (typically under a second), stays hidden during processing and Settings, and ignores secure, empty, oversized, or unreadable selections. Apps with custom selection handling may require the shortcut or may not work at all.
 
-Some apps expose readable text but cannot safely replace it. Those results remain available to copy. Apps that do not expose selected text (including secure fields, some browser content, terminals, and custom editors) show a short message. There is no blind copy/paste fallback. Selections are limited to 24,000 UTF-16 units; rich styling is not transmitted, but textual structure is preserved. AI edits can still be imperfect: review the result before accepting.
+Some apps expose readable text but cannot safely replace it. Those results open a small notice with **Copy** (⌘⇧C) and **Close**. The same fallback is used if the selection changes or you switch apps before completion. Apps that do not expose selected text (including secure fields, some browser content, terminals, and custom editors) show a short message. There is no blind copy/paste fallback. Selections are limited to 24,000 UTF-16 units; rich styling is not transmitted, but textual structure is preserved. AI edits can still be imperfect: check the text after replacement and use Undo if needed.
 
 Local development:
 
@@ -41,10 +43,12 @@ Local development:
 ./tests/run.sh --live codex
 ./tests/run.sh --live claude
 ./tests/run.sh --live ollama
-./tests/preview.sh         # native layout and keyboard checks
+./tests/feedback.sh        # busy badge, menu status, Copy notice, and shortcut checks
 ./tests/toolbar.sh         # toolbar layout, action dispatch, and dismissal
 ./tests/toolbar.sh --selection --changed # live TextEdit selection checks
 ./tests/selection.sh --app com.apple.TextEdit --replace
+./tests/selection.sh --app com.apple.TextEdit --automatic # live Ollama rewrite + automatic replacement
+./tests/selection.sh --app com.apple.TextEdit --background # reject background replacement
 ```
 
 Live tests send a fixed, disposable grammar example using existing authentication. Selection tests require selecting exactly `She go to the library yesterday.` in a disposable document; they refuse other text. `Rewrite.app/Contents/MacOS/Rewrite --review` adds a Dock presence for inspection and uses the production selection and processing paths. See [runtime verification](docs/verification.md) for tested apps and concrete limitations. Locally signed rebuilds may require re-enabling Accessibility permission.

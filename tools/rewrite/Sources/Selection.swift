@@ -114,9 +114,14 @@ final class CapturedSelection {
         return nil
     }
 
-    func replace(with result: String) async throws {
+    func replace(with result: String, requireForeground: Bool = false) async throws {
+        if requireForeground && NSWorkspace.shared.frontmostApplication?.processIdentifier != app.processIdentifier {
+            throw RewriteError.message("You switched apps before the rewrite finished. Copy the result, or select the text and try again.")
+        }
         if let reason = replacementLimitation() { throw RewriteError.message(reason) }
-        guard app.activate(options: []) else { throw RewriteError.message("Could not return to the original app. Copy the result instead.") }
+        if !requireForeground {
+            guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier || app.activate(options: []) else { throw RewriteError.message("Could not return to the original app. Copy the result instead.") }
+        }
         // Activation is asynchronous. Verify the destination again after it takes effect.
         for _ in 0..<20 {
             if NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier { break }
