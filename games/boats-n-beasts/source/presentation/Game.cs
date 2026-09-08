@@ -8,7 +8,7 @@ public partial class Game : Node2D
     public Voyage Run = null!;
     OceanView ocean = null!;
     ColorRect water = null!;
-    bool mouseHelm, toggleBoost, boostLatched;
+    bool mouseHelm;
     Vector2 helmPointer, uiPointer = new(-1000, -1000);
     V2? destination;
     readonly List<double> frameSamples = new();
@@ -21,7 +21,7 @@ public partial class Game : Node2D
     CanvasLayer layer = null!;
     Control menuRoot = null!;
     Font titleFont = null!, bodyFont = null!;
-    bool title = true, choosingBoat, runRecorded, settings, controls, reducedMotion, fullscreen, assistedFishing;
+    bool title = true, choosingBoat, runRecorded, controls;
     BoatKind selectedBoat;
     VoyageMode shownMode = (VoyageMode)(-1), beforePause;
     uint selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
@@ -38,7 +38,7 @@ public partial class Game : Node2D
         var waterMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/ocean.gdshader") };
         water = new ColorRect { Size = GetViewportRect().Size, Material = waterMaterial, MouseFilter = Control.MouseFilterEnum.Ignore }; AddChild(water);
         ocean = new() { Voyage = Run, Menu = true, Water = waterMaterial }; AddChild(ocean);
-        LoadSettings();
+        LoadProgress();
         layer = new(); AddChild(layer); hud = new() { Game = this, TitleFont = titleFont, BodyFont = bodyFont }; layer.AddChild(hud);
         DisplayServer.WindowSetTitle("Boats n Beasts");
         BuildMenu();
@@ -53,14 +53,14 @@ public partial class Game : Node2D
         // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
         for (int step = 0; step < (title ? 1 : gameSpeed); step++)
         {
-            if (!title && !settings && !controls)
+            if (!title && !controls)
             {
                 V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0), (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
                 if (move != V2.Zero) { mouseHelm = false; destination = null; }
                 if (destination is V2 goal) { var d = goal - Run.Position; if (d.Length() < 45) destination = null; else move = d; }
                 if (mouseHelm) { var aim = helmPointer - ocean.Screen(Run.Position); move = aim.Length() > 28 ? ocean.WorldDirection(aim) : V2.Zero; }
                 var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
-                Run.Tick(dt, new(move, (toggleBoost ? boostLatched : Down(Key.Space) || Down(Key.Shift))));
+                Run.Tick(dt, new(move, (Down(Key.Space) || Down(Key.Shift))));
                 if (Run.Mode == VoyageMode.Sailing) simulationMs = simulationMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(tickStart).TotalMilliseconds * .05;
             }
             ocean.Destination = destination;
@@ -70,7 +70,7 @@ public partial class Game : Node2D
                 if (e.Kind == "silver") Toast("+1 silver");
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
-                if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveSettings(); Toast("BULWARK · shots cleared, nearby beasts soaked"); }
+                if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveProgress(); Toast("BULWARK · shots cleared, nearby beasts soaked"); }
                 if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
                 if (e.Kind == "bossSlain") Toast("THE SEA IS YOURS  •  Return to a harbor to finish your voyage.");
             }
@@ -79,10 +79,10 @@ public partial class Game : Node2D
         if (!title && Run.SilverEarned > creditedSilver)
         {
             int earnedSilver = Run.SilverEarned;
-            silver += earnedSilver - creditedSilver; creditedSilver = earnedSilver; SaveSettings();
+            silver += earnedSilver - creditedSilver; creditedSilver = earnedSilver; SaveProgress();
         }
         hud.QueueRedraw();
-        if (!title && !settings && !controls && shownMode != Run.Mode) BuildMenu();
+        if (!title && !controls && shownMode != Run.Mode) BuildMenu();
     }
 
     public override void _Input(InputEvent input)
@@ -126,27 +126,25 @@ public partial class Game : Node2D
     {
         if (@event is not InputEventKey key || !key.Pressed || key.Echo) return;
         if (key.Keycode == Key.F12) { CaptureReview(); return; }
-        if (key.Keycode == Key.F11) { fullscreen = !fullscreen; ApplySettings(); SaveSettings(); return; }
         if (key.Keycode == Key.Escape)
         {
-            if (settings || controls) { settings = controls = false; BuildMenu(); }
+            if (controls) { controls = false; BuildMenu(); }
             else if (title && choosingBoat) { choosingBoat = false; BuildMenu(); }
             else if (!title)
             {
                 if (Run.Mode == VoyageMode.Fishing) Run.CancelFishing();
                 else if (Run.Mode is VoyageMode.Catch or VoyageMode.Harbor) Run.Mode = VoyageMode.Sailing;
                 else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
-                else if (Run.Mode == VoyageMode.Sailing) { destination = null; mouseHelm = boostLatched = false; beforePause = Run.Mode; Run.Mode = VoyageMode.Paused; }
+                else if (Run.Mode == VoyageMode.Sailing) { destination = null; mouseHelm = false; beforePause = Run.Mode; Run.Mode = VoyageMode.Paused; }
                 BuildMenu();
             }
             GetViewport().SetInputAsHandled(); return;
         }
-        if (title || settings || controls) return;
-        if (toggleBoost && Run.Mode == VoyageMode.Sailing && key.PhysicalKeycode is Key.Space or Key.Shift) { boostLatched = !boostLatched; return; }
+        if (title || controls) return;
         if (Run.Mode == VoyageMode.Fishing && (key.PhysicalKeycode == Key.Space || key.PhysicalKeycode == Key.E)) { Run.Reel(); GetViewport().SetInputAsHandled(); }
         else if (Run.Mode == VoyageMode.Sailing && key.PhysicalKeycode == Key.E)
         {
-            destination = null; mouseHelm = boostLatched = false;
+            destination = null; mouseHelm = false;
             if (!Run.Interact()) Toast(Run.Hold.Count >= 12 ? "Your hold is full. Sell your catch at a harbor." : "Sail close to a fishing school or harbor, then press E.");
             BuildMenu();
         }
@@ -155,26 +153,26 @@ public partial class Game : Node2D
     public override void _Notification(int what)
     {
         if (what == NotificationApplicationFocusOut && Run != null && !title && Run.Mode is VoyageMode.Sailing or VoyageMode.Fishing)
-        { beforePause = Run.Mode; destination = null; mouseHelm = boostLatched = false; Run.Mode = VoyageMode.Paused; Callable.From(BuildMenu).CallDeferred(); }
+        { beforePause = Run.Mode; destination = null; mouseHelm = false; Run.Mode = VoyageMode.Paused; Callable.From(BuildMenu).CallDeferred(); }
     }
     void Start()
     {
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
-        creditedSilver = 0; gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
-        Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = choosingBoat = runRecorded = settings = controls = recorded = false;
+        creditedSilver = 0; gameSpeed = 1; mouseHelm = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
+        Run = new(selectedSeed, selectedBoat); title = choosingBoat = runRecorded = controls = recorded = false;
         ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();
         Toast("WASD or click to sail  •  Space to boost  •  E to fish / dock"); BuildMenu();
     }
     void BackToTitle()
     {
-        Record(); title = true; choosingBoat = settings = controls = false; ocean.Menu = true;
+        Record(); title = true; choosingBoat = controls = false; ocean.Menu = true;
         Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
     }
     void Record()
     {
         if (title) return;
         if (!runRecorded) { finishedRuns++; runRecorded = true; }
-        bestKills = Math.Max(bestKills, Run.Kills); if (Run.Retired && !recorded) { completed++; recorded = true; } SaveSettings();
+        bestKills = Math.Max(bestKills, Run.Kills); if (Run.Retired && !recorded) { completed++; recorded = true; } SaveProgress();
     }
     bool bulwarkExplained;
     void Toast(string text) { toast = text; toastTime = 5; }
@@ -203,7 +201,7 @@ public partial class Game : Node2D
         Tween? hover = null;
         void AnimateHover(float scale)
         {
-            if (reducedMotion || b.Disabled) return;
+            if (b.Disabled) return;
             hover?.Kill(); b.PivotOffset = b.Size / 2;
             hover = b.CreateTween(); hover.TweenProperty(b, "scale", Vector2.One * scale, .12);
         }
@@ -224,7 +222,6 @@ public partial class Game : Node2D
         if (menuRoot != null) { layer.RemoveChild(menuRoot); menuRoot.QueueFree(); }
         menuRoot = new Control { MouseFilter = Control.MouseFilterEnum.Ignore }; menuRoot.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); layer.AddChild(menuRoot);
         shownMode = Run.Mode;
-        if (settings) { SettingsMenu(); FocusFirst(menuRoot); return; }
         if (controls) { ControlsMenu(); FocusFirst(menuRoot); return; }
         if (title) { if (choosingBoat) BoatMenu(); else TitleMenu(); FocusFirst(menuRoot); return; }
         if (Run.Mode == VoyageMode.Sailing || Run.Mode == VoyageMode.Fishing)
@@ -259,7 +256,6 @@ public partial class Game : Node2D
             case VoyageMode.Paused:
                 col = Panel(510, "Paused", "At anchor", Run.Retired ? "Voyage won · explore the endless ocean" : Run.BossSlain ? "Return to a harbor to claim your victory." : Run.Charts >= 3 ? "Sail beyond 3 leagues and defeat the Crownclaw." : $"Chart {Run.Charts}/3 · Fish at three different schools beyond one league.");
                 col.AddChild(Button("Resume voyage", () => { Run.Mode = beforePause; BuildMenu(); }, true));
-                col.AddChild(Button("Settings", () => { settings = true; BuildMenu(); }));
                 col.AddChild(Button("Captain’s handbook", () => { controls = true; BuildMenu(); }));
                 col.AddChild(Button("End voyage · return to title", BackToTitle)); break;
             case VoyageMode.Harbor: HarborMenu(); break;
@@ -352,43 +348,29 @@ public partial class Game : Node2D
         if (lastPurchase == option)
         {
             lastPurchase = -1;
-            if (!reducedMotion) { card.Modulate = new Color(1.35f, 1.25f, 1); card.CreateTween().TweenProperty(card, "modulate", Colors.White, .3); }
+            { card.Modulate = new Color(1.35f, 1.25f, 1); card.CreateTween().TweenProperty(card, "modulate", Colors.White, .3); }
         }
     }
     void ControlsMenu()
     {
         var col = Panel(900, "Handbook", "A life on the water", "Weapons fire automatically. Turn alongside enemies to line up Broadside.");
         col.AddThemeConstantOverride("separation", 8);
-        col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nRight-click              Toggle continuous mouse helm\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing\nF11                            Toggle fullscreen", 19));
+        col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nRight-click              Toggle continuous mouse helm\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
-    void SettingsMenu()
-    {
-        var col = Panel(590, "Preferences", "Settings", "Changes are saved automatically.");
-        col.AddChild(Button(fullscreen ? "Fullscreen · on" : "Fullscreen · off", () => { fullscreen = !fullscreen; ApplySettings(); SaveSettings(); BuildMenu(); }));
-        col.AddChild(Button(reducedMotion ? "Reduced motion · on" : "Reduced motion · off", () => { reducedMotion = !reducedMotion; ApplySettings(); SaveSettings(); BuildMenu(); }));
-        col.AddChild(Button(toggleBoost ? "Boost control · tap to toggle" : "Boost control · hold", () => { toggleBoost = !toggleBoost; boostLatched = false; SaveSettings(); BuildMenu(); }));
-        col.AddChild(Button(assistedFishing ? "Assisted fishing · on" : "Assisted fishing · off", () => { assistedFishing = !assistedFishing; Run.AssistedFishing = assistedFishing; SaveSettings(); BuildMenu(); }));
-        col.AddChild(Label("Assisted fishing times your reels automatically. Catches and rewards stay the same.", 18));
-        col.AddChild(Button("Back", () => { settings = false; BuildMenu(); }, true));
-    }
-    void ApplySettings() { ocean.ReducedMotion = reducedMotion; DisplayServer.WindowSetMode(fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed); }
-    void LoadSettings()
+    void LoadProgress()
     {
         var cfg = new ConfigFile(); if (cfg.Load("user://settings.cfg") != Error.Ok) return;
-        reducedMotion = (bool)cfg.GetValue("display", "reduced_motion", false); fullscreen = (bool)cfg.GetValue("display", "fullscreen", false);
-        toggleBoost = (bool)cfg.GetValue("accessibility", "toggle_boost", false);
         bulwarkExplained = (bool)cfg.GetValue("tutorial", "bulwark_explained", false);
-        assistedFishing = (bool)cfg.GetValue("accessibility", "assisted_fishing", false);
         silver = Math.Max(0, (int)cfg.GetValue("progress", "silver", 0));
         bestKills = (int)cfg.GetValue("progress", "best_kills", 0); completed = (int)cfg.GetValue("progress", "wins", 0);
-        finishedRuns = Math.Max(0, (int)cfg.GetValue("progress", "finished_runs", completed)); ApplySettings();
+        finishedRuns = Math.Max(0, (int)cfg.GetValue("progress", "finished_runs", completed));
     }
-    void SaveSettings()
+    void SaveProgress()
     {
-        var cfg = new ConfigFile(); cfg.SetValue("display", "fullscreen", fullscreen); cfg.SetValue("display", "reduced_motion", reducedMotion); cfg.SetValue("accessibility", "toggle_boost", toggleBoost); cfg.SetValue("accessibility", "assisted_fishing", assistedFishing); cfg.SetValue("tutorial", "bulwark_explained", bulwarkExplained); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.SetValue("progress", "finished_runs", finishedRuns); cfg.Save("user://settings.cfg");
+        var cfg = new ConfigFile(); cfg.SetValue("tutorial", "bulwark_explained", bulwarkExplained); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.SetValue("progress", "finished_runs", finishedRuns); cfg.Save("user://settings.cfg");
     }
     public partial class Hud : Node2D
     {
@@ -435,7 +417,7 @@ public partial class Game : Node2D
                 if (r.BoostExhausted)
                 {
                     DrawStyleBox(Game.Box(new Color(OceanView.Navy, .9f), 5), new(boostAt + new Vector2(-55, 20), new Vector2(110, 23)));
-                    Text(boostAt + new Vector2(-46, 36), Game.toggleBoost ? "Tap boost off" : "Release boost", 13);
+                    Text(boostAt + new Vector2(-46, 36), "Release boost", 13);
                 }
             }
             var equipped = Enumerable.Range(0, Voyage.UpgradeNames.Length).Where(i => r.Rank(i) > 0).ToArray();
@@ -473,7 +455,7 @@ public partial class Game : Node2D
             {
                 var p = new Vector2(size.X / 2 - 285, size.Y - 270); DrawStyleBox(Game.Box(new Color("082953"), 16, OceanView.Cream), new(p, new Vector2(570, 164)));
                 Text(p + new Vector2(25, 37), "A QUIET MOMENT", 29, true); Text(p + new Vector2(347, 34), $"{r.FishHits}/3 REELS   {r.FishMisses}/3 MISSES", 17);
-                Text(p + new Vector2(25, 64), r.AssistedFishing ? "Combat frozen · assisted reel is on · enjoy the quiet" : "Combat frozen · Space / E when the marker enters turquoise", 18);
+                Text(p + new Vector2(25, 64), "Combat frozen · Space / E when the marker enters turquoise", 18);
                 var bar = p + new Vector2(25, 87); DrawStyleBox(Game.Box(OceanView.Navy, 7), new(bar, new Vector2(520, 28)));
                 DrawStyleBox(Game.Box(OceanView.Aqua, 6), new(bar + new Vector2((r.FishTarget - r.FishBand) * 520, 0), new Vector2(r.FishBand * 1040, 28)));
                 DrawLine(bar + new Vector2(r.FishCursor * 520, -5), bar + new Vector2(r.FishCursor * 520, 33), OceanView.Cream, 5, true);

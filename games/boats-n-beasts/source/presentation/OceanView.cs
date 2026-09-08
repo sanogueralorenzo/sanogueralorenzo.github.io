@@ -6,7 +6,7 @@ namespace BoatsNBeasts;
 public partial class OceanView : Node2D
 {
     public Voyage Voyage = null!;
-    public bool Menu, ReducedMotion;
+    public bool Menu;
     public Vector2 Camera;
     public float Clock, Shake;
     public double DrawMs;
@@ -40,7 +40,7 @@ public partial class OceanView : Node2D
         if (Menu || Voyage.Mode == VoyageMode.Sailing) { Clock += dt; muzzleTime = Math.Max(0, muzzleTime-dt); }
         if (!Menu && Voyage.Mode == VoyageMode.Sailing)
         {
-            Camera = Camera.Lerp(G(Voyage.Position) + (ReducedMotion ? Vector2.Zero : G(Voyage.Velocity) * .16f), 1 - Mathf.Exp(-dt * 5));
+            Camera = Camera.Lerp(G(Voyage.Position) + (G(Voyage.Velocity) * .16f), 1 - Mathf.Exp(-dt * 5));
             wakeClock += dt;
             if (wakeClock > .045f && Voyage.Velocity.Length() > 20)
             { wakeClock = 0; wakes.Add(new(G(Voyage.Position), Voyage.Heading, Clock, Voyage.Velocity.Length())); }
@@ -63,7 +63,7 @@ public partial class OceanView : Node2D
         if (e.Kind == "pull") { particles.Add(new() { P=G(e.Position), End=G(e.End), Life=.24f, MaxLife=.24f, Kind="pull", Color=Cream }); return; }
         if (e.Kind == "ricochet") { particles.Add(new() { P=G(e.Position), Life=.16f, MaxLife=.16f, Kind="ring", Size=20, Color=Cream }); return; }
         if (e.Kind == "shot") muzzleTime = .08f;
-        if (e.Kind == "hurt") Shake = ReducedMotion ? 0 : 6;
+        if (e.Kind == "hurt") Shake = 6;
         if (e.Kind == "calm") { particles.Add(new() { P = G(e.Position), Life = 3, MaxLife = 3, Kind = "bulwark", Size = e.Value, Color = Aqua }); return; }
         if (e.Kind is "aura" or "bulwark" or "broadside") { particles.Add(new() { P = G(e.Position), End = G(e.End), Life = e.Kind == "broadside" ? .18f : .6f, MaxLife = e.Kind == "broadside" ? .18f : .6f, Kind = e.Kind, Size = e.Value, Color = e.Kind == "broadside" ? Cream : Aqua }); return; }
         if (e.Kind == "arc") { particles.Add(new() { P = G(e.Position), End = G(e.End), Life = .23f, MaxLife = .23f, Kind = "arc", Color = Aqua }); return; }
@@ -189,7 +189,7 @@ public partial class OceanView : Node2D
         var target = Voyage.Enemies.Where(e=>e.Health>0 && System.Numerics.Vector2.DistanceSquared(e.Position,Voyage.Position)<570*570).OrderBy(e=>System.Numerics.Vector2.DistanceSquared(e.Position,Voyage.Position)).FirstOrDefault();
         var mount = Voyage.Position + new V2(MathF.Sin(heading), -MathF.Cos(heading)) * (48 * (Voyage.Boat == BoatKind.Cutter ? 139f / 145 : 151f / 145));
         float aim = target == null ? 0 : MathF.Atan2(target.Position.Y-mount.Y,target.Position.X-mount.X)+Mathf.Pi/2-heading;
-        art.Boat(boatPos + new Vector2(0, ReducedMotion ? 0 : MathF.Sin(Clock * 2.7f) * 1.4f), Menu ? 235 : Voyage.Boat == BoatKind.Cutter ? 139 : 151, heading, Voyage.Boat, Clock, Voyage.Weapons, Voyage.Invulnerable > 0 && (int)(Clock * 16) % 2 == 0, aim, muzzleTime > 0);
+        art.Boat(boatPos + new Vector2(0, MathF.Sin(Clock * 2.7f) * 1.4f), Menu ? 235 : Voyage.Boat == BoatKind.Cutter ? 139 : 151, heading, Voyage.Boat, Clock, Voyage.Weapons, Voyage.Invulnerable > 0 && (int)(Clock * 16) % 2 == 0, aim, muzzleTime > 0);
         if (Menu)
         {
             art.Monster(new(size.X * .84f, size.Y * .26f), 150, EnemyKind.Crab, Clock);

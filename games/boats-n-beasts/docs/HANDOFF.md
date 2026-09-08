@@ -6,7 +6,7 @@ The project is self-contained in `games/boats-n-beasts`. Development used the ex
 
 Godot 4.7.2 .NET, .NET 10 and the Compatibility renderer are required. `./run.command` builds, imports and launches. Use `GODOT_BIN` and `DOTNET_ROOT` to override the local toolchain locations. F12 captures the live viewport and telemetry for manual review.
 
-Implemented: two boat abilities, six shared automatic weapons, simple weapon/stat upgrades, four ordinary enemies and a boss, seeded bounded ocean streaming with persistent depletion, frozen-combat fishing, harbor economy/switching, victory and optional endless, defeat/retry, settings and procedural animation. No external art, fonts, audio or automated tests are included. Runtime-generated creature strips and scenery textures are owned and bounded by their rendering nodes.
+Implemented: two boat abilities, six shared automatic weapons, simple weapon/stat upgrades, four ordinary enemies and a boss, seeded bounded ocean streaming with persistent depletion, frozen-combat fishing, harbor economy/switching, victory and optional endless, defeat/retry and procedural animation. No external art, fonts, audio or automated tests are included. Runtime-generated creature strips and scenery textures are owned and bounded by their rendering nodes.
 
 The user-selected progression stays simple: small varying rank/stat choices, obvious synergies and distinct boat abilities. Do not reintroduce prerequisite trees, catch equipment, unrequested currencies, or proprietary reference assets. Research inputs and partial reverse-engineering conclusions are documented in RESEARCH.md.
 
@@ -17,3 +17,6 @@ Nautical gameplay pass: movement/boost and automatic encounter collection live i
 
 
 Readability polish: shared `UpgradeSymbol.DrawSymbol` renders cards, equipment badges and chart harbor categories. `Voyage.HarborOffers(Place)` is the single deterministic stock function for previews and purchases. Monster `Time` controls a 0.45-second emergence; enemy behavior waits for it, while the atlas fades/scales the creature through a ripple. Bulwark explanation is stored under `tutorial/bulwark_explained`; subsequent pulses retain their world effect. Native live verification covers boost depletion/recharge, equipment hover, repeated Bulwark pulses, emergence and both harbor categories; see the last QUALITY entry and `polish-*` evidence. Hover uses viewport input-event coordinates; equipment clicks do not sail.
+
+
+Settings removal: controls are fixed to normal motion, hold-to-boost and manual fishing in a standard resizable window. No Settings screen or F11 handler remains. LoadProgress/SaveProgress retain the legacy user://settings.cfg filename for save compatibility, reading/writing only progression and the Bulwark tutorial flag; obsolete preferences are ignored and disappear on the next normal save.

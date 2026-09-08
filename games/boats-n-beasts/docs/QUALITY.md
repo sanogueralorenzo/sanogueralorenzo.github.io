@@ -144,3 +144,12 @@ Debug and Release builds and diff checks pass. Actual play covered windowed and 
 Live review found weak exhaustion-text contrast over land and hover coordinates inconsistent with the scaled native window. Fixed the cue with a small navy backing and coral empty arc, used viewport input-event coordinates for hover, and consumed equipment clicks so inspecting gear does not steer the boat. Final captures verify the corrections.
 
 Curated PNG/TXT pairs: `polish-equipment-hover`, `polish-boost-emergence`, `polish-boost-recharged`, `polish-weapon-harbor`, `polish-upgrade-harbor`. Boost telemetry goes from 0 to 100 after releasing; the full-charge capture has no boost cue. The upgrade-harbor capture predates only the final hover-coordinate/cue-contrast fixes; stock logic was unchanged. Game left at title with hold boost restored; the user's assisted-fishing and window preferences were preserved. No automated tests or injected game state. This is a focused polish verification, not a new full-victory or high-tier balance validation.
+
+
+## Settings removal — 2026-09-08
+
+Removed the Settings screen/entry point, fullscreen preference and F11 handler, reduced-motion branches, boost latch/toggle preference, and assisted-reel mode. Normal animation and Space/Shift hold-to-boost are now direct behavior. The existing project defaults provide a standard resizable window. Updated README and handbook copy; historical entries above describe earlier versions.
+
+Debug/Release builds and diff checks passed. Actual UI verified all previously unlocked title entries and 17 silver, the three-button pause menu without Settings, sailing, manual fishing and its no-input timeout. Combat clock stayed at 6.5174108 throughout fishing/result. The existing save had assisted_fishing=true, so this also verifies old preference values no longer activate optional behavior. Hold boost uses the existing physical-key-down polling directly; the UI tool's short press did not register a simulation boost, so sustained hold behavior was reviewed in code rather than claimed as a new live hold test.
+
+A normal end-voyage save retained best_kills=174, wins=1, silver=17 and bulwark_explained=true, incremented finished_runs from 15 to 16, and removed obsolete display/accessibility sections. The legacy settings.cfg path remains for compatibility; no save reset. Native evidence: no-settings-pause, manual-fishing, manual-fishing-timeout PNG/TXT pairs. No automated tests or injected game state. Game left at title.

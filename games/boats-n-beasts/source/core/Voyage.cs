@@ -40,7 +40,7 @@ public sealed partial class Voyage
     public int Coins = 20, Kills, Level = 1, Xp, Charts, HullRank, EngineRank, ReloadRank, AreaRank;
     public float AbilityCharge, Slipstream;
     public readonly List<int> UpgradeChoices = new();
-    public bool BossSpawned, BossSlain, Retired, AssistedFishing;
+    public bool BossSpawned, BossSlain, Retired;
     public bool BoostExhausted { get; private set; }
     public const float SoakedDamageMultiplier = 1.5f;
     public const string SoakHint = "Soaked enemies take +50% damage from Mines, Lightning and Broadside.";
@@ -83,7 +83,6 @@ public sealed partial class Voyage
         {
             FishingTime += dt; ReelCooldown = Math.Max(0, ReelCooldown - dt);
             FishCursor = .5f + .46f * MathF.Sin(FishingTime * (2.7f + Tier * .07f));
-            if (AssistedFishing && ReelCooldown <= 0 && FishingTime > .6f && Math.Abs(FishCursor-FishTarget) < FishBand * .75f) Reel();
             if (Mode == VoyageMode.Fishing && FishingTime >= 16) FinishFishing(false);
             return;
         }
