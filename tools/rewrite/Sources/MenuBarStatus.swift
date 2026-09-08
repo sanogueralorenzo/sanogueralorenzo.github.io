@@ -35,7 +35,7 @@ final class MenuBarStatus: NSObject {
         menu.addItem(.separator())
         let settings = NSMenuItem(title: "Settings", action: #selector(settingsClicked), keyEquivalent: "")
         settings.target = self; menu.addItem(settings)
-        menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "").target = self
         item.menu = menu; setRewriting(nil)
     }
     func setRewriting(_ action: EditAction?) {
@@ -62,6 +62,7 @@ final class MenuBarStatus: NSObject {
         let label = errorMessage.map { "Rewrite: \($0)" } ?? action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewrite · ⌥R"
         item.button?.toolTip = label; item.button?.setAccessibilityLabel(label)
     }
+    @objc private func quit() { NSApp.terminate(nil) }
     @objc private func begin() { onRewrite?() }
     @objc private func cancelRewrite() { onCancel?() }
     @objc private func settingsClicked() { onSettings?() }
