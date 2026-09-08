@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Exploding puffers and swift variants — 2026-09-08
+
+Every capture has same-name TXT telemetry. [Fuse](puffer-fuse.png) and [damage](puffer-damage.png) show an armed puffer and its detonation dealing 28 hull damage (before final dome shading). [Pause A](puffer-pause-a.png)/[B](puffer-pause-b.png) retain the same armed fuse and positions. [Swift fuse](puffer-swift-fuse.png), [swift dodge](puffer-swift-dodge.png) and [final regular dodge/dome](puffer-dome-dodge.png) show two detonations avoided by sailing, with hull and blast-hit count unchanged. Violet regular-monster variants are visible alongside their standard counterparts. Logs: [initial](puffer-runtime.txt), [final](puffer-final-runtime.txt).
+
 ## Remove enemy warning lines — 2026-09-08
 
 [Windup](no-warning-windup.png) and [dash](no-warning-dash.png), with same-name TXT telemetry, show puffer/serpent preattack states without warning lines and the subsequent serpent dash. Actual hostile projectiles remain visible. [Runtime log](no-warning-runtime.txt).

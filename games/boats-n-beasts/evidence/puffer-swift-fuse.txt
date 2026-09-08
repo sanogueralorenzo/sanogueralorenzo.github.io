@@ -1,0 +1,35 @@
+Mouse viewport=(324, 828) global=(324, 828) boatScreen=(724.3619, 452.1794) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2723.005, 285.9335>; destination=<3828.4443, 59.193516>
+Native runtime capture: 20260908-131859-192-sailing
+Renderer: forward_plus
+Seed: 3859254597
+Mode: Sailing
+Game speed: x1
+Finished runs: 74; boat selection: False
+Silver: 39; earned this voyage: 0; next eligible combat time: 46.618954
+Boat: Cutter
+Position: <3264.0344, -318.66858>
+Health: 24/100
+Coins: 44; cargo: 0; kills: 3; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 8; shots: 0
+Actual sailing seconds: 20.3; peak enemies: 15; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=True; boss slain=False
+Camera world=(3258.14, -322.17477); departure seconds=18.782343; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Velocity=<192.90308, 123.5726>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=1; wrecks=0; arcane casts=0; mines=0/0; ricochets=17; pulls=0
+Combat clock=20.28232; director=0.45000017/0.86313784; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.25000015,0,0,0,0,0
+Depletion=2:0:encounter:2=1
+Puffer explosions=3; blast hits=3
+Enemy 4: Puffer position=<2507.1633, -307.17517> hp=32.5 time=13.649099 attack=-11.943214 tell=0 dash=0 swift=True speedMultiplier=1.5 fuse=0
+Enemy 7: Crab position=<2556.5308, -236.80594> hp=33.75 time=11.049139 attack=-8.262782 tell=0 dash=0 swift=True speedMultiplier=1.5 fuse=0
+Enemy 8: Puffer position=<2292.3687, -154.23438> hp=47.5 time=10.399149 attack=-8.67276 tell=0 dash=0 swift=False speedMultiplier=1 fuse=0
+Enemy 9: Puffer position=<2231.8008, -97.815605> hp=47.5 time=9.749147 attack=-7.324554 tell=0 dash=0 swift=False speedMultiplier=1 fuse=0
+Enemy 17: Puffer position=<2992.6997, -405.47665> hp=27 time=6.499154 attack=-3.7867787 tell=0 dash=0 swift=True speedMultiplier=1.5 fuse=0.13333361
+Enemy 18: Puffer position=<3133.1772, -265.55435> hp=57 time=5.6658134 attack=-3.167137 tell=0 dash=0 swift=False speedMultiplier=1 fuse=0.9000001
+Enemy 20: Leviathan position=<2965.539, -1051.3196> hp=1837.5 time=2.1333187 attack=0.8366773 tell=0.8366773 dash=0 swift=False speedMultiplier=1 fuse=0
+Enemy 21: Crab position=<2468.715, -774.04987> hp=47.25 time=0.46666685 attack=1.4035933 tell=0 dash=0 swift=False speedMultiplier=1 fuse=0
+CPU simulation average ms=0.108; draw submission average ms=0.979; cached scenery=11; engine FPS=60; draw calls=236; objects=797
+Frame ms mean: 16.69; p95: 16.67; p99: 18.05

@@ -1,5 +1,15 @@
 # Quality and verification
 
+## Exploding puffers and swift variants — 2026-09-08
+
+Puffers chase at 105 base speed instead of retreating and shooting. Within 125 units they stop, swell and redden over a 1.05-second fuse, then disappear in a faceted red hemisphere. The 155-unit blast deals 22 + 2×tier damage once, accounting for the boat's 23-unit collider. Puffers no longer deal contact damage. Killing an armed puffer cancels its explosion; self-detonation grants no kill, experience or loot. Safe harbors cancel the fuse and prevent blast damage. Existing paused/fishing/upgrade simulation gates freeze it.
+
+Each regular monster has a seeded 25% chance to be swift: 1.5× movement speed, violet shell/fins, faster swimming animation, unchanged health, collision and attack cadence. Serpent dash speed receives the same multiplier. Crownclaw remains standard. No aiming lines or warning rings were restored; the hemisphere appears only on detonation.
+
+Debug and Release pass with zero warnings/errors; both native logs are clean. Actual native play verified a stationary fuse, destruction during a fuse, a blast dealing 28 damage at tier 3, visible normal/swift crabs, puffers and serpents, and continued offshore streaming with 25 chunks. In the final run, an armed puffer retained fuse `0.9666667` and position across paused captures 1.83 seconds apart. Sailing onward avoided a swift explosion and then a regular explosion: detonation count rose 3 → 4 → 5 while blast hits stayed at 3 and hull at 24. Final screenshots show the shaded dome with the boat outside it. No hostile shots appeared in the sampled puffer/crab-only combat; rays and Crownclaw keep their existing attacks.
+
+[Native captures and telemetry](../evidence/README.md) include the earlier damage/fuse check (before dome shading refinement) and final pause/dodge/variant checks. No automated tests or injected state. Fishing, harbor disarm, every swift species and long-run difficulty balance were reviewed in code but not separately replayed in this focused pass.
+
 ## Remove enemy warning lines — 2026-09-08
 
 Removed coral attack-warning arcs, serpent lanes and puffer/ray aiming lines from presentation. Emergence foam, hostile projectiles, impact effects and health bars remain. Attack timing and simulation are unchanged. The Crownclaw arrival message no longer instructs players to watch warning rings.

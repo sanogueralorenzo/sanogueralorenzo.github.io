@@ -8,7 +8,10 @@ public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
-    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull;
+    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, HitFlash, Pull, Fuse;
+    public bool Swift;
+    public float SpeedMultiplier => Swift ? 1.5f : 1;
+    public const float PufferFuseDuration = 1.05f, PufferTriggerRadius = 125, PufferBlastRadius = 155;
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
@@ -53,6 +56,7 @@ public sealed partial class Voyage
     public readonly List<CatchItem> Hold = new();
     public readonly List<GameEvent> Events = new();
     public int NextEnemyId;
+    public int PufferExplosions, PufferBlastHits;
     public Place? FishingPlace;
     public float FishingTime, FishCursor, FishTarget;
     public string CatchTitle = "";
@@ -129,7 +133,7 @@ public sealed partial class Voyage
             if (attempt == 19) return false;
         }
         float hp = (kind == EnemyKind.Leviathan ? 1050 : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52) * (1 + Tier * .25f);
-        Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3) });
+        Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3), Swift = kind != EnemyKind.Leviathan && Random.Index(4) == 0 });
         return true;
     }
     void UpdateEnemies(float dt, bool safe)
@@ -142,13 +146,34 @@ public sealed partial class Voyage
             if (e.Emerging) continue;
             e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
-            float speed = (e.Kind == EnemyKind.Crab ? 83 : e.Kind == EnemyKind.Puffer ? 69 : e.Kind == EnemyKind.Serpent ? 111 : e.Kind == EnemyKind.Ray ? 135 : 73) * (1 + Math.Min(Tier, 12) * .045f);
+            float speed = (e.Kind == EnemyKind.Crab ? 83 : e.Kind == EnemyKind.Puffer ? 105 : e.Kind == EnemyKind.Serpent ? 111 : e.Kind == EnemyKind.Ray ? 135 : 73) * (1 + Math.Min(Tier, 12) * .045f) * e.SpeedMultiplier;
             Vector2 motion = dir;
             if (e.Kind == EnemyKind.Puffer)
             {
-                motion = distance < 310 ? -dir * .6f : distance < 390 ? new(-dir.Y * .3f, dir.X * .3f) : dir;
-                if (e.AttackClock <= .65f && e.AttackClock > 0) e.Telegraph = .65f;
-                if (e.AttackClock <= 0 && !safe) { FireHostile(e, dir, 200); e.AttackClock = 3.8f; e.Telegraph = 0; }
+                // Once armed, hold still and commit to the blast; sailing away avoids it.
+                if (safe) e.Fuse = 0;
+                else if (e.Fuse > 0)
+                {
+                    e.Fuse = Math.Max(0, e.Fuse - dt);
+                    if (e.Fuse <= 0)
+                    {
+                        e.Health = 0;
+                        PufferExplosions++;
+                        Events.Add(new("pufferExplosion", e.Position, Enemy.PufferBlastRadius));
+                        if (distance < Enemy.PufferBlastRadius + 23)
+                        {
+                            float before = Health;
+                            DamagePlayer(22 + Tier * 2);
+                            if (Health < before) PufferBlastHits++;
+                        }
+                    }
+                    continue;
+                }
+                else if (distance <= Enemy.PufferTriggerRadius)
+                {
+                    e.Fuse = Enemy.PufferFuseDuration;
+                    continue;
+                }
             }
             if (e.Kind == EnemyKind.Serpent)
             {
@@ -195,7 +220,7 @@ public sealed partial class Voyage
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (!safe && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
+            if (!safe && e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
         }
     }
     void FireHostile(Enemy e, Vector2 dir, float speed)

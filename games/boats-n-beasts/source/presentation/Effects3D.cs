@@ -236,9 +236,9 @@ public partial class Effects3D : Node3D
     }
     public void Effect(GameEvent ev)
     {
-        if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "slam" or "calm")
+        if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "slam" or "calm" or "pufferExplosion")
         {
-            if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:.48f,Size=ev.Value*.01f});
+            if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind=="pufferExplosion"?.6f:.48f,Size=ev.Value*.01f});
         }
         int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"catch" or "treasure" or "salvage" or "silver"=>6,"boostStart"=>9,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
@@ -250,6 +250,28 @@ public partial class Effects3D : Node3D
     void DrawBurst(Burst b)
     {
         float t=b.Age/b.Life, alpha=1-t;
+        if (b.Kind == "pufferExplosion")
+        {
+            // Actual blast: a filled faceted upper hemisphere, never an aiming line.
+            float blastRadius = b.Size;
+            const int rings = 6, sides = 24;
+            Vector3 Point(int ring, int side)
+            {
+                float latitude = ring * Mathf.Pi * .5f / rings, longitude = side * Mathf.Tau / sides;
+                return b.P + new Vector3(Mathf.Cos(latitude) * Mathf.Cos(longitude), Mathf.Sin(latitude), Mathf.Cos(latitude) * Mathf.Sin(longitude)) * blastRadius;
+            }
+            for (int ring = 0; ring < rings; ring++)
+                for (int side = 0; side < sides; side++)
+                {
+                    var a = Point(ring, side); var c = Point(ring + 1, side + 1);
+                    var normal = ((a + c) * .5f - b.P).Normalized();
+                    float light = .68f + .32f * Mathf.Max(0, normal.Dot(new Vector3(-.45f, .8f, -.4f).Normalized()));
+                    var blastColor = Fade(new Color("ed4939") * light, alpha * .52f);
+                    foam.Triangle(a, Point(ring, side + 1), c, blastColor);
+                    foam.Triangle(a, c, Point(ring + 1, side), blastColor);
+                }
+            return;
+        }
         if(b.Kind is "arc" or "pull")
         {
             var delta=b.End-b.P; var side=new Vector3(-delta.Z,0,delta.X).Normalized(); var last=b.P;
