@@ -404,7 +404,7 @@ public sealed class Voyage
         if (!free && Coins < UpgradeCost(option)) return false;
         if (!free) Coins -= UpgradeCost(option);
         if (option < 6) Weapons[option]++;
-        else if (option == 6) { HullRank++; Health += 25; }
+        else if (option == 6) HullRank++;
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;
         else AreaRank++;
@@ -442,10 +442,10 @@ public sealed class Voyage
             3 => $"Hits up to {rank + 3} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
             4 => rank == 0 ? "Hits nearby enemies in every direction." : "Wider ring. More damage, faster pulses.",
             5 => rank == 0 ? "Makes room when enemies get close." : "More pushback, more damage, faster fire.",
-            6 => "+25 max health. Heal 25 now.",
+            6 => "+25 max health.",
             7 => "+10% sailing speed.",
             8 => "+12% fire rate for every weapon.",
-            _ => "+15% blast size, ring size and lightning reach."
+            _ => "+15% attack area."
         };
     }
 

@@ -52,7 +52,7 @@ Every boat can use all six weapons:
 
 Soaked enemies take **+50% damage from Bomb, Lightning and Blast**. Each weapon level also improves damage and fire rate. Upgrade cards show the next level’s benefit.
 
-Four boat upgrades keep choices simple: **Hull** (+25 health and heal 25), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack size/chain reach). Harbor swaps retain equipment and hull percentage.
+Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack area). Hull upgrades leave current health unchanged; repairs are a separate harbor action. Harbor swaps retain equipment and hull percentage.
 
 ## Structure
 
