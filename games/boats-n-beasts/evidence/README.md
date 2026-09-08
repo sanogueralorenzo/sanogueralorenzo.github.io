@@ -21,3 +21,14 @@ Earlier captures precede the final scenery optimization and HUD padding fix. The
 ### Nautical gameplay follow-up
 
 The `nautical-gameplay-*` PNG/TXT pairs cover normal-play exploration, encounter rewards, mines, Harpoon and Cannon. Read the TXT behavior counters alongside screenshots; a still image cannot show the full movement or projectile path. See `docs/QUALITY.md` for the exact checks and remaining coverage gaps.
+
+
+## Five-item readability polish
+
+- `polish-equipment-hover`: final procedural icon, rank and hovered description; boat stays at the origin after clicking the icon.
+- `polish-boost-emergence`: exhausted boost with readable toggle cue and a puffer mid-emergence (age 0.308 seconds, attack clock 1.258 seconds).
+- `polish-boost-recharged`: same voyage after release, full boost restored and cue hidden.
+- `polish-weapon-harbor`: Lightning/Harpoon/Cannon preview agrees with all three shop offers.
+- `polish-upgrade-harbor`: Reload/Hull/Reach preview agrees with shop, including Hull rank-one price. Captured before the final hover/cue-only fixes.
+
+Each image has its native telemetry partner. Original timestamped captures remain local; no state injection or automated tests were used.

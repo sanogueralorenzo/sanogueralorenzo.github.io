@@ -1,0 +1,33 @@
+Mouse viewport=(346.5, 1332) global=(346.5, 1332) boatScreen=(724.9088, 449.95993) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1544.4844, 1370.966>; destination=
+Native runtime capture: 20260908-052332-sailing
+Renderer: gl_compatibility
+Seed: 953981539
+Mode: Sailing
+Game speed: x1
+Finished runs: 13; boat selection: False
+Silver: 17; earned this voyage: 0; next eligible combat time: 56.75482
+Boat: Trawler
+Position: <2055.8477, -48.017452>
+Health: 155/155
+Coins: 20; cargo: 0; charts: 0; kills: 0; level: 1
+Active chunks: 25; enemies: 11; shots: 1
+Actual sailing seconds: 18.5; peak enemies: 11; peak shots: 1
+Velocity=<184.9911, -1.797851>; boosting=False; boost starts=1; flow=<0, 0>; current seconds=0.9828371; treasure=0; wrecks=0; salvos=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=18.480518; director=0.30000004/1.535507; boost=0; invulnerable=0; ability=1/0
+Weapon ranks=0,0,0,0,1,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Enemy 1: Crab position=<707.6091, -95.13543> hp=20 time=17.181873 attack=-13.895995 tell=0 dash=0 mark=0
+Enemy 2: Crab position=<763.06744, -92.954575> hp=20 time=15.865223 attack=-12.7529125 tell=0 dash=0 mark=0
+Enemy 3: Crab position=<584.0138, 112.93768> hp=27 time=14.557772 attack=-12.11783 tell=0 dash=0 mark=0
+Enemy 4: Crab position=<973.7686, -94.30831> hp=20 time=13.2411175 attack=-11.135526 tell=0 dash=0 mark=0
+Enemy 6: Puffer position=<932.90375, -565.95447> hp=47.5 time=5.6498623 attack=1.3209045 tell=0 dash=0 mark=0
+Enemy 7: Crab position=<910.3953, -461.0956> hp=33.75 time=4.991539 attack=-2.4676902 tell=0 dash=0 mark=0
+Enemy 8: Crab position=<1129.859, -502.17917> hp=33.75 time=4.3332167 attack=-2.1461651 tell=0 dash=0 mark=0
+Enemy 9: Crab position=<1275.5869, 505.92395> hp=33.75 time=4.3332167 attack=-1.8826408 tell=0 dash=0 mark=0
+Enemy 10: Crab position=<1018.59235, 508.7018> hp=33.75 time=3.674884 attack=-0.5832459 tell=0 dash=0 mark=0
+Enemy 11: Crab position=<1629.2623, 556.27716> hp=33.75 time=3.016542 attack=-1.546103 tell=0 dash=0 mark=0
+Enemy 12: Puffer position=<1283.9592, -328.96722> hp=57 time=0.30833337 attack=1.2582655 tell=0 dash=0 mark=0
+Shot Cannon hostile=True position=<1176.1426, -358.36163> life=3.5092509
+CPU simulation average ms=0.072; draw submission average ms=0.860; cached scenery=17; engine FPS=120; draw calls=558; objects=1297
+Frame ms mean: 8.62; p95: 9.09; p99: 16.67

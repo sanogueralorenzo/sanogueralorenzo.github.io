@@ -153,6 +153,11 @@ public partial class OceanView : Node2D
                 DrawArc(p, e.Radius + 13 + MathF.Sin(Clock * 16) * 3, 0, Mathf.Tau, 40, new Color(Coral, .8f), 3, true);
                 if (e.Kind == EnemyKind.Serpent) DrawLine(p, p + G(e.Direction) * 230, new Color(Coral, .35f), 15, true);
             }
+            if (e.Emerging)
+            {
+                float progress = e.Time / Enemy.EmergenceDuration;
+                DrawArc(p, e.Radius * (1 + progress), 0, Mathf.Tau, 32, new Color(Aqua, 1 - progress), 2, true);
+            }
             float angle = MathF.Atan2(Voyage.Position.Y - e.Position.Y, Voyage.Position.X - e.Position.X);
             DrawEllipse(p + new Vector2(0, 13), new(e.Radius * 1.3f, e.Radius * .48f), new Color(Aqua, .07f));
             creatures.Draw(this, e, p + new Vector2(0, MathF.Sin(e.Time * 4) * 2), angle);

@@ -9,6 +9,8 @@ public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
     public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, Mark, HitFlash, Pull;
+    public const float EmergenceDuration = .45f;
+    public bool Emerging => Time < EmergenceDuration;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
 }
 public sealed class Shot
@@ -133,7 +135,9 @@ public sealed partial class Voyage
         foreach (var e in Enemies)
         {
             if (e.Health <= 0) continue;
-            e.Time += dt; e.AttackClock -= dt; e.Mark = Math.Max(0, e.Mark - dt); e.HitFlash = Math.Max(0, e.HitFlash - dt);
+            e.Time += dt;
+            if (e.Emerging) continue;
+            e.AttackClock -= dt; e.Mark = Math.Max(0, e.Mark - dt); e.HitFlash = Math.Max(0, e.HitFlash - dt);
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
             float speed = (e.Kind == EnemyKind.Crab ? 83 : e.Kind == EnemyKind.Puffer ? 69 : e.Kind == EnemyKind.Serpent ? 111 : e.Kind == EnemyKind.Ray ? 135 : 73) * (1 + Math.Min(Tier, 12) * .045f);
             if (e.Mark > 0) speed *= .62f;
@@ -301,11 +305,15 @@ public sealed partial class Voyage
     public int Rank(int option) => option < 6 ? Weapons[option] : option == 6 ? HullRank : option == 7 ? EngineRank : option == 8 ? ReloadRank : AreaRank;
     public bool CanUpgrade(int option) => option >= 0 && option < UpgradeNames.Length && Rank(option) < 5
         && (option >= Weapons.Length || Rank(option) > 0 || WeaponCount < WeaponSlots);
-    public bool HarborSellsWeapons => World.HarborAt(Position) is { } harbor && (harbor.Style & 1) == 0;
+    public static bool SellsWeapons(Place harbor) => (harbor.Style & 1) == 0;
+    public bool HarborSellsWeapons => World.HarborAt(Position) is { } harbor && SellsWeapons(harbor);
     public int[] HarborOffers()
     {
-        if (World.HarborAt(Position) is not { } harbor) return [];
-        var stock = Enumerable.Range(HarborSellsWeapons ? 0 : 6, HarborSellsWeapons ? 6 : 4).ToList();
+        return World.HarborAt(Position) is { } harbor ? HarborOffers(harbor) : [];
+    }
+    public static int[] HarborOffers(Place harbor)
+    {
+        var stock = Enumerable.Range(SellsWeapons(harbor) ? 0 : 6, SellsWeapons(harbor) ? 6 : 4).ToList();
         var random = new SeedRandom(harbor.Style ^ 0x51a7u);
         for (int i = stock.Count - 1; i > 0; i--)
         {

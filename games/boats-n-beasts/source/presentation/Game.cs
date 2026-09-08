@@ -9,7 +9,7 @@ public partial class Game : Node2D
     OceanView ocean = null!;
     ColorRect water = null!;
     bool mouseHelm, toggleBoost, boostLatched;
-    Vector2 helmPointer;
+    Vector2 helmPointer, uiPointer = new(-1000, -1000);
     V2? destination;
     readonly List<double> frameSamples = new();
     float performanceClock, lastPerformanceLog;
@@ -70,7 +70,7 @@ public partial class Game : Node2D
                 if (e.Kind == "silver") Toast("+1 silver");
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
-                if (e.Kind == "bulwark") Toast("BULWARK · shots cleared, nearby beasts soaked");
+                if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveSettings(); Toast("BULWARK · shots cleared, nearby beasts soaked"); }
                 if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
                 if (e.Kind == "bossSlain") Toast("THE SEA IS YOURS  •  Return to a harbor to finish your voyage.");
             }
@@ -87,6 +87,13 @@ public partial class Game : Node2D
 
     public override void _Input(InputEvent input)
     {
+        if (input is InputEventMouseMotion motion) uiPointer = motion.Position;
+        if (input is InputEventMouseButton mouse)
+        {
+            uiPointer = mouse.Position;
+            if (!title && mouse.Pressed && hud.EquipmentAt(mouse.Position) >= 0)
+            { GetViewport().SetInputAsHandled(); return; }
+        }
         // Space belongs to sailing/fishing. An upgrade appearing during a boost must
         // not silently choose the focused card, nor instantly retry after defeat.
         if (!title && input is InputEventKey key && key.PhysicalKeycode == Key.Space && Run.Mode is not (VoyageMode.Sailing or VoyageMode.Fishing)) GetViewport().SetInputAsHandled();
@@ -169,6 +176,7 @@ public partial class Game : Node2D
         if (!runRecorded) { finishedRuns++; runRecorded = true; }
         bestKills = Math.Max(bestKills, Run.Kills); if (Run.Retired && !recorded) { completed++; recorded = true; } SaveSettings();
     }
+    bool bulwarkExplained;
     void Toast(string text) { toast = text; toastTime = 5; }
     StyleBoxFlat Box(Color bg, int radius = 14, Color? border = null)
     {
@@ -353,7 +361,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nRight-click              Toggle continuous mouse helm\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing\nF11                            Toggle fullscreen", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void SettingsMenu()
@@ -372,6 +380,7 @@ public partial class Game : Node2D
         var cfg = new ConfigFile(); if (cfg.Load("user://settings.cfg") != Error.Ok) return;
         reducedMotion = (bool)cfg.GetValue("display", "reduced_motion", false); fullscreen = (bool)cfg.GetValue("display", "fullscreen", false);
         toggleBoost = (bool)cfg.GetValue("accessibility", "toggle_boost", false);
+        bulwarkExplained = (bool)cfg.GetValue("tutorial", "bulwark_explained", false);
         assistedFishing = (bool)cfg.GetValue("accessibility", "assisted_fishing", false);
         silver = Math.Max(0, (int)cfg.GetValue("progress", "silver", 0));
         bestKills = (int)cfg.GetValue("progress", "best_kills", 0); completed = (int)cfg.GetValue("progress", "wins", 0);
@@ -379,7 +388,7 @@ public partial class Game : Node2D
     }
     void SaveSettings()
     {
-        var cfg = new ConfigFile(); cfg.SetValue("display", "fullscreen", fullscreen); cfg.SetValue("display", "reduced_motion", reducedMotion); cfg.SetValue("accessibility", "toggle_boost", toggleBoost); cfg.SetValue("accessibility", "assisted_fishing", assistedFishing); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.SetValue("progress", "finished_runs", finishedRuns); cfg.Save("user://settings.cfg");
+        var cfg = new ConfigFile(); cfg.SetValue("display", "fullscreen", fullscreen); cfg.SetValue("display", "reduced_motion", reducedMotion); cfg.SetValue("accessibility", "toggle_boost", toggleBoost); cfg.SetValue("accessibility", "assisted_fishing", assistedFishing); cfg.SetValue("tutorial", "bulwark_explained", bulwarkExplained); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.SetValue("progress", "finished_runs", finishedRuns); cfg.Save("user://settings.cfg");
     }
     public partial class Hud : Node2D
     {
@@ -387,6 +396,19 @@ public partial class Game : Node2D
         void Text(Vector2 p, string text, int size = 22, bool heading = false, Color? color = null) => DrawString(heading ? TitleFont : BodyFont, p, text, HorizontalAlignment.Left, -1, size, color ?? OceanView.Cream);
         void Bar(Vector2 p, Vector2 size, float value, Color color)
         { DrawStyleBox(Game.Box(new Color(OceanView.Navy, .8f), 5), new(p, size)); DrawStyleBox(Game.Box(color, 5), new(p, new Vector2(size.X * Math.Clamp(value, 0, 1), size.Y))); }
+        Rect2 EquipmentBounds(int slot, int count)
+        {
+            var size = GetViewportRect().Size;
+            float rowWidth = count * 56 - 8;
+            return new(new Vector2((size.X - rowWidth) / 2 + slot * 56, size.Y - 62), new Vector2(48, 48));
+        }
+        public int EquipmentAt(Vector2 pointer)
+        {
+            var equipped = Enumerable.Range(0, Voyage.UpgradeNames.Length).Where(i => Game.Run.Rank(i) > 0).ToArray();
+            for (int slot = 0; slot < equipped.Length; slot++)
+                if (EquipmentBounds(slot, equipped.Length).HasPoint(pointer)) return equipped[slot];
+            return -1;
+        }
         public override void _Draw()
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
@@ -405,18 +427,39 @@ public partial class Game : Node2D
             }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -72);
             Bar(healthPosition, new(68, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
-            string[] itemLabels = ["CANNON", "HARPOON", "MINES", "LIGHTNING", "WHIRLPOOL", "BROADSIDE", "HULL", "SPEED", "RELOAD", "REACH"];
-            var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
-            const float itemWidth = 96, gap = 8;
-            float rowWidth = equipped.Length * (itemWidth + gap) - gap;
+            if (r.IsBoosting || r.Boost < 100)
+            {
+                var boostAt = Game.ocean.Screen(r.Position) + new Vector2(0, 36);
+                DrawArc(boostAt, 16, .15f, Mathf.Pi - .15f, 24, r.BoostExhausted ? new Color(OceanView.Coral, .7f) : new Color(OceanView.Navy, .9f), 5, true);
+                DrawArc(boostAt, 16, .15f, .15f + (Mathf.Pi - .3f) * Math.Max(.015f, r.Boost / 100), 24, r.BoostExhausted ? OceanView.Coral : OceanView.Aqua, 3, true);
+                if (r.BoostExhausted)
+                {
+                    DrawStyleBox(Game.Box(new Color(OceanView.Navy, .9f), 5), new(boostAt + new Vector2(-55, 20), new Vector2(110, 23)));
+                    Text(boostAt + new Vector2(-46, 36), Game.toggleBoost ? "Tap boost off" : "Release boost", 13);
+                }
+            }
+            var equipped = Enumerable.Range(0, Voyage.UpgradeNames.Length).Where(i => r.Rank(i) > 0).ToArray();
             for (int slot = 0; slot < equipped.Length; slot++)
             {
                 int item = equipped[slot];
-                var p = new Vector2((size.X - rowWidth) / 2 + slot * (itemWidth + gap), size.Y - 48);
-                DrawStyleBox(Game.Box(new Color(OceanView.Navy, .65f), 6), new(p, new Vector2(itemWidth, 32)));
-                string label = $"{itemLabels[item]} {r.Rank(item)}";
-                float labelWidth = TitleFont.GetStringSize(label, fontSize: 14).X;
-                Text(p + new Vector2((itemWidth - labelWidth) / 2, 22), label, 14, true);
+                var bounds = EquipmentBounds(slot, equipped.Length);
+                var p = bounds.Position;
+                DrawStyleBox(Game.Box(new Color(OceanView.Navy, .65f), 6), bounds);
+                DrawSetTransform(p + new Vector2(4, 2));
+                UpgradeSymbol.DrawSymbol(this, item, OceanView.Aqua);
+                DrawSetTransform(Vector2.Zero);
+                DrawCircle(p + new Vector2(42, 40), 10, OceanView.Navy);
+                Text(p + new Vector2(38, 45), r.Rank(item).ToString(), 13, true);
+                if (bounds.HasPoint(Game.uiPointer))
+                {
+                    string name = $"{Voyage.UpgradeNames[item]} · Rank {r.Rank(item)}";
+                    string detail = Voyage.UpgradeDescriptions[item];
+                    float width = Math.Max(BodyFont.GetStringSize(detail, fontSize: 16).X, 220) + 28;
+                    var at = new Vector2(Math.Clamp(p.X + 24 - width / 2, 12, size.X - width - 12), p.Y - 75);
+                    DrawStyleBox(Game.Box(new Color(OceanView.Navy, .95f), 8), new(at, new Vector2(width, 64)));
+                    Text(at + new Vector2(14, 24), name, 17, true);
+                    Text(at + new Vector2(14, 48), detail, 16);
+                }
             }
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, OceanView.Aqua);
             DrawCompass(size);
@@ -435,6 +478,32 @@ public partial class Game : Node2D
                 DrawStyleBox(Game.Box(OceanView.Aqua, 6), new(bar + new Vector2((r.FishTarget - r.FishBand) * 520, 0), new Vector2(r.FishBand * 1040, 28)));
                 DrawLine(bar + new Vector2(r.FishCursor * 520, -5), bar + new Vector2(r.FishCursor * 520, 33), OceanView.Cream, 5, true);
                 Text(p + new Vector2(25, 145), $"{Math.Max(0, 16 - r.FishingTime):0.0}s remaining                                      Esc · cancel cast", 18);
+            }
+            // Hover a chart harbor to scout it; otherwise preview the closest discovered port nearby.
+            var harbors = r.World.Places.Where(p => p.Kind == PlaceKind.Harbor && r.World.Discovered.Contains(p.Id)).ToArray();
+            var preview = harbors.FirstOrDefault(p =>
+            {
+                var offset = OceanView.G(p.Position - r.Position) / 17;
+                return offset.Length() <= 56 && Game.uiPointer.DistanceTo(new Vector2(size.X - 100, 140) + offset) < 14;
+            }) ?? harbors.Where(p => System.Numerics.Vector2.Distance(p.Position, r.Position) < 620)
+                .OrderBy(p => System.Numerics.Vector2.DistanceSquared(p.Position, r.Position)).FirstOrDefault();
+            if (preview != null)
+            {
+                var at = new Vector2(size.X - 194, 233);
+                DrawStyleBox(Game.Box(new Color(OceanView.Navy, .88f), 8), new(at, new Vector2(180, 130)));
+                Text(at + new Vector2(12, 22), Voyage.SellsWeapons(preview) ? "Weapons" : "Boat upgrades", 16, true);
+                var offers = Voyage.HarborOffers(preview);
+                for (int i = 0; i < offers.Length; i++)
+                {
+                    int option = offers[i];
+                    bool usable = r.CanUpgrade(option);
+                    DrawSetTransform(at + new Vector2(9, 30 + i * 30), 0, Vector2.One * .6f);
+                    UpgradeSymbol.DrawSymbol(this, option, usable ? OceanView.Aqua : new Color(OceanView.Cream, .35f));
+                    DrawSetTransform(Vector2.Zero);
+                    string status = r.Rank(option) >= 5 ? "max" : !usable ? "full" : $"{r.UpgradeCost(option)}g";
+                    Text(at + new Vector2(39, 48 + i * 30), $"{Voyage.UpgradeNames[option]} · {status}", 13, false,
+                        usable ? OceanView.Cream : new Color(OceanView.Cream, .45f));
+                }
             }
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
             if (boss != null)
@@ -502,7 +571,13 @@ public partial class Game : Node2D
                     DrawArc(at, 4, .2f, Mathf.Pi - .2f, 10, ink, 1.5f, true);
                     DrawArc(at + new Vector2(0, 4), 4, .2f, Mathf.Pi - .2f, 10, ink, 1.5f, true);
                 }
-                else if (place.Kind == PlaceKind.Harbor) ChartAnchor(at, ink);
+                else if (place.Kind == PlaceKind.Harbor)
+                {
+                    ChartAnchor(at, ink);
+                    DrawSetTransform(at + new Vector2(5, -9), 0, Vector2.One * .3f);
+                    UpgradeSymbol.DrawSymbol(this, Voyage.SellsWeapons(place) ? 0 : 6, ink);
+                    DrawSetTransform(Vector2.Zero);
+                }
                 else if (place.Kind == PlaceKind.Treasure) DrawRect(new Rect2(at-new Vector2(3,3),new(6,6)),new Color("b38943"));
                 else if (place.Kind == PlaceKind.Wreck) { DrawLine(at-new Vector2(4,4),at+new Vector2(4,4),ink,2); DrawLine(at+new Vector2(-4,4),at+new Vector2(4,-4),ink,2); }
                 else if (place.Kind == PlaceKind.Current) { var d=OceanView.G(OceanWorld.FlowDirection(place)); DrawLine(at-d*5,at+d*5,ink,1.5f); DrawLine(at+d*5,at+d.Orthogonal()*3,ink,1.5f); }

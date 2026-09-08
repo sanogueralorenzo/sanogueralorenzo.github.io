@@ -24,8 +24,10 @@ public partial class CreatureAtlas : Node
     {
         int cell = Cell(enemy.Kind), frame = (int)(enemy.Time / Duration(enemy.Kind) * Frames) % Frames;
         float rotation = enemy.Kind == EnemyKind.Serpent ? facing : enemy.Kind == EnemyKind.Ray ? facing + Mathf.Pi / 2 : 0;
-        canvas.DrawSetTransform(position, rotation);
+        float emergence = Math.Clamp(enemy.Time / Enemy.EmergenceDuration, 0, 1);
+        canvas.DrawSetTransform(position, rotation, Vector2.One * (.7f + .3f * emergence));
         var color = enemy.HitFlash > 0 ? new Color(1.5f, 1.5f, 1.35f) : Colors.White;
+        color.A = emergence;
         canvas.DrawTextureRectRegion(strips[enemy.Kind].GetTexture(), new Rect2(-cell / 2f, -cell / 2f, cell, cell), new Rect2(frame * cell * 2, 0, cell * 2, cell * 2), color);
         canvas.DrawSetTransform(Vector2.Zero);
     }

@@ -1,0 +1,21 @@
+Mouse viewport=(670.5, 463.5) global=(670.5, 463.5) boatScreen=(738.64655, 459.65414) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-221.61688, -102.57679>; destination=
+Native runtime capture: 20260908-052439-harbor
+Renderer: gl_compatibility
+Seed: 117039535
+Mode: Harbor
+Game speed: x1
+Finished runs: 14; boat selection: False
+Silver: 17; earned this voyage: 0; next eligible combat time: 55.753727
+Boat: Trawler
+Position: <-129.52695, -108.76384>
+Health: 155/155
+Coins: 20; cargo: 0; charts: 0; kills: 0; level: 1
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 23.2; peak enemies: 0; peak shots: 0
+Velocity=<0, 0>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; salvos=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=23.213346; director=0/0.940621; boost=100; invulnerable=0; ability=0.23644099/0
+Weapon ranks=0,0,0,0,1,0; cooldowns=0,0,0,0,0,0
+Depletion=
+CPU simulation average ms=0.022; draw submission average ms=0.990; cached scenery=13; engine FPS=120; draw calls=675; objects=1806
+Frame ms mean: 8.45; p95: 8.33; p99: 10.00
