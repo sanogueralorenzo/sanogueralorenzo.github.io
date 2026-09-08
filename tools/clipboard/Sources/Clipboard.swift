@@ -27,14 +27,11 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         preview.clear()
         menu.onOpen = { [weak self] in
             guard let self else { return }
-            // Let the menu's own Option-C equivalent handle closing during tracking.
-            if let hotKey = self.hotKey { UnregisterEventHotKey(hotKey); self.hotKey = nil }
             self.store?.prune()
             if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
                 self.capture(source: app)
             }
         }
-        menu.onClose = { [weak self] in self?.registerShortcut() }
         menu.onCopy = { [weak self] in self?.restore($0) }
         menu.onSpace = { [weak self] clip in
             if let url = clip.webURL {
@@ -124,20 +121,14 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         let callback: EventHandlerUPP = { _, _, pointer in
             guard let pointer else { return noErr }
             let owner = Unmanaged<Clipboard>.fromOpaque(pointer).takeUnretainedValue()
-            MainActor.assumeIsolated { owner.menu.toggle() }
+            MainActor.assumeIsolated { owner.menu.show() }
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), nil)
-        guard status == noErr else { reportShortcutError(status); return }
-        registerShortcut()
-    }
-    private func registerShortcut() {
-        guard hotKey == nil else { return }
         let registered = RegisterEventHotKey(UInt32(kVK_ANSI_C), UInt32(optionKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, &hotKey)
-        if registered != noErr { reportShortcutError(registered) }
-    }
-    private func reportShortcutError(_ status: OSStatus) {
-        shortcutError = "Could not register ⌥C (\(status)). Open Clipboard from its menu bar icon."
-        report(shortcutError!)
+        if status != noErr || registered != noErr {
+            shortcutError = "Could not register ⌥C (\(status != noErr ? status : registered)). Open Clipboard from its menu bar icon."
+            report(shortcutError!)
+        }
     }
 }
