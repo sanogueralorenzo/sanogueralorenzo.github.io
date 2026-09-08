@@ -1,0 +1,76 @@
+{
+	"best_rally": 6,
+	"rallies": [
+		{
+			"contacts": 3,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				0,
+				1
+			],
+			"season": 1,
+			"time": 7.0
+		},
+		{
+			"contacts": 3,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				1,
+				1
+			],
+			"season": 1,
+			"time": 16.0
+		},
+		{
+			"contacts": 6,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				2,
+				1
+			],
+			"season": 1,
+			"time": 28.7
+		},
+		{
+			"contacts": 6,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				3,
+				1
+			],
+			"season": 1,
+			"time": 41.4
+		},
+		{
+			"contacts": 6,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				4,
+				1
+			],
+			"season": 1,
+			"time": 54.1
+		},
+		{
+			"contacts": 6,
+			"reason": "OPEN COURT • beyond the dive",
+			"round": 1,
+			"score": [
+				5,
+				1
+			],
+			"season": 1,
+			"time": 66.8
+		}
+	],
+	"result": "practice_done",
+	"round": 1,
+	"season": 1,
+	"seconds": 68.7916666666675,
+	"upgrades": []
+}

@@ -8,6 +8,10 @@ const CREAM := Color("fff1d2")
 const TEAL := Color("26767b")
 const GOLD := Color("efc765")
 var focus_first: Button
+var right_clear_time:=0.0
+var left_clear_time:=0.0
+var collapse_right:=false
+var collapse_left:=false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -104,7 +108,7 @@ func rebuild() -> void:
 		"champion","defeat","practice_done":
 			button("Choose a season  →",Rect2(510,593,420,56),func(): game.screen="seasons"; rebuild(),true)
 			button("Play this season again",Rect2(510,665,420,48),func(): game.start_run(game.season))
-	if focus_first and game.screen!="match": focus_first.call_deferred("grab_focus")
+	if focus_first and (game.screen!="match" or game.pause): focus_first.call_deferred("grab_focus")
 	queue_redraw()
 
 func _draw() -> void:
@@ -118,7 +122,7 @@ func _draw() -> void:
 		"upgrade": draw_upgrades()
 		"champion","defeat","practice_done": draw_result()
 	if game.pause and game.screen=="match":
-		draw_rect(Rect2(0,0,1440,900),Color(0.08,0.22,0.25,0.58))
+		draw_rect(Rect2(-80,0,1600,900),Color(0.08,0.22,0.25,0.58))
 		panel(Rect2(462,264,518,372))
 		centered("Take a breath.",720,332,39,INK,true)
 		centered("The rally will be here when you return.",720,371,18)
@@ -160,7 +164,7 @@ func draw_howto() -> void:
 	text_at("Three matches • First to 5, win by 2, cap 9 • Upgrades last one run • ESC pauses",Vector2(289,641),16,TEAL)
 
 func dim() -> void:
-	draw_rect(Rect2(0,0,1440,900),Color(0.08,0.23,0.26,0.51))
+	draw_rect(Rect2(-80,0,1600,900),Color(0.08,0.23,0.26,0.51))
 
 func draw_seasons() -> void:
 	dim()
@@ -188,76 +192,113 @@ func draw_squad() -> void:
 		paragraph(descriptions[i],Rect2(x+22,344,264,194),17)
 	paragraph("SCOUT  /  "+game.RIVALS[game.season]+" — "+game.SCOUTS[game.season],Rect2(250,658,917,55),17,TEAL)
 
+func _process(delta:float) -> void:
+	if game==null or game.screen!="match" or game.scenery.actors.size()!=6: return
+	var right_blocked:=court_overlaps(Rect2(1120,656,370,245))
+	var left_blocked:=court_overlaps(Rect2(-58,685,282,159))
+	right_clear_time=0 if right_blocked else right_clear_time+delta
+	left_clear_time=0 if left_blocked else left_clear_time+delta
+	if right_blocked: collapse_right=true
+	elif right_clear_time>0.65: collapse_right=false
+	if left_blocked: collapse_left=true
+	elif left_clear_time>0.65: collapse_left=false
+
+func court_overlaps(rect:Rect2) -> bool:
+	# Reserve the actual projected athlete/contact silhouette before drawing a dock.
+	var camera:Camera3D=game.scenery.camera
+	for actor in game.scenery.actors:
+		var foot:Vector2=(camera.unproject_position(actor.global_position)-Vector2(72,0))/0.9
+		var top:Vector2=(camera.unproject_position(actor.head.global_position+Vector3.UP*0.25)-Vector2(72,0))/0.9
+		var height:=maxf(50,foot.y-top.y)
+		if rect.intersects(Rect2(minf(foot.x,top.x)-height*0.27,top.y-12,absf(foot.x-top.x)+height*0.54,height+25)): return true
+	var ball:Vector2=(game.project_ball()-Vector2(72,0))/0.9
+	return rect.grow(30).has_point(ball)
+
 func draw_hud() -> void:
-	panel(Rect2(24,22,275,83))
-	text_at(game.MAPS[game.season/3],Vector2(45,52),18)
-	text_at("SEASON %02d  /  %s"%[game.season+1,["MORNING","SEA BREEZE","GOLDEN HOUR"][game.season%3]],Vector2(45,77),12,TEAL)
-	text_at("WARM-UP" if game.practice else ["QUARTERFINAL","SEMIFINAL","CHAMPIONSHIP"][game.round_index],Vector2(45,95),11)
-	panel(Rect2(480,22,480,83))
-	centered("SOL",545,70,20)
-	centered("%02d  :  %02d"%[game.score[0],game.score[1]],720,79,43)
-	centered("RIVALS",895,70,17)
-	panel(Rect2(1142,22,274,83))
-	text_at(game.RIVALS[game.season].to_upper(),Vector2(1161,53),18)
-	text_at("FIRST TO 5  •  WIN BY 2  •  CAP 9",Vector2(1161,78),11,TEAL)
-	text_at("ESC pause   /   M sound",Vector2(1161,96),11)
-	if game.feedback_timer>0:
-		var w:=maxf(250,font.get_string_size(game.feedback,HORIZONTAL_ALIGNMENT_LEFT,-1,22).x+52)
-		panel(Rect2(720-w/2,124,w,49),CREAM,14)
-		centered(game.feedback,720,157,22)
+	# Court action stays open; contextual guidance lives along its outer edge.
+	panel(Rect2(-48,22,231,77),CREAM,20)
+	text_at(game.MAPS[game.season/3].to_upper(),Vector2(-30,50),17)
+	text_at("SEASON %02d / %s"%[game.season+1,"WARM-UP" if game.practice else ["QUARTERFINAL","SEMIFINAL","FINAL"][game.round_index]],Vector2(-30,76),12,TEAL)
+	panel(Rect2(500,22,440,66),CREAM,22)
+	centered("YOU",553,63,16)
+	centered("%02d : %02d"%[game.score[0],game.score[1]],720,68,39)
+	centered("RIVALS",885,63,16)
+	panel(Rect2(1159,22,317,97 if collapse_right else 75),CREAM,18)
+	text_at(game.RIVALS[game.season].to_upper(),Vector2(1174,45),15,INK)
+	text_at("First to 5 • win by 2 • cap 9",Vector2(1174,66),11,INK)
+	text_at("ESC pause / M sound",Vector2(1174,86),11,INK)
+	if collapse_right: text_at("← → "+["LEFT","MIDDLE","RIGHT"][game.aim_lane]+" / ↑ ↓ "+("DEEP" if game.aim_deep else "SHORT"),Vector2(1174,108),12,TEAL)
+	if game.feedback_timer>0 and not game.feedback.begins_with("AUTO"):
+		var w:=maxf(210,font.get_string_size(game.feedback,HORIZONTAL_ALIGNMENT_LEFT,-1,18).x+40)
+		panel(Rect2(720-w/2,105,w,39),CREAM,13)
+		centered(game.feedback,720,131,18)
 	if game.phase=="point":
-		panel(Rect2(480,181,480,40),Color("f4dfb5"),12)
-		centered(game.point_reason,720,208,17)
-	# Court-side tactical notebook.
-	panel(Rect2(24,133,247,170),Color(1,0.954,0.838,0.95),15)
-	text_at("COURT NOTES",Vector2(43,162),12,TEAL)
+		panel(Rect2(482,151,476,35),Color("f4dfb5"),11)
+		centered(game.point_reason,720,175,15)
+	var front_lane:int=0 if game.committed_block_target.x < -1.0 else (2 if game.committed_block_target.x > 1.0 else 1)
 	var note:String
-	if game.receiving==0 and game.phase=="attack": note=["LEFT","MIDDLE","RIGHT"][game.blocker_lane]+" block • Q clears it."+("\nWings cover SHORT. Deep corners open." if game.rival_cover_short else "\nWings cover DEEP. Look for a short tip.")
-	elif game.receiving==1 and game.phase in ["set","attack"]: note="Rival winds up: "+["ROLL","POWER","TIP"][game.rival_shot]+"\n← → also chooses your block lane."
-	elif game.phase=="serve": note="Pick a lane before serving.\nSPACE starts; auto-serve in 2 s."
-	elif game.rally_contacts>=18: note="Long rally? Change your finish.\nTry E tip against a deep back line."
-	else: note="Pass → set → attack\nAim where defenders must travel."
-	paragraph(note,Rect2(43,192,209,100),16)
-	text_at("RALLY  %02d contacts"%game.rally_contacts,Vector2(43,280),13,TEAL)
-	# Teammate cards, intentionally outside the playable boundary.
+	if game.receiving==1 and game.phase in ["set","attack"] and game.upgrades.has("read"):
+		note="COURT VISION • "+["ROLL","POWER","TIP"][game.rival_shot]+" to "+["LEFT","MIDDLE","RIGHT"][game.rival_lane]+" / Aim at the orange ring for quicker recovery."
+	elif game.rally_contacts>=12 and game.repeat_lane>=2: note="Same lane covered? Try the other side (← →), or TAB for another hitter."
+	elif game.receiving==0 and game.phase=="attack" and game.rival_deep_lane>=0: note="Deep cover "+["LEFT","MIDDLE","RIGHT"][game.rival_deep_lane]+" / Short cover "+["RIGHT","MIDDLE","LEFT"][game.rival_deep_lane]+" • Read the gap or TAB for another hitter."
+	elif game.receiving==0 and game.phase=="attack": note="Front defender "+["LEFT","MIDDLE","RIGHT"][front_lane]+" / "+("Short court covered. Try a deep corner." if game.rival_cover_short else "Tip toward the other side of the front court.")
+	elif game.receiving==1 and game.phase in ["set","attack"]: note="Rival prepares "+["ROLL","POWER","TIP"][game.rival_shot]+" / ← → also chooses your block lane"
+	elif game.phase=="serve": note="Pick an open lane / SPACE serves, or let your team start"
+	else: note="Pass → set → attack / Your team moves and contacts automatically"
+	panel(Rect2(310,843,812,44),Color(1,0.954,0.838,0.94),10)
+	centered(note,716,871,16)
 	for i in range(3):
-		var x:=25+i*79
-		panel(Rect2(x,677,70,113),GOLD if game.active==i else CREAM,13)
-		var d:Dictionary=game.players[i].duplicate()
-		d.anim="ready"; d.action=0.0; d.motion=0.0; d.velocity=Vector2.ZERO
-		game.painter.draw_portrait(self,Vector2(x+35,716),i,game.active==i)
-		centered(["REN 7","KAI 3","JUN 11"][i],x+35,778,10)
+		var x:float=-47+i*90
+		if collapse_left:
+			panel(Rect2(x,855,81,29),GOLD if game.active==i else CREAM,9)
+			centered(["REN 7","KAI 3","JUN 11"][i],x+40,875,12)
+		else:
+			panel(Rect2(x,703,81,133),GOLD if game.active==i else CREAM,12)
+			if game.scenery.portraits.size()==3: draw_texture_rect(game.scenery.portraits[i],Rect2(x+5,708,71,103),false)
+			centered(["REN 7","KAI 3","JUN 11"][i],x+40,828,11)
 	var next_hitter:int=game.pick_attacker() if game.receiving==0 else game.attack_choice*2
-	text_at("TAB  next: "+["REN / LEFT","KAI / MIDDLE","JUN / RIGHT"][next_hitter%3],Vector2(27,812),13,CREAM)
-	# Bottom control strip with spatially stable choices and broad timing cue.
-	panel(Rect2(293,811,1123,72),CREAM,16)
-	text_at("← →  "+["LEFT","MIDDLE","RIGHT"][game.aim_lane],Vector2(312,839),16)
-	text_at("↑ ↓  "+("DEEP" if game.aim_deep else "SHORT"),Vector2(312,864),12,TEAL)
-	for i in range(3):
-		var x:=461+i*122
-		if game.shot==i: panel(Rect2(x,823,113,45),TEAL,10)
-		text_at(["Q  ROLL","W  POWER","E  TIP"][i],Vector2(x+12,852),14,CREAM if game.shot==i else INK)
-	var tx:=853.0
-	text_at("CONTACT QUEUED" if game.timing_press>=0 else "SPACE  •  CONTACT",Vector2(tx,834),12,TEAL)
-	draw_style_box(bar_style(Color("d8cdb0")),Rect2(tx,846,275,12))
+	text_at("TAB  next: "+["REN / LEFT","KAI / MIDDLE","JUN / RIGHT"][next_hitter%3],Vector2(-45,847 if collapse_left else 860),12,CREAM)
+	if not collapse_left: text_at("AUTO POSITION",Vector2(-45,880),10,CREAM)
 	var progress:=0.0
 	if game.phase in ["receive","set","attack"] and game.receiving==0: progress=clampf(game.flight_elapsed/game.flight_duration,0,1)
 	var window:float=(0.13+0.05*game.upgrades.count("window"))/maxf(game.flight_duration,0.1)
-	draw_rect(Rect2(tx+275*(1-window),844,275*window,16),GOLD)
-	draw_rect(Rect2(tx,846,275*progress,12),TEAL)
-	draw_line(Vector2(tx+274,841),Vector2(tx+274,863),INK,2,true)
-	text_at("steady auto contact",Vector2(tx,875),10)
-	text_at("NOW",Vector2(tx+248,877),10)
-	text_at("%02d:%02d"%[int(game.match_time)/60,int(game.match_time)%60],Vector2(1175,846),22)
-	text_at("%d run upgrades"%game.upgrades.size(),Vector2(1175,867),12,TEAL)
+	if collapse_right:
+		# Keep the full timing width below the keys while freeing the deep corner.
+		for i in range(4):
+			var x:float=1132+i*86
+			var chosen:bool=game.shot==i if i<3 else game.timing_press>=0
+			panel(Rect2(x,847,81,35),TEAL if chosen else CREAM,9)
+			centered(["Q ROLL","W POWER","E TIP","SPACE"][i],x+40,871,14,CREAM if chosen else INK)
+		var tx:=1138.0
+		panel(Rect2(1132,884,344,15),CREAM,5)
+		draw_rect(Rect2(tx,888,332,6),Color("d8cdb0"))
+		draw_rect(Rect2(tx+332*(1-window),886,332*window,10),GOLD)
+		draw_rect(Rect2(tx,888,332*progress,6),TEAL)
+
+	else:
+		for i in range(4):
+			var x:float=1132+(i%2)*176
+			var y:float=732+(i/2)*60
+			var chosen:bool=game.shot==i if i<3 else game.timing_press>=0
+			panel(Rect2(x,y,168,51),TEAL if chosen else CREAM,14)
+			text_at(["Q  ROLL","W  POWER","E  TIP","SPACE  CONTACT"][i],Vector2(x+15,y+33),13 if i==3 else 16,CREAM if chosen else INK)
+		panel(Rect2(1132,672,344,49),CREAM,13)
+		text_at("← → "+["LEFT","MIDDLE","RIGHT"][game.aim_lane]+"     ↑ ↓ "+("DEEP" if game.aim_deep else "SHORT"),Vector2(1148,693),13)
+		text_at("%02d:%02d   /   %d rally contacts"%[int(game.match_time)/60,int(game.match_time)%60,game.rally_contacts],Vector2(1148,711),11,TEAL)
+		panel(Rect2(1132,850,344,47),CREAM,10)
+		var tx:=1138.0
+		draw_style_box(bar_style(Color("d8cdb0")),Rect2(tx,861,332,8))
+		draw_rect(Rect2(tx+332*(1-window),859,332*window,12),GOLD)
+		draw_rect(Rect2(tx,861,332*progress,8),TEAL)
+		text_at("OPTIONAL TIMING",Vector2(tx,888),10,TEAL)
+		text_at("NOW",Vector2(tx+305,888),10,TEAL)
 	if game.practice and game.match_time<26:
-		panel(Rect2(415,720,609,61),CREAM)
-		centered("WARM-UP  •  Start with just ← → to find open space.",719,745,17)
-		centered("Your team handles movement and contacts. Try SPACE when ready.",719,769,14,TEAL)
+		panel(Rect2(357,794,675,40),CREAM,12)
+		centered("Start with ← →. Your team handles movement and contacts.",694,821,15)
 	if game.debug_visible:
-		panel(Rect2(1088,130,328,210),CREAM)
+		panel(Rect2(1050,130,378,220),CREAM)
 		var data:="LIVE DIAGNOSTICS\n%s  %.2f / %.2f s\nBall: %.2f, %.2f  h %.2f\nReceiver %d  contact %d\nReach distance %.2f m\nReaction remaining %.2f s\nSet quality %.2f / power %.2f"%[game.phase,game.flight_elapsed,game.flight_duration,game.ball.x,game.ball.y,game.ball_height,game.receiving,game.toucher,game.players[game.toucher].pos.distance_to(game.flight_end),game.reaction_remaining,game.set_quality,game.contact_quality]
-		paragraph(data,Rect2(1106,153,292,180),14)
+		paragraph(data,Rect2(1068,153,338,180),14)
 
 func bar_style(color:Color) -> StyleBoxFlat:
 	var s:=StyleBoxFlat.new()

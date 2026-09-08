@@ -5,10 +5,20 @@ var ambience: AudioStreamPlayer
 var beat := 0.0
 var note_index := 0
 var music_enabled := true
+var venue:=0
+var atmosphere:=0
+var ambience_key:=-1
 
 func _ready() -> void:
 	ambience = AudioStreamPlayer.new()
 	add_child(ambience)
+	set_atmosphere(0,0)
+
+func set_atmosphere(map_index:int,variant:int) -> void:
+	venue=map_index
+	atmosphere=variant
+	if ambience_key==map_index*3+variant: return
+	ambience_key=map_index*3+variant
 	var wave := AudioStreamWAV.new()
 	wave.format = AudioStreamWAV.FORMAT_16_BITS
 	wave.mix_rate = 22050
@@ -21,6 +31,17 @@ func _ready() -> void:
 		var t := float(i) / 22050.0
 		smooth = lerpf(smooth, rng.randf_range(-1, 1), 0.09)
 		var v := smooth * (0.06 + 0.045 * sin(t * TAU / 8.0))
+		if venue==1:
+			# Water against the quay and a soft distant mooring bell.
+			v*=.83
+			var strike:=fmod(t+float(variant)*.7,4.0)
+			v+=(sin(t*TAU*587.33)+sin(t*TAU*953.2)*.25)*exp(-strike*3.3)*.010
+		elif venue==2:
+			# Filtered leaf rustle and two quiet birds, clear of the contact register.
+			v*=.62+float(variant==1)*.38
+			var chirp:=fmod(t,2.0)
+			if chirp<.24: v+=sin(TAU*(1800*t+90*sin(chirp*18)))*sin(chirp/.24*PI)*.007
+		v*=sin(minf(t*30,PI/2))*sin(minf((8-t)*30,PI/2))
 		bytes.encode_s16(i * 2, int(v * 32767))
 	wave.data = bytes
 	wave.loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -31,11 +52,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	beat -= delta
 	if beat <= 0 and music_enabled and not muted:
-		beat = 0.36
+		beat = [.36,.40,.43][venue]
 		var notes := [220.0, 0.0, 329.63, 440.0, 0.0, 369.99, 329.63, 0.0, 246.94, 0.0, 369.99, 493.88, 0.0, 440.0, 329.63, 0.0]
 		var f: float = notes[note_index % notes.size()]
 		note_index += 1
-		if f > 0: tone(f, 0.30, 0.025, 0)
+		if f > 0: tone(f * [1.0,.89,1.12][venue], 0.30, 0.025, 0)
 
 func tone(hz: float, duration: float, volume: float = 0.18, kind: int = 0) -> void:
 	if muted: return
