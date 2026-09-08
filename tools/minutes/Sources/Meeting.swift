@@ -17,25 +17,6 @@ struct Meeting: Codable, Identifiable, Equatable {
     }
     var copied: String { "\(title)\n\(metadata)\n\n\(body)" }
 }
-struct ProcessorSettings: Codable {
-    var provider = "openai"
-    static let choices = [(id: "openai", label: "OpenAI · Luna"), (id: "anthropic", label: "Anthropic · Haiku")]
-    var label: String { Self.choices.first { $0.id == provider }?.label ?? "Choose a provider" }
-    var hasProvider: Bool { Self.choices.contains { $0.id == provider } }
-    init() {}
-    enum CodingKeys: String, CodingKey { case provider }
-    init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        let saved = try values.decodeIfPresent(String.self, forKey: .provider) ?? ""
-        switch saved {
-        case "codex", "openai": provider = "openai"
-        case "claude", "anthropic": provider = "anthropic"
-        default: provider = ""
-        }
-    }
-}
-struct NoteResult: Decodable { let title: String; let body: String }
-
 final class MeetingStore {
     let root: URL
     init(root: URL) throws {
@@ -47,7 +28,9 @@ final class MeetingStore {
         let folder = folder(meeting.id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try JSONEncoder().encode(meeting).write(to: folder.appendingPathComponent("meeting.json"), options: .atomic)
-        if !meeting.body.isEmpty { try meeting.copied.write(to: folder.appendingPathComponent("note.txt"), atomically: true, encoding: .utf8) }
+    }
+    func export(_ meeting: Meeting, to url: URL) throws {
+        try meeting.copied.write(to: url, atomically: true, encoding: .utf8)
     }
     func load() throws -> [Meeting] {
         var meetings: [Meeting] = []

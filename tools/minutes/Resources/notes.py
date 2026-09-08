@@ -2,7 +2,7 @@
 import hashlib
 import json
 from files import atomic
-from pi_processor import PiProcessor, PROVIDERS
+from pi_processor import PiProcessor
 
 PROMPT_VERSION = "2"
 
@@ -72,26 +72,20 @@ def chunks(text, limit, synthesis=False):
     return result
 
 
-def generate(source, settings, synthesis=False):
-    with PiProcessor(settings["provider"], BRIEF) as processor:
-        return validate(json.loads(processor.generate(prompt(source, synthesis))))
-
-
-def summarize(text, settings, folder, generator=None, *, input_budget=None):
+def write_note(text, provider, folder):
     if not text.strip():
         raise ValueError("The saved transcript is empty. No note was generated.")
-    if generator is None:
-        with PiProcessor(settings["provider"], BRIEF) as processor:
-            def request(source, _, synthesis):
-                return validate(json.loads(processor.generate(prompt(source, synthesis))))
-            return summarize(text, settings, folder, request, input_budget=processor.input_budget)
-    if input_budget is None:
-        raise ValueError("A verified input budget is required.")
+    with PiProcessor(provider, BRIEF) as processor:
+        return summarize(text, folder, processor)
+
+
+def summarize(text, folder, processor):
+    input_budget = processor.input_budget
     parts = chunks(text, input_budget)
     cache = folder / "summaries"
     cache.mkdir(exist_ok=True)
     def cached(part, synthesis):
-        identity = [PROMPT_VERSION, BRIEF, PROVIDERS[settings["provider"]], synthesis, part]
+        identity = [PROMPT_VERSION, BRIEF, (processor.provider, processor.model), synthesis, part]
         key = hashlib.sha256(json.dumps(identity, ensure_ascii=False).encode()).hexdigest()
         path = cache / (key + ".json")
         if path.exists():
@@ -99,7 +93,7 @@ def summarize(text, settings, folder, generator=None, *, input_budget=None):
                 return validate(json.loads(path.read_text()))
             except (ValueError, TypeError):
                 pass  # A damaged checkpoint can be regenerated from the saved source.
-        note = validate(generator(part, settings, synthesis))
+        note = validate(json.loads(processor.generate(prompt(part, synthesis))))
         atomic(path, json.dumps(note))
         return note
     level = 0

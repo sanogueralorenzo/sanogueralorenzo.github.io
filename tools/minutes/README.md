@@ -23,7 +23,7 @@ Allow **Microphone** and **Screen & System Audio Recording** in macOS Privacy & 
 
 Press **⌥⇧M** to start recording microphone and system audio, and again to stop. Minutes transcribes after recording and notifies you when the note is ready. Headphones reduce echo; no video is saved. Keep the app running in the menu bar while it finishes.
 
-Search meetings, edit notes directly, check off actions, **Copy**, or **View transcript**. Changes save automatically. **Retry** resumes saved work; **… → Delete meeting** removes its note, transcript, and recordings.
+Search meetings, edit notes directly, check off actions, **Copy**, or **View transcript**. Changes save automatically. **Retry** resumes saved work; **… → Export note** saves the current note as a text file; **Delete meeting** removes its saved note, transcript, and recordings. Existing `note.txt` files are retained as snapshots; edits now save only to the authoritative meeting record.
 
 Meetings stay in `~/Library/Application Support/Minutes/` until deleted. English only; Microphone/System identify audio sources, not speakers. Check the note against the transcript when accuracy matters.
 

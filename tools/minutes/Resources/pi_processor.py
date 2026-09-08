@@ -222,13 +222,19 @@ class PiProcessor:
         return budget
 
     def generate(self, source):
-        # Renew the access-only snapshot before another request in a long job.
-        if time.monotonic() - self.started > 180:
+        try:
+            if self.process is None:
+                raise RuntimeError(FAILURE)
+            # Startup and each successful request leave a verified empty session.
+            # Renew the access-only snapshot before another request in a long job.
+            if time.monotonic() - self.started > 180:
+                self.close()
+                self.start()
+            if len(source.encode()) > self.input_budget:
+                raise ValueError("This excerpt exceeds Pi's input budget. Retry to split the saved transcript.")
+            result = self.send("prompt", message=source)
+            self.reset()
+            return result
+        except BaseException:
             self.close()
-            self.start()
-        self.reset()
-        if len(source.encode()) > self.input_budget:
-            raise ValueError("This excerpt exceeds Pi's input budget. Retry to split the saved transcript.")
-        result = self.send("prompt", message=source)
-        self.reset()
-        return result
+            raise

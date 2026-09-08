@@ -18,8 +18,8 @@ struct MinutesView: View {
                     .disabled(model.activity.showsProgress)
                     .help("Start or stop recording · ⌥⇧M")
                 Menu("Provider") {
-                    Picker("Provider", selection: Binding(get: { model.settings.provider }, set: model.selectProvider)) {
-                        ForEach(ProcessorSettings.choices, id: \.id) { Text($0.label).tag($0.id) }
+                    Picker("Provider", selection: Binding(get: { model.provider }, set: { if let provider = $0 { model.selectProvider(provider) } })) {
+                        ForEach(Provider.allCases, id: \.self) { Text($0.label).tag(Optional($0)) }
                     }
                     Divider()
                     Text("Transcripts are sent through Pi. Transcription stays local.")
@@ -124,6 +124,7 @@ struct MinutesView: View {
                 Text(meeting.processor ?? "").font(.system(size: 10)).foregroundStyle(.tertiary)
                 Spacer()
                 Menu {
+                    if meeting.state == "ready" { Button("Export note…") { model.export(meeting.id) } }
                     Button("Open saved files") { model.reveal(meeting.id) }
                     Button("Delete meeting…", role: .destructive) { deleting = meeting.id }.disabled(model.activity.meetingID == meeting.id)
                 } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize().help("Meeting actions")

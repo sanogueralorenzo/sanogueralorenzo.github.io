@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import UserNotifications
+import UniformTypeIdentifiers
 
 enum AppActivity: Equatable {
     case idle, starting(UUID), recording(UUID), stopping(UUID), processing(UUID)
@@ -23,13 +24,13 @@ final class MinutesModel: ObservableObject {
     @Published private(set) var activity = AppActivity.idle
     @Published var status = "Ready · ⌥⇧M to record"
     @Published var error: String?
-    @Published var settings = ProcessorSettings()
+    @Published private(set) var provider: Provider?
     @Published var elapsed = "0:00"
     let store: MeetingStore
     let support: URL
     let review: Bool
     private var recorder: Recorder?
-    private var process: Process?
+    private var job: ProcessingJob?
     private var sleepPrevention: NSObjectProtocol?
     var changed: (() -> Void)?
     var openWindow: (() -> Void)?
@@ -39,27 +40,21 @@ final class MinutesModel: ObservableObject {
         self.store = try MeetingStore(root: root); self.support = support; self.review = review
         meetings = try store.load()
         selected = meetings.first?.id
-        let settingsFile = support.appendingPathComponent("settings.json")
-        if FileManager.default.fileExists(atPath: settingsFile.path) {
-            do { settings = try JSONDecoder().decode(ProcessorSettings.self, from: Data(contentsOf: settingsFile)) }
-            catch { settings.provider = "" }
-        }
-        if !settings.hasProvider { error = "Choose OpenAI or Anthropic in Provider. Your transcript will be sent to that provider through Pi; transcription stays on this Mac." }
+        provider = try? Provider.load(from: support.appendingPathComponent("settings.json"))
+        if provider == nil { error = "Choose OpenAI or Anthropic in Provider. Your transcript will be sent to that provider through Pi; transcription stays on this Mac." }
     }
-    func selectProvider(_ provider: String) {
-        guard !isWorking, ProcessorSettings.choices.contains(where: { $0.id == provider }) else { return }
+    func selectProvider(_ provider: Provider) {
+        guard !isWorking else { return }
         do {
-            var updated = settings; updated.provider = provider
-            try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try JSONEncoder().encode(updated).write(to: support.appendingPathComponent("settings.json"), options: .atomic)
-            settings = updated; error = nil; changed?()
+            try provider.save(to: support.appendingPathComponent("settings.json"))
+            self.provider = provider; error = nil; changed?()
         } catch { self.error = error.localizedDescription }
     }
-    private func requireProvider() -> Bool {
-        guard settings.hasProvider else {
-            error = "Choose OpenAI or Anthropic in Provider before sending this transcript to Pi."; openWindow?(); return false
+    private func requireProvider() -> Provider? {
+        guard let provider else {
+            error = "Choose OpenAI or Anthropic in Provider before sending this transcript to Pi."; openWindow?(); return nil
         }
-        return true
+        return provider
     }
     func tick() {
         if let id = activity.recordingID, var meeting = meetings.first(where: { $0.id == id }) {
@@ -69,8 +64,8 @@ final class MinutesModel: ObservableObject {
             if Int(meeting.duration) % 5 == 0 {
                 do { try update(meeting) } catch { self.error = "Could not save recording progress: \(error.localizedDescription)" }
             }
-        } else if let id = activity.processingID {
-            status = (try? String(contentsOf: store.folder(id).appendingPathComponent("progress.txt"), encoding: .utf8)) ?? "Processing…"
+        } else if activity.processingID != nil {
+            status = job?.progress ?? "Processing…"
         } else {
             switch activity {
             case .starting: status = "Starting recording…"
@@ -83,7 +78,7 @@ final class MinutesModel: ObservableObject {
     func toggle() {
         guard activity.canToggle else { openWindow?(); return }
         if activity.recordingID != nil { Task { await stop() }; return }
-        guard requireProvider() else { return }
+        guard requireProvider() != nil else { return }
         guard FileManager.default.isExecutableFile(atPath: support.appendingPathComponent("runtime/bin/python3").path),
               FileManager.default.fileExists(atPath: support.appendingPathComponent("moonshine.json").path) else {
             error = "Moonshine is not installed. Run setup.sh from tools/minutes, then try again."; openWindow?(); return
@@ -147,37 +142,16 @@ final class MinutesModel: ObservableObject {
     }
     func run(_ id: UUID) {
         guard !isWorking, var meeting = meetings.first(where: { $0.id == id }) else { return }
-        guard requireProvider() else { return }
+        guard let provider = requireProvider() else { return }
         let folder = store.folder(id)
         activity = .processing(id)
         do {
             meeting.state = "processing"; meeting.error = nil
-            meeting.processor = settings.label
-            let settingsFile = folder.appendingPathComponent("processor.json")
-            try JSONEncoder().encode(settings).write(to: settingsFile, options: .atomic)
-            for name in ["result.json", "error.txt", "progress.txt"] {
-                let url = folder.appendingPathComponent(name)
-                if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
-            }
+            meeting.processor = provider.label
             try update(meeting)
-            let process = Process()
-            process.executableURL = support.appendingPathComponent("runtime/bin/python3")
-            process.arguments = [Bundle.main.resourceURL!.appendingPathComponent("worker.py").path, folder.path, settingsFile.path, support.appendingPathComponent("moonshine.json").path]
-            var environment = ProcessInfo.processInfo.environment
-            environment["PATH"] = ["/opt/homebrew/bin", "/usr/local/bin", FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".local/bin").path, environment["PATH"] ?? "/usr/bin:/bin"].joined(separator: ":")
-            environment["PYTHONUNBUFFERED"] = "1"
-            environment["PYTHONDONTWRITEBYTECODE"] = "1"
-            process.environment = environment
-            let log = folder.appendingPathComponent("processing.log")
-            FileManager.default.createFile(atPath: log.path, contents: nil, attributes: [.posixPermissions: 0o600])
-            let handle = try FileHandle(forWritingTo: log)
-            process.standardOutput = handle; process.standardError = handle
-            process.terminationHandler = { [weak self] process in
-                try? handle.close()
-                Task { @MainActor in self?.finished(id, exitCode: process.terminationStatus) }
-            }
-            try process.run()
-            self.process = process
+            let job = ProcessingJob(folder: folder, support: support)
+            try job.start(provider: provider) { [weak self] result in self?.finished(id, result: result) }
+            self.job = job
             sleepPrevention = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason: "Finishing a meeting note")
         } catch {
             activity = .idle
@@ -186,18 +160,13 @@ final class MinutesModel: ObservableObject {
         }
         tick()
     }
-    private func finished(_ id: UUID, exitCode: Int32) {
+    private func finished(_ id: UUID, result: Result<NoteResult, Error>) {
         guard activity == .processing(id) else { return }
-        activity = .idle; process = nil
+        activity = .idle; job = nil
         if let sleepPrevention { ProcessInfo.processInfo.endActivity(sleepPrevention); self.sleepPrevention = nil }
         guard var meeting = meetings.first(where: { $0.id == id }) else { return }
         do {
-            guard exitCode == 0 else {
-                let detail = (try? String(contentsOf: store.folder(id).appendingPathComponent("error.txt"), encoding: .utf8)) ?? "Worker exited with status \(exitCode). Open saved files for the processing log."
-                throw MinutesError(detail)
-            }
-            let result = try JSONDecoder().decode(NoteResult.self, from: Data(contentsOf: store.folder(id).appendingPathComponent("result.json")))
-            guard !result.title.isEmpty, !result.body.isEmpty else { throw MinutesError("The processor returned an empty note.") }
+            let result = try result.get()
             meeting.title = result.title; meeting.body = result.body; meeting.state = "ready"; meeting.error = nil
             try update(meeting)
         } catch {
@@ -223,6 +192,18 @@ final class MinutesModel: ObservableObject {
         guard id != activity.meetingID else { return }
         do { try store.delete(id); meetings.removeAll { $0.id == id }; selected = meetings.first?.id }
         catch { self.error = "Could not delete meeting: \(error.localizedDescription)" }
+    }
+    func export(_ id: UUID) {
+        guard let meeting = meetings.first(where: { $0.id == id }), meeting.state == "ready" else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = "Meeting note.txt"
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url, let self,
+                  let current = self.meetings.first(where: { $0.id == id }) else { return }
+            do { try self.store.export(current, to: url) }
+            catch { self.error = "Could not export note: \(error.localizedDescription)" }
+        }
     }
     func transcript(_ id: UUID) -> String? { try? String(contentsOf: store.folder(id).appendingPathComponent("transcript.txt"), encoding: .utf8) }
     func reveal(_ id: UUID) { NSWorkspace.shared.open(store.folder(id)) }

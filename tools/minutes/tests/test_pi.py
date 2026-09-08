@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parents[1] / 'Resources'))
 from pi_processor import PiProcessor, stop_active
-from notes import summarize
+from notes import write_note
 
 FAKE = '''#!/usr/bin/env python3
 import json, os, sys
@@ -34,6 +34,8 @@ count = 0
 for line in sys.stdin:
     command = json.loads(line)
     kind = command['type']
+    with (Path(sys.argv[0]).parent / 'commands').open('a') as log:
+        log.write(kind + chr(10))
     data = {}
     if kind == 'new_session': count = 0
     if kind == 'get_state': data = dict(messageCount=count,pendingMessageCount=0,isStreaming=False,model=dict(id=model,provider=provider,contextWindow=200000,maxTokens=64000))
@@ -71,6 +73,10 @@ class PiTests(unittest.TestCase):
                 process = processor.process
                 self.assertEqual(processor.generate('first transcript'), 'first transcript')
                 self.assertEqual(processor.generate('second transcript'), 'second transcript')
+                self.assertEqual(processor.send('get_state')['messageCount'], 0)
+                commands = (Path(self.tmp.name) / 'commands').read_text().splitlines()
+                self.assertEqual(commands.count('new_session'), 3)
+                (Path(self.tmp.name) / 'commands').unlink()
             self.assertIsNotNone(process.poll())
             self.assertFalse(root.exists())
 
@@ -84,7 +90,7 @@ class PiTests(unittest.TestCase):
 
     def test_job_reuses_one_process_and_then_cleans_up(self):
         with tempfile.TemporaryDirectory() as folder:
-            result = summarize('a' * 300000, {'provider':'openai'}, Path(folder))
+            result = write_note('a' * 300000, 'openai', Path(folder))
             self.assertEqual(result['title'], 'Fixture')
             requests = (Path(self.tmp.name) / 'requests').read_text().splitlines()
             self.assertGreater(len(requests), 1)
@@ -116,3 +122,14 @@ class PiTests(unittest.TestCase):
             self.assertEqual(processor.generate('next'), 'next')
             self.assertIsNotNone(first.poll())
             self.assertNotEqual(first.pid, processor.process.pid)
+
+    def test_failed_request_cannot_leave_a_reusable_dirty_session(self):
+        with PiProcessor('openai', 'rules') as processor:
+            process = processor.process
+            root = Path(processor.directory.name)
+            with self.assertRaises(RuntimeError):
+                processor.generate('partial')
+            self.assertIsNotNone(process.poll())
+            self.assertFalse(root.exists())
+            with self.assertRaises(RuntimeError):
+                processor.generate('another meeting')
