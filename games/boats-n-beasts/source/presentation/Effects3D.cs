@@ -135,15 +135,30 @@ public partial class Effects3D : Node3D
             var sideA = new Vector3(-a.Forward.Z,0,a.Forward.X); var sideB = new Vector3(-b.Forward.Z,0,b.Forward.X);
             // Age widens the sampled path, so turns bend both branches rather than emitting straight V marks.
             float spreadA = width + (time-a.Born)*.22f; float spreadB = width + age*.22f;
-            float lineWidth = (.012f + age*.012f) * Mathf.Clamp(b.Speed, .7f, 1.6f);
             for (int sign = -1; sign <= 1; sign += 2)
             {
-                var pa = a.P + sideA * spreadA * sign; var pb = b.P + sideB * spreadB * sign;
-                // Uneven gaps and fine companion flecks keep the foam broken and organic.
-                if ((i + (sign+1)*3) % 9 != 0) foam.Ribbon(pa,pb,lineWidth,lineWidth*.85f,Fade(Foam,opacity*.63f));
-                if (i%3 == 0) foam.Ribbon(pa+sideA*.055f*sign,pb.Lerp(pa,.5f)+sideB*.07f*sign,.009f,.006f,Fade(Foam,opacity*.45f));
+                float Ripple(float born)=>Mathf.Sin(born*61+sign*2.3f)*.021f+Mathf.Sin(born*137-sign)*.011f;
+                var pa = a.P + sideA * (spreadA+Ripple(a.Born)) * sign;
+                var pb = b.P + sideB * (spreadB+Ripple(b.Born)) * sign;
+                uint h=SeedRandom.Hash(3819,(int)(b.Born*1000),sign);
+                float widthA=.004f+((h>>5)%100)*.00012f+age*.004f;
+                float widthB=.003f+((h>>13)%100)*.00010f+age*.003f;
+                // Birth-anchored irregularity is stable as the history ages; foam never becomes dashed rails.
+                var midpoint=pa.Lerp(pb,.48f)+sideB*Ripple((a.Born+b.Born)*.5f)*sign;
+                if(h%7!=0)
+                {
+                    foam.Ribbon(pa,midpoint,widthA,widthB,Fade(Foam,opacity*.42f));
+                    foam.Ribbon(midpoint,pb,widthB,.003f,Fade(Foam,opacity*.34f));
+                }
+                if((h>>3)%3==0)
+                {
+                    var outer=midpoint+sideB*(.042f+age*.035f)*sign;
+                    foam.Ribbon(pa,outer,.004f,.01f,Fade(Foam,opacity*.26f));
+                    foam.Ribbon(outer,pb.Lerp(midpoint,.35f)+sideB*.07f*sign,.01f,.002f,Fade(Foam,opacity*.18f));
+                }
+                // A soft short patch supports the fine branches without an opaque outline.
+                if(h%5==0) foam.Ribbon(pa.Lerp(midpoint,.3f),pb.Lerp(midpoint,.25f),.028f,.016f,Fade(Foam,opacity*.065f));
             }
-            if (i%4 == 0) foam.Ribbon(a.P,b.P,.04f,.025f,Fade(Aqua,opacity*.08f));
         }
     }
     void DrawShot(Shot s)
