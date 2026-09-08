@@ -135,8 +135,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         if clips.isEmpty { thumbnailCache.removeAllObjects(); websiteIcons.clear() }
         if menuOpen { reload() }
     }
-    func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥⇧V" }
-    func toggle() { menuOpen ? dismiss() : show() }
+    func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥C" }
     func show() { if !menuOpen { statusItem.button?.performClick(nil) } }
     func dismiss() { clipboardMenu.cancelTracking() }
     func menuWillOpen(_ menu: NSMenu) {
@@ -182,10 +181,10 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor)])
         let title = NSTextField(labelWithString: "Clipboard")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
-        let shortcut = NSTextField(labelWithString: "Open ⌥⇧V")
+        let shortcut = NSTextField(labelWithString: "⌥C")
         shortcut.font = .systemFont(ofSize: 11)
         shortcut.textColor = .secondaryLabelColor
-        shortcut.setAccessibilityLabel("Open Clipboard with Option Shift V")
+        shortcut.setAccessibilityLabel("Open Clipboard with Option C")
         let header = NSStackView(views: [title, NSView(), shortcut])
         header.orientation = .horizontal; header.alignment = .centerY
         add(header, to: stack)

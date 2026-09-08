@@ -121,13 +121,13 @@ final class Clipboard: NSObject, NSApplicationDelegate {
         let callback: EventHandlerUPP = { _, _, pointer in
             guard let pointer else { return noErr }
             let owner = Unmanaged<Clipboard>.fromOpaque(pointer).takeUnretainedValue()
-            MainActor.assumeIsolated { owner.menu.toggle() }
+            MainActor.assumeIsolated { owner.menu.show() }
             return noErr
         }
         let status = InstallEventHandler(GetApplicationEventTarget(), callback, 1, &type, Unmanaged.passUnretained(self).toOpaque(), nil)
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_V), UInt32(optionKey | shiftKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, &hotKey)
+        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_C), UInt32(optionKey), EventHotKeyID(signature: 0x434C4950, id: 1), GetApplicationEventTarget(), 0, &hotKey)
         if status != noErr || registered != noErr {
-            shortcutError = "Could not register ⌥⇧V (\(status != noErr ? status : registered)). Open Clipboard from its menu bar icon."
+            shortcutError = "Could not register ⌥C (\(status != noErr ? status : registered)). Open Clipboard from its menu bar icon."
             report(shortcutError!)
         }
     }
