@@ -180,6 +180,16 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         stack.translatesAutoresizingMaskIntoConstraints = false
         root.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10), stack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10), stack.topAnchor.constraint(equalTo: root.topAnchor, constant: 10), stack.bottomAnchor.constraint(equalTo: root.bottomAnchor)])
+        let title = NSTextField(labelWithString: "Clipboard")
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        let shortcut = NSTextField(labelWithString: "Open ⌥⇧V")
+        shortcut.font = .systemFont(ofSize: 11)
+        shortcut.textColor = .secondaryLabelColor
+        shortcut.setAccessibilityLabel("Open Clipboard with Option Shift V")
+        let header = NSStackView(views: [title, NSView(), shortcut])
+        header.orientation = .horizontal; header.alignment = .centerY
+        add(header, to: stack)
+        header.heightAnchor.constraint(equalToConstant: 20).isActive = true
         search.placeholderString = "Search"
         search.delegate = self
         search.didFocus = { [weak self] in self?.updateSpaceShortcut() }
@@ -348,7 +358,7 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
         emptyLabel.isHidden = clips.isEmpty
         historyScroll.isHidden = showEmpty
         let bodyHeight = showEmpty ? (clips.isEmpty ? emptyRows.fittingSize.height : 30.0) : CGFloat(min(filtered.count, 6)) * (table.rowHeight + table.intercellSpacing.height)
-        let height = 10 + 30 + 8 + bodyHeight
+        let height = 10 + 20 + 8 + 30 + 8 + bodyHeight
         guard content.frame.height != height else { return }
         table.clearHover()
         content.setFrameSize(NSSize(width: content.frame.width, height: height))

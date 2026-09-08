@@ -14,6 +14,8 @@ Installs in `~/Applications` and preserves your history and settings.
 
 **⌥⇧V** opens Clipboard · **Click** copies · **Space** previews images or opens links. Click the search field to filter clips. Paste with **⌘V** in your destination app.
 
+The header above search shows the Clipboard title and its opening shortcut.
+
 **Clear** sets expiration. **Now** clears saved history and the current clipboard. Defaults: 200 clips, 7 days.
 
 Links fetch icons directly from the website, with the browser icon as fallback. Only the site root and icon URLs are requested; icons are cached in memory.
