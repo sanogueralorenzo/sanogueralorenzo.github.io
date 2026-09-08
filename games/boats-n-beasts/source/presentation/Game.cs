@@ -177,21 +177,35 @@ public partial class Game : Node2D
         var l = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         l.AddThemeFontOverride("font", heading ? titleFont : bodyFont); l.AddThemeFontSizeOverride("font_size", size); l.AddThemeColorOverride("font_color", color ?? OceanView.Cream); return l;
     }
-    Button Button(string text, Action action, bool primary = false, bool disabled = false)
+    Button Button(string text, Action action, bool primary = false, bool disabled = false, bool purchase = false)
     {
-        var b = new Button { Text = text, CustomMinimumSize = new(0, 52), Disabled = disabled, MouseDefaultCursorShape = Control.CursorShape.PointingHand };
-        b.AddThemeFontOverride("font", bodyFont); b.AddThemeFontSizeOverride("font_size", 21);
+        var b = new Button { Text = text, CustomMinimumSize = new(0, 46), Disabled = disabled, MouseDefaultCursorShape = Control.CursorShape.PointingHand };
+        b.AddThemeFontOverride("font", bodyFont); b.AddThemeFontSizeOverride("font_size", 19);
         b.AddThemeColorOverride("font_color", primary ? OceanView.Navy : OceanView.Cream); b.AddThemeColorOverride("font_hover_color", OceanView.Navy); b.AddThemeColorOverride("font_focus_color", primary ? OceanView.Navy : OceanView.Cream); b.AddThemeColorOverride("font_pressed_color", OceanView.Navy); b.AddThemeColorOverride("font_disabled_color", new Color(OceanView.Cream, .34f));
-        b.AddThemeStyleboxOverride("normal", Box(primary ? OceanView.Cream : new Color("103970"), 9, primary ? null : new Color("386294")));
-        b.AddThemeStyleboxOverride("hover", Box(new Color("f8cf85"), 9)); b.AddThemeStyleboxOverride("pressed", Box(OceanView.Aqua, 9)); b.AddThemeStyleboxOverride("focus", Box(new Color(0, 0, 0, 0), 9, OceanView.Aqua)); b.AddThemeStyleboxOverride("disabled", Box(new Color("123361"), 9));
+        b.AddThemeStyleboxOverride("normal", Box(primary ? OceanView.Aqua : new Color("102e43"), 9, primary ? null : new Color("345064")));
+        b.AddThemeStyleboxOverride("hover", Box(OceanView.Aqua, 9)); b.AddThemeStyleboxOverride("pressed", Box(OceanView.Aqua, 9)); b.AddThemeStyleboxOverride("focus", Box(new Color(0, 0, 0, 0), 9, OceanView.Aqua)); b.AddThemeStyleboxOverride("disabled", Box(new Color("102838"), 9));
+        if (purchase)
+        {
+            b.AddThemeColorOverride("font_color", new Color("edc77e"));
+            b.AddThemeStyleboxOverride("normal", Box(new Color("102e43"), 9, new Color("8c784e")));
+        }
+        Tween? hover = null;
+        void AnimateHover(float scale)
+        {
+            if (reducedMotion || b.Disabled) return;
+            hover?.Kill(); b.PivotOffset = b.Size / 2;
+            hover = b.CreateTween(); hover.TweenProperty(b, "scale", Vector2.One * scale, .12);
+        }
+        b.MouseEntered += () => AnimateHover(1.015f);
+        b.MouseExited += () => AnimateHover(1);
         b.Pressed += () => { action(); }; return b;
     }
     VBoxContainer Panel(float width, string eyebrow, string heading, string detail)
     {
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
-        var panel = new PanelContainer { CustomMinimumSize = new(width, 0) }; panel.AddThemeStyleboxOverride("panel", Box(new Color("082953"), 18, new Color("507195"))); center.AddChild(panel);
+        var panel = new PanelContainer { CustomMinimumSize = new(width, 0) }; panel.AddThemeStyleboxOverride("panel", Box(new Color("0a2233"), 12, new Color("345064"))); center.AddChild(panel);
         var column = new VBoxContainer(); column.AddThemeConstantOverride("separation", 14); panel.AddChild(column);
-        column.AddChild(Label(eyebrow, 17, false, OceanView.Aqua)); column.AddChild(Label(heading, 48, true)); column.AddChild(Label(detail, 20));
+        column.AddChild(Label(eyebrow, 14, false, OceanView.Aqua)); column.AddChild(Label(heading, 32, true)); column.AddChild(Label(detail, 18));
         return column;
     }
     void BuildMenu()
@@ -232,7 +246,7 @@ public partial class Game : Node2D
         switch (Run.Mode)
         {
             case VoyageMode.Paused:
-                col = Panel(510, "TAKE A BREATHER", "At anchor", Run.Retired ? "Voyage won · explore the endless ocean" : Run.BossSlain ? "Return to a harbor to claim your victory." : Run.Charts >= 3 ? "Sail beyond 3 leagues and defeat the Crownclaw." : $"Chart {Run.Charts}/3 · Fish at three different schools beyond one league.");
+                col = Panel(510, "Paused", "At anchor", Run.Retired ? "Voyage won · explore the endless ocean" : Run.BossSlain ? "Return to a harbor to claim your victory." : Run.Charts >= 3 ? "Sail beyond 3 leagues and defeat the Crownclaw." : $"Chart {Run.Charts}/3 · Fish at three different schools beyond one league.");
                 col.AddChild(Button("Resume voyage", () => { Run.Mode = beforePause; BuildMenu(); }, true));
                 col.AddChild(Button("Settings", () => { settings = true; BuildMenu(); }));
                 col.AddChild(Button("Captain’s handbook", () => { controls = true; BuildMenu(); }));
@@ -240,15 +254,15 @@ public partial class Game : Node2D
             case VoyageMode.Harbor: HarborMenu(); break;
             case VoyageMode.Upgrade: UpgradeMenu(); break;
             case VoyageMode.Catch:
-                col = Panel(610, "CATCH OF THE DAY", Run.CatchTitle, Run.CatchDetail);
+                col = Panel(610, "Fishing", Run.CatchTitle, Run.CatchDetail);
                 col.AddChild(Label($"Cargo {Run.Hold.Count}/12   •   Chart fragments {Run.Charts}/3", 21, false, OceanView.Aqua));
                 col.AddChild(Button("Back to the blue  [Enter]", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true)); break;
             case VoyageMode.Defeat:
-                Record(); col = Panel(570, "EVERY CAPTAIN HAS A STORY", "Lost to the deep", $"{Run.Kills} beasts defeated  •  {Run.MaxDistance / 1000:0.0} leagues offshore\n{Run.Charts}/3 chart fragments  •  Level {Run.Level}");
+                Record(); col = Panel(570, "Voyage ended", "Lost to the deep", $"{Run.Kills} beasts defeated  •  {Run.MaxDistance / 1000:0.0} leagues offshore\n{Run.Charts}/3 chart fragments  •  Level {Run.Level}");
                 col.AddChild(Label("Fish, sell, and refit before pushing farther offshore. Boost softens incoming damage.", 20));
-                col.AddChild(Button("Sail again · same ocean", Start, true)); col.AddChild(Button("Choose another boat", BackToTitle)); break;
+                col.AddChild(Button("Sail again", Start, true)); col.AddChild(Button("Choose another boat", BackToTitle)); break;
             case VoyageMode.Victory:
-                Record(); col = Panel(610, "A LEGEND COMES HOME", "The sea is yours", $"The Crownclaw is defeated. Your charts brought you home.\n{Run.Kills} beasts  •  {Run.Distance / 1000:0.0} leagues sailed  •  {Run.Coins} gold");
+                Record(); col = Panel(610, "Voyage complete", "The sea is yours", $"The Crownclaw is defeated. Your charts brought you home.\n{Run.Kills} beasts  •  {Run.Distance / 1000:0.0} leagues sailed  •  {Run.Coins} gold");
                 col.AddChild(Button("Keep exploring the endless ocean", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true)); col.AddChild(Button("A new voyage", BackToTitle)); break;
         }
         FocusFirst(menuRoot);
@@ -263,8 +277,8 @@ public partial class Game : Node2D
         var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .3f), MouseFilter = Control.MouseFilterEnum.Ignore };
         shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
-        var col = new VBoxContainer { CustomMinimumSize = new(440, 0) }; col.AddThemeConstantOverride("separation", 18); center.AddChild(col);
-        var logo = Label("BOATS n\nBEASTS", 64, true); logo.HorizontalAlignment = HorizontalAlignment.Center; col.AddChild(logo);
+        var col = new VBoxContainer { CustomMinimumSize = new(340, 0) }; col.AddThemeConstantOverride("separation", 18); center.AddChild(col);
+        var logo = Label("BOATS n\nBEASTS", 48, true); logo.HorizontalAlignment = HorizontalAlignment.Center; col.AddChild(logo);
         col.AddChild(Button("Play", () => { choosingBoat = true; BuildMenu(); }, true));
         if (finishedRuns >= 1) col.AddChild(Button("Unlock", () => { }));
         if (finishedRuns >= 2) col.AddChild(Button("Quests", () => { }));
@@ -272,65 +286,76 @@ public partial class Game : Node2D
     }
     void BoatMenu()
     {
-        var shade = new ColorRect { Color = new(.025f, .105f, .25f, .94f), Position = Vector2.Zero, Size = new(600, 1000), MouseFilter = Control.MouseFilterEnum.Ignore }; menuRoot.AddChild(shade);
-        var col = new VBoxContainer { Position = new(58, 42), Size = new(472, 810) }; col.AddThemeConstantOverride("separation", 13); menuRoot.AddChild(col);
-        col.AddChild(Label("Choose your boat", 44, true));
+        var col = Panel(520, "New voyage", "Choose your boat", "One starting weapon. One open slot.");
         var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 10); col.AddChild(choices);
-        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓  CUTTER" : "CUTTER", () => { selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
-        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓  TRAWLER" : "TRAWLER", () => { selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
+        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓ Cutter" : "Cutter", () => { selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
+        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓ Trawler" : "Trawler", () => { selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
         var spec = BoatSpec.For(selectedBoat);
         col.AddChild(Label($"{spec.Ability}  •  {spec.Hull} hull\n{spec.Description}", 20, false, OceanView.Cream));
-        col.AddChild(Button("SET SAIL", Start, true));
+        col.AddChild(Button("Set sail", Start, true));
         col.AddChild(Button("Back", () => { choosingBoat = false; BuildMenu(); }));
     }
     void HarborMenu()
     {
-        var col = Panel(950, "LIGHTHOUSE HARBOR  /  SAFE WATERS", "A little shore leave", $"{Run.Coins} gold   •   Hull {Run.Health:0}/{Run.MaxHealth:0}   •   Cargo {Run.Hold.Count}/12");
-        col.AddThemeConstantOverride("separation", 7);
+        var col = Panel(950, "Safe waters", "Harbor", $"{Run.Coins} gold   •   Hull {Run.Health:0}/{Run.MaxHealth:0}   •   Cargo {Run.Hold.Count}/12");
+        col.AddThemeConstantOverride("separation", 16);
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 10); col.AddChild(row);
         row.AddChild(Button($"Sell catch · +{Run.Hold.Sum(f => f.Value)}", () => { Run.Sell(); BuildMenu(); }, true, Run.Hold.Count == 0));
         row.AddChild(Button($"Repair · {Run.RepairCost} gold", () => { Run.Repair(); BuildMenu(); }, false, Run.RepairCost == 0 || Run.Coins < Run.RepairCost));
         if (Run.BossSlain && !Run.Retired) row.AddChild(Button("Claim victory", () => { Run.ClaimVictory(); BuildMenu(); }, true));
         else row.AddChild(Button($"Switch to {(Run.Boat == BoatKind.Cutter ? "Trawler" : "Cutter")}", () => { Run.SwitchBoat(); BuildMenu(); }));
-        col.AddChild(Label(Voyage.SoakHint, 17, false, OceanView.Aqua));
-        col.AddChild(Label(Run.HarborSellsWeapons ? $"Weapons · {Run.WeaponCount}/{Run.WeaponSlots} slots" : "Boat upgrades", 23, true));
-        var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 8); col.AddChild(grid);
-        foreach (int i in Run.HarborOffers())
-        {
-            int option = i; var box = new VBoxContainer { CustomMinimumSize = new(438, 0) }; grid.AddChild(box);
-            box.AddChild(Label(Voyage.UpgradeNames[i] + $"  {Run.Rank(i)}/5", 23, true)); box.AddChild(Label(Voyage.UpgradeDescriptions[i] + "\n" + Run.UpgradeBenefit(i), 16));
-            box.AddChild(Button(Run.Rank(i) >= 5 ? "Fully upgraded" : !Run.CanUpgrade(i) ? "Weapon slots full" : $"{(Run.Rank(i) == 0 ? "Install" : "Upgrade")} · {Run.UpgradeCost(i)} gold", () => { Run.Upgrade(option); BuildMenu(); }, false, !Run.CanUpgrade(i) || Run.Coins < Run.UpgradeCost(i)));
-        }
+        col.AddChild(Label(Run.HarborSellsWeapons ? $"Weapons · {Run.WeaponCount}/{Run.WeaponSlots} slots" : "Boat upgrades", 20, true));
+        var cards = new HBoxContainer(); cards.AddThemeConstantOverride("separation", 14); col.AddChild(cards);
+        foreach (int option in Run.HarborOffers()) AddUpgradeCard(cards, option, false);
         col.AddChild(Button("Back to open water  [Esc]", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, !Run.BossSlain || Run.Retired));
     }
     void UpgradeMenu()
     {
-        var col = Panel(1000, $"CAPTAIN LEVEL {Run.Level}", "Pick an upgrade", "Choose one. It’s free.");
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); col.AddChild(row);
-        foreach (int option in Run.UpgradeChoices)
-        {
-            var box = new VBoxContainer { CustomMinimumSize = new(304, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; box.AddThemeConstantOverride("separation", 14); row.AddChild(box);
-            box.AddChild(Label(Run.Rank(option) == 0 ? (option < 6 ? "NEW WEAPON" : "NEW UPGRADE") : $"LEVEL {Run.Rank(option)} → {Run.Rank(option) + 1}", 17, false, OceanView.Aqua));
-            box.AddChild(Label(Voyage.UpgradeNames[option], 29, true));
-            var detail = Label(Voyage.UpgradeDescriptions[option], 20); detail.CustomMinimumSize = new(0, 70); box.AddChild(detail);
-            var benefit = Label(Run.UpgradeBenefit(option), 19, false, OceanView.Aqua); benefit.CustomMinimumSize = new(0, 90); box.AddChild(benefit);
-            box.AddChild(Button("Choose", () => { Run.Upgrade(option, true); BuildMenu(); }, option == Run.UpgradeChoices[0]));
-        }
-        col.AddChild(Label(Voyage.SoakHint, 17));
+        var col = Panel(950, $"Level {Run.Level}", "Pick an upgrade", "Choose one. It’s free.");
+        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 14); col.AddChild(row);
+        foreach (int option in Run.UpgradeChoices) AddUpgradeCard(row, option, true);
         if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · take 40 gold", () => { Run.Coins += 40; Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true));
+    }
+    int lastPurchase = -1;
+    void AddUpgradeCard(HBoxContainer row, int option, bool free)
+    {
+        var card = new PanelContainer { CustomMinimumSize = new(280, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        var style = Box(new Color("102e43"), 10, new Color("345064"));
+        style.ContentMarginLeft = style.ContentMarginRight = 16;
+        card.AddThemeStyleboxOverride("panel", style); row.AddChild(card);
+        var box = new VBoxContainer(); box.AddThemeConstantOverride("separation", 12); card.AddChild(box);
+        box.AddChild(new UpgradeSymbol { Kind = option, CustomMinimumSize = new(40, 40), MouseFilter = Control.MouseFilterEnum.Ignore });
+        box.AddChild(Label(Voyage.UpgradeNames[option], 24, true));
+        box.AddChild(Label(Run.Rank(option) == 0 ? "New" : $"Level {Run.Rank(option)} / 5", 15, false, OceanView.Aqua));
+        var detail = Label(option < 6 && Run.Rank(option) == 0 ? Voyage.UpgradeDescriptions[option] : Run.UpgradeBenefit(option), 18);
+        detail.CustomMinimumSize = new(0, 104); box.AddChild(detail);
+        string caption = free ? "Choose" : Run.Rank(option) >= 5 ? "Max level" : !Run.CanUpgrade(option) ? "Slots full" : $"{Run.UpgradeCost(option)} gold";
+        var button = Button(caption, () =>
+        {
+            if (!Run.Upgrade(option, free)) return;
+            lastPurchase = free ? -1 : option; BuildMenu();
+        }, free, !Run.CanUpgrade(option) || (!free && Run.Coins < Run.UpgradeCost(option)), !free);
+        button.FocusEntered += () => { style.BorderColor = OceanView.Aqua; };
+        button.FocusExited += () => { style.BorderColor = new Color("345064"); };
+        box.AddChild(button);
+        if (lastPurchase == option)
+        {
+            lastPurchase = -1;
+            if (!reducedMotion) { card.Modulate = new Color(1.35f, 1.25f, 1); card.CreateTween().TweenProperty(card, "modulate", Colors.White, .3); }
+        }
     }
     void ControlsMenu()
     {
-        var col = Panel(900, "CAPTAIN’S HANDBOOK", "A life on the water", "Your guns aim and fire automatically. You captain the boat.");
+        var col = Panel(900, "Handbook", "A life on the water", "Your guns aim and fire automatically. You captain the boat.");
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nRight-click              Toggle continuous mouse helm\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing\nF11                            Toggle fullscreen", 19));
-        col.AddChild(Label("THE VOYAGE", 25, true, OceanView.Aqua));
+        col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
         col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void SettingsMenu()
     {
-        var col = Panel(590, "MAKE YOURSELF COMFORTABLE", "Settings", "Changes are saved automatically.");
+        var col = Panel(590, "Preferences", "Settings", "Changes are saved automatically.");
         col.AddChild(Button(fullscreen ? "Fullscreen · on" : "Fullscreen · off", () => { fullscreen = !fullscreen; ApplySettings(); SaveSettings(); BuildMenu(); }));
         col.AddChild(Button(reducedMotion ? "Reduced motion · on" : "Reduced motion · off", () => { reducedMotion = !reducedMotion; ApplySettings(); SaveSettings(); BuildMenu(); }));
         col.AddChild(Button(toggleBoost ? "Boost control · tap to toggle" : "Boost control · hold", () => { toggleBoost = !toggleBoost; boostLatched = false; SaveSettings(); BuildMenu(); }));

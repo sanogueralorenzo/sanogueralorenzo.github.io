@@ -99,3 +99,8 @@ Hull now increases maximum health by 25 without healing current health. The card
 ## Harbor stock and weapon capacity — 2026-09-08
 
 Harbors now have three deterministic offers from one category, with no category toggle or reroll on revisit. The purchase method enforces local stock. Runs start with one signature weapon and two total weapon slots. Paid and free acquisitions share the same capacity guard; owned weapons remain upgradeable at capacity. The constructor accepts zero to three future permanent slot upgrades (two to five slots); the shop remains a placeholder. Debug build and diff checks passed. Live harbor purchases and one-weapon combat balance were not playtested in this change.
+
+
+## Compact nautical menus — 2026-09-08
+
+Unified panel/button palette, smaller heading hierarchy, centered boat selection, three equal harbor/level-up cards, original line symbols, gold purchase controls, keyboard card outlines, subtle hover scale and purchase pulse. Reduced motion disables both animations. Corrected the stale retry label after randomized runs. Debug and Release builds and diff checks passed. Live UI verified title, Play, boat selection, Set sail, navigation to home harbor and the three-card layout at 640×432. Exact stat copy was corrected after that visual review. Purchase pulse and level-up cards were reviewed in code but not exercised in this pass. The launch script's headless import crashed on editor shutdown; launching the built game directly succeeded without runtime errors.

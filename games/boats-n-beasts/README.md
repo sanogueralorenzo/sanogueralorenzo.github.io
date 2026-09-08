@@ -69,3 +69,5 @@ See `docs/OBJECTIVE.md` for scope, `docs/QUALITY.md` for current validation and 
 LVL is aligned to the far top-right edge, separate from the north-up nautical chart below. Islands use shoreline outlines, harbors use anchors, fish use wave marks, and the center arrow follows your heading. A rim anchor points home when distant. Voyage objectives remain in pause and cargo totals are available when fishing or docking.
 
 Boat selection contains only the boat choice, Set Sail and Back. Every new run, including retry, generates a fresh ocean automatically; seeds are internal diagnostics only.
+
+Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses respect Reduced motion.
