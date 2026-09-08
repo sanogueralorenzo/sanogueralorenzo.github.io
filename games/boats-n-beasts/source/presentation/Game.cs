@@ -374,7 +374,7 @@ public partial class Game : Node2D
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
             string level = $"LVL {r.Level}";
-            Text(new(size.X - 100 - TitleFont.GetStringSize(level, fontSize: 20).X / 2, 38), level, 20, true);
+            Text(new(size.X - 14 - TitleFont.GetStringSize(level, fontSize: 20).X, 30), level, 20, true);
             int seconds = (int)r.CombatTime;
             string[] counters = [$"{seconds / 60:00}:{seconds % 60:00}", Game.silver.ToString(), r.Coins.ToString(), r.Kills.ToString()];
             float countersWidth = counters.Sum(value => BodyFont.GetStringSize(value, fontSize: 21).X + 48) + 12;
