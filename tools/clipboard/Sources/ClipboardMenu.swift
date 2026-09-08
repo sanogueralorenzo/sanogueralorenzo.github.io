@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 final class ClipboardSearch: NSSearchField {
     private(set) var isSearching = false
@@ -91,6 +92,7 @@ final class ClipboardTable: NSTableView {
 @MainActor
 final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
     var onOpen: (() -> Void)?
+    var onClose: (() -> Void)?
     var onCopy: ((Clip) -> Void)?
     var onSpace: ((Clip) -> Void)?
     var onClear: (() -> Void)?
@@ -138,13 +140,19 @@ final class ClipboardMenu: NSObject, NSMenuDelegate, NSTableViewDataSource, NSTa
     func report(_ error: String?) { statusItem.button?.toolTip = error ?? "Clipboard · ⌥C" }
     func toggle() { menuOpen ? dismiss() : show() }
     func show() { if !menuOpen { statusItem.button?.performClick(nil) } }
-    func dismiss() { clipboardMenu.cancelTracking() }
+    @objc func dismiss() { clipboardMenu.cancelTracking() }
     func menuWillOpen(_ menu: NSMenu) {
         menuOpen = true; onOpen?()
         search.endSearch(); search.stringValue = ""
         table.clearHover(); table.deselectAll(nil); reload()
     }
-    func menuDidClose(_ menu: NSMenu) { menuOpen = false; search.endSearch() }
+    func menuDidClose(_ menu: NSMenu) { menuOpen = false; search.endSearch(); onClose?() }
+    func menuHasKeyEquivalent(_ menu: NSMenu, for event: NSEvent, target: AutoreleasingUnsafeMutablePointer<AnyObject?>, action: UnsafeMutablePointer<Selector?>) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+        guard menuOpen, event.keyCode == kVK_ANSI_C, modifiers == .option else { return false }
+        target.pointee = self; action.pointee = #selector(dismiss)
+        return true
+    }
     func controlTextDidEndEditing(_ obj: Notification) { search.endSearch(); updateSpaceShortcut() }
     func controlTextDidChange(_ obj: Notification) { reload() }
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
