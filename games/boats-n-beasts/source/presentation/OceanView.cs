@@ -65,7 +65,7 @@ public partial class OceanView : Node2D
         if (e.Kind == "shot") muzzleTime = .08f;
         if (e.Kind == "hurt") Shake = 6;
         if (e.Kind == "calm") { particles.Add(new() { P = G(e.Position), Life = 3, MaxLife = 3, Kind = "bulwark", Size = e.Value, Color = Aqua }); return; }
-        if (e.Kind is "aura" or "bulwark" or "broadside") { particles.Add(new() { P = G(e.Position), End = G(e.End), Life = e.Kind == "broadside" ? .12f : .4f, MaxLife = e.Kind == "broadside" ? .12f : .4f, Kind = e.Kind, Size = e.Value, Color = e.Kind == "broadside" ? Cream : Aqua }); return; }
+        if (e.Kind is "aura" or "bulwark") { particles.Add(new() { P = G(e.Position), End = G(e.End), Life = .4f, MaxLife = .4f, Kind = e.Kind, Size = e.Value, Color = Aqua }); return; }
         if (e.Kind == "arc") { particles.Add(new() { P = G(e.Position), End = G(e.End), Life = .16f, MaxLife = .16f, Kind = "arc", Color = Aqua }); return; }
         if (e.Kind is "explosion" or "slam") particles.Add(new() { P = G(e.Position), Life = .5f, MaxLife = .5f, Kind = "ring", Size = e.Value > 0 ? e.Value : 130, Color = e.Kind == "slam" ? Coral : Cream });
         if (e.Kind is not ("hit" or "kill" or "explosion" or "hurt" or "boost" or "catch")) return;
@@ -177,7 +177,14 @@ public partial class OceanView : Node2D
                 DrawCircle(p,3,s.Age>=.5f?Aqua:Cream);
                 if(s.Age>=.5f) DrawArc(p,22+Mathf.Sin(Clock*5)*2,0,Mathf.Tau,24,new Color(Aqua,.3f),1.5f,true);
             }
-            else if (s.Kind is WeaponKind.Cannon or WeaponKind.Broadside)
+            else if (s.Kind == WeaponKind.Arcane)
+            {
+                var magic = new Color("b6a0f4");
+                DrawLine(p-dir*22,p,new Color(magic,.3f),4,true);
+                DrawCircle(p,12,new Color(magic,.16f)); DrawCircle(p,7,magic);
+                DrawCircle(p-new Vector2(2,2),3,new Color("eee4ff"));
+            }
+            else if (s.Kind == WeaponKind.Cannon)
             { DrawLine(p-dir*18,p,new Color(Cream,.18f),2,true); DrawCircle(p,6,new Color(Navy,.8f)); DrawCircle(p-new Vector2(1,1),4,new Color(Cream,.7f)); }
             else { DrawLine(p - dir * (s.Kind == WeaponKind.Harpoon ? 26 : 16), p, s.Kind == WeaponKind.Harpoon ? Aqua : Cream, 5, true); DrawLine(p - dir * 8, p + dir * 3, Cream, 3, true); }
         }
@@ -197,11 +204,6 @@ public partial class OceanView : Node2D
         {
             Vector2 at = p.P - Camera + size / 2; float alpha = p.Life / p.MaxLife;
             if (p.Kind is "aura" or "bulwark") { float r = Math.Max(1, p.Size * (1 - alpha * .75f)); DrawArc(at, r, 0, Mathf.Tau, 60, new Color(Aqua, alpha * .65f), p.Kind == "bulwark" ? 7 : 2, true); }
-            else if (p.Kind == "broadside")
-            {
-                var direction=(p.End-p.P).Normalized(); var side=direction.Orthogonal();
-                for(int i=0;i<(int)p.Size;i++) { float row=(i-(p.Size-1)/2)*2/Math.Max(1,p.Size-1); DrawLine(at+side*row*23,at+side*row*23+direction*(12+15*(1-alpha)),new Color(Cream,alpha*.7f),3,true); }
-            }
             else if (p.Kind == "pull")
             {
                 var end = p.End-Camera+size/2;

@@ -3,7 +3,7 @@ namespace BoatsNBeasts.Core;
 
 public sealed partial class Voyage
 {
-    public int BroadsideSalvos { get; private set; }
+    public int ArcaneCasts { get; private set; }
     public int MinesDropped { get; private set; }
     public int MinesExploded { get; private set; }
     public int CannonRicochets { get; private set; }
@@ -12,15 +12,13 @@ public sealed partial class Voyage
     void UpdateWeapons(float dt, bool safe)
     {
         var forward = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading));
-        var starboard = new Vector2(-forward.Y, forward.X);
         for (int w = 0; w < Weapons.Length; w++)
         {
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || safe || Shots.Count >= 360) continue;
-            float range = w == 4 ? WhirlpoolRadius : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
+            float range = w == 4 ? WhirlpoolRadius : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
-                .Where(e => w != 5 || Math.Abs(Vector2.Dot(OceanWorld.Unit(e.Position-Position),starboard)) > MathF.Cos(BroadsideHalfAngle))
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
             if (w == 2)
             {
@@ -36,21 +34,15 @@ public sealed partial class Voyage
                 float damage = (w == 0 ? 15 : w == 1 ? 13 : w == 4 ? 7 : w == 5 ? 20 : 18);
                 if (w == 5)
                 {
-                    for (int side = -1; side <= 1; side += 2)
+                    var aim = OceanWorld.Unit(target.Position-Position);
+                    for (int orb = 0; orb < rank; orb++)
                     {
-                        var sideTarget=Enemies.Where(e=>e.Health>0 && Vector2.DistanceSquared(e.Position,Position)<range*range && Vector2.Dot(OceanWorld.Unit(e.Position-Position),starboard*side)>MathF.Cos(BroadsideHalfAngle))
-                            .OrderBy(e=>Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
-                        var sideAim=sideTarget==null?starboard*side:OceanWorld.Unit(sideTarget.Position-Position);
-                        for (int cannon = 0; cannon < rank + 2; cannon++)
-                        {
-                            float row = (cannon - (rank + 1) / 2f) * 2 / (rank + 1);
-                            var dir = OceanWorld.Unit(sideAim + forward * row * .04f);
-                            var start = Position + starboard * side * 39 + forward * row * 23;
-                            Shots.Add(new() { Kind = WeaponKind.Broadside, Position = start, Previous = start, Velocity = dir * 520, Damage = damage, Life = range / 520, Radius = 8 });
-                        }
-                        Events.Add(new("broadside",Position+starboard*side*40,rank+2,Position+starboard*side*90));
+                        float spread = (orb-(rank-1)/2f)*.3f;
+                        var dir = new Vector2(aim.X*MathF.Cos(spread)-aim.Y*MathF.Sin(spread),aim.X*MathF.Sin(spread)+aim.Y*MathF.Cos(spread));
+                        var start = Position + dir*55;
+                        Shots.Add(new() { Kind=WeaponKind.Arcane, Position=start, Previous=start, Velocity=dir*400, Damage=damage, Life=2.4f, Radius=9 });
                     }
-                    BroadsideSalvos++;
+                    ArcaneCasts++;
                 }
                 else if (w == 4)
                 {
@@ -94,6 +86,11 @@ public sealed partial class Voyage
         foreach (var s in Shots)
         {
             if (s.Life<=0) continue;
+            if (s.Kind == WeaponKind.Arcane && !s.Hostile)
+            {
+                var target = Enemies.Where(e=>e.Health>0 && Vector2.DistanceSquared(e.Position,s.Position)<650*650).OrderBy(e=>Vector2.DistanceSquared(e.Position,s.Position)).FirstOrDefault();
+                if (target != null) s.Velocity = OceanWorld.Unit(Vector2.Lerp(s.Velocity/400,OceanWorld.Unit(target.Position-s.Position),1-MathF.Exp(-dt*7)))*400;
+            }
             s.Previous=s.Position; s.Position+=s.Velocity*dt; s.Life-=dt; s.Age+=dt;
             if (s.Life<=0) continue;
             if (s.Hostile)

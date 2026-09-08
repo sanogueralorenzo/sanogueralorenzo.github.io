@@ -58,3 +58,6 @@ Native telemetry accompanies each image. Victory capture precedes only sale-head
 - `banked-level-sailing.png/.txt`: level 2, one waiting upgrade, Sailing mode.
 - `harbor-free-refit.png/.txt` and `harbor-refit-complete.png/.txt`: docking offers the banked choice; Harpoon selection returns to Harbor, keeps gold at 6 and clears the pending count while the combat clock stays frozen.
 - `readable-combat-no-soak.png/.txt`: level 3 remains Sailing, harpoon rope and hostile coral shots are distinct. These captures precede the final LVL hover hint and barrel-spacing adjustment.
+
+- `three-boat-selection.png/.txt`: Gunboat, Aura and Mage selection with the crystal boat preview.
+- `mage-combat.png/.txt`: native Mage voyage with seven arcane casts and three kills at 17.7 seconds; only Arcane Orbs equipped.

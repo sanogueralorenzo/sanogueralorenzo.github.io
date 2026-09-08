@@ -36,8 +36,9 @@ Experience fills the thin bar along the top edge. The small red bar above your b
 
 | Boat | Base ability | Starting weapons |
 | --- | --- | --- |
-| Cutter | Fires 65% faster while boosting. Faster movement, lighter hull. | Broadside |
-| Trawler | Every 6 seconds, a pulse clears nearby shots and pushes enemies away. | Whirlpool |
+| Gunboat | Fires 65% faster while boosting. Faster movement, lighter hull. | Cannon |
+| Aura | Every 6 seconds, a pulse clears nearby shots and pushes enemies away. | Whirlpool |
+| Mage | Homing magic follows enemies without lining up a shot. | Arcane Orbs |
 
 Every boat can use all six weapons:
 
@@ -48,9 +49,9 @@ Every boat can use all six weapons:
 | Mines | Drops a mine behind the moving boat. Arms after 0.5 seconds; bursts when an enemy approaches. |
 | Lightning | Jumps between enemies. Each level adds a target. |
 | Whirlpool | Damages enemies all around the boat. |
-| Broadside | Three cannons on each side fire automatically at foes alongside the boat. |
+| Arcane Orbs | Violet homing orbs chase nearby enemies. Each upgrade adds another orb per cast. |
 
-Weapon upgrades improve one property each: Cannon adds a ball, Harpoon adds pull strength, Mines add blast radius, Lightning adds a target, Whirlpool adds radius, and Broadside adds one cannon per side. Damage and firing cadence stay fixed across weapon ranks. Upgrade cards show the next level’s benefit.
+Weapon upgrades improve one property each: Cannon adds a ball, Harpoon adds pull strength, Mines add blast radius, Lightning adds a target, Whirlpool adds radius, and Arcane Orbs adds one orb per cast. Damage and firing cadence stay fixed across weapon ranks. Upgrade cards show the next level’s benefit.
 
 Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack area). Hull upgrades leave current health unchanged; repairs are a separate harbor action. Choose your boat before setting sail; it stays fixed for the whole voyage.
 
@@ -82,10 +83,10 @@ The bow turns responsively while the hull keeps a short drift. Boost gives an im
 
 Sail over floating treasure for 12–20 run gold, or salvage wrecks between rocks for 35–55 gold. Both are collected automatically once per location per run, disappear from the chart after collection, and remain depleted when chunks reload. The home waters include one of each encounter; farther discoveries vary by seed. Encounters do not award silver.
 
-Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, a thicker rope snap shows stronger pulls. Cannonballs have one bounce at every rank. Harpoon upgrades add 160 pull speed; mine and whirlpool upgrades add 30 radius. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.
+Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, a thicker rope snap shows stronger pulls. Cannonballs have one bounce at every rank. Harpoon upgrades add 160 pull speed; mine and whirlpool upgrades add 30 radius. Arcane Orbs steer toward nearby enemies; no weapon requires lining up a side of the boat.
 
 ## Readability and sailing flow
 
 Treasure has a gold glint, fishing schools use five visible fish with sparse ripples, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
 
-Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Cannon and broadside barrel counts reflect their rank, lightning adds coil rings, whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.
+Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Cannon barrel counts and orbiting crystal lights reflect their rank, lightning adds coil rings, whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.

@@ -2,9 +2,9 @@ using System.Numerics;
 namespace BoatsNBeasts.Core;
 
 public enum VoyageMode { Sailing, Fishing, Harbor, Upgrade, Paused, Defeat, Victory }
-public enum BoatKind { Cutter, Trawler }
+public enum BoatKind { Cutter, Trawler, Mage }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
-public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Broadside }
+public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
@@ -43,7 +43,6 @@ public sealed partial class Voyage
     public readonly List<int> UpgradeChoices = new();
     public bool BossSpawned, BossSlain;
     public bool BoostExhausted { get; private set; }
-    public const float BroadsideHalfAngle = .72f;
     public const int BaseWeaponSlots = 2, MaxWeaponSlots = 5;
     public int WeaponSlots { get; }
     public int WeaponCount => Weapons.Count(rank => rank > 0);
@@ -71,7 +70,7 @@ public sealed partial class Voyage
     {
         World = new(seed); Random = new(seed ^ 0xa129f); buildRandom = new(seed ^ 0x77291); fishRandom = new(seed ^ 0x99a12); Boat = boat; Health = MaxHealth;
         WeaponSlots = BaseWeaponSlots + Math.Clamp(extraWeaponSlots, 0, MaxWeaponSlots - BaseWeaponSlots);
-        Weapons[boat == BoatKind.Cutter ? 5 : 4] = 1;
+        Weapons[boat == BoatKind.Cutter ? 0 : boat == BoatKind.Trawler ? 4 : 5] = 1;
         NextSilverTime = SilverInterval();
         World.Stream(Position);
     }
@@ -339,14 +338,14 @@ public sealed partial class Voyage
         if (free) { PendingUpgrades--; PrepareHarborUpgrade(); }
         Events.Add(new("buy", Position)); return true;
     }
-    public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Broadside", "Hull", "Speed", "Reload", "Reach"];
+    public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Arcane Orbs", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [
         "Cannonballs bounce between foes and off rocks.",
         "Pierces enemies and pulls them closer.",
         "Drops mines behind you as you sail.",
         "Lightning jumps from enemy to enemy.",
         "A damaging ring around your boat.",
-        "Fires from both sides. Sail alongside foes.",
+        "Magic orbs chase nearby enemies.",
         "Take more hits.",
         "Outrun trouble.",
         "Keep every weapon firing.",
@@ -362,7 +361,7 @@ public sealed partial class Voyage
             2 => rank == 0 ? "Leaves explosive mines in your wake." : "Bigger mine blasts. +30 blast radius.",
             3 => rank == 0 ? "Lightning hits up to 3 enemies." : $"One more lightning target. {rank + 3} total.",
             4 => rank == 0 ? "Hits nearby enemies in every direction." : "Bigger whirlpool. +30 radius.",
-            5 => rank == 0 ? "Fires 3 cannonballs from each side." : $"Another cannon per side. {rank + 3} per side.",
+            5 => rank == 0 ? "Fires a homing magic orb." : $"Another magic orb. {rank + 1} per cast.",
             6 => "+25 max health.",
             7 => "+10% sailing speed.",
             8 => "+12% fire rate for every weapon.",
@@ -375,8 +374,9 @@ public sealed partial class Voyage
 public sealed record BoatSpec(string Name, float Hull, float Speed, string Ability, string Description)
 {
     public static readonly BoatSpec[] All = [
-        new("Cutter", 100, 235, "SLIPSTREAM", "Fire 65% faster while boosting. Starts with Broadside."),
-        new("Trawler", 155, 185, "BULWARK", "Every 6s, a pulse clears nearby shots and pushes foes away. Starts with Whirlpool.")
+        new("Gunboat", 100, 235, "RAPID FIRE", "Fire 65% faster while boosting. Starts with bouncing cannonballs."),
+        new("Aura", 155, 185, "DEFENSIVE PULSE", "Every 6s, clear nearby shots and push foes away. Starts with Whirlpool."),
+        new("Mage", 115, 215, "HOMING MAGIC", "Magic orbs chase enemies for you. Starts with Arcane Orbs.")
     ];
     public static BoatSpec For(BoatKind kind) => All[(int)kind];
 }

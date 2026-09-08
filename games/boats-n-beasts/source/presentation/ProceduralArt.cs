@@ -54,12 +54,13 @@ public sealed class ProceduralArt(Node2D canvas)
         { Ellipse(new(side*width*.4f,y),new(4,7),Ink);Line(new(side*width*.4f-4,y),new(side*width*.4f+4,y),Metal,2); }
         // Raised cabin, dark panoramic windows, bevelled orange roof.
         float cabinW=tug?48:35;
+        bool mage = kind == BoatKind.Mage;
         Box(new(-cabinW/2,-16),new(cabinW,39),15,Cream, SandShade);
         Poly([new(-cabinW/2+3,10),new(-cabinW/2+3,20),new(cabinW/2-3,20),new(cabinW/2-3,10)],Ink);
         Line(new(-cabinW/2+5,12),new(cabinW/2-5,12),new Color("61939e"),2);
         Line(new(0,10),new(0,21),Cream,3);
         Poly([new(-cabinW/2,-31),new(cabinW/2,-31),new(cabinW/2-4,-11),new(-cabinW/2+4,-11)],SandLight);
-        Poly([new(-cabinW/2+4,-29),new(cabinW/2-4,-29),new(cabinW/2-6,-13),new(-cabinW/2+6,-13)],Cream);
+        Poly([new(-cabinW/2+4,-29),new(cabinW/2-4,-29),new(cabinW/2-6,-13),new(-cabinW/2+6,-13)],mage ? new Color("9e89d3") : Cream);
         Line(new(-cabinW/2,-31),new(cabinW/2,-31),new Color("ffcc72"),2);
         Box(new(-6,-25),new(12,8),3,SandLight,SandShade);
         Line(new(0,-27), new(0,-49), Ink, 2);
@@ -81,8 +82,18 @@ public sealed class ProceduralArt(Node2D canvas)
             }
         }
         if(weapons!=null && weapons[5]>0)
-            for(int side=-1;side<=1;side+=2) for(int cannon=0;cannon<weapons[5]+2;cannon++)
-            { float row=(cannon-(weapons[5]+1)/2f)*2/(weapons[5]+1); Line(new(side*(width*.4f),row*(20+(weapons[5]-1)*2.5f)),new(side*(width*.58f),row*(20+(weapons[5]-1)*2.5f)),Ink,7); Line(new(side*(width*.42f),row*(20+(weapons[5]-1)*2.5f)-2),new(side*(width*.57f),row*(20+(weapons[5]-1)*2.5f)-2),Metal,2); }
+        {
+            var crystal = new Vector2(0,-48);
+            float radius = 10 + weapons[5]*2;
+            Ellipse(crystal+new Vector2(0,5),new(radius+7,8),Ink);
+            Poly([crystal+new Vector2(0,-25),crystal+new Vector2(radius,-5),crystal+new Vector2(0,10),crystal+new Vector2(-radius,-5)],new Color("b6a0f4"));
+            Poly([crystal+new Vector2(0,-25),crystal+new Vector2(0,10),crystal+new Vector2(-radius,-5)],new Color("725ca8"));
+            for(int orb=0;orb<weapons[5];orb++)
+            {
+                float a=clock*.9f+orb*Mathf.Tau/weapons[5];
+                Ellipse(crystal+new Vector2(Mathf.Cos(a)*23,Mathf.Sin(a)*10),new(3,3),new Color("dfceff"));
+            }
+        }
         if(weapons!=null && weapons[1]>0){Line(new(width*.34f,5),new(width*.34f,-21),Metal,5);Poly([new(width*.34f,-29),new(width*.34f-5,-18),new(width*.34f+5,-18)],Cream);}
         if(weapons!=null && weapons[2]>0){Ellipse(new(0,39),new(11,9),Ink);Ellipse(new(0,37),new(8,7),Metal);Line(new(-12,37),new(12,37),Cream,2);}
         if(weapons!=null && weapons[3]>0){Box(new(width*.24f-5,27),new(10,12),5,Metal,Ink);for(int i=0;i<weapons[3]+2;i++)Ellipse(new(width*.24f,23-i*3),new(6,2),new Color("69e1d3"));}
