@@ -26,7 +26,11 @@ public static class ActorArt3D
         string key = $"boat-{kind}-{mask}";
         if (!Cache.TryGetValue(key, out var mesh))
         {
-            var b = new ActorGeometry(); BuildBoat(b, kind, mask); Cache[key] = mesh = b.Mesh(Material);
+            var b = new ActorGeometry();
+            BuildBoat(b, kind, mask);
+            // The visual hull is deliberately larger than its unchanged simulation collider.
+            b.Scale(new Vector3(1.22f, 1.15f, 1.30f));
+            Cache[key] = mesh = b.Mesh(Material);
         }
         return Instance(mesh, key);
     }
@@ -90,7 +94,7 @@ public static class ActorArt3D
     static void BuildBoat(ActorGeometry b, BoatKind kind, int mask)
     {
         Color stripe = kind == BoatKind.Mage ? new("685577") : kind == BoatKind.Trawler ? new("43867e") : new("496d77");
-        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.10f, .965f), HullRing(.165f, 1), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Cream, Wood });
+        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.073f, .94f), HullRing(.139f, .987f), HullRing(.17f, 1), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Wood, Cream, Wood });
         b.Polygon(HullRing(.191f, .935f), Deck, Vector3.Up);
         // Individual deck boards with narrow dark seams and warm end grain.
         for (float z = -.49f; z < .48f; z += .078f)
@@ -108,21 +112,31 @@ public static class ActorArt3D
             b.Tube(new[] { new Vector3(side * .225f, .276f, .27f), new Vector3(side * .19f, .276f, .43f) }, .011f, Cream, 7);
             // Side cabin windows sit proud of their cream frame and have roof overhang above.
         }
-        b.RoundBox(new(0, .324f, .095f), new(.335f, .257f, .34f), .033f, Cream);
-        b.RoundBox(new(0, .474f, .095f), new(.402f, .055f, .415f), .026f, new("f5e5be"));
-        b.RoundBox(new(0, .36f, -.08f), new(.226f, .102f, .014f), .009f, Glass);
-        b.RoundBox(new(0, .36f, -.092f), new(.013f, .112f, .017f), .004f, Cream);
+        b.RoundBox(new(0, .332f, .095f), new(.345f, .273f, .35f), .046f, Cream);
+        b.RoundBox(new(0, .461f, .095f), new(.393f, .036f, .406f), .014f, Wood);
+        b.RoundBox(new(0, .489f, .095f), new(.419f, .078f, .432f), .036f, new("f5e5be"));
+        // Inset dark panes and raised warm frames remain legible at the sailing camera scale.
+        b.RoundBox(new(0, .376f, -.085f), new(.254f, .13f, .019f), .008f, Brass);
+        b.RoundBox(new(0, .376f, -.097f), new(.228f, .107f, .014f), .006f, Glass);
+        b.RoundBox(new(0, .376f, -.107f), new(.016f, .124f, .018f), .005f, Cream);
         foreach (int side in new[] { -1, 1 })
         {
-            for (int j = 0; j < 2; j++) b.RoundBox(new(side * .17f, .36f, .017f + .15f * j), new(.015f, .106f, .103f), .007f, Glass);
+            for (int j = 0; j < 2; j++)
+            {
+                float z = .015f + .15f * j;
+                b.RoundBox(new(side * .173f, .374f, z), new(.018f, .131f, .119f), .007f, Brass);
+                b.RoundBox(new(side * .185f, .374f, z), new(.013f, .107f, .095f), .005f, Glass);
+                b.RoundBox(new(side * .194f, .40f, z - .025f), new(.004f, .037f, .012f), .0015f, new("72969a"));
+            }
             b.RoundBox(new(side * .174f, .29f, .1f), new(.012f, .017f, .26f), .004f, Brass);
         }
-        b.RoundBox(new(0, .31f, .27f), new(.12f, .20f, .019f), .011f, Wood);
+        b.RoundBox(new(0, .312f, .278f), new(.131f, .215f, .020f), .009f, Wood);
+        b.RoundBox(new(0, .361f, .293f), new(.083f, .083f, .013f), .006f, Glass);
         b.Sphere(new(.036f, .322f, .285f), new(.009f, .009f, .009f), Brass, 8, 5);
         b.RoundBox(new(-.1f, .53f, .18f), new(.066f, .085f, .068f), .012f, DarkWood);
         b.RoundBox(new(-.1f, .578f, .18f), new(.082f, .021f, .084f), .007f, Brass);
-        b.Tube(new[] { new Vector3(.11f, .48f, .22f), new Vector3(.11f, .69f, .22f) }, .008f, Wood, 7);
-        b.Tube(new[] { new Vector3(.11f, .665f, .22f), new Vector3(.04f, .635f, .22f) }, .008f, Brass, 7);
+        b.Tube(new[] { new Vector3(.11f, .48f, .22f), new Vector3(.11f, .645f, .22f) }, .008f, Wood, 7);
+        b.Tube(new[] { new Vector3(.11f, .625f, .22f), new Vector3(.04f, .60f, .22f) }, .008f, Brass, 7);
         if (kind == BoatKind.Mage) Crystal(b, new(0, .247f, -.345f), .95f);
         else if (kind == BoatKind.Trawler)
         {
@@ -160,9 +174,9 @@ public static class ActorArt3D
     static void Crystal(ActorGeometry b, Vector3 p, float s)
     {
         b.Sphere(p, new Vector3(.095f, .035f, .087f) * s, DarkWood);
-        b.Tube(new[] { p, p + Vector3.Up * .105f * s }, .029f * s, Brass, 8);
-        b.Crystal(p + Vector3.Up * .235f * s, new Vector3(.088f, .20f, .078f) * s, Purple);
-        b.Ring(p + Vector3.Up * .11f * s, .063f * s, .012f * s, Brass);
+        b.Tube(new[] { p, p + Vector3.Up * .15f * s }, .029f * s, Brass, 8);
+        b.Crystal(p + Vector3.Up * .29f * s, new Vector3(.108f, .245f, .095f) * s, Purple);
+        b.Ring(p + Vector3.Up * .14f * s, .063f * s, .012f * s, Brass);
     }
 
     static void Crab(ActorGeometry b, float s)
@@ -184,10 +198,10 @@ public static class ActorArt3D
             b.Sphere(P(side * .34f, .18f, -.27f), P(.075f, .063f, .10f), Shell, 14, 9);
             b.Tube(new[] { P(side * .304f, .18f, -.315f), P(side * .295f, .175f, -.39f), P(side * .329f, .168f, -.409f) }, new[] { .036f * s, .021f * s, .004f * s }, Coral, 8);
             b.Tube(new[] { P(side * .375f, .18f, -.306f), P(side * .383f, .172f, -.373f), P(side * .348f, .168f, -.408f) }, new[] { .03f * s, .02f * s, .003f * s }, Shell, 8);
-            b.Tube(new[] { P(side * .105f, .228f, -.15f), P(side * .12f, .292f, -.20f) }, .016f * s, DarkCoral, 8);
-            b.Sphere(P(side * .12f, .293f, -.204f), P(.045f, .051f, .043f), Eye, 14, 9);
-            b.Sphere(P(side * .116f, .296f, -.239f), P(.021f, .027f, .012f), Pupil, 12, 8);
-            b.Sphere(P(side * .11f - .006f, .308f, -.249f), P(.006f, .007f, .003f), Eye, 8, 5);
+            b.Tube(new[] { P(side * .105f, .228f, -.15f), P(side * .12f, .322f, -.20f) }, .016f * s, DarkCoral, 8);
+            b.Sphere(P(side * .12f, .322f, -.204f), P(.050f, .055f, .047f), Eye, 14, 9);
+            b.Sphere(P(side * .116f, .347f, -.239f), P(.025f, .027f, .018f), Pupil, 12, 8);
+            b.Sphere(P(side * .11f - .006f, .36f, -.252f), P(.006f, .007f, .003f), Eye, 8, 5);
             // Small horn and brow connect the eyes to the sculpted shell.
             b.Tube(new[] { P(side * .164f, .255f, -.14f), P(side * .17f, .323f, -.124f) }, new[] { .025f * s, .003f * s }, Coral, 8);
         }

@@ -21,6 +21,14 @@ internal sealed class ActorGeometry
     {
         Triangle(a, b, c, na, nb, nc, color); Triangle(a, c, d, na, nc, nd, color);
     }
+    public void Scale(Vector3 scale)
+    {
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            vertices[i] *= scale;
+            normals[i] = (normals[i] / scale).Normalized();
+        }
+    }
     public ArrayMesh Mesh(Material material)
     {
         var arrays = new Godot.Collections.Array(); arrays.Resize((int)Godot.Mesh.ArrayType.Max);
