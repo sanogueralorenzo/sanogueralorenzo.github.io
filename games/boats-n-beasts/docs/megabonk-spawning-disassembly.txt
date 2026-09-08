@@ -1,0 +1,299 @@
+
+Stage credits uncapped
+180486180 sub rsp, 0x38
+180486184 cmp byte ptr [rip + 0x2cec8b8], 0
+18048618b movaps xmmword ptr [rsp + 0x20], xmm6
+180486190 jne 0x1804861a5
+180486192 lea rcx, [rip + 0x2adc1ff] ; data f32=1.09061e-19, i32=536920455
+180486199 call 0x1802696c0
+18048619e mov byte ptr [rip + 0x2cec89e], 1
+1804861a5 mov rax, qword ptr [rip + 0x2adc1ec] ; data f32=1.09061e-19, i32=536920455
+1804861ac cmp dword ptr [rax + 0xe4], 0
+1804861b3 jne 0x1804861c4
+1804861b5 mov rcx, rax
+1804861b8 call 0x1802699a0
+1804861bd mov rax, qword ptr [rip + 0x2adc1d4] ; data f32=1.09061e-19, i32=536920455
+1804861c4 mov rax, qword ptr [rax + 0xb8]
+1804861cb xor edx, edx
+1804861cd mov ecx, 0x32
+1804861d2 movss xmm6, dword ptr [rax + 0x1c]
+1804861d7 divss xmm6, dword ptr [rip + 0x21a8c11] ; data f32=60, i32=1114636288
+1804861df call 0x18042b6a0
+1804861e4 mulss xmm6, dword ptr [rip + 0x21a8a68] ; data f32=0.5, i32=1056964608
+1804861ec addss xmm6, dword ptr [rip + 0x21a8a88] ; data f32=1, i32=1065353216
+1804861f4 mulss xmm0, xmm6
+1804861f8 movaps xmm6, xmmword ptr [rsp + 0x20]
+1804861fd add rsp, 0x38
+180486201 ret
+180486202 int3
+180486203 int3
+180486204 int3
+180486205 int3
+180486206 int3
+180486207 int3
+180486208 int3
+180486209 int3
+18048620a int3
+18048620b int3
+18048620c int3
+18048620d int3
+18048620e int3
+18048620f int3
+
+Stage credits capped
+180486210 push rdi
+180486212 sub rsp, 0x30
+180486216 xor edx, edx
+180486218 mov rdi, rcx
+18048621b call 0x180486510
+180486220 test al, al
+180486222 je 0x1804862c6
+180486228 movaps xmmword ptr [rsp + 0x20], xmm6
+18048622d xor edx, edx
+18048622f mov rcx, rdi
+180486232 call 0x180486180
+180486237 cmp byte ptr [rip + 0x2cec809], 0
+18048623e movaps xmm6, xmm0
+180486241 jne 0x180486256
+180486243 lea rcx, [rip + 0x2b0cae6] ; data f32=1.08941e-19, i32=536911213
+18048624a call 0x1802696c0
+18048624f mov byte ptr [rip + 0x2cec7f1], 1
+180486256 mov rax, qword ptr [rip + 0x2b0cad3] ; data f32=1.08941e-19, i32=536911213
+18048625d cmp dword ptr [rax + 0xe4], 0
+180486264 jne 0x180486275
+180486266 mov rcx, rax
+180486269 call 0x1802699a0
+18048626e mov rax, qword ptr [rip + 0x2b0cabb] ; data f32=1.08941e-19, i32=536911213
+180486275 mov rax, qword ptr [rax + 0xb8]
+18048627c mov rcx, qword ptr [rax]
+18048627f test rcx, rcx
+180486282 je 0x1804862cf
+180486284 mov edx, dword ptr [rdi + 0x30]
+180486287 xor r8d, r8d
+18048628a mov qword ptr [rsp + 0x40], rbx
+18048628f call 0x180419b50
+180486294 mov r8, qword ptr [rdi]
+180486297 mov rcx, rdi
+18048629a mov ebx, eax
+18048629c mov rdx, qword ptr [r8 + 0x210]
+1804862a3 call qword ptr [r8 + 0x208]
+1804862aa cmp ebx, eax
+1804862ac mov rbx, qword ptr [rsp + 0x40]
+1804862b1 jl 0x1804862b8
+1804862b3 mulss xmm6, dword ptr [rdi + 0x68]
+1804862b8 movaps xmm0, xmm6
+1804862bb movaps xmm6, xmmword ptr [rsp + 0x20]
+1804862c0 add rsp, 0x30
+1804862c4 pop rdi
+1804862c5 ret
+1804862c6 xorps xmm0, xmm0
+1804862c9 add rsp, 0x30
+1804862cd pop rdi
+1804862ce ret
+1804862cf call 0x180269910
+1804862d4 int3
+1804862d5 int3
+1804862d6 int3
+1804862d7 int3
+1804862d8 int3
+1804862d9 int3
+1804862da int3
+1804862db int3
+1804862dc int3
+1804862dd int3
+1804862de int3
+1804862df int3
+
+Stage target count
+1804862e0 push rbx
+1804862e2 sub rsp, 0x60
+1804862e6 cmp byte ptr [rip + 0x2cec757], 0
+1804862ed mov rbx, rcx
+1804862f0 movaps xmmword ptr [rsp + 0x50], xmm6
+1804862f5 jne 0x180486316
+1804862f7 lea rcx, [rip + 0x2ad2b0a] ; data f32=1.09041e-19, i32=536918973
+1804862fe call 0x1802696c0
+180486303 lea rcx, [rip + 0x2adc08e] ; data f32=1.09061e-19, i32=536920455
+18048630a call 0x1802696c0
+18048630f mov byte ptr [rip + 0x2cec72e], 1
+180486316 mov rax, qword ptr [rip + 0x2adc07b] ; data f32=1.09061e-19, i32=536920455
+18048631d cmp dword ptr [rax + 0xe4], 0
+180486324 jne 0x180486335
+180486326 mov rcx, rax
+180486329 call 0x1802699a0
+18048632e mov rax, qword ptr [rip + 0x2adc063] ; data f32=1.09061e-19, i32=536920455
+180486335 mov rcx, qword ptr [rip + 0x2ad2acc] ; data f32=1.09041e-19, i32=536918973
+18048633c mov rax, qword ptr [rax + 0xb8]
+180486343 cmp dword ptr [rcx + 0xe4], 0
+18048634a movss xmm6, dword ptr [rax + 0x1c]
+18048634f jne 0x180486356
+180486351 call 0x1802699a0
+180486356 cmp byte ptr [rip + 0x2cebcec], 0
+18048635d jne 0x180486372
+18048635f lea rcx, [rip + 0x2ad2aa2] ; data f32=1.09041e-19, i32=536918973
+180486366 call 0x1802696c0
+18048636b mov byte ptr [rip + 0x2cebcd7], 1
+180486372 mov rcx, qword ptr [rip + 0x2ad2a8f] ; data f32=1.09041e-19, i32=536918973
+180486379 cmp dword ptr [rcx + 0xe4], 0
+180486380 jne 0x180486387
+180486382 call 0x1802699a0
+180486387 mov rax, qword ptr [rip + 0x2ad2a7a] ; data f32=1.09041e-19, i32=536918973
+18048638e mov rcx, qword ptr [rax + 0xb8]
+180486395 mov rax, qword ptr [rcx + 0x10]
+180486399 test rax, rax
+18048639c je 0x1804864a5
+1804863a2 divss xmm6, dword ptr [rax + 0xa4]
+1804863aa movaps xmmword ptr [rsp + 0x40], xmm7
+1804863af xorps xmm0, xmm0
+1804863b2 comiss xmm0, xmm6
+1804863b5 movss xmm7, dword ptr [rip + 0x21a88bf] ; data f32=1, i32=1065353216
+1804863bd movaps xmmword ptr [rsp + 0x20], xmm9
+1804863c3 ja 0x1804863cf
+1804863c5 comiss xmm6, xmm7
+1804863c8 jbe 0x1804863d2
+1804863ca movaps xmm6, xmm7
+1804863cd jmp 0x1804863d2
+1804863cf xorps xmm6, xmm6
+1804863d2 mulss xmm6, dword ptr [rip + 0x21a8bce] ; data f32=200, i32=1128792064
+1804863da xor edx, edx
+1804863dc mov ecx, 0x32
+1804863e1 addss xmm6, dword ptr [rip + 0x21a88c7] ; data f32=5, i32=1084227584
+1804863e9 call 0x18042b6a0
+1804863ee cmp byte ptr [rip + 0x2cec630], 0
+1804863f5 movaps xmm9, xmm0
+1804863f9 jne 0x18048640e
+1804863fb lea rcx, [rip + 0x2af733e] ; data f32=1.0889e-19, i32=536907295
+180486402 call 0x1802696c0
+180486407 mov byte ptr [rip + 0x2cec617], 1
+18048640e mov rax, qword ptr [rbx]
+180486411 mov rcx, rbx
+180486414 mov rdx, qword ptr [rax + 0x1b0]
+18048641b call qword ptr [rax + 0x1a8]
+180486421 test al, al
+180486423 je 0x18048647a
+180486425 movaps xmmword ptr [rsp + 0x30], xmm8
+18048642b xor edx, edx
+18048642d mov ecx, 0x26
+180486432 call 0x18042b6a0
+180486437 mov rcx, qword ptr [rip + 0x2af7302] ; data f32=1.0889e-19, i32=536907295
+18048643e movaps xmm8, xmm0
+180486442 cmp dword ptr [rcx + 0xe4], 0
+180486449 jne 0x180486450
+18048644b call 0x1802699a0
+180486450 xor ecx, ecx
+180486452 call 0x18046ff00
+180486457 mulss xmm8, dword ptr [rip + 0x21a8964] ; data f32=0.7, i32=1060320051
+180486460 mulss xmm0, dword ptr [rip + 0x21a8958] ; data f32=0.4, i32=1053609165
+180486468 addss xmm8, xmm7
+18048646d addss xmm0, xmm8
+180486472 movaps xmm8, xmmword ptr [rsp + 0x30]
+180486478 jmp 0x18048647d
+18048647a movaps xmm0, xmm7
+18048647d mulss xmm6, xmm0
+180486481 xor edx, edx
+180486483 mulss xmm6, xmm9
+180486488 movaps xmm0, xmm6
+18048648b movaps xmm9, xmmword ptr [rsp + 0x20]
+180486491 movaps xmm7, xmmword ptr [rsp + 0x40]
+180486496 movaps xmm6, xmmword ptr [rsp + 0x50]
+18048649b add rsp, 0x60
+18048649f pop rbx
+1804864a0 jmp 0x180331070
+1804864a5 call 0x180269910
+1804864aa int3
+1804864ab int3
+1804864ac int3
+1804864ad int3
+1804864ae int3
+1804864af int3
+
+Summon interval
+1804864b0 sub rsp, 0x28
+1804864b4 xor edx, edx
+1804864b6 mov ecx, 0x26
+1804864bb call 0x18042b6a0
+1804864c0 mulss xmm0, dword ptr [rip + 0x21a878c] ; data f32=0.5, i32=1056964608
+1804864c8 movss xmm1, dword ptr [rip + 0x21a87ac] ; data f32=1, i32=1065353216
+1804864d0 movss xmm2, dword ptr [rip + 0x21a875c] ; data f32=0.1, i32=1036831949
+1804864d8 subss xmm1, xmm0
+1804864dc comiss xmm2, xmm1
+1804864df ja 0x1804864fd
+1804864e1 movss xmm0, dword ptr [rip + 0x21a87bb] ; data f32=2, i32=1073741824
+1804864e9 comiss xmm1, xmm0
+1804864ec jbe 0x180486500
+1804864ee movaps xmm1, xmm0
+1804864f1 addss xmm1, xmm1
+1804864f5 movaps xmm0, xmm1
+1804864f8 add rsp, 0x28
+1804864fc ret
+1804864fd movaps xmm1, xmm2
+180486500 addss xmm1, xmm1
+180486504 movaps xmm0, xmm1
+180486507 add rsp, 0x28
+18048650b ret
+18048650c int3
+18048650d int3
+18048650e int3
+18048650f int3
+
+Target reached
+180486700 push rdi
+180486702 sub rsp, 0x20
+180486706 cmp byte ptr [rip + 0x2cec33a], 0
+18048670d mov rdi, rcx
+180486710 jne 0x180486725
+180486712 lea rcx, [rip + 0x2b0c617] ; data f32=1.08941e-19, i32=536911213
+180486719 call 0x1802696c0
+18048671e mov byte ptr [rip + 0x2cec322], 1
+180486725 mov rax, qword ptr [rip + 0x2b0c604] ; data f32=1.08941e-19, i32=536911213
+18048672c cmp dword ptr [rax + 0xe4], 0
+180486733 jne 0x180486744
+180486735 mov rcx, rax
+180486738 call 0x1802699a0
+18048673d mov rax, qword ptr [rip + 0x2b0c5ec] ; data f32=1.08941e-19, i32=536911213
+180486744 mov rax, qword ptr [rax + 0xb8]
+18048674b mov rcx, qword ptr [rax]
+18048674e test rcx, rcx
+180486751 je 0x180486789
+180486753 mov edx, dword ptr [rdi + 0x30]
+180486756 xor r8d, r8d
+180486759 mov qword ptr [rsp + 0x30], rbx
+18048675e call 0x180419b50
+180486763 mov r8, qword ptr [rdi]
+180486766 mov rcx, rdi
+180486769 mov ebx, eax
+18048676b mov rdx, qword ptr [r8 + 0x210]
+180486772 call qword ptr [r8 + 0x208]
+180486779 cmp ebx, eax
+18048677b mov rbx, qword ptr [rsp + 0x30]
+180486780 setge al
+180486783 add rsp, 0x20
+180486787 pop rdi
+180486788 ret
+180486789 call 0x180269910
+18048678e int3
+18048678f int3
+
+Base credits
+18046cce0 push rbx
+18046cce2 sub rsp, 0x30
+18046cce6 mov rax, qword ptr [rcx]
+18046cce9 mov rbx, rcx
+18046ccec movaps xmmword ptr [rsp + 0x20], xmm6
+18046ccf1 mov rdx, qword ptr [rax + 0x1f0]
+18046ccf8 call qword ptr [rax + 0x1e8]
+18046ccfe xor edx, edx
+18046cd00 mov rcx, rbx
+18046cd03 movaps xmm6, xmm0
+18046cd06 call 0x18046cd20
+18046cd0b mulss xmm0, xmm6
+18046cd0f movaps xmm6, xmmword ptr [rsp + 0x20]
+18046cd14 add rsp, 0x30
+18046cd18 pop rbx
+18046cd19 ret
+18046cd1a int3
+18046cd1b int3
+18046cd1c int3
+18046cd1d int3
+18046cd1e int3
+18046cd1f int3

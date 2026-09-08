@@ -1,0 +1,16 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(720.0005, 450.00006) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-185518-upgrade
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Upgrade
+Boat: Trawler
+Position: <3922.9475, 169.34256>
+Health: 110.41998/180
+Coins: 173; cargo: 1; charts: 3; kills: 49; level: 4
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 93.5; peak enemies: 16; peak shots: 31
+Combat clock=93.51609; director=10.719014/2.1857445; boost=100; invulnerable=0; ability=0.7671022/0
+Weapon ranks=3,2,0,1,1,1; cooldowns=0.42363086,0.3408835,0,0.17518008,0,1.3978573
+Depletion=0:0:1=3;1:0:1=1;2:0:1=1;3:0:1=1
+CPU simulation average ms=0.065; draw submission average ms=3.875; engine FPS=52; draw calls=1569; objects=3980
+Frame ms mean: 17.13; p95: 20.44; p99: 22.22

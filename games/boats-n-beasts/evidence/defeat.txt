@@ -1,0 +1,29 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(710.28906, 449.78174) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-182355-defeat
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Defeat
+Boat: Cutter
+Position: <1608.4661, 276.2258>
+Health: 0/100
+Coins: 26; cargo: 0; charts: 0; kills: 6; level: 1
+Active chunks: 25; enemies: 10; shots: 3
+Actual sailing seconds: 22.0; peak enemies: 10; peak shots: 8
+Combat clock=21.967323; director=3.5226932/1.4760547; boost=100; invulnerable=0.8; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0.23939429,0,0,0,0,0.36216193
+Depletion=
+Enemy 3: Puffer position=<1378.5706, 475.10208> hp=47.5 time=18.033585 attack=0.1398037 tell=0.65 dash=0 mark=0
+Enemy 7: Puffer position=<1977.6351, 46.33127> hp=47.5 time=14.750186 attack=2.2396445 tell=0 dash=0 mark=0
+Enemy 9: Puffer position=<1805.0902, -66.98298> hp=57 time=13.423572 attack=2.8669245 tell=0 dash=0 mark=0
+Enemy 11: Puffer position=<1944.4735, 543.7587> hp=47.5 time=12.761934 attack=0.1398037 tell=0.65 dash=0 mark=0
+Enemy 12: Puffer position=<1515.4557, -26.323837> hp=32.5 time=12.761934 attack=0.59386206 tell=0.65 dash=0 mark=0
+Enemy 13: Crab position=<1564.6846, 257.4558> hp=33.75 time=10.805816 attack=-8.872312 tell=0 dash=0 mark=0
+Enemy 14: Crab position=<1674.1346, 170.43088> hp=5.75 time=8.001566 attack=-6.272962 tell=0 dash=0 mark=0
+Enemy 15: Crab position=<1332.1897, 217.59445> hp=33.75 time=6.555771 attack=-3.6633773 tell=0 dash=0 mark=0
+Enemy 16: Crab position=<2261.8972, 309.82062> hp=33.75 time=4.197691 attack=-2.1407998 tell=0 dash=0 mark=0
+Enemy 17: Puffer position=<2319.95, 231.35278> hp=47.5 time=3.5351932 attack=1.9771435 tell=0 dash=0 mark=0
+Shot Cannon hostile=True position=<1776.0616, 232.75517> life=4.4271646
+Shot Cannon hostile=True position=<1774.306, 86.6531> life=5.054816
+Shot Cannon hostile=False position=<1619.7397, -14.380672> life=0.62689424
+CPU simulation average ms=0.038; draw submission average ms=2.456; engine FPS=78; draw calls=1174; objects=2686
+Frame ms mean: 13.39; p95: 16.67; p99: 18.02

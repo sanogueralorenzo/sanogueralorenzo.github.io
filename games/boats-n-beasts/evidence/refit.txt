@@ -1,0 +1,66 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(719.94653, 449.99683) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-183539-harbor
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Harbor
+Boat: Trawler
+Position: <3695.2903, -232.21358>
+Health: 180/180
+Coins: 9; cargo: 0; charts: 3; kills: 94; level: 5
+Active chunks: 25; enemies: 25; shots: 25
+Actual sailing seconds: 123.0; peak enemies: 26; peak shots: 46
+Combat clock=122.97205; director=0/0.42852786; boost=62.147087; invulnerable=0; ability=0.09878005/0
+Weapon ranks=3,0,2,2,2,2; cooldowns=0,0,0,0,0,0
+Depletion=0:0:1=3;1:0:1=1;3:0:1=1;4:0:1=1
+Enemy 37: Puffer position=<4139.0693, 29.404047> hp=26.5 time=69.21604 attack=1.506129 tell=0 dash=0 mark=0
+Enemy 39: Puffer position=<4096.8506, 64.44855> hp=22.300001 time=67.12301 attack=1.506129 tell=0 dash=0 mark=0
+Enemy 42: Puffer position=<4086.1658, -39.922714> hp=7.300001 time=65.15798 attack=1.506129 tell=0 dash=0 mark=0
+Enemy 77: Ray position=<4184.897, -260.03577> hp=21.25 time=29.81373 attack=0.9143188 tell=0 dash=0 mark=0.28898606
+Enemy 79: Puffer position=<4034.803, 80.72773> hp=15.800001 time=29.147757 attack=-0.9174307 tell=0.65 dash=0 mark=0
+Enemy 92: Leviathan position=<4572.078, -256.34875> hp=1822.3799 time=23.466915 attack=1.7098763 tell=0 dash=0 mark=0
+Enemy 100: Puffer position=<4001.1157, -2.062035> hp=48 time=18.691246 attack=1.6440074 tell=0 dash=0 mark=0.28898606
+Enemy 104: Ray position=<4202.6553, -346.61664> hp=60.800003 time=15.462874 attack=1.1363928 tell=0 dash=0 mark=0
+Enemy 107: Puffer position=<4432.115, -46.227077> hp=76 time=13.417995 attack=-0.9507639 tell=0.65 dash=0 mark=0
+Enemy 108: Ray position=<4079.9492, -371.20917> hp=86 time=12.754611 attack=-0.7205803 tell=0 dash=0 mark=0
+Enemy 109: Crab position=<4194.4404, -83.778336> hp=54 time=12.754611 attack=-10.186958 tell=0 dash=0 mark=0
+Enemy 111: Crab position=<4258.432, -23.682058> hp=54 time=10.781628 attack=-8.054543 tell=0 dash=0 mark=0
+Enemy 112: Crab position=<4015.4348, -100.94124> hp=54 time=9.444572 attack=-7.333752 tell=0 dash=0 mark=0
+Enemy 113: Crab position=<3902.5789, -65.62127> hp=54 time=8.125778 attack=-6.0607243 tell=0 dash=0 mark=0
+Enemy 114: Ray position=<4174.3604, -505.81635> hp=86 time=7.45972 attack=-0.8602758 tell=0 dash=0 mark=0
+Enemy 115: Ray position=<3999.647, 37.01796> hp=86 time=7.45972 attack=-1.0802761 tell=0 dash=0 mark=0
+Enemy 116: Ray position=<4031.7136, -51.261784> hp=58 time=6.8055835 attack=0.43673313 tell=0.43673313 dash=0 mark=0.28898606
+Enemy 118: Crab position=<4277.686, -545.4965> hp=54 time=6.157796 attack=-4.93593 tell=0 dash=0 mark=0
+Enemy 119: Serpent position=<4195.8687, 40.410656> hp=104 time=5.500587 attack=0.39626285 tell=-0.003496075 dash=-0.015827134 mark=0
+Enemy 120: Serpent position=<3829.5364, -292.11826> hp=53.600006 time=5.500587 attack=4.2166657 tell=0.7500001 dash=-0.0013174415 mark=0
+Enemy 121: Puffer position=<3911.314, 222.3802> hp=76 time=4.83404 attack=0.9667003 tell=0 dash=0 mark=0
+Enemy 122: Serpent position=<4577.453, 4.559376> hp=104 time=4.83404 attack=0.77683616 tell=-0.018862128 dash=-0.00089156814 mark=0
+Enemy 123: Puffer position=<4224.7637, 413.54834> hp=76 time=3.06691 attack=-0.6332346 tell=0.65 dash=0 mark=0
+Enemy 124: Ray position=<3473.684, -409.5675> hp=86 time=3.06691 attack=-0.7553382 tell=0 dash=0 mark=0
+Enemy 125: Crab position=<4505.4985, 124.75278> hp=54 time=2.411318 attack=-1.0708301 tell=0 dash=0 mark=0
+Shot Cannon hostile=True position=<4317.7563, -883.8322> life=0.099757195
+Shot Cannon hostile=True position=<5121.069, -1005.8415> life=0.2797156
+Shot Cannon hostile=True position=<5413.71, -652.27325> life=0.2797156
+Shot Cannon hostile=True position=<5490.3296, -199.75638> life=0.2797156
+Shot Cannon hostile=True position=<4094.1538, 439.84473> life=0.2797156
+Shot Cannon hostile=True position=<3884.7703, -796.4512> life=0.2797156
+Shot Cannon hostile=True position=<4238.3574, -1089.0837> life=0.2797156
+Shot Cannon hostile=True position=<4690.854, -1165.7242> life=0.2797156
+Shot Cannon hostile=True position=<3801.3245, -84.38769> life=0.31971517
+Shot Cannon hostile=True position=<3856.094, -326.43396> life=2.3195748
+Shot Cannon hostile=True position=<3958.8691, -501.1101> life=2.3195748
+Shot Cannon hostile=True position=<4176.8794, -91.20949> life=3.147249
+Shot Cannon hostile=True position=<4029.2104, -225.12674> life=3.6864235
+Shot Cannon hostile=True position=<4020.918, -242.39056> life=3.6864235
+Shot Cannon hostile=True position=<3979.4111, -302.18832> life=3.6864235
+Shot Cannon hostile=True position=<3955.078, -324.13092> life=3.8243024
+Shot Cannon hostile=True position=<4879.2407, -206.61221> life=3.9924176
+Shot Cannon hostile=True position=<4522.496, 51.05864> life=3.9924176
+Shot Cannon hostile=True position=<4375.5293, -14.867078> life=3.9924176
+Shot Cannon hostile=True position=<4281.206, -145.44296> life=3.9924176
+Shot Cannon hostile=True position=<4330.7627, -452.64944> life=3.9924176
+Shot Cannon hostile=True position=<4461.3315, -546.9628> life=3.9924176
+Shot Cannon hostile=True position=<4621.574, -563.35394> life=3.9924176
+Shot Cannon hostile=True position=<4768.541, -497.4281> life=3.9924176
+Shot Cannon hostile=True position=<4862.8643, -366.85196> life=3.9924176
+CPU simulation average ms=0.097; draw submission average ms=3.539; engine FPS=59; draw calls=1526; objects=4079
+Frame ms mean: 16.95; p95: 20.37; p99: 21.21

@@ -1,0 +1,16 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(719.6164, 449.83908) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-190002-victory
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Victory
+Boat: Trawler
+Position: <-179.01738, 9.951687>
+Health: 110.41998/180
+Coins: 173; cargo: 1; charts: 3; kills: 49; level: 4
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 182.2; peak enemies: 16; peak shots: 31
+Combat clock=182.14401; director=10.719014/2.1857445; boost=100; invulnerable=0; ability=1/0
+Weapon ranks=3,2,0,2,1,1; cooldowns=0,0,0,0,0,0
+Depletion=0:0:1=3;1:0:1=1;2:0:1=1;3:0:1=1
+CPU simulation average ms=0.016; draw submission average ms=3.145; engine FPS=60; draw calls=1375; objects=3837
+Frame ms mean: 18.00; p95: 21.83; p99: 25.00

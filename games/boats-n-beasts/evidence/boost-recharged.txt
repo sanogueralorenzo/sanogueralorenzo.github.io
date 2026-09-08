@@ -1,0 +1,31 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(716.80884, 452.21115) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-182333-sailing
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Sailing
+Boat: Cutter
+Position: <1724.6073, 273.60345>
+Health: 88.6/100
+Coins: 22; cargo: 0; charts: 0; kills: 2; level: 1
+Active chunks: 25; enemies: 9; shots: 6
+Actual sailing seconds: 10.8; peak enemies: 10; peak shots: 6
+Combat clock=10.795564; director=0.27777776/1.243872; boost=79.53262; invulnerable=0; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0.24949484,0,0,0,0,1.4069443
+Depletion=
+Enemy 2: Crab position=<1087.5322, 432.86868> hp=27 time=8.178404 attack=-5.309282 tell=0 dash=0 mark=0
+Enemy 3: Puffer position=<985.10254, 412.56268> hp=47.5 time=6.8620706 attack=3.6944442 tell=0 dash=0 mark=0
+Enemy 5: Crab position=<1169.9055, 327.84488> hp=33.75 time=5.544871 attack=-3.4971516 tell=0 dash=0 mark=0
+Enemy 6: Crab position=<2224.7048, 259.3412> hp=33.75 time=4.2354684 attack=-2.7162232 tell=0 dash=0 mark=0
+Enemy 7: Puffer position=<2511.4004, -277.27264> hp=47.5 time=3.5788462 attack=1.9960895 tell=0 dash=0 mark=0
+Enemy 8: Serpent position=<2406.9377, 223.26266> hp=78 time=2.9155407 attack=2.4027634 tell=-0.0033123642 dash=-0.0015265923 mark=0
+Enemy 9: Puffer position=<2050.0125, -773.787> hp=57 time=2.2522223 attack=2.6227443 tell=0 dash=0 mark=0
+Enemy 11: Puffer position=<1891.8988, 856.231> hp=47.5 time=1.5905753 attack=3.6944442 tell=0 dash=0 mark=0
+Enemy 12: Puffer position=<1494.0629, -555.3659> hp=47.5 time=1.5905753 attack=0.34396523 tell=0.65 dash=0 mark=0
+Shot Cannon hostile=True position=<1421.3997, 166.26607> life=2.0733316
+Shot Cannon hostile=True position=<2322.0784, -143.67862> life=4.1827717
+Shot Cannon hostile=True position=<2034.5985, -621.68085> life=4.8094153
+Shot Cannon hostile=False position=<1633.4791, 545.9329> life=0.6332121
+Shot Cannon hostile=True position=<1000.4526, 409.60953> life=5.877777
+Shot Cannon hostile=True position=<1887.7728, 841.1534> life=5.877777
+CPU simulation average ms=0.039; draw submission average ms=2.765; engine FPS=79; draw calls=1225; objects=2581
+Frame ms mean: 14.16; p95: 16.67; p99: 18.14

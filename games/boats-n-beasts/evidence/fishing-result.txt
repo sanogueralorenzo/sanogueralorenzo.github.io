@@ -1,0 +1,21 @@
+Mouse viewport=(139.5, 1023.75) global=(139.5, 1023.75) boatScreen=(720.00006, 450.00006) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260907-181349-catch
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Catch
+Boat: Cutter
+Position: <166.6193, 168.87096>
+Health: 100/100
+Coins: 23; cargo: 1; charts: 0; kills: 3; level: 1
+Active chunks: 25; enemies: 5; shots: 1
+Actual sailing seconds: 10.4; peak enemies: 5; peak shots: 2
+Combat clock=10.416766; director=0.5122343/0.62482375; boost=100; invulnerable=0; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0.39447525,0,0,0,0,0
+Depletion=0:0:1=1
+Enemy 3: Crab position=<227.98578, -223.75716> hp=12 time=6.4693694 attack=-3.9086707 tell=0 dash=0 mark=0
+Enemy 5: Crab position=<227.96954, 678.6429> hp=27 time=3.8446937 attack=-1.0290068 tell=0 dash=0 mark=0
+Enemy 6: Crab position=<-439.1251, 77.378914> hp=27 time=2.520091 attack=-1.338202 tell=0 dash=0 mark=0
+Enemy 7: Crab position=<50.937794, -528.75635> hp=27 time=1.1997342 attack=1.028625 tell=0 dash=0 mark=0
+Enemy 8: Crab position=<922.2847, -194.69928> hp=27 time=0.5330676 attack=1.2318215 tell=0 dash=0 mark=0
+Shot Cannon hostile=False position=<198.89651, -37.64148> life=0.77304673
+Frame ms mean: 18.40; p95: 22.22; p99: 24.66
