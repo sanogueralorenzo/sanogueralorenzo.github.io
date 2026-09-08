@@ -46,14 +46,20 @@ final class MenuBarStatus: NSObject {
         progress.title = action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewriting…"
         updateTooltip()
     }
-    func showError(_ message: String) {
+    func showError(_ message: String, opensPermissions: Bool = false) {
         setRewriting(nil); errorMessage = message
         progress.title = "Rewrite needs attention"; progress.isHidden = false
-        let label = NSTextField(wrappingLabelWithString: message)
-        label.font = .systemFont(ofSize: 12); label.preferredMaxLayoutWidth = 280
-        label.frame = NSRect(x: 14, y: 8, width: 280, height: label.fittingSize.height)
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 308, height: label.frame.height + 16))
-        view.addSubview(label); errorDetails.view = view; errorDetails.isHidden = false
+        errorDetails.view = nil
+        errorDetails.action = opensPermissions ? #selector(openPermissions) : nil
+        errorDetails.title = opensPermissions ? "Allow Rewrite in System Settings…" : ""
+        if !opensPermissions {
+            let label = NSTextField(wrappingLabelWithString: message)
+            label.font = .systemFont(ofSize: 12); label.preferredMaxLayoutWidth = 280
+            label.frame = NSRect(x: 14, y: 8, width: 280, height: label.fittingSize.height)
+            let view = NSView(frame: NSRect(x: 0, y: 0, width: 308, height: label.frame.height + 16))
+            view.addSubview(label); errorDetails.view = view
+        }
+        errorDetails.isHidden = false
         dot.isHidden = false; dot.layer?.backgroundColor = NSColor.systemOrange.cgColor
         updateTooltip()
     }
@@ -62,6 +68,7 @@ final class MenuBarStatus: NSObject {
         let label = errorMessage.map { "Rewrite: \($0)" } ?? action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewrite · ⌥R"
         item.button?.toolTip = label; item.button?.setAccessibilityLabel(label)
     }
+    @objc private func openPermissions() { Accessibility.openSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func begin() { onRewrite?() }
     @objc private func cancelRewrite() { onCancel?() }

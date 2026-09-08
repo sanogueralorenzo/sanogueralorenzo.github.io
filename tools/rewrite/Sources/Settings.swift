@@ -51,7 +51,6 @@ final class Settings: NSObject {
         window.orderOut(nil); onSave?()
     }
     @objc private func openPermissions() {
-        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        Accessibility.openSettings()
     }
 }

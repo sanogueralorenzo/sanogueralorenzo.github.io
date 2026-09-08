@@ -32,7 +32,12 @@ final class RewriteController {
             let picked = withExtendedLifetime(actions) { menu.popUp(positioning: menu.items.first, at: selection.point, in: nil) }
             actionMenu = nil
             if !picked { cancel() }
-        } catch { selection = nil; menuBar.showError(error.localizedDescription) }
+        } catch {
+            selection = nil
+            if case RewriteError.accessibilityPermission = error {
+                menuBar.showError(error.localizedDescription, opensPermissions: true)
+            } else { menuBar.showError(error.localizedDescription) }
+        }
     }
     private func run(_ action: EditAction) {
         guard let selection else { return }

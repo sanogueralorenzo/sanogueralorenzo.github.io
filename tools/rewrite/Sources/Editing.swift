@@ -42,5 +42,11 @@ enum Editing {
 
 enum RewriteError: LocalizedError {
     case message(String)
-    var errorDescription: String? { if case .message(let message) = self { return message }; return nil }
+    case accessibilityPermission
+    var errorDescription: String? {
+        switch self {
+        case .message(let message): return message
+        case .accessibilityPermission: return "Allow Rewrite in System Settings → Privacy & Security → Accessibility, then select text and try again."
+        }
+    }
 }

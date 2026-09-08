@@ -3,6 +3,10 @@ import ApplicationServices
 
 @MainActor
 enum Accessibility {
+    static func openSettings() {
+        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
     static func application(_ pid: pid_t) -> AXUIElement {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 1)
@@ -73,7 +77,7 @@ final class CapturedSelection {
 
     static func capture(sourceApp: NSRunningApplication? = nil) throws -> CapturedSelection {
         guard AXIsProcessTrusted() else {
-            throw RewriteError.message("Allow Rewrite in System Settings → Privacy & Security → Accessibility, then select text and try again.")
+            throw RewriteError.accessibilityPermission
         }
         guard let app = sourceApp ?? NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               let focused = Accessibility.element(Accessibility.application(app.processIdentifier), kAXFocusedUIElementAttribute) else {
