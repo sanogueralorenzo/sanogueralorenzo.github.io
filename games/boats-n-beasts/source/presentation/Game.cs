@@ -24,8 +24,7 @@ public partial class Game : Node2D
     bool title = true, choosingBoat, runRecorded, settings, controls, reducedMotion, fullscreen, assistedFishing;
     BoatKind selectedBoat;
     VoyageMode shownMode = (VoyageMode)(-1), beforePause;
-    LineEdit? seedInput;
-    uint selectedSeed = 73919;
+    uint selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
     int bestKills, completed, finishedRuns, silver, creditedSilver;
     bool recorded;
     float elapsed, toastTime;
@@ -121,7 +120,7 @@ public partial class Game : Node2D
         if (key.Keycode == Key.Escape)
         {
             if (settings || controls) { settings = controls = false; BuildMenu(); }
-            else if (title && choosingBoat) { ReadSeed(); choosingBoat = false; BuildMenu(); }
+            else if (title && choosingBoat) { choosingBoat = false; BuildMenu(); }
             else if (!title)
             {
                 if (Run.Mode == VoyageMode.Fishing) Run.CancelFishing();
@@ -150,9 +149,8 @@ public partial class Game : Node2D
     }
     void Start()
     {
-        if (seedInput != null && GodotObject.IsInstanceValid(seedInput) && uint.TryParse(seedInput.Text, out uint seed)) selectedSeed = seed;
+        selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         creditedSilver = 0; gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
-        seedInput = null;
         Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = choosingBoat = runRecorded = settings = controls = recorded = false;
         ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();
         Toast("WASD or click to sail  •  Space to boost  •  E to fish / dock"); BuildMenu();
@@ -262,7 +260,6 @@ public partial class Game : Node2D
     }
     void TitleMenu()
     {
-        seedInput = null;
         var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .3f), MouseFilter = Control.MouseFilterEnum.Ignore };
         shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
@@ -275,25 +272,17 @@ public partial class Game : Node2D
     }
     void BoatMenu()
     {
-        seedInput = null;
         var shade = new ColorRect { Color = new(.025f, .105f, .25f, .94f), Position = Vector2.Zero, Size = new(600, 1000), MouseFilter = Control.MouseFilterEnum.Ignore }; menuRoot.AddChild(shade);
         var col = new VBoxContainer { Position = new(58, 42), Size = new(472, 810) }; col.AddThemeConstantOverride("separation", 13); menuRoot.AddChild(col);
         col.AddChild(Label("Choose your boat", 44, true));
         var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 10); col.AddChild(choices);
-        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓  CUTTER" : "CUTTER", () => { ReadSeed(); selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
-        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓  TRAWLER" : "TRAWLER", () => { ReadSeed(); selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
+        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓  CUTTER" : "CUTTER", () => { selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
+        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓  TRAWLER" : "TRAWLER", () => { selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
         var spec = BoatSpec.For(selectedBoat);
         col.AddChild(Label($"{spec.Ability}  •  {spec.Hull} hull\n{spec.Description}", 20, false, OceanView.Cream));
-        var row = new HBoxContainer(); col.AddChild(row); var seedLabel = Label("OCEAN SEED", 18); seedLabel.CustomMinimumSize = new(120, 42); seedLabel.AutowrapMode = TextServer.AutowrapMode.Off; row.AddChild(seedLabel);
-        seedInput = new LineEdit { Text = selectedSeed.ToString(), MaxLength = 10, CustomMinimumSize = new(185, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        seedInput.AddThemeFontOverride("font", bodyFont); seedInput.AddThemeFontSizeOverride("font_size", 20); row.AddChild(seedInput);
-        row.AddChild(Button("↻", () => { selectedSeed = (uint)Random.Shared.Next(1, int.MaxValue); seedInput.Text = selectedSeed.ToString(); }));
-        var sailButton = Button("SET SAIL", Start, true); col.AddChild(sailButton);
-        seedInput.TooltipText = "Whole number from 0 to 4294967295";
-        seedInput.TextChanged += value => sailButton.Disabled = !uint.TryParse(value, out _);
-        col.AddChild(Button("Back", () => { ReadSeed(); choosingBoat = false; BuildMenu(); }));
+        col.AddChild(Button("SET SAIL", Start, true));
+        col.AddChild(Button("Back", () => { choosingBoat = false; BuildMenu(); }));
     }
-    void ReadSeed() { if (seedInput != null && uint.TryParse(seedInput.Text, out uint value)) selectedSeed = value; seedInput = null; }
     void HarborMenu()
     {
         var col = Panel(950, "LIGHTHOUSE HARBOR  /  SAFE WATERS", "A little shore leave", $"{Run.Coins} gold   •   Hull {Run.Health:0}/{Run.MaxHealth:0}   •   Cargo {Run.Hold.Count}/12");

@@ -67,3 +67,5 @@ World generation has independent coordinate-local randomness; combat, upgrade of
 See `docs/OBJECTIVE.md` for scope, `docs/QUALITY.md` for current validation and remaining gaps, and `docs/RESEARCH.md` for research provenance. No simulation harness or automated test results stand in for actual play.
 
 LVL is aligned to the far top-right edge, separate from the north-up nautical chart below. Islands use shoreline outlines, harbors use anchors, fish use wave marks, and the center arrow follows your heading. A rim anchor points home when distant. Voyage objectives remain in pause and cargo totals are available when fishing or docking.
+
+Boat selection contains only the boat choice, Set Sail and Back. Every new run, including retry, generates a fresh ocean automatically; seeds are internal diagnostics only.
