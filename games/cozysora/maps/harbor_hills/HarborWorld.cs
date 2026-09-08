@@ -75,7 +75,7 @@ public partial class HarborWorld : CozyMap
         ReportProgress("Finding the way to Harbor Hills…", .08f);
         await NextFrame();
         string cache = "user://harbor_hills_" + GenerationSignature + ".scn";
-        if (Godot.FileAccess.FileExists(cache))
+        if (CozySceneCache.Enabled && Godot.FileAccess.FileExists(cache))
         {
             StaticContent = GD.Load<PackedScene>(cache).Instantiate<Node3D>();
             AddChild(StaticContent);

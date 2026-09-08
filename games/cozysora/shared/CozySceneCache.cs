@@ -8,6 +8,8 @@ namespace CozySora;
 /// <summary>Generated scene caches are invalidated by their map, shared components and shaders.</summary>
 public static class CozySceneCache
 {
+    public static bool Enabled => DisplayServer.GetName() != "headless";
+
     public static string Signature(string mapFolder)
     {
         var paths = new List<string>();
@@ -28,6 +30,13 @@ public static class CozySceneCache
 
     public static Error Save(Node root, string path)
     {
+        // The headless dummy renderer does not retain per-instance MultiMesh
+        // transform writes. Serializing those resources would erase native scenery.
+        if (!Enabled)
+        {
+            GD.Print("Cozy Sora: skipping scene cache in headless mode.");
+            return Error.Ok;
+        }
         SetOwners(root, root);
         var scene = new PackedScene();
         var error = scene.Pack(root);
@@ -36,6 +45,7 @@ public static class CozySceneCache
 
     public static bool RestoreChildren(Node parent, string path)
     {
+        if (!Enabled) return false;
         if (!FileAccess.FileExists(path)) return false;
         var scene = ResourceLoader.Load<PackedScene>(path);
         if (scene is null) return false;
