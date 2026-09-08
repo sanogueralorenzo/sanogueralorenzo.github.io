@@ -13,7 +13,7 @@ The selected reference is [direction-b-tactile.png](visual-restart/direction-b-t
 
 ## Shared starting composition — 2026-09-08
 
-The title backdrop is the actual starting world, owned by `StartingArea.cs`: cottage upper-left, island lower-right and chosen boat left of the central menu. Preserve clear water behind the logo and controls by editing real geography, never menu-only object offsets. All home places and styles remain fixed between voyages; only offshore terrain is randomized. Set sail fades the menu over the same scene and starts the boat moving before the camera gently follows. [Native transition evidence](../evidence/README.md) records the accepted composition and all three boat previews.
+The title backdrop is the actual starting world, owned by `StartingArea.cs`: cottage upper-left, island lower-right and chosen boat alongside the wooden dock, clear of the central menu. Preserve clear water behind the logo and controls by editing real geography, never menu-only object offsets. All home places and styles remain fixed between voyages; only offshore terrain is randomized. Set sail fades the menu over the same scene; the boat and camera remain still until the player steers away. [Native transition evidence](../evidence/README.md) records the accepted composition and all three boat previews.
 
 ## Baseline and acceptance
 

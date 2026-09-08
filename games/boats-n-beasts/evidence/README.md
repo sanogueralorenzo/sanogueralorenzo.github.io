@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Stationary dockside start — 2026-09-08
+
+[Title](dock-start-title.png) and [start during fade](dock-start-still.png), each with same-name TXT telemetry, show the boat alongside the wooden dock at `(35,-315)`. Position, zero velocity and camera are unchanged when starting; no sailing destination is assigned. This replaces the automatic initial course in the earlier departure captures below.
+
 ## Shared title and voyage start — 2026-09-08
 
 Unchanged native PNGs with same-name TXT reports; the reports now include camera position, departure time, menu opacity and the fixed home geography ledger.

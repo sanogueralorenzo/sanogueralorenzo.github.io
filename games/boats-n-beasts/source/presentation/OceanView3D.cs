@@ -41,8 +41,8 @@ public partial class OceanView3D : Node3D
         effects.Reset(); Clock = 0; DepartureTime = 0; Camera = HomeCamera();
         stage.Follow(Camera);
     }
-    Vector2 HomeCamera() => new Vector2(StartingArea.Spawn.X, StartingArea.Spawn.Y) +
-        GetViewport().GetVisibleRect().Size * new Vector2(.22f, -.15f) / Projection;
+    Vector2 HomeCamera() => new Vector2(StartingArea.Harbor.X, StartingArea.Harbor.Y) +
+        GetViewport().GetVisibleRect().Size * new Vector2(.28f, .19f) / Projection;
     public void BeginSailing() { Menu = false; DepartureTime = 0; }
     public void Effect(GameEvent ev) => effects.Effect(ev);
     public void Advance(float dt)
@@ -50,11 +50,11 @@ public partial class OceanView3D : Node3D
         var start = System.Diagnostics.Stopwatch.GetTimestamp();
         if (Menu || Voyage.Mode == VoyageMode.Sailing) Clock += dt;
         if (Menu) Camera = HomeCamera();
-        else if (Voyage.Mode == VoyageMode.Sailing)
+        else if (Voyage.Mode == VoyageMode.Sailing && (Voyage.Velocity.LengthSquared() > .01f || DepartureTime > 0))
         {
             DepartureTime += dt;
             var target = new Vector2(Voyage.Position.X + Voyage.Velocity.X * .16f, Voyage.Position.Y + Voyage.Velocity.Y * .16f);
-            // Hold the title framing through the fade, then ease into normal tracking.
+            // Keep the dock framing until the player moves, then ease into tracking.
             float follow = Mathf.SmoothStep(0, 1, Mathf.Clamp((DepartureTime - .8f) / 2, 0, 1));
             Camera = Camera.Lerp(target, 1 - Mathf.Exp(-dt * 5 * follow));
         }

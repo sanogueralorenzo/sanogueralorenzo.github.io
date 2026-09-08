@@ -57,7 +57,7 @@ Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+1
 
 ## Structure
 
-- `source/core/StartingArea.cs`: shared starting positions, fixed home scenery/styles and departure course.
+- `source/core/StartingArea.cs`: shared starting positions, fixed home scenery/styles and dockside spawn.
 - `source/core/OceanWorld.cs`: seed-and-coordinate geography, collision, bounded 5×5 chunk streaming, sparse discovery/depletion history.
 - `source/core/SpawnDirector.cs`: original distance-based credit and population tuning, encounter lulls, boss escort ceiling.
 - `source/core/Voyage.cs`: engine-independent movement, combat, fishing, economy, progression and endings.
@@ -75,7 +75,7 @@ LVL is aligned to the far top-right edge, separate from the north-up nautical ch
 
 Boat selection contains only the boat choice, Set Sail and Back. Every new run, including retry, uses the fixed starting area and a fresh offshore seed; seeds are internal diagnostics only.
 
-The title is the actual fixed starting area: cottage upper-left, island lower-right and chosen boat to the left, with open water behind the centered logo and buttons. Set sail fades the menu while the same boat glides forward; steering overrides that initial course immediately. The camera holds through the fade and then eases into normal tracking. Home geography and styles are identical on every new voyage; the offshore ocean remains seeded and randomized. Title and pause actions share inset navy/turquoise buttons, a gold keyboard-focus outline, and original code-drawn sail, key, chart, chest, book and home icons. Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses provide brief feedback.
+The title is the actual fixed starting area: cottage upper-left, island lower-right and chosen boat alongside the wooden dock, with open water behind the centered logo and buttons. Set sail fades the menu while the boat remains stationary beside the dock. Movement starts only with player input; the camera keeps the title framing until the boat moves, then eases into normal tracking. Home geography and styles are identical on every new voyage; the offshore ocean remains seeded and randomized. Title and pause actions share inset navy/turquoise buttons, a gold keyboard-focus outline, and original code-drawn sail, key, chart, chest, book and home icons. Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses provide brief feedback.
 
 The world follows Direction B: tactile beveled 3D forms, matte surfaces, consistent warm lighting, petrol-blue water, localized turquoise coves, sandy islands, sculpted rocks and dimensional cottages. Mage carries an upright violet crystal; Gunboat cannon/harpoon fittings aim at their targets. Fish are subdued submerged forms, with no overhead markers. The reference image is never shipped as gameplay art.
 

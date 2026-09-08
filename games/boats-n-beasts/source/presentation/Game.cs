@@ -180,7 +180,7 @@ public partial class Game : Node2D
             Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; ocean.Reset();
         }
         title = choosingBoat = runRecorded = controls = recorded = false;
-        ocean.BeginSailing(); destination = StartingArea.Departure;
+        ocean.BeginSailing();
         BuildMenu();
     }
     static void ReleaseMenuInput(Node node)

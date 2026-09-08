@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Stationary dockside start — 2026-09-08
+
+Supersedes the automatic glide in the shared-start entry below. Every boat now spawns at `(35,-315)`, alongside the outer wooden dock with collision clearance for its bow and stern. Starting a voyage leaves its destination unset. The camera is anchored to the harbor for menu composition and holds there until the player moves; the menu still fades over the same scene.
+
+Native [title](../evidence/dock-start-title.png) and [start](../evidence/dock-start-still.png) captures report identical position `(35,-315)`, zero velocity, no destination and the same camera `(424.86487,-214.90347)`. The boat is beside the dock and clear of both title and boat-selection panels. Subsequent live steering moved the boat and engaged camera follow. The focused capture verifies the stationary start; a prolonged input-free idle was not separately recorded. Debug/Release pass with zero warnings/errors and the native log is clean. No automated tests or injected state.
+
 ## Shared title and voyage start — 2026-09-08
 
 This replaces the menu-only layout described in the next two historical entries. `StartingArea` owns nine fixed places across the central 3×3 chunks. The title displays their real positions, including fish and encounter props; all central menu content remains over open water. New voyages and retries retain that geography and its styles while choosing fresh offshore seeds. Set sail retains the selected preview voyage and native meshes, fades the input-transparent menu over 0.65 seconds, and begins a short course toward `(0,-150)`. The camera holds through the fade, then eases into normal following. Returning to the title clears any old sailing destination.

@@ -5,9 +5,9 @@ namespace BoatsNBeasts.Core;
 // Leave the surrounding home chunks open so random offshore land cannot overlap it.
 public static class StartingArea
 {
-    public static readonly Vector2 Spawn = Vector2.Zero;
     public static readonly Vector2 Harbor = new(-120, -490);
-    public static readonly Vector2 Departure = new(0, -150);
+    // Alongside the outer dock, with bow/stern clearance for every boat.
+    public static readonly Vector2 Spawn = Harbor + new Vector2(155, 175);
     public static readonly IReadOnlyList<Place> Places = Array.AsReadOnly<Place>([
         new("home:harbor", PlaceKind.Harbor, Harbor, 140, 147),
         new("home:island", PlaceKind.Island, new(990, 275), 125, 921),
