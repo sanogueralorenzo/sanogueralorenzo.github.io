@@ -15,6 +15,7 @@ public partial class Game : Node2D
     float performanceClock, lastPerformanceLog;
     double simulationMs;
     int peakEnemyCount, peakShotCount;
+    int gameSpeed = 1;
     Hud hud = null!;
 
     CanvasLayer layer = null!;
@@ -50,25 +51,30 @@ public partial class Game : Node2D
         if (!title && Run.Mode == VoyageMode.Sailing) { frameSamples.Add(delta * 1000); if(frameSamples.Count>7200)frameSamples.RemoveRange(0,3600); performanceClock += (float)delta; peakEnemyCount = Math.Max(peakEnemyCount, Run.Enemies.Count); peakShotCount = Math.Max(peakShotCount, Run.Shots.Count); }
         if (performanceClock-lastPerformanceLog>30) { lastPerformanceLog=performanceClock; var sorted=frameSamples.Order().ToArray(); GD.Print($"LIVE sailingSeconds={performanceClock:0} frameMeanMs={sorted.Average():0.00} p95Ms={sorted[(int)(sorted.Length*.95)]:0.00} chunks={Run.World.Loaded.Count} enemies={Run.Enemies.Count} shots={Run.Shots.Count} distance={Run.Distance:0} hp={Run.Health:0}"); }
         float dt = (float)Math.Min(delta, .05); elapsed += dt; toastTime = Math.Max(0, toastTime - dt);
-        if (!title && !settings && !controls)
+        // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
+        for (int step = 0; step < (title ? 1 : gameSpeed); step++)
         {
-            V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0), (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
-            if (move != V2.Zero) { mouseHelm = false; destination = null; }
-            if (destination is V2 goal) { var d = goal - Run.Position; if (d.Length() < 45) destination = null; else move = d; }
-            if (mouseHelm) { var aim = helmPointer - ocean.Screen(Run.Position); move = aim.Length() > 28 ? new V2(aim.X, aim.Y) : V2.Zero; }
-            var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
-            Run.Tick(dt, new(move, (toggleBoost ? boostLatched : Down(Key.Space) || Down(Key.Shift))));
-            if (Run.Mode == VoyageMode.Sailing) simulationMs = simulationMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(tickStart).TotalMilliseconds * .05;
+            if (!title && !settings && !controls)
+            {
+                V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0), (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
+                if (move != V2.Zero) { mouseHelm = false; destination = null; }
+                if (destination is V2 goal) { var d = goal - Run.Position; if (d.Length() < 45) destination = null; else move = d; }
+                if (mouseHelm) { var aim = helmPointer - ocean.Screen(Run.Position); move = aim.Length() > 28 ? new V2(aim.X, aim.Y) : V2.Zero; }
+                var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
+                Run.Tick(dt, new(move, (toggleBoost ? boostLatched : Down(Key.Space) || Down(Key.Shift))));
+                if (Run.Mode == VoyageMode.Sailing) simulationMs = simulationMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(tickStart).TotalMilliseconds * .05;
+            }
+            ocean.Destination = destination;
+            foreach (var e in Run.Events)
+            {
+                ocean.Effect(e);
+                if (e.Kind == "bulwark") Toast("BULWARK · shots cleared, nearby beasts soaked");
+                if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
+                if (e.Kind == "bossSlain") Toast("THE SEA IS YOURS  •  Return to a harbor to finish your voyage.");
+            }
+            Run.Events.Clear(); ocean.Advance(dt);
         }
-        ocean.Destination = destination;
-        foreach (var e in Run.Events)
-        {
-            ocean.Effect(e);
-            if (e.Kind == "bulwark") Toast("BULWARK · shots cleared, nearby beasts soaked");
-            if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
-            if (e.Kind == "bossSlain") Toast("THE SEA IS YOURS  •  Return to a harbor to finish your voyage.");
-        }
-        Run.Events.Clear(); ocean.Advance(dt); hud.QueueRedraw();
+        hud.QueueRedraw();
         if (!title && !settings && !controls && shownMode != Run.Mode) BuildMenu();
     }
 
@@ -92,7 +98,7 @@ public partial class Game : Node2D
         string name = DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
-        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
+        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}/{Run.Slipstream:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
         foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} mark={enemy.Mark:R}\n";
         foreach (var shot in Run.Shots) report += $"Shot {shot.Kind} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R}\n";
@@ -138,7 +144,7 @@ public partial class Game : Node2D
     void Start()
     {
         if (seedInput != null && GodotObject.IsInstanceValid(seedInput) && uint.TryParse(seedInput.Text, out uint seed)) selectedSeed = seed;
-        mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
+        gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
         seedInput = null;
         Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = settings = controls = recorded = false;
         ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();
@@ -189,7 +195,31 @@ public partial class Game : Node2D
         if (settings) { SettingsMenu(); FocusFirst(menuRoot); return; }
         if (controls) { ControlsMenu(); FocusFirst(menuRoot); return; }
         if (title) { TitleMenu(); FocusFirst(menuRoot); return; }
-        if (Run.Mode == VoyageMode.Sailing || Run.Mode == VoyageMode.Fishing) return;
+        if (Run.Mode == VoyageMode.Sailing || Run.Mode == VoyageMode.Fishing)
+        {
+            var speed = new Button
+            {
+                Text = $"×{gameSpeed}", TooltipText = "Game speed · click to cycle ×1 / ×2 / ×3",
+                FocusMode = Control.FocusModeEnum.None,
+                MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+                AnchorLeft = 1, AnchorRight = 1, OffsetLeft = -90, OffsetRight = -16,
+                OffsetTop = 100, OffsetBottom = 138
+            };
+            speed.AddThemeFontOverride("font", bodyFont); speed.AddThemeFontSizeOverride("font_size", 20);
+            speed.AddThemeColorOverride("font_color", new Color(OceanView.Cream, .75f));
+            speed.AddThemeStyleboxOverride("normal", Box(new Color(OceanView.Navy, .5f), 8));
+            speed.AddThemeStyleboxOverride("hover", Box(new Color("19477a"), 8));
+            speed.AddThemeStyleboxOverride("pressed", Box(new Color("245b87"), 8));
+            foreach (string state in new[] { "normal", "hover", "pressed" })
+            {
+                var style = (StyleBoxFlat)speed.GetThemeStylebox(state);
+                style.ContentMarginTop = style.ContentMarginBottom = 4;
+                style.ContentMarginLeft = style.ContentMarginRight = 10;
+            }
+            speed.Pressed += () => { gameSpeed = gameSpeed % 3 + 1; speed.Text = $"×{gameSpeed}"; };
+            menuRoot.AddChild(speed);
+            return;
+        }
         var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .66f), MouseFilter = Control.MouseFilterEnum.Stop }; shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         VBoxContainer col;
         switch (Run.Mode)
@@ -368,7 +398,7 @@ public partial class Game : Node2D
         }
         void DrawCompass(Vector2 size)
         {
-            var r = Game.Run; var center = new Vector2(size.X - 94, 187); DrawCircle(center, 67, new Color(OceanView.Navy, .75f)); DrawArc(center, 67, 0, Mathf.Tau, 48, new Color(OceanView.Cream, .35f), 1, true); Text(center + new Vector2(-5, -74), "N", 17, true);
+            var r = Game.Run; var center = new Vector2(size.X - 94, 227); DrawCircle(center, 67, new Color(OceanView.Navy, .75f)); DrawArc(center, 67, 0, Mathf.Tau, 48, new Color(OceanView.Cream, .35f), 1, true); Text(center + new Vector2(-5, -74), "N", 17, true);
             foreach (var p in r.World.Places)
             {
                 if (!r.World.Discovered.Contains(p.Id) || p.Kind is not (PlaceKind.Harbor or PlaceKind.Fishing)) continue;

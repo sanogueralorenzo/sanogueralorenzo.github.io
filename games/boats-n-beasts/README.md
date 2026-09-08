@@ -21,6 +21,7 @@ There are no external visual assets, imported fonts, audio assets, or automated 
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.
 - **Space / E while fishing:** reel inside the turquoise band. Three hits land the catch; three misses or 16 seconds lose it. Escape cancels. Assisted fishing is an optional setting that times reels for you.
 - **Escape:** pause, cancel fishing, or leave a result/harbor screen. **Enter / Tab / arrows:** operate menus. Space cannot accidentally select an upgrade while boosting.
+- **×1 / ×2 / ×3, top right:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
 - **F11:** fullscreen. **F12:** save a native viewport image and runtime measurements under `evidence/`.
 
 Catch fish at three different schools beyond one league. After completing the chart, sail beyond three leagues to summon the Crownclaw. Its defeat disperses the escort and gives you a calm return to any harbor. Claim victory there, then choose a fresh voyage or resume combat in endless exploration.

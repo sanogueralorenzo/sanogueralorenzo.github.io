@@ -30,3 +30,9 @@ The final-cache seed 4821 Trawler run reached X=-13,454, 95.4 seconds of actual 
 - Coordinate-order independence was checked structurally and through revisits, not exhaustively across the infinite world. No claim of exhaustive balance or every keyboard/device combination is made.
 
 No known blocking gameplay defect remains from this review. These limits are coverage gaps, not substituted test results.
+
+## Speed control follow-up — 2026-09-08
+
+Added a subtle top-right ×1/×2/×3 cycle. Each frame repeats bounded simulation steps so movement, combat, fishing and visual effects share the selected game-time rate without increasing collision step size. Menu interaction and performance measurements remain in real time; a new voyage resets to ×1.
+
+Debug/Release builds and direct UI checks pass. Native `speed-x2`, `speed-x3-start/end`, and `speed-x1` evidence records the full cycle without moving the boat. At ×3, combat time advanced from 1.4497 to 5.8248 during approximately 1.4 seconds of actual sailing. The two `speed-paused` captures, eleven seconds apart, retain identical combat state at ×3. `speed-x3.png` shows the control and compass spacing. No automated tests were added.
