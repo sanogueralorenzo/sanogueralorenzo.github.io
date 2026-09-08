@@ -1,5 +1,7 @@
 # Independent visual critique — Direction B
 
+**Current verdict (2026-09-08, final 09:37 native capture): visual direction accepted at normal gameplay scale. No major unresolved visual gaps remain in the reviewed native scenes.** This verdict supersedes the interim rejections below; their observations are retained to explain the corrections and acceptance criteria. Evidence and limits are recorded in the final section.
+
 Reviewed the native baseline `evidence/concept-water-and-refit.png` against `docs/visual-restart/direction-b-tactile.png` before implementing the effects pass. This is a visual assessment at gameplay scale, not acceptance based on successful builds.
 
 ## Ranked baseline gaps
@@ -45,3 +47,31 @@ Ranked unresolved visual gaps:
 5. **Unverified — motion and weapon-area readability.** This still does not prove curved wakes or dense combat. Code inspection identified a missing persistent Undertow range cue, which is restored as five sparse rotating curved strands at the actual simulation radius. Boat wake origin/width is updated to match the integrated hull dimensions.
 
 The follow-up effects implementation needs a fresh native screenshot and runtime shader check. No claim is made that its source-level changes have already passed visual acceptance.
+
+## Latest native sample — 2026-09-08 08:57 revision
+
+Reviewed the updated normal-scale sample. The scene has coherent matte 3D construction and recognizable boat/crystal/crab identities. Water glare and excessive grain are sufficiently improved; restoring high-frequency sea detail is not the next priority. The scene still does **not** pass Direction B visual acceptance.
+
+Two major blockers remain visible at normal gameplay scale:
+
+1. **Dominant rock silhouette is too sharp.** The right island's tall central rock reads as a triangular mountain or low-poly shard. Its pointed cap and large sloping triangular face are conspicuous; this is a regression in tactile roundness from the preceding rounded pillar, even though the new fractured planes have better variation. Smoothing normals alone cannot fix the silhouette. Bounded correction: replace this one dominant form with three or four overlapping, offset, broad-topped boulders; bevel/round their caps and add one recessed seam across the broad face. Keep the existing overall footprint and surrounding composition.
+2. **Shore lacks submerged depth and material transition.** Sand still meets water as a smooth pale cut edge with a narrow cyan rim. B has a broad organic shelf, submerged rocks and changing depth. Bounded correction: broaden localized shelves into two or three irregular coves, add a small number of partly submerged boulders beyond the sand, and layer restrained turquoise depth patches. Add tiny broken surf only where solids meet water. Do not create another continuous glowing outline or increase uniform sea noise.
+
+Smaller gaps are sparse low vegetation, uniform pale sand and cream boat roof/deck planes merging. Those do not justify unrelated feature work. The camera and dark ocean foundation should be retained while correcting the two major environment issues. Moving native gameplay, wakes, weapon tells and revised fishing-school/chest presentation remain to be assessed.
+
+## Final independent visual review — 2026-09-08 09:37
+
+Inspected `evidence/20260908-093711-sailing.png` at native gameplay scale with its adjacent runtime text, the freshly recaptured `direction-b-sample-scale.png` and `direction-b-sample-detail.png`, and the preceding integrated captures `20260908-092657-sailing.png`, `20260908-092659-sailing.png` and `20260908-091831-sailing.png`. Compared these against the unchanged Direction B reference. The primary judgment is from normal-scale gameplay; the enlarged sample is supporting inspection, not the required playing view.
+
+**Verdict: accept the integrated Direction B visual treatment.** There are no major unresolved visual gaps in these reviewed scenes. The scene now reads consistently as a matte, tactile 3D ocean game: dimensional cabin/hull and upright crystal, expressive coral crab volumes, sculpted beveled rock clusters, a tiled cottage and dock, deep petrol water, irregular turquoise shallows and restrained effects. This acceptance is based on visible composition, material, silhouette and motion-path evidence, not on the number of completed checks or successful builds.
+
+The previous blockers are resolved:
+
+- Broad beveled rock caps replace the conspicuous triangular shard silhouette. At normal scale the clusters read as rounded stone with recesses rather than a stack of cubes or a low-poly mountain.
+- Localized shelf coves and lower, dark water-tinted submerged stones replace the pale perimeter tokens and narrow cyan skirt. The underwater clusters now provide depth without a continuous bright shore halo.
+- Fishing schools have fish silhouettes, subdued water tint and varied placement; the chest has a recognizable rounded barrel lid and contrasting bands. Their enclosing graphic markers are gone.
+- The final moving-turn capture shows the boat wake following a curved historical path with irregular thin broken foam. The former ruler-clean rails and regularly spaced gaps are no longer conspicuous. Foam stays secondary to the vessel and does not obscure threats. The preceding combat capture independently shows readable coral hostile shots and a puffer attack tell.
+
+Minor remaining differences from B are simpler vegetation/rock surface detail, more uniform sand, and thinner wake foam. These are minor at gameplay scale because they do not break the common material/lighting treatment, flatten the important silhouettes, create clutter or impair action readability. Enlarged detail still reveals some polygonal stone edges and shadow dithering; these are not dominant in the normal playing view. The target's greater reference-image detail density is not reproduced exactly.
+
+Evidence limits: the reviewer inspected supplied native stills and accompanying text and never controlled the shared runtime. A curved wake in a still demonstrates trajectory and shape, not every temporal transition. The final 09:37 capture is a short Gunboat session with four active enemies and three shots; it is not a sustained crowded-combat benchmark or evidence for every weapon/creature. Its text reports 8.84 ms mean / 11.11 ms p95 / 15.40 ms p99, which is kept separate from visual acceptance. Main owns the broader actual-play evidence for all three boats, boost, fishing success/sale, upgrades/resume, streaming and sustained performance; those claims were not substituted for this independent image review.
