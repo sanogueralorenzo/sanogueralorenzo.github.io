@@ -6,9 +6,8 @@ public sealed class SpawnDirector
     public float Credits, Clock, EncounterTime;
     public int Target(int tier) => Math.Min(64, 5 + tier * 5);
     public float Income(int tier) => 1.15f + .65f * tier;
-    public int Tick(float dt, int tier, int count, bool safe, bool boss = false)
+    public int Tick(float dt, int tier, int count, bool boss = false)
     {
-        if (safe) { Credits = Math.Min(Credits, 2); Clock = 0; return 0; }
         EncounterTime += dt;
         // Short lulls let the captain clear a pack and choose a route before the next swell.
         float phase = EncounterTime % 36;

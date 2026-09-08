@@ -2,7 +2,9 @@
 
 The flat-shaded nautical diorama replaces Direction B’s sculpted materials and detailed water. [ART_DIRECTION.md](ART_DIRECTION.md) is the current visual contract; [README.md](../README.md) covers launch, controls and gameplay. [QUALITY.md](QUALITY.md) and [native evidence](../evidence/README.md) distinguish current verification from historical builds.
 
-Puffers now chase and self-detonate after a 1.05-second stationary fuse inside 125 units. Their red hemisphere is the actual 155-unit blast, not a preattack line. Kills cancel the fuse; safe harbors disarm it. Regular monsters have a 25% seeded chance to be violet swift variants with 1.5× movement speed; the boss remains standard.
+Puffers now chase and self-detonate after a 1.05-second stationary fuse inside 125 units. Their red hemisphere is the actual 155-unit blast, not a preattack line. Kills cancel the fuse; being near a harbor does not disarm it. Regular monsters have a 25% seeded chance to be violet swift variants with 1.5× movement speed; the boss remains standard.
+
+Harbors provide an interaction range only. Spawning, enemy pursuit, damage, projectiles and automatic weapons continue near docks. Pressing E opens the harbor menu and pauses the voyage until it closes; `CanDock` only controls the interaction prompt.
 
 ## Runtime and ownership
 

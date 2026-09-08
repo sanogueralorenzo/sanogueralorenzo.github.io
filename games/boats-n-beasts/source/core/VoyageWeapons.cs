@@ -9,14 +9,14 @@ public sealed partial class Voyage
     public int CannonRicochets { get; private set; }
     public int HarpoonPulls { get; private set; }
 
-    void UpdateWeapons(float dt, bool safe)
+    void UpdateWeapons(float dt)
     {
         var forward = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading));
         for (int w = 0; w < Weapons.Length; w++)
         {
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
-            if (rank == 0 || Cooldowns[w] > 0 || safe || Shots.Count >= 360) continue;
+            if (rank == 0 || Cooldowns[w] > 0 || Shots.Count >= 360) continue;
             float range = w == 4 ? WhirlpoolRadius : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
@@ -81,7 +81,7 @@ public sealed partial class Voyage
         var v=b-a; float t=v.LengthSquared()>0?Math.Clamp(Vector2.Dot(p-a,v)/v.LengthSquared(),0,1):0;
         return Vector2.Distance(p,a+t*v);
     }
-    void UpdateShots(float dt,bool safe)
+    void UpdateShots(float dt)
     {
         foreach (var s in Shots)
         {
@@ -95,8 +95,7 @@ public sealed partial class Voyage
             if (s.Life<=0) continue;
             if (s.Hostile)
             {
-                if (World.HarborAt(s.Position)!=null) { s.Life=0; continue; }
-                if (SegmentDistance(Position,s.Previous,s.Position)<26+s.Radius) { if(!safe) DamagePlayer(s.Damage); s.Life=0; }
+                if (SegmentDistance(Position,s.Previous,s.Position)<26+s.Radius) { DamagePlayer(s.Damage); s.Life=0; }
                 if (!World.IsWater(s.Position,1)) s.Life=0;
                 continue;
             }

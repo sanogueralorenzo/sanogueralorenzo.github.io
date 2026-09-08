@@ -1,5 +1,11 @@
 # Quality and verification
 
+## Harbor protection requires opening the menu — 2026-09-08
+
+Removed location-based harbor immunity, spawn suppression/exclusion, enemy repulsion, puffer disarming, hostile-shot deletion and automatic-weapon suppression. Harbor range only exposes the E interaction and upgrade offers. Pressing E opens the harbor menu, which freezes the voyage; closing it resumes combat immediately. Menu heading now says “Combat paused,” and the handbook explains that dockside water is exposed. Normal land collision, hit cooldowns and other paused menus retain their behavior.
+
+Debug/Release pass with zero warnings/errors; native log clean. Aura stayed at starting position `(55,-315)` beside the dock while monsters spawned, approached and attacked; hull fell from 155 to 89. Pressing E opened the harbor menu. Captures 2.025 seconds apart have identical hull, position, combat/director clocks, ability/weapon cooldowns, enemies and shots; only capture timestamp and rendering measurements differ. Closing with Escape resumed time from 16.391 to 18.925 and hull fell to 78 before reopening E. [Evidence](../evidence/README.md) records the complete transition. No automated tests or injected state. Native coverage used crab contact attacks and Aura combat; ray shots, puffer blasts and boss spawning near harbors were checked in the shared code paths but not separately replayed here.
+
 ## Fishing keeps time running — 2026-09-08
 
 Supersedes the historical fishing-freeze requirement. Sailing and fishing share the active simulation gate: voyage time, spawning, enemies, damage, weapon/ability cooldowns, projectiles and effects continue during a cast. Casting stops the boat and clears active boost/flow. Reel or cancel restores sailing; timeout still ends the cast after eight seconds. Earned upgrades wait until the cast ends, while defeat/victory discard the active fishing place. Pause, upgrade and harbor screens retain their time gates. Fishing HUD and handbook now say combat remains active.

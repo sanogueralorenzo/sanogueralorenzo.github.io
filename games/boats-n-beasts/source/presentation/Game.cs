@@ -341,7 +341,7 @@ public partial class Game : Node2D
     }
     void HarborMenu()
     {
-        var col = Panel(950, "Safe waters", "Harbor", $"{Run.Coins} gold   •   Hull {Run.Health:0}/{Run.MaxHealth:0}" + (Run.LastCatchSale > 0 ? $"   •   Catch sold +{Run.LastCatchSale} gold" : ""));
+        var col = Panel(950, "Combat paused", "Harbor", $"{Run.Coins} gold   •   Hull {Run.Health:0}/{Run.MaxHealth:0}" + (Run.LastCatchSale > 0 ? $"   •   Catch sold +{Run.LastCatchSale} gold" : ""));
         col.AddThemeConstantOverride("separation", 16);
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 10); col.AddChild(row);
         row.AddChild(Button($"Repair · {Run.RepairCost} gold", () => { Run.Repair(); BuildMenu(); }, false, Run.RepairCost == 0 || Run.Coins < Run.RepairCost));
@@ -391,7 +391,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Hold to boost while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, NauticalPalette.Aqua));
-        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nLeveling up pauses sailing for a free upgrade; during fishing, the choice waits until the cast ends. Choose one to resume. Catches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing keeps the boat still while time, monsters and automatic weapons keep moving. Reel or cancel to sail away. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nLeveling up pauses sailing for a free upgrade; during fishing, the choice waits until the cast ends. Choose one to resume. Catches sell automatically when you dock. Press E near a harbor to pause combat and refit. Monsters can attack you near the dock until you open this menu. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing keeps the boat still while time, monsters and automatic weapons keep moving. Reel or cancel to sail away. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()
@@ -496,7 +496,7 @@ public partial class Game : Node2D
             if (Game.toastTime > 0) { float width = BodyFont.GetStringSize(Game.toast, fontSize: 20).X; DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .9f), 10), new((size.X - width) / 2 - 20, 144, width + 40, 45)); Text(new((size.X - width) / 2, 174), Game.toast, 20); }
             if (r.Mode == VoyageMode.Sailing)
             {
-                string prompt = r.Safe ? "E  ·  DOCK & REFIT" : r.World.FishAt(r.Position) != null ? "E  ·  CAST A LINE" : "";
+                string prompt = r.CanDock ? "E  ·  DOCK & REFIT" : r.World.FishAt(r.Position) != null ? "E  ·  CAST A LINE" : "";
                 if (prompt != "") { var p = new Vector2(size.X / 2 - 120, size.Y / 2 + 110); DrawStyleBox(Game.Box(NauticalPalette.Cream, 10), new(p, new Vector2(240, 46))); Text(p + new Vector2(17, 30), prompt, 23, true, NauticalPalette.Navy); }
             }
             if (r.Mode == VoyageMode.Fishing)

@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Exposed harbors — 2026-09-08
+
+[Before opening E](harbor-exposed.png) shows damage beside the starting dock. [Harbor menu A](harbor-menu-freeze-a.png)/[B](harbor-menu-freeze-b.png), captured 2.025 seconds apart, have identical simulation telemetry. [After closing](harbor-combat-resumed.png) shows resumed combat and further damage at the same position. Each PNG has a same-name TXT report. [Native log](harbor-exposed-runtime.txt).
+
 ## Fishing keeps time running — 2026-09-08
 
 [Fishing A](live-fishing-a.png)/[B](live-fishing-b.png), with paired TXT telemetry, show advancing combat time, moving/spawning enemies and automatic shots while boat position stays fixed. These precede the text correction. [Final UI](live-fishing-ui.png) says “Combat active.” [Timeout](live-fishing-timeout.png) and [manual reel miss](live-fishing-reel.png) return to Sailing. Logs: [simulation check](live-fishing-runtime.txt), [final UI/reel](live-fishing-final-runtime.txt).

@@ -68,7 +68,7 @@ public sealed partial class Voyage
     public int PendingUpgrades { get; private set; }
     public float WhirlpoolRadius => (138 + Math.Max(0, Weapons[4] - 1) * 30) * Area;
     public int NextXp => 7 + Level * 5;
-    public bool Safe => World.HarborAt(Position) != null;
+    public bool CanDock => World.HarborAt(Position) != null;
     public float FishBand => .14f;
     public float Area => 1 + AreaRank * .15f;
     public Voyage(uint seed, BoatKind boat, int extraWeaponSlots = 0)
@@ -99,10 +99,9 @@ public sealed partial class Voyage
             UpdateMovement(dt, input);
             CollectEncounters();
         }
-        bool safe = Safe;
-        int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
+        int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
-        if (Tier >= 3 && !BossSpawned && !safe)
+        if (Tier >= 3 && !BossSpawned)
         {
             if (Spawn(EnemyKind.Leviathan))
             {
@@ -112,9 +111,9 @@ public sealed partial class Voyage
             }
         }
         UpdateAbility(dt);
-        UpdateEnemies(dt, safe);
-        UpdateWeapons(dt, safe);
-        UpdateShots(dt, safe);
+        UpdateEnemies(dt);
+        UpdateWeapons(dt);
+        UpdateShots(dt);
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
@@ -135,14 +134,14 @@ public sealed partial class Voyage
         {
             float angle = Random.Range(0, MathF.Tau);
             p = Position + new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * Random.Range(760, 940);
-            if (World.IsWater(p, 80) && World.HarborAt(p) == null) break;
+            if (World.IsWater(p, 80)) break;
             if (attempt == 19) return false;
         }
         float hp = (kind == EnemyKind.Leviathan ? 1050 : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52) * (1 + Tier * .25f);
         Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3), Swift = kind != EnemyKind.Leviathan && Random.Index(4) == 0 });
         return true;
     }
-    void UpdateEnemies(float dt, bool safe)
+    void UpdateEnemies(float dt)
     {
         // Population is capped at 80; small pairwise local separation keeps silhouettes legible.
         foreach (var e in Enemies)
@@ -157,8 +156,7 @@ public sealed partial class Voyage
             if (e.Kind == EnemyKind.Puffer)
             {
                 // Once armed, hold still and commit to the blast; sailing away avoids it.
-                if (safe) e.Fuse = 0;
-                else if (e.Fuse > 0)
+                if (e.Fuse > 0)
                 {
                     e.Fuse = Math.Max(0, e.Fuse - dt);
                     if (e.Fuse <= 0)
@@ -192,7 +190,7 @@ public sealed partial class Voyage
                 // Circle the captain, then send a telegraphed fan across their course.
                 motion = dir * (distance > 370 ? 1 : distance < 260 ? -.6f : .1f) + new Vector2(-dir.Y, dir.X) * (e.Id % 2 == 0 ? .8f : -.8f);
                 e.Telegraph = e.AttackClock < .7f ? Math.Max(0, e.AttackClock) : 0;
-                if (e.AttackClock <= 0 && !safe)
+                if (e.AttackClock <= 0)
                 {
                     for (int i = -1; i <= 1; i++) { float a = MathF.Atan2(dir.Y, dir.X) + i * .24f; FireHostile(e, new(MathF.Cos(a), MathF.Sin(a)), 230); }
                     e.AttackClock = 4.8f;
@@ -202,7 +200,7 @@ public sealed partial class Voyage
             {
                 if (distance > 1200) e.Position = Position - dir * 1000;
                 if (e.AttackClock < 1) e.Telegraph = Math.Max(0, e.AttackClock);
-                if (e.AttackClock <= 0 && !safe)
+                if (e.AttackClock <= 0)
                 {
                     int n = e.Health < e.MaxHealth * .5f ? 16 : 12;
                     for (int i = 0; i < n; i++) { float a = MathF.Tau * i / n + e.Time * .3f; FireHostile(e, new(MathF.Cos(a), MathF.Sin(a)), 155); }
@@ -217,8 +215,6 @@ public sealed partial class Voyage
                 var sep = e.Position - other.Position; float len = sep.Length();
                 if (len > .1f && len < e.Radius + other.Radius) motion += sep / len * .65f;
             }
-            var harbor = World.Places.FirstOrDefault(p => p.Kind == PlaceKind.Harbor && Vector2.Distance(p.Position, e.Position) < 315);
-            if (harbor != null) motion = OceanWorld.Unit(e.Position - harbor.Position);
             if (e.Pull > 0)
             {
                 e.Pull = Math.Max(0, e.Pull - dt);
@@ -226,7 +222,7 @@ public sealed partial class Voyage
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (!safe && e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
+            if (e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
         }
     }
     void FireHostile(Enemy e, Vector2 dir, float speed)
@@ -236,7 +232,7 @@ public sealed partial class Voyage
     }
     void DamagePlayer(float damage)
     {
-        if (Invulnerable > 0 || Safe || !IsActive) return;
+        if (Invulnerable > 0 || !IsActive) return;
         Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
     }
     void Hit(Enemy e, float damage)
