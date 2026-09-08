@@ -43,14 +43,14 @@ Every boat can use all six weapons:
 
 | Weapon | What it does |
 | --- | --- |
-| Cannon | Auto-aimed cannonballs ricochet between enemies and off rocks. Level 3 adds a second barrel. |
+| Cannon | Auto-aimed cannonballs ricochet between enemies and off rocks. Each upgrade adds another cannonball per shot. |
 | Harpoon | Pierces, pulls and soaks enemies. Bosses resist most of the pull. |
 | Mines | Drops a mine behind the moving boat. Arms after 0.5 seconds; bursts when an enemy approaches. |
 | Lightning | Jumps between enemies. Each level adds a target. |
 | Whirlpool | Damages enemies all around the boat. |
 | Broadside | Three cannons on each side fire automatically at foes alongside the boat. |
 
-Soaked enemies take **+50% damage from Mines, Lightning and Broadside**. Each weapon level also improves damage and fire rate. Upgrade cards show the next level’s benefit.
+Soaked enemies take **+50% damage from Mines, Lightning and Broadside**. Weapon upgrades improve one property each: Cannon adds a ball, Harpoon adds pull strength, Mines add blast radius, Lightning adds a target, Whirlpool adds radius, and Broadside adds one cannon per side. Damage and firing cadence stay fixed across weapon ranks. Upgrade cards show the next level’s benefit.
 
 Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack area). Hull upgrades leave current health unchanged; repairs are a separate harbor action. Choose your boat before setting sail; it stays fixed for the whole voyage.
 
@@ -82,4 +82,4 @@ The bow turns responsively while the hull keeps a short drift. Boost gives an im
 
 Sail over floating treasure for 12–20 run gold, or salvage wrecks between rocks for 35–55 gold. Both are collected automatically once per location per run, disappear from the chart after collection, and remain depleted when chunks reload. The home waters include one of each encounter; farther discoveries vary by seed. Encounters do not award silver.
 
-Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, slowing and soaking them; a rope briefly shows the pull. Cannonballs start with one bounce and gain another at ranks 2 and 4. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.
+Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, slowing and soaking them; a rope briefly shows the pull. Cannonballs have one bounce at every rank. Harpoon upgrades add 160 pull speed; mine and whirlpool upgrades add 30 radius. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.

@@ -183,3 +183,7 @@ Removed the 12-catch interaction gate and full-hold warning. The result-popup re
 ## Clear boat abilities — 2026-09-08
 
 Removed movement-dependent mitigation and pulse charging, Cutter after-release bonus, and incidental pulse damage/soak. Trawler now pulses every six simulation seconds; Cutter cooldown progress accelerates by 65% only during active boost. Debug build and native launch passed; boat selection copy inspected. A stationary Trawler live run advanced beyond two pulse intervals with charge wrapping. Live checks did not separately measure Cutter shot cadence or projectile clearing; those paths were inspected in source. Damage is now unmitigated for both boats, so a full-run balance pass remains useful. No automated tests or injected state.
+
+## Single-improvement upgrades — 2026-09-08
+
+Audited all weapon-rank dependencies and replaced bundled damage/cadence/area scaling with one property per weapon. Matching card copy distinguishes acquisition from upgrading. Debug build passed without warnings/errors, diff whitespace checks passed, and native startup/sailing were checked. No automated tests or injected state. Every rank was reviewed in source; a full live run across all weapons/ranks was not performed. Balance needs a follow-up play pass because rank damage/cadence bonuses were removed.

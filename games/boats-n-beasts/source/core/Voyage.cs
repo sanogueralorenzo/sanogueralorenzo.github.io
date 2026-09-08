@@ -188,7 +188,7 @@ public sealed partial class Voyage
             if (e.Pull > 0)
             {
                 e.Pull = Math.Max(0, e.Pull - dt);
-                if (distance > 110) motion += dir * (320 / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
+                if (distance > 110) motion += dir * ((320 + (Weapons[1] - 1) * 160) / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
@@ -347,12 +347,12 @@ public sealed partial class Voyage
         if (rank >= 5) return "Max level.";
         return option switch
         {
-            0 => rank == 2 ? "Twin barrels. Two bounces per ball." : $"{1 + (rank + 1) / 2} bounces per ball. More damage, faster fire.",
-            1 => $"Pierces {rank + 2} enemies. Pulls them closer.",
-            2 => "Bigger mine blasts. More damage, faster drops.",
-            3 => $"Hits up to {rank + 3} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
-            4 => rank == 0 ? "Hits nearby enemies in every direction." : "Wider ring. More damage, faster pulses.",
-            5 => "Stronger volleys. Faster reload.",
+            0 => rank == 0 ? "Fires a bouncing cannonball." : $"Another cannonball. {rank + 1} per shot.",
+            1 => rank == 0 ? "Hooks enemies and pulls them closer." : "Harpoon pulls harder. +160 pull speed.",
+            2 => rank == 0 ? "Leaves explosive mines in your wake." : "Bigger mine blasts. +30 blast radius.",
+            3 => rank == 0 ? "Lightning hits up to 3 enemies." : $"One more lightning target. {rank + 3} total.",
+            4 => rank == 0 ? "Hits nearby enemies in every direction." : "Bigger whirlpool. +30 radius.",
+            5 => rank == 0 ? "Fires 3 cannonballs from each side." : $"Another cannon per side. {rank + 3} per side.",
             6 => "+25 max health.",
             7 => "+10% sailing speed.",
             8 => "+12% fire rate for every weapon.",

@@ -18,7 +18,7 @@ public sealed partial class Voyage
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || safe || Shots.Count >= 360) continue;
-            float range = w == 4 ? (130 + rank * 8) * Area : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
+            float range = w == 4 ? (138 + (rank - 1) * 30) * Area : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
                 .Where(e => w != 5 || Math.Abs(Vector2.Dot(OceanWorld.Unit(e.Position-Position),starboard)) > MathF.Cos(BroadsideHalfAngle))
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
@@ -27,13 +27,13 @@ public sealed partial class Voyage
                 if (Velocity.Length() < Speed * .2f || Shots.Count(s => !s.Hostile && s.Kind == WeaponKind.Mine && s.Life > 0) >= 8) continue;
                 var stern = Position - forward * 70;
                 if (!World.IsWater(stern, 12)) continue;
-                Shots.Add(new() { Kind = WeaponKind.Mine, Position = stern, Previous = stern, Damage = 38 * (1 + .4f*(rank-1)), Life = 10, Radius = (100+rank*9)*Area });
+                Shots.Add(new() { Kind = WeaponKind.Mine, Position = stern, Previous = stern, Damage = 38, Life = 10, Radius = (109+(rank-1)*30)*Area });
                 MinesDropped++; Events.Add(new("mineDrop",stern));
             }
             else
             {
                 if (target == null) continue;
-                float damage = (w == 0 ? 15 : w == 1 ? 13 : w == 4 ? 7 : w == 5 ? 20 : 18) * (1 + .4f * (rank - 1));
+                float damage = (w == 0 ? 15 : w == 1 ? 13 : w == 4 ? 7 : w == 5 ? 20 : 18);
                 if (w == 5)
                 {
                     for (int side = -1; side <= 1; side += 2)
@@ -41,8 +41,9 @@ public sealed partial class Voyage
                         var sideTarget=Enemies.Where(e=>e.Health>0 && Vector2.DistanceSquared(e.Position,Position)<range*range && Vector2.Dot(OceanWorld.Unit(e.Position-Position),starboard*side)>MathF.Cos(BroadsideHalfAngle))
                             .OrderBy(e=>Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();
                         var sideAim=sideTarget==null?starboard*side:OceanWorld.Unit(sideTarget.Position-Position);
-                        for (int row = -1; row <= 1; row++)
+                        for (int cannon = 0; cannon < rank + 2; cannon++)
                         {
+                            float row = cannon - (rank + 1) / 2f;
                             var dir = OceanWorld.Unit(sideAim + forward * row * .04f);
                             var start = Position + starboard * side * 39 + forward * row * 23;
                             Shots.Add(new() { Kind = WeaponKind.Broadside, Position = start, Previous = start, Velocity = dir * 520, Damage = damage, Life = range / 520, Radius = 8 });
@@ -70,17 +71,17 @@ public sealed partial class Voyage
                 {
                     var mount = Position + forward * 48;
                     var dir = OceanWorld.Unit(target.Position-mount);
-                    int count = w == 0 && rank >= 3 ? 2 : 1;
+                    int count = w == 0 ? rank : 1;
                     for (int i=0;i<count;i++)
                     {
-                        var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*(count==2?(i==0?-9:9):0);
-                        Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?rank:0, Bounces=w==0?1+rank/2:0 });
+                        var start = mount + dir*24 + new Vector2(-dir.Y,dir.X)*((i-(count-1)/2f)*18);
+                        Shots.Add(new() { Kind=(WeaponKind)w, Position=start, Previous=start, Velocity=dir*(w==1?580:650), Damage=damage, Life=w==0?2.4f:1.15f, Radius=6, Pierce=w==1?1:0, Bounces=w==0?1:0 });
                     }
                     Events.Add(new(w==0?"shot":"harpoon",mount));
                 }
             }
             Cooldowns[w] = (w==0?.85f:w==1?1.3f:w==2?2.4f:w==4?.6f:w==5?1.65f:1.55f)
-                / ((1+.1f*(rank-1))*(1+ReloadRank*.12f));
+                / (1+ReloadRank*.12f);
         }
     }
     static float SegmentDistance(Vector2 p,Vector2 a,Vector2 b)
@@ -129,7 +130,7 @@ public sealed partial class Voyage
                 s.Hit.Add(e.Id); Hit(e,s.Damage*(s.Kind==WeaponKind.Broadside && e.Mark>0?SoakedDamageMultiplier:1));
                 if(s.Kind==WeaponKind.Harpoon && e.Health>0)
                 {
-                    e.Mark=4.5f+Weapons[1]*.3f; e.Pull=.4f; HarpoonPulls++; Events.Add(new("pull",Position,0,e.Position));
+                    e.Mark=4.8f; e.Pull=.4f; HarpoonPulls++; Events.Add(new("pull",Position,0,e.Position));
                 }
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
