@@ -415,13 +415,13 @@ public partial class Game : Node2D
                 Text(new(counterX + 20, 45), counters[i], 21);
                 counterX += BodyFont.GetStringSize(counters[i], fontSize: 21).X + 48;
             }
-            var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -72);
+            var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -96);
             Bar(healthPosition, new(68, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
             if (Game.catchNoticeTime > 0 && r.Mode == VoyageMode.Sailing)
             {
                 float alpha = Math.Min(1, Game.catchNoticeTime / .5f);
                 float width = BodyFont.GetStringSize(Game.catchNotice, fontSize: 23).X;
-                var noticePosition = Game.ocean.Screen(r.Position) + new Vector2(-width / 2, -100 - (2.5f - Game.catchNoticeTime) * 8);
+                var noticePosition = Game.ocean.Screen(r.Position) + new Vector2(-width / 2, -123 - (2.5f - Game.catchNoticeTime) * 8);
                 DrawStyleBox(Game.Box(new Color(OceanView.Navy, .85f * alpha), 8), new Rect2(noticePosition + new Vector2(-12, -27), new Vector2(width + 24, 38)));
                 Text(noticePosition, Game.catchNotice, 23, color: new Color(OceanView.Cream, alpha));
             }

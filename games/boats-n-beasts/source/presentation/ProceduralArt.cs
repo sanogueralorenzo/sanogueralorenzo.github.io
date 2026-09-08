@@ -40,10 +40,12 @@ public sealed class ProceduralArt(Node2D canvas)
     {
         float s = height / 145; canvas.DrawSetTransform(p, angle, Vector2.One * s);
         bool tug = kind == BoatKind.Trawler; float width = tug ? 83 : 64;
+        canvas.DrawPolyline([new(-width*.57f,30),new(-width*.6f,-15),new(-width*.4f,-52),new(0,-83)],new Color(.65f,.88f,.82f,.35f),2,true);
+        canvas.DrawPolyline([new(width*.57f,30),new(width*.6f,-15),new(width*.4f,-52),new(0,-83)],new Color(.65f,.88f,.82f,.25f),2,true);
         var hull = Hull(width, 139);
         Poly(Shift(hull, new(7, 9)), Shadow);
-        Prism(hull, 3, Ink, Ink);
-        Prism(Shift(Hull(width-3, 133),new(0,-4)), 7, Cream, SandShade, SandLight);
+        Prism(hull, 7, new Color("3c5260"), Ink);
+        Prism(Shift(Hull(width-3, 133),new(0,-4)), 10, Cream, new Color("99794f"), SandLight);
         Poly(Shift(Hull(width-16, 114), new(0,-11)), Ink);
         Poly(Shift(Hull(width-20, 110), new(0,-12)), new Color("bc915d"));
         for(int i=0;i<3;i++) Line(new(-width*.32f, -24+i*24),new(width*.32f,-24+i*24),new Color("c9a774"),1);
@@ -67,6 +69,9 @@ public sealed class ProceduralArt(Node2D canvas)
         Line(new(0,-45), new(12,-41), Cream, 2);
         if(tug)
         {
+            Ellipse(new(0,30),new(18,13),new Color("1d5b63"));
+            Ellipse(new(0,28),new(12,8),new Color("6bd4bd"));
+            Ellipse(new(0,27),new(6,4),Cream);
             for(int side=-1;side<=1;side+=2){Box(new(side*25-5,28),new(10,16),17,Metal,Ink);Ellipse(new(side*25,11),new(5,4),Ink);}
         }
         else { Line(new(-15,22),new(-16,43),Metal,2);Ellipse(new(-16,43),new(5,3),Cream); }
@@ -84,10 +89,17 @@ public sealed class ProceduralArt(Node2D canvas)
         if(weapons!=null && weapons[5]>0)
         {
             var crystal = new Vector2(0,-48);
-            float radius = 10 + weapons[5]*2;
+            float radius = 14 + weapons[5]*2;
+            // Keep crystal height vertical on screen while the hull turns beneath it.
+            var up=Vector2.FromAngle(-Mathf.Pi/2-angle);
+            var right=Vector2.FromAngle(-angle);
+            var tip=crystal+up*43;
+            var shoulder=crystal+up*19;
+            Ellipse(crystal+up*20,new(radius*1.65f,28),new Color(.65f,.4f,1,.1f));
             Ellipse(crystal+new Vector2(0,5),new(radius+7,8),Ink);
-            Poly([crystal+new Vector2(0,-25),crystal+new Vector2(radius,-5),crystal+new Vector2(0,10),crystal+new Vector2(-radius,-5)],new Color("b6a0f4"));
-            Poly([crystal+new Vector2(0,-25),crystal+new Vector2(0,10),crystal+new Vector2(-radius,-5)],new Color("725ca8"));
+            Poly([tip,shoulder+right*radius,crystal,shoulder-right*radius],new Color("b6a0f4"));
+            Poly([tip,crystal,shoulder-right*radius],new Color("7953b4"));
+            Poly([tip,shoulder+right*radius,shoulder+right*3],new Color("dec8ff"));
             for(int orb=0;orb<weapons[5];orb++)
             {
                 float a=clock*.9f+orb*Mathf.Tau/weapons[5];
@@ -132,18 +144,26 @@ public sealed class ProceduralArt(Node2D canvas)
         Poly(wing, top);
         Poly([new(-60,10+flap),new(-24,-18),new(-35,8+flap*.5f)],Cream);
         Poly([new(60,10+flap),new(24,-18),new(35,8+flap*.5f)],Cream);
-        Poly([new(0,-30),new(17,9),new(0,18),new(-17,9)],flash?Cream:Teal);
+        Shell(new(0,-5),new(18,26),flash?Cream:Teal,TealDark,12,82);
         Spike(new(0,8),new(8+MathF.Sin(clock*3)*8,65),4,TealDark);
         Eye(new(-9,-13),4); Eye(new(9,-13),4);
     }
     void Shell(Vector2 p,Vector2 radius,Color top,Color dark,int sides,uint seed)
     {
         var ring = Enumerable.Range(0, sides).Select(i => p + new Vector2(Mathf.Cos(i*Mathf.Tau/sides)*radius.X, Mathf.Sin(i*Mathf.Tau/sides)*radius.Y)).ToArray();
-        Poly(Shift(ring,new(3,6)),Shadow);
+        Poly(Shift(ring,new(4,8)),Shadow);
         Poly(ring,dark);
-        var crown = ring.Select(v => p + (v-p)*new Vector2(.92f,.78f) - new Vector2(0,radius.Y*.16f)).ToArray();
-        Poly(crown,top);
-        Poly([crown[sides/2],crown[(sides/2+1)%sides],crown[(sides*3/4)%sides],p+new Vector2(-radius.X*.12f,-radius.Y*.08f)],top.Lightened(.12f));
+        var shoulder = ring.Select(v=>p+(v-p)*new Vector2(.86f,.86f)-new Vector2(0,radius.Y*.04f)).ToArray();
+        var crown = ring.Select(v=>p+(v-p)*new Vector2(.55f,.55f)-new Vector2(radius.X*.04f,radius.Y*.17f)).ToArray();
+        for(int i=0;i<sides;i++)
+        {
+            int next=(i+1)%sides;
+            float light=Mathf.Cos((i+.5f)*Mathf.Tau/sides+2.1f);
+            Color face=light>0?top.Lightened(light*.17f):top.Darkened(-light*.2f);
+            Poly([ring[i],ring[next],shoulder[next],shoulder[i]],dark.Lerp(face,.6f));
+            Poly([shoulder[i],shoulder[next],crown[next],crown[i]],face);
+        }
+        Poly(crown,top.Lightened(.13f));
     }
     void Spike(Vector2 root,Vector2 tip,float width,Color color)
     {
@@ -172,14 +192,14 @@ public sealed class ProceduralArt(Node2D canvas)
         }
         for(int i=0;i<5;i++)
         {float a=Mathf.Pi+i*Mathf.Pi/4;var root=new Vector2(Mathf.Cos(a)*31*s,Mathf.Sin(a)*24*s);Spike(root,root+new Vector2(Mathf.Cos(a)*12,Mathf.Sin(a)*15)*s,4*s,boss?Cream:Coral);}
-        Shell(new(0,0),new(36*s,29*s),flash?Cream:Coral,CoralDark,10,72);
+        Shell(new(0,0),new(36*s,29*s),flash?Cream:Coral,CoralDark,16,72);
         if(boss)
         {
             Shell(new(0,-4*s),new(26*s,19*s),Metal,Ink,7,128);
             for(int i=-1;i<=1;i++)Spike(new(i*15*s,-13*s),new(i*22*s,-(i==0?54:41)*s),7*s,Cream);
             for(int side=-1;side<=1;side+=2)Spike(new(side*24*s,3*s),new(side*39*s,-5*s),5*s,Cream);
         }
-        Eye(new(-13*s,17*s),7*s,boss);Eye(new(13*s,17*s),7*s,boss);
+        Eye(new(-13*s,17*s),8*s,boss);Eye(new(13*s,17*s),8*s,boss);
         Poly([new(-7*s,28*s),new(7*s,28*s),new(0,32*s)],Ink);
         for(int side=-1;side<=1;side+=2)
         {
@@ -188,6 +208,7 @@ public sealed class ProceduralArt(Node2D canvas)
             var at=new Vector2(side*34*s,(48+sway)*s);
             Ellipse(at,new(14*s,16*s),CoralDark);
             Ellipse(at+new Vector2(-2*s,-2*s),new(12*s,14*s),flash?Cream:Coral);
+            Ellipse(at+new Vector2(-5*s,-6*s),new(6*s,7*s),flash?Cream:CoralLight);
             Poly([at+new Vector2(-11*s,3*s),at+new Vector2(-8*s,20*s),at+new Vector2(2*s,25*s),at+new Vector2(-1*s,10*s)],flash?Cream:Coral);
             Poly([at+new Vector2(7*s,0),at+new Vector2(14*s,14*s),at+new Vector2(5*s,24*s),at+new Vector2(7*s,11*s)],flash?Cream:CoralLight);
             if(boss){Spike(at+new Vector2(-3*s,14*s),at+new Vector2(7*s,19*s),4*s,Cream);}
@@ -212,7 +233,7 @@ public sealed class ProceduralArt(Node2D canvas)
         {
             float t=i/14f;
             path[i]=new((t-.5f)*130,MathF.Sin(t*6+clock*3)*14+(t-.5f)*20);
-            float r=3+(1-t)*16;
+            float r=3+(1-t)*21;
             upper[i]=path[i]+new Vector2(0,-r); lower[i]=path[i]+new Vector2(0,r);
         }
         var body=upper.Concat(lower.Reverse()).ToArray();
@@ -230,44 +251,75 @@ public sealed class ProceduralArt(Node2D canvas)
         Eye(head+new Vector2(-3,-8),5);
         Spike(head+new Vector2(11,-13),head+new Vector2(21,-29),5,Coral);
     }
-    public void Island(Vector2 p,float radius,uint seed,bool harbor,float clock)
+    Vector2[] IslandRing(uint seed)
     {
-        if(!islands.TryGetValue(seed,out var mesh))
+        if (!islands.TryGetValue(seed, out var mesh))
         {
-            var rng=new SeedRandom(seed);var ring=new Vector2[28]; float phase=rng.Range(0,Mathf.Tau);
+            var rng=new SeedRandom(seed); var ring=new Vector2[40]; float phase=rng.Range(0,Mathf.Tau);
             for(int i=0;i<ring.Length;i++)
             {
                 float a=i*Mathf.Tau/ring.Length;
-                float r=.88f+.13f*Mathf.Cos(a*3+phase)+.065f*Mathf.Sin(a*5-phase);
+                float r=.9f+.1f*Mathf.Cos(a*3+phase)+.04f*Mathf.Sin(a*5-phase);
                 ring[i]=new(Mathf.Cos(a)*r,Mathf.Sin(a)*r*.83f);
             }
             islands[seed]=mesh=new(ring);
         }
-        canvas.DrawSetTransform(p);
-        var outer=mesh.Ring.Select(v=>v*radius).ToArray();
-        // Uneven shallows and a broad low beach surround a raised rocky interior.
-        Poly(outer.Select((v,i)=>v*(1.15f+.04f*Mathf.Sin(i*1.6f))+new Vector2(0,9)).ToArray(),new Color(.13f,.53f,.54f,.27f));
-        Poly(outer.Select((v,i)=>v*(1.065f+.02f*Mathf.Cos(i))+new Vector2(0,5)).ToArray(),new Color(.2f,.66f,.61f,.55f));
-        Poly(Shift(outer,new(0,4)),SandShade);
-        Poly(outer,Sand);
-        Poly(outer.Select(v=>v*.95f-new Vector2(0,2)).ToArray(),SandLight);
-        // Smaller high bank offset to the back leaves an open crescent of sand in front.
-        var bank=outer.Select(v=>v*new Vector2(.7f,.64f)-new Vector2(radius*.09f,radius*.19f)).ToArray();
-        Prism(bank,radius*.12f,new Color("91927a"),new Color("737665"));
-        var foam=outer.Select(v=>v*1.035f+new Vector2(0,4)).ToArray();
-        for(int i=0;i<foam.Length;i+=4)
-            canvas.DrawPolyline([foam[i],foam[(i+1)%foam.Length],foam[(i+2)%foam.Length]],new Color(Cream,.5f),2,true);
-        var rocks=new SeedRandom(seed ^ 0xa812u);
-        for(int i=0;i<7;i++)
+        return mesh.Ring;
+    }
+    public void Surf(Vector2 p, float radius, uint seed, float clock)
+    {
+        var ring=IslandRing(seed);
+        for (int wave=0;wave<2;wave++)
         {
-            float a=2.15f+i*.53f;
-            var at=new Vector2(Mathf.Cos(a)*radius*.58f,Mathf.Sin(a)*radius*.36f-radius*.12f);
-            Boulder(at,radius*rocks.Range(.19f,.34f),seed+(uint)i);
+            float phase=(clock*.14f+wave*.5f+seed%11*.08f)%1;
+            float alpha=Mathf.Sin(phase*Mathf.Pi)*.7f;
+            for(int start=0;start<ring.Length;start+=10)
+            {
+                var points=new Vector2[7];
+                for(int i=0;i<points.Length;i++) points[i]=p+ring[(start+i)%ring.Length]*radius*(1.02f+phase*.13f)+new Vector2(0,4);
+                canvas.DrawPolyline(points,new Color(new Color("edf9dc"),alpha),2.6f,true);
+                for(int foam=1;foam<points.Length;foam+=3)
+                    canvas.DrawCircle(points[foam]+new Vector2(Mathf.Sin(foam+seed%7)*4,3),1.3f,new Color(Cream,alpha*.6f));
+            }
         }
-        for(int i=0;i<3;i++)
+    }
+    public void Island(Vector2 p,float radius,uint seed,bool harbor,float clock)
+    {
+        var ring=IslandRing(seed);
+        canvas.DrawSetTransform(p);
+        var outer=ring.Select(v=>v*radius).ToArray();
+        // Broad transparent shelves follow the same shoreline as the actual island.
+        Poly(outer.Select((v,i)=>v*(1.85f+.045f*Mathf.Sin(i))+new Vector2(0,12)).ToArray(),new Color(.02f,.39f,.45f,.24f));
+        Poly(outer.Select((v,i)=>v*(1.53f+.03f*Mathf.Sin(i*1.7f))+new Vector2(0,9)).ToArray(),new Color(.025f,.53f,.55f,.3f));
+        Poly(outer.Select(v=>v*1.27f+new Vector2(0,7)).ToArray(),new Color(.1f,.65f,.62f,.43f));
+        Poly(outer.Select(v=>v*1.10f+new Vector2(0,4)).ToArray(),new Color(.32f,.75f,.66f,.58f));
+        Poly(Shift(outer,new(3,8)),new Color("9b895f"));
+        Poly(outer,Sand);
+        Poly(outer.Select(v=>v*.96f-new Vector2(0,3)).ToArray(),SandLight);
+        Poly(outer.Select(v=>v*.88f-new Vector2(0,5)).ToArray(),new Color("f2d6a0"));
+        var bank=outer.Select(v=>v*new Vector2(.60f,.55f)-new Vector2(radius*.03f,radius*.16f)).ToArray();
+        Prism(bank,radius*.065f,new Color("91a576"),new Color("758561"));
+        Poly(bank.Select(v=>v*.9f-new Vector2(0,radius*.07f)).ToArray(),new Color("a1ae7b"));
+        var sandGrain=new SeedRandom(seed ^ 0x17f3u);
+        for(int grain=0;grain<30;grain++)
         {
-            var at=new Vector2(-radius*.28f+i*radius*.22f,-radius*.18f);
-            Poly([at+new Vector2(-14,6),at+new Vector2(-8,-6),at+new Vector2(5,-10),at+new Vector2(17,3),at+new Vector2(3,9)],new Color(i%2==0?"788153":"929661"));
+            float a=sandGrain.Range(0,Mathf.Tau);
+            int edge=(int)(a/Mathf.Tau*outer.Length)%outer.Length;
+            var point=outer[edge]*sandGrain.Range(.73f,.9f);
+            Ellipse(point,new(sandGrain.Range(.8f,1.8f),.8f),new Color(SandShade,.2f));
+        }
+        var rocks=new SeedRandom(seed ^ 0xa812u);
+        // Subordinate rocks leave room for the landmark and a broad walkable-looking beach.
+        for(int i=0;i<2;i++)
+        {
+            var at=new Vector2((i==0?-.42f:.4f)*radius,-radius*.1f);
+            Boulder(at,radius*rocks.Range(.15f,.23f),seed+(uint)i);
+        }
+        for(int i=0;i<5;i++)
+        {
+            float a=i*2.4f;
+            var at=new Vector2(Mathf.Cos(a)*radius*.4f,Mathf.Sin(a)*radius*.2f-radius*.22f);
+            Shell(at,new(radius*.1f,radius*.07f),new Color(i%2==0?"76945d":"587d55"),new Color("4c6d4b"),7,seed+(uint)i);
         }
         // Loose shore stones break up the beach edge without extending the collision footprint.
         for(int i=0;i<3;i++)
@@ -298,8 +350,16 @@ public sealed class ProceduralArt(Node2D canvas)
                     }
                     break;
                 case 1:
-                    Boulder(new(0,-radius*.16f),radius*.53f,seed);
-                    Prism([new(-20,-radius*.2f),new(17,-radius*.2f),new(11,-radius*.38f),new(-8,-radius*.4f)],radius*.55f,new Color("c0b99a"),RockDark);
+                    var foot = new Vector2(0,-radius*.12f);
+                    var baseRing = Enumerable.Range(0,7).Select(i=>foot+Vector2.FromAngle(i*Mathf.Tau/7)*new Vector2(radius*.35f,radius*.23f)).ToArray();
+                    var peakRing = baseRing.Select(v=>foot+(v-foot)*.35f-new Vector2(radius*.035f,radius*.77f)).ToArray();
+                    for(int face=0;face<7;face++)
+                    {
+                        int next=(face+1)%7;
+                        Poly([baseRing[face],baseRing[next],peakRing[next],peakRing[face]],new Color(face<3?"6b746a":face<5?"a2a28a":"858b7c"));
+                    }
+                    Poly(peakRing,new Color("d2c9a8"));
+                    Boulder(new(-radius*.27f,radius*.02f),radius*.2f,seed);
                     break;
                 default:
                     var mast = new Vector2(radius*.12f,-radius*.17f);

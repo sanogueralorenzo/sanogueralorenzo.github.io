@@ -20,6 +20,9 @@ public partial class OceanView : Node2D
     public ShaderMaterial Water = null!;
     readonly List<Particle> particles = new();
     readonly List<Wake> wakes = new();
+    readonly Dictionary<Shot,List<Vector2>> orbTrails = new();
+    readonly Dictionary<int,List<Vector2>> creatureWakes = new();
+    float trailClock;
     readonly RandomNumberGenerator rng = new();
     float wakeClock, muzzleTime;
     record Wake(Vector2 P, float Angle, float Born, float Speed);
@@ -32,7 +35,7 @@ public partial class OceanView : Node2D
     Vector2 CanvasPoint(V2 p) => G(p) - Camera + ViewSize * .5f;
     public Vector2 Screen(V2 p) => CanvasPoint(p) * Projection;
     public V2 WorldPoint(Vector2 screen) { var p = (screen - GetViewportRect().Size * .5f) / Projection + Camera; return new(p.X, p.Y); }
-    public void Reset() { scenery.Clear(); particles.Clear(); wakes.Clear(); Camera = G(Voyage.Position); }
+    public void Reset() { scenery.Clear(); particles.Clear(); wakes.Clear(); orbTrails.Clear(); creatureWakes.Clear(); trailClock=0; Camera = G(Voyage.Position); }
     public void Advance(float dt)
     {
         Scale = Projection;
@@ -40,6 +43,25 @@ public partial class OceanView : Node2D
         if (!Menu && Voyage.Mode == VoyageMode.Sailing)
         {
             Camera = Camera.Lerp(G(Voyage.Position) + (G(Voyage.Velocity) * .16f), 1 - Mathf.Exp(-dt * 5));
+            trailClock += dt;
+            if (trailClock >= .065f)
+            {
+                trailClock = 0;
+                var liveOrbs=Voyage.Shots.Where(s=>s.Kind==WeaponKind.Arcane && !s.Hostile && s.Life>0).ToHashSet();
+                foreach(var old in orbTrails.Keys.Where(s=>!liveOrbs.Contains(s)).ToArray()) orbTrails.Remove(old);
+                foreach(var shot in liveOrbs)
+                {
+                    if(!orbTrails.TryGetValue(shot,out var trail)) orbTrails[shot]=trail=new();
+                    trail.Add(G(shot.Position)); if(trail.Count>9) trail.RemoveAt(0);
+                }
+                var liveIds=Voyage.Enemies.Select(e=>e.Id).ToHashSet();
+                foreach(var old in creatureWakes.Keys.Where(id=>!liveIds.Contains(id)).ToArray()) creatureWakes.Remove(old);
+                foreach(var enemy in Voyage.Enemies)
+                {
+                    if(!creatureWakes.TryGetValue(enemy.Id,out var trail)) creatureWakes[enemy.Id]=trail=new();
+                    trail.Add(G(enemy.Position)); if(trail.Count>13) trail.RemoveAt(0);
+                }
+            }
             wakeClock += dt;
             if (wakeClock > .045f && Voyage.Velocity.Length() > 20)
             { wakeClock = 0; wakes.Add(new(G(Voyage.Position), Voyage.Heading, Clock, Voyage.Velocity.Length())); }
@@ -92,7 +114,12 @@ public partial class OceanView : Node2D
             Vector2 p = new Vector2(x * 150 + h % 100, y * 120 + (h >> 9) % 80) - Camera + size / 2;
             p.X += MathF.Sin(Clock * .5f + h % 23) * 7;
             float alpha = .12f + .06f * MathF.Sin(Clock * .5f + h % 17);
-            DrawPolyline([p, p + new Vector2(9, -2), p + new Vector2(22, 0), p + new Vector2(30, -3)], new Color(Aqua, alpha), 2, true);
+            DrawPolyline([p, p + new Vector2(9, -2), p + new Vector2(22, 0), p + new Vector2(30, -3)], new Color(Aqua, alpha), 1.5f, true);
+            if(h%13==0)
+            {
+                float glint=Mathf.Pow(Mathf.Max(0,Mathf.Sin(Clock*.7f+h%29)),8)*.6f;
+                DrawLine(p-new Vector2(5,0),p+new Vector2(8,-1),new Color(Cream,glint),1.5f,true);
+            }
         }
         if (!Menu && Destination is V2 goal) { var at = CanvasPoint(goal); DrawArc(at, 17, Clock, Clock + Mathf.Tau * .8f, 30, new Color(Cream, .5f), 2, true); DrawCircle(at, 3, Cream); }
         foreach (var place in Voyage.World.Places)
@@ -107,11 +134,12 @@ public partial class OceanView : Node2D
                 for (int i=0;i<24;i++) { float a=i*Mathf.Tau/24; DrawArc(p,285,a,a+.12f,5,new Color(Aqua,.25f),2,true); }
             }
             float r = place.Radius;
-            if (!scenery.Draw(this, place, p))
+            if (!scenery.IsReady(place))
             {
                 if (place.Kind == PlaceKind.Rock) art.Rocks(p, r, place.Style);
                 else art.Island(p, place.Kind == PlaceKind.Harbor ? 156 : r * 1.15f, place.Style, place.Kind == PlaceKind.Harbor, Clock);
             }
+            if (place.Kind != PlaceKind.Rock) art.Surf(p, place.Kind == PlaceKind.Harbor ? 156 : r*1.15f, place.Style, Clock);
             if (place.Kind == PlaceKind.Harbor && !Menu)
             {
                 var badge = p + new Vector2(49, 201);
@@ -130,11 +158,19 @@ public partial class OceanView : Node2D
                 float speedRatio=Mathf.Clamp(w.Speed/Voyage.Speed,.2f,2.6f);
                 float spread = 13 + age * (12 + speedRatio * 7);
                 leftWake[i] = stern - side * spread; rightWake[i] = stern + side * spread;
-                colors[i] = new Color(Aqua, (1 - age / 2.1f) * Mathf.Clamp(speedRatio*.36f,.15f,.85f));
+                colors[i] = new Color(new Color("b8e9da"), (1 - age / 2.1f) * Mathf.Clamp(speedRatio*.55f,.2f,.9f));
             }
             var haze=colors.Select(c=>new Color(c,c.A*.13f)).ToArray();
             DrawPolylineColors(leftWake,haze,12,true); DrawPolylineColors(rightWake,haze,12,true);
-            DrawPolylineColors(leftWake,colors,Voyage.IsBoosting?5:3,true); DrawPolylineColors(rightWake,colors,Voyage.IsBoosting?5:3,true);
+            DrawPolylineColors(leftWake,colors,Voyage.IsBoosting?4:2,true); DrawPolylineColors(rightWake,colors,Voyage.IsBoosting?4:2,true);
+            for(int i=1;i<wakes.Count;i+=2)
+            {
+                float age=Clock-wakes[i].Born;
+                var offset=Vector2.FromAngle(i*2.4f)*Mathf.Min(age*6,8);
+                var foam=new Color(Cream,colors[i].A*.85f);
+                DrawLine(leftWake[i]+offset,leftWake[i]+offset+new Vector2(3,1),foam,2.2f,true);
+                DrawLine(rightWake[i]-offset,rightWake[i]-offset+new Vector2(3,-1),foam,2.2f,true);
+            }
         }
         if (!Menu && Voyage.Weapons[4] > 0)
         {
@@ -147,6 +183,23 @@ public partial class OceanView : Node2D
             Vector2 p = CanvasPoint(e.Position);
             float margin = e.Kind == EnemyKind.Leviathan ? 180 : 100;
             if (p.X < -margin || p.Y < -margin || p.X > size.X + margin || p.Y > size.Y + margin) continue;
+            if(creatureWakes.TryGetValue(e.Id,out var history) && history.Count>2)
+            {
+                var away=history[0]-history[^1];
+                if(away.LengthSquared()>100)
+                {
+                    var rear=away.Normalized(); var side=rear.Orthogonal();
+                    for(int i=1;i<history.Count;i+=2)
+                    {
+                        float age=1-i/(float)history.Count;
+                        var wake=history[i]-Camera+size/2+rear*e.Radius*.8f;
+                        float spread=e.Radius*(.8f+age*.4f);
+                        var color=new Color(Cream,(1-age)*.27f);
+                        DrawLine(wake+side*spread,wake+side*spread+rear*6,color,1.8f,true);
+                        DrawLine(wake-side*spread,wake-side*spread+rear*6,color,1.8f,true);
+                    }
+                }
+            }
             float h = e.Kind == EnemyKind.Leviathan ? 230 : e.Kind == EnemyKind.Serpent ? 119 : e.Kind == EnemyKind.Ray ? 115 : 95;
             if (e.Telegraph > 0)
             {
@@ -160,6 +213,13 @@ public partial class OceanView : Node2D
             }
             float angle = MathF.Atan2(Voyage.Position.Y - e.Position.Y, Voyage.Position.X - e.Position.X);
             DrawEllipse(p + new Vector2(0, 13), new(e.Radius * 1.3f, e.Radius * .48f), new Color(Aqua, .07f));
+            DrawEllipse(p+new Vector2(5,17),new(e.Radius*.95f,e.Radius*.43f),new Color(Navy,.32f));
+            if (!e.Emerging)
+            {
+                float ripple=e.Time*.8f+e.Id;
+                DrawArc(p+new Vector2(0,9),e.Radius*1.28f,ripple,ripple+1.7f,18,new Color(Cream,.2f),1.5f,true);
+                DrawArc(p+new Vector2(0,9),e.Radius*1.4f,ripple+Mathf.Pi,ripple+Mathf.Pi+1.2f,14,new Color(Aqua,.25f),2,true);
+            }
             creatures.Draw(this, e, p + new Vector2(0, MathF.Sin(e.Time * 4) * 2), angle);
             if (e.Health < e.MaxHealth && e.Kind != EnemyKind.Leviathan)
             { DrawLine(p + new Vector2(-23, -h * .52f), p + new Vector2(23, -h * .52f), Navy, 4); DrawLine(p + new Vector2(-23, -h * .52f), p + new Vector2(-23 + 46 * Math.Max(0, e.Health / e.MaxHealth), -h * .52f), Coral, 3); }
@@ -180,6 +240,12 @@ public partial class OceanView : Node2D
             else if (s.Kind == WeaponKind.Arcane)
             {
                 var magic = new Color("b6a0f4");
+                if(orbTrails.TryGetValue(s,out var trail) && trail.Count>1)
+                {
+                    var points=trail.Select(point=>point-Camera+size/2).Append(p).ToArray();
+                    var colors=Enumerable.Range(0,points.Length).Select(i=>new Color(magic,i/(float)points.Length*.65f)).ToArray();
+                    DrawPolylineColors(points,colors,2.3f,true);
+                }
                 DrawLine(p-dir*22,p,new Color(magic,.3f),4,true);
                 DrawCircle(p,12,new Color(magic,.16f)); DrawCircle(p,7,magic);
                 DrawCircle(p-new Vector2(2,2),3,new Color("eee4ff"));
@@ -193,7 +259,7 @@ public partial class OceanView : Node2D
 
         float heading = Menu ? -.65f : Voyage.Heading;
         var target = Voyage.Enemies.Where(e=>e.Health>0 && System.Numerics.Vector2.DistanceSquared(e.Position,Voyage.Position)<570*570).OrderBy(e=>System.Numerics.Vector2.DistanceSquared(e.Position,Voyage.Position)).FirstOrDefault();
-        var mount = Voyage.Position + new V2(MathF.Sin(heading), -MathF.Cos(heading)) * (48 * (Voyage.Boat == BoatKind.Cutter ? 139f / 145 : 151f / 145));
+        var mount = Voyage.Position + new V2(MathF.Sin(heading), -MathF.Cos(heading)) * (48 * (Voyage.Boat == BoatKind.Cutter ? 153f / 145 : 163f / 145));
         float aim = target == null ? 0 : MathF.Atan2(target.Position.Y-mount.Y,target.Position.X-mount.X)+Mathf.Pi/2-heading;
         if (Menu)
         {
@@ -214,7 +280,7 @@ public partial class OceanView : Node2D
             else if (p.Kind == "ring") DrawArc(at, Math.Max(1, p.Size * (1 - alpha)), 0, Mathf.Tau, 40, new Color(p.Color, alpha), 4, true);
             else DrawCircle(at, p.Size * alpha, new Color(p.Color, alpha));
         }
-        art.Boat(boatPos + new Vector2(0, MathF.Sin(Clock * 2.7f) * 1.4f), Menu ? 235 : Voyage.Boat == BoatKind.Cutter ? 139 : 151, heading, Voyage.Boat, Clock, Voyage.Weapons, Voyage.Invulnerable > 0 && (int)(Clock * 16) % 2 == 0, aim, muzzleTime > 0);
+        art.Boat(boatPos + new Vector2(0, MathF.Sin(Clock * 2.7f) * 1.4f), Menu ? 235 : Voyage.Boat == BoatKind.Cutter ? 153 : 163, heading, Voyage.Boat, Clock, Voyage.Weapons, Voyage.Invulnerable > 0 && (int)(Clock * 16) % 2 == 0, aim, muzzleTime > 0);
         // Threats stay above friendly effects and the hull, even in dense combat.
         foreach (var shot in Voyage.Shots)
         {
@@ -237,8 +303,9 @@ public partial class OceanView : Node2D
             float a = i * Mathf.Tau / 5 + Clock * .22f;
             Vector2 fish = p + new Vector2(MathF.Cos(a) * 24, MathF.Sin(a) * 18);
             DrawSetTransform(fish, .3f*Mathf.Sin(a), Vector2.One * 1.25f);
-            DrawColoredPolygon([new(-8,0),new(-3,-4),new(4,-3),new(9,0),new(3,4),new(-3,3)],Cream);
-            DrawColoredPolygon([new(-6,0),new(-13,-5),new(-12,5)],Cream);
+            DrawColoredPolygon(Enumerable.Range(0,16).Select(point=>new Vector2(3+Mathf.Cos(point*Mathf.Tau/16)*12,6+Mathf.Sin(point*Mathf.Tau/16)*4)).ToArray(),new Color(Navy,.28f));
+            DrawColoredPolygon([new(-8,0),new(-3,-4),new(4,-3),new(9,0),new(3,4),new(-3,3)],new Color("b8d5b5"));
+            DrawColoredPolygon([new(-6,0),new(-13,-5),new(-12,5)],new Color("abc7aa"));
             DrawCircle(new(5,-.5f),1.1f,Navy);
             DrawSetTransform(Vector2.Zero);
         }

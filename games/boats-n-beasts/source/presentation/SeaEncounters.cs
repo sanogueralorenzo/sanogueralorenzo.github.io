@@ -29,11 +29,14 @@ public sealed class SeaEncounters(Node2D canvas)
         {
             canvas.DrawCircle(new(0,2),28,new Color(Gold,.08f));
             canvas.DrawArc(new(0,8),27,.1f,Mathf.Pi-.1f,20,new Color(Gold,.65f),2,true);
-            Poly([new(-18,-10),new(15,-10),new(20,-3),new(17,16),new(-17,16)],Dark);
-            Poly([new(-16,-9),new(14,-9),new(17,-2),new(-17,-2)],Gold);
-            Poly([new(-17,0),new(17,0),new(15,14),new(-15,14)],Wood);
-            canvas.DrawLine(new(-9,-8),new(-9,13),Gold,3); canvas.DrawLine(new(9,-8),new(9,13),Gold,3);
-            canvas.DrawRect(new Rect2(-3,-1,6,6),Gold);
+            Poly([new(-20,-6),new(-13,-17),new(9,-19),new(21,-7),new(18,15),new(-16,17)],Dark);
+            Poly([new(-18,-6),new(-11,-15),new(9,-17),new(18,-7),new(15,-1),new(-17,1)],Wood.Lightened(.22f));
+            Poly([new(-17,2),new(15,0),new(15,14),new(-15,16)],Wood);
+            Poly([new(15,0),new(20,-7),new(18,13),new(15,14)],Wood.Darkened(.3f));
+            canvas.DrawPolyline([new(-10,15),new(-11,-7),new(-7,-15)],Gold,3,true);
+            canvas.DrawPolyline([new(9,14),new(10,-6),new(6,-16)],Gold,3,true);
+            canvas.DrawLine(new(-17,2),new(15,0),Gold.Darkened(.2f),2,true);
+            canvas.DrawRect(new Rect2(-3,0,6,6),Gold);
             float glint=.65f+.3f*Mathf.Sin(clock*3);
             canvas.DrawLine(new(-6,-19),new(6,-19),new Color(OceanView.Cream,glint),2);
             canvas.DrawLine(new(0,-25),new(0,-13),new Color(OceanView.Cream,glint),2);

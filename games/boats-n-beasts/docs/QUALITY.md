@@ -199,3 +199,11 @@ Limits: this was not a boss-victory balance run. Multiple simultaneous pending c
 ## Gunboat, Mage and Aura — 2026-09-08
 
 Replaced Broadside with homing Arcane Orbs throughout simulation, offers, icons, boat art and current copy. Gunboat starts Cannon, Aura starts Whirlpool, and new Mage starts Arcane Orbs. Violet crystal/roof and orbiting lights distinguish Mage. Debug build passes without warnings/errors; native selector verified all three options. A moving Mage run recorded seven casts and three kills by 17.7 seconds with only its starter equipped. No sideways target gating remains. The new homing steering was reviewed in source; full-run balance and high-rank multi-orb behavior were not exhaustively playtested. No automated tests or state injection.
+
+## Approved concept visual pass — 2026-09-08
+
+Implemented the sea, beach/shallows, vegetation/landmark, boat, creature, wake/trail and pickup requirements in ART_DIRECTION.md. No core gameplay files changed. Compared native screenshots directly with the approved generated reference, then strengthened foam and corrected Mage crystal orientation. The result retains the existing camera/HUD and is more graphic than the illustration, with deliberately less foam/microtexture.
+
+Debug and Release builds pass with zero warnings/errors. Native runs exercised moving Mage, homing orbs, crabs/puffers, shoreline streaming and collection; the title also rendered the revised serpent, and all creature animation strips are baked on startup. At the saved motion capture: frame mean 13.37 ms, p95 16.67 ms; a later busy capture measured mean 14.07 ms, p95 16.67 ms, with 25 loaded chunks. Logs after fixes contained no ERROR/WARNING lines. An initial nested-shell triangulation issue was fixed by keeping the rings properly inset; transparent cached shelves were corrected with premultiplied alpha; a nested-transform fish-shadow regression was fixed before final checks.
+
+Limits: these are native visual/performance checks, not a fresh full boss-victory balance run. The final sparse sand grains and rounded Ray body were rebuilt after the saved gameplay captures. No automated tests, injected state or generated bitmap game assets were used.

@@ -61,3 +61,6 @@ Native telemetry accompanies each image. Victory capture precedes only sale-head
 
 - `three-boat-selection.png/.txt`: Gunboat, Aura and Mage options with the gun boat preview.
 - `mage-combat.png/.txt`: native Mage voyage with seven arcane casts and three kills at 17.7 seconds; only Arcane Orbs equipped.
+
+- `concept-style-combat.png/.txt`: revised water, broad beach, shaded creatures and submerged fish. Before the final foam/crystal adjustments.
+- `concept-style-motion.png/.txt`: upright Mage crystal, broad shallow shelves and readable combat, following foam refinement. Sparse sand grains and the final Ray body are later build-verified refinements.

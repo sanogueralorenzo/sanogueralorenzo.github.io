@@ -8,8 +8,8 @@ public partial class CreatureAtlas : Node
 {
     const int Frames = 24;
     readonly Dictionary<EnemyKind, SubViewport> strips = new();
-    static int Cell(EnemyKind kind) => kind == EnemyKind.Leviathan ? 320 : 160;
-    static float Height(EnemyKind kind) => kind == EnemyKind.Leviathan ? 230 : kind == EnemyKind.Serpent ? 119 : kind == EnemyKind.Ray ? 115 : 95;
+    static int Cell(EnemyKind kind) => kind == EnemyKind.Leviathan ? 320 : kind == EnemyKind.Serpent ? 192 : 160;
+    static float Height(EnemyKind kind) => kind == EnemyKind.Leviathan ? 230 : kind == EnemyKind.Serpent ? 135 : kind == EnemyKind.Ray ? 115 : 95;
     static float Duration(EnemyKind kind) => Mathf.Tau / (kind == EnemyKind.Serpent ? 3 : kind == EnemyKind.Ray ? 4 : kind == EnemyKind.Puffer ? 8 : 5);
     public override void _Ready()
     {

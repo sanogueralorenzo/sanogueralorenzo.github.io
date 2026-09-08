@@ -90,3 +90,5 @@ Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull
 Treasure has a gold glint, fishing schools use five visible fish with sparse ripples, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
 
 Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Cannon barrel counts and orbiting crystal lights reflect their rank, lightning adds coil rings, whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.
+
+The approved concept direction is documented in `docs/ART_DIRECTION.md`. The procedural art now includes layered petrol-blue water, land-shaped turquoise shelves, broad beaches and animated surf; shaded creature bodies and water-contact wakes; an upright Mage crystal, curved magic trails and foamy boat wakes. The concept image is a reference only.
