@@ -18,7 +18,7 @@ The automatic selection toolbar, background selection polling, and result/Copy w
 - Earlier on September 8, a real local Ollama rewrite automatically changed the disposable TextEdit sentence to `She went to the library yesterday.` through the production replacement method. Native Command-Z restored the original. Clipboard types, bytes, item order, and change count were unchanged.
 - The same replacement code rejected an app switch and a changed selected range, preserving the source and clipboard. This change keeps that delivery behavior and moves its error messages into the menu bar.
 
-The Pi migration requires a separate Pi sign-in for live inference; neither provider was signed in at the start of verification. Native Undo is controlled by the destination app. Locally signed updates can require refreshing Accessibility permission.
+After signing in to Pi, live Luna inference passed on a 926-word rewrite with an isolated configuration and a benchmark-only priority-tier hook. Three Pi samples completed successfully; see [the Pi/Codex benchmark](benchmarks/2026-09-08/README.md). This verifies live CLI inference, not the complete native keyboard-to-replacement path with Pi. Anthropic live inference remains unverified. Native Undo is controlled by the destination app. Locally signed updates can require refreshing Accessibility permission.
 
 ## Provider and app compatibility
 
