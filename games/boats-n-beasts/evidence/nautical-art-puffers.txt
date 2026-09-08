@@ -1,0 +1,32 @@
+Mouse viewport=(256.5, 1327.5) global=(256.5, 1327.5) boatScreen=(720.01526, 450.00458) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260908-022735-sailing
+Renderer: gl_compatibility
+Seed: 1512628983
+Mode: Sailing
+Game speed: x1
+Finished runs: 5; boat selection: False
+Silver: 14; earned this voyage: 0; next eligible combat time: 89.73659
+Boat: Trawler
+Position: <1678.9207, -195.29007>
+Health: 45.799995/155
+Coins: 34; cargo: 0; charts: 0; kills: 14; level: 2
+Active chunks: 25; enemies: 10; shots: 3
+Actual sailing seconds: 45.1; peak enemies: 10; peak shots: 7
+Combat clock=45.009594; director=1.3833327/0.9263747; boost=100; invulnerable=0; ability=0.7479999/0
+Weapon ranks=0,0,0,1,1,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Enemy 12: Puffer position=<1407.5764, 113.08631> hp=47.5 time=20.566525 attack=1.1166692 tell=0 dash=0 mark=0
+Enemy 13: Puffer position=<1521.3998, 88.60735> hp=29.5 time=20.566525 attack=3.366667 tell=0 dash=0 mark=0
+Enemy 14: Puffer position=<1365.1138, 145.50076> hp=47.5 time=19.916534 attack=0.6666696 tell=0 dash=0 mark=0
+Enemy 17: Puffer position=<1435.4563, 76.8097> hp=47.5 time=17.949898 attack=3.366667 tell=0 dash=0 mark=0
+Enemy 18: Puffer position=<1056.8245, -42.55746> hp=47.5 time=16.649918 attack=0.36666965 tell=0.65 dash=0 mark=0
+Enemy 19: Puffer position=<1041.6111, -95.26852> hp=47.5 time=12.099987 attack=2.266668 tell=0 dash=0 mark=0
+Enemy 20: Puffer position=<1255.7289, -354.93173> hp=47.5 time=8.60004 attack=0.7000029 tell=0 dash=0 mark=0
+Enemy 21: Crab position=<1483.9169, 142.06152> hp=33.75 time=7.9500494 attack=-5.4506917 tell=0 dash=0 mark=0
+Enemy 22: Puffer position=<932.2286, -380.79138> hp=47.5 time=7.3000407 attack=2.5166678 tell=0 dash=0 mark=0
+Enemy 24: Puffer position=<998.9195, -611.20856> hp=47.5 time=1.3999994 attack=1.3948734 tell=0 dash=0 mark=0
+Shot Cannon hostile=True position=<1664.8297, -421.2921> life=0.6333101
+Shot Cannon hostile=True position=<1558.9467, 6.38879> life=5.549994
+Shot Cannon hostile=True position=<1477.0923, 21.354332> life=5.549994
+CPU simulation average ms=0.071; draw submission average ms=1.168; cached scenery=8; engine FPS=60; draw calls=389; objects=1063
+Frame ms mean: 16.73; p95: 16.67; p99: 16.67

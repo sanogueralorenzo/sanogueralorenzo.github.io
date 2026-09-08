@@ -11,7 +11,7 @@ public partial class OceanView : Node2D
     public float Clock, Shake;
     public double DrawMs;
     public V2? Destination;
-    public static readonly Color Cream = new("ffe5af"), Coral = new("ff7651"), Aqua = new("63dccc"), Navy = new("082451");
+    public static readonly Color Cream = new("ffe5af"), Coral = new("ff7651"), Aqua = new("63dccc"), Navy = new("0a2939");
     ProceduralArt art = null!;
     CreatureAtlas creatures = null!;
     SceneryCache scenery = null!;
@@ -77,9 +77,10 @@ public partial class OceanView : Node2D
         for (int y = top; y < top + 12; y++) for (int x = left; x < left + 14; x++)
         {
             uint h = SeedRandom.Hash(Voyage.World.Seed, x, y);
+            if (h % 3 != 0) continue;
             Vector2 p = new Vector2(x * 150 + h % 100, y * 120 + (h >> 9) % 80) - Camera + size / 2;
             p.X += MathF.Sin(Clock * .5f + h % 23) * 7;
-            float alpha = .14f + .14f * MathF.Sin(Clock + h % 17);
+            float alpha = .12f + .06f * MathF.Sin(Clock * .5f + h % 17);
             DrawPolyline([p, p + new Vector2(9, -2), p + new Vector2(22, 0), p + new Vector2(30, -3)], new Color(Aqua, alpha), 2, true);
         }
         if (!Menu && Destination is V2 goal) { var at = Screen(goal); DrawArc(at, 17, Clock, Clock + Mathf.Tau * .8f, 30, new Color(Cream, .5f), 2, true); DrawCircle(at, 3, Cream); }
@@ -106,14 +107,19 @@ public partial class OceanView : Node2D
                 DrawArc(badge+new Vector2(0,2),8,0,Mathf.Pi,18,Navy,2.5f,true);DrawCircle(badge-new Vector2(0,10),3,Navy,false,2,true);
             }
         }
-        foreach (var w in wakes)
+        if (wakes.Count > 1)
         {
-            float age = Clock - w.Born; Vector2 p = w.P - Camera + size / 2;
-            Vector2 back = Vector2.FromAngle(w.Angle + Mathf.Pi / 2), side = back.Orthogonal();
-            float spread = 11 + age * 14, alpha = (1 - age / 2.1f) * .8f;
-            DrawCircle(p + back * 49 - side * spread, 2 + age * 1.6f, new Color(Cream, alpha));
-            DrawCircle(p + back * 49 + side * spread, 2 + age * 1.6f, new Color(Cream, alpha));
-            if (age < .5f) DrawCircle(p + back * 54, 5 - age * 6, new Color(Cream, alpha * .65f));
+            var leftWake = new Vector2[wakes.Count]; var rightWake = new Vector2[wakes.Count]; var colors = new Color[wakes.Count];
+            for (int i = 0; i < wakes.Count; i++)
+            {
+                var w = wakes[i]; float age = Clock - w.Born;
+                Vector2 back = Vector2.FromAngle(w.Angle + Mathf.Pi / 2), side = back.Orthogonal();
+                var stern = w.P - Camera + size / 2 + back * 49;
+                float spread = 13 + age * 17;
+                leftWake[i] = stern - side * spread; rightWake[i] = stern + side * spread;
+                colors[i] = new Color(Aqua, (1 - age / 2.1f) * .48f);
+            }
+            DrawPolylineColors(leftWake, colors, 3, true); DrawPolylineColors(rightWake, colors, 3, true);
         }
         if (!Menu && Voyage.Weapons[4] > 0)
         {
@@ -133,6 +139,7 @@ public partial class OceanView : Node2D
                 if (e.Kind == EnemyKind.Serpent) DrawLine(p, p + G(e.Direction) * 230, new Color(Coral, .35f), 15, true);
             }
             float angle = MathF.Atan2(Voyage.Position.Y - e.Position.Y, Voyage.Position.X - e.Position.X);
+            DrawEllipse(p + new Vector2(0, 13), new(e.Radius * 1.3f, e.Radius * .48f), new Color(Aqua, .07f));
             creatures.Draw(this, e, p + new Vector2(0, MathF.Sin(e.Time * 4) * 2), angle);
             if (e.Mark > 0) DrawArc(p, e.Radius + 5, 0, Mathf.Tau, 28, Aqua, 2, true);
             if (e.Health < e.MaxHealth && e.Kind != EnemyKind.Leviathan)
@@ -181,14 +188,15 @@ public partial class OceanView : Node2D
         bool casting = Voyage.Mode == VoyageMode.Fishing && Voyage.FishingPlace?.Id == place.Id;
         if (Voyage.World.FishLeft(place) == 0 && !casting) return;
         float pulse = (Clock * .45f) % 1;
-        DrawEllipse(p, new(44, 25), new Color(Aqua, .13f));
-        EllipseArc(p, new(46, 26), new Color(Aqua, .9f), 3);
+        DrawEllipse(p, new(48, 29), new Color(Aqua, .12f));
+        EllipseArc(p, new(46, 26), new Color(Aqua, .75f), 3);
+        EllipseArc(p + new Vector2(2,-1), new(38, 21), new Color(Aqua, .32f), 2);
         EllipseArc(p, new(46 + pulse * 20, 26 + pulse * 12), new Color(Aqua, .45f * (1 - pulse)), 2);
         for (int i = 0; i < 3; i++)
         {
             float a = i * Mathf.Tau / 3 + Clock * .35f;
-            Vector2 fish = p + new Vector2(MathF.Cos(a) * 20, MathF.Sin(a) * 10);
-            DrawEllipse(fish, new(6, 2.5f), Cream);
+            Vector2 fish = p + new Vector2(MathF.Cos(a) * 23, MathF.Sin(a) * 12);
+            DrawEllipse(fish, new(7, 3), Cream);
             DrawColoredPolygon([fish + new Vector2(-4, 0), fish + new Vector2(-9, -3), fish + new Vector2(-9, 3)], Cream);
         }
     }

@@ -104,3 +104,10 @@ Harbors now have three deterministic offers from one category, with no category 
 ## Compact nautical menus — 2026-09-08
 
 Unified panel/button palette, smaller heading hierarchy, centered boat selection, three equal harbor/level-up cards, original line symbols, gold purchase controls, keyboard card outlines, subtle hover scale and purchase pulse. Reduced motion disables both animations. Corrected the stale retry label after randomized runs. Debug and Release builds and diff checks passed. Live UI verified title, Play, boat selection, Set sail, navigation to home harbor and the three-card layout at 640×432. Exact stat copy was corrected after that visual review. Purchase pulse and level-up cards were reviewed in code but not exercised in this pass. The launch script's headless import crashed on editor shutdown; launching the built game directly succeeded without runtime errors.
+
+
+## Nautical concept art pass — 2026-09-08
+
+Reworked sea shader, shoreline shelves/beaches, rock masses and lighthouse base; cream/wood boats with conditional cannon mount and continuous turquoise wakes; simpler broad monster planes, coral crab pincers, ochre puffers, continuous teal serpent body and dark teal rays with cream wing accents; layered fishing ripples. This is a procedural interpretation of the approved concept, retaining the game's top-down camera and existing collision/interaction bounds. No generated bitmap is shipped as game art.
+
+Debug and Release builds and diff checks passed. Live checks covered both boat previews, sailing/wake, island and harbor scenery, crab/puffer combat, fishing marker and casting, and serpent animation in the title scene. Curated evidence: `evidence/nautical-art-sailing.png/.txt` and `evidence/nautical-art-puffers.png/.txt`. One final-build sample measured 16.69 ms mean frame time, 16.67 ms p95 at 60 FPS, 25 chunks, 5 cached scenery textures and 1.102 ms draw submission. No runtime errors observed. Ray and boss live combat, long-run performance and full victory were not replayed; mechanics were not changed.

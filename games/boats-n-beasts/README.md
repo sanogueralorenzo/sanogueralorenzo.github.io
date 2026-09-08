@@ -71,3 +71,5 @@ LVL is aligned to the far top-right edge, separate from the north-up nautical ch
 Boat selection contains only the boat choice, Set Sail and Back. Every new run, including retry, generates a fresh ocean automatically; seeds are internal diagnostics only.
 
 Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses respect Reduced motion.
+
+The gameplay art follows the approved nautical concept using original code-drawn shapes: muted petrol-blue water, sparse waves, turquoise wakes and shallows, warm sand and broad rocks, cream cabins over wood decks, coral crabs, ochre puffers and teal serpents/rays. Fishing spots use layered turquoise ripples and three cream fish. Geometry remains lightweight and the existing creature/scenery caches are retained.
