@@ -1,0 +1,22 @@
+Mouse viewport=(987.75, 663.75) global=(987.75, 663.75) boatScreen=(720, 450) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260908-013608-upgrade
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Upgrade
+Game speed: x3
+Silver: 12
+Boat: Cutter
+Position: <0, 0>
+Health: 100/100
+Coins: 32; cargo: 0; charts: 0; kills: 12; level: 2
+Active chunks: 25; enemies: 4; shots: 0
+Actual sailing seconds: 7.6; peak enemies: 5; peak shots: 2
+Combat clock=20.896996; director=0.59995085/0.7215941; boost=100; invulnerable=0; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0.20004931,0,0,0,0,0
+Depletion=
+Enemy 13: Crab position=<-145.94577, 474.34204> hp=27 time=4.324792 attack=-2.4224398 tell=0 dash=0 mark=0
+Enemy 14: Crab position=<-62.22299, 581.88104> hp=27 time=3.666561 attack=-2.1818876 tell=0 dash=0 mark=0
+Enemy 15: Crab position=<597.53754, -333.56714> hp=27 time=1.9249495 attack=0.41305256 tell=0 dash=0 mark=0
+Enemy 16: Crab position=<-789.5527, -265.11807> hp=27 time=0.6082842 attack=1.3252461 tell=0 dash=0 mark=0
+CPU simulation average ms=0.036; draw submission average ms=1.700; cached scenery=3; engine FPS=120; draw calls=707; objects=1204
+Frame ms mean: 9.82; p95: 16.67; p99: 17.22

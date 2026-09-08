@@ -44,3 +44,9 @@ Removed the top-left title/boat/status panel. Experience now fills an eight-pixe
 ## Centered inventory follow-up — 2026-09-08
 
 Acquired weapons and stat upgrades now share a compact, centered bottom row with ranks; unowned slots are omitted. Removed the permanent region heading, bottom control legend and objective sentence. The current objective appears in the pause menu; contextual interaction prompts and the opening controls toast remain. Direct runtime observation verified the two starting items centered, the red health bar above the boat, top experience bar, and pause objective fitting the panel. `evidence/minimal-hud.png` records the native sailing view. Debug/Release builds pass; no automated tests were added.
+
+## Run counters and silver — 2026-09-08
+
+Added compact top-left combat time, persistent silver, run gold and monster-kill counters. Removed duplicate gold from the top-right distance panel and moved the small level label to the top center. Every kill grants one silver; only newly observed kills are credited, and the balance is saved immediately. New voyages reset gold/time/kills while preserving silver. Silver spending is intentionally deferred at the user’s request.
+
+Direct UI play earned 12 silver from 12 kills (`silver-earned.txt`). Relaunch showed 12 saved silver on the title screen; a new voyage retained 12 silver with 20 starting gold, zero kills and a fresh timer (`run-counters` evidence). Debug and Release builds pass with zero warnings/errors. No automated tests were added.

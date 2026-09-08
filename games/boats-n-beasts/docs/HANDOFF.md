@@ -8,4 +8,6 @@ Godot 4.7.2 .NET, .NET 10 and the Compatibility renderer are required. `./run.co
 
 Implemented: two boat abilities, six shared automatic weapons, simple weapon/stat upgrades, four ordinary enemies and a boss, seeded bounded ocean streaming with persistent depletion, frozen-combat fishing, harbor economy/switching, victory and optional endless, defeat/retry, settings and procedural animation. No external art, fonts, audio or automated tests are included. Runtime-generated creature strips and scenery textures are owned and bounded by their rendering nodes.
 
-The user-selected progression stays simple: small varying rank/stat choices, obvious synergies and distinct boat abilities. Do not reintroduce prerequisite trees, catch equipment, extra currencies, or proprietary reference assets. Research inputs and partial reverse-engineering conclusions are documented in RESEARCH.md.
+The user-selected progression stays simple: small varying rank/stat choices, obvious synergies and distinct boat abilities. Do not reintroduce prerequisite trees, catch equipment, unrequested currencies, or proprietary reference assets. Research inputs and partial reverse-engineering conclusions are documented in RESEARCH.md.
+
+Latest user direction adds silver as a persistent balance, one per kill, with spending deferred. The existing voyage currency is now labeled gold. This supersedes earlier guidance against adding another currency.

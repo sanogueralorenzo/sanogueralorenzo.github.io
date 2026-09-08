@@ -339,7 +339,7 @@ public sealed class Voyage
             bool chart = Tier >= 1 && Charts < 3 && ChartSchools.Add(FishingPlace.Id);
             if (chart) Charts++;
             var item = new CatchItem(names[rarity], 14 + rarity * 13 + Tier * 4, chart); Hold.Add(item);
-            CatchTitle = item.Name; CatchDetail = $"Worth {item.Value} coins at harbor" + (chart ? $"  •  Chart fragment {Charts}/3 recovered!" : "");
+            CatchTitle = item.Name; CatchDetail = $"Worth {item.Value} gold at harbor" + (chart ? $"  •  Chart fragment {Charts}/3 recovered!" : "");
             Events.Add(new("catch", Position));
         }
         else { CatchTitle = "The one that got away"; CatchDetail = "Three clean reels land a catch. Another school awaits."; Events.Add(new("miss", Position)); }
