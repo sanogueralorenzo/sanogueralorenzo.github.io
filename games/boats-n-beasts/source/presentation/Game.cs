@@ -617,7 +617,9 @@ public partial class Game : Node2D
                 else
                 {
                     float radius = Math.Clamp(place.Radius / 17, 3, 11);
-                    var outline = Enumerable.Range(0, 7).Select(i => at + Vector2.FromAngle(i * Mathf.Tau / 7) * radius * (i % 2 == 0 ? 1 : .8f)).ToArray();
+                    var outline = place.Shape is { } shape
+                        ? shape.Shore.Select(p => at + NauticalPalette.G(p) / place.Radius * radius).ToArray()
+                        : Enumerable.Range(0, 7).Select(i => at + Vector2.FromAngle(i * Mathf.Tau / 7) * radius * (i % 2 == 0 ? 1 : .8f)).ToArray();
                     DrawColoredPolygon(outline, coast);
                     DrawPolyline(outline.Append(outline[0]).ToArray(), ink, 1, true);
                 }

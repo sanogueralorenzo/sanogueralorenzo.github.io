@@ -1,5 +1,13 @@
 # Quality and verification
 
+## Varied island sizes and shapes — 2026-09-08
+
+Offshore island radius parameters now range from 110 to 290 instead of 145–190. A seeded aspect ratio, rotation and broad low-frequency bends produce narrow, elongated and bean-shaped outlines. The shared `IslandShape` supplies sand/shallows, foam, the chart and a cached 96-edge collision boundary. Clearance uses the closest shore edge rather than the old circular island collider. Enemy avoidance checks the shaped land ahead; cannon impacts use its edge normal. Decorations map into the land footprint, with restrained scales, and satellite rocks follow the coast. Harbor layouts and fixed home coordinates remain; the home island adopts a fixed silhouette using style 921. The prior sparse landmark placement and seed-independent streaming order remain.
+
+Debug/Release pass with zero warnings/errors; both native logs are clean. Native home collision captures show Aura stopped against the visible shoreline at `(923.49,161.80)` while attempting to sail into the island; paired positions differ by less than 0.01 units. This is within the former circular exclusion zone. The first route also reaches a larger island with radius parameter 245.92 before defeat. Final-build Gunboat play reaches a distinct curved island (167.47) at `(2044.97,-1665.06)`, with aligned sand/blue bands, coastal rocks and chart silhouette. Its frame sample is mean 8.68 / p95 11.11 / p99 13.70 ms at ×3 on M3 Max; 25 chunks remain active. A fresh title has the same home layout. [Native captures and logs](../evidence/README.md).
+
+No automated tests or injected state. The collision pass preceded a restoration of the harbor’s original shrub size; island geometry/collision were unchanged afterward. This focused pass did not exhaustively sample shape seeds, verify every concavity with every boat, isolate cannon ricochets, or repeat sustained endless performance. Harbors retain their existing circular footprint.
+
 ## Close-range monsters and Crownclaw bombs — 2026-09-08
 
 Rays now weave into contact instead of firing from a distance. All regular monsters are close-range; puffers retain their local self-detonation. Crownclaw's radial barrage is replaced with three lobbed bombs aimed at the boat's position when thrown and nearby water points. Below half health it throws four more frequently. Bombs arc over boats and terrain, then explode once at their fixed targets in 140-unit red hemispheres. They do not track the boat or deal impact damage in flight. Existing hit cooldowns and Aura projectile clearing remain; no aiming lines or warning rings were restored.

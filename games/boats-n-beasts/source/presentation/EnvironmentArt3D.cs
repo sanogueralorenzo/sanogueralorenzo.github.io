@@ -22,7 +22,7 @@ public static class EnvironmentArt3D
         }
         else if (place.Kind is PlaceKind.Harbor or PlaceKind.Island)
         {
-            Land(art, r, place.Style, false);
+            Land(art, r, place.Style, false, place.Shape);
             if (place.Kind == PlaceKind.Harbor)
             {
                 AddCottage(art, new(-r * .17f, .15f, -r * .10f), r * .76f, -.20f);
@@ -36,20 +36,32 @@ public static class EnvironmentArt3D
             }
             else
             {
-                // Off-centre, overlapping shoulders form a cliff silhouette, not a symmetric stack.
-                Rock(art, new(-r * .13f, .14f, -r * .22f), new(r * .90f, r * 2.05f, r * .78f), place.Style);
-                Rock(art, new(r * .20f, .13f, -r * .04f), new(r * .70f, r * .91f, r * .67f), place.Style + 13);
-                Rock(art, new(-r * .36f, .12f, r * .06f), new(r * .52f, r * .57f, r * .63f), place.Style + 31);
-                Palm(art, new(r * .51f, .14f, r * .0f), r * .84f, place.Style + 1);
-                Palm(art, new(-r * .12f, .17f, r * .46f), r * .64f, place.Style + 2);
-                Rock(art, new(r * .52f, .08f, r * .52f), new(r * .38f, r * .25f, r * .31f), place.Style + 3);
+                // Place the rock cluster and vegetation inside the same shaped land footprint.
+                Vector3 At(float x, float y, float z)
+                {
+                    var p = place.Shape!.PlaceOnLand(new(x * place.Radius, z * place.Radius));
+                    return new(p.X * .01f, y, p.Y * .01f);
+                }
+                float detail = MathF.Min(r, 2.1f);
+                Rock(art, At(-.13f, .14f, -.22f), new(detail * .58f, detail * 1.35f, detail * .49f), place.Style);
+                Rock(art, At(.20f, .13f, -.04f), new(detail * .43f, detail * .68f, detail * .40f), place.Style + 13);
+                Rock(art, At(-.36f, .12f, .06f), new(detail * .32f, detail * .40f, detail * .37f), place.Style + 31);
+                Palm(art, At(.51f, .14f, 0), detail * .64f, place.Style + 1);
+                Palm(art, At(-.12f, .17f, .46f), detail * .50f, place.Style + 2);
+                Rock(art, At(.52f, .08f, .52f), new(detail * .23f, detail * .17f, detail * .20f), place.Style + 3);
             }
             for (int i = 0; i < 5; i++)
             {
                 float angle = rng.Range(0, Mathf.Tau), reach = rng.Range(.4f, .7f) * r;
                 var at = new Vector3(Mathf.Cos(angle) * reach, .13f, Mathf.Sin(angle) * reach);
+                if (place.Shape is { } shape)
+                {
+                    var p = shape.PlaceOnLand(new(at.X * 100, at.Z * 100));
+                    at = new(p.X * .01f, .13f, p.Y * .01f);
+                }
                 if (place.Kind == PlaceKind.Harbor && at.Z > -.05f && at.X > -.4f * r) continue;
-                Shrub(art, at, rng.Range(.17f, .25f) * r, rng.Next());
+                float size = place.Kind == PlaceKind.Harbor ? rng.Range(.17f, .25f) * r : rng.Range(.12f, .19f) * MathF.Min(r, 2.1f);
+                Shrub(art, at, size, rng.Next());
             }
         }
         return art.Finish("Environment_" + place.Kind);
@@ -65,19 +77,23 @@ public static class EnvironmentArt3D
 
     private static float Coast(float a, uint seed) => 1 + .040f * Mathf.Sin(a * 2 + seed % 17) + .025f * Mathf.Cos(a * 3 + seed % 11);
 
-    private static void Land(Sculptor art, float r, uint seed, bool rock)
+    private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null)
     {
         const int sides = 96;
         float[] radii = [0, .72f, .94f, 1.04f, 1.16f, 1.42f];
         float[] heights = [.18f, .18f, .09f, .025f, .009f, .006f];
         Color[] colors = [Sand, Sand, new("f3daa4"), new("f8e5b5"), new("2ca4a8"), new("188695")];
         if (rock) { heights = [.06f, .05f, .024f, .014f, .009f, .006f]; colors[1] = colors[2] = colors[3] = new("2ca4a8"); }
-        // Sand and both shallow-water bands share one smooth, rounded contour.
+        Vector3 CoastPoint(float angle, float scale, float height)
+        {
+            var p = shape?.Point(angle) * .01f ?? new System.Numerics.Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (r * Coast(angle, seed));
+            return new(p.X * scale, height, p.Y * scale);
+        }
+        // All layers scale the exact same outline, including curved bays.
         Vector3 Point(int layer, int i)
         {
             float a = i * Mathf.Tau / sides;
-            float radius = radii[layer] * Coast(a, seed);
-            return new(Mathf.Cos(a) * radius * r, heights[layer], Mathf.Sin(a) * radius * r);
+            return CoastPoint(a, radii[layer], heights[layer]);
         }
         for (int layer = 0; layer < radii.Length - 1; layer++)
             for (int i = 0; i < sides; i++)
@@ -95,7 +111,7 @@ public static class EnvironmentArt3D
             {
                 float a=start+span*i/10, b=start+span*(i+1)/10;
                 float width=r*.019f*Mathf.Sin((i+.5f)*Mathf.Pi/10);
-                Vector3 P(float t,float offset)=>new(Mathf.Cos(t)*(r*1.065f*Coast(t,seed)+offset),.03f,Mathf.Sin(t)*(r*1.065f*Coast(t,seed)+offset));
+                Vector3 P(float t,float offset) => CoastPoint(t, 1.065f + offset / r, .03f);
                 art.Quad(P(a,0),P(b,0),P(b,width),P(a,width),new("bddbd0"));
             }
         }

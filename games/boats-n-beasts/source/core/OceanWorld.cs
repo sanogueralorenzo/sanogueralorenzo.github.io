@@ -17,7 +17,11 @@ public struct SeedRandom
 }
 public readonly record struct ChunkKey(int X, int Y);
 public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current, Wreck }
-public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style);
+public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style)
+{
+    IslandShape? shape;
+    public IslandShape? Shape => Kind == PlaceKind.Island ? shape ??= new(Radius, Style) : null;
+}
 public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 
 // Adapted from Sno's coordinate-local RNG, edge clearance, bounded placement and streaming.
@@ -46,7 +50,7 @@ public sealed class OceanWorld(uint seed)
             new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
         bool harbor = rng.Unit() < .3f;
         return new($"{key.X}:{key.Y}:land", harbor ? PlaceKind.Harbor : PlaceKind.Island,
-            position, harbor ? 140 : rng.Range(145, 190), rng.Next());
+            position, harbor ? 140 : rng.Range(110, 290), rng.Next());
     }
     IEnumerable<Place> Landmarks(ChunkKey key)
     {
@@ -68,7 +72,7 @@ public sealed class OceanWorld(uint seed)
         {
             float a = angle + rock * .42f;
             yield return new($"{key.X}:{key.Y}:shore:{rock}", PlaceKind.Rock,
-                land.Position + new Vector2(MathF.Cos(a), MathF.Sin(a)) * (land.Radius + 85),
+                land.Position + land.Shape!.Point(a) * 1.04f + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 85,
                 rng.Range(24, 35), rng.Next());
         }
     }
@@ -158,14 +162,21 @@ public sealed class OceanWorld(uint seed)
     }
     public IReadOnlyList<Place> Places => activePlaces;
     public int FishLeft(Place p) => Math.Max(0, 1 - Depletion.GetValueOrDefault(p.Id));
-    public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) < p.Radius + clearance);
+    public static bool Overlap(Place place, Vector2 position, float clearance, out Vector2 normal, out float depth)
+    {
+        var offset = position - place.Position;
+        if (place.Shape is { } shape) return shape.Overlap(offset, clearance, out normal, out depth);
+        float distance = offset.Length();
+        normal = Unit(offset, Vector2.UnitX); depth = place.Radius + clearance - distance;
+        return depth > 0;
+    }
+    public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Overlap(p, position, clearance, out _, out _));
     public Vector2 Slide(Vector2 old, Vector2 target, float radius)
     {
         foreach (var p in Places)
         {
             if (!IsSolid(p)) continue;
-            Vector2 d = target - p.Position; float min = radius + p.Radius;
-            if (d.LengthSquared() < min * min) target = p.Position + Unit(d, Unit(old - p.Position, Vector2.UnitX)) * min;
+            if (Overlap(p, target, radius, out var normal, out float depth)) target += normal * depth;
         }
         return target;
     }
@@ -179,7 +190,8 @@ public sealed class OceanWorld(uint seed)
         {
             if (!IsSolid(p)) continue;
             var to = p.Position - position; float distance = to.Length();
-            if (distance > p.Radius + radius + 90 || Vector2.Dot(to, forward) < 0) continue;
+            if (distance > p.Radius * 1.04f + radius + 90 || Vector2.Dot(to, forward) < 0) continue;
+            if (p.Shape != null && !Overlap(p, position + forward * 90, radius, out _, out _)) continue;
             var normal = Unit(to); float cross = forward.X * normal.Y - forward.Y * normal.X;
             float side = Math.Abs(cross) < .08f ? (id % 2 == 0 ? 1 : -1) : -MathF.Sign(cross);
             return Unit(forward * .35f + new Vector2(-normal.Y, normal.X) * side) * length;

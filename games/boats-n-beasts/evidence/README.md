@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Island size and silhouette variation — 2026-09-08
+
+[Before/title](island-shapes-before.png), [final title](island-shapes-title.png) and [fresh title](island-shapes-fresh-title.png) compare the fixed home scene. [Shore contact A](island-shapes-contact-a.png)/[B](island-shapes-contact-b.png) show the boat held at the visible edge. [Larger island](island-shapes-large.png) is visible below the defeat panel in the first route. [Curved offshore island](island-shapes-curved.png) shows the final build’s bean-shaped shore and aligned shallow bands. Same-name TXT reports preserve native positions, radius parameters and performance. [Collision/first route log](island-shapes-runtime.txt), [final build log](island-shapes-final-runtime.txt). Coverage limits are in QUALITY.
+
 ## Crownclaw ranged bombs only — 2026-09-08
 
 [Paused flight A](boss-bombs-pause-a.png)/[B](boss-bombs-pause-b.png) preserve identical simulation and bomb flight state. [Dodge/detonation](boss-bombs-dodge.png) shows a red dome behind the boat; [volley complete](boss-bombs-volley-complete.png) reports three explosions and zero blast hits, followed by melee defeat. [Mage flight](boss-bombs-flight.png) and [overlapping domes](boss-bombs-domes.png) show the separate stationary encounter; existing contact-hit invulnerability masks bomb damage. Same-name TXT reports include fixed targets and counters. [Native log](boss-bombs-runtime.txt). See QUALITY for coverage limits.

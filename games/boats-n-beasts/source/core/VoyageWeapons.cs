@@ -119,12 +119,12 @@ public sealed partial class Voyage
                 }
                 continue;
             }
-            var obstacle=World.Places.FirstOrDefault(p=>OceanWorld.IsSolid(p) && Vector2.Distance(p.Position,s.Position)<p.Radius+2);
+            var obstacle=World.Places.FirstOrDefault(p=>OceanWorld.IsSolid(p) && OceanWorld.Overlap(p,s.Position,2,out _,out _));
             if(obstacle!=null)
             {
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
-                    var normal=OceanWorld.Unit(s.Previous-obstacle.Position,Vector2.UnitX);
+                    OceanWorld.Overlap(obstacle,s.Position,2,out var normal,out _);
                     s.Velocity=Vector2.Reflect(s.Velocity,normal); s.Position=s.Previous+normal*3; s.Bounces--;
                     CannonRicochets++; Events.Add(new("ricochet",s.Position));
                 }
