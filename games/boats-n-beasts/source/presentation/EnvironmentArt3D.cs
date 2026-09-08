@@ -23,6 +23,7 @@ public static class EnvironmentArt3D
         else if (place.Kind is PlaceKind.Harbor or PlaceKind.Island)
         {
             Land(art, r, place.Style, false);
+            CoveBoulders(art, r, place.Style, place.Kind == PlaceKind.Harbor);
             if (place.Kind == PlaceKind.Harbor)
             {
                 AddCottage(art, new(-r * .17f, .15f, -r * .10f), r * .76f, -.20f);
@@ -78,6 +79,33 @@ public static class EnvironmentArt3D
 
     private static float Coast(float a, uint seed) => 1 + .055f * Mathf.Sin(a * 3 + seed % 17) + .040f * Mathf.Cos(a * 5 + seed % 11) + .024f * Mathf.Sin(a * 7 + seed % 23);
 
+    private static float CoveExtension(float angle, uint seed)
+    {
+        float broad = Mathf.Pow(Mathf.Max(0, Mathf.Sin(angle * 2 + seed % 17)), 2);
+        float secondary = Mathf.Pow(Mathf.Max(0, Mathf.Cos(angle * 3 + seed % 11)), 4);
+        return .055f + .37f * broad + .13f * secondary;
+    }
+
+    private static void CoveBoulders(Sculptor art, float r, uint seed, bool harbor)
+    {
+        var rng = new SeedRandom(seed + 718);
+        for (int cove = 0; cove < 2; cove++)
+        {
+            float angle = (Mathf.Pi * .5f - seed % 17) * .5f + cove * Mathf.Pi;
+            for (int i = 0; i < 3; i++)
+            {
+                float a = angle + (i - 1) * .18f + rng.Range(-.065f, .065f);
+                // Keep the harbor approach clear of decorative rocks.
+                if (harbor && Mathf.Sin(a) > .25f && Mathf.Cos(a) > .05f) continue;
+                float reach = r * (1.055f * Coast(a, seed) + CoveExtension(a, seed) * rng.Range(.28f, .70f));
+                float width = r * rng.Range(.15f, .24f), height = width * rng.Range(.55f, .8f);
+                var p = new Vector3(Mathf.Cos(a) * reach, height * .11f, Mathf.Sin(a) * reach);
+                // Most of each solid rock intersects the ocean plane, leaving an irregular cap.
+                art.Boulder(p, new(width, height, width * rng.Range(.73f, 1.13f)), Stone.Lerp(new Color("47796f"), .48f), rng.Next());
+            }
+        }
+    }
+
     private static void Land(Sculptor art, float r, uint seed, bool rock)
     {
         const int sides = 64;
@@ -96,9 +124,7 @@ public static class EnvironmentArt3D
             if (layer >= 4)
             {
                 // Wide sand bars occupy unequal coves; the whole coast does not get a necklace.
-                float lobe = Mathf.Pow(Mathf.Max(0, Mathf.Sin(a * 2 + seed % 17)), 2);
-                float secondary = Mathf.Pow(Mathf.Max(0, Mathf.Cos(a * 3 + seed % 11)), 4);
-                float extension = .055f + .37f * lobe + .13f * secondary;
+                float extension = CoveExtension(a, seed);
                 radius = 1.055f * organic + extension * (layer == 4 ? .57f : 1);
             }
             float d = Mathf.Min(radius, 1.55f) * r;
@@ -141,10 +167,11 @@ public static class EnvironmentArt3D
             art.Boulder(new(0, size.Y * .44f, 0), size, color, seed);
         else
         {
-            // Interlocking fractured masses overlap vertically, with no repeated horizontal tiers.
-            art.Boulder(new(size.X * .055f, size.Y * .48f, -size.Z * .07f), new(size.X * .91f, size.Y, size.Z * .84f), color, seed);
-            art.Boulder(new(-size.X * .30f, size.Y * .22f, size.Z * .17f), new(size.X * .62f, size.Y * .49f, size.Z * .70f), color.Darkened(.025f), seed + 17);
-            art.Boulder(new(size.X * .27f, size.Y * .37f, size.Z * .21f), new(size.X * .56f, size.Y * .60f, size.Z * .52f), color.Lightened(.035f), seed + 39);
+            // Broad caps overlap at unequal heights; side buttresses interrupt the main seam.
+            art.Boulder(new(size.X * .02f, size.Y * .26f, 0), new(size.X, size.Y * .64f, size.Z * .94f), color, seed);
+            art.Boulder(new(-size.X * .13f, size.Y * .71f, -size.Z * .10f), new(size.X * .88f, size.Y * .49f, size.Z * .86f), color.Lightened(.025f), seed + 11);
+            art.Boulder(new(-size.X * .32f, size.Y * .25f, size.Z * .24f), new(size.X * .58f, size.Y * .55f, size.Z * .64f), color.Darkened(.025f), seed + 17);
+            art.Boulder(new(size.X * .33f, size.Y * .46f, size.Z * .19f), new(size.X * .57f, size.Y * .65f, size.Z * .61f), color.Lightened(.035f), seed + 39);
         }
         art.Transform = old;
     }
@@ -365,11 +392,11 @@ public static class EnvironmentArt3D
             for (int i = 0; i < 6; i++)
             {
                 float angle = phase + i * Mathf.Tau / 6 + rng.Range(-.22f, .22f);
-                Plane(new(Mathf.Cos(angle), rng.Range(-.25f, .32f), Mathf.Sin(angle)), rng.Range(.37f, .53f));
+                Plane(new(Mathf.Cos(angle), rng.Range(-.065f, .075f), Mathf.Sin(angle)), rng.Range(.40f, .53f));
             }
-            Plane(new(rng.Range(-.37f, .37f), 1, rng.Range(-.3f, .3f)), .44f);
-            Plane(new(.65f, .92f, -.35f), rng.Range(.47f, .57f));
-            Plane(new(-.57f, .83f, .52f), rng.Range(.46f, .56f));
+            // World-space cap slope is at most atan(sqrt(2)*.12), below 10 degrees.
+            // No diagonal upper cutting planes: they previously made pointed triangular caps.
+            Plane(new(rng.Range(-.12f, .12f) * size.X / size.Y, 1, rng.Range(-.12f, .12f) * size.Z / size.Y), .40f);
             Plane(new(.17f, -1, -.13f), .46f);
             Plane(new(-.55f, -.74f, -.31f), .53f);
             var vertices = new List<Vector3>();
@@ -384,6 +411,28 @@ public static class EnvironmentArt3D
             }
             var corners = vertices.Select(_ => new List<(Vector3 P, Vector3 N)>()).ToArray();
             var edges = new Dictionary<(int, int), (Vector3 A, Vector3 B, Vector3 N)>();
+            float Area(IReadOnlyList<Vector2> points)
+            {
+                float sum = 0;
+                for (int i = 0; i < points.Count; i++) sum += points[i].Cross(points[(i + 1) % points.Count]);
+                return MathF.Abs(sum) * .5f;
+            }
+            var projected = vertices.Select(q => new Vector2(q.X, q.Z)).OrderBy(q => q.X).ThenBy(q => q.Y).ToArray();
+            var hull = new List<Vector2>();
+            foreach (var q in projected)
+            {
+                while (hull.Count >= 2 && (hull[^1] - hull[^2]).Cross(q - hull[^1]) <= 0) hull.RemoveAt(hull.Count - 1);
+                hull.Add(q);
+            }
+            int lowerCount = hull.Count;
+            for (int i = projected.Length - 2; i >= 0; i--)
+            {
+                var q = projected[i];
+                while (hull.Count > lowerCount && (hull[^1] - hull[^2]).Cross(q - hull[^1]) <= 0) hull.RemoveAt(hull.Count - 1);
+                hull.Add(q);
+            }
+            if (hull.Count > 1) hull.RemoveAt(hull.Count - 1);
+            float footprintArea = Area(hull);
             Color Tint(Vector3 point)
             {
                 var q = (point - p) / size;
@@ -403,7 +452,21 @@ public static class EnvironmentArt3D
                 ids.Sort((a, b) => Angle(a).CompareTo(Angle(b)));
                 Vector3 normal = (plane.N / size).Normalized();
                 Vector3 worldCenter = p + center * size;
-                var inset = ids.Select(i => p + vertices[i].Lerp(center, .10f) * size).ToArray();
+                // Wide bevel bands target 24% of the minimum dimension. Cap inset is
+                // additionally bounded by projected area to preserve a broad top silhouette.
+                float bevelWidth = Mathf.Min(size.X, Mathf.Min(size.Y, size.Z)) * .24f;
+                float maxInset = .30f;
+                if (normal.Y > .9f)
+                {
+                    float capArea = Area(ids.Select(i => new Vector2(vertices[i].X, vertices[i].Z)).ToArray());
+                    maxInset = Mathf.Min(maxInset, Mathf.Max(0, 1 - Mathf.Sqrt(.42f * footprintArea / capArea)));
+                }
+                var inset = ids.Select(i =>
+                {
+                    float distance = ((vertices[i] - center) * size).Length();
+                    float fraction = Mathf.Min(maxInset, bevelWidth / distance);
+                    return p + vertices[i].Lerp(center, fraction) * size;
+                }).ToArray();
                 for (int i = 0; i < ids.Count; i++)
                 {
                     int j = (i + 1) % ids.Count;

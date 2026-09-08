@@ -3,7 +3,6 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
 uniform vec4 shallow_color : source_color = vec4(0.25, 0.53, 0.48, 1.0);
 uniform vec4 deep_color : source_color = vec4(0.082, 0.34, 0.38, 1.0);
-uniform vec4 stone_color : source_color = vec4(0.24, 0.43, 0.40, 1.0);
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -15,25 +14,7 @@ void fragment() {
     vec2 p = UV;
     float n = noise(p*2.3) * .58 + noise(p*7.1) * .30 + noise(p*21.0) * .12;
     vec3 tint = mix(deep_color.rgb, shallow_color.rgb, smoothstep(.12,.85,n));
-    float stone = 0.0;
-    float stone_light = .75;
-    vec2 grid = p * 2.7;
-    for (int y=-1; y<=1; y++) for (int x=-1; x<=1; x++) {
-        vec2 cell = floor(grid) + vec2(float(x),float(y));
-        float h = hash(cell);
-        vec2 center = cell + vec2(.2 + .6*h, .2 + .6*hash(cell+17.0));
-        vec2 delta = (grid-center) * vec2(1.0, .7 + h*.8);
-        float radius = .20 + .23*hash(cell+9.0);
-        float patch = 1.0 - smoothstep(radius*.7, radius, length(delta) + .035*noise(p*45.0));
-        float shape = patch * step(.69,h);
-        if (shape > stone) {
-            stone = shape;
-            stone_light = .73 + .40 * clamp(dot(-delta/radius, normalize(vec2(-.6,-.8))), -.6, 1.0);
-        }
-    }
-    tint = mix(tint, stone_color.rgb * stone_light, stone*.50);
     ALBEDO = tint;
-    // Noise breaks the shallow edge into coves, rather than painting a uniform luminous rim.
-    float cove = smoothstep(.20, .70, noise(p*.93 + vec2(4.0,9.0)));
-    ALPHA = clamp(COLOR.a * (.47 + n*.40) * (.23 + cove*.77) - (1.0-n)*.07, 0.0, .84);
+    // Mesh geometry already selects two broad coves. Physical meshes supply submerged rocks.
+    ALPHA = clamp(COLOR.a * (.58 + n*.32) - (1.0-n)*.10, 0.0, .84);
 }
