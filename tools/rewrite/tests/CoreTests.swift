@@ -40,6 +40,7 @@ struct CoreTests {
     static func main() async {
         signal(SIGPIPE, SIG_IGN)
         let scenarios: [(String, () async throws -> Void)] = [
+            ("Provider defaults and persistence", ValidationTests.providers),
             ("Editing payload and output boundaries", ValidationTests.editing),
             ("Completed output copies exactly; invalid output preserves clipboard", ValidationTests.clipboard),
             ("Completed text only", ValidationTests.responses),

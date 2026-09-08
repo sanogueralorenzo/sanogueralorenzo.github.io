@@ -15,11 +15,11 @@ npm install -g --ignore-scripts @earendil-works/pi-coding-agent@latest
 pi
 ```
 
-Choose **OpenAI** or **Anthropic** in Rewrite Settings. OpenAI uses Luna with reasoning off and priority requested; Anthropic uses Haiku with thinking off. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**.
+Choose **Provider → OpenAI** (default) or **Anthropic** in the pencil menu. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**.
 
 Select text, then **⌥R** opens Rewrite · **⌥1** Make shorter · **⌥2** Make clearer · **⌥3** Fix grammar. Click a style or use arrows and Return. The result is copied to your clipboard; press **⌘V** to paste it.
 
-**Escape** or **⌥R** cancels. The pencil dot disappears when the result is copied. The menu shows progress, errors, and Settings. If ⌥R is unavailable, open Rewrite from that menu.
+**Escape** or **⌥R** cancels. The pencil dot disappears when the result is copied. The menu shows progress and errors. If ⌥R is unavailable, open Rewrite from that menu.
 
 Selected text goes to your chosen provider through Pi. Rewrite reads the selected text without changing the source field. Some apps do not expose selected text to Accessibility. Check the result before using it.
 

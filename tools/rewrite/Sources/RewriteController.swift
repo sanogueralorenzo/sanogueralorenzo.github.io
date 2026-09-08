@@ -2,7 +2,7 @@ import AppKit
 
 @MainActor
 final class RewriteController {
-    private let settings: Settings
+    private(set) var provider = RewriteProvider.load()
     private let processor: PiService
     private let menuBar: MenuBarStatus
     private var selection: CapturedSelection?
@@ -11,18 +11,19 @@ final class RewriteController {
     private var actionMenu: NSMenu?
     var isRewriting: Bool { task != nil }
 
-    init(settings: Settings, processor: PiService, menuBar: MenuBarStatus) {
-        self.settings = settings; self.processor = processor; self.menuBar = menuBar
+    init(processor: PiService, menuBar: MenuBarStatus) {
+        self.processor = processor; self.menuBar = menuBar
     }
-    func settingsSaved() {
-        selection?.restoreFocus(); selection = nil
-        processor.warmUp(settings.configuration)
+    func selectProvider(_ provider: RewriteProvider) {
+        guard self.provider != provider else { return }
+        cancel()
+        self.provider = provider; provider.save()
+        processor.warmUp(provider)
     }
     func begin() {
         if task != nil || selection != nil { cancel(); return }
         do {
             selection = try CapturedSelection.capture()
-            guard settings.isConfigured else { settings.show(); return }
             guard let selection else { return }
             let actions = ActionMenu()
             actions.onChoose = { [weak self] action in self?.run(action) }
@@ -40,7 +41,7 @@ final class RewriteController {
     }
     private func run(_ action: EditAction) {
         guard let selection else { return }
-        let configuration = settings.configuration
+        let provider = provider
         let current = UUID(); generation = current
         menuBar.setRewriting(action)
         // Leave the action menu before starting the request; the source app keeps focus.
@@ -48,7 +49,7 @@ final class RewriteController {
             await Task.yield()
             guard generation == current else { return }
             do {
-                let output = try await processor.rewrite(selection.text, action: action, configuration: configuration)
+                let output = try await processor.rewrite(selection.text, action: action, provider: provider)
                 try Task.checkCancellation(); guard generation == current else { return }
                 try RewriteClipboard.copy(output)
                 task = nil; self.selection = nil
@@ -66,7 +67,6 @@ final class RewriteController {
         if task != nil { task?.cancel(); processor.cancel() }
         task = nil
         actionMenu?.cancelTracking()
-        selection?.restoreFocus(); selection = nil
+        selection = nil
     }
-    func showSettings() { cancel(); settings.show() }
 }

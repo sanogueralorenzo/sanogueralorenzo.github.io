@@ -11,22 +11,22 @@ final class PiService {
     }
     private var rpc: PiRPC?
     private var rpcRequest: PiRequest?
-    private var rpcConfiguration: RewriteConfiguration?
+    private var rpcProvider: RewriteProvider?
     private var rpcStarted = Date.distantPast
     private var isRewriting = false
-    private var pendingWarmup: RewriteConfiguration?
+    private var pendingWarmup: RewriteProvider?
     var processIdentifier: Int32? { rpc?.isRunning == true ? rpc?.processIdentifier : nil }
     func cancel() {
         if isRewriting { shutdown() }
     }
     func shutdown() {
         pendingWarmup = nil
-        preparation?.cancel(); preparationConfiguration = nil
+        preparation?.cancel(); preparationProvider = nil
         runner?.cancel()
         stopProcess()
     }
     private func stopProcess() {
-        rpc?.stop(); rpc = nil; rpcRequest = nil; rpcConfiguration = nil
+        rpc?.stop(); rpc = nil; rpcRequest = nil; rpcProvider = nil
     }
 
     static let isolationArguments = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
@@ -69,68 +69,68 @@ final class PiService {
         try Task.checkCancellation()
         return try PiRequest(provider: kind.providerID, credential: credential, oauth: json["authType"] as? String == "oauth")
     }
-    static func arguments(_ configuration: RewriteConfiguration) -> [String] {
-        let model = configuration.resolvedModel
-        return isolationArguments + ["--mode", "rpc", "--provider", configuration.kind.providerID,
-            "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
+    static func arguments(_ provider: RewriteProvider) -> [String] {
+        let model = provider.preferredModel
+        return isolationArguments + ["--mode", "rpc", "--provider", provider.providerID,
+            "--model", model, "--thinking", "off", "--system-prompt", Editing.rules]
     }
-    // Launch and settings changes prepare without sending any selected text.
-    func warmUp(_ configuration: RewriteConfiguration) {
-        guard !isRewriting else { pendingWarmup = configuration; return }
-        _ = readiness(configuration)
+    // Launch and provider changes prepare without sending any selected text.
+    func warmUp(_ provider: RewriteProvider) {
+        guard !isRewriting else { pendingWarmup = provider; return }
+        _ = readiness(provider)
     }
     private var preparation: Task<Void, Error>?
-    private var preparationConfiguration: RewriteConfiguration?
+    private var preparationProvider: RewriteProvider?
     private var preparationID = UUID()
 
-    private func readiness(_ configuration: RewriteConfiguration) -> Task<Void, Error> {
-        if let preparation, preparationConfiguration == configuration,
+    private func readiness(_ provider: RewriteProvider) -> Task<Void, Error> {
+        if let preparation, preparationProvider == provider,
            rpc == nil || (rpc?.isRunning == true && now().timeIntervalSince(rpcStarted) <= 180) {
             return preparation
         }
         let previous = preparation
         previous?.cancel()
         let id = UUID(); preparationID = id
-        preparationConfiguration = configuration
+        preparationProvider = provider
         let next = Task { @MainActor in
             _ = await previous?.result
             do {
                 try Task.checkCancellation()
-                try await self.prepare(configuration)
+                try await self.prepare(provider)
                 try await self.rpc?.resetSession()
                 try Task.checkCancellation()
             } catch {
                 self.stopProcess()
-                if self.preparationID == id { self.preparationConfiguration = nil }
+                if self.preparationID == id { self.preparationProvider = nil }
                 throw error
             }
         }
         preparation = next
         return next
     }
-    private func prepare(_ configuration: RewriteConfiguration) async throws {
+    private func prepare(_ provider: RewriteProvider) async throws {
         // Refresh the short-lived auth snapshot well before its token can expire.
-        // Healthy requests with the same configuration reuse one process.
-        if rpc?.isRunning != true || rpcConfiguration != configuration || now().timeIntervalSince(rpcStarted) > 180 {
+        // Healthy requests with the same provider reuse one process.
+        if rpc?.isRunning != true || rpcProvider != provider || now().timeIntervalSince(rpcStarted) > 180 {
             stopProcess()
-            let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
+            let executable = try await executable(), request = try await request(executable, kind: provider)
             try Task.checkCancellation()
-            rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(configuration),
+            rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(provider),
                             environment: request.environment, directory: request.directory)
-            rpcRequest = request; rpcConfiguration = configuration; rpcStarted = now()
+            rpcRequest = request; rpcProvider = provider; rpcStarted = now()
         }
     }
-    func rewrite(_ source: String, action: EditAction, configuration: RewriteConfiguration) async throws -> String {
+    func rewrite(_ source: String, action: EditAction, provider: RewriteProvider) async throws -> String {
         guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
         isRewriting = true
         defer {
             isRewriting = false
-            if let configuration = pendingWarmup {
-                pendingWarmup = nil; warmUp(configuration)
+            if let provider = pendingWarmup {
+                pendingWarmup = nil; warmUp(provider)
             }
         }
         do {
-            try await readiness(configuration).value
+            try await readiness(provider).value
             try Task.checkCancellation()
             guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
             try await rpc.resetSession()

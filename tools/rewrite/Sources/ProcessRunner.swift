@@ -75,7 +75,7 @@ final class ProcessRunner {
                 catch {
                     process.terminationHandler = nil
                     group.leave(); group.leave(); group.leave()
-                    continuation.resume(throwing: RewriteError.message("Could not launch the processor. Check its installation in Settings."))
+                    continuation.resume(throwing: RewriteError.message("Could not launch the processor. Install Pi, then try again."))
                     return
                 }
                 DispatchQueue.global().async { bytes.drain(output.fileHandleForReading, retain: true); group.leave() }

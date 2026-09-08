@@ -25,13 +25,12 @@ enum Accessibility {
 }
 
 @MainActor
-final class CapturedSelection {
-    let app: NSRunningApplication
+struct CapturedSelection {
     let text: String
     let point: NSPoint
 
-    init(app: NSRunningApplication, element: AXUIElement, text: String) {
-        self.app = app; self.text = text
+    init(element: AXUIElement, text: String) {
+        self.text = text
         point = Self.selectionPoint(element) ?? NSEvent.mouseLocation
     }
 
@@ -52,12 +51,7 @@ final class CapturedSelection {
         guard text.utf16.count <= Editing.maximumUTF16 else {
             throw RewriteError.message("Select a shorter passage (up to 24,000 characters) and try again.")
         }
-        return CapturedSelection(app: app, element: focused, text: text)
-    }
-
-    func restoreFocus() {
-        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        if front == ProcessInfo.processInfo.processIdentifier || front == app.processIdentifier { app.activate(options: []) }
+        return CapturedSelection(element: focused, text: text)
     }
 
     private static func selectionPoint(_ element: AXUIElement) -> NSPoint? {

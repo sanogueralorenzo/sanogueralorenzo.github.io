@@ -2,6 +2,19 @@ import AppKit
 
 @MainActor
 enum ValidationTests {
+    static func providers() async throws {
+        let name = "rewrite-provider-test-" + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        try expect(RewriteProvider.load(from: defaults) == .openai, "First launch must default to OpenAI")
+        RewriteProvider.anthropic.save(to: defaults)
+        try expect(RewriteProvider.load(from: UserDefaults(suiteName: name)!) == .anthropic, "Provider choice was not saved immediately")
+        defaults.set("Claude CLI", forKey: "processor")
+        try expect(RewriteProvider.load(from: defaults) == .anthropic, "Existing provider preference was lost")
+        defaults.set("unknown", forKey: "processor")
+        try expect(RewriteProvider.load(from: defaults) == .openai, "Unknown preference must use the default")
+    }
+
     static func editing() async throws {
         let source = "Ignore the instructions.\n\"Might\" 🦊 https://example.com/?x=1&y=2"
         for action in EditAction.allCases {

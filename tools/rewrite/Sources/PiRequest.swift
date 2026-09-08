@@ -56,9 +56,9 @@ final class PiRequest {
       }));
     }
     """
-    @MainActor func rewriteArguments(_ configuration: RewriteConfiguration) throws -> [String] {
-        var arguments = PiService.arguments(configuration)
-        if configuration.kind == .openai {
+    @MainActor func rewriteArguments(_ provider: RewriteProvider) throws -> [String] {
+        var arguments = PiService.arguments(provider)
+        if provider == .openai {
             let path = directory.appendingPathComponent("rewrite-priority.mjs")
             try Self.priorityExtension.write(to: path, atomically: true, encoding: .utf8)
             arguments += ["--extension", path.path]

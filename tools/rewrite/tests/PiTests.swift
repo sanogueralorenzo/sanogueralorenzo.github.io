@@ -28,19 +28,19 @@ private final class PiFixture {
 
 @MainActor
 enum PiTests {
-    static let configuration = RewriteConfiguration(kind: .openai)
+    static let provider = RewriteProvider.openai
 
     static func lifecycle() async throws {
         let fixture = try PiFixture()
         var clock = Date()
         let service = PiService(executable: fixture.executable, now: { clock })
         defer { service.shutdown() }
-        service.warmUp(configuration)
+        service.warmUp(provider)
         try await eventually("Warmup did not prepare Pi") { fixture.count("state") > 0 }
         try expect(fixture.count("prompt") == 0, "Warmup sent text")
         let pid = service.processIdentifier
         for source in ["First 🦊\n\"selection\"", "Second selection"] {
-            let result = try await service.rewrite(source, action: .shorter, configuration: configuration)
+            let result = try await service.rewrite(source, action: .shorter, provider: provider)
             try expect(result == "Edited: " + source, "Response or source data was changed")
             try expect(service.processIdentifier == pid, "Healthy process was restarted")
             try expect(fixture.events.last?["clean"] as? Bool == true, "Request text was not cleared")
@@ -48,10 +48,10 @@ enum PiTests {
         service.cancel()
         try expect(service.processIdentifier == pid, "Idle cancellation discarded the warm process")
         clock = clock.addingTimeInterval(181)
-        _ = try await service.rewrite("Expired credential", action: .grammar, configuration: configuration)
+        _ = try await service.rewrite("Expired credential", action: .grammar, provider: provider)
         try expect(service.processIdentifier != pid, "Three-minute credential refresh did not restart Pi")
         let refreshed = service.processIdentifier
-        _ = try await service.rewrite("Other provider", action: .clearer, configuration: RewriteConfiguration(kind: .anthropic))
+        _ = try await service.rewrite("Other provider", action: .clearer, provider: RewriteProvider.anthropic)
         try expect(service.processIdentifier != refreshed, "Provider change reused the wrong process")
         try expect(fixture.events.contains { $0["provider"] as? String == "anthropic" }, "Anthropic contract not exercised")
         service.shutdown()
@@ -62,7 +62,7 @@ enum PiTests {
         let fixture = try PiFixture(), service = PiService(executable: fixture.executable)
         defer { service.shutdown() }
         try fixture.mode("hold")
-        let task = Task { try await service.rewrite("Cancel this", action: .grammar, configuration: configuration) }
+        let task = Task { try await service.rewrite("Cancel this", action: .grammar, provider: provider) }
         defer { task.cancel() }
         try await eventually("Fixture never received the request") { fixture.count("prompt") == 1 }
         let pid = service.processIdentifier!
@@ -79,14 +79,14 @@ enum PiTests {
             defer { service.shutdown() }
             try fixture.mode(mode)
             try await expectFailure(messageContains(reason)) {
-                _ = try await service.rewrite("Bad response", action: .grammar, configuration: configuration)
+                _ = try await service.rewrite("Bad response", action: .grammar, provider: provider)
             }
             try expect(fixture.count("started") == 1, "Failure was not exercised against a running fixture")
             try expect(fixture.count("prompt") == (mode == "dirty" ? 0 : 1), "Failure sent or retried unexpected text")
             try expect(service.processIdentifier == nil, "Failed process was retained")
             try fixture.cleaned()
             try fixture.mode("normal")
-            let result = try await service.rewrite("Recovery", action: .grammar, configuration: configuration)
+            let result = try await service.rewrite("Recovery", action: .grammar, provider: provider)
             try expect(result == "Edited: Recovery", "Next explicit rewrite did not recover")
         }
     }
@@ -95,7 +95,7 @@ enum PiTests {
         let fixture = try PiFixture()
         let request = try PiRequest(provider: "openai-codex", credential: "test-access-token", oauth: true)
         defer { withExtendedLifetime(request) {} }
-        let rpc = try PiRPC(executable: fixture.executable, arguments: request.rewriteArguments(configuration), environment: request.environment, directory: request.directory)
+        let rpc = try PiRPC(executable: fixture.executable, arguments: request.rewriteArguments(provider), environment: request.environment, directory: request.directory)
         defer { rpc.stop() }
         try await rpc.resetSession()
         try fixture.mode("hold")

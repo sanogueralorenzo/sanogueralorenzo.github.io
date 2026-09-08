@@ -9,7 +9,8 @@ private final class StatusDot: NSView {
 final class MenuBarStatus: NSObject {
     var onRewrite: (() -> Void)?
     var onCancel: (() -> Void)?
-    var onSettings: (() -> Void)?
+    var onProvider: ((RewriteProvider) -> Void)?
+    private var providerItems: [NSMenuItem] = []
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let progress = NSMenuItem(title: "Rewriting…", action: nil, keyEquivalent: "")
     private let rewrite = NSMenuItem(title: "Rewrite", action: #selector(begin), keyEquivalent: "")
@@ -33,8 +34,13 @@ final class MenuBarStatus: NSObject {
         for entry in [progress, errorDetails, cancel, rewrite] { entry.target = self; menu.addItem(entry) }
         progress.isEnabled = false
         menu.addItem(.separator())
-        let settings = NSMenuItem(title: "Settings", action: #selector(settingsClicked), keyEquivalent: "")
-        settings.target = self; menu.addItem(settings)
+        let providers = NSMenu(); providers.autoenablesItems = false
+        for provider in RewriteProvider.allCases {
+            let entry = providers.addItem(withTitle: provider.rawValue, action: #selector(providerClicked(_:)), keyEquivalent: "")
+            entry.target = self; providerItems.append(entry)
+        }
+        let provider = NSMenuItem(title: "Provider", action: nil, keyEquivalent: "")
+        provider.submenu = providers; menu.addItem(provider)
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "").target = self
         item.menu = menu; setRewriting(nil)
     }
@@ -72,5 +78,11 @@ final class MenuBarStatus: NSObject {
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func begin() { onRewrite?() }
     @objc private func cancelRewrite() { onCancel?() }
-    @objc private func settingsClicked() { onSettings?() }
+    func setProvider(_ provider: RewriteProvider) {
+        for entry in providerItems { entry.state = entry.title == provider.rawValue ? .on : .off }
+    }
+    @objc private func providerClicked(_ sender: NSMenuItem) {
+        guard let provider = RewriteProvider(rawValue: sender.title) else { return }
+        onProvider?(provider); setProvider(provider)
+    }
 }

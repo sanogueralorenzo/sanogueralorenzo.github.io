@@ -27,7 +27,7 @@ final class PiRPC {
             Task { @MainActor [weak self] in self?.stop(RewriteError.message("Pi stopped. Try the rewrite again.")) }
         }
         do { try process.run() }
-        catch { throw RewriteError.message("Could not start Pi. Check its installation in Settings.") }
+        catch { throw RewriteError.message("Could not start Pi. Install Pi, then try again.") }
         let handle = output.fileHandleForReading
         DispatchQueue.global().async { [weak self] in
             defer { try? handle.close() }
