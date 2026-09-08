@@ -1,5 +1,7 @@
 # Boats n Beasts
 
+Historical objective. The selected Direction B objective supersedes the 2D/Compatibility and older feature directions below; see [ART_DIRECTION.md](ART_DIRECTION.md), [README.md](../README.md) and the current section of [QUALITY.md](QUALITY.md). The prohibition on automated tests still applies.
+
 Finish a polished desktop 2D boat roguelike in `games/boats-n-beasts`, working exclusively in the existing worktree at `/Users/mario/AndroidStudioProjects/boats-n-beasts-worktree`. Preserve the gameplay scope below; freely revise implementation and content when that improves the game.
 
 ## Requirements

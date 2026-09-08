@@ -1,0 +1,35 @@
+Mouse viewport=(220.5, -220.5) global=(220.5, -220.5) boatScreen=(720.0001, 450) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<508.7411, -611.2856>; destination=
+Native runtime capture: 20260908-093649-defeat
+Renderer: forward_plus
+Seed: 2408314498
+Mode: Defeat
+Game speed: x1
+Finished runs: 55; boat selection: False
+Silver: 28; earned this voyage: 0; next eligible combat time: 52.202015
+Boat: Cutter
+Position: <1183.7413, 467.3827>
+Health: 0/100
+Coins: 45; cargo: 0; kills: 25; level: 2; pending upgrades: 0
+Active chunks: 25; enemies: 8; shots: 5
+Actual sailing seconds: 41.6; peak enemies: 10; peak shots: 7
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Velocity=<7E-45, 7E-45>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=1.282934; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=36; pulls=0
+Combat clock=41.455303; director=0.5627763/0.9288861; boost=100; invulnerable=0.8; ability=0; fire rate=1
+Weapon ranks=1,0,0,1,0,0; cooldowns=0.34758338,0,0,0,0,0
+Depletion=
+Enemy 26: Puffer position=<1427.424, 771.3217> hp=32.5 time=7.789976 attack=2.5036435 tell=0 dash=0
+Enemy 27: Puffer position=<745.3594, 647.49634> hp=47.5 time=5.1590223 attack=0.3410922 tell=0.65 dash=0
+Enemy 28: Crab position=<777.1463, 209.55667> hp=33.75 time=4.5073366 attack=-1.6337414 tell=0 dash=0
+Enemy 29: Crab position=<827.0374, 55.093468> hp=33.75 time=3.8514884 attack=-0.71736705 tell=0 dash=0
+Enemy 30: Puffer position=<921.9571, -286.98718> hp=47.5 time=2.539805 attack=3.2097046 tell=0 dash=0
+Enemy 31: Puffer position=<1250.9299, -225.62187> hp=47.5 time=1.8914212 attack=0.05059412 tell=0.65 dash=0
+Enemy 32: Puffer position=<451.9103, 623.021> hp=47.5 time=1.230363 attack=0.75109804 tell=0 dash=0
+Enemy 33: Puffer position=<977.1194, -284.817> hp=47.5 time=0.57468104 attack=2.285687 tell=0 dash=0
+Shot Cannon hostile=False position=<1107.32, 688.8563> life=1.0297798
+Shot Cannon hostile=True position=<1256.2205, 572.6205> life=4.6911435
+Shot Cannon hostile=True position=<1285.6353, 329.30194> life=5.0945973
+Shot Cannon hostile=True position=<966.1275, -207.16078> life=5.397583
+Shot Cannon hostile=False position=<1401.299, 737.764> life=1.8854623
+CPU simulation average ms=0.062; draw submission average ms=0.972; cached scenery=17; engine FPS=83; draw calls=185; objects=836
+Frame ms mean: 9.34; p95: 13.33; p99: 16.67

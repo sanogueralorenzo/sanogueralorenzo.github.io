@@ -83,7 +83,7 @@ public static class EnvironmentArt3D
     {
         float broad = Mathf.Pow(Mathf.Max(0, Mathf.Sin(angle * 2 + seed % 17)), 2);
         float secondary = Mathf.Pow(Mathf.Max(0, Mathf.Cos(angle * 3 + seed % 11)), 4);
-        return .055f + .37f * broad + .13f * secondary;
+        return .025f + .47f * broad + .09f * secondary;
     }
 
     private static void CoveBoulders(Sculptor art, float r, uint seed, bool harbor)
@@ -94,14 +94,14 @@ public static class EnvironmentArt3D
             float angle = (Mathf.Pi * .5f - seed % 17) * .5f + cove * Mathf.Pi;
             for (int i = 0; i < 3; i++)
             {
-                float a = angle + (i - 1) * .18f + rng.Range(-.065f, .065f);
+                float a = angle + (i == 0 ? -.04f : i == 1 ? .075f : -.13f) + rng.Range(-.025f, .025f);
                 // Keep the harbor approach clear of decorative rocks.
                 if (harbor && Mathf.Sin(a) > .25f && Mathf.Cos(a) > .05f) continue;
-                float reach = r * (1.055f * Coast(a, seed) + CoveExtension(a, seed) * rng.Range(.28f, .70f));
-                float width = r * rng.Range(.15f, .24f), height = width * rng.Range(.55f, .8f);
-                var p = new Vector3(Mathf.Cos(a) * reach, height * .11f, Mathf.Sin(a) * reach);
+                float reach = r * (1.055f * Coast(a, seed) + CoveExtension(a, seed) * (i == 0 ? .40f : i == 1 ? .52f : .29f));
+                float width = r * (i == 0 ? .25f : i == 1 ? .14f : .10f) * rng.Range(.9f, 1.1f), height = width * .40f;
+                var p = new Vector3(Mathf.Cos(a) * reach, -height * .31f, Mathf.Sin(a) * reach);
                 // Most of each solid rock intersects the ocean plane, leaving an irregular cap.
-                art.Boulder(p, new(width, height, width * rng.Range(.73f, 1.13f)), Stone.Lerp(new Color("47796f"), .48f), rng.Next());
+                art.Boulder(p, new(width, height, width * rng.Range(.73f, 1.13f)), new Color("285f62").Lightened(rng.Range(0, .045f)), rng.Next());
             }
         }
     }
@@ -125,7 +125,7 @@ public static class EnvironmentArt3D
             {
                 // Wide sand bars occupy unequal coves; the whole coast does not get a necklace.
                 float extension = CoveExtension(a, seed);
-                radius = 1.055f * organic + extension * (layer == 4 ? .57f : 1);
+                radius = 1.055f * organic + extension * (layer == 4 ? .76f : 1);
             }
             float d = Mathf.Min(radius, 1.55f) * r;
             return new(Mathf.Cos(a) * d, heights[layer], Mathf.Sin(a) * d);

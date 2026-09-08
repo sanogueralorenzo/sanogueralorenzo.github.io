@@ -9,6 +9,7 @@ namespace BoatsNBeasts;
 public static partial class ActorArt3D
 {
     static readonly Dictionary<string, ArrayMesh> Cache = new();
+    public static void ResetCache() => Cache.Clear();
     static Material Material => TactileSurface.Material;
     static readonly Color Cream = new("ecd8a4"), Wood = new("98633b"), Deck = new("bb8c53"),
         DarkWood = new("694731"), Brass = new("caa467"), Glass = new("284958"),

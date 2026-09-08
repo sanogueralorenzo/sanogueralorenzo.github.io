@@ -17,4 +17,10 @@ The selected reference is [direction-b-tactile.png](visual-restart/direction-b-t
 
 First evaluate the separate `art-sample.tscn` native scene: boat, crab, cottage, island and water, using the production camera and lighting. It contains no voyage simulation or injected gameplay state. F12 captures normal scale; Tab toggles an inspection view. Then integrate and compare normal-scale native gameplay to B. A build or an inventory of added details does not establish visual acceptance.
 
-Final acceptance remains pending until the combined native scene has independent critique without major unresolved gaps, preserves actual gameplay, passes Debug and Release builds, and demonstrates sustained performance targeting smooth 60 FPS. Reject or revert visual regressions instead of accumulating compensating tweaks.
+## Accepted native result — 2026-09-08
+
+[Final gameplay](../evidence/direction-b-gameplay.png), [normal-scale sample](../evidence/direction-b-sample-scale.png) and [detail sample](../evidence/direction-b-sample-detail.png) establish the combined treatment. Main accepts the coherent matte forms, shared lighting, dark sea, submerged coves, broad sculpted rocks, dimensional cottage/boats and expressive coral creatures at the preserved gameplay scale. The [independent critique](visual-restart/independent-critique.md) accepts the final native scenes with no major unresolved visual gaps.
+
+The implementation deliberately keeps the reference's spacious camera and material/silhouette direction. It does not reproduce every surface detail: sand is more uniform, foliage/rock detail simpler and foam thinner. These remain minor at playing scale. Reference UI ornaments are not requirements.
+
+Debug/Release pass; actual play covers all boats, held boost, combat, fishing, automatic harbor sales/upgrades, immediate free level-up freeze/resume and streaming. Sustained native measurements support smooth 60 FPS on the reviewed Apple M3 Max. [QUALITY.md](QUALITY.md) records the exact evidence and coverage limits, including the absence of a fresh final-renderer boss victory or deep-endless crowd benchmark. Revert future visual regressions instead of accumulating compensating tweaks.

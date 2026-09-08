@@ -21,12 +21,13 @@ public partial class ArtSample : Node3D
         DisplayServer.WindowSetTitle("Boats n Beasts · Native art sample");
     }
     public override void _Process(double delta) { clock += (float)delta; stage.Follow(Vector2.Zero, close ? 6.2f : 0); stage.Advance(clock); }
-    public override void _UnhandledKeyInput(InputEvent ev)
+    public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
         if (key.Keycode == Key.Tab) close = !close;
         if (key.Keycode == Key.F12)
         {
+            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
             var file = folder + "/direction-b-sample-" + (close ? "detail" : "scale") + ".png";
             GetViewport().GetTexture().GetImage().SavePng(file);

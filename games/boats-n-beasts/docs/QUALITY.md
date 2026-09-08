@@ -1,5 +1,45 @@
 # Quality and verification
 
+## Direction B native acceptance — 2026-09-08
+
+This section is the current verification record. The historical entries below include removed mechanics and the old 2D renderer; they do not override [ART_DIRECTION.md](ART_DIRECTION.md) or the current README.
+
+### Visual result
+
+The native world now uses generated 3D meshes, a shared orthographic camera, warm sun/cool ambient light, soft shadows and matte materials. Petrol water, irregular turquoise coves, warm sand, broad beveled rock masses, clustered palms, arched cottages, rounded hulls/creatures and upright Mage crystal establish a coherent tactile Direction B treatment at gameplay scale. Position-history wakes curve and break into tapered foam; fish remain submerged without overhead icons. The reference is never loaded as a gameplay asset.
+
+Baseline, sample and integrated captures are linked in [the evidence index](../evidence/README.md). Iteration rejected washed-out linear vertex colors, a glaring sea, glowing shelf rims, repeated stone dots, stacked cube rocks, pointed mountain caps, dry cove tokens and overly regular wake rails. The final normal-scale turn resolves those issues. Main owns the final comparison; the independent review accepts the normal-scale native treatment with no major unresolved gaps.
+
+### Actual gameplay verification
+
+- Selected and sailed Gunboat, Aura and Mage. Cannon ricochets, homing orbs (13 casts in the Mage capture), Whirlpool/pulse, Lightning, monster emergence, puffer projectiles and serpent dashes were observed. Boat health labels remain above the 3D silhouettes.
+- Click steering, stopping, turns, shore collision and current riding were played. With explicit user authorization, a bounded native Shift key-down/key-up script verified held boost through the real OS input path: charge fell to 38.70, velocity reached about 601 and Gunboat firing factor was 1.65. The script released Shift; subsequent play showed charge 100 and factor 1. Ordinary UI actions used computer-use input. No simulation state was injected.
+- Free level-up choices appeared immediately at sea. Final-build captures 16 seconds apart preserve position, clock, director state, cooldowns, enemies and shots exactly. Selecting Lightning resumed combat with two weapons; no harbor was required. Subsequent choices respected the occupied slots.
+- Manual fishing miss, timeout and success were played. The successful single reel at 1.079 seconds matched cursor 0.604 to target 0.612, caught Silver sprat, depleted the school and resumed Sailing without a result popup. Docking automatically sold it for 14 gold; redocking sold nothing again. A 26-gold Reload purchase changed 39 gold to 13, from three boat-upgrade offers.
+- Streaming stayed at 25 active chunks while traveling about two leagues; the Aura run reached 62.5 seconds with 15 enemies and a peak of 12 shots. Current riding and treasure depletion were recorded. A Gunboat run lasted 111.1 seconds, reached level 4 / 74 kills and awarded two silver; saved silver survived later voyages.
+- Diff review against the pre-restart baseline confirms no changes to `source/core`: generation, collision, progression, two-slot capacity, single-benefit upgrades, one-cast schools, unlimited catches, automatic sales and scarce randomized persistent silver retain their implementation. The Godot adapter remains read-only with respect to visual synchronization.
+
+### Builds, errors and performance
+
+Debug and Release builds pass with zero warnings/errors. Final native logs contain no runtime/shader errors or warnings. No automated tests were created or run, following OBJECTIVE.md.
+
+Measured on Apple M3 Max, Godot 4.7.2 .NET, Metal Forward+, 1280×800 window (1440×900 logical viewport), 4× MSAA:
+
+| Native run | Sailing duration | Sample mean / p95 / p99 |
+| --- | --- | --- |
+| Gunboat sustained | 111.1 seconds | 10.27 / 16.02 / 16.73 ms |
+| Aura exploration | 62.5 seconds | 8.89 / 11.11 / 15.33 ms |
+| Final foam turn | 9.9 seconds | 8.84 / 11.11 / 15.40 ms |
+
+These support smooth 60 FPS on the reviewed machine. F12 statistics use a bounded rolling sample of sailing frames (up to 7,200, dropping the oldest 3,600), not the entire run or an isolated GPU benchmark. The final sample reports 120 FPS and 11 draw calls. Visible scenery is bounded and generated at most one incoming place per frame ahead of the camera; dead actors/trails are removed and actor variant caches clear on voyage reset.
+
+### Coverage limits
+
+The longest runs and all-boat combat captures precede the final cove/foam refinements; final native sample, steering turn, immediate upgrade freeze/resume and clean runtime checks followed integration. A fresh boss victory, every six-weapon/rank combination, very deep endless crowds, focus-loss pause and every device/input combination were not replayed under the new renderer. Historical boss/crowd evidence below belongs to older presentation and is not claimed as final-renderer proof. Infinite coordinate independence and very long-term memory behavior are structurally reviewed rather than exhaustively established by this session. Performance on other GPUs is unmeasured. These are explicit coverage limits; no known blocking visual or gameplay defect remains.
+
+## Historical verification log
+
+
 Completed through C# builds, direct game-window interaction, native screenshots and sustained gameplay. No automated tests or scripted state injection were created or used. Representative evidence is indexed in [evidence/README.md](../evidence/README.md).
 
 ## Resolved quality gaps

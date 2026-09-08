@@ -36,6 +36,7 @@ public partial class OceanView3D : Node3D
         foreach (var root in scenery.Values) root.QueueFree(); scenery.Clear();
         foreach (var root in creatures.Values) root.QueueFree(); creatures.Clear();
         boat?.QueueFree(); boat = null; boatSignature = "";
+        ActorArt3D.ResetCache();
         effects.Reset(); Clock = 0; Camera = new(Voyage.Position.X, Voyage.Position.Y);
         stage.Follow(Camera);
     }

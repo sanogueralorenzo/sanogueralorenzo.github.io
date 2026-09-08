@@ -1,6 +1,6 @@
 # Boats n Beasts
 
-An original procedural 2D sailing roguelike for Godot .NET. Sail an endless seeded ocean, fight with automatic weapons, fish for refit money, and defeat the Crownclaw beyond three leagues.
+An original procedural 3D sailing roguelike for Godot .NET. Sail an endless seeded ocean, fight with automatic weapons, fish for refit money, and defeat the Crownclaw beyond three leagues.
 
 ## Run
 
@@ -10,9 +10,9 @@ Install the .NET 10 SDK and Godot **4.7.2 .NET** (the standard non-.NET editor c
 ./run.command
 ```
 
-The launcher builds C#, imports the project, and opens the game with the Compatibility renderer. Set `GODOT_BIN` to the Godot executable if it is not at the macOS locations searched by the launcher; set `DOTNET_ROOT` if your SDK is elsewhere. Alternatively build `BoatsNBeasts.csproj`, then open `project.godot` in the matching .NET editor and run the main scene.
+The launcher builds C#, imports the project, and opens the game with the Forward+ renderer. Set `GODOT_BIN` to the Godot executable if it is not at the macOS locations searched by the launcher; set `DOTNET_ROOT` if your SDK is elsewhere. Alternatively build `BoatsNBeasts.csproj`, then open `project.godot` in the matching .NET editor and run the main scene.
 
-There are no external visual assets, imported fonts, audio assets, or automated tests. Art is original geometry and shaders. Creature animation strips and bounded scenery caches are rendered from that geometry in the engine and live only in memory.
+There are no external visual assets, imported fonts, audio assets, or automated tests. Art is original geometry and shaders. Merged native meshes, shared matte materials, bounded scenery and actor caches, procedural water and position-history effects are generated in memory.
 
 ## Play
 
@@ -28,7 +28,7 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 
 Sail beyond three leagues to summon the Crownclaw. Defeat it to win immediately, then start a fresh voyage or keep exploring. Fishing is optional income for upgrades and repairs.
 
-Keep as many catches as you find; there is no storage limit or cargo counter. Catches automatically sell for gold when you dock. Repair and buy upgrades at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Future between-run shop upgrades can add one slot at a time, up to five; spending remains unimplemented. Leveling up immediately pauses combat and offers up to three free upgrades. Choose one to resume sailing in place; no harbor visit is needed. If several levels arrive together, resolve one choice per level before resuming. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
+Keep as many catches as you find; there is no storage limit or cargo counter. Catches automatically sell for gold when you dock. Repair and buy upgrades at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Leveling up immediately pauses combat and offers up to three free upgrades. Choose one to resume sailing in place; no harbor visit is needed. If several levels arrive together, resolve one choice per level before resuming. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
 
 Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull. Acquired weapons and stat upgrades appear as procedural icons with rank badges in a centered bottom row; hover for names and descriptions. Empty slots are hidden. A small turquoise arc below the boat shows boost charge while boosting or recharging; coral means exhausted, with a release cue. Bulwark explains itself once per save, then uses its short pulse effect. Monsters emerge through a brief ripple before moving or attacking. Chart harbors carry a cannon or hull symbol; hovering a discovered harbor, or sailing near one, previews its three fixed offers, prices and capacity/max-rank restrictions. Pause to review the current voyage objective.
 
@@ -61,7 +61,10 @@ Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+1
 - `source/core/SpawnDirector.cs`: original distance-based credit and population tuning, encounter lulls, boss escort ceiling.
 - `source/core/Voyage.cs`: engine-independent movement, combat, fishing, economy, progression and endings.
 - `source/presentation/Game.cs`: input, menus, HUD, saved progression and manual review captures.
-- `source/presentation/OceanView.cs`, `ProceduralArt.cs`, `CreatureAtlas.cs`, `SceneryCache.cs`, `ocean.gdshader`: original rendering, animation, water and effects.
+- `source/presentation/OceanView3D.cs`: read-only native presentation, bounded streaming and actor synchronization.
+- `NativeStage3D.cs`: shared orthographic camera, lighting, water, screen projection and click unprojection.
+- `EnvironmentArt3D.cs`, `ActorArt3D.cs`, `ActorEquipment3D.cs`, `ActorGeometry.cs`: reproducible scenery, hulls, fittings and creatures.
+- `Effects3D.cs`, `EffectsGeometry.cs`, and the Godot shaders: submerged schools, curved wakes, weapon effects and matte surface animation.
 
 World generation has independent coordinate-local randomness; combat, upgrade offers, and fishing use separate streams. Each school is consumed when casting starts, so cancelling cannot retry or reroll it. Fishing casts stop all combat updates; their brief result labels do not. Distant chunks unload; school depletion survives their return. Sparse exploration history grows with visited places, while active chunks and visual caches are bounded.
 
@@ -73,9 +76,11 @@ Boat selection contains only the boat choice, Set Sail and Back. Every new run, 
 
 Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses provide brief feedback.
 
-The gameplay art follows the approved nautical concept using original code-drawn shapes: muted petrol-blue water, sparse waves, turquoise wakes and shallows, warm sand and broad rocks, cream cabins over wood decks, coral crabs, ochre puffers and teal serpents/rays. Fishing spots use layered turquoise ripples and three cream fish. Geometry remains lightweight and the existing creature/scenery caches are retained.
+The world follows Direction B: tactile beveled 3D forms, matte surfaces, consistent warm lighting, petrol-blue water, localized turquoise coves, sandy islands, sculpted rocks and dimensional cottages. Mage carries an upright violet crystal; Gunboat cannon/harpoon fittings aim at their targets. Fish are subdued submerged forms, with no overhead markers. The reference image is never shipped as gameplay art.
 
-The gameplay camera uses 0.74× zoom (about 35% more horizontal ocean) and 0.84 vertical foreshortening for a subtle tilted 2D view. World art, shader, culling, click destinations share the projection; menus and HUD retain their screen scale. Islands use curved coves, raised rocky banks and scattered shore stones. Fishing ripples are broken, irregular arcs around three moving fish.
+The orthographic camera retains 0.74× scale and 0.84 ground-plane foreshortening. Simulation positions map to `(x/100, 0, y/100)`. HUD anchors and sailing clicks use that same camera. The simulation is engine-independent C#; all native integration is C#/.NET, Godot resources or shaders. No GDScript, imported models, external art packs or image-generated gameplay assets are used.
+
+`art-sample.tscn` is a separate native art proof containing a boat, crab, cottage, island and water. Run it with `./run.command art-sample.tscn`. Tab switches inspection scale; F12 saves the rendered frame under `evidence/`. It contains no gameplay voyage or injected state.
 
 ## Sailing encounters
 
@@ -87,8 +92,8 @@ Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull
 
 ## Readability and sailing flow
 
-Treasure has a gold glint, fishing schools use five visible fish with sparse ripples, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
+Treasure has a rounded metal-banded lid, fishing schools use five subdued fish, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
 
-Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Cannon barrel counts and orbiting crystal lights reflect their rank, lightning adds coil rings, whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.
+Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Weapon fittings reflect equipped weapons and ranks; whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.
 
-The approved concept direction is documented in `docs/ART_DIRECTION.md`. The procedural art now includes layered petrol-blue water, land-shaped turquoise shelves, broad beaches and animated surf; shaded creature bodies and water-contact wakes; an upright Mage crystal, curved magic trails and foamy boat wakes. The concept image is a reference only.
+The selected visual target and native acceptance criteria are documented in `docs/ART_DIRECTION.md`; current verification and its limits are in `docs/QUALITY.md`.

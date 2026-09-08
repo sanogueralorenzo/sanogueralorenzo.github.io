@@ -1,0 +1,27 @@
+Mouse viewport=(585, 470.25) global=(585, 470.25) boatScreen=(719.99994, 450) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-363.7063, 6.68602>; destination=
+Native runtime capture: 20260908-092551-harbor
+Renderer: forward_plus
+Seed: 1362609740
+Mode: Harbor
+Game speed: x1
+Finished runs: 54; boat selection: False
+Silver: 28; earned this voyage: 0; next eligible combat time: 65.7457
+Boat: Cutter
+Position: <-181.27399, -25.891062>
+Health: 100/100
+Coins: 39; cargo: 0; kills: 5; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 5; shots: 0
+Actual sailing seconds: 21.7; peak enemies: 5; peak shots: 3
+Fishing time=1.0790422; cursor=0.60405374; target=0.6116007; catch=Silver sprat; last sale=14; boss spawned=False; boss slain=False
+Velocity=<0, 0>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=11; pulls=0
+Combat clock=21.645144; director=0/0.1212349; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0,0,0,0,0,0
+Depletion=0:0:1=1
+Enemy 1: Crab position=<-225.77654, -523.5331> hp=27 time=20.35232 attack=-18.452097 tell=0 dash=0
+Enemy 4: Crab position=<-447.5471, 63.765305> hp=12 time=16.434057 attack=-14.374689 tell=0 dash=0
+Enemy 8: Crab position=<-232.9989, 85.77411> hp=12 time=8.799561 attack=-5.720288 tell=0 dash=0
+Enemy 9: Crab position=<171.0761, -352.6657> hp=27 time=6.322601 attack=-4.287786 tell=0 dash=0
+Enemy 10: Crab position=<-162.34332, 481.10733> hp=27 time=5.3807154 attack=-2.6859932 tell=0 dash=0
+CPU simulation average ms=0.052; draw submission average ms=0.595; cached scenery=17; engine FPS=120; draw calls=245; objects=1189
+Frame ms mean: 8.86; p95: 11.11; p99: 16.67
