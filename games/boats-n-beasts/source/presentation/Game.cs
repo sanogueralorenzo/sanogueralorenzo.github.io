@@ -351,17 +351,13 @@ public partial class Game : Node2D
         public override void _Draw()
         {
             if (Game.title) return; var r = Game.Run; var size = GetViewportRect().Size;
-            DrawStyleBox(Game.Box(new Color(OceanView.Navy, .78f), 12), new Rect2(16, 16, 320, 146));
             string voyageStatus = $"{r.Position.Length() / 1000:0.00} LEAGUES   ·   {r.Coins} ◈";
             float statusWidth = Math.Max(266, TitleFont.GetStringSize(voyageStatus, fontSize: 24).X + 32);
             float statusLeft = size.X - statusWidth - 14;
             DrawStyleBox(Game.Box(new Color(OceanView.Navy, .78f), 12), new Rect2(statusLeft, 16, statusWidth, 76));
-            Text(new(30, 44), "BOATS n BEASTS", 34, true);
-            Text(new(32, 75), $"{r.Boat.ToString().ToUpperInvariant()}  /  LEVEL {r.Level}", 17);
-            Bar(new(32, 91), new(210, 12), r.Health / r.MaxHealth, r.Health / r.MaxHealth < .3f ? OceanView.Coral : OceanView.Cream);
-            Text(new(254, 104), $"{r.Health:0}/{r.MaxHealth:0}", 17);
-            Bar(new(32, 116), new(210, 5), r.Boost / 100, OceanView.Aqua);
-            Text(new(32, 145), r.Boat == BoatKind.Cutter ? (r.Slipstream > 0 ? "SLIPSTREAM · RAPID FIRE" : r.BoostExhausted ? (Game.toggleBoost ? "TAP BOOST TO REFILL" : "RELEASE BOOST TO REFILL") : "SLIPSTREAM · BOOST TO CHARGE") : $"BULWARK · {r.AbilityCharge * 100:0}%", 15, false, OceanView.Aqua);
+            Text(new(16, 33), $"LEVEL {r.Level}", 17);
+            var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
+            Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
             string zone = r.Safe ? "SAFE HARBOR" : r.Tier == 0 ? "SHELTERED SHOALS" : r.Tier < 3 ? "OPEN WATERS" : "THE DEEP BLUE";
             Text(new(size.X / 2 - 110, 43), zone, 26, true);
             Text(new(statusLeft + 16, 44), voyageStatus, 24, true);
@@ -374,7 +370,7 @@ public partial class Game : Node2D
                 Text(p + new Vector2(10, 25), new[] { "CANNON", "HARPOON", "MORTAR", "COIL", "AURA", "SCATTER" }[i] + $" {r.Weapons[i]}", 15, true, new Color(OceanView.Cream, r.Weapons[i] > 0 ? 1 : .3f));
             }
             Text(new(size.X - 425, size.Y - 33), "WASD / CLICK SAIL   SPACE BOOST   ESC PAUSE", 16);
-            Bar(new(0, size.Y - 4), new(size.X, 4), r.Xp / (float)r.NextXp, OceanView.Aqua);
+            Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, OceanView.Aqua);
             DrawCompass(size);
             if (Game.toastTime > 0) { float width = BodyFont.GetStringSize(Game.toast, fontSize: 20).X; DrawStyleBox(Game.Box(new Color(OceanView.Navy, .9f), 10), new((size.X - width) / 2 - 20, 144, width + 40, 45)); Text(new((size.X - width) / 2, 174), Game.toast, 20); }
             if (r.Mode == VoyageMode.Sailing)

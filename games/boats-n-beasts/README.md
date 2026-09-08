@@ -28,6 +28,8 @@ Catch fish at three different schools beyond one league. After completing the ch
 
 Sell catches for coins, repair, and buy weapons or stat upgrades at harbors. Combat levels offer three varying free upgrades. There are no prerequisite trees or permanent stat grind. A new voyage resets catches, money, and equipment; settings, best kill count, and completed-voyage count persist locally.
 
+Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull.
+
 ## Boats and builds
 
 | Boat | Base ability | Starting weapons |

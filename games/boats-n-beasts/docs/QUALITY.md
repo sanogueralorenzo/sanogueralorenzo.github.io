@@ -36,3 +36,7 @@ No known blocking gameplay defect remains from this review. These limits are cov
 Added a subtle top-right ×1/×2/×3 cycle. Each frame repeats bounded simulation steps so movement, combat, fishing and visual effects share the selected game-time rate without increasing collision step size. Menu interaction and performance measurements remain in real time; a new voyage resets to ×1.
 
 Debug/Release builds and direct UI checks pass. Native `speed-x2`, `speed-x3-start/end`, and `speed-x1` evidence records the full cycle without moving the boat. At ×3, combat time advanced from 1.4497 to 5.8248 during approximately 1.4 seconds of actual sailing. The two `speed-paused` captures, eleven seconds apart, retain identical combat state at ×3. `speed-x3.png` shows the control and compass spacing. No automated tests were added.
+
+## Simplified HUD follow-up — 2026-09-08
+
+Removed the top-left title/boat/status panel. Experience now fills an eight-pixel bar at the top edge with a compact level label below it; hull is a 96×8 red bar positioned above the boat through the same world-to-screen transform. Removed the replaced corner health/boost/ability readouts and bottom experience bar. Debug and Release builds pass with zero warnings/errors. The rebuilt title was observed; sailing screenshot verification was interrupted by concurrent user interaction, so no new in-game visual verification is claimed.
