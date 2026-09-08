@@ -20,7 +20,8 @@ void sky(){
  q+=(vec2(fbm(q*.5+vec2(0,3)),fbm(q*.5+vec2(0,9)))-.5)*.8;
  float cover=.29+.30*pow(max(h,0.)/top,2.)+.34*(1.-inland);
  float field=cloud(q,cover,.10);float mass=fbm(q*.5);
- float mask=smoothstep(cover-.004,cover+.004,field)*smoothstep(cover-.04,cover-.015,mass)*smoothstep(-.01,.04,h);
+ // A narrow feather keeps the authored silhouette while softening its cutout edge.
+ float mask=smoothstep(cover-.010,cover+.010,field)*smoothstep(cover-.04,cover-.015,mass)*smoothstep(-.01,.04,h);
  float dx=cloud(q+vec2(.025,0),cover,0.)-cloud(q-vec2(.025,0),cover,0.);
  float dy=cloud(q+vec2(0,.025),cover,0.)-cloud(q-vec2(0,.025),cover,0.);
  vec3 normal=normalize(vec3(-dx/.05,-dy/.05,1.6));
@@ -28,8 +29,9 @@ void sky(){
  float lit=dot(normal,normalize(vec3(side*.55,.8,.45)));
  float bulk=clamp((fbm((q+vec2(side*.18,.30))*.5)-mass)*3.,0.,1.);
  float shade=(1.-smoothstep(.1,.5,lit))*.65+bulk*.35*smoothstep(cover,cover+.2,field)+smoothstep(cover,cover+.2,field)*(1.-smoothstep(.02,.55*top,h))*.4;
- shade=mix(shade,floor(shade*4.+.5)/4.,.3);
- vec3 cc=mix(vec3(1.,.98,.94),vec3(.58,.65,.77),smoothstep(.15,.45,shade));
+ // Retain a trace of the painted bands without hard tonal terraces.
+ shade=mix(shade,floor(shade*4.+.5)/4.,.12);
+ vec3 cc=mix(vec3(1.,.98,.94),vec3(.58,.65,.77),smoothstep(.12,.48,shade));
  cc=mix(cc,vec3(.50,.58,.70),smoothstep(.50,.85,shade));
  col=mix(col,cc,mask);
  }
