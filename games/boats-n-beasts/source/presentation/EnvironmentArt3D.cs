@@ -255,7 +255,8 @@ public static class EnvironmentArt3D
         {
             Vector3 Point(float t, float s)
             {
-                float w = width * Mathf.Pow(Mathf.Sin(Mathf.Pi * t), .8f);
+                // Sin(pi) can round slightly below zero; a fractional power would produce NaN.
+                float w = width * Mathf.Pow(Mathf.Max(0, Mathf.Sin(Mathf.Pi * t)), .8f);
                 return at + forward * (length * t) + Vector3.Up * (lift * Mathf.Sin(Mathf.Pi * t * .9f) - length * .18f * t * t - MathF.Abs(s) * w * .20f) + side * w * s;
             }
             float t = i / (float)steps, n = (i + 1) / (float)steps;
@@ -288,7 +289,9 @@ public static class EnvironmentArt3D
         }
         public void Face(Vector3 a, Vector3 b, Vector3 c, Color color)
         {
-            Vector3 n = (b - a).Cross(c - a).Normalized();
+            Vector3 cross = (b - a).Cross(c - a);
+            if (cross.LengthSquared() < 1e-14f) return;
+            Vector3 n = cross.Normalized();
             Triangle(a, b, c, color, color, color, n, n, n);
         }
         public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color) { Face(a, b, c, color); Face(a, c, d, color); }
