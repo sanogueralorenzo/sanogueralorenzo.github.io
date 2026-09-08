@@ -58,21 +58,6 @@ enum PiTests {
         try fixture.cleaned()
     }
 
-    static func preflight() async throws {
-        let fixture = try PiFixture(), service = PiService(executable: fixture.executable)
-        defer { service.shutdown() }
-        enum Changed: Error { case selection }
-        try await expectFailure({ $0 is Changed }) {
-            _ = try await service.rewrite("Do not send", action: .grammar, configuration: configuration) {
-                try expect(fixture.count("state") > 0, "Preflight did not wait for readiness")
-                throw Changed.selection
-            }
-        }
-        try expect(fixture.count("prompt") == 0, "Invalidated selection was sent")
-        try expect(service.processIdentifier == nil, "Rejected request left an active process")
-        try fixture.cleaned()
-    }
-
     static func cancellation() async throws {
         let fixture = try PiFixture(), service = PiService(executable: fixture.executable)
         defer { service.shutdown() }

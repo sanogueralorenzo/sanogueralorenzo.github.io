@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 @MainActor
 enum ValidationTests {
@@ -18,18 +18,18 @@ enum ValidationTests {
         try await expectFailure(messageContains("too long")) { _ = try Editing.validate(boundary + "x") }
     }
 
-    static func selection() async throws {
-        let value = "Before 🦊 after"
-        let valid = SelectionFingerprint(value: value, range: NSRange(location: 7, length: 2), text: "🦊")
-        try expect(valid.isConsistent, "Emoji selection should be consistent in UTF-16")
-        try expect(valid.replacing(with: "cat") == "Before cat after", "Replacement changed surrounding text")
-        for (range, text) in [(NSRange(location: NSNotFound, length: 1), "x"),
-                              (NSRange(location: -1, length: 1), "x"),
-                              (NSRange(location: 0, length: 0), ""),
-                              (NSRange(location: 7, length: Int.max), "🦊"),
-                              (NSRange(location: 7, length: 2), "xx")] {
-            try expect(!SelectionFingerprint(value: value, range: range, text: text).isConsistent, "Invalid range accepted: \(range)")
+    static func clipboard() async throws {
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.setString("Old text", forType: .string)
+        let result = " Might arrive Friday, 12 June: 42 🦊.\n"
+        try RewriteClipboard.copy(result, to: pasteboard)
+        try expect(pasteboard.string(forType: .string) == result, "Copied text lost formatting or content")
+        let changeCount = pasteboard.changeCount
+        try await expectFailure(messageContains("no text")) {
+            try RewriteClipboard.copy(" \n", to: pasteboard)
         }
+        try expect(pasteboard.changeCount == changeCount && pasteboard.string(forType: .string) == result, "Invalid output changed the clipboard")
     }
 
     static func responses() async throws {

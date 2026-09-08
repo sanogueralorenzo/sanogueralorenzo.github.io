@@ -22,7 +22,6 @@ final class RewriteController {
         if task != nil || selection != nil { cancel(); return }
         do {
             selection = try CapturedSelection.capture()
-            try selection?.validateForRewrite()
             guard settings.isConfigured else { settings.show(); return }
             guard let selection else { return }
             let actions = ActionMenu()
@@ -49,13 +48,11 @@ final class RewriteController {
             await Task.yield()
             guard generation == current else { return }
             do {
-                let output = try await processor.rewrite(selection.text, action: action, configuration: configuration) {
-                    try selection.validateForRewrite()
-                }
+                let output = try await processor.rewrite(selection.text, action: action, configuration: configuration)
                 try Task.checkCancellation(); guard generation == current else { return }
-                try await selection.replace(with: output, requireForeground: true)
-                guard generation == current else { return }
-                task = nil; cancel()
+                try RewriteClipboard.copy(output)
+                task = nil; self.selection = nil
+                menuBar.setRewriting(nil)
             } catch {
                 guard generation == current, !Task.isCancelled else { return }
                 task = nil; self.selection = nil

@@ -120,7 +120,7 @@ final class PiService {
             rpcRequest = request; rpcConfiguration = configuration; rpcStarted = now()
         }
     }
-    func rewrite(_ source: String, action: EditAction, configuration: RewriteConfiguration, validateSelection: () throws -> Void = {}) async throws -> String {
+    func rewrite(_ source: String, action: EditAction, configuration: RewriteConfiguration) async throws -> String {
         guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
         isRewriting = true
         defer {
@@ -135,7 +135,6 @@ final class PiService {
             guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
             try await rpc.resetSession()
             try Task.checkCancellation()
-            try validateSelection()
             let output = try await rpc.send("prompt", message: Editing.payload(source, action: action))
             let result = try Self.parse(output)
             // Clear text immediately after completion, not only before the next request.

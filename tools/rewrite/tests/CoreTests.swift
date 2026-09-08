@@ -41,10 +41,9 @@ struct CoreTests {
         signal(SIGPIPE, SIG_IGN)
         let scenarios: [(String, () async throws -> Void)] = [
             ("Editing payload and output boundaries", ValidationTests.editing),
-            ("Selection ranges and targeted replacement", ValidationTests.selection),
+            ("Completed output copies exactly; invalid output preserves clipboard", ValidationTests.clipboard),
             ("Completed text only", ValidationTests.responses),
             ("Pi isolation, provider changes and process reuse", PiTests.lifecycle),
-            ("Selection rejection sends no prompt", PiTests.preflight),
             ("Cancellation stops an active rewrite", PiTests.cancellation),
             ("Protocol failures stop Pi and permit recovery", PiTests.failures),
             ("RPC timeout stops the waiting process", PiTests.timeout),
