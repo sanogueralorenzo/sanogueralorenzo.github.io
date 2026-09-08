@@ -56,7 +56,7 @@ final class Rewrite: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
         if let localEscapeMonitor { NSEvent.removeMonitor(localEscapeMonitor) }
-        task?.cancel(); processor.cancel(); menuBar.remove()
+        task?.cancel(); processor.cancel(); processor.shutdown(); menuBar.remove()
     }
 
     @objc private func begin() {

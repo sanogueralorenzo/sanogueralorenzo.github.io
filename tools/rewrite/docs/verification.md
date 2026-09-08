@@ -10,7 +10,7 @@ The automatic selection toolbar, background selection polling, and result/Copy w
 
 ## Checks
 
-- All 53 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
+- All 62 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
 - `tests/run.sh --pi-check` passes against Pi 0.85.1 and checks the installed Pi's model discovery in a disposable configuration with a fake credential; it makes no provider inference call.
 - `tests/feedback.sh` passes busy/idle/error states, disabled re-entry, cancellation dispatch, no new error window, shortcut migration, Carbon registration/conflict/callback, and all six native Option-number key equivalents (including Option-generated characters).
 - A live AppKit popup was opened from the production `ActionMenu` in a test window. Computer use pressed Option-1; the menu closed and the grammar callback assertion passed. This tests menu tracking in addition to calling `performKeyEquivalent` directly.
@@ -52,3 +52,9 @@ Rewrite reads the foreground selection only when invoked. Text is sent to a proc
 ## Reasoning off and priority
 
 The installed app now passes `--thinking off` for both providers. Its sole explicit OpenAI request hook sets `reasoning.effort` to `none` and requests the `priority` tier; no priority fields are sent to Anthropic. The fixture executes the actual JavaScript hook and checks that it preserves the input/model while replacing reasoning and tier fields. A production `ProcessorService` live Luna grammar rewrite passed with these settings. Historical timing benchmarks above used low reasoning and should not be treated as timings for this new configuration. Backend-served tier acknowledgment was not captured.
+
+## Persistent RPC
+
+Pi now stays running after successful rewrites. Each request is bracketed by `new_session` and `get_state` checks proving zero messages, zero queued messages, and no streaming. Idle menu cancellation preserves the warmed process. Active cancellation, timeout, protocol failure, or app shutdown stops it. Provider/model changes and credential age beyond three minutes restart it on the next request. No request is automatically retried after a process failure.
+
+The RPC fixture covers process reuse, fresh sessions, fragmented LF-delimited JSON, Unicode line separators, stale response IDs, completion before prompt acknowledgment, process crash, timeout, output overflow, tool events, cancelled/dirty resets, and task cancellation. The live production service completed two consecutive Luna rewrites with the same PID and cleared state between them. Initial short-fixture timings were 3.16 s cold and 2.83 s warm; these two samples use a shorter sentence than the earlier timing benchmark and are not a controlled speed comparison. The selection integration executable compiles with the RPC implementation. App-directed computer-use Option keys inserted their text equivalents instead of triggering the global hotkey; the automatic selection test then correctly refused delivery because TextEdit was not the frontmost app. A fresh full native keyboard flow remains unverified in this automation environment.

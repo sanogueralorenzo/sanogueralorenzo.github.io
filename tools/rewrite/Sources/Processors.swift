@@ -23,7 +23,7 @@ enum ProcessorKind: String, CaseIterable {
     }
 }
 
-struct ProcessorConfiguration {
+struct ProcessorConfiguration: Equatable {
     var kind: ProcessorKind
     var model: String
     var resolvedModel: String { kind.modelID(model) }
@@ -104,13 +104,26 @@ final class ProcessorService {
     private var checkedExecutable: URL?
     private let executableOverride: URL?
     init(executable: URL? = nil) { executableOverride = executable }
-    func cancel() { runner?.cancel() }
+    private var rpc: PiRPC?
+    private var rpcRequest: PiRequest?
+    private var rpcConfiguration: ProcessorConfiguration?
+    private var rpcStarted = Date.distantPast
+    private var isRewriting = false
+    var processIdentifier: Int32? { rpc?.isRunning == true ? rpc?.processIdentifier : nil }
+    func cancel() {
+        runner?.cancel()
+        if isRewriting { shutdown() }
+    }
+    func shutdown() {
+        rpc?.stop(); rpc = nil; rpcRequest = nil; rpcConfiguration = nil
+    }
 
     static let isolationArguments = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
                                      "--no-prompt-templates", "--no-context-files", "--no-themes", "--no-approve"]
     private func run(_ executable: URL, _ arguments: [String], environment: [String: String], directory: URL,
                      input: String = "", timeout: Double = 90) async throws -> ProcessOutput {
         let runner = ProcessRunner(); self.runner = runner
+        defer { if self.runner === runner { self.runner = nil } }
         return try await runner.run(executable: executable, arguments: arguments, environment: environment,
                                     directory: directory, input: input, timeout: timeout)
     }
@@ -170,19 +183,37 @@ final class ProcessorService {
               model.range(of: "^[A-Za-z0-9][A-Za-z0-9._-]*$", options: .regularExpression) != nil else {
             throw RewriteError.message("Enter a model ID for the selected provider, without a provider prefix or reasoning suffix.")
         }
-        return isolationArguments + ["--print", "--mode", "json", "--provider", configuration.kind.providerID,
+        return isolationArguments + ["--mode", "rpc", "--provider", configuration.kind.providerID,
             "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
     }
     func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
-        _ = try Self.arguments(configuration)
-        let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
-        defer { withExtendedLifetime(request) {} }
-        let output = try await run(executable, try request.rewriteArguments(configuration), environment: request.environment, directory: request.directory,
-                                   input: try Editing.payload(source, action: action))
-        guard output.status == 0 else {
-            throw RewriteError.message("Pi could not finish the rewrite. Check your Pi sign-in, connection, usage limit, and model, then retry.")
+        guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
+        isRewriting = true
+        defer { isRewriting = false }
+        do {
+            _ = try Self.arguments(configuration)
+            // Refresh the short-lived auth snapshot well before its token can expire.
+            // Healthy requests with the same configuration reuse one process.
+            if rpc?.isRunning != true || rpcConfiguration != configuration || Date().timeIntervalSince(rpcStarted) > 180 {
+                shutdown()
+                let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
+                try Task.checkCancellation()
+                rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(configuration),
+                                environment: request.environment, directory: request.directory)
+                rpcRequest = request; rpcConfiguration = configuration; rpcStarted = Date()
+            }
+            guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
+            try await rpc.resetSession()
+            let output = try await rpc.send("prompt", message: Editing.payload(source, action: action))
+            let result = try Self.parse(output)
+            // Clear text immediately after completion, not only before the next request.
+            try await rpc.resetSession()
+            try Task.checkCancellation()
+            return result
+        } catch {
+            shutdown()
+            throw error
         }
-        return try Self.parse(output.stdout)
     }
     static func parse(_ data: Data) throws -> String {
         let failure = RewriteError.message("Pi did not return a completed rewrite. Check your sign-in and model, then retry.")

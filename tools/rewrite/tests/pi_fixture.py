@@ -17,7 +17,7 @@ assert all(flag in args for flag in flags)
 request = pathlib.Path(os.environ['PI_CODING_AGENT_DIR'])
 assert request.resolve() == pathlib.Path.cwd().resolve()
 expected = {'auth.json', 'settings.json'}
-if '--print' in args: expected.add('rewrite-priority.mjs')
+if '--mode' in args and args[args.index('--mode') + 1] == 'rpc': expected.add('rewrite-priority.mjs')
 assert set(p.name for p in request.iterdir()) == expected
 assert request.stat().st_mode & 0o777 == 0o700
 assert (request / 'auth.json').stat().st_mode & 0o777 == 0o600
@@ -35,7 +35,7 @@ if '--list-models' in args:
 assert args[args.index('--provider') + 1] == 'openai-codex'
 assert args[args.index('--model') + 1] == 'gpt-5.6-luna'
 assert args[args.index('--thinking') + 1] == 'off'
-assert args[args.index('--mode') + 1] == 'json'
+assert args[args.index('--mode') + 1] == 'rpc'
 extension = pathlib.Path(args[args.index('--extension') + 1])
 assert extension.parent == request
 assert 'service_tier: "priority"' in extension.read_text()
@@ -56,8 +56,21 @@ assert.equal(payload.reasoning.effort, 'low');
 """, str(extension)], check=True)
 
 assert 'single-purpose text rewriting harness' in args[args.index('--system-prompt') + 1]
-payload = json.load(sys.stdin)
-assert payload == {'editing_instruction': 'Correct spelling, grammar, and punctuation.', 'source_text': 'She go to the library yesterday.'}
-assert not any(payload['source_text'] in arg for arg in args)
-print(json.dumps({'type': 'message_end', 'message': {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': 'She went to the library yesterday.'}]}}))
-print(json.dumps({'type': 'agent_end'}))
+fresh = False
+for line in sys.stdin.buffer:
+    command = json.loads(line)
+    if command['type'] == 'new_session':
+        fresh = True
+        print(json.dumps({'type': 'response', 'id': command['id'], 'command': 'new_session', 'success': True, 'data': {'cancelled': False}}), flush=True)
+        continue
+    if command['type'] == 'get_state':
+        print(json.dumps({'type': 'response', 'id': command['id'], 'command': 'get_state', 'success': True, 'data': {'messageCount': 0 if fresh else 2, 'pendingMessageCount': 0, 'isStreaming': False}}), flush=True)
+        continue
+    assert command['type'] == 'prompt' and fresh, 'previous rewrite was not cleared'
+    fresh = False
+    payload = json.loads(command['message'])
+    assert payload == {'editing_instruction': 'Correct spelling, grammar, and punctuation.', 'source_text': 'She go to the library yesterday.'}
+    assert not any(payload['source_text'] in arg for arg in args)
+    print(json.dumps({'type': 'response', 'id': command['id'], 'command': 'prompt', 'success': True}), flush=True)
+    print(json.dumps({'type': 'message_end', 'message': {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': 'She went to the library yesterday.'}]}}), flush=True)
+    print(json.dumps({'type': 'agent_end'}), flush=True)
