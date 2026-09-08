@@ -1,9 +1,0 @@
-Corrected100m launch buffer. Logical1440x900/configured1280x800; OpenGL compatibility, no MSAA. Three other Godot games observed at corrected-run start; earlier pre-buffer review had four.
-47800 220288 godot --path /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/spikeseason -- --review-port=45911 --review-profile=visual-comparison-20260905 --capture-dir=/Users/mario/Documents/Codex/2026-09-05/ho/work/spike-review
-56348 526400 /opt/homebrew/bin/godot --path games/spikeseason --position 80,80 -- --review-port=45901 --review-profile=3d-coastal --capture-dir=/Users/mario/AndroidStudioProjects/spikeseason-worktree/games/spikeseason/evidence/3d
-56769 499424 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
-56986 491792 godot --path games/spikeseason -- --review-port=45903 --review-profile=animation3d --capture-dir=/tmp/spike-animation3d-review
-
-07:31 UTC process conditions changed; target now reports ~145 fps while paused.
-56769 380080 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
-57408 439952 /opt/homebrew/bin/godot --path games/spikeseason --position 80,80 -- --review-port=45901 --review-profile=3d-coastal --capture-dir=/Users/mario/AndroidStudioProjects/spikeseason-worktree/games/spikeseason/evidence/3d

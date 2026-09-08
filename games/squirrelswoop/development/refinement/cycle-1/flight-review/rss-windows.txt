@@ -1,9 +1,0 @@
-Before sustained segment at523m
-  PID    RSS COMMAND
-51934 483904 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
-After sustained45s
-  PID    RSS COMMAND
-51934 487104 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193
-After continuous2km
-  PID    RSS COMMAND
-51934 488032 /opt/homebrew/bin/godot --path games/squirrelswoop -- --review-port=45891 --seed=482193

@@ -1,6 +1,0 @@
-Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
-OpenGL API 4.1 Metal - 90.5 - Compatibility - Using Device: Apple - Apple M3 Max
-
-LAST_CAST_RENDERER method=gl_compatibility driver=opengl3 device=Apple M3 Max
-ERROR: Last Cast requires Forward+. Remove renderer overrides and use a RenderingDevice-capable desktop GPU.
-   at: push_error (core/variant/variant_utility.cpp:1023)

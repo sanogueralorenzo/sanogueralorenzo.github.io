@@ -1,1 +1,0 @@
-These staged diagnostic images predate the final rock-face correction and launch buffer. Disabling shadows isolated the ground ribbing; increased shadow bias removed it. Do not present these as final gameplay.
