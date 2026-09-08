@@ -37,7 +37,7 @@ final class Settings: NSObject {
         provider.setAccessibilityLabel("Provider")
         model.usesDataSource = false; model.completes = true; model.placeholderString = "Model name"; model.setAccessibilityLabel("Model")
         let refresh = NSButton(title: "Refresh", target: self, action: #selector(refreshModels)); refresh.bezelStyle = .rounded
-        let modelRow = NSStackView(views: [model, refresh]); model.widthAnchor.constraint(equalToConstant: 260).isActive = true
+        let modelRow = NSStackView(views: [model, refresh]); model.widthAnchor.constraint(equalToConstant: 300).isActive = true
         recorder.bezelStyle = .rounded; recorder.title = shortcut.label; recorder.shortcut = shortcut
         recorder.setAccessibilityLabel("Record global shortcut")
         recorder.target = self; recorder.action = #selector(recordShortcut)

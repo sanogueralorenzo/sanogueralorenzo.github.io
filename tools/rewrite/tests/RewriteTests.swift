@@ -74,8 +74,14 @@ struct RewriteTests {
             let args = try ProcessorService.arguments(configuration)
             check(args.contains(kind.providerID) && args.contains(kind.preferredModel), "explicit provider and model")
             check(ProcessorService.isolationArguments.allSatisfy(args.contains), "isolated Pi request")
-            check(args.contains(Editing.rules) && args.contains(configuration.thinking), "rewrite system prompt and thinking")
+            check(args.contains(Editing.rules) && configuration.thinking == "off" && args.contains("off"), "rewrite system prompt and thinking off")
         }
+        let priorityRequest = try PiRequest(provider: "openai-codex", credential: "fixture")
+        let priorityArgs = try priorityRequest.rewriteArguments(ProcessorConfiguration(kind: .openai, model: "default"))
+        check(priorityArgs.contains("--extension") && priorityArgs.contains("--no-extensions"), "only explicit rewrite extension loaded")
+        let anthropicArgs = try priorityRequest.rewriteArguments(ProcessorConfiguration(kind: .anthropic, model: "default"))
+        check(!anthropicArgs.contains("--extension"), "OpenAI priority is not sent to Anthropic")
+        check(ProcessorKind.openai.modelID("GPT 5.6 Luna · Light reasoning") == "gpt-5.6-luna", "old Luna label migration")
         check(ProcessorKind.saved("Codex CLI") == .openai && ProcessorKind.saved("Claude CLI") == .anthropic, "CLI preferences migrate to Pi providers")
         check(ProcessorKind.saved("Ollama (local)") == nil && ProcessorKind.allCases.count == 2, "local preference requires new setup")
         for model in ["ollama/model", "gpt-5.6-luna:high", "--help", "bad name"] {

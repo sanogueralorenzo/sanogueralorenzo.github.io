@@ -10,7 +10,7 @@ The automatic selection toolbar, background selection polling, and result/Copy w
 
 ## Checks
 
-- All 50 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
+- All 53 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
 - `tests/run.sh --pi-check` passes against Pi 0.85.1 and checks the installed Pi's model discovery in a disposable configuration with a fake credential; it makes no provider inference call.
 - `tests/feedback.sh` passes busy/idle/error states, disabled re-entry, cancellation dispatch, no new error window, shortcut migration, Carbon registration/conflict/callback, and all six native Option-number key equivalents (including Option-generated characters).
 - A live AppKit popup was opened from the production `ActionMenu` in a test window. Computer use pressed Option-1; the menu closed and the grammar callback assertion passed. This tests menu tracking in addition to calling `performKeyEquivalent` directly.
@@ -48,3 +48,7 @@ TextEdit's targeted AX replacement and native Undo work. Previously tested Micro
 ## Limits
 
 Rewrite reads the foreground selection only when invoked. Text is sent to a processor only after a style is chosen. There is no clipboard mutation, password-field support, rich-style transfer, or guarantee that every app exposes usable selection, replacement, or Undo behavior. Changed selections, background apps, and unsupported writes produce a menu-bar error. macOS has no cross-process atomic compare-and-replace API; Rewrite revalidates immediately before a targeted write and verifies the result without retrying a mutation.
+
+## Reasoning off and priority
+
+The installed app now passes `--thinking off` for both providers. Its sole explicit OpenAI request hook sets `reasoning.effort` to `none` and requests the `priority` tier; no priority fields are sent to Anthropic. The fixture executes the actual JavaScript hook and checks that it preserves the input/model while replacing reasoning and tier fields. A production `ProcessorService` live Luna grammar rewrite passed with these settings. Historical timing benchmarks above used low reasoning and should not be treated as timings for this new configuration. Backend-served tier acknowledgment was not captured.

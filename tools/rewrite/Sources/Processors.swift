@@ -13,11 +13,12 @@ enum ProcessorKind: String, CaseIterable {
         }
     }
     func modelID(_ value: String) -> String {
+        if self == .openai && value == "GPT 5.6 Luna · Light reasoning" { return preferredModel }
         if value.isEmpty || value == "default" || value == modelLabel(preferredModel) { return preferredModel }
         return value
     }
     func modelLabel(_ value: String) -> String {
-        if value == preferredModel { return self == .openai ? "GPT 5.6 Luna · Light reasoning" : "Claude Haiku 4.5 · Thinking off" }
+        if value == preferredModel { return self == .openai ? "GPT 5.6 Luna · Reasoning off · Priority" : "Claude Haiku 4.5 · Thinking off" }
         return value
     }
 }
@@ -26,7 +27,7 @@ struct ProcessorConfiguration {
     var kind: ProcessorKind
     var model: String
     var resolvedModel: String { kind.modelID(model) }
-    var thinking: String { kind == .openai ? "low" : "off" }
+    var thinking: String { "off" }
 }
 
 enum CLIDiscovery {
@@ -74,6 +75,26 @@ final class PiRequest {
             try Data("{\"compaction\":{\"enabled\":false},\"retry\":{\"enabled\":false}}".utf8).write(to: directory.appendingPathComponent("settings.json"))
         } catch { try? FileManager.default.removeItem(at: directory); throw error }
     }
+    // Pi's off option omits reasoning from OpenAI requests. Set none explicitly
+    // so the server cannot substitute its own reasoning default.
+    static let priorityExtension = """
+    export default function(pi) {
+      pi.on("before_provider_request", event => ({
+        ...event.payload,
+        service_tier: "priority",
+        reasoning: { effort: "none" }
+      }));
+    }
+    """
+    @MainActor func rewriteArguments(_ configuration: ProcessorConfiguration) throws -> [String] {
+        var arguments = try ProcessorService.arguments(configuration)
+        if configuration.kind == .openai {
+            let path = directory.appendingPathComponent("rewrite-priority.mjs")
+            try Self.priorityExtension.write(to: path, atomically: true, encoding: .utf8)
+            arguments += ["--extension", path.path]
+        }
+        return arguments
+    }
     deinit { try? FileManager.default.removeItem(at: directory) }
 }
 
@@ -102,7 +123,7 @@ final class ProcessorService {
             defer { withExtendedLifetime(request) {} }
             let result = try await run(executable, Self.isolationArguments + ["--help"], environment: request.environment, directory: request.directory, timeout: 10)
             let help = String(decoding: result.stdout, as: UTF8.self)
-            guard result.status == 0, (Self.isolationArguments + ["--system-prompt", "--mode", "--thinking"]).allSatisfy({ help.contains($0) }) else {
+            guard result.status == 0, (Self.isolationArguments + ["--system-prompt", "--mode", "--thinking", "--extension"]).allSatisfy({ help.contains($0) }) else {
                 throw RewriteError.message("Update Pi: this version lacks the isolation options Rewrite requires.")
             }
             checkedExecutable = executable
@@ -153,10 +174,10 @@ final class ProcessorService {
             "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
     }
     func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
-        let arguments = try Self.arguments(configuration)
+        _ = try Self.arguments(configuration)
         let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
         defer { withExtendedLifetime(request) {} }
-        let output = try await run(executable, arguments, environment: request.environment, directory: request.directory,
+        let output = try await run(executable, try request.rewriteArguments(configuration), environment: request.environment, directory: request.directory,
                                    input: try Editing.payload(source, action: action))
         guard output.status == 0 else {
             throw RewriteError.message("Pi could not finish the rewrite. Check your Pi sign-in, connection, usage limit, and model, then retry.")
