@@ -75,7 +75,7 @@ public static class EnvironmentArt3D
     {
         const int sides = 64;
         // Transparent outer seabed lets the same moving ocean continue through the shallows.
-        float[] radii = [.0f, .63f, .91f, 1.055f, 1.22f, 1.48f];
+        float[] radii = [.0f, .63f, .91f, 1.055f, 1.22f, 1.35f];
         float[] heights = [.18f, .17f, .105f, .021f, .006f, .004f];
         Color[] colors = [Sand, Sand, Sand, new("b7b48d"), new("327b79"), new("07394b")];
         if (rock) { heights = [.07f, .05f, .025f, .008f, .006f, .004f]; colors = [Stone, Stone, new("7a9d91"), new("45817e"), new("205c65"), new("07394b")]; }
@@ -86,7 +86,7 @@ public static class EnvironmentArt3D
             float a = i * Mathf.Tau / sides;
             float organic = Coast(a, seed);
             if (layer >= 4) organic += .026f * Mathf.Sin(a * 9 + seed % 7);
-            float d = radii[layer] * r * organic;
+            float d = Mathf.Min(radii[layer] * organic, 1.55f) * r;
             return new(Mathf.Cos(a) * d, heights[layer], Mathf.Sin(a) * d);
         }
         for (int layer = 0; layer < radii.Length - 1; layer++)
@@ -278,7 +278,9 @@ public static class EnvironmentArt3D
         }
         public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color ca, Color cb, Color cc, Vector3 na, Vector3 nb, Vector3 nc, string key = "matte")
         {
-            if ((b - a).Cross(c - a).LengthSquared() < 1e-14f) return;
+            Vector3 cross = (b - a).Cross(c - a);
+            if (cross.LengthSquared() < 1e-14f) return;
+            if (cross.Dot(na + nb + nc) < 0) { (b, c) = (c, b); (nb, nc) = (nc, nb); (cb, cc) = (cc, cb); }
             var s = Surface(key);
             void Vertex(Vector3 p, Color color, Vector3 normal) { s.SetColor(color); s.SetNormal((Transform.Basis * normal).Normalized()); s.AddVertex(Transform * p); }
             // Godot front faces use clockwise winding. Our geometric normals are explicit.
