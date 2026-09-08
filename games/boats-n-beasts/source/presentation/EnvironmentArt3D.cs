@@ -7,7 +7,7 @@ namespace BoatsNBeasts;
 public static class EnvironmentArt3D
 {
     private static readonly Color Sand = new("d6bd86"), Stone = new("898b7e"), Leaf = new("647c43");
-    private static readonly Dictionary<string, StandardMaterial3D> Materials = new();
+    private static readonly Dictionary<string, Material> Materials = new();
 
     public static Node3D Build(Place place)
     {
@@ -57,6 +57,13 @@ public static class EnvironmentArt3D
                 float s = rng.Range(.018f, .052f) * r;
                 art.Ellipsoid(new(Mathf.Cos(angle) * reach, .09f, Mathf.Sin(angle) * reach), new(s, s * .7f, s * .9f), Stone.Lightened(.08f), 7, 4);
             }
+            for (int i = 0; i < 110; i++)
+            {
+                float angle = rng.Range(0, Mathf.Tau), reach = rng.Range(.45f, .98f) * r;
+                float y = reach < .63f * r ? .182f : Mathf.Lerp(.172f, .08f, (reach / r - .63f) / .35f);
+                float s = rng.Range(.003f, .009f) * r;
+                art.Ellipsoid(new(Mathf.Cos(angle) * reach, y, Mathf.Sin(angle) * reach), new(s, s * .35f, s * .6f), Sand.Darkened(rng.Range(.08f, .20f)), 5, 3);
+            }
         }
         return art.Finish("Environment_" + place.Kind);
     }
@@ -77,7 +84,7 @@ public static class EnvironmentArt3D
         // Transparent outer seabed lets the same moving ocean continue through the shallows.
         float[] radii = [.0f, .63f, .91f, 1.055f, 1.22f, 1.35f];
         float[] heights = [.18f, .17f, .105f, .021f, .006f, .004f];
-        Color[] colors = [Sand, Sand, Sand, new("b7b48d"), new("327b79"), new("07394b")];
+        Color[] colors = [Sand, Sand, Sand.Darkened(.025f), new("b6a078"), new("327b79"), new("07394b")];
         if (rock) { heights = [.07f, .05f, .025f, .008f, .006f, .004f]; colors = [Stone, Stone, new("7a9d91"), new("45817e"), new("205c65"), new("07394b")]; }
         colors[4] = new Color(colors[4], .42f);
         colors[5] = new Color(colors[4], 0);
@@ -95,8 +102,10 @@ public static class EnvironmentArt3D
                 var a = Point(layer, i); var b = Point(layer, i + 1); var c = Point(layer + 1, i + 1); var d = Point(layer + 1, i);
                 float grain = .015f * Mathf.Sin(i * 7.7f + seed % 21);
                 Color inner = colors[layer].Lightened(grain), outer = colors[layer + 1].Lightened(layer < 3 ? grain : 0);
-                art.Triangle(a, b, d, inner, inner, outer, Vector3.Up, Vector3.Up, Vector3.Up, layer >= 3 ? "shelf" : "matte");
-                art.Triangle(b, c, d, inner, outer, outer, Vector3.Up, Vector3.Up, Vector3.Up, layer >= 3 ? "shelf" : "matte");
+                Vector3 Normal(Vector3 point, float slope) => new Vector3(point.X / r * slope, 1, point.Z / r * slope).Normalized();
+                float slope = layer == 2 ? .40f : .03f;
+                art.Triangle(a, b, d, inner, inner, outer, Normal(a, slope), Normal(b, slope), Normal(d, slope), layer >= 3 ? "shelf" : "matte");
+                art.Triangle(b, c, d, inner, outer, outer, Normal(b, slope), Normal(c, slope), Normal(d, slope), layer >= 3 ? "shelf" : "matte");
             }
     }
 
@@ -104,11 +113,11 @@ public static class EnvironmentArt3D
     {
         var rng = new SeedRandom(seed);
         const int n = 9;
-        float[] profile = [.78f, 1, .94f, .82f, .56f];
-        float[] levels = [0, .15f, .57f, .88f, 1];
-        var ring = new Vector3[5, n];
+        float[] profile = [.78f, 1, .93f, .74f, .86f, .79f, .50f];
+        float[] levels = [0, .12f, .42f, .455f, .53f, .88f, 1];
+        var ring = new Vector3[profile.Length, n];
         float phase = rng.Range(0, Mathf.Tau);
-        for (int l = 0; l < 5; l++)
+        for (int l = 0; l < profile.Length; l++)
             for (int i = 0; i < n; i++)
             {
                 float a = i * Mathf.Tau / n + phase;
@@ -116,15 +125,25 @@ public static class EnvironmentArt3D
                 ring[l, i] = at + new Vector3(Mathf.Cos(a) * size.X * .5f * radial + size.X * l * .021f, size.Y * (levels[l] + (l > 0 ? rng.Range(-.022f, .022f) : 0)), Mathf.Sin(a) * size.Z * .5f * radial);
             }
         Color color = Stone.Lightened((seed % 9) * .012f);
-        for (int l = 0; l < 4; l++)
+        for (int l = 0; l < profile.Length - 1; l++)
             for (int i = 0; i < n; i++)
             {
                 int j = (i + 1) % n;
                 Color face = color.Darkened(l == 0 ? .08f : 0).Lightened(.024f * Mathf.Sin(i * 3.2f));
                 art.Quad(ring[l, i], ring[l + 1, i], ring[l + 1, j], ring[l, j], face);
+                if ((l == 1 || l == 4) && (i + seed) % 3 == 0)
+                {
+                    Vector3 edge = ring[l, j] - ring[l, i];
+                    Vector3 edgeTop = ring[l + 1, j] - ring[l + 1, i];
+                    Vector3 normal = (ring[l + 1, i] - ring[l, i]).Cross(edge).Normalized() * .002f;
+                    Vector3 start = ring[l, i] + edge * .61f + normal;
+                    Vector3 end = ring[l + 1, i] + edgeTop * .48f + normal;
+                    art.Face(start, end, end + edgeTop * .016f, face.Darkened(.29f));
+                    art.Face(start, end + edgeTop * .016f, start + edge * .008f, face.Darkened(.29f));
+                }
             }
         Vector3 top = at + new Vector3(size.X * .08f, size.Y * 1.012f, 0);
-        for (int i = 0; i < n; i++) art.Face(ring[4, i], top, ring[4, (i + 1) % n], color.Lightened(.045f));
+        for (int i = 0; i < n; i++) art.Face(ring[profile.Length - 1, i], top, ring[profile.Length - 1, (i + 1) % n], color.Lightened(.045f));
     }
 
     private static void AddCottage(Sculptor art, Vector3 origin, float scale, float yaw)
@@ -156,7 +175,7 @@ public static class EnvironmentArt3D
         art.RoundedBox(new(-.26f, 1.11f, -.22f), new(.16f, .50f, .18f), .025f, new("b6a489"));
         art.RoundedBox(new(-.26f, 1.365f, -.22f), new(.205f, .075f, .23f), .022f, trim);
         art.RoundedBox(new(-.26f, 1.406f, -.22f), new(.09f, .009f, .11f), .006f, new("49483d"));
-        Arch(art, new(.12f, .08f, .367f), .25f, .43f, .04f, wood, trim);
+        Arch(art, new(.12f, .08f, .367f), .285f, .47f, .055f, new("45616a"), trim);
         art.Ellipsoid(new(.17f, .27f, .415f), new(.012f, .012f, .012f), new("c7aa62"), 8, 5);
         Window(art, new(-.235f, .47f, .378f), .16f, .22f, glass, trim);
         Window(art, new(0, .87f, .375f), .115f, .13f, glass, trim);
@@ -233,7 +252,7 @@ public static class EnvironmentArt3D
         for (int i = 0; i < 8; i++)
         {
             float a = i * Mathf.Tau / 8 + seed % 23;
-            Frond(art, crown, a, height * (.48f + .055f * Mathf.Sin(i * 4.7f)), height * .12f, height * .18f, Leaf.Lightened((i % 3) * .06f));
+            Frond(art, crown, a, height * (.62f + .065f * Mathf.Sin(i * 4.7f)), height * .072f, height * .18f, Leaf.Lightened((i % 3) * .035f));
         }
         for (int i = 0; i < 3; i++) art.Ellipsoid(crown + new Vector3((i - 1) * .045f, -.04f, .03f), Vector3.One * height * .045f, new("6d593b"), 8, 5);
     }
@@ -243,27 +262,29 @@ public static class EnvironmentArt3D
         for (int i = 0; i < 7; i++)
         {
             float a = i * Mathf.Tau / 7 + seed % 17;
-            Frond(art, at, a, size * 1.2f, size * .30f, size * .85f, Leaf.Lightened(i % 3 * .06f));
+            Frond(art, at, a, size * 1.4f, size * .19f, size * .74f, Leaf.Lightened(i % 3 * .035f));
         }
     }
 
     private static void Frond(Sculptor art, Vector3 at, float angle, float length, float width, float lift, Color color)
     {
         Vector3 forward = new(Mathf.Cos(angle), 0, Mathf.Sin(angle)), side = new(-forward.Z, 0, forward.X);
-        const int steps = 7;
+        const int steps = 14;
         for (int i = 0; i < steps; i++)
         {
             Vector3 Point(float t, float s)
             {
                 // Sin(pi) can round slightly below zero; a fractional power would produce NaN.
-                float w = width * Mathf.Pow(Mathf.Max(0, Mathf.Sin(Mathf.Pi * t)), .8f);
-                return at + forward * (length * t) + Vector3.Up * (lift * Mathf.Sin(Mathf.Pi * t * .9f) - length * .18f * t * t - MathF.Abs(s) * w * .20f) + side * w * s;
+                float notch = .89f + .11f * Mathf.Cos(t * steps * Mathf.Pi);
+                float w = width * Mathf.Pow(Mathf.Max(0, Mathf.Sin(Mathf.Pi * t)), .8f) * notch;
+                return at + forward * (length * t) + Vector3.Up * (lift * Mathf.Sin(Mathf.Pi * t * .9f) - length * .30f * t * t - MathF.Abs(s) * w * .24f) + side * w * s;
             }
             float t = i / (float)steps, n = (i + 1) / (float)steps;
             art.Quad(Point(t, -1), Point(n, -1), Point(n, 0), Point(t, 0), color);
             art.Quad(Point(t, 0), Point(n, 0), Point(n, 1), Point(t, 1), color.Lightened(.04f));
             // Closed underside gives foliage volume from any view, without alpha cards.
             art.Quad(Point(t, 1), Point(n, 1), Point(n, -1), Point(t, -1), color.Darkened(.10f));
+            if (i < steps - 1) art.Tube(Point(t, 0) + Vector3.Up * .002f, Point(n, 0) + Vector3.Up * .002f, width * .034f * (1-t), width * .034f * (1-n), color.Lightened(.10f), 5);
         }
     }
 
@@ -283,7 +304,7 @@ public static class EnvironmentArt3D
             if (cross.LengthSquared() < 1e-14f) return;
             if (cross.Dot(na + nb + nc) < 0) { (b, c) = (c, b); (nb, nc) = (nc, nb); (cb, cc) = (cc, cb); }
             var s = Surface(key);
-            void Vertex(Vector3 p, Color color, Vector3 normal) { s.SetColor(color); s.SetNormal((Transform.Basis * normal).Normalized()); s.AddVertex(Transform * p); }
+            void Vertex(Vector3 p, Color color, Vector3 normal) { s.SetColor(color); s.SetUV(new(p.X, p.Z)); s.SetNormal((Transform.Basis * normal).Normalized()); s.AddVertex(Transform * p); }
             // Godot front faces use clockwise winding. Our geometric normals are explicit.
             Vertex(a, ca, na); Vertex(c, cc, nc); Vertex(b, cb, nb);
         }
@@ -364,12 +385,9 @@ public static class EnvironmentArt3D
             {
                 if (!Materials.TryGetValue(key, out var material))
                 {
-                    material = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .93f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
-                    if (key == "shelf")
-                    {
-                        material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;
-                        material.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
-                    }
+                    material = key == "shelf"
+                        ? new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EnvironmentShallows.gdshader") }
+                        : new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .93f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
                     Materials.Add(key, material);
                 }
                 surface.SetMaterial(material); surface.Index();
