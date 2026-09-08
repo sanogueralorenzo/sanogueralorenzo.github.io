@@ -43,6 +43,9 @@ public sealed class Voyage
     public const float SoakedDamageMultiplier = 1.5f;
     public const string SoakHint = "Soaked enemies take +50% damage from Bomb, Lightning and Blast.";
     public const float BroadsideHalfAngle = 1.2f;
+    public const int BaseWeaponSlots = 2, MaxWeaponSlots = 5;
+    public int WeaponSlots { get; }
+    public int WeaponCount => Weapons.Count(rank => rank > 0);
     public readonly int[] Weapons = new int[6];
     public readonly float[] Cooldowns = new float[6];
     public readonly List<Enemy> Enemies = new();
@@ -63,10 +66,11 @@ public sealed class Voyage
     public bool Safe => World.HarborAt(Position) != null;
     public float FishBand => .14f;
     public float Area => 1 + AreaRank * .15f;
-    public Voyage(uint seed, BoatKind boat)
+    public Voyage(uint seed, BoatKind boat, int extraWeaponSlots = 0)
     {
         World = new(seed); Random = new(seed ^ 0xa129f); buildRandom = new(seed ^ 0x77291); fishRandom = new(seed ^ 0x99a12); Boat = boat; Health = MaxHealth;
-        Weapons[0] = 1; Weapons[boat == BoatKind.Cutter ? 5 : 4] = 1;
+        WeaponSlots = BaseWeaponSlots + Math.Clamp(extraWeaponSlots, 0, MaxWeaponSlots - BaseWeaponSlots);
+        Weapons[boat == BoatKind.Cutter ? 5 : 4] = 1;
         NextSilverTime = SilverInterval();
         World.Stream(Position);
     }
@@ -390,18 +394,33 @@ public sealed class Voyage
     void RollUpgrades()
     {
         UpgradeChoices.Clear();
-        var available = Enumerable.Range(0, UpgradeNames.Length).Where(i => Rank(i) < 5).ToList();
+        var available = Enumerable.Range(0, UpgradeNames.Length).Where(CanUpgrade).ToList();
         // A weapon is always offered while one can still improve; remaining choices vary by seed/run.
         var weapons = available.Where(i => i < Weapons.Length).ToArray();
         if (weapons.Length > 0) { int first = weapons[buildRandom.Index(weapons.Length)]; UpgradeChoices.Add(first); available.Remove(first); }
         while (UpgradeChoices.Count < 3 && available.Count > 0) { int i = buildRandom.Index(available.Count); UpgradeChoices.Add(available[i]); available.RemoveAt(i); }
     }
     public int Rank(int option) => option < 6 ? Weapons[option] : option == 6 ? HullRank : option == 7 ? EngineRank : option == 8 ? ReloadRank : AreaRank;
+    public bool CanUpgrade(int option) => option >= 0 && option < UpgradeNames.Length && Rank(option) < 5
+        && (option >= Weapons.Length || Rank(option) > 0 || WeaponCount < WeaponSlots);
+    public bool HarborSellsWeapons => World.HarborAt(Position) is { } harbor && (harbor.Style & 1) == 0;
+    public int[] HarborOffers()
+    {
+        if (World.HarborAt(Position) is not { } harbor) return [];
+        var stock = Enumerable.Range(HarborSellsWeapons ? 0 : 6, HarborSellsWeapons ? 6 : 4).ToList();
+        var random = new SeedRandom(harbor.Style ^ 0x51a7u);
+        for (int i = stock.Count - 1; i > 0; i--)
+        {
+            int j = random.Index(i + 1);
+            (stock[i], stock[j]) = (stock[j], stock[i]);
+        }
+        return stock.Take(3).ToArray();
+    }
     public int UpgradeCost(int option) => 26 + Rank(option) * 22;
     public bool Upgrade(int option, bool free = false)
     {
-        if (option < 0 || option >= UpgradeNames.Length || Rank(option) >= 5 || (free ? Mode != VoyageMode.Upgrade || !UpgradeChoices.Contains(option) : Mode != VoyageMode.Harbor)) return false;
-        if (!free && Coins < UpgradeCost(option)) return false;
+        if (!CanUpgrade(option) || (free ? Mode != VoyageMode.Upgrade || !UpgradeChoices.Contains(option) : Mode != VoyageMode.Harbor)) return false;
+        if (!free && (!HarborOffers().Contains(option) || Coins < UpgradeCost(option))) return false;
         if (!free) Coins -= UpgradeCost(option);
         if (option < 6) Weapons[option]++;
         else if (option == 6) HullRank++;
@@ -454,8 +473,8 @@ public sealed class Voyage
 public sealed record BoatSpec(string Name, float Hull, float Speed, string Ability, string Description)
 {
     public static readonly BoatSpec[] All = [
-        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Cannon + Blast."),
-        new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Starts with Cannon + Whirlpool.")
+        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Blast."),
+        new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Starts with Whirlpool.")
     ];
     public static BoatSpec For(BoatKind kind) => All[(int)kind];
 }

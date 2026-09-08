@@ -28,7 +28,7 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 
 Catch fish at three different schools beyond one league. After completing the chart, sail beyond three leagues to summon the Crownclaw. Its defeat disperses the escort and gives you a calm return to any harbor. Claim victory there, then choose a fresh voyage or resume combat in endless exploration.
 
-Sell catches for gold, repair, and buy weapons or stat upgrades at harbors. Combat levels offer three varying free upgrades. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, settings, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
+Sell catches for gold and repair at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Future between-run shop upgrades can add one slot at a time, up to five; spending remains unimplemented. Combat levels offer three varying free upgrades. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, settings, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during fishing/pauses), saved silver, current-run gold, and kills.
 
 Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull. Acquired weapons and stat upgrades appear with their ranks in a centered bottom row; empty slots are hidden. Pause to review the current voyage objective.
 
@@ -36,8 +36,8 @@ Experience fills the thin bar along the top edge. The small red bar above your b
 
 | Boat | Base ability | Starting weapons |
 | --- | --- | --- |
-| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Cannon + Blast |
-| Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Cannon + Whirlpool |
+| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Blast |
+| Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Whirlpool |
 
 Every boat can use all six weapons:
 

@@ -8,7 +8,7 @@ public partial class Game : Node2D
     public Voyage Run = null!;
     OceanView ocean = null!;
     ColorRect water = null!;
-    bool mouseHelm, harborStats, toggleBoost, boostLatched;
+    bool mouseHelm, toggleBoost, boostLatched;
     Vector2 helmPointer;
     V2? destination;
     readonly List<double> frameSamples = new();
@@ -304,13 +304,13 @@ public partial class Game : Node2D
         if (Run.BossSlain && !Run.Retired) row.AddChild(Button("Claim victory", () => { Run.ClaimVictory(); BuildMenu(); }, true));
         else row.AddChild(Button($"Switch to {(Run.Boat == BoatKind.Cutter ? "Trawler" : "Cutter")}", () => { Run.SwitchBoat(); BuildMenu(); }));
         col.AddChild(Label(Voyage.SoakHint, 17, false, OceanView.Aqua));
-        col.AddChild(Button(harborStats ? "Weapons →" : "Boat upgrades →", () => { harborStats = !harborStats; BuildMenu(); }));
+        col.AddChild(Label(Run.HarborSellsWeapons ? $"Weapons · {Run.WeaponCount}/{Run.WeaponSlots} slots" : "Boat upgrades", 23, true));
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 8); col.AddChild(grid);
-        for (int i = harborStats ? 6 : 0; i < (harborStats ? Voyage.UpgradeNames.Length : 6); i++)
+        foreach (int i in Run.HarborOffers())
         {
             int option = i; var box = new VBoxContainer { CustomMinimumSize = new(438, 0) }; grid.AddChild(box);
             box.AddChild(Label(Voyage.UpgradeNames[i] + $"  {Run.Rank(i)}/5", 23, true)); box.AddChild(Label(Voyage.UpgradeDescriptions[i] + "\n" + Run.UpgradeBenefit(i), 16));
-            box.AddChild(Button(Run.Rank(i) >= 5 ? "Fully upgraded" : $"{(Run.Rank(i) == 0 ? "Install" : "Upgrade")} · {Run.UpgradeCost(i)} gold", () => { Run.Upgrade(option); BuildMenu(); }, false, Run.Rank(i) >= 5 || Run.Coins < Run.UpgradeCost(i)));
+            box.AddChild(Button(Run.Rank(i) >= 5 ? "Fully upgraded" : !Run.CanUpgrade(i) ? "Weapon slots full" : $"{(Run.Rank(i) == 0 ? "Install" : "Upgrade")} · {Run.UpgradeCost(i)} gold", () => { Run.Upgrade(option); BuildMenu(); }, false, !Run.CanUpgrade(i) || Run.Coins < Run.UpgradeCost(i)));
         }
         col.AddChild(Button("Back to open water  [Esc]", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, !Run.BossSlain || Run.Retired));
     }

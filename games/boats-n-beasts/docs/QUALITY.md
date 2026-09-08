@@ -94,3 +94,8 @@ Debug/Release builds pass. Live review saw the new marker and entered fishing; t
 ## Single-effect boat upgrades — 2026-09-08
 
 Hull now increases maximum health by 25 without healing current health. The card and harbor copy state only “+25 max health.” Speed, Reload and Reach each already change one stat; Reach copy is shortened to “+15% attack area.” Repairs remain separate. Focused code review confirms the Hull branch no longer writes Health. Debug/Release builds pass; no new live purchase check or automated tests were performed.
+
+
+## Harbor stock and weapon capacity — 2026-09-08
+
+Harbors now have three deterministic offers from one category, with no category toggle or reroll on revisit. The purchase method enforces local stock. Runs start with one signature weapon and two total weapon slots. Paid and free acquisitions share the same capacity guard; owned weapons remain upgradeable at capacity. The constructor accepts zero to three future permanent slot upgrades (two to five slots); the shop remains a placeholder. Debug build and diff checks passed. Live harbor purchases and one-weapon combat balance were not playtested in this change.
