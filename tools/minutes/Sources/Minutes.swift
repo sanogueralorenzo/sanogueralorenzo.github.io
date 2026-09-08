@@ -10,6 +10,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     private var window: NSWindow!
     private var statusItem: NSStatusItem!
     private var recordItem: NSMenuItem!
+    private var providerItems: [NSMenuItem] = []
     private var hotKey: EventHotKeyRef?
     private var timer: Timer?
     static func main() {
@@ -49,7 +50,14 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         recordItem = menu.addItem(withTitle: "Start recording    ⌥⇧M", action: #selector(toggleRecording), keyEquivalent: ""); recordItem.target = self
         menu.addItem(.separator())
         let open = menu.addItem(withTitle: "Recent meetings", action: #selector(showWindow), keyEquivalent: ""); open.target = self
-        let settings = menu.addItem(withTitle: "Settings", action: #selector(showSettings), keyEquivalent: ""); settings.target = self
+        let providers = NSMenu(); providers.autoenablesItems = false
+        for choice in ProcessorSettings.choices {
+            let item = providers.addItem(withTitle: choice.label, action: #selector(selectProvider(_:)), keyEquivalent: "")
+            item.target = self; item.representedObject = choice.id; providerItems.append(item)
+        }
+        providers.addItem(.separator())
+        let info = providers.addItem(withTitle: "Transcripts are sent through Pi", action: nil, keyEquivalent: ""); info.isEnabled = false
+        menu.addItem(withTitle: "Provider", action: nil, keyEquivalent: "").submenu = providers
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "q").target = self
         statusItem.menu = menu
@@ -64,14 +72,14 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     private func fail(_ text: String) { let alert = NSAlert(); alert.messageText = "Minutes could not open"; alert.informativeText = text; alert.runModal(); NSApp.terminate(nil) }
     @objc private func toggleRecording() { model.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func showSettings() { if !model.isWorking { model.settingsOpen = true }; showWindow() }
+    @objc private func selectProvider(_ sender: NSMenuItem) { if let provider = sender.representedObject as? String { model.selectProvider(provider) } }
     @objc private func showWindow() { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
     @objc private func willSleep() {
-        if model.recording != nil { Task { await model.stop(captureFailure: "Recording ended because the Mac went to sleep. Retry to process the saved audio.") } }
+        if model.activity.recordingID != nil { Task { await model.stop(captureFailure: "Recording ended because the Mac went to sleep. Retry to process the saved audio.") } }
     }
     private func updateStatus() {
-        let recording = model.recording != nil
-        let processing = model.busy != nil || model.transitioning
+        let recording = model.activity.recordingID != nil
+        let processing = model.activity.showsProgress
         statusItem.button?.image = NSImage(systemSymbolName: recording ? "record.circle.fill" : (processing ? "ellipsis.circle" : "waveform"), accessibilityDescription: model.status)
         statusItem.button?.contentTintColor = recording ? .systemRed : nil
         statusItem.button?.title = recording ? " " + model.elapsed : ""
@@ -79,6 +87,10 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         statusItem.button?.toolTip = model.status
         recordItem.title = recording ? "Stop recording    ⌥⇧M" : (processing ? "Processing…" : "Start recording    ⌥⇧M")
         recordItem.isEnabled = !processing
+        for item in providerItems {
+            item.state = item.representedObject as? String == model.settings.provider ? .on : .off
+            item.isEnabled = !model.isWorking
+        }
     }
     private func installShortcut() {
         var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
@@ -97,9 +109,9 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         guard model != nil, model.isWorking else { return .terminateNow }
         showWindow()
         let alert = NSAlert()
-        alert.messageText = model.recording != nil ? "Stop recording before quitting" : "Your meeting is still processing"
+        alert.messageText = model.activity.recordingID != nil ? "Stop recording before quitting" : "Minutes is still working"
         alert.informativeText = "Close the window to leave Minutes running in the menu bar. Your audio and transcript stay saved."
-        if model.recording != nil { alert.addButton(withTitle: "Stop and finish note"); alert.addButton(withTitle: "Keep recording"); if alert.runModal() == .alertFirstButtonReturn { model.toggle() } }
+        if model.activity.recordingID != nil { alert.addButton(withTitle: "Stop and finish note"); alert.addButton(withTitle: "Keep recording"); if alert.runModal() == .alertFirstButtonReturn { model.toggle() } }
         else { alert.addButton(withTitle: "Keep processing"); alert.runModal() }
         return .terminateCancel
     }

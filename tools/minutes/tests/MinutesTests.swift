@@ -18,9 +18,34 @@ func sample(rate: Double, time: Double, seconds: Double = 0.02) throws -> CMSamp
     return result!
 }
 @main struct Tests {
-    static func main() throws {
+    @MainActor static func main() throws {
+        for (old, expected) in [("codex", "openai"), ("claude", "anthropic"), ("local", ""), ("unknown", "")] {
+            let data = Data("{\"provider\":\"\(old)\",\"model\":\"old-model\",\"configured\":true}".utf8)
+            let migrated = try JSONDecoder().decode(ProcessorSettings.self, from: data)
+            try expect(migrated.provider == expected && migrated.hasProvider == !expected.isEmpty, "Provider migration must preserve remote consent")
+        }
+        let activeID = UUID()
+        for state in [AppActivity.starting(activeID), .recording(activeID), .stopping(activeID), .processing(activeID)] {
+            try expect(state.meetingID == activeID, "Every active phase protects its meeting from deletion")
+            try expect(state.canToggle == (state == .recording(activeID)), "Only recording can be stopped; transitions cannot restart")
+            try expect(state.showsProgress == (state != .recording(activeID)), "Progress reflects starting, stopping and processing")
+        }
+        try expect(AppActivity.idle.canToggle && AppActivity.idle.meetingID == nil, "Idle permits a new recording")
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("minutes-tests-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
+        let profile = root.appendingPathComponent("profile")
+        let appModel = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
+        try expect(appModel.settings.provider == "openai", "New installations default to OpenAI")
+        appModel.selectProvider("anthropic")
+        let reopened = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
+        try expect(reopened.settings.provider == "anthropic", "Provider selection saves immediately")
+        try Data("{\"provider\":\"local\",\"configured\":true}".utf8).write(to: profile.appendingPathComponent("settings.json"))
+        let local = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
+        local.toggle()
+        try expect(!local.isWorking && !local.settings.hasProvider && local.error != nil, "Migrated Local must choose a remote provider")
+        try Data("corrupt".utf8).write(to: profile.appendingPathComponent("settings.json"))
+        let corrupt = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
+        try expect(!corrupt.settings.hasProvider, "Unreadable settings must not assume remote consent")
         let store = try MeetingStore(root: root)
         var meeting = Meeting(title: "Release review", body: "Release is approved.\n\nAction items\n☐ Ana sends the draft Friday.", state: "ready")
         try store.save(meeting)
