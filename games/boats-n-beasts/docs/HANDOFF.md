@@ -11,3 +11,6 @@ Implemented: two boat abilities, six shared automatic weapons, simple weapon/sta
 The user-selected progression stays simple: small varying rank/stat choices, obvious synergies and distinct boat abilities. Do not reintroduce prerequisite trees, catch equipment, unrequested currencies, or proprietary reference assets. Research inputs and partial reverse-engineering conclusions are documented in RESEARCH.md.
 
 Latest user direction adds silver as a persistent balance, awarded on the next kill after a fresh random 45–90-second combat-time interval, with spending deferred. The existing voyage currency is now labeled gold. This supersedes earlier guidance against adding another currency.
+
+
+Nautical gameplay pass: movement/boost and automatic encounter collection live in `VoyageMovement.cs`; weapon firing/projectiles in `VoyageWeapons.cs`. Bomb and Blast were replaced by Mines and Broadside without changing slot indices or the two-slot cap. Cannon ricochets and Harpoon pulls are automatic. `OceanWorld` now owns deterministic treasure/current/wreck placement and flow; `IsSolid` explicitly limits collision to islands, rocks and harbors. `SeaEncounters` draws encounter visuals, and scenery baking skips non-solids. Native F12 telemetry includes boost starts, current ride time, treasure/wreck counts and weapon behavior counters.

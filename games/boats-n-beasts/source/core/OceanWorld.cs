@@ -16,7 +16,7 @@ public struct SeedRandom
     }
 }
 public readonly record struct ChunkKey(int X, int Y);
-public enum PlaceKind { Island, Rock, Harbor, Fishing }
+public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current, Wreck }
 public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style);
 public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 
@@ -45,6 +45,7 @@ public sealed class OceanWorld(uint seed)
             Add(PlaceKind.Fishing, new(170, 180), 76);
             Add(PlaceKind.Island, new(410, 370), 80);
             Add(PlaceKind.Rock, new(390, -350), 40);
+            AddEncounters(key, places);
             return new(key, places.ToArray());
         }
         bool harbor = key.X % 3 == 0 && key.Y % 3 == 0;
@@ -59,7 +60,60 @@ public sealed class OceanWorld(uint seed)
             Add(places.Count == 1 ? PlaceKind.Fishing : PlaceKind.Rock, p, places.Count == 1 ? 76 : r);
         }
         if (!places.Any(p => p.Kind == PlaceKind.Fishing)) Add(PlaceKind.Fishing, center + new Vector2(390, 390), 76);
+        AddEncounters(key, places);
         return new(key, places.ToArray());
+    }
+    void AddEncounters(ChunkKey key, List<Place> places)
+    {
+        var rng = new SeedRandom(SeedRandom.Hash(Seed,key.X,key.Y,91));
+        var center = new Vector2(key.X*ChunkSize,key.Y*ChunkSize);
+        void Add(PlaceKind kind, Vector2 at, float radius, uint? style = null) => places.Add(new($"{key.X}:{key.Y}:encounter:{places.Count}",kind,at,radius,style ?? rng.Next()));
+        if (key == new ChunkKey(0,0))
+        {
+            Add(PlaceKind.Treasure,new(-90,130),22);
+            Add(PlaceKind.Current,new(570,-55),245,0);
+            Add(PlaceKind.Wreck,new(-410,410),65);
+            Add(PlaceKind.Rock,new(-520,365),32); Add(PlaceKind.Rock,new(-300,475),36);
+            return;
+        }
+        bool TryPosition(float clearance, out Vector2 position)
+        {
+            for(int i=0;i<16;i++)
+            {
+                position=center+new Vector2(rng.Range(-310,310),rng.Range(-310,310));
+                var candidate=position;
+                if(places.All(p=>Vector2.Distance(p.Position,candidate)>=p.Radius+clearance)) return true;
+            }
+            position=default; return false;
+        }
+        if(rng.Unit()<.55f && TryPosition(90,out var treasure)) Add(PlaceKind.Treasure,treasure,22);
+        if(rng.Unit()<.35f && TryPosition(150,out var current)) Add(PlaceKind.Current,current,245);
+        if(rng.Unit()<.24f && TryPosition(175,out var wreck))
+        {
+            Add(PlaceKind.Wreck,wreck,65);
+            Add(PlaceKind.Rock,wreck+new Vector2(-110,-55),32);
+            Add(PlaceKind.Rock,wreck+new Vector2(110,55),34);
+        }
+    }
+    public static bool IsSolid(Place place) => place.Kind is PlaceKind.Island or PlaceKind.Rock or PlaceKind.Harbor;
+    public static Vector2 FlowDirection(Place current)
+    {
+        float angle = current.Style % 16 * MathF.Tau / 16;
+        return new(MathF.Cos(angle),MathF.Sin(angle));
+    }
+    public Vector2 FlowAt(Vector2 position)
+    {
+        Vector2 flow=default;
+        foreach(var current in Places)
+        {
+            if(current.Kind!=PlaceKind.Current) continue;
+            var direction=FlowDirection(current); var offset=position-current.Position;
+            float along=Vector2.Dot(offset,direction)/current.Radius;
+            float across=Vector2.Dot(offset,new(-direction.Y,direction.X))/(current.Radius*.3f);
+            float weight=1-along*along-across*across;
+            if(weight>0) flow+=direction*125*Math.Min(1,weight*2);
+        }
+        return flow.Length()>150?Unit(flow)*150:flow;
     }
     public void Stream(Vector2 position)
     {
@@ -77,12 +131,12 @@ public sealed class OceanWorld(uint seed)
     }
     public IReadOnlyList<Place> Places => activePlaces;
     public int FishLeft(Place p) => Math.Max(0, 1 - Depletion.GetValueOrDefault(p.Id));
-    public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => p.Kind != PlaceKind.Fishing && Vector2.Distance(position, p.Position) < p.Radius + clearance);
+    public bool IsWater(Vector2 position, float clearance = 24) => !Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) < p.Radius + clearance);
     public Vector2 Slide(Vector2 old, Vector2 target, float radius)
     {
         foreach (var p in Places)
         {
-            if (p.Kind == PlaceKind.Fishing) continue;
+            if (!IsSolid(p)) continue;
             Vector2 d = target - p.Position; float min = radius + p.Radius;
             if (d.LengthSquared() < min * min) target = p.Position + Unit(d, Unit(old - p.Position, Vector2.UnitX)) * min;
         }
@@ -96,7 +150,7 @@ public sealed class OceanWorld(uint seed)
         var forward = motion / length;
         foreach (var p in Places)
         {
-            if (p.Kind == PlaceKind.Fishing) continue;
+            if (!IsSolid(p)) continue;
             var to = p.Position - position; float distance = to.Length();
             if (distance > p.Radius + radius + 90 || Vector2.Dot(to, forward) < 0) continue;
             var normal = Unit(to); float cross = forward.X * normal.Y - forward.Y * normal.X;

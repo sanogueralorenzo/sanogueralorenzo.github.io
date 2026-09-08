@@ -1,0 +1,57 @@
+Mouse viewport=(-594, 443.25) global=(-594, 443.25) boatScreen=(719.94904, 450.06012) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-5989.0034, 920.4438>; destination=
+Native runtime capture: 20260908-030813-defeat
+Renderer: gl_compatibility
+Seed: 3177208670
+Mode: Defeat
+Game speed: x1
+Finished runs: 10; boat selection: False
+Silver: 17; earned this voyage: 0; next eligible combat time: 86.21582
+Boat: Cutter
+Position: <-4213.3965, 931.3996>
+Health: 0/100
+Coins: 139; cargo: 0; charts: 0; kills: 15; level: 2
+Active chunks: 25; enemies: 25; shots: 11
+Actual sailing seconds: 85.3; peak enemies: 25; peak shots: 30
+Velocity=<-0.36119786, 0.50331444>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=3; wrecks=1; salvos=23; mines=0/0; ricochets=6; pulls=0
+Combat clock=85.134125; director=0.91963893/1.8926696; boost=100; invulnerable=0.8; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0.6833335,0,0,0,0,0.48036188
+Depletion=0:0:encounter:4=1;-1:1:encounter:4=1;-1:1:encounter:5=1;-2:1:encounter:5=1
+Enemy 13: Puffer position=<-3183.7524, 251.00528> hp=47.5 time=70.62283 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 14: Puffer position=<-3615.1714, 570.0764> hp=27.5 time=67.87199 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 15: Puffer position=<-3700.1125, 521.52985> hp=37 time=66.41368 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 16: Serpent position=<-3970.9949, 593.0338> hp=8 time=65.75536 attack=0.31433782 tell=-0.016154861 dash=-3.7252903E-09 mark=0
+Enemy 17: Puffer position=<-3492.609, 454.56064> hp=57 time=65.75536 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 21: Serpent position=<-4224.8994, 860.516> hp=33 time=63.288933 attack=2.6470249 tell=-0.016666507 dash=-0.002972385 mark=0
+Enemy 22: Puffer position=<-3746.66, 552.5592> hp=57 time=62.405815 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 27: Puffer position=<-3775.5825, 506.4759> hp=66.5 time=56.881943 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 28: Ray position=<-4039.7834, 616.0595> hp=75.25 time=54.90668 attack=3.080351 tell=0 dash=0 mark=0
+Enemy 30: Ray position=<-4036.805, 671.20935> hp=40.25 time=52.273174 attack=3.080351 tell=0 dash=0 mark=0
+Enemy 31: Puffer position=<-3432.7644, 425.29135> hp=66.5 time=50.956295 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 32: Serpent position=<-4094.2986, 671.6202> hp=76 time=37.847515 attack=3.5303593 tell=0.06369425 dash=-0.010994142 mark=0
+Enemy 33: Crab position=<-3646.1821, 524.95715> hp=47.25 time=37.847515 attack=-35.43798 tell=0 dash=0 mark=0
+Enemy 34: Puffer position=<-3725.0117, -63.535103> hp=66.5 time=37.847515 attack=0.06397547 tell=0.65 dash=0 mark=0
+Enemy 35: Crab position=<-3384.6602, 400.0646> hp=47.25 time=37.18914 attack=-35.552914 tell=0 dash=0 mark=0
+Enemy 37: Serpent position=<-4098.9346, 611.14514> hp=51 time=7.4758143 attack=2.6303582 tell=-0.016666507 dash=-0.0029723812 mark=0
+Enemy 38: Crab position=<-4214.286, 932.65894> hp=2.25 time=6.175393 attack=-3.7809994 tell=0 dash=0 mark=0
+Enemy 40: Ray position=<-4175.8516, -20.872099> hp=75.25 time=3.569465 attack=2.4638178 tell=0 dash=0 mark=0
+Enemy 41: Crab position=<-3699.7046, -113.60234> hp=54 time=2.9028385 attack=-1.2318721 tell=0 dash=0 mark=0
+Enemy 42: Puffer position=<-3813.5752, 134.58095> hp=76 time=2.2528389 attack=0.50966406 tell=0.65 dash=0 mark=0
+Enemy 43: Crab position=<-4413.944, 254.30746> hp=54 time=2.2528389 attack=-1.2416029 tell=0 dash=0 mark=0
+Enemy 44: Crab position=<-3492.9165, 939.7988> hp=54 time=2.2528389 attack=0.091878116 tell=0 dash=0 mark=0
+Enemy 45: Ray position=<-4248.4087, 217.62398> hp=86 time=1.5863051 attack=0.8770833 tell=0 dash=0 mark=0
+Enemy 46: Serpent position=<-4741.088, 840.014> hp=104 time=1.5863051 attack=0.6013148 tell=0 dash=0 mark=0
+Enemy 47: Puffer position=<-4698.4727, 430.66104> hp=76 time=0.9363056 attack=1.2719159 tell=0 dash=0 mark=0
+Shot Cannon hostile=True position=<-4088.741, 489.1907> life=2.247282
+Shot Cannon hostile=True position=<-4118.933, 515.5505> life=2.247282
+Shot Cannon hostile=True position=<-3974.0254, 491.4218> life=2.247282
+Shot Cannon hostile=True position=<-4187.841, 529.279> life=2.247282
+Shot Cannon hostile=True position=<-4241.895, 583.81287> life=2.247282
+Shot Cannon hostile=True position=<-3801.2388, 248.38992> life=3.647136
+Shot Cannon hostile=True position=<-4177.352, 929.5275> life=4.263674
+Shot Cannon hostile=True position=<-4217.386, 842.69556> life=4.263674
+Shot Cannon hostile=True position=<-4235.6333, 748.8373> life=4.263674
+Shot Cannon hostile=True position=<-4268.6094, 852.79956> life=4.263674
+Shot Cannon hostile=True position=<-4282.8545, 758.25446> life=4.263674
+CPU simulation average ms=0.157; draw submission average ms=1.690; cached scenery=25; engine FPS=60; draw calls=809; objects=1935
+Frame ms mean: 9.65; p95: 16.67; p99: 16.67

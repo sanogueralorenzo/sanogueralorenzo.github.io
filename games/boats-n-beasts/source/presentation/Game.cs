@@ -68,6 +68,8 @@ public partial class Game : Node2D
             {
                 ocean.Effect(e);
                 if (e.Kind == "silver") Toast("+1 silver");
+                if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
+                if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
                 if (e.Kind == "bulwark") Toast("BULWARK · shots cleared, nearby beasts soaked");
                 if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving. Watch the coral warning rings.");
                 if (e.Kind == "bossSlain") Toast("THE SEA IS YOURS  •  Return to a harbor to finish your voyage.");
@@ -104,6 +106,7 @@ public partial class Game : Node2D
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
         string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
+        report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; wrecks={Run.WrecksSalvaged}; salvos={Run.BroadsideSalvos}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}/{Run.Slipstream:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
         foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} mark={enemy.Mark:R}\n";
         foreach (var shot in Run.Shots) report += $"Shot {shot.Kind} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R}\n";
@@ -288,8 +291,8 @@ public partial class Game : Node2D
     {
         var col = Panel(520, "New voyage", "Choose your boat", "One starting weapon. One open slot.");
         var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 10); col.AddChild(choices);
-        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓ Cutter" : "Cutter", () => { selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
-        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓ Trawler" : "Trawler", () => { selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
+        choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓ Cutter" : "Cutter", () => { selectedBoat = BoatKind.Cutter; Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
+        choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓ Trawler" : "Trawler", () => { selectedBoat = BoatKind.Trawler; Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
         var spec = BoatSpec.For(selectedBoat);
         col.AddChild(Label($"{spec.Ability}  •  {spec.Hull} hull\n{spec.Description}", 20, false, OceanView.Cream));
         col.AddChild(Button("Set sail", Start, true));
@@ -346,11 +349,11 @@ public partial class Game : Node2D
     }
     void ControlsMenu()
     {
-        var col = Panel(900, "Handbook", "A life on the water", "Your guns aim and fire automatically. You captain the boat.");
+        var col = Panel(900, "Handbook", "A life on the water", "Weapons fire automatically. Turn alongside enemies to line up Broadside.");
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nRight-click              Toggle continuous mouse helm\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing\nF11                            Toggle fullscreen", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Catch fish at 3 different schools beyond 1 league to complete your chart. Sail beyond 3 leagues, defeat the Crownclaw, then dock at any harbor to win. You can keep exploring afterward.\n\nSell fish, repair, and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Swaps preserve upgrades and hull percentage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path.\n\nFishing freezes combat, including the result screen. Land 3 reels before 3 misses or 16 seconds. Each school allows one cast, even if cancelled. Settings includes assisted fishing and toggle boost. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void SettingsMenu()
@@ -402,7 +405,7 @@ public partial class Game : Node2D
             }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -72);
             Bar(healthPosition, new(68, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
-            string[] itemLabels = ["CANNON", "HARPOON", "BOMB", "LIGHTNING", "WHIRLPOOL", "BLAST", "HULL", "SPEED", "RELOAD", "REACH"];
+            string[] itemLabels = ["CANNON", "HARPOON", "MINES", "LIGHTNING", "WHIRLPOOL", "BROADSIDE", "HULL", "SPEED", "RELOAD", "REACH"];
             var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
             const float itemWidth = 96, gap = 8;
             float rowWidth = equipped.Length * (itemWidth + gap) - gap;
@@ -489,7 +492,7 @@ public partial class Game : Node2D
             Text(center + new Vector2(-5, -64), "N", 13, true, ink);
             foreach (var place in r.World.Places)
             {
-                if (!r.World.Discovered.Contains(place.Id)) continue;
+                if (!r.World.Discovered.Contains(place.Id) || (place.Kind is PlaceKind.Treasure or PlaceKind.Wreck && r.World.Depletion.ContainsKey(place.Id))) continue;
                 var offset = OceanView.G(place.Position - r.Position) / 17;
                 if (offset.Length() > 56) continue;
                 var at = center + offset;
@@ -500,6 +503,9 @@ public partial class Game : Node2D
                     DrawArc(at + new Vector2(0, 4), 4, .2f, Mathf.Pi - .2f, 10, ink, 1.5f, true);
                 }
                 else if (place.Kind == PlaceKind.Harbor) ChartAnchor(at, ink);
+                else if (place.Kind == PlaceKind.Treasure) DrawRect(new Rect2(at-new Vector2(3,3),new(6,6)),new Color("b38943"));
+                else if (place.Kind == PlaceKind.Wreck) { DrawLine(at-new Vector2(4,4),at+new Vector2(4,4),ink,2); DrawLine(at+new Vector2(-4,4),at+new Vector2(4,-4),ink,2); }
+                else if (place.Kind == PlaceKind.Current) { var d=OceanView.G(OceanWorld.FlowDirection(place)); DrawLine(at-d*5,at+d*5,ink,1.5f); DrawLine(at+d*5,at+d.Orthogonal()*3,ink,1.5f); }
                 else
                 {
                     float radius = Math.Clamp(place.Radius / 17, 3, 11);

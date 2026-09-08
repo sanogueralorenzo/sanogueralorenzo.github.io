@@ -36,21 +36,21 @@ Experience fills the thin bar along the top edge. The small red bar above your b
 
 | Boat | Base ability | Starting weapons |
 | --- | --- | --- |
-| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Blast |
+| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Broadside |
 | Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Whirlpool |
 
 Every boat can use all six weapons:
 
 | Weapon | What it does |
 | --- | --- |
-| Cannon | Fast aimed shots. Level 3 adds a second barrel. |
-| Harpoon | Pierces a line of enemies, slowing and soaking them. |
-| Bomb | Long-range blasts for crowds. |
+| Cannon | Auto-aimed cannonballs ricochet between enemies and off rocks. Level 3 adds a second barrel. |
+| Harpoon | Pierces, pulls and soaks enemies. Bosses resist most of the pull. |
+| Mines | Drops a mine behind the moving boat. Arms after 0.5 seconds; bursts when an enemy approaches. |
 | Lightning | Jumps between enemies. Each level adds a target. |
 | Whirlpool | Damages enemies all around the boat. |
-| Blast | A close-range burst that pushes enemies back. |
+| Broadside | Three cannons on each side fire automatically at foes alongside the boat. |
 
-Soaked enemies take **+50% damage from Bomb, Lightning and Blast**. Each weapon level also improves damage and fire rate. Upgrade cards show the next level’s benefit.
+Soaked enemies take **+50% damage from Mines, Lightning and Broadside**. Each weapon level also improves damage and fire rate. Upgrade cards show the next level’s benefit.
 
 Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack area). Hull upgrades leave current health unchanged; repairs are a separate harbor action. Harbor swaps retain equipment and hull percentage.
 
@@ -75,3 +75,11 @@ Menus use compact navy panels, cream text, turquoise selection and gold purchase
 The gameplay art follows the approved nautical concept using original code-drawn shapes: muted petrol-blue water, sparse waves, turquoise wakes and shallows, warm sand and broad rocks, cream cabins over wood decks, coral crabs, ochre puffers and teal serpents/rays. Fishing spots use layered turquoise ripples and three cream fish. Geometry remains lightweight and the existing creature/scenery caches are retained.
 
 The gameplay camera uses 0.74× zoom (about 35% more horizontal ocean) and 0.84 vertical foreshortening for a subtle tilted 2D view. World art, shader, culling, click destinations and mouse steering share the projection; menus and HUD retain their screen scale. Islands use curved coves, raised rocky banks and scattered shore stones. Fishing ripples are broken, irregular arcs around three moving fish.
+
+## Sailing encounters
+
+The bow turns responsively while the hull keeps a short drift. Boost gives an immediate kick and reaches 2.05× normal speed, with a brighter, wider wake; each new burst costs 8 boost plus the usual drain. Releasing steering slows the boat quickly. Turquoise current arrows show the direction of flow, adding up to 125 world units/second per lane (150 total cap). Steering against a current remains possible.
+
+Sail over floating treasure for 12–20 run gold, or salvage wrecks between rocks for 35–55 gold. Both are collected automatically once per location per run, disappear from the chart after collection, and remain depleted when chunks reload. The home waters include one of each encounter; farther discoveries vary by seed. Encounters do not award silver.
+
+Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull surviving targets over 0.4 seconds, slowing and soaking them; a rope briefly shows the pull. Cannonballs start with one bounce and gain another at ranks 2 and 4. Broadside automatically aims within the port/starboard arcs, so turning alongside foes matters without manual aiming.

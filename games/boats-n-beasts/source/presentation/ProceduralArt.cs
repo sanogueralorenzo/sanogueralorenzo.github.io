@@ -80,8 +80,11 @@ public sealed class ProceduralArt(Node2D canvas)
                 for(int i=0;i<3;i++){float a=i*Mathf.Tau/5;Spike(at,at+Vector2.FromAngle(a)*11,3,Cream);}
             }
         }
+        if(weapons!=null && weapons[5]>0)
+            for(int side=-1;side<=1;side+=2) for(int row=-1;row<=1;row++)
+            { Line(new(side*(width*.4f),row*20),new(side*(width*.58f),row*20),Ink,7); Line(new(side*(width*.42f),row*20-2),new(side*(width*.57f),row*20-2),Metal,2); }
         if(weapons!=null && weapons[1]>0){Line(new(width*.34f,5),new(width*.34f,-21),Metal,5);Poly([new(width*.34f,-29),new(width*.34f-5,-18),new(width*.34f+5,-18)],Cream);}
-        if(weapons!=null && weapons[2]>0){Ellipse(new(-width*.32f,22),new(9,8),Ink);Ellipse(new(-width*.32f,19),new(8,7),Metal);Ellipse(new(-width*.32f,17),new(4,4),Ink);}
+        if(weapons!=null && weapons[2]>0){Ellipse(new(0,39),new(11,9),Ink);Ellipse(new(0,37),new(8,7),Metal);Line(new(-12,37),new(12,37),Cream,2);}
         if(weapons!=null && weapons[3]>0){Box(new(width*.24f-5,27),new(10,12),5,Metal,Ink);for(int i=0;i<3;i++)Ellipse(new(width*.24f,23-i*3),new(6,2),new Color("69e1d3"));}
         if(flash)canvas.DrawPolyline(Shift(hull,new(0,-5)).Append(hull[0]+new Vector2(0,-5)).ToArray(),new Color("fff9e4"),3,true);
         canvas.DrawSetTransform(Vector2.Zero);

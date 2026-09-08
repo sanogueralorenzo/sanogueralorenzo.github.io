@@ -19,7 +19,7 @@ public partial class SceneryCache : Node
         int created = 0;
         foreach (var p in places)
         {
-            if (p.Kind == PlaceKind.Fishing || entries.ContainsKey(p.Id)) continue;
+            if (!OceanWorld.IsSolid(p) || entries.ContainsKey(p.Id)) continue;
             var at = OceanView.G(p.Position) - camera + screenSize / 2; float margin = Margin(p) + 80;
             if (at.X < -margin || at.Y < -margin || at.X > screenSize.X + margin || at.Y > screenSize.Y + margin) continue;
             int size = (int)MathF.Ceiling(Margin(p) * 2);

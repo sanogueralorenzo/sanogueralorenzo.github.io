@@ -4,24 +4,24 @@ namespace BoatsNBeasts.Core;
 public enum VoyageMode { Sailing, Fishing, Catch, Harbor, Upgrade, Paused, Defeat, Victory }
 public enum BoatKind { Cutter, Trawler }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
-public enum WeaponKind { Cannon, Harpoon, Mortar, Coil, Undertow, Broadside }
+public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Broadside }
 public sealed class Enemy
 {
     public int Id; public EnemyKind Kind; public Vector2 Position, Direction;
-    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, Mark, HitFlash;
+    public float Health, MaxHealth, Time, AttackClock, Telegraph, Dash, Mark, HitFlash, Pull;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
 }
 public sealed class Shot
 {
-    public Vector2 Position, Previous, Velocity, Target;
-    public float Damage, Life, Radius; public bool Hostile;
-    public WeaponKind Kind; public int Pierce;
+    public Vector2 Position, Previous, Velocity;
+    public float Damage, Life, Radius, Age; public bool Hostile;
+    public WeaponKind Kind; public int Pierce, Bounces;
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
 public sealed record CatchItem(string Name, int Value, bool Chart);
 public readonly record struct SailInput(Vector2 Move, bool Boost);
-public sealed class Voyage
+public sealed partial class Voyage
 {
     public OceanWorld World { get; }
     public SeedRandom Random;
@@ -41,8 +41,8 @@ public sealed class Voyage
     public bool BossSpawned, BossSlain, Retired, AssistedFishing;
     public bool BoostExhausted { get; private set; }
     public const float SoakedDamageMultiplier = 1.5f;
-    public const string SoakHint = "Soaked enemies take +50% damage from Bomb, Lightning and Blast.";
-    public const float BroadsideHalfAngle = 1.2f;
+    public const string SoakHint = "Soaked enemies take +50% damage from Mines, Lightning and Broadside.";
+    public const float BroadsideHalfAngle = .72f;
     public const int BaseWeaponSlots = 2, MaxWeaponSlots = 5;
     public int WeaponSlots { get; }
     public int WeaponCount => Weapons.Count(rank => rank > 0);
@@ -87,28 +87,8 @@ public sealed class Voyage
         }
         if (Mode != VoyageMode.Sailing) return;
         CombatTime += dt; Invulnerable = Math.Max(0, Invulnerable - dt);
-        Vector2 direction = OceanWorld.Unit(input.Move);
-        if (!input.Boost) BoostExhausted = false;
-        bool boosting = input.Boost && !BoostExhausted && Boost > 0 && direction != Vector2.Zero;
-        Boost = Math.Clamp(Boost + dt * (boosting ? -38 : input.Boost && BoostExhausted ? 0 : 23), 0, 100);
-        if (boosting && Boost <= 0) BoostExhausted = true;
-        Vector2 wanted = direction * Speed * (boosting ? 1.85f : 1);
-        Velocity = Vector2.Lerp(Velocity, wanted, 1 - MathF.Exp(-dt * (direction == Vector2.Zero ? 5 : 7)));
-        if (Velocity.LengthSquared() > 20) Heading = ApproachAngle(Heading, MathF.Atan2(Velocity.Y, Velocity.X) + MathF.PI / 2, dt * 9);
-        var old = Position;
-        float hullRadius = Boat == BoatKind.Cutter ? 30 : 37;
-        Position = World.Slide(old, Position + Velocity * dt, hullRadius);
-        // A two-disc capsule follows the long hull; the prow cannot cut into an island.
-        var bow = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading)) * 35;
-        for (int pass = 0; pass < 2; pass++)
-        {
-            Position += World.Slide(old + bow, Position + bow, hullRadius) - (Position + bow);
-            Position += World.Slide(old - bow, Position - bow, hullRadius) - (Position - bow);
-        }
-        Distance += Vector2.Distance(old, Position); MaxDistance = Math.Max(MaxDistance, Position.Length());
-        World.Stream(Position);
-        foreach (var p in World.Places) if (Vector2.Distance(Position, p.Position) < 680) World.Discovered.Add(p.Id);
-        if (boosting && ((int)(CombatTime * 25) != (int)((CombatTime - dt) * 25))) Events.Add(new("boost", Position));
+        bool boosting = UpdateMovement(dt, input);
+        CollectEncounters();
         bool safe = Safe;
         int spawn = BossSlain && !Retired ? 0 : Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
@@ -202,6 +182,11 @@ public sealed class Voyage
             }
             var harbor = World.Places.FirstOrDefault(p => p.Kind == PlaceKind.Harbor && Vector2.Distance(p.Position, e.Position) < 315);
             if (harbor != null) motion = OceanWorld.Unit(e.Position - harbor.Position);
+            if (e.Pull > 0)
+            {
+                e.Pull = Math.Max(0, e.Pull - dt);
+                if (distance > 110) motion += dir * (320 / speed) * (e.Kind == EnemyKind.Leviathan ? .25f : 1);
+            }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
             if (!safe && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f, boosting);
@@ -216,93 +201,6 @@ public sealed class Voyage
     {
         if (Invulnerable > 0 || Safe || Mode != VoyageMode.Sailing) return;
         Health -= damage * (boosting ? .45f : Boat == BoatKind.Trawler && Velocity.Length() < Speed * .45f ? .7f : 1); Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
-    }
-    void UpdateWeapons(float dt, bool safe)
-    {
-        for (int w = 0; w < Weapons.Length; w++)
-        {
-            Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt);
-            if (Weapons[w] == 0 || Cooldowns[w] > 0 || safe) continue;
-            float range = w == 4 ? (130 + Weapons[w] * 8) * Area : w == 5 ? 195 * Area : w == 3 ? 285 * Area : w == 2 ? 610 : 570;
-            Enemy? target = null; float near = range * range;
-            foreach (var e in Enemies) { float d = Vector2.DistanceSquared(e.Position, Position); if (e.Health > 0 && d < near) { near = d; target = e; } }
-            if (target == null) continue;
-            int rank = Weapons[w]; float damage = (w == 0 ? 15 : w == 1 ? 13 : w == 2 ? 35 : w == 4 ? 7 : w == 5 ? 28 : 18) * (1 + .40f * (rank - 1));
-            Cooldowns[w] = (w == 0 ? .65f : w == 1 ? 1.2f : w == 2 ? 2.4f : w == 4 ? .6f : w == 5 ? 1.7f : 1.55f) / ((1 + .1f * (rank - 1)) * (1 + ReloadRank * .12f) * (Slipstream > 0 ? 1.65f : 1));
-            if (w is 4 or 5)
-            {
-                Vector2 aim = OceanWorld.Unit(target.Position - Position);
-                Events.Add(new(w == 4 ? "aura" : "broadside", Position, range, Position + aim * range));
-                foreach (var e in Enemies)
-                {
-                    var offset = e.Position - Position;
-                    if (e.Health <= 0 || offset.Length() > range + e.Radius) continue;
-                    if (w == 5 && Vector2.Dot(OceanWorld.Unit(offset), aim) < MathF.Cos(BroadsideHalfAngle)) continue;
-                    Hit(e, damage * (w == 5 && e.Mark > 0 ? SoakedDamageMultiplier : 1));
-                    if (w == 5) e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(offset) * (28 + rank * 5), e.Radius);
-                }
-            }
-            else if (w == 3)
-            {
-                Vector2 from = Position; var chain = new HashSet<int>(); Enemy? hit = target;
-                for (int i = 0; i < 2 + rank && hit != null; i++)
-                {
-                    chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage * (hit.Mark > 0 ? SoakedDamageMultiplier : 1));
-                    from = hit.Position; hit = Enemies.Where(e => e.Health > 0 && !chain.Contains(e.Id) && Vector2.DistanceSquared(e.Position, from) < MathF.Pow(180 * Area, 2)).OrderBy(e => Vector2.DistanceSquared(e.Position, from)).FirstOrDefault();
-                }
-            }
-            else
-            {
-                Vector2 dir = OceanWorld.Unit(target.Position - Position);
-                int count = w == 0 && rank >= 3 ? 2 : 1;
-                for (int i = 0; i < count; i++)
-                {
-                    float hullScale = Boat == BoatKind.Cutter ? 139f / 145 : 151f / 145;
-                    Vector2 bowMount = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading)) * (48 * hullScale);
-                    if (w == 0) dir = OceanWorld.Unit(target.Position - (Position + bowMount));
-                    Vector2 start = Position + (w == 0 ? bowMount + dir * (24 * hullScale) : dir * 29) + new Vector2(-dir.Y, dir.X) * (count == 2 ? (i == 0 ? -9 : 9) : 0);
-                    Shots.Add(new() { Kind = (WeaponKind)w, Position = start, Previous = start, Velocity = dir * (w == 1 ? 580 : w == 2 ? 370 : 650), Target = target.Position, Damage = damage, Life = w == 2 ? Vector2.Distance(start, target.Position) / 370 : 1.05f, Radius = w == 2 ? (95 + rank * 9) * Area : 6, Pierce = w == 1 ? rank : 0 });
-                }
-            }
-            if (w < 3) Events.Add(new(w == 0 ? "shot" : w == 1 ? "harpoon" : "mortar", Position));
-        }
-    }
-    static float SegmentDistance(Vector2 p, Vector2 a, Vector2 b)
-    {
-        Vector2 v = b - a; float t = v.LengthSquared() > 0 ? Math.Clamp(Vector2.Dot(p - a, v) / v.LengthSquared(), 0, 1) : 0;
-        return Vector2.Distance(p, a + t * v);
-    }
-    void UpdateShots(float dt, bool safe, bool boosting)
-    {
-        foreach (var s in Shots)
-        {
-            if (s.Life <= 0) continue;
-            s.Previous = s.Position; s.Position += s.Velocity * dt; s.Life -= dt;
-            if (s.Hostile)
-            {
-                if (World.HarborAt(s.Position) != null) { s.Life = 0; continue; }
-                if (SegmentDistance(Position, s.Previous, s.Position) < 26 + s.Radius) { if (!safe) DamagePlayer(s.Damage, boosting); s.Life = 0; }
-                if (!World.IsWater(s.Position, 1)) s.Life = 0;
-                continue;
-            }
-            if (s.Kind == WeaponKind.Mortar)
-            {
-                if (s.Life <= 0)
-                {
-                    Events.Add(new("explosion", s.Position, s.Radius));
-                    foreach (var e in Enemies) if (e.Health > 0 && Vector2.Distance(e.Position, s.Position) < s.Radius + e.Radius) Hit(e, s.Damage * (e.Mark > 0 ? SoakedDamageMultiplier : 1));
-                }
-                continue;
-            }
-            foreach (var e in Enemies)
-            {
-                if (e.Health <= 0 || s.Hit.Contains(e.Id) || SegmentDistance(e.Position, s.Previous, s.Position) > e.Radius + s.Radius) continue;
-                s.Hit.Add(e.Id); Hit(e, s.Damage);
-                if (s.Kind == WeaponKind.Harpoon) e.Mark = 4.5f + Weapons[1] * .3f;
-                if (s.Pierce-- <= 0) { s.Life = 0; break; }
-            }
-            if (!World.IsWater(s.Position, 2)) s.Life = 0;
-        }
     }
     void Hit(Enemy e, float damage)
     {
@@ -437,14 +335,14 @@ public sealed class Voyage
         Events.Add(new("buy", Position)); return true;
     }
     public void ClaimVictory() { if (Mode == VoyageMode.Harbor && BossSlain) { Retired = true; Mode = VoyageMode.Victory; Events.Add(new("victory", Position)); } }
-    public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Bomb", "Lightning", "Whirlpool", "Blast", "Hull", "Speed", "Reload", "Reach"];
+    public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Broadside", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [
-        "Fast shots at the nearest enemy.",
-        "Pierces enemies in a line. Slows and soaks them.",
-        "Lobs a bomb that bursts into a crowd.",
+        "Cannonballs bounce between foes and off rocks.",
+        "Pierces, pulls and soaks enemies.",
+        "Drops mines behind you as you sail.",
         "Lightning jumps from enemy to enemy.",
         "A damaging ring around your boat.",
-        "A wide, close-range blast. Pushes enemies back.",
+        "Fires from both sides. Sail alongside foes.",
         "Take more hits.",
         "Outrun trouble.",
         "Keep every weapon firing.",
@@ -455,12 +353,12 @@ public sealed class Voyage
         if (rank >= 5) return "Max level.";
         return option switch
         {
-            0 => rank == 2 ? "Adds a second barrel. More damage, faster fire." : rank == 0 ? "Fires automatically. Twin barrels at level 3." : "More damage. Faster fire.",
-            1 => $"Pierces {rank + 2} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
-            2 => rank == 0 ? "Big blasts. Long range." : "Bigger blasts. More damage, faster fire.",
+            0 => rank == 2 ? "Twin barrels. Two bounces per ball." : $"{1 + (rank + 1) / 2} bounces per ball. More damage, faster fire.",
+            1 => $"Pierces {rank + 2} enemies. Pulls them closer.",
+            2 => "Bigger mine blasts. More damage, faster drops.",
             3 => $"Hits up to {rank + 3} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
             4 => rank == 0 ? "Hits nearby enemies in every direction." : "Wider ring. More damage, faster pulses.",
-            5 => rank == 0 ? "Makes room when enemies get close." : "More pushback, more damage, faster fire.",
+            5 => "Stronger volleys. Faster reload.",
             6 => "+25 max health.",
             7 => "+10% sailing speed.",
             8 => "+12% fire rate for every weapon.",
@@ -473,7 +371,7 @@ public sealed class Voyage
 public sealed record BoatSpec(string Name, float Hull, float Speed, string Ability, string Description)
 {
     public static readonly BoatSpec[] All = [
-        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Blast."),
+        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Broadside."),
         new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Starts with Whirlpool.")
     ];
     public static BoatSpec For(BoatKind kind) => All[(int)kind];
