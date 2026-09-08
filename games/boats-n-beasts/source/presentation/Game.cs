@@ -58,7 +58,7 @@ public partial class Game : Node2D
                 V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0), (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
                 if (move != V2.Zero) { mouseHelm = false; destination = null; }
                 if (destination is V2 goal) { var d = goal - Run.Position; if (d.Length() < 45) destination = null; else move = d; }
-                if (mouseHelm) { var aim = helmPointer - ocean.Screen(Run.Position); move = aim.Length() > 28 ? new V2(aim.X, aim.Y) : V2.Zero; }
+                if (mouseHelm) { var aim = helmPointer - ocean.Screen(Run.Position); move = aim.Length() > 28 ? ocean.WorldDirection(aim) : V2.Zero; }
                 var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 Run.Tick(dt, new(move, (toggleBoost ? boostLatched : Down(Key.Space) || Down(Key.Shift))));
                 if (Run.Mode == VoyageMode.Sailing) simulationMs = simulationMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(tickStart).TotalMilliseconds * .05;
@@ -92,7 +92,7 @@ public partial class Game : Node2D
     public override void _UnhandledInput(InputEvent input)
     {
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click && !title && Run.Mode == VoyageMode.Sailing)
-        { var offset = click.Position - ocean.Screen(Run.Position); destination = Run.Position + new V2(offset.X, offset.Y); mouseHelm = false; GetViewport().SetInputAsHandled(); }
+        { destination = ocean.WorldPoint(click.Position); mouseHelm = false; GetViewport().SetInputAsHandled(); }
         if (input is InputEventMouseMotion motion) helmPointer = motion.Position;
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right } mouse && !title && Run.Mode == VoyageMode.Sailing)
         { destination = null; helmPointer = mouse.Position; mouseHelm = !mouseHelm; Toast(mouseHelm ? "Mouse helm on · point to steer · right-click to stop" : "Mouse helm off"); GetViewport().SetInputAsHandled(); }
@@ -103,7 +103,7 @@ public partial class Game : Node2D
         string name = DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
-        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
+        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}/{Run.Slipstream:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
         foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} mark={enemy.Mark:R}\n";
         foreach (var shot in Run.Shots) report += $"Shot {shot.Kind} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R}\n";
@@ -400,8 +400,8 @@ public partial class Game : Node2D
                 Text(new(counterX + 20, 45), counters[i], 21);
                 counterX += BodyFont.GetStringSize(counters[i], fontSize: 21).X + 48;
             }
-            var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
-            Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
+            var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -72);
+            Bar(healthPosition, new(68, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
             string[] itemLabels = ["CANNON", "HARPOON", "BOMB", "LIGHTNING", "WHIRLPOOL", "BLAST", "HULL", "SPEED", "RELOAD", "REACH"];
             var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
             const float itemWidth = 96, gap = 8;

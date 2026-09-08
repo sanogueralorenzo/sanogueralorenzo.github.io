@@ -73,3 +73,5 @@ Boat selection contains only the boat choice, Set Sail and Back. Every new run, 
 Menus use compact navy panels, cream text, turquoise selection and gold purchase controls. Harbor and level-up offers share three equal cards with original code-drawn symbols and concise benefits. Hover motion and purchase pulses respect Reduced motion.
 
 The gameplay art follows the approved nautical concept using original code-drawn shapes: muted petrol-blue water, sparse waves, turquoise wakes and shallows, warm sand and broad rocks, cream cabins over wood decks, coral crabs, ochre puffers and teal serpents/rays. Fishing spots use layered turquoise ripples and three cream fish. Geometry remains lightweight and the existing creature/scenery caches are retained.
+
+The gameplay camera uses 0.74× zoom (about 35% more horizontal ocean) and 0.84 vertical foreshortening for a subtle tilted 2D view. World art, shader, culling, click destinations and mouse steering share the projection; menus and HUD retain their screen scale. Islands use curved coves, raised rocky banks and scattered shore stones. Fishing ripples are broken, irregular arcs around three moving fish.

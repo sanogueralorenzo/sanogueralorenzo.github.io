@@ -25,10 +25,17 @@ public partial class OceanView : Node2D
     sealed class Particle { public Vector2 P, V, End; public float Life, MaxLife, Size; public string Kind = ""; public Color Color; }
     public override void _Ready() { art = new(this); creatures = new(); AddChild(creatures); scenery = new(); AddChild(scenery); rng.Seed = 77; }
     public static Vector2 G(V2 v) => new(v.X, v.Y);
-    public Vector2 Screen(V2 p) => G(p) - Camera + GetViewportRect().Size * .5f;
+    public const float CameraZoom = .74f, GroundForeshortening = .84f;
+    public Vector2 Projection => Menu ? Vector2.One : new(CameraZoom, CameraZoom * GroundForeshortening);
+    Vector2 ViewSize => GetViewportRect().Size / Projection;
+    Vector2 CanvasPoint(V2 p) => G(p) - Camera + ViewSize * .5f;
+    public Vector2 Screen(V2 p) => CanvasPoint(p) * Projection;
+    public V2 WorldPoint(Vector2 screen) { var p = (screen - GetViewportRect().Size * .5f) / Projection + Camera; return new(p.X, p.Y); }
+    public V2 WorldDirection(Vector2 screenDirection) { var d = screenDirection / Projection; return new(d.X, d.Y); }
     public void Reset() { scenery.Clear(); particles.Clear(); wakes.Clear(); Camera = G(Voyage.Position); }
     public void Advance(float dt)
     {
+        Scale = Projection;
         if (Menu || Voyage.Mode == VoyageMode.Sailing) { Clock += dt; muzzleTime = Math.Max(0, muzzleTime-dt); }
         if (!Menu && Voyage.Mode == VoyageMode.Sailing)
         {
@@ -43,8 +50,8 @@ public partial class OceanView : Node2D
             foreach (var p in particles) { p.Life -= dt; p.P += p.V * dt; p.V *= MathF.Exp(-dt * 2); }
             particles.RemoveAll(p => p.Life <= 0); wakes.RemoveAll(w => Clock - w.Born > 2.1f); Shake = Math.Max(0, Shake - dt * 20);
         }
-        if (Water != null) { Water.SetShaderParameter("ocean_time", Clock); Water.SetShaderParameter("camera", Camera); Water.SetShaderParameter("resolution", GetViewportRect().Size); }
-        scenery.Sync(Voyage.World.Places, Camera, GetViewportRect().Size);
+        if (Water != null) { Water.SetShaderParameter("ocean_time", Clock); Water.SetShaderParameter("camera", Camera); Water.SetShaderParameter("resolution", GetViewportRect().Size); Water.SetShaderParameter("projection", Projection); }
+        scenery.Sync(Voyage.World.Places, Camera, ViewSize);
         if ((int)(Clock * 2) != (int)((Clock-dt)*2)) art.Trim(Voyage.World.Places.Select(p=>p.Style));
         QueueRedraw();
     }
@@ -69,12 +76,12 @@ public partial class OceanView : Node2D
     {
         if (Voyage == null || art == null) return;
         var drawStart = System.Diagnostics.Stopwatch.GetTimestamp();
-        var size = GetViewportRect().Size;
+        var size = ViewSize;
 
         // Broad tonal bands and sparse world-anchored turquoise glints preserve the spacious reference.
 
         int left = (int)MathF.Floor((Camera.X - size.X / 2) / 150) - 1, top = (int)MathF.Floor((Camera.Y - size.Y / 2) / 120) - 1;
-        for (int y = top; y < top + 12; y++) for (int x = left; x < left + 14; x++)
+        for (int y = top; y < top + (int)(size.Y / 120) + 3; y++) for (int x = left; x < left + (int)(size.X / 150) + 3; x++)
         {
             uint h = SeedRandom.Hash(Voyage.World.Seed, x, y);
             if (h % 3 != 0) continue;
@@ -83,10 +90,10 @@ public partial class OceanView : Node2D
             float alpha = .12f + .06f * MathF.Sin(Clock * .5f + h % 17);
             DrawPolyline([p, p + new Vector2(9, -2), p + new Vector2(22, 0), p + new Vector2(30, -3)], new Color(Aqua, alpha), 2, true);
         }
-        if (!Menu && Destination is V2 goal) { var at = Screen(goal); DrawArc(at, 17, Clock, Clock + Mathf.Tau * .8f, 30, new Color(Cream, .5f), 2, true); DrawCircle(at, 3, Cream); }
+        if (!Menu && Destination is V2 goal) { var at = CanvasPoint(goal); DrawArc(at, 17, Clock, Clock + Mathf.Tau * .8f, 30, new Color(Cream, .5f), 2, true); DrawCircle(at, 3, Cream); }
         foreach (var place in Voyage.World.Places)
         {
-            Vector2 p = Screen(place.Position);
+            Vector2 p = CanvasPoint(place.Position);
             float margin = place.Kind == PlaceKind.Fishing ? 100 : SceneryCache.Margin(place);
             if (p.X < -margin || p.X > size.X + margin || p.Y < -margin || p.Y > size.Y + margin) continue;
             if (place.Kind == PlaceKind.Fishing) { DrawFishing(place, p); continue; }
@@ -123,13 +130,13 @@ public partial class OceanView : Node2D
         }
         if (!Menu && Voyage.Weapons[4] > 0)
         {
-            var at = Screen(Voyage.Position); float r = (130 + Voyage.Weapons[4] * 8) * Voyage.Area;
+            var at = CanvasPoint(Voyage.Position); float r = (130 + Voyage.Weapons[4] * 8) * Voyage.Area;
             DrawCircle(at, r, new Color(Aqua, .045f));
             for (int i = 0; i < 5; i++) { float a = Clock * .7f + i * Mathf.Tau / 5; DrawArc(at, r, a, a + .58f, 14, new Color(Aqua, .25f), 2, true); }
         }
         foreach (var e in Voyage.Enemies.OrderBy(e => e.Position.Y))
         {
-            Vector2 p = Screen(e.Position);
+            Vector2 p = CanvasPoint(e.Position);
             float margin = e.Kind == EnemyKind.Leviathan ? 180 : 100;
             if (p.X < -margin || p.Y < -margin || p.X > size.X + margin || p.Y > size.Y + margin) continue;
             float h = e.Kind == EnemyKind.Leviathan ? 230 : e.Kind == EnemyKind.Serpent ? 119 : e.Kind == EnemyKind.Ray ? 115 : 95;
@@ -147,14 +154,14 @@ public partial class OceanView : Node2D
         }
         foreach (var s in Voyage.Shots)
         {
-            Vector2 p = Screen(s.Position);
+            Vector2 p = CanvasPoint(s.Position);
             if (p.X < -40 || p.Y < -40 || p.X > size.X + 40 || p.Y > size.Y + 40) continue;
             Vector2 dir = G(OceanWorld.Unit(s.Velocity));
             if (s.Hostile) { DrawCircle(p, 11, Navy); DrawCircle(p, 8, Coral); DrawCircle(p - new Vector2(2, 2), 2, Cream); }
             else if (s.Kind == WeaponKind.Mortar) { DrawCircle(p, 12, new Color(Navy, .45f)); DrawCircle(p - new Vector2(0, 25 * MathF.Sin(MathF.Min(s.Life, 1) * Mathf.Pi)), 7, Cream); }
             else { DrawLine(p - dir * (s.Kind == WeaponKind.Harpoon ? 26 : 16), p, s.Kind == WeaponKind.Harpoon ? Aqua : Cream, 5, true); DrawLine(p - dir * 8, p + dir * 3, Cream, 3, true); }
         }
-        var boatPos = Menu ? new Vector2(size.X * .73f, size.Y * .57f) : Screen(Voyage.Position);
+        var boatPos = Menu ? new Vector2(size.X * .73f, size.Y * .57f) : CanvasPoint(Voyage.Position);
         if (Shake > 0) boatPos += new Vector2(MathF.Sin(Clock * 100), MathF.Cos(Clock * 90)) * Shake;
 
         float heading = Menu ? -.65f : Voyage.Heading;
@@ -187,22 +194,32 @@ public partial class OceanView : Node2D
     {
         bool casting = Voyage.Mode == VoyageMode.Fishing && Voyage.FishingPlace?.Id == place.Id;
         if (Voyage.World.FishLeft(place) == 0 && !casting) return;
-        float pulse = (Clock * .45f) % 1;
-        DrawEllipse(p, new(48, 29), new Color(Aqua, .12f));
-        EllipseArc(p, new(46, 26), new Color(Aqua, .75f), 3);
-        EllipseArc(p + new Vector2(2,-1), new(38, 21), new Color(Aqua, .32f), 2);
-        EllipseArc(p, new(46 + pulse * 20, 26 + pulse * 12), new Color(Aqua, .45f * (1 - pulse)), 2);
+        DrawEllipse(p, new(60, 44), new Color(Aqua, .075f));
+        for (int ring = 0; ring < 3; ring++)
+        {
+            float phase = Clock * .2f + ring * 1.7f;
+            for (int segment = 0; segment < 3; segment++)
+            {
+                var points = new Vector2[17];
+                for (int i = 0; i < points.Length; i++)
+                {
+                    float a = phase + segment * Mathf.Tau / 3 + i / 16f * 1.55f;
+                    float r = 40 + ring * 10 + 2.5f * Mathf.Sin(a * 5 + phase);
+                    points[i] = p + new Vector2(Mathf.Cos(a)*r,Mathf.Sin(a)*r*.72f);
+                }
+                DrawPolyline(points,new Color(Aqua,ring == 1 ? .7f : .28f),ring == 1 ? 3 : 2,true);
+            }
+        }
         for (int i = 0; i < 3; i++)
         {
-            float a = i * Mathf.Tau / 3 + Clock * .35f;
-            Vector2 fish = p + new Vector2(MathF.Cos(a) * 23, MathF.Sin(a) * 12);
-            DrawEllipse(fish, new(7, 3), Cream);
-            DrawColoredPolygon([fish + new Vector2(-4, 0), fish + new Vector2(-9, -3), fish + new Vector2(-9, 3)], Cream);
+            float a = i * Mathf.Tau / 3 + Clock * .22f;
+            Vector2 fish = p + new Vector2(MathF.Cos(a) * 24, MathF.Sin(a) * 18);
+            DrawSetTransform(fish, .3f*Mathf.Sin(a));
+            DrawColoredPolygon([new(-8,0),new(-3,-4),new(4,-3),new(9,0),new(3,4),new(-3,3)],Cream);
+            DrawColoredPolygon([new(-6,0),new(-13,-5),new(-12,5)],Cream);
+            DrawCircle(new(5,-.5f),1.1f,Navy);
+            DrawSetTransform(Vector2.Zero);
         }
     }
     void DrawEllipse(Vector2 p, Vector2 radius, Color color) { DrawSetTransform(p, 0, radius); DrawCircle(Vector2.Zero, 1, color); DrawSetTransform(Vector2.Zero); }
-    void EllipseArc(Vector2 p, Vector2 radius, Color color, float width)
-    {
-        var points = new Vector2[49]; for (int i = 0; i < points.Length; i++) { float a = i / 48f * Mathf.Tau; points[i] = p + new Vector2(Mathf.Cos(a) * radius.X, Mathf.Sin(a) * radius.Y); } DrawPolyline(points, color, width, true);
-    }
 }

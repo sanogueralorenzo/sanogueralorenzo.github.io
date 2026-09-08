@@ -220,30 +220,46 @@ public sealed class ProceduralArt(Node2D canvas)
     {
         if(!islands.TryGetValue(seed,out var mesh))
         {
-            var rng=new SeedRandom(seed);var ring=new Vector2[16];
-            for(int i=0;i<ring.Length;i++){float a=i*Mathf.Tau/ring.Length;float r=rng.Range(.82f,1.1f);ring[i]=new(Mathf.Cos(a)*r,Mathf.Sin(a)*r*.72f);}
+            var rng=new SeedRandom(seed);var ring=new Vector2[28]; float phase=rng.Range(0,Mathf.Tau);
+            for(int i=0;i<ring.Length;i++)
+            {
+                float a=i*Mathf.Tau/ring.Length;
+                float r=.88f+.13f*Mathf.Cos(a*3+phase)+.065f*Mathf.Sin(a*5-phase);
+                ring[i]=new(Mathf.Cos(a)*r,Mathf.Sin(a)*r*.83f);
+            }
             islands[seed]=mesh=new(ring);
         }
         canvas.DrawSetTransform(p);
         var outer=mesh.Ring.Select(v=>v*radius).ToArray();
-        // Quiet shelves of shallow water, a clear beach, then a few broad rock masses.
-        Poly(outer.Select(v=>v*1.22f+new Vector2(0,7)).ToArray(),new Color(.13f,.53f,.54f,.48f));
-        Poly(outer.Select(v=>v*1.11f+new Vector2(0,5)).ToArray(),new Color(.2f,.66f,.61f,.65f));
-        Poly(Shift(outer,new(0,5)),SandShade);
+        // Uneven shallows and a broad low beach surround a raised rocky interior.
+        Poly(outer.Select((v,i)=>v*(1.15f+.04f*Mathf.Sin(i*1.6f))+new Vector2(0,9)).ToArray(),new Color(.13f,.53f,.54f,.27f));
+        Poly(outer.Select((v,i)=>v*(1.065f+.02f*Mathf.Cos(i))+new Vector2(0,5)).ToArray(),new Color(.2f,.66f,.61f,.55f));
+        Poly(Shift(outer,new(0,4)),SandShade);
         Poly(outer,Sand);
-        Poly(outer.Select(v=>v*.94f-new Vector2(0,4)).ToArray(),SandLight);
-        var foam=outer.Select(v=>v*1.07f+new Vector2(0,5)).ToArray();
-        for(int i=0;i<foam.Length;i+=2) Line(foam[i],foam[i].Lerp(foam[(i+1)%foam.Length],.75f),new Color(Cream,.45f),2);
+        Poly(outer.Select(v=>v*.95f-new Vector2(0,2)).ToArray(),SandLight);
+        // Smaller high bank offset to the back leaves an open crescent of sand in front.
+        var bank=outer.Select(v=>v*new Vector2(.7f,.64f)-new Vector2(radius*.09f,radius*.19f)).ToArray();
+        Prism(bank,radius*.12f,new Color("91927a"),new Color("737665"));
+        var foam=outer.Select(v=>v*1.035f+new Vector2(0,4)).ToArray();
+        for(int i=0;i<foam.Length;i+=4)
+            canvas.DrawPolyline([foam[i],foam[(i+1)%foam.Length],foam[(i+2)%foam.Length]],new Color(Cream,.5f),2,true);
         var rocks=new SeedRandom(seed ^ 0xa812u);
-        for(int i=0;i<(harbor?4:5);i++)
+        for(int i=0;i<7;i++)
         {
-            float a=2.8f+i*.8f; var at=new Vector2(Mathf.Cos(a)*radius*.52f,Mathf.Sin(a)*radius*.36f);
-            Boulder(at,radius*rocks.Range(.2f,.32f),seed+(uint)i);
+            float a=2.15f+i*.53f;
+            var at=new Vector2(Mathf.Cos(a)*radius*.58f,Mathf.Sin(a)*radius*.36f-radius*.12f);
+            Boulder(at,radius*rocks.Range(.19f,.34f),seed+(uint)i);
         }
         for(int i=0;i<3;i++)
         {
-            var at=new Vector2(-radius*.25f+i*radius*.19f,-radius*.12f);
-            Poly([at+new Vector2(-12,6),at+new Vector2(-8,-5),at+new Vector2(5,-9),at+new Vector2(15,3),at+new Vector2(3,9)],new Color(i%2==0?"788153":"929661"));
+            var at=new Vector2(-radius*.28f+i*radius*.22f,-radius*.18f);
+            Poly([at+new Vector2(-14,6),at+new Vector2(-8,-6),at+new Vector2(5,-10),at+new Vector2(17,3),at+new Vector2(3,9)],new Color(i%2==0?"788153":"929661"));
+        }
+        // Loose shore stones break up the beach edge without extending the collision footprint.
+        for(int i=0;i<3;i++)
+        {
+            float a=.4f+i*2.2f; var at=new Vector2(Mathf.Cos(a)*radius*.85f,Mathf.Sin(a)*radius*.68f);
+            Boulder(at,radius*rocks.Range(.08f,.14f),seed+(uint)i+20);
         }
         if(harbor)
         {
