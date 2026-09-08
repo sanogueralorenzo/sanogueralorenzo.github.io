@@ -1,7 +1,7 @@
 using System.Numerics;
 namespace BoatsNBeasts.Core;
 
-public enum VoyageMode { Sailing, Fishing, Catch, Harbor, Upgrade, Paused, Defeat, Victory }
+public enum VoyageMode { Sailing, Fishing, Harbor, Upgrade, Paused, Defeat, Victory }
 public enum BoatKind { Cutter, Trawler }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
 public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Broadside }
@@ -57,7 +57,7 @@ public sealed partial class Voyage
     public int NextEnemyId;
     public Place? FishingPlace;
     public float FishingTime, FishCursor, FishTarget;
-    public string CatchTitle = "", CatchDetail = "";
+    public string CatchTitle = "";
     public BoatSpec Spec => BoatSpec.For(Boat);
     public float MaxHealth => Spec.Hull + HullRank * 25;
     public float Speed => Spec.Speed * (1 + EngineRank * .1f);
@@ -254,11 +254,12 @@ public sealed partial class Voyage
             string[] names = ["Silver sprat", "Coral snapper", "Moonfin tuna", "Golden lanternfish", "Abyssal stargazer"];
             int rarity = Math.Min(4, Tier + (fishRandom.Unit() > .7f ? 1 : 0));
             var item = new CatchItem(names[rarity], 14 + rarity * 13 + Tier * 4); Hold.Add(item);
-            CatchTitle = item.Name; CatchDetail = $"{item.Value} gold · sold when you dock";
-            Events.Add(new("catch", Position));
+            CatchTitle = item.Name;
+            Events.Add(new("catch", Position, item.Value));
         }
-        else { CatchTitle = "The one that got away"; CatchDetail = "Reel once inside turquoise. Another school awaits."; Events.Add(new("miss", Position)); }
-        Mode = VoyageMode.Catch;
+        else { CatchTitle = "Got away"; Events.Add(new("miss", Position)); }
+        FishingPlace = null;
+        Mode = VoyageMode.Sailing;
     }
     public void CancelFishing() { if (Mode == VoyageMode.Fishing) { FishingPlace = null; Mode = VoyageMode.Sailing; } }
     public int LastCatchSale { get; private set; }

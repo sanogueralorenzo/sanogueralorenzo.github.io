@@ -50,3 +50,6 @@ Each image has its native telemetry partner. Original timestamped captures remai
 - `no-right-click-steering`: right-click leaves the boat stationary.
 
 Native telemetry accompanies each image. Victory capture precedes only sale-header/report/copy cleanup; the remaining captures use the final implementation.
+
+- `catch-without-popup.png/.txt`: successful Silver sprat, its 14-gold value above the boat, Sailing mode and cargo retained without a result menu.
+- `sailing-after-catch.png/.txt`: label cleared; combat clock advanced and steering resumed after the catch.

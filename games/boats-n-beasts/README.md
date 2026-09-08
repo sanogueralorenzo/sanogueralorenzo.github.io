@@ -21,7 +21,7 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 - **WASD / arrows:** sail. **Left click:** sail to a point and stop.
 - **Space / Shift:** boost while moving. Boost reduces damage; releasing an exhausted boost lets it recharge.
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.
-- **Space / E while fishing:** reel inside the turquoise band. One successful reel lands the catch; one miss or 8 seconds without reeling loses it. Each school allows one cast. Success, failure, or Escape cancellation uses it up.
+- **Space / E while fishing:** reel inside the turquoise band. One successful reel lands the catch; one miss or 8 seconds without reeling loses it. The fish name and gold value appear briefly above the boat; sailing resumes immediately without a result menu. Each school allows one cast. Success, failure, or Escape cancellation uses it up.
 - **Escape:** pause, cancel fishing, or leave a result/harbor screen. **Enter / Tab / arrows:** operate menus. Space cannot accidentally select an upgrade while boosting.
 - **×1 / ×2 / ×3, below the top-left counters:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
 - **F12:** save a native viewport image and runtime measurements under `evidence/`.

@@ -25,3 +25,5 @@ Boat selection is now fixed at Voyage construction (get-only Boat property). Har
 
 
 Run-flow simplification: dock automatically sells cargo; fishing resolves after one timed input with an eight-second timeout. Charts and return-to-harbor victory claim are removed; crossing three leagues spawns the boss and defeating it wins immediately. Right-click steering is removed. A full live run won immediately after the boss died (Trawler, Cannon rank 5, Whirlpool rank 1, Reload rank 1). Final-build native checks verified a one-reel catch, its automatic sale, no repeat sale on re-docking, and inert right-click. Capture reports include fishing cursor/target, last sale and boss flags.
+
+Fishing results no longer open a menu: success and failure immediately return to sailing. A boat-following label shows the fish name/value (or “Got away”) for 2.5 seconds, rising gently and fading. Catches remain cargo until docking. Live success/failure, label disappearance and continued sailing verified; see catch-without-popup and sailing-after-catch evidence.

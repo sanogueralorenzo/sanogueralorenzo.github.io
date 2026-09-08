@@ -26,7 +26,8 @@ public partial class Game : Node2D
     uint selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
     int bestKills, completed, finishedRuns, silver, creditedSilver;
     bool recorded;
-    float elapsed, toastTime;
+    float elapsed, toastTime, catchNoticeTime;
+    string catchNotice = "";
     string toast = "";
 
 
@@ -48,7 +49,7 @@ public partial class Game : Node2D
         water.Size = GetViewportRect().Size;
         if (!title && Run.Mode == VoyageMode.Sailing) { frameSamples.Add(delta * 1000); if(frameSamples.Count>7200)frameSamples.RemoveRange(0,3600); performanceClock += (float)delta; peakEnemyCount = Math.Max(peakEnemyCount, Run.Enemies.Count); peakShotCount = Math.Max(peakShotCount, Run.Shots.Count); }
         if (performanceClock-lastPerformanceLog>30) { lastPerformanceLog=performanceClock; var sorted=frameSamples.Order().ToArray(); GD.Print($"LIVE sailingSeconds={performanceClock:0} frameMeanMs={sorted.Average():0.00} p95Ms={sorted[(int)(sorted.Length*.95)]:0.00} chunks={Run.World.Loaded.Count} enemies={Run.Enemies.Count} shots={Run.Shots.Count} distance={Run.Distance:0} hp={Run.Health:0}"); }
-        float dt = (float)Math.Min(delta, .05); elapsed += dt; toastTime = Math.Max(0, toastTime - dt);
+        float dt = (float)Math.Min(delta, .05); elapsed += dt; catchNoticeTime = Math.Max(0, catchNoticeTime - dt); toastTime = Math.Max(0, toastTime - dt);
         // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
         for (int step = 0; step < (title ? 1 : gameSpeed); step++)
         {
@@ -65,6 +66,11 @@ public partial class Game : Node2D
             foreach (var e in Run.Events)
             {
                 ocean.Effect(e);
+                if (e.Kind is "catch" or "miss")
+                {
+                    catchNotice = e.Kind == "catch" ? $"{Run.CatchTitle} · {e.Value:0} gold" : Run.CatchTitle;
+                    catchNoticeTime = 2.5f;
+                }
                 if (e.Kind == "silver") Toast("+1 silver");
                 if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
                 if (e.Kind == "salvage") Toast($"Wreck salvaged · +{e.Value:0} gold");
@@ -129,7 +135,7 @@ public partial class Game : Node2D
             else if (!title)
             {
                 if (Run.Mode == VoyageMode.Fishing) Run.CancelFishing();
-                else if (Run.Mode is VoyageMode.Catch or VoyageMode.Harbor) Run.Mode = VoyageMode.Sailing;
+                else if (Run.Mode == VoyageMode.Harbor) Run.Mode = VoyageMode.Sailing;
                 else if (Run.Mode == VoyageMode.Paused) Run.Mode = beforePause;
                 else if (Run.Mode == VoyageMode.Sailing) { destination = null; beforePause = Run.Mode; Run.Mode = VoyageMode.Paused; }
                 BuildMenu();
@@ -144,7 +150,6 @@ public partial class Game : Node2D
             if (!Run.Interact()) Toast(Run.Hold.Count >= 12 ? "Your hold is full. Dock to sell your catch." : "Sail close to a fishing school or harbor, then press E.");
             BuildMenu();
         }
-        else if (Run.Mode == VoyageMode.Catch && key.Keycode == Key.Enter) { Run.Mode = VoyageMode.Sailing; BuildMenu(); }
     }
     public override void _Notification(int what)
     {
@@ -153,6 +158,7 @@ public partial class Game : Node2D
     }
     void Start()
     {
+        catchNoticeTime = 0;
         selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         creditedSilver = 0; gameSpeed = 1; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
         Run = new(selectedSeed, selectedBoat); title = choosingBoat = runRecorded = controls = recorded = false;
@@ -256,10 +262,6 @@ public partial class Game : Node2D
                 col.AddChild(Button("End voyage · return to title", BackToTitle)); break;
             case VoyageMode.Harbor: HarborMenu(); break;
             case VoyageMode.Upgrade: UpgradeMenu(); break;
-            case VoyageMode.Catch:
-                col = Panel(610, "Fishing", Run.CatchTitle, Run.CatchDetail);
-                col.AddChild(Label($"Cargo {Run.Hold.Count}/12", 21, false, OceanView.Aqua));
-                col.AddChild(Button("Back to the blue  [Enter]", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true)); break;
             case VoyageMode.Defeat:
                 Record(); col = Panel(570, "Voyage ended", "Lost to the deep", $"{Run.Kills} beasts defeated  •  {Run.MaxDistance / 1000:0.0} leagues offshore\nLevel {Run.Level}");
                 col.AddChild(Label("Fish, dock, and refit before pushing farther offshore. Boost softens incoming damage.", 20));
@@ -350,7 +352,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Boost; reduces damage while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, OceanView.Aqua));
-        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nCatches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat, including the result screen. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label("Sail beyond 3 leagues and defeat the Crownclaw to win. You can keep exploring afterward.\n\nCatches sell automatically when you dock. Repair and refit at harbors. All boats support ranged, aura and close attacks. Cutter boost speeds up weapons; Trawler slow sailing charges its defensive pulse. Your boat stays the same for the whole voyage. Sail over treasure and wrecks for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing freezes combat during the cast. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()
@@ -402,6 +404,14 @@ public partial class Game : Node2D
             }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-34, -72);
             Bar(healthPosition, new(68, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
+            if (Game.catchNoticeTime > 0 && r.Mode == VoyageMode.Sailing)
+            {
+                float alpha = Math.Min(1, Game.catchNoticeTime / .5f);
+                float width = BodyFont.GetStringSize(Game.catchNotice, fontSize: 23).X;
+                var noticePosition = Game.ocean.Screen(r.Position) + new Vector2(-width / 2, -100 - (2.5f - Game.catchNoticeTime) * 8);
+                DrawStyleBox(Game.Box(new Color(OceanView.Navy, .85f * alpha), 8), new Rect2(noticePosition + new Vector2(-12, -27), new Vector2(width + 24, 38)));
+                Text(noticePosition, Game.catchNotice, 23, color: new Color(OceanView.Cream, alpha));
+            }
             if (r.IsBoosting || r.Boost < 100)
             {
                 var boostAt = Game.ocean.Screen(r.Position) + new Vector2(0, 36);

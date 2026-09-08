@@ -1,0 +1,33 @@
+Mouse viewport=(-436.5, 366.75) global=(-436.5, 366.75) boatScreen=(720.00183, 450.0069) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-1391.583, 54.832687>; destination=<-87.202515, -126.20358>
+Native runtime capture: 20260908-062510-sailing
+Renderer: gl_compatibility
+Seed: 1617291978
+Mode: Sailing
+Game speed: x1
+Finished runs: 31; boat selection: False
+Silver: 20; earned this voyage: 0; next eligible combat time: 69.50707
+Boat: Cutter
+Position: <171.25723, 188.77234>
+Health: 100/100
+Coins: 24; cargo: 1; kills: 4; level: 1
+Active chunks: 25; enemies: 5; shots: 6
+Actual sailing seconds: 14.5; peak enemies: 5; peak shots: 6
+Fishing time=2.3239412; cursor=0.4960699; target=0.39999235; catch=Silver sprat; last sale=0; boss spawned=False; boss slain=False
+Velocity=<1.6481483, 7.5258656>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; salvos=5; mines=0/0; ricochets=0; pulls=0
+Combat clock=14.475864; director=1.1499447/0.6192201; boost=100; invulnerable=0; ability=0/0
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,1.5000001
+Depletion=0:0:1=1
+Enemy 4: Crab position=<132.57443, 319.4831> hp=27 time=9.24684 attack=-5.9469695 tell=0 dash=0 mark=0
+Enemy 6: Crab position=<-239.2218, 113.400894> hp=27 time=6.0174856 attack=-2.8841507 tell=0 dash=0 mark=0
+Enemy 7: Crab position=<-614.53906, -138.57643> hp=27 time=4.316508 attack=-2.695658 tell=0 dash=0 mark=0
+Enemy 8: Crab position=<-501.46405, 117.300934> hp=27 time=2.8415587 attack=-0.47242877 tell=0 dash=0 mark=0
+Enemy 9: Crab position=<-605.3686, 478.04385> hp=27 time=1.158278 attack=2.2469568 tell=0 dash=0 mark=0
+Shot Broadside hostile=False position=<268.36404, 111.478546> life=0.6685899
+Shot Broadside hostile=False position=<280.05508, 135.02698> life=0.6685899
+Shot Broadside hostile=False position=<291.6282, 158.63339> life=0.6685899
+Shot Broadside hostile=False position=<45.61579, 167.95094> life=0.6685899
+Shot Broadside hostile=False position=<55.286728, 191.10683> life=0.6685899
+Shot Broadside hostile=False position=<65.0184, 214.40216> life=0.6685899
+CPU simulation average ms=0.059; draw submission average ms=0.969; cached scenery=11; engine FPS=118; draw calls=680; objects=2534
+Frame ms mean: 8.60; p95: 9.17; p99: 13.62
