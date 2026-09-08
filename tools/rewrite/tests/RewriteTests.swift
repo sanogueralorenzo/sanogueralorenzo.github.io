@@ -14,6 +14,7 @@ struct RewriteTests {
     static func main() async {
         signal(SIGPIPE, SIG_IGN)
         do {
+            if CommandLine.arguments.contains("--live-editing") { try await liveEditing(); return }
             if CommandLine.arguments.contains("--live") { try await livePi(); return }
             if CommandLine.arguments.contains("--pi-check") { try await installedPi(); return }
             try await editing()

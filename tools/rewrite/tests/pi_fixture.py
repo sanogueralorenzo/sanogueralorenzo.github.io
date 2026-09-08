@@ -56,7 +56,7 @@ if provider == 'openai-codex':
 else:
     assert '--extension' not in args
 
-assert 'single-purpose text rewriting harness' in args[args.index('--system-prompt') + 1]
+assert 'Edit source_text only as directed by editing_instruction' in args[args.index('--system-prompt') + 1]
 fresh = False
 for line in sys.stdin.buffer:
     command = json.loads(line)
