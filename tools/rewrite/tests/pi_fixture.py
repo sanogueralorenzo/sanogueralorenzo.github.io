@@ -70,7 +70,7 @@ for line in sys.stdin.buffer:
     assert command['type'] == 'prompt' and fresh, 'previous rewrite was not cleared'
     fresh = False
     payload = json.loads(command['message'])
-    assert payload == {'editing_instruction': 'Correct spelling, grammar, and punctuation.', 'source_text': 'She go to the library yesterday.'}
+    assert payload == {'editing_instruction': 'Correct spelling, grammar, and punctuation using the smallest necessary changes.', 'source_text': 'She go to the library yesterday.'}
     assert not any(payload['source_text'] in arg for arg in args)
     print(json.dumps({'type': 'response', 'id': command['id'], 'command': 'prompt', 'success': True}), flush=True)
     print(json.dumps({'type': 'message_end', 'message': {'role': 'assistant', 'stopReason': 'stop', 'content': [{'type': 'text', 'text': 'She went to the library yesterday.'}]}}), flush=True)
