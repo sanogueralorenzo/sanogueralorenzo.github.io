@@ -18,6 +18,8 @@ Pi's installed catalog reports 272,000 context / 128,000 output tokens for Luna 
 
 Build, plist, ad-hoc signature, and focused checks pass. The native Provider menu was inspected and selection saved immediately without a sheet. Native Retry completed a synthetic saved transcript through the app, worker, and Pi, returning to idle with an editable note. Native text export saved the selected note. Bundle signature verification also passed after processing.
 
+The permission-button update passes the build, Swift checks, and all 19 Python tests. An isolated review profile showed the missing Screen & System Audio Recording banner with an enabled Grant Permissions button, and its layout was visually inspected. The menu bar action shares the same permission state and handler. Native dropdown visibility, first-time prompts, denied-permission settings links, and disappearance after granting both permissions still need manual verification; system permissions were not changed during this check.
+
 Remaining gaps: live Haiku quality is untested because Pi is not signed in to Anthropic; offline checks were explicitly accepted. Live dual-source capture, device unplugging, lid-close interruption, notification delivery, multi-hour recordings, Intel, and macOS 15 still need a permitted test session. A force quit can leave the final CAF incomplete; completed segments and checkpoints remain available. These synthetic quality checks are examples, not an accuracy guarantee.
 
 Run optional synthetic provider checks with `python3 tests/quality.py openai` or `anthropic`. For live capture, use headphones and an invented discussion, verify both audio sources across a minute boundary, then check the transcript, restart recovery, and Retry.

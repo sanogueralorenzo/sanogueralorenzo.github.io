@@ -15,7 +15,7 @@ struct MinutesView: View {
                 Text(model.status).font(.system(size: 12)).foregroundStyle(.secondary)
                 Spacer()
                 Button(model.activity.recordingID == nil ? "Record" : "Stop", action: model.toggle)
-                    .disabled(model.activity.showsProgress)
+                    .disabled(model.activity.showsProgress || model.requestingPermissions)
                     .help("Start or stop recording · ⌥⇧M")
                 Menu("Provider") {
                     Picker("Provider", selection: Binding(get: { model.provider }, set: { if let provider = $0 { model.selectProvider(provider) } })) {
@@ -62,6 +62,15 @@ struct MinutesView: View {
                             .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }.frame(minWidth: 370, maxWidth: .infinity, maxHeight: .infinity)
                 }
+            }
+            if let message = model.permissionMessage {
+                Divider()
+                HStack(alignment: .top) {
+                    Text(message).font(.system(size: 12)).textSelection(.enabled)
+                    Spacer()
+                    Button("Grant Permissions", action: model.grantPermissions)
+                        .disabled(model.isWorking || model.requestingPermissions)
+                }.padding(12).background(Color.orange.opacity(0.08))
             }
             if let error = model.error {
                 Divider()
