@@ -16,6 +16,8 @@ There are no external visual assets, imported fonts, audio assets, or automated 
 
 ## Play
 
+The home menu starts with **Play**, which opens boat selection. **Unlock**, **Quests**, and **Shop** appear after 1, 2, and 3 ended voyages. They are placeholders with no action yet. Defeat, victory, or returning to the menu ends a voyage and counts it once; continuing after victory does not count twice. Existing saves start this counter from their recorded wins. Settings and the handbook remain available from pause.
+
 - **WASD / arrows:** sail. **Left click:** sail to a point and stop. **Right click:** toggle continuous mouse helm.
 - **Space / Shift:** boost while moving. Boost reduces damage; releasing an exhausted boost lets it recharge. Settings offers a tap-to-toggle alternative.
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.

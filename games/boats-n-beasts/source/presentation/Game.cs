@@ -21,12 +21,12 @@ public partial class Game : Node2D
     CanvasLayer layer = null!;
     Control menuRoot = null!;
     Font titleFont = null!, bodyFont = null!;
-    bool title = true, settings, controls, reducedMotion, fullscreen, assistedFishing;
+    bool title = true, choosingBoat, runRecorded, settings, controls, reducedMotion, fullscreen, assistedFishing;
     BoatKind selectedBoat;
     VoyageMode shownMode = (VoyageMode)(-1), beforePause;
     LineEdit? seedInput;
     uint selectedSeed = 73919;
-    int bestKills, completed, silver, creditedSilver;
+    int bestKills, completed, finishedRuns, silver, creditedSilver;
     bool recorded;
     float elapsed, toastTime;
     string toast = "";
@@ -104,7 +104,7 @@ public partial class Game : Node2D
         string name = DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
-        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
+        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; charts: {Run.Charts}; kills: {Run.Kills}; level: {Run.Level}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}/{Run.Slipstream:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
         foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} mark={enemy.Mark:R}\n";
         foreach (var shot in Run.Shots) report += $"Shot {shot.Kind} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R}\n";
@@ -121,6 +121,7 @@ public partial class Game : Node2D
         if (key.Keycode == Key.Escape)
         {
             if (settings || controls) { settings = controls = false; BuildMenu(); }
+            else if (title && choosingBoat) { ReadSeed(); choosingBoat = false; BuildMenu(); }
             else if (!title)
             {
                 if (Run.Mode == VoyageMode.Fishing) Run.CancelFishing();
@@ -152,18 +153,20 @@ public partial class Game : Node2D
         if (seedInput != null && GodotObject.IsInstanceValid(seedInput) && uint.TryParse(seedInput.Text, out uint seed)) selectedSeed = seed;
         creditedSilver = 0; gameSpeed = 1; mouseHelm = boostLatched = false; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
         seedInput = null;
-        Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = settings = controls = recorded = false;
+        Run = new(selectedSeed, selectedBoat) { AssistedFishing = assistedFishing }; title = choosingBoat = runRecorded = settings = controls = recorded = false;
         ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();
         Toast("WASD or click to sail  •  Space to boost  •  E to fish / dock"); BuildMenu();
     }
     void BackToTitle()
     {
-        Record(); title = true; settings = controls = false; ocean.Menu = true;
+        Record(); title = true; choosingBoat = settings = controls = false; ocean.Menu = true;
         Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
     }
     void Record()
     {
-        if (title) return; bestKills = Math.Max(bestKills, Run.Kills); if (Run.Retired && !recorded) { completed++; recorded = true; } SaveSettings();
+        if (title) return;
+        if (!runRecorded) { finishedRuns++; runRecorded = true; }
+        bestKills = Math.Max(bestKills, Run.Kills); if (Run.Retired && !recorded) { completed++; recorded = true; } SaveSettings();
     }
     void Toast(string text) { toast = text; toastTime = 5; }
     StyleBoxFlat Box(Color bg, int radius = 14, Color? border = null)
@@ -200,7 +203,7 @@ public partial class Game : Node2D
         shownMode = Run.Mode;
         if (settings) { SettingsMenu(); FocusFirst(menuRoot); return; }
         if (controls) { ControlsMenu(); FocusFirst(menuRoot); return; }
-        if (title) { TitleMenu(); FocusFirst(menuRoot); return; }
+        if (title) { if (choosingBoat) BoatMenu(); else TitleMenu(); FocusFirst(menuRoot); return; }
         if (Run.Mode == VoyageMode.Sailing || Run.Mode == VoyageMode.Fishing)
         {
             var speed = new Button
@@ -260,11 +263,22 @@ public partial class Game : Node2D
     void TitleMenu()
     {
         seedInput = null;
+        var shade = new ColorRect { Color = new(0.015f, .06f, .16f, .3f), MouseFilter = Control.MouseFilterEnum.Ignore };
+        shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
+        var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
+        var col = new VBoxContainer { CustomMinimumSize = new(440, 0) }; col.AddThemeConstantOverride("separation", 18); center.AddChild(col);
+        var logo = Label("BOATS n\nBEASTS", 64, true); logo.HorizontalAlignment = HorizontalAlignment.Center; col.AddChild(logo);
+        col.AddChild(Button("Play", () => { choosingBoat = true; BuildMenu(); }, true));
+        if (finishedRuns >= 1) col.AddChild(Button("Unlock", () => { }));
+        if (finishedRuns >= 2) col.AddChild(Button("Quests", () => { }));
+        if (finishedRuns >= 3) col.AddChild(Button("Shop", () => { }));
+    }
+    void BoatMenu()
+    {
+        seedInput = null;
         var shade = new ColorRect { Color = new(.025f, .105f, .25f, .94f), Position = Vector2.Zero, Size = new(600, 1000), MouseFilter = Control.MouseFilterEnum.Ignore }; menuRoot.AddChild(shade);
         var col = new VBoxContainer { Position = new(58, 42), Size = new(472, 810) }; col.AddThemeConstantOverride("separation", 13); menuRoot.AddChild(col);
-        col.AddChild(Label("AN ENDLESS OCEAN. ONE LITTLE BOAT.", 17, false, OceanView.Aqua));
-        col.AddChild(Label("BOATS n\nBEASTS", 60, true));
-        col.AddChild(Label("Sail into trouble. Fish for fortune.\nCome home a legend.", 24));
+        col.AddChild(Label("Choose your boat", 44, true));
         var choices = new HBoxContainer(); choices.AddThemeConstantOverride("separation", 10); col.AddChild(choices);
         choices.AddChild(Button(selectedBoat == BoatKind.Cutter ? "✓  CUTTER" : "CUTTER", () => { ReadSeed(); selectedBoat = BoatKind.Cutter; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Cutter));
         choices.AddChild(Button(selectedBoat == BoatKind.Trawler ? "✓  TRAWLER" : "TRAWLER", () => { ReadSeed(); selectedBoat = BoatKind.Trawler; Run.Boat = selectedBoat; BuildMenu(); }, selectedBoat == BoatKind.Trawler));
@@ -277,9 +291,7 @@ public partial class Game : Node2D
         var sailButton = Button("SET SAIL", Start, true); col.AddChild(sailButton);
         seedInput.TooltipText = "Whole number from 0 to 4294967295";
         seedInput.TextChanged += value => sailButton.Disabled = !uint.TryParse(value, out _);
-        var bottom = new HBoxContainer(); bottom.AddThemeConstantOverride("separation", 10); col.AddChild(bottom);
-        bottom.AddChild(Button("Handbook", () => { ReadSeed(); controls = true; BuildMenu(); })); bottom.AddChild(Button("Settings", () => { ReadSeed(); settings = true; BuildMenu(); })); bottom.AddChild(Button("Quit", () => GetTree().Quit()));
-        col.AddChild(Label($"SILVER {silver}  •  Saved between voyages\nBEST {bestKills} BEASTS   •   {completed} VOYAGES WON", 16, false, new Color(OceanView.Cream, .55f)));
+        col.AddChild(Button("Back", () => { ReadSeed(); choosingBoat = false; BuildMenu(); }));
     }
     void ReadSeed() { if (seedInput != null && uint.TryParse(seedInput.Text, out uint value)) selectedSeed = value; seedInput = null; }
     void HarborMenu()
@@ -345,11 +357,12 @@ public partial class Game : Node2D
         toggleBoost = (bool)cfg.GetValue("accessibility", "toggle_boost", false);
         assistedFishing = (bool)cfg.GetValue("accessibility", "assisted_fishing", false);
         silver = Math.Max(0, (int)cfg.GetValue("progress", "silver", 0));
-        bestKills = (int)cfg.GetValue("progress", "best_kills", 0); completed = (int)cfg.GetValue("progress", "wins", 0); ApplySettings();
+        bestKills = (int)cfg.GetValue("progress", "best_kills", 0); completed = (int)cfg.GetValue("progress", "wins", 0);
+        finishedRuns = Math.Max(0, (int)cfg.GetValue("progress", "finished_runs", completed)); ApplySettings();
     }
     void SaveSettings()
     {
-        var cfg = new ConfigFile(); cfg.SetValue("display", "fullscreen", fullscreen); cfg.SetValue("display", "reduced_motion", reducedMotion); cfg.SetValue("accessibility", "toggle_boost", toggleBoost); cfg.SetValue("accessibility", "assisted_fishing", assistedFishing); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.Save("user://settings.cfg");
+        var cfg = new ConfigFile(); cfg.SetValue("display", "fullscreen", fullscreen); cfg.SetValue("display", "reduced_motion", reducedMotion); cfg.SetValue("accessibility", "toggle_boost", toggleBoost); cfg.SetValue("accessibility", "assisted_fishing", assistedFishing); cfg.SetValue("progress", "best_kills", bestKills); cfg.SetValue("progress", "wins", completed); cfg.SetValue("progress", "silver", silver); cfg.SetValue("progress", "finished_runs", finishedRuns); cfg.Save("user://settings.cfg");
     }
     public partial class Hud : Node2D
     {

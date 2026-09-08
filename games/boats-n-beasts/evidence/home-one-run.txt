@@ -1,0 +1,18 @@
+Mouse viewport=(202.5, 1350) global=(202.5, 1350) boatScreen=(930, 435) viewportRect=(0, 0), (1440, 900)
+Native runtime capture: 20260908-015720-title
+Renderer: gl_compatibility
+Seed: 73919
+Mode: Sailing
+Game speed: x1
+Finished runs: 1; boat selection: False
+Silver: 13; earned this voyage: 0; next eligible combat time: 65.3223
+Boat: Cutter
+Position: <0, 0>
+Health: 100/100
+Coins: 20; cargo: 0; charts: 0; kills: 0; level: 1
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 0.0; peak enemies: 0; peak shots: 0
+Combat clock=0; director=0/0; boost=100; invulnerable=0; ability=0/0
+Weapon ranks=1,0,0,0,0,1; cooldowns=0,0,0,0,0,0
+Depletion=
+CPU simulation average ms=0.000; draw submission average ms=2.377; cached scenery=3; engine FPS=60; draw calls=841; objects=1940
