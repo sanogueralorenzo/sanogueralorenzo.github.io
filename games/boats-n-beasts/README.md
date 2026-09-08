@@ -93,7 +93,7 @@ Mines last up to 10 seconds and are limited to eight active mines. Harpoons pull
 
 ## Readability and sailing flow
 
-Treasure has a rounded metal-banded lid, fishing schools use five subdued fish, and salvage wrecks have a tall broken mast. Offshore islands are larger and less frequent, with clustered shore rocks and palm, rock-spire or stranded-mast landmarks. Harbors occur on a two-chunk lattice to support regular refits; ordinary islands leave broad open lanes.
+Treasure has a rounded metal-banded lid, fishing schools use five subdued fish, and salvage wrecks have a tall broken mast. Offshore islands and harbors are sparse seeded landmarks, scattered widely across chunks rather than centered in rows. Only 42% of chunks propose a landmark, and nearby proposals are thinned to maintain at least 900 units between centers. Harbors are randomly selected landmarks rather than a fixed lattice. Shore rocks stay clustered around islands; fishing and encounter placement checks neighboring shores for clearance. The starting home layout remains fixed.
 
 Friendly shot trails and hit particles are subdued and brief; coral enemy shots draw above friendly effects. Weapon fittings reflect equipped weapons and ranks; whirlpool art uses the exact attack radius, and harpoon ropes strengthen with pull upgrades. Soaked status, its slowing effect and its damage bonuses have been removed entirely.
 

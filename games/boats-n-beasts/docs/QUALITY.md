@@ -1,5 +1,15 @@
 # Quality and verification
 
+## Sparse scattered offshore islands — 2026-09-08
+
+Replaces the even-coordinate harbor lattice and ±110-unit chunk-center island placement. Each offshore chunk now has a 42% candidate chance, with independent offsets up to ±500 units on each axis; the former combined island/harbor density averaged about 74% before placement. Nearby candidates are thinned by stable priority to keep accepted landmark centers at least 900 units apart. Harbors are 30% of candidates. Axis hashes are mixed sequentially to avoid opposite-coordinate repetitions discovered in the first native pass. Acceptance is a pure seed/coordinate calculation and does not depend on streaming order. The fixed central 3×3 home layout remains unchanged.
+
+Neighboring accepted land and shore rocks participate in fishing/encounter clearance because the wider offsets can cross chunk edges. The unconditional fishing fallback was removed so it cannot put a school into neighboring land; bounded attempts find clear water or omit that school's placement. Landmark geometry, normal collisions and 25-chunk streaming remain unchanged. F12 reports now include all active island/harbor coordinates and styles.
+
+Debug/Release pass with zero warnings/errors; final native log clean. Final route seed `1762272320` was sailed from home through `(1553,-699)` and `(2956,-565)` to `(4428,-890)`, with scattered landmarks, open-water stretches, combat and Crownclaw present. Each capture retains 25 active chunks; the final rolling frame sample is mean 8.44 / p95 9.09 / p99 11.67 ms on M3 Max. Shared landmarks retain coordinates/styles between regional reports. A fresh seed `1398113311` has a different offshore ledger but the identical home harbor, island and stationary downward-facing boat. [Native evidence](../evidence/README.md) covers the final generator after the hash refinement.
+
+No automated tests or injected state. Minimum spacing and generation-order independence were reviewed in the pure candidate calculation; no exhaustive seed sweep or forced unload/revisit test was performed. Local density varies by seed, and offshore harbors are intentionally less frequent. Current-run procedural layouts change with the new generator; the established home layout is preserved.
+
 ## Weapons idle during fishing — 2026-09-08
 
 Fishing now suppresses all new automatic weapon attacks, including Whirlpool damage, and holds Aura's defensive pulse. Weapon cooldowns continue recharging; Aura charge caps at one ready pulse rather than banking several. Already-fired projectiles continue normally. Enemies, damage and voyage time remain active. Reel, cancellation or timeout resumes attacks. Whirlpool's persistent radius curls are hidden during fishing, and the panel says “Weapons idle.”

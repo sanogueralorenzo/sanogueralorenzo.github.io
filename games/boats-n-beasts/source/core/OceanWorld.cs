@@ -33,41 +33,71 @@ public sealed class OceanWorld(uint seed)
     private Place[] activePlaces = [];
     public static ChunkKey KeyAt(Vector2 p) => new((int)MathF.Floor((p.X + 600) / ChunkSize), (int)MathF.Floor((p.Y + 600) / ChunkSize));
     public static int TierAt(Vector2 p) => Math.Min(20, (int)(p.Length() / 1000));
+    // One broadly scattered candidate per chunk, thinned against neighboring candidates.
+    // Acceptance depends only on seed/coordinates, never on chunk loading order.
+    Place? LandmarkCandidate(ChunkKey key)
+    {
+        if (StartingArea.Contains(key)) return null;
+        // Mix axes separately so opposite signed coordinates do not repeat patterns.
+        uint columnSeed = SeedRandom.Hash(Seed, key.X, 0, 317);
+        var rng = new SeedRandom(SeedRandom.Hash(columnSeed, 0, key.Y, 719));
+        if (rng.Unit() >= .42f) return null;
+        var position = new Vector2(key.X * ChunkSize, key.Y * ChunkSize) +
+            new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
+        bool harbor = rng.Unit() < .3f;
+        return new($"{key.X}:{key.Y}:land", harbor ? PlaceKind.Harbor : PlaceKind.Island,
+            position, harbor ? 140 : rng.Range(145, 190), rng.Next());
+    }
+    IEnumerable<Place> Landmarks(ChunkKey key)
+    {
+        var land = LandmarkCandidate(key);
+        if (land == null) yield break;
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
+        {
+            if (x == 0 && y == 0) continue;
+            var other = LandmarkCandidate(new(key.X + x, key.Y + y));
+            if (other == null || Vector2.DistanceSquared(land.Position, other.Position) >= 900 * 900) continue;
+            // Coordinate tie-break keeps even equal hash priorities deterministic.
+            if (other.Style < land.Style || (other.Style == land.Style && (y < 0 || (y == 0 && x < 0)))) yield break;
+        }
+        yield return land;
+        if (land.Kind == PlaceKind.Harbor) yield break;
+        var rng = new SeedRandom(land.Style);
+        float angle = rng.Range(0, MathF.Tau);
+        for (int rock = 0; rock < 2; rock++)
+        {
+            float a = angle + rock * .42f;
+            yield return new($"{key.X}:{key.Y}:shore:{rock}", PlaceKind.Rock,
+                land.Position + new Vector2(MathF.Cos(a), MathF.Sin(a)) * (land.Radius + 85),
+                rng.Range(24, 35), rng.Next());
+        }
+    }
     public OceanChunk Generate(ChunkKey key)
     {
         if (StartingArea.Contains(key)) return StartingArea.Generate(key);
         var rng = new SeedRandom(SeedRandom.Hash(Seed, key.X, key.Y, 17));
-        var places = new List<Place>();
+        var places = Landmarks(key).ToList();
         var center = new Vector2(key.X * ChunkSize, key.Y * ChunkSize);
-        void Add(PlaceKind kind, Vector2 p, float r) => places.Add(new($"{key.X}:{key.Y}:{places.Count}", kind, p, r, rng.Next()));
-        bool harbor = key.X % 2 == 0 && key.Y % 2 == 0;
-        // Larger landmarks separated by open-water chunks; all solids leave broad edge lanes.
-        if (harbor || rng.Unit() < .65f)
+        // Wide offsets can carry a shore across a chunk edge. Keep encounters clear
+        // of neighboring land too, without requiring those chunks to be loaded.
+        var nearbySolids = new List<Place>();
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
         {
-            var land = center + new Vector2(rng.Range(-110, 110), rng.Range(-110, 110));
-            float radius = harbor ? 140 : rng.Range(145, 190);
-            Add(harbor ? PlaceKind.Harbor : PlaceKind.Island, land, radius);
-            if (!harbor)
-            {
-                float angle = rng.Range(0, MathF.Tau);
-                for (int rock = 0; rock < 2; rock++)
-                {
-                    float a = angle + rock * .42f;
-                    Add(PlaceKind.Rock, land + new Vector2(MathF.Cos(a), MathF.Sin(a)) * (radius + 85), rng.Range(24, 35));
-                }
-            }
+            var neighbor = new ChunkKey(key.X + x, key.Y + y);
+            nearbySolids.AddRange(StartingArea.Contains(neighbor)
+                ? StartingArea.Generate(neighbor).Places.Where(IsSolid) : Landmarks(neighbor));
         }
-        for (int attempt = 0; attempt < 30; attempt++)
+        for (int attempt = 0; attempt < 48; attempt++)
         {
             Vector2 p = center + new Vector2(rng.Range(-400, 400), rng.Range(-400, 400));
-            if (places.Any(a => Vector2.Distance(a.Position, p) < a.Radius + 165)) continue;
-            Add(PlaceKind.Fishing, p, 76); break;
+            if (nearbySolids.Any(a => Vector2.Distance(a.Position, p) < a.Radius + 165)) continue;
+            places.Add(new($"{key.X}:{key.Y}:fishing", PlaceKind.Fishing, p, 76, rng.Next()));
+            break;
         }
-        if (!places.Any(p => p.Kind == PlaceKind.Fishing)) Add(PlaceKind.Fishing, center + new Vector2(430, 430), 76);
-        AddEncounters(key, places);
+        AddEncounters(key, places, nearbySolids);
         return new(key, places.ToArray());
     }
-    void AddEncounters(ChunkKey key, List<Place> places)
+    void AddEncounters(ChunkKey key, List<Place> places, IReadOnlyList<Place> nearbySolids)
     {
         var rng = new SeedRandom(SeedRandom.Hash(Seed,key.X,key.Y,91));
         var center = new Vector2(key.X*ChunkSize,key.Y*ChunkSize);
@@ -78,7 +108,8 @@ public sealed class OceanWorld(uint seed)
             {
                 position=center+new Vector2(rng.Range(-310,310),rng.Range(-310,310));
                 var candidate=position;
-                if(places.All(p=>Vector2.Distance(p.Position,candidate)>=p.Radius+clearance)) return true;
+                if(places.All(p=>Vector2.Distance(p.Position,candidate)>=p.Radius+clearance) &&
+                    nearbySolids.All(p=>Vector2.Distance(p.Position,candidate)>=p.Radius+clearance)) return true;
             }
             position=default; return false;
         }

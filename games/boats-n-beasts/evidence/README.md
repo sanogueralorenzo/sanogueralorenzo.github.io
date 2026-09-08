@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Sparse scattered offshore islands — 2026-09-08
+
+[Near offshore](sparse-ocean-near.png), [scattered islands](sparse-ocean-islands.png) and [open-water stretch](sparse-ocean-open.png) follow seed `1762272320` out to `(4428,-890)`. [Fresh seed/title](sparse-ocean-fresh-seed.png) preserves home scenery with a different offshore layout. Each TXT report includes all active island/harbor coordinates and styles, plus streaming and timing measurements. [Final runtime log](sparse-ocean-runtime.txt).
+
 ## Weapons idle during fishing — 2026-09-08
 
 [Fishing A](fishing-idle-a.png)/[B](fishing-idle-b.png) show enemies approaching with full health, idle Whirlpool and Aura holding a ready pulse. [After timeout](fishing-attacks-resumed.png) records resumed attacks and kills. Same-name TXT telemetry accompanies each image. [Native log](fishing-idle-runtime.txt).
