@@ -363,12 +363,17 @@ public partial class Game : Node2D
             float statusLeft = size.X - statusWidth - 14;
             DrawStyleBox(Game.Box(new Color(OceanView.Navy, .78f), 12), new Rect2(statusLeft, 16, statusWidth, 76));
             Text(new(size.X / 2 - 30, 30), $"LV {r.Level}", 15);
-            DrawStyleBox(Game.Box(new Color(OceanView.Navy, .55f), 8), new Rect2(14, 16, 176, 112));
             int seconds = (int)r.CombatTime;
-            Text(new(26, 39), $"TIME    {seconds / 60:00}:{seconds % 60:00}", 19);
-            Text(new(26, 65), $"SILVER  {Game.silver}", 19, false, new Color("c5d4e2"));
-            Text(new(26, 91), $"GOLD    {r.Coins}", 19, false, new Color("f5cf79"));
-            Text(new(26, 117), $"KILLS    {r.Kills}", 19);
+            string[] counters = [$"{seconds / 60:00}:{seconds % 60:00}", Game.silver.ToString(), r.Coins.ToString(), r.Kills.ToString()];
+            float countersWidth = counters.Sum(value => BodyFont.GetStringSize(value, fontSize: 21).X + 48) + 12;
+            DrawStyleBox(Game.Box(new Color(OceanView.Navy, .55f), 8), new Rect2(14, 16, countersWidth, 44));
+            float counterX = 38;
+            for (int i = 0; i < counters.Length; i++)
+            {
+                CounterIcon(new(counterX, 38), i);
+                Text(new(counterX + 20, 45), counters[i], 21);
+                counterX += BodyFont.GetStringSize(counters[i], fontSize: 21).X + 48;
+            }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
             Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
             Text(new(statusLeft + 16, 44), voyageStatus, 24, true);
@@ -407,6 +412,39 @@ public partial class Game : Node2D
             var boss = r.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Leviathan && e.Health > 0);
             if (boss != null)
             { Text(new(size.X / 2 - 85, 91), "THE CROWNCLAW", 23, true, OceanView.Coral); Bar(new(size.X / 2 - 200, 105), new(400, 9), boss.Health / boss.MaxHealth, OceanView.Coral); }
+        }
+        void CounterIcon(Vector2 center, int kind)
+        {
+            var ink = OceanView.Navy;
+            if (kind == 0)
+            {
+                DrawCircle(center, 11, OceanView.Cream, false, 2, true);
+                DrawLine(center, center + new Vector2(0, -7), OceanView.Cream, 2, true);
+                DrawLine(center, center + new Vector2(5, 3), OceanView.Cream, 2, true);
+                DrawCircle(center, 2, OceanView.Cream);
+            }
+            else if (kind is 1 or 2)
+            {
+                Color metal = new(kind == 1 ? "c5d4e2" : "f5cf79");
+                if (kind == 1)
+                {
+                    Vector2[] rim = Enumerable.Range(0, 6).Select(i => center + Vector2.FromAngle(i * Mathf.Tau / 6) * 12).ToArray();
+                    DrawColoredPolygon(rim, metal);
+                }
+                else DrawCircle(center, 12, metal);
+                DrawCircle(center, 8, metal.Darkened(.3f), false, 1.5f, true);
+                DrawColoredPolygon([center + new Vector2(0, -5), center + new Vector2(3, 0), center + new Vector2(0, 5), center + new Vector2(-3, 0)], ink);
+                DrawArc(center, 10, Mathf.Pi, Mathf.Pi * 1.5f, 8, metal.Lightened(.3f), 1.5f, true);
+            }
+            else
+            {
+                DrawCircle(center + new Vector2(0, -2), 10, OceanView.Cream);
+                DrawRect(new Rect2(center + new Vector2(-6, 4), new Vector2(12, 7)), OceanView.Cream);
+                DrawCircle(center + new Vector2(-4, -2), 3, ink);
+                DrawCircle(center + new Vector2(4, -2), 3, ink);
+                DrawColoredPolygon([center + new Vector2(0, 1), center + new Vector2(-2, 5), center + new Vector2(2, 5)], ink);
+                for (int x = -2; x <= 2; x += 4) DrawLine(center + new Vector2(x, 8), center + new Vector2(x, 11), ink, 1.5f);
+            }
         }
         void DrawCompass(Vector2 size)
         {

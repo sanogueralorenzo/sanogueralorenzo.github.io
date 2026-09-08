@@ -54,3 +54,7 @@ Direct UI play earned 12 silver from 12 kills (`silver-earned.txt`). Relaunch sh
 ## Scarcer silver follow-up — 2026-09-08
 
 Reduced silver awards to one per ten kills in each voyage. Integer milestone accounting credits every crossed threshold once, including multiple kills in a frame. Existing saved silver is retained; incomplete ten-kill groups reset on a new voyage. Focused build and code review validate this arithmetic change; no new live drop-rate playthrough or automated tests were performed.
+
+## Horizontal icon counters — 2026-09-08
+
+Replaced the vertical text labels with a single compact horizontal row of original code-drawn clock, silver hexagonal coin, gold round coin and skull icons beside numeric values. Row width follows measured values. Direct native runtime review verified spacing, icon readability and retained balances (`horizontal-counters` evidence). Debug/Release builds pass; no image assets or automated tests were added.
