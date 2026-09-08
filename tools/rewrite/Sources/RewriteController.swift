@@ -5,7 +5,6 @@ final class RewriteController {
     private(set) var provider = RewriteProvider.load()
     private let processor: PiService
     private let menuBar: MenuBarStatus
-    private var selection: CapturedSelection?
     private var task: Task<Void, Never>?
     private var generation = UUID()
     var isRewriting: Bool { task != nil }
@@ -21,55 +20,38 @@ final class RewriteController {
     }
     func begin() {
         if task != nil { cancel(); return }
-        menuBar.open()
-    }
-    func menuOpened() {
-        guard task == nil else { return }
-        do {
-            selection = try CapturedSelection.capture()
-            menuBar.setRewriting(nil)
-        } catch {
-            selection = nil
+        let selection: CapturedSelection
+        do { selection = try CapturedSelection.capture() }
+        catch {
             if case RewriteError.accessibilityPermission = error {
                 menuBar.showError(error.localizedDescription, opensPermissions: true)
             } else { menuBar.showError(error.localizedDescription) }
-            menuBar.setActionsEnabled(false)
+            return
         }
-    }
-    func menuClosed() {
-        // Menu actions may be delivered after menuDidClose.
-        Task { @MainActor in
-            await Task.yield()
-            if task == nil { selection = nil }
-        }
-    }
-    func run(_ action: EditAction) {
-        guard let selection else { return }
         let provider = provider
         let current = UUID(); generation = current
-        menuBar.setRewriting(action)
-        // Leave the action menu before starting the request; the source app keeps focus.
+        menuBar.setRewriting(true)
+        // Let a menu click finish before starting the request.
         task = Task { @MainActor in
             await Task.yield()
             guard generation == current else { return }
             do {
-                let output = try await processor.rewrite(selection.text, action: action, provider: provider)
+                let output = try await processor.rewrite(selection.text, provider: provider)
                 try Task.checkCancellation(); guard generation == current else { return }
                 try RewriteClipboard.copy(output)
-                task = nil; self.selection = nil
-                menuBar.setRewriting(nil)
+                task = nil
+                menuBar.setRewriting(false)
             } catch {
                 guard generation == current, !Task.isCancelled else { return }
-                task = nil; self.selection = nil
+                task = nil
                 menuBar.showError(error.localizedDescription)
             }
         }
     }
     func cancel() {
-        menuBar.setRewriting(nil)
+        menuBar.setRewriting(false)
         generation = UUID()
         if task != nil { task?.cancel(); processor.cancel() }
         task = nil
-        selection = nil
     }
 }

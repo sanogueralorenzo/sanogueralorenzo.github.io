@@ -75,7 +75,7 @@ for line in sys.stdin:
     else:
         assert command['type'] == 'prompt' and fresh
         payload = json.loads(command['message'])
-        assert set(payload) == {'source_text', 'editing_instruction'} and payload['editing_instruction']
+        assert set(payload) == {'source_text'}
         assert payload['source_text'] not in args
         record('prompt', mode=mode, source=payload['source_text'])
         fresh = False

@@ -25,9 +25,7 @@ final class Rewrite: NSObject, NSApplicationDelegate {
             if event.keyCode == 53 && self?.controller.isRewriting == true { self?.controller.cancel() }
             return event
         }
-        menuBar.onOpen = { [weak self] in self?.controller.menuOpened() }
-        menuBar.onClose = { [weak self] in self?.controller.menuClosed() }
-        menuBar.onChoose = { [weak self] action in self?.controller.run(action) }
+        menuBar.onRewrite = { [weak self] in self?.controller.begin() }
         menuBar.onCancel = { [weak self] in self?.controller.cancel() }
         menuBar.setProvider(controller.provider)
         menuBar.onProvider = { [weak self] provider in self?.controller.selectProvider(provider) }
