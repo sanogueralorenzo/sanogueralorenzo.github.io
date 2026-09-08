@@ -65,8 +65,15 @@ struct RewriteTests {
         var remote = local; remote["remote_host"] = "https://ollama.com"
         check(!ProcessorService.isLocalModel(remote, name: "innocent-name"), "renamed cloud model rejected")
         check(!ProcessorService.isLocalModel([:], name: "unknown"), "unverifiable model rejected")
+        for kind in [ProcessorKind.codex, .claude] {
+            check(kind.modelID("default") == kind.preferredModel && kind.modelID("") == kind.preferredModel, "legacy and unset models resolve explicitly")
+            check(kind.modelID(kind.modelLabel(kind.preferredModel)) == kind.preferredModel, "friendly model label round trip")
+            check(kind.modelID("custom-model") == "custom-model", "explicit model preserved")
+        }
+        check(ProcessorConfiguration(kind: .claude, model: "default").disablesThinking, "Haiku disables extended thinking")
+        check(!ProcessorConfiguration(kind: .claude, model: "sonnet").disablesThinking, "other Claude models retain thinking behavior")
         let args = ProcessorService.codexArguments(rules: URL(fileURLWithPath: "/private/tmp/rules"))
-        check(args.contains("model=\"gpt-5.6-luna\"") && args.contains("model_reasoning_effort=\"low\""), "Codex defaults to Luna with light reasoning")
+        check(ProcessorConfiguration(kind: .codex, model: "default").resolvedModel == "gpt-5.6-luna" && args.contains("model_reasoning_effort=\"low\""), "Codex defaults to Luna with light reasoning")
         check(args.contains("--ephemeral") && args.contains("--ignore-user-config") && args.contains("project_doc_max_bytes=0") && args.contains("read-only"), "Codex isolation")
         check(args.contains("shell_tool") && args.contains("apps") && args.contains("hooks") && args.contains("plugins"), "tools and customization disabled")
         let directory = URL(fileURLWithPath: "/private/tmp")

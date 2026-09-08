@@ -16,8 +16,8 @@ final class Settings: NSObject {
     private let save = NSButton(title: "Done", target: nil, action: nil)
 
     var configuration: ProcessorConfiguration {
-        ProcessorConfiguration(kind: ProcessorKind(rawValue: defaults.string(forKey: "processor") ?? "") ?? .codex,
-                               model: defaults.string(forKey: "model") ?? "default")
+        let kind = ProcessorKind(rawValue: defaults.string(forKey: "processor") ?? "") ?? .codex
+        return ProcessorConfiguration(kind: kind, model: kind.modelID(defaults.string(forKey: "model") ?? ""))
     }
     var isConfigured: Bool { defaults.string(forKey: "processor") != nil }
     var shortcut: Shortcut {
@@ -53,14 +53,14 @@ final class Settings: NSObject {
         let row = NSStackView(views: [permission, save]); row.spacing = 190; stack.addArrangedSubview(row)
     }
     func show() {
-        provider.selectItem(withTitle: configuration.kind.rawValue); model.stringValue = configuration.model
+        provider.selectItem(withTitle: configuration.kind.rawValue); model.stringValue = configuration.kind.modelLabel(configuration.resolvedModel)
         notice.stringValue = configuration.kind.notice
         window.center(); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
         refreshModels()
     }
     @objc private func providerChanged() {
         let kind = selectedKind
-        model.stringValue = kind == .ollama ? "" : "default"; notice.stringValue = kind.notice
+        model.stringValue = kind.modelLabel(kind.preferredModel); notice.stringValue = kind.notice
         refreshModels()
     }
     private var selectedKind: ProcessorKind { ProcessorKind(rawValue: provider.titleOfSelectedItem ?? "") ?? .codex }
@@ -72,8 +72,8 @@ final class Settings: NSObject {
             do {
                 let models = try await service.models(for: kind)
                 try Task.checkCancellation()
-                model.removeAllItems(); model.addItems(withObjectValues: models)
-                if model.stringValue.isEmpty, let first = models.first { model.stringValue = first }
+                model.removeAllItems(); model.addItems(withObjectValues: models.map { kind.modelLabel($0) })
+                if model.stringValue.isEmpty, let first = models.first { model.stringValue = kind.modelLabel(first) }
                 status.stringValue = models.isEmpty ? "No local models found. Run ollama pull <model>, then Refresh." : "Ready. Choose a model or enter its name."
                 save.isEnabled = !models.isEmpty
             } catch { if !Task.isCancelled { status.stringValue = error.localizedDescription; save.isEnabled = false } }
@@ -82,7 +82,7 @@ final class Settings: NSObject {
     @objc private func saveSettings() {
         let value = model.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, value.count < 160, !value.contains("\n") else { status.stringValue = "Enter a model name."; return }
-        defaults.set(selectedKind.rawValue, forKey: "processor"); defaults.set(value, forKey: "model")
+        defaults.set(selectedKind.rawValue, forKey: "processor"); defaults.set(selectedKind.modelID(value), forKey: "model")
         window.orderOut(nil); onSave?()
     }
     @objc private func recordShortcut() { recorder.record() }

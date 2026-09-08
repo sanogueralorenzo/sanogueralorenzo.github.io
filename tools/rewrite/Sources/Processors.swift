@@ -4,10 +4,26 @@ enum ProcessorKind: String, CaseIterable {
     case codex = "Codex CLI", claude = "Claude CLI", ollama = "Ollama (local)"
     var notice: String {
         switch self {
-        case .codex: return "Default: GPT-5.6 Luna · Light reasoning. Uses your Codex sign-in. Selected text is sent to OpenAI."
+        case .codex: return "Uses your Codex sign-in. Selected text is sent to OpenAI."
         case .claude: return "Uses your Claude sign-in. Selected text is sent to Anthropic."
         case .ollama: return "Runs on this Mac through Ollama at 127.0.0.1:11434. Cloud models are refused."
         }
+    }
+    var preferredModel: String {
+        switch self {
+        case .codex: return "gpt-5.6-luna"
+        case .claude: return "claude-haiku-4-5-20251001"
+        case .ollama: return ""
+        }
+    }
+    func modelID(_ value: String) -> String {
+        if value.isEmpty || value == "default" || value == modelLabel(preferredModel) { return preferredModel }
+        return value
+    }
+    func modelLabel(_ value: String) -> String {
+        if self == .codex && value == preferredModel { return "GPT 5.6 Luna · Light reasoning" }
+        if self == .claude && value == preferredModel { return "Claude Haiku 4.5 · Thinking off" }
+        return value
     }
     var command: String { self == .codex ? "codex" : "claude" }
 }
@@ -15,6 +31,8 @@ enum ProcessorKind: String, CaseIterable {
 struct ProcessorConfiguration {
     var kind: ProcessorKind
     var model: String
+    var resolvedModel: String { kind.modelID(model) }
+    var disablesThinking: Bool { kind == .claude && (resolvedModel == "haiku" || resolvedModel.hasPrefix("claude-haiku-4-5")) }
 }
 
 enum CLIDiscovery {
@@ -85,14 +103,14 @@ final class ProcessorService {
         guard result.status == 0, required.allSatisfy({ help.contains($0) }) else {
             throw RewriteError.message("Update \(kind.rawValue): this version lacks the isolation options Rewrite requires.")
         }
-        if kind == .claude { return ["default", "haiku", "sonnet", "opus"] }
+        if kind == .claude { return [kind.preferredModel, "sonnet", "opus"] }
         // Read only public model metadata, never project settings or conversation history.
         let cache = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/models_cache.json")
         if let data = try? Data(contentsOf: cache), let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let models = json["models"] as? [[String: Any]] {
-            return ["default"] + models.filter { $0["visibility"] as? String != "hide" }.compactMap { $0["slug"] as? String }.filter { !$0.isEmpty }.sorted()
+            return [kind.preferredModel] + models.filter { $0["visibility"] as? String != "hide" }.compactMap { $0["slug"] as? String }.filter { !$0.isEmpty && $0 != kind.preferredModel }.sorted()
         }
-        return ["default"]
+        return [kind.preferredModel]
     }
 
     func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
@@ -140,6 +158,7 @@ final class ProcessorService {
             arguments = Self.codexArguments(rules: rules)
             arguments += ["-c", "sqlite_home=\"\(directory.path)\"", "-c", "log_dir=\"\(directory.path)\""]
         } else {
+            if configuration.disablesThinking { environment["MAX_THINKING_TOKENS"] = "0" }
             environment["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1"
             environment["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
             environment["DISABLE_TELEMETRY"] = "1"
@@ -149,7 +168,7 @@ final class ProcessorService {
                          "--tools", "", "--strict-mcp-config", "--mcp-config", "{\"mcpServers\":{}}",
                          "--setting-sources", "", "--system-prompt", Editing.rules, "--debug-file", "/dev/null"]
         }
-        if !configuration.model.isEmpty && configuration.model != "default" { arguments += ["--model", configuration.model] }
+        arguments += ["--model", configuration.resolvedModel]
         if configuration.kind == .codex { arguments.append("-"); input = payload }
         let runner = ProcessRunner(); self.runner = runner
         let output = try await runner.run(executable: executable, arguments: arguments, environment: environment, directory: work, input: input)
@@ -167,7 +186,7 @@ final class ProcessorService {
 
     static func codexArguments(rules: URL) -> [String] {
         var args = ["exec", "--ephemeral", "--ignore-user-config", "--ignore-rules", "--skip-git-repo-check", "--sandbox", "read-only", "--json", "--color", "never"]
-        for setting in ["model=\"gpt-5.6-luna\"", "model_reasoning_effort=\"low\"", "approval_policy=\"never\"", "project_doc_max_bytes=0", "web_search=\"disabled\"",
+        for setting in ["model_reasoning_effort=\"low\"", "approval_policy=\"never\"", "project_doc_max_bytes=0", "web_search=\"disabled\"",
                         "history.persistence=\"none\"", "analytics.enabled=false", "feedback.enabled=false",
                         "model_instructions_file=\"\(rules.path)\""] { args += ["-c", setting] }
         for feature in ["shell_tool", "unified_exec", "shell_snapshot", "apps", "plugins", "hooks", "memories", "multi_agent",
