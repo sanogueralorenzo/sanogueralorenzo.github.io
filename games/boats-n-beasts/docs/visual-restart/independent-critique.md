@@ -16,3 +16,18 @@ Reviewed the native baseline `evidence/concept-water-and-refit.png` against `doc
 The new result should be judged as one scene at native gameplay scale. A complete 3D implementation is insufficient if objects still look like boxes, island edges glow, water repeats obvious patterns, or monsters are unreadable. Independently inspect all boat identities, dense combat and moving wakes. Reject a major gap even when each worker's isolated asset looks reasonable. Native runtime/performance and gameplay evidence must accompany the final visual comparison.
 
 Integrated acceptance is **pending**; no integrated screenshots have yet been supplied for this review.
+
+## Native sample review — direction-b-sample-scale.png
+
+The architecture merits proceeding to gameplay integration. The shared 3D light already makes the cottage roof, dock, hull and crab volumes more coherent than the baseline. Their silhouette construction is a credible foundation. This is an approach decision only: the sample does **not** yet pass visual acceptance. Main reports Forward+ Metal at approximately 117 FPS and 11 draw calls for this small sample; that does not establish sustained combat performance.
+
+Ranked remaining gaps:
+
+1. **Major — water material dominates the wrong image.** The grey bright region on the left and dense, uniform small-scale bump pattern read like rough metallic fabric. B has dark, deep petrol water with varied, softer moving wave structure. Removing broad glare and reducing the visible grain is the highest-leverage correction.
+2. **Major — shore contact looks emissive.** Continuous cyan-white fringes and smooth radial sand transitions make islands look like glowing discs. Replace the bright edge with irregular shallow shelves, submerged rock variation and occasional broken pale surf. The dark exterior shadow on the right island also looks detached and unusually heavy.
+3. **Major — insufficient sculpted composition.** Both islands remain sparse arrangements: one large faceted pillar dominates the right island; the left has a cottage and dock but little overlapping natural structure. B has layered rock groups, recesses, many low plants and irregular sandy pockets. More purposeful clustering matters more than adding evenly scattered pebbles.
+4. **Major — faceting and contact shadows.** Rock tops and palm crowns have large, conspicuous polygon planes; B's rocks look eroded and rounded, its leaf clusters more organic. Dithered shadow speckles are visible on the right beach and below the dock, and the hardest shadows make objects feel cut out. Soften contact while retaining useful crevice darkness.
+5. **Moderate — actor presence at gameplay scale.** The small vessel has readable construction, but its cream top loses separation between deck and cabin; the tiny Mage crystal scarcely establishes its identity. The crab has appealing rounded forms, but its pale face and near-symmetry still lack B's expressive claws and darker eye placement. Preserve distinct cabin/hull colors and silhouettes in all boat directions. The sample's boat occupies roughly 60 pixels along its visible length versus about 100 pixels for B when B is scaled to this image width; judge final gameplay framing before increasing detailed geometry.
+6. **Unverified — motion and combat.** This still has no evidence of wakes, orb arcs, hostile tells, submerged schools or dense combat. These should be assessed after integration; a pleasant static specimen is not the acceptance scene.
+
+Proceed with gameplay integration in parallel with the listed refinements, retaining the camera/performance foundation. Do not lock the current water, shoreline or faceted material treatment as the final direction.

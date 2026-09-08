@@ -42,7 +42,7 @@ public partial class Effects3D : Node3D
         box = EffectsGeometry.BeveledBox();
         sphere = new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 12, Rings = 6 };
         balls = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = sphere, InstanceCount = 1024, VisibleInstanceCount = 0 };
-        AddChild(new MultiMeshInstance3D { Multimesh = balls, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = .82f }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
+        AddChild(new MultiMeshInstance3D { Multimesh = balls, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .82f }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         wood = EffectsGeometry.Matte("a87145"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("c5a464"); sail = EffectsGeometry.Matte("c9c3a1");
         fish = EffectsGeometry.Matte("487f85");
     }

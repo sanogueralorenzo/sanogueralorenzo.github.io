@@ -12,6 +12,7 @@ internal sealed class EffectsGeometry
         material = new StandardMaterial3D
         {
             VertexColorUseAsAlbedo = true,
+            VertexColorIsSrgb = true,
             ShadingMode = translucent ? BaseMaterial3D.ShadingModeEnum.Unshaded : BaseMaterial3D.ShadingModeEnum.PerPixel,
             Transparency = translucent ? BaseMaterial3D.TransparencyEnum.Alpha : BaseMaterial3D.TransparencyEnum.Disabled,
             CullMode = BaseMaterial3D.CullModeEnum.Disabled, Roughness = .92f,
@@ -22,8 +23,10 @@ internal sealed class EffectsGeometry
     public void End() { if (started) mesh.SurfaceEnd(); }
     public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color)
     {
+        var cross = (b - a).Cross(c - a);
+        if (cross.LengthSquared() < 1e-14f) return;
         if (!started) { mesh.SurfaceBegin(Mesh.PrimitiveType.Triangles, material); started = true; }
-        var normal = (b - a).Cross(c - a).Normalized();
+        var normal = cross.Normalized();
         mesh.SurfaceSetColor(color); mesh.SurfaceSetNormal(normal);
         mesh.SurfaceAddVertex(a); mesh.SurfaceAddVertex(b); mesh.SurfaceAddVertex(c);
     }
