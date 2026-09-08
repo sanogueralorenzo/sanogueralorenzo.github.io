@@ -59,8 +59,9 @@ public partial class CozyWaterSurface : Node3D
         m.SetShaderParameter("shore_damping", profile.ShoreDampingDepth); m.SetShaderParameter("foam_strength", profile.FoamStrength);
         m.SetShaderParameter("wave_height_max", water._spectrum.MaximumHeight);
         m.SetShaderParameter("ocean_surface", ocean);
-        var sun = map.GetChildren().OfType<DirectionalLight3D>().FirstOrDefault(n => n.Name == "SummerSun");
-        m.SetShaderParameter("sun_direction", sun?.GlobalBasis.Z ?? new Vector3(-.55f, .7f, -.38f).Normalized());
+        m.SetShaderParameter("sun_direction", CozyAtmosphere.DirectionToSun(map));
+        if (OS.GetCmdlineUserArgs().Contains("--profile"))
+            GD.Print("Cozy Sora WATER_SUN map=", map.Name, " surface=", water.Name, " to_sun=", m.GetShaderParameter("sun_direction"));
         Mesh mesh;
         if (ocean)
         {

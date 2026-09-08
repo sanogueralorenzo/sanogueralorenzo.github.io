@@ -1,4 +1,5 @@
 shader_type sky;
+uniform vec3 sun_direction=vec3(0.,1.,0.);
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 q=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(q),hash(q+vec2(1,0)),f.x),mix(hash(q+vec2(0,1)),hash(q+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){return noise(p)*.5+noise(p*2.)*.25+noise(p*4.)*.125+noise(p*8.)*.0625;}
@@ -9,7 +10,7 @@ void sky(){
  vec3 horizon=vec3(.76,.81,.86);
  vec3 col=mix(horizon,vec3(.46,.64,.8),smoothstep(0.,.22,h));
  col=mix(col,vec3(.22,.46,.71),smoothstep(.2,.75,h));
- vec3 sun=normalize(vec3(-.55,.7,-.38));
+ vec3 sun=normalize(sun_direction);
  float sunlight=max(dot(d,sun),0.);
  col+=vec3(.2,.17,.12)*pow(sunlight,24.)+vec3(1.,.95,.85)*pow(sunlight,400.)*.8;
  if(h>-.02){

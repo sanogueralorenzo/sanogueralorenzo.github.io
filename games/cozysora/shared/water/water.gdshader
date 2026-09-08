@@ -17,7 +17,7 @@ uniform vec4 shore_color : source_color = vec4(.443,.537,.522,1.);
 uniform vec4 fog_color : source_color;
 uniform vec4 fog_range=vec4(40.,260.,1.,1.);
 uniform vec3 absorption=vec3(.56,.185,.072);
-uniform vec3 sun_direction=vec3(-.55,.7,-.38);
+uniform vec3 sun_direction=vec3(0.,1.,0.);
 uniform float wind=.3;
 uniform float ripple_strength=1.;
 uniform float roughness=.155;

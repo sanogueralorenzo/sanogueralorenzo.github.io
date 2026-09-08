@@ -202,3 +202,24 @@ Normal Daan play held a floating gull at XZ=(-20.622913,-13.604985), bobbing aro
 Evidence is under `/tmp/cozysora-harmony`: baseline copies, numbered refinement rounds, final native views, motion recordings and `native-play.log`. Reviewers independently inspected the signed distance transform, periodic noise, generated texture ownership, unchanged wave support and monotone fog tuning. Hardware controllers, genuine simultaneous multi-touch, non-Metal GPUs and exported builds remain outside this follow-up’s native scope.
 
 The final build completed with zero warnings/errors. All 14 final native captures exited successfully. A 75-second ordinary-gull descent crossed the 100–50 m altitude range and continued below it; independent review of spaced and adjacent samples found gradual haze changes without an opacity step. The final native UI cycle entered Harbor → Seabreeze → Daan, checked coastal floating/takeoff and paused cat recovery, and returned from each map with zero remaining sessions, players, cameras, audio players or orphan nodes. It exited with code 0 and no reported errors or leaks. Both independent reviewers accepted the final result within the documented native scope. The three destination previews were refreshed, imported successfully and checked in the native selector. Final-cycle, altitude and preview-import evidence is retained alongside the earlier captures.
+
+
+## Shared sun direction — 7 September 2026
+
+The sky’s formerly fixed Seabreeze sun direction is now supplied from each map’s installed `SummerSun`. The common helper reads normalized global +Z after the authored light transform and is used by both sky and water. The map’s directional light remains authoritative; sun transforms, colors, energy, cloud functions, water optics, layout and gameplay are unchanged. Each map retains a separate sky material, and directions are assigned during construction for the existing fixed-summer weather. No tests or external assets were added.
+
+The native `--profile` output reports the installed light direction and both material bindings. They agree to the displayed precision:
+
+| Map | Direction toward sun (world XYZ) |
+| --- | --- |
+| Seabreeze Village | (−0.568219, 0.723188, −0.392588) |
+| Harbor Hills | (−0.478459, 0.629320, 0.612399) |
+| Daan Gardens | (−0.391178, 0.731354, 0.558660) |
+
+Seabreeze’s ocean and both paddy surfaces receive its direction; Harbor’s ocean and Daan’s pond receive theirs. Matched normal and scenic captures cover coast, waterfront, flight, pond, deck and paddy views. Additional ordinary gull cameras face each map’s actual sun over water and upward into the sky. Baselines and final captures are under `/tmp/cozysora-sun`. Cloud animation can change phase between separate native runs; the shared cloud functions and thresholds were not edited.
+
+All 20 final native captures completed successfully: fourteen normal/scenic views and six matched sun-facing views. Independent visual review accepted the aligned sky sun and water highlights in Harbor and Daan, the retained Seabreeze alignment, and the preserved painterly clouds and water balance. Harbor and Daan destination previews were refreshed from these native captures, imported and viewed in the selector.
+
+The final native session entered Daan → Harbor → Seabreeze → Daan again. All four entries reported matching light, sky and water directions; Daan re-entry retained its original values after the coastal maps. Pond bobbing, takeoff, pause/resume and character switching were observed. Every return to selection reported zero remaining sessions, players, cameras, audio players and orphan nodes. The process exited with code 0 and no reported errors, exceptions or leak warnings. The independent runtime reviewer accepted the implementation and logs within this scope. The C# build completed with zero warnings/errors, and editor import exited successfully. Evidence includes `native-cycle.log`, `import.log`, the `final` capture directories and `daan-reentry.png`.
+
+Performance varied during concurrent rendering by other Godot applications: later Seabreeze play reported approximately 24–33 FPS and Daan re-entry approximately 36–40 FPS. This run does not establish a controlled performance comparison or a sustained-frame-rate guarantee. A stale native capture connection was refreshed before inspecting the final re-entry. GPU timing remained unavailable; physical input devices, genuine multitouch, exported builds and other GPUs were not revalidated.

@@ -29,12 +29,18 @@ public partial class CozyAtmosphere : Resource
     [Export] public CozyWaterProfile? WaterProfile { get; set; }
     [Export] public float BrushRadius { get; set; } = 2;
 
+    // Directional lights emit along -Z; sky and water need the direction toward
+    // the sun. Read the installed light after its authored transform is applied.
+    internal static Vector3 DirectionToSun(Node3D parent) =>
+        parent.GetNode<DirectionalLight3D>("SummerSun").GlobalBasis.Z.Normalized();
+
     public void Install(Node3D parent)
     {
+        var skyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sky.gdshader") };
         var env = new Environment
         {
             BackgroundMode = Environment.BGMode.Sky,
-            Sky = new Sky { SkyMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/sky.gdshader") } },
+            Sky = new Sky { SkyMaterial = skyMaterial },
             AmbientLightSource = Environment.AmbientSource.Color,
             AmbientLightColor = AmbientColor,
             AmbientLightEnergy = AmbientEnergy,
@@ -71,6 +77,9 @@ public partial class CozyAtmosphere : Resource
         parent.AddChild(sun);
         if (AimSunAtOrigin) { sun.Position = SunPosition; sun.LookAt(Vector3.Zero); }
         else sun.RotationDegrees = SunRotationDegrees;
+        skyMaterial.SetShaderParameter("sun_direction", DirectionToSun(parent));
+        if (OS.GetCmdlineUserArgs().Contains("--profile"))
+            GD.Print("Cozy Sora SUN map=", parent.Name, " light_to_sun=", DirectionToSun(parent), " sky_to_sun=", skyMaterial.GetShaderParameter("sun_direction"));
         if (FillEnergy > 0)
         {
             var fill = new DirectionalLight3D { LightColor = FillColor, LightEnergy = FillEnergy };
