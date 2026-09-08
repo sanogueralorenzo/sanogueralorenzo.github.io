@@ -9,6 +9,7 @@ final class Rewrite: NSObject, NSApplicationDelegate {
     private let menuBar = MenuBarStatus()
     private var selection: CapturedSelection?
     private var task: Task<Void, Never>?
+    private var warmup: Task<Void, Never>?
     private var generation = UUID()
     private var actionMenu: NSMenu?
     private var escapeMonitor: Any?
@@ -47,16 +48,31 @@ final class Rewrite: NSObject, NSApplicationDelegate {
             guard let self, self.shortcut.register(value) else { return false }
             self.menuBar.shortcutLabel = value.label; return true
         }
-        settings.onSave = { [weak self] in self?.selection?.restoreFocus(); self?.selection = nil }
+        settings.onSave = { [weak self] in self?.selection?.restoreFocus(); self?.selection = nil; self?.warmPi() }
         menuBar.shortcutLabel = settings.shortcut.label
         if !shortcut.register(settings.shortcut) { menuBar.showError("The shortcut is already in use. Choose another in Rewrite Settings.") }
         else if !settings.isConfigured { settings.show() }
+        warmPi()
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
         if let localEscapeMonitor { NSEvent.removeMonitor(localEscapeMonitor) }
-        task?.cancel(); processor.cancel(); processor.shutdown(); menuBar.remove()
+        warmup?.cancel(); task?.cancel(); processor.cancel(); processor.shutdown(); menuBar.remove()
+    }
+
+    private func warmPi() {
+        guard settings.isConfigured else { return }
+        let previous = warmup
+        previous?.cancel()
+        let configuration = settings.configuration
+        warmup = Task { @MainActor in
+            // Serialize configuration changes with any startup still in progress.
+            await previous?.value
+            guard !Task.isCancelled else { return }
+            // Missing sign-in is reported on an actual rewrite, not during launch.
+            try? await processor.warmUp(configuration)
+        }
     }
 
     @objc private func begin() {
@@ -84,6 +100,8 @@ final class Rewrite: NSObject, NSApplicationDelegate {
             await Task.yield()
             guard generation == current else { return }
             do {
+                await warmup?.value
+                try Task.checkCancellation()
                 let output = try await processor.rewrite(selection.text, action: action, configuration: configuration)
                 try Task.checkCancellation(); guard generation == current else { return }
                 try await selection.replace(with: output, requireForeground: true)
@@ -98,7 +116,8 @@ final class Rewrite: NSObject, NSApplicationDelegate {
     }
     private func cancel() {
         menuBar.setRewriting(nil)
-        generation = UUID(); task?.cancel(); task = nil; processor.cancel(); actionMenu?.cancelTracking()
+        generation = UUID(); task?.cancel(); task = nil
+        actionMenu?.cancelTracking()
         selection?.restoreFocus(); selection = nil
     }
     @objc private func showSettings() { cancel(); settings.show() }

@@ -21,7 +21,8 @@ struct RewriteTests {
             let kind: ProcessorKind = CommandLine.arguments.contains("anthropic") ? .anthropic : .openai
             let service = ProcessorService()
             defer { service.shutdown() }
-            var pid: Int32?
+            try await service.warmUp(ProcessorConfiguration(kind: kind, model: kind.preferredModel))
+            var pid: Int32? = service.processIdentifier
             for _ in 0..<2 {
                 let started = Date()
                 let result = try await service.rewrite("She go to the library yesterday.", action: .grammar, configuration: ProcessorConfiguration(kind: kind, model: kind.preferredModel))
@@ -43,8 +44,12 @@ struct RewriteTests {
         }
         let fixture = ProcessorService(executable: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("tests/pi_fixture.py"))
         check(try await fixture.models(for: .openai) == ["gpt-5.6-luna"], "Pi subprocess model discovery")
+        try await fixture.warmUp(ProcessorConfiguration(kind: .openai, model: "default"))
+        let warmedPID = fixture.processIdentifier
+        check(warmedPID != nil, "warmup starts Pi without a rewrite")
         check(try await fixture.rewrite("She go to the library yesterday.", action: .grammar, configuration: ProcessorConfiguration(kind: .openai, model: "default")) == "She went to the library yesterday.", "Pi subprocess auth, isolation, stdin and completed replacement result")
         let firstPID = fixture.processIdentifier
+        check(firstPID == warmedPID, "first rewrite reuses launch warmup")
         fixture.cancel() // Idle cancellation must not discard the warmed process.
         check(try await fixture.rewrite("She go to the library yesterday.", action: .grammar, configuration: ProcessorConfiguration(kind: .openai, model: "default")) == "She went to the library yesterday." && firstPID == fixture.processIdentifier, "RPC reuses process and starts a fresh session")
         fixture.shutdown()

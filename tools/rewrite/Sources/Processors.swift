@@ -186,22 +186,33 @@ final class ProcessorService {
         return isolationArguments + ["--mode", "rpc", "--provider", configuration.kind.providerID,
             "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
     }
+    // Called serially by the app's warmup task and rewrite task. Never sends a prompt.
+    func warmUp(_ configuration: ProcessorConfiguration) async throws {
+        do {
+            try await prepare(configuration)
+            try await rpc?.resetSession()
+            try Task.checkCancellation()
+        } catch { shutdown(); throw error }
+    }
+    private func prepare(_ configuration: ProcessorConfiguration) async throws {
+        _ = try Self.arguments(configuration)
+        // Refresh the short-lived auth snapshot well before its token can expire.
+        // Healthy requests with the same configuration reuse one process.
+        if rpc?.isRunning != true || rpcConfiguration != configuration || Date().timeIntervalSince(rpcStarted) > 180 {
+            shutdown()
+            let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
+            try Task.checkCancellation()
+            rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(configuration),
+                            environment: request.environment, directory: request.directory)
+            rpcRequest = request; rpcConfiguration = configuration; rpcStarted = Date()
+        }
+    }
     func rewrite(_ source: String, action: EditAction, configuration: ProcessorConfiguration) async throws -> String {
         guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
         isRewriting = true
         defer { isRewriting = false }
         do {
-            _ = try Self.arguments(configuration)
-            // Refresh the short-lived auth snapshot well before its token can expire.
-            // Healthy requests with the same configuration reuse one process.
-            if rpc?.isRunning != true || rpcConfiguration != configuration || Date().timeIntervalSince(rpcStarted) > 180 {
-                shutdown()
-                let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
-                try Task.checkCancellation()
-                rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(configuration),
-                                environment: request.environment, directory: request.directory)
-                rpcRequest = request; rpcConfiguration = configuration; rpcStarted = Date()
-            }
+            try await prepare(configuration)
             guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
             try await rpc.resetSession()
             let output = try await rpc.send("prompt", message: Editing.payload(source, action: action))
