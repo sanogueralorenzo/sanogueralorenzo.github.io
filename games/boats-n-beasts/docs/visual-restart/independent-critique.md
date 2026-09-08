@@ -31,3 +31,17 @@ Ranked remaining gaps:
 6. **Unverified — motion and combat.** This still has no evidence of wakes, orb arcs, hostile tells, submerged schools or dense combat. These should be assessed after integration; a pleasant static specimen is not the acceptance scene.
 
 Proceed with gameplay integration in parallel with the listed refinements, retaining the camera/performance foundation. Do not lock the current water, shoreline or faceted material treatment as the final direction.
+
+## Integrated gameplay review — 20260908-084457-sailing.png
+
+This is a substantial improvement over the native sample. The metallic grey water glare is gone, continuous bright shore halos are largely gone, and the boat/cottage/creature scene now shares recognizable 3D lighting. This establishes a useful integrated foundation, not final acceptance.
+
+Ranked unresolved visual gaps:
+
+1. **Major — island composition and surface character.** The islands still read as sparse sand discs with polygonal towers. B has eroded clustered rocks, sandy pockets, overlapping low plants and irregular submerged coastal structure. The large rock top facets remain conspicuous at gameplay scale.
+2. **Major — contact and shadow quality.** Rock/dock shadows look detached and almost black; sand is overly smooth and flat. The water-to-land transition has improved substantially but lacks the softly broken interaction and depth of B.
+3. **Moderate — character and color.** Crab volumes are readable, but their pale orange bodies and repeated regular poses are less expressive than B's rich coral shells, darker eyes and asymmetric claws. The boat's white top still merges deck/cabin planes, although it has much stronger presence than the earlier sample.
+4. **Moderate — own encounter art rejected.** The six bright fish read as repeated diagonal strokes, not submerged animals; the small chest reads as a crate. The current appears as a few parallel dashes. These need material/silhouette corrections before acceptance. This review triggered a shared water-tinted translucent fish shader with tapered body, fins and animated tail; irregular five-fish formations; a continuous barrel chest lid with contrasting metal bands; and fewer curved current streaks.
+5. **Unverified — motion and weapon-area readability.** This still does not prove curved wakes or dense combat. Code inspection identified a missing persistent Undertow range cue, which is restored as five sparse rotating curved strands at the actual simulation radius. Boat wake origin/width is updated to match the integrated hull dimensions.
+
+The follow-up effects implementation needs a fresh native screenshot and runtime shader check. No claim is made that its source-level changes have already passed visual acceptance.

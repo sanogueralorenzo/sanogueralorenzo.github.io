@@ -7,6 +7,7 @@ namespace BoatsNBeasts;
 public partial class Effects3D : Node3D
 {
     static readonly Color Foam = new("bbdad2"), Aqua = new("68c4bc"), Coral = new("ef785d"), Cream = new("ffe0a3"), Magic = new("b59aed");
+    static readonly Vector2[] FishFormation=[new(-.21f,-.29f),new(.16f,-.15f),new(-.055f,.01f),new(.25f,.22f),new(-.2f,.31f)];
     readonly List<Sample> wake = new(80);
     readonly Dictionary<Shot, List<Sample>> trails = new();
     readonly Dictionary<int, List<Sample>> creatureWakes = new();
@@ -19,8 +20,9 @@ public partial class Effects3D : Node3D
     readonly RandomNumberGenerator random = new() { Seed = 3819 };
     EffectsGeometry foam = null!, solid = null!;
     MultiMesh balls = null!;
-    Mesh box = null!, sphere = null!;
-    StandardMaterial3D wood = null!, woodDark = null!, brass = null!, sail = null!, fish = null!;
+    Mesh box = null!, sphere = null!, fishMesh = null!;
+    StandardMaterial3D wood = null!, woodDark = null!, brass = null!, iron = null!;
+    ShaderMaterial fish = null!;
     float time, sampleClock;
     int ballCount;
     bool initialized;
@@ -43,8 +45,9 @@ public partial class Effects3D : Node3D
         sphere = new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 12, Rings = 6 };
         balls = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = sphere, InstanceCount = 1024, VisibleInstanceCount = 0 };
         AddChild(new MultiMeshInstance3D { Multimesh = balls, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .82f }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        wood = EffectsGeometry.Matte("a87145"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("c5a464"); sail = EffectsGeometry.Matte("c9c3a1");
-        fish = EffectsGeometry.Matte("487f85");
+        wood = EffectsGeometry.Matte("986039"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("c5a464"); iron = EffectsGeometry.Matte("899389");
+        fish = new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EffectsFish.gdshader") };
+        fishMesh = BuildFishMesh();
     }
     public void Reset()
     {
@@ -60,6 +63,7 @@ public partial class Effects3D : Node3D
         bool sailing = voyage.Mode == VoyageMode.Sailing;
         float step = sailing ? Mathf.Clamp(dt, 0, .1f) : 0;
         time += step;
+        fish.SetShaderParameter("school_time", time);
         if (step > 0)
         {
             foreach (var p in sparks) { p.Age += step; p.P += p.V * step; p.V *= MathF.Exp(-step * 2); p.V.Y -= step * 2.4f; }
@@ -70,7 +74,8 @@ public partial class Effects3D : Node3D
         }
         SyncEncounters(voyage);
         foam.Begin(); solid.Begin(); ballCount = 0;
-        DrawWake(wake, .29f, 1.9f, 1);
+        DrawWake(wake, .34f, 1.9f, 1);
+        DrawWhirlpool(voyage);
         foreach (var enemy in voyage.Enemies)
         {
             if (enemy.Health <= 0) continue;
@@ -99,7 +104,7 @@ public partial class Effects3D : Node3D
         sampleClock += dt; if (sampleClock < .045f) return; sampleClock %= .045f;
         var forward = new Vector3(Mathf.Sin(v.Heading), 0, -Mathf.Cos(v.Heading));
         if (v.Velocity.Length() > 20)
-            AddSample(wake, new(World(v.Position) - forward * .43f, forward, time, v.Velocity.Length() * .01f), 64);
+            AddSample(wake, new(World(v.Position) - forward * .64f, forward, time, v.Velocity.Length() * .01f), 64);
         foreach (var shot in liveShots)
         {
             if (!trails.TryGetValue(shot, out var history)) trails[shot] = history = new(20);
@@ -180,6 +185,25 @@ public partial class Effects3D : Node3D
         {
             var side=new Vector3(-dir.Z,0,dir.X); solid.Ribbon(p-dir*.29f,p,.019f,.026f,brass.AlbedoColor);
             solid.Triangle(p+dir*.075f,p-dir*.09f+side*.065f,p-dir*.06f-side*.065f,Cream);
+        }
+    }
+    void DrawWhirlpool(Voyage v)
+    {
+        if (v.Weapons[(int)WeaponKind.Undertow] <= 0) return;
+        var center = World(v.Position, .046f); float radius = v.WhirlpoolRadius * .01f;
+        // Five separated curls keep the actual attack extent visible without a solid HUD circle.
+        for (int arm = 0; arm < 5; arm++)
+        {
+            float start = time * .7f + arm * Mathf.Tau / 5;
+            var last = center + new Vector3(Mathf.Cos(start),0,Mathf.Sin(start)) * radius * .94f;
+            for (int i=1;i<=14;i++)
+            {
+                float t=i/14f, angle=start+t*.67f;
+                float r=radius*(.94f+.06f*Mathf.Sin(t*Mathf.Pi*.5f));
+                var next=center+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*r;
+                float fade=Mathf.Sin(t*Mathf.Pi);
+                foam.Ribbon(last,next,.012f,.014f,Fade(Aqua,.25f*fade)); last=next;
+            }
         }
     }
     void DrawTelegraph(Voyage v, Enemy e)
@@ -280,8 +304,10 @@ public partial class Effects3D : Node3D
                 for(int i=0;i<encounter.Fish.Count;i++)
                 {
                     var node=encounter.Fish[i]; float row=i/2f;
-                    node.Position=new((i%2==0?-.18f:.17f)+Mathf.Sin(time*.7f+row+phase)*.075f,.007f,(row-1.35f)*.25f+Mathf.Sin(time*.55f+phase)*.05f);
-                    node.Rotation=new(0,-.85f+Mathf.Sin(time*.85f+row)*.12f,0);
+                    uint h=SeedRandom.Hash(p.Style,i,7);
+                    float x=FishFormation[i].X+(h%100)/100f*.08f-.04f, z=FishFormation[i].Y+((h>>8)%100)/100f*.08f-.04f;
+                    node.Position=new(x+Mathf.Sin(time*.7f+row+phase)*.065f,.02f,z+Mathf.Sin(time*.55f+phase+row*.4f)*.06f);
+                    node.Rotation=new(0,-.85f+Mathf.Sin(time*.85f+row)*.12f+(h%11)*.017f,0);
                 }
             }
         }
@@ -289,16 +315,49 @@ public partial class Effects3D : Node3D
     }
     void BuildTreasure(Node3D root)
     {
-        EffectsGeometry.Part(root,box,wood,new(0,.15f,0),new(.46f,.28f,.33f));
-        // The lid is an arch made from rounded longitudinal slats, with matching metal bands.
-        for(int i=0;i<7;i++)
+        EffectsGeometry.Part(root,box,woodDark,new(0,.14f,0),new(.54f,.26f,.4f));
+        for(int i=0;i<3;i++)
         {
-            float angle=-Mathf.Pi*.5f+i*Mathf.Pi/6; var at=new Vector3(0,.285f+Mathf.Cos(angle)*.14f,Mathf.Sin(angle)*.16f);
-            EffectsGeometry.Part(root,box,i%3==0?woodDark:wood,at,new(.46f,.055f,.084f),new(angle,0,0));
-            foreach(float x in new[]{-.14f,.14f}) EffectsGeometry.Part(root,box,brass,at+new Vector3(x,.012f,0),new(.033f,.026f,.095f),new(angle,0,0));
+            foreach(float z in new[]{-.201f,.201f}) EffectsGeometry.Part(root,box,wood,new(0,.062f+i*.078f,z),new(.52f,.067f,.024f));
         }
-        foreach(float x in new[]{-.14f,.14f}) foreach(float z in new[]{-.169f,.169f}) EffectsGeometry.Part(root,box,brass,new(x,.16f,z),new(.034f,.25f,.025f));
-        EffectsGeometry.Part(root,box,brass,new(0,.21f,.184f),new(.07f,.09f,.03f));
+        // A closed continuous half-cylinder gives the lid a real barrel silhouette at gameplay scale.
+        EffectsGeometry.Part(root,ChestArch(.54f,.204f,true),woodDark,new(0,.27f,0),Vector3.One);
+        const int slats=9;
+        for(int i=0;i<slats;i++)
+            EffectsGeometry.Part(root,ChestArch(.536f,.208f,false,-Mathf.Pi*.5f+i*Mathf.Pi/slats+.008f,Mathf.Pi/slats-.016f),wood,new(0,.27f,0),Vector3.One);
+        foreach(float x in new[]{-.18f,.18f})
+        {
+            EffectsGeometry.Part(root,ChestArch(.04f,.219f,false),iron,new(x,.27f,0),Vector3.One);
+            foreach(float z in new[]{-.219f,.219f})
+            {
+                EffectsGeometry.Part(root,box,iron,new(x,.14f,z),new(.041f,.26f,.025f));
+                foreach(float y in new[]{.07f,.205f}) EffectsGeometry.Part(root,sphere,brass,new(x,y,z+Mathf.Sign(z)*.016f),new(.022f,.022f,.016f));
+            }
+        }
+        EffectsGeometry.Part(root,box,iron,new(0,.278f,.222f),new(.075f,.115f,.03f));
+        EffectsGeometry.Part(root,box,brass,new(0,.239f,.246f),new(.062f,.074f,.03f));
+        EffectsGeometry.Part(root,sphere,woodDark,new(0,.24f,.266f),new(.014f,.025f,.007f));
+    }
+    static ArrayMesh ChestArch(float length,float radius,bool caps,float start=-Mathf.Pi*.5f,float sweep=Mathf.Pi)
+    {
+        var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);
+        void Triangle(Vector3 a,Vector3 b,Vector3 c,Vector3 na,Vector3 nb,Vector3 nc)
+        {st.SetNormal(na);st.AddVertex(a);st.SetNormal(nb);st.AddVertex(b);st.SetNormal(nc);st.AddVertex(c);}
+        int segments=Math.Max(3,(int)(24*sweep/Mathf.Pi));
+        for(int i=0;i<segments;i++)
+        {
+            float a=start+sweep*i/segments,b=start+sweep*(i+1)/segments;
+            var n0=new Vector3(0,Mathf.Cos(a),Mathf.Sin(a));var n1=new Vector3(0,Mathf.Cos(b),Mathf.Sin(b));
+            var p0=n0*radius-Vector3.Right*length*.5f;var p1=n0*radius+Vector3.Right*length*.5f;
+            var p2=n1*radius+Vector3.Right*length*.5f;var p3=n1*radius-Vector3.Right*length*.5f;
+            Triangle(p0,p1,p2,n0,n0,n1);Triangle(p0,p2,p3,n0,n1,n1);
+            if(caps)
+            {
+                Triangle(-Vector3.Right*length*.5f,p0,p3,Vector3.Left,Vector3.Left,Vector3.Left);
+                Triangle(Vector3.Right*length*.5f,p2,p1,Vector3.Right,Vector3.Right,Vector3.Right);
+            }
+        }
+        return st.Commit();
     }
     void BuildWreck(Node3D root,uint style)
     {
@@ -325,18 +384,37 @@ public partial class Effects3D : Node3D
     }
     void BuildFish(Encounter e)
     {
-        // Thin, muted water-coloured forms just above the opaque water plane read as submerged schools.
-        for(int i=0;i<6;i++)
+        // Shared tapered mesh and translucent water tint avoid lit white strokes on the opaque ocean.
+        for(int i=0;i<5;i++)
         {
             var node=new Node3D();e.Root.AddChild(node);e.Fish.Add(node);
-            EffectsGeometry.Part(node,sphere,fish,Vector3.Zero,new(.07f,.018f,.24f));
-            var tail=new SurfaceTool();tail.Begin(Mesh.PrimitiveType.Triangles);
-            tail.AddVertex(new(0,.003f,.075f));tail.AddVertex(new(-.05f,.003f,.15f));tail.AddVertex(new(.05f,.003f,.15f));tail.GenerateNormals();
-            var tailMaterial=EffectsGeometry.Matte("457e83");tailMaterial.CullMode=BaseMaterial3D.CullModeEnum.Disabled;
-            EffectsGeometry.Part(node,tail.Commit(),tailMaterial,Vector3.Zero,Vector3.One);
-            // One restrained upper flank, not an overhead symbol or bright boundary.
-            EffectsGeometry.Part(node,sphere,EffectsGeometry.Matte("639393"),new(-.012f,.009f,-.015f),new(.025f,.006f,.14f));
+            float size=.8f+(SeedRandom.Hash(e.Place.Style,i,3)%100)*.004f;
+            var part=EffectsGeometry.Part(node,fishMesh,fish,Vector3.Zero,Vector3.One*size);
+            part.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
         }
+    }
+    static ArrayMesh BuildFishMesh()
+    {
+        var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);
+        float[] z=[-.17f,-.125f,-.065f,.015f,.08f,.115f];
+        float[] width=[.002f,.033f,.048f,.036f,.016f,.009f];
+        Vector3 Ring(int row,int spoke)
+        {
+            float a=spoke*Mathf.Tau/8;
+            return new(Mathf.Cos(a)*width[row],Mathf.Sin(a)*width[row]*.33f,z[row]);
+        }
+        void Tri(Vector3 a,Vector3 b,Vector3 c) {st.AddVertex(a);st.AddVertex(b);st.AddVertex(c);}
+        for(int row=0;row<z.Length-1;row++) for(int spoke=0;spoke<8;spoke++)
+        {
+            var a=Ring(row,spoke);var b=Ring(row,(spoke+1)%8);var c=Ring(row+1,(spoke+1)%8);var d=Ring(row+1,spoke);
+            Tri(a,c,b);Tri(a,d,c);
+        }
+        // Forked tail and pectoral fins broaden the silhouette beyond a thin bar.
+        Tri(new(0,0,.1f),new(-.055f,0,.18f),new(0,0,.155f));
+        Tri(new(0,0,.1f),new(0,0,.155f),new(.055f,0,.18f));
+        Tri(new(-.033f,0,-.045f),new(-.075f,0,.005f),new(-.031f,0,-.002f));
+        Tri(new(.033f,0,-.045f),new(.031f,0,-.002f),new(.075f,0,.005f));
+        st.GenerateNormals();return st.Commit();
     }
     void DrawEncounters(Voyage v)
     {
@@ -351,14 +429,19 @@ public partial class Effects3D : Node3D
         {
             if(place.Kind!=PlaceKind.Current || V2.DistanceSquared(v.Position,place.Position)>1500*1500) continue;
             var center=World(place.Position,.028f);var dir=World(OceanWorld.FlowDirection(place),0)*100;var side=new Vector3(-dir.Z,0,dir.X);
-            for(int lane=-1;lane<=1;lane++) for(int i=0;i<4;i++)
+            for(int lane=-1;lane<=1;lane++) for(int i=0;i<2;i++)
             {
-                float x=((i*1.21f+time*.65f+lane*.37f)%4.5f)-2.25f;
-                var p=center+dir*x+side*(lane*.31f+Mathf.Sin(x*2+lane)*.045f);
-                float alpha=(1-Mathf.Abs(x)/2.25f)*.19f;
-                // Short tapered moving streaks communicate flow without a diagram of arrows.
-                foam.Ribbon(p-dir*.26f,p,.004f,.014f,Fade(Aqua,alpha));
-                foam.Ribbon(p,p+dir*.075f,.014f,.001f,Fade(Aqua,alpha));
+                float x=((i*2.31f+time*.65f+lane*.57f+4.5f)%4.5f)-2.25f;
+                float alpha=(1-Mathf.Abs(x)/2.25f)*.16f;
+                Vector3 Point(float along)=>center+dir*along+side*(lane*.37f+Mathf.Sin(along*1.7f+lane)*.085f);
+                var last=Point(x-.36f);
+                // Sparse curved, tapered streaks travel with the current rather than making a dash grid.
+                for(int segment=1;segment<=7;segment++)
+                {
+                    float t=segment/7f;var next=Point(x-.36f+t*.45f);
+                    float width=.002f+Mathf.Sin(t*Mathf.Pi)*.008f;
+                    foam.Ribbon(last,next,width,width,Fade(Aqua,alpha));last=next;
+                }
             }
         }
         if(v.Mode==VoyageMode.Fishing && v.FishingPlace is {} fishing)
