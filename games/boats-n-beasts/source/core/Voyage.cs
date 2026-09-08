@@ -77,6 +77,7 @@ public sealed partial class Voyage
         Weapons[boat == BoatKind.Cutter ? 0 : boat == BoatKind.Trawler ? 4 : 5] = 1;
         NextSilverTime = SilverInterval();
         Position = StartingArea.Spawn;
+        Heading = MathF.PI;
         World.Stream(Position);
     }
     public void Tick(float dt, SailInput input)

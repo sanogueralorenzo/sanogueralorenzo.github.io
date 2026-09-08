@@ -1,5 +1,9 @@
 # Quality and verification
 
+## Downward dockside heading — 2026-09-08
+
+All new voyages initialize heading to π and spawn 20 units farther right at `(55,-315)`, leaving a small water gap beside the dock. Native title and post-start captures show the downward bow, identical position and zero velocity. Debug/Release pass with zero warnings/errors; native log clean. Gunboat was checked natively; all boats share the constructor. No automated tests.
+
 ## Exploding puffers and swift variants — 2026-09-08
 
 Puffers chase at 105 base speed instead of retreating and shooting. Within 125 units they stop, swell and redden over a 1.05-second fuse, then disappear in a faceted red hemisphere. The 155-unit blast deals 22 + 2×tier damage once, accounting for the boat's 23-unit collider. Puffers no longer deal contact damage. Killing an armed puffer cancels its explosion; self-detonation grants no kill, experience or loot. Safe harbors cancel the fuse and prevent blast damage. Existing paused/fishing/upgrade simulation gates freeze it.

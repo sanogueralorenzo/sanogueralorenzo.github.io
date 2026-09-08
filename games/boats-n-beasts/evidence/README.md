@@ -1,5 +1,9 @@
 # Native gameplay evidence
 
+## Downward dockside heading — 2026-09-08
+
+[Title](dock-down-title.png) and [voyage start](dock-down-start.png) show the downward-facing boat with a small extra gap beside the dock. Paired TXT reports retain position `(55,-315)` and zero velocity.
+
 ## Exploding puffers and swift variants — 2026-09-08
 
 Every capture has same-name TXT telemetry. [Fuse](puffer-fuse.png) and [damage](puffer-damage.png) show an armed puffer and its detonation dealing 28 hull damage (before final dome shading). [Pause A](puffer-pause-a.png)/[B](puffer-pause-b.png) retain the same armed fuse and positions. [Swift fuse](puffer-swift-fuse.png), [swift dodge](puffer-swift-dodge.png) and [final regular dodge/dome](puffer-dome-dodge.png) show two detonations avoided by sailing, with hull and blast-hit count unchanged. Violet regular-monster variants are visible alongside their standard counterparts. Logs: [initial](puffer-runtime.txt), [final](puffer-final-runtime.txt).
