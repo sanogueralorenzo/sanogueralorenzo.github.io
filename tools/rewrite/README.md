@@ -17,7 +17,7 @@ pi
 
 Choose **Provider → OpenAI** (default) or **Anthropic** in the pencil menu. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**.
 
-Select text, then **⌥R** opens Rewrite · **⌥1** Make shorter · **⌥2** Make clearer · **⌥3** Fix grammar. Click a style or use arrows and Return. The result is copied to your clipboard; press **⌘V** to paste it.
+Select text, then **⌥R** opens the pencil menu · **⌥1** Make shorter · **⌥2** Make clearer · **⌥3** Fix grammar. Click an action or use arrows and Return. The result is copied to your clipboard; press **⌘V** to paste it.
 
 **Escape** or **⌥R** cancels. The pencil dot disappears when the result is copied. The menu shows progress and errors. If ⌥R is unavailable, open Rewrite from that menu.
 

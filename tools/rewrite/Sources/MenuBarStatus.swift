@@ -6,14 +6,17 @@ private final class StatusDot: NSView {
 }
 
 @MainActor
-final class MenuBarStatus: NSObject {
-    var onRewrite: (() -> Void)?
+final class MenuBarStatus: NSObject, NSMenuDelegate {
+    var onOpen: (() -> Void)?
+    var onClose: (() -> Void)?
+    var onChoose: ((EditAction) -> Void)?
+    private var actionItems: [NSMenuItem] = []
     var onCancel: (() -> Void)?
     var onProvider: ((RewriteProvider) -> Void)?
     private var providerItems: [NSMenuItem] = []
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let progress = NSMenuItem(title: "Rewriting…", action: nil, keyEquivalent: "")
-    private let rewrite = NSMenuItem(title: "Rewrite", action: #selector(begin), keyEquivalent: "")
+    private let rewrite = NSMenuItem(title: "Rewrite", action: nil, keyEquivalent: "r")
     private let cancel = NSMenuItem(title: "Cancel Rewrite", action: #selector(cancelRewrite), keyEquivalent: "")
     private let errorDetails = NSMenuItem()
     private var errorMessage: String?
@@ -30,9 +33,15 @@ final class MenuBarStatus: NSObject {
             dot.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
             dot.setAccessibilityElement(false); button.addSubview(dot)
         }
-        let menu = NSMenu(); menu.autoenablesItems = false
+        let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
         for entry in [progress, errorDetails, cancel, rewrite] { entry.target = self; menu.addItem(entry) }
         progress.isEnabled = false
+        rewrite.isEnabled = false; rewrite.keyEquivalentModifierMask = .option
+        for (index, action) in EditAction.allCases.enumerated() {
+            let entry = menu.addItem(withTitle: action.rawValue, action: #selector(choose(_:)), keyEquivalent: String(index + 1))
+            entry.keyEquivalentModifierMask = .option; entry.target = self; entry.tag = index
+            actionItems.append(entry)
+        }
         menu.addItem(.separator())
         let providers = NSMenu(); providers.autoenablesItems = false
         for provider in RewriteProvider.allCases {
@@ -48,7 +57,7 @@ final class MenuBarStatus: NSObject {
         self.action = action; errorMessage = nil; errorDetails.isHidden = true
         dot.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
         dot.isHidden = action == nil; progress.isHidden = action == nil; cancel.isHidden = action == nil
-        rewrite.isEnabled = action == nil
+        setActionsEnabled(action == nil)
         progress.title = action.map { "Rewriting… · \($0.rawValue)" } ?? "Rewriting…"
         updateTooltip()
     }
@@ -76,7 +85,13 @@ final class MenuBarStatus: NSObject {
     }
     @objc private func openPermissions() { Accessibility.openSettings() }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func begin() { onRewrite?() }
+    func open() { item.button?.performClick(nil) }
+    func menuWillOpen(_ menu: NSMenu) { onOpen?() }
+    func menuDidClose(_ menu: NSMenu) { onClose?() }
+    func setActionsEnabled(_ enabled: Bool) {
+        for entry in actionItems { entry.isEnabled = enabled }
+    }
+    @objc private func choose(_ sender: NSMenuItem) { onChoose?(EditAction.allCases[sender.tag]) }
     @objc private func cancelRewrite() { onCancel?() }
     func setProvider(_ provider: RewriteProvider) {
         for entry in providerItems { entry.state = entry.title == provider.rawValue ? .on : .off }

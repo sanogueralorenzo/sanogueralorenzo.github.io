@@ -8,7 +8,6 @@ final class RewriteController {
     private var selection: CapturedSelection?
     private var task: Task<Void, Never>?
     private var generation = UUID()
-    private var actionMenu: NSMenu?
     var isRewriting: Bool { task != nil }
 
     init(processor: PiService, menuBar: MenuBarStatus) {
@@ -21,25 +20,30 @@ final class RewriteController {
         processor.warmUp(provider)
     }
     func begin() {
-        if task != nil || selection != nil { cancel(); return }
+        if task != nil { cancel(); return }
+        menuBar.open()
+    }
+    func menuOpened() {
+        guard task == nil else { return }
         do {
             selection = try CapturedSelection.capture()
-            guard let selection else { return }
-            let actions = ActionMenu()
-            actions.onChoose = { [weak self] action in self?.run(action) }
-            let menu = actions.menu
-            actionMenu = menu
-            let picked = withExtendedLifetime(actions) { menu.popUp(positioning: menu.items.first, at: selection.point, in: nil) }
-            actionMenu = nil
-            if !picked { cancel() }
+            menuBar.setRewriting(nil)
         } catch {
             selection = nil
             if case RewriteError.accessibilityPermission = error {
                 menuBar.showError(error.localizedDescription, opensPermissions: true)
             } else { menuBar.showError(error.localizedDescription) }
+            menuBar.setActionsEnabled(false)
         }
     }
-    private func run(_ action: EditAction) {
+    func menuClosed() {
+        // Menu actions may be delivered after menuDidClose.
+        Task { @MainActor in
+            await Task.yield()
+            if task == nil { selection = nil }
+        }
+    }
+    func run(_ action: EditAction) {
         guard let selection else { return }
         let provider = provider
         let current = UUID(); generation = current
@@ -66,7 +70,6 @@ final class RewriteController {
         generation = UUID()
         if task != nil { task?.cancel(); processor.cancel() }
         task = nil
-        actionMenu?.cancelTracking()
         selection = nil
     }
 }

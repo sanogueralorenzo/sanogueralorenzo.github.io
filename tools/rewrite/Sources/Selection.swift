@@ -27,13 +27,6 @@ enum Accessibility {
 @MainActor
 struct CapturedSelection {
     let text: String
-    let point: NSPoint
-
-    init(element: AXUIElement, text: String) {
-        self.text = text
-        point = Self.selectionPoint(element) ?? NSEvent.mouseLocation
-    }
-
     static func capture(sourceApp: NSRunningApplication? = nil) throws -> CapturedSelection {
         guard AXIsProcessTrusted() else {
             throw RewriteError.accessibilityPermission
@@ -51,17 +44,7 @@ struct CapturedSelection {
         guard text.utf16.count <= Editing.maximumUTF16 else {
             throw RewriteError.message("Select a shorter passage (up to 24,000 characters) and try again.")
         }
-        return CapturedSelection(element: focused, text: text)
+        return CapturedSelection(text: text)
     }
 
-    private static func selectionPoint(_ element: AXUIElement) -> NSPoint? {
-        guard let range = Accessibility.value(element, kAXSelectedTextRangeAttribute) else { return nil }
-        var bounds: CFTypeRef?
-        guard AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, range, &bounds) == .success,
-              let bounds, CFGetTypeID(bounds) == AXValueGetTypeID() else { return nil }
-        var rect = CGRect.zero
-        guard AXValueGetValue(bounds as! AXValue, .cgRect, &rect), !rect.isEmpty,
-              let primary = NSScreen.screens.first else { return nil }
-        return NSPoint(x: rect.minX, y: primary.frame.maxY - rect.maxY - 5)
-    }
 }
