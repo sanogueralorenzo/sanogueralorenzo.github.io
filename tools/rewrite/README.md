@@ -1,5 +1,7 @@
 # Rewrite
 
+![Rewrite — concise text from a minimal macOS menu](docs/Rewrite.png)
+
 A small macOS menu for making selected text concise and clear, with grammar corrected. No chat or history.
 
 **Install or update** from the latest `main` (macOS 14+ and Xcode Command Line Tools):
