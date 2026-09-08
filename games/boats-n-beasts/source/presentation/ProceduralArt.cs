@@ -389,16 +389,14 @@ public sealed class ProceduralArt(Node2D canvas)
                     }
                     break;
                 case 1:
-                    var foot = new Vector2(0,-radius*.12f);
-                    var baseRing = Enumerable.Range(0,7).Select(i=>foot+Vector2.FromAngle(i*Mathf.Tau/7)*new Vector2(radius*.35f,radius*.23f)).ToArray();
-                    var peakRing = baseRing.Select(v=>foot+(v-foot)*.35f-new Vector2(radius*.035f,radius*.77f)).ToArray();
-                    for(int face=0;face<7;face++)
+                    RockSpire(new(0,-radius*.09f),radius,seed);
+                    Boulder(new(-radius*.3f,radius*.08f),radius*.24f,seed);
+                    Boulder(new(radius*.29f,radius*.07f),radius*.18f,seed+5);
+                    for(int shrub=0;shrub<4;shrub++)
                     {
-                        int next=(face+1)%7;
-                        Poly([baseRing[face],baseRing[next],peakRing[next],peakRing[face]],new Color(face<3?"6b746a":face<5?"a2a28a":"858b7c"));
+                        var at=new Vector2((shrub-1.5f)*radius*.18f,radius*(.08f+.035f*(shrub%2)));
+                        Shell(at,new(radius*.095f,radius*.075f),new Color(shrub%2==0?"77934d":"5e7c45"),new Color("3d5840"),7,seed+(uint)shrub);
                     }
-                    Poly(peakRing,new Color("d2c9a8"));
-                    Boulder(new(-radius*.27f,radius*.02f),radius*.2f,seed);
                     break;
                 default:
                     var mast = new Vector2(radius*.12f,-radius*.17f);
@@ -418,6 +416,55 @@ public sealed class ProceduralArt(Node2D canvas)
             Box(new(-13,-43),new(8,13),16,new Color("739750"),new Color("395943"));
         }
         canvas.DrawSetTransform(Vector2.Zero);
+    }
+    void RockSpire(Vector2 p,float radius,uint seed)
+    {
+        // An irregular three-dimensional mesh supplies consistent face lighting and ledges.
+        var rng=new SeedRandom(seed^0x8e52u);
+        const int sides=8;
+        var rings=new Vector3[4][];
+        float[] widths=[.37f,.29f,.20f,.105f];
+        float[] heights=[0,.30f,.73f,1.06f];
+        for(int tier=0;tier<4;tier++)
+        {
+            rings[tier]=new Vector3[sides];
+            for(int i=0;i<sides;i++)
+            {
+                float angle=i*Mathf.Tau/sides;
+                float width=widths[tier]*rng.Range(.87f,1.13f)*radius;
+                rings[tier][i]=new Vector3(Mathf.Cos(angle)*width-tier*radius*.017f,
+                    Mathf.Sin(angle)*width*.72f,heights[tier]*radius+(tier==0?0:rng.Range(-.024f,.024f)*radius));
+            }
+        }
+        Vector2 Project(Vector3 v)=>p+new Vector2(v.X,v.Y-v.Z);
+        // The same upper-left sun casts a broad, soft shadow along the beach.
+        var center=p+new Vector2(radius*.25f,radius*.13f);
+        for(int i=0;i<16;i++)
+        {
+            float a=i*Mathf.Tau/16,b=(i+1)*Mathf.Tau/16;
+            var edge=center+new Vector2(Mathf.Cos(a)*radius*.63f,Mathf.Sin(a)*radius*.27f);
+            var next=center+new Vector2(Mathf.Cos(b)*radius*.63f,Mathf.Sin(b)*radius*.27f);
+            canvas.DrawPolygon([center,edge,next],[new Color(.12f,.19f,.16f,.34f),new Color(.12f,.19f,.16f,0),new Color(.12f,.19f,.16f,0)]);
+        }
+        var faces=new List<(Vector3 A,Vector3 B,Vector3 C)>();
+        for(int tier=0;tier<3;tier++)for(int i=0;i<sides;i++)
+        {
+            int next=(i+1)%sides;
+            faces.Add((rings[tier][i],rings[tier][next],rings[tier+1][next]));
+            faces.Add((rings[tier][i],rings[tier+1][next],rings[tier+1][i]));
+        }
+        var summit=rings[3].Aggregate(Vector3.Zero,(sum,v)=>sum+v)/sides;
+        for(int i=0;i<sides;i++)faces.Add((summit,rings[3][i],rings[3][(i+1)%sides]));
+        var light=new Vector3(-.65f,.3f,.8f).Normalized();
+        foreach(var face in faces.OrderBy(f=>(f.A.Y+f.B.Y+f.C.Y+f.A.Z+f.B.Z+f.C.Z)/3))
+        {
+            var normal=(face.B-face.A).Cross(face.C-face.A).Normalized();
+            if(normal.Dot(new Vector3(0,1,1))<=0)continue;
+            float illumination=Mathf.Clamp(normal.Dot(light),0,1);
+            var color=new Color("465761").Lerp(new Color("b7b49b"),illumination);
+            if(normal.Z>.65f)color=color.Lerp(new Color("ddd0a9"),.38f);
+            Poly([Project(face.A),Project(face.B),Project(face.C)],color);
+        }
     }
     void Palm(Vector2 root,float height,float phase)
     {
