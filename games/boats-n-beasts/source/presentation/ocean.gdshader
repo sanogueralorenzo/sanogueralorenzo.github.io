@@ -8,8 +8,8 @@ float noise(vec2 p) { vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mi
 void fragment() {
     vec2 world=(UV*resolution-resolution*.5)/projection+camera;
     // World-anchored depth fields stay still while the surface moves above them.
-    float depth=noise(world*.0013)*.8+noise(world*.003)*.2;
-    float bands=floor(depth*9.0)/9.0;
+    float depth=noise(world*.0011)*.72+noise(world*.0027)*.28;
+    float bands=smoothstep(.08,.92,depth);
     vec3 color=mix(vec3(.018,.17,.25),vec3(.028,.30,.365),bands);
     float surface=noise(world*vec2(.012,.028)+vec2(ocean_time*.04,-ocean_time*.02));
     color+=vec3(.015,.036,.039)*(surface-.5);

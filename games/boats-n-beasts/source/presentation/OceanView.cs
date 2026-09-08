@@ -156,7 +156,7 @@ public partial class OceanView : Node2D
                 Vector2 back = Vector2.FromAngle(w.Angle + Mathf.Pi / 2), side = back.Orthogonal();
                 var stern = w.P - Camera + size / 2 + back * 49;
                 float speedRatio=Mathf.Clamp(w.Speed/Voyage.Speed,.2f,2.6f);
-                float spread = 13 + age * (12 + speedRatio * 7);
+                float spread = 13 + age * (12 + speedRatio * 7) + Mathf.Sin(w.Born*29)*age*2.5f;
                 leftWake[i] = stern - side * spread; rightWake[i] = stern + side * spread;
                 colors[i] = new Color(new Color("b8e9da"), (1 - age / 2.1f) * Mathf.Clamp(speedRatio*.55f,.2f,.9f));
             }
@@ -166,10 +166,17 @@ public partial class OceanView : Node2D
             for(int i=1;i<wakes.Count;i+=2)
             {
                 float age=Clock-wakes[i].Born;
-                var offset=Vector2.FromAngle(i*2.4f)*Mathf.Min(age*6,8);
+                var tangent=(leftWake[i]-leftWake[i-1]).Normalized();
+                var normal=tangent.Orthogonal();
                 var foam=new Color(Cream,colors[i].A*.85f);
-                DrawLine(leftWake[i]+offset,leftWake[i]+offset+new Vector2(3,1),foam,2.2f,true);
-                DrawLine(rightWake[i]-offset,rightWake[i]-offset+new Vector2(3,-1),foam,2.2f,true);
+                for(int fleck=0;fleck<3;fleck++)
+                {
+                    float phase=wakes[i].Born*37+fleck*2.4f;
+                    var offset=normal*Mathf.Sin(phase)*(2+age*5)+tangent*fleck*3;
+                    var curl=tangent*(3+Mathf.Sin(phase)*2)+normal*2;
+                    DrawLine(leftWake[i]+offset,leftWake[i]+offset+curl,foam,1.5f,true);
+                    DrawLine(rightWake[i]-offset,rightWake[i]-offset+curl,foam,1.5f,true);
+                }
             }
         }
         if (!Menu && Voyage.Weapons[4] > 0)

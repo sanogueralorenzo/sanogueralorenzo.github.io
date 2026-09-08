@@ -54,19 +54,34 @@ public sealed class ProceduralArt(Node2D canvas)
         Line(new(width*.43f,-22),new(width*.43f,24),Cream,3);
         for(int side=-1;side<=1;side+=2)for(int y=-29;y<=34;y+=63)
         { Ellipse(new(side*width*.4f,y),new(4,7),Ink);Line(new(side*width*.4f-4,y),new(side*width*.4f+4,y),Metal,2); }
-        // Raised cabin, dark panoramic windows, bevelled orange roof.
+        // Cabin height and lighting stay in screen space while the deck turns.
         float cabinW=tug?48:35;
         bool mage = kind == BoatKind.Mage;
-        Box(new(-cabinW/2,-16),new(cabinW,39),15,Cream, SandShade);
-        Poly([new(-cabinW/2+3,10),new(-cabinW/2+3,20),new(cabinW/2-3,20),new(cabinW/2-3,10)],Ink);
-        Line(new(-cabinW/2+5,12),new(cabinW/2-5,12),new Color("61939e"),2);
-        Line(new(0,10),new(0,21),Cream,3);
-        Poly([new(-cabinW/2,-31),new(cabinW/2,-31),new(cabinW/2-4,-11),new(-cabinW/2+4,-11)],SandLight);
-        Poly([new(-cabinW/2+4,-29),new(cabinW/2-4,-29),new(cabinW/2-6,-13),new(-cabinW/2+6,-13)],mage ? new Color("9e89d3") : Cream);
-        Line(new(-cabinW/2,-31),new(cabinW/2,-31),new Color("ffcc72"),2);
-        Box(new(-6,-25),new(12,8),3,SandLight,SandShade);
-        Line(new(0,-27), new(0,-49), Ink, 2);
-        Line(new(0,-45), new(12,-41), Cream, 2);
+        var cabinUp=Vector2.FromAngle(-Mathf.Pi/2-angle)*22;
+        Vector2[] cabin=[new(-cabinW/2,-10),new(cabinW/2,-10),new(cabinW/2,26),new(-cabinW/2,26)];
+        var cabinShadow=Vector2.FromAngle(.7f-angle)*17;
+        Poly(Shift(cabin,cabinShadow),new Color(.12f,.12f,.1f,.22f));
+        for(int face=0;face<4;face++)
+        {
+            var a=cabin[face]; var b=cabin[(face+1)%4];
+            var normal=(b-a).Rotated(angle).Orthogonal().Normalized();
+            if(normal.Y<0)continue;
+            var wall=normal.X<0?new Color("d9bb87"):new Color("a28361");
+            Poly([a,b,b+cabinUp,a+cabinUp],wall);
+            var left=a.Lerp(b,.16f); var right=a.Lerp(b,.84f);
+            Poly([left+cabinUp*.25f,right+cabinUp*.25f,right+cabinUp*.8f,left+cabinUp*.8f],Ink);
+            Line(left+cabinUp*.73f,right+cabinUp*.73f,new Color("76b0b7"),2);
+            Line(a.Lerp(b,.5f)+cabinUp*.2f,a.Lerp(b,.5f)+cabinUp*.86f,Cream,2);
+        }
+        var roof=cabin.Select(v=>v*new Vector2(1.12f,1.03f)+cabinUp).ToArray();
+        Poly(roof,Cream);
+        var roofCenter=new Vector2(0,8)+cabinUp;
+        var roofInset=roof.Select(v=>roofCenter+(v-roofCenter)*.77f).ToArray();
+        Poly(roofInset,mage?new Color("8e70bb"):new Color("d8b77d"));
+        Poly([roofInset[0],roofInset[1],roofCenter],mage?new Color("baa0e3"):SandLight);
+        Line(roof[0],roof[1],SandLight,2);
+        var hatch=roofCenter-new Vector2(0,3);
+        Poly([hatch+new Vector2(-6,-7),hatch+new Vector2(6,-7),hatch+new Vector2(6,4),hatch+new Vector2(-6,4)],Cream);
         if(tug)
         {
             Ellipse(new(0,30),new(18,13),new Color("1d5b63"));
@@ -288,18 +303,52 @@ public sealed class ProceduralArt(Node2D canvas)
         var ring=IslandRing(seed);
         canvas.DrawSetTransform(p);
         var outer=ring.Select(v=>v*radius).ToArray();
-        // Broad transparent shelves follow the same shoreline as the actual island.
-        Poly(outer.Select((v,i)=>v*(1.85f+.045f*Mathf.Sin(i))+new Vector2(0,12)).ToArray(),new Color(.02f,.39f,.45f,.24f));
-        Poly(outer.Select((v,i)=>v*(1.53f+.03f*Mathf.Sin(i*1.7f))+new Vector2(0,9)).ToArray(),new Color(.025f,.53f,.55f,.3f));
-        Poly(outer.Select(v=>v*1.27f+new Vector2(0,7)).ToArray(),new Color(.1f,.65f,.62f,.43f));
-        Poly(outer.Select(v=>v*1.10f+new Vector2(0,4)).ToArray(),new Color(.32f,.75f,.66f,.58f));
+        // Irregular shoals blend outward instead of repeating the beach as hard rings.
+        float shoalPhase=(seed%997)/997f*Mathf.Tau;
+        var shallow=new Vector2[outer.Length];
+        var shelf=new Vector2[outer.Length];
+        var deep=new Vector2[outer.Length];
+        for(int i=0;i<outer.Length;i++)
+        {
+            float a=i*Mathf.Tau/outer.Length;
+            float width=.65f+.2f*Mathf.Sin(a*2+shoalPhase)+.12f*Mathf.Cos(a*5-shoalPhase);
+            shallow[i]=outer[i]*1.035f+new Vector2(0,3);
+            shelf[i]=outer[i]*(1.22f+width*.7f)+new Vector2(10,9);
+            deep[i]=outer[i]*(1.39f+width*.75f)+new Vector2(12,10);
+        }
+        for(int i=0;i<outer.Length;i++)
+        {
+            int next=(i+1)%outer.Length;
+            var near=new Color(.045f,.34f,.36f,.85f);
+            var middle=new Color(.02f,.27f,.32f,.65f);
+            var far=new Color(.02f,.34f,.42f,0);
+            canvas.DrawPolygon([shallow[i],shallow[next],shelf[next]], [near,near,middle]);
+            canvas.DrawPolygon([shallow[i],shelf[next],shelf[i]], [near,middle,middle]);
+            canvas.DrawPolygon([shelf[i],shelf[next],deep[next]], [middle,middle,far]);
+            canvas.DrawPolygon([shelf[i],deep[next],deep[i]], [middle,far,far]);
+        }
         Poly(Shift(outer,new(3,8)),new Color("9b895f"));
         Poly(outer,Sand);
-        Poly(outer.Select(v=>v*.96f-new Vector2(0,3)).ToArray(),SandLight);
-        Poly(outer.Select(v=>v*.88f-new Vector2(0,5)).ToArray(),new Color("f2d6a0"));
+        var beach=outer.Select(v=>v*.975f-new Vector2(0,2)).ToArray();
+        var inland=outer.Select((v,i)=>v*(.79f+.035f*Mathf.Sin(i*.8f+shoalPhase))-new Vector2(0,5)).ToArray();
+        Poly(inland,new Color("eed29b"));
+        for(int i=0;i<outer.Length;i++)
+        {
+            int next=(i+1)%outer.Length;
+            var rim=SandLight;
+            var center=new Color("eed29b");
+            canvas.DrawPolygon([beach[i],beach[next],inland[next]],[rim,rim,center]);
+            canvas.DrawPolygon([beach[i],inland[next],inland[i]],[rim,center,center]);
+        }
         var bank=outer.Select(v=>v*new Vector2(.60f,.55f)-new Vector2(radius*.03f,radius*.16f)).ToArray();
-        Prism(bank,radius*.065f,new Color("91a576"),new Color("758561"));
-        Poly(bank.Select(v=>v*.9f-new Vector2(0,radius*.07f)).ToArray(),new Color("a1ae7b"));
+        var bankCenter=new Vector2(-radius*.03f,-radius*.2f);
+        for(int i=0;i<bank.Length;i++)
+        {
+            int next=(i+1)%bank.Length;
+            var edge=bank[i]*(1+.09f*Mathf.Sin(i*1.9f+shoalPhase));
+            var nextEdge=bank[next]*(1+.09f*Mathf.Sin(next*1.9f+shoalPhase));
+            canvas.DrawPolygon([bankCenter,edge,nextEdge],[new Color("93a174"),new Color(.58f,.63f,.43f,.12f),new Color(.58f,.63f,.43f,.12f)]);
+        }
         var sandGrain=new SeedRandom(seed ^ 0x17f3u);
         for(int grain=0;grain<30;grain++)
         {
@@ -336,17 +385,7 @@ public sealed class ProceduralArt(Node2D canvas)
                     for (int tree = 0; tree < 3; tree++)
                     {
                         var root = new Vector2((tree - 1) * radius * .27f, -radius * .15f + tree * 7);
-                        var crown = root + new Vector2(12 - tree * 7, -radius * .42f);
-                        Line(root, crown, new Color("77583d"), 8);
-                        Line(root - new Vector2(2,0), crown - new Vector2(2,0), Sand, 2);
-                        for (int leaf = 0; leaf < 5; leaf++)
-                        {
-                            float a = leaf * Mathf.Tau / 5;
-                            var tip = crown + Vector2.FromAngle(a) * radius * .24f;
-                            var mid = crown.Lerp(tip,.5f);
-                            var side = Vector2.FromAngle(a).Orthogonal()*7;
-                            Poly([crown,mid+side,tip,mid-side], new Color(leaf%2==0?"5a895d":"3e6c55"));
-                        }
+                        Palm(root,radius*(.52f+tree*.035f),tree*.7f);
                     }
                     break;
                 case 1:
@@ -380,6 +419,32 @@ public sealed class ProceduralArt(Node2D canvas)
         }
         canvas.DrawSetTransform(Vector2.Zero);
     }
+    void Palm(Vector2 root,float height,float phase)
+    {
+        var bend=new Vector2(10+Mathf.Sin(phase)*7,-height*.55f);
+        var crown=root+new Vector2(12+Mathf.Sin(phase)*12,-height);
+        var shade=new Color(.16f,.22f,.14f,.19f);
+        var shadowTip=root+new Vector2(height*.55f,height*.23f);
+        Line(root,shadowTip,shade,8);
+        Ellipse(shadowTip,new(height*.38f,height*.14f),shade);
+        Poly([root+new Vector2(-5,0),root+bend-new Vector2(3,0),crown-new Vector2(2,0),crown+new Vector2(3,0),root+bend+new Vector2(5,0),root+new Vector2(5,0)],new Color("705438"));
+        canvas.DrawPolyline([root-new Vector2(2,0),root+bend,crown],new Color("bc9d63"),2.5f,true);
+        for(int leaf=0;leaf<7;leaf++)
+        {
+            float a=leaf*Mathf.Tau/7+phase*.3f;
+            var d=Vector2.FromAngle(a);
+            var tip=crown+d*new Vector2(height*.56f,height*.3f)+new Vector2(0,height*.12f);
+            var ridge=crown.Lerp(tip,.46f)-new Vector2(0,height*.1f);
+            var side=d.Orthogonal()*height*.11f;
+            var lit=new Color(leaf%3==0?"a1b85e":"74964d");
+            var dark=new Color(leaf%3==0?"658544":"426846");
+            Poly([crown,ridge+side,ridge],lit);
+            Poly([ridge,ridge+side,tip],lit);
+            Poly([crown,ridge,ridge-side],dark);
+            Poly([ridge,tip,ridge-side],dark);
+        }
+        Ellipse(crown+new Vector2(2,3),new(4,3),new Color("b59b57"));
+    }
     void Dock(Vector2 p)
     {
         for(int y=0;y<9;y++)
@@ -393,15 +458,30 @@ public sealed class ProceduralArt(Node2D canvas)
     }
     void Hut(Vector2 p)
     {
-        var shape=new[]{p+new Vector2(-26,-12),p+new Vector2(27,-12),p+new Vector2(27,30),p+new Vector2(-26,30)};
-        Prism(shape,34,Cream,Sand);
-        Box(p+new Vector2(-7,12),new(17,19),0,Ink,Ink);
-        Box(p+new Vector2(-22,3),new(10,11),0,Ink,Ink);
-        Poly([p+new Vector2(-34,-43),p+new Vector2(23,-43),p+new Vector2(35,-10),p+new Vector2(-25,-10)],Orange);
-        Poly([p+new Vector2(23,-43),p+new Vector2(35,-10),p+new Vector2(35,1),p+new Vector2(23,-31)],OrangeDark);
-        Line(p+new Vector2(-34,-43),p+new Vector2(23,-43),OrangeLight,3);
-        for(int i=1;i<=3;i++)Line(p+new Vector2(-34+i*3,-43+i*9),p+new Vector2(23+i*3,-43+i*9),OrangeDark,1.5f);
-        for(int i=1;i<5;i++)Line(p+new Vector2(-34+i*11,-43),p+new Vector2(-25+i*12,-10),OrangeLight,1);
+        // A pitched roof and a visible side wall give the harbor a small cottage silhouette.
+        Vector2 P(float x,float y)=>p+new Vector2(x,y);
+        Poly([P(-38,7),P(25,7),P(48,32),P(3,43),P(-23,28)],new Color(.12f,.19f,.16f,.22f));
+        Poly([P(-28,-8),P(-41,-26),P(-41,7),P(-28,25)],new Color("ae9770"));
+        Poly([P(-28,-8),P(28,-8),P(28,25),P(-28,25)],new Color("e2cb98"));
+        Poly([P(-28,-8),P(0,-34),P(28,-8)],new Color("f3dba9"));
+        Poly([P(-31,-7),P(-44,-25),P(-14,-53),P(0,-35)],new Color("b9744f"));
+        Poly([P(0,-35),P(-14,-53),P(17,-25),P(31,-7)],new Color("8c5140"));
+        Line(P(-14,-53),P(0,-35),new Color("d69868"),3);
+        Line(P(-31,-7),P(0,-35),new Color("d79a69"),3);
+        Line(P(0,-35),P(31,-7),new Color("643d31"),3);
+        Poly([P(-30,-7),P(0,-31),P(30,-7),P(28,-3),P(0,-27),P(-28,-3)],new Color("76573e"));
+        Poly([P(-8,4),P(7,4),P(7,25),P(-8,25)],new Color("654e39"));
+        Line(P(-5,7),P(-5,23),new Color("997248"),2);
+        Ellipse(P(3,15),new(1.2f,1.2f),SandLight);
+        for(int side=-1;side<=1;side+=2)
+        {
+            float x=side*18;
+            Poly([P(x-6,2),P(x+6,2),P(x+6,13),P(x-6,13)],new Color("6e624a"));
+            Poly([P(x-4,3),P(x+4,3),P(x+4,10),P(x-4,10)],new Color("37636a"));
+            Line(P(x-4,4),P(x+3,4),new Color("91b2aa"),1.5f);
+            Line(P(x-7,14),P(x+7,14),SandLight,2);
+        }
+        Poly([P(-12,25),P(12,25),P(16,30),P(-10,30)],new Color("b5aa8a"));
     }
     void Lighthouse(Vector2 p,float clock)
     {

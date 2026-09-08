@@ -20,3 +20,7 @@ Compare native captures with the reference at normal camera scale. Check moving 
 Implemented in the reference visual pass: world-anchored depth fields; land-shaped transparent shelves; broad beaches, plants and sparse sand detail; upright Mage crystal; shaded shells and larger serpent art; bounded trail histories; animated surf and foam; treasure shading and fish shadows. Scenery is drawn with premultiplied alpha so cached translucent shelves remain turquoise rather than darkening the water.
 
 Native comparison captures are in `evidence/concept-style-combat.png` and `evidence/concept-style-motion.png`. The procedural result remains more graphic and has less surface microdetail than the generated illustration; foam is deliberately restrained for gameplay readability. The latest ray-body and sparse sand-grain refinements follow those captures.
+
+## Follow-up acceptance status
+
+The previous visual pass is not an accepted match. `evidence/concept-depth-revision.png` records the next intermediate revision: screen-upright cabin walls/windows, a pitched-roof harbor cottage, fuller palms, softer beach transitions, and irregular foam. A bright smooth shoreline treatment was rejected during comparison and darkened. Remaining gaps are substantial: shoals still lack natural seabed structure; landmarks are simple pillars; sea detail is too uniform; creature and hull shading need stronger consistent volume. Continue native comparisons instead of treating this feature list as completion.

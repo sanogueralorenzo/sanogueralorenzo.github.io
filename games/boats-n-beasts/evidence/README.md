@@ -64,3 +64,5 @@ Native telemetry accompanies each image. Victory capture precedes only sale-head
 
 - `concept-style-combat.png/.txt`: revised water, broad beach, shaded creatures and submerged fish. Before the final foam/crystal adjustments.
 - `concept-style-motion.png/.txt`: upright Mage crystal, broad shallow shelves and readable combat, following foam refinement. Sparse sand grains and the final Ray body are later build-verified refinements.
+
+- `concept-depth-revision.png/.txt`: intermediate harbor/cabin/shore revision; still below the approved concept. See ART_DIRECTION follow-up gaps.
