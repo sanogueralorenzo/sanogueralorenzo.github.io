@@ -21,17 +21,15 @@ enum Accessibility {
         guard let value = value(element, attribute), CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
         return (value as! AXUIElement)
     }
-
 }
 
 @MainActor
-struct CapturedSelection {
-    let text: String
-    static func capture(sourceApp: NSRunningApplication? = nil) throws -> CapturedSelection {
+enum SelectedText {
+    static func read() throws -> String {
         guard AXIsProcessTrusted() else {
             throw RewriteError.accessibilityPermission
         }
-        guard let app = sourceApp ?? NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+        guard let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
               let focused = Accessibility.element(Accessibility.application(app.processIdentifier), kAXFocusedUIElementAttribute) else {
             throw RewriteError.message("Select text in an app, then press the Rewrite shortcut again.")
         }
@@ -44,7 +42,6 @@ struct CapturedSelection {
         guard text.utf16.count <= Editing.maximumUTF16 else {
             throw RewriteError.message("Select a shorter passage (up to 24,000 characters) and try again.")
         }
-        return CapturedSelection(text: text)
+        return text
     }
-
 }

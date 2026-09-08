@@ -6,7 +6,7 @@ private final class StatusDot: NSView {
 }
 
 @MainActor
-final class MenuBarStatus: NSObject {
+final class AppMenu: NSObject {
     var onRewrite: (() -> Void)?
     var onCancel: (() -> Void)?
     var onProvider: ((RewriteProvider) -> Void)?

@@ -24,6 +24,9 @@ def emit(value):
 if args[:2] == ['auth', 'check']:
     assert args[2] == '--provider' and args[3] in ['openai-codex', 'anthropic']
     assert args[4:] == ['--json', '--credentials']
+    record('auth', provider=args[3])
+    if (root / 'mode').read_text() == 'hold-auth':
+        time.sleep(60)
     emit(dict(status='ready', authType='oauth', credentials='test-access-token'))
     sys.exit(0)
 if '--help' in args:
@@ -86,7 +89,7 @@ for line in sys.stdin:
         elif mode == 'tool':
             emit(dict(type='tool_execution_start')); continue
         emit(dict(type='message_end', message=dict(role='assistant', stopReason='length' if mode == 'partial' else 'stop',
-             content=[dict(type='thinking', thinking='private'), dict(type='text', text='Edited: ' + source)])))
+             content=[dict(type='thinking', thinking='private'), dict(type='text', text=' ' if mode == 'empty' else 'Edited: ' + source)])))
         emit(dict(type='agent_end'))
     # Complete before acknowledgment, and include an unrelated response ID.
     emit(dict(reply, id='unrelated'))

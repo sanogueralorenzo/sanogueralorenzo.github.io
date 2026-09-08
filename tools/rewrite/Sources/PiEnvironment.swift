@@ -23,7 +23,9 @@ enum CLIDiscovery {
 
 // Only the resolved credential enters this disposable Pi configuration. The normal
 // auth command refreshes the original store with Pi's own locking; no auth symlinks.
-final class PiRequest {
+final class PiEnvironment {
+    static let isolationArguments = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
+                                     "--no-prompt-templates", "--no-context-files", "--no-themes", "--no-approve"]
     let directory: URL
     var environment: [String: String] {
         var result = CLIDiscovery.environment
@@ -57,7 +59,8 @@ final class PiRequest {
     }
     """
     @MainActor func rewriteArguments(_ provider: RewriteProvider) throws -> [String] {
-        var arguments = PiService.arguments(provider)
+        var arguments = Self.isolationArguments + ["--mode", "rpc", "--provider", provider.providerID,
+            "--model", provider.preferredModel, "--thinking", "off", "--system-prompt", Editing.rules]
         if provider == .openai {
             let path = directory.appendingPathComponent("rewrite-priority.mjs")
             try Self.priorityExtension.write(to: path, atomically: true, encoding: .utf8)

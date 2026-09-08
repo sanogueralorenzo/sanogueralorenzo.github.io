@@ -3,9 +3,9 @@ import AppKit
 @main
 @MainActor
 final class Rewrite: NSObject, NSApplicationDelegate {
-    private let shortcut = GlobalShortcut()
+    private let shortcut = AppShortcut()
     private let processor = PiService()
-    private let menuBar = MenuBarStatus()
+    private let menuBar = AppMenu()
     private lazy var controller = RewriteController(processor: processor, menuBar: menuBar)
     private var escapeMonitor: Any?
     private var localEscapeMonitor: Any?

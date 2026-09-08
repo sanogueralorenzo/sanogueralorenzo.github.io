@@ -23,4 +23,4 @@ Select text and press **⌥R** to rewrite it. The result is copied to your clipb
 
 Selected text goes to your chosen provider through Pi. Rewrite reads the selected text without changing the source field. Some apps do not expose selected text to Accessibility. Check the result before using it.
 
-Local development: `./build.sh` · Core checks: `./tests/run.sh` (offline; native UI and model quality untested).
+Local development: `./build.sh` · Core checks: `./tests/run.sh` (offline; selection capture, global shortcuts, and model quality untested).
