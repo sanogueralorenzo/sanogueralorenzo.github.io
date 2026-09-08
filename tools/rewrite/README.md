@@ -23,4 +23,4 @@ Select text, then **⌥R** opens Rewrite · **⌥1** Make shorter · **⌥2** Ma
 
 Selected text goes to your chosen provider through Pi. Rewrite leaves the clipboard untouched and refuses changed selections or unsupported fields. Some browsers and custom editors cannot be rewritten. Check the result before using it.
 
-Local development: `./build.sh` · Fast checks: `./tests/run.sh` · Menu and settings checks: `./tests/feedback.sh` (quit Rewrite first).
+Local development: `./build.sh` · Core checks: `./tests/run.sh` (offline; native UI and model quality untested).
