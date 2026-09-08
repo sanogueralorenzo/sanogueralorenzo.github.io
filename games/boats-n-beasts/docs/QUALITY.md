@@ -179,3 +179,7 @@ Removed Catch mode and its result panel/confirmation input. Success and failure 
 ## Unlimited catches — 2026-09-08
 
 Removed the 12-catch interaction gate and full-hold warning. The result-popup removal had already removed the visible cargo counter; source inspection confirms only the diagnostic capture count remains. Catch accumulation and automatic dock sale/clear are unchanged. Debug build passed without warnings/errors and the rebuilt native game opened successfully. This focused check did not include a 13-catch live voyage; no automated tests or state injection were used.
+
+## Clear boat abilities — 2026-09-08
+
+Removed movement-dependent mitigation and pulse charging, Cutter after-release bonus, and incidental pulse damage/soak. Trawler now pulses every six simulation seconds; Cutter cooldown progress accelerates by 65% only during active boost. Debug build and native launch passed; boat selection copy inspected. A stationary Trawler live run advanced beyond two pulse intervals with charge wrapping. Live checks did not separately measure Cutter shot cadence or projectile clearing; those paths were inspected in source. Damage is now unmitigated for both boats, so a full-run balance pass remains useful. No automated tests or injected state.

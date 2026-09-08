@@ -15,7 +15,7 @@ public sealed partial class Voyage
         var starboard = new Vector2(-forward.Y, forward.X);
         for (int w = 0; w < Weapons.Length; w++)
         {
-            Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt);
+            Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
             if (rank == 0 || Cooldowns[w] > 0 || safe || Shots.Count >= 360) continue;
             float range = w == 4 ? (130 + rank * 8) * Area : w == 5 ? 430 * Area : w == 3 ? 285 * Area : 570;
@@ -80,7 +80,7 @@ public sealed partial class Voyage
                 }
             }
             Cooldowns[w] = (w==0?.85f:w==1?1.3f:w==2?2.4f:w==4?.6f:w==5?1.65f:1.55f)
-                / ((1+.1f*(rank-1))*(1+ReloadRank*.12f)*(Slipstream>0?1.65f:1));
+                / ((1+.1f*(rank-1))*(1+ReloadRank*.12f));
         }
     }
     static float SegmentDistance(Vector2 p,Vector2 a,Vector2 b)
@@ -88,7 +88,7 @@ public sealed partial class Voyage
         var v=b-a; float t=v.LengthSquared()>0?Math.Clamp(Vector2.Dot(p-a,v)/v.LengthSquared(),0,1):0;
         return Vector2.Distance(p,a+t*v);
     }
-    void UpdateShots(float dt,bool safe,bool boosting)
+    void UpdateShots(float dt,bool safe)
     {
         foreach (var s in Shots)
         {
@@ -98,7 +98,7 @@ public sealed partial class Voyage
             if (s.Hostile)
             {
                 if (World.HarborAt(s.Position)!=null) { s.Life=0; continue; }
-                if (SegmentDistance(Position,s.Previous,s.Position)<26+s.Radius) { if(!safe) DamagePlayer(s.Damage,boosting); s.Life=0; }
+                if (SegmentDistance(Position,s.Previous,s.Position)<26+s.Radius) { if(!safe) DamagePlayer(s.Damage); s.Life=0; }
                 if (!World.IsWater(s.Position,1)) s.Life=0;
                 continue;
             }

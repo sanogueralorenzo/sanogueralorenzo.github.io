@@ -29,3 +29,5 @@ Run-flow simplification: dock automatically sells cargo; fishing resolves after 
 Fishing results no longer open a menu: success and failure immediately return to sailing. A boat-following label shows the fish name/value (or “Got away”) for 2.5 seconds, rising gently and fading. Catches remain cargo until docking. Live success/failure, label disappearance and continued sailing verified; see catch-without-popup and sailing-after-catch evidence.
 
 Catch storage is unlimited. Fishing eligibility depends on an available nearby school, never the number of held fish. No player-facing cargo counter or full-hold warning remains; docking still sells all held catches once. The native diagnostic capture retains its count for verification.
+
+Boat abilities are now singular and explicit: Cutter has +65% firing rate only during boost, applied to cooldown progress so release ends the bonus immediately. Trawler releases a shot-clearing, enemy-pushing pulse every six sailing seconds, independent of movement, nearby enemies or safe waters. Pulse damage/soak and boost/slow-movement damage reductions are removed. Fishing and menus freeze the pulse timer with the simulation.

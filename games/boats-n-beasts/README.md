@@ -19,7 +19,7 @@ There are no external visual assets, imported fonts, audio assets, or automated 
 The home menu starts with **Play**, which opens boat selection. **Unlock**, **Quests**, and **Shop** appear after 1, 2, and 3 ended voyages. They are placeholders with no action yet. Defeat, victory, or returning to the menu ends a voyage and counts it once; continuing after victory does not count twice. Existing saves start this counter from their recorded wins. The handbook remains available from pause.
 
 - **WASD / arrows:** sail. **Left click:** sail to a point and stop.
-- **Space / Shift:** boost while moving. Boost reduces damage; releasing an exhausted boost lets it recharge.
+- **Space / Shift:** boost while moving. Releasing an exhausted boost lets it recharge.
 - **E:** fish near a school or dock inside a harbor's dashed safety boundary.
 - **Space / E while fishing:** reel inside the turquoise band. One successful reel lands the catch; one miss or 8 seconds without reeling loses it. The fish name and gold value appear briefly above the boat; sailing resumes immediately without a result menu. Each school allows one cast. Success, failure, or Escape cancellation uses it up.
 - **Escape:** pause, cancel fishing, or leave a result/harbor screen. **Enter / Tab / arrows:** operate menus. Space cannot accidentally select an upgrade while boosting.
@@ -36,8 +36,8 @@ Experience fills the thin bar along the top edge. The small red bar above your b
 
 | Boat | Base ability | Starting weapons |
 | --- | --- | --- |
-| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Broadside |
-| Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Whirlpool |
+| Cutter | Fires 65% faster while boosting. Faster movement, lighter hull. | Broadside |
+| Trawler | Every 6 seconds, a pulse clears nearby shots and pushes enemies away. | Whirlpool |
 
 Every boat can use all six weapons:
 

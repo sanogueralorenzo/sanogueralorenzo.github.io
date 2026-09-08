@@ -38,7 +38,8 @@ public sealed partial class Voyage
     public Vector2 Position, Velocity;
     public float Heading, Health, Boost = 100, CombatTime, Invulnerable, Distance, MaxDistance;
     public int Coins = 20, Kills, Level = 1, Xp, HullRank, EngineRank, ReloadRank, AreaRank;
-    public float AbilityCharge, Slipstream;
+    public float AbilityCharge;
+    public float FireRateMultiplier => Boat == BoatKind.Cutter && IsBoosting ? 1.65f : 1;
     public readonly List<int> UpgradeChoices = new();
     public bool BossSpawned, BossSlain;
     public bool BoostExhausted { get; private set; }
@@ -86,7 +87,7 @@ public sealed partial class Voyage
         }
         if (Mode != VoyageMode.Sailing) return;
         CombatTime += dt; Invulnerable = Math.Max(0, Invulnerable - dt);
-        bool boosting = UpdateMovement(dt, input);
+        UpdateMovement(dt, input);
         CollectEncounters();
         bool safe = Safe;
         int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
@@ -100,10 +101,10 @@ public sealed partial class Voyage
                 Events.Add(new("boss", Enemies[^1].Position));
             }
         }
-        UpdateAbility(dt, safe, boosting);
-        UpdateEnemies(dt, safe, boosting);
+        UpdateAbility(dt);
+        UpdateEnemies(dt, safe);
         UpdateWeapons(dt, safe);
-        UpdateShots(dt, safe, boosting);
+        UpdateShots(dt, safe);
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
@@ -127,7 +128,7 @@ public sealed partial class Voyage
         Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3) });
         return true;
     }
-    void UpdateEnemies(float dt, bool safe, bool boosting)
+    void UpdateEnemies(float dt, bool safe)
     {
         // Population is capped at 80; small pairwise local separation keeps silhouettes legible.
         foreach (var e in Enemies)
@@ -191,7 +192,7 @@ public sealed partial class Voyage
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (!safe && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f, boosting);
+            if (!safe && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
         }
     }
     void FireHostile(Enemy e, Vector2 dir, float speed)
@@ -199,10 +200,10 @@ public sealed partial class Voyage
         if (Shots.Count > 360) return;
         Shots.Add(new() { Hostile = true, Position = e.Position, Previous = e.Position, Velocity = dir * speed, Damage = 10 + Tier * 1.4f, Life = 6, Radius = 7 });
     }
-    void DamagePlayer(float damage, bool boosting)
+    void DamagePlayer(float damage)
     {
         if (Invulnerable > 0 || Safe || Mode != VoyageMode.Sailing) return;
-        Health -= damage * (boosting ? .45f : Boat == BoatKind.Trawler && Velocity.Length() < Speed * .45f ? .7f : 1); Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
+        Health -= damage; Invulnerable = .8f; Events.Add(new("hurt", Position, damage));
     }
     void Hit(Enemy e, float damage)
     {
@@ -273,20 +274,17 @@ public sealed partial class Voyage
         if (Mode != VoyageMode.Harbor || RepairCost <= 0 || Coins < RepairCost) return false;
         Coins -= RepairCost; Health = MaxHealth; Events.Add(new("buy", Position)); return true;
     }
-    void UpdateAbility(float dt, bool safe, bool boosting)
+    void UpdateAbility(float dt)
     {
-        Slipstream = Math.Max(0, Slipstream - dt);
-        if (Boat == BoatKind.Cutter) { if (boosting) Slipstream = 1.25f; AbilityCharge = 0; return; }
-        Slipstream = 0;
-        if (safe) return;
-        AbilityCharge = Math.Min(1, AbilityCharge + dt * (Velocity.Length() < Speed * .45f ? .34f : .08f));
-        if (AbilityCharge < 1 || !Enemies.Any(e => e.Health > 0 && Vector2.Distance(e.Position, Position) < 310)) return;
-        AbilityCharge = 0;
+        if (Boat != BoatKind.Trawler) return;
+        AbilityCharge += dt / 6;
+        if (AbilityCharge < 1) return;
+        AbilityCharge -= 1;
         Events.Add(new("bulwark", Position, 270));
         foreach (var shot in Shots) if (shot.Hostile && Vector2.Distance(shot.Position, Position) < 270) shot.Life = 0;
         foreach (var e in Enemies)
             if (e.Health > 0 && Vector2.Distance(e.Position, Position) < 270 + e.Radius)
-            { e.Mark = 3; Hit(e, 18 + Level * 2); e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(e.Position - Position) * 65, e.Radius); }
+                e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(e.Position - Position) * 65, e.Radius);
     }
     void RollUpgrades()
     {
@@ -367,8 +365,8 @@ public sealed partial class Voyage
 public sealed record BoatSpec(string Name, float Hull, float Speed, string Ability, string Description)
 {
     public static readonly BoatSpec[] All = [
-        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Broadside."),
-        new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Starts with Whirlpool.")
+        new("Cutter", 100, 235, "SLIPSTREAM", "Fire 65% faster while boosting. Starts with Broadside."),
+        new("Trawler", 155, 185, "BULWARK", "Every 6s, a pulse clears nearby shots and pushes foes away. Starts with Whirlpool.")
     ];
     public static BoatSpec For(BoatKind kind) => All[(int)kind];
 }
