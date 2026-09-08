@@ -412,7 +412,7 @@ public static class EnvironmentArt3D
                 {
                     material = key == "shelf"
                         ? new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EnvironmentShallows.gdshader") }
-                        : new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .93f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+                        : TactileSurface.Material;
                     Materials.Add(key, material);
                 }
                 surface.SetMaterial(material); surface.Index();

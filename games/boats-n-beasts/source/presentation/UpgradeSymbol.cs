@@ -5,7 +5,7 @@ namespace BoatsNBeasts;
 public partial class UpgradeSymbol : Control
 {
     public int Kind { get; init; }
-    public override void _Draw() => DrawSymbol(this, Kind, OceanView.Aqua);
+    public override void _Draw() => DrawSymbol(this, Kind, NauticalPalette.Aqua);
     public static void DrawSymbol(CanvasItem canvas, int kind, Color c)
     {
         void Line(float x, float y, float u, float v) => canvas.DrawLine(new(x, y), new(u, v), c, 2, true);

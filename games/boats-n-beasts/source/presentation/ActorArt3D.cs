@@ -9,11 +9,7 @@ namespace BoatsNBeasts;
 public static partial class ActorArt3D
 {
     static readonly Dictionary<string, ArrayMesh> Cache = new();
-    static readonly StandardMaterial3D Material = new()
-    {
-        VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .88f, Metallic = 0,
-        CullMode = BaseMaterial3D.CullModeEnum.Back
-    };
+    static Material Material => TactileSurface.Material;
     static readonly Color Cream = new("ecd8a4"), Wood = new("98633b"), Deck = new("bb8c53"),
         DarkWood = new("694731"), Brass = new("caa467"), Glass = new("284958"),
         Coral = new("cb4829"), Shell = new("cf5531"), DarkCoral = new("9d3224"),
