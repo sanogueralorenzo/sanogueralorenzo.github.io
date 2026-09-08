@@ -153,3 +153,8 @@ Removed the Settings screen/entry point, fullscreen preference and F11 handler, 
 Debug/Release builds and diff checks passed. Actual UI verified all previously unlocked title entries and 17 silver, the three-button pause menu without Settings, sailing, manual fishing and its no-input timeout. Combat clock stayed at 6.5174108 throughout fishing/result. The existing save had assisted_fishing=true, so this also verifies old preference values no longer activate optional behavior. Hold boost uses the existing physical-key-down polling directly; the UI tool's short press did not register a simulation boost, so sustained hold behavior was reviewed in code rather than claimed as a new live hold test.
 
 A normal end-voyage save retained best_kills=174, wins=1, silver=17 and bulwark_explained=true, incremented finished_runs from 15 to 16, and removed obsolete display/accessibility sections. The legacy settings.cfg path remains for compatibility; no save reset. Native evidence: no-settings-pause, manual-fishing, manual-fishing-timeout PNG/TXT pairs. No automated tests or injected game state. Game left at title.
+
+
+## Fixed boat per voyage — 2026-09-08
+
+Removed the harbor switch button and SwitchBoat method; Voyage.Boat is now get-only and assigned at construction. Updated current handbook/README copy. Debug build passes; live UI selected Cutter, sailed to harbor and confirmed only Sell/Repair plus the existing three offers and exit. Victory claim remains conditional as before. Evidence: fixed-boat-harbor PNG/TXT. No automated tests.

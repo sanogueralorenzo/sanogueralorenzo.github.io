@@ -34,7 +34,7 @@ public sealed partial class Voyage
     float SilverInterval() => 45 + silverRandom.NextSingle() * 45;
     public SpawnDirector Director { get; } = new();
     public VoyageMode Mode = VoyageMode.Sailing;
-    public BoatKind Boat;
+    public BoatKind Boat { get; }
     public Vector2 Position, Velocity;
     public float Heading, Health, Boost = 100, CombatTime, Invulnerable, Distance, MaxDistance;
     public int Coins = 20, Kills, Level = 1, Xp, Charts, HullRank, EngineRank, ReloadRank, AreaRank;
@@ -333,12 +333,6 @@ public sealed partial class Voyage
         else if (option == 8) ReloadRank++;
         else AreaRank++;
         if (free) Mode = VoyageMode.Sailing;
-        Events.Add(new("buy", Position)); return true;
-    }
-    public bool SwitchBoat()
-    {
-        if (Mode != VoyageMode.Harbor) return false;
-        float ratio = Health / MaxHealth; Boat = Boat == BoatKind.Cutter ? BoatKind.Trawler : BoatKind.Cutter; Health = MaxHealth * ratio; AbilityCharge = Slipstream = 0;
         Events.Add(new("buy", Position)); return true;
     }
     public void ClaimVictory() { if (Mode == VoyageMode.Harbor && BossSlain) { Retired = true; Mode = VoyageMode.Victory; Events.Add(new("victory", Position)); } }

@@ -37,3 +37,5 @@ Each image has its native telemetry partner. Original timestamped captures remai
 ## Settings removal
 
 `no-settings-pause` shows the simplified pause menu. `manual-fishing` and `manual-fishing-timeout` show manual instructions followed by a no-input missed catch, with frozen combat telemetry. All three have native PNG/TXT pairs.
+
+`fixed-boat-harbor` verifies the harbor without a mid-run boat switch.

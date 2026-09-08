@@ -1,0 +1,21 @@
+Mouse viewport=(272.25, 1347.75) global=(272.25, 1347.75) boatScreen=(743.64355, 462.25455) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-772.55896, 1312.1942>; destination=
+Native runtime capture: 20260908-053434-harbor
+Renderer: gl_compatibility
+Seed: 3564732751
+Mode: Harbor
+Game speed: x1
+Finished runs: 16; boat selection: False
+Silver: 17; earned this voyage: 0; next eligible combat time: 79.0959
+Boat: Cutter
+Position: <-135.54068, -112.348045>
+Health: 100/100
+Coins: 20; cargo: 0; charts: 0; kills: 0; level: 1
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 5.1; peak enemies: 0; peak shots: 0
+Velocity=<0, 0>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; salvos=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=5.1059895; director=0/0.94907945; boost=100; invulnerable=0; ability=0/0
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,0
+Depletion=
+CPU simulation average ms=0.024; draw submission average ms=0.930; cached scenery=12; engine FPS=119; draw calls=685; objects=2476
+Frame ms mean: 10.07; p95: 16.67; p99: 17.72
