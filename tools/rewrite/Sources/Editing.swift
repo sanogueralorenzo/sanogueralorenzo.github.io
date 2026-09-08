@@ -37,7 +37,7 @@ enum Editing {
 
     static func validate(_ text: String) throws -> String {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw RewriteError.message("The processor returned no text. Try again or choose another processor.")
+            throw RewriteError.message("The processor returned no text. Try again or check your Pi sign-in.")
         }
         guard text.utf16.count <= maximumUTF16 * 4 else {
             throw RewriteError.message("The result is too long. Try a smaller selection.")
@@ -49,19 +49,4 @@ enum Editing {
 enum RewriteError: LocalizedError {
     case message(String)
     var errorDescription: String? { if case .message(let message) = self { return message }; return nil }
-}
-
-// UTF-16 matches the ranges used by macOS Accessibility and NSString, including emoji.
-struct SelectionFingerprint: Equatable {
-    let value: String
-    let range: NSRange
-    let text: String
-
-    var isConsistent: Bool {
-        let string = value as NSString
-        return range.location != NSNotFound && range.location >= 0 && range.length > 0 &&
-            range.location <= string.length && range.length <= string.length - range.location &&
-            string.substring(with: range) == text
-    }
-    func replacing(with result: String) -> String { (value as NSString).replacingCharacters(in: range, with: result) }
 }

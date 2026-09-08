@@ -8,7 +8,7 @@ A small native macOS menu for improving selected text. No chat, library, or hist
 curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/rewrite/install.sh | sh
 ```
 
-Installs in `~/Applications`. On first launch, sign in through Pi, then choose a provider and model. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**. The pencil menu provides Settings and Quit. Click the shortcut in Settings to record another combination (include Command, Control, or Option).
+Installs in `~/Applications`. On first launch, sign in through Pi, then choose a provider. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**. The pencil menu provides Settings and Quit. Click the shortcut in Settings to record another combination (include Command, Control, or Option).
 
 Select text, press **⌥R (Option-R)**, then choose a style with its shortcut:
 
@@ -21,7 +21,7 @@ Select text, press **⌥R (Option-R)**, then choose a style with its shortcut:
 | ⌥5 | Casual |
 | ⌥6 | Friendly |
 
-You can also click a style or use arrow keys and Return. The pencil menu’s **Rewrite Selection** opens the same menu. There is no automatic popup when selecting text.
+You can also click a style or use arrow keys and Return. The pencil menu’s **Rewrite** opens the same menu. There is no automatic popup when selecting text.
 
 The result replaces the selected text automatically, without a preview, Replace button, or Copy window. Use **⌘Z** in the source app to undo (Undo support is controlled by that app).
 
@@ -36,26 +36,36 @@ npm install -g --ignore-scripts @earendil-works/pi-coding-agent@latest
 pi
 ```
 
-| Provider | Pi sign-in | Initial model |
+| Provider | Pi sign-in | Fixed model |
 | --- | --- | --- |
 | OpenAI | OpenAI (ChatGPT Plus/Pro) | GPT 5.6 Luna · Reasoning off · Priority |
 | Anthropic | Anthropic | Claude Haiku 4.5 · Thinking off |
 
-Selected text goes to the chosen provider through Pi. Codex/Claude CLI credentials are not reused. In Rewrite Settings, click Refresh after signing in. Discovery checks `~/.local/bin`, Homebrew, and inherited PATH for `pi`. Pi and its runtime are not bundled into Rewrite. Requires Pi with `auth check --json --credentials` and the isolation flags below; verified with 0.85.1.
+Selected text goes to the chosen provider through Pi. Codex/Claude CLI credentials are not reused. After signing in, try Rewrite again; sign-in is checked automatically. Discovery checks `~/.local/bin`, Homebrew, and inherited PATH for `pi`. Pi and its runtime are not bundled into Rewrite. Requires Pi with `auth check --json --credentials` and the isolation flags below; verified with 0.85.1.
 
-The model picker lists the selected provider's built-in Pi models. Model IDs can also be entered directly, without provider prefixes or reasoning suffixes. Both providers use Pi thinking `off`. For OpenAI, Rewrite explicitly sends `reasoning.effort: "none"` and `service_tier: "priority"` through its own small request hook. Priority is requested, not guaranteed by the backend, and may consume more provider usage. Anthropic receives no OpenAI priority fields. Saved Codex and Claude choices migrate to their corresponding Pi provider. A saved Ollama choice requires choosing a cloud provider in Settings before any text can be sent. Provider account limits and service-side data policies still apply.
+Each provider uses the fixed model shown above. There is no model picker or model discovery. Previously saved model choices are ignored and removed when settings are saved. Both providers use Pi thinking `off`. For OpenAI, Rewrite explicitly sends `reasoning.effort: "none"` and `service_tier: "priority"` through its own small request hook. Priority is requested, not guaranteed by the backend, and may consume more provider usage. Anthropic receives no OpenAI priority fields. Saved Codex and Claude choices migrate to their corresponding Pi provider. A saved Ollama choice requires choosing a cloud provider in Settings before any text can be sent. Provider account limits and service-side data policies still apply.
 
 Each request contains the selected text plus a short rewrite-only system prompt. Pi also appends the disposable working-directory path. Source text is encoded as JSON data. Pi runs outside your project with `--no-tools`, `--no-extensions`, `--no-skills`, `--no-prompt-templates`, `--no-context-files`, `--no-themes`, `--no-approve`, and `--no-session`. OpenAI requests load only Rewrite’s explicitly supplied priority/reasoning hook; extension discovery remains disabled. The hook is written inside the disposable request directory, registers no tools, and logs no text or credentials. Startup networking is disabled with `--offline`; model inference still uses the network. Automatic compaction and retries are disabled.
 
 Pi's dedicated auth command resolves and refreshes your credential in its normal store. Only that resolved credential enters a private temporary Pi directory (OAuth refresh tokens are not copied), with a mode-600 auth file. Global settings, custom model endpoints, extra system prompts, and sessions are not loaded into the rewrite request. The directory stays private for the lifetime of the RPC process and is removed when it stops; forcibly killing the app or a system crash can prevent cleanup. Tokens are never passed in command arguments or printed by Rewrite. JSON event parsing accepts only a completed assistant response, rejects tool calls and interrupted/truncated responses, and excludes thinking from replacement text.
 
-Rewrite starts Pi in **RPC mode** when the configured app launches and keeps that process running for subsequent rewrites. Launch warmup checks sign-in and prepares an empty session without sending a model prompt. A rewrite started during warmup waits for that same process; saving settings warms the selected configuration. Warmup failures are reported when you try a rewrite. It creates a fresh session before and after each request and verifies that the session has no messages, queued prompts, or active generation. Successful rewrites keep the process warm; cancellation, errors, or quitting Rewrite stop it. A model/provider change or a request more than three minutes after process startup creates a new process with refreshed credentials. An unexpected exit is reported without automatically resubmitting the text; the next rewrite starts Pi again.
+Rewrite starts Pi in **RPC mode** when the configured app launches and keeps that process running for subsequent rewrites. Launch warmup checks sign-in and prepares an empty session without sending a model prompt. A rewrite started during warmup waits for that same process; saving settings warms the selected configuration. Warmup failures are reported when you try a rewrite. It creates a fresh session before and after each request and verifies that the session has no messages, queued prompts, or active generation. Successful rewrites keep the process warm; cancellation, errors, or quitting Rewrite stop it. A provider change or a request more than three minutes after process startup creates a new process with refreshed credentials. An unexpected exit is reported without automatically resubmitting the text; the next rewrite starts Pi again.
 
-Rewrite reads the selection only when invoked and sends no rewrite request until a style is chosen. It stores only provider, model, and shortcut preferences; it does not log text, results, or raw processor errors.
+Rewrite reads the selection only when invoked and sends no rewrite request until a style is chosen. It stores only provider and shortcut preferences; it does not log text, results, or raw processor errors.
 
 Replacement uses the captured Accessibility element directly, without changing the clipboard or simulating paste. Automatic replacement also requires the original app to remain in the foreground. It requires the original field, window, full field value, and UTF-16 selection to still match. Observed text/selection changes permanently invalidate the request. **Capture and replacement never change the clipboard or send a global paste keystroke.** The destination app controls Undo and formatting behavior.
 
+Before showing styles, Rewrite rejects selections known to be unsupported. It revalidates the foreground app and selection after Pi preparation, immediately before sending text. Final replacement checks still run because some editors claim write support but ignore writes.
+
 Some apps expose readable text but cannot safely replace it. Rewrite leaves the text untouched and explains the limitation in the menu bar. Changed selections or app switches cancel delivery instead of editing a stale or background field. Apps that do not expose selected text (including secure fields, some browser content, terminals, and custom editors) cannot be rewritten. There is no clipboard or paste-keystroke fallback. Selections are limited to 24,000 UTF-16 units; rich styling is not transmitted, but textual structure is preserved. AI edits can still be imperfect: check the text after replacement and use Undo if needed.
+
+Feature ownership stays in one executable with flat source files:
+
+- `Rewrite.swift`: app lifecycle, shortcut and callback wiring.
+- `RewriteController.swift`, `ActionMenu.swift`, `Editing.swift`, `MenuBarStatus.swift`: the editing flow and feedback.
+- `Selection.swift`: capture, fingerprint, preflight and verified replacement.
+- `PiService.swift`, `PiRequest.swift`, `PiRPC.swift`, `ProcessRunner.swift`: serialized warmup, credentials, isolated execution and protocol handling.
+- `Settings.swift`, `RewriteConfiguration.swift`, `Shortcut.swift`: provider defaults and shortcut preferences. Settings does not start subprocesses.
 
 Local development:
 

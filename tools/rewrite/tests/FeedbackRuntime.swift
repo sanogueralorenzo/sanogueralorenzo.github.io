@@ -46,6 +46,34 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 precondition(legacy.migratingLegacyShortcut == .standard, "old shortcut migrates")
                 let custom = Shortcut(keyCode: UInt32(kVK_ANSI_T), modifiers: UInt32(controlKey), label: "⌃T")
                 precondition(custom.migratingLegacyShortcut == custom, "custom shortcut preserved")
+                let suite = "rewrite-settings-test-" + UUID().uuidString
+                let defaults = UserDefaults(suiteName: suite)!
+                defer { defaults.removePersistentDomain(forName: suite) }
+                defaults.set("Codex CLI", forKey: "processor")
+                defaults.set("custom-obsolete-model", forKey: "model")
+                defaults.set(try JSONEncoder().encode(custom), forKey: "shortcut")
+                let settings = Settings(defaults: defaults)
+                precondition(settings.isConfigured && settings.configuration.resolvedModel == "gpt-5.6-luna", "saved custom model cannot override fixed OpenAI model")
+                precondition(settings.shortcut == custom, "settings preserves custom shortcut")
+                settings.show()
+                let settingsWindow = NSApp.windows.first { $0.title == "Rewrite Settings" }!
+                @MainActor func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+                let views = descendants(settingsWindow.contentView!)
+                precondition(!views.contains { $0 is NSComboBox }, "no model picker")
+                precondition(!views.contains { ($0 as? NSButton)?.title == "Refresh" }, "no discovery refresh")
+                let provider = views.compactMap { $0 as? NSPopUpButton }.first!
+                provider.selectItem(withTitle: "Anthropic")
+                NSApp.sendAction(provider.action!, to: provider.target, from: provider)
+                precondition(views.contains { ($0 as? NSTextField)?.stringValue == RewriteProvider.anthropic.modelLabel }, "provider change updates fixed model label")
+                if CommandLine.arguments.contains("--settings") {
+                    print("Settings ready for visual inspection."); fflush(stdout)
+                    try await Task.sleep(nanoseconds: 30_000_000_000)
+                }
+                var saved = false; settings.onSave = { saved = true }
+                let done = views.compactMap { $0 as? NSButton }.first { $0.title == "Done" }!
+                done.performClick(nil)
+                precondition(saved && settings.configuration.kind == .anthropic && settings.configuration.resolvedModel == "claude-haiku-4-5-20251001", "settings saves provider with fixed model")
+                precondition(defaults.string(forKey: "model") == nil && !settingsWindow.isVisible, "saving removes obsolete model preference and closes window")
                 let actions = ActionMenu()
                 var choices: [EditAction] = []
                 actions.onChoose = { choices.append($0) }
@@ -77,7 +105,7 @@ final class FeedbackRuntime: NSObject, NSApplicationDelegate {
                 SetEventParameter(event!, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), MemoryLayout<EventHotKeyID>.size, &id)
                 SendEventToEventTarget(event!, GetApplicationEventTarget()); ReleaseEvent(event!)
                 precondition(pressed == 1, "Carbon callback dispatch")
-                print("PASS busy badge, menu status/cancel, window-free errors, Option-1 through Option-6, shortcut migration/registration/conflict/callback")
+                print("PASS fixed-model settings/migration, busy badge, menu status/cancel, window-free errors, Option-1 through Option-6, shortcut migration/registration/conflict/callback")
                 NSApp.terminate(nil)
             } catch { print(error.localizedDescription); exit(1) }
         }

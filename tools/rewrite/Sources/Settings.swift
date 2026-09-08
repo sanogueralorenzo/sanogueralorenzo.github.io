@@ -7,19 +7,17 @@ final class Settings: NSObject {
     private let defaults: UserDefaults
     private let window: NSWindow
     private let provider = NSPopUpButton()
-    private let model = NSComboBox()
+    private let model = NSTextField(labelWithString: "")
     private let notice = NSTextField(wrappingLabelWithString: "")
     private let status = NSTextField(wrappingLabelWithString: "")
     private let recorder = ShortcutRecorder()
-    private let service = ProcessorService()
-    private var refreshTask: Task<Void, Never>?
     private let save = NSButton(title: "Done", target: nil, action: nil)
 
-    var configuration: ProcessorConfiguration {
-        let kind = ProcessorKind.saved(defaults.string(forKey: "processor")) ?? .openai
-        return ProcessorConfiguration(kind: kind, model: kind.modelID(isConfigured ? defaults.string(forKey: "model") ?? "" : ""))
+    var configuration: RewriteConfiguration {
+        let kind = RewriteProvider.saved(defaults.string(forKey: "processor")) ?? .openai
+        return RewriteConfiguration(kind: kind)
     }
-    var isConfigured: Bool { ProcessorKind.saved(defaults.string(forKey: "processor")) != nil }
+    var isConfigured: Bool { RewriteProvider.saved(defaults.string(forKey: "processor")) != nil }
     var shortcut: Shortcut {
         guard let data = defaults.data(forKey: "shortcut"), let value = try? JSONDecoder().decode(Shortcut.self, from: data) else { return .standard }
         return value.migratingLegacyShortcut
@@ -33,11 +31,9 @@ final class Settings: NSObject {
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20); stack.translatesAutoresizingMaskIntoConstraints = false
         window.contentView!.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor)])
-        provider.addItems(withTitles: ProcessorKind.allCases.map(\.rawValue)); provider.target = self; provider.action = #selector(providerChanged)
+        provider.addItems(withTitles: RewriteProvider.allCases.map(\.rawValue)); provider.target = self; provider.action = #selector(providerChanged)
         provider.setAccessibilityLabel("Provider")
-        model.usesDataSource = false; model.completes = true; model.placeholderString = "Model name"; model.setAccessibilityLabel("Model")
-        let refresh = NSButton(title: "Refresh", target: self, action: #selector(refreshModels)); refresh.bezelStyle = .rounded
-        let modelRow = NSStackView(views: [model, refresh]); model.widthAnchor.constraint(equalToConstant: 300).isActive = true
+        model.setAccessibilityLabel("Model")
         recorder.bezelStyle = .rounded; recorder.title = shortcut.label; recorder.shortcut = shortcut
         recorder.setAccessibilityLabel("Record global shortcut")
         recorder.target = self; recorder.action = #selector(recordShortcut)
@@ -46,45 +42,26 @@ final class Settings: NSObject {
             self.defaults.set(try? JSONEncoder().encode(value), forKey: "shortcut"); return true
         }
         let shortcutRow = NSStackView(views: [NSTextField(labelWithString: "Shortcut"), recorder]); shortcutRow.spacing = 16
-        for view in [NSTextField(labelWithString: "Provider"), provider, notice, NSTextField(labelWithString: "Model"), modelRow, shortcutRow, status] { stack.addArrangedSubview(view) }
+        for view in [NSTextField(labelWithString: "Provider"), provider, notice, NSTextField(labelWithString: "Model"), model, shortcutRow, status] { stack.addArrangedSubview(view) }
         for field in [notice, status] { field.font = .systemFont(ofSize: 11); field.textColor = .secondaryLabelColor; field.widthAnchor.constraint(equalToConstant: 400).isActive = true }
         save.bezelStyle = .rounded; save.keyEquivalent = "\r"; save.target = self; save.action = #selector(saveSettings)
         let permission = NSButton(title: "Accessibility…", target: self, action: #selector(openPermissions)); permission.bezelStyle = .rounded
         let row = NSStackView(views: [permission, save]); row.spacing = 190; stack.addArrangedSubview(row)
     }
     func show() {
-        provider.selectItem(withTitle: configuration.kind.rawValue); model.stringValue = configuration.kind.modelLabel(configuration.resolvedModel)
+        provider.selectItem(withTitle: configuration.kind.rawValue); model.stringValue = configuration.kind.modelLabel
         notice.stringValue = configuration.kind.notice
         window.center(); NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
-        refreshModels()
+        status.stringValue = "Sign in through Pi using /login. Rewrite checks your sign-in automatically."
     }
     @objc private func providerChanged() {
         let kind = selectedKind
-        model.stringValue = kind.modelLabel(kind.preferredModel); notice.stringValue = kind.notice
-        refreshModels()
+        model.stringValue = kind.modelLabel; notice.stringValue = kind.notice
     }
-    private var selectedKind: ProcessorKind { ProcessorKind(rawValue: provider.titleOfSelectedItem ?? "") ?? .openai }
-    @objc private func refreshModels() {
-        refreshTask?.cancel(); service.cancel()
-        let kind = selectedKind
-        status.stringValue = "Checking Pi sign-in and models…"; save.isEnabled = false
-        refreshTask = Task { @MainActor in
-            do {
-                let models = try await service.models(for: kind)
-                try Task.checkCancellation()
-                model.removeAllItems(); model.addItems(withObjectValues: models.map { kind.modelLabel($0) })
-                if model.stringValue.isEmpty, let first = models.first { model.stringValue = kind.modelLabel(first) }
-                status.stringValue = "Pi is ready. Choose a model or enter its ID."
-                save.isEnabled = !models.isEmpty
-            } catch { if !Task.isCancelled { status.stringValue = error.localizedDescription; save.isEnabled = false } }
-        }
-    }
+    private var selectedKind: RewriteProvider { RewriteProvider(rawValue: provider.titleOfSelectedItem ?? "") ?? .openai }
     @objc private func saveSettings() {
-        let value = model.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, value.count < 160, !value.contains("\n") else { status.stringValue = "Enter a model name."; return }
-        do { _ = try ProcessorService.arguments(ProcessorConfiguration(kind: selectedKind, model: selectedKind.modelID(value))) }
-        catch { status.stringValue = error.localizedDescription; return }
-        defaults.set(selectedKind.rawValue, forKey: "processor"); defaults.set(selectedKind.modelID(value), forKey: "model")
+        defaults.set(selectedKind.rawValue, forKey: "processor")
+        defaults.removeObject(forKey: "model")
         window.orderOut(nil); onSave?()
     }
     @objc private func recordShortcut() { recorder.record() }

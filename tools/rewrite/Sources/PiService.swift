@@ -1,0 +1,170 @@
+import Foundation
+
+@MainActor
+final class PiService {
+    private var runner: ProcessRunner?
+    private var checkedExecutable: URL?
+    private let executableOverride: URL?
+    private let now: () -> Date
+    init(executable: URL? = nil, now: @escaping () -> Date = Date.init) {
+        executableOverride = executable; self.now = now
+    }
+    private var rpc: PiRPC?
+    private var rpcRequest: PiRequest?
+    private var rpcConfiguration: RewriteConfiguration?
+    private var rpcStarted = Date.distantPast
+    private var isRewriting = false
+    private var pendingWarmup: RewriteConfiguration?
+    var processIdentifier: Int32? { rpc?.isRunning == true ? rpc?.processIdentifier : nil }
+    func cancel() {
+        if isRewriting { shutdown() }
+    }
+    func shutdown() {
+        pendingWarmup = nil
+        preparation?.cancel(); preparationConfiguration = nil
+        runner?.cancel()
+        stopProcess()
+    }
+    private func stopProcess() {
+        rpc?.stop(); rpc = nil; rpcRequest = nil; rpcConfiguration = nil
+    }
+
+    static let isolationArguments = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
+                                     "--no-prompt-templates", "--no-context-files", "--no-themes", "--no-approve"]
+    private func run(_ executable: URL, _ arguments: [String], environment: [String: String], directory: URL,
+                     input: String = "", timeout: Double = 90) async throws -> ProcessOutput {
+        let runner = ProcessRunner(); self.runner = runner
+        defer { if self.runner === runner { self.runner = nil } }
+        return try await runner.run(executable: executable, arguments: arguments, environment: environment,
+                                    directory: directory, input: input, timeout: timeout)
+    }
+    private func executable() async throws -> URL {
+        guard let executable = executableOverride ?? CLIDiscovery.executable("pi") else {
+            throw RewriteError.message("Install Pi, run pi in Terminal and use /login, then try again.")
+        }
+        if checkedExecutable != executable {
+            let request = try PiRequest(provider: "openai-codex", credential: "")
+            defer { withExtendedLifetime(request) {} }
+            let result = try await run(executable, Self.isolationArguments + ["--help"], environment: request.environment, directory: request.directory, timeout: 10)
+            let help = String(decoding: result.stdout, as: UTF8.self)
+            guard result.status == 0, (Self.isolationArguments + ["--system-prompt", "--mode", "--thinking", "--extension"]).allSatisfy({ help.contains($0) }) else {
+                throw RewriteError.message("Update Pi: this version lacks the isolation options Rewrite requires.")
+            }
+            checkedExecutable = executable
+        }
+        return executable
+    }
+    private func request(_ executable: URL, kind: RewriteProvider) async throws -> PiRequest {
+        var environment = CLIDiscovery.environment
+        environment["PI_CODING_AGENT_DIR"] = ProcessInfo.processInfo.environment["PI_CODING_AGENT_DIR"]
+        // This dedicated Pi command does not load extensions, prompts, or custom model endpoints.
+        // Credentials stay in memory and the private request directory, never logs or argv.
+        let auth = try await run(executable, ["auth", "check", "--provider", kind.providerID, "--json", "--credentials"],
+                                 environment: environment, directory: URL(fileURLWithPath: "/private/tmp"), timeout: 20)
+        guard auth.status == 0, let json = try? JSONSerialization.jsonObject(with: auth.stdout) as? [String: Any],
+              json["status"] as? String == "ready", let credential = json["credentials"] as? String,
+              !credential.isEmpty, !credential.hasPrefix("!"), !credential.contains("\n") else {
+            throw RewriteError.message("Sign in to \(kind.rawValue) in Pi: open pi in Terminal, use /login, then try again. Codex and Claude CLI sign-ins are not used.")
+        }
+        try Task.checkCancellation()
+        return try PiRequest(provider: kind.providerID, credential: credential, oauth: json["authType"] as? String == "oauth")
+    }
+    static func arguments(_ configuration: RewriteConfiguration) -> [String] {
+        let model = configuration.resolvedModel
+        return isolationArguments + ["--mode", "rpc", "--provider", configuration.kind.providerID,
+            "--model", model, "--thinking", configuration.thinking, "--system-prompt", Editing.rules]
+    }
+    // Launch and settings changes prepare without sending any selected text.
+    func warmUp(_ configuration: RewriteConfiguration) {
+        guard !isRewriting else { pendingWarmup = configuration; return }
+        _ = readiness(configuration)
+    }
+    private var preparation: Task<Void, Error>?
+    private var preparationConfiguration: RewriteConfiguration?
+    private var preparationID = UUID()
+
+    private func readiness(_ configuration: RewriteConfiguration) -> Task<Void, Error> {
+        if let preparation, preparationConfiguration == configuration,
+           rpc == nil || (rpc?.isRunning == true && now().timeIntervalSince(rpcStarted) <= 180) {
+            return preparation
+        }
+        let previous = preparation
+        previous?.cancel()
+        let id = UUID(); preparationID = id
+        preparationConfiguration = configuration
+        let next = Task { @MainActor in
+            _ = await previous?.result
+            do {
+                try Task.checkCancellation()
+                try await self.prepare(configuration)
+                try await self.rpc?.resetSession()
+                try Task.checkCancellation()
+            } catch {
+                self.stopProcess()
+                if self.preparationID == id { self.preparationConfiguration = nil }
+                throw error
+            }
+        }
+        preparation = next
+        return next
+    }
+    private func prepare(_ configuration: RewriteConfiguration) async throws {
+        // Refresh the short-lived auth snapshot well before its token can expire.
+        // Healthy requests with the same configuration reuse one process.
+        if rpc?.isRunning != true || rpcConfiguration != configuration || now().timeIntervalSince(rpcStarted) > 180 {
+            stopProcess()
+            let executable = try await executable(), request = try await request(executable, kind: configuration.kind)
+            try Task.checkCancellation()
+            rpc = try PiRPC(executable: executable, arguments: request.rewriteArguments(configuration),
+                            environment: request.environment, directory: request.directory)
+            rpcRequest = request; rpcConfiguration = configuration; rpcStarted = now()
+        }
+    }
+    func rewrite(_ source: String, action: EditAction, configuration: RewriteConfiguration, validateSelection: () throws -> Void = {}) async throws -> String {
+        guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
+        isRewriting = true
+        defer {
+            isRewriting = false
+            if let configuration = pendingWarmup {
+                pendingWarmup = nil; warmUp(configuration)
+            }
+        }
+        do {
+            try await readiness(configuration).value
+            try Task.checkCancellation()
+            guard let rpc else { throw RewriteError.message("Pi could not start. Try again.") }
+            try await rpc.resetSession()
+            try Task.checkCancellation()
+            try validateSelection()
+            let output = try await rpc.send("prompt", message: Editing.payload(source, action: action))
+            let result = try Self.parse(output)
+            // Clear text immediately after completion, not only before the next request.
+            try await rpc.resetSession()
+            try Task.checkCancellation()
+            return result
+        } catch {
+            let pending = pendingWarmup
+            shutdown()
+            pendingWarmup = pending
+            throw error
+        }
+    }
+    static func parse(_ data: Data) throws -> String {
+        let failure = RewriteError.message("Pi did not return a completed rewrite. Check your Pi sign-in, then retry.")
+        var result: String?, completed = false
+        for line in String(decoding: data, as: UTF8.self).components(separatedBy: "\n") where !line.isEmpty {
+            guard let event = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let type = event["type"] as? String else { throw failure }
+            if type.hasPrefix("tool_execution") || type == "error" { throw failure }
+            if type == "message_end", let message = event["message"] as? [String: Any], message["role"] as? String == "assistant" {
+                guard result == nil, message["stopReason"] as? String == "stop",
+                      let content = message["content"] as? [[String: Any]],
+                      content.allSatisfy({ ["text", "thinking"].contains($0["type"] as? String ?? "") }) else { throw failure }
+                result = content.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }.joined()
+            }
+            if type == "agent_end" { guard result != nil else { throw failure }; completed = true }
+        }
+        guard completed, let result else { throw failure }
+        return try Editing.validate(result)
+    }
+}

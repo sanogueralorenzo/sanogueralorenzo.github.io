@@ -61,7 +61,7 @@ final class ProcessRunner {
                     group.notify(queue: .main) {
                         MainActor.assumeIsolated {
                             if self.cancelled { continuation.resume(throwing: CancellationError()) }
-                            else if self.timedOut { continuation.resume(throwing: RewriteError.message("The processor timed out. Try a shorter selection or another model.")) }
+                            else if self.timedOut { continuation.resume(throwing: RewriteError.message("The processor timed out. Try a shorter selection.")) }
                             else {
                                 do { continuation.resume(returning: ProcessOutput(status: process.terminationStatus, stdout: try bytes.result())) }
                                 catch { continuation.resume(throwing: error) }

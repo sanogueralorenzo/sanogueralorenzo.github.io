@@ -79,10 +79,14 @@ final class SelectionRuntime: NSObject, NSApplicationDelegate {
                             throw RewriteError.message("Bring the disposable TextEdit document to the foreground before --automatic.")
                         }
                         status.setRewriting(.grammar)
-                        let service = ProcessorService()
-                        let kind: ProcessorKind = CommandLine.arguments.contains("--anthropic") ? .anthropic : .openai
+                        let service = PiService()
+                        let kind: RewriteProvider = CommandLine.arguments.contains("--anthropic") ? .anthropic : .openai
                         print("Rewriting the disposable fixture with Pi; busy indicator is visible."); fflush(stdout)
-                        edited = try await service.rewrite(Self.source, action: .grammar, configuration: ProcessorConfiguration(kind: kind, model: kind.preferredModel))
+                        defer { service.shutdown() }
+                        try captured.validateForRewrite()
+                        edited = try await service.rewrite(Self.source, action: .grammar, configuration: RewriteConfiguration(kind: kind)) {
+                            try captured.validateForRewrite()
+                        }
                     }
                     try await captured.replace(with: edited, requireForeground: automatic)
                     status.setRewriting(nil)

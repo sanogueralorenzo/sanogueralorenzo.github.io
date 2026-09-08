@@ -91,6 +91,13 @@ final class CapturedSelection {
         return CapturedSelection(app: app, element: focused, text: text)
     }
 
+    func validateForRewrite() throws {
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else {
+            throw RewriteError.message("The original app is no longer in front. Select the text and try again.")
+        }
+        if let reason = replacementLimitation() { throw RewriteError.message(reason) }
+    }
+
     func replacementLimitation() -> String? {
         guard supportsReplacement else { return "This app does not support direct replacement. Try a standard text field in another app." }
         guard !app.isTerminated, !invalidated, let fingerprint,
@@ -156,4 +163,19 @@ final class CapturedSelection {
               let primary = NSScreen.screens.first else { return nil }
         return NSPoint(x: rect.minX, y: primary.frame.maxY - rect.maxY - 5)
     }
+}
+
+// UTF-16 matches the ranges used by macOS Accessibility and NSString, including emoji.
+struct SelectionFingerprint: Equatable {
+    let value: String
+    let range: NSRange
+    let text: String
+
+    var isConsistent: Bool {
+        let string = value as NSString
+        return range.location != NSNotFound && range.location >= 0 && range.length > 0 &&
+            range.location <= string.length && range.length <= string.length - range.location &&
+            string.substring(with: range) == text
+    }
+    func replacing(with result: String) -> String { (value as NSString).replacingCharacters(in: range, with: result) }
 }

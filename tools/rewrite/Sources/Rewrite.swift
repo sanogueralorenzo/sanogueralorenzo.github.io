@@ -5,13 +5,9 @@ import AppKit
 final class Rewrite: NSObject, NSApplicationDelegate {
     private let shortcut = GlobalShortcut()
     private let settings = Settings()
-    private let processor = ProcessorService()
+    private let processor = PiService()
     private let menuBar = MenuBarStatus()
-    private var selection: CapturedSelection?
-    private var task: Task<Void, Never>?
-    private var warmup: Task<Void, Never>?
-    private var generation = UUID()
-    private var actionMenu: NSMenu?
+    private lazy var controller = RewriteController(settings: settings, processor: processor, menuBar: menuBar)
     private var escapeMonitor: Any?
     private var localEscapeMonitor: Any?
 
@@ -34,21 +30,21 @@ final class Rewrite: NSObject, NSApplicationDelegate {
     }
     func applicationDidFinishLaunching(_ notification: Notification) {
         escapeMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 { MainActor.assumeIsolated { if self?.task != nil { self?.cancel() } } }
+            if event.keyCode == 53 { MainActor.assumeIsolated { if self?.controller.isRewriting == true { self?.controller.cancel() } } }
         }
         localEscapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 && self?.task != nil { self?.cancel() }
+            if event.keyCode == 53 && self?.controller.isRewriting == true { self?.controller.cancel() }
             return event
         }
-        menuBar.onRewrite = { [weak self] in self?.begin() }
-        menuBar.onCancel = { [weak self] in self?.cancel() }
-        menuBar.onSettings = { [weak self] in self?.showSettings() }
-        shortcut.onPress = { [weak self] in self?.begin() }
+        menuBar.onRewrite = { [weak self] in self?.controller.begin() }
+        menuBar.onCancel = { [weak self] in self?.controller.cancel() }
+        menuBar.onSettings = { [weak self] in self?.controller.showSettings() }
+        shortcut.onPress = { [weak self] in self?.controller.begin() }
         settings.onShortcut = { [weak self] value in
             guard let self, self.shortcut.register(value) else { return false }
             self.menuBar.shortcutLabel = value.label; return true
         }
-        settings.onSave = { [weak self] in self?.selection?.restoreFocus(); self?.selection = nil; self?.warmPi() }
+        settings.onSave = { [weak self] in self?.controller.settingsSaved() }
         menuBar.shortcutLabel = settings.shortcut.label
         if !shortcut.register(settings.shortcut) { menuBar.showError("The shortcut is already in use. Choose another in Rewrite Settings.") }
         else if !settings.isConfigured { settings.show() }
@@ -58,67 +54,12 @@ final class Rewrite: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
         if let localEscapeMonitor { NSEvent.removeMonitor(localEscapeMonitor) }
-        warmup?.cancel(); task?.cancel(); processor.cancel(); processor.shutdown(); menuBar.remove()
+        controller.cancel(); processor.shutdown(); menuBar.remove()
     }
 
     private func warmPi() {
         guard settings.isConfigured else { return }
-        let previous = warmup
-        previous?.cancel()
-        let configuration = settings.configuration
-        warmup = Task { @MainActor in
-            // Serialize configuration changes with any startup still in progress.
-            await previous?.value
-            guard !Task.isCancelled else { return }
-            // Missing sign-in is reported on an actual rewrite, not during launch.
-            try? await processor.warmUp(configuration)
-        }
+        processor.warmUp(settings.configuration)
     }
 
-    @objc private func begin() {
-        if task != nil || selection != nil { cancel(); return }
-        do {
-            selection = try CapturedSelection.capture()
-            guard settings.isConfigured else { settings.show(); return }
-            guard let selection else { return }
-            let actions = ActionMenu()
-            actions.onChoose = { [weak self] action in self?.run(action) }
-            let menu = actions.menu
-            actionMenu = menu
-            let picked = withExtendedLifetime(actions) { menu.popUp(positioning: menu.items.first, at: selection.point, in: nil) }
-            actionMenu = nil
-            if !picked { cancel() }
-        } catch { selection = nil; menuBar.showError(error.localizedDescription) }
-    }
-    private func run(_ action: EditAction) {
-        guard let selection else { return }
-        let configuration = settings.configuration
-        let current = UUID(); generation = current
-        menuBar.setRewriting(action)
-        // Leave the action menu before starting the request; the source app keeps focus.
-        task = Task { @MainActor in
-            await Task.yield()
-            guard generation == current else { return }
-            do {
-                await warmup?.value
-                try Task.checkCancellation()
-                let output = try await processor.rewrite(selection.text, action: action, configuration: configuration)
-                try Task.checkCancellation(); guard generation == current else { return }
-                try await selection.replace(with: output, requireForeground: true)
-                guard generation == current else { return }
-                task = nil; cancel()
-            } catch {
-                guard generation == current, !Task.isCancelled else { return }
-                task = nil; self.selection = nil
-                menuBar.showError(error.localizedDescription)
-            }
-        }
-    }
-    private func cancel() {
-        menuBar.setRewriting(nil)
-        generation = UUID(); task?.cancel(); task = nil
-        actionMenu?.cancelTracking()
-        selection?.restoreFocus(); selection = nil
-    }
-    @objc private func showSettings() { cancel(); settings.show() }
 }

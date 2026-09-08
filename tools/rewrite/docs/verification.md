@@ -10,7 +10,7 @@ The automatic selection toolbar, background selection polling, and result/Copy w
 
 ## Checks
 
-- All 64 offline checks pass and cover request encoding, Pi auth/model/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
+- All 64 offline checks pass and cover request encoding, Pi auth/rewrite subprocess integration, isolated configuration and credential cleanup, model migration, strict completion parsing, subprocess cancellation/timeouts, output limits, and child cleanup. The executable Pi fixture validates stdin and isolation without inference.
 - `tests/run.sh --pi-check` passes against Pi 0.85.1 and checks the installed Pi's model discovery in a disposable configuration with a fake credential; it makes no provider inference call.
 - `tests/feedback.sh` passes busy/idle/error states, disabled re-entry, cancellation dispatch, no new error window, shortcut migration, Carbon registration/conflict/callback, and all six native Option-number key equivalents (including Option-generated characters).
 - A live AppKit popup was opened from the production `ActionMenu` in a test window. Computer use pressed Option-1; the menu closed and the grammar callback assertion passed. This tests menu tracking in addition to calling `performKeyEquivalent` directly.
@@ -51,7 +51,7 @@ Rewrite reads the foreground selection only when invoked. Text is sent to a proc
 
 ## Reasoning off and priority
 
-The installed app now passes `--thinking off` for both providers. Its sole explicit OpenAI request hook sets `reasoning.effort` to `none` and requests the `priority` tier; no priority fields are sent to Anthropic. The fixture executes the actual JavaScript hook and checks that it preserves the input/model while replacing reasoning and tier fields. A production `ProcessorService` live Luna grammar rewrite passed with these settings. Historical timing benchmarks above used low reasoning and should not be treated as timings for this new configuration. Backend-served tier acknowledgment was not captured.
+The installed app now passes `--thinking off` for both providers. Its sole explicit OpenAI request hook sets `reasoning.effort` to `none` and requests the `priority` tier; no priority fields are sent to Anthropic. The fixture executes the actual JavaScript hook and checks that it preserves the input/model while replacing reasoning and tier fields. The earlier production service live Luna grammar rewrite passed with these settings. Historical timing benchmarks above used low reasoning and should not be treated as timings for this new configuration. Backend-served tier acknowledgment was not captured.
 
 ## Persistent RPC
 
@@ -62,3 +62,17 @@ The RPC fixture covers process reuse, fresh sessions, fragmented LF-delimited JS
 ## Launch warmup
 
 Configured app launch and settings save now prepare an empty Pi RPC session without a model prompt. The app serializes warmup with the first rewrite. Focused tests verify the process exists before rewriting and the first rewrite reuses its PID. Live OpenAI checks reused warmed PID 67163 for two successful rewrites (2.09s and 3.15s). The installed app (PID 67225) spawned Pi (PID 67238) before any rewrite action. Accessibility was refreshed for the installed bundle. The complete global keyboard-to-replacement path remains subject to the automation limitation above.
+
+## Feature simplification verification
+
+The app now uses fixed provider models, with no model picker or model discovery in production. Settings saves the provider and shortcut; old custom model preferences cannot affect requests. `RewriteController` owns the editing lifecycle, `Selection` owns its fingerprint and preflight, and `PiService` owns preparation, process reuse and configuration changes. The app no longer coordinates warmup tasks.
+
+Current checks on September 8, 2026:
+
+- All 61 offline checks pass and cover both fixed provider models, isolated credentials, priority hook behavior, warmup reuse, rapid provider changes, cancellation during preparation, queued warmup after an active rewrite, selection validation before prompting, credential refresh after three minutes, and existing protocol/process failure cases.
+- `tests/run.sh --pi-check` passes against installed Pi with a disposable credential and no inference. Listing models remains only in this compatibility test.
+- `tests/feedback.sh` passes fixed-model settings, migration from custom models, provider changes, saving, custom-shortcut preservation, all six style shortcuts and status/cancellation/error checks. The test uses an isolated preference suite and does not start Pi from Settings.
+- The optimized app builds, its signature verifies, and the selection runtime compiles.
+- Fresh TextEdit checks pass direct replacement, app-switch rejection and changed-selection rejection. Clipboard bytes, types, item order and change count remain unchanged in all three tests. Native Command-Z restored the disposable sentence after replacement.
+
+Live provider inference and the complete production shortcut-to-Pi-to-replacement flow were not rerun for this refactor. The checks above combine offline Pi subprocess integration with native selection and UI tests; they do not establish new provider latency or browser-editor compatibility. The standalone feedback test is not discoverable as an app by the computer-use tool, so its settings assertions were verified through AppKit rather than a final window screenshot.
