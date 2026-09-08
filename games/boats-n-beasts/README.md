@@ -34,10 +34,23 @@ Experience fills the thin bar along the top edge. The small red bar above your b
 
 | Boat | Base ability | Starting weapons |
 | --- | --- | --- |
-| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Cannon + scatter broadside |
-| Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Cannon + undertow aura |
+| Cutter | Boost grants +65% fire rate, lasting 1.25 seconds after release. Faster movement, lighter hull. | Cannon + Blast |
+| Trawler | Slow movement charges a pulse that clears nearby shots and soaks enemies; takes 30% less damage at low speed. | Cannon + Whirlpool |
 
-Every boat can use ranged cannon/harpoon/mortar, chain lightning, a damaging aura, and a short-range scatter attack. Harpoons slow and soak enemies; soaked targets amplify mortar, coil, and scatter damage. Cannon rank 3 adds a second barrel. Other weapon ranks improve damage, cadence, reach or chain count. Hull, engine, reload, and area upgrades support simple combinations. Harbor boat swaps retain equipment and hull percentage.
+Every boat can use all six weapons:
+
+| Weapon | What it does |
+| --- | --- |
+| Cannon | Fast aimed shots. Level 3 adds a second barrel. |
+| Harpoon | Pierces a line of enemies, slowing and soaking them. |
+| Bomb | Long-range blasts for crowds. |
+| Lightning | Jumps between enemies. Each level adds a target. |
+| Whirlpool | Damages enemies all around the boat. |
+| Blast | A close-range burst that pushes enemies back. |
+
+Soaked enemies take **+50% damage from Bomb, Lightning and Blast**. Each weapon level also improves damage and fire rate. Upgrade cards show the next level’s benefit.
+
+Four boat upgrades keep choices simple: **Hull** (+25 health and heal 25), **Speed** (+10% sailing speed), **Reload** (+12% fire rate), and **Reach** (+15% attack size/chain reach). Harbor swaps retain equipment and hull percentage.
 
 ## Structure
 

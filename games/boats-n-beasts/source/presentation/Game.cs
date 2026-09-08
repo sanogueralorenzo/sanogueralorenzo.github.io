@@ -291,29 +291,31 @@ public partial class Game : Node2D
         row.AddChild(Button($"Repair · {Run.RepairCost} gold", () => { Run.Repair(); BuildMenu(); }, false, Run.RepairCost == 0 || Run.Coins < Run.RepairCost));
         if (Run.BossSlain && !Run.Retired) row.AddChild(Button("Claim victory", () => { Run.ClaimVictory(); BuildMenu(); }, true));
         else row.AddChild(Button($"Switch to {(Run.Boat == BoatKind.Cutter ? "Trawler" : "Cutter")}", () => { Run.SwitchBoat(); BuildMenu(); }));
-        col.AddChild(Label($"{Run.Spec.Ability} · {Run.Spec.Description}", 17, false, OceanView.Aqua));
-        col.AddChild(Button(harborStats ? "SHOW WEAPONS  /  Ship upgrades selected" : "SHOW SHIP UPGRADES  /  Weapons selected", () => { harborStats = !harborStats; BuildMenu(); }));
+        col.AddChild(Label(Voyage.SoakHint, 17, false, OceanView.Aqua));
+        col.AddChild(Button(harborStats ? "Weapons →" : "Boat upgrades →", () => { harborStats = !harborStats; BuildMenu(); }));
         var grid = new GridContainer { Columns = 2 }; grid.AddThemeConstantOverride("h_separation", 14); grid.AddThemeConstantOverride("v_separation", 8); col.AddChild(grid);
         for (int i = harborStats ? 6 : 0; i < (harborStats ? Voyage.UpgradeNames.Length : 6); i++)
         {
             int option = i; var box = new VBoxContainer { CustomMinimumSize = new(438, 0) }; grid.AddChild(box);
-            box.AddChild(Label(Voyage.UpgradeNames[i] + $"  {Run.Rank(i)}/5", 23, true)); box.AddChild(Label(Voyage.UpgradeDescriptions[i], 16));
+            box.AddChild(Label(Voyage.UpgradeNames[i] + $"  {Run.Rank(i)}/5", 23, true)); box.AddChild(Label(Voyage.UpgradeDescriptions[i] + "\n" + Run.UpgradeBenefit(i), 16));
             box.AddChild(Button(Run.Rank(i) >= 5 ? "Fully upgraded" : $"{(Run.Rank(i) == 0 ? "Install" : "Upgrade")} · {Run.UpgradeCost(i)} gold", () => { Run.Upgrade(option); BuildMenu(); }, false, Run.Rank(i) >= 5 || Run.Coins < Run.UpgradeCost(i)));
         }
         col.AddChild(Button("Back to open water  [Esc]", () => { Run.Mode = VoyageMode.Sailing; BuildMenu(); }, !Run.BossSlain || Run.Retired));
     }
     void UpgradeMenu()
     {
-        var col = Panel(1000, $"CAPTAIN LEVEL {Run.Level}", "Make it your boat", "Choose one free upgrade. All boats can use every weapon. Your voyage waits.");
+        var col = Panel(1000, $"CAPTAIN LEVEL {Run.Level}", "Pick an upgrade", "Choose one. It’s free.");
         var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 18); col.AddChild(row);
         foreach (int option in Run.UpgradeChoices)
         {
             var box = new VBoxContainer { CustomMinimumSize = new(304, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill }; box.AddThemeConstantOverride("separation", 14); row.AddChild(box);
-            box.AddChild(Label(Run.Rank(option) == 0 ? "NEW EQUIPMENT" : $"RANK {Run.Rank(option)} → {Run.Rank(option) + 1}", 17, false, OceanView.Aqua));
+            box.AddChild(Label(Run.Rank(option) == 0 ? (option < 6 ? "NEW WEAPON" : "NEW UPGRADE") : $"LEVEL {Run.Rank(option)} → {Run.Rank(option) + 1}", 17, false, OceanView.Aqua));
             box.AddChild(Label(Voyage.UpgradeNames[option], 29, true));
-            var detail = Label(Voyage.UpgradeDescriptions[option], 20); detail.CustomMinimumSize = new(0, 140); box.AddChild(detail);
+            var detail = Label(Voyage.UpgradeDescriptions[option], 20); detail.CustomMinimumSize = new(0, 70); box.AddChild(detail);
+            var benefit = Label(Run.UpgradeBenefit(option), 19, false, OceanView.Aqua); benefit.CustomMinimumSize = new(0, 90); box.AddChild(benefit);
             box.AddChild(Button("Choose", () => { Run.Upgrade(option, true); BuildMenu(); }, option == Run.UpgradeChoices[0]));
         }
+        col.AddChild(Label(Voyage.SoakHint, 17));
         if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · take 40 gold", () => { Run.Coins += 40; Run.Mode = VoyageMode.Sailing; BuildMenu(); }, true));
     }
     void ControlsMenu()
@@ -373,7 +375,7 @@ public partial class Game : Node2D
             }
             var healthPosition = Game.ocean.Screen(r.Position) + new Vector2(-48, -100);
             Bar(healthPosition, new(96, 8), r.Health / r.MaxHealth, new Color("ed4b55"));
-            string[] itemLabels = ["CANNON", "HARPOON", "MORTAR", "COIL", "AURA", "SCATTER", "HULL", "ENGINE", "RELOAD", "AREA"];
+            string[] itemLabels = ["CANNON", "HARPOON", "BOMB", "LIGHTNING", "WHIRLPOOL", "BLAST", "HULL", "SPEED", "RELOAD", "REACH"];
             var equipped = Enumerable.Range(0, itemLabels.Length).Where(i => r.Rank(i) > 0).ToArray();
             const float itemWidth = 96, gap = 8;
             float rowWidth = equipped.Length * (itemWidth + gap) - gap;
@@ -383,8 +385,8 @@ public partial class Game : Node2D
                 var p = new Vector2((size.X - rowWidth) / 2 + slot * (itemWidth + gap), size.Y - 48);
                 DrawStyleBox(Game.Box(new Color(OceanView.Navy, .65f), 6), new(p, new Vector2(itemWidth, 32)));
                 string label = $"{itemLabels[item]} {r.Rank(item)}";
-                float labelWidth = TitleFont.GetStringSize(label, fontSize: 15).X;
-                Text(p + new Vector2((itemWidth - labelWidth) / 2, 22), label, 15, true);
+                float labelWidth = TitleFont.GetStringSize(label, fontSize: 14).X;
+                Text(p + new Vector2((itemWidth - labelWidth) / 2, 22), label, 14, true);
             }
             Bar(Vector2.Zero, new(size.X, 8), r.Xp / (float)r.NextXp, OceanView.Aqua);
             DrawCompass(size);

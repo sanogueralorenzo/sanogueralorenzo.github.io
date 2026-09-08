@@ -40,6 +40,8 @@ public sealed class Voyage
     public readonly List<int> UpgradeChoices = new();
     public bool BossSpawned, BossSlain, Retired, AssistedFishing;
     public bool BoostExhausted { get; private set; }
+    public const float SoakedDamageMultiplier = 1.5f;
+    public const string SoakHint = "Soaked enemies take +50% damage from Bomb, Lightning and Blast.";
     public const float BroadsideHalfAngle = 1.2f;
     public readonly int[] Weapons = new int[6];
     public readonly float[] Cooldowns = new float[6];
@@ -232,7 +234,7 @@ public sealed class Voyage
                     var offset = e.Position - Position;
                     if (e.Health <= 0 || offset.Length() > range + e.Radius) continue;
                     if (w == 5 && Vector2.Dot(OceanWorld.Unit(offset), aim) < MathF.Cos(BroadsideHalfAngle)) continue;
-                    Hit(e, damage * (w == 5 && e.Mark > 0 ? 1.35f : 1));
+                    Hit(e, damage * (w == 5 && e.Mark > 0 ? SoakedDamageMultiplier : 1));
                     if (w == 5) e.Position = World.Slide(e.Position, e.Position + OceanWorld.Unit(offset) * (28 + rank * 5), e.Radius);
                 }
             }
@@ -241,7 +243,7 @@ public sealed class Voyage
                 Vector2 from = Position; var chain = new HashSet<int>(); Enemy? hit = target;
                 for (int i = 0; i < 2 + rank && hit != null; i++)
                 {
-                    chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage * (hit.Mark > 0 ? 1.8f : 1));
+                    chain.Add(hit.Id); Events.Add(new("arc", from, 0, hit.Position)); Hit(hit, damage * (hit.Mark > 0 ? SoakedDamageMultiplier : 1));
                     from = hit.Position; hit = Enemies.Where(e => e.Health > 0 && !chain.Contains(e.Id) && Vector2.DistanceSquared(e.Position, from) < MathF.Pow(180 * Area, 2)).OrderBy(e => Vector2.DistanceSquared(e.Position, from)).FirstOrDefault();
                 }
             }
@@ -284,7 +286,7 @@ public sealed class Voyage
                 if (s.Life <= 0)
                 {
                     Events.Add(new("explosion", s.Position, s.Radius));
-                    foreach (var e in Enemies) if (e.Health > 0 && Vector2.Distance(e.Position, s.Position) < s.Radius + e.Radius) Hit(e, s.Damage * (e.Mark > 0 ? 1.5f : 1));
+                    foreach (var e in Enemies) if (e.Health > 0 && Vector2.Distance(e.Position, s.Position) < s.Radius + e.Radius) Hit(e, s.Damage * (e.Mark > 0 ? SoakedDamageMultiplier : 1));
                 }
                 continue;
             }
@@ -416,25 +418,44 @@ public sealed class Voyage
         Events.Add(new("buy", Position)); return true;
     }
     public void ClaimVictory() { if (Mode == VoyageMode.Harbor && BossSlain) { Retired = true; Mode = VoyageMode.Victory; Events.Add(new("victory", Position)); } }
-    public static readonly string[] UpgradeNames = ["Deck cannon", "Barbed harpoon", "Depth mortar", "Storm coil", "Undertow aura", "Scatter broadside", "Reinforced hull", "Tuned engine", "Quick loader", "Wide powder"];
+    public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Bomb", "Lightning", "Whirlpool", "Blast", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [
-        "RANGED · Fast shots. More damage and faster fire each rank. Rank 3 adds a second barrel.",
-        "RANGED · Pierces and slows. Soaked foes take bonus blast, coil and broadside damage.",
-        "RANGED · Lobbed area blasts. Each rank adds damage, blast size and fire rate. +50% vs soaked.",
-        "CHAIN · Lightning jumps through a pack. Each rank adds a jump. +80% vs soaked.",
-        "AURA · A constant damaging current surrounds you. Each rank adds damage, reach and pulse speed.",
-        "CLOSE · A wide automatic scatter blast. Pushes packs back. Each rank hits harder and faster.",
-        "+25 maximum hull. Repairs the new plating immediately.",
-        "+10% sailing speed. Dodge, explore, and control your distance.",
-        "+12% fire rate for every weapon, aura and close-range attack.",
-        "+15% area for aura, broadside, blasts and chain reach."];
+        "Fast shots at the nearest enemy.",
+        "Pierces enemies in a line. Slows and soaks them.",
+        "Lobs a bomb that bursts into a crowd.",
+        "Lightning jumps from enemy to enemy.",
+        "A damaging ring around your boat.",
+        "A wide, close-range blast. Pushes enemies back.",
+        "Take more hits.",
+        "Outrun trouble.",
+        "Keep every weapon firing.",
+        "Catch more enemies in each attack."];
+    public string UpgradeBenefit(int option)
+    {
+        int rank = Rank(option);
+        if (rank >= 5) return "Max level.";
+        return option switch
+        {
+            0 => rank == 2 ? "Adds a second barrel. More damage, faster fire." : rank == 0 ? "Fires automatically. Twin barrels at level 3." : "More damage. Faster fire.",
+            1 => $"Pierces {rank + 2} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
+            2 => rank == 0 ? "Big blasts. Long range." : "Bigger blasts. More damage, faster fire.",
+            3 => $"Hits up to {rank + 3} enemies." + (rank > 0 ? " More damage, faster fire." : ""),
+            4 => rank == 0 ? "Hits nearby enemies in every direction." : "Wider ring. More damage, faster pulses.",
+            5 => rank == 0 ? "Makes room when enemies get close." : "More pushback, more damage, faster fire.",
+            6 => "+25 max health. Heal 25 now.",
+            7 => "+10% sailing speed.",
+            8 => "+12% fire rate for every weapon.",
+            _ => "+15% blast size, ring size and lightning reach."
+        };
+    }
+
 }
 
 public sealed record BoatSpec(string Name, float Hull, float Speed, string Ability, string Description)
 {
     public static readonly BoatSpec[] All = [
-        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Cannon + close scatter blast."),
-        new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Cannon + aura.")
+        new("Cutter", 100, 235, "SLIPSTREAM", "Boost grants +65% fire rate, lasting 1.25s after release. Starts with Cannon + Blast."),
+        new("Trawler", 155, 185, "BULWARK", "Moving slowly charges a pulse that clears shots and soaks foes. 30% less damage at low speed. Starts with Cannon + Whirlpool.")
     ];
     public static BoatSpec For(BoatKind kind) => All[(int)kind];
 }

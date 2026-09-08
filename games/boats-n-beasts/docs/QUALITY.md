@@ -70,3 +70,9 @@ Native play observations: initial eligibility 74.50001 seconds with zero earned 
 ## Minimal nautical chart — 2026-09-08
 
 Top-right now contains only LVL and the map; removed distance/cargo/chart readouts and moved the speed control beneath the top-left counters. Replaced radar styling with code-drawn parchment, compass rose, shoreline polygons, harbor anchors, fishing wave marks and a rotating player arrow. North stays fixed; depleted schools remain hidden, and distant home/boss bearings stay within the chart rim without an external legend. Direct native runtime observation verified spacing and visible chart symbols (`nautical-chart` evidence). Debug/Release builds pass. No external assets or automated tests were added.
+
+## Clear weapons and upgrades — 2026-09-08
+
+Shortened names to Cannon, Harpoon, Bomb, Lightning, Whirlpool and Blast; boat upgrades are Hull, Speed, Reload and Reach. Each choice now has one short role description and a next-level benefit, including exact pierce/chain counts and the cannon’s second-barrel milestone. Harbor and bottom inventory use the same names. Retained the six distinct automatic attack behaviors and simple rank progression.
+
+Soaked damage is now a shared +50% for Bomb, Lightning and Blast (Lightning changed from +80%, Blast from +35%, Bomb unchanged). This is a deliberate simplification and balance adjustment. Cards and harbor both explain the shared rule. Debug/Release builds and source checks passed; direct UI play verified the upgrade cards, acquiring Whirlpool, and the full harbor list fitting on screen. Native evidence: clear-upgrades and clear-refits. Long-run balance after the multiplier change was not replayed; no automated tests were added. Fullscreen was used to refresh a stale viewport during review and restored to windowed afterward.
