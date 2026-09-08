@@ -32,7 +32,6 @@ public partial class OceanView : Node2D
     Vector2 CanvasPoint(V2 p) => G(p) - Camera + ViewSize * .5f;
     public Vector2 Screen(V2 p) => CanvasPoint(p) * Projection;
     public V2 WorldPoint(Vector2 screen) { var p = (screen - GetViewportRect().Size * .5f) / Projection + Camera; return new(p.X, p.Y); }
-    public V2 WorldDirection(Vector2 screenDirection) { var d = screenDirection / Projection; return new(d.X, d.Y); }
     public void Reset() { scenery.Clear(); particles.Clear(); wakes.Clear(); Camera = G(Voyage.Position); }
     public void Advance(float dt)
     {

@@ -22,3 +22,6 @@ Readability polish: shared `UpgradeSymbol.DrawSymbol` renders cards, equipment b
 Settings removal: controls are fixed to normal motion, hold-to-boost and manual fishing in a standard resizable window. No Settings screen or F11 handler remains. LoadProgress/SaveProgress retain the legacy user://settings.cfg filename for save compatibility, reading/writing only progression and the Bulwark tutorial flag; obsolete preferences are ignored and disappear on the next normal save.
 
 Boat selection is now fixed at Voyage construction (get-only Boat property). Harbors have no boat-switch action; choosing a different boat starts a new voyage.
+
+
+Run-flow simplification: dock automatically sells cargo; fishing resolves after one timed input with an eight-second timeout. Charts and return-to-harbor victory claim are removed; crossing three leagues spawns the boss and defeating it wins immediately. Right-click steering is removed. A full live run won immediately after the boss died (Trawler, Cannon rank 5, Whirlpool rank 1, Reload rank 1). Final-build native checks verified a one-reel catch, its automatic sale, no repeat sale on re-docking, and inert right-click. Capture reports include fishing cursor/target, last sale and boss flags.

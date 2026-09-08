@@ -21,7 +21,7 @@ public sealed class Shot
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
-public sealed record CatchItem(string Name, int Value, bool Chart);
+public sealed record CatchItem(string Name, int Value);
 public readonly record struct SailInput(Vector2 Move, bool Boost);
 public sealed partial class Voyage
 {
@@ -37,10 +37,10 @@ public sealed partial class Voyage
     public BoatKind Boat { get; }
     public Vector2 Position, Velocity;
     public float Heading, Health, Boost = 100, CombatTime, Invulnerable, Distance, MaxDistance;
-    public int Coins = 20, Kills, Level = 1, Xp, Charts, HullRank, EngineRank, ReloadRank, AreaRank;
+    public int Coins = 20, Kills, Level = 1, Xp, HullRank, EngineRank, ReloadRank, AreaRank;
     public float AbilityCharge, Slipstream;
     public readonly List<int> UpgradeChoices = new();
-    public bool BossSpawned, BossSlain, Retired;
+    public bool BossSpawned, BossSlain;
     public bool BoostExhausted { get; private set; }
     public const float SoakedDamageMultiplier = 1.5f;
     public const string SoakHint = "Soaked enemies take +50% damage from Mines, Lightning and Broadside.";
@@ -54,11 +54,9 @@ public sealed partial class Voyage
     public readonly List<Shot> Shots = new();
     public readonly List<CatchItem> Hold = new();
     public readonly List<GameEvent> Events = new();
-    public readonly HashSet<string> ChartSchools = new();
     public int NextEnemyId;
     public Place? FishingPlace;
-    public float FishingTime, FishCursor, FishTarget, FishResultTime, ReelCooldown;
-    public int FishHits, FishMisses;
+    public float FishingTime, FishCursor, FishTarget;
     public string CatchTitle = "", CatchDetail = "";
     public BoatSpec Spec => BoatSpec.For(Boat);
     public float MaxHealth => Spec.Hull + HullRank * 25;
@@ -81,9 +79,9 @@ public sealed partial class Voyage
         dt = Math.Clamp(dt, 0, .05f);
         if (Mode == VoyageMode.Fishing)
         {
-            FishingTime += dt; ReelCooldown = Math.Max(0, ReelCooldown - dt);
+            FishingTime += dt;
             FishCursor = .5f + .46f * MathF.Sin(FishingTime * (2.7f + Tier * .07f));
-            if (Mode == VoyageMode.Fishing && FishingTime >= 16) FinishFishing(false);
+            if (Mode == VoyageMode.Fishing && FishingTime >= 8) FinishFishing(false);
             return;
         }
         if (Mode != VoyageMode.Sailing) return;
@@ -91,9 +89,9 @@ public sealed partial class Voyage
         bool boosting = UpdateMovement(dt, input);
         CollectEncounters();
         bool safe = Safe;
-        int spawn = BossSlain && !Retired ? 0 : Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
+        int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), safe, BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
-        if (Charts >= 3 && Tier >= 3 && !BossSpawned && !safe)
+        if (Tier >= 3 && !BossSpawned && !safe)
         {
             if (Spawn(EnemyKind.Leviathan))
             {
@@ -108,6 +106,7 @@ public sealed partial class Voyage
         UpdateShots(dt, safe, boosting);
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
+        if (Mode == VoyageMode.Victory) return;
         if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
         else if (Xp >= NextXp) { Xp -= NextXp; Level++; RollUpgrades(); Mode = VoyageMode.Upgrade; Events.Add(new("level", Position)); }
     }
@@ -221,33 +220,31 @@ public sealed partial class Voyage
         Events.Add(new("kill", e.Position, e.Kind == EnemyKind.Leviathan ? 2 : 1));
         if (e.Kind == EnemyKind.Leviathan)
         {
-            BossSlain = true; Coins += 150;
-            // The defeated sovereign disperses its escort. The journey home is the reward.
+            BossSlain = true; Coins += 150; Mode = VoyageMode.Victory;
+            // The defeated sovereign disperses its escort and ends the voyage.
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
             foreach (var other in Enemies) other.Health = 0;
             foreach (var shot in Shots) shot.Life = 0;
-            Events.Add(new("bossSlain", Position)); Events.Add(new("calm", Position, 1000));
+            Events.Add(new("victory", Position)); Events.Add(new("calm", Position, 1000));
         }
     }
     public bool Interact()
     {
         if (Mode != VoyageMode.Sailing) return false;
-        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; return true; }
+        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); return true; }
         var fish = World.FishAt(Position);
         if (fish == null || Hold.Count >= 12) return false;
-        FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = ReelCooldown = 0; FishHits = FishMisses = 0;
+        FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
         fishRandom = new(SeedRandom.Hash(World.Seed, OceanWorld.KeyAt(fish.Position).X, OceanWorld.KeyAt(fish.Position).Y, fish.Style ^ (uint)World.Depletion.GetValueOrDefault(fish.Id)));
         World.Depletion[fish.Id] = 1; // One cast per school, including a cancelled attempt.
         FishCursor = .5f; FishTarget = fishRandom.Range(.25f, .75f); Events.Add(new("cast", fish.Position)); return true;
     }
     public void Reel()
     {
-        if (Mode != VoyageMode.Fishing || FishingTime < .25f || ReelCooldown > 0) return;
-        ReelCooldown = .65f;
-        if (Math.Abs(FishCursor - FishTarget) < FishBand) { FishHits++; Events.Add(new("reel", Position)); FishTarget = fishRandom.Range(.22f, .78f); }
-        else { FishMisses++; Events.Add(new("miss", Position)); }
-        if (FishHits >= 3) FinishFishing(true);
-        else if (FishMisses >= 3) FinishFishing(false);
+        if (Mode != VoyageMode.Fishing || FishingTime < .25f) return;
+        bool success = Math.Abs(FishCursor - FishTarget) < FishBand;
+        if (success) Events.Add(new("reel", Position));
+        FinishFishing(success);
     }
     void FinishFishing(bool success)
     {
@@ -256,20 +253,18 @@ public sealed partial class Voyage
         {
             string[] names = ["Silver sprat", "Coral snapper", "Moonfin tuna", "Golden lanternfish", "Abyssal stargazer"];
             int rarity = Math.Min(4, Tier + (fishRandom.Unit() > .7f ? 1 : 0));
-            bool chart = Tier >= 1 && Charts < 3 && ChartSchools.Add(FishingPlace.Id);
-            if (chart) Charts++;
-            var item = new CatchItem(names[rarity], 14 + rarity * 13 + Tier * 4, chart); Hold.Add(item);
-            CatchTitle = item.Name; CatchDetail = $"Worth {item.Value} gold at harbor" + (chart ? $"  •  Chart fragment {Charts}/3 recovered!" : "");
+            var item = new CatchItem(names[rarity], 14 + rarity * 13 + Tier * 4); Hold.Add(item);
+            CatchTitle = item.Name; CatchDetail = $"{item.Value} gold · sold when you dock";
             Events.Add(new("catch", Position));
         }
-        else { CatchTitle = "The one that got away"; CatchDetail = "Three clean reels land a catch. Another school awaits."; Events.Add(new("miss", Position)); }
+        else { CatchTitle = "The one that got away"; CatchDetail = "Reel once inside turquoise. Another school awaits."; Events.Add(new("miss", Position)); }
         Mode = VoyageMode.Catch;
     }
     public void CancelFishing() { if (Mode == VoyageMode.Fishing) { FishingPlace = null; Mode = VoyageMode.Sailing; } }
-    public int Sell()
+    public int LastCatchSale { get; private set; }
+    void SellCatch()
     {
-        if (Mode != VoyageMode.Harbor) return 0;
-        int value = Hold.Sum(f => f.Value); Coins += value; Hold.Clear(); if (value > 0) Events.Add(new("buy", Position)); return value;
+        int value = Hold.Sum(f => f.Value); LastCatchSale = value; Coins += value; Hold.Clear(); if (value > 0) Events.Add(new("sold", Position, value));
     }
     public int RepairCost => (int)MathF.Ceiling((MaxHealth - Health) / 3);
     public bool Repair()
@@ -335,7 +330,6 @@ public sealed partial class Voyage
         if (free) Mode = VoyageMode.Sailing;
         Events.Add(new("buy", Position)); return true;
     }
-    public void ClaimVictory() { if (Mode == VoyageMode.Harbor && BossSlain) { Retired = true; Mode = VoyageMode.Victory; Events.Add(new("victory", Position)); } }
     public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Broadside", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [
         "Cannonballs bounce between foes and off rocks.",

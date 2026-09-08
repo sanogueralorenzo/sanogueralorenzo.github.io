@@ -39,3 +39,14 @@ Each image has its native telemetry partner. Original timestamped captures remai
 `no-settings-pause` shows the simplified pause menu. `manual-fishing` and `manual-fishing-timeout` show manual instructions followed by a no-input missed catch, with frozen combat telemetry. All three have native PNG/TXT pairs.
 
 `fixed-boat-harbor` verifies the harbor without a mid-run boat switch.
+
+
+## Simplified run flow
+
+- `simple-run-victory`: full normal-play boss victory without charts or a harbor claim; Trawler with Cannon 5, Whirlpool 1 and Reload 1.
+- `single-reel-catch`: a single timed input catches a 14-gold Silver sprat.
+- `automatic-catch-sale`: docking clears cargo and shows the 14-gold receipt.
+- `automatic-sale-revisit`: same balance after re-docking; no duplicate sale.
+- `no-right-click-steering`: right-click leaves the boat stationary.
+
+Native telemetry accompanies each image. Victory capture precedes only sale-header/report/copy cleanup; the remaining captures use the final implementation.

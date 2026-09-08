@@ -158,3 +158,16 @@ A normal end-voyage save retained best_kills=174, wins=1, silver=17 and bulwark_
 ## Fixed boat per voyage — 2026-09-08
 
 Removed the harbor switch button and SwitchBoat method; Voyage.Boat is now get-only and assigned at construction. Updated current handbook/README copy. Debug build passes; live UI selected Cutter, sailed to harbor and confirmed only Sell/Repair plus the existing three offers and exit. Victory claim remains conditional as before. Evidence: fixed-boat-harbor PNG/TXT. No automated tests.
+
+
+## Simplified run flow — 2026-09-08
+
+Docking automatically sells all held catches once and clears cargo. Removed the manual Sell action; a concise receipt in the harbor header remains visible behind modal shading. Re-docking resets the receipt to zero and awards nothing further. Repairs and the three fixed offers are unchanged.
+
+Fishing is one manual timed reel, with an eight-second timeout; a miss ends the cast. Removed hit/miss counters, reel cooldown and chart rewards. Combat still freezes, including the result. Removed chart prerequisites and the return/claim-victory step: sailing beyond three leagues spawns the Crownclaw, and killing it enters Victory immediately. Victory takes priority over a simultaneous level-up; the current win is recorded once and optional endless exploration remains. Start, pause, handbook and result copy use the new objective. Removed right-click helm state, input handling, toasts and the unused inverse-direction helper. Boat choice, WASD/arrows, click-to-sail, hold boost, weapon capacity and stock invariants remain.
+
+Validation: Debug/Release builds and diff checks pass; no automated tests or injected state. Full live run: Trawler, Cannon 5, Whirlpool 1, Reload 1, 171 kills, 222.386 simulated seconds at mixed x1/x3, 433 gold and 15.5/155 hull at immediate Victory, with enemies/shots cleared. No chart collection or harbor claim. This capture predates only sale-header/capture-report/copy cleanup, not a change to combat or victory behavior.
+
+Final build: one manual reel at 2.3166 seconds, cursor 0.48696 vs target 0.59450 (band 0.14), caught a Silver sprat worth 14. Docking cleared cargo 1→0, reported last sale 14 and increased gold from 21 to 36 (14 sale plus one intervening kill). Re-docking stayed at 36 gold with sale 0. Right-click in safe waters left velocity zero and destination empty. Misses also ended casts immediately. The native UI tool's delayed frames made precise reeling difficult; capture telemetry and a timed native keypress verified the actual successful input without modifying gameplay state.
+
+Evidence: simple-run-victory, single-reel-catch, automatic-catch-sale, automatic-sale-revisit, no-right-click-steering PNG/TXT pairs. Saved silver/progression retained; game left at title. Broader balance across other builds and extended endless play was not re-evaluated.
