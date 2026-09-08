@@ -1,0 +1,36 @@
+Mouse viewport=(686.25, 166.5) global=(686.25, 166.5) boatScreen=(701.2948, 464.05417) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-293.8177, -822.91425>; destination=<-138.08844, -502.4664>
+Native runtime capture: 20260908-123033-539-sailing
+Renderer: forward_plus
+Seed: 1533287833
+Mode: Sailing
+Game speed: x1
+Finished runs: 67; boat selection: False
+Silver: 38; earned this voyage: 0; next eligible combat time: 68.27382
+Boat: Mage
+Position: <-273.48688, -344.22333>
+Health: 115/115
+Coins: 23; cargo: 0; kills: 3; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 4; shots: 0
+Actual sailing seconds: 31.8; peak enemies: 5; peak shots: 1
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(-248.20956, -366.83307); departure seconds=31.700563; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<128.07956, -172.3641>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=6; mines=0/0; ricochets=0; pulls=0
+Combat clock=31.700563; director=0/0.73122644; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,0
+Depletion=
+Enemy 2: Crab position=<-247.45256, -201.7383> hp=27 time=29.076485 attack=-27.255781 tell=0 dash=0
+Enemy 5: Crab position=<-142.08784, -175.15224> hp=27 time=25.117725 attack=-22.571848 tell=0 dash=0
+Enemy 6: Crab position=<-164.76122, -801.37756> hp=27 time=23.450314 attack=-21.239168 tell=0 dash=0
+Enemy 7: Crab position=<-196.18073, -184.78416> hp=27 time=20.615784 attack=-18.084675 tell=0 dash=0
+CPU simulation average ms=0.036; draw submission average ms=0.705; cached scenery=5; engine FPS=119; draw calls=160; objects=758
+Frame ms mean: 8.59; p95: 9.68; p99: 11.88

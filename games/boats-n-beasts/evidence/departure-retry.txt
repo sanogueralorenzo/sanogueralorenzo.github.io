@@ -1,0 +1,32 @@
+Mouse viewport=(236.25, 868.5) global=(236.25, 868.5) boatScreen=(403.2, 584.9566) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-225.60811, 456.08112>; destination=<0, -150>
+Native runtime capture: 20260908-122927-328-sailing
+Renderer: forward_plus
+Seed: 2521077984
+Mode: Sailing
+Game speed: x1
+Finished runs: 66; boat selection: False
+Silver: 38; earned this voyage: 0; next eligible combat time: 53.327217
+Boat: Mage
+Position: <0, -0.06979759>
+Health: 115/115
+Coins: 20; cargo: 0; kills: 0; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 0; shots: 0
+Actual sailing seconds: 0.0; peak enemies: 0; peak shots: 0
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(428.1081, -217.18147); departure seconds=0.009090909; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<0, -7.677735>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=0.009090909; director=0.009090909/0.0073181815; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,0
+Depletion=
+CPU simulation average ms=0.041; draw submission average ms=2.372; cached scenery=1; engine FPS=120; draw calls=144; objects=730
+Frame ms mean: 9.09; p95: 9.09; p99: 9.09

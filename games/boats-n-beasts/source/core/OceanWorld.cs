@@ -35,19 +35,11 @@ public sealed class OceanWorld(uint seed)
     public static int TierAt(Vector2 p) => Math.Min(20, (int)(p.Length() / 1000));
     public OceanChunk Generate(ChunkKey key)
     {
+        if (StartingArea.Contains(key)) return StartingArea.Generate(key);
         var rng = new SeedRandom(SeedRandom.Hash(Seed, key.X, key.Y, 17));
         var places = new List<Place>();
         var center = new Vector2(key.X * ChunkSize, key.Y * ChunkSize);
         void Add(PlaceKind kind, Vector2 p, float r) => places.Add(new($"{key.X}:{key.Y}:{places.Count}", kind, p, r, rng.Next()));
-        if (key == new ChunkKey(0, 0))
-        {
-            Add(PlaceKind.Harbor, new(-310, -220), 140);
-            Add(PlaceKind.Fishing, new(170, 180), 76);
-            Add(PlaceKind.Island, new(440, 390), 125);
-            Add(PlaceKind.Rock, new(390, -350), 40);
-            AddEncounters(key, places);
-            return new(key, places.ToArray());
-        }
         bool harbor = key.X % 2 == 0 && key.Y % 2 == 0;
         // Larger landmarks separated by open-water chunks; all solids leave broad edge lanes.
         if (harbor || rng.Unit() < .65f)
@@ -80,14 +72,6 @@ public sealed class OceanWorld(uint seed)
         var rng = new SeedRandom(SeedRandom.Hash(Seed,key.X,key.Y,91));
         var center = new Vector2(key.X*ChunkSize,key.Y*ChunkSize);
         void Add(PlaceKind kind, Vector2 at, float radius, uint? style = null) => places.Add(new($"{key.X}:{key.Y}:encounter:{places.Count}",kind,at,radius,style ?? rng.Next()));
-        if (key == new ChunkKey(0,0))
-        {
-            Add(PlaceKind.Treasure,new(-90,130),22);
-            Add(PlaceKind.Current,new(570,-55),245,0);
-            Add(PlaceKind.Wreck,new(-410,410),65);
-            Add(PlaceKind.Rock,new(-520,365),32); Add(PlaceKind.Rock,new(-300,475),36);
-            return;
-        }
         bool TryPosition(float clearance, out Vector2 position)
         {
             for(int i=0;i<16;i++)

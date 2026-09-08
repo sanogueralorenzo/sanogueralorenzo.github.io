@@ -1,5 +1,15 @@
 # Quality and verification
 
+## Shared title and voyage start — 2026-09-08
+
+This replaces the menu-only layout described in the next two historical entries. `StartingArea` owns nine fixed places across the central 3×3 chunks. The title displays their real positions, including fish and encounter props; all central menu content remains over open water. New voyages and retries retain that geography and its styles while choosing fresh offshore seeds. Set sail retains the selected preview voyage and native meshes, fades the input-transparent menu over 0.65 seconds, and begins a short course toward `(0,-150)`. The camera holds through the fade, then eases into normal following. Returning to the title clears any old sailing destination.
+
+Native input selected and sailed Gunboat, Aura and Mage. Their preview captures have different seeds (3195476677, 3129283324, 1095085161), the same boat position `(0,0)`, identical home place/style ledgers and camera `(428.1081,-217.18147)`. Gunboat's early/middle/late fade captures retain that camera exactly while opacity falls 0.850 → 0.482 → 0.046 and the boat moves forward. Aura accepted a real click destination while the fading menu was still present. Mage also began moving before its fade finished. Normal following subsequently centered the boat; the unsteered Gunboat glide settled near `(0,-154)`.
+
+Gunboat and Aura reached immediate free level-up choices at sea; selecting upgrades resumed play. Mage fired homing orbs, retried after defeat at the same start with a new seed, docked beside the visible home cottage and opened its three boat-upgrade offers. Sailing toward the cottage kept the hull outside the island and slid it along shore. Pause, resume and return to the clear title were exercised. All these runs retained 25 active chunks. [Native captures and telemetry](../evidence/README.md) document the checks.
+
+Debug/Release builds pass with zero warnings/errors; the native log has no runtime errors or warnings. No automated tests or injected state were used. Close-spaced F12 captures stall rendering while PNGs are saved, so their frame percentiles are not a transition-performance benchmark. A separate 31.8-second Mage run reports mean 8.59 ms / p95 9.68 ms / p99 11.88 ms on the reviewed M3 Max. This focused pass did not repeat fishing rewards, boost, boss victory or deep exploration; those mechanics are unchanged and earlier native verification remains below. Offshore random generation was reviewed in code; cross-seed native comparison covered the fixed home region.
+
 ## Clear title backdrop — 2026-09-08
 
 The menu-only composition places the lower island at 79% viewport width / 84% height and the boat to the left. The upper rock moves right; random neighboring scenery and encounter props are excluded from the title backdrop so all logo/button bounds have open water behind them. Home scenery generation, collision and gameplay positions are unchanged. Native verification covered the [clear title](../evidence/menu-clear-title.png), boat selection, [restored sailing scenery and encounters](../evidence/menu-clear-sailing.png), and returning to the title after ending a voyage. Both captures have paired TXT telemetry. Debug/Release pass with zero warnings/errors; native log clean. No automated tests or injected state.
@@ -12,7 +22,7 @@ Verified in the normal 1280×800 native window: house/title separation; all titl
 
 ## Direction B native acceptance — 2026-09-08
 
-This section is the current verification record. The historical entries below include removed mechanics and the old 2D renderer; they do not override [ART_DIRECTION.md](ART_DIRECTION.md) or the current README.
+This section records the Direction B renderer acceptance before the shared-start follow-up above. The historical entries below include removed mechanics and the old 2D renderer; they do not override [ART_DIRECTION.md](ART_DIRECTION.md) or the current README.
 
 ### Visual result
 

@@ -1,5 +1,21 @@
 # Native gameplay evidence
 
+## Shared title and voyage start — 2026-09-08
+
+Unchanged native PNGs with same-name TXT reports; the reports now include camera position, departure time, menu opacity and the fixed home geography ledger.
+
+| Captures | What they establish |
+| --- | --- |
+| [Title](departure-title.png) | Real cottage upper-left, island lower-right, Mage to the left; open water behind all menu actions. |
+| [Gunboat preview](departure-gunboat-preview.png), [Aura preview](departure-aura-preview.png), [Mage preview](departure-mage-preview.png) | Three different voyage seeds; identical starting position, camera and all nine home places/styles. |
+| [Early fade](departure-fade-early.png), [middle](departure-fade-middle.png), [late](departure-fade-late.png) | Boat moves while menu opacity falls; camera and real scenery stay fixed throughout the fade. |
+| [Aura override](departure-aura-override.png), [Mage departure](departure-mage-fade.png) | A click overrides Aura's course before the menu fully disappears; Mage starts moving while the menu is still visible. |
+| [Gunboat play](departure-gunboat-play.png), [Aura play](departure-aura-play.png) | Normal camera following, combat and free level-up choices after departure. |
+| [Retry](departure-retry.png) | Fresh seed and the same starting camera/geography after defeat. Capture is the first retry frame while normal scenery generation is filling its cache. |
+| [Home harbor](departure-harbor.png), [shore approach](departure-shore.png) | Actual docking at the new cottage position, three harbor offers, Mage combat and collision along the visible shore. |
+
+[Runtime log](departure-runtime.txt) retains the native session output. Rapid fade captures include PNG-save stalls and are not performance measurements. See [QUALITY.md](../docs/QUALITY.md) for scope and limits. This shared geography replaces the menu-only offsets in the older entry below.
+
 ## Clear title backdrop — 2026-09-08
 
 [Clear title](menu-clear-title.png) shows the island lower-right, the boat left and open water behind all menu content. [Sailing](menu-clear-sailing.png) shows normal scenery positions and encounter props restored after Set sail. Both have same-name TXT reports. Return-to-title was also checked natively.

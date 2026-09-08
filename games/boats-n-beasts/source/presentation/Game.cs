@@ -18,6 +18,7 @@ public partial class Game : Node2D
 
     CanvasLayer layer = null!;
     Control menuRoot = null!;
+    Control? departingMenu;
     Font titleFont = null!, bodyFont = null!;
     bool title = true, choosingBoat, runRecorded, controls;
     BoatKind selectedBoat;
@@ -110,11 +111,14 @@ public partial class Game : Node2D
         capturing = true;
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         string folder = ProjectSettings.GlobalizePath("res://evidence"); System.IO.Directory.CreateDirectory(folder);
-        string name = DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
+        string name = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
         GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
         var samples = frameSamples.Order().ToArray();
         string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nCoins: {Run.Coins}; cargo: {Run.Hold.Count}; kills: {Run.Kills}; level: {Run.Level}; pending upgrades: {Run.PendingUpgrades}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
         report += $"Fishing time={Run.FishingTime:R}; cursor={Run.FishCursor:R}; target={Run.FishTarget:R}; catch={Run.CatchTitle}; last sale={Run.LastCatchSale}; boss spawned={Run.BossSpawned}; boss slain={Run.BossSlain}\n";
+        report += $"Camera world={ocean.Camera}; departure seconds={ocean.DepartureTime:R}; menu opacity={(departingMenu != null && GodotObject.IsInstanceValid(departingMenu) ? departingMenu.Modulate.A : title ? 1 : 0):R}\n";
+        foreach (var place in Run.World.Places.Where(p => p.Id.StartsWith("home:")).OrderBy(p => p.Id))
+            report += $"Home {place.Id}: {place.Kind} position={place.Position} radius={place.Radius} style={place.Style}\n";
         report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; wrecks={Run.WrecksSalvaged}; arcane casts={Run.ArcaneCasts}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}; fire rate={Run.FireRateMultiplier:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
         foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R}\n";
@@ -159,15 +163,35 @@ public partial class Game : Node2D
     void Start()
     {
         catchNoticeTime = 0;
-        selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         creditedSilver = 0; gameSpeed = 1; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
-        Run = new(selectedSeed, selectedBoat); title = choosingBoat = runRecorded = controls = recorded = false;
-        ocean.Voyage = Run; ocean.Menu = false; ocean.Reset();
-        Toast("Sail beyond 3 leagues. Defeat the Crownclaw."); BuildMenu();
+        if (title)
+        {
+            // Keep the already-visible voyage, meshes, boat and animation clock.
+            var fading = menuRoot; departingMenu = fading; menuRoot = null!;
+            ReleaseMenuInput(fading);
+            var fade = fading.CreateTween();
+            fade.TweenProperty(fading, "modulate:a", 0f, .65).SetTrans(Tween.TransitionType.Sine);
+            fade.TweenCallback(Callable.From(() => { fading.QueueFree(); if (departingMenu == fading) departingMenu = null; }));
+        }
+        else
+        {
+            // Defeat/victory retry is a fresh voyage in the same starting geography.
+            selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
+            Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; ocean.Reset();
+        }
+        title = choosingBoat = runRecorded = controls = recorded = false;
+        ocean.BeginSailing(); destination = StartingArea.Departure;
+        BuildMenu();
+    }
+    static void ReleaseMenuInput(Node node)
+    {
+        if (node is Control control) { control.MouseFilter = Control.MouseFilterEnum.Ignore; control.FocusMode = Control.FocusModeEnum.None; }
+        foreach (var child in node.GetChildren()) ReleaseMenuInput(child);
     }
     void BackToTitle()
     {
-        Record(); title = true; choosingBoat = controls = false; ocean.Menu = true;
+        Record(); title = true; choosingBoat = controls = false; destination = null; ocean.Menu = true;
+        selectedSeed = (uint)Random.Shared.NextInt64(1, 1L << 32);
         Run = new(selectedSeed, selectedBoat); ocean.Voyage = Run; ocean.Reset(); BuildMenu();
     }
     void Record()
@@ -601,7 +625,7 @@ public partial class Game : Node2D
                 if (d.Length() > 59) d = d.Normalized() * 59;
                 DrawCircle(center + d, 4, new Color("b45143"));
             }
-            var home = NauticalPalette.G(new V2(-310, -220) - r.Position);
+            var home = NauticalPalette.G(StartingArea.Harbor - r.Position);
             if (home.Length() > 1000) ChartAnchor(center + home.Normalized() * 60, ink);
             Vector2[] pointer = [new(0, -8), new(-5, 6), new(0, 3), new(5, 6)];
             DrawColoredPolygon(pointer.Select(p => center + p.Rotated(r.Heading)).ToArray(), NauticalPalette.Navy);
