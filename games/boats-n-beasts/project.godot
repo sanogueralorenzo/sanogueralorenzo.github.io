@@ -1,5 +1,6 @@
 config_version=5
 [application]
+; Stable internal name preserves the existing user:// save directory. Window titles are set in C#.
 config/name="Boats n Beasts"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")

@@ -1,4 +1,4 @@
-# Boats n Beasts handoff
+# Boats ’n’ Beasts handoff
 
 Direction B replaces the previous 2D art with native tactile procedural 3D. [ART_DIRECTION.md](ART_DIRECTION.md) is the current visual contract; [README.md](../README.md) covers launch, controls and gameplay. [QUALITY.md](QUALITY.md) and [native evidence](../evidence/README.md) distinguish current verification from historical builds.
 

@@ -18,7 +18,7 @@ public partial class ArtSample : Node3D
         var boat = ActorArt3D.Boat(BoatKind.Mage, [0,0,0,0,0,1]);
         AddChild(boat); boat.Rotation = new(0, -.7f, 0);
         var crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
-        DisplayServer.WindowSetTitle("Boats n Beasts · Native art sample");
+        GetWindow().Title = "Boats ’n’ Beasts · Native art sample";
     }
     public override void _Process(double delta) { clock += (float)delta; stage.Follow(Vector2.Zero, close ? 6.2f : 0); stage.Advance(clock); }
     public override async void _UnhandledKeyInput(InputEvent ev)

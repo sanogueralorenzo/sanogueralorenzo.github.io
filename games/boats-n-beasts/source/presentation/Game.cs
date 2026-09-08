@@ -37,9 +37,9 @@ public partial class Game : Node2D
         ocean = new() { Voyage = Run, Menu = true }; AddChild(ocean);
         LoadProgress();
         layer = new(); AddChild(layer); hud = new() { Game = this, TitleFont = titleFont, BodyFont = bodyFont }; layer.AddChild(hud);
-        DisplayServer.WindowSetTitle("Boats n Beasts");
+        GetWindow().Title = "Boats ’n’ Beasts";
         BuildMenu();
-        GD.Print("Boats n Beasts | renderer=", RenderingServer.GetCurrentRenderingMethod(), " | seed=", selectedSeed);
+        GD.Print("Boats ’n’ Beasts | renderer=", RenderingServer.GetCurrentRenderingMethod(), " | seed=", selectedSeed);
     }
     public override void _Process(double delta)
     {
@@ -290,7 +290,7 @@ public partial class Game : Node2D
         shade.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(shade);
         var center = new CenterContainer(); center.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect); menuRoot.AddChild(center);
         var col = new VBoxContainer { CustomMinimumSize = new(380, 0) }; col.AddThemeConstantOverride("separation", 12); center.AddChild(col);
-        var logo = Label("BOATS n\nBEASTS", 52, true); logo.HorizontalAlignment = HorizontalAlignment.Center;
+        var logo = Label("BOATS ’n’\nBEASTS", 52, true); logo.HorizontalAlignment = HorizontalAlignment.Center;
         logo.AddThemeColorOverride("font_shadow_color", new Color("061c29")); logo.AddThemeConstantOverride("shadow_offset_y", 3);
         col.AddChild(logo);
         col.AddChild(new Control { CustomMinimumSize = new(0, 10), MouseFilter = Control.MouseFilterEnum.Ignore });

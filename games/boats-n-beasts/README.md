@@ -1,4 +1,4 @@
-# Boats n Beasts
+# Boats ’n’ Beasts
 
 An original procedural 3D sailing roguelike for Godot .NET. Sail an endless seeded ocean, fight with automatic weapons, fish for refit money, and defeat the Crownclaw beyond three leagues.
 
