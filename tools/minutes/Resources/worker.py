@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 from files import atomic
-from notes import body, summarize
+from notes import body, write_note
 from pi_processor import stop_active
 from transcription import transcribe
 
@@ -13,7 +13,7 @@ from transcription import transcribe
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("folder", type=Path)
-    parser.add_argument("settings", type=Path)
+    parser.add_argument("provider", choices=("openai", "anthropic"))
     parser.add_argument("model", type=Path)
     args = parser.parse_args()
     os.umask(0o077)
@@ -30,7 +30,8 @@ def main():
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        atomic(folder / "error.txt", "This meeting is still being processed. Wait a moment and retry.")
+        # Do not overwrite the running job's result.
+        print("This meeting is still being processed. Wait a moment and retry.", file=sys.stderr)
         return 1
     parent = os.getppid()
     def watch_parent():
@@ -41,15 +42,14 @@ def main():
                 os._exit(1)
     threading.Thread(target=watch_parent, daemon=True).start()
     try:
-        settings = json.loads(args.settings.read_text())
         atomic(folder / "progress.txt", "Transcribing locally…")
         text = transcribe(folder, json.loads(args.model.read_text()))
         atomic(folder / "progress.txt", "Writing note…")
-        note = summarize(text, settings, folder)
+        note = write_note(text, args.provider, folder)
         # App commits title/body into its meeting metadata only after this file is complete.
-        atomic(folder / "result.json", json.dumps({"title": note["title"], "body": body(note)}, ensure_ascii=False))
+        atomic(folder / "result.json", json.dumps({"note": {"title": note["title"], "body": body(note)}}, ensure_ascii=False))
     except Exception as error:
-        atomic(folder / "error.txt", str(error))
+        atomic(folder / "result.json", json.dumps({"error": str(error)}))
         return 1
     return 0
 

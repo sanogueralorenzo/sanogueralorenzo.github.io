@@ -2,8 +2,9 @@
 import json
 from pathlib import Path
 import sys
+import tempfile
 sys.path.insert(0, str(Path(__file__).parents[1] / 'Resources'))
-from notes import generate
+from notes import write_note
 
 CASES = [
     ('Conditional launch', 'Keep pricing; Jo sends draft Tuesday; Ana asks security tomorrow; Friday remains conditional; support has no owner.',
@@ -15,4 +16,6 @@ CASES = [
 
 if __name__ == '__main__':
     for name, expected, source in CASES:
-        print(json.dumps(dict(case=name, expected=expected, note=generate(source, {'provider': sys.argv[1]})), ensure_ascii=False), flush=True)
+        with tempfile.TemporaryDirectory() as folder:
+            note = write_note(source, sys.argv[1], Path(folder))
+            print(json.dumps(dict(case=name, expected=expected, note=note), ensure_ascii=False), flush=True)

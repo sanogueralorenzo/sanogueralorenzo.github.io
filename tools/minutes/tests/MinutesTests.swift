@@ -18,12 +18,7 @@ func sample(rate: Double, time: Double, seconds: Double = 0.02) throws -> CMSamp
     return result!
 }
 @main struct Tests {
-    @MainActor static func main() throws {
-        for (old, expected) in [("codex", "openai"), ("claude", "anthropic"), ("local", ""), ("unknown", "")] {
-            let data = Data("{\"provider\":\"\(old)\",\"model\":\"old-model\",\"configured\":true}".utf8)
-            let migrated = try JSONDecoder().decode(ProcessorSettings.self, from: data)
-            try expect(migrated.provider == expected && migrated.hasProvider == !expected.isEmpty, "Provider migration must preserve remote consent")
-        }
+    @MainActor static func main() async throws {
         let activeID = UUID()
         for state in [AppActivity.starting(activeID), .recording(activeID), .stopping(activeID), .processing(activeID)] {
             try expect(state.meetingID == activeID, "Every active phase protects its meeting from deletion")
@@ -34,18 +29,42 @@ func sample(rate: Double, time: Double, seconds: Double = 0.02) throws -> CMSamp
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("minutes-tests-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let profile = root.appendingPathComponent("profile")
+        let migrationFile = root.appendingPathComponent("migration.json")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let migrations: [(String, Provider?)] = [("codex", .openai), ("claude", .anthropic), ("openai", .openai), ("anthropic", .anthropic), ("local", nil), ("unknown", nil), ("", nil)]
+        for (old, expected) in migrations {
+            try Data("{\"provider\":\"\(old)\",\"model\":\"old-model\",\"configured\":true}".utf8).write(to: migrationFile)
+            let migrated = try Provider.load(from: migrationFile)
+            try expect(migrated == expected, "Provider migration must preserve remote consent")
+        }
         let appModel = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
-        try expect(appModel.settings.provider == "openai", "New installations default to OpenAI")
-        appModel.selectProvider("anthropic")
+        try expect(appModel.provider == .openai, "New installations default to OpenAI")
+        appModel.selectProvider(.anthropic)
         let reopened = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
-        try expect(reopened.settings.provider == "anthropic", "Provider selection saves immediately")
+        try expect(reopened.provider == .anthropic, "Provider selection saves immediately")
         try Data("{\"provider\":\"local\",\"configured\":true}".utf8).write(to: profile.appendingPathComponent("settings.json"))
         let local = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
         local.toggle()
-        try expect(!local.isWorking && !local.settings.hasProvider && local.error != nil, "Migrated Local must choose a remote provider")
+        try expect(!local.isWorking && local.provider == nil && local.error != nil, "Migrated Local must choose a remote provider")
         try Data("corrupt".utf8).write(to: profile.appendingPathComponent("settings.json"))
         let corrupt = try MinutesModel(root: profile.appendingPathComponent("meetings"), support: profile, review: true)
-        try expect(!corrupt.settings.hasProvider, "Unreadable settings must not assume remote consent")
+        try expect(corrupt.provider == nil, "Unreadable settings must not assume remote consent")
+        let resultFile = root.appendingPathComponent("result.json")
+        for (json, status, succeeds) in [
+            (#"{"note":{"title":"Review","body":"Agreed."}}"#, Int32(0), true),
+            (#"{"error":"Sign in to Pi"}"#, 1, false),
+            (#"{"note":{"title":"Review","body":"Agreed."}}"#, 1, false),
+            (#"{"note":{"title":"","body":""}}"#, 0, false),
+            (#"{"note":{"title":"Review","body":"Agreed."},"error":"Failure"}"#, 0, false),
+            ("broken", 0, false)
+        ] {
+            try Data(json.utf8).write(to: resultFile)
+            let result = Result { try ProcessingJob.readResult(folder: root, exitCode: status) }
+            switch result {
+            case .success: try expect(succeeds, "Only completed successful jobs publish notes")
+            case .failure: try expect(!succeeds, "A successful worker result must be readable")
+            }
+        }
         let store = try MeetingStore(root: root)
         var meeting = Meeting(title: "Release review", body: "Release is approved.\n\nAction items\n☐ Ana sends the draft Friday.", state: "ready")
         try store.save(meeting)
@@ -55,6 +74,14 @@ func sample(rate: Double, time: Double, seconds: Double = 0.02) throws -> CMSamp
         try store.save(meeting)
         loaded = try store.load()
         try expect(loaded.first?.body == meeting.body, "Corrections must persist")
+        let export = root.appendingPathComponent("export.txt")
+        try store.export(meeting, to: export)
+        let exported = try String(contentsOf: export, encoding: .utf8)
+        try expect(exported == meeting.copied, "Export includes the current edited note")
+        meeting.body = ""; try store.save(meeting); try store.export(meeting, to: export)
+        let cleared = try String(contentsOf: export, encoding: .utf8)
+        try expect(cleared == meeting.copied && !cleared.contains("Verify the release"), "Exporting a cleared note replaces stale content")
+        try expect(!FileManager.default.fileExists(atPath: store.folder(meeting.id).appendingPathComponent("note.txt").path), "Saving must not create a second authoritative note")
         meeting.state = "processing"; try store.save(meeting)
         try "source".write(to: store.folder(meeting.id).appendingPathComponent("transcript.txt"), atomically: true, encoding: .utf8)
         loaded = try store.load()
@@ -93,6 +120,7 @@ func sample(rate: Double, time: Double, seconds: Double = 0.02) throws -> CMSamp
             total += file.length
         }
         try expect(total == 122 * 48000, "Rotation preserves every audio frame")
+        try await ProcessingJobTests.run(root: root)
         print("Passed persistence, recovery, deletion, durations, PCM capture, timestamps, gaps and device changes.")
     }
 }

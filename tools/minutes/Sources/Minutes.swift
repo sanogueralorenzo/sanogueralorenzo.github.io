@@ -51,9 +51,9 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         menu.addItem(.separator())
         let open = menu.addItem(withTitle: "Recent meetings", action: #selector(showWindow), keyEquivalent: ""); open.target = self
         let providers = NSMenu(); providers.autoenablesItems = false
-        for choice in ProcessorSettings.choices {
+        for choice in Provider.allCases {
             let item = providers.addItem(withTitle: choice.label, action: #selector(selectProvider(_:)), keyEquivalent: "")
-            item.target = self; item.representedObject = choice.id; providerItems.append(item)
+            item.target = self; item.representedObject = choice; providerItems.append(item)
         }
         providers.addItem(.separator())
         let info = providers.addItem(withTitle: "Transcripts are sent through Pi", action: nil, keyEquivalent: ""); info.isEnabled = false
@@ -72,7 +72,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
     private func fail(_ text: String) { let alert = NSAlert(); alert.messageText = "Minutes could not open"; alert.informativeText = text; alert.runModal(); NSApp.terminate(nil) }
     @objc private func toggleRecording() { model.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func selectProvider(_ sender: NSMenuItem) { if let provider = sender.representedObject as? String { model.selectProvider(provider) } }
+    @objc private func selectProvider(_ sender: NSMenuItem) { if let provider = sender.representedObject as? Provider { model.selectProvider(provider) } }
     @objc private func showWindow() { NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil) }
     @objc private func willSleep() {
         if model.activity.recordingID != nil { Task { await model.stop(captureFailure: "Recording ended because the Mac went to sleep. Retry to process the saved audio.") } }
@@ -88,7 +88,7 @@ final class Minutes: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         recordItem.title = recording ? "Stop recording    ⌥⇧M" : (processing ? "Processing…" : "Start recording    ⌥⇧M")
         recordItem.isEnabled = !processing
         for item in providerItems {
-            item.state = item.representedObject as? String == model.settings.provider ? .on : .off
+            item.state = item.representedObject as? Provider == model.provider ? .on : .off
             item.isEnabled = !model.isWorking
         }
     }
