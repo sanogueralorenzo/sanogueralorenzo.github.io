@@ -1,5 +1,22 @@
 # Native gameplay evidence
 
+## Flat-shaded nautical diorama — 2026-09-08
+
+The [selected reference](../docs/visual-restart/flat-diorama-reference.png) is documentation only. Images below are unedited native captures. Every gameplay PNG has a same-name TXT report.
+
+| Capture | What it establishes |
+| --- | --- |
+| [Baseline](diorama-baseline.png) | Native pre-restyle water, materials and scenery. |
+| [Art sample](diorama-sample-scale.png), [detail](diorama-sample-detail.png) | Generated rock, cottage, palm, boat and crab forms; separate visual scene with no Voyage. Predates only final crystal enlargement/wake correction. |
+| [Final gameplay](diorama-gameplay.png), [Crownclaw](diorama-crownclaw.png), [title](diorama-title.png) | Final integrated visual treatment and corrected wakes at actual playing scale. |
+| [Gunboat preview](diorama-gunboat-preview.png)/[start](diorama-gunboat-start.png), [Mage preview](diorama-mage-preview.png)/[start](diorama-mage-start.png), [Aura preview](diorama-aura-preview.png)/[start](diorama-aura-start.png) | Same dockside spawn, zero velocity and camera for all three selected boats. |
+| [Fade](diorama-fade.png), [five seconds later](diorama-stationary.png), [retry](diorama-retry.png) | No automatic sailing destination or movement; fade preserves scene/camera and retry restores home. |
+| [Mage play](diorama-mage-play.png), [Aura play](diorama-aura-play.png) | Homing attacks, Aura combat, refined low serpents, currents and offshore streaming. These precede the final wake-only correction. |
+| [Level freeze A](diorama-level-freeze-a.png)/[B](diorama-level-freeze-b.png), [streaming after choice](diorama-streaming.png) | Free upgrade freezes gameplay, then play resumes and streams with 25 active chunks. Precedes final geometry/effect refinements. |
+| [Catch](diorama-catch.png), [sale](diorama-sale.png), [purchase](diorama-purchase.png) | Manual successful single reel, direct return to sailing, automatic 14-gold sale and 26-gold Reload purchase. |
+
+Logs: [initial pass](diorama-runtime.txt), [refined game](diorama-final-runtime.txt), [final wakes/Crownclaw](diorama-wakes-runtime.txt), [art sample](diorama-sample-runtime.txt). See [QUALITY.md](../docs/QUALITY.md) for chronology, measured performance and coverage limits. No automated gameplay tests, injected state, image-generated gameplay art or image compositing was used.
+
 ## Stationary dockside start — 2026-09-08
 
 [Title](dock-start-title.png) and [start during fade](dock-start-still.png), each with same-name TXT telemetry, show the boat alongside the wooden dock at `(35,-315)`. Position, zero velocity and camera are unchanged when starting; no sailing destination is assigned. This replaces the automatic initial course in the earlier departure captures below.

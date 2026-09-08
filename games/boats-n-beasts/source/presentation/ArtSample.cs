@@ -29,7 +29,7 @@ public partial class ArtSample : Node3D
         {
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
-            var file = folder + "/direction-b-sample-" + (close ? "detail" : "scale") + ".png";
+            var file = folder + "/diorama-sample-" + (close ? "detail" : "scale") + ".png";
             GetViewport().GetTexture().GetImage().SavePng(file);
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
         }

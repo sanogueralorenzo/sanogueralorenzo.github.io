@@ -115,7 +115,17 @@ public partial class Effects3D : Node3D
             if (enemy.Health <= 0) continue;
             if (!creatureWakes.TryGetValue(enemy.Id,out var history)) creatureWakes[enemy.Id] = history = new(24);
             var p = World(enemy.Position); var d = history.Count > 0 ? p - history[^1].P : Vector3.Zero;
-            if (d.LengthSquared() > .0001f) AddSample(history, new(p, d.Normalized(), time, 1), 24);
+            if (d.LengthSquared() > .0001f)
+            {
+                var heading=d.Normalized();
+                if(history.Count>0)
+                {
+                    // A dash reversal starts a new trail rather than folding two banks together.
+                    if(history[^1].Forward.Dot(heading)<-.2f) history.Clear();
+                    else heading=history[^1].Forward.Lerp(heading,.3f).Normalized();
+                }
+                AddSample(history,new(p,heading,time,1),24);
+            }
             else if (history.Count == 0) AddSample(history, new(p, forward, time, 1), 24);
             history.RemoveAll(s => time - s.Born > 1);
         }
@@ -137,27 +147,15 @@ public partial class Effects3D : Node3D
             float spreadA = width + (time-a.Born)*.22f; float spreadB = width + age*.22f;
             for (int sign = -1; sign <= 1; sign += 2)
             {
-                float Ripple(float born)=>Mathf.Sin(born*61+sign*2.3f)*.021f+Mathf.Sin(born*137-sign)*.011f;
-                var pa = a.P + sideA * (spreadA+Ripple(a.Born)) * sign;
-                var pb = b.P + sideB * (spreadB+Ripple(b.Born)) * sign;
-                uint h=SeedRandom.Hash(3819,(int)(b.Born*1000),sign);
-                float widthA=.004f+((h>>5)%100)*.00012f+age*.004f;
-                float widthB=.003f+((h>>13)%100)*.00010f+age*.003f;
-                // Birth-anchored irregularity is stable as the history ages; foam never becomes dashed rails.
-                var midpoint=pa.Lerp(pb,.48f)+sideB*Ripple((a.Born+b.Born)*.5f)*sign;
-                if(h%7!=0)
-                {
-                    foam.Ribbon(pa,midpoint,widthA,widthB,Fade(Foam,opacity*.42f));
-                    foam.Ribbon(midpoint,pb,widthB,.003f,Fade(Foam,opacity*.34f));
-                }
-                if((h>>3)%3==0)
-                {
-                    var outer=midpoint+sideB*(.042f+age*.035f)*sign;
-                    foam.Ribbon(pa,outer,.004f,.01f,Fade(Foam,opacity*.26f));
-                    foam.Ribbon(outer,pb.Lerp(midpoint,.35f)+sideB*.07f*sign,.01f,.002f,Fade(Foam,opacity*.18f));
-                }
-                // A soft short patch supports the fine branches without an opaque outline.
-                if(h%5==0) foam.Ribbon(pa.Lerp(midpoint,.3f),pb.Lerp(midpoint,.25f),.028f,.016f,Fade(Foam,opacity*.065f));
+                var pa=a.P+sideA*spreadA*sign; var pb=b.P+sideB*spreadB*sign;
+                float taper=Mathf.Sin(Mathf.Pi*Mathf.Clamp(age/life,0,1));
+                float previousTaper=Mathf.Sin(Mathf.Pi*Mathf.Clamp((time-a.Born)/life,0,1));
+                if(pa.DistanceTo(pb)>a.P.DistanceTo(b.P)*2+.08f) continue;
+                // Adjacent pieces share their bank vertices, avoiding gaps at curved joins.
+                float wa=.05f*previousTaper, wb=.05f*taper;
+                var color=Fade(Aqua,opacity*.7f);
+                foam.Triangle(pa+sideA*wa,pb+sideB*wb,pb-sideB*wb,color);
+                foam.Triangle(pa+sideA*wa,pb-sideB*wb,pa-sideA*wa,color);
             }
         }
     }

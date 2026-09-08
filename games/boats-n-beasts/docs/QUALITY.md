@@ -1,5 +1,38 @@
 # Quality and verification
 
+## Flat-shaded nautical diorama — 2026-09-08
+
+This is the current visual acceptance record. The [exact selected reference](visual-restart/flat-diorama-reference.png) replaces the earlier Direction B/doodle directions. The native result uses quiet petrol-teal water, simple polygon shallows, warm sand terraces, irregular faceted slate rocks, folded broad palm leaves, solid pitched cottage roofs, matte boat hulls and expressive flat-shaded creatures. Surface grain, fine rock fractures, sand flecks, deck seams, roof tiles and detailed water normals were removed. Low swimming teal serpents have coral fins; Crownclaw retains broad claws, readable eyes and a pale crown; Mage carries a larger upright violet crystal. Existing cream/navy/turquoise HUD and menus fit the new palette and retain their controls.
+
+The [native gameplay capture](../evidence/diorama-gameplay.png), [Crownclaw](../evidence/diorama-crownclaw.png), [title](../evidence/diorama-title.png) and [art sample](../evidence/diorama-sample-scale.png) establish a coherent interpretation at the preserved camera scale. Review rejected regular column-like stone faces, hard-to-see fish and folding wake wedges during creature turns. Final stones have unequal shoulders/caps, submerged fish are clearer, and wakes join along shared banks with smoothed headings and separate trails at reversals. The result retains existing cabin silhouettes and layouts rather than copying the reference’s exact composition. No major unresolved visual gap remains in the reviewed native scenes.
+
+### Native behavior
+
+- Selected and sailed Gunboat, Mage and Aura. Final previews and post-fade captures share `(35,-315)`, zero velocity and camera `(424.86487,-214.90347)`. The initial fade and five-second stationary pair also show no automatic destination or movement. Retry after defeat returns to the same dock. Steering engages normal camera follow; pause/resume and returning to the clear title work.
+- Gunboat used Cannon; Mage recorded 10 homing casts; Aura displayed its attack-radius curls and fought offshore. The final run shows crabs, puffers, low serpents, hostile shots and Crownclaw appearing beyond three leagues. No core gameplay files changed.
+- Immediate free level-up choices appeared at sea. Captures 2.5 seconds apart retain position, velocity, combat/director clocks, weapon cooldowns, enemies and shots; choosing Hull resumed sailing. Differences between these reports are mouse coordinates, capture timestamp and render statistics only.
+- Played a fishing timeout, miss and success. A manual reel at 1.1659 seconds matched cursor 0.4971 to target 0.4365, caught Silver sprat, depleted the school and resumed Sailing without a result popup. Docking automatically sold it for 14 gold. Three boat-upgrade offers remained visible; Reload cost 26 gold, changing 38 to 12.
+- Streaming retained 25 active chunks while Gunboat traveled to X=2163, Aura reached about 3.1 leagues and the final Gunboat reached `(3135,-581)` with Crownclaw present. Current riding was recorded. Mesh/trail caches remain bounded; obsolete surface shader files were replaced by `DioramaSurface` and its shader.
+
+### Builds and performance
+
+Debug and Release pass with zero warnings/errors. Native game and art-sample logs are clean. No automated tests or injected state were used. F12 captures and paired reports are indexed in [evidence/README.md](../evidence/README.md).
+
+On Apple M3 Max / Godot 4.7.2 .NET / Metal Forward+ / 4× MSAA, native 1280×800 captures from a 1440×900 logical viewport:
+
+| Run | Sailing time | Frame mean / p95 / p99 |
+| --- | --- | --- |
+| Initial diorama Gunboat streaming | 64 seconds | 8.37 / 8.33 / 9.09 ms |
+| Refined Mage | 50.6 seconds | 8.36 / 8.33 / 9.09 ms |
+| Refined Aura offshore | 38.4 seconds | 8.39 / 8.33 / 10.00 ms |
+| Final wake/Crownclaw check | 29.2 seconds | 16.74 / 16.67 / 16.67 ms |
+
+The final session ran at roughly 60 FPS; earlier sessions were around 120 FPS. These are observed rolling native frame samples, including capture overhead, not isolated GPU benchmarks or a cross-device guarantee. Rapid fade captures are not used as performance benchmarks.
+
+### Coverage limits
+
+The free-upgrade/64-second streaming checks precede final hull, rock, fish, serpent and wake refinements; final all-boat starts, Mage/Aura play, fishing/sales/purchase and retry followed those shape refinements, and a final Gunboat sailing/Crownclaw pass followed wake smoothing. The art sample predates only the last Mage crystal enlargement and wake correction; current native gameplay uses both. Boss victory, deep-endless crowds, every weapon rank, held boost and every input/device combination were not replayed in this style pass. Their simulation is unchanged; earlier native verification remains historical evidence. No claim of exhaustive visual or balance verification is made.
+
 ## Stationary dockside start — 2026-09-08
 
 Supersedes the automatic glide in the shared-start entry below. Every boat now spawns at `(35,-315)`, alongside the outer wooden dock with collision clearance for its bow and stern. Starting a voyage leaves its destination unset. The camera is anchored to the harbor for menu composition and holds there until the player moves; the menu still fades over the same scene.

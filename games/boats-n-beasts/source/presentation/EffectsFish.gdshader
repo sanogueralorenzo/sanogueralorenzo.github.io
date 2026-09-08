@@ -2,7 +2,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
 
 uniform float school_time = 0.0;
-uniform vec4 water_tint : source_color = vec4(0.22, 0.43, 0.46, 0.56);
+uniform vec4 water_tint : source_color = vec4(0.30, 0.61, 0.61, 0.64);
 varying float flank;
 
 void vertex() {
@@ -14,7 +14,7 @@ void vertex() {
 
 void fragment() {
     // A modest flank gradient, already tinted by water, keeps volume without dry bright highlights.
-    ALBEDO = water_tint.rgb * mix(0.72, 1.12, flank);
+    ALBEDO = water_tint.rgb * mix(0.90, 1.03, flank);
     ALPHA = water_tint.a;
     ROUGHNESS = 1.0;
 }

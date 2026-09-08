@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace BoatsNBeasts;
 
-/// <summary>Small triangle collector with explicit smooth normals and vertex colors.</summary>
+/// <summary>Small triangle collector with explicit face normals and vertex colors.</summary>
 internal sealed class ActorGeometry
 {
     readonly List<Vector3> vertices = new(), normals = new();
@@ -13,6 +13,9 @@ internal sealed class ActorGeometry
     {
         // Godot uses clockwise front faces. Normals are supplied independently of winding.
         if ((b - a).Cross(c - a).Dot(na + nb + nc) > 0) { (b, c) = (c, b); (nb, nc) = (nc, nb); }
+        var face=(c-a).Cross(b-a);
+        if(face.LengthSquared()<1e-12f) return;
+        na=nb=nc=face.Normalized();
         vertices.Add(a); vertices.Add(b); vertices.Add(c);
         normals.Add(na); normals.Add(nb); normals.Add(nc);
         colors.Add(color); colors.Add(color); colors.Add(color);
@@ -40,6 +43,7 @@ internal sealed class ActorGeometry
     }
     public void Sphere(Vector3 p, Vector3 radius, Color color, int segments = 16, int rings = 10)
     {
+        segments=Math.Min(segments,10); rings=Math.Min(rings,6);
         Vector3 N(int x, int y)
         {
             float a = x * Mathf.Tau / segments, h = y * Mathf.Pi / rings;

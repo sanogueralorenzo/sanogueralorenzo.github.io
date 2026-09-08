@@ -10,7 +10,7 @@ public static partial class ActorArt3D
 {
     static readonly Dictionary<string, ArrayMesh> Cache = new();
     public static void ResetCache() => Cache.Clear();
-    static Material Material => TactileSurface.Material;
+    static Material Material => DioramaSurface.Material;
     static readonly Color Cream = new("ecd8a4"), Wood = new("98633b"), Deck = new("bb8c53"),
         DarkWood = new("694731"), Brass = new("caa467"), Glass = new("284958"),
         Coral = new("cb4829"), Shell = new("cf5531"), DarkCoral = new("9d3224"),
@@ -98,15 +98,9 @@ public static partial class ActorArt3D
 
     static void BuildBoat(ActorGeometry b, BoatKind kind, int[] ranks)
     {
-        Color stripe = kind == BoatKind.Mage ? new("685577") : kind == BoatKind.Trawler ? new("43867e") : new("496d77");
-        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.073f, .94f), HullRing(.139f, .987f), HullRing(.17f, 1), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Wood, Cream, Wood });
+        Color stripe = kind == BoatKind.Mage ? new("73539b") : kind == BoatKind.Trawler ? new("358d88") : new("25495d");
+        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.139f, .987f), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Cream });
         b.Polygon(HullRing(.191f, .935f), Deck, Vector3.Up);
-        // Individual deck boards with narrow dark seams and warm end grain.
-        for (float z = -.49f; z < .48f; z += .078f)
-        {
-            float width = Width(z) * .9f;
-            b.Tube(new[] { new Vector3(-width, .194f, z), new Vector3(width, .194f, z) }, .0032f, DarkWood, 5);
-        }
         var rim = HullRing(.218f, .984f);
         b.ClosedTube(rim, .018f, Cream, 7);
         // Wooden inner gunwale gives the hull a visible wall thickness.
@@ -156,7 +150,7 @@ public static partial class ActorArt3D
     {
         b.Sphere(p, new Vector3(.095f, .035f, .087f) * s, DarkWood);
         b.Tube(new[] { p, p + Vector3.Up * .15f * s }, .029f * s, Brass, 8);
-        b.Crystal(p + Vector3.Up * .29f * s, new Vector3(.108f, .245f, .095f) * s, Purple);
+        b.Crystal(p + Vector3.Up * .34f * s, new Vector3(.145f, .35f, .125f) * s, Purple);
         b.Ring(p + Vector3.Up * .14f * s, .063f * s, .012f * s, Brass);
     }
 
@@ -204,14 +198,13 @@ public static partial class ActorArt3D
             float a = .14f + i * .7f;
             b.Sphere(P(MathF.Cos(a) * .209f, .22f, .015f + MathF.Sin(a) * .175f), P(.04f, .019f, .031f), Coral, 10, 6);
         }
-        for (int j = 0; j < (s > 2 ? 14 : 7); j++)
-        {
-            float a = j * 2.39996f, r = .17f * MathF.Sqrt((j + .5f) / (s > 2 ? 14 : 7));
-            float x = MathF.Cos(a) * r, z = .018f + MathF.Sin(a) * r;
-            float y = .20f + .127f * MathF.Sqrt(MathF.Max(.1f, 1 - x * x / .061f - (z - .015f) * (z - .015f) / .045f));
-            b.Sphere(P(x, y, z), P(.024f, .012f, .021f), j % 3 == 0 ? new Color("e17a46") : DarkCoral.Lightened(.08f), 8, 5);
-            if (s > 2 && j % 2 == 0) b.Tube(new[] { P(x, y, z), P(x * 1.07f, y + .068f, z + .014f) }, new[] { .026f * s, .002f * s }, Shell, 8);
-        }
+        if (s > 2)
+            for (int i=0;i<5;i++)
+            {
+                float a=.15f+i*Mathf.Pi/4;
+                var p=P(Mathf.Cos(a)*.17f,.29f,Mathf.Sin(a)*.15f);
+                b.Crystal(p+Vector3.Up*.065f*s,P(.027f,.12f,.027f),Cream);
+            }
     }
 
     static void Puffer(ActorGeometry b)
@@ -219,9 +212,9 @@ public static partial class ActorArt3D
         Color gold = new("cfa65d");
         b.Sphere(new(0, .18f, 0), new(.265f, .235f, .25f), gold, 20, 12);
         b.Sphere(new(0, .10f, -.11f), new(.205f, .135f, .17f), Cream);
-        for (int j = 0; j < 25; j++)
+        for (int j = 0; j < 12; j++)
         {
-            float y = .15f + .8f * (j + .5f) / 25, a = j * 2.39996f;
+            float y = .15f + .8f * (j + .5f) / 12, a = j * 2.39996f;
             var n = new Vector3(MathF.Sqrt(1 - y * y) * MathF.Cos(a), y, MathF.Sqrt(1 - y * y) * MathF.Sin(a));
             var p = new Vector3(0, .18f, 0) + n * new Vector3(.25f, .22f, .24f);
             b.Tube(new[] { p, p + n * .066f }, new[] { .025f, .002f }, Cream, 7);
@@ -237,29 +230,18 @@ public static partial class ActorArt3D
 
     static void Serpent(ActorGeometry b)
     {
-        Color skin = new("458b85"), ridge = new("a8b17d");
-        var path = new[] { new Vector3(0, -.07f, .69f), new Vector3(-.07f, .12f, .48f), new Vector3(-.13f, .18f, .31f), new Vector3(-.075f, .08f, .13f), new Vector3(.035f, .12f, -.02f), new Vector3(.065f, .37f, -.11f), new Vector3(.035f, .61f, -.15f), new Vector3(0, .72f, -.27f) };
-        b.Tube(path, new[] { .024f, .068f, .105f, .12f, .137f, .123f, .11f, .095f }, skin, 14);
-        for (int j = 0; j < 6; j++)
+        Color skin=new("3ca99c"), fin=new("ed8057");
+        var path=new[] { new Vector3(.04f,-.025f,.90f),new Vector3(-.08f,.04f,.65f),new Vector3(-.12f,.12f,.40f),new Vector3(-.06f,.20f,.16f),new Vector3(0,.17f,-.08f),new Vector3(0,.13f,-.30f) };
+        b.Tube(path,new[] { .014f,.055f,.09f,.12f,.16f,.17f },skin,8);
+        b.Sphere(new(0,.14f,-.33f),new(.18f,.145f,.24f),skin,10,6);
+        b.Sphere(new(0,.07f,-.40f),new(.14f,.04f,.17f),Cream,8,4);
+        foreach(int side in new[] {-1,1})
         {
-            float y = .15f + j * .082f;
-            b.Sphere(new(.045f, y, -.146f - j * .005f), new(.094f - j * .003f, .044f, .04f), Cream, 12, 8);
+            Eyes(b,new(side*.126f,.245f,-.425f),.05f);
+            b.Crystal(new(side*.16f,.09f,-.07f),new(.095f,.055f,.09f),fin);
         }
-        b.Sphere(new(0, .713f, -.284f), new(.133f, .115f, .159f), skin);
-        b.Sphere(new(0, .663f, -.383f), new(.091f, .042f, .095f), DarkWood);
-        b.Sphere(new(0, .64f, -.366f), new(.091f, .028f, .078f), Cream);
-        b.Sphere(new(0, .701f, -.387f), new(.11f, .054f, .10f), skin);
-        foreach (int side in new[] { -1, 1 })
-        {
-            Eyes(b, new(side * .10f, .752f, -.341f), .041f);
-            b.Tube(new[] { new Vector3(side * .075f, .79f, -.225f), new Vector3(side * .093f, .88f, -.197f) }, new[] { .028f, .002f }, ridge, 8);
-            b.Sphere(new(side * .041f, .724f, -.467f), new(.012f, .012f, .006f), Pupil, 8, 5);
-        }
-        for (int j = 1; j < path.Length - 1; j++)
-        {
-            var p = path[j] + new Vector3(0, j < 4 ? .085f : .045f, j < 4 ? 0 : .095f);
-            b.Tube(new[] { p, p + new Vector3(0, .09f, .043f) }, new[] { .035f, .001f }, ridge, 8);
-        }
+        for(int i=1;i<path.Length-1;i++)
+            b.Crystal(path[i]+Vector3.Up*.09f,new(.04f,.09f,.055f),fin);
     }
 
     static void Ray(ActorGeometry b)

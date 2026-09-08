@@ -1,0 +1,32 @@
+Mouse viewport=(-353.25, 1059.75) global=(-353.25, 1059.75) boatScreen=(720.00006, 449.99612) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-1364.5101, 7906.643>; destination=
+Native runtime capture: 20260908-124209-045-sailing
+Renderer: forward_plus
+Seed: 1042952513
+Mode: Sailing
+Game speed: x1
+Finished runs: 69; boat selection: False
+Silver: 39; earned this voyage: 1; next eligible combat time: 179.28429
+Boat: Cutter
+Position: <85.82771, 6925.7007>
+Health: 100/100
+Coins: 522; cargo: 0; kills: 6; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 9; shots: 0
+Actual sailing seconds: 164.2; peak enemies: 15; peak shots: 40
+Fishing time=0.8999995; cursor=0.6776884; target=0.6899484; catch=Abyssal stargazer; last sale=363; boss spawned=True; boss slain=False
+Camera world=(85.82762, 6925.7065); departure seconds=151.9322; menu opacity=0
+Velocity=<0, 0>; boosting=False; boost starts=21; flow=<0, 0>; current seconds=0; treasure=3; wrecks=2; arcane casts=0; mines=0/0; ricochets=40; pulls=0
+Combat clock=164.10333; director=0/1.8548226; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0,0,0,0,0,0
+Depletion=1:2:3=1;1:2:encounter:5=1;1:3:3=1;1:3:encounter:4=1;0:3:encounter:1=1;0:3:encounter:2=1;0:3:0=1;0:4:1=1;0:5:0=1;0:5:encounter:1=1
+Enemy 25: Ray position=<270.10605, 7329.249> hp=45.25 time=36.445507 attack=-10.258275 tell=0 dash=0
+Enemy 26: Leviathan position=<-12.94874, 6739.2275> hp=1837.5 time=36.445507 attack=-12.48325 tell=0 dash=0
+Enemy 27: Ray position=<318.7978, 7252.799> hp=30.25 time=35.079178 attack=-13.416971 tell=0 dash=0
+Enemy 30: Serpent position=<65.612976, 6808.0703> hp=89 time=22.63262 attack=0.7668107 tell=-0.008300007 dash=-0.008305551
+Enemy 31: Serpent position=<211.93039, 6860.118> hp=104 time=21.974545 attack=2.766724 tell=-0.008300007 dash=0.008359454
+Enemy 32: Crab position=<117.13768, 6818.9263> hp=45.75 time=21.31623 attack=-17.99058 tell=0 dash=0
+Enemy 33: Ray position=<197.76791, 7389.822> hp=96.75 time=19.999586 attack=-12.416575 tell=0 dash=0
+Enemy 34: Serpent position=<156.49945, 6833.4355> hp=102 time=19.341263 attack=0.02517286 tell=-0.008300007 dash=-0.008305551
+Enemy 35: Puffer position=<-53.780273, 6592.3237> hp=40.5 time=17.849813 attack=-12.224922 tell=0.65 dash=0
+CPU simulation average ms=0.058; draw submission average ms=0.958; cached scenery=4; engine FPS=120; draw calls=221; objects=981
+Frame ms mean: 8.36; p95: 8.33; p99: 9.09

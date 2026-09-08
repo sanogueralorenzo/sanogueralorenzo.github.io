@@ -15,18 +15,18 @@ public partial class NativeStage3D : Node3D
         GetViewport().Msaa3D = Viewport.Msaa.Msaa4X;
         var environment = new Godot.Environment
         {
-            BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new("07394b"),
+            BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new("086b7f"),
             AmbientLightSource = Godot.Environment.AmbientSource.Color,
-            AmbientLightColor = new("b8cddd"), AmbientLightEnergy = .48f,
+            AmbientLightColor = new("b8cddd"), AmbientLightEnergy = .6f,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Disabled,
-            TonemapMode = Godot.Environment.ToneMapper.Filmic,
-            SsaoEnabled = true, SsaoRadius = .23f, SsaoIntensity = 1.25f,
-            SsaoPower = 1.25f, SsaoDetail = .6f, SsaoLightAffect = .3f
+            TonemapMode = Godot.Environment.ToneMapper.Linear,
+            SsaoEnabled = true, SsaoRadius = .18f, SsaoIntensity = .65f,
+            SsaoPower = 1.1f, SsaoDetail = .25f, SsaoLightAffect = .3f
         };
         AddChild(new WorldEnvironment { Environment = environment });
         var sun = new DirectionalLight3D
         {
-            LightColor = new("fff0d6"), LightEnergy = 1.3f, ShadowEnabled = true,
+            LightColor = new("fff0d6"), LightEnergy = 1.0f, ShadowEnabled = true,
             DirectionalShadowMaxDistance = 65, DirectionalShadowMode = DirectionalLight3D.ShadowMode.Orthogonal,
             ShadowBlur = 2, ShadowBias = .025f, ShadowNormalBias = .4f
         };
@@ -44,7 +44,7 @@ public partial class NativeStage3D : Node3D
         Lens.Position = target + new Vector3(0, Foreshortening * 32, Mathf.Sqrt(1 - Foreshortening * Foreshortening) * 32);
         Lens.LookAt(target); sea.Position = target;
     }
-    public void Advance(float clock) { water.SetShaderParameter("clock", clock); TactileSurface.Advance(clock); }
+    public void Advance(float clock) { water.SetShaderParameter("clock", clock); DioramaSurface.Advance(clock); }
     public Vector2 Screen(V2 p, float height = 0) => Lens.UnprojectPosition(Point(p, height));
     public V2 WorldPoint(Vector2 screen)
     {
