@@ -364,7 +364,7 @@ public static class EnvironmentArt3D
             {
                 if (!Materials.TryGetValue(key, out var material))
                 {
-                    material = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = .93f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+                    material = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .93f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
                     if (key == "shelf")
                     {
                         material.ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded;

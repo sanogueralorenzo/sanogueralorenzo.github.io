@@ -11,7 +11,7 @@ public static class ActorArt3D
     static readonly Dictionary<string, ArrayMesh> Cache = new();
     static readonly StandardMaterial3D Material = new()
     {
-        VertexColorUseAsAlbedo = true, Roughness = .88f, Metallic = 0,
+        VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .88f, Metallic = 0,
         CullMode = BaseMaterial3D.CullModeEnum.Back
     };
     static readonly Color Cream = new("ecd8a4"), Wood = new("98633b"), Deck = new("bb8c53"),
