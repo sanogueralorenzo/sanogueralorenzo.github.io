@@ -19,6 +19,7 @@ final class MenuBarStatus: NSObject, NSMenuDelegate {
     private let rewrite = NSMenuItem(title: "Rewrite", action: nil, keyEquivalent: "r")
     private let cancel = NSMenuItem(title: "Cancel Rewrite", action: #selector(cancelRewrite), keyEquivalent: "")
     private let errorDetails = NSMenuItem()
+    private let statusDivider = NSMenuItem.separator()
     private var errorMessage: String?
     private let dot = StatusDot(frame: .zero)
     private var action: EditAction?
@@ -34,7 +35,10 @@ final class MenuBarStatus: NSObject, NSMenuDelegate {
             dot.setAccessibilityElement(false); button.addSubview(dot)
         }
         let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
-        for entry in [progress, errorDetails, cancel, rewrite] { entry.target = self; menu.addItem(entry) }
+        for entry in [errorDetails, progress, cancel] { entry.target = self; menu.addItem(entry) }
+        menu.addItem(statusDivider)
+        menu.addItem(rewrite)
+        menu.addItem(.separator())
         progress.isEnabled = false
         rewrite.isEnabled = false; rewrite.keyEquivalentModifierMask = .option
         for (index, action) in EditAction.allCases.enumerated() {
@@ -55,6 +59,7 @@ final class MenuBarStatus: NSObject, NSMenuDelegate {
     }
     func setRewriting(_ action: EditAction?) {
         self.action = action; errorMessage = nil; errorDetails.isHidden = true
+        statusDivider.isHidden = action == nil
         dot.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
         dot.isHidden = action == nil; progress.isHidden = action == nil; cancel.isHidden = action == nil
         setActionsEnabled(action == nil)
@@ -63,7 +68,7 @@ final class MenuBarStatus: NSObject, NSMenuDelegate {
     }
     func showError(_ message: String, opensPermissions: Bool = false) {
         setRewriting(nil); errorMessage = message
-        progress.title = "Rewrite needs attention"; progress.isHidden = false
+        statusDivider.isHidden = false
         errorDetails.view = nil
         errorDetails.action = opensPermissions ? #selector(openPermissions) : nil
         errorDetails.title = opensPermissions ? "Allow Rewrite in System Settings…" : ""
