@@ -10,4 +10,4 @@ Implemented: two boat abilities, six shared automatic weapons, simple weapon/sta
 
 The user-selected progression stays simple: small varying rank/stat choices, obvious synergies and distinct boat abilities. Do not reintroduce prerequisite trees, catch equipment, unrequested currencies, or proprietary reference assets. Research inputs and partial reverse-engineering conclusions are documented in RESEARCH.md.
 
-Latest user direction adds silver as a persistent balance, one per ten kills in a voyage, with spending deferred. The existing voyage currency is now labeled gold. This supersedes earlier guidance against adding another currency.
+Latest user direction adds silver as a persistent balance, awarded on the next kill after a fresh random 45–90-second combat-time interval, with spending deferred. The existing voyage currency is now labeled gold. This supersedes earlier guidance against adding another currency.

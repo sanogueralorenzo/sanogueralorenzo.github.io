@@ -1,0 +1,98 @@
+Read-only installed GameAssembly.dll excerpts
+SHA256: 4350a7ae25ba7aec35677c213fdceabbb638676bb00ab59131d7d9c37b6e3d9e
+Metadata: dumper/dump.cs and script.json
+MyTime.time: static offset 0x4; MoneyUtility.nextSilverSpawnTime: static offset 0x8
+SpawnSilver calls GetStat(0x31): EStat.SilverIncreaseMultiplier = 49
+Float constant at RVA 0x262edf0: 60.0
+
+RVA 0x469230
+180469230 push rbx
+180469232 sub rsp, 0x30
+180469236 cmp byte ptr [rip + 0x2d0972c], 0
+18046923d mov rbx, rcx
+180469240 movaps xmmword ptr [rsp + 0x20], xmm6
+180469245 jne 0x180469266
+180469247 lea rcx, [rip + 0x2af4e62]
+18046924e call 0x1802696c0
+180469253 lea rcx, [rip + 0x2af913e]
+18046925a call 0x1802696c0
+18046925f mov byte ptr [rip + 0x2d09703], 1
+180469266 mov rax, qword ptr [rip + 0x2af912b]
+18046926d cmp dword ptr [rax + 0xe4], 0
+180469274 jne 0x180469285
+180469276 mov rcx, rax
+180469279 call 0x1802699a0
+18046927e mov rax, qword ptr [rip + 0x2af9113]
+180469285 mov rcx, qword ptr [rip + 0x2af4e24]
+18046928c mov rax, qword ptr [rax + 0xb8]
+180469293 cmp dword ptr [rcx + 0xe4], 0
+18046929a movss xmm6, dword ptr [rax + 4]
+18046929f jne 0x1804692ad
+1804692a1 call 0x1802699a0
+1804692a6 mov rcx, qword ptr [rip + 0x2af4e03]
+1804692ad mov rax, qword ptr [rcx + 0xb8]
+1804692b4 comiss xmm6, dword ptr [rax + 8]
+1804692b8 jbe 0x1804692d2
+1804692ba cmp dword ptr [rcx + 0xe4], 0
+1804692c1 jne 0x1804692c8
+1804692c3 call 0x1802699a0
+1804692c8 xor edx, edx
+1804692ca mov rcx, rbx
+1804692cd call 0x18046b070
+1804692d2 movaps xmm6, xmmword ptr [rsp + 0x20]
+1804692d7 add rsp, 0x30
+1804692db pop rbx
+1804692dc ret
+RVA 0x46b230
+18046b230 xor edx, edx
+18046b232 movaps xmmword ptr [rsp + 0x30], xmm7
+18046b237 mov ecx, 0x31
+18046b23c call 0x18042b6a0
+18046b241 mov rax, qword ptr [rip + 0x2af7150]
+18046b248 movss xmm7, dword ptr [rip + 0x21c3ba0]
+18046b250 divss xmm7, xmm0
+18046b254 cmp dword ptr [rax + 0xe4], 0
+18046b25b jne 0x18046b26c
+18046b25d mov rcx, rax
+18046b260 call 0x1802699a0
+18046b265 mov rax, qword ptr [rip + 0x2af712c]
+18046b26c mov rax, qword ptr [rax + 0xb8]
+18046b273 movss xmm6, dword ptr [rax + 4]
+18046b278 mov rax, qword ptr [rip + 0x2af2e31]
+18046b27f cmp dword ptr [rax + 0xe4], 0
+18046b286 jne 0x18046b297
+18046b288 mov rcx, rax
+18046b28b call 0x1802699a0
+18046b290 mov rax, qword ptr [rip + 0x2af2e19]
+18046b297 mov rax, qword ptr [rax + 0xb8]
+18046b29e addss xmm6, xmm7
+18046b2a2 movaps xmm7, xmmword ptr [rsp + 0x30]
+18046b2a7 mov rdi, qword ptr [rsp + 0x60]
+18046b2ac movss dword ptr [rax + 8], xmm6
+18046b2b1 movaps xmm6, xmmword ptr [rsp + 0x40]
+18046b2b6 add rsp, 0x50
+18046b2ba pop rbx
+18046b2bb ret
+RVA 0x46a283
+18046a283 mov rax, qword ptr [rip + 0x2af810e]
+18046a28a cmp dword ptr [rax + 0xe4], 0
+18046a291 jne 0x18046a2a2
+18046a293 mov rcx, rax
+18046a296 call 0x1802699a0
+18046a29b mov rax, qword ptr [rip + 0x2af80f6]
+18046a2a2 mov rcx, qword ptr [rip + 0x2af3e07]
+18046a2a9 mov rax, qword ptr [rax + 0xb8]
+18046a2b0 cmp dword ptr [rcx + 0xe4], 0
+18046a2b7 movss xmm6, dword ptr [rax + 4]
+18046a2bc jne 0x18046a2c3
+18046a2be call 0x1802699a0
+18046a2c3 mov rcx, qword ptr [rip + 0x2af3de6]
+18046a2ca mov rax, qword ptr [rcx + 0xb8]
+18046a2d1 comiss xmm6, dword ptr [rax + 8]
+18046a2d5 jbe 0x18046a2ef
+18046a2d7 cmp dword ptr [rcx + 0xe4], 0
+18046a2de jne 0x18046a2e5
+18046a2e0 call 0x1802699a0
+18046a2e5 xor edx, edx
+18046a2e7 mov rcx, rdi
+18046a2ea call 0x18046b070

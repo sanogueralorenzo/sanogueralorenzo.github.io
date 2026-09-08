@@ -26,6 +26,10 @@ public sealed class Voyage
     public OceanWorld World { get; }
     public SeedRandom Random;
     SeedRandom buildRandom, fishRandom;
+    readonly System.Random silverRandom = new();
+    public int SilverEarned { get; private set; }
+    public float NextSilverTime { get; private set; }
+    float SilverInterval() => 45 + silverRandom.NextSingle() * 45;
     public SpawnDirector Director { get; } = new();
     public VoyageMode Mode = VoyageMode.Sailing;
     public BoatKind Boat;
@@ -61,6 +65,7 @@ public sealed class Voyage
     {
         World = new(seed); Random = new(seed ^ 0xa129f); buildRandom = new(seed ^ 0x77291); fishRandom = new(seed ^ 0x99a12); Boat = boat; Health = MaxHealth;
         Weapons[0] = 1; Weapons[boat == BoatKind.Cutter ? 5 : 4] = 1;
+        NextSilverTime = SilverInterval();
         World.Stream(Position);
     }
     public void Tick(float dt, SailInput input)
@@ -298,6 +303,14 @@ public sealed class Voyage
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
         Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1; Coins += 1 + Tier / 2;
+        // Megabonk-inspired time gate, with our own randomized interval.
+        // Schedule from this award: idle time cannot bank a burst of drops.
+        if (CombatTime >= NextSilverTime)
+        {
+            SilverEarned++;
+            NextSilverTime = CombatTime + SilverInterval();
+            Events.Add(new("silver", e.Position));
+        }
         Events.Add(new("kill", e.Position, e.Kind == EnemyKind.Leviathan ? 2 : 1));
         if (e.Kind == EnemyKind.Leviathan)
         {

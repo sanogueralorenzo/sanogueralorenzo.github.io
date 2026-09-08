@@ -58,3 +58,11 @@ Reduced silver awards to one per ten kills in each voyage. Integer milestone acc
 ## Horizontal icon counters — 2026-09-08
 
 Replaced the vertical text labels with a single compact horizontal row of original code-drawn clock, silver hexagonal coin, gold round coin and skull icons beside numeric values. Row width follows measured values. Direct native runtime review verified spacing, icon readability and retained balances (`horizontal-counters` evidence). Debug/Release builds pass; no image assets or automated tests were added.
+
+## Randomized scarce silver — 2026-09-08
+
+Replaced the ten-kill milestones with a core-owned random 45–90 combat-second eligibility gate; the next actual kill awards one silver and schedules a new interval from that award. A separate per-voyage random generator leaves world/combat/build/fishing randomness untouched. Presentation saves only newly earned silver, preserving existing balances. Pausing/fishing freezes the gate with CombatTime; no catch-up rewards accumulate.
+
+Inspected local Megabonk IL2CPP metadata and native code: ordinary silver uses a time gate and 60/SilverIncreaseMultiplier interval, not a per-kill probability. The random interval here is explicitly custom tuning; RESEARCH.md and the new disassembly excerpt document the distinction.
+
+Native play observations: initial eligibility 74.50001 seconds with zero earned silver. At 12 kills the visible balance remained 12. Final capture at 113.7367 combat seconds and 38 kills records one awarded silver (saved total 13), with next eligibility 134.96675. These demonstrate removal of fixed milestones and rescheduling; no claim of statistical distribution testing or a second drop in this run. The user also controlled the game during this review. Evidence: random-silver-start/result. Debug/Release builds pass; no automated tests were added.
