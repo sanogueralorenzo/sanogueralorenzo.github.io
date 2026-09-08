@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 @MainActor
-final class GlobalShortcut {
+final class AppShortcut {
     var onPress: (() -> Void)?
     private var hotKey: EventHotKeyRef?
     private var handler: EventHandlerRef?
@@ -11,7 +11,7 @@ final class GlobalShortcut {
         InstallEventHandler(GetApplicationEventTarget(), { _, event, pointer in
             guard let pointer else { return noErr }
             return MainActor.assumeIsolated {
-                let owner = Unmanaged<GlobalShortcut>.fromOpaque(pointer).takeUnretainedValue()
+                let owner = Unmanaged<AppShortcut>.fromOpaque(pointer).takeUnretainedValue()
                 var id = EventHotKeyID()
                 guard owner.hotKey != nil, GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id) == noErr,
                       id.signature == 0x52575254 else { return OSStatus(eventNotHandledErr) }

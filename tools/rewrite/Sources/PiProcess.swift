@@ -26,7 +26,7 @@ private final class ProcessBytes: @unchecked Sendable {
 }
 
 @MainActor
-final class ProcessRunner {
+final class PiProcess {
     private var process: Process?
     private var cancelled = false
     private var timedOut = false
@@ -46,14 +46,14 @@ final class ProcessRunner {
     }
 
     func run(executable: URL, arguments: [String], environment: [String: String], directory: URL,
-             input: String = "", timeout: Double = 90) async throws -> ProcessOutput {
+             timeout: Double = 90) async throws -> ProcessOutput {
         try Task.checkCancellation()
-        let process = Process(), output = Pipe(), errors = Pipe(), stdin = Pipe()
+        let process = Process(), output = Pipe(), errors = Pipe()
         let bytes = ProcessBytes(), group = DispatchGroup()
         self.process = process
         process.executableURL = executable; process.arguments = arguments
         process.environment = environment; process.currentDirectoryURL = directory
-        process.standardInput = stdin; process.standardOutput = output; process.standardError = errors
+        process.standardInput = FileHandle.nullDevice; process.standardOutput = output; process.standardError = errors
         defer { self.process = nil; deadline?.cancel(); deadline = nil }
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
@@ -70,20 +70,16 @@ final class ProcessRunner {
                     }
                 }
                 // Enter before launch: a very short-lived process may exit immediately.
-                group.enter(); group.enter(); group.enter()
+                group.enter(); group.enter()
                 do { try process.run() }
                 catch {
                     process.terminationHandler = nil
-                    group.leave(); group.leave(); group.leave()
+                    group.leave(); group.leave()
                     continuation.resume(throwing: RewriteError.message("Could not launch the processor. Install Pi, then try again."))
                     return
                 }
                 DispatchQueue.global().async { bytes.drain(output.fileHandleForReading, retain: true); group.leave() }
                 DispatchQueue.global().async { bytes.drain(errors.fileHandleForReading, retain: false); group.leave() }
-                DispatchQueue.global().async {
-                    try? stdin.fileHandleForWriting.write(contentsOf: Data(input.utf8))
-                    try? stdin.fileHandleForWriting.close(); group.leave()
-                }
                 deadline = Task { @MainActor in
                     do { try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000)) } catch { return }
                     if self.process === process && process.isRunning { self.timedOut = true; self.stop() }
