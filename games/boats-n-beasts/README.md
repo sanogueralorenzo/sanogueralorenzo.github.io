@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts
 
-A procedural 3D sailing roguelike for Godot .NET. Explore a seeded ocean, build automatic weapons, and survive until Crownclaw arrives at 22 minutes.
+A procedural 3D sailing roguelike for Godot .NET. Explore a seeded ocean, upgrade automatic weapons, and survive until Crownclaw arrives at 22 minutes.
 
 ## Run
 
@@ -28,7 +28,9 @@ Set `GODOT_BIN` to your Godot executable and `DOTNET_ROOT` to your SDK directory
 
 Choose Gunboat (Cannon, faster fire during boost), Aura (Whirlpool, periodic defensive pulse), or Mage (homing Arcane Orbs). Boat choice lasts the voyage. All boats can equip any weapon, with **two total weapon slots**, including the starter.
 
-Level-ups pause play for a free weapon or stat upgrade. Harbors offer repairs and three fixed upgrades from one category; docking automatically sells catches. Fishing allows one cast per school, including cancelled attempts. Reel once within eight seconds; enemies and existing shots keep moving while your boat and automatic attacks wait. Only menus pause combat; nearby harbor water is not safe.
+Level-ups pause combat for a free upgrade. Each harbor sells repairs and three fixed weapon or boat upgrades. Press E near its dock to open the menu and sell catches; combat pauses while the menu is open.
+
+Each fishing school allows one cast, including cancellation. Reel inside the band within eight seconds. Fishing stops the boat and new automatic attacks; enemies, existing shots and voyage time keep moving.
 
 Monster numbers and variety increase gradually with active voyage time. Swimming speeds, health and damage do not scale with time or distance. Puffers chase, fuse and explode; only Crownclaw fires hostile projectiles. Defeat Crownclaw to win, then restart or keep exploring. Distance improves rewards, not combat difficulty.
 
@@ -38,7 +40,7 @@ Rare beach chests award 35–55 gold and are collected from the water. Sparse fl
 
 - Keep simulation in plain C# under `source/core`; presentation reads it without changing gameplay state.
 - Generate gameplay art with C#, Godot geometry and shaders. No external/image-generated gameplay assets, GDScript or audio.
-- Do not create automated gameplay tests or inject simulation state. Verify builds and actual native play; record coverage and gaps in [QUALITY.md](docs/QUALITY.md).
+- Follow the build and native-play checks in [QUALITY.md](docs/QUALITY.md).
 - Keep documentation about current behavior; use Git history for completed work and superseded decisions.
 
 | Owner | Responsibility |
@@ -51,6 +53,6 @@ Rare beach chests award 35–55 gold and are collected from the water. Sparse fl
 | `NativeStage3D.cs`, `OceanView3D.cs` | Camera, coordinate conversion and bounded scene resources |
 | Remaining presentation classes and shaders | Procedural actors, scenery and effects |
 
-Geography depends only on seed and coordinates, independently of travel order. Keep depletion outside chunk data, randomness separate by subsystem, placement attempts bounded, and active streaming at 5×5 chunks. Terrain, surf, props, chart and collision share `IslandShape`; preserve neighbor clearance when changing island sizes.
+Geography depends only on seed and coordinates, independently of travel order. Keep depletion outside chunk data, randomness separate by subsystem, placement attempts bounded, and active streaming at 5×5 chunks. Preserve neighbor clearance when changing island sizes.
 
 See [art direction](docs/ART_DIRECTION.md), [verification](docs/QUALITY.md), [evidence](evidence/README.md), and [research provenance](docs/RESEARCH.md).

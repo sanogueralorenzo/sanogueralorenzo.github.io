@@ -58,8 +58,7 @@ public sealed class IslandShape
             p.X += lean * p.Y;
             guides[i] = new(p.X * cr - p.Y * sr, p.X * sr + p.Y * cr);
         }
-        // A periodic cubic B-spline rounds every transition, including the closing seam.
-        // Its positive weights stay within neighboring guide points, with no spline overshoot.
+        // Periodic cubic B-spline weights close the seam without overshooting the guides.
         var curve = new Vector2[256];
         for (int i = 0; i < curve.Length; i++)
         {

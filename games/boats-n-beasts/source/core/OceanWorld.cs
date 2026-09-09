@@ -24,8 +24,7 @@ public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Ra
 }
 public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 
-// Adapted from Sno's coordinate-local RNG, edge clearance, bounded placement and streaming.
-// Every chunk is pure seed+coordinate data. Mutable depletion lives separately, never in RNG.
+// Chunks depend only on seed and coordinates; depletion is stored separately.
 public sealed class OceanWorld(uint seed)
 {
     public const int ChunkSize = 1200;
@@ -154,8 +153,7 @@ public sealed class OceanWorld(uint seed)
         var rng = new SeedRandom(SeedRandom.Hash(Seed, key.X, key.Y, 17));
         var places = Landmarks(key).ToList();
         var center = new Vector2(key.X * ChunkSize, key.Y * ChunkSize);
-        // Wide offsets can carry a shore across a chunk edge. Keep encounters clear
-        // of neighboring land too, without requiring those chunks to be loaded.
+        // Check neighboring shores without loading chunks; land can cross chunk boundaries.
         var nearbySolids = new List<Place>();
         for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
         {
@@ -250,8 +248,7 @@ public sealed class OceanWorld(uint seed)
     }
     public Vector2 Avoid(Vector2 position, Vector2 motion, float radius, int id)
     {
-        // Choose a consistent tangent before touching a solid; chasing into an island
-        // must not strand an enemy (especially the boss) on its far shoreline.
+        // Choose a stable tangent before contact so chasing enemies can round an island.
         float length = motion.Length(); if (length < .01f) return motion;
         var forward = motion / length;
         foreach (var p in Places)

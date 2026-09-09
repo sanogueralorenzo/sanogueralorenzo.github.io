@@ -62,7 +62,7 @@ public partial class Effects3D : Node3D
     public void Sync(Voyage voyage, float clock, float dt)
     {
         EnsureReady();
-        // `clock` may continue for menus. Transient animation follows the active voyage, including fishing.
+        // Use voyage time for transient effects so menus pause them and fishing does not.
         bool active = voyage.IsActive;
         float step = active ? Mathf.Clamp(dt, 0, .1f) : 0;
         time += step;
@@ -146,7 +146,7 @@ public partial class Effects3D : Node3D
             if (age > life) continue;
             float opacity = MathF.Pow(1 - age / life, 1.4f) * strength;
             var sideA = new Vector3(-a.Forward.Z,0,a.Forward.X); var sideB = new Vector3(-b.Forward.Z,0,b.Forward.X);
-            // Age widens the sampled path, so turns bend both branches rather than emitting straight V marks.
+            // Widen the recorded path with age so both wake branches follow turns.
             float spreadA = width + (time-a.Born)*.22f; float spreadB = width + age*.22f;
             for (int sign = -1; sign <= 1; sign += 2)
             {

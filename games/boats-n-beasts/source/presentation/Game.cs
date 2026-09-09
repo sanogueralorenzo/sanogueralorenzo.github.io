@@ -101,8 +101,7 @@ public partial class Game : Node2D
             if (!title && mouse.Pressed && hud.EquipmentAt(mouse.Position) >= 0)
             { GetViewport().SetInputAsHandled(); return; }
         }
-        // Space belongs to sailing/fishing. An upgrade appearing during a boost must
-        // not silently choose the focused card, nor instantly retry after defeat.
+        // Held boost input must not select an upgrade or retry after defeat.
         if (!title && input is InputEventKey key && key.PhysicalKeycode == Key.Space && Run.Mode is not (VoyageMode.Sailing or VoyageMode.Fishing)) GetViewport().SetInputAsHandled();
     }
     public override void _UnhandledInput(InputEvent input)

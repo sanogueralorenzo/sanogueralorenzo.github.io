@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace BoatsNBeasts;
 
-/// <summary>Reusable, code-built tactile actors. One shared mesh/material draw per actor.</summary>
+/// <summary>One shared mesh/material draw per actor.</summary>
 public static partial class ActorArt3D
 {
     static readonly Dictionary<string, ArrayMesh> Cache = new();

@@ -33,7 +33,7 @@ public static partial class ActorArt3D
 
     static void Equipment(ActorGeometry b, int weapon, int rank, Vector3 p, float size)
     {
-        // Rank is part of the cached mesh signature. Each refit adds a visible collar and modest volume.
+        // Include rank in the cache key because refits change geometry.
         float s = size * (1 + .035f * Math.Min(5, rank - 1));
         Vector3 P(float x, float y, float z) => p + new Vector3(x, y, z) * s;
         Vector3 R(float x, float y, float z) => new Vector3(x, y, z) * s;

@@ -68,8 +68,7 @@ public static class EnvironmentArt3D
         return art.Finish("Cottage");
     }
 
-    // Keep emergent land within the existing solid radius. Different frequencies create
-    // headlands and sheltered scallops without polygon steps or independent water rings.
+    // Keep visible land inside the shared collision outline.
     private static float Coast(float a, uint seed) => Mathf.Clamp(.918f + .074f * Mathf.Sin(a * 2 + seed % 17)
         + .054f * Mathf.Cos(a * 3 + seed % 11) + .034f * Mathf.Sin(a * 5 + seed % 7) + .014f * Mathf.Cos(a * 9), .80f, 1.01f);
 
@@ -103,8 +102,7 @@ public static class EnvironmentArt3D
                 art.Triangle(a,b,d,colors[layer],colors[layer],colors[layer+1],Vector3.Up,Vector3.Up,Vector3.Up);
                 art.Triangle(b,c,d,colors[layer],colors[layer+1],colors[layer+1],Vector3.Up,Vector3.Up,Vector3.Up);
             }
-        // UV.y is distance across an uneven seabed shelf. Its outer margin becomes
-        // transparent; all surf is evaluated in coast coordinates, never as a circle.
+        // UV.y runs across the seabed shelf; surf follows the coast and fades at the outer edge.
         Vector3 ShelfPoint(int layer, int i)
         {
             float a = i * Mathf.Tau / sides, t = layer / 8f;
@@ -371,8 +369,7 @@ public static class EnvironmentArt3D
     {
         private readonly Dictionary<string, SurfaceTool> surfaces = new();
         public Transform3D Transform = Transform3D.Identity;
-        // Terrain is emitted first; subsequent props fit the same island footprint.
-        // Nested details inherit their parent's transform, preserving masonry and leaves.
+        // Fit props after terrain; nested details inherit the fitted parent transform.
         public IslandShape? Footprint;
         public float HeightScale = 1;
         public System.Numerics.Vector2? TreasureSpace;
@@ -456,7 +453,7 @@ public static class EnvironmentArt3D
         {
             Vector3 half = size * .5f, inner = half - Vector3.One * Mathf.Min(bevel, Mathf.Min(half.X, Mathf.Min(half.Y, half.Z)) * .95f);
             float radius = half.X - inner.X;
-            // Four divisions put flat broad faces between rounded corners, unlike a low-poly sphere.
+            // Four divisions preserve broad faces between rounded corners.
             float[] cuts = [-1, -.82f, .82f, 1];
             for (int axis = 0; axis < 3; axis++) for (int sign = -1; sign <= 1; sign += 2)
             {

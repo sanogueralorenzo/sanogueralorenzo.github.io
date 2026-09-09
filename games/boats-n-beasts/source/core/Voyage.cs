@@ -250,8 +250,7 @@ public sealed partial class Voyage
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
         Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1; Coins += 1 + Tier / 2;
-        // Megabonk-inspired time gate, with our own randomized interval.
-        // Schedule from this award: idle time cannot bank a burst of drops.
+        // Schedule from this award so idle time cannot bank silver drops.
         if (CombatTime >= NextSilverTime)
         {
             SilverEarned++;
