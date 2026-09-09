@@ -1,5 +1,24 @@
 # Native gameplay evidence
 
+## Rounded coasts and eight island families — 2026-09-09
+
+Unedited native captures after the abrupt-line correction. Compare the [previous sharp bay](variety-crescent-330.png) with the [rounded bay](rounded-crescent.png), both style 1 and radius 330. The final curve uses broader guides and continuous transitions.
+
+| Family, radius 330 | Final sample | Additional seed |
+| --- | --- | --- |
+| Compact | [Style 4](rounded-compact.png) | |
+| Long | [Style 6](rounded-long.png) | |
+| Crescent | [Style 1](rounded-crescent.png) | [Style 10](rounded-crescent-10.png), [style 11](rounded-crescent-11.png) |
+| Lobed | [Style 2](rounded-lobed.png) | |
+| Headland | [Style 12](rounded-headland.png) | |
+| Bean | [Style 32](rounded-bean.png) | [Style 36](rounded-bean-36.png) |
+| Twin | [Style 33](rounded-twin.png) | [Style 41](rounded-twin-41.png) |
+| Scalloped | [Style 34](rounded-scalloped.png) | |
+
+Small fitting checks: [crescent, radius 95](rounded-crescent-small.png) and [twin, radius 95](rounded-twin-small.png). Radius-200 versions were also reviewed in the native sample; the [sample log](rounded-sample-runtime.txt) records each profile/size/seed.
+
+Gameplay PNGs have matching TXT telemetry: [home](rounded-title.png), [dock](rounded-harbor.png), [shore contact A](rounded-contact-a.png)/[B](rounded-contact-b.png), [offshore twin](rounded-offshore-twin.png), [large long island](rounded-offshore-large.png), [54.8-second defeat](rounded-defeat.png). [Gameplay log](rounded-gameplay-runtime.txt). [QUALITY.md](../docs/QUALITY.md) gives measurements and coverage limits. The art sample is separate from gameplay and contains no Voyage.
+
 ## Distinct island sizes and coastline families — 2026-09-09
 
 Unedited normal-camera native samples compare three radii beside the same boat and harbor. Compact, long and lobed geometry is unchanged from the initial sample build; crescent and headland captures follow their final refinement.

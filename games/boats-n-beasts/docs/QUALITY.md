@@ -1,5 +1,15 @@
 # Quality and verification
 
+## Rounded coasts and eight island families — 2026-09-09
+
+Responds to the user's report of abrupt coastline lines and request for more diversity. The preceding crescent had a tight V cut and headlands used steep radial peaks. Islands now use 16 seeded guides and a periodic cubic B-spline, resampled into a shared 192-point radial outline. Wider bay guides round the back of the inlet. Bean, twin-lobe and scalloped families join the original five; width, lean, relief, rotation and guide offsets vary each family. Radius normalization and the existing size bands/spacing remain in place. Terrain, surf, props, chart and collision use the same outline; harbor geometry and camera are unchanged.
+
+Debug and Release pass with zero warnings/errors. Final sample and gameplay logs contain no engine errors or warnings. Native normal-camera review covers all eight profiles at radius 330, three crescent seeds, two bean seeds, two twin seeds, plus radius-95/200 crescent and twin samples. The first revised crescent remained pointed and the first bean/twin looked too oval; final evidence follows those corrections. The separate sample uses the production geometry factory and never constructs a Voyage.
+
+Actual Gunboat gameplay uses seed `212158663`. The dock opens normally. Two home contact captures hold the boat at `(864.7647,200.4845)` with full hull; velocity falls from about 0.096 to below 0.000006 units/second. The voyage reaches a twin island at `(-292.235,2654.029)`, radius 218.25, then a long island at `(2748.010,1495.241)`, radius 293.00. Their coasts, interiors, shallow water and chart outlines appear in unedited normal-camera captures. Ordinary combat continues, a level-up grants Whirlpool, and enemies defeat the boat at 54.8 seconds.
+
+All final gameplay captures have 25 loaded chunks. At 52.8 seconds, the scenery cache holds five places, simulation averages **0.091 ms**, submission **0.862 ms**, and the rolling frame sample is mean/p95/p99 **8.42/8.33/9.09 ms** on M3 Max, Metal Forward+. The final defeat sample is **8.42/8.33/9.14 ms**. These are short observations; they do not establish worst-case generation time, an exhaustive seed sweep, every-family collision coverage or long endless performance. No automated tests or injected gameplay state were used. [Final images and logs](../evidence/README.md) are separated from older evidence below.
+
 ## Distinct island sizes and coastline families — 2026-09-09
 
 Completed the follow-up [island variety goal](ISLAND_VARIETY_GOAL.md). Five seeded profiles replace one bent ellipse; normalized outlines give small/medium/large radius bands their intended reach. Scenery, collision and chart share 128 coast samples, existing props retain uniform fitting, and landmark spacing accounts for larger neighbors. Harbor footprint, spawn, camera, combat and 25-chunk streaming are preserved.
