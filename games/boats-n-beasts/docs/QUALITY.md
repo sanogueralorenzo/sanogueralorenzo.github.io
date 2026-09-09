@@ -1,5 +1,13 @@
 # Quality and verification
 
+## Puffer report: remove backward cannon returns — 2026-09-09
+
+Investigated the report that spiky puffers still shoot. The current puffer branch only approaches, arms a 1.05-second fuse within 125 units, and self-detonates; the only hostile-shot creation path belongs to Crownclaw. Found a likely visual cause in player cannon ricochets: an enemy hit without another target reversed the ball's velocity, sending it back from the monster. Such a hit now ends the shot. Ricochets to nearby enemies and terrain reflections retain their existing behavior. No puffer attack or balance changes were needed.
+
+Debug and Release pass with zero warnings/errors; the native runtime log is clean. Actual Cutter play with only Cannon and one Speed upgrade uses seed `3180561041`. At 51.3 sailing seconds, three puffers have active fuses, two have already detonated, one blast has hit, and no shots are active. At 56.5 seconds, six puffers have detonated with two recorded blast hits; the only active shot is a friendly cannonball. No boss spawns in this focused voyage. Puffers visibly approach and swell, and normal combat ends the run in defeat. Both captures retain 25 loaded chunks.
+
+The captures establish native chase/fuse/explosion behavior and the absence of hostile projectiles in the sampled puffer combat. They do not record the user's original apparent shot or isolate a single no-target impact frame; the backward-return cause is inferred from the old code. The isolated-hit termination and retained target/terrain branches were reviewed directly. No automated tests or injected gameplay state were used. [Native captures and log](../evidence/README.md).
+
 ## Giant islands — 2026-09-09
 
 Added a 520–720 radius tier with candidate weights 35%/35%/15%/15% across small/medium/large/giant islands. The maximum doubles the previous 360 radius. Giant interiors gain planted rock/palm/shrub groups, with capped prop proportions and bounded beach/shallow-shelf depths. Shore-rock counts scale with perimeter. Native review found oversized ruin stepping stones; these now use uniform prop fitting too.

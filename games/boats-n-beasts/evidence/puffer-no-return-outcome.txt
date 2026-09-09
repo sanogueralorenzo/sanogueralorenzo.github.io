@@ -1,0 +1,52 @@
+Mouse viewport=(656.19635, 727.2629) global=(656.19635, 727.2629) boatScreen=(720.0001, 450.00015) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<483.44388, 1845.8176>; destination=
+Native runtime capture: 20260909-084013-287-defeat
+Renderer: forward_plus
+Seed: 3180561041
+Mode: Defeat
+Game speed: x1
+Finished runs: 110; boat selection: False
+Silver: 48; earned this voyage: 1; next eligible combat time: 126.27681
+Boat: Cutter
+Position: <569.6535, 1399.771>
+Health: 0/100
+Coins: 45; cargo: 0; kills: 25; level: 2; pending upgrades: 0
+Active chunks: 25; enemies: 10; shots: 1
+Actual sailing seconds: 56.5; peak enemies: 10; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(569.6534, 1399.7708); departure seconds=35.219402; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<1.5660692E-28, 1.1811039E-27>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=29; pulls=0
+Combat clock=56.30676; director=0.8166338/0.65967625; boost=100; invulnerable=0.8; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0.76667005,0,0,0,0,0
+Depletion=
+Landmark 2:3:land: Island position=<2229.7988, 3787.386> radius=562.6613 style=2183028310 profile=Long
+Landmark 0:3:land: Harbor position=<358.81372, 3195.9595> radius=140 style=1407963113 profile=harbor
+Landmark -2:3:land: Island position=<-1979.3098, 3846.2603> radius=100.735016 style=4107757755 profile=Crescent
+Landmark -2:0:land: Island position=<-2279.7437, -386.59137> radius=214.84018 style=3926938228 profile=Crescent
+Landmark home:harbor: Harbor position=<-120, -490> radius=140 style=147 profile=harbor
+Landmark home:island: Island position=<990, 275> radius=125 style=921 profile=Lobed
+Landmark 2:2:land: Harbor position=<2054.7869, 2551.199> radius=140 style=1766893439 profile=harbor
+Boss bombs thrown=0; explosions=0; blast hits=0
+Puffer explosions=6; blast hits=2
+Enemy 32: Crab position=<611.47534, 1375.7731> hp=3.75 time=8.844361 attack=-5.8644342 tell=0 dash=0 speedMultiplier=1.2012186 fuse=0
+Enemy 33: Crab position=<870.3922, 1369.157> hp=33.75 time=6.127657 attack=-4.05487 tell=0 dash=0 speedMultiplier=0.94756424 fuse=0
+Enemy 34: Puffer position=<497.51285, 1191.7877> hp=47.5 time=5.4718647 attack=-2.1330116 tell=0 dash=0 speedMultiplier=1.0228549 fuse=0
+Enemy 35: Crab position=<304.34073, 1679.2885> hp=33.75 time=4.8060136 attack=-2.3404467 tell=0 dash=0 speedMultiplier=1.0362833 fuse=0
+Enemy 36: Crab position=<230.87238, 1703.7576> hp=33.75 time=4.143656 attack=-2.4902568 tell=0 dash=0 speedMultiplier=1.0342151 fuse=0
+Enemy 37: Puffer position=<399.08743, 1760.2053> hp=47.5 time=3.5009818 attack=-1.448613 tell=0 dash=0 speedMultiplier=1.3713216 fuse=0
+Enemy 38: Crab position=<1284.793, 1336.106> hp=33.75 time=2.817677 attack=-0.2747603 tell=0 dash=0 speedMultiplier=0.8647689 fuse=0
+Enemy 39: Crab position=<1172.3485, 1576.6323> hp=33.75 time=2.1510384 attack=-0.59744066 tell=0 dash=0 speedMultiplier=1.1652654 fuse=0
+Enemy 40: Puffer position=<1254.9132, 1589.7355> hp=47.5 time=1.4845494 attack=1.6133709 tell=0 dash=0 speedMultiplier=0.8654858 fuse=0
+Enemy 41: Crab position=<1117.2178, 1898.3365> hp=33.75 time=0.8332998 attack=2.0628889 tell=0 dash=0 speedMultiplier=0.97174275 fuse=0
+Shot Cannon hostile=False position=<598.38824, 1345.8634> life=2.3000045 target=<0, 0> age=0.09999601 flight=0
+CPU simulation average ms=0.128; draw submission average ms=1.267; cached scenery=7; engine FPS=60; draw calls=147; objects=818
+Frame ms mean: 16.99; p95: 16.67; p99: 26.29

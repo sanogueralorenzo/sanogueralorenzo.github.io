@@ -142,8 +142,10 @@ public sealed partial class Voyage
                 if(s.Kind==WeaponKind.Cannon && s.Bounces>0)
                 {
                     var next=Enemies.Where(other=>other.Health>0 && !s.Hit.Contains(other.Id) && Vector2.DistanceSquared(other.Position,e.Position)<320*320).OrderBy(other=>Vector2.DistanceSquared(other.Position,e.Position)).FirstOrDefault();
+                    // An isolated hit ends here; reversing looks like the monster firing back.
+                    if(next==null) { s.Life=0; break; }
                     s.Position=e.Position;
-                    s.Velocity=next!=null?OceanWorld.Unit(next.Position-e.Position)*650:-s.Velocity;
+                    s.Velocity=OceanWorld.Unit(next.Position-e.Position)*650;
                     s.Bounces--; CannonRicochets++; Events.Add(new("ricochet",s.Position)); break;
                 }
                 if(s.Pierce--<=0) { s.Life=0; break; }

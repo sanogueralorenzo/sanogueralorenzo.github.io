@@ -44,7 +44,7 @@ Every boat can use all six weapons:
 
 | Weapon | What it does |
 | --- | --- |
-| Cannon | Auto-aimed cannonballs ricochet between enemies and off rocks. Each upgrade adds another cannonball per shot. |
+| Cannon | Auto-aimed cannonballs ricochet to nearby enemies and off rocks. A hit with no next enemy ends the shot. Each upgrade adds another cannonball per shot. |
 | Harpoon | Pierces enemies and pulls them closer. Bosses resist most of the pull. |
 | Mines | Drops a mine behind the moving boat. Arms after 0.5 seconds; bursts when an enemy approaches. |
 | Lightning | Jumps between enemies. Each level adds a target. |

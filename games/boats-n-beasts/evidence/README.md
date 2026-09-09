@@ -1,5 +1,11 @@
 # Native gameplay evidence
 
+## Puffer report: remove backward cannon returns — 2026-09-09
+
+Unedited final-build captures from Cutter voyage seed `3180561041`: [armed puffers at 51.3 seconds](puffer-no-return-armed.png) and [six detonations by 56.5 seconds](puffer-no-return-outcome.png). Each has matching TXT telemetry. The first records three active fuses and no shots; the second records only a friendly cannonball. Boss spawning and bomb counts remain zero in this voyage.
+
+The [runtime log](puffer-no-return-runtime.txt) also contains a preceding voyage; the two captures above identify the focused puffer check. [QUALITY.md](../docs/QUALITY.md) distinguishes observed puffer behavior from the inferred cause of the user's report. The fix ends an isolated cannon hit instead of reversing it back from the monster.
+
 ## Giant islands — 2026-09-09
 
 Unedited native samples compare [the previous large size, radius 330](giant-previous-large.png) with [the new maximum, radius 720](giant-compact.png), both compact style 4. Camera and boat scale are identical. The giant layout centers the island, moves the boat aside and hides the harbor/crab; some coast edges extend beyond the normal view.
