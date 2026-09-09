@@ -1,7 +1,7 @@
 using System.Numerics;
 namespace BoatsNBeasts.Core;
 
-public enum VoyageMode { Sailing, Fishing, Harbor, Upgrade, Paused, Defeat, Victory }
+public enum VoyageMode { Sailing, Upgrade, Paused, Defeat, Victory }
 public enum BoatKind { Cutter, Trawler, Mage }
 public enum EnemyKind { Crab, Puffer, Serpent, Ray, Leviathan }
 public enum WeaponKind { Cannon, Harpoon, Mine, Coil, Undertow, Arcane }
@@ -25,24 +25,23 @@ public sealed class Shot
     public HashSet<int> Hit = new();
 }
 public readonly record struct GameEvent(string Kind, Vector2 Position, float Value = 0, Vector2 End = default);
-public sealed record CatchItem(string Name, int Value);
 public readonly record struct SailInput(Vector2 Move, bool Boost);
 public sealed partial class Voyage
 {
     public OceanWorld World { get; }
     public SeedRandom Random;
-    SeedRandom buildRandom, fishRandom;
+    SeedRandom buildRandom;
     readonly System.Random silverRandom = new();
     public int SilverEarned { get; private set; }
     public float NextSilverTime { get; private set; }
     float SilverInterval() => 45 + silverRandom.NextSingle() * 45;
     public SpawnDirector Director { get; } = new();
     public VoyageMode Mode = VoyageMode.Sailing;
-    public bool IsActive => Mode is VoyageMode.Sailing or VoyageMode.Fishing;
+    public bool IsActive => Mode == VoyageMode.Sailing;
     public BoatKind Boat { get; }
     public Vector2 Position, Velocity;
     public float Heading, Health, Boost = 100, CombatTime, Invulnerable, Distance, MaxDistance;
-    public int Coins = 20, Kills, Level = 1, Xp, HullRank, EngineRank, ReloadRank, AreaRank;
+    public int Kills, Level = 1, Xp, HullRank, EngineRank, ReloadRank, AreaRank;
     public float AbilityCharge;
     public float FireRateMultiplier => Boat == BoatKind.Cutter && IsBoosting ? 1.65f : 1;
     public readonly List<int> UpgradeChoices = new();
@@ -55,27 +54,20 @@ public sealed partial class Voyage
     public readonly float[] Cooldowns = new float[6];
     public readonly List<Enemy> Enemies = new();
     public readonly List<Shot> Shots = new();
-    public readonly List<CatchItem> Hold = new();
     public readonly List<GameEvent> Events = new();
     public int NextEnemyId;
     public int PufferExplosions, PufferBlastHits;
     public int BossBombsThrown, BossExplosions, BossBlastHits;
-    public Place? FishingPlace;
-    public float FishingTime, FishCursor, FishTarget;
-    public string CatchTitle = "";
     public BoatSpec Spec => BoatSpec.For(Boat);
     public float MaxHealth => Spec.Hull + HullRank * 25;
     public float Speed => Spec.Speed * (1 + EngineRank * .1f);
-    public int Tier => OceanWorld.TierAt(Position);
     public int PendingUpgrades { get; private set; }
     public float WhirlpoolRadius => (138 + Math.Max(0, Weapons[4] - 1) * 30) * Area;
     public int NextXp => 7 + Level * 5;
-    public bool CanDock => World.HarborAt(Position) != null;
-    public float FishBand => .14f;
     public float Area => 1 + AreaRank * .15f;
     public Voyage(uint seed, BoatKind boat, int extraWeaponSlots = 0)
     {
-        World = new(seed); Random = new(seed ^ 0xa129f); buildRandom = new(seed ^ 0x77291); fishRandom = new(seed ^ 0x99a12); Boat = boat; Health = MaxHealth;
+        World = new(seed); Random = new(seed ^ 0xa129f); buildRandom = new(seed ^ 0x77291); Boat = boat; Health = MaxHealth;
         WeaponSlots = BaseWeaponSlots + Math.Clamp(extraWeaponSlots, 0, MaxWeaponSlots - BaseWeaponSlots);
         Weapons[boat == BoatKind.Cutter ? 0 : boat == BoatKind.Trawler ? 4 : 5] = 1;
         NextSilverTime = SilverInterval();
@@ -87,20 +79,9 @@ public sealed partial class Voyage
     {
         dt = Math.Clamp(dt, 0, .05f);
         if (!IsActive) return;
-        bool fishing = Mode == VoyageMode.Fishing;
-        if (fishing)
-        {
-            Boost = Math.Min(100, Boost + dt * 23);
-            FishingTime += dt;
-            FishCursor = .5f + .46f * MathF.Sin(FishingTime * (2.7f + Tier * .07f));
-            if (Mode == VoyageMode.Fishing && FishingTime >= 8) FinishFishing(false);
-        }
         CombatTime += dt; Invulnerable = Math.Max(0, Invulnerable - dt);
-        if (!fishing)
-        {
-            UpdateMovement(dt, input);
-            CollectEncounters();
-        }
+        UpdateMovement(dt, input);
+        CollectEncounters();
         int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
         if (CombatTime >= SpawnDirector.BossArrivalSeconds && !BossSpawned)
@@ -119,11 +100,11 @@ public sealed partial class Voyage
         Enemies.RemoveAll(e => e.Health <= 0 || (e.Kind != EnemyKind.Leviathan && Vector2.DistanceSquared(e.Position, Position) > 1600 * 1600));
         Shots.RemoveAll(s => s.Life <= 0);
         if (Mode == VoyageMode.Victory) return;
-        if (Health <= 0) { Health = 0; FishingPlace = null; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
+        if (Health <= 0) { Health = 0; Mode = VoyageMode.Defeat; Events.Add(new("defeat", Position)); }
         else
         {
             while (Xp >= NextXp) { Xp -= NextXp; Level++; PendingUpgrades++; Events.Add(new("level", Position)); }
-            if (PendingUpgrades > 0 && Mode != VoyageMode.Fishing) PrepareNextUpgrade();
+            if (PendingUpgrades > 0) PrepareNextUpgrade();
         }
     }
     static float ApproachAngle(float from, float to, float amount) => from + MathF.Atan2(MathF.Sin(to - from), MathF.Cos(to - from)) * Math.Min(1, amount);
@@ -249,7 +230,7 @@ public sealed partial class Voyage
     {
         e.Health -= damage; e.HitFlash = .12f; Events.Add(new("hit", e.Position, damage));
         if (e.Health > 0) return;
-        Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1; Coins += 1 + Tier / 2;
+        Kills++; Xp += e.Kind == EnemyKind.Leviathan ? 25 : 1;
         // Schedule from this award so idle time cannot bank silver drops.
         if (CombatTime >= NextSilverTime)
         {
@@ -260,64 +241,23 @@ public sealed partial class Voyage
         Events.Add(new("kill", e.Position, e.Kind == EnemyKind.Leviathan ? 2 : 1));
         if (e.Kind == EnemyKind.Leviathan)
         {
-            BossSlain = true; Coins += 150; FishingPlace = null; Mode = VoyageMode.Victory;
+            BossSlain = true; Mode = VoyageMode.Victory;
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
             foreach (var other in Enemies) other.Health = 0;
             foreach (var shot in Shots) shot.Life = 0;
             Events.Add(new("victory", Position)); Events.Add(new("calm", Position, 1000));
         }
     }
-    public bool Interact()
+    void Heal(float amount)
     {
-        if (Mode != VoyageMode.Sailing) return false;
-        if (World.HarborAt(Position) != null) { Mode = VoyageMode.Harbor; Velocity = Vector2.Zero; SellCatch(); return true; }
-        var fish = World.FishAt(Position);
-        if (fish == null) return false;
-        FishingPlace = fish; Mode = VoyageMode.Fishing; FishingTime = 0;
-        Velocity = Vector2.Zero; CurrentFlow = Vector2.Zero; IsBoosting = false; BoostExhausted = false;
-        fishRandom = new(SeedRandom.Hash(World.Seed, OceanWorld.KeyAt(fish.Position).X, OceanWorld.KeyAt(fish.Position).Y, fish.Style ^ (uint)World.Depletion.GetValueOrDefault(fish.Id)));
-        World.Depletion[fish.Id] = 1; // One cast per school, including a cancelled attempt.
-        FishCursor = .5f; FishTarget = fishRandom.Range(.25f, .75f); Events.Add(new("cast", fish.Position)); return true;
-    }
-    public void Reel()
-    {
-        if (Mode != VoyageMode.Fishing || FishingTime < .25f) return;
-        bool success = Math.Abs(FishCursor - FishTarget) < FishBand;
-        if (success) Events.Add(new("reel", Position));
-        FinishFishing(success);
-    }
-    void FinishFishing(bool success)
-    {
-        if (FishingPlace == null) return;
-        if (success)
-        {
-            string[] names = ["Silver sprat", "Coral snapper", "Moonfin tuna", "Golden lanternfish", "Abyssal stargazer"];
-            int rarity = Math.Min(4, Tier + (fishRandom.Unit() > .7f ? 1 : 0));
-            var item = new CatchItem(names[rarity], 14 + rarity * 13 + Tier * 4); Hold.Add(item);
-            CatchTitle = item.Name;
-            Events.Add(new("catch", Position, item.Value));
-        }
-        else { CatchTitle = "Got away"; Events.Add(new("miss", Position)); }
-        FishingPlace = null;
-        Mode = VoyageMode.Sailing;
-    }
-    public void CancelFishing() { if (Mode == VoyageMode.Fishing) { FishingPlace = null; Mode = VoyageMode.Sailing; } }
-    public int LastCatchSale { get; private set; }
-    void SellCatch()
-    {
-        int value = Hold.Sum(f => f.Value); LastCatchSale = value; Coins += value; Hold.Clear(); if (value > 0) Events.Add(new("sold", Position, value));
-    }
-    public int RepairCost => (int)MathF.Ceiling((MaxHealth - Health) / 3);
-    public bool Repair()
-    {
-        if (Mode != VoyageMode.Harbor || RepairCost <= 0 || Coins < RepairCost) return false;
-        Coins -= RepairCost; Health = MaxHealth; Events.Add(new("buy", Position)); return true;
+        float restored = Math.Min(amount, MaxHealth - Health);
+        Health += restored;
+        if (restored > 0) Events.Add(new("heal", Position, restored));
     }
     void UpdateAbility(float dt)
     {
         if (Boat != BoatKind.Trawler) return;
         AbilityCharge += dt / 6;
-        if (Mode == VoyageMode.Fishing) { AbilityCharge = Math.Min(1, AbilityCharge); return; }
         if (AbilityCharge < 1) return;
         AbilityCharge -= 1;
         Events.Add(new("bulwark", Position, 270));
@@ -332,10 +272,10 @@ public sealed partial class Voyage
         if (PendingUpgrades == 0) { Mode = VoyageMode.Sailing; return; }
         RollUpgrades(); Mode = VoyageMode.Upgrade;
     }
-    public void TakeUpgradeGold()
+    public void TakeUpgradeHeal()
     {
         if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || UpgradeChoices.Count > 0) return;
-        Coins += 40; PendingUpgrades--; PrepareNextUpgrade();
+        Heal(25); PendingUpgrades--; PrepareNextUpgrade();
     }
     void RollUpgrades()
     {
@@ -349,36 +289,16 @@ public sealed partial class Voyage
     public int Rank(int option) => option < 6 ? Weapons[option] : option == 6 ? HullRank : option == 7 ? EngineRank : option == 8 ? ReloadRank : AreaRank;
     public bool CanUpgrade(int option) => option >= 0 && option < UpgradeNames.Length && Rank(option) < 5
         && (option >= Weapons.Length || Rank(option) > 0 || WeaponCount < WeaponSlots);
-    public static bool SellsWeapons(Place harbor) => (harbor.Style & 1) == 0;
-    public bool HarborSellsWeapons => World.HarborAt(Position) is { } harbor && SellsWeapons(harbor);
-    public int[] HarborOffers()
+    public bool Upgrade(int option)
     {
-        return World.HarborAt(Position) is { } harbor ? HarborOffers(harbor) : [];
-    }
-    public static int[] HarborOffers(Place harbor)
-    {
-        var stock = Enumerable.Range(SellsWeapons(harbor) ? 0 : 6, SellsWeapons(harbor) ? 6 : 4).ToList();
-        var random = new SeedRandom(harbor.Style ^ 0x51a7u);
-        for (int i = stock.Count - 1; i > 0; i--)
-        {
-            int j = random.Index(i + 1);
-            (stock[i], stock[j]) = (stock[j], stock[i]);
-        }
-        return stock.Take(3).ToArray();
-    }
-    public int UpgradeCost(int option) => 26 + Rank(option) * 22;
-    public bool Upgrade(int option, bool free = false)
-    {
-        if (!CanUpgrade(option) || (free ? Mode != VoyageMode.Upgrade || !UpgradeChoices.Contains(option) : Mode != VoyageMode.Harbor)) return false;
-        if (!free && (!HarborOffers().Contains(option) || Coins < UpgradeCost(option))) return false;
-        if (!free) Coins -= UpgradeCost(option);
+        if (Mode != VoyageMode.Upgrade || PendingUpgrades == 0 || !UpgradeChoices.Contains(option) || !CanUpgrade(option)) return false;
         if (option < 6) Weapons[option]++;
         else if (option == 6) HullRank++;
         else if (option == 7) EngineRank++;
         else if (option == 8) ReloadRank++;
         else AreaRank++;
-        if (free) { PendingUpgrades--; PrepareNextUpgrade(); }
-        Events.Add(new("buy", Position)); return true;
+        PendingUpgrades--; PrepareNextUpgrade();
+        Events.Add(new("upgrade", Position)); return true;
     }
     public static readonly string[] UpgradeNames = ["Cannon", "Harpoon", "Mines", "Lightning", "Whirlpool", "Arcane Orbs", "Hull", "Speed", "Reload", "Reach"];
     public static readonly string[] UpgradeDescriptions = [

@@ -16,7 +16,7 @@ public sealed partial class Voyage
         {
             Cooldowns[w] = Math.Max(0, Cooldowns[w] - dt * FireRateMultiplier);
             int rank = Weapons[w];
-            if (Mode == VoyageMode.Fishing || rank == 0 || Cooldowns[w] > 0 || Shots.Count >= 360) continue;
+            if (rank == 0 || Cooldowns[w] > 0 || Shots.Count >= 360) continue;
             float range = w == 4 ? WhirlpoolRadius : w == 3 ? 285 * Area : 570;
             var target = Enemies.Where(e => e.Health > 0 && Vector2.DistanceSquared(e.Position, Position) < range * range)
                 .OrderBy(e => Vector2.DistanceSquared(e.Position,Position)).FirstOrDefault();

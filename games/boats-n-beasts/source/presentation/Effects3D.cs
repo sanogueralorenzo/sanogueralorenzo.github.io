@@ -7,7 +7,6 @@ namespace BoatsNBeasts;
 public partial class Effects3D : Node3D
 {
     static readonly Color Foam = new("bbdad2"), Aqua = new("68c4bc"), Coral = new("ef785d"), Cream = new("ffe0a3"), Magic = new("b59aed");
-    static readonly Vector2[] FishFormation=[new(-.21f,-.29f),new(.16f,-.15f),new(-.055f,.01f),new(.25f,.22f),new(-.2f,.31f)];
     readonly List<Sample> wake = new(80);
     readonly Dictionary<Shot, List<Sample>> trails = new();
     readonly Dictionary<int, List<Sample>> creatureWakes = new();
@@ -20,10 +19,9 @@ public partial class Effects3D : Node3D
     readonly RandomNumberGenerator random = new() { Seed = 3819 };
     EffectsGeometry foam = null!, solid = null!;
     MultiMesh balls = null!;
-    Mesh box = null!, sphere = null!, fishMesh = null!, barrelMesh = null!;
+    Mesh box = null!, sphere = null!, barrelMesh = null!;
     StandardMaterial3D barrelMaterial = null!;
     StandardMaterial3D wood = null!, woodDark = null!, brass = null!;
-    ShaderMaterial fish = null!;
     float time, sampleClock;
     int ballCount;
     bool initialized;
@@ -34,7 +32,7 @@ public partial class Effects3D : Node3D
     readonly record struct Sample(Vector3 P, Vector3 Forward, float Born, float Speed);
     sealed class Burst { public string Kind = ""; public Vector3 P, End; public float Age, Life, Size; }
     sealed class Spark { public Vector3 P, V; public Color Color; public float Age, Life, Size; }
-    sealed class Encounter { public Node3D Root = null!; public Place Place = null!; public readonly List<Node3D> Fish = new(); }
+    sealed class Encounter { public Node3D Root = null!; public Place Place = null!; }
     static Vector3 World(V2 p, float height = .035f) => new(p.X * .01f, height, p.Y * .01f);
     static Color Fade(Color color, float alpha) => new(color, Mathf.Clamp(alpha, 0, 1));
 
@@ -47,8 +45,6 @@ public partial class Effects3D : Node3D
         balls = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = sphere, InstanceCount = 1024, VisibleInstanceCount = 0 };
         AddChild(new MultiMeshInstance3D { Multimesh = balls, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .82f }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         wood = EffectsGeometry.Matte("986039"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("d9ad55");
-        fish = new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EffectsFish.gdshader") };
-        fishMesh = BuildFishMesh();
         barrelMesh = BuildBarrelMesh();
         barrelMaterial = new() { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .9f };
     }
@@ -62,11 +58,10 @@ public partial class Effects3D : Node3D
     public void Sync(Voyage voyage, float clock, float dt)
     {
         EnsureReady();
-        // Use voyage time for transient effects so menus pause them and fishing does not.
+        // Use voyage time for transient effects so menus pause them.
         bool active = voyage.IsActive;
         float step = active ? Mathf.Clamp(dt, 0, .1f) : 0;
         time += step;
-        fish.SetShaderParameter("school_time", time);
         if (step > 0)
         {
             foreach (var p in sparks) { p.Age += step; p.P += p.V * step; p.V *= MathF.Exp(-step * 2); p.V.Y -= step * 2.4f; }
@@ -209,7 +204,7 @@ public partial class Effects3D : Node3D
     }
     void DrawWhirlpool(Voyage v)
     {
-        if (v.Mode == VoyageMode.Fishing || v.Weapons[(int)WeaponKind.Undertow] <= 0) return;
+        if (v.Weapons[(int)WeaponKind.Undertow] <= 0) return;
         var center = World(v.Position, .046f); float radius = v.WhirlpoolRadius * .01f;
         // Five separated curls keep the actual attack extent visible without a solid HUD circle.
         for (int arm = 0; arm < 5; arm++)
@@ -249,7 +244,7 @@ public partial class Effects3D : Node3D
         {
             if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Value*.01f});
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"catch" or "treasure" or "silver"=>6,"boostStart"=>9,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"heal" or "treasure" or "silver"=>6,"boostStart"=>9,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
@@ -323,9 +318,8 @@ public partial class Effects3D : Node3D
         livePlaces.Clear();
         foreach(var p in v.World.Places)
         {
-            if(p.Kind is not (PlaceKind.Fishing or PlaceKind.Treasure or PlaceKind.Barrel)) continue;
-            bool casting=v.Mode==VoyageMode.Fishing && v.FishingPlace?.Id==p.Id;
-            if(v.World.Depletion.GetValueOrDefault(p.Id)>0 && !casting) continue;
+            if(p.Kind is not (PlaceKind.Treasure or PlaceKind.Barrel)) continue;
+            if(v.World.Depletion.GetValueOrDefault(p.Id)>0) continue;
             if(V2.DistanceSquared(v.Position,p.Position)>1800*1800) continue;
             livePlaces.Add(p.Id);
             if(!encounters.TryGetValue(p.Id,out var encounter))
@@ -333,24 +327,11 @@ public partial class Effects3D : Node3D
                 encounter=new() {Root=new Node3D(),Place=p}; AddChild(encounter.Root); encounters[p.Id]=encounter;
                 if(p.Kind==PlaceKind.Treasure) BuildTreasure(encounter.Root);
                 else if(p.Kind==PlaceKind.Barrel) EffectsGeometry.Part(encounter.Root, barrelMesh, barrelMaterial, Vector3.Zero, Vector3.One);
-                else BuildFish(encounter);
             }
             encounter.Root.Position=World(p.Position,p.Kind==PlaceKind.Barrel?.045f+Mathf.Sin(time*1.9f+p.Style%29)*.018f:p.Kind==PlaceKind.Treasure?.055f:.02f);
             encounter.Root.Rotation=p.Kind==PlaceKind.Barrel
                 ? new(.08f, p.Style % 360 * Mathf.Pi / 180, Mathf.Sin(time*1.6f+p.Style%11)*.045f)
                 : new(0, p.Kind==PlaceKind.Treasure?p.Heading:0, 0);
-            if(p.Kind==PlaceKind.Fishing)
-            {
-                float phase=p.Style%19;
-                for(int i=0;i<encounter.Fish.Count;i++)
-                {
-                    var node=encounter.Fish[i]; float row=i/2f;
-                    uint h=SeedRandom.Hash(p.Style,i,7);
-                    float x=FishFormation[i].X+(h%100)/100f*.08f-.04f, z=FishFormation[i].Y+((h>>8)%100)/100f*.08f-.04f;
-                    node.Position=new(x+Mathf.Sin(time*.7f+row+phase)*.065f,.02f,z+Mathf.Sin(time*.55f+phase+row*.4f)*.06f);
-                    node.Rotation=new(0,-.85f+Mathf.Sin(time*.85f+row)*.12f+(h%11)*.017f,0);
-                }
-            }
         }
         foreach(var id in encounters.Keys.ToArray()) if(!livePlaces.Contains(id)) {encounters[id].Root.QueueFree();encounters.Remove(id);}
     }
@@ -409,6 +390,13 @@ public partial class Effects3D : Node3D
             if(end>0) Triangle(new(end*.312f,0,0),a,b,new Color("795234"));
             else Triangle(new(end*.312f,0,0),b,a,new Color("795234"));
         }
+        void Mark(float x, float z, float w, float d)
+        {
+            var a = new Vector3(x-w/2, .245f, z-d/2); var b = new Vector3(x+w/2, .245f, z-d/2);
+            var c = new Vector3(x+w/2, .245f, z+d/2); var e = new Vector3(x-w/2, .245f, z+d/2);
+            Triangle(a, c, b, Aqua); Triangle(a, e, c, Aqua);
+        }
+        Mark(0, 0, .25f, .065f); Mark(0, 0, .065f, .22f);
         return st.Commit();
     }
     static ArrayMesh ChestArch(float length,float radius,bool caps,float start=-Mathf.Pi*.5f,float sweep=Mathf.Pi)
@@ -432,44 +420,10 @@ public partial class Effects3D : Node3D
         }
         return st.Commit();
     }
-    void BuildFish(Encounter e)
-    {
-        // Shared tapered mesh and translucent water tint avoid lit white strokes on the opaque ocean.
-        for(int i=0;i<5;i++)
-        {
-            var node=new Node3D();e.Root.AddChild(node);e.Fish.Add(node);
-            float size=.8f+(SeedRandom.Hash(e.Place.Style,i,3)%100)*.004f;
-            var part=EffectsGeometry.Part(node,fishMesh,fish,Vector3.Zero,Vector3.One*size);
-            part.CastShadow=GeometryInstance3D.ShadowCastingSetting.Off;
-        }
-    }
-    static ArrayMesh BuildFishMesh()
-    {
-        var st=new SurfaceTool();st.Begin(Mesh.PrimitiveType.Triangles);
-        float[] z=[-.17f,-.125f,-.065f,.015f,.08f,.115f];
-        float[] width=[.002f,.033f,.048f,.036f,.016f,.009f];
-        Vector3 Ring(int row,int spoke)
-        {
-            float a=spoke*Mathf.Tau/8;
-            return new(Mathf.Cos(a)*width[row],Mathf.Sin(a)*width[row]*.33f,z[row]);
-        }
-        void Tri(Vector3 a,Vector3 b,Vector3 c) {st.AddVertex(a);st.AddVertex(b);st.AddVertex(c);}
-        for(int row=0;row<z.Length-1;row++) for(int spoke=0;spoke<8;spoke++)
-        {
-            var a=Ring(row,spoke);var b=Ring(row,(spoke+1)%8);var c=Ring(row+1,(spoke+1)%8);var d=Ring(row+1,spoke);
-            Tri(a,c,b);Tri(a,d,c);
-        }
-        Tri(new(0,0,.1f),new(-.055f,0,.18f),new(0,0,.155f));
-        Tri(new(0,0,.1f),new(0,0,.155f),new(.055f,0,.18f));
-        Tri(new(-.033f,0,-.045f),new(-.075f,0,.005f),new(-.031f,0,-.002f));
-        Tri(new(.033f,0,-.045f),new(.031f,0,-.002f),new(.075f,0,.005f));
-        st.GenerateNormals();return st.Commit();
-    }
     void DrawEncounters(Voyage v)
     {
         foreach(var e in encounters.Values)
         {
-            if(e.Place.Kind==PlaceKind.Fishing) continue;
             if (e.Place.Kind==PlaceKind.Treasure)
             {
                 float gleam=Mathf.Pow(Mathf.Max(0,Mathf.Sin(time*1.5f+e.Place.Style%13)),10);
@@ -501,13 +455,6 @@ public partial class Effects3D : Node3D
                     foam.Ribbon(last,next,width,width,Fade(Aqua,alpha));last=next;
                 }
             }
-        }
-        if(v.Mode==VoyageMode.Fishing && v.FishingPlace is {} fishing)
-        {
-            var start=World(v.Position,.45f);var end=World(fishing.Position,.045f);var middle=start.Lerp(end,.45f)+Vector3.Up*.22f;
-            var last=start;
-            for(int i=1;i<=12;i++) {float t=i/12f;var next=(1-t)*(1-t)*start+2*(1-t)*t*middle+t*t*end;foam.Ribbon(last,next,.006f,.006f,Fade(Cream,.55f));last=next;}
-            Ball(end+Vector3.Up*.035f,new(.04f,.07f,.04f),Coral);
         }
     }
 }

@@ -4,39 +4,33 @@
 
 Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For behavior or visual changes, launch with `./run.command` and use ordinary controls. Do not create automated tests, inject game state, or substitute an art sample for gameplay verification.
 
-Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, fishing, progression and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
+Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
 ## Verified baseline — 2026-09-09
 
-Debug and Release passed with zero warnings/errors. Reviewed native sessions used Godot 4.7.2 .NET, Forward+ / Metal on Apple M3 Max; logs were clean.
+Debug and Release builds passed with zero warnings/errors. Native sessions used Godot 4.7.2 .NET, Forward+ / Metal on Apple M3 Max; no runtime errors were observed.
 
-- **Rewards:** two voyages verified small and giant island chest access from water, barrel contact, gold amounts and depletion after unloading/revisiting. The earlier giant/barrel route predates only the chest's gold-trim refinement.
-- **Progression:** a Gunboat with Cannon/Lightning won at 22:11. Most of the run used ×3, returning to ×1 at 21:22; active wall time was 478 seconds. The boss was absent at 21:58 and appeared at 22:00. Pause/handbook state stayed identical across 17 seconds. Observed regular population peaked at 18; this does not exercise the 64-enemy ceiling.
-- **Islands:** native samples covered all eight giant families; gameplay reached a giant island and stopped at its visible coast. Samples alone do not establish navigability.
-- **Puffers:** native play showed chase, fuse and explosions. Source review confirmed only the boss creates hostile shots; isolated cannon hits now end instead of reversing toward the player. The original apparent puffer shot was not reproduced.
-- **Existing flows:** earlier native checks covered all boat starts, steering/boost, fishing and catch sale, harbor purchases, free upgrades, pause/resume and streaming. Older evidence can show superseded art or mechanics.
-
-The final reward route sampled 12.05 ms mean frame time and 18.75 ms p99. This is not a worst-case benchmark.
+- **Progression:** Gunboat reached level 5 at 5:31, mostly at ×3. Verified Cannon and Reach upgrades, adding Lightning as a second weapon, and a Hull upgrade. Upgrade menus paused combat and selections resumed sailing.
+- **Pickups:** a barrel remained undepleted while the full-health boat overlapped it. After Hull increased maximum health to 125, collecting another barrel restored health from 100 to 125 and depleted the barrel. A beach chest was collected from the water. Its 12-XP reward is source-verified; the earlier capture format did not record current XP.
+- **Harbor and world:** the starting harbor radius is 280, up from 140. Gunboat departure and Aura shore approach were checked. Pressing E at home did not open an interaction. Offshore streaming remained at 25 chunks, and the home harbor unloaded when sailing away. Source review confirms procedural landmarks generate only islands.
+- **Performance:** the 125-second active Gunboat session reported 8.39 ms mean frame time and 8.37 ms p99 at its final capture, with a peak of four enemies and six shots. This is not a stress benchmark.
 
 ## Coverage gaps
 
-No exhaustive seed/family sweep, all-boat pickup check, maximum-crowd stress run or full 22-minute economy replay after the reward changes. One winning build does not establish balance across boats and upgrades. Placement percentages are candidate configuration, not measured encounter frequency. Long endless play and lower-end hardware remain unverified.
+Checks stopped at the user's request to keep verification brief. The final barrel health-cross winding correction built and launched, but its appearance was not rechecked at a pickup. No new full 22-minute balance replay, maxed-build healing fallback run, all-boat pickup sweep, or depleted-pickup unload/revisit check. Mage departure, maximum-crowd performance and long endless play remain unverified for this change. Healing availability and XP pacing need ordinary play feedback.
 
 ## Evidence
 
-PNG files are unedited native captures; matching TXT files contain telemetry. Older captures may show superseded behavior.
+PNG files are unedited native captures, paired with TXT telemetry. The main session predates only the final health-cross winding correction, silver-icon cleanup, removal of unused tier helpers and extra XP telemetry. Older repository captures may show removed fishing, shops and gold.
 
 | Evidence | Coverage |
 | --- | --- |
-| [Home](../evidence/sparse-rewards-home.png), [chest](../evidence/sparse-rewards-chest.png), [collected](../evidence/sparse-rewards-chest-collected.png) | Final reward art and beach access |
-| [Barrel](../evidence/sparse-rewards-barrel.png), [collected](../evidence/sparse-rewards-barrel-collected.png) | Sparse contact pickup |
-| [Unloaded](../evidence/sparse-rewards-unloaded.png), [revisit](../evidence/sparse-rewards-revisit.png) | Chest depletion survives streaming |
-| [Giant chest](../evidence/sparse-rewards-giant-before-trim.png), [collected](../evidence/sparse-rewards-giant-collected.png) | Giant shore access; before final gold trim |
-| [Barrel revisit](../evidence/sparse-rewards-barrel-revisit.png) | Barrel depletion survives streaming |
-| [Reward runtime](../evidence/sparse-rewards-final-runtime.txt), [exploration runtime](../evidence/sparse-rewards-exploration-runtime.txt) | Complete reward sessions |
-| [Progression runtime](../evidence/gradual-runtime.txt) | Gradual buildup and 22:11 victory; mostly ×3 play |
-
-For older checks, find captures by prefix: `gradual-` (pacing), `puffer-` (fuse/explosion), `giant-` (islands), `diorama-` (native presentation and flows). Read telemetry alongside screenshots; a still image cannot establish motion or timing.
+| [Upgrade applied](../evidence/simple-upgrade-applied.png) | Level 2 Cannon upgrade and resumed sailing |
+| [Full-health barrel](../evidence/simple-full-health-barrel.png) | Boat overlapping an undepleted barrel at full health |
+| [Chest collected](../evidence/simple-chest-collected.png) | Water access and chest depletion |
+| [Healing collected](../evidence/simple-healing-collected.png) | 125/125 health and barrel depletion after Hull upgrade |
+| [Aura shore](../evidence/simple-aura-shore.png) | Enlarged starting island in the final build |
+| [Gameplay runtime](../evidence/simple-runtime.txt), [final build runtime](../evidence/simple-final-runtime.txt) | Native session telemetry and startup logs |
 
 ## Research provenance
 

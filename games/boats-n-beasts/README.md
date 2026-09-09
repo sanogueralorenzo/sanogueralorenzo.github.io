@@ -19,22 +19,20 @@ Set `GODOT_BIN` to your Godot executable and `DOTNET_ROOT` to your SDK directory
 | WASD / arrows | Sail |
 | Left click | Sail to a point |
 | Space / Shift | Boost; release after exhaustion to recharge |
-| E | Fish or open a nearby harbor |
-| Space / E while fishing | Reel inside the turquoise band |
-| Escape | Pause, cancel fishing, or leave a menu |
+| Escape | Pause or resume |
 | Enter / Tab / arrows | Operate menus |
 | ×1 / ×2 / ×3 button | Change voyage speed |
 | F12 | Save native screenshot and telemetry to `evidence/` |
 
 Choose Gunboat (Cannon, faster fire during boost), Aura (Whirlpool, periodic defensive pulse), or Mage (homing Arcane Orbs). Boat choice lasts the voyage. All boats can equip any weapon, with **two total weapon slots**, including the starter.
 
-Level-ups pause combat for a free upgrade. Each harbor sells repairs and three fixed weapon or boat upgrades. Press E near its dock to open the menu and sell catches; combat pauses while the menu is open.
+Level-ups pause combat for a free weapon or boat upgrade. Choose one of up to three options, then keep sailing. Once every available upgrade is maxed, each level offers 25 health instead.
 
-Each fishing school allows one cast, including cancellation. Reel inside the band within eight seconds. Fishing stops the boat and new automatic attacks; enemies, existing shots and voyage time keep moving.
+The only harbor is the larger starting island. It is decorative: no docking, shops, repairs, or interaction. There is no fishing or voyage gold economy.
 
-Monster numbers and variety increase gradually with active voyage time. Swimming speeds, health and damage do not scale with time or distance. Puffers chase, fuse and explode; only Crownclaw fires hostile projectiles. Defeat Crownclaw to win, then restart or keep exploring. Distance improves rewards, not combat difficulty.
+Monster numbers and variety increase gradually with active voyage time. Swimming speeds, health and damage do not scale with time or distance. Puffers chase, fuse and explode; only Crownclaw fires hostile projectiles. Defeat Crownclaw to win, then restart or keep exploring. Distance does not scale rewards or combat difficulty.
 
-Rare beach chests award 35–55 gold and are collected from the water. Sparse floating barrels break on hull contact for 3–6 gold. Home has no guaranteed loot. Pickups and fishing schools remain depleted on revisits. Gold, equipment and catches reset each voyage; silver and records persist. Silver spending and the Unlock/Quests/Shop menu entries are not implemented.
+Rare beach chests award 12 XP and are collected from the water. Sparse floating barrels marked with a turquoise health cross restore up to 25 health on hull contact. Barrels remain available at full health. Home has no guaranteed loot. Pickups remain depleted on revisits. Equipment resets each voyage; silver and records persist. Silver spending and the Unlock/Quests/Shop menu entries are not implemented.
 
 ## Development
 

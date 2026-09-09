@@ -7,12 +7,11 @@ public static class StartingArea
 {
     public static readonly Vector2 Harbor = new(-120, -490);
     // Alongside the outer dock, with bow/stern clearance for every boat.
-    public static readonly Vector2 Spawn = Harbor + new Vector2(175, 175);
+    public static readonly Vector2 Spawn = Harbor + new Vector2(295, 295);
     public static readonly IReadOnlyList<Place> Places = Array.AsReadOnly<Place>([
-        new("home:harbor", PlaceKind.Harbor, Harbor, 140, 147),
+        new("home:harbor", PlaceKind.Harbor, Harbor, 280, 147),
         new("home:island", PlaceKind.Island, new(990, 275), 125, 921),
         new("home:upper-rock", PlaceKind.Rock, new(1050, -625), 40, 73),
-        new("home:school", PlaceKind.Fishing, new(-260, -180), 76, 3819),
         new("home:current", PlaceKind.Current, new(1250, -160), 245, 0)
     ]);
     public static bool Contains(ChunkKey key) => Math.Abs(key.X) <= 1 && Math.Abs(key.Y) <= 1;

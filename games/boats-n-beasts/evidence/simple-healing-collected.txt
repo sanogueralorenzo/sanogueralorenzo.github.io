@@ -1,0 +1,43 @@
+Mouse viewport=(-618.75, 1482.75) global=(-618.75, 1482.75) boatScreen=(720.2316, 448.3366) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1364.9906, 3733.1338>; destination=<3198.7, 2007.2493>
+Native runtime capture: 20260909-105715-228-sailing
+Renderer: forward_plus
+Seed: 3511997743
+Mode: Sailing
+Game speed: x3
+Finished runs: 111; boat selection: False
+Silver: 104; earned this voyage: 4; next eligible combat time: 358.90356
+Boat: Cutter
+Position: <3174.4253, 2069.0193>
+Health: 125/125
+Kills: 82; level: 5; pending upgrades: 0
+Active chunks: 25; enemies: 2; shots: 2
+Actual sailing seconds: 125.1; peak enemies: 4; peak shots: 6
+Camera world=(3174.1123, 2071.6953); departure seconds=323.44046; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:island: Island position=<990, 275> radius=125 style=921
+Velocity=<35.407986, -171.9165>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=1; barrels=1; arcane casts=0; mines=0/0; ricochets=21; pulls=0
+Combat clock=331.6291; director=0.15312487/0.057426758; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=2,0,0,1,0,0; cooldowns=0.7968751,0,0,0,0,0
+Depletion=3:3:land:treasure=1;3:2:barrel=1
+Loot placement: islands=7; chests=1; barrels=3; depleted=2; visible encounter cache=2
+Loot 3:2:barrel: Barrel position=<3195.51, 2016.9895> style=2889064863 heading=0 depleted=True
+Loot 3:3:land:treasure: Treasure position=<4215.8237, 3412.175> style=4153206550 heading=2.824052 depleted=True
+Loot 1:2:barrel: Barrel position=<1524.8657, 2235.437> style=4242743353 heading=0 depleted=False
+Loot 2:2:barrel: Barrel position=<2504.1472, 2651.56> style=3306526815 heading=0 depleted=False
+Landmark 3:3:land: Island position=<3840.3389, 3841.8325> radius=602.39874 style=3780168105 profile=Compact
+Landmark 2:4:land: Island position=<2391.2498, 5034.557> radius=190.81345 style=1485905148 profile=Crescent
+Landmark 5:3:land: Island position=<6147.666, 3582.6433> radius=297.89703 style=432448681 profile=Twin
+Landmark 1:2:land: Island position=<923.0592, 2842.711> radius=204.99332 style=313404598 profile=Bean
+Landmark 4:2:land: Island position=<5222.286, 2437.2402> radius=681.1581 style=787790505 profile=Compact
+Landmark 3:0:land: Island position=<3367.436, 361.0816> radius=332.30176 style=619639989 profile=Long
+Landmark home:island: Island position=<990, 275> radius=125 style=921 profile=Lobed
+Boss bombs thrown=0; explosions=0; blast hits=0
+Pacing regular target=11; income=0.5290727; boss arrival seconds=1320
+Puffer explosions=0; blast hits=0
+Enemy 83: Crab position=<3724.3066, 2198.1482> hp=27 time=2.744797 attack=0.5833207 tell=0 dash=0 speedMultiplier=1.1098108 swimSpeed=92.114296 fuse=0
+Enemy 84: Puffer position=<2499.1545, 1459.3599> hp=38 time=0.20312487 attack=2.4280443 tell=0 dash=0 speedMultiplier=1.2373577 swimSpeed=129.92256 fuse=0
+Shot Cannon hostile=False position=<3275.2515, 2054.6138> life=2.2968752 target=<0, 0> age=0.10312489 flight=0
+Shot Cannon hostile=False position=<3272.6, 2063.214> life=2.2968752 target=<0, 0> age=0.10312489 flight=0
+CPU simulation average ms=0.025; draw submission average ms=0.324; cached scenery=2; engine FPS=64; draw calls=83; objects=524
+Frame ms mean: 8.39; p95: 8.33; p99: 8.37

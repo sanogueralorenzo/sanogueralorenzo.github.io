@@ -59,11 +59,12 @@ public sealed partial class Voyage
                 if (Vector2.Distance(alongHull, place.Position) > place.Radius + (Boat == BoatKind.Cutter ? 30 : 37)) continue;
             }
             else if (Vector2.Distance(Position, place.Position) > 140) continue;
+            if (barrel && Health >= MaxHealth) continue;
             World.Depletion[place.Id] = 1;
-            int gold = barrel ? 3 + (int)(place.Style % 4) : 35 + (int)(place.Style % 21);
-            Coins += gold;
+            int reward = barrel ? 25 : 12;
+            if (barrel) Heal(reward); else Xp += reward;
             if (barrel) BarrelsBroken++; else TreasureCollected++;
-            Events.Add(new(barrel ? "barrel" : "treasure", place.Position, gold));
+            Events.Add(new(barrel ? "barrel" : "treasure", place.Position, reward));
         }
     }
 }

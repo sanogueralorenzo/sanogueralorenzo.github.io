@@ -16,7 +16,7 @@ public struct SeedRandom
     }
 }
 public readonly record struct ChunkKey(int X, int Y);
-public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current, Barrel }
+public enum PlaceKind { Island, Rock, Harbor, Treasure, Current, Barrel }
 public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style, float Heading = 0)
 {
     IslandShape? shape;
@@ -39,7 +39,6 @@ public sealed class OceanWorld(uint seed)
     private ChunkKey? lastCenter;
     private Place[] activePlaces = [];
     public static ChunkKey KeyAt(Vector2 p) => new((int)MathF.Floor((p.X + 600) / ChunkSize), (int)MathF.Floor((p.Y + 600) / ChunkSize));
-    public static int TierAt(Vector2 p) => Math.Min(20, (int)(p.Length() / 1000));
     // One broadly scattered candidate per chunk, thinned against neighboring candidates.
     // Acceptance depends only on seed/coordinates, never on chunk loading order.
     Place? LandmarkCandidate(ChunkKey key)
@@ -51,15 +50,14 @@ public sealed class OceanWorld(uint seed)
         if (rng.Unit() >= .42f) return null;
         var position = new Vector2(key.X * ChunkSize, key.Y * ChunkSize) +
             new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
-        bool harbor = rng.Unit() < .3f;
         float size = rng.Unit();
-        float radius = harbor ? 140 : size < .35f ? rng.Range(80, 115)
+        float radius = size < .35f ? rng.Range(80, 115)
             : size < .70f ? rng.Range(165, 235) : size < .85f ? rng.Range(290, 360)
             : rng.Range(520, MaxIslandRadius);
         // Giant islands can reach toward home from outside its reserved chunks.
         if (StartingArea.Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) <
             (radius + p.Radius) * 1.04f + 320)) return null;
-        return new($"{key.X}:{key.Y}:land", harbor ? PlaceKind.Harbor : PlaceKind.Island,
+        return new($"{key.X}:{key.Y}:land", PlaceKind.Island,
             position, radius, rng.Next());
     }
     IEnumerable<Place> Landmarks(ChunkKey key)
@@ -79,7 +77,6 @@ public sealed class OceanWorld(uint seed)
             if (other.Style < land.Style || (other.Style == land.Style && (y < 0 || (y == 0 && x < 0)))) yield break;
         }
         yield return land;
-        if (land.Kind == PlaceKind.Harbor) yield break;
         foreach (var rock in ShoreRocks(land)) yield return rock;
     }
     static IEnumerable<Place> ShoreRocks(Place land)
@@ -150,9 +147,7 @@ public sealed class OceanWorld(uint seed)
     public OceanChunk Generate(ChunkKey key)
     {
         if (StartingArea.Contains(key)) return StartingArea.Generate(key);
-        var rng = new SeedRandom(SeedRandom.Hash(Seed, key.X, key.Y, 17));
         var places = Landmarks(key).ToList();
-        var center = new Vector2(key.X * ChunkSize, key.Y * ChunkSize);
         // Check neighboring shores without loading chunks; land can cross chunk boundaries.
         var nearbySolids = new List<Place>();
         for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
@@ -160,13 +155,6 @@ public sealed class OceanWorld(uint seed)
             var neighbor = new ChunkKey(key.X + x, key.Y + y);
             nearbySolids.AddRange(StartingArea.Contains(neighbor)
                 ? StartingArea.Generate(neighbor).Places.Where(IsSolid) : Landmarks(neighbor));
-        }
-        for (int attempt = 0; attempt < 48; attempt++)
-        {
-            Vector2 p = center + new Vector2(rng.Range(-400, 400), rng.Range(-400, 400));
-            if (nearbySolids.Any(a => Vector2.Distance(a.Position, p) < a.Radius + 165)) continue;
-            places.Add(new($"{key.X}:{key.Y}:fishing", PlaceKind.Fishing, p, 76, rng.Next()));
-            break;
         }
         var island = places.FirstOrDefault(p => p.Kind == PlaceKind.Island);
         if (island != null && IslandTreasure(island) is { } treasure) places.Add(treasure);
@@ -227,7 +215,6 @@ public sealed class OceanWorld(uint seed)
         activePlaces = Loaded.Values.SelectMany(c => c.Places).ToArray();
     }
     public IReadOnlyList<Place> Places => activePlaces;
-    public int FishLeft(Place p) => Math.Max(0, 1 - Depletion.GetValueOrDefault(p.Id));
     public static bool Overlap(Place place, Vector2 position, float clearance, out Vector2 normal, out float depth)
     {
         var offset = position - place.Position;
@@ -263,7 +250,5 @@ public sealed class OceanWorld(uint seed)
         }
         return motion;
     }
-    public Place? HarborAt(Vector2 p) => Places.FirstOrDefault(a => a.Kind == PlaceKind.Harbor && Vector2.Distance(p, a.Position) < 285);
-    public Place? FishAt(Vector2 p) => Places.FirstOrDefault(a => a.Kind == PlaceKind.Fishing && FishLeft(a) > 0 && Vector2.Distance(p, a.Position) < 130);
     public static Vector2 Unit(Vector2 v, Vector2 fallback = default) => v.LengthSquared() > .0001f ? Vector2.Normalize(v) : fallback;
 }
