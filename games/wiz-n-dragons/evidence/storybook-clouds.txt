@@ -1,0 +1,41 @@
+Mouse viewport=(-900, 1323) global=(-900, 1323) wizardScreen=(799.61896, 474.76663) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-1814.0627, 1550.6124>; destination=<699.32434, 246.13914>
+Native runtime capture: 20260909-125101-317-flying
+Renderer: forward_plus
+Seed: 1674259349
+Mode: Flying
+Game speed: x1
+Finished runs: 0; wizard selection: False
+Silver: 5; earned this flight: 0; next eligible combat time: 51.99974
+Wizard: Ember
+Position: <482.71964, 186.01537>
+Health: 100/100
+Kills: 0; level: 1; XP: 0/12; pending upgrades: 0
+Active chunks: 25; enemies: 0; shots: 0
+Actual flying seconds: 2.4; peak enemies: 0; peak shots: 0
+Camera world=(375.1264, 146.17201); departure seconds=2.0415707; menu opacity=0
+Velocity=<292.9856, 82.84251>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; crystal=0; potions=0; arcane casts=0; runes=0/0; ricochets=0; pulls=0
+Combat clock=2.3749914; director=2.3749914/0.33590734; boost=100; invulnerable=0; ability=0; fire rate=1
+Spell ranks=1,0,0,0,0,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Loot placement: crystals=8; potions=7; depleted=0; visible encounter cache=6
+Loot 0:-2:Potion: Potion position=<-108.879425, -2351.845> style=230258909 heading=0 depleted=False
+Loot 1:-2:Potion: Potion position=<1250.9775, -2166.3147> style=1678271480 heading=0 depleted=False
+Loot -1:-1:Potion: Potion position=<-1576.2964, -1234.2212> style=683373839 heading=0 depleted=False
+Loot 0:-1:Potion: Potion position=<-301.28003, -1113.8232> style=4031616319 heading=0 depleted=False
+Loot 0:-1:Crystal: Crystal position=<13.116364, -1035.74> style=2523409546 heading=0 depleted=False
+Loot 1:-1:Crystal: Crystal position=<1462.5369, -1483.0051> style=1706099964 heading=0 depleted=False
+Loot -1:0:Potion: Potion position=<-1099.0281, -285.14285> style=4180513509 heading=0 depleted=False
+Loot -1:0:Crystal: Crystal position=<-1589.8162, -272.68176> style=627532246 heading=0 depleted=False
+Loot 1:0:Crystal: Crystal position=<1207.0613, -138.37415> style=3091635072 heading=0 depleted=False
+Loot 2:0:Potion: Potion position=<2543.7532, -94.51074> style=3618445614 heading=0 depleted=False
+Loot -1:1:Crystal: Crystal position=<-937.4632, 916.99493> style=1706099964 heading=0 depleted=False
+Loot 1:1:Potion: Potion position=<823.7037, 1165.7788> style=683373839 heading=0 depleted=False
+Loot 2:1:Crystal: Crystal position=<2476.168, 1451.2599> style=3824126621 heading=0 depleted=False
+Loot -1:2:Crystal: Crystal position=<-1077.9349, 2793.8228> style=1648243979 heading=0 depleted=False
+Loot 1:2:Crystal: Crystal position=<1186.9686, 2343.322> style=2191378373 heading=0 depleted=False
+Boss bombs thrown=0; explosions=0; blast hits=0
+Pacing regular target=3; income=0.1821375; boss arrival seconds=1320
+Spark explosions=0; blast hits=0
+CPU simulation average ms=0.024; draw submission average ms=0.587; cached scenery=29; engine FPS=120; draw calls=49; objects=130
+Frame ms mean: 8.36; p95: 8.33; p99: 8.33

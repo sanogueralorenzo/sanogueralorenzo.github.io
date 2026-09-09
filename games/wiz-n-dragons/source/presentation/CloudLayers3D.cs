@@ -6,10 +6,10 @@ namespace WizNDragons;
 public partial class CloudLayers3D : Node3D
 {
     readonly Dictionary<(int Layer,int X,int Y), Node3D> clouds = new();
-    readonly Dictionary<(int Layer,int Variant), ArrayMesh> meshes = new();
+    readonly Dictionary<int, ArrayMesh> meshes = new();
+    readonly Dictionary<int, ShaderMaterial> materials = new();
     static readonly float[] Parallax = [.12f,.38f,.72f];
     static readonly float[] Height = [-13,-7,-2.5f];
-    static readonly Color[] Colors = [new("3e6074"),new("527c8b"),new("92b3b9")];
     public int Count => clouds.Count;
     public void Reset() { foreach(var cloud in clouds.Values) cloud.QueueFree(); clouds.Clear(); }
     public void Sync(Vector2 camera,float clock,uint seed)
@@ -31,22 +31,14 @@ public partial class CloudLayers3D : Node3D
                 int variant=rng.Index(8);
                 if(!clouds.TryGetValue(key,out var root))
                 {
-                    if(!meshes.TryGetValue((layer,variant),out var mesh))
+                    if(!meshes.TryGetValue(variant,out var mesh)) meshes[variant]=mesh=CloudArt3D.Build(variant);
+                    if(!materials.TryGetValue(layer,out var material))
                     {
-                        var art=new ActorGeometry(smooth: true);var shape=new SeedRandom((uint)(variant+1)*719);
-                        // Connected, tapered banks with smaller curls along the edges.
-                        for(int puff=0;puff<14;puff++)
-                        {
-                            float along=(puff/13f-.5f)*4.6f;
-                            float taper=1-Mathf.Abs(along)/3.4f;
-                            float radius=shape.Range(.65f,1.15f)*taper;
-                            var at=new Vector3(along,shape.Range(-.12f,.18f),Mathf.Sin(along*1.2f+variant)*.55f+shape.Range(-.35f,.35f));
-                            var tint=Colors[layer].Lightened(shape.Range(0,.055f));
-                            art.Sphere(at,new(radius*1.25f,radius*.40f,radius),tint);
-                        }
-                        mesh=art.Mesh(DioramaSurface.Material);meshes[(layer,variant)]=mesh;
+                        material=new ShaderMaterial { Shader=GD.Load<Shader>("res://source/presentation/cloud-surface.gdshader") };
+                        material.SetShaderParameter("distance_haze",layer==0?.78f:layer==1?.48f:.08f);
+                        materials[layer]=material;
                     }
-                    root=new Node3D();root.AddChild(new MeshInstance3D { Mesh=mesh,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off });
+                    root=new Node3D();root.AddChild(new MeshInstance3D { Mesh=mesh,MaterialOverride=material,CastShadow=GeometryInstance3D.ShadowCastingSetting.Off });
                     AddChild(root);clouds[key]=root;
                 }
                 var world=position+camera*(1-factor)+drift;

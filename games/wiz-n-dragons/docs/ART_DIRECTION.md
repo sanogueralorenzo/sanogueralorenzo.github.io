@@ -7,3 +7,5 @@ The sky is open in every direction. Clouds are decorative, never terrain. Three 
 All gameplay art is procedural C#/Godot geometry and shaders. Generated concept images are visual references, not runtime assets.
 
 Background atmosphere uses warped, multi-octave cloud banks, directional highlights and three independently scrolling shader layers. Sculpted clouds are sparse, tapered banks with small edge curls rather than dense piles of spheres. Keep the central flight space readable; use restrained contrasts without flashing lightning.
+
+Sculpted clouds use continuous implicit surfaces with joined billows, raised crowns and tapered curling ends. A dedicated matte shader paints pearl highlights over blue-violet undersides, with stronger atmospheric haze on deeper layers. Eight geometry variants are shared across all three layers. Avoid visible sphere intersections, glossy highlights and busy texture noise.

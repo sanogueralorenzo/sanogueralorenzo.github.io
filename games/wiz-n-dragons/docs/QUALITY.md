@@ -21,3 +21,7 @@ Base speeds increased to 305 / 245 / 285 for Ember / Warden / Arcanist (roughly 
 ## Background refinement
 
 Added warped cloud-bank shading, directional highlights and three rates of background parallax. Reduced sculpted-cloud density and changed their silhouettes to tapered banks. Debug and Release builds passed; a brief native Forward+ launch compiled and rendered the shader without reported errors. No extended visual or performance pass was run for this refinement.
+
+## Storybook clouds
+
+Debug and Release builds passed. A brief native Forward+ check inspected the joined cloud surfaces, pearl highlights and atmospheric depth behind menus and during normal-speed flight. Saved [cloud appearance](../evidence/storybook-clouds.png) with paired telemetry. No shader/runtime errors were observed. Mesh variants are cached and shared across layers; generation latency and extended-travel performance were not benchmarked.
