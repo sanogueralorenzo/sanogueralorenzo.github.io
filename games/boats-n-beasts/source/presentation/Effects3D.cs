@@ -244,7 +244,7 @@ public partial class Effects3D : Node3D
         {
             if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Value*.01f});
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"catch" or "treasure" or "salvage" or "silver"=>6,"boostStart"=>9,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"catch" or "treasure" or "silver"=>6,"boostStart"=>9,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
@@ -304,7 +304,7 @@ public partial class Effects3D : Node3D
         livePlaces.Clear();
         foreach(var p in v.World.Places)
         {
-            if(p.Kind is not (PlaceKind.Fishing or PlaceKind.Treasure or PlaceKind.Wreck)) continue;
+            if(p.Kind is not (PlaceKind.Fishing or PlaceKind.Treasure)) continue;
             bool casting=v.Mode==VoyageMode.Fishing && v.FishingPlace?.Id==p.Id;
             if(v.World.Depletion.GetValueOrDefault(p.Id)>0 && !casting) continue;
             if(V2.DistanceSquared(v.Position,p.Position)>1800*1800) continue;
@@ -313,11 +313,10 @@ public partial class Effects3D : Node3D
             {
                 encounter=new() {Root=new Node3D(),Place=p}; AddChild(encounter.Root); encounters[p.Id]=encounter;
                 if(p.Kind==PlaceKind.Treasure) BuildTreasure(encounter.Root);
-                else if(p.Kind==PlaceKind.Wreck) BuildWreck(encounter.Root,p.Style);
                 else BuildFish(encounter);
             }
             encounter.Root.Position=World(p.Position,p.Kind==PlaceKind.Fishing?.02f:.02f+Mathf.Sin(time*1.9f+p.Style%29)*.018f);
-            encounter.Root.Rotation=new(0,p.Kind==PlaceKind.Wreck?.2f:p.Kind==PlaceKind.Treasure?-.15f:0,p.Kind==PlaceKind.Fishing?0:Mathf.Sin(time*1.6f+p.Style%11)*.022f);
+            encounter.Root.Rotation=new(0,p.Kind==PlaceKind.Treasure?-.15f:0,p.Kind==PlaceKind.Fishing?0:Mathf.Sin(time*1.6f+p.Style%11)*.022f);
             if(p.Kind==PlaceKind.Fishing)
             {
                 float phase=p.Style%19;
@@ -378,29 +377,6 @@ public partial class Effects3D : Node3D
             }
         }
         return st.Commit();
-    }
-    void BuildWreck(Node3D root,uint style)
-    {
-        var rng=new SeedRandom(style);
-        for(int i=0;i<7;i++)
-        {
-            float z=(i-3)*.115f; float length=.85f*(1-Mathf.Abs(i-3)*.1f);
-            EffectsGeometry.Part(root,box,i%2==0?wood:woodDark,new(rng.Range(-.1f,.08f),.028f,z),new(length,.065f,.093f),new(rng.Range(-.08f,.08f),rng.Range(-.12f,.12f),-.07f));
-        }
-        for(int i=0;i<5;i++)
-        {
-            float x=(i-2)*.17f;
-            EffectsGeometry.Part(root,box,woodDark,new(x,.11f,-.32f+Mathf.Abs(i-2)*.06f),new(.055f,.22f,.07f),new(-.2f,0,.12f));
-            EffectsGeometry.Part(root,box,wood,new(x+.025f,.065f,.32f-Mathf.Abs(i-2)*.05f),new(.06f,.14f,.08f),new(.35f,0,.15f));
-        }
-        EffectsGeometry.Part(root,box,woodDark,new(.035f,.42f,-.025f),new(.05f,.86f,.055f),new(.06f,0,-.2f));
-        // Torn cloth has physical thickness and folds, with an irregular missing corner.
-        var cloth=new SurfaceTool(); cloth.Begin(Mesh.PrimitiveType.Triangles);
-        Vector3[] vertices=[new(.13f,.8f,-.035f),new(.5f,.45f,.015f),new(.33f,.47f,.055f),new(.34f,.23f,.08f),new(.06f,.32f,-.025f)];
-        for(int i=1;i<vertices.Length-1;i++) {cloth.AddVertex(vertices[0]);cloth.AddVertex(vertices[i]);cloth.AddVertex(vertices[i+1]);}
-        cloth.GenerateNormals();
-        var clothMaterial=EffectsGeometry.Matte("bdbba2");clothMaterial.CullMode=BaseMaterial3D.CullModeEnum.Disabled;
-        EffectsGeometry.Part(root,cloth.Commit(),clothMaterial,Vector3.Zero,Vector3.One);
     }
     void BuildFish(Encounter e)
     {

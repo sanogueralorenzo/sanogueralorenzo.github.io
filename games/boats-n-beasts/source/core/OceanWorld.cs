@@ -16,7 +16,7 @@ public struct SeedRandom
     }
 }
 public readonly record struct ChunkKey(int X, int Y);
-public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current, Wreck }
+public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current }
 public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style)
 {
     IslandShape? shape;
@@ -132,12 +132,6 @@ public sealed class OceanWorld(uint seed)
         }
         if(rng.Unit()<.55f && TryPosition(90,out var treasure)) Add(PlaceKind.Treasure,treasure,22);
         if(rng.Unit()<.35f && TryPosition(150,out var current)) Add(PlaceKind.Current,current,245);
-        if(rng.Unit()<.24f && TryPosition(175,out var wreck))
-        {
-            Add(PlaceKind.Wreck,wreck,65);
-            Add(PlaceKind.Rock,wreck+new Vector2(-110,-55),32);
-            Add(PlaceKind.Rock,wreck+new Vector2(110,55),34);
-        }
     }
     public static bool IsSolid(Place place) => place.Kind is PlaceKind.Island or PlaceKind.Rock or PlaceKind.Harbor;
     public static Vector2 FlowDirection(Place current)

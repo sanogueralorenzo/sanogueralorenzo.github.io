@@ -1,5 +1,16 @@
 # Native gameplay evidence
 
+## Remove repetitive salvage encounters — 2026-09-09
+
+Unedited native captures from ×1 Cutter voyage seed `1701921431`, with matching TXT telemetry:
+
+- [Home](no-wreck-home.png): treasure and fishing remain; the wreck and its two rocks are absent.
+- [Treasure collected](no-wreck-treasure.png): 38 gold, two kills and exactly one collected chest.
+- [Former wreck site](no-wreck-passage.png): open water, full hull, 44 gold and eight kills; no salvage reward.
+- [Fishing after returning](no-wreck-fishing.png): normal fishing UI, treasure still depleted, 25 loaded chunks.
+
+[Runtime log](no-wreck-runtime.txt). [QUALITY.md](../docs/QUALITY.md) records the checks and limits.
+
 ## Gradual 20–25 minute progression — 2026-09-09
 
 Final native Cutter voyage, seed `3937392081`, reaches victory at **22:11**. Captures have paired TXT telemetry. Most of the run uses the built-in ×3 control, returning to ×1 before the boss; no gameplay state is injected.

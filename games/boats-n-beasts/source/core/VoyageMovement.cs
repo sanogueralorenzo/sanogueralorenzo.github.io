@@ -7,7 +7,6 @@ public sealed partial class Voyage
     public Vector2 CurrentFlow { get; private set; }
     public int BoostStarts { get; private set; }
     public int TreasureCollected { get; private set; }
-    public int WrecksSalvaged { get; private set; }
     public float CurrentRideTime { get; private set; }
 
     bool UpdateMovement(float dt, SailInput input)
@@ -50,13 +49,13 @@ public sealed partial class Voyage
     {
         foreach (var place in World.Places)
         {
-            if (place.Kind is not (PlaceKind.Treasure or PlaceKind.Wreck) || World.Depletion.ContainsKey(place.Id)) continue;
-            if (Vector2.Distance(Position, place.Position) > (place.Kind == PlaceKind.Wreck ? 85 : 65)) continue;
+            if (place.Kind != PlaceKind.Treasure || World.Depletion.ContainsKey(place.Id)) continue;
+            if (Vector2.Distance(Position, place.Position) > 65) continue;
             World.Depletion[place.Id] = 1;
-            int gold = place.Kind == PlaceKind.Treasure ? 12 + (int)(place.Style % 9) : 35 + (int)(place.Style % 21);
+            int gold = 12 + (int)(place.Style % 9);
             Coins += gold;
-            if (place.Kind == PlaceKind.Treasure) TreasureCollected++; else WrecksSalvaged++;
-            Events.Add(new(place.Kind == PlaceKind.Treasure ? "treasure" : "salvage", place.Position, gold));
+            TreasureCollected++;
+            Events.Add(new("treasure", place.Position, gold));
         }
     }
 }

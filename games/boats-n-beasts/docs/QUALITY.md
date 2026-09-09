@@ -1,5 +1,13 @@
 # Quality and verification
 
+## Remove repetitive salvage encounters — 2026-09-09
+
+Removed wreck generation, its two framing rocks, salvage rewards/counters, wreck geometry, chart icons and the repeated notification. The home wreck and its left/lower rocks are removed too. Treasure, fishing, currents, ordinary shore rocks and harbors remain. Offshore treasure/current generation precedes the removed block, retaining the same random sequence. The handbook and README now describe treasure alone.
+
+Debug and Release pass with zero warnings/errors; import and native runtime logs are clean. Actual ×1 Cutter play, seed `1701921431`, collects the home chest and sails through the former wreck site at `(-222.521,147.373)`, then returns past the chest to fish. At 20.4 seconds, 38 gold equals the starting 20 plus 16 treasure and two kills; at the former wreck site, 44 gold equals 20 plus 16 plus eight kills, with no salvage reward. Treasure remains at one collected and `home:treasure=1` on the return. Fishing opens normally at 84.2 seconds with full hull, 13 kills and 25 loaded chunks. Native images show clear water at the former wreck/rock pair and the retained school, harbor and chart.
+
+This focused check covers home sailing, treasure depletion and fishing UI. Offshore removal was reviewed in the generator; no distant unload/revisit or full-length balance replay was performed. Removing salvage reduces available exploration gold; other reward amounts are unchanged. No automated tests or injected gameplay state. [Native evidence](../evidence/README.md).
+
 ## Gradual 20–25 minute progression — 2026-09-09
 
 Combat now follows active voyage time instead of distance. Crownclaw becomes eligible at 22:00. Regular population ceilings interpolate through 3/10/20/34/50/64 at 0/5/10/15/20/25 minutes, with base spawn credits 0.18/0.45/1.2/2.4/3.6/4.8 per second. Smooth minute-long swells modulate the rate between 50% and 100%. Only one enemy can spawn per update, at least 0.2 seconds apart, and credit storage is capped at one to prevent delayed bursts. Boss escorts retain their eight-enemy ceiling and reduced replenishment.
