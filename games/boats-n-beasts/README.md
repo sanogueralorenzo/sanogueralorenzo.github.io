@@ -55,4 +55,4 @@ Rare beach chests award 35–55 gold and are collected from the water. Sparse fl
 
 Geography depends only on seed and coordinates, independently of travel order. Keep depletion outside chunk data, randomness separate by subsystem, placement attempts bounded, and active streaming at 5×5 chunks. Preserve neighbor clearance when changing island sizes.
 
-See [art direction](docs/ART_DIRECTION.md), [verification](docs/QUALITY.md), [evidence](evidence/README.md), and [research provenance](docs/RESEARCH.md).
+See [art direction](docs/ART_DIRECTION.md) and [verification, evidence and provenance](docs/QUALITY.md).

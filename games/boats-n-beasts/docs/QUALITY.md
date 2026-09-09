@@ -4,7 +4,7 @@
 
 Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For behavior or visual changes, launch with `./run.command` and use ordinary controls. Do not create automated tests, inject game state, or substitute an art sample for gameplay verification.
 
-Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, fishing, progression and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Keep selected evidence in the [index](../evidence/README.md); update the baseline and gaps below.
+Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, fishing, progression and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
 ## Verified baseline — 2026-09-09
 
@@ -21,3 +21,27 @@ The final reward route sampled 12.05 ms mean frame time and 18.75 ms p99. This i
 ## Coverage gaps
 
 No exhaustive seed/family sweep, all-boat pickup check, maximum-crowd stress run or full 22-minute economy replay after the reward changes. One winning build does not establish balance across boats and upgrades. Placement percentages are candidate configuration, not measured encounter frequency. Long endless play and lower-end hardware remain unverified.
+
+## Evidence
+
+PNG files are unedited native captures; matching TXT files contain telemetry. Older captures may show superseded behavior.
+
+| Evidence | Coverage |
+| --- | --- |
+| [Home](../evidence/sparse-rewards-home.png), [chest](../evidence/sparse-rewards-chest.png), [collected](../evidence/sparse-rewards-chest-collected.png) | Final reward art and beach access |
+| [Barrel](../evidence/sparse-rewards-barrel.png), [collected](../evidence/sparse-rewards-barrel-collected.png) | Sparse contact pickup |
+| [Unloaded](../evidence/sparse-rewards-unloaded.png), [revisit](../evidence/sparse-rewards-revisit.png) | Chest depletion survives streaming |
+| [Giant chest](../evidence/sparse-rewards-giant-before-trim.png), [collected](../evidence/sparse-rewards-giant-collected.png) | Giant shore access; before final gold trim |
+| [Barrel revisit](../evidence/sparse-rewards-barrel-revisit.png) | Barrel depletion survives streaming |
+| [Reward runtime](../evidence/sparse-rewards-final-runtime.txt), [exploration runtime](../evidence/sparse-rewards-exploration-runtime.txt) | Complete reward sessions |
+| [Progression runtime](../evidence/gradual-runtime.txt) | Gradual buildup and 22:11 victory; mostly ×3 play |
+
+For older checks, find captures by prefix: `gradual-` (pacing), `puffer-` (fuse/explosion), `giant-` (islands), `diorama-` (native presentation and flows). Read telemetry alongside screenshots; a still image cannot establish motion or timing.
+
+## Research provenance
+
+Code and art are original; no proprietary code or assets are imported. These findings describe inspected versions only.
+
+- **Sno:** informed deterministic randomness, bounded placement, clearance and chunk ownership; implementation is independent.
+- **Megabonk:** partial [spawning disassembly](megabonk-spawning-disassembly.txt) informed separate spawn income and population targets. [Silver inspection](megabonk-silver-disassembly.txt) established a time gate; initial setup and other reward paths remain unresolved. Our balance and random 45–90-second silver interval are custom.
+- **Nova Drift:** demo descriptions informed readable combinations and combat. No implementation or tuning was recovered; our progression uses simple weapon/stat choices.
