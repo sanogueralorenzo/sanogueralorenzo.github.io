@@ -16,8 +16,8 @@ public struct SeedRandom
     }
 }
 public readonly record struct ChunkKey(int X, int Y);
-public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current }
-public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style)
+public enum PlaceKind { Island, Rock, Harbor, Fishing, Treasure, Current, Barrel }
+public sealed record Place(string Id, PlaceKind Kind, Vector2 Position, float Radius, uint Style, float Heading = 0)
 {
     IslandShape? shape;
     public IslandShape? Shape => Kind == PlaceKind.Island ? shape ??= new(Radius, Style) : null;
@@ -30,6 +30,9 @@ public sealed class OceanWorld(uint seed)
 {
     public const int ChunkSize = 1200;
     public const float MaxIslandRadius = 720;
+    public const float IslandTreasureChance = .15f;
+    public const float BarrelChance = .20f;
+    public const float BarrelSpacing = 900;
     public uint Seed { get; } = seed;
     public Dictionary<ChunkKey, OceanChunk> Loaded { get; } = new();
     public Dictionary<string, int> Depletion { get; } = new();
@@ -79,15 +82,72 @@ public sealed class OceanWorld(uint seed)
         }
         yield return land;
         if (land.Kind == PlaceKind.Harbor) yield break;
+        foreach (var rock in ShoreRocks(land)) yield return rock;
+    }
+    static IEnumerable<Place> ShoreRocks(Place land)
+    {
         var rng = new SeedRandom(land.Style);
         float angle = rng.Range(0, MathF.Tau);
         for (int rock = 0; rock < 2; rock++)
         {
             float a = angle + rock * .42f;
-            yield return new($"{key.X}:{key.Y}:shore:{rock}", PlaceKind.Rock,
+            yield return new(land.Id.Replace(":land", $":shore:{rock}"), PlaceKind.Rock,
                 land.Position + land.Shape!.Point(a) * 1.04f + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 85,
                 rng.Range(24, 35), rng.Next());
         }
+    }
+    // The same shore anchor reserves a clear patch in the procedural island art.
+    public static Place? IslandTreasure(Place island)
+    {
+        if (island.Kind != PlaceKind.Island || island.Id.StartsWith("home:")) return null;
+        var rng = new SeedRandom(island.Style ^ 0x4ba173u);
+        if (rng.Unit() >= IslandTreasureChance) return null;
+        var shape = island.Shape!;
+        var rocks = ShoreRocks(island).ToArray();
+        int start = rng.Index(IslandShape.Sides);
+        for (int attempt = 0; attempt < 32; attempt++)
+        {
+            int side = (start + attempt * 6) % IslandShape.Sides;
+            var a = shape.Shore[side]; var b = shape.Shore[(side + 1) % IslandShape.Sides];
+            var normal = Unit(new Vector2(b.Y - a.Y, a.X - b.X));
+            var coast = (a + b) * .5f;
+            var chest = coast - normal * 22;
+            var approach = coast + normal * 100;
+            // Keep the chest on land and an entire boat clear of concave shores/rocks.
+            if (!shape.Overlap(chest, 0, out _, out float depth) || depth < 18 ||
+                shape.Overlap(approach, 75, out _, out _) ||
+                shape.Overlap(coast + normal * 200, 75, out _, out _) ||
+                rocks.Any(p => Vector2.Distance(p.Position, island.Position + approach) < p.Radius + 85 ||
+                    Vector2.Distance(p.Position, island.Position + chest) < p.Radius + 45)) continue;
+            return new(island.Id + ":treasure", PlaceKind.Treasure, island.Position + chest, 22,
+                rng.Next(), MathF.Atan2(normal.X, normal.Y));
+        }
+        return null;
+    }
+    Place? BarrelCandidate(ChunkKey key)
+    {
+        if (StartingArea.Contains(key)) return null;
+        uint column = SeedRandom.Hash(Seed, key.X, 0, 521);
+        var rng = new SeedRandom(SeedRandom.Hash(column, 0, key.Y, 907));
+        if (rng.Unit() >= BarrelChance) return null;
+        return new($"{key.X}:{key.Y}:barrel", PlaceKind.Barrel,
+            new Vector2(key.X * ChunkSize + rng.Range(-450, 450), key.Y * ChunkSize + rng.Range(-450, 450)),
+            23, rng.Next());
+    }
+    void AddBarrel(ChunkKey key, List<Place> places, IReadOnlyList<Place> solids)
+    {
+        var barrel = BarrelCandidate(key);
+        if (barrel == null || solids.Any(p => Vector2.Distance(p.Position, barrel.Position) < p.Radius * 1.04f + 180) ||
+            places.Any(p => Vector2.Distance(p.Position, barrel.Position) < p.Radius + 150)) return;
+        // Neighbor candidates determine spacing even when their chunks are unloaded.
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
+        {
+            if (x == 0 && y == 0) continue;
+            var other = BarrelCandidate(new(key.X + x, key.Y + y));
+            if (other != null && Vector2.DistanceSquared(other.Position, barrel.Position) < BarrelSpacing * BarrelSpacing &&
+                (other.Style < barrel.Style || (other.Style == barrel.Style && (y < 0 || (y == 0 && x < 0))))) return;
+        }
+        places.Add(barrel);
     }
     public OceanChunk Generate(ChunkKey key)
     {
@@ -111,7 +171,10 @@ public sealed class OceanWorld(uint seed)
             places.Add(new($"{key.X}:{key.Y}:fishing", PlaceKind.Fishing, p, 76, rng.Next()));
             break;
         }
+        var island = places.FirstOrDefault(p => p.Kind == PlaceKind.Island);
+        if (island != null && IslandTreasure(island) is { } treasure) places.Add(treasure);
         AddEncounters(key, places, nearbySolids);
+        AddBarrel(key, places, nearbySolids);
         return new(key, places.ToArray());
     }
     void AddEncounters(ChunkKey key, List<Place> places, IReadOnlyList<Place> nearbySolids)
@@ -130,7 +193,6 @@ public sealed class OceanWorld(uint seed)
             }
             position=default; return false;
         }
-        if(rng.Unit()<.55f && TryPosition(90,out var treasure)) Add(PlaceKind.Treasure,treasure,22);
         if(rng.Unit()<.35f && TryPosition(150,out var current)) Add(PlaceKind.Current,current,245);
     }
     public static bool IsSolid(Place place) => place.Kind is PlaceKind.Island or PlaceKind.Rock or PlaceKind.Harbor;

@@ -13,7 +13,6 @@ public static class StartingArea
         new("home:island", PlaceKind.Island, new(990, 275), 125, 921),
         new("home:upper-rock", PlaceKind.Rock, new(1050, -625), 40, 73),
         new("home:school", PlaceKind.Fishing, new(-260, -180), 76, 3819),
-        new("home:treasure", PlaceKind.Treasure, new(-240, -15), 22, 31),
         new("home:current", PlaceKind.Current, new(1250, -160), 245, 0)
     ]);
     public static bool Contains(ChunkKey key) => Math.Abs(key.X) <= 1 && Math.Abs(key.Y) <= 1;

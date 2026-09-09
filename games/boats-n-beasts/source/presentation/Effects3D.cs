@@ -20,8 +20,9 @@ public partial class Effects3D : Node3D
     readonly RandomNumberGenerator random = new() { Seed = 3819 };
     EffectsGeometry foam = null!, solid = null!;
     MultiMesh balls = null!;
-    Mesh box = null!, sphere = null!, fishMesh = null!;
-    StandardMaterial3D wood = null!, woodDark = null!, brass = null!, iron = null!;
+    Mesh box = null!, sphere = null!, fishMesh = null!, barrelMesh = null!;
+    StandardMaterial3D barrelMaterial = null!;
+    StandardMaterial3D wood = null!, woodDark = null!, brass = null!;
     ShaderMaterial fish = null!;
     float time, sampleClock;
     int ballCount;
@@ -45,9 +46,11 @@ public partial class Effects3D : Node3D
         sphere = new SphereMesh { Radius = .5f, Height = 1, RadialSegments = 12, Rings = 6 };
         balls = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseColors = true, Mesh = sphere, InstanceCount = 1024, VisibleInstanceCount = 0 };
         AddChild(new MultiMeshInstance3D { Multimesh = balls, MaterialOverride = new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .82f }, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
-        wood = EffectsGeometry.Matte("986039"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("c5a464"); iron = EffectsGeometry.Matte("899389");
+        wood = EffectsGeometry.Matte("986039"); woodDark = EffectsGeometry.Matte("65452f"); brass = EffectsGeometry.Matte("d9ad55");
         fish = new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EffectsFish.gdshader") };
         fishMesh = BuildFishMesh();
+        barrelMesh = BuildBarrelMesh();
+        barrelMaterial = new() { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = .9f };
     }
     public void Reset()
     {
@@ -240,11 +243,13 @@ public partial class Effects3D : Node3D
     }
     public void Effect(GameEvent ev)
     {
+        if (ev.Kind == "barrel" && bursts.Count < 192)
+            bursts.Add(new() { Kind = "barrel", P = World(ev.Position, .06f), Life = .55f });
         if(ev.Kind is "arc" or "pull" or "aura" or "bulwark" or "explosion" or "calm" or "pufferExplosion" or "bossExplosion")
         {
             if(bursts.Count<192) bursts.Add(new() {Kind=ev.Kind,P=World(ev.Position,ev.Kind is "arc" or "pull"?.3f:.05f),End=World(ev.End,.3f),Life=ev.Kind is "arc" or "pull"?.2f:ev.Kind=="calm"?1.3f:ev.Kind is "pufferExplosion" or "bossExplosion"?.6f:.48f,Size=ev.Value*.01f});
         }
-        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"catch" or "treasure" or "silver"=>6,"boostStart"=>9,_=>0};
+        int count=ev.Kind switch {"hit"=>2,"kill"=>7,"explosion"=>15,"hurt"=>5,"shot"=>3,"ricochet"=>4,"barrel"=>3,"catch" or "treasure" or "silver"=>6,"boostStart"=>9,_=>0};
         for(int i=0;i<count && sparks.Count<512;i++)
         {
             float a=random.RandfRange(0,Mathf.Tau), speed=random.RandfRange(.25f,ev.Kind=="explosion"?2.5f:1.2f);
@@ -254,6 +259,21 @@ public partial class Effects3D : Node3D
     void DrawBurst(Burst b)
     {
         float t=b.Age/b.Life, alpha=1-t;
+        if (b.Kind == "barrel")
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = i * Mathf.Tau / 6 + .3f;
+                var direction = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                var p = b.P + direction * (.15f + t * .42f) + Vector3.Up * Mathf.Sin(t * Mathf.Pi) * .25f;
+                var edge = new Vector3(-direction.Z, .6f, direction.X) * .04f * alpha;
+                var tip = direction * .11f * alpha;
+                solid.Triangle(p - edge - tip, p + edge - tip, p + edge + tip, new Color("986039"));
+                solid.Triangle(p - edge - tip, p + edge + tip, p - edge + tip, new Color("986039"));
+            }
+            foam.Arc(b.P, .28f + t * .48f, .3f, 4.8f, .02f, Fade(Foam, alpha * .45f));
+            return;
+        }
         if (b.Kind is "pufferExplosion" or "bossExplosion")
         {
             // Actual blast: a filled faceted upper hemisphere, never an aiming line.
@@ -304,7 +324,7 @@ public partial class Effects3D : Node3D
         livePlaces.Clear();
         foreach(var p in v.World.Places)
         {
-            if(p.Kind is not (PlaceKind.Fishing or PlaceKind.Treasure)) continue;
+            if(p.Kind is not (PlaceKind.Fishing or PlaceKind.Treasure or PlaceKind.Barrel)) continue;
             bool casting=v.Mode==VoyageMode.Fishing && v.FishingPlace?.Id==p.Id;
             if(v.World.Depletion.GetValueOrDefault(p.Id)>0 && !casting) continue;
             if(V2.DistanceSquared(v.Position,p.Position)>1800*1800) continue;
@@ -313,10 +333,13 @@ public partial class Effects3D : Node3D
             {
                 encounter=new() {Root=new Node3D(),Place=p}; AddChild(encounter.Root); encounters[p.Id]=encounter;
                 if(p.Kind==PlaceKind.Treasure) BuildTreasure(encounter.Root);
+                else if(p.Kind==PlaceKind.Barrel) EffectsGeometry.Part(encounter.Root, barrelMesh, barrelMaterial, Vector3.Zero, Vector3.One);
                 else BuildFish(encounter);
             }
-            encounter.Root.Position=World(p.Position,p.Kind==PlaceKind.Fishing?.02f:.02f+Mathf.Sin(time*1.9f+p.Style%29)*.018f);
-            encounter.Root.Rotation=new(0,p.Kind==PlaceKind.Treasure?-.15f:0,p.Kind==PlaceKind.Fishing?0:Mathf.Sin(time*1.6f+p.Style%11)*.022f);
+            encounter.Root.Position=World(p.Position,p.Kind==PlaceKind.Barrel?.045f+Mathf.Sin(time*1.9f+p.Style%29)*.018f:p.Kind==PlaceKind.Treasure?.055f:.02f);
+            encounter.Root.Rotation=p.Kind==PlaceKind.Barrel
+                ? new(.08f, p.Style % 360 * Mathf.Pi / 180, Mathf.Sin(time*1.6f+p.Style%11)*.045f)
+                : new(0, p.Kind==PlaceKind.Treasure?p.Heading:0, 0);
             if(p.Kind==PlaceKind.Fishing)
             {
                 float phase=p.Style%19;
@@ -339,23 +362,56 @@ public partial class Effects3D : Node3D
         {
             foreach(float z in new[]{-.201f,.201f}) EffectsGeometry.Part(root,box,wood,new(0,.062f+i*.078f,z),new(.52f,.067f,.024f));
         }
-        // A closed continuous half-cylinder gives the lid a real barrel silhouette at gameplay scale.
+        // A continuous arched lid and gold frame distinguish the chest from floating barrels.
         EffectsGeometry.Part(root,ChestArch(.54f,.204f,true),woodDark,new(0,.27f,0),Vector3.One);
         const int slats=9;
         for(int i=0;i<slats;i++)
             EffectsGeometry.Part(root,ChestArch(.536f,.208f,false,-Mathf.Pi*.5f+i*Mathf.Pi/slats+.008f,Mathf.Pi/slats-.016f),wood,new(0,.27f,0),Vector3.One);
         foreach(float x in new[]{-.18f,.18f})
         {
-            EffectsGeometry.Part(root,ChestArch(.04f,.219f,false),iron,new(x,.27f,0),Vector3.One);
+            EffectsGeometry.Part(root,ChestArch(.04f,.219f,false),brass,new(x,.27f,0),Vector3.One);
             foreach(float z in new[]{-.219f,.219f})
             {
-                EffectsGeometry.Part(root,box,iron,new(x,.14f,z),new(.041f,.26f,.025f));
+                EffectsGeometry.Part(root,box,brass,new(x,.14f,z),new(.041f,.26f,.025f));
                 foreach(float y in new[]{.07f,.205f}) EffectsGeometry.Part(root,sphere,brass,new(x,y,z+Mathf.Sign(z)*.016f),new(.022f,.022f,.016f));
             }
         }
-        EffectsGeometry.Part(root,box,iron,new(0,.278f,.222f),new(.075f,.115f,.03f));
+        foreach (float z in new[] { -.216f, .216f })
+            EffectsGeometry.Part(root,box,brass,new(0,.265f,z),new(.54f,.04f,.027f));
+        EffectsGeometry.Part(root,box,brass,new(0,.278f,.222f),new(.075f,.115f,.03f));
         EffectsGeometry.Part(root,box,brass,new(0,.239f,.246f),new(.062f,.074f,.03f));
         EffectsGeometry.Part(root,sphere,woodDark,new(0,.24f,.266f),new(.014f,.025f,.007f));
+    }
+    static ArrayMesh BuildBarrelMesh()
+    {
+        var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);
+        void Triangle(Vector3 a, Vector3 b, Vector3 c, Color color)
+        {
+            var normal = (b-a).Cross(c-a).Normalized();
+            st.SetColor(color); st.SetNormal(normal);
+            st.AddVertex(a); st.AddVertex(c); st.AddVertex(b);
+        }
+        Vector3 Point(float x, float r, float angle) => new(x, Mathf.Cos(angle)*r, Mathf.Sin(angle)*r);
+        void Strip(float x0, float x1, float r0, float r1, bool metal)
+        {
+            for (int i=0;i<12;i++)
+            {
+                float a=i*Mathf.Tau/12+(metal?0:.012f), b=(i+1)*Mathf.Tau/12-(metal?0:.012f);
+                var p=Point(x0,r0,a); var q=Point(x1,r1,a); var r=Point(x1,r1,b); var s=Point(x0,r0,b);
+                var color=metal?new Color("586268"):new Color(i%3==0?"ad7545":"966039");
+                Triangle(p,s,r,color); Triangle(p,r,q,color);
+            }
+        }
+        float[] xs=[-.31f,-.23f,0,.23f,.31f], radii=[.185f,.225f,.24f,.225f,.185f];
+        for(int i=0;i<4;i++) Strip(xs[i],xs[i+1],radii[i],radii[i+1],false);
+        Strip(-.25f,-.20f,.226f,.237f,true); Strip(.20f,.25f,.237f,.226f,true);
+        for(int end=-1;end<=1;end+=2) for(int i=0;i<12;i++)
+        {
+            var a=Point(end*.312f,.182f,i*Mathf.Tau/12); var b=Point(end*.312f,.182f,(i+1)*Mathf.Tau/12);
+            if(end>0) Triangle(new(end*.312f,0,0),a,b,new Color("795234"));
+            else Triangle(new(end*.312f,0,0),b,a,new Color("795234"));
+        }
+        return st.Commit();
     }
     static ArrayMesh ChestArch(float length,float radius,bool caps,float start=-Mathf.Pi*.5f,float sweep=Mathf.Pi)
     {
@@ -417,7 +473,16 @@ public partial class Effects3D : Node3D
         foreach(var e in encounters.Values)
         {
             if(e.Place.Kind==PlaceKind.Fishing) continue;
-            var p=World(e.Place.Position,.034f);float radius=e.Place.Kind==PlaceKind.Treasure?.26f:.51f;
+            if (e.Place.Kind==PlaceKind.Treasure)
+            {
+                float gleam=Mathf.Pow(Mathf.Max(0,Mathf.Sin(time*1.5f+e.Place.Style%13)),10);
+                var center=World(e.Place.Position,.64f);
+                var color=Fade(Cream,gleam*.75f);
+                foam.Ribbon(center-Vector3.Right*.10f,center+Vector3.Right*.10f,.012f,.012f,color);
+                foam.Ribbon(center-Vector3.Back*.10f,center+Vector3.Back*.10f,.012f,.012f,color);
+                continue;
+            }
+            var p=World(e.Place.Position,.034f);float radius=.32f;
             foam.Arc(p,radius,time*.3f+e.Place.Style%13,.95f,.009f,Fade(Foam,.24f));
             foam.Arc(p,radius*1.1f,time*.3f+e.Place.Style%13+3.2f,.65f,.008f,Fade(Foam,.2f));
         }

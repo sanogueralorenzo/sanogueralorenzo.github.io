@@ -25,6 +25,8 @@ public static class EnvironmentArt3D
             Land(art, r, place.Style, false, place.Shape);
             art.Footprint = place.Shape;
             art.HeightScale = place.Shape == null ? 1 : MathF.Min(1, 2.1f / r) * .78f;
+            if (OceanWorld.IslandTreasure(place) is { } treasure)
+                art.TreasureSpace = (treasure.Position - place.Position) * .01f;
             if (place.Kind == PlaceKind.Harbor)
             {
                 AddCottage(art, new(-r * .15f, .18f, -r * .06f), r * .67f, -.20f);
@@ -376,7 +378,9 @@ public static class EnvironmentArt3D
         // Nested details inherit their parent's transform, preserving masonry and leaves.
         public IslandShape? Footprint;
         public float HeightScale = 1;
+        public System.Numerics.Vector2? TreasureSpace;
         private int propDepth;
+        private int hiddenPropDepth;
         public Transform3D PlaceProp(Vector3 at, float footprintRadius, bool canopy = false)
         {
             var old = Transform;
@@ -388,12 +392,18 @@ public static class EnvironmentArt3D
                 scale = HeightScale;
                 if (!canopy && Footprint.Overlap(p, 0, out _, out float clearance))
                     scale = MathF.Min(scale, clearance * .009f / footprintRadius);
+                if (TreasureSpace is { } beach && System.Numerics.Vector2.Distance(p * .01f, beach) < footprintRadius * scale + .48f)
+                    hiddenPropDepth = propDepth + 1;
             }
             Transform *= new Transform3D(Basis.Identity.Scaled(Vector3.One * scale), at);
             propDepth++;
             return old;
         }
-        public void EndProp(Transform3D old) { Transform = old; propDepth--; }
+        public void EndProp(Transform3D old)
+        {
+            if (hiddenPropDepth == propDepth) hiddenPropDepth = 0;
+            Transform = old; propDepth--;
+        }
         private Vector3 Placed(Vector3 local)
         {
             var p = Transform * local;
@@ -411,6 +421,7 @@ public static class EnvironmentArt3D
         public void Triangle(Vector3 a, Vector3 b, Vector3 c, Color ca, Color cb, Color cc, Vector3 na, Vector3 nb, Vector3 nc, string key = "matte",
             Vector2? ua = null, Vector2? ub = null, Vector2? uc = null)
         {
+            if (hiddenPropDepth > 0) return;
             Vector3 cross = (b - a).Cross(c - a);
             if (cross.LengthSquared() < 1e-14f) return;
             if (cross.Dot(na + nb + nc) < 0) { (b, c) = (c, b); (nb, nc) = (nc, nb); (cb, cc) = (cc, cb); (ub, uc) = (uc, ub); }

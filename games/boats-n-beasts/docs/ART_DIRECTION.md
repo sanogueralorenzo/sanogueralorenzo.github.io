@@ -10,6 +10,7 @@ The 2026-09-09 [Reef Warden reference](island-reference.png) sets the direction 
 - Matte cream/navy boats with clear silhouettes and visible starter fittings. Gunboat retains its aiming cannon, Aura its teal fitting and radius curls, and Mage its upright violet crystal. Coral crabs, crowned boss, gold puffers, low teal serpents and blue rays retain distinct identities.
 - Flat face shading and restrained bevels; no fine sand flecks or detailed deck seams. Island stones can have chipped faces and masonry inlays. Warm directional light, cool ambient fill and soft contact shadows give depth without glossy effects.
 - Two tapered wake ribbons follow actual movement. Creature direction changes are smoothed, reversals start a new trail, and adjacent bank vertices join continuously. Violet trails and coral enemy shots remain distinct; fish are submerged teal silhouettes without overhead markers.
+- Reward clutter stays low: occasional small wooden barrels with dark hoops float in open water, without chart icons or persistent markers. Rare gold-trimmed chests sit in clear patches at island beach edges, with a subtle glint and a reachable boat approach. Both show only a brief local gold number on collection. The [sparse rewards goal](OCEAN_REWARDS_GOAL.md) records placement and verification.
 - Existing cream text, navy panels and turquoise controls fit this palette. Keep labels legible, offer cards equal and keyboard focus visible. Reference icons/HUD ornaments do not authorize new gameplay or progression features.
 
 ## Shared world and behavior

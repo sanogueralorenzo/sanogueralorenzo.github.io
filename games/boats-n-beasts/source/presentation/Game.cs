@@ -29,6 +29,9 @@ public partial class Game : Node2D
     float elapsed, toastTime, catchNoticeTime;
     string catchNotice = "";
     string toast = "";
+    float lootNoticeTime;
+    string lootNotice = "";
+    V2 lootNoticePosition;
 
 
     public override void _Ready()
@@ -47,6 +50,7 @@ public partial class Game : Node2D
         if (!title && Run.Mode == VoyageMode.Sailing) { frameSamples.Add(delta * 1000); if(frameSamples.Count>7200)frameSamples.RemoveRange(0,3600); performanceClock += (float)delta; peakEnemyCount = Math.Max(peakEnemyCount, Run.Enemies.Count); peakShotCount = Math.Max(peakShotCount, Run.Shots.Count); }
         if (performanceClock-lastPerformanceLog>30) { lastPerformanceLog=performanceClock; var sorted=frameSamples.Order().ToArray(); GD.Print($"LIVE sailingSeconds={performanceClock:0} frameMeanMs={sorted.Average():0.00} p95Ms={sorted[(int)(sorted.Length*.95)]:0.00} chunks={Run.World.Loaded.Count} enemies={Run.Enemies.Count} shots={Run.Shots.Count} distance={Run.Distance:0} hp={Run.Health:0} combatSeconds={Run.CombatTime:0.0} populationTarget={Run.Director.Target(Run.CombatTime)} boss={Run.BossSpawned}"); }
         float dt = (float)Math.Min(delta, .05); elapsed += dt; catchNoticeTime = Math.Max(0, catchNoticeTime - dt); toastTime = Math.Max(0, toastTime - dt);
+        lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
         // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
         for (int step = 0; step < (title ? 1 : gameSpeed); step++)
         {
@@ -69,7 +73,10 @@ public partial class Game : Node2D
                     catchNoticeTime = 2.5f;
                 }
                 if (e.Kind == "silver") Toast("+1 silver");
-                if (e.Kind == "treasure") Toast($"Treasure · +{e.Value:0} gold");
+                if (e.Kind is "treasure" or "barrel")
+                {
+                    lootNotice = $"+{e.Value:0} gold"; lootNoticePosition = e.Position; lootNoticeTime = 1.2f;
+                }
                 if (e.Kind == "bulwark" && !bulwarkExplained) { bulwarkExplained = true; SaveProgress(); Toast("BULWARK · shots cleared, nearby beasts pushed away"); }
                 if (e.Kind == "boss") Toast("THE CROWNCLAW RISES  •  Keep moving.");
                 if (e.Kind == "sold") Toast($"Catch sold · +{e.Value:0} gold");
@@ -118,8 +125,11 @@ public partial class Game : Node2D
         report += $"Camera world={ocean.Camera}; departure seconds={ocean.DepartureTime:R}; menu opacity={(departingMenu != null && GodotObject.IsInstanceValid(departingMenu) ? departingMenu.Modulate.A : title ? 1 : 0):R}\n";
         foreach (var place in Run.World.Places.Where(p => p.Id.StartsWith("home:")).OrderBy(p => p.Id))
             report += $"Home {place.Id}: {place.Kind} position={place.Position} radius={place.Radius} style={place.Style}\n";
-        report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; arcane casts={Run.ArcaneCasts}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
+        report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; barrels={Run.BarrelsBroken}; arcane casts={Run.ArcaneCasts}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
         report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}; fire rate={Run.FireRateMultiplier:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
+        report += $"Loot placement: islands={Run.World.Places.Count(p => p.Kind == PlaceKind.Island)}; chests={Run.World.Places.Count(p => p.Kind == PlaceKind.Treasure)}; barrels={Run.World.Places.Count(p => p.Kind == PlaceKind.Barrel)}; depleted={Run.World.Depletion.Count}; visible encounter cache={ocean.CachedEncounters}\n";
+        foreach (var place in Run.World.Places.Where(p => p.Kind is PlaceKind.Treasure or PlaceKind.Barrel))
+            report += $"Loot {place.Id}: {place.Kind} position={place.Position} style={place.Style} heading={place.Heading:R} depleted={Run.World.Depletion.ContainsKey(place.Id)}\n";
         foreach (var place in Run.World.Places.Where(p => p.Kind is PlaceKind.Island or PlaceKind.Harbor))
             report += $"Landmark {place.Id}: {place.Kind} position={place.Position} radius={place.Radius:R} style={place.Style} profile={place.Shape?.Profile.ToString() ?? "harbor"}\n";
         report += $"Boss bombs thrown={Run.BossBombsThrown}; explosions={Run.BossExplosions}; blast hits={Run.BossBlastHits}\n";
@@ -166,7 +176,7 @@ public partial class Game : Node2D
     }
     void Start()
     {
-        catchNoticeTime = 0;
+        catchNoticeTime = lootNoticeTime = 0;
         creditedSilver = 0; gameSpeed = 1; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
         if (title)
         {
@@ -394,7 +404,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Hold to boost while moving\nE                               Fish at ripples, or dock at a harbor\nSpace / E                 Reel when the marker is in the turquoise band\nEsc                            Pause, leave harbor, or cancel fishing", 19));
         col.AddChild(Label("Your voyage", 25, true, NauticalPalette.Aqua));
-        col.AddChild(Label($"Survive until {SpawnDirector.BossArrivalSeconds / 60:0}:00, then defeat the Crownclaw to win. Aim for a 20–25 minute voyage. Enemy numbers build gradually with time; their swimming speed, health and damage do not increase with time or distance. New species arrive gradually as the voyage continues. Menus pause the clock; fishing keeps it running. You can keep exploring after victory.\n\nLeveling up pauses sailing for a free upgrade; during fishing, the choice waits until the cast ends. Choose one to resume. Catches sell automatically when you dock. Press E near a harbor to pause combat and refit. Monsters can attack you near the dock until you open this menu. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail over floating treasure for gold. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing stops your boat and its automatic attacks while time and monsters keep moving. Aura pulses also wait until the cast ends. Reel or cancel to sail away. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
+        col.AddChild(Label($"Survive until {SpawnDirector.BossArrivalSeconds / 60:0}:00, then defeat the Crownclaw to win. Aim for a 20–25 minute voyage. Enemy numbers build gradually with time; their swimming speed, health and damage do not increase with time or distance. New species arrive gradually as the voyage continues. Menus pause the clock; fishing keeps it running. You can keep exploring after victory.\n\nLeveling up pauses sailing for a free upgrade; during fishing, the choice waits until the cast ends. Choose one to resume. Catches sell automatically when you dock. Press E near a harbor to pause combat and refit. Monsters can attack you near the dock until you open this menu. All boats support ranged, aura and close attacks. Gunboat fires 65% faster while boosting. Mage starts with homing magic. Aura pulses every 6 seconds, clearing nearby shots and pushing foes away. Your boat stays the same for the whole voyage. Sail through occasional floating barrels for 3–6 gold. Rare island beach chests award 35–55 gold when you approach from the water. Follow the turquoise current arrows for a lift. Mines trail behind you; harpoons pull foes into their path. Hover the bottom equipment icons for details. Chart harbors show a cannon for weapons or a shield for boat upgrades; hover one to scout its stock. The arc below your boat shows boost charge, turning coral when you need to release boost.\n\nFishing stops your boat and its automatic attacks while time and monsters keep moving. Aura pulses also wait until the cast ends. Reel or cancel to sail away. The result appears above your boat and sailing resumes immediately. Reel once inside turquoise within 8 seconds. A miss ends the cast. Each school allows one cast, even if cancelled. New voyages reset catches and upgrades.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()
@@ -459,6 +469,14 @@ public partial class Game : Node2D
                 var noticePosition = Game.ocean.Screen(r.Position) + new Vector2(-width / 2, -123 - (2.5f - Game.catchNoticeTime) * 8);
                 DrawStyleBox(Game.Box(new Color(NauticalPalette.Navy, .85f * alpha), 8), new Rect2(noticePosition + new Vector2(-12, -27), new Vector2(width + 24, 38)));
                 Text(noticePosition, Game.catchNotice, 23, color: new Color(NauticalPalette.Cream, alpha));
+            }
+            if (Game.lootNoticeTime > 0 && r.IsActive)
+            {
+                float alpha = Math.Min(1, Game.lootNoticeTime / .4f);
+                float width = BodyFont.GetStringSize(Game.lootNotice, fontSize: 21).X;
+                var at = Game.ocean.Screen(Game.lootNoticePosition) + new Vector2(-width / 2, -35 - (1.2f - Game.lootNoticeTime) * 24);
+                Text(at + Vector2.One, Game.lootNotice, 21, true, new Color(NauticalPalette.Navy, alpha));
+                Text(at, Game.lootNotice, 21, true, new Color(NauticalPalette.Cream, alpha));
             }
             if (r.IsBoosting || r.Boost < 100)
             {
@@ -594,7 +612,7 @@ public partial class Game : Node2D
             Text(center + new Vector2(-5, -64), "N", 13, true, ink);
             foreach (var place in r.World.Places)
             {
-                if (!r.World.Discovered.Contains(place.Id) || (place.Kind == PlaceKind.Treasure && r.World.Depletion.ContainsKey(place.Id))) continue;
+                if (place.Kind == PlaceKind.Barrel || !r.World.Discovered.Contains(place.Id) || (place.Kind == PlaceKind.Treasure && r.World.Depletion.ContainsKey(place.Id))) continue;
                 var offset = NauticalPalette.G(place.Position - r.Position) / 17;
                 if (offset.Length() > 56) continue;
                 var at = center + offset;

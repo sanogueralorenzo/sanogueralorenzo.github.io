@@ -1,5 +1,21 @@
 # Native gameplay evidence
 
+## Sparse barrels and island treasure — 2026-09-09
+
+All images are unedited native captures with matching TXT telemetry.
+
+| Final build, seed `2242038093` | What it records |
+| --- | --- |
+| [Home](sparse-rewards-home.png) | Home waters contain no guaranteed treasure or barrels. |
+| [Small-island chest](sparse-rewards-chest.png) | Final gold trim, clear beach patch and retained palm on a radius-94 headland. |
+| [Chest collected](sparse-rewards-chest-collected.png) | Boat remains in water; one chest collected for 53 gold. |
+| [Isolated barrel](sparse-rewards-barrel.png), [collected](sparse-rewards-barrel-collected.png) | Sparse open water, no barrel chart icon, and one contact pickup worth 3 gold. |
+| [Chest chunk unloaded](sparse-rewards-unloaded.png), [revisit](sparse-rewards-revisit.png) | Same island/chest position and style return; depletion persists, chest stays absent and rewards are not repeated. |
+
+Earlier voyage `3235500626` verifies a [giant crescent chest before the trim refinement](sparse-rewards-giant-before-trim.png), [collection from water](sparse-rewards-giant-collected.png) and a [depleted barrel after distant exploration and return](sparse-rewards-barrel-revisit.png). Only the chest's gold framing changes afterward; pickup behavior and barrel art remain identical.
+
+Logs: [initial seven-minute exploration](sparse-rewards-exploration-runtime.txt), [final build](sparse-rewards-final-runtime.txt). [QUALITY.md](../docs/QUALITY.md) records exact counts, performance, speed-control use and coverage limits. The transient first `+4 gold` cue was observed in native UI; these retained PNGs establish stable before/after states rather than an isolated fragment-animation frame.
+
 ## Remove repetitive salvage encounters — 2026-09-09
 
 Unedited native captures from ×1 Cutter voyage seed `1701921431`, with matching TXT telemetry:
