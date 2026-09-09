@@ -7,6 +7,7 @@ Run `./run.command`, or import `project.godot` into the Godot .NET editor. Set `
 ## Play
 
 - WASD / arrows or left click: fly. The camera follows; there is no screen wrapping or terrain collision.
+- Default flight is faster, with smooth steering, slight sideways drift through turns, and a short coast when released.
 - Space / Shift: boost. Release after exhaustion to recharge.
 - Escape: pause; menus pause combat and cloud motion.
 - Level-ups alternate between spells and wizard upgrades, with up to three clickable rows. Two spell slots include your starting spell.

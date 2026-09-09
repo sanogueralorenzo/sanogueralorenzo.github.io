@@ -13,3 +13,7 @@ Evidence: [flight](../evidence/first-flight.png), [spell menu](../evidence/spell
 ## Limits
 
 This is a first playable adaptation, not a finished art or balance pass. No full boss run, all-wizard/spell sweep, potion collection/revisit run or extended travel/stress test was performed. Combat pacing and rewards are inherited starting values. Floating-point precision at extreme coordinates and indefinitely growing discovery/depletion records remain long-session limits. Historical Boats 'n' Beasts evidence and ocean-only samples are kept in the original project rather than presented as verification of this game.
+
+## Movement tuning
+
+Base speeds increased to 305 / 245 / 285 for Ember / Warden / Arcanist (roughly 30%). Steering uses exponential smoothing; velocity catches up more gradually in turns and coasts briefly on release. Boost entry retains more existing momentum. Debug and Release builds passed. Movement feel and click-to-stop overshoot still need hands-on feedback; no extended replay was run for this tuning.

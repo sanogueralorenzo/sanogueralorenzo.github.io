@@ -16,12 +16,12 @@ public sealed partial class Flight
         if (!input.Boost) BoostExhausted = false;
         bool boosting = input.Boost && !BoostExhausted && (IsBoosting ? Boost > 0 : Boost >= 8) && direction != Vector2.Zero;
         if (direction != Vector2.Zero)
-            Heading = ApproachAngle(Heading, MathF.Atan2(direction.Y, direction.X) + MathF.PI / 2, dt * (boosting ? 12 : 10));
+            Heading = ApproachAngle(Heading, MathF.Atan2(direction.Y, direction.X) + MathF.PI / 2, 1 - MathF.Exp(-dt * (boosting ? 11 : 9)));
         var forward = new Vector2(MathF.Sin(Heading), -MathF.Cos(Heading));
         if (boosting && !IsBoosting)
         {
             Boost = Math.Max(0, Boost - 8);
-            Velocity = Vector2.Lerp(Velocity, forward * Speed * 2.05f, .65f);
+            Velocity = Vector2.Lerp(Velocity, forward * Speed * 2.05f, .3f);
             BoostStarts++; Events.Add(new("boostStart", Position));
         }
         Boost = Math.Clamp(Boost + dt * (boosting ? -38 : input.Boost && BoostExhausted ? 0 : 23), 0, 100);
@@ -29,9 +29,9 @@ public sealed partial class Flight
         IsBoosting = boosting;
         CurrentFlow = World.FlowAt(Position);
         if (CurrentFlow.LengthSquared() > 100) CurrentRideTime += dt;
-        // The broom responds first; a short velocity lag lets the behind drift through the turn.
+        // Turn the broom ahead of its momentum; retain a little sideways drift and coast on release.
         var wanted = (direction == Vector2.Zero ? Vector2.Zero : forward * Speed * (boosting ? 2.05f : 1)) + CurrentFlow;
-        Velocity = Vector2.Lerp(Velocity, wanted, 1 - MathF.Exp(-dt * (direction == Vector2.Zero ? 4.5f : boosting ? 7 : 4)));
+        Velocity = Vector2.Lerp(Velocity, wanted, 1 - MathF.Exp(-dt * (direction == Vector2.Zero ? 2.8f : boosting ? 5.5f : 3.2f)));
         var old = Position;
         Position += Velocity * dt;
         Distance += Vector2.Distance(old, Position); MaxDistance = Math.Max(MaxDistance, Position.Length());

@@ -331,9 +331,9 @@ public sealed partial class Flight
 public sealed record WizardSpec(string Name, float Vitality, float Speed, string Ability, string Description)
 {
     public static readonly WizardSpec[] All = [
-        new("Ember", 100, 235, "QUICKCAST", "Fire 65% faster while boosting. Starts with bouncing fireballs."),
-        new("Warden", 155, 185, "WARD PULSE", "Every 6s, clear nearby shots and push foes away. Starts with Ward."),
-        new("Arcanist", 115, 215, "HOMING MAGIC", "Magic orbs chase enemies for you. Starts with Arcane Orbs.")
+        new("Ember", 100, 305, "QUICKCAST", "Fire 65% faster while boosting. Starts with bouncing fireballs."),
+        new("Warden", 155, 245, "WARD PULSE", "Every 6s, clear nearby shots and push foes away. Starts with Ward."),
+        new("Arcanist", 115, 285, "HOMING MAGIC", "Magic orbs chase enemies for you. Starts with Arcane Orbs.")
     ];
     public static WizardSpec For(WizardKind kind) => All[(int)kind];
 }
