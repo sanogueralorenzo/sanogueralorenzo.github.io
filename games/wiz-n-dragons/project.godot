@@ -1,0 +1,11 @@
+config_version=5
+
+[application]
+config/name="Wiz 'n' Dragons"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+project/assembly_name="WizNDragons"
+
+[rendering]
+renderer/rendering_method="forward_plus"
