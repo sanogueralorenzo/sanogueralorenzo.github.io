@@ -1,11 +1,23 @@
 config_version=5
-
 [application]
 config/name="Wiz 'n' Dragons"
+run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
-
-[dotnet]
-project/assembly_name="WizNDragons"
-
+run/max_fps=120
+config/description="Fly. Cast. Grow. An endless magical sky."
+[display]
+window/size/viewport_width=1440
+window/size/viewport_height=900
+window/size/window_width_override=1280
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
 [rendering]
 renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
+renderer/rendering_method.web="gl_compatibility"
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.025,0.19,0.56,1)
+[dotnet]
+project/assembly_name="WizNDragons"
