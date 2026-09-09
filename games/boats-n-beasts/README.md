@@ -26,7 +26,7 @@ Set `GODOT_BIN` to your Godot executable and `DOTNET_ROOT` to your SDK directory
 
 Choose Gunboat (Cannon, faster fire during boost), Aura (Whirlpool, periodic defensive pulse), or Mage (homing Arcane Orbs). Boat choice lasts the voyage. All boats can equip any weapon, with **two total weapon slots**, including the starter.
 
-Level-ups pause combat for a free weapon or boat upgrade. Choose one of up to three options, then keep sailing. Once every available upgrade is maxed, each level offers 25 health instead.
+Level-ups pause combat for a free weapon or boat upgrade. Each level offers up to three stacked choices from a single category: weapons or boat upgrades. Categories alternate, starting with weapons; if a category is maxed, the other is offered. Each choice has an icon beside its description; click the row or select it with the keyboard. Once every available upgrade is maxed, each level offers 25 health instead.
 
 The only harbor is the larger starting island. It is decorative: no docking, shops, repairs, or interaction. There is no fishing or voyage gold economy.
 

@@ -334,30 +334,32 @@ public partial class Game : Node2D
     }
     void UpgradeMenu()
     {
-        var col = Panel(950, $"Level {Run.Level}", "Pick an upgrade", "Choose one. Then keep sailing.");
-        var row = new HBoxContainer(); row.AddThemeConstantOverride("separation", 14); col.AddChild(row);
-        foreach (int option in Run.UpgradeChoices) AddUpgradeCard(row, option);
-        if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("All fitted · restore 25 health", () => { Run.TakeUpgradeHeal(); BuildMenu(); }, true));
+        string category = Run.UpgradeChoices.Count == 0 ? "All fitted"
+            : Run.UpgradeChoices[0] < Run.Weapons.Length ? "Weapons" : "Boat upgrades";
+        var col = Panel(700, $"Level {Run.Level}", category, "Choose one. Then keep sailing.");
+        foreach (int option in Run.UpgradeChoices) AddUpgradeRow(col, option);
+        if (Run.UpgradeChoices.Count == 0) col.AddChild(Button("Restore 25 health", () => { Run.TakeUpgradeHeal(); BuildMenu(); }, true));
     }
-    void AddUpgradeCard(HBoxContainer row, int option)
+    void AddUpgradeRow(VBoxContainer column, int option)
     {
-        var card = new PanelContainer { CustomMinimumSize = new(280, 0), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        var style = Box(new Color("102e43"), 10, new Color("345064"));
-        style.ContentMarginLeft = style.ContentMarginRight = 16;
-        card.AddThemeStyleboxOverride("panel", style); row.AddChild(card);
-        var box = new VBoxContainer(); box.AddThemeConstantOverride("separation", 12); card.AddChild(box);
-        box.AddChild(new UpgradeSymbol { Kind = option, CustomMinimumSize = new(40, 40), MouseFilter = Control.MouseFilterEnum.Ignore });
-        box.AddChild(Label(Voyage.UpgradeNames[option], 24, true));
-        box.AddChild(Label(Run.Rank(option) == 0 ? "New" : $"Level {Run.Rank(option)} / 5", 15, false, NauticalPalette.Aqua));
-        var detail = Label(option < 6 && Run.Rank(option) == 0 ? Voyage.UpgradeDescriptions[option] : Run.UpgradeBenefit(option), 18);
-        detail.CustomMinimumSize = new(0, 104); box.AddChild(detail);
-        var button = Button("Choose", () =>
-        {
-            if (Run.Upgrade(option)) BuildMenu();
-        }, true);
-        button.FocusEntered += () => { style.BorderColor = NauticalPalette.Aqua; };
-        button.FocusExited += () => { style.BorderColor = new Color("345064"); };
-        box.AddChild(button);
+        var button = Button("", () => { if (Run.Upgrade(option)) BuildMenu(); });
+        button.CustomMinimumSize = new(0, 112);
+        button.TooltipText = Voyage.UpgradeNames[option];
+        // Child content stays readable while the entire row handles mouse and keyboard input.
+        button.AddThemeStyleboxOverride("hover", Box(new Color("194454"), 9, NauticalPalette.Aqua));
+        button.AddThemeStyleboxOverride("pressed", Box(new Color("205463"), 9, NauticalPalette.Aqua));
+        column.AddChild(button);
+        var row = new HBoxContainer();
+        row.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        row.OffsetLeft = row.OffsetTop = 16; row.OffsetRight = row.OffsetBottom = -16;
+        row.AddThemeConstantOverride("separation", 18); button.AddChild(row);
+        row.AddChild(new UpgradeSymbol { Kind = option, CustomMinimumSize = new(40, 40), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter });
+        var text = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        text.AddThemeConstantOverride("separation", 6); row.AddChild(text);
+        string rank = Run.Rank(option) == 0 ? "New" : $"Level {Run.Rank(option)} → {Run.Rank(option) + 1}";
+        text.AddChild(Label($"{Voyage.UpgradeNames[option]} · {rank}", 23, true));
+        text.AddChild(Label(Run.UpgradeBenefit(option), 18));
+        ReleaseMenuInput(row);
     }
     void ControlsMenu()
     {
@@ -365,7 +367,7 @@ public partial class Game : Node2D
         col.AddThemeConstantOverride("separation", 8);
         col.AddChild(Label("WASD / arrows     Sail in any direction\nLeft-click                 Sail to a point and stop\nSpace / Shift          Hold to boost while moving\nEsc                            Pause or resume", 19));
         col.AddChild(Label("Your voyage", 25, true, NauticalPalette.Aqua));
-        col.AddChild(Label($"Survive until {SpawnDirector.BossArrivalSeconds / 60:0}:00, then defeat the Crownclaw to win. Enemy numbers and variety build gradually with time. Menus pause combat.\n\nDefeat beasts for XP. Each level pauses sailing so you can choose a weapon or boat upgrade. All boats have two weapon slots, including their starter. Once everything is maxed, level-ups offer 25 health instead.\n\nSail into marked floating barrels to restore up to 25 health; they stay available while your hull is full. Rare beach chests grant 12 XP when approached from the water. Pickups stay collected on revisits. The starting harbor is scenery, with no interaction.\n\nGunboat fires 65% faster while boosting. Mage starts with homing magic. Aura clears nearby shots and pushes beasts away every 6 seconds. Follow turquoise currents for a lift. Release boost after exhaustion to recharge. Hover equipment icons for details. Upgrades reset each voyage.", 19));
+        col.AddChild(Label($"Survive until {SpawnDirector.BossArrivalSeconds / 60:0}:00, then defeat the Crownclaw to win. Enemy numbers and variety build gradually with time. Menus pause combat.\n\nDefeat beasts for XP. Each level pauses sailing for up to three choices from one category: weapons or boat upgrades. Categories alternate, starting with weapons; a maxed category is skipped. All boats have two weapon slots, including their starter. Once everything is maxed, level-ups offer 25 health instead.\n\nSail into marked floating barrels to restore up to 25 health; they stay available while your hull is full. Rare beach chests grant 12 XP when approached from the water. Pickups stay collected on revisits. The starting harbor is scenery, with no interaction.\n\nGunboat fires 65% faster while boosting. Mage starts with homing magic. Aura clears nearby shots and pushes beasts away every 6 seconds. Follow turquoise currents for a lift. Release boost after exhaustion to recharge. Hover equipment icons for details. Upgrades reset each voyage.", 19));
         col.AddChild(Button("Understood", () => { controls = false; BuildMenu(); }, true));
     }
     void LoadProgress()

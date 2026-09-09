@@ -8,6 +8,8 @@ Check the affected behavior at normal camera scale. For world changes, include s
 
 ## Verified baseline — 2026-09-09
 
+Latest upgrade-menu check: Debug and Release passed with zero warnings/errors. Native play verified level 2 offered three weapon-only rows, clicking a row applied Harpoon and resumed sailing, and level 3 offered three boat-only rows. Each row displays its icon beside the name and benefit. See [weapon rows](../evidence/upgrade-weapon-rows.png) and [boat rows](../evidence/upgrade-boat-rows.png), with paired telemetry. Maxed-category fallback and queued multiple levels were source-reviewed, not runtime-tested. No broader replay was run.
+
 Debug and Release builds passed with zero warnings/errors. Native sessions used Godot 4.7.2 .NET, Forward+ / Metal on Apple M3 Max; no runtime errors were observed.
 
 - **Progression:** Gunboat reached level 5 at 5:31, mostly at ×3. Verified Cannon and Reach upgrades, adding Lightning as a second weapon, and a Hull upgrade. Upgrade menus paused combat and selections resumed sailing.

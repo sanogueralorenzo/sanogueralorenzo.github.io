@@ -280,10 +280,13 @@ public sealed partial class Voyage
     void RollUpgrades()
     {
         UpgradeChoices.Clear();
-        var available = Enumerable.Range(0, UpgradeNames.Length).Where(CanUpgrade).ToList();
-        // A weapon is always offered while one can still improve; remaining choices vary by seed/run.
-        var weapons = available.Where(i => i < Weapons.Length).ToArray();
-        if (weapons.Length > 0) { int first = weapons[buildRandom.Index(weapons.Length)]; UpgradeChoices.Add(first); available.Remove(first); }
+        // Alternate categories, starting with weapons; use the other when one is maxed.
+        bool offerWeapons = (Level - PendingUpgrades) % 2 == 1;
+        var available = Enumerable.Range(0, UpgradeNames.Length)
+            .Where(i => CanUpgrade(i) && (i < Weapons.Length) == offerWeapons).ToList();
+        if (available.Count == 0)
+            available = Enumerable.Range(0, UpgradeNames.Length)
+                .Where(i => CanUpgrade(i) && (i < Weapons.Length) != offerWeapons).ToList();
         while (UpgradeChoices.Count < 3 && available.Count > 0) { int i = buildRandom.Index(available.Count); UpgradeChoices.Add(available[i]); available.RemoveAt(i); }
     }
     public int Rank(int option) => option < 6 ? Weapons[option] : option == 6 ? HullRank : option == 7 ? EngineRank : option == 8 ? ReloadRank : AreaRank;
