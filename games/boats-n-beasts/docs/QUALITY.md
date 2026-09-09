@@ -1,5 +1,17 @@
 # Quality and verification
 
+## Distinct island sizes and coastline families — 2026-09-09
+
+Completed the follow-up [island variety goal](ISLAND_VARIETY_GOAL.md). Five seeded profiles replace one bent ellipse; normalized outlines give small/medium/large radius bands their intended reach. Scenery, collision and chart share 128 coast samples, existing props retain uniform fitting, and landmark spacing accounts for larger neighbors. Harbor footprint, spawn, camera, combat and 25-chunk streaming are preserved.
+
+Debug and Release builds pass with zero warnings/errors. Reviewed native art captures for all five profiles and three size bands at the normal camera beside an unchanged boat and harbor. The crescent bay and projecting headland were strengthened after the initial review; final captures for those two profiles follow the correction. The other three profiles are unchanged from the initial sample build. This sample contains no Voyage.
+
+In actual Gunboat play (seed `869376318`), the starting harbor opens normally. Steering into the home lobed island leaves the boat at `(896.426,370.091)` across two captures, with velocity falling from about 0.10 to below 0.00001 units/second and full hull. The visible hull rests against the shore. Sailing then reaches a 174.23-radius crescent at `(-2775.116,3582.951)` and a 228.36-radius headland at `(-2619.907,5258.877)`. Their seeded coastlines, beaches, fitted ruins/vegetation and surrounding rocks appear in unedited gameplay captures. Normal combat continues, including damage and boss bombs.
+
+At 57.8 seconds of actual sailing, 25 chunks are active, scenery cache holds five places, and the rolling frame sample is mean/p95/p99 **9.13/16.39/16.76 ms**, simulation **0.108 ms**, presentation submission **1.036 ms** on M3 Max, Metal Forward+. Earlier shore-contact samples were around 8.4 ms mean. These are short native observations, not a sustained benchmark. No exhaustive seed sweep, every-profile collision tour, large-island gameplay encounter or long endless soak was performed; all three size bands were visually checked in the production-art sample. No automated tests or injected gameplay state were used.
+
+[Native evidence and sample matrix](../evidence/README.md) link final captures, same-name gameplay telemetry and both sample logs. The older entries below describe earlier implementations and measurements.
+
 ## Final reef art integrated with shared island shapes — 2026-09-09
 
 Integrated the art pass with `main`'s newer sparse placement, varied island sizes, shared `IslandShape` collision/chart outline and Crownclaw bombs. Those core/gameplay changes are preserved without modification. Land and surf now use the shared shape. Prop roots map into the land footprint; rocks and ruins fit the available shore clearance with uniform scale, while palm canopies may overhang. Nested moss and masonry inherit the parent transform so they stay attached. The first integration distorted narrow-island palms; it was replaced before acceptance with the uniform fitting approach.

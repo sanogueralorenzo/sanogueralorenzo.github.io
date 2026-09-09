@@ -81,7 +81,9 @@ The world uses broad matte color faces and quiet petrol-teal open water. Islands
 
 The orthographic camera retains 0.74× scale and 0.84 ground-plane foreshortening. Simulation positions map to `(x/100, 0, y/100)`. HUD anchors and sailing clicks use that same camera. The simulation is engine-independent C#; all native integration is C#/.NET, Godot resources or shaders. No GDScript, imported models, external art packs or image-generated gameplay assets are used.
 
-`art-sample.tscn` is a separate native art proof containing a boat, crab, cottage, island and water. Run it with `./run.command art-sample.tscn`. Tab switches inspection scale; Space cycles ruin, cliff and grove island samples; F12 saves a timestamped rendered frame under `evidence/` without overwriting historical samples. It contains no gameplay voyage or injected state.
+Offshore islands use three radius bands: small islets (80–115), medium islands (165–235) and large landmasses (290–360), chosen with 35%/43%/22% candidate weights. Radius describes the longest land reach. Five independently seeded profiles—compact, long, crescent, lobed and headland—vary rotation, proportions and smaller coastal features. Larger neighbors receive extra clearance, preserving sparse sailing routes. See the [variety goal](docs/ISLAND_VARIETY_GOAL.md).
+
+`art-sample.tscn` is a separate native art proof containing a boat, crab, cottage, island and water. Run it with `./run.command art-sample.tscn`. Tab switches inspection scale; Space cycles five coastline families; R cycles radii 95, 200 and 330; F12 saves a timestamped rendered frame under `evidence/` with its profile and size. It contains no gameplay voyage or injected state.
 
 ## Sailing encounters
 

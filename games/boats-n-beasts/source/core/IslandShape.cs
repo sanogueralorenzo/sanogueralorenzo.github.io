@@ -1,11 +1,15 @@
 using System.Numerics;
 namespace BoatsNBeasts.Core;
 
-// One smooth seeded outline shared by sand, shallows, the chart and collision.
+public enum IslandProfile { Compact, Long, Crescent, Lobed, Headland }
+
+// One seeded outline shared by sand, shallows, the chart and collision.
 public sealed class IslandShape
 {
-    public const int Sides = 96;
-    readonly float radius, aspect, rotation, phase, bend;
+    public const int Sides = 128;
+    readonly float radius;
+    readonly Vector2[] contour;
+    public IslandProfile Profile { get; }
     public Vector2[] Shore { get; }
     public float Bounds => radius * 1.04f;
 
@@ -13,20 +17,48 @@ public sealed class IslandShape
     {
         this.radius = radius;
         var rng = new SeedRandom(seed ^ 0x71a5bu);
-        aspect = rng.Range(.48f, .88f);
-        rotation = rng.Range(0, MathF.Tau);
-        phase = rng.Range(0, MathF.Tau);
-        bend = rng.Range(.10f, .23f);
-        Shore = Enumerable.Range(0, Sides).Select(i => Point(i * MathF.Tau / Sides) * 1.04f).ToArray();
+        Profile = (IslandProfile)rng.Index(5);
+        float aspect = Profile switch
+        {
+            IslandProfile.Compact => rng.Range(.80f, 1),
+            IslandProfile.Long => rng.Range(.30f, .46f),
+            IslandProfile.Crescent => rng.Range(.74f, .96f),
+            IslandProfile.Lobed => rng.Range(.66f, .90f),
+            _ => rng.Range(.70f, .92f)
+        };
+        float rotation = rng.Range(0, MathF.Tau), phase = rng.Range(0, MathF.Tau);
+        float bayDepth = rng.Range(.76f, .84f);
+        contour = new Vector2[Sides];
+        float longest = 0;
+        for (int i = 0; i < Sides; i++)
+        {
+            float a = i * MathF.Tau / Sides, t = a - rotation;
+            float c = MathF.Cos(t), s = MathF.Sin(t);
+            float ellipse = 1 / MathF.Sqrt(c * c + s * s / (aspect * aspect));
+            float coast = Profile switch
+            {
+                IslandProfile.Compact => .92f + .065f * MathF.Cos(3 * t + phase),
+                IslandProfile.Long => .93f + .07f * MathF.Cos(t + phase),
+                IslandProfile.Crescent => 1 - bayDepth * MathF.Exp((c - 1) / .12f),
+                IslandProfile.Lobed => .78f + .19f * MathF.Cos(3 * t + phase * .25f),
+                _ => .59f + .41f * MathF.Exp((c - 1) / .12f) + .10f * MathF.Cos(2 * t + phase)
+            };
+            coast += .04f * MathF.Sin(5 * t + phase) + .025f * MathF.Sin(7 * t - phase);
+            // Positive radial samples form a simple star-shaped polygon, including the bay.
+            float reach = ellipse * MathF.Max(.12f, coast);
+            contour[i] = new Vector2(MathF.Cos(a), MathF.Sin(a)) * reach;
+            longest = MathF.Max(longest, reach);
+        }
+        // Radius describes the actual longest reach, rather than shrinking every family.
+        for (int i = 0; i < Sides; i++) contour[i] *= radius / longest;
+        Shore = contour.Select(p => p * 1.04f).ToArray();
     }
 
     public Vector2 Point(float angle)
     {
-        float local = angle - rotation, c = MathF.Cos(local), s = MathF.Sin(local);
-        float ellipse = 1 / MathF.Sqrt(c * c + s * s / (aspect * aspect));
-        float coast = (.79f + bend * MathF.Cos(local + phase) + .13f * MathF.Cos(2 * local - phase)
-            + .05f * MathF.Sin(3 * local + phase)) / 1.20f;
-        return new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * (radius * ellipse * coast);
+        float index = (angle / MathF.Tau % 1 + 1) % 1 * Sides;
+        int i = (int)index;
+        return Vector2.Lerp(contour[i], contour[(i + 1) % Sides], index - i);
     }
 
     public Vector2 PlaceOnLand(Vector2 offset)

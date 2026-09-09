@@ -73,7 +73,7 @@ public static class EnvironmentArt3D
 
     private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null)
     {
-        const int sides = 128;
+        const int sides = IslandShape.Sides;
         float[] radii = [0, .43f, .66f, .82f, .965f, 1.02f];
         float[] heights = [.20f, .19f, .15f, .09f, .018f, .007f];
         Color[] colors = [new("6b8d43"), new("75934a"), new("a4aa62"), Sand, new("f4dca1"), new("aabda0")];

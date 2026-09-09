@@ -49,8 +49,12 @@ public sealed class OceanWorld(uint seed)
         var position = new Vector2(key.X * ChunkSize, key.Y * ChunkSize) +
             new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
         bool harbor = rng.Unit() < .3f;
+        // Separated size bands read as islets, islands and substantial landmasses.
+        float size = rng.Unit();
+        float radius = harbor ? 140 : size < .35f ? rng.Range(80, 115)
+            : size < .78f ? rng.Range(165, 235) : rng.Range(290, 360);
         return new($"{key.X}:{key.Y}:land", harbor ? PlaceKind.Harbor : PlaceKind.Island,
-            position, harbor ? 140 : rng.Range(110, 290), rng.Next());
+            position, radius, rng.Next());
     }
     IEnumerable<Place> Landmarks(ChunkKey key)
     {
@@ -60,7 +64,9 @@ public sealed class OceanWorld(uint seed)
         {
             if (x == 0 && y == 0) continue;
             var other = LandmarkCandidate(new(key.X + x, key.Y + y));
-            if (other == null || Vector2.DistanceSquared(land.Position, other.Position) >= 900 * 900) continue;
+            if (other == null) continue;
+            float spacing = MathF.Max(900, (land.Radius + other.Radius) * 1.04f + 320);
+            if (Vector2.DistanceSquared(land.Position, other.Position) >= spacing * spacing) continue;
             // Coordinate tie-break keeps even equal hash priorities deterministic.
             if (other.Style < land.Style || (other.Style == land.Style && (y < 0 || (y == 0 && x < 0)))) yield break;
         }

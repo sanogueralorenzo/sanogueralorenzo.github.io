@@ -1,5 +1,21 @@
 # Native gameplay evidence
 
+## Distinct island sizes and coastline families — 2026-09-09
+
+Unedited normal-camera native samples compare three radii beside the same boat and harbor. Compact, long and lobed geometry is unchanged from the initial sample build; crescent and headland captures follow their final refinement.
+
+| Profile | Small, radius 95 | Medium, radius 200 | Large, radius 330 |
+| --- | --- | --- | --- |
+| Compact | [Small](variety-compact-95.png) | [Medium](variety-compact-200.png) | [Large](variety-compact-330.png) |
+| Long | [Small](variety-long-95.png) | [Medium](variety-long-200.png) | [Large](variety-long-330.png) |
+| Crescent | [Small](variety-crescent-95.png) | [Medium](variety-crescent-200.png) | [Large](variety-crescent-330.png) |
+| Lobed | [Small](variety-lobed-95.png) | [Medium](variety-lobed-200.png) | [Large](variety-lobed-330.png) |
+| Headland | [Small](variety-headland-95.png) | [Medium](variety-headland-200.png) | [Large](variety-headland-330.png) |
+
+Actual gameplay, with matching TXT telemetry: [home dock](variety-harbor.png), [shore contact A](variety-contact-a.png)/[B](variety-contact-b.png), [open-water streaming](variety-streaming.png), [offshore crescent](variety-offshore-crescent.png), [offshore headland at 57.8 seconds](variety-offshore-headland.png). [QUALITY.md](../docs/QUALITY.md) records measurements and coverage limits.
+
+Logs: [initial sample](variety-sample-runtime.txt), [refined bay/headland sample](variety-final-sample-runtime.txt), [gameplay](variety-gameplay-runtime.txt). The sample constructs no Voyage. Gameplay uses ordinary controls with no state injection.
+
 ## Final reef art with shared island shapes — 2026-09-09
 
 Unedited native captures from the final implementation. Gameplay PNGs have matching TXT telemetry.

@@ -1,0 +1,19 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M3 Max (Apple9)
+
+ISLAND SAMPLE profile=Compact radius=200 style=4
+ISLAND SAMPLE profile=Long radius=200 style=6
+ISLAND SAMPLE profile=Crescent radius=200 style=1
+ISLAND SAMPLE profile=Crescent radius=330 style=1
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073018-272-art-Crescent-330-scale.png renderer=forward_plus fps=119 draws=11
+ISLAND SAMPLE profile=Crescent radius=95 style=1
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073028-896-art-Crescent-95-scale.png renderer=forward_plus fps=120 draws=11
+ISLAND SAMPLE profile=Crescent radius=200 style=1
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073033-071-art-Crescent-200-scale.png renderer=forward_plus fps=121 draws=11
+ISLAND SAMPLE profile=Lobed radius=200 style=2
+ISLAND SAMPLE profile=Headland radius=200 style=12
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073039-395-art-Headland-200-scale.png renderer=forward_plus fps=120 draws=11
+ISLAND SAMPLE profile=Headland radius=330 style=12
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073048-645-art-Headland-330-scale.png renderer=forward_plus fps=120 draws=11
+ISLAND SAMPLE profile=Headland radius=95 style=12
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260909-073052-729-art-Headland-95-scale.png renderer=forward_plus fps=120 draws=11

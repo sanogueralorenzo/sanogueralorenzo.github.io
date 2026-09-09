@@ -1,0 +1,45 @@
+Mouse viewport=(940.5, 326.25) global=(940.5, 326.25) boatScreen=(719.95575, 450.04474) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1194.4586, 170.93582>; destination=
+Native runtime capture: 20260909-073335-145-sailing
+Renderer: forward_plus
+Seed: 869376318
+Mode: Sailing
+Game speed: x1
+Finished runs: 104; boat selection: False
+Silver: 47; earned this voyage: 0; next eligible combat time: 73.05391
+Boat: Cutter
+Position: <896.42584, 370.09067>
+Health: 100/100
+Coins: 22; cargo: 0; kills: 2; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 5; shots: 0
+Actual sailing seconds: 16.7; peak enemies: 5; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(896.48566, 370.0188); departure seconds=10.0150795; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<0.061107446, -0.07434469>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=4; pulls=0
+Combat clock=16.698153; director=8.140189/1.5581726; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Landmark 1:-2:land: Harbor position=<804.3894, -2487.6301> radius=140 style=3388871972 profile=harbor
+Landmark 2:-2:land: Island position=<2334.5522, -2829.8726> radius=347.34106 style=83287066 profile=Headland
+Landmark home:harbor: Harbor position=<-120, -490> radius=140 style=147 profile=harbor
+Landmark home:island: Island position=<990, 275> radius=125 style=921 profile=Lobed
+Landmark 3:-1:land: Harbor position=<3402.03, -954.56323> radius=140 style=586951446 profile=harbor
+Landmark -1:2:land: Harbor position=<-1124.7686, 2673.7605> radius=140 style=556700842 profile=harbor
+Boss bombs thrown=0; explosions=0; blast hits=0
+Puffer explosions=0; blast hits=0
+Enemy 3: Crab position=<496.60327, -115.46582> hp=27 time=12.756653 attack=-11.148973 tell=0 dash=0 speedMultiplier=1.2022483 fuse=0
+Enemy 4: Crab position=<535.3323, -307.2481> hp=27 time=11.440036 attack=-9.560187 tell=0 dash=0 speedMultiplier=0.9099165 fuse=0
+Enemy 5: Crab position=<461.78174, -212.0733> hp=27 time=10.123416 attack=-8.195917 tell=0 dash=0 speedMultiplier=1.3392918 fuse=0
+Enemy 6: Crab position=<493.13647, -340.9382> hp=27 time=8.806754 attack=-5.7475715 tell=0 dash=0 speedMultiplier=0.985257 fuse=0
+Enemy 7: Crab position=<159.8017, 83.29364> hp=27 time=8.148521 attack=-5.31703 tell=0 dash=0 speedMultiplier=1.191884 fuse=0
+CPU simulation average ms=0.060; draw submission average ms=0.561; cached scenery=5; engine FPS=119; draw calls=109; objects=540
+Frame ms mean: 8.52; p95: 9.09; p99: 15.42
