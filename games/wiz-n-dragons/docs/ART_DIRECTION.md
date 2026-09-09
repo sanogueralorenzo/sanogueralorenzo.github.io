@@ -1,11 +1,17 @@
 # Art direction
 
-Match the broad matte forms, soft warm light, cool shadows, cream text and petrol-teal palette of Boats 'n' Beasts. Friendly spells are violet/turquoise; hostile magic is coral. Wizards wear pointed hats and ride wooden brooms. Dragon wings flap; spell choices add visible orbiting crystals to the wizard miniature.
+Use a storybook miniature style: broad matte forms, warm light, cool shadows and a petrol-teal sky. Wizards wear pointed hats and ride wooden brooms; dragons have readable silhouettes and animated wings. Spell choices add crystals around the wizard.
 
-The sky is open in every direction. Clouds are decorative, never terrain. Three independently scrolling layers give near clouds stronger parallax than distant clouds. Keep cloud caches bounded and placement deterministic by seed and cell. Deeper layers use darker, quieter colors so combat remains readable.
+## Clouds
 
-All gameplay art is procedural C#/Godot geometry and shaders. Generated concept images are visual references, not runtime assets.
+- Build joined billows, raised crowns and tapered curls without visible sphere seams.
+- Use pearl highlights and blue-violet undersides. Fade distant clouds into atmospheric haze.
+- Keep formations sparse and the flight space readable. Clouds never block movement.
+- Preserve three parallax depths: nearby clouds move more than distant clouds. The background shader adds slower cloud banks and mist.
+- Share the eight geometry variants across layers. Keep placement deterministic and caches bounded.
 
-Background atmosphere uses warped, multi-octave cloud banks, directional highlights and three independently scrolling shader layers. Sculpted clouds are sparse, tapered banks with small edge curls rather than dense piles of spheres. Keep the central flight space readable; use restrained contrasts without flashing lightning.
+## Color and detail
 
-Sculpted clouds use continuous implicit surfaces with joined billows, raised crowns and tapered curling ends. A dedicated matte shader paints pearl highlights over blue-violet undersides, with stronger atmospheric haze on deeper layers. Eight geometry variants are shared across all three layers. Avoid visible sphere intersections, glossy highlights and busy texture noise.
+Friendly magic is violet or turquoise; hostile magic is coral. UI uses cream text, dark panels and clear keyboard focus. Avoid glossy surfaces, busy textures, flashing lightning and decorative clutter.
+
+Create gameplay art with C#/Godot geometry and shaders. Generated concept images serve as visual references, not runtime assets.

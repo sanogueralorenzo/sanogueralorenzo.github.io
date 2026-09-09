@@ -1,27 +1,30 @@
 # Verification
 
-Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For gameplay changes use `./run.command` and ordinary controls. Keep verification focused; do not inject simulation state. F12 saves unedited native screenshots with telemetry.
+Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For gameplay or visual changes, run `./run.command` and use ordinary controls. Keep checks focused; do not inject simulation state. F12 saves an unedited screenshot and paired telemetry.
 
-## Initial port — 2026-09-09
+## Verified baseline — 2026-09-09
 
-Debug and Release passed with zero warnings/errors. Godot 4.7.2 .NET launched using Forward+ / Metal on Apple M3 Max without observed runtime errors.
+Debug and Release builds passed with zero warnings/errors. Native checks used Godot 4.7.2 .NET, Forward+ / Metal on Apple M3 Max, with no observed runtime or shader errors.
 
-A short Ember flight checked camera-follow movement across multiple encounter chunks, layered cloud scenery, automatic Fireball combat, the three-row spell upgrade menu, adding Arcane Orbs and resuming play. At the final capture, position was approximately (2468, 1217), with 25 active encounter chunks, 54 cached cloud clusters and four visible pickup nodes. Level 2 had Fireball and Arcane Orbs equipped, with two recorded Arcane casts. Mean frame time was 8.35 ms and p99 8.95 ms during this light-load session; it is not a stress benchmark.
+- **Gameplay:** a short Ember flight covered camera following across encounter chunks, Fireball combat, the three-row spell menu, adding Arcane Orbs and resuming play.
+- **Clouds:** a later visual check covered joined surfaces, pearl highlights and depth behind menus and during normal-speed flight.
+- **Performance:** the initial light-load flight reported 8.35 ms mean frame time and 8.95 ms p99, with 25 encounter chunks and 54 cloud clusters. These measurements predate the current cloud geometry and are not a stress benchmark.
 
-Evidence: [flight](../evidence/first-flight.png), [spell menu](../evidence/spell-upgrade.png), matching TXT captures, and [runtime log](../evidence/first-flight-runtime.txt). Captures precede only final wording, internal naming and potion particle-color cleanup.
+## Evidence
 
-## Limits
+Each screenshot has a matching TXT capture in `evidence/`.
 
-This is a first playable adaptation, not a finished art or balance pass. No full boss run, all-wizard/spell sweep, potion collection/revisit run or extended travel/stress test was performed. Combat pacing and rewards are inherited starting values. Floating-point precision at extreme coordinates and indefinitely growing discovery/depletion records remain long-session limits. Historical Boats 'n' Beasts evidence and ocean-only samples are kept in the original project rather than presented as verification of this game.
+| Capture | Coverage |
+| --- | --- |
+| [First flight](../evidence/first-flight.png) | Initial flight and spell combat |
+| [Spell menu](../evidence/spell-upgrade.png) | Three spell choices |
+| [Runtime log](../evidence/first-flight-runtime.txt) | Initial gameplay telemetry |
+| [Storybook clouds](../evidence/storybook-clouds.png) | Current cloud style |
 
-## Movement tuning
+Initial captures show earlier movement and art. Evidence from Boats 'n' Beasts does not verify this project.
 
-Base speeds increased to 305 / 245 / 285 for Ember / Warden / Arcanist (roughly 30%). Steering uses exponential smoothing; velocity catches up more gradually in turns and coasts briefly on release. Boost entry retains more existing momentum. Debug and Release builds passed. Movement feel and click-to-stop overshoot still need hands-on feedback; no extended replay was run for this tuning.
+## Coverage gaps
 
-## Background refinement
+No full boss run, all-wizard/spell sweep, potion collection/revisit check or extended travel/stress test has been completed. Movement feel, click-to-stop overshoot, cloud-generation latency and current rendering performance need further play feedback.
 
-Added warped cloud-bank shading, directional highlights and three rates of background parallax. Reduced sculpted-cloud density and changed their silhouettes to tapered banks. Debug and Release builds passed; a brief native Forward+ launch compiled and rendered the shader without reported errors. No extended visual or performance pass was run for this refinement.
-
-## Storybook clouds
-
-Debug and Release builds passed. A brief native Forward+ check inspected the joined cloud surfaces, pearl highlights and atmospheric depth behind menus and during normal-speed flight. Saved [cloud appearance](../evidence/storybook-clouds.png) with paired telemetry. No shader/runtime errors were observed. Mesh variants are cached and shared across layers; generation latency and extended-travel performance were not benchmarked.
+Combat pacing and rewards remain inherited starting values. Floating-point precision at extreme coordinates and growing discovery/depletion records remain long-session limits.

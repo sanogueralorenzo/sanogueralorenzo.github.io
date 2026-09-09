@@ -1,24 +1,38 @@
 # Wiz 'n' Dragons
 
-A Godot 4.7.2 .NET / C# survival game using Forward+ and .NET 10. Independently duplicated from Boats 'n' Beasts, with an infinite open sky, procedural broom-riding wizards, dragons, and spells.
+A survival game about broom-riding wizards, spells and dragons in an endless sky. Built with Godot **4.7.2 .NET**, **C# / .NET 10** and **Forward+**.
 
-Run `./run.command`, or import `project.godot` into the Godot .NET editor. Set `GODOT_BIN` if your editor is installed elsewhere.
+## Run
+
+Open `project.godot` in the Godot .NET editor, or run `./run.command` from this directory. Set `GODOT_BIN` to your Godot executable if needed.
 
 ## Play
 
-- WASD / arrows or left click: fly. The camera follows; there is no screen wrapping or terrain collision.
-- Default flight is faster, with smooth steering, slight sideways drift through turns, and a short coast when released.
-- Space / Shift: boost. Release after exhaustion to recharge.
-- Escape: pause; menus pause combat and cloud motion.
-- Level-ups alternate between spells and wizard upgrades, with up to three clickable rows. Two spell slots include your starting spell.
-- Potions heal up to 25 health. Crystals grant 12 XP. Wind currents accelerate flight. Pickups stay depleted on revisits.
-- Survive 22 minutes and defeat the Elder Dragon. Continue exploring after victory if desired.
-- F12: save a native screenshot and telemetry. The ×1/×2/×3 button changes flight speed.
+| Control | Action |
+| --- | --- |
+| WASD / arrows | Fly |
+| Left click | Fly toward a point |
+| Space / Shift | Boost; release after exhaustion to recharge |
+| Escape | Pause or resume |
+| ×1 / ×2 / ×3 | Change simulation speed |
+| F12 | Save a screenshot and telemetry to `evidence/` |
 
-Choose Ember (Fireball, faster casting during boost), Warden (Ward, defensive pulse), or Arcanist (homing Arcane Orbs). Other spells include Tether, Runes and Lightning. Upgrades reset each flight; silver and records persist in this game's separate Godot user directory. Silver spending is not implemented.
+Flight has smooth steering, slight drift and a short coast after releasing movement. The camera follows through an open sky without screen wrapping or terrain collision. Menus pause combat and cloud motion.
 
-## Structure
+Choose a wizard:
 
-`source/core` owns plain C# simulation, combat, progression and deterministic encounter chunks. `source/presentation` owns Godot rendering, input, menus and effects. No runtime references to Boats 'n' Beasts are required.
+- **Ember:** starts with Fireball and casts faster while boosting.
+- **Warden:** starts with Ward and periodically clears nearby hostile spells and pushes enemies away.
+- **Arcanist:** starts with homing Arcane Orbs.
 
-Three decorative cloud layers scroll at different rates and stream bounded cells around the camera. A procedural distant sky shader adds slower atmospheric movement. Terrain, shore collisions, harbors and nautical art have been removed. Existing combat tuning is inherited as a starting point, not newly balanced.
+Defeat enemies for XP. Level-ups alternate between spells and wizard upgrades, starting with spells, with at most three choices. A maxed category is skipped; once both are maxed, levels offer healing. Each wizard has two spell slots, including the starter. Other spells include Tether, Runes and Lightning.
+
+Potions restore up to 25 health and remain available at full health. Crystals grant 12 XP. Wind currents accelerate flight. Collected pickups stay depleted on revisits.
+
+Survive until the Elder Dragon arrives at 22 minutes, then defeat it to win. You can continue exploring afterward. Upgrades reset each flight; silver and records persist. Silver spending is not implemented.
+
+## Development
+
+This project is an independent adaptation of Boats 'n' Beasts. `source/core` owns plain C# simulation and deterministic encounter chunks. `source/presentation` owns rendering, input, menus and effects. Cloud layers are decorative and use bounded caches.
+
+See [art direction](docs/ART_DIRECTION.md) and [verification](docs/QUALITY.md). Combat tuning is an initial baseline and still needs balance work.
