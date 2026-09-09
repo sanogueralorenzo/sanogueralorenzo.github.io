@@ -1,5 +1,33 @@
 # Native gameplay evidence
 
+## Final reef art with shared island shapes — 2026-09-09
+
+Unedited native captures from the final implementation. Gameplay PNGs have matching TXT telemetry.
+
+| Capture | What it establishes |
+| --- | --- |
+| [Home](island-fitted-title.png), [harbor](island-fitted-harbor.png) | Final shared home-island silhouette, fitted props and accessible starting dock. |
+| [Sailing A](island-fitted-sailing-a.png)/[B](island-fitted-sailing-b.png) | Actual movement, changing surf, full Aura hull and 25 loaded chunks. |
+| [Shore approach](island-fitted-contact-a.png)/[contact](island-fitted-contact-b.png) | Boat reaches the visible curved shore while steering into land. |
+| [Ruin sample](island-fitted-ruin.png), [cliff sample](island-fitted-cliffs.png), [grove sample](island-fitted-grove.png) | Normal-scale native art proof of three compositions on differently sized shared island shapes; no gameplay Voyage. |
+
+Logs: [final gameplay](island-fitted-gameplay-runtime.txt), [final art sample](island-fitted-sample-runtime.txt). These follow the uniform prop-fitting correction. [QUALITY.md](../docs/QUALITY.md) gives precise chronology and limits; the older 62.4-second run below is pre-integration evidence.
+
+## Initial reef art pass, before shared-shape integration — 2026-09-09
+
+The [reference](../docs/island-reference.png) is documentation only. Every image here is an unedited native viewport capture; gameplay PNGs have matching TXT telemetry.
+
+| Capture | What it establishes |
+| --- | --- |
+| [Baseline](island-baseline.png), [pre-integration home](island-title.png) | Original title framing, before/after coasts, shallows, vegetation, harbor and ruins, before shared island geometry was integrated. |
+| [First art sample](island-sample-pass1.png) | Intermediate native proof before the final foam, rock and ruin refinements. |
+| [Home sailing](island-home-sailing.png), [shore collision](island-shore-collision.png) | Mage beside the ruin island; steering into land leaves the hull outside its existing collision envelope. |
+| [Starting dock](island-dock-access.png), [offshore refit](island-offshore-refit.png) | Home and streamed harbors retain their three offers. Home capture predates final rock/ruin refinements. |
+| [Offshore cliffs](island-offshore-variety.png), [palm grove](island-grove.png) | Distinct seeded island compositions in actual combat at the normal camera. |
+| [56-second exploration](island-streaming.png), [62.4-second defeat](island-sustained.png) | 25 loaded chunks, bounded scenery, active enemies/projectiles and rolling native frame measurements over 8.4 leagues. |
+
+Logs: [exploration](island-runtime.txt), [final contour guard and home](island-final-contour-runtime.txt). These captures predate integration with shared island shapes, sparse world generation and the newer boss bombs. Final integrated evidence is listed above. [QUALITY.md](../docs/QUALITY.md) records exact measurements, chronology and coverage limits. No automated tests, gameplay state injection, imported art or image compositing.
+
 ## Island size and silhouette variation — 2026-09-08
 
 [Before/title](island-shapes-before.png), [final title](island-shapes-title.png) and [fresh title](island-shapes-fresh-title.png) compare the fixed home scene. [Shore contact A](island-shapes-contact-a.png)/[B](island-shapes-contact-b.png) show the boat held at the visible edge. [Larger island](island-shapes-large.png) is visible below the defeat panel in the first route. [Curved offshore island](island-shapes-curved.png) shows the final build’s bean-shaped shore and aligned shallow bands. Same-name TXT reports preserve native positions, radius parameters and performance. [Collision/first route log](island-shapes-runtime.txt), [final build log](island-shapes-final-runtime.txt). Coverage limits are in QUALITY.

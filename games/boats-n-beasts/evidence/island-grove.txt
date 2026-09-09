@@ -1,0 +1,52 @@
+Mouse viewport=(-724.5, 1471.5) global=(-724.5, 1471.5) boatScreen=(723.4795, 446.201) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2628.557, 192.68132>; destination=<4724.951, -1638.3884>
+Native runtime capture: 20260909-063645-984-sailing
+Renderer: forward_plus
+Seed: 427535442
+Mode: Sailing
+Game speed: x1
+Finished runs: 95; boat selection: False
+Silver: 46; earned this voyage: 0; next eligible combat time: 68.89291
+Boat: Mage
+Position: <4585.286, -1456.7703>
+Health: 101/115
+Coins: 15; cargo: 0; kills: 5; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 9; shots: 19
+Actual sailing seconds: 40.1; peak enemies: 15; peak shots: 22
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=True; boss slain=False
+Camera world=(4580.584, -1450.6586); departure seconds=39.038128; menu opacity=0
+Velocity=<131.06595, -170.43097>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0.92499954; treasure=1; wrecks=0; arcane casts=17; mines=0/0; ricochets=0; pulls=0
+Combat clock=40.046616; director=8.216522/0.8667341; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=0,0,0,0,0,1; cooldowns=0,0,0,0,0,0
+Depletion=2:0:encounter:2=1
+Puffer explosions=4; blast hits=0
+Enemy 2: Crab position=<3586.8506, -478.44684> hp=27 time=37.4215 attack=-35.464077 tell=0 dash=0 speedMultiplier=1.2626354 fuse=0
+Enemy 4: Crab position=<3533.0122, -472.61234> hp=27 time=34.787857 attack=-32.3508 tell=0 dash=0 speedMultiplier=1.3017659 fuse=0
+Enemy 7: Crab position=<3584.518, -533.6114> hp=13.75 time=32.15462 attack=-29.623604 tell=0 dash=0 speedMultiplier=1.2617776 fuse=0
+Enemy 17: Crab position=<3737.4155, -636.34204> hp=40.5 time=17.841015 attack=-16.141565 tell=0 dash=0 speedMultiplier=1.106657 fuse=0
+Enemy 18: Crab position=<3657.1257, -670.67053> hp=40.5 time=17.841015 attack=-14.573231 tell=0 dash=0 speedMultiplier=1.3190966 fuse=0
+Enemy 19: Crab position=<3757.0508, -560.71844> hp=20.5 time=17.182678 attack=-14.407799 tell=0 dash=0 speedMultiplier=0.99286413 fuse=0
+Enemy 22: Serpent position=<3989.6467, -803.95685> hp=78 time=16.524351 attack=3.216603 tell=-5.6849793E-05 dash=0.45000023 speedMultiplier=1.1565698 fuse=0
+Enemy 26: Leviathan position=<3814.208, -705.12134> hp=1837.5 time=11.242914 attack=1.9243674 tell=0 dash=0 speedMultiplier=1.275068 fuse=0
+Enemy 27: Serpent position=<3667.9324, -478.09305> hp=91 time=8.224855 attack=3.1582704 tell=-5.553849E-05 dash=0.39166695 speedMultiplier=0.9503969 fuse=0
+Shot Cannon hostile=True position=<2901.8728, 914.8287> life=0.50839365
+Shot Cannon hostile=True position=<2499.3413, 735.60095> life=0.50839365
+Shot Cannon hostile=True position=<2240.454, 379.13483> life=0.50839365
+Shot Cannon hostile=True position=<2373.5337, -461.583> life=0.50839365
+Shot Cannon hostile=True position=<2730.0457, -720.5599> life=0.50839365
+Shot Cannon hostile=True position=<3168.2922, -766.6041> life=0.50839365
+Shot Cannon hostile=True position=<3570.8237, -587.37787> life=0.50839365
+Shot Cannon hostile=True position=<3696.6313, 609.81134> life=0.50839365
+Shot Cannon hostile=True position=<3340.1194, 868.7836> life=0.50839365
+Shot Cannon hostile=True position=<3252.1814, -328.55038> life=4.214682
+Shot Cannon hostile=True position=<3246.487, -471.6823> life=4.214682
+Shot Cannon hostile=True position=<3313.169, -598.47> life=4.214682
+Shot Cannon hostile=True position=<3434.2625, -674.9504> life=4.214682
+Shot Cannon hostile=True position=<3577.4148, -680.61664> life=4.214682
+Shot Cannon hostile=True position=<3704.2017, -613.96497> life=4.214682
+Shot Cannon hostile=True position=<3780.6726, -492.84064> life=4.214682
+Shot Cannon hostile=True position=<3786.367, -349.7087> life=4.214682
+Shot Cannon hostile=True position=<3455.4392, -140.77182> life=4.214682
+Shot Cannon hostile=True position=<3328.6523, -207.42609> life=4.214682
+CPU simulation average ms=0.075; draw submission average ms=1.196; cached scenery=16; engine FPS=120; draw calls=195; objects=659
+Frame ms mean: 8.45; p95: 9.09; p99: 10.61

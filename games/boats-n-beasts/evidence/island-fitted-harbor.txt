@@ -1,0 +1,43 @@
+Mouse viewport=(-724.5, 1471.5) global=(-724.5, 1471.5) boatScreen=(446.3, 387.78) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<-1527.1624, 1428.4365>; destination=
+Native runtime capture: 20260909-065953-215-harbor
+Renderer: forward_plus
+Seed: 2657312209
+Mode: Harbor
+Game speed: x1
+Finished runs: 97; boat selection: False
+Silver: 46; earned this voyage: 0; next eligible combat time: 78.74312
+Boat: Trawler
+Position: <55, -315>
+Health: 155/155
+Coins: 20; cargo: 0; kills: 0; level: 1; pending upgrades: 0
+Active chunks: 25; enemies: 1; shots: 0
+Actual sailing seconds: 1.9; peak enemies: 1; peak shots: 0
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(424.86487, -214.90347); departure seconds=0; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:left-rock: Rock position=<-325, 95> radius=32 style=42
+Home home:lower-rock: Rock position=<-105, 205> radius=36 style=104
+Home home:school: Fishing position=<-260, -180> radius=76 style=3819
+Home home:treasure: Treasure position=<-240, -15> radius=22 style=31
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Home home:wreck: Wreck position=<-215, 140> radius=65 style=59
+Velocity=<0, 0>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=1.9010499; director=0.59166646/0.5303454; boost=100; invulnerable=0; ability=0.3168418; fire rate=1
+Weapon ranks=0,0,0,0,1,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Landmark 0:-2:land: Harbor position=<-363.70718, -2254.6729> radius=140 style=1012858472
+Landmark 1:-2:land: Island position=<757.7815, -2299.1587> radius=172.48145 style=3961138316
+Landmark 2:-1:land: Island position=<2764.699, -1438.9622> radius=250.54866 style=1760266255
+Landmark home:harbor: Harbor position=<-120, -490> radius=140 style=147
+Landmark home:island: Island position=<990, 275> radius=125 style=921
+Landmark -2:1:land: Island position=<-2417.0962, 1374.825> radius=156.70302 style=3135296877
+Landmark -1:2:land: Island position=<-1066.6095, 2772.7856> radius=281.4342 style=2437967239
+Landmark 0:2:land: Island position=<293.4508, 2134.2495> radius=218.18863 style=1253785600
+Boss bombs thrown=0; explosions=0; blast hits=0
+Puffer explosions=0; blast hits=0
+Enemy 1: Crab position=<-113.64607, 578.2872> hp=27 time=0.5999998 attack=2.5603046 tell=0 dash=0 speedMultiplier=1.2005379 fuse=0
+CPU simulation average ms=0.047; draw submission average ms=0.382; cached scenery=5; engine FPS=120; draw calls=195; objects=1046
+Frame ms mean: 8.34; p95: 8.33; p99: 8.42

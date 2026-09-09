@@ -1,19 +1,20 @@
-# Flat-shaded nautical diorama
+# Nautical diorama and reef islands
 
-The selected reference is [flat-diorama-reference.png](visual-restart/flat-diorama-reference.png), the latest image in “Assess Godot C# feasibility” (`01a08267-a821-7e23-aeba-3cf765a1c84d`, generated image `exec-aaee5cf0-8ed0-4126-b108-18f076eec9a4`). It supersedes Direction B’s tactile/sculpted treatment and the older doodle concept. The image is documentation only and is never loaded as a gameplay asset.
+The 2026-09-09 [Reef Warden reference](island-reference.png) sets the direction for island borders, seashore and island contents. The [island goal](ISLAND_GOAL.md) records the baseline gaps and acceptance criteria. It supersedes the earlier smooth rings and sparse island decoration. The [flat-diorama reference](visual-restart/flat-diorama-reference.png) still informs boats, creatures, open ocean and UI. Both images are documentation only, never gameplay assets; the newer image does not request its boss or HUD.
 
 ## Visual contract
 
-- Quiet petrol-teal sea with only broad, slow color variation. No fine water textures, ripple normal maps, reflective highlights or foam networks.
-- Smooth sand terraces with varied island sizes, rotated elongated and curved silhouettes, and two turquoise shallow bands that follow the exact same seeded contour and a few short ivory shoreline arcs. Angular rocks use broad unequal slate faces and pale caps; palms use a handful of thick folded leaf shapes. Cottages have cream walls and simple solid pitched roofs.
+- Quiet petrol-teal open sea with broad, slow color variation. Shore water has mottled turquoise seabeds, subtle caustics and broken moving ivory wash; the shelf fades into the sea instead of ending at an opaque ring.
+- Warm sandy coasts have varied sizes, rotated elongated and curved silhouettes, varied beach widths and green interiors. Island terrain, surf and props follow the shared `IslandShape` used for chart silhouettes and collision; harbors retain their dock footprint. Sand, wet margins and animated surf share that coast. Broad faceted slate rocks have uneven shoulders and pale or vegetated caps. Curved fronds form varied-height palm groups with low undergrowth.
+- Harbor cottages retain cream walls and solid pitched roofs, with a clear path to their dock, barrels, a waterfront sign and a planted rocky backdrop. Offshore styles distinguish carved stone ruins, layered cliffs and palm groves. Keep important landmarks visible above lower foliage and emergent decoration within the existing navigational envelope.
 - Matte cream/navy boats with clear silhouettes and visible starter fittings. Gunboat retains its aiming cannon, Aura its teal fitting and radius curls, and Mage its upright violet crystal. Coral crabs, crowned boss, gold puffers, low teal serpents and blue rays retain distinct identities.
-- Flat face shading and restrained bevels; no surface grain, fine sand flecks, rock fractures or detailed deck seams. Warm directional light, cool ambient fill and soft contact shadows give depth without glossy or cinematic effects.
+- Flat face shading and restrained bevels; no fine sand flecks or detailed deck seams. Island stones can have chipped faces and masonry inlays. Warm directional light, cool ambient fill and soft contact shadows give depth without glossy effects.
 - Two tapered wake ribbons follow actual movement. Creature direction changes are smoothed, reversals start a new trail, and adjacent bank vertices join continuously. Violet trails and coral enemy shots remain distinct; fish are submerged teal silhouettes without overhead markers.
 - Existing cream text, navy panels and turquoise controls fit this palette. Keep labels legible, offer cards equal and keyboard focus visible. Reference icons/HUD ornaments do not authorize new gameplay or progression features.
 
 ## Shared world and behavior
 
-`StartingArea.cs` owns the actual fixed home geography for both title and gameplay. The cottage stays upper-left, island lower-right and selected boat alongside the wooden dock at `(35,-315)`, clear of central menu content. Set sail fades the menu without resetting meshes, boat or camera. The boat remains still until player input, and camera follow begins after movement. Offshore generation remains seeded.
+`StartingArea.cs` owns the actual fixed home geography for both title and gameplay. The cottage stays upper-left, island lower-right and selected boat alongside the wooden dock at `(55,-315)`, clear of central menu content. Set sail fades the menu without resetting meshes, boat or camera. The boat remains still until player input, and camera follow begins after movement. Offshore generation remains seeded.
 
 Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve the spacious orthographic camera at 0.74 pixels per simulation unit with 0.84 vertical ground-plane foreshortening. HUD anchors and water-plane click unprojection share this camera. Simulation remains engine-independent C#.
 
@@ -21,7 +22,7 @@ All world meshes, materials and animation are generated by C# and Godot shaders.
 
 ## Native comparison and acceptance
 
-Compare [the baseline](../evidence/diorama-baseline.png), [native art sample](../evidence/diorama-sample-scale.png) and final gameplay linked in [the evidence index](../evidence/README.md) with the exact reference at gameplay scale. The baseline gaps were noisy water, dense small decoration, rounded rock stacks, over-subdivided leaves and fine branched foam. The new treatment removes those details and uses broad solid forms with clear color separation.
+Compare the [island baseline](../evidence/island-baseline.png), [current home view](../evidence/island-fitted-title.png), [ruins in gameplay](../evidence/island-fitted-sailing-b.png), [native cliff sample](../evidence/island-fitted-cliffs.png) and [native grove sample](../evidence/island-fitted-grove.png) with the island reference at normal playing scale. The goal is continuous irregular coastal layering, richer grounded interiors and distinct landmarks. The quiet open ocean and existing subject art remain outside this island pass.
 
 The reference composition is illustrative: native world generation, camera scale, dock layout and gameplay are retained. The result is a cohesive diorama interpretation, not a pixel-for-pixel copy; existing cabin silhouettes and game UI remain recognizable. Debug/Release builds and native behavior/performance evidence belong in [QUALITY.md](QUALITY.md). The separate `art-sample.tscn` is only a visual proof and constructs no Voyage. Native gameplay, not that sample alone, establishes acceptance.
 

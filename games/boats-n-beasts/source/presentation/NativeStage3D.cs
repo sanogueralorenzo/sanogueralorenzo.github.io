@@ -44,7 +44,7 @@ public partial class NativeStage3D : Node3D
         Lens.Position = target + new Vector3(0, Foreshortening * 32, Mathf.Sqrt(1 - Foreshortening * Foreshortening) * 32);
         Lens.LookAt(target); sea.Position = target;
     }
-    public void Advance(float clock) { water.SetShaderParameter("clock", clock); DioramaSurface.Advance(clock); }
+    public void Advance(float clock) { water.SetShaderParameter("clock", clock); DioramaSurface.Advance(clock); EnvironmentArt3D.Advance(clock); }
     public Vector2 Screen(V2 p, float height = 0) => Lens.UnprojectPosition(Point(p, height));
     public V2 WorldPoint(Vector2 screen)
     {

@@ -1,5 +1,49 @@
 # Quality and verification
 
+## Final reef art integrated with shared island shapes — 2026-09-09
+
+Integrated the art pass with `main`'s newer sparse placement, varied island sizes, shared `IslandShape` collision/chart outline and Crownclaw bombs. Those core/gameplay changes are preserved without modification. Land and surf now use the shared shape. Prop roots map into the land footprint; rocks and ruins fit the available shore clearance with uniform scale, while palm canopies may overhang. Nested moss and masonry inherit the parent transform so they stay attached. The first integration distorted narrow-island palms; it was replaced before acceptance with the uniform fitting approach.
+
+Debug/Release pass with zero warnings/errors. Final native game and art-sample logs are clean. Reviewed small ruins and larger cliff/grove samples at the normal camera scale, then played Aura from the actual home dock. The harbor opened with its three offers. Sailing captures show the boat advancing from `(302.05,-143.40)` to `(657.09,73.75)`, full hull, active enemies and changing shore wash. Steering into the home island reaches `(916.89,166.40)` outside the visible shore, with negligible velocity; terrain, surf and chart share the new curved footprint. All final gameplay captures retain 25 active chunks. The final short native frame sample is mean/p95/p99 **8.38/8.33/9.09 ms** on M3 Max; it is not a sustained benchmark.
+
+The final art sample contains no Voyage and uses the production scenery factory. Space cycles a 155-radius ruin sample and 260-radius cliff/grove samples using actual seeded `IslandShape` geometry; Tab retains the existing detail view. These samples establish the final prop proportions and coastline treatment, while home gameplay establishes their integration. The 62.4-second run below predates the shared-shape integration and must not be presented as final-build performance. The integrated offshore exploration used an intermediate prop-fitting approach; its geometry was reviewed and corrected in the final sample/home pass. No exhaustive seed sweep, renewed long-endless benchmark or replay of every mechanic was performed. No automated tests or injected gameplay state were used.
+
+[Final native evidence](../evidence/README.md) separates these captures from the initial art pass and the previous island-generation work. The result is a faceted native interpretation of the requested island features, preserving the existing camera and quiet open ocean.
+
+## Initial reef art pass, before shared-shape integration — 2026-09-09
+
+The user's [new island reference](island-reference.png) supersedes the smooth-ring island treatment. [ISLAND_GOAL.md](ISLAND_GOAL.md) records five baseline gaps. Native islands now have continuous scalloped coasts, variable sand/grass transitions, uneven turquoise shelves that fade into the sea, mottled seabeds, faint caustics and broken advancing surf. Rock silhouettes have more varied shoulders and faces; curved palms, undergrowth and grass fill the interiors. Seeded offshore styles distinguish carved ruins, layered cliffs and palm groves. Harbors retain their cottage and dock with a planted rocky backdrop, stepping stones, sign and clear waterfront.
+
+All core simulation, world generation, collision radii, home positions, dock geometry, camera, actor art and gameplay remain unchanged. New scenery still merges into two shared material surfaces per place; the existing bounded cache owns it. The presentation clock drives surf and freezes it in paused gameplay. The art sample now saves timestamped images instead of overwriting historical evidence.
+
+### Native review
+
+- Captured the current baseline before editing, then inspected a separate native art sample. The first sample revealed foliage hiding ruins and overly continuous foam; both were revised before final gameplay.
+- Captured title and normal-camera sailing views of the home ruin island, offshore cliffs and a palm grove. Land, beach, shallow water and surf meet continuously, and the water has no opaque outer ring. Ruins remain visible above lower foliage. Open water retains its quieter earlier treatment.
+- Opened the starting harbor, then sailed Mage away from home and steered directly into the home island. The intended destination was inside the island; repeated captures kept the hull outside, sliding along its shore. The existing bow/stern collision checks explain the roughly 195-unit boat-center distance from the 125-unit island.
+- Opened a streamed harbor with three weapon offers and used its 25-gold repair, then continued exploring. Normal treasure collection, enemy pursuit, projectile attacks and Crownclaw arrival remained active.
+- The final exploration run reached `(8094.8535,-2275.579)` (8.4 leagues), lasted 62.4 sailing seconds and ended in ordinary combat defeat. It retained 25 loaded chunks; sampled scenery cache counts ranged from 7 to 18, dropping to 12 at the end. Peak enemies/shots were 15/39. This was live UI play without state injection or automated tests.
+
+### Builds and performance
+
+Debug and Release build with zero warnings/errors. Native logs contain no shader, runtime or rendering errors. On Apple M3 Max / Godot 4.7.2 .NET / Metal Forward+ / 4× MSAA / 1280×800 captures:
+
+| Capture | Sailing time | Frame mean / p95 / p99 |
+| --- | --- | --- |
+| Home sailing | 7.4 seconds | 8.43 / 9.09 / 11.91 ms |
+| Offshore cliffs | 30.9 seconds | 8.43 / 9.09 / 10.61 ms |
+| Palm grove | 40.1 seconds | 8.45 / 9.09 / 10.61 ms |
+| Streamed ruins and harbor | 56.0 seconds | 8.45 / 9.09 / 10.61 ms |
+| End of sustained run | 62.4 seconds | 8.47 / 9.09 / 10.54 ms |
+
+These are bounded rolling native frame samples, including capture overhead, not isolated GPU benchmarks. The native baseline title reported 120 FPS, but no matching pre-change sailing benchmark was recorded, so no numeric performance-improvement claim is made.
+
+### Limits and chronology
+
+The first home-harbor check precedes the final rock/ruin refinements; the offshore refit and all sailing/combat evidence follow those refinements. Final source review narrowed inland contour variation to guarantee the grass and sand layers cannot cross at extreme seeds; a fresh native home capture verifies that final guard. These gameplay measurements precede the grass-edge guard and the later integration of sparse world generation, shared island collision and Crownclaw bombs. They describe the initial art build, not the final integrated game. The reference is interpreted in the game's native faceted style at its existing scale; its painterly open ocean, boss, boat, HUD and exact composition were outside this request. Every possible seed, extreme endless crowds, fishing, all boats/weapons and boss victory were not replayed for this scenery-only change.
+
+[Native screenshots, paired telemetry and logs](../evidence/README.md) record the result and these limits.
+
 ## Varied island sizes and shapes — 2026-09-08
 
 Offshore island radius parameters now range from 110 to 290 instead of 145–190. A seeded aspect ratio, rotation and broad low-frequency bends produce narrow, elongated and bean-shaped outlines. The shared `IslandShape` supplies sand/shallows, foam, the chart and a cached 96-edge collision boundary. Clearance uses the closest shore edge rather than the old circular island collider. Enemy avoidance checks the shaped land ahead; cannon impacts use its edge normal. Decorations map into the land footprint, with restrained scales, and satellite rocks follow the coast. Harbor layouts and fixed home coordinates remain; the home island adopts a fixed silhouette using style 921. The prior sparse landmark placement and seed-independent streaming order remain.
@@ -76,7 +120,7 @@ Debug and Release builds pass with zero warnings/errors. Native [windup](../evid
 
 ## Flat-shaded nautical diorama — 2026-09-08
 
-This is the current visual acceptance record. The [exact selected reference](visual-restart/flat-diorama-reference.png) replaces the earlier Direction B/doodle directions. The native result uses quiet petrol-teal water, simple polygon shallows, warm sand terraces, irregular faceted slate rocks, folded broad palm leaves, solid pitched cottage roofs, matte boat hulls and expressive flat-shaded creatures. Surface grain, fine rock fractures, sand flecks, deck seams, roof tiles and detailed water normals were removed. Low swimming teal serpents have coral fins; Crownclaw retains broad claws, readable eyes and a pale crown; Mage carries a larger upright violet crystal. Existing cream/navy/turquoise HUD and menus fit the new palette and retain their controls.
+This is the historical whole-world acceptance record; the 2026-09-09 island pass above supersedes its island art. The [exact selected reference](visual-restart/flat-diorama-reference.png) replaces the earlier Direction B/doodle directions. The native result uses quiet petrol-teal water, simple polygon shallows, warm sand terraces, irregular faceted slate rocks, folded broad palm leaves, solid pitched cottage roofs, matte boat hulls and expressive flat-shaded creatures. Surface grain, fine rock fractures, sand flecks, deck seams, roof tiles and detailed water normals were removed. Low swimming teal serpents have coral fins; Crownclaw retains broad claws, readable eyes and a pale crown; Mage carries a larger upright violet crystal. Existing cream/navy/turquoise HUD and menus fit the new palette and retain their controls.
 
 The [native gameplay capture](../evidence/diorama-gameplay.png), [Crownclaw](../evidence/diorama-crownclaw.png), [title](../evidence/diorama-title.png) and [art sample](../evidence/diorama-sample-scale.png) establish a coherent interpretation at the preserved camera scale. Review rejected regular column-like stone faces, hard-to-see fish and folding wake wedges during creature turns. Final stones have unequal shoulders/caps, submerged fish are clearer, and wakes join along shared banks with smoothed headings and separate trails at reversals. The result retains existing cabin silhouettes and layouts rather than copying the reference’s exact composition. No major unresolved visual gap remains in the reviewed native scenes.
 
