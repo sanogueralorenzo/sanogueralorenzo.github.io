@@ -1,0 +1,50 @@
+Mouse viewport=(-283.5, 414) global=(-283.5, 414) boatScreen=(720.0001, 450.0002) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<1185.7064, 3088.1992>; destination=
+Native runtime capture: 20260909-091346-801-sailing
+Renderer: forward_plus
+Seed: 3937392081
+Mode: Sailing
+Game speed: x1
+Finished runs: 110; boat selection: False
+Silver: 71; earned this voyage: 19; next eligible combat time: 1358.1139
+Boat: Cutter
+Position: <2541.7878, 3146.1145>
+Health: 48/100
+Coins: 4949; cargo: 0; kills: 1657; level: 24; pending upgrades: 0
+Active chunks: 25; enemies: 9; shots: 9
+Actual sailing seconds: 476.8; peak enemies: 18; peak shots: 24
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=True; boss slain=False
+Camera world=(2541.7876, 3146.1143); departure seconds=1329.7303; menu opacity=0
+Velocity=<3E-45, 3E-45>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=1703; pulls=0
+Combat clock=1330.6497; director=2.4678004/1; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=5,0,0,5,0,0; cooldowns=0.08027061,0,0,0.5427655,0,0
+Depletion=
+Landmark 3:3:land: Island position=<3237.9478, 3538.2852> radius=114.12552 style=3447348093 profile=Lobed
+Landmark 2:3:land: Island position=<2261.5664, 3369.2363> radius=86.80034 style=3394791196 profile=Long
+Landmark 3:1:land: Island position=<3157.2012, 1429.6234> radius=88.429565 style=2357438214 profile=Twin
+Landmark 2:4:land: Island position=<2852.5496, 5208.6104> radius=211.26195 style=2056998657 profile=Lobed
+Landmark 4:4:land: Harbor position=<4340.8696, 4586.6523> radius=140 style=1129140128 profile=harbor
+Landmark 1:5:land: Island position=<811.9193, 6132.9536> radius=195.75989 style=2562683994 profile=Twin
+Boss bombs thrown=10; explosions=6; blast hits=2
+Pacing regular target=56; income=4.1225986; boss arrival seconds=1320
+Puffer explosions=0; blast hits=0
+Enemy 1658: Leviathan position=<2363.4106, 3180.94> hp=105 time=10.674545 attack=3.0886083 tell=0 dash=0 speedMultiplier=1.1972859 swimSpeed=87.40187 fuse=0
+Enemy 1663: Puffer position=<2604.3792, 3304.7173> hp=20 time=7.3843765 attack=-5.888929 tell=0 dash=0 speedMultiplier=0.9367678 swimSpeed=98.36062 fuse=0
+Enemy 1665: Crab position=<2890.2478, 3157.5957> hp=27 time=6.099591 attack=-4.053909 tell=0 dash=0 speedMultiplier=1.017876 swimSpeed=84.48371 fuse=0
+Enemy 1666: Crab position=<2499.8452, 3463.648> hp=9 time=5.4754453 attack=-2.171288 tell=0 dash=0 speedMultiplier=1.1287677 swimSpeed=93.68772 fuse=0
+Enemy 1667: Puffer position=<2795.9822, 2889.5647> hp=38 time=4.8587832 attack=-3.1917431 tell=0 dash=0 speedMultiplier=0.8785277 swimSpeed=92.24541 fuse=0
+Enemy 1668: Crab position=<2244.9238, 3476.0535> hp=9 time=4.252825 attack=-1.8723879 tell=0 dash=0 speedMultiplier=1.1848911 swimSpeed=98.34596 fuse=0
+Enemy 1669: Crab position=<2684.1567, 2698.7551> hp=27 time=3.6502478 attack=-0.723525 tell=0 dash=0 speedMultiplier=1.1185838 swimSpeed=92.84245 fuse=0
+Enemy 1670: Puffer position=<3215.3093, 3076.6233> hp=38 time=3.0588844 attack=-1.5563021 tell=0 dash=0 speedMultiplier=0.9440796 swimSpeed=99.12836 fuse=0
+Enemy 1671: Serpent position=<2690.31, 3731.207> hp=52 time=2.4760287 attack=3.532388 tell=0.06577113 dash=0 speedMultiplier=1.132879 swimSpeed=125.74957 fuse=0
+Shot Cannon hostile=False position=<2509.389, 3268.7703> life=1.9408348 target=<0, 0> age=0.45916554 flight=0
+Shot Cannon hostile=False position=<2518.2202, 3274.6858> life=1.9408348 target=<0, 0> age=0.45916554 flight=0
+Shot Cannon hostile=False position=<2518.2202, 3274.6858> life=1.9408348 target=<0, 0> age=0.45916554 flight=0
+Shot Cannon hostile=False position=<2518.2202, 3274.6858> life=1.9408348 target=<0, 0> age=0.45916554 flight=0
+Shot Cannon hostile=False position=<2509.389, 3268.7703> life=1.9408348 target=<0, 0> age=0.45916554 flight=0
+Shot Boss bomb hostile=True position=<2379.4053, 3177.8179> life=1.1243225 target=<2541.7878, 3146.1145> age=0.12567782 flight=1.25
+Shot Boss bomb hostile=True position=<2396.7405, 3173.1743> life=1.3043226 target=<2765.0344, 3088.2139> age=0.12567782 flight=1.4300001
+Shot Boss bomb hostile=True position=<2370.5862, 3195.823> life=1.4843225 target=<2480.8003, 3366.622> age=0.12567782 flight=1.61
+Shot Boss bomb hostile=True position=<2363.6003, 3168.3892> life=1.6643225 target=<2394.6643, 2996.6077> age=0.12567782 flight=1.79
+CPU simulation average ms=0.077; draw submission average ms=0.634; cached scenery=7; engine FPS=73; draw calls=196; objects=840
+Frame ms mean: 9.00; p95: 12.93; p99: 15.42

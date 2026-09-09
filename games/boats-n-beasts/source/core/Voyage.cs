@@ -14,6 +14,8 @@ public sealed class Enemy
     public const float EmergenceDuration = .45f;
     public bool Emerging => Time < EmergenceDuration;
     public float Radius => Kind == EnemyKind.Leviathan ? 74 : Kind == EnemyKind.Serpent ? 31 : 27;
+    public float SwimSpeed => (Kind == EnemyKind.Crab ? 83 : Kind == EnemyKind.Puffer ? 105
+        : Kind == EnemyKind.Serpent ? 111 : Kind == EnemyKind.Ray ? 135 : 73) * SpeedMultiplier;
 }
 public sealed class Shot
 {
@@ -99,14 +101,14 @@ public sealed partial class Voyage
             UpdateMovement(dt, input);
             CollectEncounters();
         }
-        int spawn = Director.Tick(dt, Tier, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
+        int spawn = Director.Tick(dt, CombatTime, Enemies.Count(e => e.Kind != EnemyKind.Leviathan), BossSpawned && !BossSlain);
         for (int i = 0; i < spawn; i++) Spawn();
-        if (Tier >= 3 && !BossSpawned)
+        if (CombatTime >= SpawnDirector.BossArrivalSeconds && !BossSpawned)
         {
             if (Spawn(EnemyKind.Leviathan))
             {
                 BossSpawned = true;
-                foreach (var escort in Enemies.Where(e => e.Kind != EnemyKind.Leviathan && e.Health > 0).OrderBy(e => Vector2.DistanceSquared(e.Position, Position)).Skip(8)) escort.Health = 0;
+                foreach (var escort in Enemies.Where(e => e.Kind != EnemyKind.Leviathan && e.Health > 0).OrderBy(e => Vector2.DistanceSquared(e.Position, Position)).Skip(SpawnDirector.BossEscortCount)) escort.Health = 0;
                 Events.Add(new("boss", Enemies[^1].Position));
             }
         }
@@ -128,7 +130,7 @@ public sealed partial class Voyage
     public bool Spawn(EnemyKind? forced = null)
     {
         if (Enemies.Count >= 80) return false;
-        var kind = forced ?? (Tier == 0 ? EnemyKind.Crab : (EnemyKind)Random.Index(Math.Min(4, Tier + 1)));
+        var kind = forced ?? Director.Kind(CombatTime, Random.Unit());
         Vector2 p = default;
         for (int attempt = 0; attempt < 20; attempt++)
         {
@@ -137,7 +139,7 @@ public sealed partial class Voyage
             if (World.IsWater(p, 80)) break;
             if (attempt == 19) return false;
         }
-        float hp = (kind == EnemyKind.Leviathan ? 1050 : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52) * (1 + Tier * .25f);
+        float hp = kind == EnemyKind.Leviathan ? 1050 : kind == EnemyKind.Crab ? 27 : kind == EnemyKind.Puffer ? 38 : kind == EnemyKind.Ray ? 43 : 52;
         Enemies.Add(new() { Id = ++NextEnemyId, Kind = kind, Position = p, Health = hp, MaxHealth = hp, AttackClock = Random.Range(1, 3), SpeedMultiplier = Random.Range(.85f, 1.4f) });
         return true;
     }
@@ -151,7 +153,7 @@ public sealed partial class Voyage
             if (e.Emerging) continue;
             e.AttackClock -= dt; e.HitFlash = Math.Max(0, e.HitFlash - dt);
             Vector2 d = Position - e.Position; float distance = d.Length(); Vector2 dir = OceanWorld.Unit(d, Vector2.UnitY);
-            float speed = (e.Kind == EnemyKind.Crab ? 83 : e.Kind == EnemyKind.Puffer ? 105 : e.Kind == EnemyKind.Serpent ? 111 : e.Kind == EnemyKind.Ray ? 135 : 73) * (1 + Math.Min(Tier, 12) * .045f) * e.SpeedMultiplier;
+            float speed = e.SwimSpeed;
             Vector2 motion = dir;
             if (e.Kind == EnemyKind.Puffer)
             {
@@ -167,7 +169,7 @@ public sealed partial class Voyage
                         if (distance < Enemy.PufferBlastRadius + 23)
                         {
                             float before = Health;
-                            DamagePlayer(22 + Tier * 2);
+                            DamagePlayer(22);
                             if (Health < before) PufferBlastHits++;
                         }
                     }
@@ -214,7 +216,7 @@ public sealed partial class Voyage
             }
             motion = World.Avoid(e.Position, motion, e.Radius, e.Id);
             e.Position = World.Slide(e.Position, e.Position + motion * speed * dt, e.Radius);
-            if (e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11 + Tier * 1.5f);
+            if (e.Kind != EnemyKind.Puffer && distance < e.Radius + 23) DamagePlayer(e.Kind == EnemyKind.Leviathan ? 24 : 11);
         }
     }
     void ThrowBossBombs(Enemy boss)
@@ -234,7 +236,7 @@ public sealed partial class Voyage
             float flight = 1.25f + i * .18f;
             Shots.Add(new() { Hostile = true, Position = boss.Position, Previous = boss.Position,
                 Target = target, Velocity = (target - boss.Position) / flight, FlightDuration = flight,
-                Damage = 26 + Tier * 1.4f, Life = flight, Radius = 140 });
+                Damage = 26, Life = flight, Radius = 140 });
             BossBombsThrown++;
         }
     }

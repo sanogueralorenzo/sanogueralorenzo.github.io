@@ -1,0 +1,65 @@
+Mouse viewport=(1289.25, 798.75) global=(1289.25, 798.75) boatScreen=(720.0001, 450.0002) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<3311.0444, 3707.1663>; destination=
+Native runtime capture: 20260909-091004-091-sailing
+Renderer: forward_plus
+Seed: 3937392081
+Mode: Sailing
+Game speed: x3
+Finished runs: 110; boat selection: False
+Silver: 67; earned this voyage: 15; next eligible combat time: 1115.3899
+Boat: Cutter
+Position: <2541.7878, 3146.1145>
+Health: 100/100
+Coins: 3227; cargo: 0; kills: 1083; level: 20; pending upgrades: 0
+Active chunks: 25; enemies: 12; shots: 21
+Actual sailing seconds: 369.6; peak enemies: 17; peak shots: 24
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2541.7876, 3146.1143); departure seconds=1105.4375; menu opacity=0
+Velocity=<3E-45, 3E-45>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=1091; pulls=0
+Combat clock=1106.3165; director=0.125/0.34083197; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=5,0,0,5,0,0; cooldowns=0.3145836,0,0,0.86041677,0,0
+Depletion=
+Landmark 3:3:land: Island position=<3237.9478, 3538.2852> radius=114.12552 style=3447348093 profile=Lobed
+Landmark 2:3:land: Island position=<2261.5664, 3369.2363> radius=86.80034 style=3394791196 profile=Long
+Landmark 3:1:land: Island position=<3157.2012, 1429.6234> radius=88.429565 style=2357438214 profile=Twin
+Landmark 2:4:land: Island position=<2852.5496, 5208.6104> radius=211.26195 style=2056998657 profile=Lobed
+Landmark 4:4:land: Harbor position=<4340.8696, 4586.6523> radius=140 style=1129140128 profile=harbor
+Landmark 1:5:land: Island position=<811.9193, 6132.9536> radius=195.75989 style=2562683994 profile=Twin
+Boss bombs thrown=0; explosions=0; blast hits=0
+Pacing regular target=45; income=3.225266; boss arrival seconds=1320
+Puffer explosions=0; blast hits=0
+Enemy 1084: Ray position=<2594.8257, 3482.3792> hp=25 time=4.016691 attack=-1.6161704 tell=0 dash=0 speedMultiplier=1.0869775 swimSpeed=146.74196 fuse=0
+Enemy 1085: Puffer position=<2687.1646, 3582.1821> hp=20 time=3.6750207 attack=-0.24870034 tell=0 dash=0 speedMultiplier=1.1446264 swimSpeed=120.18577 fuse=0
+Enemy 1086: Puffer position=<2420.6208, 3570.4985> hp=5 time=3.3333495 attack=-1.4099038 tell=0 dash=0 speedMultiplier=1.1897732 swimSpeed=124.926186 fuse=0
+Enemy 1087: Crab position=<2082.4744, 3340.0803> hp=27 time=2.9916782 attack=-0.6603378 tell=0 dash=0 speedMultiplier=1.297642 swimSpeed=107.704285 fuse=0
+Enemy 1088: Crab position=<3134.755, 2987.99> hp=27 time=2.6416736 attack=-0.98168564 tell=0 dash=0 speedMultiplier=0.92196256 swimSpeed=76.522896 fuse=0
+Enemy 1089: Ray position=<2610.7664, 2637.2397> hp=28 time=2.291669 attack=-0.28155956 tell=0 dash=0 speedMultiplier=1.2486116 swimSpeed=168.56256 fuse=0
+Enemy 1090: Ray position=<2302.8894, 2540.1934> hp=43 time=1.9416652 attack=1.1327239 tell=0 dash=0 speedMultiplier=1.2008936 swimSpeed=162.12064 fuse=0
+Enemy 1091: Crab position=<2248.972, 3855.9084> hp=27 time=1.5833322 attack=0.9516914 tell=0 dash=0 speedMultiplier=1.2877047 swimSpeed=106.87949 fuse=0
+Enemy 1092: Ray position=<1875.28, 3279.6697> hp=43 time=1.2249992 attack=1.1637878 tell=0 dash=0 speedMultiplier=1.157692 swimSpeed=156.28842 fuse=0
+Enemy 1093: Crab position=<1731.7677, 3161.1213> hp=27 time=0.8666662 attack=1.026009 tell=0 dash=0 speedMultiplier=1.0126755 swimSpeed=84.05207 fuse=0
+Enemy 1094: Puffer position=<2408.7297, 4028.3337> hp=38 time=0.49999985 attack=2.0670116 tell=0 dash=0 speedMultiplier=0.889408 swimSpeed=93.38784 fuse=0
+Enemy 1095: Puffer position=<1941.8962, 2627.7651> hp=38 time=0.13333334 attack=1.037864 tell=0 dash=0 speedMultiplier=1.0588938 swimSpeed=111.183846 fuse=0
+Shot Cannon hostile=False position=<2115.412, 1693.1099> life=0.041663103 target=<0, 0> age=2.3583364 flight=0
+Shot Cannon hostile=False position=<2124.041, 1690.5527> life=0.041663103 target=<0, 0> age=2.3583364 flight=0
+Shot Cannon hostile=False position=<3575.2463, 2694.2996> life=0.041663103 target=<0, 0> age=2.3583364 flight=0
+Shot Cannon hostile=False position=<3580.9802, 2694.5894> life=0.041663103 target=<0, 0> age=2.3583364 flight=0
+Shot Cannon hostile=False position=<3586.714, 2694.846> life=0.041663103 target=<0, 0> age=2.3583364 flight=0
+Shot Cannon hostile=False position=<1352.6682, 2987.8381> life=0.57499623 target=<0, 0> age=1.8249986 flight=0
+Shot Cannon hostile=False position=<1399.114, 2894.457> life=0.57499623 target=<0, 0> age=1.8249986 flight=0
+Shot Cannon hostile=False position=<1405.6954, 2868.2715> life=0.57499623 target=<0, 0> age=1.8249986 flight=0
+Shot Cannon hostile=False position=<3433.5295, 3276.228> life=1.108329 target=<0, 0> age=1.2916658 flight=0
+Shot Cannon hostile=False position=<3432.3484, 3285.1501> life=1.108329 target=<0, 0> age=1.2916658 flight=0
+Shot Cannon hostile=False position=<3431.167, 3294.0723> life=1.108329 target=<0, 0> age=1.2916658 flight=0
+Shot Cannon hostile=False position=<3429.9856, 3302.9944> life=1.108329 target=<0, 0> age=1.2916658 flight=0
+Shot Cannon hostile=False position=<3428.8044, 3311.9165> life=1.108329 target=<0, 0> age=1.2916658 flight=0
+Shot Cannon hostile=False position=<2732.0178, 2687.894> life=1.6416619 target=<0, 0> age=0.75833297 flight=0
+Shot Cannon hostile=False position=<2757.4434, 2696.979> life=1.6416619 target=<0, 0> age=0.75833297 flight=0
+Shot Cannon hostile=False position=<2765.9187, 2700.0073> life=1.6416619 target=<0, 0> age=0.75833297 flight=0
+Shot Cannon hostile=False position=<2611.6511, 3347.9646> life=2.174997 target=<0, 0> age=0.22500008 flight=0
+Shot Cannon hostile=False position=<2602.7058, 3348.954> life=2.174997 target=<0, 0> age=0.22500008 flight=0
+Shot Cannon hostile=False position=<2593.7603, 3349.9436> life=2.174997 target=<0, 0> age=0.22500008 flight=0
+Shot Cannon hostile=False position=<2584.8147, 3350.933> life=2.174997 target=<0, 0> age=0.22500008 flight=0
+Shot Cannon hostile=False position=<2575.8694, 3351.9226> life=2.174997 target=<0, 0> age=0.22500008 flight=0
+CPU simulation average ms=0.078; draw submission average ms=0.588; cached scenery=7; engine FPS=120; draw calls=191; objects=755
+Frame ms mean: 8.34; p95: 8.33; p99: 8.33

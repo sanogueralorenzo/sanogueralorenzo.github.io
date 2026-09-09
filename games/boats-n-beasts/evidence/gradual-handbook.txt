@@ -1,0 +1,33 @@
+Mouse viewport=(1003.5, 74.25) global=(1003.5, 74.25) boatScreen=(720.0001, 450.0002) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.6216); click world=<2924.8955, 2541.6255>; destination=
+Native runtime capture: 20260909-085438-058-paused
+Renderer: forward_plus
+Seed: 3937392081
+Mode: Paused
+Game speed: x3
+Finished runs: 110; boat selection: False
+Silver: 55; earned this voyage: 3; next eligible combat time: 261.14282
+Boat: Cutter
+Position: <2541.7878, 3146.1145>
+Health: 100/100
+Coins: 110; cargo: 0; kills: 44; level: 3; pending upgrades: 0
+Active chunks: 25; enemies: 1; shots: 0
+Actual sailing seconds: 72.8; peak enemies: 3; peak shots: 3
+Fishing time=0; cursor=0; target=0; catch=; last sale=0; boss spawned=False; boss slain=False
+Camera world=(2541.7876, 3146.1143); departure seconds=214.1675; menu opacity=0
+Velocity=<3E-45, 3E-45>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; wrecks=0; arcane casts=0; mines=0/0; ricochets=2; pulls=0
+Combat clock=214.87617; director=2.6816292/0.65818; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=2,0,0,1,0,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Landmark 3:3:land: Island position=<3237.9478, 3538.2852> radius=114.12552 style=3447348093 profile=Lobed
+Landmark 2:3:land: Island position=<2261.5664, 3369.2363> radius=86.80034 style=3394791196 profile=Long
+Landmark 3:1:land: Island position=<3157.2012, 1429.6234> radius=88.429565 style=2357438214 profile=Twin
+Landmark 2:4:land: Island position=<2852.5496, 5208.6104> radius=211.26195 style=2056998657 profile=Lobed
+Landmark 4:4:land: Harbor position=<4340.8696, 4586.6523> radius=140 style=1129140128 profile=harbor
+Landmark 1:5:land: Island position=<811.9193, 6132.9536> radius=195.75989 style=2562683994 profile=Twin
+Boss bombs thrown=0; explosions=0; blast hits=0
+Pacing regular target=8; income=0.37338856; boss arrival seconds=1320
+Puffer explosions=0; blast hits=0
+Enemy 45: Crab position=<3045.138, 2737.5842> hp=27 time=2.7136781 attack=-0.94961005 tell=0 dash=0 speedMultiplier=1.1499228 swimSpeed=95.443596 fuse=0
+CPU simulation average ms=0.040; draw submission average ms=0.411; cached scenery=7; engine FPS=60; draw calls=163; objects=2254
+Frame ms mean: 20.62; p95: 33.33; p99: 34.02

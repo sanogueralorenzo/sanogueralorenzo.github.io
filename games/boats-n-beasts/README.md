@@ -1,6 +1,6 @@
 # Boats ’n’ Beasts
 
-An original procedural 3D sailing roguelike for Godot .NET. Sail an endless seeded ocean, fight with automatic weapons, fish for refit money, and defeat the Crownclaw beyond three leagues.
+An original procedural 3D sailing roguelike for Godot .NET. Sail an endless seeded ocean, fight with automatic weapons, fish for refit money, and survive a gradual buildup before the Crownclaw arrives at 22 minutes.
 
 ## Run
 
@@ -26,11 +26,28 @@ The home menu starts with **Play**, which opens boat selection. **Unlock**, **Qu
 - **×1 / ×2 / ×3, below the top-left counters:** cycle game speed. Sailing, combat, fishing and effects advance faster; pauses still freeze the voyage. Each new voyage starts at ×1.
 - **F12:** save a native viewport image and runtime measurements under `evidence/`.
 
-Regular monsters attack up close: crabs and serpents make contact, rays weave toward you, and puffers self-detonate nearby. Only the Crownclaw attacks at range, lobbing bombs that explode in red domes near your position when thrown. Keep moving to leave their fixed landing points behind. Sail beyond three leagues to summon it; defeat it to win immediately, then start a fresh voyage or keep exploring. Fishing is optional income for upgrades and repairs.
+Regular monsters attack up close: crabs and serpents make contact, rays weave toward you, and puffers self-detonate nearby. Only the Crownclaw attacks at range, lobbing bombs that explode in red domes near your position when thrown. Keep moving to leave their fixed landing points behind. It appears after 22 minutes of active voyage time; defeat it to win immediately, then start a fresh voyage or keep exploring. Fishing is optional income for upgrades and repairs.
 
 Keep as many catches as you find; there is no storage limit or cargo counter. Catches automatically sell for gold when you press E to open the harbor menu. Repair and buy upgrades at harbors. Each harbor stocks three fixed offers from one category: weapons or boat upgrades. Revisiting does not reroll stock. Runs have two total weapon slots, including the starting weapon; equipped weapons can still be upgraded when slots are full. Both paid and free upgrades respect the limit. Leveling up pauses combat and offers up to three free upgrades; during fishing, choices wait until the cast ends. Choose one to resume sailing in place; no harbor visit is needed. If several levels arrive together, resolve one choice per level before resuming. There are no prerequisite trees or permanent stat grind. Silver becomes eligible after a fresh random 45–90 seconds of combat time and is awarded on the next kill. Each award starts a new random interval; saved silver is retained and idle time cannot bank extra drops; silver spending is reserved for a future update. A new voyage resets catches, money, and equipment; silver, best kill count, and completed-voyage count persist locally. The horizontal top-left counters use code-drawn clock, silver coin, gold coin and skull icons for combat time (scaled by game speed and frozen during pauses), saved silver, current-run gold, and kills.
 
-Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull. Acquired weapons and stat upgrades appear as procedural icons with rank badges in a centered bottom row; hover for names and descriptions. Empty slots are hidden. A small turquoise arc below the boat shows boost charge while boosting or recharging; coral means exhausted, with a release cue. Bulwark explains itself once per save, then uses its short pulse effect. Monsters emerge through a brief ripple before moving or attacking. Spiky puffers chase you, stop and swell for about a second, then explode in a red dome; sail clear or destroy them before they burst. They never shoot, and self-detonations do not award kills or loot. Each monster gets its own movement speed, from 85% to 140% of its species’ normal speed. Its colors stay the same. Chart harbors carry a cannon or hull symbol; hovering a discovered harbor, or sailing near one, previews its three fixed offers, prices and capacity/max-rank restrictions. Pause to review the current voyage objective.
+Experience fills the thin bar along the top edge. The small red bar above your boat shows its remaining hull. Acquired weapons and stat upgrades appear as procedural icons with rank badges in a centered bottom row; hover for names and descriptions. Empty slots are hidden. A small turquoise arc below the boat shows boost charge while boosting or recharging; coral means exhausted, with a release cue. Bulwark explains itself once per save, then uses its short pulse effect. Monsters emerge through a brief ripple before moving or attacking. Spiky puffers chase you, stop and swell for about a second, then explode in a red dome; sail clear or destroy them before they burst. They never shoot, and self-detonations do not award kills or loot. Each monster gets its own movement speed, from 85% to 140% of its species’ normal speed. Its speed and colors stay the same throughout the voyage. Chart harbors carry a cannon or hull symbol; hovering a discovered harbor, or sailing near one, previews its three fixed offers, prices and capacity/max-rank restrictions. Pause to review the current voyage objective.
+
+## Run pacing
+
+Target voyage length is 20–25 minutes, with Crownclaw arriving at **22:00**. Combat difficulty follows active voyage time, so sailing farther cannot trigger an early boss or stronger enemies. Pauses, upgrades and harbor menus stop that clock; fishing and the ×2/×3 controls advance it normally.
+
+| Active time | Regular-enemy population ceiling | Base spawn credits per second |
+| --- | ---: | ---: |
+| Start | 3 | 0.18 |
+| 5 minutes | 10 | 0.45 |
+| 10 minutes | 20 | 1.20 |
+| 15 minutes | 34 | 2.40 |
+| 20 minutes | 50 | 3.60 |
+| 25 minutes onward | 64 | 4.80 |
+
+Values interpolate between these points. Smooth minute-long swells vary the spawn rate between 50% and 100%; only one enemy can enter at a time, at least 0.2 seconds apart, with no stored wave burst. Actual population depends on kills, despawning and available water. Crownclaw reduces its escort to eight with slower replenishment.
+
+Crabs start the voyage. Puffers gradually join during minutes 2–4, serpents during 6–8 and rays during 10–12. Species retain fixed base swimming speeds and their existing individual 0.85–1.4 movement multipliers; serpent dashes remain a distinct attack. Enemy health and damage also stay fixed, so the buildup comes from numbers and the mix of enemies. Distance still improves fishing rewards and combat gold.
 
 ## Boats and builds
 
@@ -59,7 +76,7 @@ Four boat upgrades keep choices simple: **Hull** (+25 max health), **Speed** (+1
 
 - `source/core/StartingArea.cs`: shared starting positions, fixed home scenery/styles and dockside spawn.
 - `source/core/OceanWorld.cs`: seed-and-coordinate geography, collision, bounded 5×5 chunk streaming, sparse discovery/depletion history.
-- `source/core/SpawnDirector.cs`: original distance-based credit and population tuning, encounter lulls, boss escort ceiling.
+- `source/core/SpawnDirector.cs`: time-based population and spawn-rate curves, gradual species introductions, boss timing and escort ceiling.
 - `source/core/Voyage.cs`: engine-independent movement, combat, fishing, economy, progression and endings.
 - `source/presentation/Game.cs`: input, menus, HUD, saved progression and manual review captures.
 - `source/presentation/OceanView3D.cs`: read-only native presentation, bounded streaming and actor synchronization.

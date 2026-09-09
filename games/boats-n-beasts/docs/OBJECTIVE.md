@@ -15,6 +15,8 @@ Finish a polished desktop 2D boat roguelike in `games/boats-n-beasts`, working e
 
 ## Latest progression direction
 
+The 2026-09-09 pacing request supersedes distance-based combat difficulty: aim for a 20–25 minute voyage, bring Crownclaw at 22 minutes of active voyage time, grow enemy numbers gradually, and keep enemy swimming speeds fixed. Enemy health and damage stay fixed too; distance continues to affect rewards. See the current pacing table in [README.md](../README.md).
+
 Keep upgrades simple, like Megabonk: small varying level-up choices of weapon ranks and plainly explained stat/passive upgrades, a few obvious synergies, and distinct boat base abilities. Every boat must support ranged weapons, damaging aura weapons and short-range automatic attacks, with a viable ranged weapon from the start. No prerequisite trees, specialization graphs, catch equipment, or extra progression currencies. Nova Drift informs readability and satisfying combat, not progression complexity.
 
 ## Art and verification

@@ -1,5 +1,20 @@
 # Native gameplay evidence
 
+## Gradual 20–25 minute progression — 2026-09-09
+
+Final native Cutter voyage, seed `3937392081`, reaches victory at **22:11**. Captures have paired TXT telemetry. Most of the run uses the built-in ×3 control, returning to ×1 before the boss; no gameplay state is injected.
+
+| Capture | What it records |
+| --- | --- |
+| [Offshore at 3:16](gradual-offshore.png) | More than three leagues from home, full hull, no early boss and fixed crab/puffer stats. |
+| [Pause](gradual-pause.png), [handbook](gradual-handbook.png) | New 22:00 objective; identical combat/director/enemy state across 17 seconds of menu time. |
+| [9:38](gradual-middle.png), [14:43](gradual-fifteen.png), [18:26](gradual-late.png) | Earned upgrades, gradual enemy mix and rising population through the voyage. |
+| [21:58.96](gradual-before-boss.png) | Still full hull, no Crownclaw or hostile shots; observed population peak 18. |
+| [22:10.65](gradual-boss.png) | Crownclaw age about 10.67 seconds, eight escorts, active bombs and boss damage. |
+| [22:11 victory](gradual-victory.png) | 22/100 hull, 1,661 kills, enemies/shots cleared and the normal victory menu. |
+
+[Complete final runtime log](gradual-runtime.txt). [QUALITY.md](../docs/QUALITY.md) records the exact timing, performance and coverage limits. This is one successful build, not a claim that every build survives or that the 64-enemy maximum was reached.
+
 ## Puffer report: remove backward cannon returns — 2026-09-09
 
 Unedited final-build captures from Cutter voyage seed `3180561041`: [armed puffers at 51.3 seconds](puffer-no-return-armed.png) and [six detonations by 56.5 seconds](puffer-no-return-outcome.png). Each has matching TXT telemetry. The first records three active fuses and no shots; the second records only a friendly cannonball. Boss spawning and bomb counts remain zero in this voyage.
