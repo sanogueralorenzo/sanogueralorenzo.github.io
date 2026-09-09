@@ -77,6 +77,8 @@ public static class EnvironmentArt3D
         float[] radii = [0, .43f, .66f, .82f, .965f, 1.02f];
         float[] heights = [.20f, .19f, .15f, .09f, .018f, .007f];
         Color[] colors = [new("6b8d43"), new("75934a"), new("a4aa62"), Sand, new("f4dca1"), new("aabda0")];
+        // Larger land gets more inland ground, while beach and shelf depths stay bounded.
+        float coastalScale = shape == null ? 1 : MathF.Min(1, 3.6f / r);
         Vector3 CoastPoint(float angle, float scale, float height)
         {
             var p = shape?.Point(angle) * .0104f ?? new System.Numerics.Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (r * Coast(angle, seed));
@@ -88,7 +90,9 @@ public static class EnvironmentArt3D
             // Even at their extrema, inland layers stay inside the beach layer.
             float inland = layer is 1 or 2 ? 1 + .10f * Mathf.Sin(a * 3 + seed % 9) + .05f * Mathf.Cos(a * 5)
                 : layer == 3 ? 1 + .06f * Mathf.Sin(a * 4 + seed % 9) : 1;
-            return CoastPoint(a, radii[layer] * inland, heights[layer]);
+            float reach = radii[layer] * inland;
+            if (layer is >= 1 and <= 3) reach = .965f - (.965f - reach) * coastalScale;
+            return CoastPoint(a, reach, heights[layer]);
         }
         if (!rock) for (int layer = 0; layer < radii.Length - 1; layer++)
             for (int i = 0; i < sides; i++)
@@ -103,7 +107,7 @@ public static class EnvironmentArt3D
         {
             float a = i * Mathf.Tau / sides, t = layer / 8f;
             float width = .61f + .22f * Mathf.Sin(a * 3 + seed % 13) + .15f * Mathf.Cos(a * 5 + seed % 19);
-            return CoastPoint(a, .98f + width * t, .014f);
+            return CoastPoint(a, .98f + width * coastalScale * t, .014f);
         }
         for (int layer = 0; layer < 8; layer++) for (int i = 0; i < sides; i++)
         {
@@ -119,7 +123,8 @@ public static class EnvironmentArt3D
     private static void ShoreRocks(Sculptor art, float r, uint seed, bool harbor)
     {
         var rng = new SeedRandom(seed + 709);
-        for (int i = 0; i < 11; i++)
+        int count = harbor ? 11 : Math.Max(11, (int)MathF.Ceiling(r / 3.6f * 11));
+        for (int i = 0; i < count; i++)
         {
             float a = rng.Range(0, Mathf.Tau);
             // The working waterfront stays open between cottage, barrels and dock.
@@ -146,7 +151,12 @@ public static class EnvironmentArt3D
         {
             Ruin(art, new(-r * .24f, .17f, -r * .23f), r * 1.02f, -.12f, seed);
             Ruin(art, new(r * .40f, .12f, r * .18f), r * .70f, .24f, seed + 19);
-            for (int i = 0; i < 3; i++) art.RoundedBox(new((-.22f + i * .18f) * r, .15f, r * .50f), new(r * .19f, .09f, r * .15f), .015f, new("a5a28a"));
+            for (int i = 0; i < 3; i++)
+            {
+                var old = art.PlaceProp(new((-.22f + i * .18f) * r, .205f, r * .50f), r * .13f);
+                art.RoundedBox(Vector3.Zero, new(r * .19f, .09f, r * .15f), .015f, new("a5a28a"));
+                art.EndProp(old);
+            }
         }
         int palms = kind == 0 ? 3 : kind == 1 ? 7 : 4;
         for (int i = 0; i < palms; i++)
@@ -156,6 +166,18 @@ public static class EnvironmentArt3D
             var at = new Vector3(Mathf.Cos(a) * reach, .16f, Mathf.Sin(a) * reach);
             Palm(art, at, r * (kind == 0 ? rng.Range(.58f, .76f) : rng.Range(.64f, 1.03f)), rng.Next());
             Shrub(art, at + new Vector3(-r * .07f, 0, r * .02f), r * .19f, rng.Next());
+        }
+        // Keep tree and rock scale familiar; add planted groups across the extra land.
+        int groups = Math.Max(0, (int)MathF.Ceiling((r * r - 3.6f * 3.6f) * .30f));
+        for (int i = 0; i < groups; i++)
+        {
+            float a = i * 2.39996f + rng.Range(-.25f, .25f), reach = r * rng.Range(.36f, .78f);
+            var at = new Vector3(MathF.Cos(a) * reach, .14f, MathF.Sin(a) * reach);
+            Rock(art, at, new(r * .30f, r * rng.Range(.30f, .58f), r * .28f), rng.Next(), moss: true);
+            Palm(art, at + new Vector3(r * .05f, .01f, -r * .03f), r * rng.Range(.60f, .86f), rng.Next());
+            if (kind == 1) Palm(art, at + new Vector3(-r * .04f, .01f, r * .05f), r * .60f, rng.Next());
+            Shrub(art, at + new Vector3(r * .045f, 0, r * .055f), r * .22f, rng.Next());
+            Shrub(art, at + new Vector3(-r * .04f, 0, -r * .055f), r * .18f, rng.Next());
         }
     }
 

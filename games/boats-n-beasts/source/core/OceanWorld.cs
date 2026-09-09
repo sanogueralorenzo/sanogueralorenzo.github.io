@@ -29,6 +29,7 @@ public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 public sealed class OceanWorld(uint seed)
 {
     public const int ChunkSize = 1200;
+    public const float MaxIslandRadius = 720;
     public uint Seed { get; } = seed;
     public Dictionary<ChunkKey, OceanChunk> Loaded { get; } = new();
     public Dictionary<string, int> Depletion { get; } = new();
@@ -49,10 +50,14 @@ public sealed class OceanWorld(uint seed)
         var position = new Vector2(key.X * ChunkSize, key.Y * ChunkSize) +
             new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
         bool harbor = rng.Unit() < .3f;
-        // Separated size bands read as islets, islands and substantial landmasses.
+        // Keep small discoveries common, with occasional islands spanning most of a view.
         float size = rng.Unit();
         float radius = harbor ? 140 : size < .35f ? rng.Range(80, 115)
-            : size < .78f ? rng.Range(165, 235) : rng.Range(290, 360);
+            : size < .70f ? rng.Range(165, 235) : size < .85f ? rng.Range(290, 360)
+            : rng.Range(520, MaxIslandRadius);
+        // Giant islands can reach toward home from outside its reserved chunks.
+        if (StartingArea.Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) <
+            (radius + p.Radius) * 1.04f + 320)) return null;
         return new($"{key.X}:{key.Y}:land", harbor ? PlaceKind.Harbor : PlaceKind.Island,
             position, radius, rng.Next());
     }
@@ -60,7 +65,9 @@ public sealed class OceanWorld(uint seed)
     {
         var land = LandmarkCandidate(key);
         if (land == null) yield break;
-        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
+        // Maximum spacing is 1,818 units; candidates two chunks apart can be only
+        // 1,400 apart. Three chunks apart are at least 2,600, so this remains bounded.
+        for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++)
         {
             if (x == 0 && y == 0) continue;
             var other = LandmarkCandidate(new(key.X + x, key.Y + y));

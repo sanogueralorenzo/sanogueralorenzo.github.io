@@ -9,21 +9,22 @@ public partial class ArtSample : Node3D
     float clock;
     bool close;
     Node3D rocky = null!;
+    Node3D home = null!, boat = null!, crab = null!;
     int islandStyle;
     int islandSize = 1;
     uint variant;
     // Fixed production seeds cover the eight coastline families.
     static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34];
-    static readonly float[] IslandSizes = [95, 200, 330];
+    static readonly float[] IslandSizes = [95, 200, 330, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
         stage = new(); AddChild(stage);
-        var island = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
-        AddChild(island); island.Position = new(-3.2f, 0, -1.4f);
-        ShowIsland();
-        var boat = ActorArt3D.Boat(BoatKind.Mage, [0,0,0,0,0,1]);
+        home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
+        AddChild(home); home.Position = new(-3.2f, 0, -1.4f);
+        boat = ActorArt3D.Boat(BoatKind.Mage, [0,0,0,0,0,1]);
         AddChild(boat); boat.Rotation = new(0, -.7f, 0);
-        var crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
+        crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
+        ShowIsland();
         GetWindow().Title = "Boats ’n’ Beasts · Native art sample";
     }
     public override void _Process(double delta) { clock += (float)delta; stage.Follow(Vector2.Zero, close ? 6.2f : 0); stage.Advance(clock); }
@@ -32,7 +33,12 @@ public partial class ArtSample : Node3D
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }
         var place = new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         rocky = EnvironmentArt3D.Build(place);
-        AddChild(rocky); rocky.Position = new(4, 0, .4f);
+        AddChild(rocky);
+        bool giant = place.Radius > 360;
+        // Keep the normal camera and boat scale; make room for the giant footprint.
+        rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
+        boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
+        home.Visible = crab.Visible = !giant;
         GD.Print($"ISLAND SAMPLE profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)

@@ -1,5 +1,17 @@
 # Quality and verification
 
+## Giant islands — 2026-09-09
+
+Added a 520–720 radius tier with candidate weights 35%/35%/15%/15% across small/medium/large/giant islands. The maximum doubles the previous 360 radius. Giant interiors gain planted rock/palm/shrub groups, with capped prop proportions and bounded beach/shallow-shelf depths. Shore-rock counts scale with perimeter. Native review found oversized ruin stepping stones; these now use uniform prop fitting too.
+
+Landmark thinning checks two rings of chunks: maximum required spacing is 1,817.6 units, while candidates three chunks apart are at least 2,600 units apart. Fixed home solids receive explicit clearance. Encounter placement still needs only adjacent chunks: even a maximum island and its shore rocks two chunks away cannot reach an encounter candidate in the current chunk. Normal camera, harbor layout and 25-chunk streaming remain in place.
+
+Debug and Release pass with zero warnings/errors. All three native logs contain no engine errors or warnings. Normal-camera samples cover all eight families at radius 720 plus a radius-330 compact comparison. Camera and boat scale are identical; the giant sample centers its island, moves the boat aside and hides harbor/crab to make room. Some outer edges extend beyond the normal view. Compact, crescent and lobed captures predate the stepping-stone correction, which does not affect those styles; the other five captures follow it. The separate sample uses production scenery and constructs no Voyage.
+
+Actual Cutter gameplay uses seed `1679446102`. The home harbor opens normally, sailing reaches a long island at `(-998.0292,-2655.3613)`, radius **644.63**, and normal combat grants Arcane Orbs. At 39.2 seconds the boat approaches its visible coast with full hull. At 46.4 seconds it holds at `(-690.3341,-2364.9502)` with velocity below 0.00004 units/second; it remains there when enemies defeat it at 49.2 seconds. The unedited captures show the giant coast, shallow water, fitted ruins and additional planted groups at the normal playing scale.
+
+All gameplay captures retain 25 loaded chunks. This session's home and radius-330 sample run at about **60 FPS**, as do the giant samples and voyage. At 46.4 seconds, mean/p95/p99 frame times are **16.71/16.67/16.67 ms**, simulation averages **0.288 ms**, submission **0.976 ms**, and the scenery cache holds four places on M3 Max, Metal Forward+. These short observations do not establish worst-case generation time or long endless performance. Spacing coverage follows the bounds above; no exhaustive seed sweep, complete giant circumnavigation or maximum-720 gameplay encounter was performed. No automated tests or injected gameplay state were used. [Native images and logs](../evidence/README.md).
+
 ## Rounded coasts and eight island families — 2026-09-09
 
 Responds to the user's report of abrupt coastline lines and request for more diversity. The preceding crescent had a tight V cut and headlands used steep radial peaks. Islands now use 16 seeded guides and a periodic cubic B-spline, resampled into a shared 192-point radial outline. Wider bay guides round the back of the inlet. Bean, twin-lobe and scalloped families join the original five; width, lean, relief, rotation and guide offsets vary each family. Radius normalization and the existing size bands/spacing remain in place. Terrain, surf, props, chart and collision use the same outline; harbor geometry and camera are unchanged.

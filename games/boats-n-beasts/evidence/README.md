@@ -1,5 +1,24 @@
 # Native gameplay evidence
 
+## Giant islands — 2026-09-09
+
+Unedited native samples compare [the previous large size, radius 330](giant-previous-large.png) with [the new maximum, radius 720](giant-compact.png), both compact style 4. Camera and boat scale are identical. The giant layout centers the island, moves the boat aside and hides the harbor/crab; some coast edges extend beyond the normal view.
+
+| Family at radius 720 | Sample |
+| --- | --- |
+| Compact | [Style 4](giant-compact.png) |
+| Long | [Style 6](giant-long.png) |
+| Crescent | [Style 1](giant-crescent.png) |
+| Lobed | [Style 2](giant-lobed.png) |
+| Headland | [Style 12](giant-headland.png) |
+| Bean | [Style 32](giant-bean.png) |
+| Twin | [Style 33](giant-twin.png) |
+| Scalloped | [Style 34](giant-scalloped.png) |
+
+Gameplay PNGs have matching TXT telemetry: [home](giant-title.png), [dock](giant-harbor.png), [644.63-radius island approach](giant-approach.png), [shore contact](giant-contact.png), [49.2-second defeat at the same shore position](giant-defeat.png). These use ordinary Cutter play, seed `1679446102`, with 25 loaded chunks.
+
+Logs: [initial sample](giant-sample-runtime.txt), [sample after stepping-stone correction](giant-final-sample-runtime.txt), [gameplay](giant-gameplay-runtime.txt). Compact, crescent and lobed captures use unchanged geometry from the initial sample; the other five families follow the correction. The sample constructs no Voyage. [QUALITY.md](../docs/QUALITY.md) gives measurements and coverage limits.
+
 ## Rounded coasts and eight island families — 2026-09-09
 
 Unedited native captures after the abrupt-line correction. Compare the [previous sharp bay](variety-crescent-330.png) with the [rounded bay](rounded-crescent.png), both style 1 and radius 330. The final curve uses broader guides and continuous transitions.
