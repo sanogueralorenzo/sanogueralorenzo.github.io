@@ -3,7 +3,7 @@ using BoatsNBeasts.Core;
 using V2 = System.Numerics.Vector2;
 namespace BoatsNBeasts;
 
-// Read-only presentation of the existing voyage. Owns only bounded native scene resources.
+// Read-only voyage presentation; owns bounded native scene resources.
 public partial class OceanView3D : Node3D
 {
     public Voyage Voyage = null!;

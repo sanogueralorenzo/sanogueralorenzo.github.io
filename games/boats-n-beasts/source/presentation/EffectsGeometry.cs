@@ -55,7 +55,6 @@ internal sealed class EffectsGeometry
         var part = new MeshInstance3D { Mesh = mesh, MaterialOverride = material, Position = at, Scale = scale, Rotation = rotation };
         root.AddChild(part); return part;
     }
-    // A beveled box rather than a box primitive: shared by planks, chest body and metal straps.
     public static ArrayMesh BeveledBox(float bevel = .1f)
     {
         var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles);

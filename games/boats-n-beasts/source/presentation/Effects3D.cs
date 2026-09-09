@@ -276,7 +276,6 @@ public partial class Effects3D : Node3D
         }
         if (b.Kind is "pufferExplosion" or "bossExplosion")
         {
-            // Actual blast: a filled faceted upper hemisphere, never an aiming line.
             float blastRadius = b.Size;
             const int rings = 6, sides = 24;
             Vector3 Point(int ring, int side)
@@ -362,7 +361,6 @@ public partial class Effects3D : Node3D
         {
             foreach(float z in new[]{-.201f,.201f}) EffectsGeometry.Part(root,box,wood,new(0,.062f+i*.078f,z),new(.52f,.067f,.024f));
         }
-        // A continuous arched lid and gold frame distinguish the chest from floating barrels.
         EffectsGeometry.Part(root,ChestArch(.54f,.204f,true),woodDark,new(0,.27f,0),Vector3.One);
         const int slats=9;
         for(int i=0;i<slats;i++)
@@ -461,7 +459,6 @@ public partial class Effects3D : Node3D
             var a=Ring(row,spoke);var b=Ring(row,(spoke+1)%8);var c=Ring(row+1,(spoke+1)%8);var d=Ring(row+1,spoke);
             Tri(a,c,b);Tri(a,d,c);
         }
-        // Forked tail and pectoral fins broaden the silhouette beyond a thin bar.
         Tri(new(0,0,.1f),new(-.055f,0,.18f),new(0,0,.155f));
         Tri(new(0,0,.1f),new(0,0,.155f),new(.055f,0,.18f));
         Tri(new(-.033f,0,-.045f),new(-.075f,0,.005f),new(-.031f,0,-.002f));

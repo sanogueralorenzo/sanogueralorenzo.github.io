@@ -2,7 +2,7 @@ using Godot;
 using V2 = System.Numerics.Vector2;
 namespace BoatsNBeasts;
 
-// The engine adapter's only coordinate conversion. Simulation remains in its original units.
+// Central coordinate conversion; simulation retains its own units.
 public partial class NativeStage3D : Node3D
 {
     public const float Unit = .01f, Zoom = .74f, Foreshortening = .84f;

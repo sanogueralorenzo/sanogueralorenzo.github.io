@@ -53,7 +53,6 @@ public sealed class OceanWorld(uint seed)
         var position = new Vector2(key.X * ChunkSize, key.Y * ChunkSize) +
             new Vector2(rng.Range(-500, 500), rng.Range(-500, 500));
         bool harbor = rng.Unit() < .3f;
-        // Keep small discoveries common, with occasional islands spanning most of a view.
         float size = rng.Unit();
         float radius = harbor ? 140 : size < .35f ? rng.Range(80, 115)
             : size < .70f ? rng.Range(165, 235) : size < .85f ? rng.Range(290, 360)

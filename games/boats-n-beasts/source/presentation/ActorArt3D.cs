@@ -25,7 +25,7 @@ public static partial class ActorArt3D
         {
             var b = new ActorGeometry();
             BuildBoat(b, kind, ranks);
-            // The visual hull is deliberately larger than its unchanged simulation collider.
+            // The visual hull is larger than its simulation collider.
             b.Scale(BoatScale);
             Cache[key] = mesh = b.Mesh(Material);
         }
@@ -80,7 +80,6 @@ public static partial class ActorArt3D
 
     static float Width(float z)
     {
-        // Round stern, broad shoulders and a pointed bow, in actual horizontal coordinates.
         float[] zs = { -.565f, -.46f, -.28f, .12f, .39f, .49f, .52f };
         float[] ws = { .014f, .145f, .245f, .285f, .255f, .19f, .04f };
         for (int i = 1; i < zs.Length; i++) if (z <= zs[i]) return Mathf.Lerp(ws[i - 1], ws[i], (z - zs[i - 1]) / (zs[i] - zs[i - 1]));
@@ -103,18 +102,15 @@ public static partial class ActorArt3D
         b.Polygon(HullRing(.191f, .935f), Deck, Vector3.Up);
         var rim = HullRing(.218f, .984f);
         b.ClosedTube(rim, .018f, Cream, 7);
-        // Wooden inner gunwale gives the hull a visible wall thickness.
         b.ClosedTube(HullRing(.201f, .905f), .012f, DarkWood, 6);
         for (int side = -1; side <= 1; side += 2)
         {
             b.RoundBox(new(side * .215f, .248f, .335f), new(.033f, .095f, .032f), .009f, Wood);
             b.Tube(new[] { new Vector3(side * .225f, .276f, .27f), new Vector3(side * .19f, .276f, .43f) }, .011f, Cream, 7);
-            // Side cabin windows sit proud of their cream frame and have roof overhang above.
         }
         b.RoundBox(new(0, .332f, .095f), new(.345f, .273f, .35f), .046f, Cream);
         b.RoundBox(new(0, .461f, .095f), new(.393f, .036f, .406f), .014f, Wood);
         b.RoundBox(new(0, .489f, .095f), new(.419f, .078f, .432f), .036f, new("f5e5be"));
-        // Inset dark panes and raised warm frames remain legible at the sailing camera scale.
         b.RoundBox(new(0, .376f, -.085f), new(.254f, .13f, .019f), .008f, Brass);
         b.RoundBox(new(0, .376f, -.097f), new(.228f, .107f, .014f), .006f, Glass);
         b.RoundBox(new(0, .376f, -.107f), new(.016f, .124f, .018f), .005f, Cream);
@@ -177,10 +173,8 @@ public static partial class ActorArt3D
             b.Sphere(P(side * .12f, .322f, -.204f), P(.050f, .055f, .047f), Eye, 14, 9);
             b.Sphere(P(side * .116f, .347f, -.239f), P(.025f, .027f, .018f), Pupil, 12, 8);
             b.Sphere(P(side * .11f - .006f, .36f, -.252f), P(.006f, .007f, .003f), Eye, 8, 5);
-            // Swept brows and a cheek plate give the face intent even at small camera scale.
             b.Tube(new[] { P(side * .07f, .365f, -.217f), P(side * .116f, .378f, -.205f), P(side * .164f, .349f, -.18f) }, new[] { .012f * s, .019f * s, .012f * s }, DarkCoral, 8);
             b.Sphere(P(side * .125f, .20f, -.184f), P(.071f, .035f, .045f), Coral, 12, 7);
-            // Small horn and brow connect the eyes to the sculpted shell.
             b.Tube(new[] { P(side * .164f, .255f, -.14f), P(side * .17f, .323f, -.124f) }, new[] { .025f * s, .003f * s }, Coral, 8);
         }
         b.Sphere(P(0, .146f, -.23f), P(.087f, .036f, .018f), DarkWood, 12, 7);

@@ -1,7 +1,6 @@
 using Godot;
 namespace BoatsNBeasts;
 
-// Original line symbols, drawn at interface resolution without image assets.
 public partial class UpgradeSymbol : Control
 {
     public int Kind { get; init; }

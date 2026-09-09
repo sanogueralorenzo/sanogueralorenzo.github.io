@@ -602,7 +602,6 @@ public partial class Game : Node2D
             DrawCircle(center, 80, paper);
             DrawArc(center, 77, 0, Mathf.Tau, 64, ink, 1.5f, true);
             DrawArc(center, 63, 0, Mathf.Tau, 64, new Color(ink, .22f), 1, true);
-            // A quiet compass rose keeps the chart north-up.
             for (int i = 0; i < 8; i++)
             {
                 var direction = Vector2.FromAngle(i * Mathf.Tau / 8);

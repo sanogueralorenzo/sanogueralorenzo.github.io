@@ -145,7 +145,7 @@ public sealed partial class Voyage
     }
     void UpdateEnemies(float dt)
     {
-        // Population is capped at 80; small pairwise local separation keeps silhouettes legible.
+        // Pairwise separation keeps nearby silhouettes legible.
         foreach (var e in Enemies)
         {
             if (e.Health <= 0) continue;
@@ -262,7 +262,6 @@ public sealed partial class Voyage
         if (e.Kind == EnemyKind.Leviathan)
         {
             BossSlain = true; Coins += 150; FishingPlace = null; Mode = VoyageMode.Victory;
-            // The defeated sovereign disperses its escort and ends the voyage.
             // Mark dead/expired rather than mutate lists being traversed by the current attack.
             foreach (var other in Enemies) other.Health = 0;
             foreach (var shot in Shots) shot.Life = 0;

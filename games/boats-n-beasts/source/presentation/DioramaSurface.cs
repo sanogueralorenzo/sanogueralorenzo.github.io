@@ -1,7 +1,6 @@
 using Godot;
 namespace BoatsNBeasts;
 
-// Solid matte face colors and the shared creature animation clock.
 public static class DioramaSurface
 {
     static ShaderMaterial? material;

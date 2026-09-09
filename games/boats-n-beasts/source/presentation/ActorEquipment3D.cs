@@ -42,7 +42,6 @@ public static partial class ActorArt3D
         switch (weapon)
         {
             case 0:
-                // A broad rounded trunnion and long dark barrel read as an actual naval cannon.
                 b.Sphere(P(0, .074f, .01f), R(.094f, .085f, .115f), iron);
                 b.Tube(new[] { P(-.12f, .065f, .008f), P(.12f, .065f, .008f) }, .032f * s, Brass, 10);
                 b.Tube(new[] { P(0, .088f, -.025f), P(0, .108f, -.255f) }, new[] { .058f * s, .042f * s }, iron, 14);

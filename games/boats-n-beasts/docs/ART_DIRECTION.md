@@ -1,30 +1,17 @@
-# Nautical diorama and reef islands
+# Art direction
 
-The 2026-09-09 [Reef Warden reference](island-reference.png) sets the direction for island borders, seashore and island contents. The [island goal](ISLAND_GOAL.md) records the baseline gaps and acceptance criteria. It supersedes the earlier smooth rings and sparse island decoration. The [flat-diorama reference](visual-restart/flat-diorama-reference.png) still informs boats, creatures, open ocean and UI. Both images are documentation only, never gameplay assets; the newer image does not request its boss or HUD.
+Use the [reef reference](island-reference.png) for island shores and interiors, and the [diorama reference](visual-restart/flat-diorama-reference.png) for boats, creatures, water and UI. References are documentation, not gameplay assets or requests for new mechanics.
 
-## Visual contract
+- Keep open water quiet and petrol-teal. Fade mottled turquoise shallows into the sea; use broken ivory surf instead of opaque rings.
+- Use irregular warm sand coasts with broad curved bays. Avoid abrupt straight edges, narrow V cuts and needle headlands. Terrain, shallows, surf, props, collision and chart must share the coastline.
+- Mix eight silhouettes: compact, long, crescent, lobed, headland, bean, twin and scalloped. Radius bands are 80–115, 165–235, 290–360 and 520–720, with candidate weights 35/35/15/15%. Radius is the longest land reach.
+- Fill larger interiors with more palm, shrub and slate-rock groups; retain familiar prop proportions and bounded beach/shelf depths. Distinguish ruins, cliffs and groves. Keep dock paths and boat approaches clear.
+- Scatter landmarks sparsely with navigable gaps and no visible chunk grid. Treasure has a 15% island candidate chance; barrels have a 20% chunk candidate chance and at least 900 units between them. Clearance rejection reduces actual density. Keep chests reachable from water, barrel markers absent, and reward feedback brief and local.
+- Use matte broad faces, restrained bevels, warm light and cool shadows. Preserve readable boat/monster silhouettes, violet friendly magic and coral hostile bombs. Wakes follow actual motion; fish stay submerged without overhead markers.
+- Use cream text, navy panels, turquoise controls and visible keyboard focus. Avoid fine surface noise and ornamental UI clutter.
 
-- Quiet petrol-teal open sea with broad, slow color variation. Shore water has mottled turquoise seabeds, subtle caustics and broken moving ivory wash; the shelf fades into the sea instead of ending at an opaque ring.
-- Warm sandy coasts span small islets, medium islands, large landmasses and occasional giant islands (520–720 radius). Giants have more planted groups across their interior, with familiar tree and rock proportions; beach and shallow-water depths stay bounded as inland ground expands. Compact, long, crescent, lobed, headland, bean, twin-lobe and scalloped outlines vary within each family through seeded proportions, lean, rotation and coastal guides. Round the transitions with a continuous curve; use broad curved bays, avoiding tight V cuts and needle-like headlands. The longest reach still matches the radius. The [variety goal](ISLAND_VARIETY_GOAL.md) records the follow-ups. Island terrain, surf and props follow the shared `IslandShape` used for chart silhouettes and collision; harbors retain their dock footprint. Sand, wet margins and animated surf share that coast. Broad faceted slate rocks have uneven shoulders and pale or vegetated caps. Curved fronds form varied-height palm groups with low undergrowth.
-- Harbor cottages retain cream walls and solid pitched roofs, with a clear path to their dock, barrels, a waterfront sign and a planted rocky backdrop. Offshore styles distinguish carved stone ruins, layered cliffs and palm groves. Keep important landmarks visible above lower foliage and emergent decoration within the existing navigational envelope.
-- Matte cream/navy boats with clear silhouettes and visible starter fittings. Gunboat retains its aiming cannon, Aura its teal fitting and radius curls, and Mage its upright violet crystal. Coral crabs, crowned boss, gold puffers, low teal serpents and blue rays retain distinct identities.
-- Flat face shading and restrained bevels; no fine sand flecks or detailed deck seams. Island stones can have chipped faces and masonry inlays. Warm directional light, cool ambient fill and soft contact shadows give depth without glossy effects.
-- Two tapered wake ribbons follow actual movement. Creature direction changes are smoothed, reversals start a new trail, and adjacent bank vertices join continuously. Violet trails and coral enemy shots remain distinct; fish are submerged teal silhouettes without overhead markers.
-- Reward clutter stays low: occasional small wooden barrels with dark hoops float in open water, without chart icons or persistent markers. Rare gold-trimmed chests sit in clear patches at island beach edges, with a subtle glint and a reachable boat approach. Both show only a brief local gold number on collection. The [sparse rewards goal](OCEAN_REWARDS_GOAL.md) records placement and verification.
-- Existing cream text, navy panels and turquoise controls fit this palette. Keep labels legible, offer cards equal and keyboard focus visible. Reference icons/HUD ornaments do not authorize new gameplay or progression features.
+`StartingArea` owns the real title and voyage scene: cottage upper-left, island lower-right, selected boat at `(55,-315)` alongside the dock. Set Sail fades the menu; movement waits for input and camera follow begins after departure.
 
-## Shared world and behavior
+Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve orthographic scale 0.74 pixels per simulation unit and 0.84 ground-plane foreshortening. HUD projection and sailing clicks use the same camera.
 
-`StartingArea.cs` owns the actual fixed home geography for both title and gameplay. The cottage stays upper-left, island lower-right and selected boat alongside the wooden dock at `(55,-315)`, clear of central menu content. Set sail fades the menu without resetting meshes, boat or camera. The boat remains still until player input, and camera follow begins after movement. Offshore generation remains seeded.
-
-Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve the spacious orthographic camera at 0.74 pixels per simulation unit with 0.84 vertical ground-plane foreshortening. HUD anchors and water-plane click unprojection share this camera. Simulation remains engine-independent C#.
-
-All world meshes, materials and animation are generated by C# and Godot shaders. No imported models, external art packs, image-generated gameplay assets, GDScript or audio expansion. Replace obsolete visual code rather than adding selectable alternate styles.
-
-## Native comparison and acceptance
-
-Compare the [island baseline](../evidence/island-baseline.png), [current home view](../evidence/island-fitted-title.png), [ruins in gameplay](../evidence/island-fitted-sailing-b.png), [native cliff sample](../evidence/island-fitted-cliffs.png) and [native grove sample](../evidence/island-fitted-grove.png) with the island reference at normal playing scale. The goal is continuous irregular coastal layering, richer grounded interiors and distinct landmarks. The quiet open ocean and existing subject art remain outside this island pass.
-
-The reference composition is illustrative: native world generation, camera scale, dock layout and gameplay are retained. The result is a cohesive diorama interpretation, not a pixel-for-pixel copy; existing cabin silhouettes and game UI remain recognizable. Debug/Release builds and native behavior/performance evidence belong in [QUALITY.md](QUALITY.md). The separate `art-sample.tscn` is only a visual proof and constructs no Voyage. Native gameplay, not that sample alone, establishes acceptance.
-
-Offshore composition uses sparse, widely scattered island and harbor landmarks with long stretches of open water. Avoid visible rows of chunk-centered scenery. The fixed starting harbor/menu composition remains unchanged.
+Compare at normal playing scale. `./run.command art-sample.tscn` opens a separate visual sample without a Voyage: Tab changes inspection scale, Space cycles families, V changes variant, R selects radius 95/200/330/720, and F12 captures. Confirm collision, access and streaming in actual gameplay as described in [QUALITY.md](QUALITY.md).

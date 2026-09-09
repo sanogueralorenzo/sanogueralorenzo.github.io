@@ -17,7 +17,6 @@ public sealed class IslandShape
     {
         this.radius = radius;
         var rng = new SeedRandom(seed ^ 0x71a5bu);
-        // Retain the original families and mix in three equally likely new ones.
         Profile = (IslandProfile)rng.Index(5);
         if (rng.Unit() < .375f) Profile = (IslandProfile)(5 + rng.Index(3));
         float aspect = Profile switch

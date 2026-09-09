@@ -4,7 +4,6 @@ using System.Collections.Generic;
 
 namespace BoatsNBeasts;
 
-/// <summary>Small triangle collector with explicit face normals and vertex colors.</summary>
 internal sealed class ActorGeometry
 {
     readonly List<Vector3> vertices = new(), normals = new();

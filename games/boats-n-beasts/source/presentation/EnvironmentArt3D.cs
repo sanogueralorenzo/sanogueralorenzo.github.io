@@ -60,7 +60,7 @@ public static class EnvironmentArt3D
         return art.Finish("Environment_" + place.Kind);
     }
 
-    /// <summary>A unit-scale cottage rooted at its floor, for the native style sample.</summary>
+    // Unit-scale cottage with its origin at floor level.
     public static Node3D Cottage()
     {
         var art = new Sculptor();
@@ -190,7 +190,6 @@ public static class EnvironmentArt3D
         var stone = new Color("7c8985");
         art.Boulder(new(0, .87f, 0), new(.65f, 1.82f, .58f), stone, seed);
         art.RoundedBox(new(0, .56f, .25f), new(.46f, .78f, .10f), .055f, stone.Darkened(.19f));
-        // An original spiral and an open squared arch, cut as pale inlaid stone.
         for (int i = 0; i < 24; i++)
         {
             float a = i * Mathf.Tau * 1.6f / 24, b = (i + 1) * Mathf.Tau * 1.6f / 24;
@@ -241,7 +240,6 @@ public static class EnvironmentArt3D
         Color plaster = new("d4ccad"), trim = new("ece0b7"), wood = new("795538"), roof = new("b8683d"), glass = new("274853");
         art.RoundedBox(new(0, .37f, 0), new(.88f, .74f, .72f), .065f, plaster);
         art.RoundedBox(new(0, .04f, 0), new(.99f, .13f, .81f), .04f, new("aaa68c"));
-        // Gable faces under the roof remain full three-dimensional wall geometry.
         art.Face(new(-.45f, .73f, .36f), new(.45f, .73f, .36f), new(0, 1.09f, .36f), plaster);
         art.Face(new(.45f, .73f, -.36f), new(-.45f, .73f, -.36f), new(0, 1.09f, -.36f), plaster);
         for (int side = -1; side <= 1; side += 2)
@@ -258,7 +256,6 @@ public static class EnvironmentArt3D
         art.Ellipsoid(new(.17f, .27f, .415f), new(.012f, .012f, .012f), new("c7aa62"), 8, 5);
         Window(art, new(-.235f, .47f, .378f), .16f, .22f, glass, trim);
         Window(art, new(0, .87f, .375f), .115f, .13f, glass, trim);
-        // Side window is rotated with the wall, with inset glass and raised timber trim.
         var houseTransform = art.Transform;
         art.Transform = houseTransform * new Transform3D(Basis.FromEuler(new(0, -Mathf.Pi / 2, 0)), new(-.454f, .46f, -.03f));
         Window(art, Vector3.Zero, .19f, .24f, glass, trim);
@@ -408,7 +405,6 @@ public static class EnvironmentArt3D
         {
             var p = Transform * local;
             if (Footprint == null || propDepth > 0) return p;
-            // Standalone stepping stones also follow the land shape.
             var shore = Footprint.PlaceOnLand(new(p.X * 90, p.Z * 90));
             return new(shore.X * .01f, p.Y, shore.Y * .01f);
         }
