@@ -17,3 +17,7 @@ This is a first playable adaptation, not a finished art or balance pass. No full
 ## Movement tuning
 
 Base speeds increased to 305 / 245 / 285 for Ember / Warden / Arcanist (roughly 30%). Steering uses exponential smoothing; velocity catches up more gradually in turns and coasts briefly on release. Boost entry retains more existing momentum. Debug and Release builds passed. Movement feel and click-to-stop overshoot still need hands-on feedback; no extended replay was run for this tuning.
+
+## Background refinement
+
+Added warped cloud-bank shading, directional highlights and three rates of background parallax. Reduced sculpted-cloud density and changed their silhouettes to tapered banks. Debug and Release builds passed; a brief native Forward+ launch compiled and rendered the shader without reported errors. No extended visual or performance pass was run for this refinement.
