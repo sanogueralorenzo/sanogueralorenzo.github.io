@@ -6,3 +6,5 @@ build/
 
 evidence/20*.png
 evidence/20*.txt
+
+evidence/*.import
