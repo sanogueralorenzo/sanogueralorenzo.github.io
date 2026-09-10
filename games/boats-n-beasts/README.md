@@ -12,9 +12,21 @@ Requires .NET 10 SDK and Godot **4.7.2 .NET** with Forward+. From this directory
 
 Set `GODOT_BIN` to your Godot executable and `DOTNET_ROOT` to your SDK directory if the launcher cannot find them. Alternatively, build `BoatsNBeasts.csproj` and run `project.godot` in the matching .NET editor.
 
+## Art preview
+
+Use the production art scene for visual iteration without starting a voyage:
+
+```sh
+./run.command --preview
+```
+
+`B` selects the regression crescent, `R` changes size, `Space` changes shape, `V` changes seed and `Tab` toggles inspection scale. Start with one representative island and boat; check other cases when the changed logic calls for it. Restart the preview after C# edits; there is no C# hot reload.
+
+The launcher builds Debug incrementally and reuses imported resources. First launch imports automatically. After adding or renaming resources or changing import settings, run `./run.command --import --preview` (or `./run.command --import` for gameplay).
+
 ## macOS installation
 
-Install the matching Godot **4.7.2 .NET export templates**, then build a locally signed app:
+Export and reinstall only when requested or when packaging changes, once at the end of a batch. Install the matching Godot **4.7.2 .NET export templates**, then build a locally signed app:
 
 ```sh
 mkdir -p build
@@ -51,7 +63,7 @@ Rare beach chests award 12 XP and are collected from the water. Sparse floating 
 
 - Keep simulation in plain C# under `source/core`; presentation reads it without changing gameplay state.
 - Generate gameplay art with C#, Godot geometry and shaders. No external/image-generated gameplay assets, GDScript or audio.
-- Follow the build and native-play checks in [QUALITY.md](docs/QUALITY.md).
+- Choose focused checks for the changed behavior using [QUALITY.md](docs/QUALITY.md).
 - Keep documentation about current behavior; use Git history for completed work and superseded decisions.
 
 | Owner | Responsibility |

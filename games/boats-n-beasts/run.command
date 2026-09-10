@@ -12,6 +12,19 @@ elif [[ -x "$HOME/AndroidStudioProjects/sanogueralorenzo.github.io/games/sno-god
 else
   engine=godot-mono
 fi
+preview_mode=false
+import_resources=false
+while (( $# )); do
+  case "$1" in
+    --preview) preview_mode=true; shift ;;
+    --import) import_resources=true; shift ;;
+    *) break ;;
+  esac
+done
+if $preview_mode; then set -- art-sample.tscn "$@"; fi
 dotnet build --nologo --verbosity quiet
-"$engine" --headless --path "$PWD" --editor --import --quit
+# A fresh checkout needs resource discovery; ordinary code/shader edits do not.
+if $import_resources || [[ ! -f .godot/uid_cache.bin ]]; then
+  "$engine" --headless --path "$PWD" --editor --import --quit
+fi
 exec "$engine" --path "$PWD" "$@"
