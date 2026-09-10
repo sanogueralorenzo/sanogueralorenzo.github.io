@@ -6,7 +6,7 @@ namespace BoatsNBeasts;
 
 public static partial class ActorArt3D
 {
-    static readonly Vector3 BoatScale = new Vector3(1.22f, 1.15f, 1.30f) * 1.15f;
+    static readonly Vector3 BoatScale = new Vector3(1.22f, 1.15f, 1.30f) * 1.80f;
     static int Starter(BoatKind kind) => kind == BoatKind.Cutter ? 0 : kind == BoatKind.Trawler ? 4 : 5;
 
     /// <summary>relativeAimAngle is a Godot Y rotation in radians relative to the boat's -Z bow.</summary>

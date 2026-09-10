@@ -6,7 +6,13 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
-## Wider view and larger boat — 2026-09-10
+## Expanded speed cycle and final framing — 2026-09-10
+
+The speed button cycles ×1 → ×2 → ×3 → ×10 → ×20 → ×1. Each multiplier repeats the existing bounded simulation step; a new voyage still starts at ×1. Orthographic zoom is `0.74 / 1.40`, showing 40% more world along each axis from the original baseline. Boat geometry is 80% larger than its original proportions (about 28.6% larger on screen after zoom), with shared weapon and health-bar scaling. Camera elevation remains 51°. The spawn moved 25 simulation units east for dock clearance.
+
+Debug and Release passed with zero warnings/errors, and macOS export completed without warnings/errors. The reinstalled app launched with Forward+ / Metal and its signature verified. Native captures and paired telemetry confirm [×10](../evidence/speed-x10.png), [×20](../evidence/speed-x20.png), and [wrap to ×1](../evidence/speed-wrap-x1.png). Live play reached level 3; upgrade selection resumed the voyage. The ×20 capture also shows final framing, readable flag and health bar, and hull clearance beside the dock. No runtime errors were observed in the [installed runtime log](../evidence/speed-20-runtime.txt). Earlier [offshore telemetry](../evidence/camera-40-boat-80.txt) records 79.4 active sailing seconds with the final geometry and camera. Extended high-speed combat, collision and streaming stress checks were not repeated.
+
+## Wider view and larger boat — 2026-09-10 (superseded proportions)
 
 Orthographic zoom is 0.70 pixels per simulation unit, down from 0.74: about 5.7% more world coverage along each axis. The shared boat geometry scale is multiplied by 1.15, yielding about 8.8% larger on-screen dimensions after the zoom change. Aimed weapon fittings and the mast-based health-bar position inherit the same scale. The 51° camera elevation is retained.
 

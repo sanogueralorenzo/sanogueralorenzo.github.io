@@ -34,7 +34,7 @@ The app includes its runtime and preserves the existing `Boats n Beasts` save di
 | Space / Shift | Boost; release after exhaustion to recharge |
 | Escape | Pause or resume |
 | Enter / Tab / arrows | Operate menus |
-| ×1 / ×2 / ×3 button | Change voyage speed |
+| ×1 / ×2 / ×3 / ×10 / ×20 button | Cycle voyage speed, then return to ×1 |
 | F12 | Save native screenshot and telemetry to `evidence/` |
 
 Choose Gunboat (Cannon, faster fire during boost), Aura (Whirlpool, periodic defensive pulse), or Mage (homing Arcane Orbs). Boat choice lasts the voyage. All boats can equip any weapon, with **two total weapon slots**, including the starter.

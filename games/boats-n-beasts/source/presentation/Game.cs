@@ -256,7 +256,7 @@ public partial class Game : Node2D
         {
             var speed = new Button
             {
-                Text = $"×{gameSpeed}", TooltipText = "Game speed · click to cycle ×1 / ×2 / ×3",
+                Text = $"×{gameSpeed}", TooltipText = "Game speed · click to cycle ×1 / ×2 / ×3 / ×10 / ×20",
                 FocusMode = Control.FocusModeEnum.None,
                 MouseDefaultCursorShape = Control.CursorShape.PointingHand,
                 OffsetLeft = 14, OffsetRight = 88,
@@ -273,7 +273,11 @@ public partial class Game : Node2D
                 style.ContentMarginTop = style.ContentMarginBottom = 4;
                 style.ContentMarginLeft = style.ContentMarginRight = 10;
             }
-            speed.Pressed += () => { gameSpeed = gameSpeed % 3 + 1; speed.Text = $"×{gameSpeed}"; };
+            speed.Pressed += () =>
+            {
+                gameSpeed = gameSpeed switch { 1 => 2, 2 => 3, 3 => 10, 10 => 20, _ => 1 };
+                speed.Text = $"×{gameSpeed}";
+            };
             menuRoot.AddChild(speed);
             return;
         }

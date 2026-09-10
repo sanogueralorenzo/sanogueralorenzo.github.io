@@ -14,6 +14,6 @@ Use the [reef reference](island-reference.png) for island shores and interiors, 
 
 `StartingArea` owns the real title and voyage scene: cottage upper-left, island lower-right, selected boat alongside the dock. Set Sail fades the menu; movement waits for input and camera follow begins after departure.
 
-Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve orthographic scale 0.70 pixels per simulation unit and 0.78 ground-plane foreshortening (about 51° above the water). The shared boat scale is enlarged by 15% so its flag and fittings stay readable in the wider view. HUD projection and sailing clicks use the same camera.
+Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve orthographic scale `0.74 / 1.40` (about 0.5286) pixels per simulation unit and 0.78 ground-plane foreshortening (about 51° above the water). The shared boat scale is enlarged by 80% from its original proportions so its flag and fittings stay readable in the view, which shows 40% more world along each axis than the original 0.74 zoom. HUD projection and sailing clicks use the same camera.
 
 Compare at normal playing scale. `./run.command art-sample.tscn` opens a separate visual sample without a Voyage: Tab changes inspection scale, Space cycles families, V changes variant, R selects radius 95/200/330/720, B toggles the shoreline regression island (radius 355.70514, seed 2273309013), and F12 captures. Confirm collision, access and streaming in actual gameplay as described in [QUALITY.md](QUALITY.md).
