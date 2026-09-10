@@ -1,19 +1,11 @@
 # Art direction
 
-Use the [reef reference](island-reference.png) for island shores and interiors, and the [diorama reference](visual-restart/flat-diorama-reference.png) for boats, creatures, water and UI. Use these as visual references only.
+Use the [reef reference](island-reference.png) for islands and the [diorama reference](visual-restart/flat-diorama-reference.png) for boats, creatures and UI. References guide appearance; all gameplay art is generated in code.
 
-- Keep open water quiet and petrol-teal. Fade mottled turquoise shallows into the sea; use broken ivory surf instead of opaque rings.
-- Use irregular warm sand coasts with broad curved bays. Avoid abrupt straight edges, narrow V cuts and needle headlands. Terrain, shallows, surf, props, collision and chart must share the coastline.
-- Reserve a modest, seeded-width dry beach using distance to the nearest coastline edge, not radial scaling. Build underwater shelves from rounded outward coastline offsets so bays cannot collapse their geometry. Scale shelf width with island size (radius × 0.60, clamped to 0.50–2.8 world units before seeded variation) and vary it smoothly along coastline length, with a positive minimum width. Keep the inner shallows visible everywhere and fade only the outer edge; do not punch transparent holes into the shelf. Diffuse sand through dry grass into green with broad, low-contrast procedural variation rather than a narrow contour-following color border. Keep full rock, ruin, shrub and palm-crown footprints behind that reserve; shrink or omit props that cannot fit. Narrow spits may remain sand-only.
-- Mix compact, elongated, crescent, lobed and scalloped silhouettes, from small islets to occasional giant islands. Size bands and placement weights live in `OceanWorld.cs`; outlines live in `IslandShape.cs`.
-- Fill larger interiors with more palm, shrub and slate-rock groups; retain familiar prop proportions and bounded beach/shelf depths. Distinguish ruins, cliffs and groves. Keep dock paths and boat approaches clear.
-- Scatter landmarks sparsely with navigable gaps and no visible chunk grid. Keep chests reachable from water, barrel markers absent, and reward feedback brief and local.
-- Boats are compact wooden pirate ships with raised ends, an open foredeck, a low sterncastle, a billowing cream square sail, a straw-hat skull emblem and a ram figurehead. A tall mast carries a broad dark skull-and-crossbones pennant; keep the health bar above it. Build every part in C# geometry; keep navy/turquoise/violet hull bands for Gunboat/Aura/Mage, and leave both weapon fittings visible.
-- Use matte broad faces, restrained bevels, warm light and cool shadows. Preserve readable boat/monster silhouettes, violet friendly magic and coral hostile bombs. Wakes follow actual motion; fish stay submerged without overhead markers.
-- Use cream text, navy panels, turquoise controls and visible keyboard focus. Avoid fine surface noise and ornamental UI clutter.
-
-`StartingArea` owns the real title and voyage scene: cottage upper-left, island lower-right, selected boat alongside the dock. Set Sail fades the menu; movement waits for input and camera follow begins after departure.
-
-Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve orthographic scale 0.70 pixels per simulation unit and 0.78 ground-plane foreshortening (about 51° above the water). The shared boat scale is enlarged by 15% so its flag and fittings stay readable in the wider view. HUD projection and sailing clicks use the same camera.
-
-Compare at normal playing scale. `./run.command --preview` opens a separate visual sample without a Voyage: Tab changes inspection scale, Space cycles families, V changes variant, R selects radius 95/200/330/720, B toggles the shoreline regression island (radius 355.70514, seed 2273309013), F5 refreshes, and F12 captures. Edits automatically refresh the preview, preserving the selected island and scale. Use one representative island for visual iteration; inspect other sizes or shapes only when relevant to the change. Run gameplay checks when simulation or interaction changes, as described in [QUALITY.md](QUALITY.md).
+- Keep water quiet and petrol-teal, with turquoise shallows and broken ivory surf.
+- Use irregular sand coasts, soft grass transitions and readable groups of palms, slate rocks and ruins. Leave navigable gaps between islands.
+- Derive terrain, shallows, collision and chart from one coastline. Use rounded outward offsets so underwater shelves survive concave bays; vary width smoothly, keep it positive and fade only the outer edge.
+- Scale features with island size within sensible bounds. Keep full prop footprints behind the beach and treasure reachable from water.
+- Boats are compact wooden pirate ships with cream sails, a readable dark flag and distinct hull colors. Keep weapons and health bars visible.
+- Favor broad matte faces, restrained detail, warm light and cool shadows. Keep silhouettes and UI readable at gameplay scale.
+- Share the camera projection across rendering, HUD and steering. Keep numerical tuning in code.
