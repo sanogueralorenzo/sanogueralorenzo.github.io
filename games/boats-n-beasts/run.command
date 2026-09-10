@@ -14,17 +14,22 @@ else
 fi
 preview_mode=false
 import_resources=false
+preview_once=false
 while (( $# )); do
   case "$1" in
     --preview) preview_mode=true; shift ;;
     --import) import_resources=true; shift ;;
+    --once) preview_once=true; shift ;;
     *) break ;;
   esac
 done
-if $preview_mode; then set -- art-sample.tscn "$@"; fi
 dotnet build --nologo --verbosity quiet
 # A fresh checkout needs resource discovery; ordinary code/shader edits do not.
 if $import_resources || [[ ! -f .godot/uid_cache.bin ]]; then
   "$engine" --headless --path "$PWD" --editor --import --quit
+fi
+if $preview_mode; then
+  if ! $preview_once; then exec python3 tools/preview.py "$engine" "$@"; fi
+  set -- art-sample.tscn "$@"
 fi
 exec "$engine" --path "$PWD" "$@"

@@ -20,9 +20,11 @@ Use the production art scene for visual iteration without starting a voyage:
 ./run.command --preview
 ```
 
-`B` selects the regression crescent, `R` changes size, `Space` changes shape, `V` changes seed and `Tab` toggles inspection scale. Start with one representative island and boat; check other cases when the changed logic calls for it. Restart the preview after C# edits; there is no C# hot reload.
+Requires Python 3 for the watcher. Save an edit to refresh: C# changes rebuild incrementally, while shader edits restart the preview without a build. A failed build leaves the last preview open; fix and save to retry. Close the window or press Ctrl+C in the terminal to stop watching. Use `--preview --once` for a single launch without Python or watching.
 
-The launcher builds Debug incrementally and reuses imported resources. First launch imports automatically. After adding or renaming resources or changing import settings, run `./run.command --import --preview` (or `./run.command --import` for gameplay).
+The preview starts on the regression crescent and remembers your selection separately from voyage saves. `B` toggles that reference, `R` changes size, `Space` changes shape, `V` changes seed and `Tab` toggles inspection scale. `F5` refreshes manually while watching. The on-screen label shows the shape, radius, seed and controls. Start with one representative island and boat; check other cases when the changed logic calls for it.
+
+The launcher builds Debug incrementally and reuses imported resources. First launch and resource additions/removals during watching import automatically. After adding or renaming resources or changing import settings, run `./run.command --import --preview` (or `./run.command --import` for gameplay).
 
 ## macOS installation
 

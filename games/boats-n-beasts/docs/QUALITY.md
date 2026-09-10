@@ -12,9 +12,9 @@ Choose checks based on the changed behavior. Stop when those checks pass; do not
 | Movement, collision, camera input/projection, encounters or combat | Build Debug and check the affected behavior in a short ordinary voyage. Check streaming/revisits only when placement, streaming or cache ownership changes. |
 | Packaging or requested installation | Build Release, export, install and check launch/signature once at the end of the batch. |
 
-The preview uses production geometry, materials and camera code without creating a Voyage. Start with the regression crescent (`B`); use size (`R`), shape (`Space`) and seed (`V`) controls when a specific concern warrants it. Exhaustively cycling every island family is not a default requirement. C# changes need an incremental build and preview restart; this launcher does not hot-reload C#.
+The preview uses production geometry, materials and camera code without creating a Voyage. It starts with the regression crescent and remembers your selection; use size (`R`), shape (`Space`) and seed (`V`) controls when a specific concern warrants it. Exhaustively cycling every island family is not a default requirement. Saving C# automatically rebuilds and restarts the preview; shader edits restart without a build. Failed builds keep the last preview open. The selected island and viewing scale survive restarts. `F5` refreshes manually; `--preview --once` disables the watcher.
 
-`run.command` builds Debug incrementally. It imports resources on first use; add `--import` after adding or renaming resources, changing import settings, or encountering a missing-resource error. Ordinary geometry and shader edits reuse the existing imports.
+`run.command` builds Debug incrementally. It imports resources on first use; add `--import` after adding or renaming resources, changing import settings, or encountering a missing-resource error. The preview watcher imports added/removed resources automatically. Ordinary geometry and shader edits reuse the existing imports.
 
 ## Procedural guarantees
 

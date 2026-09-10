@@ -8,7 +8,9 @@ public partial class ArtSample : Node3D
     NativeStage3D stage = null!;
     float clock;
     bool close;
-    bool beachReference;
+    bool beachReference = true;
+    const string SettingsPath = "user://art-preview.cfg";
+    Label status = null!;
     Node3D rocky = null!;
     Node3D home = null!, boat = null!, crab = null!;
     int islandStyle;
@@ -19,12 +21,28 @@ public partial class ArtSample : Node3D
     static readonly float[] IslandSizes = [95, 200, 330, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
+        var settings = new ConfigFile();
+        if (settings.Load(SettingsPath) == Error.Ok)
+        {
+            close = (bool)settings.GetValue("preview", "close", false);
+            beachReference = (bool)settings.GetValue("preview", "reference", true);
+            islandStyle = Math.Clamp((int)settings.GetValue("preview", "style", 0), 0, IslandStyles.Length - 1);
+            islandSize = Math.Clamp((int)settings.GetValue("preview", "size", 1), 0, IslandSizes.Length - 1);
+            variant = (uint)(long)settings.GetValue("preview", "variant", 0L);
+        }
         stage = new(); AddChild(stage);
         home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
         AddChild(home); home.Position = new(-3.2f, 0, -1.4f);
         boat = ActorArt3D.Boat(BoatKind.Mage, [0,0,0,0,0,1]);
         AddChild(boat); boat.Rotation = new(0, -.7f, 0);
         crab = ActorArt3D.Creature(EnemyKind.Crab); AddChild(crab); crab.Position = new(-2,0,1.6f); crab.Rotation = new(0,2.2f,0);
+        var overlay = new CanvasLayer(); AddChild(overlay);
+        status = new Label { Position = new(16, 12), MouseFilter = Control.MouseFilterEnum.Ignore };
+        status.AddThemeColorOverride("font_color", new Color("fff0d6"));
+        status.AddThemeColorOverride("font_shadow_color", new Color("123b48"));
+        status.AddThemeConstantOverride("shadow_offset_x", 1);
+        status.AddThemeConstantOverride("shadow_offset_y", 1);
+        overlay.AddChild(status);
         ShowIsland();
         GetWindow().Title = "Boats ’n’ Beasts · Native art sample";
     }
@@ -42,25 +60,36 @@ public partial class ArtSample : Node3D
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;
+        status.Text = $"{place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
+            + "Space shape · R size · V seed · B reference · Tab scale · F5 refresh · F12 capture";
         GD.Print($"ISLAND SAMPLE profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
-        if (key.Keycode == Key.B) { beachReference = !beachReference; ShowIsland(); }
-        if (key.Keycode == Key.Tab) close = !close;
-        if (key.Keycode == Key.Space) { islandStyle = (islandStyle + 1) % IslandStyles.Length; variant = 0; ShowIsland(); }
-        if (key.Keycode == Key.V)
+        switch (key.Keycode)
         {
-            var profile = new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle]).Profile;
-            do { variant++; } while (new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle] + variant).Profile != profile);
-            ShowIsland();
+            case Key.B: beachReference = !beachReference; break;
+            case Key.Tab: close = !close; break;
+            case Key.Space:
+                beachReference = false;
+                islandStyle = (islandStyle + 1) % IslandStyles.Length; variant = 0; break;
+            case Key.V:
+                beachReference = false;
+                var profile = new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle]).Profile;
+                do { variant++; } while (new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle] + variant).Profile != profile);
+                break;
+            case Key.R: beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
+            case Key.F5: SaveSettings(); GetTree().Quit(75); return;
+            case Key.F12: break;
+            default: return;
         }
-        if (key.Keycode == Key.R) { islandSize = (islandSize + 1) % IslandSizes.Length; ShowIsland(); }
+        if (key.Keycode != Key.F12) { SaveSettings(); ShowIsland(); }
         if (key.Keycode == Key.F12)
         {
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
+            System.IO.Directory.CreateDirectory(folder);
             uint seed = beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
             float radius = beachReference ? 355.70514f : IslandSizes[islandSize];
             var profile = new IslandShape(radius, seed).Profile;
@@ -69,4 +98,15 @@ public partial class ArtSample : Node3D
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
         }
     }
+    void SaveSettings()
+    {
+        var settings = new ConfigFile();
+        settings.SetValue("preview", "close", close);
+        settings.SetValue("preview", "reference", beachReference);
+        settings.SetValue("preview", "style", islandStyle);
+        settings.SetValue("preview", "size", islandSize);
+        settings.SetValue("preview", "variant", (long)variant);
+        settings.Save(SettingsPath);
+    }
+
 }
