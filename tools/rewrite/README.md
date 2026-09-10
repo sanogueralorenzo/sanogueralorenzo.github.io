@@ -25,4 +25,6 @@ Select text and press **⌥R** to rewrite it. The result is copied to your clipb
 
 Selected text goes to your chosen provider through Pi. Rewrite reads the selected text without changing the source field. Some apps do not expose selected text to Accessibility. Check the result before using it.
 
+Slack and other Electron apps are asked to enable their accessibility tree. Rewrite also reads text-marker selections, so highlighted Slack messages can be captured when the focused control has no standard selected-text value.
+
 Local development: `./build.sh` · Core checks: `./tests/run.sh` (offline; selection capture, global shortcuts, and model quality untested).
