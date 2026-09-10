@@ -6,6 +6,12 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Slightly lower camera — 2026-09-10
+
+Ground foreshortening is now 0.75, lowering camera elevation from 51.26° to 48.59°. This increases the original 0.84-to-0.78 foreshortening adjustment by 50%. Zoom, boat geometry and the five speed options remain unchanged.
+
+Debug and Release passed with zero warnings/errors; macOS export was clean. The reinstalled app launched with Forward+ / Metal and its signature verified. The user's live voyage reached level 2 after 50.1 sailing seconds; [native telemetry](../evidence/camera-49.txt) confirms projection `(0.5285714, 0.39642859)`. The [capture](../evidence/camera-49.png) is obscured by the upgrade menu, so it is runtime evidence rather than a clear boat comparison. No errors were observed in the [runtime log](../evidence/camera-49-runtime.txt). Extended combat, collision and streaming checks were not repeated for this camera adjustment.
+
 ## Expanded speed cycle and final framing — 2026-09-10
 
 The speed button cycles ×1 → ×2 → ×3 → ×10 → ×20 → ×1. Each multiplier repeats the existing bounded simulation step; a new voyage still starts at ×1. Orthographic zoom is `0.74 / 1.40`, showing 40% more world along each axis from the original baseline. Boat geometry is 80% larger than its original proportions (about 28.6% larger on screen after zoom), with shared weapon and health-bar scaling. Camera elevation remains 51°. The spawn moved 25 simulation units east for dock clearance.
