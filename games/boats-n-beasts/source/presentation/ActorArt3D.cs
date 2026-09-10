@@ -129,7 +129,7 @@ public static partial class ActorArt3D
         }
         for (int i = 0; i < 3; i++)
             b.RoundBox(new(0, .237f + i * .046f, .14f + i * .035f), new(.14f, .04f, .045f), .004f, Deck);
-        PirateRig(b, stripe);
+        PirateRig(b);
         RamFigurehead(b);
         int starter = Starter(kind);
         if (starter != 0) Equipment(b, starter, Math.Max(1, ranks[starter]), new(0, .25f, -.34f), starter == 5 ? .95f : 1);
@@ -141,9 +141,12 @@ public static partial class ActorArt3D
         }
     }
 
-    static void PirateRig(ActorGeometry b, Color stripe)
+    const float MastHeight = 1.48f;
+    public static float BoatHudHeight => (MastHeight + .025f) * BoatScale.Y;
+
+    static void PirateRig(ActorGeometry b)
     {
-        b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, 1.17f, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
+        b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, MastHeight, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
         b.Tube(new[] { new Vector3(-.375f, 1.03f, .015f), new Vector3(.375f, 1.03f, .015f) }, .015f, Wood, 8);
         b.Tube(new[] { new Vector3(-.31f, .55f, .015f), new Vector3(.31f, .55f, .015f) }, .011f, Wood, 6);
         // A coarse curved cloth grid: colored geometry on both sides, no textures.
@@ -181,11 +184,47 @@ public static partial class ActorArt3D
             b.RoundBox(P(0, .875f), new(.081f, .041f, .025f), .008f, Brass);
             b.RoundBox(P(0, .861f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
         }
-        var flag = new[] { new Vector3(0, 1.16f, .015f), new Vector3(.18f, 1.14f, .045f),
-            new Vector3(.135f, 1.10f, .025f), new Vector3(.18f, 1.065f, .045f), new Vector3(0, 1.075f, .015f) };
-        b.Polygon(flag, stripe, Vector3.Back);
-        b.Polygon(flag, stripe, Vector3.Forward);
-        b.Sphere(new(0, 1.18f, .015f), new(.025f, .025f, .025f), Brass);
+        PirateFlag(b);
+        b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
+    }
+
+    static void PirateFlag(ActorGeometry b)
+    {
+        Color ink = new("25363b");
+        float Fold(float x) => .015f + .020f * MathF.Sin(x / .36f * Mathf.Tau);
+        Vector3 Top(float x) => new(x, 1.45f - x * .06f, Fold(x));
+        Vector3 Bottom(float x) => new(x, 1.21f + x * .06f, Fold(x));
+        void Cloth(Vector3[] face)
+        {
+            b.Polygon(face, ink, Vector3.Back);
+            b.Polygon(face, ink, Vector3.Forward);
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            float x = i * .09f;
+            Cloth(new[] { Top(x), Top(x + .09f), Bottom(x + .09f), Bottom(x) });
+        }
+        // A split tail and a restrained fold give the tiny flag a clear silhouette.
+        var notch = new Vector3(.29f, 1.33f, Fold(.29f));
+        Cloth(new[] { Top(.27f), Top(.36f), notch });
+        Cloth(new[] { Top(.27f), notch, Bottom(.27f) });
+        Cloth(new[] { Bottom(.27f), notch, Bottom(.36f) });
+        foreach (int side in new[] { -1, 1 })
+        {
+            Vector3 P(float x, float y) => new(x, y, Fold(x) + side * .012f);
+            foreach (int diagonal in new[] { -1, 1 })
+            {
+                var a = P(.095f, 1.28f + diagonal * .027f);
+                var c = P(.205f, 1.28f - diagonal * .027f);
+                b.Tube(new[] { a, P(.15f, 1.28f), c }, .006f, Cream, 6);
+                b.Sphere(a, new(.010f, .009f, .005f), Cream);
+                b.Sphere(c, new(.010f, .009f, .005f), Cream);
+            }
+            b.Sphere(P(.15f, 1.365f), new(.035f, .035f, .009f), Cream);
+            b.RoundBox(P(.15f, 1.333f), new(.036f, .025f, .012f), .003f, Cream);
+            foreach (int eye in new[] { -1, 1 })
+                b.Sphere(P(.15f + eye * .013f, 1.369f) + new Vector3(0, 0, side * .009f), new(.008f, .010f, .004f), ink);
+        }
     }
 
     static void RamFigurehead(ActorGeometry b)

@@ -418,7 +418,7 @@ public partial class Game : Node2D
                 Text(new(counterX + 20, 45), counters[i], 21);
                 counterX += BodyFont.GetStringSize(counters[i], fontSize: 21).X + 48;
             }
-            var healthPosition = Game.ocean.ElevatedScreen(r.Position, r.Boat == BoatKind.Mage ? 1.25f : 1.1f) + new Vector2(-24, -17);
+            var healthPosition = Game.ocean.ElevatedScreen(r.Position, ActorArt3D.BoatHudHeight) + new Vector2(-24, -12);
             Bar(healthPosition, new(48, 6), r.Health / r.MaxHealth, new Color("ed4b55"));
             foreach (var enemy in r.Enemies.Where(e => e.Health < e.MaxHealth && e.Kind != EnemyKind.Leviathan))
             {

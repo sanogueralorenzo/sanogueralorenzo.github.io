@@ -1,0 +1,41 @@
+Mouse viewport=(-609.75, -22.5) global=(-609.75, -22.5) boatScreen=(535.1, 449.27396) viewportRect=(0, 0), (1440, 900)
+Camera projection=(0.74, 0.5772); click world=<-1372.0946, -1012.34924>; destination=
+Native runtime capture: 20260910-083227-895-sailing
+Renderer: forward_plus
+Seed: 900508107
+Mode: Sailing
+Game speed: x1
+Finished runs: 111; boat selection: False
+Silver: 118; earned this voyage: 0; next eligible combat time: 56.599937
+Boat: Cutter
+Position: <175, -195>
+Health: 100/100
+Kills: 0; level: 1; XP: 0/12; pending upgrades: 0
+Active chunks: 25; enemies: 1; shots: 0
+Actual sailing seconds: 10.1; peak enemies: 1; peak shots: 0
+Camera world=(424.86487, -193.74219); departure seconds=0; menu opacity=0
+Home home:current: Current position=<1250, -160> radius=245 style=0
+Home home:harbor: Harbor position=<-120, -490> radius=280 style=147
+Home home:island: Island position=<990, 275> radius=125 style=921
+Home home:upper-rock: Rock position=<1050, -625> radius=40 style=73
+Velocity=<0, 0>; boosting=False; boost starts=0; flow=<0, 0>; current seconds=0; treasure=0; barrels=0; arcane casts=0; mines=0/0; ricochets=0; pulls=0
+Combat clock=10.107806; director=3.5415409/0.62463915; boost=100; invulnerable=0; ability=0; fire rate=1
+Weapon ranks=1,0,0,0,0,0; cooldowns=0,0,0,0,0,0
+Depletion=
+Loot placement: islands=6; chests=0; barrels=3; depleted=0; visible encounter cache=0
+Loot -2:-1:barrel: Barrel position=<-2555.1287, -1343.7534> style=4201777668 heading=0 depleted=False
+Loot 2:0:barrel: Barrel position=<2707.2422, -104.86456> style=2805551343 heading=0 depleted=False
+Loot -1:2:barrel: Barrel position=<-1204.5183, 2402.0518> style=2702305728 heading=0 depleted=False
+Landmark -1:-2:land: Island position=<-874.23694, -2088.81> radius=593.12177 style=3492805892 profile=Scalloped
+Landmark 1:-2:land: Island position=<890.8623, -2117.2378> radius=358.3463 style=2892294411 profile=Compact
+Landmark -2:-1:land: Island position=<-2088.4924, -1497.6472> radius=231.05333 style=3961178913 profile=Headland
+Landmark -2:0:land: Island position=<-2829.9543, 429.6317> radius=337.36896 style=709710495 profile=Headland
+Landmark home:harbor: Harbor position=<-120, -490> radius=280 style=147 profile=harbor
+Landmark home:island: Island position=<990, 275> radius=125 style=921 profile=Lobed
+Landmark 0:2:land: Island position=<385.18866, 2028.9573> radius=89.5646 style=1615227024 profile=Long
+Boss bombs thrown=0; explosions=0; blast hits=0
+Pacing regular target=3; income=0.18909703; boss arrival seconds=1320
+Puffer explosions=0; blast hits=0
+Enemy 1: Crab position=<115.63686, 468.0277> hp=27 time=3.5498738 attack=-0.29087725 tell=0 dash=0 speedMultiplier=0.9471113 swimSpeed=78.61024 fuse=0
+CPU simulation average ms=0.025; draw submission average ms=0.534; cached scenery=3; engine FPS=120; draw calls=74; objects=461
+Frame ms mean: 8.45; p95: 8.33; p99: 12.12

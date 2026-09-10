@@ -6,6 +6,12 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Pirate flag and lower camera — 2026-09-10
+
+The camera now sits about 51° above the water (ground foreshortening 0.78, previously 0.84/about 57°), preserving orthographic scale 0.74. All boat variants share a taller mast and larger dark, double-sided skull-and-crossbones flag generated from geometry. The health bar uses the mast's scaled height instead of boat-type-specific cabin heights, keeping it above the flag.
+
+Debug and Release passed with zero warnings/errors. The macOS export completed without warnings/errors; the reinstalled app launched with Forward+ / Metal and its signature verified. No runtime errors were observed. The [native harbor capture](../evidence/pirate-camera-harbor.png) and [telemetry](../evidence/pirate-camera-harbor.txt) show the flag, sail and health bar at normal playing scale with projection `(0.74, 0.5772)`. Source review confirms scenery bounds, menu framing, ground clicks and HUD positions use the shared camera/projection. Native pointer steering and a full combat/streaming replay were not independently verified.
+
 ## Wider visible shallows and diffuse beaches — 2026-09-10
 
 Removed the broad transparency mask that erased sections of underwater shoreline. Shelf geometry now scales more generously with island radius, with smooth coastline-length variation bounded to 56–100% of its size-scaled envelope. Inner-water opacity stays visible around the coast; noise affects only the outer fade and seabed appearance. The beach-to-grass transition uses a dedicated matte ground shader with an island-size-scaled blend through dry grass, plus broad, low-contrast variation. Interpolated conservative shore distances preserve the dry-beach reserve.
