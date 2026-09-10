@@ -119,15 +119,13 @@ public static class EnvironmentArt3D
             margins[lb, ib] = MathF.Max(margins[lb, ib], margin);
             margins[lc, ic] = MathF.Max(margins[lc, ic], margin);
         });
-        // Shared vertex colors keep neighboring triangles seamless.
-        Color Tint(int layer, int i)
-        {
-            float d = clearance[layer, i], margin = margins[layer, i];
-            var sand = new Color("f4dca1").Lerp(Sand, Mathf.SmoothStep(0, beach, d));
-            return sand.Lerp(new Color("75934a"), Mathf.SmoothStep(beach + margin, beach + margin + .25f, d));
-        }
+        // Interpolate a conservative inland distance, then diffuse the color in
+        // the ground shader so the grass edge does not follow individual triangles.
+        float blendWidth = Math.Clamp(r * .24f, .30f, 1.35f);
+        Vector2 GroundUv(int layer, int i) => new(clearance[layer, i] - margins[layer, i] - beach, blendWidth);
         VisitTriangles((la, ia, lb, ib, lc, ic) =>
-            art.Triangle(points[la, ia], points[lb, ib], points[lc, ic], Tint(la, ia), Tint(lb, ib), Tint(lc, ic), Vector3.Up, Vector3.Up, Vector3.Up));
+            art.Triangle(points[la, ia], points[lb, ib], points[lc, ic], Sand, Sand, Sand,
+                Vector3.Up, Vector3.Up, Vector3.Up, "ground", GroundUv(la, ia), GroundUv(lb, ib), GroundUv(lc, ic)));
     }
 
     private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null)
@@ -165,8 +163,8 @@ public static class EnvironmentArt3D
             var p = CoastPoint(i * Mathf.Tau / sides, .98f, .014f);
             return new Vector2(p.X, p.Z);
         }).ToArray();
-        float shelfWidth = Math.Clamp(r * .45f, .45f, 1.6f)
-            * new SeedRandom(seed ^ 0x4ee7u).Range(.80f, 1.20f);
+        float shelfWidth = Math.Clamp(r * .80f, .65f, 3.8f)
+            * new SeedRandom(seed ^ 0x4ee7u).Range(.90f, 1.10f);
         var shelf = new Vector3[9, sides];
         for (int layer = 0; layer <= 8; layer++)
         {
@@ -210,8 +208,8 @@ public static class EnvironmentArt3D
         for (int i = 0; i < sides; i++)
         {
             float a = alongCoast[i] / perimeter * Mathf.Tau;
-            widths[i] = Math.Clamp(.62f + .22f * MathF.Sin(2 * a + phaseA)
-                + .14f * MathF.Sin(3 * a + phaseB) + .08f * MathF.Sin(5 * a + phaseC), .20f, 1);
+            widths[i] = Math.Clamp(.78f + .12f * MathF.Sin(2 * a + phaseA)
+                + .07f * MathF.Sin(3 * a + phaseB) + .03f * MathF.Sin(5 * a + phaseC), .56f, 1);
         }
         // Sample within nested true offsets: no crossing strips or sharp joins.
         Vector3 ShelfPoint(int layer, int i)
@@ -641,9 +639,12 @@ public static class EnvironmentArt3D
             {
                 if (!Materials.TryGetValue(key, out var material))
                 {
-                    material = key == "shelf"
-                        ? new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EnvironmentShallows.gdshader") }
-                        : DioramaSurface.Material;
+                    material = key switch
+                    {
+                        "shelf" => new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/EnvironmentShallows.gdshader") },
+                        "ground" => new ShaderMaterial { Shader = GD.Load<Shader>("res://source/presentation/island-ground.gdshader") },
+                        _ => DioramaSurface.Material
+                    };
                     Materials.Add(key, material);
                 }
                 surface.SetMaterial(material); surface.Index();

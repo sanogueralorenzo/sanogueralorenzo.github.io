@@ -1,0 +1,40 @@
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.51
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M3 Max (Apple9)
+
+ISLAND SAMPLE profile=Compact radius=200 style=4
+ISLAND SAMPLE profile=Crescent radius=355.70514 style=2273309013
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-082223-398-art-Crescent-355.70514-2273309013-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Compact radius=200 style=4
+ISLAND SAMPLE profile=Compact radius=330 style=4
+ISLAND SAMPLE profile=Compact radius=720 style=4
+ISLAND SAMPLE profile=Compact radius=95 style=4
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-082257-462-art-Compact-95-4-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Compact radius=200 style=4
+ISLAND SAMPLE profile=Compact radius=330 style=4
+ISLAND SAMPLE profile=Compact radius=720 style=4
+ISLAND SAMPLE profile=Long radius=720 style=6
+ISLAND SAMPLE profile=Crescent radius=720 style=1
+ISLAND SAMPLE profile=Lobed radius=720 style=2
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-082307-350-art-Lobed-720-2-scale.png renderer=forward_plus fps=120 draws=8

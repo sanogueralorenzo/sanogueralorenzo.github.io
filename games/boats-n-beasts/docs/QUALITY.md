@@ -6,7 +6,13 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
-## Natural shoreline — 2026-09-10
+## Wider visible shallows and diffuse beaches — 2026-09-10
+
+Removed the broad transparency mask that erased sections of underwater shoreline. Shelf geometry now scales more generously with island radius, with smooth coastline-length variation bounded to 56–100% of its size-scaled envelope. Inner-water opacity stays visible around the coast; noise affects only the outer fade and seabed appearance. The beach-to-grass transition uses a dedicated matte ground shader with an island-size-scaled blend through dry grass, plus broad, low-contrast variation. Interpolated conservative shore distances preserve the dry-beach reserve.
+
+Debug and Release passed with zero warnings/errors. The macOS export and installed signature check passed; the installed app launched and started a voyage without runtime or shader errors. Native visual checks cover the [small compact island](../evidence/wide-shore-small.png), [reference crescent bay](../evidence/wide-shore-crescent.png), and [large lobed island](../evidence/wide-shore-large.png), with [art runtime](../evidence/wide-shore-art-runtime.txt). Final [installed gameplay](../evidence/wide-shore-gameplay.png), [paired telemetry](../evidence/wide-shore-gameplay.txt), and [runtime log](../evidence/wide-shore-installed-runtime.txt) record the shipped shaders. Collision and world placement are unchanged; extended streaming, all-seed, and stress checks were not repeated.
+
+## Natural shoreline — 2026-09-10 (superseded appearance)
 
 Underwater geometry now uses rounded outward coastline offsets instead of radial enlargement. Seeded low-frequency curves vary width along coastline length, and stable broad shader patches soften the outer edge and deliberately fade some sections out. This avoids a uniformly visible underwater ring without letting concave geometry accidentally squeeze away the shelf. Dry beaches use a smaller seed-varied distance reserve. Full prop footprints, including palm crowns, must fit behind it; undersized props are omitted.
 
