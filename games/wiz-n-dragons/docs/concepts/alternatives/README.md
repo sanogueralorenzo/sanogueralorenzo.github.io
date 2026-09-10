@@ -36,6 +36,8 @@ A violet wizard and coral dragons stand out against a cobalt sky. Broad ivory cl
 
 [Full image prompt](03-bold-cel-prompt.txt)
 
+[More mature refinement of this direction](03-bold-cel-refined.md): believable proportions and richer 3D lighting with procedural meshes and softened cel shading.
+
 ## 4. Moonlit Low Poly
 
 ![Moonlit Low Poly](04-moonlit-low-poly.png)
