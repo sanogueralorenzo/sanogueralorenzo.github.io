@@ -38,6 +38,8 @@ A violet wizard and coral dragons stand out against a cobalt sky. Broad ivory cl
 
 [More mature refinement of this direction](03-bold-cel-refined.md): believable proportions and richer 3D lighting with procedural meshes and softened cel shading.
 
+[Arcane Skies](03-arcane-skies.md): a higher-fidelity target exploring material response, wing backlighting, sculpted clouds and atmospheric depth.
+
 ## 4. Moonlit Low Poly
 
 ![Moonlit Low Poly](04-moonlit-low-poly.png)
