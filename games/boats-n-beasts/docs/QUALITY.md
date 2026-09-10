@@ -6,6 +6,12 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Wider view and larger boat — 2026-09-10
+
+Orthographic zoom is 0.70 pixels per simulation unit, down from 0.74: about 5.7% more world coverage along each axis. The shared boat geometry scale is multiplied by 1.15, yielding about 8.8% larger on-screen dimensions after the zoom change. Aimed weapon fittings and the mast-based health-bar position inherit the same scale. The 51° camera elevation is retained.
+
+Debug and Release passed with zero warnings/errors. The macOS export completed without warnings/errors, the reinstalled app launched with Forward+ / Metal, and its signature verified. The [native voyage capture](../evidence/wider-camera-boat.png) and [telemetry](../evidence/wider-camera-boat.txt) verify normal-scale framing, visible flag and health bar, and visual hull clearance beside the dock. This is a presentation-only adjustment; extended combat and collision checks were not repeated.
+
 ## Pirate flag and lower camera — 2026-09-10
 
 The camera now sits about 51° above the water (ground foreshortening 0.78, previously 0.84/about 57°), preserving orthographic scale 0.74. All boat variants share a taller mast and larger dark, double-sided skull-and-crossbones flag generated from geometry. The health bar uses the mast's scaled height instead of boat-type-specific cabin heights, keeping it above the flag.
