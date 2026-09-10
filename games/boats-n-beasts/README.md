@@ -26,6 +26,10 @@ Preview controls: **Space** shape, **R** size, **V** seed, **B** reference cresc
 - Survive to defeat Crownclaw. The harbor is currently scenery.
 - The speed button cycles ×1 / ×2 / ×3 / ×10 / ×20.
 
+## Visual style
+
+Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
+
 ## Install on macOS
 
 Use matching .NET export templates and set `GODOT_BIN` to the engine executable. Export only for a requested installation or packaging change:
@@ -40,4 +44,4 @@ codesign --verify --deep --strict "$HOME/Applications/Boats n Beasts.app"
 
 This creates a local app and preserves existing saves. Public distribution requires signing and notarization.
 
-See [agent workflow](AGENTS.md), [art direction](docs/ART_DIRECTION.md) and [verification](docs/QUALITY.md).
+See [agent workflow](AGENTS.md).
