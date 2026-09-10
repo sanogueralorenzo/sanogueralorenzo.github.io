@@ -4,6 +4,7 @@ Use the [reef reference](island-reference.png) for island shores and interiors, 
 
 - Keep open water quiet and petrol-teal. Fade mottled turquoise shallows into the sea; use broken ivory surf instead of opaque rings.
 - Use irregular warm sand coasts with broad curved bays. Avoid abrupt straight edges, narrow V cuts and needle headlands. Terrain, shallows, surf, props, collision and chart must share the coastline.
+- Reserve a modest, seeded-width dry beach using distance to the nearest coastline edge, not radial scaling. Build underwater shelves from rounded outward coastline offsets so bays cannot collapse their geometry. Vary width smoothly along coastline length and fade broad, stable procedural patches into the sea; avoid a uniformly visible ring. Keep full rock, ruin, shrub and palm-crown footprints behind that reserve; shrink or omit props that cannot fit. Narrow spits may remain sand-only.
 - Mix compact, elongated, crescent, lobed and scalloped silhouettes, from small islets to occasional giant islands. Size bands and placement weights live in `OceanWorld.cs`; outlines live in `IslandShape.cs`.
 - Fill larger interiors with more palm, shrub and slate-rock groups; retain familiar prop proportions and bounded beach/shelf depths. Distinguish ruins, cliffs and groves. Keep dock paths and boat approaches clear.
 - Scatter landmarks sparsely with navigable gaps and no visible chunk grid. Keep chests reachable from water, barrel markers absent, and reward feedback brief and local.
@@ -15,4 +16,4 @@ Use the [reef reference](island-reference.png) for island shores and interiors, 
 
 Simulation `(x,y)` maps to native `(x/100,0,y/100)`; bows point along -Z. Preserve orthographic scale 0.74 pixels per simulation unit and 0.84 ground-plane foreshortening. HUD projection and sailing clicks use the same camera.
 
-Compare at normal playing scale. `./run.command art-sample.tscn` opens a separate visual sample without a Voyage: Tab changes inspection scale, Space cycles families, V changes variant, R selects radius 95/200/330/720, and F12 captures. Confirm collision, access and streaming in actual gameplay as described in [QUALITY.md](QUALITY.md).
+Compare at normal playing scale. `./run.command art-sample.tscn` opens a separate visual sample without a Voyage: Tab changes inspection scale, Space cycles families, V changes variant, R selects radius 95/200/330/720, B toggles the shoreline regression island (radius 355.70514, seed 2273309013), and F12 captures. Confirm collision, access and streaming in actual gameplay as described in [QUALITY.md](QUALITY.md).

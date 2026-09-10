@@ -6,6 +6,14 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Natural shoreline — 2026-09-10
+
+Underwater geometry now uses rounded outward coastline offsets instead of radial enlargement. Seeded low-frequency curves vary width along coastline length, and stable broad shader patches soften the outer edge and deliberately fade some sections out. This avoids a uniformly visible underwater ring without letting concave geometry accidentally squeeze away the shelf. Dry beaches use a smaller seed-varied distance reserve. Full prop footprints, including palm crowns, must fit behind it; undersized props are omitted.
+
+Debug and Release passed with zero warnings/errors. The final macOS export completed without warnings/errors, the installed app launched with Forward+ / Metal, and its signature verified. `build/.gdignore` prevents subsequent exports from importing their own previous app output.
+
+The [exact screenshot island](../evidence/natural-shore-crescent.png) (radius 355.70514, seed 2273309013) was rechecked using B in the native art sample; its [runtime log](../evidence/natural-shore-art-runtime.txt) records the final soft patching and variable width. Earlier offset checks also covered a radius-720 long island. A [fresh installed voyage](../evidence/natural-shore-gameplay.png), [paired telemetry](../evidence/natural-shore-gameplay.txt), and [runtime log](../evidence/natural-shore-installed-runtime.txt) verify the final shader in gameplay. No final runtime errors were observed. World placement and collision geometry are unchanged. Extended shore-collision, encounter-access, chunk-unload/revisit, all-seed, and stress checks were not repeated for this presentation change.
+
 ## Pirate ships — 2026-09-10
 
 Debug and Release builds passed with zero warnings/errors. All three boats share the new C# pirate hull, square sail, straw-hat skull emblem, ram figurehead and raised stern weapon mount. No imported gameplay assets. The macOS .NET export completed without warnings/errors after adding its solution file, export preset and ARM texture-import setting. Installed at `~/Applications/Boats n Beasts.app`, signed locally with macOS `codesign`, and verified the bundle signature. The existing save directory is preserved.

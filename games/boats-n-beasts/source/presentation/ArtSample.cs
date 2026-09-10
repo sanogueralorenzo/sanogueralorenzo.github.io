@@ -8,6 +8,7 @@ public partial class ArtSample : Node3D
     NativeStage3D stage = null!;
     float clock;
     bool close;
+    bool beachReference;
     Node3D rocky = null!;
     Node3D home = null!, boat = null!, crab = null!;
     int islandStyle;
@@ -31,7 +32,9 @@ public partial class ArtSample : Node3D
     void ShowIsland()
     {
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }
-        var place = new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
+        var place = beachReference
+            ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
+            : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         rocky = EnvironmentArt3D.Build(place);
         AddChild(rocky);
         bool giant = place.Radius > 360;
@@ -44,6 +47,7 @@ public partial class ArtSample : Node3D
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (key.Keycode == Key.B) { beachReference = !beachReference; ShowIsland(); }
         if (key.Keycode == Key.Tab) close = !close;
         if (key.Keycode == Key.Space) { islandStyle = (islandStyle + 1) % IslandStyles.Length; variant = 0; ShowIsland(); }
         if (key.Keycode == Key.V)
@@ -57,9 +61,10 @@ public partial class ArtSample : Node3D
         {
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
-            uint seed = IslandStyles[islandStyle] + variant;
-            var profile = new IslandShape(IslandSizes[islandSize], seed).Profile;
-            var file = folder + "/" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + $"-art-{profile}-{IslandSizes[islandSize]}-{seed}-" + (close ? "detail" : "scale") + ".png";
+            uint seed = beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
+            float radius = beachReference ? 355.70514f : IslandSizes[islandSize];
+            var profile = new IslandShape(radius, seed).Profile;
+            var file = folder + "/" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + $"-art-{profile}-{radius}-{seed}-" + (close ? "detail" : "scale") + ".png";
             GetViewport().GetTexture().GetImage().SavePng(file);
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
         }

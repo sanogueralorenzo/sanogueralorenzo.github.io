@@ -2,7 +2,8 @@
 **/bin/
 **/obj/
 *.log
-build/
+build/*
+!build/.gdignore
 
 evidence/20*.png
 evidence/20*.txt

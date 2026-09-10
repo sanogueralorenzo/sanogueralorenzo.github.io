@@ -24,6 +24,7 @@ public static class EnvironmentArt3D
         {
             Land(art, r, place.Style, false, place.Shape);
             art.Footprint = place.Shape;
+            art.BeachReserve = BeachWidth(r, place.Style);
             art.HeightScale = place.Shape == null ? 1 : MathF.Min(1, 2.1f / r) * .78f;
             if (OceanWorld.IslandTreasure(place) is { } treasure)
                 art.TreasureSpace = (treasure.Position - place.Position) * .01f;
@@ -72,14 +73,69 @@ public static class EnvironmentArt3D
     private static float Coast(float a, uint seed) => Mathf.Clamp(.918f + .074f * Mathf.Sin(a * 2 + seed % 17)
         + .054f * Mathf.Cos(a * 3 + seed % 11) + .034f * Mathf.Sin(a * 5 + seed % 7) + .014f * Mathf.Cos(a * 9), .80f, 1.01f);
 
+    // World-space clearance from the dry sand edge, shared by terrain and props.
+    private static float BeachWidth(float r, uint seed) => Math.Clamp(r * .055f, .06f, .18f)
+        * new SeedRandom(seed ^ 0x5a17u).Range(.65f, 1.35f);
+    private static float InlandClearance(IslandShape shape, Vector2 point)
+    {
+        const float dryCoast = .965f;
+        return shape.Overlap(new(point.X * 100 / dryCoast, point.Y * 100 / dryCoast), 0, out _, out float depth)
+            ? depth * .01f * dryCoast : 0;
+    }
+
+    private static void IslandLand(Sculptor art, IslandShape shape, float r, uint seed)
+    {
+        int layers = Math.Max(24, (int)MathF.Ceiling(r / .12f));
+        var points = new Vector3[layers + 1, IslandShape.Sides];
+        var clearance = new float[layers + 1, IslandShape.Sides];
+        var margins = new float[layers + 1, IslandShape.Sides];
+        float beach = BeachWidth(r, seed);
+        for (int layer = 0; layer <= layers; layer++) for (int i = 0; i < IslandShape.Sides; i++)
+        {
+            float reach = layer / (float)layers * 1.02f;
+            var p = shape.Shore[i] * (.01f * reach);
+            float d = InlandClearance(shape, new(p.X, p.Y));
+            clearance[layer, i] = d;
+            float height = reach > .965f ? Mathf.Lerp(.018f, .007f, (reach - .965f) / .055f)
+                : Mathf.Lerp(.018f, .20f, Mathf.SmoothStep(0, beach + .28f, d));
+            points[layer, i] = new(p.X, height, p.Y);
+        }
+        void VisitTriangles(Action<int, int, int, int, int, int> visit)
+        {
+            for (int layer = 0; layer < layers; layer++) for (int i = 0; i < IslandShape.Sides; i++)
+            {
+                int next = (i + 1) % IslandShape.Sides;
+                visit(layer, i, layer, next, layer + 1, i);
+                visit(layer, next, layer + 1, next, layer + 1, i);
+            }
+        }
+        VisitTriangles((la, ia, lb, ib, lc, ic) =>
+        {
+            var a = points[la, ia]; var b = points[lb, ib]; var c = points[lc, ic];
+            // Distance is 1-Lipschitz: this margin keeps even interpolated grass
+            // outside the reserved beach, including triangles spanning a concave bay.
+            float margin = MathF.Max(a.DistanceTo(b), MathF.Max(b.DistanceTo(c), c.DistanceTo(a)));
+            margins[la, ia] = MathF.Max(margins[la, ia], margin);
+            margins[lb, ib] = MathF.Max(margins[lb, ib], margin);
+            margins[lc, ic] = MathF.Max(margins[lc, ic], margin);
+        });
+        // Shared vertex colors keep neighboring triangles seamless.
+        Color Tint(int layer, int i)
+        {
+            float d = clearance[layer, i], margin = margins[layer, i];
+            var sand = new Color("f4dca1").Lerp(Sand, Mathf.SmoothStep(0, beach, d));
+            return sand.Lerp(new Color("75934a"), Mathf.SmoothStep(beach + margin, beach + margin + .25f, d));
+        }
+        VisitTriangles((la, ia, lb, ib, lc, ic) =>
+            art.Triangle(points[la, ia], points[lb, ib], points[lc, ic], Tint(la, ia), Tint(lb, ib), Tint(lc, ic), Vector3.Up, Vector3.Up, Vector3.Up));
+    }
+
     private static void Land(Sculptor art, float r, uint seed, bool rock, IslandShape? shape = null)
     {
         const int sides = IslandShape.Sides;
         float[] radii = [0, .43f, .66f, .82f, .965f, 1.02f];
         float[] heights = [.20f, .19f, .15f, .09f, .018f, .007f];
         Color[] colors = [new("6b8d43"), new("75934a"), new("a4aa62"), Sand, new("f4dca1"), new("aabda0")];
-        // Larger land gets more inland ground, while beach and shelf depths stay bounded.
-        float coastalScale = shape == null ? 1 : MathF.Min(1, 3.6f / r);
         Vector3 CoastPoint(float angle, float scale, float height)
         {
             var p = shape?.Point(angle) * .0104f ?? new System.Numerics.Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (r * Coast(angle, seed));
@@ -92,28 +148,85 @@ public static class EnvironmentArt3D
             float inland = layer is 1 or 2 ? 1 + .10f * Mathf.Sin(a * 3 + seed % 9) + .05f * Mathf.Cos(a * 5)
                 : layer == 3 ? 1 + .06f * Mathf.Sin(a * 4 + seed % 9) : 1;
             float reach = radii[layer] * inland;
-            if (layer is >= 1 and <= 3) reach = .965f - (.965f - reach) * coastalScale;
             return CoastPoint(a, reach, heights[layer]);
         }
-        if (!rock) for (int layer = 0; layer < radii.Length - 1; layer++)
+        if (!rock && shape != null) IslandLand(art, shape, r, seed);
+        if (!rock && shape == null) for (int layer = 0; layer < radii.Length - 1; layer++)
             for (int i = 0; i < sides; i++)
             {
                 var a=Point(layer,i); var b=Point(layer,i+1); var c=Point(layer+1,i+1); var d=Point(layer+1,i);
                 art.Triangle(a,b,d,colors[layer],colors[layer],colors[layer+1],Vector3.Up,Vector3.Up,Vector3.Up);
                 art.Triangle(b,c,d,colors[layer],colors[layer+1],colors[layer+1],Vector3.Up,Vector3.Up,Vector3.Up);
             }
-        // UV.y runs across the seabed shelf; surf follows the coast and fades at the outer edge.
+        // Offset the actual coastline by a world-space distance. Radial scaling
+        // collapses shallows along inward-facing bays and narrow island axes.
+        var coast = Enumerable.Range(0, sides).Select(i =>
+        {
+            var p = CoastPoint(i * Mathf.Tau / sides, .98f, .014f);
+            return new Vector2(p.X, p.Z);
+        }).ToArray();
+        float shelfWidth = Math.Clamp(r * .45f, .45f, 1.6f)
+            * new SeedRandom(seed ^ 0x4ee7u).Range(.80f, 1.20f);
+        var shelf = new Vector3[9, sides];
+        for (int layer = 0; layer <= 8; layer++)
+        {
+            if (layer == 0)
+            {
+                for (int i = 0; i < sides; i++) shelf[layer, i] = new(coast[i].X, .014f, coast[i].Y);
+                continue;
+            }
+            var outlines = Geometry2D.OffsetPolygon(coast, shelfWidth * layer / 8f, Geometry2D.PolyJoinType.Round);
+            for (int i = 0; i < sides; i++)
+            {
+                var direction = Vector2.FromAngle(i * Mathf.Tau / sides);
+                float reach = 0;
+                // All shore outlines are star-shaped about their origin. Resample
+                // each outward offset on the same rays to join rings without folds.
+                foreach (var outline in outlines) for (int j = 0; j < outline.Length; j++)
+                {
+                    var start = outline[j]; var edge = outline[(j + 1) % outline.Length] - start;
+                    float divisor = direction.Cross(edge);
+                    if (MathF.Abs(divisor) < .000001f) continue;
+                    float along = start.Cross(direction) / divisor, distance = start.Cross(edge) / divisor;
+                    if (along >= -.00001f && along <= 1.00001f && distance > 0) reach = MathF.Max(reach, distance);
+                }
+                if (reach <= 0) throw new InvalidOperationException($"Invalid shelf contour for island seed {seed}.");
+                shelf[layer, i] = new(direction.X * reach, .014f, direction.Y * reach);
+            }
+        }
+        // Smooth variation follows coastline length rather than polar angle, so
+        // one narrow bay does not receive all the variation compressed into it.
+        var widths = new float[sides];
+        var alongCoast = new float[sides];
+        float perimeter = 0;
+        for (int i = 1; i < sides; i++)
+        {
+            perimeter += coast[i - 1].DistanceTo(coast[i]);
+            alongCoast[i] = perimeter;
+        }
+        perimeter += coast[^1].DistanceTo(coast[0]);
+        var shelfRng = new SeedRandom(seed ^ 0x7c31u);
+        float phaseA = shelfRng.Range(0, Mathf.Tau), phaseB = shelfRng.Range(0, Mathf.Tau), phaseC = shelfRng.Range(0, Mathf.Tau);
+        for (int i = 0; i < sides; i++)
+        {
+            float a = alongCoast[i] / perimeter * Mathf.Tau;
+            widths[i] = Math.Clamp(.62f + .22f * MathF.Sin(2 * a + phaseA)
+                + .14f * MathF.Sin(3 * a + phaseB) + .08f * MathF.Sin(5 * a + phaseC), .20f, 1);
+        }
+        // Sample within nested true offsets: no crossing strips or sharp joins.
         Vector3 ShelfPoint(int layer, int i)
         {
-            float a = i * Mathf.Tau / sides, t = layer / 8f;
-            float width = .61f + .22f * Mathf.Sin(a * 3 + seed % 13) + .15f * Mathf.Cos(a * 5 + seed % 19);
-            return CoastPoint(a, .98f + width * coastalScale * t, .014f);
+            i %= sides;
+            float at = layer * widths[i];
+            int inner = (int)at;
+            return shelf[inner, i].Lerp(shelf[Math.Min(8, inner + 1), i], at - inner);
         }
+        float CoastAngle(int i) => (i == sides ? 1 : alongCoast[i] / perimeter) * Mathf.Tau;
         for (int layer = 0; layer < 8; layer++) for (int i = 0; i < sides; i++)
         {
             var a = ShelfPoint(layer, i); var b = ShelfPoint(layer, i + 1);
             var c = ShelfPoint(layer + 1, i + 1); var d = ShelfPoint(layer + 1, i);
-            Vector2 U(int l, int n) => new(n * Mathf.Tau / sides + seed % 23, l / 8f);
+            Vector2 U(int l, int n) => new(CoastAngle(n) + seed % 23, l / 8f);
             var color = new Color("66c9bd");
             art.Triangle(a,b,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i),U(layer,i+1),U(layer+1,i));
             art.Triangle(b,c,d,color,color,color,Vector3.Up,Vector3.Up,Vector3.Up,"shelf",U(layer,i+1),U(layer+1,i+1),U(layer+1,i));
@@ -183,7 +296,7 @@ public static class EnvironmentArt3D
 
     private static void Ruin(Sculptor art, Vector3 at, float scale, float yaw, uint seed)
     {
-        var old = art.PlaceProp(at, scale * .47f);
+        var old = art.PlaceProp(at, scale * .55f);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, yaw, -.035f)).Scaled(Vector3.One * scale), Vector3.Zero);
         var stone = new Color("7c8985");
         art.Boulder(new(0, .87f, 0), new(.65f, 1.82f, .58f), stone, seed);
@@ -223,7 +336,7 @@ public static class EnvironmentArt3D
     {
         var rng = new SeedRandom(seed);
         Color color = Stone.Lightened((seed % 9) * .012f);
-        var old = art.PlaceProp(at, MathF.Max(size.X, size.Z) * .70f);
+        var old = art.PlaceProp(at, MathF.Max(size.X, size.Z) * .80f);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, rng.Range(-.55f, .55f), 0)), Vector3.Zero);
         art.Boulder(new(0, size.Y * .48f, 0), size, color, seed);
         if (moss) Shrub(art, new(0, size.Y * .94f, 0), MathF.Min(size.X, size.Z) * .23f, seed + 11);
@@ -315,7 +428,8 @@ public static class EnvironmentArt3D
 
     private static void Palm(Sculptor art, Vector3 at, float height, uint seed)
     {
-        var old = art.PlaceProp(at, height * .06f, canopy: true);
+        // Include the full leaning crown, not just the trunk.
+        var old = art.PlaceProp(at, height * .90f);
         at = Vector3.Zero;
         float lean = (.10f + seed % 7 * .022f) * height;
         float yaw = seed % 29;
@@ -339,7 +453,7 @@ public static class EnvironmentArt3D
 
     private static void Shrub(Sculptor art, Vector3 at, float size, uint seed)
     {
-        var old = art.PlaceProp(at, size * .9f);
+        var old = art.PlaceProp(at, size * 1.25f);
         at = Vector3.Zero;
         var green = Leaf.Lerp(new Color("a2b44d"), seed % 5 * .11f);
         art.Boulder(at+Vector3.Up*size*.35f,new(size*1.4f,size,size),green,seed);
@@ -372,10 +486,11 @@ public static class EnvironmentArt3D
         // Fit props after terrain; nested details inherit the fitted parent transform.
         public IslandShape? Footprint;
         public float HeightScale = 1;
+        public float BeachReserve;
         public System.Numerics.Vector2? TreasureSpace;
         private int propDepth;
         private int hiddenPropDepth;
-        public Transform3D PlaceProp(Vector3 at, float footprintRadius, bool canopy = false)
+        public Transform3D PlaceProp(Vector3 at, float footprintRadius)
         {
             var old = Transform;
             float scale = 1;
@@ -384,8 +499,11 @@ public static class EnvironmentArt3D
                 var p = Footprint.PlaceOnLand(new(at.X * 100, at.Z * 100));
                 at = new(p.X * .01f, at.Y, p.Y * .01f);
                 scale = HeightScale;
-                if (!canopy && Footprint.Overlap(p, 0, out _, out float clearance))
-                    scale = MathF.Min(scale, clearance * .009f / footprintRadius);
+                float available = InlandClearance(Footprint, new(at.X, at.Z)) - BeachReserve;
+                scale = MathF.Min(scale, MathF.Max(0, available) / footprintRadius);
+                // A narrow spit may support sand only; omit props instead of squeezing
+                // them onto the shoreline or leaving barely visible miniature rocks.
+                if (scale < HeightScale * .30f) hiddenPropDepth = propDepth + 1;
                 if (TreasureSpace is { } beach && System.Numerics.Vector2.Distance(p * .01f, beach) < footprintRadius * scale + .48f)
                     hiddenPropDepth = propDepth + 1;
             }

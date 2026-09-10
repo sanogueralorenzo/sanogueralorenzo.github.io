@@ -28,7 +28,13 @@ void fragment() {
     float wash=(1.0-smoothstep(.008,.036,abs(depth-crest+wiggle)))*sin(phase*3.14159)*breakup;
     float edge=(1.0-smoothstep(.008,.029,abs(depth-.027+wiggle)))*breakup;
     float lace=(1.0-smoothstep(.003,.018,abs(depth-crest-.058+wiggle)))*breakup*.33*sin(phase*3.14159);
-    float foam=clamp(wash+edge+lace,0.0,1.0);
+    // Broad stationary shoals, with softly missing sections rather than a painted ring.
+    // Integer coast frequencies preserve the seam; world noise breaks up the outer edge.
+    float coast_patch=.5+.26*sin(UV.x*2.0+1.3)+.18*cos(UV.x*3.0-.7)+.10*sin(UV.x*5.0+.6);
+    float shoal=noise(world.xz*1.7)*.65+noise(world.xz*.65)*.35;
+    float coverage=smoothstep(.25,.64,coast_patch*.75+shoal*.25);
+    float foam=clamp(wash+edge+lace,0.0,1.0)*smoothstep(.12,.7,coverage);
+    float shelf_alpha=(1.0-smoothstep(.12,.96,depth+(.5-shoal)*.38))*coverage*.72;
     ALBEDO=linear_color(mix(shallow,vec3(.91,.96,.84),foam));
-    ALPHA=max(foam*.94,(1.0-smoothstep(.32,.99,depth+(.5-bed)*.14))*.86);
+    ALPHA=max(foam*.84,shelf_alpha);
 }
