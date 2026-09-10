@@ -7,7 +7,7 @@ public static class StartingArea
 {
     public static readonly Vector2 Harbor = new(-120, -490);
     // Alongside the outer dock, with bow/stern clearance for every boat.
-    public static readonly Vector2 Spawn = Harbor + new Vector2(320, 295);
+    public static readonly Vector2 Spawn = Harbor + new Vector2(295, 295);
     public static readonly IReadOnlyList<Place> Places = Array.AsReadOnly<Place>([
         new("home:harbor", PlaceKind.Harbor, Harbor, 280, 147),
         new("home:island", PlaceKind.Island, new(990, 275), 125, 921),

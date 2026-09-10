@@ -5,7 +5,7 @@ namespace BoatsNBeasts;
 // Central coordinate conversion; simulation retains its own units.
 public partial class NativeStage3D : Node3D
 {
-    public const float Unit = .01f, Zoom = .74f / 1.40f, Foreshortening = .75f;
+    public const float Unit = .01f, Zoom = .70f, Foreshortening = .78f;
     public Camera3D Lens { get; private set; } = null!;
     ShaderMaterial water = null!;
     MeshInstance3D sea = null!;
