@@ -61,5 +61,12 @@ if ! mv "$install_stage/new.app" "$installed_app"; then
   if [ -d "$install_stage/previous.app" ]; then mv "$install_stage/previous.app" "$installed_app"; fi
   exit 1
 fi
+if ! /usr/bin/tccutil reset Accessibility sh.rewrite.Desktop; then
+  echo "Could not reset Rewrite's Accessibility permission. Remove Rewrite from Accessibility settings, then add it again." >&2
+fi
 open "$installed_app"
 echo "Installed Rewrite ($revision) at $installed_app"
+echo "Enable Rewrite in System Settings → Privacy & Security → Accessibility after each install or update."
+if ! open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"; then
+  echo "Could not open System Settings. Open Accessibility settings manually to enable Rewrite." >&2
+fi

@@ -10,7 +10,9 @@ A small macOS menu for making selected text concise and clear, with grammar corr
 curl -fsSL https://raw.githubusercontent.com/sanogueralorenzo/sanogueralorenzo.github.io/main/tools/rewrite/install.sh | sh
 ```
 
-Installs in `~/Applications`. Install Pi separately, then run it and use `/login`:
+Installs in `~/Applications`. Each install or update resets only Rewrite's Accessibility permission and opens System Settings. Enable Rewrite again there; rebuilding changes its ad-hoc signature, so the previous permission may no longer work.
+
+Install Pi separately, then run it and use `/login`:
 
 ```sh
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent@latest
