@@ -12,6 +12,19 @@ Requires .NET 10 SDK and Godot **4.7.2 .NET** with Forward+. From this directory
 
 Set `GODOT_BIN` to your Godot executable and `DOTNET_ROOT` to your SDK directory if the launcher cannot find them. Alternatively, build `BoatsNBeasts.csproj` and run `project.godot` in the matching .NET editor.
 
+## macOS installation
+
+Install the matching Godot **4.7.2 .NET export templates**, then build a locally signed app:
+
+```sh
+mkdir -p build
+"$GODOT_BIN" --headless --path . --export-release macOS "build/Boats n Beasts.app"
+ditto "build/Boats n Beasts.app" "$HOME/Applications/Boats n Beasts.app"
+codesign --force --deep --sign - --preserve-metadata=entitlements,identifier,runtime "$HOME/Applications/Boats n Beasts.app"
+```
+
+The app includes its runtime and preserves the existing `Boats n Beasts` save directory. Public distribution requires signing and notarization with your own credentials.
+
 ## Play
 
 | Input | Action |

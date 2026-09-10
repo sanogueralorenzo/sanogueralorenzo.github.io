@@ -19,6 +19,7 @@ renderer/rendering_method.web="gl_compatibility"
 lights_and_shadows/directional_shadow/size=4096
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 textures/default_filters/use_nearest_mipmap_filter=false
+textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.025,0.19,0.56,1)
 [dotnet]
 project/assembly_name="BoatsNBeasts"

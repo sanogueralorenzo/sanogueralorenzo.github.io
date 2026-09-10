@@ -7,6 +7,7 @@ Use the [reef reference](island-reference.png) for island shores and interiors, 
 - Mix compact, elongated, crescent, lobed and scalloped silhouettes, from small islets to occasional giant islands. Size bands and placement weights live in `OceanWorld.cs`; outlines live in `IslandShape.cs`.
 - Fill larger interiors with more palm, shrub and slate-rock groups; retain familiar prop proportions and bounded beach/shelf depths. Distinguish ruins, cliffs and groves. Keep dock paths and boat approaches clear.
 - Scatter landmarks sparsely with navigable gaps and no visible chunk grid. Keep chests reachable from water, barrel markers absent, and reward feedback brief and local.
+- Boats are compact wooden pirate ships with raised ends, an open foredeck, a low sterncastle, a billowing cream square sail, a straw-hat skull emblem and a ram figurehead. Build every part in C# geometry; keep navy/turquoise/violet hull bands and pennants for Gunboat/Aura/Mage, and leave both weapon fittings visible.
 - Use matte broad faces, restrained bevels, warm light and cool shadows. Preserve readable boat/monster silhouettes, violet friendly magic and coral hostile bombs. Wakes follow actual motion; fish stay submerged without overhead markers.
 - Use cream text, navy panels, turquoise controls and visible keyboard focus. Avoid fine surface noise and ornamental UI clutter.
 

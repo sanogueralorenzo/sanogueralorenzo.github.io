@@ -34,7 +34,7 @@ public static partial class ActorArt3D
         if (starter == 0) AddAimedWeapon(root, 0, Math.Max(1, ranks[0]), new(0, .26f, -.325f), 1, "AimPrimary");
         for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
         {
-            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], new(0, .24f, .4f), .69f, "AimSecondary");
+            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], new(0, .425f, .4f), .69f, "AimSecondary");
             break;
         }
         return root;
@@ -90,55 +90,115 @@ public static partial class ActorArt3D
     {
         float[] zs = { -.565f, -.50f, -.40f, -.28f, -.10f, .12f, .30f, .39f, .46f, .50f, .52f };
         var p = new List<Vector3>();
-        foreach (float z in zs) p.Add(new(Width(z) * scale, y, z * scale));
-        for (int i = zs.Length - 1; i >= 0; i--) p.Add(new(-Width(zs[i]) * scale, y, zs[i] * scale));
+        float Sheer(float z) => .065f * MathF.Pow(MathF.Abs(z) / .565f, 3) * scale;
+        foreach (float z in zs) p.Add(new(Width(z) * scale, y + Sheer(z), z * scale));
+        for (int i = zs.Length - 1; i >= 0; i--) p.Add(new(-Width(zs[i]) * scale, y + Sheer(zs[i]), zs[i] * scale));
         return p.ToArray();
     }
 
     static void BuildBoat(ActorGeometry b, BoatKind kind, int[] ranks)
     {
         Color stripe = kind == BoatKind.Mage ? new("73539b") : kind == BoatKind.Trawler ? new("358d88") : new("25495d");
-        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.139f, .987f), HullRing(.205f, 1) }, new[] { DarkWood, stripe, Cream });
-        b.Polygon(HullRing(.191f, .935f), Deck, Vector3.Up);
-        var rim = HullRing(.218f, .984f);
-        b.ClosedTube(rim, .018f, Cream, 7);
-        b.ClosedTube(HullRing(.201f, .905f), .012f, DarkWood, 6);
-        for (int side = -1; side <= 1; side += 2)
-        {
-            b.RoundBox(new(side * .215f, .248f, .335f), new(.033f, .095f, .032f), .009f, Wood);
-            b.Tube(new[] { new Vector3(side * .225f, .276f, .27f), new Vector3(side * .19f, .276f, .43f) }, .011f, Cream, 7);
-        }
-        b.RoundBox(new(0, .332f, .095f), new(.345f, .273f, .35f), .046f, Cream);
-        b.RoundBox(new(0, .461f, .095f), new(.393f, .036f, .406f), .014f, Wood);
-        b.RoundBox(new(0, .489f, .095f), new(.419f, .078f, .432f), .036f, new("f5e5be"));
-        b.RoundBox(new(0, .376f, -.085f), new(.254f, .13f, .019f), .008f, Brass);
-        b.RoundBox(new(0, .376f, -.097f), new(.228f, .107f, .014f), .006f, Glass);
-        b.RoundBox(new(0, .376f, -.107f), new(.016f, .124f, .018f), .005f, Cream);
+        b.Loft(new[] { HullRing(-.055f, .67f), HullRing(.025f, .85f), HullRing(.139f, .987f), HullRing(.205f, 1) }, new[] { DarkWood, Wood, stripe });
+        b.Polygon(HullRing(.206f, .935f), Deck, Vector3.Up);
+        b.ClosedTube(HullRing(.221f, .984f), .017f, Cream, 7);
+        b.ClosedTube(HullRing(.125f, .97f), .009f, Brass, 6);
+        // Broad planks and open side rails keep the wooden hull legible at playing scale.
+        for (int i = -2; i <= 2; i++)
+            b.Tube(new[] { new Vector3(i * .073f, .219f, -.25f), new Vector3(i * .073f, .219f, .27f) }, .003f, Wood, 4);
         foreach (int side in new[] { -1, 1 })
         {
-            for (int j = 0; j < 2; j++)
+            foreach (float z in new[] { -.22f, .03f, .24f })
             {
-                float z = .015f + .15f * j;
-                b.RoundBox(new(side * .173f, .374f, z), new(.018f, .131f, .119f), .007f, Brass);
-                b.RoundBox(new(side * .185f, .374f, z), new(.013f, .107f, .095f), .005f, Glass);
-                b.RoundBox(new(side * .194f, .40f, z - .025f), new(.004f, .037f, .012f), .0015f, new("72969a"));
+                float x = side * Width(z) * .97f;
+                b.Tube(new[] { new Vector3(x, .22f, z), new Vector3(x, .305f, z) }, .011f, Wood, 6);
+                b.RoundBox(new(side * Width(z), .166f, z), new(.014f, .045f, .063f), .005f, DarkWood);
             }
-            b.RoundBox(new(side * .174f, .29f, .1f), new(.012f, .017f, .26f), .004f, Brass);
+            b.Tube(new[] { new Vector3(side * .22f, .32f, -.28f), new Vector3(side * .275f, .30f, .03f), new Vector3(side * .249f, .33f, .30f) }, .012f, Cream, 6);
         }
-        b.RoundBox(new(0, .312f, .278f), new(.131f, .215f, .020f), .009f, Wood);
-        b.RoundBox(new(0, .361f, .293f), new(.083f, .083f, .013f), .006f, Glass);
-        b.Sphere(new(.036f, .322f, .285f), new(.009f, .009f, .009f), Brass, 8, 5);
-        b.RoundBox(new(-.1f, .53f, .18f), new(.066f, .085f, .068f), .012f, DarkWood);
-        b.RoundBox(new(-.1f, .578f, .18f), new(.082f, .021f, .084f), .007f, Brass);
-        b.Tube(new[] { new Vector3(.11f, .48f, .22f), new Vector3(.11f, .645f, .22f) }, .008f, Wood, 7);
-        b.Tube(new[] { new Vector3(.11f, .625f, .22f), new Vector3(.04f, .60f, .22f) }, .008f, Brass, 7);
+        // Low sterncastle leaves the foredeck free for the starter weapon.
+        b.RoundBox(new(0, .29f, .325f), new(.34f, .155f, .26f), .018f, Wood);
+        b.RoundBox(new(0, .38f, .325f), new(.39f, .038f, .30f), .012f, Deck);
+        foreach (int side in new[] { -1, 1 })
+        {
+            b.RoundBox(new(side * .173f, .30f, .33f), new(.012f, .078f, .097f), .008f, Brass);
+            b.RoundBox(new(side * .182f, .30f, .33f), new(.008f, .052f, .068f), .006f, Glass);
+            b.Tube(new[] { new Vector3(side * .18f, .40f, .23f), new Vector3(side * .18f, .47f, .23f) }, .01f, Wood, 6);
+            b.Tube(new[] { new Vector3(side * .18f, .40f, .46f), new Vector3(side * .18f, .47f, .46f) }, .01f, Wood, 6);
+            b.Tube(new[] { new Vector3(side * .18f, .47f, .23f), new Vector3(side * .18f, .47f, .46f) }, .012f, Cream, 6);
+        }
+        for (int i = 0; i < 3; i++)
+            b.RoundBox(new(0, .237f + i * .046f, .14f + i * .035f), new(.14f, .04f, .045f), .004f, Deck);
+        PirateRig(b, stripe);
+        RamFigurehead(b);
         int starter = Starter(kind);
         if (starter != 0) Equipment(b, starter, Math.Max(1, ranks[starter]), new(0, .25f, -.34f), starter == 5 ? .95f : 1);
         // One compact stern fitting represents the second weapon slot.
         for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
         {
-            if (i is not (0 or 1)) Equipment(b, i, ranks[i], new(0, .22f, .405f), .58f);
+            if (i is not (0 or 1)) Equipment(b, i, ranks[i], new(0, .425f, .405f), .58f);
             break;
+        }
+    }
+
+    static void PirateRig(ActorGeometry b, Color stripe)
+    {
+        b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, 1.17f, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
+        b.Tube(new[] { new Vector3(-.375f, 1.03f, .015f), new Vector3(.375f, 1.03f, .015f) }, .015f, Wood, 8);
+        b.Tube(new[] { new Vector3(-.31f, .55f, .015f), new Vector3(.31f, .55f, .015f) }, .011f, Wood, 6);
+        // A coarse curved cloth grid: colored geometry on both sides, no textures.
+        Vector3 Cloth(float u, float v) => new(
+            (u - .5f) * Mathf.Lerp(.60f, .72f, v),
+            .55f + v * .47f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
+            .015f - .12f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
+        for (int y = 0; y < 4; y++) for (int x = 0; x < 6; x++)
+        {
+            var patch = new[] { Cloth(x / 6f, y / 4f), Cloth((x + 1) / 6f, y / 4f),
+                Cloth((x + 1) / 6f, (y + 1) / 4f), Cloth(x / 6f, (y + 1) / 4f) };
+            Color cloth = x is 0 or 5 ? Cream : new Color("f5e5be");
+            b.Polygon(patch, cloth, Vector3.Forward);
+            b.Polygon(patch, cloth, Vector3.Back);
+        }
+        foreach (int side in new[] { -1, 1 })
+        {
+            b.Tube(new[] { new Vector3(0, 1.065f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
+            // The emblem follows the billow and reads from either sailing direction.
+            float Z(float y) => .015f - .12f * MathF.Sin((y - .55f) / .47f * Mathf.Pi) + side * .009f;
+            Vector3 P(float x, float y) => new(x, y, Z(y));
+            foreach (int diagonal in new[] { -1, 1 })
+            {
+                var a = P(-.085f, .705f + diagonal * .05f);
+                var c = P(.085f, .705f - diagonal * .05f);
+                b.Tube(new[] { a, P(0, .705f), c }, .009f, DarkWood, 6);
+                b.Sphere(a, new(.015f, .013f, .008f), DarkWood);
+                b.Sphere(c, new(.015f, .013f, .008f), DarkWood);
+            }
+            b.Sphere(P(0, .805f), new(.060f, .062f, .012f), DarkWood);
+            b.RoundBox(P(0, .755f), new(.062f, .035f, .014f), .004f, DarkWood);
+            foreach (int eye in new[] { -1, 1 })
+                b.Sphere(P(eye * .022f, .806f) + new Vector3(0, 0, side * .013f), new(.014f, .017f, .006f), Cream);
+            b.RoundBox(P(0, .85f), new(.15f, .018f, .026f), .004f, Brass);
+            b.RoundBox(P(0, .875f), new(.081f, .041f, .025f), .008f, Brass);
+            b.RoundBox(P(0, .861f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
+        }
+        var flag = new[] { new Vector3(0, 1.16f, .015f), new Vector3(.18f, 1.14f, .045f),
+            new Vector3(.135f, 1.10f, .025f), new Vector3(.18f, 1.065f, .045f), new Vector3(0, 1.075f, .015f) };
+        b.Polygon(flag, stripe, Vector3.Back);
+        b.Polygon(flag, stripe, Vector3.Forward);
+        b.Sphere(new(0, 1.18f, .015f), new(.025f, .025f, .025f), Brass);
+    }
+
+    static void RamFigurehead(ActorGeometry b)
+    {
+        b.Tube(new[] { new Vector3(0, .22f, -.47f), new Vector3(0, .30f, -.61f), new Vector3(0, .39f, -.65f) }, new[] { .045f, .042f, .052f }, Cream, 8);
+        b.Sphere(new(0, .415f, -.665f), new(.084f, .075f, .075f), Cream);
+        b.Sphere(new(0, .395f, -.727f), new(.065f, .044f, .045f), new("f5e5be"));
+        foreach (int side in new[] { -1, 1 })
+        {
+            b.Sphere(new(side * .07f, .44f, -.635f), new(.044f, .046f, .028f), Brass);
+            b.Sphere(new(side * .087f, .441f, -.65f), new(.020f, .025f, .014f), DarkWood);
+            b.Sphere(new(side * .091f, .43f, -.657f), new(.016f, .015f, .015f), Cream);
+            b.Sphere(new(side * .05f, .431f, -.721f), new(.010f, .012f, .007f), Pupil);
         }
     }
 

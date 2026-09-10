@@ -6,6 +6,12 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Pirate ships — 2026-09-10
+
+Debug and Release builds passed with zero warnings/errors. All three boats share the new C# pirate hull, square sail, straw-hat skull emblem, ram figurehead and raised stern weapon mount. No imported gameplay assets. The macOS .NET export completed without warnings/errors after adding its solution file, export preset and ARM texture-import setting. Installed at `~/Applications/Boats n Beasts.app`, signed locally with macOS `codesign`, and verified the bundle signature. The existing save directory is preserved.
+
+Native installed-app play verified Gunboat sailing at normal camera scale, level-up selection, a second Whirlpool fitting on the stern, Cannon rank 3, and pause. The [sailing capture](../evidence/pirate-sailing.png) and [paired telemetry](../evidence/pirate-sailing.txt) show level 6 at 7:22 combat time, 100/100 health, 156.2 active sailing seconds, 16.70 ms mean frame time and 117 draw calls. [Upgrade capture](../evidence/pirate-upgrade.png) and [telemetry](../evidence/pirate-upgrade.txt) show both weapon slots. These are unedited F12 captures from the installed app. Runtime startup and capture logs reported no errors. Aura/Mage and every upgraded fitting combination were source-reviewed; no new runtime sweep or full voyage was performed.
+
 ## Verified baseline — 2026-09-09
 
 Latest upgrade-menu check: Debug and Release passed with zero warnings/errors. Native play verified level 2 offered three weapon-only rows, clicking a row applied Harpoon and resumed sailing, and level 3 offered three boat-only rows. Each row displays its icon beside the name and benefit. See [weapon rows](../evidence/upgrade-weapon-rows.png) and [boat rows](../evidence/upgrade-boat-rows.png), with paired telemetry. Maxed-category fallback and queued multiple levels were source-reviewed, not runtime-tested. No broader replay was run.
