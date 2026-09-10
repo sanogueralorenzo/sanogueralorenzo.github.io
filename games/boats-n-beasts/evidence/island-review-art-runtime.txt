@@ -1,0 +1,59 @@
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.72
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M3 Max (Apple9)
+
+ISLAND SAMPLE profile=Compact radius=200 style=4
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093322-017-art-Compact-200-4-scale.png renderer=forward_plus fps=119 draws=13
+ISLAND SAMPLE profile=Long radius=200 style=6
+ISLAND SAMPLE profile=Long radius=330 style=6
+ISLAND SAMPLE profile=Long radius=720 style=6
+ISLAND SAMPLE profile=Long radius=95 style=6
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093324-589-art-Long-95-6-scale.png renderer=forward_plus fps=121 draws=13
+ISLAND SAMPLE profile=Crescent radius=355.70514 style=2273309013
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093326-630-art-Crescent-355.70514-2273309013-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Long radius=95 style=6
+ISLAND SAMPLE profile=Crescent radius=95 style=1
+ISLAND SAMPLE profile=Lobed radius=95 style=2
+ISLAND SAMPLE profile=Lobed radius=200 style=2
+ISLAND SAMPLE profile=Lobed radius=330 style=2
+ISLAND SAMPLE profile=Lobed radius=720 style=2
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093336-388-art-Lobed-720-2-scale.png renderer=forward_plus fps=97 draws=8
+ISLAND SAMPLE profile=Headland radius=720 style=12
+ISLAND SAMPLE profile=Headland radius=95 style=12
+ISLAND SAMPLE profile=Headland radius=200 style=12
+ISLAND SAMPLE profile=Headland radius=330 style=12
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093338-718-art-Headland-330-12-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Bean radius=330 style=32
+ISLAND SAMPLE profile=Bean radius=720 style=32
+ISLAND SAMPLE profile=Bean radius=95 style=32
+ISLAND SAMPLE profile=Bean radius=200 style=32
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093349-547-art-Bean-200-32-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Twin radius=200 style=33
+ISLAND SAMPLE profile=Twin radius=330 style=33
+ISLAND SAMPLE profile=Twin radius=720 style=33
+ISLAND SAMPLE profile=Twin radius=95 style=33
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093351-774-art-Twin-95-33-scale.png renderer=forward_plus fps=120 draws=13
+ISLAND SAMPLE profile=Scalloped radius=95 style=34
+ISLAND SAMPLE profile=Scalloped radius=200 style=34
+ART SAMPLE /Users/mario/AndroidStudioProjects/sanogueralorenzo.github.io/games/boats-n-beasts/evidence/20260910-093353-841-art-Scalloped-200-34-scale.png renderer=forward_plus fps=120 draws=13

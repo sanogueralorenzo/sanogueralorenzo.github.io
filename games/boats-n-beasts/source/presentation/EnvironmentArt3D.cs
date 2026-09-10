@@ -49,7 +49,8 @@ public static class EnvironmentArt3D
             {
                 IslandInterior(art, r, place.Style);
             }
-            for (int i = 0; i < 12; i++)
+            int shrubs = SparseInterior(art, r) ? 4 : 12;
+            for (int i = 0; i < shrubs; i++)
             {
                 float angle = rng.Range(0, Mathf.Tau), reach = rng.Range(.4f, .7f) * r;
                 var at = new Vector3(Mathf.Cos(angle) * reach, .13f, Mathf.Sin(angle) * reach);
@@ -121,7 +122,7 @@ public static class EnvironmentArt3D
         });
         // Interpolate a conservative inland distance, then diffuse the color in
         // the ground shader so the grass edge does not follow individual triangles.
-        float blendWidth = Math.Clamp(r * .24f, .30f, 1.35f);
+        float blendWidth = Math.Clamp(r * .18f, .26f, 1.05f);
         Vector2 GroundUv(int layer, int i) => new(clearance[layer, i] - margins[layer, i] - beach, blendWidth);
         VisitTriangles((la, ia, lb, ib, lc, ic) =>
             art.Triangle(points[la, ia], points[lb, ib], points[lc, ic], Sand, Sand, Sand,
@@ -208,8 +209,8 @@ public static class EnvironmentArt3D
         for (int i = 0; i < sides; i++)
         {
             float a = alongCoast[i] / perimeter * Mathf.Tau;
-            widths[i] = Math.Clamp(.78f + .12f * MathF.Sin(2 * a + phaseA)
-                + .07f * MathF.Sin(3 * a + phaseB) + .03f * MathF.Sin(5 * a + phaseC), .56f, 1);
+            widths[i] = Math.Clamp(.74f + .19f * MathF.Sin(a + phaseA)
+                + .10f * MathF.Sin(3 * a + phaseB) + .05f * MathF.Sin(5 * a + phaseC), .44f, 1);
         }
         // Sample within nested true offsets: no crossing strips or sharp joins.
         Vector3 ShelfPoint(int layer, int i)
@@ -234,23 +235,32 @@ public static class EnvironmentArt3D
     private static void ShoreRocks(Sculptor art, float r, uint seed, bool harbor)
     {
         var rng = new SeedRandom(seed + 709);
-        int count = harbor ? 11 : Math.Max(11, (int)MathF.Ceiling(r / 3.6f * 11));
+        int count = harbor ? 11 : SparseInterior(art, r) ? 3 : Math.Clamp((int)MathF.Ceiling(r * 2.4f), 6, 18);
+        var outcropRng = new SeedRandom(seed ^ 0x63a9u);
+        var outcrops = Enumerable.Range(0, SparseInterior(art, r) ? 1 : Math.Clamp((int)MathF.Ceiling(r * .5f), 2, 4))
+            .Select(_ => outcropRng.Range(0, Mathf.Tau)).ToArray();
         for (int i = 0; i < count; i++)
         {
-            float a = rng.Range(0, Mathf.Tau);
+            // Leave stretches of open beach between a few seeded rocky outcrops.
+            float a = harbor ? rng.Range(0, Mathf.Tau) : outcrops[i % outcrops.Length] + rng.Range(-.22f, .22f);
             // The working waterfront stays open between cottage, barrels and dock.
             if (harbor && Mathf.Cos(a) > -.25f && Mathf.Sin(a) > -.3f) continue;
-            float reach = Coast(a, seed) * r * .85f, size = rng.Range(.20f, .38f) * r;
+            float reach = Coast(a, seed) * r * (harbor ? .85f : rng.Range(.68f, .88f)), size = rng.Range(.20f, .38f) * r;
             var at = new Vector3(Mathf.Cos(a) * reach, .018f, Mathf.Sin(a) * reach);
             Rock(art, at, new(size, size * rng.Range(.6f, 1.2f), size * .82f), rng.Next(), moss: i % 3 == 0);
         }
     }
 
+    // Narrow islets need a few readable features, not a miniature full island.
+    private static bool SparseInterior(Sculptor art, float r) => art.Footprint != null
+        && (r < 1.4f || (art.Footprint.Profile == IslandProfile.Long && r < 2.8f));
+
     private static void IslandInterior(Sculptor art, float r, uint seed)
     {
         int kind = (int)(seed % 3);
         var rng = new SeedRandom(seed + 117);
-        int count = kind == 1 ? 4 : 8;
+        bool sparse = SparseInterior(art, r);
+        int count = sparse ? 2 : kind == 1 ? 4 : 8;
         for (int i = 0; i < count; i++)
         {
             float a = i * 2.3f + seed % 11, reach = rng.Range(.15f, .48f) * r;
@@ -260,20 +270,20 @@ public static class EnvironmentArt3D
         }
         if (kind == 0)
         {
-            Ruin(art, new(-r * .24f, .17f, -r * .23f), r * 1.02f, -.12f, seed);
-            Ruin(art, new(r * .40f, .12f, r * .18f), r * .70f, .24f, seed + 19);
-            for (int i = 0; i < 3; i++)
+            Ruin(art, sparse ? new(0, .17f, 0) : new(-r * .24f, .17f, -r * .23f), r * (sparse ? .75f : 1.02f), -.12f, seed);
+            if (!sparse) Ruin(art, new(r * .40f, .12f, r * .18f), r * .70f, .24f, seed + 19);
+            for (int i = 0; i < (sparse ? 0 : 3); i++)
             {
                 var old = art.PlaceProp(new((-.22f + i * .18f) * r, .205f, r * .50f), r * .13f);
                 art.RoundedBox(Vector3.Zero, new(r * .19f, .09f, r * .15f), .015f, new("a5a28a"));
                 art.EndProp(old);
             }
         }
-        int palms = kind == 0 ? 3 : kind == 1 ? 7 : 4;
+        int palms = sparse ? (kind == 1 ? 2 : 1) : kind == 0 ? 3 : kind == 1 ? 7 : 4;
         for (int i = 0; i < palms; i++)
         {
             float a = kind == 0 ? -.68f - i * 2.05f : .10f + i * 1.83f;
-            float reach = r * (kind == 0 ? .55f : i % 2 == 0 ? .56f : .35f);
+            float reach = r * (sparse ? .25f : kind == 0 ? .55f : i % 2 == 0 ? .56f : .35f);
             var at = new Vector3(Mathf.Cos(a) * reach, .16f, Mathf.Sin(a) * reach);
             Palm(art, at, r * (kind == 0 ? rng.Range(.58f, .76f) : rng.Range(.64f, 1.03f)), rng.Next());
             Shrub(art, at + new Vector3(-r * .07f, 0, r * .02f), r * .19f, rng.Next());

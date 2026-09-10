@@ -12,27 +12,26 @@ float noise(vec2 p) {
 void vertex() { world=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz; }
 void fragment() {
     float depth=UV.y;
-    float bed=noise(world.xz*6.0)*.65+noise(world.xz*15.0)*.35;
-    float submerged=smoothstep(.43,.69,bed);
-    vec3 shallow=mix(vec3(.30,.66,.59),vec3(.075,.43,.47),smoothstep(.0,.90,depth));
-    shallow=mix(shallow,vec3(.08,.36,.38),submerged*.48);
-    float caustic=pow(1.0-abs(sin(world.x*19.0+sin(world.z*13.0+clock*.6))*sin(world.z*17.0-world.x*7.0+clock*.4)),18.0);
-    shallow+=vec3(.055,.10,.072)*caustic*(1.0-depth)*.45;
+    // Broad sandbanks beneath quiet water, with just a trace of smaller reef detail.
+    vec2 warp=vec2(noise(world.xz*.65),noise(world.zx*.65+17.0))-.5;
+    float shoal=noise(world.xz*2.6+warp)*.72+noise(world.xz*5.5)*.28;
+    float reef=smoothstep(.40,.69,shoal);
+    vec3 shallow=mix(vec3(.30,.65,.59),vec3(.075,.43,.47),smoothstep(.0,.95,depth));
+    shallow=mix(shallow,vec3(.10,.39,.40),reef*.44*(1.0-depth*.6));
+    float caustic=pow(1.0-abs(sin(world.x*13.0+sin(world.z*9.0+clock*.6))*sin(world.z*11.0-world.x*5.0+clock*.4)),18.0);
+    shallow+=vec3(.045,.08,.06)*caustic*(1.0-depth)*.20;
 
-    // Broken wash advances toward sand and dissolves. Integer angle frequencies
-    // join seamlessly around the continuous coast coordinates supplied by the mesh.
-    float phase=fract(clock*.19+sin(UV.x*3.0)*.13);
-    float crest=.035+(1.0-phase)*.29;
-    float wiggle=sin(UV.x*29.0+clock*.7)*.011+sin(UV.x*47.0)*.006;
-    float breakup=smoothstep(.27,.60,noise(world.xz*21.0+vec2(clock*.06,0.0))*.55+.45*sin(UV.x*11.0)*sin(UV.x*7.0)+.24);
-    float wash=(1.0-smoothstep(.008,.036,abs(depth-crest+wiggle)))*sin(phase*3.14159)*breakup;
-    float edge=(1.0-smoothstep(.008,.029,abs(depth-.027+wiggle)))*breakup;
-    float lace=(1.0-smoothstep(.003,.018,abs(depth-crest-.058+wiggle)))*breakup*.33*sin(phase*3.14159);
-    // Uneven width comes from the coast mesh. Keep water visible around the
-    // entire shore; broad noise only softens the outer edge, never punches holes.
-    float shoal=noise(world.xz*1.7)*.65+noise(world.xz*.65)*.35;
-    float foam=clamp(wash+edge+lace,0.0,1.0)*(.75+.25*shoal);
-    float shelf_alpha=(1.0-smoothstep(.35,1.0,depth+(.5-shoal)*.18))*(.82+.10*shoal);
+    // Independent, softly dissolving wash segments avoid concentric white rings.
+    // Integer angle frequencies keep the mesh seam continuous.
+    float phase=fract(clock*.17+sin(UV.x*2.0)*.19+sin(UV.x*5.0)*.10);
+    float crest=.025+(1.0-phase)*.23;
+    float wiggle=sin(UV.x*17.0+clock*.5)*.008;
+    float breakup=smoothstep(.47,.66,noise(world.xz*2.8)*.65+noise(world.xz*7.0)*.35);
+    float wash=(1.0-smoothstep(.004,.019,abs(depth-crest+wiggle)))*sin(phase*3.14159)*breakup;
+    float edge=(1.0-smoothstep(.004,.020,abs(depth-.025+wiggle)))*breakup;
+    float foam=clamp(wash*.90+edge*.52,0.0,1.0);
+    // Maintain the visible inner shelf. Only the outer edge dissolves into deep water.
+    float shelf_alpha=(1.0-smoothstep(.30,1.0,depth+(.5-shoal)*.24))*mix(1.0,.86,smoothstep(.03,.24,depth));
     ALBEDO=linear_color(mix(shallow,vec3(.91,.96,.84),foam));
     ALPHA=max(foam*.84,shelf_alpha);
 }

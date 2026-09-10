@@ -6,6 +6,27 @@ Build Debug and Release with `dotnet build` and `dotnet build -c Release`. For b
 
 Check the affected behavior at normal camera scale. For world changes, include shore collision, reachable encounters, chunk unloading/revisits and bounded caches. For combat changes, include pause/resume, progression, pickups and sustained play. Save unedited F12 screenshots with paired telemetry and report runtime errors, measurements and coverage limits. Update the baseline, gaps and evidence below.
 
+## Procedural island review — 2026-09-10
+
+Revisited the shoreline at the final 49° camera elevation and wider view. Underwater shelves retain rounded coastline offsets and a positive minimum width, with stronger long asymmetric width variation (44–100% of the size-scaled envelope). Broader, lower-contrast seabed patches replace dense mottling; caustics are quieter and surf dissolves in separated arcs. The inner shelf remains opaque enough to avoid a sand-colored outline, while its outer edge fades into open water. Grass uses broad warped patches, subtle interior color variation and a gentler color blend within a narrower transition envelope. Small or narrow islets have fewer props; coastal rocks form a few outcrops separated by clear beaches. All art remains procedural. Collision outlines, landmark placement and treasure-clearance rules are unchanged.
+
+Debug and Release passed with zero warnings/errors. The native sample launched through `run.command`; all eight coastline families were inspected at normal playing scale, covering radii 95, 200, 330, 355.7 and 720. The [before](../evidence/island-review-before.png) and [after crescent](../evidence/island-review-crescent.png) show the same regression island with the same camera. Final examples:
+
+| Shape | Native capture |
+| --- | --- |
+| Compact, radius 200 | [View](../evidence/island-review-compact.png) |
+| Long, radius 95 | [View](../evidence/island-review-long.png) |
+| Crescent, radius 355.7 | [View](../evidence/island-review-crescent.png) |
+| Lobed, radius 720 | [View](../evidence/island-review-lobed.png) |
+| Headland, radius 330 | [View](../evidence/island-review-headland.png) |
+| Bean, radius 200 | [View](../evidence/island-review-bean.png) |
+| Twin, radius 95 | [View](../evidence/island-review-twin.png) |
+| Scalloped, radius 200 | [View](../evidence/island-review-scalloped.png) |
+
+The macOS export completed without warnings/errors; the reinstalled app launched with Forward+ / Metal and its signature verified. Ordinary installed-app play checked harbor departure, [shore approach](../evidence/island-review-shore-approach.png), steering away after contact, level-up selection, [procedural islands offshore](../evidence/island-review-gameplay.png), and [revisiting them](../evidence/island-review-revisit.png). Paired telemetry records 109.6 active sailing seconds, level 3, 25 loaded chunks, and 16.74 ms mean frame time. The home harbor leaves the loaded set in [offshore telemetry](../evidence/island-review-offshore.txt) and returns in [revisit telemetry](../evidence/island-review-revisit.txt); scenery cache counts change from 8 to 9 to 8 across those captures. This is a short streaming check, not a long-run cache or stress benchmark.
+
+No errors were observed in the recorded [art runtime](../evidence/island-review-art-runtime.txt), export or [initial installed runtime](../evidence/island-review-installed-runtime.txt). Final-voyage evidence is provided by native F12 captures and telemetry. Every seed/size combination, treasure collection and extended high-speed combat were not rechecked. The previously enlarged boat mesh can visually overhang a small island at collision contact; this pass does not change its existing collision footprint.
+
 ## Slightly lower camera — 2026-09-10
 
 Ground foreshortening is now 0.75, lowering camera elevation from 51.26° to 48.59°. This increases the original 0.84-to-0.78 foreshortening adjustment by 50%. Zoom, boat geometry and the five speed options remain unchanged.
