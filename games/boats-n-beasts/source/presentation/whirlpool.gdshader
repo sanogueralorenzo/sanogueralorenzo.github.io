@@ -110,22 +110,21 @@ void fragment() {
     if(r>.80 && r<1.08) for(int i=0;i<24;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
         float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
-        float span=.24+.24*hash(seed+1.0), u=theta/span;
+        float span=.20+.32*hash(seed+1.0), u=theta/span;
         // A gentle outward pitch follows the rotation; angle-based slope keeps short pieces stable.
         // Including drift and soft edges, foam stays inside the .80–1.08 radius band.
         float outward_pitch=.06+.03*hash(seed+4.0);
+        float overlap=.03*smoothstep(.55,.85,hash(seed+10.0));
         float arc=.889+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
-                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
-        float width=(.0035+.005*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
+                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed)-overlap;
+        float width=(.003+.007*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.15,width*1.35+aa,abs(r-arc)))
                     *smoothstep(0.0,.24,u)*(1.0-smoothstep(.65,1.0,u));
-        float gap_center=.30+.25*hash(seed+6.0);
+        // Only some wisps break; others overlap the lip as continuous tapered foam.
+        float gap_center=.25+.35*hash(seed+6.0);
         float gap=smoothstep(gap_center-.10,gap_center-.03,u)
                  *(1.0-smoothstep(gap_center+.03,gap_center+.11,u));
-        stroke*=1.0-gap*(.65+.30*hash(seed+7.0));
-        // Longer marks break twice instead of reading as paired motion outlines.
-        float second_gap=smoothstep(.65,.70,u)*(1.0-smoothstep(.76,.83,u));
-        stroke*=1.0-second_gap*smoothstep(.34,.46,span)*.85;
+        stroke*=1.0-gap*(.65+.30*hash(seed+7.0))*step(.5,hash(seed+9.0));
         float fade=.30+.70*smoothstep(-.6,.8,sin(clock*(.25+.16*hash(seed+8.0))+seed));
         foam=max(foam,stroke*fade*.39);
     }
