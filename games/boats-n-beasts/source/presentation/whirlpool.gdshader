@@ -105,16 +105,17 @@ void fragment() {
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
     float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
-    // Nine broken streaks drift across the shelf and beyond it, on unequal curved paths.
+    // Twenty-four broken streaks stay near the lip with uneven spacing and radial offsets.
     float foam=0.0;
-    if(r>.82) for(int i=0;i<9;i++) {
+    if(r>.82 && r<1.08) for(int i=0;i<24;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
         float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
-        float span=.16+.40*hash(seed+1.0), u=theta/span;
-        // The 1.25-radius mesh contains the full radial drift and feathered stroke width.
-        float arc=.93+.20*hash(seed+3.0)+(.04+.08*hash(seed+4.0))*(.5-u)
-                 +.015*sin(u*3.0+seed)+.012*sin(clock*.22+seed);
-        float width=(.004+.007*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
+        float span=.24+.24*hash(seed+1.0), u=theta/span;
+        // Bend by angle, not normalized length, so short pieces cannot tip radially outward.
+        // Including drift and soft edges, foam stays within .85–1.06 of the whirlpool radius.
+        float arc=.895+.115*hash(seed+3.0)+(.015+.025*hash(seed+4.0))*(theta-span*.5)
+                 +.018*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
+        float width=(.0035+.005*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.35,width+aa,abs(r-arc)))
                     *smoothstep(0.0,.16,u)*(1.0-smoothstep(.72,1.0,u));
         float gap_center=.30+.25*hash(seed+6.0);
