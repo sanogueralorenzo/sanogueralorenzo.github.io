@@ -8,7 +8,7 @@ public static partial class EnvironmentArt3D
     // Independent of coastline selection: retain the original interiors on most islands.
     private static int SettlementKind(float r, uint seed) => new SeedRandom(seed ^ 0xa43fu).Index(8) switch
     {
-        0 when r >= 2.5f => 0,
+        0 when OceanWorld.IsPrisonIsland(r * 100, seed) => 0,
         1 when r >= 1.4f => 1,
         _ => -1
     };
@@ -40,12 +40,20 @@ public static partial class EnvironmentArt3D
         if (best < .50f) return false;
         // Include the projecting gate, wall buttresses and steps in the fitted footprint.
         float footprint = kind == 0 ? 1.70f : .82f;
-        float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .76f : .48f), 3.0f), best / (footprint * art.HeightScale));
+        // The former prison could reach at most 1.245 world scale. Scale 4
+        // gives over 10x its footprint area; never shrink a destination into a prop.
+        const float prisonScale = 4f;
+        if (kind == 0 && best < footprint * prisonScale) return false;
+        float vegetationScale = art.HeightScale;
+        if (kind == 0) art.HeightScale = 1;
+        float scale = kind == 0 ? prisonScale
+            : MathF.Min(MathF.Min(r * .48f, 3f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
         if (kind == 0) Prison(art); else Watchtower(art);
         art.EndProp(old);
+        art.HeightScale = vegetationScale;
         float size = building.Basis.X.Length();
         art.LandmarkSpace = (new(building.Origin.X, building.Origin.Z), footprint * size);
         if (kind == 0) PrisonJetty(art, building);
@@ -111,6 +119,32 @@ public static partial class EnvironmentArt3D
         for (int i = 0; i < 3; i++)
             art.RoundedBox(new(0, .17f - i * .045f, -.035f + i * .08f), new(.34f, .06f, .09f), .008f, trim);
 
+        // Repeated cells and separate service yards give the destination scale
+        // without filling its central approach with decorative clutter.
+        for (int side = -1; side <= 1; side += 2)
+        {
+            for (int row = 0; row < 2; row++) for (int column = 0; column < 3; column++)
+                art.RoundedBox(new(side * (.22f + column * .12f), .43f + row * .30f, -.126f),
+                    new(.043f, .13f, .022f), .003f, iron);
+            var wing = building * new Transform3D(Basis.FromEuler(new(0, side * Mathf.Pi / 2, 0)), new(side * .82f, 0, -.04f));
+            art.Transform = wing;
+            art.RoundedBox(new(0, .28f, 0), new(.56f, .36f, .25f), .014f, stone);
+            art.RoundedBox(new(0, .48f, 0), new(.62f, .05f, .30f), .008f, trim);
+            HipRoof(art, new(.33f, .51f, .18f), .69f, .18f, new("89565b"));
+            for (int i = -1; i <= 1; i++)
+                art.RoundedBox(new(i * .16f, .32f, -.132f), new(.055f, .12f, .02f), .003f, iron);
+            art.Transform = building;
+            // Iron fences divide side exercise yards from the entrance avenue.
+            for (int i = 0; i < 6; i++)
+                art.Tube(new(side * .52f, .10f, .22f + i * .09f), new(side * .52f, .33f, .22f + i * .09f), .008f, .008f, iron, 4);
+            art.RoundedBox(new(side * .52f, .30f, .445f), new(.018f, .025f, .48f), .004f, iron);
+            for (int i = 0; i < 3; i++)
+                art.RoundedBox(new(side * .76f, .15f, .32f + i * .16f), new(.26f, .08f, .06f), .009f, trim);
+        }
+        // A broad stone route connects both gates, with large restrained pavers.
+        for (int i = 0; i < 7; i++)
+            art.RoundedBox(new(0, .112f, .25f + i * .13f), new(.36f, .018f, .115f), .008f, new("acafa4"));
+
         // Projecting gatehouse, deep portcullis and restrained iron crown.
         var gate = building * new Transform3D(Basis.Identity, new(0, 0, PrisonGateOffset));
         art.Transform = gate;
@@ -170,6 +204,15 @@ public static partial class EnvironmentArt3D
                 art.Quad(obA, obB, otB, otA, color);
                 art.Quad(ibB, ibA, itA, itB, color.Darkened(.08f));
                 art.Quad(otA, otB, itB, itA, color.Lightened(.05f));
+                if (bottom > .2f && top < .81f)
+                {
+                    float angle = (a + b) * .5f;
+                    art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), Vector3.Zero);
+                    for (int row = 0; row < 2; row++)
+                        art.RoundedBox(new(0, .39f + row * .24f, outer * .981f), new(.045f, .10f, .02f), .003f, iron);
+                    art.RoundedBox(new(0, .53f, outer * .983f), new(.50f, .024f, .025f), .003f, trim.Darkened(.13f));
+                    art.Transform = building;
+                }
                 if (i == 1) art.Quad(ibA, obA, otA, itA, color);
                 if (i == 14) art.Quad(obB, ibB, itB, otB, color);
             }
@@ -219,7 +262,9 @@ public static partial class EnvironmentArt3D
         {
             float angle = i * Mathf.Tau / 6;
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
-            art.RoundedBox(new(0, height - .24f, radius * .955f), new(radius * .22f, .16f, .025f), .004f, new("202731"));
+            for (int row = 0; row < (height > 1.5f ? 3 : 2); row++)
+                art.RoundedBox(new(0, height - .24f - row * .30f, radius * (.955f + row * .01f)),
+                    new(radius * .20f, .13f, .025f), .003f, new("202731"));
         }
         art.Transform = building;
     }

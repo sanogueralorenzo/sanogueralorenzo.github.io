@@ -19,6 +19,8 @@ public sealed class IslandShape
         var rng = new SeedRandom(seed ^ 0x71a5bu);
         Profile = (IslandProfile)rng.Index(5);
         if (rng.Unit() < .375f) Profile = (IslandProfile)(5 + rng.Index(3));
+        bool prison = OceanWorld.IsPrisonIsland(radius, seed);
+        if (prison) Profile = IslandProfile.Compact;
         float aspect = Profile switch
         {
             IslandProfile.Compact => rng.Range(.78f, 1),
@@ -26,6 +28,8 @@ public sealed class IslandShape
             IslandProfile.Bean => rng.Range(.56f, .84f),
             _ => rng.Range(.72f, 1)
         };
+        // A broad destination island leaves room for the full prison and its shore.
+        if (prison) aspect = MathF.Max(aspect, .92f);
         float rotation = rng.Range(0, MathF.Tau), phase = rng.Range(0, MathF.Tau);
         float lean = rng.Range(-.22f, .22f), relief = rng.Range(.80f, 1.20f);
         int scallops = rng.Index(2) + 4;

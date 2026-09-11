@@ -28,7 +28,7 @@ Preview controls: **Space** shape, **R** size, **V** seed, **B** reference cresc
 
 ## Visual style
 
-Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Seeded prison and watchtower scenery joins the existing ruins, groves and cliffs; buildings are decorative. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
+Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Prisons occupy rare large island destinations; watchtowers join the existing ruins, groves and cliffs. Buildings are decorative. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
 
 ## Install on macOS
 

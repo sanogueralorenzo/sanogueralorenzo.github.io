@@ -28,7 +28,11 @@ public sealed record OceanChunk(ChunkKey Key, Place[] Places);
 public sealed class OceanWorld(uint seed)
 {
     public const int ChunkSize = 1200;
-    public const float MaxIslandRadius = 720;
+    public const float MaxRegularIslandRadius = 720;
+    public const float PrisonIslandRadius = 1200;
+    public const float MaxIslandRadius = PrisonIslandRadius;
+    public static bool IsPrisonIsland(float radius, uint style) => radius >= PrisonIslandRadius && IsPrisonStyle(style);
+    private static bool IsPrisonStyle(uint style) => new SeedRandom(style ^ 0xa43fu).Index(8) == 0;
     public const float IslandTreasureChance = .15f;
     public const float BarrelChance = .20f;
     public const float BarrelSpacing = 900;
@@ -53,28 +57,39 @@ public sealed class OceanWorld(uint seed)
         float size = rng.Unit();
         float radius = size < .35f ? rng.Range(80, 115)
             : size < .70f ? rng.Range(165, 235) : size < .85f ? rng.Range(290, 360)
-            : rng.Range(520, MaxIslandRadius);
+            : rng.Range(520, MaxRegularIslandRadius);
+        uint style = rng.Next();
+        // Prison destinations reserve their real coastline before spacing or collision.
+        if (radius >= 250 && IsPrisonStyle(style)) radius = PrisonIslandRadius;
         // Giant islands can reach toward home from outside its reserved chunks.
         if (StartingArea.Places.Any(p => IsSolid(p) && Vector2.Distance(position, p.Position) <
             (radius + p.Radius) * 1.04f + 320)) return null;
         return new($"{key.X}:{key.Y}:land", PlaceKind.Island,
-            position, radius, rng.Next());
+            position, radius, style);
     }
     IEnumerable<Place> Landmarks(ChunkKey key)
     {
         var land = LandmarkCandidate(key);
         if (land == null) yield break;
-        // Maximum spacing is 1,818 units; candidates two chunks apart can be only
-        // 1,400 apart. Three chunks apart are at least 2,600, so this remains bounded.
-        for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++)
+        // Maximum spacing is 2,816 units including prison islands. Four chunks
+        // apart are at least 3,800 apart; three neighbors in each direction suffice.
+        for (int y = -3; y <= 3; y++) for (int x = -3; x <= 3; x++)
         {
             if (x == 0 && y == 0) continue;
             var other = LandmarkCandidate(new(key.X + x, key.Y + y));
             if (other == null) continue;
             float spacing = MathF.Max(900, (land.Radius + other.Radius) * 1.04f + 320);
             if (Vector2.DistanceSquared(land.Position, other.Position) >= spacing * spacing) continue;
-            // Coordinate tie-break keeps even equal hash priorities deterministic.
-            if (other.Style < land.Style || (other.Style == land.Style && (y < 0 || (y == 0 && x < 0)))) yield break;
+            // Reserve rare prison destinations before ordinary islands; otherwise
+            // their larger exclusion radius makes them almost always lose thinning.
+            bool prison = IsPrisonIsland(land.Radius, land.Style);
+            bool otherPrison = IsPrisonIsland(other.Radius, other.Style);
+            if (prison != otherPrison)
+            {
+                if (otherPrison) yield break;
+            }
+            // Coordinate tie-break keeps equal priorities deterministic.
+            else if (other.Style < land.Style || (other.Style == land.Style && (y < 0 || (y == 0 && x < 0)))) yield break;
         }
         yield return land;
         foreach (var rock in ShoreRocks(land)) yield return rock;
@@ -148,9 +163,9 @@ public sealed class OceanWorld(uint seed)
     {
         if (StartingArea.Contains(key)) return StartingArea.Generate(key);
         var places = Landmarks(key).ToList();
-        // Check neighboring shores without loading chunks; land can cross chunk boundaries.
+        // Include distant prison shores when placing nearby encounters and barrels.
         var nearbySolids = new List<Place>();
-        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)
+        for (int y = -2; y <= 2; y++) for (int x = -2; x <= 2; x++)
         {
             var neighbor = new ChunkKey(key.X + x, key.Y + y);
             nearbySolids.AddRange(StartingArea.Contains(neighbor)

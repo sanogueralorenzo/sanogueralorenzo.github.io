@@ -8,6 +8,7 @@ public partial class ArtSample : Node3D
     NativeStage3D stage = null!;
     float clock;
     bool close;
+    float detailSize = 6.2f;
     bool beachReference = true;
     const string SettingsPath = "user://art-preview.cfg";
     Label status = null!;
@@ -50,7 +51,7 @@ public partial class ArtSample : Node3D
     {
         clock += (float)delta;
         var center = close ? new Vector2(rocky.Position.X, rocky.Position.Z) * 100 : Vector2.Zero;
-        stage.Follow(center, close ? 6.2f : 0); stage.Advance(clock);
+        stage.Follow(center, close ? detailSize : 0); stage.Advance(clock);
     }
     void ShowIsland()
     {
@@ -58,6 +59,7 @@ public partial class ArtSample : Node3D
         var place = beachReference
             ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
             : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
+        detailSize = MathF.Max(6.2f, place.Radius * .02f);
         rocky = EnvironmentArt3D.Build(place);
         AddChild(rocky);
         bool giant = place.Radius > 360;
@@ -74,7 +76,7 @@ public partial class ArtSample : Node3D
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
         switch (key.Keycode)
         {
-            case Key.P: beachReference = false; islandStyle = 8; islandSize = 2; variant = 0; close = false; break;
+            case Key.P: beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
             case Key.T: beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
             case Key.B: beachReference = !beachReference; break;
             case Key.Tab: close = !close; break;
