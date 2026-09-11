@@ -163,29 +163,33 @@ public static partial class EnvironmentArt3D
 
     private static void Shipwreck(Sculptor art, bool afloat = false)
     {
-        Color wood = new("896039"), cut = new("b68a52"), dark = new("564330");
+        Color wood = new("735132"), cut = new("957041"), dark = new("433523");
+        var ground = art.Transform;
+        // The beached hull lists and settles stern-first into the ground. At sea,
+        // retain the same pitch but keep the roll level with its hull collision.
+        art.Transform = ground * new Transform3D(Basis.FromEuler(new(afloat ? 0 : -.14f, 0, -.12f)), new(0, afloat ? 0 : -.13f, 0));
         float[] xs = [-1.22f, -1.10f, -.83f, -.48f, -.10f, .28f, .57f, .86f, 1.12f];
         float[] widths = [.045f, .23f, .40f, .49f, .50f, .46f, .40f, .30f, .12f];
         float[] heights = [1.05f, .96f, .88f, .78f, .72f, .68f, .63f, .54f, .39f];
         Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t * (side > 0 ? 1.20f + .10f * Math.Min(station, 2) : .85f),
-            side * (.045f + (widths[station] - .045f) * MathF.Sqrt(t) - (inside ? .035f : 0)));
+            side * (.045f + (widths[station] - .045f) * MathF.Sqrt(t) - (inside ? .050f : 0)));
         // Intact bow and stern flank a jagged central breach. The lowest strake
         // and keel still connect the wreck; no entire side is removed.
         bool HasPlank(int side, int row, int station)
         {
             if (station < 0 || station >= 8) return false;
             if (row == 0) return true;
-            return side > 0 ? !(station >= (row < 3 ? 4 : 3) && station <= 4)
-                : !(row >= 4 && station >= 3 && station <= 4);
+            return side > 0 ? !(station >= (row < 2 ? 4 : 3) && station <= 4)
+                : !(row >= 3 && station >= 3 && station <= 4);
         }
         for (int side = -1; side <= 1; side += 2)
         {
-            for (int row = 0; row < 6; row++)
+            for (int row = 0; row < 4; row++)
             {
                 for (int station = 0; station < 8; station++)
                 {
                     if (!HasPlank(side, row, station)) continue;
-                    float a = row / 6f, b = (row + 1f) / 6 - .012f;
+                    float a = row / 4f, b = (row + 1f) / 4 - .009f;
                     void Plank(Vector3 p, Vector3 q, Vector3 r, Vector3 t, Color color)
                     {
                         if (side > 0) art.Quad(p, q, r, t, color); else art.Quad(t, r, q, p, color);
@@ -240,7 +244,7 @@ public static partial class EnvironmentArt3D
             }
         }
         art.Tube(new(-.08f, 1.52f, -.05f), new(-.51f, .38f, -.28f), .009f, .009f, new("ab9466"), 5);
-        var wreck = art.Transform;
+        var wreck = ground; // Loose planks lie on the surface, independent of the hull pose.
         for (int i = 0; i < 4; i++)
         {
             float height = afloat ? .17f : .055f;
