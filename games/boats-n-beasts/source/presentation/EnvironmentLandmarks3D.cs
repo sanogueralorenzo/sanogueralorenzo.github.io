@@ -16,7 +16,7 @@ public static partial class EnvironmentArt3D
 {
     private static void PirateTavern(Sculptor art)
     {
-        Color plaster = new("ded2af"), wood = new("765334"), cut = new("ad8050"), roof = new("c27b3c"), glass = new("31555c"), iron = new("394b4c");
+        Color plaster = new("c4b58e"), wood = new("765334"), cut = new("ad8050"), roof = new("d67a36"), glass = new("31555c"), iron = new("394b4c");
         var house = art.Transform;
         // A broad main hall and a lower cross-gabled wing give the tavern its silhouette.
         art.RoundedBox(new(-.15f, .065f, 0), new(1.50f, .13f, 1.02f), .025f, new("a5a38c"));
@@ -26,18 +26,49 @@ public static partial class EnvironmentArt3D
         for (int side = -1; side <= 1; side += 2)
         {
             float z = side * .46f;
-            art.Face(new(-.15f - side * .69f, 1.08f, z), new(-.15f + side * .69f, 1.08f, z), new(-.15f, 1.75f, z), plaster);
+            art.Face(new(-.15f - side * .69f, 1.08f, z), new(-.15f + side * .69f, 1.08f, z), new(-.15f, 1.83f, z), plaster);
             for (int end = -1; end <= 1; end += 2)
                 art.RoundedBox(new(-.15f + end * .665f, .59f, z), new(.09f, 1.02f, .085f), .009f, wood);
             art.RoundedBox(new(-.15f, 1.045f, z), new(1.44f, .095f, .09f), .008f, wood);
             art.RoundedBox(new(-.15f, .17f, z), new(1.42f, .09f, .075f), .008f, wood);
             art.RoundedBox(new(-.15f, 1.38f, z), new(.055f, .60f, .065f), .007f, wood);
-            art.Tube(new(-.84f, 1.08f, z), new(-.15f, 1.76f, z), .036f, .036f, wood, 4);
-            art.Tube(new(.54f, 1.08f, z), new(-.15f, 1.76f, z), .036f, .036f, wood, 4);
+            art.Tube(new(-.84f, 1.08f, z), new(-.15f, 1.84f, z), .036f, .036f, wood, 4);
+            art.Tube(new(.54f, 1.08f, z), new(-.15f, 1.84f, z), .036f, .036f, wood, 4);
             art.RoundedBox(new(1.055f, .52f, side * .335f), new(.085f, .88f, .085f), .008f, wood);
             art.RoundedBox(new(.79f, .92f, side * .35f), new(.60f, .085f, .075f), .008f, wood);
             art.RoundedBox(new(.79f, .17f, side * .35f), new(.60f, .08f, .07f), .008f, wood);
         }
+        void WeatheredWall(Vector3 center, float width, float height)
+        {
+            const int columns = 6, rows = 5;
+            Vector3 Point(int x, int y) => center + new Vector3((x / (float)columns - .5f) * width, (y / (float)rows - .5f) * height, 0);
+            Color Tone(int x, int y)
+            {
+                float u = x / (float)columns, v = y / (float)rows;
+                float dampHeight = .25f + .10f * Mathf.Sin(u * 11 + center.X * 7);
+                float damp = MathF.Max(0, 1 - v / dampHeight);
+                float mottling = .035f * (1 + Mathf.Sin(u * 13 + v * 8) * Mathf.Cos(v * 11 - u * 4));
+                return plaster.Lerp(new Color("827b58"), damp * .42f).Darkened(mottling + .07f * MathF.Pow(v, 5));
+            }
+            for (int y = 0; y < rows; y++) for (int x = 0; x < columns; x++)
+            {
+                var a = Point(x, y); var b = Point(x + 1, y); var c = Point(x + 1, y + 1); var d = Point(x, y + 1);
+                art.Triangle(a, b, c, Tone(x, y), Tone(x + 1, y), Tone(x + 1, y + 1), Vector3.Back, Vector3.Back, Vector3.Back);
+                art.Triangle(a, c, d, Tone(x, y), Tone(x + 1, y + 1), Tone(x, y + 1), Vector3.Back, Vector3.Back, Vector3.Back);
+            }
+        }
+        for (int side = -1; side <= 1; side += 2)
+        {
+            art.Transform = house * new Transform3D(Basis.FromEuler(new(0, side > 0 ? 0 : Mathf.Pi, 0)), Vector3.Zero);
+            WeatheredWall(new(-side * .15f, .59f, .451f), 1.28f, .94f);
+            WeatheredWall(new(side * .74f, .52f, .341f), .55f, .80f);
+        }
+        art.Transform = house * new Transform3D(Basis.FromEuler(new(0, -Mathf.Pi / 2, 0)), new(-.841f, 0, 0));
+        WeatheredWall(new(0, .59f, 0), .81f, .94f);
+        art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(1.061f, 0, 0));
+        WeatheredWall(new(0, .52f, 0), .59f, .80f);
+        art.Transform = house;
+
         // Dark inset panels sit behind substantial jambs and a lintel, not on top of them.
         art.RoundedBox(new(-.39f, .435f, .468f), new(.35f, .61f, .028f), .006f, iron);
         for (int i = 0; i < 6; i++)
@@ -51,7 +82,7 @@ public static partial class EnvironmentArt3D
         Window(art, new(.80f, .56f, .356f), .18f, .28f, glass, cut);
         art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(1.07f, 0, 0));
         Window(art, new(0, .56f, .01f), .22f, .30f, glass, cut);
-        art.Face(new(-.34f, .94f, 0), new(.34f, .94f, 0), new(0, 1.43f, 0), plaster);
+        art.Face(new(-.34f, .94f, 0), new(.34f, .94f, 0), new(0, 1.39f, 0), plaster);
         art.RoundedBox(new(0, .94f, .02f), new(.73f, .08f, .07f), .008f, wood);
         art.RoundedBox(new(0, 1.16f, .02f), new(.055f, .42f, .065f), .005f, wood);
         art.Transform = house;
@@ -69,16 +100,20 @@ public static partial class EnvironmentArt3D
                     float z = -halfLength + column * tileLength;
                     art.Quad(Point(a, z, .008f), Point(b, z, .015f), Point(b, z + tileLength - .007f, .015f), Point(a, z + tileLength - .007f, .008f), roof.Lightened((row + column * 2) % 4 * .018f));
                 }
-                art.Tube(Point(1, -halfLength), Point(1, halfLength), .026f, .026f, wood, 4);
+                art.Quad(Point(1, halfLength), Point(1, -halfLength), Point(1, -halfLength, -.035f), Point(1, halfLength, -.035f), roof.Darkened(.20f));
                 for (int end = -1; end <= 1; end += 2)
-                    art.Tube(Point(0, end * halfLength), Point(1, end * halfLength), .031f, .031f, cut, 4);
+                {
+                    var a = Point(0, end * halfLength); var b = Point(1, end * halfLength);
+                    if (end > 0) art.Quad(a, b, b - Vector3.Up * .035f, a - Vector3.Up * .035f, roof.Darkened(.10f));
+                    else art.Quad(b, a, a - Vector3.Up * .035f, b - Vector3.Up * .035f, roof.Darkened(.10f));
+                }
             }
             art.Tube(new(0, peak + .018f, -halfLength - .025f), new(0, peak + .018f, halfLength + .025f), .033f, .033f, roof.Lightened(.12f), 4);
         }
         art.Transform = house * new Transform3D(Basis.Identity, new(-.15f, 0, 0));
-        TiledRoof(.83f, .56f, 1.76f, .95f, 4, 5);
+        TiledRoof(.83f, .64f, 1.84f, .95f, 2, 5);
         art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.68f, 0, 0));
-        TiledRoof(.43f, .46f, 1.44f, .84f, 3, 4);
+        TiledRoof(.39f, .46f, 1.40f, .88f, 2, 3);
         art.Transform = house;
 
         // Open chimney throat with a raised rain cap, held up by two stone cheeks.
