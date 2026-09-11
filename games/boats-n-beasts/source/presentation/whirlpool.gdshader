@@ -101,9 +101,28 @@ void fragment() {
                  *smoothstep(.38,.88,ripple)*(.32+.35*broken);
     color=mix(color,mix(vec3(.20,.54,.55),vec3(.40,.75,.68),tone),infill);
     color=mix(vec3(.065,.35,.42),color,smoothstep(.045,.11,r));
-    ALBEDO=linear_color(color);
     float reach=r+.018*sin(angle*5.0+sin(angle*3.0));
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
-    ALPHA=(1.0-smoothstep(.87,1.0,reach))*shelf;
+    float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
+    // Five flat, unequal foam streaks replace the standing perimeter stones.
+    float foam=0.0;
+    if(r>.94) for(int i=0;i<5;i++) {
+        float lane=float(i), seed=lane*17.3+9.0;
+        float theta=mod(turn-lane*2.399963-hash(seed)*.5,6.2831853);
+        float span=.22+.25*hash(seed+1.0), u=theta/span;
+        float arc=1.025+.026*sin(seed)+.027*(.5-u)+.006*sin(u*5.0+seed);
+        float width=.006+.004*hash(seed+2.0);
+        float stroke=(1.0-smoothstep(width*.35,width+aa,abs(r-arc)))
+                    *smoothstep(0.0,.16,u)*(1.0-smoothstep(.72,1.0,u));
+        float gap=smoothstep(.32,.40,u)*(1.0-smoothstep(.48,.57,u));
+        stroke*=1.0-gap*(i==1 || i==3 ? .95 : .35);
+        float fade=.30+.70*smoothstep(-.6,.8,sin(clock*.38+seed));
+        foam=max(foam,stroke*fade*.65);
+    }
+    float alpha=water_alpha+foam*(1.0-water_alpha);
+    vec3 foam_color=mix(vec3(.55,.80,.75),vec3(.88,.87,.73),smoothstep(.72,.93,tone)*.45);
+    color=mix(color,foam_color,foam/max(alpha,.0001));
+    ALBEDO=linear_color(color);
+    ALPHA=alpha;
 }
