@@ -64,8 +64,12 @@ public partial class ArtSample : Node3D
     {
         clock += (float)delta;
         var center = close ? new Vector2(rocky.Position.X, rocky.Position.Z) * 100 : Vector2.Zero;
-        if (boatDetail) center = new Vector2(boat.Position.X, boat.Position.Z - .8f) * 100;
-        stage.Follow(center, boatDetail ? 3.5f : close ? detailSize : 0); stage.Advance(clock);
+        if (boatDetail)
+        {
+            var deck = boat.ToGlobal(new Vector3(0, 0, .18f));
+            center = new Vector2(deck.X, deck.Z - .4f) * 100;
+        }
+        stage.Follow(center, boatDetail ? 1.7f : close ? detailSize : 0); stage.Advance(clock);
         ActorArt3D.AnimateBoat(boat, clock, 0, 0);
     }
     void ShowIsland()
