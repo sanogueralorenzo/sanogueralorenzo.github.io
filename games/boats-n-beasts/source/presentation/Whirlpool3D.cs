@@ -28,9 +28,10 @@ public partial class Whirlpool3D : Node3D
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles);
         Vector3 Point(float r, float angle)
         {
-            // A broad bowl tightens into a deep throat. The outer shelf meets sea level.
+            // Uneven bowl walls retain a continuous, level join with the surrounding sea.
             float bowl = Mathf.Clamp((.78f - r) / .70f, 0, 1);
-            float depth = -.54f * bowl * bowl;
+            float uneven = 1 + .13f * Mathf.Sin(angle * 3 + r * 7) + .07f * Mathf.Sin(angle * 5 - r * 4);
+            float depth = -.42f * bowl * bowl * Mathf.Lerp(1, uneven, Mathf.SmoothStep(0, .26f, r));
             float lip = .018f * Mathf.Exp(-Mathf.Pow((r - .74f) / .12f, 2));
             return new(Mathf.Cos(angle) * r, depth + lip + .006f, Mathf.Sin(angle) * r);
         }
