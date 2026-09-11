@@ -44,7 +44,7 @@ public partial class Whirlpool3D : Node3D
         {
             // A wide throat and steep bowl read as a water-filled funnel, not a pinwheel tip.
             float variation = (.018f * Mathf.Sin(angle * 3) + .011f * Mathf.Cos(angle * 5)) * Mathf.SmoothStep(.14f, .34f, r);
-            float wall = Mathf.SmoothStep(.14f, .58f, r + variation);
+            float wall = Mathf.SmoothStep(.14f, .68f, r + variation);
             float depth = -.36f * (1 - wall);
             float lip = .014f * Mathf.Exp(-Mathf.Pow((r - .61f) / .12f, 2));
             return new(Mathf.Cos(angle) * r, depth + lip + .006f, Mathf.Sin(angle) * r);
