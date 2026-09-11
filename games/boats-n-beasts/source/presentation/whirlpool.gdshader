@@ -113,9 +113,9 @@ void fragment() {
         float span=.24+.24*hash(seed+1.0), u=theta/span;
         // A gentle outward pitch follows the rotation; angle-based slope keeps short pieces stable.
         // Including drift and soft edges, foam stays inside the .80–1.08 radius band.
-        float outward_pitch=.12+.06*hash(seed+4.0);
-        float arc=.895+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
-                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed)-.012*(1.0-clamp(u,0.0,1.0));
+        float outward_pitch=.06+.03*hash(seed+4.0);
+        float arc=.889+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
+                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
         float width=(.0035+.005*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.15,width*1.35+aa,abs(r-arc)))
                     *smoothstep(0.0,.24,u)*(1.0-smoothstep(.65,1.0,u));
