@@ -105,9 +105,9 @@ void fragment() {
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
     float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
-    // Twenty-four broken streaks stay near the lip with uneven spacing and radial offsets.
+    // Twelve broken streaks stay near the lip with uneven spacing and radial offsets.
     float foam=0.0;
-    if(r>.80 && r<1.08) for(int i=0;i<24;i++) {
+    if(r>.80 && r<1.08) for(int i=0;i<12;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
         float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
         float span=.20+.32*hash(seed+1.0), u=theta/span;
