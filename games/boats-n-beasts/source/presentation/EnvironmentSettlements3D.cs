@@ -57,7 +57,7 @@ public static partial class EnvironmentArt3D
         float scale = kind == 0 ? prisonScale : kind >= 2 ? MathF.Min(art.Sizes.ForKind(kind), best / footprint)
             : MathF.Min(MathF.Min(r * .48f, 3f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
-        art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
+        art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : kind == 8 ? .12f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
         switch (kind)
         {

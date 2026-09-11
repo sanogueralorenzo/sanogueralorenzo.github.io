@@ -166,18 +166,25 @@ public static partial class EnvironmentArt3D
         Color wood = new("896039"), cut = new("b68a52"), dark = new("564330");
         float[] xs = [-1.22f, -1.10f, -.83f, -.48f, -.10f, .28f, .57f, .86f, 1.12f];
         float[] widths = [.045f, .23f, .40f, .49f, .50f, .46f, .40f, .30f, .12f];
-        float[] heights = [1.05f, .96f, .88f, .78f, .72f, .66f, .58f, .39f, .18f];
-        Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t,
+        float[] heights = [1.05f, .96f, .88f, .78f, .72f, .68f, .63f, .54f, .39f];
+        Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t * (side > 0 ? 1.20f + .10f * Math.Min(station, 2) : .85f),
             side * (.045f + (widths[station] - .045f) * MathF.Sqrt(t) - (inside ? .035f : 0)));
-        // Thick individual strakes: a high surviving port bow, a torn-away near side,
-        // and staggered broken ends expose the ribs and hold instead of a flat plank wall.
+        // Intact bow and stern flank a jagged central breach. The lowest strake
+        // and keel still connect the wreck; no entire side is removed.
+        bool HasPlank(int side, int row, int station)
+        {
+            if (station < 0 || station >= 8) return false;
+            if (row == 0) return true;
+            return side > 0 ? !(station >= (row < 3 ? 4 : 3) && station <= 4)
+                : !(row >= 4 && station >= 3 && station <= 4);
+        }
         for (int side = -1; side <= 1; side += 2)
         {
             for (int row = 0; row < 6; row++)
             {
-                int end = row < 2 ? 8 : side > 0 ? (row == 2 ? 6 : row == 3 ? 4 : row == 4 ? 3 : 2) : 8 - (row % 3);
-                for (int station = 0; station < end; station++)
+                for (int station = 0; station < 8; station++)
                 {
+                    if (!HasPlank(side, row, station)) continue;
                     float a = row / 6f, b = (row + 1f) / 6 - .012f;
                     void Plank(Vector3 p, Vector3 q, Vector3 r, Vector3 t, Color color)
                     {
@@ -187,9 +194,12 @@ public static partial class EnvironmentArt3D
                     Plank(Hull(station, a, side), Hull(station + 1, a, side), Hull(station + 1, b, side), Hull(station, b, side), timber);
                     Plank(Hull(station, b, side, true), Hull(station + 1, b, side, true), Hull(station + 1, a, side, true), Hull(station, a, side, true), cut.Darkened(.13f));
                     Plank(Hull(station, b, side), Hull(station + 1, b, side), Hull(station + 1, b, side, true), Hull(station, b, side, true), cut);
-                    if (station == end - 1)
+                    for (int edge = 0; edge < 2; edge++)
                     {
-                        Vector3 tip = (Hull(end, a, side) + Hull(end, b, side)) * .5f + new Vector3(.10f + row % 2 * .05f, .035f, 0);
+                        int adjacent = station + (edge == 0 ? -1 : 1), end = station + edge;
+                        if (adjacent < 0 || adjacent >= 8 || HasPlank(side, row, adjacent)) continue;
+                        float direction = edge == 0 ? -1 : 1;
+                        Vector3 tip = (Hull(end, a, side) + Hull(end, b, side)) * .5f + new Vector3(direction * (.07f + row % 2 * .05f), .016f, 0);
                         art.Face(Hull(end, a, side), tip, Hull(end, b, side), cut.Darkened(.10f));
                         art.Quad(Hull(end, a, side), Hull(end, b, side), Hull(end, b, side, true), Hull(end, a, side, true), dark);
                     }
@@ -197,16 +207,22 @@ public static partial class EnvironmentArt3D
                         art.Ellipsoid(Hull(station, (a + b) / 2, side) + new Vector3(0, 0, side * .008f), new(.012f, .012f, .007f), dark, 5, 3);
                 }
             }
+            for (int station = 0; station < 3; station++)
+                art.Tube(Hull(station, 1, side), Hull(station + 1, 1, side), .026f, .022f, cut, 5);
             for (int station = 1; station < 8; station++)
             {
-                float rim = side > 0 ? .52f : .94f;
+                float rim = station >= 4 && station <= 5 ? .14f : .94f;
                 for (int section = 0; section < 3; section++)
                     art.Tube(Hull(station, section * rim / 3, side, true), Hull(station, (section + 1) * rim / 3, side, true), .033f, .028f, wood.Darkened(.13f), 4);
             }
         }
+        art.RoundedBox(new(-.03f, .10f, 0), new(2.35f, .08f, .10f), .006f, dark);
         for (int i = 0; i < 7; i++)
+        {
+            if (i is 3 or 4) continue;
             art.RoundedBox(new(-.78f + i * .22f, .18f, 0), new(.21f, .06f, .34f + .23f * Mathf.Sin(i * Mathf.Pi / 7)), .007f, cut.Darkened(i % 3 * .035f));
-        art.Tube(new(-1.22f, .045f, 0), new(-1.22f, 1.17f, 0), .052f, .031f, cut, 5);
+        }
+        art.Tube(new(-1.22f, .045f, 0), new(-1.22f, 1.10f, 0), .052f, .031f, cut, 5);
         art.Tube(new(.28f, .10f, -.10f), new(.56f, 1.79f, -.10f), .046f, .033f, wood, 7);
         art.Tube(new(-.09f, 1.52f, -.045f), new(1.19f, 1.65f, -.045f), .034f, .025f, cut, 6);
         for (int i = 0; i < 3; i++)
@@ -224,12 +240,11 @@ public static partial class EnvironmentArt3D
             }
         }
         art.Tube(new(-.08f, 1.52f, -.05f), new(-.51f, .38f, -.28f), .009f, .009f, new("ab9466"), 5);
-        SupplyCrate(art, new(-.18f, .32f, -.02f), .23f);
         var wreck = art.Transform;
         for (int i = 0; i < 4; i++)
         {
             float height = afloat ? .17f : .055f;
-            art.Transform = wreck * new Transform3D(Basis.FromEuler(new(0, -.55f + i * .43f, .04f)), new(.54f + i * .20f, height, .62f + (i % 2) * .13f));
+            art.Transform = wreck * new Transform3D(Basis.FromEuler(new(0, -.55f + i * .43f, .04f)), new(-.14f + i * .20f, height, .62f + (i % 2) * .13f));
             art.RoundedBox(Vector3.Zero, new(.39f - i * .035f, .045f, .085f), .005f, wood.Lightened(i * .025f));
         }
         art.Transform = wreck;
@@ -244,6 +259,9 @@ public static partial class EnvironmentArt3D
         Color rock = new("77868a"), recess = new("354d52");
         Vector3 Front(Vector2 p) => new(p.X, p.Y, .38f);
         Vector3 Back(Vector2 p) => new(p.X * .82f, p.Y * .84f, -.82f);
+        // A raised, offset middle contour breaks up the roof into boulder-like shoulders.
+        var shoulder = outer.Select((p, i) => new Vector3(p.X * .94f + .06f * Mathf.Sin(i * 1.7f),
+            p.Y * (1.09f + .045f * Mathf.Sin(i * 2)), -.16f + .08f * Mathf.Cos(i * 1.2f))).ToArray();
         for (int i = 0; i < outer.Length - 1; i++)
         {
             var middle = (Front(outer[i]) + Front(outer[i + 1]) + Front(inner[i]) + Front(inner[i + 1])) * .25f;
@@ -252,7 +270,8 @@ public static partial class EnvironmentArt3D
             art.Face(Front(outer[i + 1]), middle, Front(inner[i + 1]), rock.Darkened(.04f));
             art.Face(Front(inner[i + 1]), middle, Front(inner[i]), rock.Darkened(.10f));
             art.Face(Front(inner[i]), middle, Front(outer[i]), rock);
-            art.Quad(Back(outer[i + 1]), Back(outer[i]), Front(outer[i]), Front(outer[i + 1]), rock.Darkened(i % 2 * .045f));
+            art.Quad(shoulder[i + 1], shoulder[i], Front(outer[i]), Front(outer[i + 1]), rock.Lightened(i % 3 * .035f));
+            art.Quad(Back(outer[i + 1]), Back(outer[i]), shoulder[i], shoulder[i + 1], rock.Darkened(i % 2 * .045f));
             art.Quad(Back(inner[i]), Back(inner[i + 1]), Front(inner[i + 1]), Front(inner[i]), recess.Lightened(i % 3 * .02f));
             art.Face(new(0, .34f, -.83f), Back(inner[i + 1]), Back(inner[i]), recess.Darkened(.27f));
             art.Quad(Back(outer[i + 1]), Back(inner[i + 1]), Back(inner[i]), Back(outer[i]), rock.Darkened(.12f));
@@ -274,16 +293,18 @@ public static partial class EnvironmentArt3D
         }
         art.Boulder(new(-.72f, .92f, -.40f), new(.69f, .95f, .85f), rock, seed + 15);
         art.Boulder(new(.72f, .72f, -.40f), new(.70f, .92f, .83f), rock, seed + 17);
-        art.Boulder(new(-.12f, 1.56f, -.13f), new(.65f, .14f, .44f), Leaf, seed + 19);
+        art.Boulder(new(-.12f, 1.73f, -.13f), new(.51f, .12f, .37f), Leaf, seed + 19);
         for (int i = 0; i < 4; i++)
-            Frond(art, new(-.12f, 1.62f, -.02f), i * 1.7f, .40f, .13f, .10f, Leaf.Lightened(i % 2 * .12f));
-        HangingMoss(art, new(-.21f, 1.56f, .37f), .39f, seed + 22);
+            Frond(art, new(-.12f, 1.79f, -.02f), i * 1.7f, .40f, .13f, .10f, Leaf.Lightened(i % 2 * .12f));
+        HangingMoss(art, new(-.21f, 1.66f, .42f), .56f, seed + 22);
+        art.Boulder(new(-.96f, .57f, -.08f), new(.48f, .91f, .55f), rock.Darkened(.05f), seed + 25);
+        art.Boulder(new(.79f, 1.12f, -.18f), new(.50f, .79f, .55f), rock.Lightened(.025f), seed + 26);
         Shrub(art, new(-1.0f, .04f, .53f), .18f, seed + 24);
     }
 
     private static void AncientArch(Sculptor art, uint seed)
     {
-        Color stone = new("788781"), pale = new("bab79a");
+        Color stone = new("788781"), pale = new("d0c6a6");
         var arch = art.Transform;
         for (int side = -1; side <= 1; side += 2)
         {
@@ -296,17 +317,31 @@ public static partial class EnvironmentArt3D
             art.Transform = arch;
             Glyph(new(side * .58f, .35f, .239f), .11f);
             Glyph(new(side * .58f, .85f, .239f), .11f);
-            art.Transform = arch * new Transform3D(Basis.FromEuler(new(0, 0, -side * .36f)), new(side * .45f, 1.33f, 0));
-            art.RoundedBox(Vector3.Zero, new(.45f, .40f, .48f), .035f, stone.Lightened(.035f));
-            art.Transform = arch;
+            CrownStone([new(side * .79f, 1.20f), new(side * .62f, 1.56f), new(side * .28f, 1.71f),
+                new(side * .22f, 1.35f), new(side * .39f, 1.22f)]);
             HangingMoss(art, new(side * .64f, 1.40f, .22f), side < 0 ? .46f : .29f, seed + (uint)(side + 9));
             art.Boulder(new(side * .88f, .11f, .22f), new(.32f, .28f, .33f), stone, seed + (uint)(side + 2));
         }
         // A broad keystone and angled shoulders match the reference's heavy, flat-topped ruin.
         art.RoundedBox(new(0, 1.52f, 0), new(.64f, .36f, .50f), .04f, stone.Lightened(.055f));
         Glyph(new(0, 1.51f, .258f), .095f);
-        art.Boulder(new(-.22f, 1.69f, -.04f), new(.35f, .09f, .32f), Leaf, seed + 21);
+        art.Quad(new(-.30f, 1.705f, -.15f), new(-.28f, 1.705f, .18f), new(-.05f, 1.705f, .13f), new(.03f, 1.705f, -.10f), Leaf.Lightened(.12f));
+        HangingMoss(art, new(-.16f, 1.70f, .255f), .20f, seed + 21);
         Shrub(art, new(-.87f, .02f, .43f), .15f, seed + 23);
+        void CrownStone(Vector2[] outline)
+        {
+            float area = 0;
+            for (int i = 0; i < outline.Length; i++) area += outline[i].Cross(outline[(i + 1) % outline.Length]);
+            if (area < 0) Array.Reverse(outline);
+            var center = outline.Aggregate(Vector2.Zero, (sum, p) => sum + p) / outline.Length;
+            for (int i = 0; i < outline.Length; i++)
+            {
+                Vector2 a = outline[i], b = outline[(i + 1) % outline.Length];
+                art.Face(new(center.X, center.Y, .246f), new(a.X, a.Y, .24f), new(b.X, b.Y, .24f), stone.Lightened(i % 2 * .025f));
+                art.Face(new(center.X, center.Y, -.24f), new(b.X, b.Y, -.24f), new(a.X, a.Y, -.24f), stone);
+                art.Quad(new(a.X, a.Y, .24f), new(a.X, a.Y, -.24f), new(b.X, b.Y, -.24f), new(b.X, b.Y, .24f), stone.Lightened(.035f));
+            }
+        }
         void Glyph(Vector3 center, float radius)
         {
             Vector2[] spiral = [new(-.8f,-1),new(.85f,-1),new(1,-.7f),new(1,.75f),new(.7f,1),new(-.8f,1),new(-1,.7f),new(-1,-.5f),new(.35f,-.5f),new(.48f,-.3f),new(.48f,.35f),new(-.25f,.35f)];
@@ -314,20 +349,28 @@ public static partial class EnvironmentArt3D
             {
                 var a = center + new Vector3(spiral[i].X, spiral[i].Y, 0) * radius;
                 var b = center + new Vector3(spiral[i + 1].X, spiral[i + 1].Y, 0) * radius;
-                art.Tube(a + new Vector3(.004f, -.004f, -.002f), b + new Vector3(.004f, -.004f, -.002f), .012f, .012f, stone.Darkened(.20f), 4);
-                art.Tube(a, b, .008f, .008f, pale, 4);
+                art.Tube(a + new Vector3(.004f, -.004f, -.002f), b + new Vector3(.004f, -.004f, -.002f), .016f, .016f, stone.Darkened(.20f), 4);
+                art.Tube(a, b, .012f, .012f, pale, 4);
             }
         }
     }
 
     private static void HangingMoss(Sculptor art, Vector3 at, float length, uint seed)
     {
-        for (int i = 0; i < 4; i++)
+        // Flattened ivy leaves sit against the stone instead of hanging like beads on a rope.
+        for (int strand = 0; strand < 3; strand++) for (int i = 0; i < 5; i++)
         {
-            var p = at + new Vector3(Mathf.Sin(i * 1.3f) * .035f, -length * i / 4, .02f);
-            var next = at + new Vector3(Mathf.Sin((i + 1) * 1.3f) * .035f, -length * (i + 1) / 4, .025f);
-            art.Tube(p, next, .010f, .007f, Leaf.Darkened(.10f), 4);
-            art.Boulder(p + new Vector3(i % 2 == 0 ? -.035f : .035f, 0, .018f), new(.10f, .10f, .035f), Leaf.Lightened(i % 2 * .08f), seed + (uint)i);
+            float t = i / 5f, reach = length * (1 - strand * .18f);
+            var p = at + new Vector3((strand - 1) * .065f + Mathf.Sin(i * 1.7f + strand) * .025f, -reach * t, .02f + strand * .008f);
+            var next = p + new Vector3(.018f * Mathf.Cos(i), -reach / 5, .004f);
+            Color leaf = Leaf.Lightened(((seed + strand + i) % 3) * .07f);
+            art.Quad(p + new Vector3(-.012f, 0, 0), next + new Vector3(-.008f, 0, 0), next + new Vector3(.008f, 0, 0), p + new Vector3(.012f, 0, 0), leaf.Darkened(.12f));
+            for (int side = -1; side <= 1; side += 2)
+            {
+                var outer = p + new Vector3(side * .065f * (1 - t * .40f), -.035f, .022f);
+                var tip = p + new Vector3(side * .026f, -.12f * (1 - t * .35f), .018f);
+                art.Triangle(p, outer, tip, leaf, leaf.Lightened(.05f), leaf.Darkened(.05f), Vector3.Back, Vector3.Back, Vector3.Back);
+            }
         }
     }
 }
