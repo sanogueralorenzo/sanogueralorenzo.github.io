@@ -32,8 +32,6 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(-.15f, 1.045f, z), new(1.44f, .095f, .09f), .008f, wood);
             art.RoundedBox(new(-.15f, .17f, z), new(1.42f, .09f, .075f), .008f, wood);
             art.RoundedBox(new(-.15f, 1.38f, z), new(.055f, .60f, .065f), .007f, wood);
-            art.Tube(new(-.84f, 1.08f, z), new(-.15f, 1.84f, z), .036f, .036f, wood, 4);
-            art.Tube(new(.54f, 1.08f, z), new(-.15f, 1.84f, z), .036f, .036f, wood, 4);
             art.RoundedBox(new(1.055f, .52f, side * .335f), new(.085f, .88f, .085f), .008f, wood);
             art.RoundedBox(new(.79f, .92f, side * .35f), new(.60f, .085f, .075f), .008f, wood);
             art.RoundedBox(new(.79f, .17f, side * .35f), new(.60f, .08f, .07f), .008f, wood);
