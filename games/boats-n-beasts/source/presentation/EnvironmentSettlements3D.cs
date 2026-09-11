@@ -45,7 +45,7 @@ public static partial class EnvironmentArt3D
         // New landmarks include visible floors; keep them above the terrain's .20 cap.
         if (kind >= 2) anchor.Y = .205f;
         // Include the projecting gate, wall buttresses and steps in the fitted footprint.
-        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.10f, 3 => 1.20f, 4 => 1.20f, _ => 1.0f };
+        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.30f, 3 => 1.20f, 4 => 1.20f, _ => 1.0f };
         // The former prison could reach at most 1.245 world scale. Scale 4
         // gives over 10x its footprint area; never shrink a destination into a prop.
         const float prisonScale = 4f;
