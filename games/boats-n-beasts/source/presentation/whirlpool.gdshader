@@ -16,6 +16,7 @@ void fragment() {
     vec3 color=mix(vec3(.065,.36,.43),vec3(.105,.44,.49),wall);
     float aa=max(fwidth(r),.003);
     float outer_coverage=0.0;
+    float current_coverage=0.0;
     // Broad submerged facets share the spiral direction of the surface strokes.
     // Their slanted boundaries continue through the gaps instead of a flat dark backing.
     float flow=turn+r*7.0;
@@ -56,6 +57,7 @@ void fragment() {
         float stroke=(smoothstep(near_edge-softness,near_edge+softness,r)
                      -smoothstep(far_edge-softness,far_edge+softness,r))*active;
         if(scattered) outer_coverage=max(outer_coverage,stroke);
+        current_coverage=max(current_coverage,stroke);
         float facet=edge(theta*3.2,seed+31.0);
         vec3 mint=mix(vec3(.25,.63,.60),vec3(.49,.85,.74),hash(seed+3.0));
         // A shorter slanted light facet sits within the broad stroke; no outline rings.
@@ -84,6 +86,13 @@ void fragment() {
         float coverage=scattered ? .68 : 1.0-smoothstep(.67,1.0,r)*.82;
         color=mix(color,mint,clamp(stroke*(.60+.36*facet+dominant*.10)*coverage,0.0,1.0));
     }
+    // Carry a faint broken current through bare shelf patches without repainting existing crests.
+    float shelf_band=smoothstep(.52,.64,r)*(1.0-smoothstep(.80,.87,r));
+    float ripple=.5+.5*sin(turn*2.0+r*34.0+(tone-.5)*2.2);
+    float broken=smoothstep(.22,.65,tone);
+    float infill=shelf_band*(1.0-smoothstep(.05,.35,current_coverage))
+                 *smoothstep(.38,.88,ripple)*(.32+.35*broken);
+    color=mix(color,mix(vec3(.20,.54,.55),vec3(.40,.75,.68),tone),infill);
     color=mix(vec3(.065,.35,.42),color,smoothstep(.045,.11,r));
     ALBEDO=linear_color(color);
     float reach=r+.018*sin(angle*5.0+sin(angle*3.0));
