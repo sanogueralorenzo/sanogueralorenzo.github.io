@@ -84,12 +84,14 @@ public static partial class EnvironmentArt3D
         WallBand(1.36f, 1.11f, .10f, .23f, trim);
         WallBand(1.32f, 1.13f, .23f, .80f, stone);
         WallBand(1.35f, 1.09f, .80f, .88f, trim);
+        // A continuous outer parapet protects the recessed wall walk behind it.
+        WallBand(1.35f, 1.24f, .88f, .97f, stone);
         for (int i = 0; i < 28; i++)
         {
             float angle = Mathf.Pi / 8 + (i + .5f) * Mathf.Pi / 16;
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)),
-                new(Mathf.Sin(angle) * 1.22f, .94f, Mathf.Cos(angle) * 1.22f));
-            art.RoundedBox(Vector3.Zero, new(.13f, .18f, .24f), .01f, trim);
+                new(Mathf.Sin(angle) * 1.295f, 1.02f, Mathf.Cos(angle) * 1.295f));
+            art.RoundedBox(Vector3.Zero, new(.12f, .12f, .12f), .008f, trim);
         }
         art.Transform = building;
         for (int i = 1; i < 8; i++)
@@ -104,7 +106,7 @@ public static partial class EnvironmentArt3D
         art.RoundedBox(new(0, .61f, -.38f), new(1.24f, .88f, .48f), .018f, stone);
         art.RoundedBox(new(0, 1.06f, -.38f), new(1.32f, .09f, .56f), .012f, trim);
         art.Transform = building * new Transform3D(Basis.Identity, new(0, 0, -.38f));
-        HipRoof(art, new(.69f, 1.11f, .30f), 1.37f, .46f, new("89565b"));
+        HipRoof(art, new(.69f, 1.11f, .30f), 1.37f, .46f, new("786166"));
         art.Transform = building;
         PrisonTower(art, new(0, 0, -.48f), .35f, 1.65f, stone, trim);
         for (int side = -1; side <= 1; side += 2)
@@ -113,26 +115,34 @@ public static partial class EnvironmentArt3D
             // Smaller sentries belong to the perimeter, not the middle of the yard.
             PrisonTower(art, new(side * 1.14f, 0, .17f), .16f, .99f, stone, trim);
             Buttress(new(side * .29f, 0, -.12f), .91f, 0);
-            art.RoundedBox(new(side * .40f, .73f, -.126f), new(.045f, .18f, .024f), .003f, iron);
         }
-        Arch(art, new(0, .20f, -.12f), .25f, .47f, .05f, iron, trim);
+        Arch(art, new(0, .20f, -.12f), .25f, .47f, .05f, new("59636c"), trim);
+        // Solid iron inner doors: seams, straps and hinge plates, never window slots.
+        art.RoundedBox(new(0, .42f, -.083f), new(.008f, .41f, .014f), .002f, iron.Darkened(.3f));
+        foreach (float y in new[] { .31f, .49f })
+        {
+            art.RoundedBox(new(0, y, -.077f), new(.22f, .018f, .016f), .002f, new("67727b"));
+            for (int side = -1; side <= 1; side += 2)
+                art.RoundedBox(new(side * .10f, y, -.07f), new(.023f, .055f, .018f), .003f, new("67727b"));
+        }
+        // Broad masonry courses replace the old rows of black facade cutouts.
+        foreach (float y in new[] { .39f, .70f })
+            art.RoundedBox(new(0, y, -.131f), new(1.22f, .025f, .020f), .003f, stone.Lightened(.08f));
         for (int i = 0; i < 3; i++)
             art.RoundedBox(new(0, .17f - i * .045f, -.035f + i * .08f), new(.34f, .06f, .09f), .008f, trim);
 
-        // Repeated cells and separate service yards give the destination scale
-        // without filling its central approach with decorative clutter.
+        // Windowless service buildings and fenced yards preserve a clear approach.
         for (int side = -1; side <= 1; side += 2)
         {
-            for (int row = 0; row < 2; row++) for (int column = 0; column < 3; column++)
-                art.RoundedBox(new(side * (.22f + column * .12f), .43f + row * .30f, -.126f),
-                    new(.043f, .13f, .022f), .003f, iron);
             var wing = building * new Transform3D(Basis.FromEuler(new(0, side * Mathf.Pi / 2, 0)), new(side * .82f, 0, -.04f));
             art.Transform = wing;
             art.RoundedBox(new(0, .28f, 0), new(.56f, .36f, .25f), .014f, stone);
             art.RoundedBox(new(0, .48f, 0), new(.62f, .05f, .30f), .008f, trim);
-            HipRoof(art, new(.33f, .51f, .18f), .69f, .18f, new("89565b"));
-            for (int i = -1; i <= 1; i++)
-                art.RoundedBox(new(i * .16f, .32f, -.132f), new(.055f, .12f, .02f), .003f, iron);
+            HipRoof(art, new(.33f, .51f, .18f), .69f, .18f, new("786166"));
+            art.RoundedBox(new(0, .16f, 0), new(.58f, .07f, .27f), .008f, trim);
+            // Closed service door at yard level, flush with the inward-facing wall.
+            art.RoundedBox(new(0, .23f, -.145f), new(.12f, .25f, .02f), .003f, new("59636c"));
+            art.RoundedBox(new(.035f, .23f, -.158f), new(.012f, .035f, .012f), .002f, iron);
             art.Transform = building;
             // Iron fences divide side exercise yards from the entrance avenue.
             for (int i = 0; i < 6; i++)
@@ -142,8 +152,9 @@ public static partial class EnvironmentArt3D
                 art.RoundedBox(new(side * .76f, .15f, .32f + i * .16f), new(.26f, .08f, .06f), .009f, trim);
         }
         // A broad stone route connects both gates, with large restrained pavers.
-        for (int i = 0; i < 7; i++)
-            art.RoundedBox(new(0, .112f, .25f + i * .13f), new(.36f, .018f, .115f), .008f, new("acafa4"));
+        for (int i = 0; i < 7; i++) for (int side = -1; side <= 1; side += 2)
+            art.RoundedBox(new(side * .092f, .112f, .25f + i * .13f), new(.175f, .018f, .12f), .004f,
+                new Color("a1a49a").Lightened(i % 3 * .015f));
 
         // Projecting gatehouse, deep portcullis and restrained iron crown.
         var gate = building * new Transform3D(Basis.Identity, new(0, 0, PrisonGateOffset));
@@ -208,8 +219,6 @@ public static partial class EnvironmentArt3D
                 {
                     float angle = (a + b) * .5f;
                     art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), Vector3.Zero);
-                    for (int row = 0; row < 2; row++)
-                        art.RoundedBox(new(0, .39f + row * .24f, outer * .981f), new(.045f, .10f, .02f), .003f, iron);
                     art.RoundedBox(new(0, .53f, outer * .983f), new(.50f, .024f, .025f), .003f, trim.Darkened(.13f));
                     art.Transform = building;
                 }
@@ -221,8 +230,8 @@ public static partial class EnvironmentArt3D
         void Buttress(Vector3 at, float height, float yaw)
         {
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, yaw, 0)), at);
-            Vector3 a = new(-.065f, .09f, -.04f), b = new(.065f, .09f, -.04f);
-            Vector3 c = new(.065f, .09f, .18f), d = new(-.065f, .09f, .18f);
+            Vector3 a = new(-.08f, .09f, -.04f), b = new(.08f, .09f, -.04f);
+            Vector3 c = new(.08f, .09f, .18f), d = new(-.08f, .09f, .18f);
             Vector3 e = new(-.05f, height, -.04f), f = new(.05f, height, -.04f);
             Vector3 g = new(.05f, height, .035f), h = new(-.05f, height, .035f);
             art.Quad(d, c, g, h, trim);
@@ -248,7 +257,7 @@ public static partial class EnvironmentArt3D
             float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
             art.Face(new(Mathf.Sin(a) * radius, height + .035f, Mathf.Cos(a) * radius),
                 new(Mathf.Sin(b) * radius, height + .035f, Mathf.Cos(b) * radius),
-                new(0, height + radius * 1.60f, 0), new("89565b"));
+                new(0, height + radius * 1.15f, 0), new("786166"));
         }
         if (radius > .3f)
             for (int i = 0; i < 8; i++)
@@ -257,14 +266,12 @@ public static partial class EnvironmentArt3D
                 art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
                 art.RoundedBox(new(0, height + .07f, radius), new(.10f, .12f, .09f), .008f, trim);
             }
-        // Sparse dark slits sit against polygon faces; no textures or tiny masonry.
-        for (int i = 0; i < 6; i++)
+        // Closed stone towers read through restrained masonry courses, not openings.
+        art.Transform = building * new Transform3D(Basis.Identity, at);
+        for (float y = .42f; y < height - .13f; y += .30f)
         {
-            float angle = i * Mathf.Tau / 6;
-            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
-            for (int row = 0; row < (height > 1.5f ? 3 : 2); row++)
-                art.RoundedBox(new(0, height - .24f - row * .30f, radius * (.955f + row * .01f)),
-                    new(radius * .20f, .13f, .025f), .003f, new("202731"));
+            float r = Mathf.Lerp(radius, radius * .95f, (y - .10f) / (height - .10f)) + .004f;
+            art.Tube(new(0, y, 0), new(0, y + .016f, 0), r, r, stone.Lightened(.08f), 12);
         }
         art.Transform = building;
     }
