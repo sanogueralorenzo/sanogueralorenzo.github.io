@@ -3,13 +3,11 @@ render_mode unshaded, cull_disabled, depth_prepass_alpha;
 uniform float clock = 0.0;
 // Angle, length, radius, width: three loose groups beside the outer currents,
 // with short connecting accents and open water between them. All rotate with turn.
-const vec4 foam_layout[12] = vec4[12](
-    vec4(.44, .62, .938, .007), vec4(.66, .31, .986, .004),
-    vec4(1.03, .23, .906, .005), vec4(1.79, .24, .953, .004),
-    vec4(2.69, .72, .944, .007), vec4(2.95, .28, .992, .004),
-    vec4(3.32, .34, .918, .005), vec4(4.22, .58, .944, .007),
-    vec4(4.48, .26, .992, .004), vec4(4.83, .33, .913, .005),
-    vec4(5.60, .27, .950, .004), vec4(5.99, .23, .910, .004)
+const vec4 foam_layout[8] = vec4[8](
+    vec4(.44, .60, .938, .007), vec4(1.04, .27, .917, .004),
+    vec4(1.83, .24, .954, .004), vec4(2.69, .64, .938, .007),
+    vec4(3.24, .26, .976, .004), vec4(4.22, .56, .944, .007),
+    vec4(4.80, .25, .917, .004), vec4(5.67, .28, .950, .004)
 );
 vec3 linear_color(vec3 c) { return mix(c/12.92,pow((c+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),c)); }
 float hash(float p) { return fract(sin(p*127.1)*43758.5453); }
@@ -115,9 +113,9 @@ void fragment() {
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
     float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
-    // Compose the twelve wisps around the water sweeps instead of scattering a ring.
+    // Compose the eight wisps around the water sweeps instead of scattering a ring.
     float foam=0.0;
-    if(r>.80 && r<1.08) for(int i=0;i<12;i++) {
+    if(r>.80 && r<1.08) for(int i=0;i<8;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
         vec4 placement=foam_layout[i];
         float theta=mod(turn-placement.x,6.2831853);
