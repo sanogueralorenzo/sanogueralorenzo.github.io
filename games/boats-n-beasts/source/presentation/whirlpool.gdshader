@@ -105,19 +105,23 @@ void fragment() {
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
     float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
-    // Five flat, unequal foam streaks replace the standing perimeter stones.
+    // Nine broken streaks drift across the shelf and beyond it, on unequal curved paths.
     float foam=0.0;
-    if(r>.94) for(int i=0;i<5;i++) {
+    if(r>.82) for(int i=0;i<9;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
-        float theta=mod(turn-lane*2.399963-hash(seed)*.5,6.2831853);
-        float span=.22+.25*hash(seed+1.0), u=theta/span;
-        float arc=1.025+.026*sin(seed)+.027*(.5-u)+.006*sin(u*5.0+seed);
-        float width=.006+.004*hash(seed+2.0);
+        float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
+        float span=.16+.40*hash(seed+1.0), u=theta/span;
+        // The 1.25-radius mesh contains the full radial drift and feathered stroke width.
+        float arc=.93+.20*hash(seed+3.0)+(.04+.08*hash(seed+4.0))*(.5-u)
+                 +.015*sin(u*3.0+seed)+.012*sin(clock*.22+seed);
+        float width=(.004+.007*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.35,width+aa,abs(r-arc)))
                     *smoothstep(0.0,.16,u)*(1.0-smoothstep(.72,1.0,u));
-        float gap=smoothstep(.32,.40,u)*(1.0-smoothstep(.48,.57,u));
-        stroke*=1.0-gap*(i==1 || i==3 ? .95 : .35);
-        float fade=.30+.70*smoothstep(-.6,.8,sin(clock*.38+seed));
+        float gap_center=.30+.25*hash(seed+6.0);
+        float gap=smoothstep(gap_center-.10,gap_center-.03,u)
+                 *(1.0-smoothstep(gap_center+.03,gap_center+.11,u));
+        stroke*=1.0-gap*(.35+.60*hash(seed+7.0));
+        float fade=.30+.70*smoothstep(-.6,.8,sin(clock*(.25+.16*hash(seed+8.0))+seed));
         foam=max(foam,stroke*fade*.65);
     }
     float alpha=water_alpha+foam*(1.0-water_alpha);

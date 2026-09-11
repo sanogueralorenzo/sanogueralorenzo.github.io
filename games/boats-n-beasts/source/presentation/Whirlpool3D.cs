@@ -25,7 +25,7 @@ public partial class Whirlpool3D : Node3D
     static ArrayMesh BuildMesh()
     {
         // Preserve the bowl grid and extend only the flat perimeter for surface foam.
-        const int rings = 36, sides = 96;
+        const int rings = 40, sides = 96;
         const float ringStep = 1f / 32;
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles);
         Vector3 Point(float r, float angle)
