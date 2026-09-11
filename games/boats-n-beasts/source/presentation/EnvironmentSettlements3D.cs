@@ -65,11 +65,12 @@ public static partial class EnvironmentArt3D
 
     private static void Prison(Sculptor art)
     {
-        Color stone = new("879397"), trim = new("b5b9ac"), iron = new("293b43");
+        // Cool charcoal walls with lighter edges keep the dark fortress readable.
+        Color stone = new("515b68"), trim = new("808995"), iron = new("343b45");
         var building = art.Transform;
         // A low courtyard disk and an open, twelve-sided wall keep the circular
         // silhouette readable without a solid cylinder filling the courtyard.
-        art.Tube(new(0, .015f, 0), new(0, .10f, 0), .98f, .98f, new("a3a694"), 12);
+        art.Tube(new(0, .015f, 0), new(0, .10f, 0), .98f, .98f, new("666b70"), 12);
         WallBand(.95f, .78f, .10f, .70f, stone);
         WallBand(.97f, .76f, .70f, .77f, trim);
         for (int i = 0; i < 20; i++)
@@ -153,7 +154,7 @@ public static partial class EnvironmentArt3D
             float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
             art.Face(new(Mathf.Sin(a) * radius, height + .035f, Mathf.Cos(a) * radius),
                 new(Mathf.Sin(b) * radius, height + .035f, Mathf.Cos(b) * radius),
-                new(0, height + radius * 1.25f, 0), new("a57143"));
+                new(0, height + radius * 1.25f, 0), new("713e47"));
         }
         if (radius > .3f)
             for (int i = 0; i < 8; i++)
@@ -167,7 +168,7 @@ public static partial class EnvironmentArt3D
         {
             float angle = i * Mathf.Tau / 6;
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
-            art.RoundedBox(new(0, height - .24f, radius * .955f), new(radius * .22f, .16f, .025f), .004f, new("293b43"));
+            art.RoundedBox(new(0, height - .24f, radius * .955f), new(radius * .22f, .16f, .025f), .004f, new("202731"));
         }
         art.Transform = building;
     }
@@ -283,11 +284,11 @@ public static partial class EnvironmentArt3D
         art.Transform = new Transform3D(basis, new(start.X, .25f, start.Z));
         int planks = Math.Max(2, (int)MathF.Ceiling(length / (.10f * scale)));
         for (int i = 0; i <= planks; i++)
-            art.RoundedBox(new(0, 0, length * i / planks), new(halfWidth * 2, .065f, length / planks * .94f), .012f, new Color("a17a49").Lightened(i % 3 * .025f));
+            art.RoundedBox(new(0, 0, length * i / planks), new(halfWidth * 2, .065f, length / planks * .94f), .012f, new Color("795e49").Lightened(i % 3 * .025f));
         for (int side = -1; side <= 1; side += 2) for (int i = 0; i < 3; i++)
         {
             var foot = new Vector3(side * halfWidth * .88f, -.23f, length * i / 2);
-            art.Tube(foot, foot + new Vector3(0, .27f + .16f * scale, 0), scale * .045f, scale * .040f, new("795636"), 7);
+            art.Tube(foot, foot + new Vector3(0, .27f + .16f * scale, 0), scale * .045f, scale * .040f, new("604a38"), 7);
         }
         art.EndProp(old);
         art.JettySpace = (new(start.X, start.Z), new Vector2(start.X, start.Z) + direction * length, halfWidth);
