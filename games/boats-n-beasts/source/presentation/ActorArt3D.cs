@@ -129,6 +129,7 @@ public static partial class ActorArt3D
         for (int i = 0; i < 2; i++)
             b.RoundBox(new(0, .237f + i * .044f, .23f + i * .035f), new(.13f, .04f, .05f), .004f, Deck);
         BoatCrew(b);
+        SternScrolls(b);
         PirateRig(b);
         RamFigurehead(b);
         int starter = Starter(kind);
@@ -147,12 +148,12 @@ public static partial class ActorArt3D
     static void PirateRig(ActorGeometry b)
     {
         b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, MastHeight, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
-        b.Tube(new[] { new Vector3(-.375f, 1.03f, .015f), new Vector3(.375f, 1.03f, .015f) }, .015f, Wood, 8);
+        b.Tube(new[] { new Vector3(-.375f, 1.41f, .015f), new Vector3(.375f, 1.41f, .015f) }, .015f, Wood, 8);
         b.Tube(new[] { new Vector3(-.31f, .68f, .015f), new Vector3(.31f, .68f, .015f) }, .011f, Wood, 6);
         // A coarse curved cloth grid: colored geometry on both sides, no textures.
         Vector3 Cloth(float u, float v) => new(
             (u - .5f) * Mathf.Lerp(.60f, .72f, v),
-            .68f + v * .34f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
+            .68f + v * .72f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
             .015f - .12f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
         for (int y = 0; y < 4; y++) for (int x = 0; x < 6; x++)
         {
@@ -164,10 +165,10 @@ public static partial class ActorArt3D
         }
         foreach (int side in new[] { -1, 1 })
         {
-            b.Tube(new[] { new Vector3(0, 1.065f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
+            b.Tube(new[] { new Vector3(0, 1.445f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
             // The emblem follows the billow and reads from either sailing direction.
-            float Z(float y) => .015f - .12f * MathF.Sin((y - .68f) / .34f * Mathf.Pi) + side * .009f;
-            Vector3 P(float x, float y) => new(x, y, Z(y));
+            float Z(float y) => .015f - .12f * MathF.Sin((y - .68f) / .72f * Mathf.Pi) + side * .009f;
+            Vector3 P(float x, float y) => new(x, y + .18f, Z(y + .18f));
             foreach (int diagonal in new[] { -1, 1 })
             {
                 var a = P(-.085f, .79f + diagonal * .05f);
@@ -184,46 +185,26 @@ public static partial class ActorArt3D
             b.RoundBox(P(0, .945f), new(.081f, .041f, .025f), .008f, Brass);
             b.RoundBox(P(0, .931f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
         }
-        PirateFlag(b);
         b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
     }
 
-    static void PirateFlag(ActorGeometry b)
+    static void SternScrolls(ActorGeometry b)
     {
-        Color ink = new("25363b");
-        float Fold(float x) => .015f + .020f * MathF.Sin(x / .36f * Mathf.Tau);
-        Vector3 Top(float x) => new(x, 1.45f - x * .06f, Fold(x));
-        Vector3 Bottom(float x) => new(x, 1.21f + x * .06f, Fold(x));
-        void Cloth(Vector3[] face)
-        {
-            b.Polygon(face, ink, Vector3.Back);
-            b.Polygon(face, ink, Vector3.Forward);
-        }
-        for (int i = 0; i < 3; i++)
-        {
-            float x = i * .09f;
-            Cloth(new[] { Top(x), Top(x + .09f), Bottom(x + .09f), Bottom(x) });
-        }
-        // A split tail and a restrained fold give the tiny flag a clear silhouette.
-        var notch = new Vector3(.29f, 1.33f, Fold(.29f));
-        Cloth(new[] { Top(.27f), Top(.36f), notch });
-        Cloth(new[] { Top(.27f), notch, Bottom(.27f) });
-        Cloth(new[] { Bottom(.27f), notch, Bottom(.36f) });
+        // Paired carved scrolls rise from the outside of the stern, leaving the deck clear.
         foreach (int side in new[] { -1, 1 })
         {
-            Vector3 P(float x, float y) => new(x, y, Fold(x) + side * .012f);
-            foreach (int diagonal in new[] { -1, 1 })
+            var curl = new List<Vector3> { new(side * .226f, .25f, .35f), new(side * .244f, .34f, .43f) };
+            var radii = new List<float> { .027f, .026f };
+            for (int i = 0; i <= 20; i++)
             {
-                var a = P(.095f, 1.28f + diagonal * .027f);
-                var c = P(.205f, 1.28f - diagonal * .027f);
-                b.Tube(new[] { a, P(.15f, 1.28f), c }, .006f, Cream, 6);
-                b.Sphere(a, new(.010f, .009f, .005f), Cream);
-                b.Sphere(c, new(.010f, .009f, .005f), Cream);
+                float t = i / 20f, angle = -Mathf.Pi / 2 + t * Mathf.Tau * 1.18f;
+                float radius = Mathf.Lerp(.10f, .018f, t);
+                curl.Add(new(side * .25f, .52f + Mathf.Sin(angle) * radius, .43f + Mathf.Cos(angle) * radius));
+                radii.Add(Mathf.Lerp(.025f, .013f, t));
             }
-            b.Sphere(P(.15f, 1.365f), new(.035f, .035f, .009f), Cream);
-            b.RoundBox(P(.15f, 1.333f), new(.036f, .025f, .012f), .003f, Cream);
-            foreach (int eye in new[] { -1, 1 })
-                b.Sphere(P(.15f + eye * .013f, 1.369f) + new Vector3(0, 0, side * .009f), new(.008f, .010f, .004f), ink);
+            b.Tube(curl.ToArray(), radii.ToArray(), Wood, 7);
+            var edge = curl.ConvertAll(p => p + new Vector3(side * .020f, .003f, 0));
+            b.Tube(edge.ToArray(), .006f, Brass, 5);
         }
     }
 
