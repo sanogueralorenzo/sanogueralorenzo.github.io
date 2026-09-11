@@ -152,7 +152,7 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(side * .092f, .112f, .25f + i * .13f), new(.175f, .018f, .12f), .004f,
                 new Color("a1a49a").Lightened(i % 3 * .015f));
 
-        // Projecting gatehouse, deep portcullis and restrained iron crown.
+        // Projecting gatehouse with a deep portcullis and stone battlements.
         var gate = building * new Transform3D(Basis.Identity, new(0, 0, PrisonGateOffset));
         art.Transform = gate;
         for (int side = -1; side <= 1; side += 2)
@@ -165,11 +165,6 @@ public static partial class EnvironmentArt3D
         art.RoundedBox(new(0, .855f, .82f), new(1.02f, .15f, .26f), .012f, stone);
         for (int i = -2; i <= 2; i++)
             art.RoundedBox(new(i * .21f, .965f, .82f), new(.12f, .13f, .24f), .010f, trim);
-        for (int i = -3; i <= 3; i++)
-        {
-            art.Tube(new(i * .13f, .93f, .82f), new(i * .13f, 1.06f, .82f), .012f, .012f, iron, 4);
-            art.Tube(new(i * .13f, 1.06f, .82f), new(i * .13f, 1.13f, .82f), .025f, 0, iron, 4);
-        }
         const float gateBase = .10f, gateSpring = .49f, gateRadius = .26f;
         Arch(art, new(0, gateBase, .86f), gateRadius * 2, gateSpring + gateRadius - gateBase, .065f, iron.Darkened(.35f), trim);
         for (int i = 0; i <= 8; i++)
