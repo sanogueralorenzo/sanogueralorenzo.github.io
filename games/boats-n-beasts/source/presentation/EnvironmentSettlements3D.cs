@@ -41,7 +41,7 @@ public static partial class EnvironmentArt3D
         float footprint = kind == 0 ? 1.0f : .82f;
         float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .60f : .48f), 3.0f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
-        art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.22f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
+        art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
         if (kind == 0) Prison(art); else Watchtower(art);
         art.EndProp(old);
@@ -123,7 +123,7 @@ public static partial class EnvironmentArt3D
     {
         Color wood = new("87613b"), cut = new("b18a52"), dark = new("60472f"), roof = new("b47b41");
         const float deck = 1.64f, eaves = 2.23f;
-        // Reference silhouette: a tapered, cross-braced frame and an enclosed lookout.
+        // Reference silhouette: long open legs, low ties and an open-sided lookout.
         // All access details are deliberately omitted from this decorative landmark.
         for (int x = -1; x <= 1; x += 2) for (int z = -1; z <= 1; z += 2)
         {
@@ -133,25 +133,54 @@ public static partial class EnvironmentArt3D
             art.Tube(foot, landing, .068f, .050f, wood, 5);
             art.Tube(landing, new(x * .28f, eaves, z * .28f), .050f, .042f, wood, 5);
         }
+        // One diagonal per lower face, between two horizontal ties; never an X.
         for (int side = -1; side <= 1; side += 2)
         {
-            art.Tube(new(side * .425f, .16f, -.415f), new(side * .29f, deck - .10f, .29f), .040f, .040f, cut, 4);
-            art.Tube(new(side * .425f, .16f, .415f), new(side * .29f, deck - .10f, -.29f), .040f, .040f, dark, 4);
-            art.Tube(new(-.415f, .16f, side * .425f), new(.29f, deck - .10f, side * .29f), .040f, .040f, cut, 4);
-            art.Tube(new(.415f, .16f, side * .425f), new(-.29f, deck - .10f, side * .29f), .040f, .040f, wood, 4);
+            foreach (float y in new[] { .34f, .80f })
+            {
+                float half = Mathf.Lerp(.44f, .28f, y / deck);
+                art.RoundedBox(new(0, y, side * half), new(half * 2, .075f, .065f), .009f, cut);
+                art.RoundedBox(new(side * half, y, 0), new(.065f, .075f, half * 2), .009f, wood);
+            }
+            art.Tube(new(-.407f, .36f, side * .407f), new(.363f, .78f, side * .363f), .034f, .034f, wood, 4);
+            art.Tube(new(side * .407f, .36f, -.407f), new(side * .363f, .78f, .363f), .034f, .034f, dark, 4);
             art.RoundedBox(new(side * .285f, deck - .09f, 0), new(.095f, .13f, .83f), .012f, dark);
         }
         for (int i = 0; i < 7; i++)
             art.RoundedBox(new(0, deck, -.345f + i * .115f), new(.83f, .075f, .11f), .009f, cut.Lightened(i % 3 * .025f));
         for (int side = -1; side <= 1; side += 2)
         {
-            art.RoundedBox(new(side * .38f, deck + .20f, 0), new(.065f, .33f, .80f), .012f, wood);
-            art.RoundedBox(new(0, deck + .20f, side * .38f), new(.80f, .33f, .065f), .012f, side > 0 ? wood : dark);
-            art.RoundedBox(new(side * .40f, deck + .385f, 0), new(.08f, .06f, .84f), .01f, cut);
-            art.RoundedBox(new(0, deck + .385f, side * .40f), new(.84f, .06f, .08f), .01f, cut);
+            art.RoundedBox(new(side * .315f, deck + .12f, 0), new(.065f, .07f, .70f), .01f, cut);
+            art.RoundedBox(new(0, deck + .12f, side * .315f), new(.70f, .07f, .065f), .01f, cut);
         }
         HipRoof(art, new(.49f, eaves, .49f), 2.65f, 0, roof);
-        NavyBanner(art, new(0, deck + .19f, .429f), .29f, .46f);
+        var tower = art.Transform;
+        art.Transform = tower * new Transform3D(Basis.Identity, new(0, deck + .10f, .43f));
+        WatchtowerBanner(art, .37f, .83f);
+        art.Transform = tower * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.44f, eaves - .08f, -.04f));
+        WatchtowerBanner(art, .34f, 1.04f);
+        art.Transform = tower;
+    }
+
+    private static void WatchtowerBanner(Sculptor art, float width, float height)
+    {
+        Color navy = new("304967"), ivory = new("eee2b6");
+        float half = width * .5f;
+        // Long cloth with a notched hem, hanging from a visible timber crossbar.
+        art.Tube(new(-half - .025f, .025f, 0), new(half + .025f, .025f, 0), .021f, .021f, new("87613b"), 5);
+        Vector3 left = new(-half, -height * .82f, .015f), right = new(half, -height * .82f, .015f);
+        art.Quad(new(-half, 0, 0), left, right, new(half, 0, 0), navy);
+        var notch = new Vector3(0, -height * .84f, .015f);
+        art.Face(left, notch, right, navy);
+        art.Face(left, new(-half, -height, .025f), notch, navy);
+        art.Face(notch, new(half, -height, .025f), right, navy);
+        var skull = new Vector3(0, -height * .38f, .034f);
+        art.Ellipsoid(skull, new(width * .27f, width * .30f, .023f), ivory, 8, 5);
+        art.RoundedBox(skull + new Vector3(0, -width * .25f, .008f), new(width * .31f, width * .24f, .025f), .006f, ivory);
+        for (int side = -1; side <= 1; side += 2)
+            art.Ellipsoid(skull + new Vector3(side * width * .105f, .005f, .023f), new(width * .070f, width * .09f, .005f), navy, 6, 4);
+        for (int i = -1; i <= 1; i++)
+            art.RoundedBox(skull + new Vector3(i * width * .09f, -width * .31f, .024f), new(.008f, width * .13f, .008f), .001f, navy);
     }
 
     private static void HipRoof(Sculptor art, Vector3 eaves, float peak, float ridge, Color color)
