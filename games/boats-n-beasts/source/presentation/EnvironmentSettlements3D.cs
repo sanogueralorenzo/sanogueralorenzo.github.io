@@ -179,7 +179,7 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(side * .405f, .44f, .835f), new(.25f, .72f, .28f), .018f, stone);
             art.RoundedBox(new(side * .405f, .13f, .84f), new(.28f, .14f, .30f), .012f, trim);
             art.RoundedBox(new(side * .405f, .84f, .84f), new(.29f, .10f, .32f), .014f, trim);
-            NavyBanner(art, new(side * .405f, .805f, 1.007f), .17f, .56f);
+            NavyBanner(art, new(side * .38f, .805f, 1.007f), .17f, .56f);
         }
         art.RoundedBox(new(0, .855f, .82f), new(1.02f, .15f, .26f), .012f, stone);
         for (int i = -2; i <= 2; i++)
