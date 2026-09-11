@@ -16,56 +16,115 @@ public static partial class EnvironmentArt3D
 {
     private static void PirateTavern(Sculptor art)
     {
-        Color plaster = new("d3c9a6"), wood = new("775236"), cut = new("ad8050"), roof = new("ba763b"), glass = new("31555c");
-        art.RoundedBox(new(0, .06f, 0), new(1.50f, .12f, .84f), .035f, new("a5a38c"));
-        art.RoundedBox(new(0, .49f, 0), new(1.38f, .80f, .70f), .02f, plaster);
-        for (int side = -1; side <= 1; side += 2)
-        {
-            art.Face(new(-side * .69f, .89f, side * .35f), new(side * .69f, .89f, side * .35f), new(0, 1.31f, side * .35f), plaster);
-            for (int end = -1; end <= 1; end += 2)
-                art.RoundedBox(new(side * .66f, .50f, end * .36f), new(.075f, .84f, .075f), .009f, wood);
-            art.RoundedBox(new(0, .86f, side * .36f), new(1.42f, .07f, .075f), .009f, wood);
-            art.Tube(new(-.69f, .87f, side * .37f), new(0, 1.33f, side * .37f), .029f, .029f, cut, 4);
-            art.Tube(new(.69f, .87f, side * .37f), new(0, 1.33f, side * .37f), .029f, .029f, cut, 4);
-        }
-        art.RoundedBox(new(0, .15f, .37f), new(1.40f, .07f, .055f), .008f, wood);
-        art.RoundedBox(new(-.24f, .37f, .375f), new(.29f, .54f, .045f), .008f, cut);
-        for (int i = 0; i < 5; i++)
-            art.RoundedBox(new(-.35f + i * .055f, .36f, .404f), new(.049f, .49f, .025f), .004f, new("426068"));
-        art.Ellipsoid(new(-.16f, .35f, .429f), new(.015f, .015f, .01f), new("d0ad60"), 6, 4);
-        Window(art, new(.37f, .56f, .378f), .18f, .25f, glass, cut);
-        Window(art, new(0, 1.025f, .371f), .13f, .17f, glass, cut);
+        Color plaster = new("ded2af"), wood = new("765334"), cut = new("ad8050"), roof = new("c27b3c"), glass = new("31555c"), iron = new("394b4c");
         var house = art.Transform;
-        art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.70f, .53f, -.04f));
-        Window(art, Vector3.Zero, .20f, .26f, glass, cut);
-        art.Transform = house;
-        // Broad overlapping roof courses and seams, all cut from planar geometry.
+        // A broad main hall and a lower cross-gabled wing give the tavern its silhouette.
+        art.RoundedBox(new(-.15f, .065f, 0), new(1.50f, .13f, 1.02f), .025f, new("a5a38c"));
+        art.RoundedBox(new(-.15f, .59f, 0), new(1.38f, .98f, .90f), .018f, plaster);
+        art.RoundedBox(new(.74f, .065f, 0), new(.70f, .13f, .79f), .025f, new("a5a38c"));
+        art.RoundedBox(new(.74f, .52f, 0), new(.64f, .84f, .68f), .015f, plaster);
         for (int side = -1; side <= 1; side += 2)
         {
-            Vector3 Point(float t, float z, float lift = 0) => new(side * .83f * t, 1.38f - .49f * t + lift, -side * z);
-            art.Quad(Point(0, -.46f), Point(1, -.46f), Point(1, .46f), Point(0, .46f), roof.Darkened(.15f));
-            for (int row = 0; row < 3; row++) for (int column = 0; column < 5; column++)
-            {
-                float a = row / 3f, b = (row + 1) / 3f - .014f;
-                float z = -.46f + column * .184f;
-                art.Quad(Point(a, z, .008f), Point(b, z, .008f), Point(b, z + .177f, .008f), Point(a, z + .177f, .008f), roof.Lightened((row + column) % 3 * .025f));
-            }
-            art.Tube(Point(1, -.49f), Point(1, .49f), .026f, .026f, wood, 4);
+            float z = side * .46f;
+            art.Face(new(-.15f - side * .69f, 1.08f, z), new(-.15f + side * .69f, 1.08f, z), new(-.15f, 1.75f, z), plaster);
+            for (int end = -1; end <= 1; end += 2)
+                art.RoundedBox(new(-.15f + end * .665f, .59f, z), new(.09f, 1.02f, .085f), .009f, wood);
+            art.RoundedBox(new(-.15f, 1.045f, z), new(1.44f, .095f, .09f), .008f, wood);
+            art.RoundedBox(new(-.15f, .17f, z), new(1.42f, .09f, .075f), .008f, wood);
+            art.RoundedBox(new(-.15f, 1.38f, z), new(.055f, .60f, .065f), .007f, wood);
+            art.Tube(new(-.84f, 1.08f, z), new(-.15f, 1.76f, z), .036f, .036f, wood, 4);
+            art.Tube(new(.54f, 1.08f, z), new(-.15f, 1.76f, z), .036f, .036f, wood, 4);
+            art.RoundedBox(new(1.055f, .52f, side * .335f), new(.085f, .88f, .085f), .008f, wood);
+            art.RoundedBox(new(.79f, .92f, side * .35f), new(.60f, .085f, .075f), .008f, wood);
+            art.RoundedBox(new(.79f, .17f, side * .35f), new(.60f, .08f, .07f), .008f, wood);
         }
-        art.Tube(new(0, 1.39f, -.49f), new(0, 1.39f, .49f), .035f, .035f, cut, 4);
-        art.RoundedBox(new(-.42f, 1.38f, -.19f), new(.18f, .68f, .19f), .018f, plaster);
-        art.RoundedBox(new(-.42f, 1.70f, -.19f), new(.23f, .06f, .24f), .012f, new("a5a38c"));
-        art.RoundedBox(new(-.42f, 1.735f, -.19f), new(.10f, .01f, .11f), .003f, new("3e4644"));
-        // Hanging tavern sign: a supported bracket, two links and a timber frame.
-        art.Tube(new(.66f, 1.13f, .24f), new(1.07f, 1.42f, .24f), .017f, .017f, new("3d4c4e"), 6);
+        // Dark inset panels sit behind substantial jambs and a lintel, not on top of them.
+        art.RoundedBox(new(-.39f, .435f, .468f), new(.35f, .61f, .028f), .006f, iron);
+        for (int i = 0; i < 6; i++)
+            art.RoundedBox(new(-.535f + i * .058f, .43f, .487f), new(.053f, .58f, .018f), .003f, new Color("365660").Lightened(i % 2 * .035f));
         for (int side = -1; side <= 1; side += 2)
-            art.Tube(new(.99f + side * .075f, 1.39f, .24f), new(.99f + side * .075f, 1.28f, .24f), .007f, .007f, new("3d4c4e"), 5);
-        art.RoundedBox(new(.99f, 1.11f, .24f), new(.30f, .37f, .05f), .018f, wood);
-        NavyBanner(art, new(.99f, 1.11f, .273f), .25f, .31f);
+            art.RoundedBox(new(-.39f + side * .205f, .435f, .495f), new(.07f, .67f, .09f), .008f, cut);
+        art.RoundedBox(new(-.39f, .795f, .50f), new(.51f, .085f, .12f), .01f, cut);
+        art.Ellipsoid(new(-.28f, .43f, .51f), new(.016f, .018f, .012f), new("c6ab6a"), 6, 4);
+        Window(art, new(.22f, .64f, .472f), .20f, .30f, glass, cut);
+        Window(art, new(-.15f, 1.295f, .476f), .15f, .23f, glass, cut);
+        Window(art, new(.80f, .56f, .356f), .18f, .28f, glass, cut);
+        art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(1.07f, 0, 0));
+        Window(art, new(0, .56f, .01f), .22f, .30f, glass, cut);
+        art.Face(new(-.34f, .94f, 0), new(.34f, .94f, 0), new(0, 1.43f, 0), plaster);
+        art.RoundedBox(new(0, .94f, .02f), new(.73f, .08f, .07f), .008f, wood);
+        art.RoundedBox(new(0, 1.16f, .02f), new(.055f, .42f, .065f), .005f, wood);
+        art.Transform = house;
+
+        void TiledRoof(float halfWidth, float halfLength, float peak, float eave, int rows, int columns)
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 Point(float t, float z, float lift = 0) => new(side * halfWidth * t, Mathf.Lerp(peak, eave, t) + lift, -side * z);
+                art.Quad(Point(0, -halfLength), Point(1, -halfLength), Point(1, halfLength), Point(0, halfLength), roof.Darkened(.22f));
+                float tileLength = halfLength * 2 / columns;
+                for (int row = 0; row < rows; row++) for (int column = 0; column < columns; column++)
+                {
+                    float a = row / (float)rows, b = (row + 1f) / rows - .009f;
+                    float z = -halfLength + column * tileLength;
+                    art.Quad(Point(a, z, .008f), Point(b, z, .015f), Point(b, z + tileLength - .007f, .015f), Point(a, z + tileLength - .007f, .008f), roof.Lightened((row + column * 2) % 4 * .018f));
+                }
+                art.Tube(Point(1, -halfLength), Point(1, halfLength), .026f, .026f, wood, 4);
+                for (int end = -1; end <= 1; end += 2)
+                    art.Tube(Point(0, end * halfLength), Point(1, end * halfLength), .031f, .031f, cut, 4);
+            }
+            art.Tube(new(0, peak + .018f, -halfLength - .025f), new(0, peak + .018f, halfLength + .025f), .033f, .033f, roof.Lightened(.12f), 4);
+        }
+        art.Transform = house * new Transform3D(Basis.Identity, new(-.15f, 0, 0));
+        TiledRoof(.83f, .56f, 1.76f, .95f, 4, 5);
+        art.Transform = house * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.68f, 0, 0));
+        TiledRoof(.43f, .46f, 1.44f, .84f, 3, 4);
+        art.Transform = house;
+
+        // Open chimney throat with a raised rain cap, held up by two stone cheeks.
+        art.RoundedBox(new(-.58f, 1.72f, -.22f), new(.20f, .79f, .22f), .016f, plaster);
+        art.RoundedBox(new(-.58f, 2.10f, -.22f), new(.28f, .07f, .30f), .011f, new("d1c7a9"));
+        art.RoundedBox(new(-.58f, 2.14f, -.22f), new(.15f, .014f, .16f), .003f, iron);
+        for (int side = -1; side <= 1; side += 2)
+            art.RoundedBox(new(-.58f + side * .091f, 2.21f, -.22f), new(.045f, .17f, .19f), .006f, plaster);
+        art.RoundedBox(new(-.58f, 2.31f, -.22f), new(.29f, .07f, .30f), .011f, plaster);
         for (int i = 0; i < 2; i++)
-            art.RoundedBox(new(-.24f, .07f - i * .025f, .45f + i * .09f), new(.38f, .06f, .12f), .012f, new("aaa78e"));
-        Barrel(art, new(-.85f, .02f, .31f), .20f);
-        Barrel(art, new(.82f, .02f, .40f), .22f);
+            art.RoundedBox(new(-.62f + i * .055f, 1.90f - i * .15f, -.104f), new(.028f, .065f, .008f), .003f, new("b5ac91"));
+
+        // A horizontal iron bracket really meets both hanging links; the anchor has a ring and curved flukes.
+        art.RoundedBox(new(1.083f, 1.20f, .17f), new(.04f, .22f, .075f), .007f, iron);
+        art.Tube(new(1.09f, 1.29f, .17f), new(1.54f, 1.29f, .17f), .019f, .019f, iron, 6);
+        art.Tube(new(1.09f, 1.12f, .17f), new(1.33f, 1.29f, .17f), .013f, .013f, iron, 6);
+        void Ring(Vector3 center, float radius, float thickness, Color color)
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
+                art.Tube(center + new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0) * radius,
+                    center + new Vector3(Mathf.Cos(b), Mathf.Sin(b), 0) * radius, thickness, thickness, color, 5);
+            }
+        }
+        Ring(new(1.54f, 1.31f, .17f), .041f, .012f, iron);
+        for (int side = -1; side <= 1; side += 2)
+            art.Tube(new(1.35f + side * .11f, 1.29f, .17f), new(1.35f + side * .11f, 1.18f, .17f), .008f, .008f, iron, 5);
+        art.RoundedBox(new(1.35f, .99f, .17f), new(.37f, .43f, .05f), .009f, wood);
+        art.RoundedBox(new(1.35f, .99f, .201f), new(.315f, .375f, .015f), .004f, new("304c56"));
+        Color ivory = new("eee2b6");
+        Ring(new(1.35f, 1.115f, .219f), .024f, .007f, ivory);
+        art.Tube(new(1.35f, 1.093f, .219f), new(1.35f, .865f, .219f), .009f, .009f, ivory, 5);
+        art.Tube(new(1.28f, 1.055f, .219f), new(1.42f, 1.055f, .219f), .009f, .009f, ivory, 5);
+        for (int side = -1; side <= 1; side += 2)
+        {
+            Vector3[] curve = [new(1.35f, .865f, .219f), new(1.35f + side * .065f, .89f, .219f), new(1.35f + side * .105f, .945f, .219f)];
+            for (int i = 0; i < 2; i++) art.Tube(curve[i], curve[i + 1], .009f, .009f, ivory, 5);
+            art.Face(curve[2] + new Vector3(-.018f, -.005f, 0), curve[2] + new Vector3(.018f, -.005f, 0), curve[2] + new Vector3(0, .033f, 0), ivory);
+        }
+        art.RoundedBox(new(-.39f, .085f, .57f), new(.52f, .14f, .24f), .018f, new("929c94"));
+        Barrel(art, new(-1.04f, .02f, .28f), .23f);
+        Barrel(art, new(.57f, .02f, .65f), .25f);
+        Shrub(art, new(-.88f, .02f, .56f), .16f, 41);
+        Shrub(art, new(-.02f, .02f, .53f), .14f, 42);
+        Shrub(art, new(1.01f, .02f, .44f), .17f, 43);
     }
 
     private static void Shipwreck(Sculptor art)
