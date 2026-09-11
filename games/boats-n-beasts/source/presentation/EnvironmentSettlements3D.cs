@@ -38,9 +38,9 @@ public static partial class EnvironmentArt3D
         }
         // If the island cannot carry a readable landmark, retain its natural interior.
         if (best < .50f) return false;
-        // The prison radius includes the projecting gatehouse and entrance steps.
-        float footprint = kind == 0 ? 1.56f : .82f;
-        float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .72f : .48f), 3.0f), best / (footprint * art.HeightScale));
+        // Include the projecting gate, wall buttresses and steps in the fitted footprint.
+        float footprint = kind == 0 ? 1.70f : .82f;
+        float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .76f : .48f), 3.0f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
@@ -70,26 +70,48 @@ public static partial class EnvironmentArt3D
         // Muted slate and a lighter courtyard separate the towers from the walls.
         Color stone = new("77828c"), trim = new("a0a7ad"), iron = new("343b45");
         var building = art.Transform;
-        // A low courtyard disk and an open, sixteen-sided wall keep the circular
-        // silhouette readable without a solid cylinder filling the courtyard.
-        art.Tube(new(0, .015f, 0), new(0, .10f, 0), 1.35f, 1.35f, new("96998f"), 16);
-        WallBand(1.32f, 1.15f, .10f, .70f, stone);
-        WallBand(1.34f, 1.13f, .70f, .77f, trim);
+        // Retain Impel Down's circular enclosure, but give its walls a substantial
+        // base, deep parapet and buttresses instead of a thin decorative ring.
+        art.Tube(new(0, .015f, 0), new(0, .10f, 0), 1.38f, 1.38f, new("96998f"), 16);
+        WallBand(1.36f, 1.11f, .10f, .23f, trim);
+        WallBand(1.32f, 1.13f, .23f, .80f, stone);
+        WallBand(1.35f, 1.09f, .80f, .88f, trim);
         for (int i = 0; i < 28; i++)
         {
             float angle = Mathf.Pi / 8 + (i + .5f) * Mathf.Pi / 16;
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)),
-                new(Mathf.Sin(angle) * 1.235f, .82f, Mathf.Cos(angle) * 1.235f));
-            art.RoundedBox(Vector3.Zero, new(.14f, .15f, .19f), .012f, trim);
+                new(Mathf.Sin(angle) * 1.22f, .94f, Mathf.Cos(angle) * 1.22f));
+            art.RoundedBox(Vector3.Zero, new(.13f, .18f, .24f), .01f, trim);
         }
         art.Transform = building;
-        // Three towers are enough to identify the keep; omit the tiny roof turrets
-        // and brick seams that disappear at the normal voyage camera distance.
-        PrisonTower(art, new(0, 0, -.40f), .34f, 1.48f, stone, trim);
-        for (int side = -1; side <= 1; side += 2)
-            PrisonTower(art, new(side * .73f, 0, .04f), .18f, 1.04f, stone, trim);
+        for (int i = 1; i < 8; i++)
+        {
+            float angle = i * Mathf.Tau / 8;
+            Buttress(new(Mathf.Sin(angle) * 1.29f, 0, Mathf.Cos(angle) * 1.29f), .75f, angle);
+        }
 
-        // The gatehouse closes the front gap in the ring and projects toward the dock.
+        // A connected, tiered prison complex replaces the three isolated cylinders.
+        // It sits at the rear, preserving a broad front yard and side passages.
+        art.RoundedBox(new(0, .14f, -.37f), new(1.45f, .16f, .75f), .025f, trim);
+        art.RoundedBox(new(0, .61f, -.38f), new(1.24f, .88f, .48f), .018f, stone);
+        art.RoundedBox(new(0, 1.06f, -.38f), new(1.32f, .09f, .56f), .012f, trim);
+        art.Transform = building * new Transform3D(Basis.Identity, new(0, 0, -.38f));
+        HipRoof(art, new(.69f, 1.11f, .30f), 1.37f, .46f, new("89565b"));
+        art.Transform = building;
+        PrisonTower(art, new(0, 0, -.48f), .35f, 1.65f, stone, trim);
+        for (int side = -1; side <= 1; side += 2)
+        {
+            PrisonTower(art, new(side * .56f, 0, -.36f), .22f, 1.20f, stone, trim);
+            // Smaller sentries belong to the perimeter, not the middle of the yard.
+            PrisonTower(art, new(side * 1.14f, 0, .17f), .16f, .99f, stone, trim);
+            Buttress(new(side * .29f, 0, -.12f), .91f, 0);
+            art.RoundedBox(new(side * .40f, .73f, -.126f), new(.045f, .18f, .024f), .003f, iron);
+        }
+        Arch(art, new(0, .20f, -.12f), .25f, .47f, .05f, iron, trim);
+        for (int i = 0; i < 3; i++)
+            art.RoundedBox(new(0, .17f - i * .045f, -.035f + i * .08f), new(.34f, .06f, .09f), .008f, trim);
+
+        // Projecting gatehouse, deep portcullis and restrained iron crown.
         var gate = building * new Transform3D(Basis.Identity, new(0, 0, PrisonGateOffset));
         art.Transform = gate;
         for (int side = -1; side <= 1; side += 2)
@@ -102,6 +124,11 @@ public static partial class EnvironmentArt3D
         art.RoundedBox(new(0, .855f, .82f), new(1.02f, .15f, .26f), .012f, stone);
         for (int i = -2; i <= 2; i++)
             art.RoundedBox(new(i * .21f, .965f, .82f), new(.12f, .13f, .24f), .010f, trim);
+        for (int i = -3; i <= 3; i++)
+        {
+            art.Tube(new(i * .13f, .93f, .82f), new(i * .13f, 1.06f, .82f), .012f, .012f, iron, 4);
+            art.Tube(new(i * .13f, 1.06f, .82f), new(i * .13f, 1.13f, .82f), .025f, 0, iron, 4);
+        }
         const float gateBase = .10f, gateSpring = .49f, gateRadius = .26f;
         Arch(art, new(0, gateBase, .86f), gateRadius * 2, gateSpring + gateRadius - gateBase, .065f, iron.Darkened(.35f), trim);
         for (int i = 0; i <= 8; i++)
@@ -126,6 +153,9 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(0, .10f - i * .035f, .99f + i * .07f), new(.55f, .06f, .09f), .010f, trim);
         art.Transform = building;
 
+        for (int side = -1; side <= 1; side += 2)
+            Buttress(new(side * .53f, 0, .975f + PrisonGateOffset), .81f, 0);
+
         void WallBand(float outer, float inner, float bottom, float top, Color color)
         {
             // Leave forty-five degrees open, keeping the gate width independent of the larger yard.
@@ -144,6 +174,20 @@ public static partial class EnvironmentArt3D
                 if (i == 14) art.Quad(obB, ibB, itB, otB, color);
             }
         }
+
+        void Buttress(Vector3 at, float height, float yaw)
+        {
+            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, yaw, 0)), at);
+            Vector3 a = new(-.065f, .09f, -.04f), b = new(.065f, .09f, -.04f);
+            Vector3 c = new(.065f, .09f, .18f), d = new(-.065f, .09f, .18f);
+            Vector3 e = new(-.05f, height, -.04f), f = new(.05f, height, -.04f);
+            Vector3 g = new(.05f, height, .035f), h = new(-.05f, height, .035f);
+            art.Quad(d, c, g, h, trim);
+            art.Quad(c, b, f, g, stone);
+            art.Quad(a, d, h, e, stone);
+            art.Quad(e, h, g, f, trim);
+            art.Transform = building;
+        }
     }
 
     private static void PrisonTower(Sculptor art, Vector3 at, float radius, float height, Color stone, Color trim)
@@ -152,6 +196,8 @@ public static partial class EnvironmentArt3D
         art.Transform = building * new Transform3D(Basis.Identity, at);
         art.Tube(new(0, .10f, 0), new(0, height, 0), radius, radius * .95f, stone, 12);
         art.Tube(new(0, height - .07f, 0), new(0, height + .035f, 0), radius * 1.09f, radius * 1.09f, trim, 12);
+        if (height > 1.5f)
+            art.Tube(new(0, 1.26f, 0), new(0, 1.32f, 0), radius * 1.01f, radius * 1.01f, trim, 12);
         // Explicit sloped face normals make the roof read as a cone in the
         // elevated camera; Tube's radial normals are intended for shafts.
         for (int i = 0; i < 12; i++)
@@ -159,7 +205,7 @@ public static partial class EnvironmentArt3D
             float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
             art.Face(new(Mathf.Sin(a) * radius, height + .035f, Mathf.Cos(a) * radius),
                 new(Mathf.Sin(b) * radius, height + .035f, Mathf.Cos(b) * radius),
-                new(0, height + radius * 1.25f, 0), new("89565b"));
+                new(0, height + radius * 1.60f, 0), new("89565b"));
         }
         if (radius > .3f)
             for (int i = 0; i < 8; i++)
