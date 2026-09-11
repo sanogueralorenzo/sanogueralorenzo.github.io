@@ -37,8 +37,6 @@ void fragment() {
         float dominant=(i==0 || i==1 || i==4 || i==6) ? 1.0 : 0.0;
         float theta=mod(turn-lane*2.399963,6.2831853);
         bool scattered=i==2 || i==5 || i==7 || i>=8;
-        // Drop the thinnest outer traces instead of stacking more parallel rim lines.
-        if(scattered && hash(seed+2.0)<.28) continue;
         float span=scattered ? .65+hash(seed)*1.15 : 2.2+hash(seed)*1.8;
         float t=theta/span;
         float envelope=clamp(min(t*8.0+.45,(1.0-t)*5.0+.40),0.0,1.0);
@@ -80,16 +78,11 @@ void fragment() {
         float d=hash((cell.x+1.0)*13.7+(cell.y+1.0)*31.1+seed);
         float piece=local.x+local.y<1.0 ? a+(b-a)*local.x+(c-a)*local.y
                     : d+(c-d)*(1.0-local.x)+(b-d)*(1.0-local.y);
-        // Sharpen a few existing interior facets while retaining the soft current silhouettes.
-        float patch_detail=smoothstep(.50,.76,edge(theta*1.3,seed+113.0))*smoothstep(.18,.28,r);
-        float cut_softness=max(fwidth(piece)*1.5,.015);
-        float cut=smoothstep(.44-cut_softness,.44+cut_softness,piece);
-        float pigment=mix(smoothstep(.24,.68,piece),cut,patch_detail*.65);
-        vec3 tint=mix(vec3(.075,.36,.43),vec3(.43,.78,.70),pigment);
+        vec3 tint=mix(vec3(.075,.36,.43),vec3(.43,.78,.70),smoothstep(.24,.68,piece));
         mint=mix(mint,tint,.28+.40*(1.0-smoothstep(.25,.43,piece)));
-        float spark=(1.0-smoothstep(width*.06,width*.20,abs(r-ridge)))
-                    *smoothstep(.67,.85,edge(theta*4.5,seed+72.0))*smoothstep(.20,.35,r);
-        mint=mix(mint,vec3(.78,1.0,.87),spark*.88);
+        float spark=(1.0-smoothstep(width*.045,width*.13,abs(r-ridge)))
+                    *smoothstep(.60,.82,edge(theta*4.5,seed+72.0));
+        mint=mix(mint,vec3(.68,.96,.83),spark*.68);
         float coverage=scattered ? .68 : 1.0-smoothstep(.67,1.0,r)*.82;
         // Break up the two supporting crests; keep the main mid-bowl crest (4) bright.
         if(i==1 || i==6) {
