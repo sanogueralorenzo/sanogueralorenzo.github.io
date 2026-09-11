@@ -75,8 +75,10 @@ void fragment() {
         float core=1.0-smoothstep(.12,.85,abs(r-center)/max(width,.001));
         mint=mix(mint,vec3(.60,.93,.80),core*(.22+.40*dominant));
         mint=mix(mint,vec3(.64,.94,.82),highlight*.70);
-        float slash=center+width*(edge(theta*3.1,seed+55.0)*1.8-1.1);
-        float shade=(1.0-smoothstep(slash-aa,slash+aa,r))*.45;
+        // Keep internal shadows gently uneven without sharp, high-contrast folds.
+        float slash=center+width*(edge(theta*3.1,seed+55.0)*1.2-.8);
+        float shade_softness=width*.18+aa;
+        float shade=(1.0-smoothstep(slash-shade_softness,slash+shade_softness,r))*.32;
         mint=mix(mint,vec3(.13,.47,.49),shade);
         // A handful of slanted patches sit within each smoothly curved water body.
         vec2 tile=vec2(theta*2.2,(r-center)/max(width,.001)*1.2+theta*.55);
@@ -88,7 +90,7 @@ void fragment() {
         float piece=local.x+local.y<1.0 ? a+(b-a)*local.x+(c-a)*local.y
                     : d+(c-d)*(1.0-local.x)+(b-d)*(1.0-local.y);
         vec3 tint=mix(vec3(.075,.36,.43),vec3(.43,.78,.70),smoothstep(.24,.68,piece));
-        mint=mix(mint,tint,.28+.40*(1.0-smoothstep(.25,.43,piece)));
+        mint=mix(mint,tint,.26+.28*(1.0-smoothstep(.20,.50,piece)));
         float spark=(1.0-smoothstep(width*.045,width*.13,abs(r-ridge)))
                     *smoothstep(.60,.82,edge(theta*4.5,seed+72.0));
         mint=mix(mint,vec3(.68,.96,.83),spark*.68);
