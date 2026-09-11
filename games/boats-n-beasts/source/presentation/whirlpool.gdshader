@@ -84,6 +84,13 @@ void fragment() {
                     *smoothstep(.60,.82,edge(theta*4.5,seed+72.0));
         mint=mix(mint,vec3(.68,.96,.83),spark*.68);
         float coverage=scattered ? .68 : 1.0-smoothstep(.67,1.0,r)*.82;
+        // Break up the two supporting crests; keep the main mid-bowl crest (4) bright.
+        if(i==1 || i==6) {
+            float gap=smoothstep(.28,.68,edge(theta*1.65,seed+103.0))
+                     *smoothstep(.28,.40,r)*(1.0-smoothstep(.64,.78,r));
+            coverage*=1.0-gap*.52;
+            mint=mix(mint,vec3(.12,.44,.49),gap*.25);
+        }
         color=mix(color,mint,clamp(stroke*(.60+.36*facet+dominant*.10)*coverage,0.0,1.0));
     }
     // Carry a faint broken current through bare shelf patches without repainting existing crests.
