@@ -1,6 +1,16 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_prepass_alpha;
 uniform float clock = 0.0;
+// Angle, length, radius, width: three loose groups beside the outer currents,
+// with short connecting accents and open water between them. All rotate with turn.
+const vec4 foam_layout[12] = vec4[12](
+    vec4(.44, .62, .938, .007), vec4(.66, .31, .986, .004),
+    vec4(1.03, .23, .906, .005), vec4(1.79, .24, .953, .004),
+    vec4(2.69, .72, .944, .007), vec4(2.95, .28, .992, .004),
+    vec4(3.32, .34, .918, .005), vec4(4.22, .58, .944, .007),
+    vec4(4.48, .26, .992, .004), vec4(4.83, .33, .913, .005),
+    vec4(5.60, .27, .950, .004), vec4(5.99, .23, .910, .004)
+);
 vec3 linear_color(vec3 c) { return mix(c/12.92,pow((c+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),c)); }
 float hash(float p) { return fract(sin(p*127.1)*43758.5453); }
 // Smooth, unequal bends establish the flow; finer facets remain inside each water mass.
@@ -105,30 +115,30 @@ void fragment() {
     // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
     float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
     float water_alpha=(1.0-smoothstep(.87,1.0,reach))*shelf;
-    // Twelve broken streaks stay near the lip with uneven spacing and radial offsets.
+    // Compose the twelve wisps around the water sweeps instead of scattering a ring.
     float foam=0.0;
     if(r>.80 && r<1.08) for(int i=0;i<12;i++) {
         float lane=float(i), seed=lane*17.3+9.0;
-        float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
-        float span=.20+.32*hash(seed+1.0), u=theta/span;
+        vec4 placement=foam_layout[i];
+        float theta=mod(turn-placement.x,6.2831853);
+        float span=placement.y, u=theta/span;
         // A gentle outward pitch follows the rotation; angle-based slope keeps short pieces stable.
         // Including drift and soft edges, foam stays inside the .80–1.08 radius band.
         float outward_pitch=.06+.03*hash(seed+4.0);
-        float overlap=.03*smoothstep(.55,.85,hash(seed+10.0));
-        float arc=.889+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
-                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed)-overlap;
+        float arc=placement.z+outward_pitch*(theta-span*.5)
+                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
         // Curl the beginning into the lip, easing smoothly into the existing sweep.
         float bend_span=min(span*.65,.20);
         float bend=max(bend_span-theta,0.0);
         arc-=.12*bend*bend/bend_span;
-        float width=(.003+.007*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
+        float width=placement.w*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.15,width*1.35+aa,abs(r-arc)))
                     *smoothstep(0.0,.24,u)*(1.0-smoothstep(.65,1.0,u));
-        // Only some wisps break; others overlap the lip as continuous tapered foam.
+        // Keep the three leading arcs readable; only some shorter accents break.
         float gap_center=.25+.35*hash(seed+6.0);
         float gap=smoothstep(gap_center-.10,gap_center-.03,u)
                  *(1.0-smoothstep(gap_center+.03,gap_center+.11,u));
-        stroke*=1.0-gap*(.65+.30*hash(seed+7.0))*step(.5,hash(seed+9.0));
+        stroke*=1.0-gap*(.65+.30*hash(seed+7.0))*step(.5,hash(seed+9.0))*(1.0-step(.5,span));
         float fade=.30+.70*smoothstep(-.6,.8,sin(clock*(.25+.16*hash(seed+8.0))+seed));
         foam=max(foam,stroke*fade*.39);
     }
