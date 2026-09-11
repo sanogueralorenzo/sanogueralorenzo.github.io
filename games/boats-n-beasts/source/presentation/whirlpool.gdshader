@@ -11,44 +11,51 @@ float edge(float t, float seed) {
 }
 void fragment() {
     float r=length(UV), angle=atan(UV.y,UV.x);
+    float turn=angle-clock*.19;
     float wall=smoothstep(.12,.55,r);
     vec3 color=mix(vec3(.065,.36,.43),vec3(.105,.44,.49),wall);
     float aa=max(fwidth(r),.003);
+    float outer_coverage=0.0;
     // Broad submerged facets share the spiral direction of the surface strokes.
     // Their slanted boundaries continue through the gaps instead of a flat dark backing.
-    float flow=angle+clock*.19+r*7.0;
+    float flow=turn+r*7.0;
     vec2 bed=vec2(cos(flow),sin(flow))*(2.0+r*4.0);
     vec2 bed_cell=floor(bed), bed_local=fract(bed);
     float bed_a=hash(bed_cell.x*13.1+bed_cell.y*27.7);
     float bed_b=hash((bed_cell.x+1.0)*13.1+bed_cell.y*27.7);
     float bed_c=hash(bed_cell.x*13.1+(bed_cell.y+1.0)*27.7);
     float tone=mix(mix(bed_a,bed_b,bed_local.x),bed_c,bed_local.y);
-    color=mix(color,mix(vec3(.10,.40,.46),vec3(.23,.59,.57),tone),smoothstep(.20,.45,r)*.35);
-    // Broad translucent currents have unequal reach, width and brightness.
+    color=mix(color,mix(vec3(.10,.40,.46),vec3(.23,.59,.57),tone),smoothstep(.10,.35,r)*.35);
+    float inner_wall=smoothstep(.075,.13,r)*(1.0-smoothstep(.22,.38,r));
+    color=mix(color,mix(vec3(.13,.45,.51),vec3(.28,.65,.62),tone),inner_wall*.75);
+    // Broad currents descend into the throat; shorter washes scatter across the outer shelf.
     // Dark troughs occupy the same flow as the mint crests, including down the bowl.
-    for(int i=0;i<8;i++) {
+    for(int i=0;i<14;i++) {
         float lane=float(i);
         float seed=lane*19.7+4.0;
         float dominant=(i==0 || i==1 || i==4 || i==6) ? 1.0 : 0.0;
-        float theta=mod(angle+clock*.19-lane*2.399963,6.2831853);
-        float span=2.4+hash(seed)*2.0;
+        float theta=mod(turn-lane*2.399963,6.2831853);
+        bool scattered=i==2 || i==5 || i==7 || i>=8;
+        float span=scattered ? .65+hash(seed)*1.15 : 2.2+hash(seed)*1.8;
         float t=theta/span;
         float envelope=clamp(min(t*8.0+.45,(1.0-t)*5.0+.40),0.0,1.0);
-        float center=.235+mod(lane*3.0,8.0)*.084;
-        center+=.15*(.5-t)+.065*(edge(theta*1.4,seed)-.5);
-        float width=(.058+hash(seed+2.0)*.050)*envelope;
+        float center=scattered ? .65+hash(seed+5.0)*.30 : .235+mod(lane*3.0,8.0)*.084;
+        if(i==0) center=.16;
+        center+=(.09+hash(seed+9.0)*.16)*(.5-t)+.09*(edge(theta*1.4,seed)-.5);
+        float width=(scattered ? .018+hash(seed+2.0)*.035 : .058+hash(seed+2.0)*.050)*envelope;
         float near_edge=center-width*(.55+edge(theta*1.9,seed+8.0));
         float far_edge=center+width*(.55+edge(theta*1.5,seed+16.0));
         float active=smoothstep(0.0,.18,theta)*(1.0-smoothstep(span-.30,span,theta));
         float breakwater=smoothstep(.28,.38,t)*(1.0-smoothstep(.52,.64,t));
-        active*=1.0-breakwater*smoothstep(.68,.78,center);
+        active*=1.0-breakwater*smoothstep(.58,.78,center)*(scattered ? 0.0 : 1.0);
         float trough=(smoothstep(near_edge-width*.45-aa,near_edge-width*.45+aa,r)
                     -smoothstep(far_edge+aa,far_edge+aa*3.0,r))*active;
         vec3 dark=mix(vec3(.075,.35,.41),vec3(.10,.43,.47),hash(seed+6.0));
-        color=mix(color,dark,trough*.35);
+        color=mix(color,dark,trough*.35*(1.0-smoothstep(.53,.68,r)));
         float softness=width*.12+aa;
         float stroke=(smoothstep(near_edge-softness,near_edge+softness,r)
                      -smoothstep(far_edge-softness,far_edge+softness,r))*active;
+        if(scattered) outer_coverage=max(outer_coverage,stroke);
         float facet=edge(theta*3.2,seed+31.0);
         vec3 mint=mix(vec3(.25,.63,.60),vec3(.49,.85,.74),hash(seed+3.0));
         // A shorter slanted light facet sits within the broad stroke; no outline rings.
@@ -74,10 +81,13 @@ void fragment() {
         float spark=(1.0-smoothstep(width*.045,width*.13,abs(r-ridge)))
                     *smoothstep(.60,.82,edge(theta*4.5,seed+72.0));
         mint=mix(mint,vec3(.68,.96,.83),spark*.68);
-        color=mix(color,mint,clamp(stroke*(.60+.36*facet+dominant*.10)*(1.0-smoothstep(.67,1.0,r)*.82),0.0,1.0));
+        float coverage=scattered ? .68 : 1.0-smoothstep(.67,1.0,r)*.82;
+        color=mix(color,mint,clamp(stroke*(.60+.36*facet+dominant*.10)*coverage,0.0,1.0));
     }
-    color=mix(vec3(.065,.35,.42),color,smoothstep(.09,.19,r));
+    color=mix(vec3(.065,.35,.42),color,smoothstep(.045,.11,r));
     ALBEDO=linear_color(color);
     float reach=r+.018*sin(angle*5.0+sin(angle*3.0));
-    ALPHA=1.0-smoothstep(.87,1.0,reach);
+    // Remain opaque through Whirlpool3D.WaterCutout (.80); outer gaps reveal the ocean.
+    float shelf=mix(1.0,.16+.84*outer_coverage,smoothstep(.80,.88,r));
+    ALPHA=(1.0-smoothstep(.87,1.0,reach))*shelf;
 }

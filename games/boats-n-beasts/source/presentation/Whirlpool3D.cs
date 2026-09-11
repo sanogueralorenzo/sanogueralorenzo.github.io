@@ -42,10 +42,10 @@ public partial class Whirlpool3D : Node3D
         var surface = new SurfaceTool(); surface.Begin(Mesh.PrimitiveType.Triangles);
         Vector3 Point(float r, float angle)
         {
-            // A wide throat and steep bowl read as a water-filled funnel, not a pinwheel tip.
-            float variation = (.018f * Mathf.Sin(angle * 3) + .011f * Mathf.Cos(angle * 5)) * Mathf.SmoothStep(.14f, .34f, r);
-            float wall = Mathf.SmoothStep(.14f, .68f, r + variation);
-            float depth = -.36f * (1 - wall);
+            // A small floor leaves room for illuminated water to descend along the funnel walls.
+            float variation = (.018f * Mathf.Sin(angle * 3) + .011f * Mathf.Cos(angle * 5)) * Mathf.SmoothStep(.075f, .30f, r);
+            float wall = Mathf.Clamp((r + variation - .075f) / .605f, 0, 1);
+            float depth = -.40f * (1 - wall) * (1 - wall);
             float lip = .014f * Mathf.Exp(-Mathf.Pow((r - .61f) / .12f, 2));
             return new(Mathf.Cos(angle) * r, depth + lip + .006f, Mathf.Sin(angle) * r);
         }
