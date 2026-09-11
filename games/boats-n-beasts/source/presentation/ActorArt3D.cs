@@ -30,6 +30,15 @@ public static partial class ActorArt3D
             Cache[key] = mesh = b.Mesh(Material);
         }
         var root = Instance(mesh, key);
+        if (!Cache.TryGetValue("main-sail", out var sailMesh))
+        {
+            var sailGeometry = new ActorGeometry(); MainSail(sailGeometry);
+            Cache["main-sail"] = sailMesh = sailGeometry.Mesh(Material);
+        }
+        var sail = new MeshInstance3D { Name = "MainSail", Mesh = sailMesh, Scale = BoatScale,
+            CastShadow = GeometryInstance3D.ShadowCastingSetting.On };
+        sail.SetInstanceShaderParameter("sail_motion", true);
+        root.GetChild(0).AddChild(sail);
         int starter = Starter(kind);
         if (starter == 0) AddAimedWeapon(root, 0, Math.Max(1, ranks[0]), new(0, .26f, -.325f), 1, "AimPrimary");
         for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
@@ -150,25 +159,36 @@ public static partial class ActorArt3D
         b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, MastHeight, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
         b.Tube(new[] { new Vector3(-.375f, 1.41f, .015f), new Vector3(.375f, 1.41f, .015f) }, .015f, Wood, 8);
         b.Tube(new[] { new Vector3(-.31f, .68f, .015f), new Vector3(.31f, .68f, .015f) }, .011f, Wood, 6);
-        // A coarse curved cloth grid: colored geometry on both sides, no textures.
-        Vector3 Cloth(float u, float v) => new(
-            (u - .5f) * Mathf.Lerp(.60f, .72f, v),
-            .68f + v * .72f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
-            .015f - .12f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
-        for (int y = 0; y < 4; y++) for (int x = 0; x < 6; x++)
+        foreach (int side in new[] { -1, 1 })
+            b.Tube(new[] { new Vector3(0, 1.445f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
+        b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
+    }
+
+    static void MainSail(ActorGeometry b)
+    {
+        // The middle swells beyond the pinned spar ends, giving the cloth an oval outline.
+        float WidthAt(float v) => Mathf.Lerp(.60f, .72f, v) + .16f * Mathf.Sin(v * Mathf.Pi);
+        float Depth(float x, float y)
         {
-            var patch = new[] { Cloth(x / 6f, y / 4f), Cloth((x + 1) / 6f, y / 4f),
-                Cloth((x + 1) / 6f, (y + 1) / 4f), Cloth(x / 6f, (y + 1) / 4f) };
-            Color cloth = x is 0 or 5 ? Cream : new Color("f5e5be");
+            float v = Mathf.Clamp((y - .68f) / .72f, 0, 1);
+            return .015f - .22f * Mathf.Cos(x / WidthAt(v) * Mathf.Pi) * Mathf.Sin(v * Mathf.Pi);
+        }
+        Vector3 Cloth(float u, float v) => new(
+            (u - .5f) * WidthAt(v),
+            .68f + v * .72f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
+            .015f - .22f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
+        for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++)
+        {
+            var patch = new[] { Cloth(x / 8f, y / 8f), Cloth((x + 1) / 8f, y / 8f),
+                Cloth((x + 1) / 8f, (y + 1) / 8f), Cloth(x / 8f, (y + 1) / 8f) };
+            Color cloth = x is 0 or 7 ? Cream : new Color("f5e5be");
             b.Polygon(patch, cloth, Vector3.Forward);
             b.Polygon(patch, cloth, Vector3.Back);
         }
         foreach (int side in new[] { -1, 1 })
         {
-            b.Tube(new[] { new Vector3(0, 1.445f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
             // The emblem follows the billow and reads from either sailing direction.
-            float Z(float y) => .015f - .12f * MathF.Sin((y - .68f) / .72f * Mathf.Pi) + side * .009f;
-            Vector3 P(float x, float y) => new(x, y + .18f, Z(y + .18f));
+            Vector3 P(float x, float y) => new(x, y + .18f, Depth(x, y + .18f) + side * .009f);
             foreach (int diagonal in new[] { -1, 1 })
             {
                 var a = P(-.085f, .79f + diagonal * .05f);
@@ -185,7 +205,6 @@ public static partial class ActorArt3D
             b.RoundBox(P(0, .945f), new(.081f, .041f, .025f), .008f, Brass);
             b.RoundBox(P(0, .931f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
         }
-        b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
     }
 
     static void SternScrolls(ActorGeometry b)

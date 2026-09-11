@@ -6,8 +6,22 @@ instance uniform float creature_scale=1.0;
 instance uniform float phase=0.0;
 instance uniform float movement_rate=1.0;
 instance uniform float swelling=0.0;
+instance uniform bool sail_motion=false;
 vec3 linear_color(vec3 srgb) { return mix(srgb/12.92,pow((srgb+vec3(.055))/1.055,vec3(2.4)),step(vec3(.04045),srgb)); }
+float sail_offset(vec2 p) {
+    float v=clamp((p.y-.68)/.72,0.0,1.0);
+    float width=mix(.60,.72,v)+.16*sin(v*3.14159265);
+    float weight=sin(v*3.14159265)*max(0.0,cos(p.x/width*3.14159265));
+    return weight*(.018*sin(clock*1.6)+.004*sin(clock*2.7+p.x*12.0-v*3.0));
+}
 void vertex() {
+    if(sail_motion) {
+        float motion=sail_offset(VERTEX.xy);
+        float dx=(sail_offset(VERTEX.xy+vec2(.001,0))-motion)/.001;
+        float dy=(sail_offset(VERTEX.xy+vec2(0,.001))-motion)/.001;
+        VERTEX.z+=motion;
+        NORMAL=normalize(vec3(NORMAL.x-NORMAL.z*dx,NORMAL.y-NORMAL.z*dy,NORMAL.z));
+    }
     vec3 p=VERTEX/creature_scale;
     float t=clock*movement_rate+phase;
     if(creature_kind==1) {
