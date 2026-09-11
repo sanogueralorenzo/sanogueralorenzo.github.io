@@ -179,7 +179,7 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(side * .405f, .44f, .835f), new(.25f, .72f, .28f), .018f, stone);
             art.RoundedBox(new(side * .405f, .13f, .84f), new(.28f, .14f, .30f), .012f, trim);
             art.RoundedBox(new(side * .405f, .84f, .84f), new(.29f, .10f, .32f), .014f, trim);
-            NavyBanner(art, new(side * .405f, .54f, .988f), .16f, .43f);
+            NavyBanner(art, new(side * .405f, .805f, 1.007f), .17f, .56f);
         }
         art.RoundedBox(new(0, .855f, .82f), new(1.02f, .15f, .26f), .012f, stone);
         for (int i = -2; i <= 2; i++)
@@ -194,6 +194,7 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(Vector3.Zero, new(.12f, .09f, .13f), .009f, trim);
         }
         art.Transform = gate;
+        GateEmblem(art, new(0, .89f, 1.01f));
         for (int side = -1; side <= 1; side += 2)
             art.RoundedBox(new(side * .30f, .295f, .93f), new(.09f, .39f, .13f), .009f, trim);
         for (int i = -3; i <= 3; i++)
@@ -369,14 +370,60 @@ public static partial class EnvironmentArt3D
 
     private static void NavyBanner(Sculptor art, Vector3 at, float width, float height)
     {
-        art.RoundedBox(at, new(width, height, .024f), .006f, new("34406f"));
-        // A simple ivory anchor reads at gameplay scale without a texture.
-        float s = width;
-        Color ivory = new("eee2b6");
-        art.Tube(at + new Vector3(0, s * .32f, .019f), at + new Vector3(0, -s * .27f, .019f), s * .05f, s * .05f, ivory, 5);
-        art.Tube(at + new Vector3(-s * .20f, s * .16f, .019f), at + new Vector3(s * .20f, s * .16f, .019f), s * .045f, s * .045f, ivory, 5);
+        Color navy = new("3d496d"), ivory = new("eee3c5");
+        float half = width * .5f, body = height * .82f;
+        // Suspended cloth with a shallow fold and a long, pointed hem.
+        Vector3 Cloth(float x, float y) => at + new Vector3(x, -y,
+            .007f * Mathf.Sin(y / height * Mathf.Pi) * (1 - MathF.Abs(x / half)));
+        for (int row = 0; row < 4; row++) for (int column = 0; column < 2; column++)
+        {
+            float x = -half + column * half, top = row * body / 4, bottom = (row + 1) * body / 4;
+            art.Quad(Cloth(x, top), Cloth(x, bottom), Cloth(x + half, bottom), Cloth(x + half, top), navy);
+        }
+        art.Face(Cloth(-half, body), Cloth(0, height), Cloth(0, body), navy);
+        art.Face(Cloth(0, body), Cloth(0, height), Cloth(half, body), navy);
+        Color brass = new("a78b56");
+        art.Tube(at + new Vector3(-half - .017f, .006f, 0), at + new Vector3(half + .017f, .006f, 0), .006f, .006f, brass, 6);
         for (int side = -1; side <= 1; side += 2)
-            art.Tube(at + new Vector3(0, -s * .27f, .019f), at + new Vector3(side * s * .28f, -s * .05f, .019f), s * .05f, s * .05f, ivory, 5);
+            art.Ellipsoid(at + new Vector3(side * (half + .017f), .006f, 0), new(.009f, .009f, .009f), brass, 6, 4);
+        PrisonAnchor(art, at + new Vector3(0, -height * .61f, .016f), width * .70f, ivory);
+    }
+
+    private static void GateEmblem(Sculptor art, Vector3 at)
+    {
+        Color cream = new("d9cbaa");
+        Vector2[] outline = [new(-.90f,.65f),new(-.98f,-.45f),new(-.50f,-.80f),new(0,-1),
+            new(.50f,-.80f),new(.98f,-.45f),new(.90f,.65f),new(.40f,.85f),new(0,1),new(-.40f,.85f)];
+        Vector3 Point(Vector2 p, float scale, float z) => at + new Vector3(p.X * .105f * scale, p.Y * .11f * scale, z);
+        for (int i = 0; i < outline.Length; i++)
+        {
+            Vector2 a = outline[i], b = outline[(i + 1) % outline.Length];
+            art.Quad(Point(a, 1, -.026f), Point(b, 1, -.026f), Point(b, 1, 0), Point(a, 1, 0), cream.Darkened(.16f));
+            art.Quad(Point(a, 1, 0), Point(b, 1, 0), Point(b, .87f, .009f), Point(a, .87f, .009f), cream.Lightened(.08f));
+            art.Face(at + new Vector3(0, 0, .009f), Point(a, .87f, .009f), Point(b, .87f, .009f), cream);
+        }
+        PrisonAnchor(art, at + new Vector3(0, -.003f, .017f), .13f, new("59616a"));
+    }
+
+    private static void PrisonAnchor(Sculptor art, Vector3 at, float size, Color color)
+    {
+        void Line(Vector2 a, Vector2 b) => art.Tube(at + new Vector3(a.X, a.Y, 0) * size,
+            at + new Vector3(b.X, b.Y, 0) * size, size * .042f, size * .042f, color, 6);
+        Line(new(0, .30f), new(0, -.40f));
+        Line(new(-.23f, .18f), new(.23f, .18f));
+        for (int i = 0; i < 8; i++)
+        {
+            float a = i * Mathf.Tau / 8, b = (i + 1) * Mathf.Tau / 8;
+            Line(new(Mathf.Cos(a) * .075f, .39f + Mathf.Sin(a) * .075f),
+                new(Mathf.Cos(b) * .075f, .39f + Mathf.Sin(b) * .075f));
+        }
+        for (int side = -1; side <= 1; side += 2)
+        {
+            Line(new(0, -.36f), new(side * .24f, -.23f));
+            Line(new(side * .24f, -.23f), new(side * .29f, .03f));
+            Line(new(side * .20f, -.02f), new(side * .29f, .03f));
+            Line(new(side * .29f, .03f), new(side * .34f, -.06f));
+        }
     }
 
     private static void PrisonJetty(Sculptor art, Transform3D building)
