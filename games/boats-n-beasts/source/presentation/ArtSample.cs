@@ -17,8 +17,9 @@ public partial class ArtSample : Node3D
     int islandStyle;
     int islandSize = 1;
     uint variant;
+    LandmarkSizes landmarkSizes = new();
     // Fixed production seeds cover the eight coastline families.
-    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5];
+    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5, 14, 15, 17, 197];
     static readonly float[] IslandSizes = [95, 200, 330, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
@@ -30,6 +31,11 @@ public partial class ArtSample : Node3D
             islandStyle = Math.Clamp((int)settings.GetValue("preview", "style", 0), 0, IslandStyles.Length - 1);
             islandSize = Math.Clamp((int)settings.GetValue("preview", "size", 1), 0, IslandSizes.Length - 1);
             variant = (uint)(long)settings.GetValue("preview", "variant", 0L);
+            landmarkSizes = new(
+                (float)settings.GetValue("landmarks", "tavern", landmarkSizes.Tavern),
+                (float)settings.GetValue("landmarks", "shipwreck", landmarkSizes.Shipwreck),
+                (float)settings.GetValue("landmarks", "cave", landmarkSizes.SeaCave),
+                (float)settings.GetValue("landmarks", "arch", landmarkSizes.AncientArch));
         }
         stage = new(); AddChild(stage);
         home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
@@ -60,15 +66,18 @@ public partial class ArtSample : Node3D
             ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
             : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         detailSize = MathF.Max(6.2f, place.Radius * .02f);
-        rocky = EnvironmentArt3D.Build(place);
+        rocky = EnvironmentArt3D.Build(place, landmarkSizes);
         AddChild(rocky);
         bool giant = place.Radius > 360;
         // Keep the normal camera and boat scale; make room for the giant footprint.
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;
-        status.Text = $"{EnvironmentArt3D.IslandScenery(place.Radius, place.Style)} · {place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R size · V seed · B reference · P prison · T tower · Tab scale · F5 refresh · F12 capture";
+        string scenery = EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
+        float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, _ => 0 };
+        string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
+        status.Text = $"{scenery}{sizeLabel} · {place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
+            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n2 tavern · 7 wreck · 8 cave · 9 arch · +/- model size (fitted to available land)";
         GD.Print($"ISLAND SAMPLE scenery={EnvironmentArt3D.IslandScenery(place.Radius, place.Style)} profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
@@ -78,6 +87,12 @@ public partial class ArtSample : Node3D
         {
             case Key.P: beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
             case Key.T: beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
+            case Key.Key2: SelectLandmark(10); break;
+            case Key.Key7: SelectLandmark(11); break;
+            case Key.Key8: SelectLandmark(12); break;
+            case Key.Key9: SelectLandmark(13); break;
+            case Key.Plus: case Key.Equal: case Key.KpAdd: ResizeLandmark(.20f); break;
+            case Key.Minus: case Key.KpSubtract: ResizeLandmark(-.20f); break;
             case Key.B: beachReference = !beachReference; break;
             case Key.Tab: close = !close; break;
             case Key.Space:
@@ -107,6 +122,24 @@ public partial class ArtSample : Node3D
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
         }
     }
+    void SelectLandmark(int style)
+    {
+        beachReference = false; islandStyle = style; islandSize = 2; variant = 0; close = false;
+    }
+    void ResizeLandmark(float step)
+    {
+        if (beachReference) return;
+        string scenery = EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
+        float Adjust(float size) => Math.Clamp(size + step, .25f, 4f);
+        landmarkSizes = scenery switch
+        {
+            "Pirate tavern" => landmarkSizes with { Tavern = Adjust(landmarkSizes.Tavern) },
+            "Shipwreck" => landmarkSizes with { Shipwreck = Adjust(landmarkSizes.Shipwreck) },
+            "Sea cave" => landmarkSizes with { SeaCave = Adjust(landmarkSizes.SeaCave) },
+            "Ancient arch" => landmarkSizes with { AncientArch = Adjust(landmarkSizes.AncientArch) },
+            _ => landmarkSizes
+        };
+    }
     void SaveSettings()
     {
         var settings = new ConfigFile();
@@ -115,6 +148,10 @@ public partial class ArtSample : Node3D
         settings.SetValue("preview", "style", islandStyle);
         settings.SetValue("preview", "size", islandSize);
         settings.SetValue("preview", "variant", (long)variant);
+        settings.SetValue("landmarks", "tavern", landmarkSizes.Tavern);
+        settings.SetValue("landmarks", "shipwreck", landmarkSizes.Shipwreck);
+        settings.SetValue("landmarks", "cave", landmarkSizes.SeaCave);
+        settings.SetValue("landmarks", "arch", landmarkSizes.AncientArch);
         settings.Save(SettingsPath);
     }
 

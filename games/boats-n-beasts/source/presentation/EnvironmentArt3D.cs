@@ -9,9 +9,9 @@ public static partial class EnvironmentArt3D
     private static readonly Color Sand = new("edce8f"), Stone = new("64747b"), Leaf = new("538844");
     private static readonly Dictionary<string, Material> Materials = new();
 
-    public static Node3D Build(Place place)
+    public static Node3D Build(Place place, LandmarkSizes? landmarkSizes = null)
     {
-        var art = new Sculptor();
+        var art = new Sculptor { Sizes = landmarkSizes ?? new LandmarkSizes() };
         var rng = new SeedRandom(place.Style);
         float r = place.Radius * .01f;
         if (place.Kind == PlaceKind.Rock)
@@ -484,6 +484,7 @@ public static partial class EnvironmentArt3D
         public Transform3D Transform = Transform3D.Identity;
         // Fit props after terrain; nested details inherit the fitted parent transform.
         public IslandShape? Footprint;
+        public LandmarkSizes Sizes = new();
         public float HeightScale = 1;
         public float BeachReserve;
         public System.Numerics.Vector2? TreasureSpace;
