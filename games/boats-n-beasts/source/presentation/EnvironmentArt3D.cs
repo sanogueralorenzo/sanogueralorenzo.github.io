@@ -314,10 +314,6 @@ public static partial class EnvironmentArt3D
 
     private static void HarborDetails(Sculptor art, float r)
     {
-        var wood = new Color("735235");
-        art.Tube(new(r * .46f, .12f, -r * .10f), new(r * .46f, r * .89f, -r * .10f), r * .026f, r * .018f, wood, 6);
-        art.RoundedBox(new(r * .55f, r * .78f, -r * .10f), new(r * .29f, r * .28f, .035f), .012f, new("e3d3a3"));
-        art.RoundedBox(new(r * .55f, r * .78f, -r * .078f), new(r * .035f, r * .17f, .012f), .003f, new("376477"));
         for (int i = 0; i < 4; i++)
         {
             var p = new Vector3((.08f + i * .12f) * r, .18f - i * .015f, (.20f + i * .06f) * r);
