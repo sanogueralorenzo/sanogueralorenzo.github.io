@@ -155,6 +155,7 @@ public static partial class EnvironmentArt3D
         art.RoundedBox(new(-.39f, .085f, .57f), new(.52f, .14f, .24f), .018f, new("929c94"));
         Barrel(art, new(-1.04f, .02f, .28f), .23f);
         Barrel(art, new(.57f, .02f, .65f), .25f);
+        Barrel(art, new(.84f, .02f, .72f), .22f);
         Shrub(art, new(-.88f, .02f, .56f), .16f, 41);
         Shrub(art, new(-.02f, .02f, .53f), .14f, 42);
         Shrub(art, new(1.01f, .02f, .44f), .17f, 43);
