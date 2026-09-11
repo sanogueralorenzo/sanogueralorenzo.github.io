@@ -169,18 +169,18 @@ public static partial class EnvironmentArt3D
         // retain the same pitch but keep the roll level with its hull collision.
         art.Transform = ground * new Transform3D(Basis.FromEuler(new(afloat ? 0 : -.14f, 0, -.12f)), new(0, afloat ? 0 : -.13f, 0));
         float[] xs = [-1.22f, -1.10f, -.83f, -.48f, -.10f, .28f, .57f, .86f, 1.12f];
-        float[] widths = [.045f, .23f, .40f, .49f, .50f, .46f, .40f, .30f, .12f];
-        float[] heights = [1.05f, .96f, .88f, .78f, .72f, .68f, .63f, .54f, .39f];
-        Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t * (side > 0 ? 1.20f + .10f * Math.Min(station, 2) : .85f),
+        float[] widths = [.10f, .23f, .40f, .49f, .50f, .46f, .40f, .30f, .12f];
+        float[] heights = [1.20f, 1.17f, 1.10f, 1.00f, .90f, .72f, .65f, .56f, .42f];
+        Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t,
             side * (.045f + (widths[station] - .045f) * MathF.Sqrt(t) - (inside ? .050f : 0)));
-        // Intact bow and stern flank a jagged central breach. The lowest strake
-        // and keel still connect the wreck; no entire side is removed.
+        // The bow half is intact. Damage begins amidships and stays in the stern half;
+        // square gunports are built separately and are not treated as broken planks.
         bool HasPlank(int side, int row, int station)
         {
             if (station < 0 || station >= 8) return false;
             if (row == 0) return true;
-            return side > 0 ? !(station >= (row < 2 ? 4 : 3) && station <= 4)
-                : !(row >= 3 && station >= 3 && station <= 4);
+            return side > 0 ? !(station >= 4 && station <= (row < 2 ? 4 : 5))
+                : !(row >= 3 && station >= 4 && station <= 5);
         }
         for (int side = -1; side <= 1; side += 2)
         {
@@ -195,9 +195,29 @@ public static partial class EnvironmentArt3D
                         if (side > 0) art.Quad(p, q, r, t, color); else art.Quad(t, r, q, p, color);
                     }
                     Color timber = row == 0 ? wood.Lerp(new Color("506a5b"), .30f) : wood.Lightened((row + station) % 3 * .035f);
-                    Plank(Hull(station, a, side), Hull(station + 1, a, side), Hull(station + 1, b, side), Hull(station, b, side), timber);
-                    Plank(Hull(station, b, side, true), Hull(station + 1, b, side, true), Hull(station + 1, a, side, true), Hull(station, a, side, true), cut.Darkened(.13f));
-                    Plank(Hull(station, b, side), Hull(station + 1, b, side), Hull(station + 1, b, side, true), Hull(station, b, side, true), cut);
+                    Vector3 P(float u, float v, bool inside = false) => Hull(station, v, side, inside).Lerp(Hull(station + 1, v, side, inside), u);
+                    void Board(float u0, float u1, float v0, float v1)
+                    {
+                        Plank(P(u0, v0), P(u1, v0), P(u1, v1), P(u0, v1), timber);
+                        Plank(P(u0, v1, true), P(u1, v1, true), P(u1, v0, true), P(u0, v0, true), cut.Darkened(.13f));
+                    }
+                    if (station == 2 && row == 1)
+                    {
+                        // A real square gunport cut through the thick planking, with four dark reveals.
+                        const float left = .22f, right = .78f;
+                        float bottom = a + .025f, top = b - .025f;
+                        Board(0, left, a, b); Board(right, 1, a, b);
+                        Board(left, right, a, bottom); Board(left, right, top, b);
+                        Vector3[] outer = [P(left, bottom), P(right, bottom), P(right, top), P(left, top)];
+                        Vector3[] inner = [P(left, bottom, true), P(right, bottom, true), P(right, top, true), P(left, top, true)];
+                        for (int edge = 0; edge < 4; edge++)
+                        {
+                            int next = (edge + 1) % 4;
+                            Plank(outer[edge], inner[edge], inner[next], outer[next], dark);
+                        }
+                    }
+                    else Board(0, 1, a, b);
+                    Plank(P(0, b), P(1, b), P(1, b, true), P(0, b, true), cut);
                     for (int edge = 0; edge < 2; edge++)
                     {
                         int adjacent = station + (edge == 0 ? -1 : 1), end = station + edge;
@@ -223,10 +243,16 @@ public static partial class EnvironmentArt3D
         art.RoundedBox(new(-.03f, .10f, 0), new(2.35f, .08f, .10f), .006f, dark);
         for (int i = 0; i < 7; i++)
         {
-            if (i is 3 or 4) continue;
+            if (i is 4 or 5) continue;
             art.RoundedBox(new(-.78f + i * .22f, .18f, 0), new(.21f, .06f, .34f + .23f * Mathf.Sin(i * Mathf.Pi / 7)), .007f, cut.Darkened(i % 3 * .035f));
         }
-        art.Tube(new(-1.22f, .045f, 0), new(-1.22f, 1.10f, 0), .052f, .031f, cut, 5);
+        // A capped, even bow edge replaces the tall isolated stem and pointed profile.
+        for (int row = 0; row < 4; row++)
+        {
+            float a = row / 4f, b = (row + 1f) / 4 - .009f;
+            art.Quad(Hull(0, a, -1), Hull(0, a, 1), Hull(0, b, 1), Hull(0, b, -1), wood);
+        }
+        art.Tube(Hull(0, 1, -1), Hull(0, 1, 1), .025f, .025f, cut, 5);
         art.Tube(new(.28f, .10f, -.10f), new(.56f, 1.79f, -.10f), .046f, .033f, wood, 7);
         art.Tube(new(-.09f, 1.52f, -.045f), new(1.19f, 1.65f, -.045f), .034f, .025f, cut, 6);
         for (int i = 0; i < 3; i++)
@@ -240,7 +266,11 @@ public static partial class EnvironmentArt3D
                 Vector3 Top(float t) => new(left + t * width, 1.53f + (left + t * width) * .10f, -.025f);
                 Vector3 Hem(float t) => Top(t) + new Vector3(-.05f * t, -.47f - .11f * Mathf.Sin(t * 13 + panel), .10f + .06f * Mathf.Sin(t * Mathf.Pi));
                 float a = strip / 4f, b = (strip + 1) / 4f;
-                art.Quad(Top(a), Hem(a), Hem(b), Top(b), new Color("d3c59c").Darkened(strip % 2 * .055f));
+                Color canvas = new("eeeade");
+                // The same white cloth throughout; smooth normals follow its gentle billow.
+                Vector3 Normal(float t) => new Vector3(-.06f * Mathf.Pi * Mathf.Cos(t * Mathf.Pi) / width, .28f, 1).Normalized();
+                art.Triangle(Top(a), Hem(a), Hem(b), canvas, canvas, canvas, Normal(a), Normal(a), Normal(b));
+                art.Triangle(Top(a), Hem(b), Top(b), canvas, canvas, canvas, Normal(a), Normal(b), Normal(b));
             }
         }
         art.Tube(new(-.08f, 1.52f, -.05f), new(-.51f, .38f, -.28f), .009f, .009f, new("ab9466"), 5);
