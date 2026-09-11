@@ -8,6 +8,7 @@ public partial class NativeStage3D : Node3D
     public const float Unit = .01f, Zoom = .70f, Foreshortening = .78f;
     public Camera3D Lens { get; private set; } = null!;
     ShaderMaterial water = null!;
+    readonly Vector4[] whirlpools = new Vector4[32];
     MeshInstance3D sea = null!;
     public static Vector3 Point(V2 p, float height = 0) => new(p.X * Unit, height, p.Y * Unit);
     public override void _Ready()
@@ -44,7 +45,19 @@ public partial class NativeStage3D : Node3D
         Lens.Position = target + new Vector3(0, Foreshortening * 32, Mathf.Sqrt(1 - Foreshortening * Foreshortening) * 32);
         Lens.LookAt(target); sea.Position = target;
     }
-    public void Advance(float clock) { water.SetShaderParameter("clock", clock); DioramaSurface.Advance(clock); EnvironmentArt3D.Advance(clock); }
+    public void SetWhirlpools(System.Collections.Generic.IEnumerable<Whirlpool3D> surfaces)
+    {
+        int count = 0;
+        foreach (var vortex in surfaces)
+        {
+            if (count == whirlpools.Length) break; // The streamed world holds at most 25 chunks.
+            var p = vortex.GlobalPosition;
+            whirlpools[count++] = new(p.X, p.Z, vortex.Radius * Whirlpool3D.WaterCutout, 0);
+        }
+        water.SetShaderParameter("whirlpools", whirlpools);
+        water.SetShaderParameter("whirlpool_count", count);
+    }
+    public void Advance(float clock) { water.SetShaderParameter("clock", clock); DioramaSurface.Advance(clock); EnvironmentArt3D.Advance(clock); Whirlpool3D.Advance(clock); }
     public Vector2 Screen(V2 p, float height = 0) => Lens.UnprojectPosition(Point(p, height));
     public V2 WorldPoint(Vector2 screen)
     {

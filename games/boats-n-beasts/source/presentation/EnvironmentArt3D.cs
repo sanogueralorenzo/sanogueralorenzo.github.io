@@ -11,6 +11,7 @@ public static partial class EnvironmentArt3D
 
     public static Node3D Build(Place place, LandmarkSizes? landmarkSizes = null)
     {
+        if (place.Kind == PlaceKind.Whirlpool) return Whirlpool3D.Create(place.Radius * .01f, place.Style);
         var art = new Sculptor { Sizes = landmarkSizes ?? new LandmarkSizes() };
         var rng = new SeedRandom(place.Style);
         float r = place.Radius * .01f;

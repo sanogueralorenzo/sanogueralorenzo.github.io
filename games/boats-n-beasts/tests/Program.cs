@@ -41,3 +41,16 @@ foreach (var seaWreck in wrecks)
 foreach (var solid in places.Where(OceanWorld.IsSolid).Where(p => p.Id != seaWreck.Id))
     Check(Vector2.Distance(seaWreck.Position, solid.Position) > seaWreck.Radius + solid.Radius, "A sea wreck overlaps another obstacle.");
 Console.WriteLine($"Passed hull collision, scaling, push-out, deterministic generation and spacing checks ({keys.Length} chunks, {wrecks.Length} sea wrecks).");
+
+var whirlpools = places.Where(p => p.Kind == PlaceKind.Whirlpool).ToArray();
+Check(whirlpools.Length > 0, "The generation sample must contain whirlpools.");
+foreach (var vortex in whirlpools)
+{
+    Check(!OceanWorld.IsSolid(vortex), "A visual whirlpool must not become a collision obstacle.");
+    foreach (var obstacle in places.Where(OceanWorld.IsSolid))
+        Check(Vector2.Distance(vortex.Position, obstacle.Position) > vortex.Radius + obstacle.Radius,
+            "The whirlpool funnel must stay clear of land and solid scenery.");
+    world.Stream(vortex.Position);
+    Check(world.FlowAt(vortex.Position).LengthSquared() < .001f, "A visual whirlpool must not pull the boat.");
+}
+Console.WriteLine($"Passed open-water whirlpool spacing and visual-only behavior checks ({whirlpools.Length} whirlpools).");

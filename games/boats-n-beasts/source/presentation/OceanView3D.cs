@@ -39,7 +39,7 @@ public partial class OceanView3D : Node3D
         boat?.QueueFree(); boat = null; boatSignature = "";
         ActorArt3D.ResetCache();
         effects.Reset(); Clock = 0; DepartureTime = 0; Camera = HomeCamera();
-        stage.Follow(Camera);
+        stage.Follow(Camera); stage.SetWhirlpools(System.Array.Empty<Whirlpool3D>());
     }
     Vector2 HomeCamera() => new Vector2(StartingArea.Harbor.X, StartingArea.Harbor.Y) +
         GetViewport().GetVisibleRect().Size * new Vector2(.28f, .19f) / Projection;
@@ -67,7 +67,7 @@ public partial class OceanView3D : Node3D
     void SyncScenery()
     {
         var size = GetViewport().GetVisibleRect().Size / Projection;
-        var visible = Voyage.World.Places.Where(p => OceanWorld.IsSolid(p) &&
+        var visible = Voyage.World.Places.Where(p => (OceanWorld.IsSolid(p) || p.Kind == PlaceKind.Whirlpool) &&
             Math.Abs(p.Position.X - Camera.X) < size.X * .5f + p.Radius + 400 &&
             Math.Abs(p.Position.Y - Camera.Y) < size.Y * .5f + p.Radius + 500).ToArray();
         var keep = visible.Select(p => p.Id).ToHashSet();
@@ -79,6 +79,7 @@ public partial class OceanView3D : Node3D
             var root = EnvironmentArt3D.Build(incoming); AddChild(root);
             root.Position = NativeStage3D.Point(incoming.Position); scenery.Add(incoming.Id, root);
         }
+        stage.SetWhirlpools(scenery.Values.OfType<Whirlpool3D>());
     }
     void SyncActors()
     {

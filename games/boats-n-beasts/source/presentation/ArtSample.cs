@@ -13,6 +13,7 @@ public partial class ArtSample : Node3D
     float detailSize = 6.2f;
     bool beachReference = true;
     bool seaWreck;
+    bool whirlpool;
     const string SettingsPath = "user://art-preview.cfg";
     Label status = null!;
     Node3D rocky = null!;
@@ -30,6 +31,7 @@ public partial class ArtSample : Node3D
         if (settings.Load(SettingsPath) == Error.Ok)
         {
             seaWreck = (bool)settings.GetValue("preview", "sea_wreck", false);
+            whirlpool = (bool)settings.GetValue("preview", "whirlpool", false);
             close = (bool)settings.GetValue("preview", "close", false);
             beachReference = (bool)settings.GetValue("preview", "reference", true);
             islandStyle = Math.Clamp((int)settings.GetValue("preview", "style", 0), 0, IslandStyles.Length - 1);
@@ -75,7 +77,7 @@ public partial class ArtSample : Node3D
     void ShowIsland()
     {
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }
-        var place = seaWreck ? new Place("sample-wreck", PlaceKind.Shipwreck, default, landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius, 15) : beachReference
+        var place = whirlpool ? new Place("sample-whirlpool", PlaceKind.Whirlpool, default, 260, 23) : seaWreck ? new Place("sample-wreck", PlaceKind.Shipwreck, default, landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius, 15) : beachReference
             ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
             : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         detailSize = MathF.Max(6.2f, place.Radius * .02f);
@@ -84,13 +86,14 @@ public partial class ArtSample : Node3D
         bool giant = place.Radius > 360;
         // Keep the normal camera and boat scale; make room for the giant footprint.
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
+        stage.SetWhirlpools(rocky is Whirlpool3D vortex ? new[] { vortex } : System.Array.Empty<Whirlpool3D>());
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;
-        string scenery = seaWreck ? "Shipwreck" : EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
+        string scenery = whirlpool ? "Whirlpool" : seaWreck ? "Shipwreck" : EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
         float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
         status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size · C crew · arrows turn · K boat";
+            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size · C crew · arrows turn · K boat · W whirlpool";
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
@@ -109,8 +112,11 @@ public partial class ArtSample : Node3D
             RemoveChild(boat); boat.QueueFree(); boat = replacement; AddChild(boat); return;
         }
         boatDetail = false;
+        bool previousWhirlpool = whirlpool;
+        if (key.Keycode is not (Key.Tab or Key.F5 or Key.F12)) whirlpool = false;
         switch (key.Keycode)
         {
+            case Key.W: whirlpool = true; seaWreck = false; beachReference = false; close = true; break;
             case Key.P: seaWreck = false; beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
             case Key.T: seaWreck = false; beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
             case Key.Key1: SelectLandmark(14); break;
@@ -136,7 +142,7 @@ public partial class ArtSample : Node3D
             case Key.R: seaWreck = false; beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
             case Key.F5: SaveSettings(); GetTree().Quit(75); return;
             case Key.F12: break;
-            default: return;
+            default: whirlpool = previousWhirlpool; return;
         }
         if (key.Keycode != Key.F12) { SaveSettings(); ShowIsland(); }
         if (key.Keycode == Key.F12)
@@ -144,9 +150,9 @@ public partial class ArtSample : Node3D
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
             System.IO.Directory.CreateDirectory(folder);
-            uint seed = seaWreck ? 15 : beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
-            float radius = seaWreck ? landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius : beachReference ? 355.70514f : IslandSizes[islandSize];
-            var profile = seaWreck ? "OpenWater" : new IslandShape(radius, seed).Profile.ToString();
+            uint seed = whirlpool ? 23 : seaWreck ? 15 : beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
+            float radius = whirlpool ? 260 : seaWreck ? landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius : beachReference ? 355.70514f : IslandSizes[islandSize];
+            var profile = seaWreck || whirlpool ? "OpenWater" : new IslandShape(radius, seed).Profile.ToString();
             var file = folder + "/" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + $"-art-{profile}-{radius}-{seed}-" + (close ? "detail" : "scale") + ".png";
             GetViewport().GetTexture().GetImage().SavePng(file);
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
@@ -178,6 +184,7 @@ public partial class ArtSample : Node3D
         var settings = new ConfigFile();
         settings.SetValue("preview", "close", close);
         settings.SetValue("preview", "sea_wreck", seaWreck);
+        settings.SetValue("preview", "whirlpool", whirlpool);
         settings.SetValue("preview", "reference", beachReference);
         settings.SetValue("preview", "style", islandStyle);
         settings.SetValue("preview", "size", islandSize);
