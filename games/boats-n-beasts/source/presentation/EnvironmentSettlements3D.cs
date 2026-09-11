@@ -122,8 +122,8 @@ public static partial class EnvironmentArt3D
     private static void Watchtower(Sculptor art)
     {
         Color wood = new("87613b"), cut = new("b18a52"), dark = new("60472f"), roof = new("b47b41");
-        const float deck = 1.64f, eaves = 2.23f;
-        // Reference silhouette: long open legs, low ties and an open-sided lookout.
+        const float deck = 2.25f, eaves = 2.90f;
+        // Tall open legs, horizontal ties and an open-sided lookout.
         // All access details are deliberately omitted from this decorative landmark.
         for (int x = -1; x <= 1; x += 2) for (int z = -1; z <= 1; z += 2)
         {
@@ -133,17 +133,15 @@ public static partial class EnvironmentArt3D
             art.Tube(foot, landing, .068f, .050f, wood, 5);
             art.Tube(landing, new(x * .28f, eaves, z * .28f), .050f, .042f, wood, 5);
         }
-        // One diagonal per lower face, between two horizontal ties; never an X.
+        // Keep the base open: horizontal collars only, with no diagonal braces.
         for (int side = -1; side <= 1; side += 2)
         {
-            foreach (float y in new[] { .34f, .80f })
+            foreach (float y in new[] { deck * .20f, deck * .48f })
             {
                 float half = Mathf.Lerp(.44f, .28f, y / deck);
                 art.RoundedBox(new(0, y, side * half), new(half * 2, .075f, .065f), .009f, cut);
                 art.RoundedBox(new(side * half, y, 0), new(.065f, .075f, half * 2), .009f, wood);
             }
-            art.Tube(new(-.407f, .36f, side * .407f), new(.363f, .78f, side * .363f), .034f, .034f, wood, 4);
-            art.Tube(new(side * .407f, .36f, -.407f), new(side * .363f, .78f, .363f), .034f, .034f, dark, 4);
             art.RoundedBox(new(side * .285f, deck - .09f, 0), new(.095f, .13f, .83f), .012f, dark);
         }
         for (int i = 0; i < 7; i++)
@@ -153,18 +151,18 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(side * .315f, deck + .12f, 0), new(.065f, .07f, .70f), .01f, cut);
             art.RoundedBox(new(0, deck + .12f, side * .315f), new(.70f, .07f, .065f), .01f, cut);
         }
-        HipRoof(art, new(.49f, eaves, .49f), 2.65f, 0, roof);
+        HipRoof(art, new(.49f, eaves, .49f), 3.32f, 0, roof);
         var tower = art.Transform;
         art.Transform = tower * new Transform3D(Basis.Identity, new(0, deck + .10f, .43f));
-        WatchtowerBanner(art, .37f, .83f);
+        WatchtowerBanner(art, .37f, 1.10f);
         art.Transform = tower * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.44f, eaves - .08f, -.04f));
-        WatchtowerBanner(art, .34f, 1.04f);
+        WatchtowerBanner(art, .34f, 1.32f);
         art.Transform = tower;
     }
 
     private static void WatchtowerBanner(Sculptor art, float width, float height)
     {
-        Color navy = new("304967"), ivory = new("eee2b6");
+        Color navy = new("34406f"), ivory = new("eee2b6");
         float half = width * .5f;
         // Long cloth with a notched hem, hanging from a visible timber crossbar.
         art.Tube(new(-half - .025f, .025f, 0), new(half + .025f, .025f, 0), .021f, .021f, new("87613b"), 5);
