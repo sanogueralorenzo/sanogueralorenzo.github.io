@@ -16,7 +16,7 @@ Set `GODOT_BIN` and `DOTNET_ROOT` if the launcher cannot find them. Add `--impor
 
 Saving C# rebuilds and restarts the preview; shader edits refresh without a build. Failed builds keep the last preview open. Island selection and viewing scale survive restarts. Close the window or press Ctrl+C to stop.
 
-Preview controls: **Space** shape, **R** size, **V** seed, **B** reference crescent, **P** prison, **T** watchtower, **Tab** scale, **F5** refresh, **F12** capture.
+Preview shortcuts follow keyboard order: **Q–P** islands and landmarks, **A–L** scenery and size/crew controls, **Z/X** turn the boat, **C** view, **V** refresh, **B** capture. The preview shows every binding; **Q** cycles island samples.
 
 Select **1** lighthouse, **2** tavern, **3** market stall, **6** windmill, **7** shipwreck, **8** sea cave or **9** ancient arch; **+ / −** adjusts that model's size independently and remembers it across preview restarts. **O** toggles the selected wreck between land and water. Sizes fit the available land; sea wreck size follows its place radius. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
 

@@ -93,18 +93,18 @@ public partial class ArtSample : Node3D
         float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
         status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size · C crew · arrows turn · K boat · W whirlpool";
+            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh · B capture";
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
-        if (key.Keycode == Key.C) { boatDetail = !boatDetail; return; }
-        if (boatDetail && key.Keycode is Key.Left or Key.Right)
+        if (key.Keycode == Key.K) { boatDetail = !boatDetail; return; }
+        if (boatDetail && key.Keycode is Key.Z or Key.X)
         {
-            boat.RotateY(key.Keycode == Key.Left ? -.45f : .45f); return;
+            boat.RotateY(key.Keycode == Key.Z ? -.45f : .45f); return;
         }
-        if (boatDetail && key.Keycode == Key.K)
+        if (boatDetail && key.Keycode == Key.L)
         {
             boatKind = (BoatKind)(((int)boatKind + 1) % 3);
             var replacement = ActorArt3D.Boat(boatKind, [8, 8, 0, 0, 8, 8]);
@@ -113,39 +113,39 @@ public partial class ArtSample : Node3D
         }
         boatDetail = false;
         bool previousWhirlpool = whirlpool;
-        if (key.Keycode is not (Key.Tab or Key.F5 or Key.F12)) whirlpool = false;
+        if (key.Keycode is not (Key.C or Key.V or Key.B)) whirlpool = false;
         switch (key.Keycode)
         {
-            case Key.W: whirlpool = true; seaWreck = false; beachReference = false; close = true; break;
-            case Key.P: seaWreck = false; beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
-            case Key.T: seaWreck = false; beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
-            case Key.Key1: SelectLandmark(14); break;
-            case Key.Key3: SelectLandmark(15); break;
-            case Key.Key6: SelectLandmark(16); break;
-            case Key.O: if (seaWreck || (!beachReference && EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant) == "Shipwreck")) seaWreck = !seaWreck; break;
-            case Key.Key2: SelectLandmark(10); break;
-            case Key.Key7: SelectLandmark(11); break;
-            case Key.Key8: SelectLandmark(12); break;
-            case Key.Key9: SelectLandmark(13); break;
-            case Key.Plus: case Key.Equal: case Key.KpAdd: ResizeLandmark(.20f); break;
-            case Key.Minus: case Key.KpSubtract: ResizeLandmark(-.20f); break;
-            case Key.B: seaWreck = false; beachReference = !beachReference; break;
-            case Key.Tab: close = !close; break;
-            case Key.Space:
+            case Key.S: whirlpool = true; seaWreck = false; beachReference = false; close = true; break;
+            case Key.W: seaWreck = false; beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
+            case Key.E: seaWreck = false; beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
+            case Key.R: SelectLandmark(14); break;
+            case Key.Y: SelectLandmark(15); break;
+            case Key.U: SelectLandmark(16); break;
+            case Key.D: if (seaWreck || (!beachReference && EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant) == "Shipwreck")) seaWreck = !seaWreck; break;
+            case Key.T: SelectLandmark(10); break;
+            case Key.I: SelectLandmark(11); break;
+            case Key.O: SelectLandmark(12); break;
+            case Key.P: SelectLandmark(13); break;
+            case Key.J: ResizeLandmark(.20f); break;
+            case Key.H: ResizeLandmark(-.20f); break;
+            case Key.A: seaWreck = false; beachReference = !beachReference; break;
+            case Key.C: close = !close; break;
+            case Key.Q:
                 seaWreck = false; beachReference = false;
                 islandStyle = (islandStyle + 1) % IslandStyles.Length; variant = 0; break;
-            case Key.V:
+            case Key.G:
                 seaWreck = false; beachReference = false;
                 var profile = new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle]).Profile;
                 do { variant++; } while (new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle] + variant).Profile != profile);
                 break;
-            case Key.R: seaWreck = false; beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
-            case Key.F5: SaveSettings(); GetTree().Quit(75); return;
-            case Key.F12: break;
+            case Key.F: seaWreck = false; beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
+            case Key.V: SaveSettings(); GetTree().Quit(75); return;
+            case Key.B: break;
             default: whirlpool = previousWhirlpool; return;
         }
-        if (key.Keycode != Key.F12) { SaveSettings(); ShowIsland(); }
-        if (key.Keycode == Key.F12)
+        if (key.Keycode != Key.B) { SaveSettings(); ShowIsland(); }
+        if (key.Keycode == Key.B)
         {
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
