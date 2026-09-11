@@ -14,12 +14,14 @@ public static partial class EnvironmentArt3D
         3 when r >= 2.0f => 3,
         4 when r >= 2.0f => 4,
         5 when r >= 2.0f => 5,
+        6 when r >= 2.0f && seed % 3 != 0 => seed % 2 == 0 ? 6 : 7,
+        7 when r >= 2.0f && seed % 3 == 0 => 8,
         _ => -1
     };
 
     public static string IslandScenery(float radius, uint seed) => SettlementKind(radius * .01f, seed) switch
     {
-        0 => "Prison", 1 => "Watchtower", 2 => "Pirate tavern", 3 => "Shipwreck", 4 => "Sea cave", 5 => "Ancient arch", _ => (seed % 3) switch { 0 => "Ruins", 1 => "Grove", _ => "Cliffs" }
+        0 => "Prison", 1 => "Watchtower", 2 => "Pirate tavern", 3 => "Shipwreck", 4 => "Sea cave", 5 => "Ancient arch", 6 => "Lighthouse", 7 => "Market stall", 8 => "Windmill", _ => (seed % 3) switch { 0 => "Ruins", 1 => "Grove", _ => "Cliffs" }
     };
 
     private static bool SettlementInterior(Sculptor art, float r, uint seed)
@@ -45,7 +47,7 @@ public static partial class EnvironmentArt3D
         // New landmarks include visible floors; keep them above the terrain's .20 cap.
         if (kind >= 2) anchor.Y = .205f;
         // Include the projecting gate, wall buttresses and steps in the fitted footprint.
-        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.65f, 3 => 1.20f, 4 => 1.20f, _ => 1.0f };
+        float footprint = kind switch { 0 => 1.70f, 1 => .82f, 2 => 1.65f, 3 => 1.65f, 4 => 1.50f, 5 => 1.20f, 6 => .85f, 7 => 1.10f, 8 => 1.55f, _ => 1.0f };
         // The former prison could reach at most 1.245 world scale. Scale 4
         // gives over 10x its footprint area; never shrink a destination into a prop.
         const float prisonScale = 4f;
@@ -65,6 +67,9 @@ public static partial class EnvironmentArt3D
             case 3: Shipwreck(art); break;
             case 4: SeaCave(art, seed); break;
             case 5: AncientArch(art, seed); break;
+            case 6: Lighthouse(art); break;
+            case 7: MarketStall(art); break;
+            case 8: Windmill(art); break;
         }
         art.EndProp(old);
         art.HeightScale = vegetationScale;
@@ -316,9 +321,9 @@ public static partial class EnvironmentArt3D
         HipRoof(art, new(.49f, eaves, .49f), 3.32f, 0, roof);
         var tower = art.Transform;
         art.Transform = tower * new Transform3D(Basis.Identity, new(0, deck + .10f, .43f));
-        WatchtowerBanner(art, .37f, 1.10f);
+        WatchtowerBanner(art, .43f, 1.48f);
         art.Transform = tower * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.44f, eaves - .08f, -.04f));
-        WatchtowerBanner(art, .34f, 1.32f);
+        WatchtowerBanner(art, .40f, 1.65f);
         art.Transform = tower;
     }
 
@@ -329,12 +334,17 @@ public static partial class EnvironmentArt3D
         // Long cloth with a notched hem, hanging from a visible timber crossbar.
         art.Tube(new(-half - .025f, .025f, 0), new(half + .025f, .025f, 0), .021f, .021f, new("87613b"), 5);
         Vector3 left = new(-half, -height * .82f, .015f), right = new(half, -height * .82f, .015f);
-        art.Quad(new(-half, 0, 0), left, right, new(half, 0, 0), navy);
+        Vector3 Cloth(float x, float t) => new(x, -height * .82f * t, .015f * t + .018f * Mathf.Sin(t * Mathf.Pi) * (1 - MathF.Abs(x / half)));
+        for (int row = 0; row < 4; row++) for (int column = 0; column < 2; column++)
+        {
+            float x = -half + column * half, a = row / 4f, b = (row + 1) / 4f;
+            art.Quad(Cloth(x, a), Cloth(x, b), Cloth(x + half, b), Cloth(x + half, a), navy.Lightened(column * .035f));
+        }
         var notch = new Vector3(0, -height * .84f, .015f);
         art.Face(left, notch, right, navy);
         art.Face(left, new(-half, -height, .025f), notch, navy);
         art.Face(notch, new(half, -height, .025f), right, navy);
-        var skull = new Vector3(0, -height * .38f, .034f);
+        var skull = new Vector3(0, -height * .38f, .049f);
         art.Ellipsoid(skull, new(width * .27f, width * .30f, .023f), ivory, 8, 5);
         art.RoundedBox(skull + new Vector3(0, -width * .25f, .008f), new(width * .31f, width * .24f, .025f), .006f, ivory);
         for (int side = -1; side <= 1; side += 2)

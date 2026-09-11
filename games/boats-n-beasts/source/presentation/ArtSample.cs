@@ -10,6 +10,7 @@ public partial class ArtSample : Node3D
     bool close;
     float detailSize = 6.2f;
     bool beachReference = true;
+    bool seaWreck;
     const string SettingsPath = "user://art-preview.cfg";
     Label status = null!;
     Node3D rocky = null!;
@@ -19,13 +20,14 @@ public partial class ArtSample : Node3D
     uint variant;
     LandmarkSizes landmarkSizes = new();
     // Fixed production seeds cover the eight coastline families.
-    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5, 14, 15, 17, 197];
+    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5, 14, 15, 17, 197, 514, 95, 282];
     static readonly float[] IslandSizes = [95, 200, 330, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
         var settings = new ConfigFile();
         if (settings.Load(SettingsPath) == Error.Ok)
         {
+            seaWreck = (bool)settings.GetValue("preview", "sea_wreck", false);
             close = (bool)settings.GetValue("preview", "close", false);
             beachReference = (bool)settings.GetValue("preview", "reference", true);
             islandStyle = Math.Clamp((int)settings.GetValue("preview", "style", 0), 0, IslandStyles.Length - 1);
@@ -35,7 +37,10 @@ public partial class ArtSample : Node3D
                 (float)settings.GetValue("landmarks", "tavern", landmarkSizes.Tavern),
                 (float)settings.GetValue("landmarks", "shipwreck", landmarkSizes.Shipwreck),
                 (float)settings.GetValue("landmarks", "cave", landmarkSizes.SeaCave),
-                (float)settings.GetValue("landmarks", "arch", landmarkSizes.AncientArch));
+                (float)settings.GetValue("landmarks", "arch", landmarkSizes.AncientArch),
+                (float)settings.GetValue("landmarks", "lighthouse", landmarkSizes.Lighthouse),
+                (float)settings.GetValue("landmarks", "market", landmarkSizes.MarketStall),
+                (float)settings.GetValue("landmarks", "windmill", landmarkSizes.Windmill));
         }
         stage = new(); AddChild(stage);
         home = EnvironmentArt3D.Build(new Place("sample", PlaceKind.Harbor, default, 140, 147));
@@ -62,7 +67,7 @@ public partial class ArtSample : Node3D
     void ShowIsland()
     {
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }
-        var place = beachReference
+        var place = seaWreck ? new Place("sample-wreck", PlaceKind.Shipwreck, default, landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius, 15) : beachReference
             ? new Place("sample-rock", PlaceKind.Island, default, 355.70514f, 2273309013)
             : new Place("sample-rock", PlaceKind.Island, default, IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         detailSize = MathF.Max(6.2f, place.Radius * .02f);
@@ -73,37 +78,41 @@ public partial class ArtSample : Node3D
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;
-        string scenery = EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
-        float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, _ => 0 };
+        string scenery = seaWreck ? "Shipwreck" : EnvironmentArt3D.IslandScenery(place.Radius, place.Style);
+        float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
-        status.Text = $"{scenery}{sizeLabel} · {place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n2 tavern · 7 wreck · 8 cave · 9 arch · +/- model size (fitted to available land)";
-        GD.Print($"ISLAND SAMPLE scenery={EnvironmentArt3D.IslandScenery(place.Radius, place.Style)} profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
+        status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
+            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size";
+        GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
         switch (key.Keycode)
         {
-            case Key.P: beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
-            case Key.T: beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
+            case Key.P: seaWreck = false; beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;
+            case Key.T: seaWreck = false; beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
+            case Key.Key1: SelectLandmark(14); break;
+            case Key.Key3: SelectLandmark(15); break;
+            case Key.Key6: SelectLandmark(16); break;
+            case Key.O: if (seaWreck || (!beachReference && EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant) == "Shipwreck")) seaWreck = !seaWreck; break;
             case Key.Key2: SelectLandmark(10); break;
             case Key.Key7: SelectLandmark(11); break;
             case Key.Key8: SelectLandmark(12); break;
             case Key.Key9: SelectLandmark(13); break;
             case Key.Plus: case Key.Equal: case Key.KpAdd: ResizeLandmark(.20f); break;
             case Key.Minus: case Key.KpSubtract: ResizeLandmark(-.20f); break;
-            case Key.B: beachReference = !beachReference; break;
+            case Key.B: seaWreck = false; beachReference = !beachReference; break;
             case Key.Tab: close = !close; break;
             case Key.Space:
-                beachReference = false;
+                seaWreck = false; beachReference = false;
                 islandStyle = (islandStyle + 1) % IslandStyles.Length; variant = 0; break;
             case Key.V:
-                beachReference = false;
+                seaWreck = false; beachReference = false;
                 var profile = new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle]).Profile;
                 do { variant++; } while (new IslandShape(IslandSizes[islandSize], IslandStyles[islandStyle] + variant).Profile != profile);
                 break;
-            case Key.R: beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
+            case Key.R: seaWreck = false; beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
             case Key.F5: SaveSettings(); GetTree().Quit(75); return;
             case Key.F12: break;
             default: return;
@@ -114,9 +123,9 @@ public partial class ArtSample : Node3D
             await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
             var folder = ProjectSettings.GlobalizePath("res://evidence");
             System.IO.Directory.CreateDirectory(folder);
-            uint seed = beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
-            float radius = beachReference ? 355.70514f : IslandSizes[islandSize];
-            var profile = new IslandShape(radius, seed).Profile;
+            uint seed = seaWreck ? 15 : beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
+            float radius = seaWreck ? landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius : beachReference ? 355.70514f : IslandSizes[islandSize];
+            var profile = seaWreck ? "OpenWater" : new IslandShape(radius, seed).Profile.ToString();
             var file = folder + "/" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + $"-art-{profile}-{radius}-{seed}-" + (close ? "detail" : "scale") + ".png";
             GetViewport().GetTexture().GetImage().SavePng(file);
             GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
@@ -124,12 +133,12 @@ public partial class ArtSample : Node3D
     }
     void SelectLandmark(int style)
     {
-        beachReference = false; islandStyle = style; islandSize = 2; variant = 0; close = false;
+        seaWreck = false; beachReference = false; islandStyle = style; islandSize = 2; variant = 0; close = false;
     }
     void ResizeLandmark(float step)
     {
         if (beachReference) return;
-        string scenery = EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
+        string scenery = seaWreck ? "Shipwreck" : EnvironmentArt3D.IslandScenery(IslandSizes[islandSize], IslandStyles[islandStyle] + variant);
         float Adjust(float size) => Math.Clamp(size + step, .25f, 4f);
         landmarkSizes = scenery switch
         {
@@ -137,6 +146,9 @@ public partial class ArtSample : Node3D
             "Shipwreck" => landmarkSizes with { Shipwreck = Adjust(landmarkSizes.Shipwreck) },
             "Sea cave" => landmarkSizes with { SeaCave = Adjust(landmarkSizes.SeaCave) },
             "Ancient arch" => landmarkSizes with { AncientArch = Adjust(landmarkSizes.AncientArch) },
+            "Lighthouse" => landmarkSizes with { Lighthouse = Adjust(landmarkSizes.Lighthouse) },
+            "Market stall" => landmarkSizes with { MarketStall = Adjust(landmarkSizes.MarketStall) },
+            "Windmill" => landmarkSizes with { Windmill = Adjust(landmarkSizes.Windmill) },
             _ => landmarkSizes
         };
     }
@@ -144,6 +156,7 @@ public partial class ArtSample : Node3D
     {
         var settings = new ConfigFile();
         settings.SetValue("preview", "close", close);
+        settings.SetValue("preview", "sea_wreck", seaWreck);
         settings.SetValue("preview", "reference", beachReference);
         settings.SetValue("preview", "style", islandStyle);
         settings.SetValue("preview", "size", islandSize);
@@ -152,6 +165,9 @@ public partial class ArtSample : Node3D
         settings.SetValue("landmarks", "shipwreck", landmarkSizes.Shipwreck);
         settings.SetValue("landmarks", "cave", landmarkSizes.SeaCave);
         settings.SetValue("landmarks", "arch", landmarkSizes.AncientArch);
+        settings.SetValue("landmarks", "lighthouse", landmarkSizes.Lighthouse);
+        settings.SetValue("landmarks", "market", landmarkSizes.MarketStall);
+        settings.SetValue("landmarks", "windmill", landmarkSizes.Windmill);
         settings.Save(SettingsPath);
     }
 

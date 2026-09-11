@@ -3,11 +3,11 @@ using Godot;
 namespace BoatsNBeasts;
 
 // Independent world-size multipliers; the same options drive production and preview.
-public sealed record LandmarkSizes(float Tavern = 1.25f, float Shipwreck = 1.35f, float SeaCave = 1.40f, float AncientArch = 1.25f)
+public sealed record LandmarkSizes(float Tavern = 1.25f, float Shipwreck = 1.35f, float SeaCave = 1.40f, float AncientArch = 1.25f, float Lighthouse = 1.25f, float MarketStall = 1.35f, float Windmill = 1.25f)
 {
     internal float ForKind(int kind)
     {
-        float value = kind switch { 2 => Tavern, 3 => Shipwreck, 4 => SeaCave, 5 => AncientArch, _ => 1 };
+        float value = kind switch { 2 => Tavern, 3 => Shipwreck, 4 => SeaCave, 5 => AncientArch, 6 => Lighthouse, 7 => MarketStall, 8 => Windmill, _ => 1 };
         return float.IsFinite(value) ? Math.Clamp(value, .25f, 4f) : 1;
     }
 }
@@ -161,56 +161,76 @@ public static partial class EnvironmentArt3D
         Shrub(art, new(1.01f, .02f, .44f), .17f, 43);
     }
 
-    private static void Shipwreck(Sculptor art)
+    private static void Shipwreck(Sculptor art, bool afloat = false)
     {
-        Color wood = new("8e6037"), cut = new("b48a53"), dark = new("59432f");
-        float[] xs = [-.94f, -.64f, -.20f, .24f, .70f];
-        float[] widths = [.04f, .30f, .37f, .32f, .14f];
-        float[] heights = [.77f, .64f, .55f, .42f, .20f];
+        Color wood = new("896039"), cut = new("b68a52"), dark = new("564330");
+        float[] xs = [-1.22f, -1.10f, -.83f, -.48f, -.10f, .28f, .57f, .86f, 1.12f];
+        float[] widths = [.045f, .23f, .40f, .49f, .50f, .46f, .40f, .30f, .12f];
+        float[] heights = [1.05f, .96f, .88f, .78f, .72f, .66f, .58f, .39f, .18f];
         Vector3 Hull(int station, float t, int side, bool inside = false) => new(xs[station], .045f + heights[station] * t,
-            side * (.035f + (widths[station] - .035f) * MathF.Sqrt(t) - (inside ? .025f : 0)));
-        // Individual curved strakes stop at different stations around the torn stern.
+            side * (.045f + (widths[station] - .045f) * MathF.Sqrt(t) - (inside ? .035f : 0)));
+        // Thick individual strakes: a high surviving port bow, a torn-away near side,
+        // and staggered broken ends expose the ribs and hold instead of a flat plank wall.
         for (int side = -1; side <= 1; side += 2)
         {
-            for (int row = 0; row < 4; row++) for (int station = 0; station < 4; station++)
+            for (int row = 0; row < 6; row++)
             {
-                if (station == 3 && row >= (side > 0 ? 2 : 3)) continue;
-                float a = row / 4f, b = (row + 1) / 4f - .018f;
-                void Plank(Vector3 p, Vector3 q, Vector3 r, Vector3 t, Color color)
+                int end = row < 2 ? 8 : side > 0 ? (row == 2 ? 6 : row == 3 ? 4 : row == 4 ? 3 : 2) : 8 - (row % 3);
+                for (int station = 0; station < end; station++)
                 {
-                    if (side > 0) art.Quad(p, q, r, t, color); else art.Quad(t, r, q, p, color);
+                    float a = row / 6f, b = (row + 1f) / 6 - .012f;
+                    void Plank(Vector3 p, Vector3 q, Vector3 r, Vector3 t, Color color)
+                    {
+                        if (side > 0) art.Quad(p, q, r, t, color); else art.Quad(t, r, q, p, color);
+                    }
+                    Color timber = row == 0 ? wood.Lerp(new Color("506a5b"), .30f) : wood.Lightened((row + station) % 3 * .035f);
+                    Plank(Hull(station, a, side), Hull(station + 1, a, side), Hull(station + 1, b, side), Hull(station, b, side), timber);
+                    Plank(Hull(station, b, side, true), Hull(station + 1, b, side, true), Hull(station + 1, a, side, true), Hull(station, a, side, true), cut.Darkened(.13f));
+                    Plank(Hull(station, b, side), Hull(station + 1, b, side), Hull(station + 1, b, side, true), Hull(station, b, side, true), cut);
+                    if (station == end - 1)
+                    {
+                        Vector3 tip = (Hull(end, a, side) + Hull(end, b, side)) * .5f + new Vector3(.10f + row % 2 * .05f, .035f, 0);
+                        art.Face(Hull(end, a, side), tip, Hull(end, b, side), cut.Darkened(.10f));
+                        art.Quad(Hull(end, a, side), Hull(end, b, side), Hull(end, b, side, true), Hull(end, a, side, true), dark);
+                    }
+                    if (station > 0 && row % 2 == 0)
+                        art.Ellipsoid(Hull(station, (a + b) / 2, side) + new Vector3(0, 0, side * .008f), new(.012f, .012f, .007f), dark, 5, 3);
                 }
-                Plank(Hull(station, a, side), Hull(station + 1, a, side), Hull(station + 1, b, side), Hull(station, b, side), wood.Lightened(row % 2 * .05f));
-                Plank(Hull(station, b, side, true), Hull(station + 1, b, side, true), Hull(station + 1, a, side, true), Hull(station, a, side, true), cut.Darkened(.10f));
-                art.Tube(Hull(station, b, side), Hull(station + 1, b, side), .011f, .011f, cut, 4);
             }
-            for (int station = 1; station < 4; station++)
+            for (int station = 1; station < 8; station++)
             {
-                var foot = new Vector3(xs[station], .08f, 0);
-                var bend = new Vector3(xs[station], .22f, side * widths[station] * .68f);
-                art.Tube(foot, bend, .027f, .027f, dark, 4);
-                art.Tube(bend, Hull(station, .94f, side, true), .027f, .022f, dark, 4);
+                float rim = side > 0 ? .52f : .94f;
+                for (int section = 0; section < 3; section++)
+                    art.Tube(Hull(station, section * rim / 3, side, true), Hull(station, (section + 1) * rim / 3, side, true), .033f, .028f, wood.Darkened(.13f), 4);
             }
         }
-        for (int i = 0; i < 6; i++)
-            art.RoundedBox(new(-.59f + i * .19f, .085f, 0), new(.18f, .045f, .32f), .008f, cut.Darkened(i % 2 * .06f));
-        art.Tube(new(-.94f, .055f, 0), new(-.94f, .83f, 0), .04f, .026f, cut, 5);
-        art.Tube(new(.22f, .08f, -.04f), new(.44f, 1.39f, -.04f), .038f, .029f, wood, 6);
-        art.Tube(new(-.14f, 1.15f, .015f), new(.86f, 1.30f, .015f), .026f, .021f, cut, 6);
+        for (int i = 0; i < 7; i++)
+            art.RoundedBox(new(-.78f + i * .22f, .18f, 0), new(.21f, .06f, .34f + .23f * Mathf.Sin(i * Mathf.Pi / 7)), .007f, cut.Darkened(i % 3 * .035f));
+        art.Tube(new(-1.22f, .045f, 0), new(-1.22f, 1.17f, 0), .052f, .031f, cut, 5);
+        art.Tube(new(.28f, .10f, -.10f), new(.56f, 1.79f, -.10f), .046f, .033f, wood, 7);
+        art.Tube(new(-.09f, 1.52f, -.045f), new(1.19f, 1.65f, -.045f), .034f, .025f, cut, 6);
         for (int i = 0; i < 3; i++)
-            art.Tube(new(.38f, 1.20f + i * .034f, -.04f), new(.45f, 1.20f + i * .034f, -.04f), .036f, .036f, dark, 6);
-        // Uneven cloth polygons have real gaps and a torn lower hem.
-        Vector3[][] scraps = [
-            [new(-.10f,1.16f,.04f),new(-.06f,.84f,.08f),new(.04f,.96f,.10f),new(.12f,.80f,.10f),new(.24f,1.21f,.04f)],
-            [new(.46f,1.24f,.04f),new(.43f,.82f,.12f),new(.56f,.92f,.12f),new(.67f,.79f,.10f),new(.82f,1.29f,.04f)]
-        ];
-        foreach (var scrap in scraps) for (int i = 1; i < scrap.Length - 1; i++)
-            art.Face(scrap[0], scrap[i], scrap[i + 1], new("d8d0ab"));
-        var wreck = art.Transform;
-        for (int i = 0; i < 3; i++)
+            art.Tube(new(.47f, 1.48f + i * .04f, -.10f), new(.53f, 1.48f + i * .04f, -.10f), .046f, .046f, dark, 6);
+        // Broad folded remnants, with uneven cuts and genuine missing cloth between them.
+        for (int panel = 0; panel < 2; panel++)
         {
-            art.Transform = wreck * new Transform3D(Basis.FromEuler(new(0, -.5f + i * .4f, .05f)), new(.57f + i * .10f, .045f, .40f + i * .09f));
-            art.RoundedBox(Vector3.Zero, new(.43f - i * .06f, .045f, .085f), .006f, wood.Lightened(i * .04f));
+            float left = panel == 0 ? -.055f : .61f, width = panel == 0 ? .46f : .54f;
+            for (int strip = 0; strip < 4; strip++)
+            {
+                Vector3 Top(float t) => new(left + t * width, 1.53f + (left + t * width) * .10f, -.025f);
+                Vector3 Hem(float t) => Top(t) + new Vector3(-.05f * t, -.47f - .11f * Mathf.Sin(t * 13 + panel), .10f + .06f * Mathf.Sin(t * Mathf.Pi));
+                float a = strip / 4f, b = (strip + 1) / 4f;
+                art.Quad(Top(a), Hem(a), Hem(b), Top(b), new Color("d3c59c").Darkened(strip % 2 * .055f));
+            }
+        }
+        art.Tube(new(-.08f, 1.52f, -.05f), new(-.51f, .38f, -.28f), .009f, .009f, new("ab9466"), 5);
+        SupplyCrate(art, new(-.18f, .32f, -.02f), .23f);
+        var wreck = art.Transform;
+        for (int i = 0; i < 4; i++)
+        {
+            float height = afloat ? .17f : .055f;
+            art.Transform = wreck * new Transform3D(Basis.FromEuler(new(0, -.55f + i * .43f, .04f)), new(.54f + i * .20f, height, .62f + (i % 2) * .13f));
+            art.RoundedBox(Vector3.Zero, new(.39f - i * .035f, .045f, .085f), .005f, wood.Lightened(i * .025f));
         }
         art.Transform = wreck;
     }
@@ -219,11 +239,11 @@ public static partial class EnvironmentArt3D
     {
         // An actual recessed shell: the mouth is empty, with side walls, ceiling,
         // a shaded floor and a rear wall well behind the facade.
-        Vector2[] outer = [new(-.84f,.02f),new(-.81f,.67f),new(-.58f,1.18f),new(-.17f,1.43f),new(.36f,1.33f),new(.76f,.88f),new(.84f,.02f)];
-        Vector2[] inner = [new(-.43f,.02f),new(-.45f,.48f),new(-.30f,.80f),new(0,.98f),new(.28f,.82f),new(.44f,.47f),new(.43f,.02f)];
+        Vector2[] outer = [new(-1.08f,.02f),new(-1.10f,.65f),new(-.82f,1.25f),new(-.43f,1.62f),new(.22f,1.55f),new(.72f,1.24f),new(1.04f,.72f),new(1.08f,.02f)];
+        Vector2[] inner = [new(-.48f,.02f),new(-.51f,.46f),new(-.34f,.90f),new(-.12f,1.04f),new(.25f,1.00f),new(.46f,.76f),new(.51f,.39f),new(.49f,.02f)];
         Color rock = new("77868a"), recess = new("354d52");
         Vector3 Front(Vector2 p) => new(p.X, p.Y, .38f);
-        Vector3 Back(Vector2 p) => new(p.X * .82f, p.Y * .84f, -.54f);
+        Vector3 Back(Vector2 p) => new(p.X * .82f, p.Y * .84f, -.82f);
         for (int i = 0; i < outer.Length - 1; i++)
         {
             var middle = (Front(outer[i]) + Front(outer[i + 1]) + Front(inner[i]) + Front(inner[i + 1])) * .25f;
@@ -234,54 +254,68 @@ public static partial class EnvironmentArt3D
             art.Face(Front(inner[i]), middle, Front(outer[i]), rock);
             art.Quad(Back(outer[i + 1]), Back(outer[i]), Front(outer[i]), Front(outer[i + 1]), rock.Darkened(i % 2 * .045f));
             art.Quad(Back(inner[i]), Back(inner[i + 1]), Front(inner[i + 1]), Front(inner[i]), recess.Lightened(i % 3 * .02f));
-            art.Face(new(0, .34f, -.55f), Back(inner[i + 1]), Back(inner[i]), recess.Darkened(.27f));
+            art.Face(new(0, .34f, -.83f), Back(inner[i + 1]), Back(inner[i]), recess.Darkened(.27f));
             art.Quad(Back(outer[i + 1]), Back(inner[i + 1]), Back(inner[i]), Back(outer[i]), rock.Darkened(.12f));
         }
-        art.Face(new(0, .34f, -.55f), Back(inner[0]), Back(inner[^1]), recess.Darkened(.27f));
-        art.Quad(new(-.43f,.025f,.43f),new(.43f,.025f,.43f),new(.35f,.025f,-.55f),new(-.35f,.025f,-.55f), new("666c57"));
+        art.Face(new(0, .34f, -.83f), Back(inner[0]), Back(inner[^1]), recess.Darkened(.27f));
+        // Sand at the mouth fades into the recess instead of reading as a flat dark door.
+        for (int i = 0; i < 4; i++)
+        {
+            float a = i / 4f, b = (i + 1) / 4f;
+            Vector3 Floor(float side, float t) => new(side * Mathf.Lerp(.49f, .40f, t), .026f, Mathf.Lerp(.46f, -.83f, t));
+            Color Tone(float t) => new Color("c2ae7d").Lerp(new Color("304749"), Mathf.SmoothStep(0, .85f, t));
+            art.Triangle(Floor(-1, a), Floor(1, a), Floor(1, b), Tone(a), Tone(a), Tone(b), Vector3.Up, Vector3.Up, Vector3.Up);
+            art.Triangle(Floor(-1, a), Floor(1, b), Floor(-1, b), Tone(a), Tone(b), Tone(b), Vector3.Up, Vector3.Up, Vector3.Up);
+        }
         for (int side = -1; side <= 1; side += 2)
         {
-            art.Boulder(new(side * .76f, .20f, .30f), new(.39f, .44f, .46f), rock, seed + (uint)(side + 3));
-            HangingMoss(art, new(side * .56f, 1.10f, .43f), .47f, seed + (uint)(side + 8));
+            art.Boulder(new(side * .93f, .20f, .30f), new(.50f, .48f, .54f), rock, seed + (uint)(side + 3));
+            HangingMoss(art, new(side * .65f, 1.27f, .43f), .57f, seed + (uint)(side + 8));
         }
-        art.Boulder(new(-.52f, 1.13f, -.10f), new(.50f, .45f, .65f), rock, seed + 15);
-        art.Boulder(new(.58f, .92f, -.10f), new(.40f, .60f, .55f), rock, seed + 17);
-        art.Boulder(new(.05f, 1.38f, -.12f), new(.37f, .12f, .28f), Leaf, seed + 19);
+        art.Boulder(new(-.72f, .92f, -.40f), new(.69f, .95f, .85f), rock, seed + 15);
+        art.Boulder(new(.72f, .72f, -.40f), new(.70f, .92f, .83f), rock, seed + 17);
+        art.Boulder(new(-.12f, 1.56f, -.13f), new(.65f, .14f, .44f), Leaf, seed + 19);
+        for (int i = 0; i < 4; i++)
+            Frond(art, new(-.12f, 1.62f, -.02f), i * 1.7f, .40f, .13f, .10f, Leaf.Lightened(i % 2 * .12f));
+        HangingMoss(art, new(-.21f, 1.56f, .37f), .39f, seed + 22);
+        Shrub(art, new(-1.0f, .04f, .53f), .18f, seed + 24);
     }
 
     private static void AncientArch(Sculptor art, uint seed)
     {
-        Color stone = new("7b8884"), pale = new("b7bca1");
+        Color stone = new("788781"), pale = new("bab79a");
         var arch = art.Transform;
         for (int side = -1; side <= 1; side += 2)
         {
-            art.RoundedBox(new(side * .53f, .06f, 0), new(.43f, .13f, .47f), .028f, stone.Darkened(.12f));
+            art.RoundedBox(new(side * .58f, .07f, 0), new(.52f, .14f, .55f), .04f, stone.Darkened(.13f));
             for (int block = 0; block < 3; block++)
             {
-                art.Transform = arch * new Transform3D(Basis.FromEuler(new(0, side * (block - 1) * .024f, 0)), new(side * .53f, .23f + block * .29f, 0));
-                art.RoundedBox(Vector3.Zero, new(.34f, .28f, .37f), .023f, stone.Lightened(block % 2 * .045f));
+                art.Transform = arch * new Transform3D(Basis.FromEuler(new(0, side * (block - 1) * .018f, side * .008f)), new(side * .58f, .31f + block * .365f, 0));
+                art.RoundedBox(Vector3.Zero, new(.43f + block % 2 * .025f, .352f, .46f), .035f, stone.Lightened(block % 2 * .035f));
             }
             art.Transform = arch;
-            for (int mark = 0; mark < 2; mark++) Glyph(new(side * .53f, .37f + mark * .39f, .199f), .095f);
-            HangingMoss(art, new(side * .61f, 1.18f, .15f), .32f, seed + (uint)(side + 9));
-            art.Boulder(new(side * .76f, .11f, .19f), new(.23f, .24f, .26f), stone, seed + (uint)(side + 2));
+            Glyph(new(side * .58f, .35f, .239f), .11f);
+            Glyph(new(side * .58f, .85f, .239f), .11f);
+            art.Transform = arch * new Transform3D(Basis.FromEuler(new(0, 0, -side * .36f)), new(side * .45f, 1.33f, 0));
+            art.RoundedBox(Vector3.Zero, new(.45f, .40f, .48f), .035f, stone.Lightened(.035f));
+            art.Transform = arch;
+            HangingMoss(art, new(side * .64f, 1.40f, .22f), side < 0 ? .46f : .29f, seed + (uint)(side + 9));
+            art.Boulder(new(side * .88f, .11f, .22f), new(.32f, .28f, .33f), stone, seed + (uint)(side + 2));
         }
-        for (int i = 0; i <= 6; i++)
-        {
-            float angle = i * Mathf.Pi / 6;
-            art.Transform = arch * new Transform3D(Basis.FromEuler(new(0, 0, angle - Mathf.Pi / 2)), new(Mathf.Cos(angle) * .53f, .97f + Mathf.Sin(angle) * .53f, 0));
-            art.RoundedBox(Vector3.Zero, new(.30f, .31f, .39f), .026f, stone.Lightened(i % 3 * .035f));
-        }
-        art.Transform = arch;
-        Glyph(new(0, 1.49f, .202f), .075f);
-        art.Boulder(new(-.21f, 1.56f, -.02f), new(.30f, .10f, .24f), Leaf, seed + 21);
+        // A broad keystone and angled shoulders match the reference's heavy, flat-topped ruin.
+        art.RoundedBox(new(0, 1.52f, 0), new(.64f, .36f, .50f), .04f, stone.Lightened(.055f));
+        Glyph(new(0, 1.51f, .258f), .095f);
+        art.Boulder(new(-.22f, 1.69f, -.04f), new(.35f, .09f, .32f), Leaf, seed + 21);
+        Shrub(art, new(-.87f, .02f, .43f), .15f, seed + 23);
         void Glyph(Vector3 center, float radius)
         {
-            for (int i = 0; i < 20; i++)
+            Vector2[] spiral = [new(-.8f,-1),new(.85f,-1),new(1,-.7f),new(1,.75f),new(.7f,1),new(-.8f,1),new(-1,.7f),new(-1,-.5f),new(.35f,-.5f),new(.48f,-.3f),new(.48f,.35f),new(-.25f,.35f)];
+            for (int i = 0; i < spiral.Length - 1; i++)
             {
-                float a = i * Mathf.Tau * 1.25f / 20, b = (i + 1) * Mathf.Tau * 1.25f / 20;
-                float ra = radius * (1 - i / 26f), rb = radius * (1 - (i + 1) / 26f);
-                art.Tube(center + new Vector3(Mathf.Cos(a) * ra, Mathf.Sin(a) * ra, 0), center + new Vector3(Mathf.Cos(b) * rb, Mathf.Sin(b) * rb, 0), .008f, .008f, pale, 4);
+                var a = center + new Vector3(spiral[i].X, spiral[i].Y, 0) * radius;
+                var b = center + new Vector3(spiral[i + 1].X, spiral[i + 1].Y, 0) * radius;
+                art.Tube(a + new Vector3(.004f, -.004f, -.002f), b + new Vector3(.004f, -.004f, -.002f), .012f, .012f, stone.Darkened(.20f), 4);
+                art.Tube(a, b, .008f, .008f, pale, 4);
             }
         }
     }

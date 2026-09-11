@@ -18,7 +18,9 @@ Saving C# rebuilds and restarts the preview; shader edits refresh without a buil
 
 Preview controls: **Space** shape, **R** size, **V** seed, **B** reference crescent, **P** prison, **T** watchtower, **Tab** scale, **F5** refresh, **F12** capture.
 
-Select **2** tavern, **7** shipwreck, **8** sea cave or **9** ancient arch; **+ / −** adjusts that model's size independently and remembers it across preview restarts. Sizes fit the available land. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
+Select **1** lighthouse, **2** tavern, **3** market stall, **6** windmill, **7** shipwreck, **8** sea cave or **9** ancient arch; **+ / −** adjusts that model's size independently and remembers it across preview restarts. **O** toggles the selected wreck between land and water. Sizes fit the available land; sea wreck size follows its place radius. Production defaults and per-build overrides live in `LandmarkSizes` in `source/presentation/EnvironmentLandmarks3D.cs` (`EnvironmentArt3D.Build(place, new LandmarkSizes(Tavern: 1.6f))`).
+
+Run the focused sea-wreck collision and generation checks with `dotnet run --project tests/WorldChecks.csproj`.
 
 ## Current gameplay
 
@@ -30,7 +32,7 @@ Select **2** tavern, **7** shipwreck, **8** sea cave or **9** ancient arch; **+ 
 
 ## Visual style
 
-Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Prisons occupy rare large island destinations; watchtowers, taverns, shipwrecks, sea caves and ancient arches join the existing ruins, groves and cliffs. Landmarks are decorative. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
+Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Prisons occupy rare large island destinations; watchtowers, taverns, lighthouses, market stalls, windmills, shipwrecks, sea caves and ancient arches join the existing ruins, groves and cliffs. Island landmarks are decorative; sea wrecks are solid obstacles with hull-shaped collision. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
 
 ## Install on macOS
 
