@@ -8,6 +8,8 @@ public partial class ArtSample : Node3D
     NativeStage3D stage = null!;
     float clock;
     bool close;
+    bool boatDetail;
+    BoatKind boatKind = BoatKind.Mage;
     float detailSize = 6.2f;
     bool beachReference = true;
     bool seaWreck;
@@ -62,7 +64,9 @@ public partial class ArtSample : Node3D
     {
         clock += (float)delta;
         var center = close ? new Vector2(rocky.Position.X, rocky.Position.Z) * 100 : Vector2.Zero;
-        stage.Follow(center, close ? detailSize : 0); stage.Advance(clock);
+        if (boatDetail) center = new Vector2(boat.Position.X, boat.Position.Z - .8f) * 100;
+        stage.Follow(center, boatDetail ? 3.5f : close ? detailSize : 0); stage.Advance(clock);
+        ActorArt3D.AnimateBoat(boat, clock, 0, 0);
     }
     void ShowIsland()
     {
@@ -82,12 +86,25 @@ public partial class ArtSample : Node3D
         float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
         status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size";
+            + "Space shape · R island size · V seed · B reference · P prison · T tower · Tab view · F5 refresh · F12 capture\n1 lighthouse · 2 tavern · 3 market · 6 mill · 7 wreck · 8 cave · 9 arch · O land/sea wreck · +/- size · C crew · arrows turn · K boat";
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (key.Keycode == Key.C) { boatDetail = !boatDetail; return; }
+        if (boatDetail && key.Keycode is Key.Left or Key.Right)
+        {
+            boat.RotateY(key.Keycode == Key.Left ? -.45f : .45f); return;
+        }
+        if (boatDetail && key.Keycode == Key.K)
+        {
+            boatKind = (BoatKind)(((int)boatKind + 1) % 3);
+            var replacement = ActorArt3D.Boat(boatKind, [8, 8, 0, 0, 8, 8]);
+            replacement.Transform = boat.Transform;
+            RemoveChild(boat); boat.QueueFree(); boat = replacement; AddChild(boat); return;
+        }
+        boatDetail = false;
         switch (key.Keycode)
         {
             case Key.P: seaWreck = false; beachReference = false; islandStyle = 8; islandSize = 3; variant = 0; close = false; break;

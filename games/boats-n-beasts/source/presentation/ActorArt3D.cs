@@ -34,7 +34,7 @@ public static partial class ActorArt3D
         if (starter == 0) AddAimedWeapon(root, 0, Math.Max(1, ranks[0]), new(0, .26f, -.325f), 1, "AimPrimary");
         for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
         {
-            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], new(0, .425f, .4f), .69f, "AimSecondary");
+            if (i is 0 or 1) AddAimedWeapon(root, i, ranks[i], SecondaryMount, SecondarySize, "AimSecondary");
             break;
         }
         return root;
@@ -116,19 +116,19 @@ public static partial class ActorArt3D
             }
             b.Tube(new[] { new Vector3(side * .22f, .32f, -.28f), new Vector3(side * .275f, .30f, .03f), new Vector3(side * .249f, .33f, .30f) }, .012f, Cream, 6);
         }
-        // Low sterncastle leaves the foredeck free for the starter weapon.
-        b.RoundBox(new(0, .29f, .325f), new(.34f, .155f, .26f), .018f, Wood);
-        b.RoundBox(new(0, .38f, .325f), new(.39f, .038f, .30f), .012f, Deck);
+        // A short, low quarterdeck leaves a continuous working deck around the mast.
+        b.RoundBox(new(0, .263f, .385f), new(.34f, .105f, .17f), .015f, Wood);
+        b.RoundBox(new(0, .327f, .385f), new(.38f, .025f, .20f), .010f, Deck);
         foreach (int side in new[] { -1, 1 })
         {
-            b.RoundBox(new(side * .173f, .30f, .33f), new(.012f, .078f, .097f), .008f, Brass);
-            b.RoundBox(new(side * .182f, .30f, .33f), new(.008f, .052f, .068f), .006f, Glass);
-            b.Tube(new[] { new Vector3(side * .18f, .40f, .23f), new Vector3(side * .18f, .47f, .23f) }, .01f, Wood, 6);
-            b.Tube(new[] { new Vector3(side * .18f, .40f, .46f), new Vector3(side * .18f, .47f, .46f) }, .01f, Wood, 6);
-            b.Tube(new[] { new Vector3(side * .18f, .47f, .23f), new Vector3(side * .18f, .47f, .46f) }, .012f, Cream, 6);
+            b.RoundBox(new(side * .174f, .266f, .39f), new(.012f, .046f, .065f), .005f, Brass);
+            b.RoundBox(new(side * .182f, .266f, .39f), new(.008f, .028f, .042f), .003f, Glass);
+            b.Tube(new[] { new Vector3(side * .18f, .34f, .30f), new Vector3(side * .18f, .405f, .30f),
+                new Vector3(side * .18f, .405f, .46f), new Vector3(side * .18f, .34f, .46f) }, .009f, Cream, 6);
         }
-        for (int i = 0; i < 3; i++)
-            b.RoundBox(new(0, .237f + i * .046f, .14f + i * .035f), new(.14f, .04f, .045f), .004f, Deck);
+        for (int i = 0; i < 2; i++)
+            b.RoundBox(new(0, .237f + i * .044f, .23f + i * .035f), new(.13f, .04f, .05f), .004f, Deck);
+        BoatCrew(b);
         PirateRig(b);
         RamFigurehead(b);
         int starter = Starter(kind);
@@ -136,7 +136,7 @@ public static partial class ActorArt3D
         // One compact stern fitting represents the second weapon slot.
         for (int i = 0; i < ranks.Length; i++) if (i != starter && ranks[i] > 0)
         {
-            if (i is not (0 or 1)) Equipment(b, i, ranks[i], new(0, .425f, .405f), .58f);
+            if (i is not (0 or 1)) Equipment(b, i, ranks[i], SecondaryMount, SecondarySize);
             break;
         }
     }
@@ -148,11 +148,11 @@ public static partial class ActorArt3D
     {
         b.Tube(new[] { new Vector3(0, .22f, .015f), new Vector3(0, MastHeight, .015f) }, new[] { .024f, .014f }, DarkWood, 8);
         b.Tube(new[] { new Vector3(-.375f, 1.03f, .015f), new Vector3(.375f, 1.03f, .015f) }, .015f, Wood, 8);
-        b.Tube(new[] { new Vector3(-.31f, .55f, .015f), new Vector3(.31f, .55f, .015f) }, .011f, Wood, 6);
+        b.Tube(new[] { new Vector3(-.31f, .68f, .015f), new Vector3(.31f, .68f, .015f) }, .011f, Wood, 6);
         // A coarse curved cloth grid: colored geometry on both sides, no textures.
         Vector3 Cloth(float u, float v) => new(
             (u - .5f) * Mathf.Lerp(.60f, .72f, v),
-            .55f + v * .47f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
+            .68f + v * .34f - .025f * MathF.Sin(u * Mathf.Pi) * (1 - v),
             .015f - .12f * MathF.Sin(u * Mathf.Pi) * MathF.Sin(v * Mathf.Pi));
         for (int y = 0; y < 4; y++) for (int x = 0; x < 6; x++)
         {
@@ -166,23 +166,23 @@ public static partial class ActorArt3D
         {
             b.Tube(new[] { new Vector3(0, 1.065f, .015f), new Vector3(side * .255f, .30f, .17f) }, .0045f, DarkWood, 5);
             // The emblem follows the billow and reads from either sailing direction.
-            float Z(float y) => .015f - .12f * MathF.Sin((y - .55f) / .47f * Mathf.Pi) + side * .009f;
+            float Z(float y) => .015f - .12f * MathF.Sin((y - .68f) / .34f * Mathf.Pi) + side * .009f;
             Vector3 P(float x, float y) => new(x, y, Z(y));
             foreach (int diagonal in new[] { -1, 1 })
             {
-                var a = P(-.085f, .705f + diagonal * .05f);
-                var c = P(.085f, .705f - diagonal * .05f);
-                b.Tube(new[] { a, P(0, .705f), c }, .009f, DarkWood, 6);
+                var a = P(-.085f, .79f + diagonal * .05f);
+                var c = P(.085f, .79f - diagonal * .05f);
+                b.Tube(new[] { a, P(0, .79f), c }, .009f, DarkWood, 6);
                 b.Sphere(a, new(.015f, .013f, .008f), DarkWood);
                 b.Sphere(c, new(.015f, .013f, .008f), DarkWood);
             }
-            b.Sphere(P(0, .805f), new(.060f, .062f, .012f), DarkWood);
-            b.RoundBox(P(0, .755f), new(.062f, .035f, .014f), .004f, DarkWood);
+            b.Sphere(P(0, .875f), new(.060f, .062f, .012f), DarkWood);
+            b.RoundBox(P(0, .83f), new(.062f, .035f, .014f), .004f, DarkWood);
             foreach (int eye in new[] { -1, 1 })
-                b.Sphere(P(eye * .022f, .806f) + new Vector3(0, 0, side * .013f), new(.014f, .017f, .006f), Cream);
-            b.RoundBox(P(0, .85f), new(.15f, .018f, .026f), .004f, Brass);
-            b.RoundBox(P(0, .875f), new(.081f, .041f, .025f), .008f, Brass);
-            b.RoundBox(P(0, .861f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
+                b.Sphere(P(eye * .022f, .876f) + new Vector3(0, 0, side * .013f), new(.014f, .017f, .006f), Cream);
+            b.RoundBox(P(0, .92f), new(.15f, .018f, .026f), .004f, Brass);
+            b.RoundBox(P(0, .945f), new(.081f, .041f, .025f), .008f, Brass);
+            b.RoundBox(P(0, .931f) + new Vector3(0, 0, side * .014f), new(.084f, .012f, .005f), .001f, Coral);
         }
         PirateFlag(b);
         b.Sphere(new(0, MastHeight, .015f), new(.025f, .025f, .025f), Brass);
