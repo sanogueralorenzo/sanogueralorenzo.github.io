@@ -64,11 +64,11 @@ public static partial class EnvironmentArt3D
 
     private static void Prison(Sculptor art)
     {
-        Color plaster = new("d3ceb2"), trim = new("eee0b6"), iron = new("34474e"), roof = new("a96b39");
+        Color plaster = new("d3ceb2"), trim = new("eee0b6"), iron = new("34474e"), roof = new("b47b41");
         art.RoundedBox(new(0, .05f, 0), new(1.40f, .14f, 1.06f), .035f, new("a29f89"));
         art.RoundedBox(new(0, .57f, -.025f), new(1.28f, 1.04f, .91f), .045f, plaster);
         art.RoundedBox(new(0, 1.09f, -.025f), new(1.38f, .12f, 1.01f), .025f, trim);
-        HipRoof(art, new(.74f, 1.16f, .53f), 1.60f, .28f, roof);
+        HipRoof(art, new(.74f, 1.16f, .53f), 1.46f, .28f, roof);
         // Projecting gate pillars frame a tall entrance instead of a flat box face.
         for (int side = -1; side <= 1; side += 2)
         {
@@ -121,52 +121,37 @@ public static partial class EnvironmentArt3D
 
     private static void Watchtower(Sculptor art)
     {
-        Color wood = new("87613b"), cut = new("b18a52"), dark = new("60472f"), roof = new("bb8040");
-        const float deck = 1.44f, eaves = 2.06f;
+        Color wood = new("87613b"), cut = new("b18a52"), dark = new("60472f"), roof = new("b47b41");
+        const float deck = 1.64f, eaves = 2.23f;
+        // Reference silhouette: a tapered, cross-braced frame and an enclosed lookout.
+        // All access details are deliberately omitted from this decorative landmark.
         for (int x = -1; x <= 1; x += 2) for (int z = -1; z <= 1; z += 2)
         {
-            var foot = new Vector3(x * .43f, 0, z * .43f);
-            var landing = new Vector3(x * .32f, deck, z * .32f);
-            art.RoundedBox(foot + new Vector3(0, .05f, 0), new(.24f, .10f, .24f), .025f, Stone);
-            art.Tube(foot, landing, .066f, .050f, wood, 5);
-            art.Tube(landing, new(x * .32f, eaves, z * .32f), .050f, .044f, wood, 5);
-        }
-        // Brace the sides and back; leave the front ladder approach unobstructed.
-        for (int side = -1; side <= 1; side += 2)
-        {
-            art.Tube(new(side * .42f, .18f, -.40f), new(side * .32f, deck - .08f, .32f), .035f, .035f, cut, 4);
-            art.Tube(new(side * .42f, .18f, .40f), new(side * .32f, deck - .08f, -.32f), .035f, .035f, dark, 4);
-            art.Tube(new(side * .40f, .18f, -.42f), new(-side * .32f, deck - .08f, -.32f), .035f, .035f, cut, 4);
-            art.RoundedBox(new(side * .33f, deck - .09f, 0), new(.085f, .13f, .92f), .012f, dark);
-        }
-        // The last three floor boards are split around a real ladder opening.
-        for (int i = 0; i < 8; i++)
-        {
-            float z = -.405f + i * .115f;
-            if (i < 5) art.RoundedBox(new(0, deck, z), new(.94f, .075f, .11f), .009f, cut.Lightened(i % 3 * .025f));
-            else for (int side = -1; side <= 1; side += 2)
-                art.RoundedBox(new(side * .315f, deck, z), new(.31f, .075f, .11f), .009f, cut);
+            var foot = new Vector3(x * .44f, 0, z * .44f);
+            var landing = new Vector3(x * .28f, deck, z * .28f);
+            art.RoundedBox(foot + new Vector3(0, .05f, 0), new(.23f, .10f, .23f), .025f, Stone);
+            art.Tube(foot, landing, .068f, .050f, wood, 5);
+            art.Tube(landing, new(x * .28f, eaves, z * .28f), .050f, .042f, wood, 5);
         }
         for (int side = -1; side <= 1; side += 2)
         {
-            art.RoundedBox(new(side * .44f, deck + .24f, 0), new(.06f, .075f, .92f), .009f, cut);
-            art.RoundedBox(new(side * .44f, deck + .10f, 0), new(.04f, .05f, .92f), .008f, wood);
-            art.RoundedBox(new(side * .315f, deck + .24f, .44f), new(.31f, .075f, .06f), .009f, cut);
-            art.Tube(new(side * .16f, deck, .44f), new(side * .16f, deck + .29f, .44f), .026f, .026f, wood, 5);
+            art.Tube(new(side * .425f, .16f, -.415f), new(side * .29f, deck - .10f, .29f), .040f, .040f, cut, 4);
+            art.Tube(new(side * .425f, .16f, .415f), new(side * .29f, deck - .10f, -.29f), .040f, .040f, dark, 4);
+            art.Tube(new(-.415f, .16f, side * .425f), new(.29f, deck - .10f, side * .29f), .040f, .040f, cut, 4);
+            art.Tube(new(.415f, .16f, side * .425f), new(-.29f, deck - .10f, side * .29f), .040f, .040f, wood, 4);
+            art.RoundedBox(new(side * .285f, deck - .09f, 0), new(.095f, .13f, .83f), .012f, dark);
         }
-        art.RoundedBox(new(0, deck + .24f, -.44f), new(.94f, .075f, .06f), .009f, cut);
-        art.RoundedBox(new(0, deck + .10f, -.44f), new(.94f, .05f, .04f), .008f, wood);
-        HipRoof(art, new(.55f, eaves, .55f), 2.45f, 0, roof);
-        // Both rails and every rung share the same slope into the open landing.
-        float LadderZ(float y) => Mathf.Lerp(.64f, .31f, (y - .06f) / (deck - .06f));
+        for (int i = 0; i < 7; i++)
+            art.RoundedBox(new(0, deck, -.345f + i * .115f), new(.83f, .075f, .11f), .009f, cut.Lightened(i % 3 * .025f));
         for (int side = -1; side <= 1; side += 2)
-            art.Tube(new(side * .12f, .06f, LadderZ(.06f)), new(side * .12f, deck + .20f, LadderZ(deck + .20f)), .025f, .025f, dark, 5);
-        for (int i = 0; i < 9; i++)
         {
-            float y = .16f + i * .16f;
-            art.Tube(new(-.13f, y, LadderZ(y)), new(.13f, y, LadderZ(y)), .026f, .026f, cut, 5);
+            art.RoundedBox(new(side * .38f, deck + .20f, 0), new(.065f, .33f, .80f), .012f, wood);
+            art.RoundedBox(new(0, deck + .20f, side * .38f), new(.80f, .33f, .065f), .012f, side > 0 ? wood : dark);
+            art.RoundedBox(new(side * .40f, deck + .385f, 0), new(.08f, .06f, .84f), .01f, cut);
+            art.RoundedBox(new(0, deck + .385f, side * .40f), new(.84f, .06f, .08f), .01f, cut);
         }
-        NavyBanner(art, new(-.315f, deck + .08f, .49f), .23f, .41f);
+        HipRoof(art, new(.49f, eaves, .49f), 2.65f, 0, roof);
+        NavyBanner(art, new(0, deck + .19f, .429f), .29f, .46f);
     }
 
     private static void HipRoof(Sculptor art, Vector3 eaves, float peak, float ridge, Color color)
