@@ -111,10 +111,11 @@ void fragment() {
         float lane=float(i), seed=lane*17.3+9.0;
         float theta=mod(turn-lane*2.399963-hash(seed)*.9,6.2831853);
         float span=.24+.24*hash(seed+1.0), u=theta/span;
-        // Bend by angle, not normalized length, so short pieces cannot tip radially outward.
-        // Including drift and soft edges, foam stays within .85–1.06 of the whirlpool radius.
-        float arc=.895+.115*hash(seed+3.0)+(.015+.025*hash(seed+4.0))*(theta-span*.5)
-                 +.018*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
+        // A gentle outward pitch follows the rotation; angle-based slope keeps short pieces stable.
+        // Including drift and soft edges, foam stays inside the .82–1.08 radius band.
+        float outward_pitch=.12+.06*hash(seed+4.0);
+        float arc=.895+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
+                 +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
         float width=(.0035+.005*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.35,width+aa,abs(r-arc)))
                     *smoothstep(0.0,.16,u)*(1.0-smoothstep(.72,1.0,u));
