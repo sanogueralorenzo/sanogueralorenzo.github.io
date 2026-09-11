@@ -17,7 +17,7 @@ public partial class ArtSample : Node3D
     int islandSize = 1;
     uint variant;
     // Fixed production seeds cover the eight coastline families.
-    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34];
+    static readonly uint[] IslandStyles = [4, 6, 1, 2, 12, 32, 33, 34, 29, 5];
     static readonly float[] IslandSizes = [95, 200, 330, OceanWorld.MaxIslandRadius];
     public override void _Ready()
     {
@@ -60,15 +60,17 @@ public partial class ArtSample : Node3D
         rocky.Position = giant ? new(1, 0, 0) : new(4, 0, .4f);
         boat.Position = giant ? new(-6.3f, 0, 4.6f) : Vector3.Zero;
         home.Visible = crab.Visible = !giant;
-        status.Text = $"{place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Space shape · R size · V seed · B reference · Tab scale · F5 refresh · F12 capture";
-        GD.Print($"ISLAND SAMPLE profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
+        status.Text = $"{EnvironmentArt3D.IslandScenery(place.Radius, place.Style)} · {place.Shape!.Profile} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
+            + "Space shape · R size · V seed · B reference · P prison · T tower · Tab scale · F5 refresh · F12 capture";
+        GD.Print($"ISLAND SAMPLE scenery={EnvironmentArt3D.IslandScenery(place.Radius, place.Style)} profile={place.Shape!.Profile} radius={place.Radius} style={place.Style}");
     }
     public override async void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
         switch (key.Keycode)
         {
+            case Key.P: beachReference = false; islandStyle = 8; islandSize = 2; variant = 0; close = false; break;
+            case Key.T: beachReference = false; islandStyle = 9; islandSize = 1; variant = 0; close = false; break;
             case Key.B: beachReference = !beachReference; break;
             case Key.Tab: close = !close; break;
             case Key.Space:

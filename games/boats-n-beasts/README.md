@@ -16,7 +16,7 @@ Set `GODOT_BIN` and `DOTNET_ROOT` if the launcher cannot find them. Add `--impor
 
 Saving C# rebuilds and restarts the preview; shader edits refresh without a build. Failed builds keep the last preview open. Island selection and viewing scale survive restarts. Close the window or press Ctrl+C to stop.
 
-Preview controls: **Space** shape, **R** size, **V** seed, **B** reference crescent, **Tab** scale, **F5** refresh, **F12** capture.
+Preview controls: **Space** shape, **R** size, **V** seed, **B** reference crescent, **P** prison, **T** watchtower, **Tab** scale, **F5** refresh, **F12** capture.
 
 ## Current gameplay
 
@@ -28,7 +28,7 @@ Preview controls: **Space** shape, **R** size, **V** seed, **B** reference cresc
 
 ## Visual style
 
-Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
+Use broad matte shapes, warm light, quiet teal water, irregular sandy islands and readable wooden pirate ships. Seeded prison and watchtower scenery joins the existing ruins, groves and cliffs; buildings are decorative. Follow the [reef reference](docs/island-reference.png) and [diorama reference](docs/visual-restart/flat-diorama-reference.png); generate all gameplay art in code.
 
 ## Install on macOS
 

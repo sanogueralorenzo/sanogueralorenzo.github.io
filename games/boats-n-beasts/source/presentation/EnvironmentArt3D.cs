@@ -4,7 +4,7 @@ using BoatsNBeasts.Core;
 namespace BoatsNBeasts;
 
 /// <summary>Seeded coastal terrain and island compositions. One world unit is 100 simulation units.</summary>
-public static class EnvironmentArt3D
+public static partial class EnvironmentArt3D
 {
     private static readonly Color Sand = new("edce8f"), Stone = new("64747b"), Leaf = new("538844");
     private static readonly Dictionary<string, Material> Materials = new();
@@ -248,6 +248,7 @@ public static class EnvironmentArt3D
 
     private static void IslandInterior(Sculptor art, float r, uint seed)
     {
+        if (SettlementInterior(art, r, seed)) return;
         int kind = (int)(seed % 3);
         var rng = new SeedRandom(seed + 117);
         int count = kind == 1 ? 4 : 8;
@@ -486,8 +487,16 @@ public static class EnvironmentArt3D
         public float HeightScale = 1;
         public float BeachReserve;
         public System.Numerics.Vector2? TreasureSpace;
+        public (Vector2 Center, float Radius)? LandmarkSpace;
+        public (Vector2 Start, Vector2 End, float Width)? JettySpace;
         private int propDepth;
         private int hiddenPropDepth;
+        public Transform3D BeginWorldProp()
+        {
+            var old = Transform;
+            Transform = Transform3D.Identity; propDepth++;
+            return old;
+        }
         public Transform3D PlaceProp(Vector3 at, float footprintRadius)
         {
             var old = Transform;
@@ -499,6 +508,11 @@ public static class EnvironmentArt3D
                 scale = HeightScale;
                 float available = InlandClearance(Footprint, new(at.X, at.Z)) - BeachReserve;
                 scale = MathF.Min(scale, MathF.Max(0, available) / footprintRadius);
+                var center = new Vector2(p.X * .01f, p.Y * .01f);
+                if (LandmarkSpace is { } landmark && center.DistanceTo(landmark.Center) < landmark.Radius + footprintRadius * scale)
+                    hiddenPropDepth = propDepth + 1;
+                if (JettySpace is { } jetty && center.DistanceTo(Geometry2D.GetClosestPointToSegment(center, jetty.Start, jetty.End)) < jetty.Width + footprintRadius * scale)
+                    hiddenPropDepth = propDepth + 1;
                 // A narrow spit may support sand only; omit props instead of squeezing
                 // them onto the shoreline or leaving barely visible miniature rocks.
                 if (scale < HeightScale * .30f) hiddenPropDepth = propDepth + 1;
