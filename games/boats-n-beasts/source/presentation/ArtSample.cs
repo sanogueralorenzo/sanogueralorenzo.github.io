@@ -46,7 +46,12 @@ public partial class ArtSample : Node3D
         ShowIsland();
         GetWindow().Title = "Boats ’n’ Beasts · Native art sample";
     }
-    public override void _Process(double delta) { clock += (float)delta; stage.Follow(Vector2.Zero, close ? 6.2f : 0); stage.Advance(clock); }
+    public override void _Process(double delta)
+    {
+        clock += (float)delta;
+        var center = close ? new Vector2(rocky.Position.X, rocky.Position.Z) * 100 : Vector2.Zero;
+        stage.Follow(center, close ? 6.2f : 0); stage.Advance(clock);
+    }
     void ShowIsland()
     {
         if (rocky != null) { RemoveChild(rocky); rocky.QueueFree(); }

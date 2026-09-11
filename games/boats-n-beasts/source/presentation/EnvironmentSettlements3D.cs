@@ -38,10 +38,10 @@ public static partial class EnvironmentArt3D
         }
         // If the island cannot carry a readable landmark, retain its natural interior.
         if (best < .50f) return false;
-        float footprint = kind == 0 ? 1.0f : .78f;
+        float footprint = kind == 0 ? 1.0f : .82f;
         float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .60f : .48f), 3.0f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
-        art.Transform *= new Transform3D(Basis.Identity.Scaled(Vector3.One * scale), Vector3.Zero);
+        art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.22f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
         if (kind == 0) Prison(art); else Watchtower(art);
         art.EndProp(old);
@@ -64,58 +64,123 @@ public static partial class EnvironmentArt3D
 
     private static void Prison(Sculptor art)
     {
-        Color plaster = new("d3ceb2"), trim = new("eee0b6"), wood = new("805b38"), iron = new("34474e");
-        art.RoundedBox(new(0, .05f, 0), new(1.36f, .12f, 1.02f), .03f, new("a29f89"));
-        art.RoundedBox(new(0, .43f, 0), new(1.22f, .78f, .86f), .045f, plaster);
-        art.RoundedBox(new(0, .85f, 0), new(1.35f, .15f, .98f), .025f, trim);
-        // A warm flat roof and four low parapets leave a strong prison silhouette.
-        art.RoundedBox(new(0, .94f, 0), new(1.14f, .07f, .76f), .015f, wood);
+        Color plaster = new("d3ceb2"), trim = new("eee0b6"), iron = new("34474e"), roof = new("a96b39");
+        art.RoundedBox(new(0, .05f, 0), new(1.40f, .14f, 1.06f), .035f, new("a29f89"));
+        art.RoundedBox(new(0, .57f, -.025f), new(1.28f, 1.04f, .91f), .045f, plaster);
+        art.RoundedBox(new(0, 1.09f, -.025f), new(1.38f, .12f, 1.01f), .025f, trim);
+        HipRoof(art, new(.74f, 1.16f, .53f), 1.60f, .28f, roof);
+        // Projecting gate pillars frame a tall entrance instead of a flat box face.
         for (int side = -1; side <= 1; side += 2)
         {
-            art.RoundedBox(new(side * .62f, 1.01f, 0), new(.12f, .22f, .94f), .018f, plaster);
-            art.RoundedBox(new(0, 1.01f, side * .41f), new(1.25f, .22f, .12f), .018f, plaster);
-            art.RoundedBox(new(side * .56f, .40f, .45f), new(.14f, .79f, .13f), .02f, trim);
-            NavyBanner(art, new(side * .43f, .61f, .53f), .23f, .43f);
+            art.RoundedBox(new(side * .55f, .57f, .46f), new(.23f, 1.10f, .28f), .025f, plaster.Darkened(.05f));
+            art.RoundedBox(new(side * .55f, 1.15f, .46f), new(.30f, .12f, .35f), .022f, trim);
+            art.RoundedBox(new(side * .55f, .12f, .46f), new(.28f, .22f, .34f), .02f, new("aaa58a"));
+            if (side > 0) NavyBanner(art, new(side * .55f, .79f, .614f), .18f, .48f);
         }
-        Arch(art, new(0, .10f, .451f), .42f, .61f, .045f, new("25363a"), trim);
-        for (int i = -2; i <= 2; i++)
-            art.Tube(new(i * .071f, .11f, .49f), new(i * .071f, .62f - MathF.Abs(i) * .025f, .49f), .015f, .015f, iron, 5);
-        art.RoundedBox(new(0, .31f, .505f), new(.39f, .025f, .026f), .004f, iron);
+        // One raised octagonal corner breaks the roofline and identifies a fortified lockup.
+        var turret = new Vector3(-.53f, 0, .40f);
+        art.Tube(turret + new Vector3(0, .08f, 0), turret + new Vector3(0, 1.45f, 0), .235f, .225f, plaster, 8);
+        art.Tube(turret + new Vector3(0, 1.40f, 0), turret + new Vector3(0, 1.52f, 0), .265f, .265f, trim, 8);
+        art.Tube(turret + new Vector3(0, 1.53f, 0), turret + new Vector3(0, 1.94f, 0), .29f, .015f, roof, 8);
+        art.RoundedBox(turret + new Vector3(0, 1.24f, .225f), new(.095f, .19f, .018f), .006f, new("24373b"));
+        NavyBanner(art, turret + new Vector3(0, .80f, .24f), .18f, .43f);
+        const float gateBase = .11f, gateSpring = .69f, gateRadius = .29f;
+        Arch(art, new(0, gateBase, .449f), gateRadius * 2, gateSpring + gateRadius - gateBase, .065f, new("24373b"), trim);
+        // Broad voussoirs give the arch depth and remain readable at game scale.
+        var wall = art.Transform;
+        for (int i = 0; i <= 8; i++)
+        {
+            float a = i * Mathf.Pi / 8;
+            art.Transform = wall * new Transform3D(Basis.FromEuler(new(0, 0, a - Mathf.Pi / 2)),
+                new(MathF.Cos(a) * .35f, gateSpring + MathF.Sin(a) * .35f, .50f));
+            art.RoundedBox(Vector3.Zero, new(.14f, .13f, .13f), .012f, trim.Darkened(i % 3 * .025f));
+        }
+        art.Transform = wall;
+        for (int side = -1; side <= 1; side += 2)
+            art.RoundedBox(new(side * .35f, .40f, .50f), new(.12f, .59f, .13f), .014f, trim);
+        for (int i = -3; i <= 3; i++)
+        {
+            float x = i * .077f;
+            float top = gateSpring + MathF.Sqrt(gateRadius * gateRadius - x * x) - .035f;
+            art.Tube(new(x, gateBase, .495f), new(x, top, .495f), .016f, .016f, iron, 5);
+        }
+        foreach (float y in new[] { .32f, .62f })
+            art.RoundedBox(new(0, y, .514f), new(.55f, .029f, .028f), .004f, iron);
+        art.RoundedBox(new(.06f, .48f, .525f), new(.085f, .12f, .04f), .008f, new("79663d"));
+        // A barred side window makes the angled view read as a lockup.
+        art.Transform = wall * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.65f, .68f, -.03f));
+        art.RoundedBox(Vector3.Zero, new(.30f, .35f, .045f), .015f, trim);
+        art.RoundedBox(new(0, 0, .027f), new(.23f, .28f, .025f), .008f, new("24373b"));
+        for (int i = -1; i <= 1; i++) art.Tube(new(i * .065f, -.13f, .048f), new(i * .065f, .13f, .048f), .012f, .012f, iron, 5);
+        art.Transform = wall;
         for (int i = 0; i < 3; i++)
-            art.RoundedBox(new(0, .07f - i * .025f, .53f + i * .10f), new(.51f + i * .07f, .08f, .13f), .01f, trim);
-        Crate(art, new(-.69f, .10f, .44f), .19f);
-        Crate(art, new(.69f, .10f, .39f), .16f);
+            art.RoundedBox(new(0, .10f - i * .023f, .57f + i * .10f), new(.60f + i * .055f, .07f, .13f), .014f, trim);
+        Crate(art, new(-.72f, .11f, .35f), .19f);
+        Crate(art, new(.73f, .095f, .37f), .16f);
     }
 
     private static void Watchtower(Sculptor art)
     {
         Color wood = new("87613b"), cut = new("b18a52"), dark = new("60472f"), roof = new("bb8040");
+        const float deck = 1.44f, eaves = 2.06f;
         for (int x = -1; x <= 1; x += 2) for (int z = -1; z <= 1; z += 2)
         {
             var foot = new Vector3(x * .43f, 0, z * .43f);
+            var landing = new Vector3(x * .32f, deck, z * .32f);
             art.RoundedBox(foot + new Vector3(0, .05f, 0), new(.24f, .10f, .24f), .025f, Stone);
-            art.Tube(foot, new(x * .28f, 1.99f, z * .28f), .065f, .047f, wood, 5);
+            art.Tube(foot, landing, .066f, .050f, wood, 5);
+            art.Tube(landing, new(x * .32f, eaves, z * .32f), .050f, .044f, wood, 5);
         }
+        // Brace the sides and back; leave the front ladder approach unobstructed.
         for (int side = -1; side <= 1; side += 2)
         {
-            art.Tube(new(-.40f, .19f, side * .39f), new(.30f, 1.39f, side * .30f), .035f, .035f, cut, 4);
-            art.Tube(new(.40f, .19f, side * .39f), new(-.30f, 1.39f, side * .30f), .035f, .035f, cut, 4);
-            art.Tube(new(side * .39f, .19f, -.40f), new(side * .30f, 1.39f, .30f), .035f, .035f, dark, 4);
+            art.Tube(new(side * .42f, .18f, -.40f), new(side * .32f, deck - .08f, .32f), .035f, .035f, cut, 4);
+            art.Tube(new(side * .42f, .18f, .40f), new(side * .32f, deck - .08f, -.32f), .035f, .035f, dark, 4);
+            art.Tube(new(side * .40f, .18f, -.42f), new(-side * .32f, deck - .08f, -.32f), .035f, .035f, cut, 4);
+            art.RoundedBox(new(side * .33f, deck - .09f, 0), new(.085f, .13f, .92f), .012f, dark);
         }
-        art.RoundedBox(new(0, 1.43f, 0), new(.94f, .13f, .94f), .018f, cut);
-        for (int side = -1; side <= 1; side += 2)
-        {
-            art.RoundedBox(new(side * .42f, 1.64f, 0), new(.055f, .29f, .86f), .012f, wood);
-            art.RoundedBox(new(0, 1.64f, side * .42f), new(.86f, .29f, .055f), .012f, wood);
-        }
-        Vector3 peak = new(0, 2.33f, 0);
-        Vector3[] corners = [new(-.55f, 1.95f, -.55f), new(.55f, 1.95f, -.55f), new(.55f, 1.95f, .55f), new(-.55f, 1.95f, .55f)];
-        for (int i = 0; i < 4; i++) art.Face(corners[i], peak, corners[(i + 1) % 4], roof.Lightened(i * .035f));
-        for (int side = -1; side <= 1; side += 2)
-            art.Tube(new(side * .12f, .08f, .49f), new(side * .12f, 1.43f, .35f), .022f, .022f, dark, 5);
+        // The last three floor boards are split around a real ladder opening.
         for (int i = 0; i < 8; i++)
-            art.Tube(new(-.14f, .15f + i * .16f, .48f - i * .016f), new(.14f, .15f + i * .16f, .48f - i * .016f), .024f, .024f, cut, 5);
-        NavyBanner(art, new(0, 1.65f, .465f), .32f, .46f);
+        {
+            float z = -.405f + i * .115f;
+            if (i < 5) art.RoundedBox(new(0, deck, z), new(.94f, .075f, .11f), .009f, cut.Lightened(i % 3 * .025f));
+            else for (int side = -1; side <= 1; side += 2)
+                art.RoundedBox(new(side * .315f, deck, z), new(.31f, .075f, .11f), .009f, cut);
+        }
+        for (int side = -1; side <= 1; side += 2)
+        {
+            art.RoundedBox(new(side * .44f, deck + .24f, 0), new(.06f, .075f, .92f), .009f, cut);
+            art.RoundedBox(new(side * .44f, deck + .10f, 0), new(.04f, .05f, .92f), .008f, wood);
+            art.RoundedBox(new(side * .315f, deck + .24f, .44f), new(.31f, .075f, .06f), .009f, cut);
+            art.Tube(new(side * .16f, deck, .44f), new(side * .16f, deck + .29f, .44f), .026f, .026f, wood, 5);
+        }
+        art.RoundedBox(new(0, deck + .24f, -.44f), new(.94f, .075f, .06f), .009f, cut);
+        art.RoundedBox(new(0, deck + .10f, -.44f), new(.94f, .05f, .04f), .008f, wood);
+        HipRoof(art, new(.55f, eaves, .55f), 2.45f, 0, roof);
+        // Both rails and every rung share the same slope into the open landing.
+        float LadderZ(float y) => Mathf.Lerp(.64f, .31f, (y - .06f) / (deck - .06f));
+        for (int side = -1; side <= 1; side += 2)
+            art.Tube(new(side * .12f, .06f, LadderZ(.06f)), new(side * .12f, deck + .20f, LadderZ(deck + .20f)), .025f, .025f, dark, 5);
+        for (int i = 0; i < 9; i++)
+        {
+            float y = .16f + i * .16f;
+            art.Tube(new(-.13f, y, LadderZ(y)), new(.13f, y, LadderZ(y)), .026f, .026f, cut, 5);
+        }
+        NavyBanner(art, new(-.315f, deck + .08f, .49f), .23f, .41f);
+    }
+
+    private static void HipRoof(Sculptor art, Vector3 eaves, float peak, float ridge, Color color)
+    {
+        Vector3 a = new(-eaves.X, eaves.Y, eaves.Z), b = new(eaves.X, eaves.Y, eaves.Z);
+        Vector3 c = new(eaves.X, eaves.Y, -eaves.Z), d = new(-eaves.X, eaves.Y, -eaves.Z);
+        Vector3 left = new(-ridge, peak, 0), right = new(ridge, peak, 0);
+        art.Quad(a, b, right, left, color);
+        art.Face(b, c, right, color.Lightened(.10f));
+        art.Quad(c, d, left, right, color.Darkened(.06f));
+        art.Face(d, a, left, color.Lightened(.04f));
+        Vector3[] edge = [a, b, c, d];
+        for (int i = 0; i < 4; i++) art.Tube(edge[i], edge[(i + 1) % 4], .025f, .025f, color.Darkened(.17f), 4);
+        if (ridge > 0) art.Tube(left, right, .03f, .03f, color.Lightened(.09f), 5);
     }
 
     private static void NavyBanner(Sculptor art, Vector3 at, float width, float height)
@@ -139,14 +204,16 @@ public static partial class EnvironmentArt3D
     private static void PrisonJetty(Sculptor art, Transform3D building)
     {
         float scale = building.Basis.X.Length(), halfWidth = scale * .29f;
-        var start = building * new Vector3(0, 0, .76f);
+        var start = building * new Vector3(0, 0, .82f);
+        var basis = building.Basis.Orthonormalized();
+        var direction = new Vector2(basis.Z.X, basis.Z.Z);
         float length = 0;
         // Stop within the dry coast: decorative timber never creates an invisible
         // obstacle in navigable water or requires a separate collision footprint.
         for (int i = 1; i <= 128; i++)
         {
             float next = i * .06f;
-            var center = new Vector2(start.X, start.Z + next);
+            var center = new Vector2(start.X, start.Z) + direction * next;
             if (InlandClearance(art.Footprint!, center) < halfWidth + .02f) break;
             if (art.TreasureSpace is { } treasure && center.DistanceTo(new(treasure.X, treasure.Y)) < halfWidth + .48f) break;
             length = next;
@@ -154,15 +221,16 @@ public static partial class EnvironmentArt3D
         if (length < .12f) return;
         // Enter a fitted prop so mesh vertices retain their world-space positions.
         var old = art.BeginWorldProp();
+        art.Transform = new Transform3D(basis, new(start.X, .25f, start.Z));
         int planks = Math.Max(2, (int)MathF.Ceiling(length / (.10f * scale)));
         for (int i = 0; i <= planks; i++)
-            art.RoundedBox(new(start.X, .25f, start.Z + length * i / planks), new(halfWidth * 2, .065f, length / planks * .94f), .012f, new Color("a17a49").Lightened(i % 3 * .025f));
+            art.RoundedBox(new(0, 0, length * i / planks), new(halfWidth * 2, .065f, length / planks * .94f), .012f, new Color("a17a49").Lightened(i % 3 * .025f));
         for (int side = -1; side <= 1; side += 2) for (int i = 0; i < 3; i++)
         {
-            var foot = new Vector3(start.X + side * halfWidth * .88f, .02f, start.Z + length * i / 2);
+            var foot = new Vector3(side * halfWidth * .88f, -.23f, length * i / 2);
             art.Tube(foot, foot + new Vector3(0, .27f + .16f * scale, 0), scale * .045f, scale * .040f, new("795636"), 7);
         }
         art.EndProp(old);
-        art.JettySpace = (new(start.X, start.Z), new(start.X, start.Z + length), halfWidth);
+        art.JettySpace = (new(start.X, start.Z), new Vector2(start.X, start.Z) + direction * length, halfWidth);
     }
 }
