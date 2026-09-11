@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_prepass_alpha;
 uniform float clock = 0.0;
+const float current_twist = 7.0;
 // Angle, length, radius, width: three loose groups beside the outer currents,
 // with short connecting accents and open water between them. All rotate with turn.
 const vec4 foam_layout[8] = vec4[8](
@@ -27,7 +28,7 @@ void fragment() {
     float current_coverage=0.0;
     // Broad submerged facets share the spiral direction of the surface strokes.
     // Their slanted boundaries continue through the gaps instead of a flat dark backing.
-    float flow=turn+r*7.0;
+    float flow=turn+r*current_twist;
     vec2 bed=vec2(cos(flow),sin(flow))*(2.0+r*4.0);
     vec2 bed_cell=floor(bed), bed_local=fract(bed);
     float bed_a=hash(bed_cell.x*13.1+bed_cell.y*27.7);
@@ -120,15 +121,10 @@ void fragment() {
         vec4 placement=foam_layout[i];
         float theta=mod(turn-placement.x,6.2831853);
         float span=placement.y, u=theta/span;
-        // A gentle outward pitch follows the rotation; angle-based slope keeps short pieces stable.
+        // Follow the water's turn + radius * twist curves, with the same inward slope.
         // Including drift and soft edges, foam stays inside the .80–1.08 radius band.
-        float outward_pitch=.06+.03*hash(seed+4.0);
-        float arc=placement.z+outward_pitch*(theta-span*.5)
+        float arc=placement.z-(theta-span*.5)/current_twist
                  +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed);
-        // Curl the beginning into the lip, easing smoothly into the existing sweep.
-        float bend_span=min(span*.65,.20);
-        float bend=max(bend_span-theta,0.0);
-        arc-=.12*bend*bend/bend_span;
         float width=placement.w*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.15,width*1.35+aa,abs(r-arc)))
                     *smoothstep(0.0,.24,u)*(1.0-smoothstep(.65,1.0,u));
