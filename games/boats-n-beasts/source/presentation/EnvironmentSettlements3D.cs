@@ -131,7 +131,7 @@ public static partial class EnvironmentArt3D
         for (int i = 0; i < 3; i++)
             art.RoundedBox(new(0, .17f - i * .045f, -.035f + i * .08f), new(.34f, .06f, .09f), .008f, trim);
 
-        // Windowless service buildings and fenced yards preserve a clear approach.
+        // Windowless service buildings flank the open courtyard.
         for (int side = -1; side <= 1; side += 2)
         {
             var wing = building * new Transform3D(Basis.FromEuler(new(0, side * Mathf.Pi / 2, 0)), new(side * .82f, 0, -.04f));
@@ -144,10 +144,6 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(0, .23f, -.145f), new(.12f, .25f, .02f), .003f, new("59636c"));
             art.RoundedBox(new(.035f, .23f, -.158f), new(.012f, .035f, .012f), .002f, iron);
             art.Transform = building;
-            // Iron fences divide side exercise yards from the entrance avenue.
-            for (int i = 0; i < 6; i++)
-                art.Tube(new(side * .52f, .10f, .22f + i * .09f), new(side * .52f, .33f, .22f + i * .09f), .008f, .008f, iron, 4);
-            art.RoundedBox(new(side * .52f, .30f, .445f), new(.018f, .025f, .48f), .004f, iron);
             for (int i = 0; i < 3; i++)
                 art.RoundedBox(new(side * .76f, .15f, .32f + i * .16f), new(.26f, .08f, .06f), .009f, trim);
         }
