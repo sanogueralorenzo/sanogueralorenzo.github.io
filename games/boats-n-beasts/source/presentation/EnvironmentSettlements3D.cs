@@ -39,8 +39,8 @@ public static partial class EnvironmentArt3D
         // If the island cannot carry a readable landmark, retain its natural interior.
         if (best < .50f) return false;
         // The prison radius includes the projecting gatehouse and entrance steps.
-        float footprint = kind == 0 ? 1.15f : .82f;
-        float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .60f : .48f), 3.0f), best / (footprint * art.HeightScale));
+        float footprint = kind == 0 ? 1.56f : .82f;
+        float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .72f : .48f), 3.0f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
         var building = art.Transform;
@@ -63,31 +63,35 @@ public static partial class EnvironmentArt3D
         return true;
     }
 
+    private const float PrisonGateOffset = .40f;
+
     private static void Prison(Sculptor art)
     {
-        // Cool charcoal walls with lighter edges keep the dark fortress readable.
-        Color stone = new("515b68"), trim = new("808995"), iron = new("343b45");
+        // Muted slate and a lighter courtyard separate the towers from the walls.
+        Color stone = new("77828c"), trim = new("a0a7ad"), iron = new("343b45");
         var building = art.Transform;
-        // A low courtyard disk and an open, twelve-sided wall keep the circular
+        // A low courtyard disk and an open, sixteen-sided wall keep the circular
         // silhouette readable without a solid cylinder filling the courtyard.
-        art.Tube(new(0, .015f, 0), new(0, .10f, 0), .98f, .98f, new("666b70"), 12);
-        WallBand(.95f, .78f, .10f, .70f, stone);
-        WallBand(.97f, .76f, .70f, .77f, trim);
-        for (int i = 0; i < 20; i++)
+        art.Tube(new(0, .015f, 0), new(0, .10f, 0), 1.35f, 1.35f, new("96998f"), 16);
+        WallBand(1.32f, 1.15f, .10f, .70f, stone);
+        WallBand(1.34f, 1.13f, .70f, .77f, trim);
+        for (int i = 0; i < 28; i++)
         {
-            float angle = Mathf.Pi / 6 + (i + .5f) * Mathf.Pi / 12;
+            float angle = Mathf.Pi / 8 + (i + .5f) * Mathf.Pi / 16;
             art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)),
-                new(Mathf.Sin(angle) * .87f, .82f, Mathf.Cos(angle) * .87f));
+                new(Mathf.Sin(angle) * 1.235f, .82f, Mathf.Cos(angle) * 1.235f));
             art.RoundedBox(Vector3.Zero, new(.14f, .15f, .19f), .012f, trim);
         }
         art.Transform = building;
         // Three towers are enough to identify the keep; omit the tiny roof turrets
         // and brick seams that disappear at the normal voyage camera distance.
-        PrisonTower(art, new(0, 0, -.20f), .34f, 1.48f, stone, trim);
+        PrisonTower(art, new(0, 0, -.40f), .34f, 1.48f, stone, trim);
         for (int side = -1; side <= 1; side += 2)
-            PrisonTower(art, new(side * .54f, 0, -.16f), .18f, 1.04f, stone, trim);
+            PrisonTower(art, new(side * .73f, 0, .04f), .18f, 1.04f, stone, trim);
 
         // The gatehouse closes the front gap in the ring and projects toward the dock.
+        var gate = building * new Transform3D(Basis.Identity, new(0, 0, PrisonGateOffset));
+        art.Transform = gate;
         for (int side = -1; side <= 1; side += 2)
         {
             art.RoundedBox(new(side * .405f, .44f, .835f), new(.25f, .72f, .28f), .018f, stone);
@@ -103,11 +107,11 @@ public static partial class EnvironmentArt3D
         for (int i = 0; i <= 8; i++)
         {
             float angle = i * Mathf.Pi / 8;
-            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, 0, angle - Mathf.Pi / 2)),
+            art.Transform = gate * new Transform3D(Basis.FromEuler(new(0, 0, angle - Mathf.Pi / 2)),
                 new(Mathf.Cos(angle) * .30f, gateSpring + Mathf.Sin(angle) * .30f, .93f));
             art.RoundedBox(Vector3.Zero, new(.12f, .09f, .13f), .009f, trim);
         }
-        art.Transform = building;
+        art.Transform = gate;
         for (int side = -1; side <= 1; side += 2)
             art.RoundedBox(new(side * .30f, .295f, .93f), new(.09f, .39f, .13f), .009f, trim);
         for (int i = -3; i <= 3; i++)
@@ -120,13 +124,14 @@ public static partial class EnvironmentArt3D
             art.RoundedBox(new(0, y, .925f), new(.51f, .027f, .027f), .003f, iron);
         for (int i = 0; i < 2; i++)
             art.RoundedBox(new(0, .10f - i * .035f, .99f + i * .07f), new(.55f, .06f, .09f), .010f, trim);
+        art.Transform = building;
 
         void WallBand(float outer, float inner, float bottom, float top, Color color)
         {
-            // Leave sixty degrees open at the front for the gatehouse.
-            for (int i = 1; i < 11; i++)
+            // Leave forty-five degrees open, keeping the gate width independent of the larger yard.
+            for (int i = 1; i < 15; i++)
             {
-                float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
+                float a = i * Mathf.Tau / 16, b = (i + 1) * Mathf.Tau / 16;
                 Vector3 Point(float angle, float radius, float y) => new(Mathf.Sin(angle) * radius, y, Mathf.Cos(angle) * radius);
                 Vector3 obA = Point(a, outer, bottom), obB = Point(b, outer, bottom);
                 Vector3 otA = Point(a, outer, top), otB = Point(b, outer, top);
@@ -136,7 +141,7 @@ public static partial class EnvironmentArt3D
                 art.Quad(ibB, ibA, itA, itB, color.Darkened(.08f));
                 art.Quad(otA, otB, itB, itA, color.Lightened(.05f));
                 if (i == 1) art.Quad(ibA, obA, otA, itA, color);
-                if (i == 10) art.Quad(obB, ibB, itB, otB, color);
+                if (i == 14) art.Quad(obB, ibB, itB, otB, color);
             }
         }
     }
@@ -154,7 +159,7 @@ public static partial class EnvironmentArt3D
             float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
             art.Face(new(Mathf.Sin(a) * radius, height + .035f, Mathf.Cos(a) * radius),
                 new(Mathf.Sin(b) * radius, height + .035f, Mathf.Cos(b) * radius),
-                new(0, height + radius * 1.25f, 0), new("713e47"));
+                new(0, height + radius * 1.25f, 0), new("89565b"));
         }
         if (radius > .3f)
             for (int i = 0; i < 8; i++)
@@ -264,7 +269,7 @@ public static partial class EnvironmentArt3D
     private static void PrisonJetty(Sculptor art, Transform3D building)
     {
         float scale = building.Basis.X.Length(), halfWidth = scale * .29f;
-        var start = building * new Vector3(0, 0, 1.08f);
+        var start = building * new Vector3(0, 0, 1.08f + PrisonGateOffset);
         var basis = building.Basis.Orthonormalized();
         var direction = new Vector2(basis.Z.X, basis.Z.Z);
         float length = 0;
