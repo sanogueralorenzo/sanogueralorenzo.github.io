@@ -38,7 +38,8 @@ public static partial class EnvironmentArt3D
         }
         // If the island cannot carry a readable landmark, retain its natural interior.
         if (best < .50f) return false;
-        float footprint = kind == 0 ? 1.0f : .82f;
+        // The prison radius includes the projecting gatehouse and entrance steps.
+        float footprint = kind == 0 ? 1.15f : .82f;
         float scale = MathF.Min(MathF.Min(r * (kind == 0 ? .60f : .48f), 3.0f), best / (footprint * art.HeightScale));
         var old = art.PlaceProp(anchor, footprint * scale);
         art.Transform *= new Transform3D(Basis.FromEuler(new(0, kind == 0 ? -.32f : -.55f, 0)).Scaled(Vector3.One * scale), Vector3.Zero);
@@ -64,59 +65,111 @@ public static partial class EnvironmentArt3D
 
     private static void Prison(Sculptor art)
     {
-        Color plaster = new("d3ceb2"), trim = new("eee0b6"), iron = new("34474e"), roof = new("b47b41");
-        art.RoundedBox(new(0, .05f, 0), new(1.40f, .14f, 1.06f), .035f, new("a29f89"));
-        art.RoundedBox(new(0, .57f, -.025f), new(1.28f, 1.04f, .91f), .045f, plaster);
-        art.RoundedBox(new(0, 1.09f, -.025f), new(1.38f, .12f, 1.01f), .025f, trim);
-        HipRoof(art, new(.74f, 1.16f, .53f), 1.46f, .28f, roof);
-        // Projecting gate pillars frame a tall entrance instead of a flat box face.
+        Color stone = new("879397"), trim = new("b5b9ac"), iron = new("293b43");
+        var building = art.Transform;
+        // A low courtyard disk and an open, twelve-sided wall keep the circular
+        // silhouette readable without a solid cylinder filling the courtyard.
+        art.Tube(new(0, .015f, 0), new(0, .10f, 0), .98f, .98f, new("a3a694"), 12);
+        WallBand(.95f, .78f, .10f, .70f, stone);
+        WallBand(.97f, .76f, .70f, .77f, trim);
+        for (int i = 0; i < 20; i++)
+        {
+            float angle = Mathf.Pi / 6 + (i + .5f) * Mathf.Pi / 12;
+            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)),
+                new(Mathf.Sin(angle) * .87f, .82f, Mathf.Cos(angle) * .87f));
+            art.RoundedBox(Vector3.Zero, new(.14f, .15f, .19f), .012f, trim);
+        }
+        art.Transform = building;
+        // Three towers are enough to identify the keep; omit the tiny roof turrets
+        // and brick seams that disappear at the normal voyage camera distance.
+        PrisonTower(art, new(0, 0, -.20f), .34f, 1.48f, stone, trim);
+        for (int side = -1; side <= 1; side += 2)
+            PrisonTower(art, new(side * .54f, 0, -.16f), .18f, 1.04f, stone, trim);
+
+        // The gatehouse closes the front gap in the ring and projects toward the dock.
         for (int side = -1; side <= 1; side += 2)
         {
-            art.RoundedBox(new(side * .55f, .57f, .46f), new(.23f, 1.10f, .28f), .025f, plaster.Darkened(.05f));
-            art.RoundedBox(new(side * .55f, 1.15f, .46f), new(.30f, .12f, .35f), .022f, trim);
-            art.RoundedBox(new(side * .55f, .12f, .46f), new(.28f, .22f, .34f), .02f, new("aaa58a"));
-            if (side > 0) NavyBanner(art, new(side * .55f, .79f, .614f), .18f, .48f);
+            art.RoundedBox(new(side * .405f, .44f, .835f), new(.25f, .72f, .28f), .018f, stone);
+            art.RoundedBox(new(side * .405f, .13f, .84f), new(.28f, .14f, .30f), .012f, trim);
+            art.RoundedBox(new(side * .405f, .84f, .84f), new(.29f, .10f, .32f), .014f, trim);
+            NavyBanner(art, new(side * .405f, .54f, .988f), .16f, .43f);
         }
-        // One raised octagonal corner breaks the roofline and identifies a fortified lockup.
-        var turret = new Vector3(-.53f, 0, .40f);
-        art.Tube(turret + new Vector3(0, .08f, 0), turret + new Vector3(0, 1.45f, 0), .235f, .225f, plaster, 8);
-        art.Tube(turret + new Vector3(0, 1.40f, 0), turret + new Vector3(0, 1.52f, 0), .265f, .265f, trim, 8);
-        art.Tube(turret + new Vector3(0, 1.53f, 0), turret + new Vector3(0, 1.94f, 0), .29f, .015f, roof, 8);
-        art.RoundedBox(turret + new Vector3(0, 1.24f, .225f), new(.095f, .19f, .018f), .006f, new("24373b"));
-        NavyBanner(art, turret + new Vector3(0, .80f, .24f), .18f, .43f);
-        const float gateBase = .11f, gateSpring = .69f, gateRadius = .29f;
-        Arch(art, new(0, gateBase, .449f), gateRadius * 2, gateSpring + gateRadius - gateBase, .065f, new("24373b"), trim);
-        // Broad voussoirs give the arch depth and remain readable at game scale.
-        var wall = art.Transform;
+        art.RoundedBox(new(0, .855f, .82f), new(1.02f, .15f, .26f), .012f, stone);
+        for (int i = -2; i <= 2; i++)
+            art.RoundedBox(new(i * .21f, .965f, .82f), new(.12f, .13f, .24f), .010f, trim);
+        const float gateBase = .10f, gateSpring = .49f, gateRadius = .26f;
+        Arch(art, new(0, gateBase, .86f), gateRadius * 2, gateSpring + gateRadius - gateBase, .065f, iron.Darkened(.35f), trim);
         for (int i = 0; i <= 8; i++)
         {
-            float a = i * Mathf.Pi / 8;
-            art.Transform = wall * new Transform3D(Basis.FromEuler(new(0, 0, a - Mathf.Pi / 2)),
-                new(MathF.Cos(a) * .35f, gateSpring + MathF.Sin(a) * .35f, .50f));
-            art.RoundedBox(Vector3.Zero, new(.14f, .13f, .13f), .012f, trim.Darkened(i % 3 * .025f));
+            float angle = i * Mathf.Pi / 8;
+            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, 0, angle - Mathf.Pi / 2)),
+                new(Mathf.Cos(angle) * .30f, gateSpring + Mathf.Sin(angle) * .30f, .93f));
+            art.RoundedBox(Vector3.Zero, new(.12f, .09f, .13f), .009f, trim);
         }
-        art.Transform = wall;
+        art.Transform = building;
         for (int side = -1; side <= 1; side += 2)
-            art.RoundedBox(new(side * .35f, .40f, .50f), new(.12f, .59f, .13f), .014f, trim);
+            art.RoundedBox(new(side * .30f, .295f, .93f), new(.09f, .39f, .13f), .009f, trim);
         for (int i = -3; i <= 3; i++)
         {
-            float x = i * .077f;
-            float top = gateSpring + MathF.Sqrt(gateRadius * gateRadius - x * x) - .035f;
-            art.Tube(new(x, gateBase, .495f), new(x, top, .495f), .016f, .016f, iron, 5);
+            float x = i * .068f;
+            float top = gateSpring + Mathf.Sqrt(gateRadius * gateRadius - x * x) - .025f;
+            art.Tube(new(x, gateBase, .91f), new(x, top, .91f), .013f, .013f, iron, 5);
         }
-        foreach (float y in new[] { .32f, .62f })
-            art.RoundedBox(new(0, y, .514f), new(.55f, .029f, .028f), .004f, iron);
-        art.RoundedBox(new(.06f, .48f, .525f), new(.085f, .12f, .04f), .008f, new("79663d"));
-        // A barred side window makes the angled view read as a lockup.
-        art.Transform = wall * new Transform3D(Basis.FromEuler(new(0, Mathf.Pi / 2, 0)), new(.65f, .68f, -.03f));
-        art.RoundedBox(Vector3.Zero, new(.30f, .35f, .045f), .015f, trim);
-        art.RoundedBox(new(0, 0, .027f), new(.23f, .28f, .025f), .008f, new("24373b"));
-        for (int i = -1; i <= 1; i++) art.Tube(new(i * .065f, -.13f, .048f), new(i * .065f, .13f, .048f), .012f, .012f, iron, 5);
-        art.Transform = wall;
-        for (int i = 0; i < 3; i++)
-            art.RoundedBox(new(0, .10f - i * .023f, .57f + i * .10f), new(.60f + i * .055f, .07f, .13f), .014f, trim);
-        Crate(art, new(-.72f, .11f, .35f), .19f);
-        Crate(art, new(.73f, .095f, .37f), .16f);
+        foreach (float y in new[] { .27f, .48f })
+            art.RoundedBox(new(0, y, .925f), new(.51f, .027f, .027f), .003f, iron);
+        for (int i = 0; i < 2; i++)
+            art.RoundedBox(new(0, .10f - i * .035f, .99f + i * .07f), new(.55f, .06f, .09f), .010f, trim);
+
+        void WallBand(float outer, float inner, float bottom, float top, Color color)
+        {
+            // Leave sixty degrees open at the front for the gatehouse.
+            for (int i = 1; i < 11; i++)
+            {
+                float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
+                Vector3 Point(float angle, float radius, float y) => new(Mathf.Sin(angle) * radius, y, Mathf.Cos(angle) * radius);
+                Vector3 obA = Point(a, outer, bottom), obB = Point(b, outer, bottom);
+                Vector3 otA = Point(a, outer, top), otB = Point(b, outer, top);
+                Vector3 ibA = Point(a, inner, bottom), ibB = Point(b, inner, bottom);
+                Vector3 itA = Point(a, inner, top), itB = Point(b, inner, top);
+                art.Quad(obA, obB, otB, otA, color);
+                art.Quad(ibB, ibA, itA, itB, color.Darkened(.08f));
+                art.Quad(otA, otB, itB, itA, color.Lightened(.05f));
+                if (i == 1) art.Quad(ibA, obA, otA, itA, color);
+                if (i == 10) art.Quad(obB, ibB, itB, otB, color);
+            }
+        }
+    }
+
+    private static void PrisonTower(Sculptor art, Vector3 at, float radius, float height, Color stone, Color trim)
+    {
+        var building = art.Transform;
+        art.Transform = building * new Transform3D(Basis.Identity, at);
+        art.Tube(new(0, .10f, 0), new(0, height, 0), radius, radius * .95f, stone, 12);
+        art.Tube(new(0, height - .07f, 0), new(0, height + .035f, 0), radius * 1.09f, radius * 1.09f, trim, 12);
+        // Explicit sloped face normals make the roof read as a cone in the
+        // elevated camera; Tube's radial normals are intended for shafts.
+        for (int i = 0; i < 12; i++)
+        {
+            float a = i * Mathf.Tau / 12, b = (i + 1) * Mathf.Tau / 12;
+            art.Face(new(Mathf.Sin(a) * radius, height + .035f, Mathf.Cos(a) * radius),
+                new(Mathf.Sin(b) * radius, height + .035f, Mathf.Cos(b) * radius),
+                new(0, height + radius * 1.25f, 0), new("a57143"));
+        }
+        if (radius > .3f)
+            for (int i = 0; i < 8; i++)
+            {
+                float angle = i * Mathf.Tau / 8;
+                art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
+                art.RoundedBox(new(0, height + .07f, radius), new(.10f, .12f, .09f), .008f, trim);
+            }
+        // Sparse dark slits sit against polygon faces; no textures or tiny masonry.
+        for (int i = 0; i < 6; i++)
+        {
+            float angle = i * Mathf.Tau / 6;
+            art.Transform = building * new Transform3D(Basis.FromEuler(new(0, angle, 0)), at);
+            art.RoundedBox(new(0, height - .24f, radius * .955f), new(radius * .22f, .16f, .025f), .004f, new("293b43"));
+        }
+        art.Transform = building;
     }
 
     private static void Watchtower(Sculptor art)
@@ -197,7 +250,7 @@ public static partial class EnvironmentArt3D
 
     private static void NavyBanner(Sculptor art, Vector3 at, float width, float height)
     {
-        art.RoundedBox(at, new(width, height, .024f), .006f, new("304967"));
+        art.RoundedBox(at, new(width, height, .024f), .006f, new("34406f"));
         // A simple ivory anchor reads at gameplay scale without a texture.
         float s = width;
         Color ivory = new("eee2b6");
@@ -207,16 +260,10 @@ public static partial class EnvironmentArt3D
             art.Tube(at + new Vector3(0, -s * .27f, .019f), at + new Vector3(side * s * .28f, -s * .05f, .019f), s * .05f, s * .05f, ivory, 5);
     }
 
-    private static void Crate(Sculptor art, Vector3 at, float size)
-    {
-        art.RoundedBox(at, Vector3.One * size, .012f, new("987347"));
-        art.Tube(at + new Vector3(-size * .40f, -size * .40f, size * .51f), at + new Vector3(size * .40f, size * .40f, size * .51f), size * .07f, size * .07f, new("634a30"), 4);
-    }
-
     private static void PrisonJetty(Sculptor art, Transform3D building)
     {
         float scale = building.Basis.X.Length(), halfWidth = scale * .29f;
-        var start = building * new Vector3(0, 0, .82f);
+        var start = building * new Vector3(0, 0, 1.08f);
         var basis = building.Basis.Orthonormalized();
         var direction = new Vector2(basis.Z.X, basis.Z.Z);
         float length = 0;
