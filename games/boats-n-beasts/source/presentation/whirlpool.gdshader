@@ -117,6 +117,10 @@ void fragment() {
         float overlap=.03*smoothstep(.55,.85,hash(seed+10.0));
         float arc=.889+.105*hash(seed+3.0)+outward_pitch*(theta-span*.5)
                  +.008*sin(theta*2.0+seed)+.006*sin(clock*.22+seed)-overlap;
+        // Curl the beginning into the lip, easing smoothly into the existing sweep.
+        float bend_span=min(span*.65,.20);
+        float bend=max(bend_span-theta,0.0);
+        arc-=.12*bend*bend/bend_span;
         float width=(.003+.007*hash(seed+2.0))*(.65+.35*sin(clamp(u,0.0,1.0)*3.14159265));
         float stroke=(1.0-smoothstep(width*.15,width*1.35+aa,abs(r-arc)))
                     *smoothstep(0.0,.24,u)*(1.0-smoothstep(.65,1.0,u));
