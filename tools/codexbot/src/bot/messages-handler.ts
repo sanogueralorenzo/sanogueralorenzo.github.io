@@ -11,6 +11,7 @@ type MessageHandlers = {
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryApprovalText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
+  onTryUserInputText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
   onPrompt: (ctx: PromptContext, chatId: string, text: string) => Promise<void>;
   onVoice: (ctx: PromptContext, chatId: string) => Promise<void>;
 };
@@ -24,6 +25,9 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
 
     const chatId = String(ctx.chat.id);
     const reply: ReplyFn = (replyText, options) => ctx.reply(replyText, options);
+    if (await handlers.onTryUserInputText(ctx as PromptContext, chatId, text)) {
+      return;
+    }
     if (await handlers.onTryApprovalText(ctx as PromptContext, chatId, text)) {
       return;
     }

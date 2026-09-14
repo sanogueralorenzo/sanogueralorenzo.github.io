@@ -8,7 +8,7 @@ import { expandHomePath } from "./shared/path-utils.js";
 type RuntimeConfig = {
   token: string;
   bindingFile: string;
-  allowedChatIds: Set<string> | null;
+  allowedChatIds: Set<string>;
   defaultApprovalDecision: ApprovalDecision;
   userHome: string;
 };
@@ -23,7 +23,7 @@ export function loadRuntimeConfig(): RuntimeConfig {
   return {
     token,
     bindingFile,
-    allowedChatIds: parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
+    allowedChatIds: parseRequiredAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",
     userHome,
   };
@@ -109,17 +109,20 @@ function parseBoolean(value?: string): boolean | null {
   return null;
 }
 
-function parseAllowedChatIds(value?: string): Set<string> | null {
-  if (value === undefined) {
-    return null;
-  }
-
-  const items = value
+function parseRequiredAllowedChatIds(value?: string): Set<string> {
+  const items = (value ?? "")
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
-  return new Set(items);
+  const allowedChatIds = new Set(items);
+  if (allowedChatIds.size === 0) {
+    throw new Error(
+      "Missing required env var: TELEGRAM_ALLOWED_CHAT_IDS. Refusing to start without an explicit Telegram chat allowlist."
+    );
+  }
+
+  return allowedChatIds;
 }
 
 function resolveUserPath(value?: string): string | null {

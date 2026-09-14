@@ -18,6 +18,8 @@ import { createPromptRunner } from "./services/prompt-runner.js";
 import { createGoalActions } from "./services/goal-actions.js";
 import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
 import { createVoiceService } from "./services/voice.js";
+import { createUserInputService } from "./services/user-input.js";
+import { closeSharedAppServer } from "./adapters/app-server/connection.js";
 
 const runtimeConfig = loadRuntimeConfig();
 const {
@@ -65,6 +67,8 @@ const approvalService = createApprovalService({
   timeoutMs: APPROVAL_REQUEST_TIMEOUT_MS
 });
 
+const userInputService = createUserInputService();
+
 const promptRunner = createPromptRunner({
   store,
   pendingNewSessionChats,
@@ -77,7 +81,9 @@ const promptRunner = createPromptRunner({
   },
   getConversationOptions: () => getConversationOptionsFromEnv(userHome),
   bindChatToThread,
-  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram
+  requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
+  requestUserInputFromTelegram: (ctx, chatId, request) =>
+    userInputService.requestUserInputFromTelegram(ctx, chatId, request)
 });
 
 const voiceService = createVoiceService({
@@ -87,9 +93,6 @@ const voiceService = createVoiceService({
 
 registerBotHandlers(bot, {
   isChatAllowed: (chatId) => {
-    if (!allowedChatIds) {
-      return true;
-    }
     return allowedChatIds.has(chatId);
   },
   onStart: async (_, reply) => {
@@ -125,6 +128,9 @@ registerBotHandlers(bot, {
   onTryApprovalText: async (ctx, chatId, text) => {
     return approvalService.resolveApprovalFromText(ctx, chatId, text);
   },
+  onTryUserInputText: async (ctx, chatId, text) => {
+    return userInputService.resolveUserInputFromText(ctx, chatId, text);
+  },
   onPrompt: async (ctx, chatId, text) => {
     await withChatLock(chatId, async () => {
       await withTelegramTypingKeepAlive(ctx as PromptContext, async () => {
@@ -151,10 +157,24 @@ bot.catch(async (error) => {
   console.error("Telegram bot error:", error.error);
 });
 
-console.log("Telegram Codex bridge is running.");
-if (allowedChatIds) {
-  console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
+let shuttingDown = false;
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    void (async () => {
+      console.log(`Received ${signal}; shutting down gracefully.`);
+      bot.stop();
+      await closeSharedAppServer();
+      process.exit(0);
+    })();
+  });
 }
+
+console.log("Telegram Codex bridge is running.");
+console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
 await runBotLoop();
 
 async function runBotLoop(): Promise<never> {

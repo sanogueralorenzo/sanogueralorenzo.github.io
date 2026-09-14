@@ -5,6 +5,7 @@ import type { FileChangeApprovalDecision } from "./generated/v2/FileChangeApprov
 import type { AskForApproval } from "./generated/v2/AskForApproval.js";
 import type { SandboxMode as GeneratedSandboxMode } from "./generated/v2/SandboxMode.js";
 import type { ThreadSourceKind } from "./generated/v2/ThreadSourceKind.js";
+import type { ToolRequestUserInputParams } from "./generated/v2/ToolRequestUserInputParams.js";
 
 export type ApprovalPolicy = Extract<AskForApproval, string>;
 export type SandboxMode = GeneratedSandboxMode;
@@ -23,6 +24,9 @@ export type ApprovalRequest = {
   command: string | null;
   cwd: string | null;
 };
+
+export type UserInputRequest = ToolRequestUserInputParams;
+export type UserInputAnswers = Record<string, { answers: string[] }>;
 
 export type TurnProgressEvent =
   | {
@@ -63,6 +67,7 @@ export type TurnProgressEvent =
 
 export type TurnRuntimeOptions = {
   approvalHandler?: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  requestUserInputHandler?: (request: UserInputRequest) => Promise<UserInputAnswers>;
   onTurnEvent?: (event: TurnProgressEvent) => void;
 };
 

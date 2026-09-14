@@ -2,6 +2,8 @@ export type {
   ApprovalDecision,
   ApprovalPolicy,
   ApprovalRequest,
+  UserInputAnswers,
+  UserInputRequest,
   SandboxMode,
   ThreadSummary,
   TurnCompletion,

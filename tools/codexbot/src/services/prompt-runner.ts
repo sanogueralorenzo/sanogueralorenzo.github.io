@@ -5,6 +5,8 @@ import type {
   ApprovalRequest,
   SandboxMode,
   TurnCompletion,
+  UserInputAnswers,
+  UserInputRequest,
 } from "../adapters/app-server/client.js";
 import {
   createAndSendFirstMessageWithTimeoutContinuation,
@@ -33,6 +35,7 @@ type TimedTurnLike =
 
 type PromptTurnRuntimeOptions = {
   approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
+  requestUserInputHandler: (request: UserInputRequest) => Promise<UserInputAnswers>;
 };
 
 type PromptRunnerDeps = {
@@ -44,6 +47,7 @@ type PromptRunnerDeps = {
   getConversationOptions: () => ConversationOptions;
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
+  requestUserInputFromTelegram?: (ctx: PromptContext, chatId: string, request: UserInputRequest) => Promise<UserInputAnswers>;
 };
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
@@ -57,6 +61,8 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     );
     const runtimeOptions: PromptTurnRuntimeOptions = {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
+      requestUserInputHandler: (request: UserInputRequest) =>
+        deps.requestUserInputFromTelegram?.(ctx, chatId, request) ?? Promise.resolve({}),
     };
     const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
       await replyFromTimedTurn(turn, finalOutputRelay, async (completion) => completion);

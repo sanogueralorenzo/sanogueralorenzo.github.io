@@ -2,6 +2,8 @@ import {
   ApprovalDecision,
   ApprovalRequest,
   TurnRuntimeOptions,
+  UserInputAnswers,
+  UserInputRequest,
 } from "./types.js";
 import { JsonRpcRequest } from "./protocol.js";
 
@@ -42,10 +44,10 @@ export async function handleServerRequest(
       );
       return { decision };
     }
-    case "item/tool/requestUserInput":
-      return {
-        answers: buildEmptyToolInputAnswers(request.params.questions),
-      };
+    case "item/tool/requestUserInput": {
+      const answers = await requestUserInputFromHandler(request.params, runtimeOptions);
+      return { answers };
+    }
     case "item/tool/call":
       return {
         success: false,
@@ -78,8 +80,19 @@ async function requestDecisionFromHandler(
   }
 }
 
-function buildEmptyToolInputAnswers(questions: Array<{ id: string }>): Record<string, { answers: string[] }> {
-  const answers: Record<string, { answers: string[] }> = {};
+async function requestUserInputFromHandler(
+  request: UserInputRequest,
+  runtimeOptions?: TurnRuntimeOptions
+): Promise<UserInputAnswers> {
+  if (!runtimeOptions?.requestUserInputHandler) {
+    return buildEmptyToolInputAnswers(request.questions);
+  }
+
+  return runtimeOptions.requestUserInputHandler(request);
+}
+
+function buildEmptyToolInputAnswers(questions: Array<{ id: string }>): UserInputAnswers {
+  const answers: UserInputAnswers = {};
   for (const question of questions) {
     answers[question.id] = { answers: [] };
   }

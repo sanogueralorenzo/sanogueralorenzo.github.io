@@ -56,7 +56,7 @@ help     Print this help output.
 - `codex` on `PATH` for app-server transport and thread/session operations
 - `CODEX_BIN` (optional Codex CLI override; defaults to `codex`)
 - `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
+- `TELEGRAM_ALLOWED_CHAT_IDS` (required; the bot refuses to start without it)
 - Node dependencies installed in `codexbot` (`npm install`)
 
 ### App Server Protocol Types
@@ -86,6 +86,7 @@ help     Print this help output.
 - `/resume` and `/delete` use app-server `thread/list`; when no user-facing title is present, they fall back to the thread preview.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
 - During a running turn, the bot does not emit intermediate turn transcript items.
+- When Codex requests user input, the bot presents the question in Telegram and returns the answer to the active turn.
 - At turn completion, it sends only the final assistant turn answer.
 - Telegram prompts include a short final-response style instruction to keep remote replies concise.
 - Prompts are serialized per Codex thread; different Codex threads can run independently.

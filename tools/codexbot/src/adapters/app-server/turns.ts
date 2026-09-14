@@ -29,14 +29,14 @@ export async function createAndSendFirstMessageWithTimeoutContinuation(
   text: string,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedCreateTurnResult> {
-  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
+  return withTurnClient(async (client, handOffCompletion) => {
     const threadId = await startThreadOnClient(client, options);
     const timed = await runTurnWithTimeout(
       client,
       threadId,
       text,
       false,
-      runtimeOptions?.onTurnEvent
+      runtimeOptions
     );
 
     if (timed.status === "completed") {
@@ -62,13 +62,13 @@ async function sendMessageWithTimeoutContinuationInternal(
   resumeFirst: boolean,
   runtimeOptions?: TurnRuntimeOptions
 ): Promise<TimedTurnResult> {
-  return withTurnClient(runtimeOptions, async (client, handOffCompletion) => {
+  return withTurnClient(async (client, handOffCompletion) => {
     const timed = await runTurnWithTimeout(
       client,
       threadId,
       text,
       resumeFirst,
-      runtimeOptions?.onTurnEvent
+      runtimeOptions
     );
 
     if (timed.status === "completed") {

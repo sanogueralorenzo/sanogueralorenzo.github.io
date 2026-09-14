@@ -29,6 +29,7 @@ function registerHandlers() {
     onTryResumeText: vi.fn(async () => false),
     onTryNewFolderText: vi.fn(async () => false),
     onTryApprovalText: vi.fn(async () => false),
+    onTryUserInputText: vi.fn(async () => false),
     onPrompt: vi.fn(),
     onVoice: vi.fn(),
   };

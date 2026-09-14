@@ -17,6 +17,11 @@ import { handleServerRequest } from "./server-requests.js";
 
 export { type JsonRpcNotification } from "./protocol.js";
 
+type RuntimeRegistration = {
+  threadId: string;
+  options: TurnRuntimeOptions;
+};
+
 export class AppServerConnection {
   private readonly child = spawn(CODEX_BIN, ["app-server", "--listen", "stdio://"], {
     stdio: ["pipe", "pipe", "pipe"],
@@ -24,14 +29,16 @@ export class AppServerConnection {
   });
 
   private readonly handlers = new Set<NotificationHandler>();
+  private readonly runtimeRegistrations = new Set<RuntimeRegistration>();
   private readonly pending = new Map<
     number | string,
     { resolve: (value: unknown) => void; reject: (error: unknown) => void }
   >();
   private nextId = 1;
   private buffer = "";
+  private closed = false;
 
-  constructor(private readonly runtimeOptions?: TurnRuntimeOptions) {
+  constructor() {
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (chunk: string) => {
       this.buffer += chunk;
@@ -43,12 +50,26 @@ export class AppServerConnection {
     });
 
     this.child.on("error", (error) => {
+      this.closed = true;
       this.failPending(error);
     });
 
     this.child.on("exit", () => {
+      this.closed = true;
       this.failPending(new Error("app-server process exited"));
     });
+  }
+
+  isAlive(): boolean {
+    return !this.closed && !this.child.killed && this.child.exitCode === null;
+  }
+
+  registerRuntimeOptions(options: TurnRuntimeOptions, threadId: string): () => void {
+    const registration = { options, threadId };
+    this.runtimeRegistrations.add(registration);
+    return () => {
+      this.runtimeRegistrations.delete(registration);
+    };
   }
 
   async initialize(): Promise<void> {
@@ -80,7 +101,7 @@ export class AppServerConnection {
         resolve();
       }, 1500);
       setTimeout(() => {
-        if (!this.child.killed) {
+        if (this.child.exitCode === null && this.child.signalCode === null) {
           this.child.kill("SIGKILL");
         }
       }, 1000);
@@ -104,12 +125,17 @@ export class AppServerConnection {
       this.pending.set(id, { resolve, reject });
     });
 
-    this.writeMessage({
-      jsonrpc: "2.0",
-      id,
-      method,
-      params,
-    });
+    try {
+      this.writeMessage({
+        jsonrpc: "2.0",
+        id,
+        method,
+        params,
+      });
+    } catch (error) {
+      this.pending.delete(id);
+      throw error;
+    }
     return result;
   }
 
@@ -171,7 +197,7 @@ export class AppServerConnection {
   }
 
   private handleIncomingRequest(request: JsonRpcRequest): void {
-    void handleServerRequest(request, this.runtimeOptions)
+    void handleServerRequest(request, this.runtimeOptionsForRequest(request))
       .then((result) => {
         this.respondSuccess(request.id, result);
       })
@@ -179,6 +205,21 @@ export class AppServerConnection {
         const message = error instanceof Error ? error.message : String(error);
         this.respondError(request.id, -32000, message);
       });
+  }
+
+  private runtimeOptionsForRequest(request: JsonRpcRequest): TurnRuntimeOptions | undefined {
+    const params = request.params;
+    if (!params || typeof params !== "object" || Array.isArray(params)) {
+      return undefined;
+    }
+
+    const threadId = (params as { threadId?: unknown }).threadId;
+    if (typeof threadId !== "string") {
+      return undefined;
+    }
+
+    const registrations = Array.from(this.runtimeRegistrations).reverse();
+    return registrations.find((registration) => registration.threadId === threadId)?.options;
   }
 
   private dispatchNotification(notification: JsonRpcNotification): void {
@@ -234,42 +275,63 @@ export class AppServerConnection {
   }
 }
 
-export async function withAppServer<T>(work: (client: AppServerConnection) => Promise<T>): Promise<T> {
-  const client = new AppServerConnection();
+let sharedConnection: AppServerConnection | null = null;
+let sharedInitialization: Promise<AppServerConnection> | null = null;
+
+async function getSharedConnection(): Promise<AppServerConnection> {
+  if (sharedConnection?.isAlive()) {
+    return sharedConnection;
+  }
+
+  if (sharedInitialization) {
+    return sharedInitialization;
+  }
+
+  const initialization = (async () => {
+    const client = new AppServerConnection();
+    try {
+      await client.initialize();
+      sharedConnection = client;
+      return client;
+    } catch (error) {
+      await client.close();
+      throw error;
+    }
+  })();
+
+  sharedInitialization = initialization;
   try {
-    await client.initialize();
-    return await work(client);
+    return await initialization;
   } finally {
-    await client.close();
+    if (sharedInitialization === initialization) {
+      sharedInitialization = null;
+    }
   }
 }
 
+export async function closeSharedAppServer(): Promise<void> {
+  const connection = sharedConnection;
+  sharedConnection = null;
+  if (connection) {
+    await connection.close();
+  }
+}
+
+export async function withAppServer<T>(work: (client: AppServerConnection) => Promise<T>): Promise<T> {
+  return work(await getSharedConnection());
+}
+
 export async function withTurnClient<T>(
-  runtimeOptions: TurnRuntimeOptions | undefined,
   work: (
     client: AppServerConnection,
     handOffCompletion: (completion: Promise<TurnCompletion>) => Promise<TurnCompletion>
   ) => Promise<T>
 ): Promise<T> {
-  const client = new AppServerConnection(runtimeOptions);
-  await client.initialize();
+  const client = await getSharedConnection();
 
-  let handedOff = false;
   const handOffCompletion = (completion: Promise<TurnCompletion>): Promise<TurnCompletion> => {
-    handedOff = true;
-    return completion.finally(async () => {
-      await client.close();
-    });
+    return completion;
   };
 
-  try {
-    return await work(client, handOffCompletion);
-  } catch (error) {
-    await client.close();
-    throw error;
-  } finally {
-    if (!handedOff) {
-      await client.close();
-    }
-  }
+  return work(client, handOffCompletion);
 }

@@ -13,6 +13,7 @@ type BotHandlers = {
   onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
   onTryApprovalText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
+  onTryUserInputText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
   onPrompt: (ctx: PromptContext, chatId: string, text: string) => Promise<void>;
   onVoice: (ctx: PromptContext, chatId: string) => Promise<void>;
 };
@@ -53,6 +54,7 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
     onTryResumeText: handlers.onTryResumeText,
     onTryNewFolderText: handlers.onTryNewFolderText,
     onTryApprovalText: handlers.onTryApprovalText,
+    onTryUserInputText: handlers.onTryUserInputText,
     onPrompt: handlers.onPrompt,
     onVoice: handlers.onVoice
   });

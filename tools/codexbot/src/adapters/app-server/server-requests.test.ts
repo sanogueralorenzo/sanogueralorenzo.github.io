@@ -93,4 +93,42 @@ describe("handleServerRequest", () => {
       },
     });
   });
+
+  it("delegates requestUserInput prompts to the Telegram input handler", async () => {
+    const result = await handleServerRequest(
+      {
+        id: 1,
+        method: "item/tool/requestUserInput",
+        params: {
+          threadId: "thread-1",
+          turnId: "turn-1",
+          itemId: "item-1",
+          questions: [
+            {
+              id: "q1",
+              header: "One",
+              question: "Question one?",
+              isOther: false,
+              isSecret: false,
+              options: null,
+            },
+          ],
+          isBlocking: true,
+          autoResolutionMs: null,
+        },
+      },
+      {
+        requestUserInputHandler: async (request) => {
+          expect(request.questions[0]?.id).toBe("q1");
+          return { q1: { answers: ["answer"] } };
+        },
+      }
+    );
+
+    expect(result).toEqual({
+      answers: {
+        q1: { answers: ["answer"] },
+      },
+    });
+  });
 });

@@ -1,7 +1,7 @@
 import {
   TURN_TIMEOUT_MS,
-  TurnProgressEvent,
   TurnCompletion,
+  TurnRuntimeOptions,
 } from "./types.js";
 import { AppServerConnection } from "./connection.js";
 import { asObject } from "./json.js";
@@ -18,12 +18,12 @@ export async function runTurnWithTimeout(
   threadId: string,
   text: string,
   resumeFirst: boolean,
-  onTurnEvent?: (event: TurnProgressEvent) => void
+  runtimeOptions?: TurnRuntimeOptions
 ): Promise<
   | { status: "completed"; response: string; imagePaths?: string[] }
   | { status: "timed_out"; completion: Promise<TurnCompletion> }
 > {
-  const completion = runTurn(client, threadId, text, resumeFirst, onTurnEvent);
+  const completion = runTurn(client, threadId, text, resumeFirst, runtimeOptions);
   const raced = await waitWithTimeout(completion, TURN_TIMEOUT_MS);
   if (raced.status === "completed") {
     return {
@@ -44,18 +44,22 @@ async function runTurn(
   threadId: string,
   text: string,
   resumeFirst: boolean,
-  onTurnEvent?: (event: TurnProgressEvent) => void
+  runtimeOptions?: TurnRuntimeOptions
 ): Promise<TurnCompletion> {
-  if (resumeFirst) {
-    await client.send("thread/resume", { threadId });
-  }
+  const { state, turnDone } = createRunTurnState(threadId, runtimeOptions?.onTurnEvent);
+  const unregisterRuntimeOptions = runtimeOptions
+    ? client.registerRuntimeOptions(runtimeOptions, threadId)
+    : () => {};
 
-  const { state, turnDone } = createRunTurnState(threadId, onTurnEvent);
   const detachNotification = client.onNotification((notification) => {
     handleTurnNotification(state, notification);
   });
 
   try {
+    if (resumeFirst) {
+      await client.send("thread/resume", { threadId });
+    }
+
     const started = await client.send("turn/start", {
       threadId,
       input: [
@@ -84,6 +88,7 @@ async function runTurn(
     }
   } finally {
     detachNotification();
+    unregisterRuntimeOptions();
   }
 }
 
