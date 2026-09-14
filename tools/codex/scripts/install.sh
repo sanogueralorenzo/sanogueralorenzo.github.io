@@ -2,21 +2,21 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_SCRIPT="$ROOT_DIR/scripts/codex-telegram"
+SOURCE_SCRIPT="$ROOT_DIR/scripts/codexbot"
 
 stop_existing_runtime() {
-  if ! command -v codex-telegram >/dev/null 2>&1; then
+  if ! command -v codexbot >/dev/null 2>&1; then
     return 0
   fi
 
-  codex-telegram stop --plain >/dev/null 2>&1 || true
+  codexbot stop --plain >/dev/null 2>&1 || true
 }
 
 remove_obsolete_state_files() {
   local state_dir="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
 
   mkdir -p "$state_dir"
-  rm -f "$state_dir/codex-telegram.log"
+  rm -f "$state_dir/codexbot.log"
 }
 
 resolve_npm_bin_dir() {
@@ -45,7 +45,7 @@ stop_existing_runtime
 remove_obsolete_state_files
 
 DEST_DIR="$(resolve_npm_bin_dir)"
-DEST_PATH="$DEST_DIR/codex-telegram"
+DEST_PATH="$DEST_DIR/codexbot"
 
 if ! command -v bash >/dev/null 2>&1; then
   echo "Error: bash is not available on PATH." >&2

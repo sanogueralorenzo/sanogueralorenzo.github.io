@@ -7,7 +7,7 @@ import type {
 } from "./generated/index.js";
 
 describe("generated app-server protocol types", () => {
-  it("covers the request and notification shapes used by codex-telegram", () => {
+  it("covers the request and notification shapes used by codexbot", () => {
     type InitializeRequest = Extract<ClientRequest, { method: "initialize" }>;
     type CommandApprovalRequest = Extract<
       ServerRequest,
@@ -20,7 +20,7 @@ describe("generated app-server protocol types", () => {
       method: "initialize",
       params: {
         clientInfo: {
-          name: "codex-telegram",
+          name: "codexbot",
           title: null,
           version: "1.0",
         },
@@ -35,10 +35,12 @@ describe("generated app-server protocol types", () => {
       id: 2,
       method: "item/commandExecution/requestApproval",
       params: {
+        kind: "command",
         threadId: "thread-1",
         turnId: "turn-1",
         itemId: "item-1",
         startedAtMs: 0,
+        environmentId: null,
         command: "git status",
         cwd: "/tmp/project",
       },

@@ -10,6 +10,11 @@ import type { ThreadStartParams } from "./generated/v2/ThreadStartParams.js";
 import { withAppServer } from "./connection.js";
 import { asArray, asObject, getNumber, getString } from "./json.js";
 
+export type ThreadDeleteResult = {
+  deleted: boolean;
+  message: string | null;
+};
+
 export async function listThreads(limit: number): Promise<ThreadSummary[]> {
   return withAppServer(async (client) => {
     const pageSize = Math.max(1, Math.trunc(limit));
@@ -44,6 +49,42 @@ export async function startThreadOnClient(
   return threadId;
 }
 
+export async function deleteThreadById(threadId: string): Promise<ThreadDeleteResult> {
+  await withAppServer(async (client) => {
+    await client.send("thread/delete", { threadId });
+  });
+
+  return { deleted: true, message: null };
+}
+
+export async function loadLatestAssistantMessageByThreadId(threadId: string): Promise<string | null> {
+  try {
+    return await withAppServer(async (client) => {
+      const result = await client.send("thread/read", { threadId, includeTurns: true });
+      const turns = asArray(asObject(asObject(result).thread).turns);
+
+      for (let turnIndex = turns.length - 1; turnIndex >= 0; turnIndex -= 1) {
+        const items = asArray(asObject(turns[turnIndex]).items);
+        for (let itemIndex = items.length - 1; itemIndex >= 0; itemIndex -= 1) {
+          const item = asObject(items[itemIndex]);
+          if (item.type !== "agentMessage") {
+            continue;
+          }
+          const text = getString(item.text);
+          if (text) {
+            return text;
+          }
+        }
+      }
+
+      return null;
+    });
+  } catch {
+    // Showing the latest message is useful but should not prevent resuming a thread.
+    return null;
+  }
+}
+
 function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextCursor: string | null } {
   const data = asArray(asObject(result).data);
   const nextCursor = getString(asObject(result).nextCursor);
@@ -53,6 +94,7 @@ function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextC
     const thread = asObject(entry);
     const id = getString(thread.id);
     const cwd = getString(thread.cwd);
+    const name = getString(thread.name);
     const preview = getString(thread.preview) ?? "";
     const createdAt = getNumber(thread.createdAt);
     const updatedAt = getNumber(thread.updatedAt);
@@ -64,7 +106,9 @@ function parseThreadListPage(result: unknown): { threads: ThreadSummary[]; nextC
     threads.push({
       id,
       cwd,
+      name,
       preview,
+      isPinned: thread.isPinned === true,
       createdAt,
       updatedAt,
       path: getString(thread.path),
@@ -105,7 +149,6 @@ function buildThreadStartParams(options: ConversationOptions): ThreadStartParams
   const params: ThreadStartParams = {
     cwd: options.cwd,
     experimentalRawEvents: false,
-    persistExtendedHistory: false,
   };
 
   if (options.model) {

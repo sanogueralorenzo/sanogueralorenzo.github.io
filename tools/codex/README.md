@@ -5,7 +5,6 @@
 ## Quickstart
 
 ```shell
-../codex-core/scripts/install.sh
 ./scripts/install.sh
 npm install
 npm run generate:app-server-types
@@ -18,12 +17,12 @@ npm run test
 ### CLI
 
 ```shell
-codex-telegram --help
-codex-telegram help start
-codex-telegram logs --help
+codexbot --help
+codexbot help start
+codexbot logs --help
 ```
 
-### Commands (`codex-telegram --help`)
+### Commands (`codexbot --help`)
 
 ```text
 install  Install npm dependencies in project root.
@@ -54,17 +53,15 @@ help     Print this help output.
 ### Required Config
 
 - `.env`
-- `codex` on `PATH` for app-server transport
-- `codex-core` on `PATH` for thread/session operations (installed by root `./install.sh` or `../codex-core/scripts/install.sh`)
-- `CODEX_BIN` (optional app-server CLI override; defaults to `codex`)
-- `CODEX_CORE_BIN` (optional session CLI override; defaults to `codex-core`)
+- `codex` on `PATH` for app-server transport and thread/session operations
+- `CODEX_BIN` (optional Codex CLI override; defaults to `codex`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
 - `PRECEDENT_ENABLED=1` (optional) injects replay-verified Precedent context into bound Codex turns.
 - `PRECEDENT_STATE_DIR` (optional, defaults to `.precedent`)
 - `PRECEDENT_CONTEXT_TIMEOUT_MS` (optional, defaults to `2500`) caps before-turn context and repair prompt calls.
 - `PRECEDENT_HOOK_TIMEOUT_MS` (optional, defaults to `1500`) caps advisory validation, diff, retry receipt, and outcome hooks.
-- Node dependencies installed in `codex-telegram` (`npm install`)
+- Node dependencies installed in `codexbot` (`npm install`)
 
 ### App Server Protocol Types
 
@@ -83,14 +80,14 @@ help     Print this help output.
 ### Storage
 
 - `runtime/bindings.json`
-- `~/.codex/remote/codex-telegram.pid`
+- `~/.codex/remote/codexbot.pid`
 - `~/.codex/remote/remote.log`
-- `~/.codex/remote/codex-telegram-caffeinate.pid`
+- `~/.codex/remote/codexbot-caffeinate.pid`
 
 ### Output Behavior
 
 - The bot always sends a final Telegram message after each Codex turn.
-- Startup runs `codex-core sessions watch thread-titles start --home <CODEX_HOME>` so `/resume` and `/delete` can show generated thread titles when Codex initially stores the first prompt as the title.
+- `/resume` and `/delete` use app-server `thread/list`; when no user-facing title is present, they fall back to the thread preview.
 - If output exceeds Telegram message limits, it is split into ordered chunks and sent sequentially.
 - During a running turn, the bot does not emit intermediate turn transcript items.
 - At turn completion, it sends only the final assistant turn answer.

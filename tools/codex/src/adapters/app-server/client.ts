@@ -10,7 +10,12 @@ export type {
   TurnProgressEvent,
 } from "./types.js";
 
-export { listThreads } from "./threads.js";
+export {
+  deleteThreadById,
+  listThreads,
+  loadLatestAssistantMessageByThreadId,
+  type ThreadDeleteResult,
+} from "./threads.js";
 export {
   clearThreadGoal,
   getThreadGoal,

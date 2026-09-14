@@ -47,10 +47,7 @@ async function runTurn(
   onTurnEvent?: (event: TurnProgressEvent) => void
 ): Promise<TurnCompletion> {
   if (resumeFirst) {
-    await client.send("thread/resume", {
-      threadId,
-      persistExtendedHistory: false,
-    });
+    await client.send("thread/resume", { threadId });
   }
 
   const { state, turnDone } = createRunTurnState(threadId, onTurnEvent);

@@ -14,7 +14,6 @@ import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
 import { getConversationOptionsFromEnv, loadRuntimeConfig } from "./config.js";
-import { ensureThreadTitleWatcherStarted } from "./adapters/codex-core-sessions.js";
 import { createPrecedentBridge } from "./services/precedent-bridge.js";
 import { createPromptRunner } from "./services/prompt-runner.js";
 import { createGoalActions } from "./services/goal-actions.js";
@@ -25,7 +24,6 @@ const runtimeConfig = loadRuntimeConfig();
 const {
   token,
   bindingFile,
-  codexHome,
   defaultApprovalDecision,
   allowedChatIds,
   userHome,
@@ -47,7 +45,6 @@ const APPROVAL_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const TYPING_KEEPALIVE_INTERVAL_MS = 4000;
 
 const threadActions = createThreadActions({
-  codexHome,
   defaultThreadsLimit: DEFAULT_THREADS_LIMIT,
   store,
   pendingNewSessionChats,
@@ -157,9 +154,7 @@ bot.catch(async (error) => {
   console.error("Telegram bot error:", error.error);
 });
 
-await ensureThreadTitleWatcherStarted(codexHome);
-
-console.log(`Telegram Codex bridge is running. Codex home: ${codexHome}.`);
+console.log("Telegram Codex bridge is running.");
 if (allowedChatIds) {
   console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
 }

@@ -45,6 +45,8 @@ describe("handleTurnNotification", () => {
           phase: "final_answer",
           text: "Hello world",
           memoryCitation: null,
+          delivery: null,
+          questions: null,
         },
       },
     });
@@ -109,6 +111,7 @@ describe("handleTurnNotification", () => {
           status: "completed",
           revisedPrompt: null,
           result: "",
+          failure: null,
           savedPath: "/tmp/generated.png",
         },
       },
@@ -167,6 +170,8 @@ describe("handleTurnNotification", () => {
         item: {
           id: "cmd-1",
           type: "commandExecution",
+          pluginId: null,
+          scriptPath: null,
           command: "npm test",
           cwd: "/repo",
           processId: null,

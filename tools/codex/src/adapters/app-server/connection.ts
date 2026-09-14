@@ -54,7 +54,7 @@ export class AppServerConnection {
   async initialize(): Promise<void> {
     await this.send("initialize", {
       clientInfo: {
-        name: "codex-telegram",
+        name: "codexbot",
         title: null,
         version: "1.0",
       },

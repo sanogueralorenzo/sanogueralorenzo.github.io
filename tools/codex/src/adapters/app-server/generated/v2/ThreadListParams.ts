@@ -33,10 +33,26 @@ modelProviders?: Array<string> | null,
  */
 sourceKinds?: Array<ThreadSourceKind> | null,
 /**
+ * Optional originator allowlist, matching any supplied value exactly.
+ * Supported by hosted backends only; the local app-server rejects a nonempty list.
+ * Omitted or empty lists leave originators unrestricted.
+ */
+originators?: Array<string> | null,
+/**
  * Optional archived filter; when set to true, only archived threads are returned.
  * If false or null, only non-archived threads are returned.
  */
 archived?: boolean | null,
+/**
+ * Omit to include every section, set to `null` for unsectioned threads,
+ * or provide a section ID to return only threads in that section.
+ */
+sectionId?: string | null,
+/**
+ * Omit to include every project, set to null for unassigned threads,
+ * or provide a project ID to return only threads in that project.
+ */
+projectId?: string | null,
 /**
  * Optional cwd filter or filters; when set, only threads whose session cwd
  * exactly matches one of these paths are returned.
@@ -51,4 +67,13 @@ useStateDbOnly?: boolean,
 /**
  * Optional substring filter for the extracted thread title.
  */
-searchTerm?: string | null, };
+searchTerm?: string | null,
+/**
+ * Optional direct parent thread filter. Mutually exclusive with `ancestorThreadId`.
+ */
+parentThreadId?: string | null,
+/**
+ * Optional ancestor thread filter. Returns spawned descendants at any depth, excluding the
+ * ancestor itself. Mutually exclusive with `parentThreadId`.
+ */
+ancestorThreadId?: string | null, };

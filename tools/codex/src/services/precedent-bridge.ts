@@ -465,7 +465,7 @@ function logPrecedentFailure(hook: string, input: { cwd: string; threadId: strin
   const message = error instanceof Error ? error.message : String(error);
   console.warn(JSON.stringify({
     level: "warn",
-    service: "codex-telegram",
+    service: "codexbot",
     component: "precedent",
     hook,
     threadId: input.threadId,

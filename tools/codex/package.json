@@ -1,5 +1,5 @@
 {
-  "name": "codex-telegram",
+  "name": "codexbot",
   "version": "1.0.0",
   "description": "Telegram to Codex thread bridge using grammY.",
   "private": true,

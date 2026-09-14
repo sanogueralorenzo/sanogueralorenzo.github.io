@@ -1,14 +1,11 @@
 import { basename } from "node:path";
 import {
+  deleteThreadById,
+  loadLatestAssistantMessageByThreadId,
   ThreadSummary,
   listThreads
 } from "../adapters/app-server/client.js";
 import { BindingStore } from "../adapters/binding-store.js";
-import {
-  deleteSessionByThreadId,
-  listSessionsForSelection,
-  loadLatestAssistantMessageByThreadId
-} from "../adapters/codex-core-sessions.js";
 import {
   buildFolderSelectionLabels,
   buildThreadSelectionLabels,
@@ -26,6 +23,7 @@ export type ListedThread = {
   id: string;
   title: string;
   cwd: string;
+  isPinned: boolean;
 };
 export type ListedFolderChoice = {
   cwd: string;
@@ -33,7 +31,6 @@ export type ListedFolderChoice = {
 };
 
 type ThreadActionsDeps = {
-  codexHome: string;
   defaultThreadsLimit: number;
   store: BindingStore;
   pendingNewSessionChats: Set<string>;
@@ -75,7 +72,7 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     await deps.bindChatToThread(chatId, selected.id);
     await reply(formatActionTitle("Resumed", selected.title), { reply_markup: quickActionsKeyboard() });
 
-    const latestMessage = await loadLatestAssistantMessageByThreadId(selected.id, deps.codexHome);
+    const latestMessage = await loadLatestAssistantMessageByThreadId(selected.id);
     if (latestMessage) {
       await sendTextChunks(reply, `Latest message:\n\n${latestMessage}`);
     }
@@ -87,7 +84,16 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       return;
     }
 
-    const result = await deleteSessionByThreadId(selected.id, deps.codexHome);
+    if (selected.isPinned) {
+      clearListedSelectionState(chatId);
+      await replyWithQuickActions(
+        reply,
+        `Skipped: ${selected.title}\n\nThis thread is pinned in Codex. Unpin it first, then delete again.`,
+      );
+      return;
+    }
+
+    const result = await deleteThreadById(selected.id);
     const boundId = await deps.store.get(chatId);
     const isDeletedThreadBound = boundId === selected.id;
 
@@ -108,14 +114,6 @@ export function createThreadActions(deps: ThreadActionsDeps) {
       } else {
         await replyWithQuickActions(reply, formatActionTitle("Deleted", selected.title));
       }
-      return;
-    }
-
-    if (result.status === "skipped" && result.reason === "pinned") {
-      await replyWithQuickActions(
-        reply,
-        `Skipped: ${selected.title}\n\nThis thread is pinned in Codex. Unpin it first, then delete again.`,
-      );
       return;
     }
 
@@ -141,7 +139,12 @@ export function createThreadActions(deps: ThreadActionsDeps) {
     reply: ReplyFn,
     mode: "resume" | "delete"
   ): Promise<void> {
-    const sessions = await listSessionsForSelection(deps.codexHome, limit);
+    const sessions = (await listThreads(limit)).map((thread) => ({
+      id: thread.id,
+      title: (thread.name ?? thread.preview) || thread.id,
+      cwd: thread.cwd,
+      isPinned: thread.isPinned,
+    }));
     if (!sessions.length) {
       await reply("No Codex sessions found.");
       return;

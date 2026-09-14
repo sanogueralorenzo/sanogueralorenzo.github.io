@@ -3,12 +3,10 @@ import { homedir } from "node:os";
 import process from "node:process";
 import { config as loadEnv } from "dotenv";
 import { ApprovalDecision, ApprovalPolicy, SandboxMode } from "./adapters/app-server/client.js";
-import { resolveCodexHomeFromEnv } from "./adapters/codex-core-sessions.js";
 import { expandHomePath } from "./shared/path-utils.js";
 
 type RuntimeConfig = {
   token: string;
-  codexHome: string;
   bindingFile: string;
   allowedChatIds: Set<string> | null;
   defaultApprovalDecision: ApprovalDecision;
@@ -30,7 +28,6 @@ export function loadRuntimeConfig(): RuntimeConfig {
 
   return {
     token,
-    codexHome: resolveCodexHomeFromEnv(process.env.CODEX_HOME),
     bindingFile,
     allowedChatIds: parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",

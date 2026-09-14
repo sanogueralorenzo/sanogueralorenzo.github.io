@@ -9,10 +9,12 @@ describe("handleServerRequest", () => {
         id: 1,
         method: "item/commandExecution/requestApproval",
         params: {
+          kind: "command",
           threadId: "thread-1",
           turnId: "turn-1",
           itemId: "item-1",
           startedAtMs: 0,
+          environmentId: null,
           command: "git status",
           cwd: "/tmp/project",
         },
@@ -79,6 +81,8 @@ describe("handleServerRequest", () => {
             options: null,
           },
         ],
+        isBlocking: true,
+        autoResolutionMs: null,
       },
     });
 

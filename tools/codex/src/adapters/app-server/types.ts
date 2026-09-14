@@ -78,7 +78,9 @@ export type ConversationOptions = {
 export type ThreadSummary = {
   id: string;
   cwd: string;
+  name: string | null;
   preview: string;
+  isPinned: boolean;
   createdAt: number;
   updatedAt: number;
   path: string | null;

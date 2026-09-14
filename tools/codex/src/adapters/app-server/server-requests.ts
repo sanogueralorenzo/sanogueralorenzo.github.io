@@ -52,12 +52,12 @@ export async function handleServerRequest(
         contentItems: [
           {
             type: "inputText",
-            text: "Dynamic tool calls are not supported by this codex-telegram runtime.",
+            text: "Dynamic tool calls are not supported by this codexbot runtime.",
           },
         ],
       };
     case "account/chatgptAuthTokens/refresh":
-      throw new Error("ChatGPT auth token refresh is not supported in this codex-telegram runtime.");
+      throw new Error("ChatGPT auth token refresh is not supported in this codexbot runtime.");
     default:
       throw new Error(`Unsupported server request method: ${request.method}`);
   }
