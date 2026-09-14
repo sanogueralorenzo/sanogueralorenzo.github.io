@@ -11,12 +11,6 @@ type RuntimeConfig = {
   allowedChatIds: Set<string> | null;
   defaultApprovalDecision: ApprovalDecision;
   userHome: string;
-  precedent: {
-    enabled: boolean;
-    stateDir?: string;
-    hookTimeoutMs?: number;
-    contextTimeoutMs?: number;
-  };
 };
 
 export function loadRuntimeConfig(): RuntimeConfig {
@@ -32,12 +26,6 @@ export function loadRuntimeConfig(): RuntimeConfig {
     allowedChatIds: parseAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",
     userHome,
-    precedent: {
-      enabled: process.env.PRECEDENT_ENABLED === "1" || process.env.PRECEDENT_ENABLED === "true",
-      stateDir: process.env.PRECEDENT_STATE_DIR,
-      hookTimeoutMs: parsePositiveInteger(process.env.PRECEDENT_HOOK_TIMEOUT_MS),
-      contextTimeoutMs: parsePositiveInteger(process.env.PRECEDENT_CONTEXT_TIMEOUT_MS)
-    }
   };
 }
 
@@ -119,18 +107,6 @@ function parseBoolean(value?: string): boolean | null {
     return false;
   }
   return null;
-}
-
-function parsePositiveInteger(value?: string): number | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-  return parsed;
 }
 
 function parseAllowedChatIds(value?: string): Set<string> | null {

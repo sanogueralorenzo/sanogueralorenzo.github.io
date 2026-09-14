@@ -57,10 +57,6 @@ help     Print this help output.
 - `CODEX_BIN` (optional Codex CLI override; defaults to `codex`)
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_ALLOWED_CHAT_IDS` (optional)
-- `PRECEDENT_ENABLED=1` (optional) injects replay-verified Precedent context into bound Codex turns.
-- `PRECEDENT_STATE_DIR` (optional, defaults to `.precedent`)
-- `PRECEDENT_CONTEXT_TIMEOUT_MS` (optional, defaults to `2500`) caps before-turn context and repair prompt calls.
-- `PRECEDENT_HOOK_TIMEOUT_MS` (optional, defaults to `1500`) caps advisory validation, diff, retry receipt, and outcome hooks.
 - Node dependencies installed in `codexbot` (`npm install`)
 
 ### App Server Protocol Types
@@ -95,9 +91,6 @@ help     Print this help output.
 - Prompts are serialized per Codex thread; different Codex threads can run independently.
 - If a turn generates an image and app-server reports a saved local path, the bot sends that image after the final text.
 - For long-running turns, Telegram `typing` action is refreshed continuously until the final reply/error is posted.
-- When `PRECEDENT_ENABLED=1`, Codex Remote calls Precedent with the bound Codex thread id before each normal turn. Only `contextBlock` is prepended to the prompt; `candidateHints` and `promotionTrials` remain telemetry and are never injected as instructions.
-- If Precedent records a repairable failure, Codex Remote can prepend one `repairBlock` to a hidden same-thread repair continuation before replying, or to the next normal prompt when the failure was already present before the turn. It records the retry receipt after the repaired turn.
-- Precedent calls are bounded by timeout and fail open: a hung or failing Precedent process cannot block a Telegram turn.
 
 ### Thread Delete Behavior
 

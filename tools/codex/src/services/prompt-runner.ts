@@ -5,7 +5,6 @@ import type {
   ApprovalRequest,
   SandboxMode,
   TurnCompletion,
-  TurnProgressEvent,
 } from "../adapters/app-server/client.js";
 import {
   createAndSendFirstMessageWithTimeoutContinuation,
@@ -16,7 +15,6 @@ import { BindingStore } from "../adapters/binding-store.js";
 import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
-import { PrecedentBridge } from "./precedent-bridge.js";
 
 const REMOTE_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
@@ -35,7 +33,6 @@ type TimedTurnLike =
 
 type PromptTurnRuntimeOptions = {
   approvalHandler: (request: ApprovalRequest) => Promise<ApprovalDecision>;
-  onTurnEvent?: (event: TurnProgressEvent) => void;
 };
 
 type PromptRunnerDeps = {
@@ -47,7 +44,6 @@ type PromptRunnerDeps = {
   getConversationOptions: () => ConversationOptions;
   bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
   requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
-  precedentBridge?: PrecedentBridge;
 };
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
@@ -62,54 +58,8 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const runtimeOptions: PromptTurnRuntimeOptions = {
       approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
     };
-    const precedentBridge = deps.precedentBridge;
-    let failurePrecedent: PreparedPrecedentTurn | null = null;
-    const finalizeTurn = async (
-      turn: TimedTurnLike,
-      precedent: PreparedPrecedentTurn | null,
-      observer: PrecedentTurnObserver | null
-    ): Promise<void> => {
-      await replyFromTimedTurn(turn, finalOutputRelay, async (completion) => {
-        let finalCompletion = completion;
-        let finalPrecedent = precedent;
-        if (precedentBridge && precedent) {
-          const repaired = await repairCurrentTurn(completion, text, precedent, observer, runtimeOptionsFor);
-          finalCompletion = repaired.completion;
-          finalPrecedent = repaired.precedent;
-          await precedentBridge.afterTurn({
-            cwd: finalPrecedent.cwd,
-            threadId: finalPrecedent.threadId,
-            task: text,
-            response: finalCompletion.response,
-            success: true,
-            attributedPrecedents: finalPrecedent.attributedPrecedents,
-          });
-          await recordRepairReceipt(finalPrecedent);
-        }
-        return finalCompletion;
-      });
-    };
-    const runtimeOptionsFor = (
-      precedent: PreparedPrecedentTurn | null,
-      observer: PrecedentTurnObserver | null
-    ): PromptTurnRuntimeOptions => {
-      if (!precedentBridge || !precedent) {
-        return runtimeOptions;
-      }
-
-      return {
-        ...runtimeOptions,
-        onTurnEvent: (event) => {
-          const observation = precedentBridge.observeTurnEvent({
-            cwd: precedent.cwd,
-            threadId: precedent.threadId,
-            event,
-            attributedPrecedents: precedent.attributedPrecedents,
-          });
-          observer?.observations.push(observation);
-          void observation;
-        },
-      };
+    const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
+      await replyFromTimedTurn(turn, finalOutputRelay, async (completion) => completion);
     };
 
     try {
@@ -128,7 +78,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           await deps.bindChatToThread(chatId, initialized.threadId);
           deps.pendingNewSessionChats.delete(chatId);
           deps.clearPendingNewSessionCwd(chatId);
-          await finalizeTurn(initialized, null, null);
+          await finalizeTurn(initialized);
           return;
         }
 
@@ -137,17 +87,13 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       }
 
       await withThreadTurnLock(threadId, async () => {
-        const precedent = await preparePrecedentTurn(threadId, text);
-        failurePrecedent = precedent;
-        const observer = createPrecedentTurnObserver();
         try {
           const turn = await sendMessageWithTimeoutContinuation(
             threadId,
-            withRemoteFinalInstruction(precedent.text),
-            runtimeOptionsFor(precedent, observer)
+            withRemoteFinalInstruction(text),
+            runtimeOptions
           );
-          await finalizeTurn(turn, precedent, observer);
-          failurePrecedent = null;
+          await finalizeTurn(turn);
           return;
         } catch (error) {
           if (!isNoRolloutFoundError(error)) {
@@ -158,21 +104,18 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         try {
           const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(
             threadId,
-            withRemoteFinalInstruction(precedent.text),
-            runtimeOptionsFor(precedent, observer)
+            withRemoteFinalInstruction(text),
+            runtimeOptions
           );
-          await finalizeTurn(firstTurn, precedent, observer);
-          failurePrecedent = null;
+          await finalizeTurn(firstTurn);
           return;
         } catch {
-          failurePrecedent = null;
           await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
           return;
         }
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await recordFailedPrecedentTurn(failurePrecedent, text, message);
       await ctx.reply(formatFailure("Codex error.", message));
     }
   }
@@ -192,130 +135,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     }
   }
 
-  async function repairCurrentTurn(
-    completion: TurnCompletion,
-    task: string,
-    precedent: PreparedPrecedentTurn,
-    observer: PrecedentTurnObserver | null,
-    runtimeOptionsForTurn: (
-      precedent: PreparedPrecedentTurn | null,
-      observer: PrecedentTurnObserver | null
-    ) => PromptTurnRuntimeOptions
-  ): Promise<{ completion: TurnCompletion; precedent: PreparedPrecedentTurn }> {
-    if (!deps.precedentBridge || precedent.repair) {
-      return { completion, precedent };
-    }
-
-    await settlePrecedentObservations(observer);
-    const beforeRetry = await deps.precedentBridge.beforeRetry({
-      cwd: precedent.cwd,
-      threadId: precedent.threadId,
-      task,
-      attributedPrecedents: precedent.attributedPrecedents,
-    });
-    if (!beforeRetry.repairBlock || !beforeRetry.repairId) {
-      return { completion, precedent };
-    }
-
-    const repairPrecedent: PreparedPrecedentTurn = {
-      ...precedent,
-      text: beforeRetry.repairBlock,
-      repair: {
-        repairBlock: beforeRetry.repairBlock,
-        repairId: beforeRetry.repairId,
-      },
-    };
-    const repairObserver = createPrecedentTurnObserver();
-
-    try {
-      const repairedTurn = await sendMessageWithTimeoutContinuation(
-        precedent.threadId,
-        withRemoteFinalInstruction(beforeRetry.repairBlock),
-        runtimeOptionsForTurn(repairPrecedent, repairObserver)
-      );
-      const repairedCompletion = await completionFromTimedTurn(repairedTurn);
-      await settlePrecedentObservations(repairObserver);
-      return {
-        completion: repairedCompletion,
-        precedent: repairPrecedent,
-      };
-    } catch {
-      return { completion, precedent };
-    }
-  }
-
-  async function recordFailedPrecedentTurn(
-    precedent: PreparedPrecedentTurn | null,
-    task: string,
-    response: string
-  ): Promise<void> {
-    if (!deps.precedentBridge || !precedent) {
-      return;
-    }
-
-    await deps.precedentBridge.afterTurn({
-      cwd: precedent.cwd,
-      threadId: precedent.threadId,
-      task,
-      response,
-      success: false,
-      attributedPrecedents: precedent.attributedPrecedents,
-    });
-    await recordRepairReceipt(precedent);
-  }
-
-  async function recordRepairReceipt(precedent: PreparedPrecedentTurn): Promise<void> {
-    if (!deps.precedentBridge || !precedent.repair) {
-      return;
-    }
-
-    await deps.precedentBridge.afterRetry({
-      cwd: precedent.cwd,
-      threadId: precedent.threadId,
-      repairId: precedent.repair.repairId,
-      attributedPrecedents: precedent.attributedPrecedents,
-    });
-  }
-
-  async function preparePrecedentTurn(threadId: string, text: string): Promise<PreparedPrecedentTurn> {
-    const options = deps.getConversationOptions();
-    if (!deps.precedentBridge) {
-      return {
-        cwd: options.cwd,
-        threadId,
-        text,
-        attributedPrecedents: [],
-        repair: null,
-      };
-    }
-
-    const beforeTurn = await deps.precedentBridge.beforeTurn({
-      cwd: options.cwd,
-      threadId,
-      task: text,
-    });
-    const beforeRetry = await deps.precedentBridge.beforeRetry({
-      cwd: options.cwd,
-      threadId,
-      task: text,
-      attributedPrecedents: beforeTurn.attributedPrecedents,
-    });
-    const repair = beforeRetry.repairBlock && beforeRetry.repairId
-      ? {
-          repairBlock: beforeRetry.repairBlock,
-          repairId: beforeRetry.repairId,
-        }
-      : null;
-
-    return {
-      cwd: options.cwd,
-      threadId,
-      text: repair ? `${repair.repairBlock}\n\n${beforeTurn.task}` : beforeTurn.task,
-      attributedPrecedents: beforeTurn.attributedPrecedents,
-      repair,
-    };
-  }
-
   async function replyFromTimedTurn(
     turn: TimedTurnLike,
     finalOutputRelay: FinalOutputRelay,
@@ -325,13 +144,6 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
       ? completionFromCompletedTurn(turn)
       : await turn.completion;
     await finalOutputRelay.send(await prepareCompletion(completion));
-  }
-
-  async function completionFromTimedTurn(turn: TimedTurnLike): Promise<TurnCompletion> {
-    if (turn.status === "completed") {
-      return completionFromCompletedTurn(turn);
-    }
-    return turn.completion;
   }
 
   async function recoverFromUnavailableThread(
@@ -375,37 +187,6 @@ function withRemoteFinalInstruction(text: string): string {
 type FinalOutputRelay = {
   send: (completion: TurnCompletion) => Promise<void>;
 };
-
-type PreparedPrecedentTurn = {
-  cwd: string;
-  threadId: string;
-  text: string;
-  attributedPrecedents: string[];
-  repair: PreparedPrecedentRepair | null;
-};
-
-type PreparedPrecedentRepair = {
-  repairBlock: string;
-  repairId: string;
-};
-
-type PrecedentTurnObserver = {
-  observations: Array<Promise<void>>;
-};
-
-function createPrecedentTurnObserver(): PrecedentTurnObserver {
-  return {
-    observations: [],
-  };
-}
-
-async function settlePrecedentObservations(observer: PrecedentTurnObserver | null): Promise<void> {
-  if (!observer || observer.observations.length === 0) {
-    return;
-  }
-
-  await Promise.allSettled(observer.observations);
-}
 
 const EMPTY_CODEX_RESPONSE = "(Empty Codex response)";
 
