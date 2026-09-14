@@ -10,7 +10,9 @@ final class AppMenu: NSObject {
     var onRewrite: (() -> Void)?
     var onCancel: (() -> Void)?
     var onProvider: ((RewriteProvider) -> Void)?
+    var onShortening: ((ShorteningLevel) -> Void)?
     private var providerItems: [NSMenuItem] = []
+    private var shorteningItems: [NSMenuItem] = []
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let progress = NSMenuItem(title: "Rewriting…", action: nil, keyEquivalent: "")
     private let rewrite = NSMenuItem(title: "Rewrite", action: #selector(begin), keyEquivalent: "r")
@@ -45,6 +47,13 @@ final class AppMenu: NSObject {
         }
         let provider = NSMenuItem(title: "Provider", action: nil, keyEquivalent: "")
         provider.submenu = providers; menu.addItem(provider)
+        let shorteningMenu = NSMenu(); shorteningMenu.autoenablesItems = false
+        for level in ShorteningLevel.allCases {
+            let entry = shorteningMenu.addItem(withTitle: level.menuTitle, action: #selector(shorteningClicked(_:)), keyEquivalent: "")
+            entry.target = self; shorteningItems.append(entry)
+        }
+        let shortening = NSMenuItem(title: "Shortening", action: nil, keyEquivalent: "")
+        shortening.submenu = shorteningMenu; menu.addItem(shortening)
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "").target = self
         item.menu = menu; setRewriting(false)
     }
@@ -85,8 +94,15 @@ final class AppMenu: NSObject {
     func setProvider(_ provider: RewriteProvider) {
         for entry in providerItems { entry.state = entry.title == provider.rawValue ? .on : .off }
     }
+    func setShortening(_ level: ShorteningLevel) {
+        for entry in shorteningItems { entry.state = entry.title == level.menuTitle ? .on : .off }
+    }
     @objc private func providerClicked(_ sender: NSMenuItem) {
         guard let provider = RewriteProvider(rawValue: sender.title) else { return }
         onProvider?(provider); setProvider(provider)
+    }
+    @objc private func shorteningClicked(_ sender: NSMenuItem) {
+        guard let level = ShorteningLevel.allCases.first(where: { $0.menuTitle == sender.title }) else { return }
+        onShortening?(level); setShortening(level)
     }
 }

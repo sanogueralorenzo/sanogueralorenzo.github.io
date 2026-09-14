@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class RewriteController {
     private(set) var provider: RewriteProvider
+    private(set) var shortening: ShorteningLevel
     private let processor: PiService
     private let menuBar: AppMenu
     private let captureText: @MainActor () throws -> String
@@ -16,13 +17,19 @@ final class RewriteController {
          pasteboard: NSPasteboard = .general, captureText: @escaping @MainActor () throws -> String = SelectedText.read) {
         self.processor = processor; self.menuBar = menuBar
         self.defaults = defaults; self.pasteboard = pasteboard; self.captureText = captureText
-        provider = RewriteProvider.load(from: defaults)
+        provider = RewriteProvider.load(from: defaults); shortening = ShorteningLevel.load(from: defaults)
     }
     func selectProvider(_ provider: RewriteProvider) {
         guard self.provider != provider else { return }
         cancel()
         self.provider = provider; provider.save(to: defaults)
-        processor.warmUp(provider)
+        processor.warmUp(provider, shortening: shortening)
+    }
+    func selectShortening(_ level: ShorteningLevel) {
+        guard shortening != level else { return }
+        cancel()
+        shortening = level; level.save(to: defaults)
+        processor.warmUp(provider, shortening: level)
     }
     func begin() {
         if isRewriting { cancel(); return }
@@ -35,6 +42,7 @@ final class RewriteController {
             return
         }
         let provider = provider
+        let shortening = shortening
         let current = UUID(); generation = current
         menuBar.setRewriting(true)
         let previous = task
@@ -44,7 +52,7 @@ final class RewriteController {
             await Task.yield()
             guard generation == current else { return }
             do {
-                let output = try await processor.rewrite(text, provider: provider)
+                let output = try await processor.rewrite(text, provider: provider, shortening: shortening)
                 try Task.checkCancellation(); guard generation == current else { return }
                 try RewriteClipboard.copy(output, to: pasteboard)
                 task = nil

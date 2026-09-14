@@ -44,6 +44,7 @@ struct CoreTests {
             ("Rewrite menu completion and dot clearing", WorkflowTests.completion),
             ("Cancel then immediately rewrite", WorkflowTests.restart),
             ("Provider switch during preparation", WorkflowTests.providerSwitch),
+            ("Shortening switch reaches the rewrite prompt", WorkflowTests.shorteningSwitch),
             ("Invalid result never replaces clipboard", WorkflowTests.invalidOutput),
             ("Provider defaults and persistence", PiTests.providers),
             ("Editing output boundaries", RewriteTests.editing),

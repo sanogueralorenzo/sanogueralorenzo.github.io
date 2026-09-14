@@ -13,18 +13,19 @@ final class PiService {
         let rpc: PiRPC
         let environment: PiEnvironment
         let provider: RewriteProvider
+        let shortening: ShorteningLevel
         let started: Date
     }
     private var session: Session?
     private var isRewriting = false
-    private var pendingWarmup: RewriteProvider?
+    private var pendingWarmup: (provider: RewriteProvider, shortening: ShorteningLevel)?
     var processIdentifier: Int32? { session?.rpc.isRunning == true ? session?.rpc.processIdentifier : nil }
     func cancel() {
         if isRewriting { shutdown() }
     }
     func shutdown() {
         pendingWarmup = nil
-        preparation?.cancel(); preparationProvider = nil
+        preparation?.cancel(); preparationProvider = nil; preparationShortening = nil
         runner?.cancel()
         stopProcess()
     }
@@ -71,61 +72,63 @@ final class PiService {
         return try PiEnvironment(provider: provider.providerID, credential: credential, oauth: json["authType"] as? String == "oauth")
     }
     // Launch and provider changes prepare without sending any selected text.
-    func warmUp(_ provider: RewriteProvider) {
-        guard !isRewriting else { pendingWarmup = provider; return }
-        _ = readiness(provider)
+    func warmUp(_ provider: RewriteProvider, shortening: ShorteningLevel = .light) {
+        guard !isRewriting else { pendingWarmup = (provider, shortening); return }
+        _ = readiness(provider, shortening: shortening)
     }
     private var preparation: Task<Void, Error>?
     private var preparationProvider: RewriteProvider?
+    private var preparationShortening: ShorteningLevel?
     private var preparationID = UUID()
 
-    private func readiness(_ provider: RewriteProvider) -> Task<Void, Error> {
-        if let preparation, preparationProvider == provider,
-           session.map({ $0.rpc.isRunning && now().timeIntervalSince($0.started) <= 180 }) ?? true {
+    private func readiness(_ provider: RewriteProvider, shortening: ShorteningLevel) -> Task<Void, Error> {
+        if let preparation, preparationProvider == provider, preparationShortening == shortening,
+           session.map({ $0.rpc.isRunning && $0.provider == provider && $0.shortening == shortening && now().timeIntervalSince($0.started) <= 180 }) ?? true {
             return preparation
         }
         let previous = preparation
         previous?.cancel()
         let id = UUID(); preparationID = id
         preparationProvider = provider
+        preparationShortening = shortening
         let next = Task { @MainActor in
             _ = await previous?.result
             do {
                 try Task.checkCancellation()
-                try await self.prepare(provider)
+                try await self.prepare(provider, shortening: shortening)
                 try Task.checkCancellation()
             } catch {
                 self.stopProcess()
-                if self.preparationID == id { self.preparationProvider = nil }
+                if self.preparationID == id { self.preparationProvider = nil; self.preparationShortening = nil }
                 throw error
             }
         }
         preparation = next
         return next
     }
-    private func prepare(_ provider: RewriteProvider) async throws {
+    private func prepare(_ provider: RewriteProvider, shortening: ShorteningLevel) async throws {
         // Refresh the short-lived auth snapshot well before its token can expire.
         // Healthy requests with the same provider reuse one process.
-        if session.map({ $0.rpc.isRunning && $0.provider == provider && now().timeIntervalSince($0.started) <= 180 }) != true {
+        if session.map({ $0.rpc.isRunning && $0.provider == provider && $0.shortening == shortening && now().timeIntervalSince($0.started) <= 180 }) != true {
             stopProcess()
             let executable = try await executable(), environment = try await authenticatedEnvironment(executable, provider: provider)
             try Task.checkCancellation()
-            let rpc = try PiRPC(executable: executable, arguments: environment.rewriteArguments(provider),
+            let rpc = try PiRPC(executable: executable, arguments: environment.rewriteArguments(provider, shortening: shortening),
                             environment: environment.environment, directory: environment.directory)
-            session = Session(rpc: rpc, environment: environment, provider: provider, started: now())
+            session = Session(rpc: rpc, environment: environment, provider: provider, shortening: shortening, started: now())
         }
     }
-    func rewrite(_ source: String, provider: RewriteProvider) async throws -> String {
+    func rewrite(_ source: String, provider: RewriteProvider, shortening: ShorteningLevel = .light) async throws -> String {
         guard !isRewriting else { throw RewriteError.message("A rewrite is already finishing. Try again in a moment.") }
         isRewriting = true
         defer {
             isRewriting = false
-            if let provider = pendingWarmup {
-                pendingWarmup = nil; warmUp(provider)
+            if let pending = pendingWarmup {
+                pendingWarmup = nil; warmUp(pending.provider, shortening: pending.shortening)
             }
         }
         do {
-            try await readiness(provider).value
+            try await readiness(provider, shortening: shortening).value
             try Task.checkCancellation()
             guard let rpc = session?.rpc else { throw RewriteError.message("Pi could not start. Try again.") }
             try await rpc.resetSession()

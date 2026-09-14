@@ -16,6 +16,7 @@ private final class Workflow {
         pasteboard.setString("Previous clipboard", forType: .string)
         menu.onRewrite = { [unowned self] in controller.begin() }
         menu.onProvider = { [unowned self] in controller.selectProvider($0) }
+        menu.onShortening = { [unowned self] in controller.selectShortening($0) }
     }
     func close() {
         controller.cancel(); service.shutdown(); menu.remove(); pasteboard.releaseGlobally()
@@ -44,7 +45,7 @@ enum WorkflowTests {
         try expect(run.pasteboard.string(forType: .string) == "Edited: " + run.source, "Completed rewrite was not copied")
         try expect(run.dotHidden, "Completion did not clear the dot")
         let titles = run.menu.item.menu!.items.filter { !$0.isHidden && !$0.isSeparatorItem }.map(\.title)
-        try expect(titles == ["Rewrite", "Provider", "Quit"], "Completion did not return to the idle menu")
+        try expect(titles == ["Rewrite", "Provider", "Shortening", "Quit"], "Completion did not return to the idle menu")
     }
     static func restart() async throws {
         let run = try Workflow(); defer { run.close() }
@@ -75,6 +76,17 @@ enum WorkflowTests {
         let starts = run.fixture.events.filter { $0["event"] as? String == "started" }
         try expect(starts.count == 1 && starts[0]["provider"] as? String == "anthropic", "Old provider survived preparation cancellation")
         try expect(run.fixture.count("prompt") == 1 && run.dotHidden, "Switch sent stale text or left progress visible")
+    }
+    static func shorteningSwitch() async throws {
+        let run = try Workflow(); defer { run.close() }
+        let shortening = run.menu.item.menu!.items.first { $0.title == "Shortening" }!.submenu!
+        shortening.performActionForItem(at: 2)
+        try expect(run.controller.shortening == .strong && shortening.items[2].state == .on, "Shortening menu did not switch")
+        run.controller.begin()
+        try await run.finished()
+        let starts = run.fixture.events.filter { $0["event"] as? String == "started" }
+        try expect(starts.count == 1 && (starts[0]["system_prompt"] as? String)?.contains("40% fewer words") == true,
+                   "Selected shortening level did not reach Pi's system prompt")
     }
     static func invalidOutput() async throws {
         let run = try Workflow(); defer { run.close() }

@@ -21,6 +21,8 @@ pi
 
 Choose **Provider → OpenAI** (default) or **Anthropic** in the pencil menu. Enable Rewrite in **System Settings → Privacy & Security → Accessibility**.
 
+Choose **Shortening** in the pencil menu to control the rewrite length. **Light** is the default; Medium, Strong, and Maximum target progressively shorter results.
+
 Select text and press **⌥R** to rewrite it. The result is copied to your clipboard; press **⌘V** to paste it.
 
 **Escape** or **⌥R** cancels. The pencil dot disappears when the result is copied. The menu shows progress and errors. If ⌥R is unavailable, open Rewrite from that menu.

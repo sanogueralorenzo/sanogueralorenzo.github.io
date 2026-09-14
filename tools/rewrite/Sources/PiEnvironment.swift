@@ -58,9 +58,9 @@ final class PiEnvironment {
       }));
     }
     """
-    @MainActor func rewriteArguments(_ provider: RewriteProvider) throws -> [String] {
+    @MainActor func rewriteArguments(_ provider: RewriteProvider, shortening: ShorteningLevel = .light) throws -> [String] {
         var arguments = Self.isolationArguments + ["--mode", "rpc", "--provider", provider.providerID,
-            "--model", provider.preferredModel, "--thinking", "off", "--system-prompt", Editing.rules]
+            "--model", provider.preferredModel, "--thinking", "off", "--system-prompt", Editing.rules(for: shortening)]
         if provider == .openai {
             let path = directory.appendingPathComponent("rewrite-priority.mjs")
             try Self.priorityExtension.write(to: path, atomically: true, encoding: .utf8)
@@ -70,4 +70,3 @@ final class PiEnvironment {
     }
     deinit { try? FileManager.default.removeItem(at: directory) }
 }
-

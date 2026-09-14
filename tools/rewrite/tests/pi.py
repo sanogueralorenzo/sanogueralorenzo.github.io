@@ -63,7 +63,8 @@ assert.deepEqual(result, {input: ['test'], reasoning: {effort: 'none'}, service_
 else:
     assert '--extension' not in args
 assert {p.name for p in directory.iterdir()} == expected
-record('started', provider=provider, directory=str(directory))
+record('started', provider=provider, directory=str(directory),
+       system_prompt=args[args.index('--system-prompt') + 1])
 fresh = False
 for line in sys.stdin:
     command = json.loads(line)

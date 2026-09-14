@@ -29,9 +29,11 @@ final class Rewrite: NSObject, NSApplicationDelegate {
         menuBar.onCancel = { [weak self] in self?.controller.cancel() }
         menuBar.setProvider(controller.provider)
         menuBar.onProvider = { [weak self] provider in self?.controller.selectProvider(provider) }
+        menuBar.setShortening(controller.shortening)
+        menuBar.onShortening = { [weak self] level in self?.controller.selectShortening(level) }
         shortcut.onPress = { [weak self] in self?.controller.begin() }
         if !shortcut.register() { menuBar.showError("Could not register ⌥R. Use Rewrite in the pencil menu, or free ⌥R in the other app and restart Rewrite.") }
-        processor.warmUp(controller.provider)
+        processor.warmUp(controller.provider, shortening: controller.shortening)
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationWillTerminate(_ notification: Notification) {
