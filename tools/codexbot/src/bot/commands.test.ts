@@ -55,7 +55,7 @@ describe("registerCommandHandlers", () => {
   it("supports bot-qualified /goal commands", async () => {
     const { handlers, sendCommand } = registerHandlers();
 
-    await sendCommand("goal", "/goal@codex_remote_bot pause");
+    await sendCommand("goal", "/goal@codexbot pause");
 
     expect(handlers.onGoal).toHaveBeenCalledWith("123", "pause", expect.any(Function));
   });

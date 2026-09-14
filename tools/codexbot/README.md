@@ -1,6 +1,6 @@
 ## Intro
 
-**Codex Remote** runs a Telegram-to-Codex bridge for remote control of local Codex workflows.
+**Codex Bot** runs a Telegram-to-Codex bridge for controlling local Codex workflows.
 
 ## Quickstart
 
@@ -38,7 +38,7 @@ help     Print this help output.
 
 - `/start` and `/help` both show:
   ```text
-  Codex Remote
+  Codex Bot
 
   Commands: /new /resume /delete /goal /help
   Tip: Voice notes work!
@@ -70,15 +70,15 @@ help     Print this help output.
 - `ffmpeg` on `PATH`
 - Whisper model file at either:
   - `WHISPER_MODEL_PATH_TINY`, or
-  - `codex/models/ggml-tiny.en.bin`
+  - `codexbot/models/ggml-tiny.en.bin`
 - Voice notes use local transcription and will fail if these dependencies are missing.
 
 ### Storage
 
 - `runtime/bindings.json`
-- `~/.codex/remote/codexbot.pid`
-- `~/.codex/remote/remote.log`
-- `~/.codex/remote/codexbot-caffeinate.pid`
+- `~/.codex/codexbot/codexbot.pid`
+- `~/.codex/codexbot/codexbot.log`
+- `~/.codex/codexbot/codexbot-caffeinate.pid`
 
 ### Output Behavior
 

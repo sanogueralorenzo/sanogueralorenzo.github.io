@@ -5,7 +5,7 @@ import {
 } from "../adapters/app-server/client.js";
 import { createPromptRunner } from "./prompt-runner.js";
 
-const REMOTE_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
+const CODEXBOT_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
 vi.mock("../adapters/app-server/client.js", () => ({
   createAndSendFirstMessageWithTimeoutContinuation: vi.fn(),
@@ -26,7 +26,7 @@ describe("createPromptRunner", () => {
     }));
   });
 
-  it("adds the remote final instruction", async () => {
+  it("adds the codexbot final instruction", async () => {
     const sentMessages: string[] = [];
     const runner = createPromptRunner({
       store: { get: async () => "thread-1" } as never,
@@ -43,7 +43,7 @@ describe("createPromptRunner", () => {
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledWith(
       "thread-1",
-      remotePrompt("ship it"),
+      codexbotPrompt("ship it"),
       expect.any(Object)
     );
   });
@@ -136,7 +136,7 @@ describe("createPromptRunner", () => {
     expect(sendMessageWithTimeoutContinuation).toHaveBeenNthCalledWith(
       2,
       "thread-1",
-      remotePrompt("second"),
+      codexbotPrompt("second"),
       expect.any(Object)
     );
     expect(sentMessages).toEqual(["first done", "second done"]);
@@ -180,8 +180,8 @@ describe("createPromptRunner", () => {
 
 });
 
-function remotePrompt(text: string): string {
-  return `${text}\n\n${REMOTE_FINAL_INSTRUCTION}`;
+function codexbotPrompt(text: string): string {
+  return `${text}\n\n${CODEXBOT_FINAL_INSTRUCTION}`;
 }
 
 function fakeContext(sentMessages: string[], sentPhotos: string[] = [], failPhoto = false) {

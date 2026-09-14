@@ -14,11 +14,11 @@ done
 
 SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE_PATH")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-STATE_DIR="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
+STATE_DIR="${CODEXBOT_STATE_DIR:-$HOME/.codex/codexbot}"
 PID_FILE="$STATE_DIR/codexbot.pid"
-LOG_FILE="$STATE_DIR/remote.log"
+LOG_FILE="$STATE_DIR/codexbot.log"
 CAFFEINATE_PID_FILE="$STATE_DIR/codexbot-caffeinate.pid"
-LAUNCHD_LABEL="${CODEX_REMOTE_LAUNCHD_LABEL:-dev.codex.remote}"
+LAUNCHD_LABEL="${CODEXBOT_LAUNCHD_LABEL:-dev.codexbot}"
 
 COMMAND_NAMES=()
 COMMAND_USAGES=()
@@ -184,7 +184,7 @@ is_running() {
   kill -0 "$pid" 2>/dev/null
 }
 
-list_codex_remote_runtime_pids() {
+list_codexbot_runtime_pids() {
   /bin/ps -axo pid=,command= | while IFS= read -r pid command; do
     [[ -n "$pid" && -n "${command:-}" ]] || continue
     if [[ "$command" == *"$PROJECT_ROOT/node_modules/.bin/tsx watch src/index.ts"* ]]; then
@@ -227,7 +227,7 @@ kill_pid_with_grace() {
   kill -KILL "$pid" 2>/dev/null || true
 }
 
-kill_codex_remote_runtime_pids_excluding() {
+kill_codexbot_runtime_pids_excluding() {
   local exclude_pid="${1:-}"
   local pid
   while IFS= read -r pid; do
@@ -236,7 +236,7 @@ kill_codex_remote_runtime_pids_excluding() {
       continue
     fi
     kill_pid_with_grace "$pid"
-  done < <(list_codex_remote_runtime_pids)
+  done < <(list_codexbot_runtime_pids)
 }
 
 read_caffeinate_pid() {
@@ -355,7 +355,7 @@ cmd_start() {
 
   local managed_pid
   managed_pid="$(read_pid || true)"
-  kill_codex_remote_runtime_pids_excluding "$managed_pid"
+  kill_codexbot_runtime_pids_excluding "$managed_pid"
 
   if is_running; then
     start_caffeinate_for_pid "$(read_pid)"
@@ -396,7 +396,7 @@ cmd_stop() {
   if ! is_running; then
     rm -f "$PID_FILE"
     stop_launchd_if_any
-    kill_codex_remote_runtime_pids_excluding ""
+    kill_codexbot_runtime_pids_excluding ""
     print_stopped_status "$plain"
     return 0
   fi
@@ -407,7 +407,7 @@ cmd_stop() {
     kill_pid_with_grace "$managed_pid"
   fi
 
-  kill_codex_remote_runtime_pids_excluding ""
+  kill_codexbot_runtime_pids_excluding ""
   rm -f "$PID_FILE"
   stop_caffeinate_if_any
   print_stopped_status "$plain"

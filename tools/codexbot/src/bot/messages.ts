@@ -1,5 +1,5 @@
 export const HELP_TEXT = [
-  "Codex Remote",
+  "Codex Bot",
   "",
   "Commands: /new /resume /delete /goal /help",
   "Tip: Voice notes work!"

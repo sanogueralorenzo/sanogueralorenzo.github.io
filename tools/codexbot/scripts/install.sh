@@ -13,7 +13,7 @@ stop_existing_runtime() {
 }
 
 remove_obsolete_state_files() {
-  local state_dir="${CODEX_REMOTE_STATE_DIR:-$HOME/.codex/remote}"
+  local state_dir="${CODEXBOT_STATE_DIR:-$HOME/.codex/codexbot}"
 
   mkdir -p "$state_dir"
   rm -f "$state_dir/codexbot.log"

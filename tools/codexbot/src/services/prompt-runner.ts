@@ -16,7 +16,7 @@ import { formatFailure } from "../bot/messages.js";
 import { PromptContext } from "../bot/context.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
 
-const REMOTE_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
+const CODEXBOT_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
 type ConversationOptions = {
   cwd: string;
@@ -72,7 +72,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
           }
           const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
             options,
-            withRemoteFinalInstruction(text),
+            withCodexbotFinalInstruction(text),
             runtimeOptions
           );
           await deps.bindChatToThread(chatId, initialized.threadId);
@@ -90,7 +90,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         try {
           const turn = await sendMessageWithTimeoutContinuation(
             threadId,
-            withRemoteFinalInstruction(text),
+            withCodexbotFinalInstruction(text),
             runtimeOptions
           );
           await finalizeTurn(turn);
@@ -104,7 +104,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
         try {
           const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(
             threadId,
-            withRemoteFinalInstruction(text),
+            withCodexbotFinalInstruction(text),
             runtimeOptions
           );
           await finalizeTurn(firstTurn);
@@ -155,7 +155,7 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
     const options = deps.getConversationOptions();
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
       options,
-      withRemoteFinalInstruction(text),
+      withCodexbotFinalInstruction(text),
       runtimeOptions
     );
     await deps.bindChatToThread(chatId, initialized.threadId);
@@ -180,8 +180,8 @@ function isNoRolloutFoundError(error: unknown): boolean {
   return error.message.includes("no rollout found for thread id");
 }
 
-function withRemoteFinalInstruction(text: string): string {
-  return `${text}\n\n${REMOTE_FINAL_INSTRUCTION}`;
+function withCodexbotFinalInstruction(text: string): string {
+  return `${text}\n\n${CODEXBOT_FINAL_INSTRUCTION}`;
 }
 
 type FinalOutputRelay = {
