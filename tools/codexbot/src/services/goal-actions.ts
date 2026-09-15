@@ -1,12 +1,12 @@
 import type { ThreadGoal } from "../adapters/app-server/generated/v2/ThreadGoal.js";
 import type { GoalStatusUpdate } from "../adapters/app-server/client.js";
-import type { BindingStore } from "../adapters/binding-store.js";
+import type { TopicStore } from "../adapters/topic-store.js";
 import { quickActionsKeyboard } from "../bot/keyboards.js";
 import { THREAD_NOT_BOUND_MESSAGE } from "../bot/messages.js";
 import type { ReplyFn } from "../bot/context.js";
 
 type GoalActionsDeps = {
-  store: Pick<BindingStore, "get">;
+  store: Pick<TopicStore, "get">;
   getGoal: (threadId: string) => Promise<ThreadGoal | null>;
   setGoalObjective: (threadId: string, objective: string) => Promise<ThreadGoal>;
   setGoalStatus: (threadId: string, status: GoalStatusUpdate) => Promise<ThreadGoal>;
@@ -14,12 +14,18 @@ type GoalActionsDeps = {
 };
 
 export function createGoalActions(deps: GoalActionsDeps) {
-  async function executeGoalCommand(chatId: string, input: string, reply: ReplyFn): Promise<void> {
-    const threadId = await deps.store.get(chatId);
-    if (!threadId) {
+  async function executeGoalCommand(
+    chatId: string,
+    topicId: number,
+    input: string,
+    reply: ReplyFn
+  ): Promise<void> {
+    const binding = await deps.store.get(chatId, topicId);
+    if (!binding) {
       await reply(THREAD_NOT_BOUND_MESSAGE, { reply_markup: quickActionsKeyboard() });
       return;
     }
+    const threadId = binding.threadId;
 
     const command = parseGoalCommand(input);
     switch (command.type) {

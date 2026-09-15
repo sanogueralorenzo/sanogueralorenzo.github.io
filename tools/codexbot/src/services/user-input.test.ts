@@ -6,7 +6,7 @@ describe("createUserInputService", () => {
     const sent: string[] = [];
     const service = createUserInputService(10_000);
     const context = fakeContext(sent);
-    const answersPromise = service.requestUserInputFromTelegram(context, "123", {
+    const answersPromise = service.requestUserInputFromTelegram(context, {
       threadId: "thread-1",
       turnId: "turn-1",
       itemId: "item-1",
@@ -35,15 +35,15 @@ describe("createUserInputService", () => {
       ],
     });
 
-    expect(service.hasPendingUserInput("123")).toBe(true);
-    await service.resolveUserInputFromText(context, "123", "Alpha");
-    await service.resolveUserInputFromText(context, "123", "Make it faster");
+    expect(service.hasPendingUserInput(context)).toBe(true);
+    await service.resolveUserInputFromText(context, "Alpha");
+    await service.resolveUserInputFromText(context, "Make it faster");
 
     await expect(answersPromise).resolves.toEqual({
       choice: { answers: ["Alpha"] },
       details: { answers: ["Make it faster"] },
     });
-    expect(service.hasPendingUserInput("123")).toBe(false);
+    expect(service.hasPendingUserInput(context)).toBe(false);
     expect(sent.join("\n")).toContain("Pick one");
     expect(sent.join("\n")).toContain("What should change?");
   });
@@ -52,7 +52,7 @@ describe("createUserInputService", () => {
     const sent: string[] = [];
     const service = createUserInputService(10_000);
     const context = fakeContext(sent);
-    const answersPromise = service.requestUserInputFromTelegram(context, "123", {
+    const answersPromise = service.requestUserInputFromTelegram(context, {
       threadId: "thread-1",
       turnId: "turn-1",
       itemId: "item-1",
@@ -70,10 +70,10 @@ describe("createUserInputService", () => {
       ],
     });
 
-    await service.resolveUserInputFromText(context, "123", "Invalid");
-    expect(service.hasPendingUserInput("123")).toBe(true);
+    await service.resolveUserInputFromText(context, "Invalid");
+    expect(service.hasPendingUserInput(context)).toBe(true);
 
-    await service.resolveUserInputFromText(context, "123", "Alpha");
+    await service.resolveUserInputFromText(context, "Alpha");
     await expect(answersPromise).resolves.toEqual({
       choice: { answers: ["Alpha"] },
     });
@@ -83,6 +83,7 @@ describe("createUserInputService", () => {
 function fakeContext(sent: string[]) {
   return {
     chat: { id: 123 },
+    message: { message_thread_id: 42 },
     api: {
       sendMessage: async (_chatId: number, text: string) => {
         sent.push(text);

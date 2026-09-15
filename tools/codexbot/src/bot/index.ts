@@ -1,21 +1,22 @@
 import { Bot } from "grammy";
-import { ActionName } from "../shared/actions.js";
-import { PromptContext, ReplyFn } from "./context.js";
+import type { PromptContext } from "./context.js";
+import type { ActionName } from "../shared/actions.js";
 import { registerCommandHandlers } from "./commands.js";
 import { registerMessageHandlers } from "./messages-handler.js";
 
 type BotHandlers = {
   isChatAllowed?: (chatId: string) => boolean;
-  onStart: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
-  onGoal: (chatId: string, text: string, reply: ReplyFn) => Promise<void>;
-  onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
-  onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
-  onTryApprovalText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
-  onTryUserInputText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
-  onPrompt: (ctx: PromptContext, chatId: string, text: string) => Promise<void>;
-  onVoice: (ctx: PromptContext, chatId: string) => Promise<void>;
+  onStart: (ctx: PromptContext) => Promise<void>;
+  onHelp: (ctx: PromptContext) => Promise<void>;
+  onAction: (ctx: PromptContext, action: ActionName) => Promise<void>;
+  onNew: (ctx: PromptContext, title: string) => Promise<void>;
+  onArchive: (ctx: PromptContext) => Promise<void>;
+  onRename: (ctx: PromptContext, title: string) => Promise<void>;
+  onGoal: (ctx: PromptContext, text: string) => Promise<void>;
+  onTryApprovalText: (ctx: PromptContext, text: string) => Promise<boolean>;
+  onTryUserInputText: (ctx: PromptContext, text: string) => Promise<boolean>;
+  onPrompt: (ctx: PromptContext, text: string) => Promise<void>;
+  onVoice: (ctx: PromptContext) => Promise<void>;
 };
 
 export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
@@ -41,9 +42,9 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
   registerCommandHandlers(bot, {
     onStart: handlers.onStart,
     onHelp: handlers.onHelp,
-    onNew: (chatId, reply) => handlers.onAction(chatId, "new", reply),
-    onResume: (chatId, reply) => handlers.onAction(chatId, "resume", reply),
-    onDelete: (chatId, reply) => handlers.onAction(chatId, "delete", reply),
+    onNew: handlers.onNew,
+    onArchive: handlers.onArchive,
+    onRename: handlers.onRename,
     onGoal: handlers.onGoal,
   });
 
@@ -51,8 +52,6 @@ export function registerBotHandlers(bot: Bot, handlers: BotHandlers): void {
     onStart: handlers.onStart,
     onHelp: handlers.onHelp,
     onAction: handlers.onAction,
-    onTryResumeText: handlers.onTryResumeText,
-    onTryNewFolderText: handlers.onTryNewFolderText,
     onTryApprovalText: handlers.onTryApprovalText,
     onTryUserInputText: handlers.onTryUserInputText,
     onPrompt: handlers.onPrompt,

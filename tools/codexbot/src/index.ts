@@ -1,59 +1,42 @@
 import process from "node:process";
 import { Bot } from "grammy";
-import { BindingStore } from "./adapters/binding-store.js";
+import { TopicStore } from "./adapters/topic-store.js";
 import {
   clearThreadGoal,
   getThreadGoal,
   setThreadGoalObjective,
-  setThreadGoalStatus
+  setThreadGoalStatus,
 } from "./adapters/app-server/client.js";
+import { closeSharedAppServer } from "./adapters/app-server/connection.js";
 import { registerBotHandlers } from "./bot/index.js";
 import { createApprovalService } from "./bot/approvals.js";
-import { PromptContext, ReplyFn } from "./bot/context.js";
+import type { PromptContext } from "./bot/context.js";
 import { quickActionsKeyboard } from "./bot/keyboards.js";
 import { HELP_TEXT, formatFailure } from "./bot/messages.js";
 import { withActionErrorBoundary, withChatLock } from "./bot/middleware.js";
+import { topicKeyFromContext, topicMessageOptions, topicReply } from "./bot/topic.js";
 import { getConversationOptionsFromEnv, loadRuntimeConfig } from "./config.js";
-import { createPromptRunner } from "./services/prompt-runner.js";
 import { createGoalActions } from "./services/goal-actions.js";
-import { ListedFolderChoice, ListedThread, createThreadActions } from "./services/thread-actions.js";
-import { createVoiceService } from "./services/voice.js";
+import { createPromptRunner } from "./services/prompt-runner.js";
+import { createTopicActions, topicActionFailure } from "./services/topic-actions.js";
 import { createUserInputService } from "./services/user-input.js";
-import { closeSharedAppServer } from "./adapters/app-server/connection.js";
+import { createVoiceService } from "./services/voice.js";
 
 const runtimeConfig = loadRuntimeConfig();
 const {
   token,
-  bindingFile,
+  topicFile,
   defaultApprovalDecision,
   allowedChatIds,
   userHome,
 } = runtimeConfig;
 
-const store = new BindingStore(bindingFile);
+const store = new TopicStore(topicFile);
 const bot = new Bot(token);
-
-const pendingNewSessionChats = new Set<string>();
-const pendingNewSessionCwds = new Map<string, string>();
-const selectionStateByChat = new Map<
-  string,
-  { sessions: ListedThread[]; mode: "resume" | "delete"; folderChoices: ListedFolderChoice[] }
->();
-
-const DEFAULT_THREADS_LIMIT = 25;
 const APPROVAL_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const TYPING_KEEPALIVE_INTERVAL_MS = 4000;
 
-const threadActions = createThreadActions({
-  defaultThreadsLimit: DEFAULT_THREADS_LIMIT,
-  store,
-  pendingNewSessionChats,
-  pendingNewSessionCwds,
-  selectionStateByChat,
-  resolveDefaultCwd: () => getConversationOptionsFromEnv(userHome).cwd,
-  bindChatToThread
-});
-
+const topicActions = createTopicActions({ store });
 const goalActions = createGoalActions({
   store,
   getGoal: getThreadGoal,
@@ -61,92 +44,80 @@ const goalActions = createGoalActions({
   setGoalStatus: setThreadGoalStatus,
   clearGoal: clearThreadGoal,
 });
-
 const approvalService = createApprovalService({
   defaultApprovalDecision,
-  timeoutMs: APPROVAL_REQUEST_TIMEOUT_MS
+  timeoutMs: APPROVAL_REQUEST_TIMEOUT_MS,
 });
-
 const userInputService = createUserInputService();
-
 const promptRunner = createPromptRunner({
   store,
-  pendingNewSessionChats,
-  getPendingNewSessionCwd: (chatId) => pendingNewSessionCwds.get(chatId) ?? null,
-  clearPendingNewSessionCwd: (chatId) => {
-    pendingNewSessionCwds.delete(chatId);
-  },
-  onThreadNotBound: async (ctx) => {
-    await ctx.reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
-  },
   getConversationOptions: () => getConversationOptionsFromEnv(userHome),
-  bindChatToThread,
+  onNotInTopic: async (ctx) => {
+    await topicReply(ctx, "Send prompts inside a Telegram Topic. Use /new [title] to create one.", {
+      reply_markup: quickActionsKeyboard(),
+    });
+  },
   requestApprovalFromTelegram: approvalService.requestApprovalFromTelegram,
-  requestUserInputFromTelegram: (ctx, chatId, request) =>
-    userInputService.requestUserInputFromTelegram(ctx, chatId, request)
+  requestUserInputFromTelegram: (ctx, request) =>
+    userInputService.requestUserInputFromTelegram(ctx, request),
 });
-
 const voiceService = createVoiceService({
   token,
-  projectRoot: process.cwd()
+  projectRoot: process.cwd(),
 });
 
 registerBotHandlers(bot, {
-  isChatAllowed: (chatId) => {
-    return allowedChatIds.has(chatId);
-  },
-  onStart: async (_, reply) => {
-    await sendStartResponse(reply);
-  },
-  onHelp: async (_, reply) => {
-    await sendHelpResponse(reply);
-  },
-  onAction: async (chatId, action, reply) => {
-    await withActionErrorBoundary(
-      () =>
-        withChatLock(chatId, async () => {
-          await threadActions.executeAction(chatId, action, reply);
-        }),
-      (message) => reply(formatFailure("Action failed.", message))
-    );
-  },
-  onGoal: async (chatId, text, reply) => {
-    await withActionErrorBoundary(
-      () =>
-        withChatLock(chatId, async () => {
-          await goalActions.executeGoalCommand(chatId, text, reply);
-        }),
-      (message) => reply(formatFailure("Goal failed.", message))
-    );
-  },
-  onTryResumeText: async (chatId, text, reply) => {
-    return withChatLock(chatId, async () => threadActions.tryPickThreadByText(chatId, text, reply));
-  },
-  onTryNewFolderText: async (chatId, text, reply) => {
-    return withChatLock(chatId, async () => threadActions.tryPickFolderChoiceByText(chatId, text, reply));
-  },
-  onTryApprovalText: async (ctx, chatId, text) => {
-    return approvalService.resolveApprovalFromText(ctx, chatId, text);
-  },
-  onTryUserInputText: async (ctx, chatId, text) => {
-    return userInputService.resolveUserInputFromText(ctx, chatId, text);
-  },
-  onPrompt: async (ctx, chatId, text) => {
-    await withChatLock(chatId, async () => {
-      await withTelegramTypingKeepAlive(ctx as PromptContext, async () => {
-        await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, text);
-      });
+  isChatAllowed: (chatId) => allowedChatIds.has(chatId),
+  onStart: sendStartResponse,
+  onHelp: sendHelpResponse,
+  onAction: async (ctx, action) => {
+    await withTopicActionLock(ctx, async () => {
+      if (action === "new") {
+        await topicActions.createTopic(ctx, "");
+      } else {
+        await topicActions.archiveTopic(ctx);
+      }
     });
   },
-  onVoice: async (ctx, chatId) => {
-    await withChatLock(chatId, async () => {
-      await withTelegramTypingKeepAlive(ctx as PromptContext, async () => {
+  onNew: async (ctx, title) => {
+    await withTopicActionLock(ctx, () => topicActions.createTopic(ctx, title));
+  },
+  onArchive: async (ctx) => {
+    await withTopicActionLock(ctx, () => topicActions.archiveTopic(ctx));
+  },
+  onRename: async (ctx, title) => {
+    await withTopicActionLock(ctx, () => topicActions.renameTopic(ctx, title));
+  },
+  onGoal: async (ctx, text) => {
+    await withTopicActionLock(ctx, () =>
+      goalActions.executeGoalCommand(
+        String(ctx.chat.id),
+        ctx.message.message_thread_id ?? 0,
+        text,
+        (message, options) => topicReply(ctx, message, options)
+      )
+    );
+  },
+  onTryApprovalText: (ctx, text) => approvalService.resolveApprovalFromText(ctx, text),
+  onTryUserInputText: (ctx, text) => userInputService.resolveUserInputFromText(ctx, text),
+  onPrompt: async (ctx, text) => {
+    await withChatLock(topicKeyFromContext(ctx), async () => {
+      await withTelegramTypingKeepAlive(ctx, () =>
+        promptRunner.runPromptThroughCodex(ctx, topicKeyFromContext(ctx), text)
+      );
+    });
+  },
+  onVoice: async (ctx) => {
+    await withChatLock(topicKeyFromContext(ctx), async () => {
+      await withTelegramTypingKeepAlive(ctx, async () => {
         try {
-          const transcript = await voiceService.transcribeVoiceMessage(ctx as PromptContext);
-          await promptRunner.runPromptThroughCodex(ctx as PromptContext, chatId, transcript);
+          const transcript = await voiceService.transcribeVoiceMessage(ctx);
+          await promptRunner.runPromptThroughCodex(ctx, topicKeyFromContext(ctx), transcript);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          await ctx.reply(formatFailure("Voice transcription failed.", message));
+          await topicReply(
+            ctx,
+            formatFailure("Voice transcription failed.", error instanceof Error ? error.message : String(error))
+          );
         }
       });
     });
@@ -165,7 +136,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     }
     shuttingDown = true;
     void (async () => {
-      console.log(`Received ${signal}; shutting down gracefully.`);
+      console.log("Received " + signal + "; shutting down gracefully.");
       bot.stop();
       await closeSharedAppServer();
       process.exit(0);
@@ -174,34 +145,28 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 console.log("Telegram Codex bridge is running.");
-console.log(`Telegram chat allowlist is active (${allowedChatIds.size} chat id${allowedChatIds.size === 1 ? "" : "s"}).`);
+console.log(
+  "Telegram chat allowlist is active (" +
+    allowedChatIds.size +
+    " chat id" +
+    (allowedChatIds.size === 1 ? "" : "s") +
+    ")."
+);
 await runBotLoop();
 
-async function runBotLoop(): Promise<never> {
-  while (true) {
-    try {
-      const me = await bot.api.getMe();
-      console.log(`Telegram auth OK: @${me.username ?? me.first_name}`);
-      await bot.start({
-        drop_pending_updates: true,
-        onStart: (info) => {
-          console.log(`Telegram polling started as @${info.username ?? info.first_name}`);
-        }
-      });
-      console.error("Telegram polling stopped unexpectedly; retrying in 2s.");
-    } catch (error) {
-      const message = error instanceof Error ? error.stack ?? error.message : String(error);
-      console.error(`Telegram bot loop error: ${message}`);
-    }
-
-    await delay(2000);
-  }
+async function withTopicActionLock(ctx: PromptContext, work: () => Promise<void>): Promise<void> {
+  await withActionErrorBoundary(
+    () => withChatLock(topicKeyFromContext(ctx), work),
+    (message) => topicReply(ctx, topicActionFailure("Topic action failed.", new Error(message)))
+  );
 }
 
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
+async function sendHelpResponse(ctx: PromptContext): Promise<void> {
+  await topicReply(ctx, HELP_TEXT, { reply_markup: quickActionsKeyboard() });
+}
+
+async function sendStartResponse(ctx: PromptContext): Promise<void> {
+  await sendHelpResponse(ctx);
 }
 
 async function withTelegramTypingKeepAlive<T>(
@@ -210,7 +175,7 @@ async function withTelegramTypingKeepAlive<T>(
 ): Promise<T> {
   const sendTyping = async () => {
     try {
-      await ctx.api.sendChatAction(ctx.chat.id, "typing");
+      await ctx.api.sendChatAction(ctx.chat.id, "typing", topicMessageOptions(ctx));
     } catch {
       // Ignore transient chat-action failures; request flow should continue.
     }
@@ -228,14 +193,29 @@ async function withTelegramTypingKeepAlive<T>(
   }
 }
 
-async function bindChatToThread(chatId: string, threadId: string): Promise<void> {
-  await store.set(chatId, threadId);
+async function runBotLoop(): Promise<never> {
+  while (true) {
+    try {
+      const me = await bot.api.getMe();
+      console.log("Telegram auth OK: @" + (me.username ?? me.first_name));
+      await bot.start({
+        drop_pending_updates: true,
+        onStart: (info) => {
+          console.log("Telegram polling started as @" + (info.username ?? info.first_name));
+        },
+      });
+      console.error("Telegram polling stopped unexpectedly; retrying in 2s.");
+    } catch (error) {
+      const message = error instanceof Error ? error.stack ?? error.message : String(error);
+      console.error("Telegram bot loop error: " + message);
+    }
+
+    await delay(2000);
+  }
 }
 
-async function sendHelpResponse(reply: ReplyFn): Promise<void> {
-  await reply(HELP_TEXT, { reply_markup: quickActionsKeyboard() });
-}
-
-async function sendStartResponse(reply: ReplyFn): Promise<void> {
-  await sendHelpResponse(reply);
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
 }

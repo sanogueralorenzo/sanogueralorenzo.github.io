@@ -1,1 +1,1 @@
-export type ActionName = "new" | "resume" | "delete";
+export type ActionName = "new" | "archive";

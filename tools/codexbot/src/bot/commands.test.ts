@@ -20,8 +20,8 @@ function registerHandlers() {
     onStart: vi.fn(),
     onHelp: vi.fn(),
     onNew: vi.fn(),
-    onResume: vi.fn(),
-    onDelete: vi.fn(),
+    onArchive: vi.fn(),
+    onRename: vi.fn(),
     onGoal: vi.fn(),
   };
 
@@ -49,7 +49,7 @@ describe("registerCommandHandlers", () => {
 
     await sendCommand("goal", "/goal review the PR");
 
-    expect(handlers.onGoal).toHaveBeenCalledWith("123", "review the PR", expect.any(Function));
+    expect(handlers.onGoal).toHaveBeenCalledWith(expect.objectContaining({ chat: { id: 123 } }), "review the PR");
   });
 
   it("supports bot-qualified /goal commands", async () => {
@@ -57,6 +57,6 @@ describe("registerCommandHandlers", () => {
 
     await sendCommand("goal", "/goal@codexbot pause");
 
-    expect(handlers.onGoal).toHaveBeenCalledWith("123", "pause", expect.any(Function));
+    expect(handlers.onGoal).toHaveBeenCalledWith(expect.objectContaining({ chat: { id: 123 } }), "pause");
   });
 });

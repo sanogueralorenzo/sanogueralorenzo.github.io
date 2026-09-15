@@ -2,6 +2,7 @@ import { ApprovalDecision, ApprovalRequest } from "../adapters/app-server/client
 import { PromptContext } from "./context.js";
 import { approvalKeyboard, parseApprovalDecisionText, quickActionsKeyboard } from "./keyboards.js";
 import { limitTelegramText } from "../services/voice.js";
+import { topicKeyFromContext, topicMessageOptions, topicReply } from "./topic.js";
 
 type PendingApproval = {
   resolve: (decision: ApprovalDecision) => void;
@@ -18,37 +19,40 @@ export function createApprovalService(deps: ApprovalServiceDeps) {
 
   async function requestApprovalFromTelegram(
     ctx: PromptContext,
-    chatId: string,
     request: ApprovalRequest
   ): Promise<ApprovalDecision> {
     const prompt = formatApprovalPrompt(request);
+    const key = topicKeyFromContext(ctx);
 
-    const existing = pendingApprovals.get(chatId);
+    const existing = pendingApprovals.get(key);
     if (existing) {
       clearTimeout(existing.timeout);
-      pendingApprovals.delete(chatId);
+      pendingApprovals.delete(key);
       existing.resolve(deps.defaultApprovalDecision);
     }
 
     const decisionPromise = new Promise<ApprovalDecision>((resolve) => {
       const timeout = setTimeout(() => {
-        pendingApprovals.delete(chatId);
+        pendingApprovals.delete(key);
         resolve(deps.defaultApprovalDecision);
       }, deps.timeoutMs);
 
-      pendingApprovals.set(chatId, {
+      pendingApprovals.set(key, {
         resolve,
         timeout
       });
     });
 
     try {
-      await ctx.api.sendMessage(ctx.chat.id, limitTelegramText(prompt), { reply_markup: approvalKeyboard() });
+      await ctx.api.sendMessage(ctx.chat.id, limitTelegramText(prompt), {
+        reply_markup: approvalKeyboard(),
+        ...topicMessageOptions(ctx),
+      });
     } catch {
-      const pending = pendingApprovals.get(chatId);
+      const pending = pendingApprovals.get(key);
       if (pending) {
         clearTimeout(pending.timeout);
-        pendingApprovals.delete(chatId);
+        pendingApprovals.delete(key);
       }
       return deps.defaultApprovalDecision;
     }
@@ -56,8 +60,9 @@ export function createApprovalService(deps: ApprovalServiceDeps) {
     return decisionPromise;
   }
 
-  async function resolveApprovalFromText(ctx: PromptContext, chatId: string, text: string): Promise<boolean> {
-    const pending = pendingApprovals.get(chatId);
+  async function resolveApprovalFromText(ctx: PromptContext, text: string): Promise<boolean> {
+    const key = topicKeyFromContext(ctx);
+    const pending = pendingApprovals.get(key);
     if (!pending) {
       return false;
     }
@@ -68,9 +73,9 @@ export function createApprovalService(deps: ApprovalServiceDeps) {
     }
 
     clearTimeout(pending.timeout);
-    pendingApprovals.delete(chatId);
+    pendingApprovals.delete(key);
     pending.resolve(decision);
-    await ctx.reply("Approval sent", { reply_markup: quickActionsKeyboard() });
+    await topicReply(ctx, "Approval sent", { reply_markup: quickActionsKeyboard() });
     return true;
   }
 

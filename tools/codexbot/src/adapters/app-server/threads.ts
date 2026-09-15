@@ -57,6 +57,18 @@ export async function deleteThreadById(threadId: string): Promise<ThreadDeleteRe
   return { deleted: true, message: null };
 }
 
+export async function archiveThreadById(threadId: string): Promise<void> {
+  await withAppServer(async (client) => {
+    await client.send("thread/archive", { threadId });
+  });
+}
+
+export async function setThreadNameById(threadId: string, name: string): Promise<void> {
+  await withAppServer(async (client) => {
+    await client.send("thread/name/set", { threadId, name });
+  });
+}
+
 export async function loadLatestAssistantMessageByThreadId(threadId: string): Promise<string | null> {
   try {
     return await withAppServer(async (client) => {

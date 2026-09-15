@@ -29,13 +29,9 @@ describe("createPromptRunner", () => {
   it("adds the codexbot final instruction", async () => {
     const sentMessages: string[] = [];
     const runner = createPromptRunner({
-      store: { get: async () => "thread-1" } as never,
-      pendingNewSessionChats: new Set(),
-      getPendingNewSessionCwd: () => null,
-      clearPendingNewSessionCwd: () => {},
-      onThreadNotBound: async () => {},
+      store: { get: async () => ({ threadId: "thread-1", title: "Topic", cwd: "/repo" }) } as never,
+      onNotInTopic: async () => {},
       getConversationOptions: () => ({ cwd: "/repo" }),
-      bindChatToThread: async () => {},
       requestApprovalFromTelegram: async () => "accept",
     });
 
@@ -57,13 +53,9 @@ describe("createPromptRunner", () => {
     const sentMessages: string[] = [];
     const sentPhotos: string[] = [];
     const runner = createPromptRunner({
-      store: { get: async () => "thread-1" } as never,
-      pendingNewSessionChats: new Set(),
-      getPendingNewSessionCwd: () => null,
-      clearPendingNewSessionCwd: () => {},
-      onThreadNotBound: async () => {},
+      store: { get: async () => ({ threadId: "thread-1", title: "Topic", cwd: "/repo" }) } as never,
+      onNotInTopic: async () => {},
       getConversationOptions: () => ({ cwd: "/repo" }),
-      bindChatToThread: async () => {},
       requestApprovalFromTelegram: async () => "accept",
     });
 
@@ -82,13 +74,9 @@ describe("createPromptRunner", () => {
     const sentMessages: string[] = [];
     const sentPhotos: string[] = [];
     const runner = createPromptRunner({
-      store: { get: async () => "thread-1" } as never,
-      pendingNewSessionChats: new Set(),
-      getPendingNewSessionCwd: () => null,
-      clearPendingNewSessionCwd: () => {},
-      onThreadNotBound: async () => {},
+      store: { get: async () => ({ threadId: "thread-1", title: "Topic", cwd: "/repo" }) } as never,
+      onNotInTopic: async () => {},
       getConversationOptions: () => ({ cwd: "/repo" }),
-      bindChatToThread: async () => {},
       requestApprovalFromTelegram: async () => "accept",
     });
 
@@ -113,19 +101,15 @@ describe("createPromptRunner", () => {
     });
     const sentMessages: string[] = [];
     const runner = createPromptRunner({
-      store: { get: async () => "thread-1" } as never,
-      pendingNewSessionChats: new Set(),
-      getPendingNewSessionCwd: () => null,
-      clearPendingNewSessionCwd: () => {},
-      onThreadNotBound: async () => {},
+      store: { get: async () => ({ threadId: "thread-1", title: "Topic", cwd: "/repo" }) } as never,
+      onNotInTopic: async () => {},
       getConversationOptions: () => ({ cwd: "/repo" }),
-      bindChatToThread: async () => {},
       requestApprovalFromTelegram: async () => "accept",
     });
 
-    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "first");
+    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages, [], false, 123, 1), "topic-1", "first");
     await flushPromises();
-    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-2", "second");
+    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages, [], false, 456, 1), "topic-1", "second");
     await flushPromises();
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledTimes(1);
@@ -154,19 +138,19 @@ describe("createPromptRunner", () => {
     }));
     const sentMessages: string[] = [];
     const runner = createPromptRunner({
-      store: { get: async (chatId: string) => chatId === "chat-1" ? "thread-1" : "thread-2" } as never,
-      pendingNewSessionChats: new Set(),
-      getPendingNewSessionCwd: () => null,
-      clearPendingNewSessionCwd: () => {},
-      onThreadNotBound: async () => {},
+      store: { get: async (_chatId: string, topicId: number) => ({
+        threadId: topicId === 1 ? "thread-1" : "thread-2",
+        title: "Topic",
+        cwd: "/repo",
+      }) } as never,
+      onNotInTopic: async () => {},
       getConversationOptions: () => ({ cwd: "/repo" }),
-      bindChatToThread: async () => {},
       requestApprovalFromTelegram: async () => "accept",
     });
 
-    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-1", "first");
+    const firstRun = runner.runPromptThroughCodex(fakeContext(sentMessages, [], false, 123, 1), "topic-1", "first");
     await flushPromises();
-    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages), "chat-2", "second");
+    const secondRun = runner.runPromptThroughCodex(fakeContext(sentMessages, [], false, 123, 2), "topic-2", "second");
     await secondRun;
 
     expect(sendMessageWithTimeoutContinuation).toHaveBeenCalledTimes(2);
@@ -184,9 +168,16 @@ function codexbotPrompt(text: string): string {
   return `${text}\n\n${CODEXBOT_FINAL_INSTRUCTION}`;
 }
 
-function fakeContext(sentMessages: string[], sentPhotos: string[] = [], failPhoto = false) {
+function fakeContext(
+  sentMessages: string[],
+  sentPhotos: string[] = [],
+  failPhoto = false,
+  chatId = 123,
+  topicId = 1
+) {
   return {
-    chat: { id: 123 },
+    chat: { id: chatId },
+    message: { message_thread_id: topicId },
     api: {
       sendMessage: async (_chatId: number, message: string) => {
         sentMessages.push(message);

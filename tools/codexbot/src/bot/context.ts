@@ -6,10 +6,25 @@ export type ReplyFn = (text: string, options?: { reply_markup?: ReplyMarkup }) =
 export type PromptContext = {
   chat: { id: number };
   api: {
-    sendMessage: (chatId: number, text: string, other?: { reply_markup?: ReplyMarkup }) => Promise<unknown>;
-    sendPhoto: (chatId: number, photo: InputFile | string) => Promise<unknown>;
-    sendChatAction: (chatId: number, action: "typing") => Promise<unknown>;
+    sendMessage: (
+      chatId: number,
+      text: string,
+      other?: { reply_markup?: ReplyMarkup; message_thread_id?: number }
+    ) => Promise<unknown>;
+    sendPhoto: (
+      chatId: number,
+      photo: InputFile | string,
+      other?: { message_thread_id?: number }
+    ) => Promise<unknown>;
+    sendChatAction: (
+      chatId: number,
+      action: "typing",
+      other?: { message_thread_id?: number }
+    ) => Promise<unknown>;
     getFile: (fileId: string) => Promise<{ file_path?: string }>;
+    createForumTopic: (chatId: number, name: string) => Promise<{ message_thread_id: number; name: string }>;
+    editForumTopic: (chatId: number, messageThreadId: number, other: { name: string }) => Promise<unknown>;
+    closeForumTopic: (chatId: number, messageThreadId: number) => Promise<unknown>;
   };
   message: {
     message_thread_id?: number;

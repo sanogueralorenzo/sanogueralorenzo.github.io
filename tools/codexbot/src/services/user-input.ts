@@ -2,6 +2,7 @@ import { Keyboard } from "grammy";
 import type { UserInputAnswers, UserInputRequest } from "../adapters/app-server/client.js";
 import type { PromptContext } from "../bot/context.js";
 import { limitTelegramText } from "./voice.js";
+import { topicKeyFromContext, topicReply } from "../bot/topic.js";
 
 const USER_INPUT_TIMEOUT_MS = 10 * 60 * 1000;
 const CANCEL_LABEL = "Cancel";
@@ -10,6 +11,7 @@ const REMOVE_KEYBOARD = { remove_keyboard: true } as const;
 
 type PendingUserInput = {
   chatId: string;
+  topicId?: number;
   api: PromptContext["api"];
   request: UserInputRequest;
   answers: UserInputAnswers;
@@ -20,59 +22,60 @@ type PendingUserInput = {
 };
 
 export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
-  const pendingByChat = new Map<string, PendingUserInput>();
+  const pendingByTopic = new Map<string, PendingUserInput>();
 
   function requestUserInputFromTelegram(
     ctx: PromptContext,
-    chatId: string,
     request: UserInputRequest
   ): Promise<UserInputAnswers> {
     if (request.questions.length === 0) {
       return Promise.resolve({});
     }
 
-    const existing = pendingByChat.get(chatId);
+    const key = topicKeyFromContext(ctx);
+    const existing = pendingByTopic.get(key);
     if (existing) {
       finish(existing, {});
     }
 
     return new Promise<UserInputAnswers>((resolve) => {
       const pending: PendingUserInput = {
-        chatId,
+        chatId: String(ctx.chat.id),
+        topicId: ctx.message.message_thread_id,
         api: ctx.api,
         request,
         answers: {},
         questionIndex: 0,
         acceptingOther: false,
         timeout: setTimeout(() => {
-          if (pendingByChat.get(chatId) !== pending) {
+          if (pendingByTopic.get(key) !== pending) {
             return;
           }
           finish(pending, pending.answers);
           void pending.api.sendMessage(
-            Number(chatId),
+            Number(pending.chatId),
             "Input timed out. Continuing without the remaining answers.",
-            { reply_markup: REMOVE_KEYBOARD }
+            {
+              reply_markup: REMOVE_KEYBOARD,
+              ...(pending.topicId === undefined ? {} : { message_thread_id: pending.topicId }),
+            }
           );
         }, timeoutMs),
         resolve,
       };
 
-      pendingByChat.set(chatId, pending);
+      pendingByTopic.set(key, pending);
       void sendCurrentQuestion(pending).catch(() => {
-        if (pendingByChat.get(chatId) === pending) {
+        if (pendingByTopic.get(key) === pending) {
           finish(pending, {});
         }
       });
     });
   }
 
-  async function resolveUserInputFromText(
-    ctx: PromptContext,
-    chatId: string,
-    text: string
-  ): Promise<boolean> {
-    const pending = pendingByChat.get(chatId);
+  async function resolveUserInputFromText(ctx: PromptContext, text: string): Promise<boolean> {
+    const key = topicKeyFromContext(ctx);
+    const pending = pendingByTopic.get(key);
     if (!pending) {
       return false;
     }
@@ -84,7 +87,7 @@ export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
 
     if (answer.toLowerCase() === CANCEL_LABEL.toLowerCase()) {
       finish(pending, pending.answers);
-      await clearKeyboard(ctx, chatId, "Input cancelled. Continuing without the remaining answers.");
+      await clearKeyboard(ctx, "Input cancelled. Continuing without the remaining answers.");
       return true;
     }
 
@@ -103,7 +106,9 @@ export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
 
       if (question.isOther && answer === OTHER_LABEL) {
         pending.acceptingOther = true;
-        await ctx.api.sendMessage(chatIdNumber(chatId), "Type your answer in a new message.");
+        await ctx.api.sendMessage(chatIdNumber(pending.chatId), "Type your answer in a new message.", {
+          ...(pending.topicId === undefined ? {} : { message_thread_id: pending.topicId }),
+        });
         return true;
       }
 
@@ -115,8 +120,8 @@ export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
     return true;
   }
 
-  function hasPendingUserInput(chatId: string): boolean {
-    return pendingByChat.has(chatId);
+  function hasPendingUserInput(ctx: PromptContext): boolean {
+    return pendingByTopic.has(topicKeyFromContext(ctx));
   }
 
   async function acceptAnswer(
@@ -137,7 +142,7 @@ export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
     if (pending.questionIndex >= pending.request.questions.length) {
       const answers = pending.answers;
       finish(pending, answers);
-      await clearKeyboard(ctx, pending.chatId, "Thanks — continuing.");
+      await clearKeyboard(ctx, "Thanks — continuing.");
       return;
     }
 
@@ -163,14 +168,16 @@ export function createUserInputService(timeoutMs = USER_INPUT_TIMEOUT_MS) {
 
     const options = buildQuestionKeyboard(question);
     await pending.api.sendMessage(chatIdNumber(pending.chatId), limitTelegramText(lines.join("\n\n")), {
+      ...(pending.topicId === undefined ? {} : { message_thread_id: pending.topicId }),
       ...(options ? { reply_markup: options } : {}),
     });
   }
 
   function finish(pending: PendingUserInput, answers: UserInputAnswers): void {
     clearTimeout(pending.timeout);
-    if (pendingByChat.get(pending.chatId) === pending) {
-      pendingByChat.delete(pending.chatId);
+    const key = pending.chatId + ":" + (pending.topicId ?? 0);
+    if (pendingByTopic.get(key) === pending) {
+      pendingByTopic.delete(key);
     }
     pending.resolve(answers);
   }
@@ -198,10 +205,8 @@ function buildQuestionKeyboard(
   return keyboard.resized().oneTime();
 }
 
-async function clearKeyboard(ctx: PromptContext, chatId: string, text: string): Promise<void> {
-  await ctx.api.sendMessage(chatIdNumber(chatId), text, {
-    reply_markup: REMOVE_KEYBOARD,
-  });
+async function clearKeyboard(ctx: PromptContext, text: string): Promise<void> {
+  await topicReply(ctx, text, { reply_markup: REMOVE_KEYBOARD });
 }
 
 function chatIdNumber(chatId: string): number {

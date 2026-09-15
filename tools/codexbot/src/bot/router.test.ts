@@ -5,8 +5,7 @@ describe("mapTextAction", () => {
   it("maps aliases to their actions", () => {
     expect(mapTextAction("new")).toBe("new");
     expect(mapTextAction("n")).toBe("new");
-    expect(mapTextAction("resume chat")).toBe("resume");
-    expect(mapTextAction("delete")).toBe("delete");
+    expect(mapTextAction("archive topic")).toBe("archive");
     expect(mapTextAction("start")).toBe("start");
     expect(mapTextAction("h")).toBe("help");
   });

@@ -13,9 +13,11 @@ export type {
 } from "./types.js";
 
 export {
+  archiveThreadById,
   deleteThreadById,
   listThreads,
   loadLatestAssistantMessageByThreadId,
+  setThreadNameById,
   type ThreadDeleteResult,
 } from "./threads.js";
 export {

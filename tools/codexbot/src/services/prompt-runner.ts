@@ -1,8 +1,8 @@
 import { InputFile } from "grammy";
 import type {
   ApprovalDecision,
-  ApprovalPolicy,
   ApprovalRequest,
+  ApprovalPolicy,
   SandboxMode,
   TurnCompletion,
   UserInputAnswers,
@@ -13,12 +13,14 @@ import {
   sendMessageWithoutResumeWithTimeoutContinuation,
   sendMessageWithTimeoutContinuation,
 } from "../adapters/app-server/client.js";
-import { BindingStore } from "../adapters/binding-store.js";
+import { TopicStore } from "../adapters/topic-store.js";
 import { formatFailure } from "../bot/messages.js";
-import { PromptContext } from "../bot/context.js";
+import type { PromptContext } from "../bot/context.js";
+import { topicMessageOptions, topicReply } from "../bot/topic.js";
 import { sendTextChunks } from "../shared/telegram-text.js";
 
-const CODEXBOT_FINAL_INSTRUCTION = "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
+const CODEXBOT_FINAL_INSTRUCTION =
+  "Be concise; include outcome, validation, blockers if relevant; no extra explanation unless asked.";
 
 type ConversationOptions = {
   cwd: string;
@@ -39,67 +41,67 @@ type PromptTurnRuntimeOptions = {
 };
 
 type PromptRunnerDeps = {
-  store: BindingStore;
-  pendingNewSessionChats: Set<string>;
-  getPendingNewSessionCwd: (chatId: string) => string | null;
-  clearPendingNewSessionCwd: (chatId: string) => void;
-  onThreadNotBound: (ctx: PromptContext, chatId: string) => Promise<void>;
+  store: TopicStore;
   getConversationOptions: () => ConversationOptions;
-  bindChatToThread: (chatId: string, threadId: string) => Promise<void>;
-  requestApprovalFromTelegram: (ctx: PromptContext, chatId: string, request: ApprovalRequest) => Promise<ApprovalDecision>;
-  requestUserInputFromTelegram?: (ctx: PromptContext, chatId: string, request: UserInputRequest) => Promise<UserInputAnswers>;
+  onNotInTopic: (ctx: PromptContext) => Promise<void>;
+  requestApprovalFromTelegram: (ctx: PromptContext, request: ApprovalRequest) => Promise<ApprovalDecision>;
+  requestUserInputFromTelegram?: (
+    ctx: PromptContext,
+    request: UserInputRequest
+  ) => Promise<UserInputAnswers>;
 };
 
 export function createPromptRunner(deps: PromptRunnerDeps) {
-  const threadTurnLocks = new Map<string, Promise<unknown>>();
+  const topicTurnLocks = new Map<string, Promise<unknown>>();
 
-  async function runPromptThroughCodex(ctx: PromptContext, chatId: string, text: string): Promise<void> {
-    const threadId = await deps.store.get(chatId);
+  async function runPromptThroughCodex(
+    ctx: PromptContext,
+    topicBindingKey: string,
+    text: string
+  ): Promise<void> {
+    if ((ctx.message.message_thread_id ?? 0) <= 0) {
+      await deps.onNotInTopic(ctx);
+      return;
+    }
+
+    const chatId = String(ctx.chat.id);
+    const topicId = ctx.message.message_thread_id!;
     const finalOutputRelay = createFinalOutputRelay(
-      (message) => ctx.api.sendMessage(ctx.chat.id, message),
-      (path) => ctx.api.sendPhoto(ctx.chat.id, new InputFile(path))
+      (message) => ctx.api.sendMessage(ctx.chat.id, message, topicMessageOptions(ctx)),
+      (path) => ctx.api.sendPhoto(ctx.chat.id, new InputFile(path), topicMessageOptions(ctx))
     );
     const runtimeOptions: PromptTurnRuntimeOptions = {
-      approvalHandler: (request: ApprovalRequest) => deps.requestApprovalFromTelegram(ctx, chatId, request),
-      requestUserInputHandler: (request: UserInputRequest) =>
-        deps.requestUserInputFromTelegram?.(ctx, chatId, request) ?? Promise.resolve({}),
-    };
-    const finalizeTurn = async (turn: TimedTurnLike): Promise<void> => {
-      await replyFromTimedTurn(turn, finalOutputRelay, async (completion) => completion);
+      approvalHandler: (request) => deps.requestApprovalFromTelegram(ctx, request),
+      requestUserInputHandler: (request) =>
+        deps.requestUserInputFromTelegram?.(ctx, request) ?? Promise.resolve({}),
     };
 
     try {
-      if (!threadId) {
-        if (deps.pendingNewSessionChats.has(chatId)) {
+      await withTopicTurnLock(topicBindingKey, async () => {
+        const binding = await deps.store.get(chatId, topicId);
+        if (!binding) {
           const options = deps.getConversationOptions();
-          const selectedCwd = deps.getPendingNewSessionCwd(chatId);
-          if (selectedCwd) {
-            options.cwd = selectedCwd;
-          }
           const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
             options,
             withCodexbotFinalInstruction(text),
             runtimeOptions
           );
-          await deps.bindChatToThread(chatId, initialized.threadId);
-          deps.pendingNewSessionChats.delete(chatId);
-          deps.clearPendingNewSessionCwd(chatId);
-          await finalizeTurn(initialized);
+          await deps.store.set(chatId, topicId, {
+            threadId: initialized.threadId,
+            title: "Codex session",
+            cwd: options.cwd,
+          });
+          await finalizeTurn(initialized, finalOutputRelay);
           return;
         }
 
-        await deps.onThreadNotBound(ctx, chatId);
-        return;
-      }
-
-      await withThreadTurnLock(threadId, async () => {
         try {
           const turn = await sendMessageWithTimeoutContinuation(
-            threadId,
+            binding.threadId,
             withCodexbotFinalInstruction(text),
             runtimeOptions
           );
-          await finalizeTurn(turn);
+          await finalizeTurn(turn, finalOutputRelay);
           return;
         } catch (error) {
           if (!isNoRolloutFoundError(error)) {
@@ -109,85 +111,83 @@ export function createPromptRunner(deps: PromptRunnerDeps) {
 
         try {
           const firstTurn = await sendMessageWithoutResumeWithTimeoutContinuation(
-            threadId,
+            binding.threadId,
             withCodexbotFinalInstruction(text),
             runtimeOptions
           );
-          await finalizeTurn(firstTurn);
-          return;
+          await finalizeTurn(firstTurn, finalOutputRelay);
         } catch {
-          await recoverFromUnavailableThread(chatId, text, runtimeOptions, finalOutputRelay);
-          return;
+          await recoverFromUnavailableThread(chatId, topicId, text, runtimeOptions, finalOutputRelay, binding);
         }
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      await ctx.reply(formatFailure("Codex error.", message));
+      await topicReply(
+        ctx,
+        formatFailure("Codex error.", error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
-  async function withThreadTurnLock<T>(threadId: string, work: () => Promise<T>): Promise<T> {
-    const previous = threadTurnLocks.get(threadId) ?? Promise.resolve();
-    const current = previous.then(async () => work());
+  async function withTopicTurnLock<T>(key: string, work: () => Promise<T>): Promise<T> {
+    const previous = topicTurnLocks.get(key) ?? Promise.resolve();
+    const current = previous.then(work);
     const safeCurrent = current.catch(() => undefined);
-    threadTurnLocks.set(threadId, safeCurrent);
+    topicTurnLocks.set(key, safeCurrent);
 
     try {
       return await current;
     } finally {
-      if (threadTurnLocks.get(threadId) === safeCurrent) {
-        threadTurnLocks.delete(threadId);
+      if (topicTurnLocks.get(key) === safeCurrent) {
+        topicTurnLocks.delete(key);
       }
     }
   }
 
-  async function replyFromTimedTurn(
-    turn: TimedTurnLike,
-    finalOutputRelay: FinalOutputRelay,
-    prepareCompletion: (completion: TurnCompletion) => Promise<TurnCompletion>
+  async function finalizeTurn(
+    turn: TimedTurnLike | { status: "completed"; threadId: string; response: string; imagePaths?: string[] } |
+      { status: "timed_out"; threadId: string; completion: Promise<TurnCompletion> },
+    finalOutputRelay: FinalOutputRelay
   ): Promise<void> {
     const completion = turn.status === "completed"
       ? completionFromCompletedTurn(turn)
       : await turn.completion;
-    await finalOutputRelay.send(await prepareCompletion(completion));
+    await finalOutputRelay.send(completion);
   }
 
   async function recoverFromUnavailableThread(
     chatId: string,
+    topicId: number,
     text: string,
     runtimeOptions: PromptTurnRuntimeOptions,
-    finalOutputRelay: FinalOutputRelay
+    finalOutputRelay: FinalOutputRelay,
+    binding: { title: string; cwd: string }
   ): Promise<void> {
-    const options = deps.getConversationOptions();
+    const defaults = deps.getConversationOptions();
+    const options = { ...defaults, cwd: binding.cwd || defaults.cwd };
     const initialized = await createAndSendFirstMessageWithTimeoutContinuation(
       options,
       withCodexbotFinalInstruction(text),
       runtimeOptions
     );
-    await deps.bindChatToThread(chatId, initialized.threadId);
-
-    if (initialized.status === "completed") {
-      await finalOutputRelay.send(completionFromCompletedTurn(initialized));
-      return;
-    }
-
-    await finalOutputRelay.send(await initialized.completion);
+    await deps.store.set(chatId, topicId, {
+      threadId: initialized.threadId,
+      title: binding.title,
+      cwd: options.cwd,
+    });
+    await finalizeTurn(initialized, finalOutputRelay);
   }
 
   return {
-    runPromptThroughCodex
+    runPromptThroughCodex,
   };
 }
 
 function isNoRolloutFoundError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  return error.message.includes("no rollout found for thread id");
+  return error instanceof Error && error.message.includes("no rollout found for thread id");
 }
 
 function withCodexbotFinalInstruction(text: string): string {
-  return `${text}\n\n${CODEXBOT_FINAL_INSTRUCTION}`;
+  return text + "\n\n" + CODEXBOT_FINAL_INSTRUCTION;
 }
 
 type FinalOutputRelay = {
@@ -223,19 +223,17 @@ function createFinalOutputRelay(
     return sendQueue;
   };
 
-  const send = async (completion: TurnCompletion): Promise<void> => {
-    const output = completion.response?.trim() ? completion.response : EMPTY_CODEX_RESPONSE;
-    await queueMessage(output);
-    for (const path of completion.imagePaths ?? []) {
-      try {
-        await imageSender(path);
-      } catch {
-        await queueMessage(`Image generated but Telegram upload failed:\n${path}`);
-      }
-    }
-  };
-
   return {
-    send
+    async send(completion: TurnCompletion): Promise<void> {
+      const output = completion.response?.trim() ? completion.response : EMPTY_CODEX_RESPONSE;
+      await queueMessage(output);
+      for (const path of completion.imagePaths ?? []) {
+        try {
+          await imageSender(path);
+        } catch {
+          await queueMessage("Image generated but Telegram upload failed:\n" + path);
+        }
+      }
+    },
   };
 }

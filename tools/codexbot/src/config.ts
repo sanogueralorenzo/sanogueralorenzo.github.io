@@ -7,7 +7,7 @@ import { expandHomePath } from "./shared/path-utils.js";
 
 type RuntimeConfig = {
   token: string;
-  bindingFile: string;
+  topicFile: string;
   allowedChatIds: Set<string>;
   defaultApprovalDecision: ApprovalDecision;
   userHome: string;
@@ -18,11 +18,11 @@ export function loadRuntimeConfig(): RuntimeConfig {
 
   const token = mustGetEnv("TELEGRAM_BOT_TOKEN");
   const userHome = homedir();
-  const bindingFile = resolve(process.cwd(), "runtime/bindings.json");
+  const topicFile = resolve(process.cwd(), "runtime/topics.json");
 
   return {
     token,
-    bindingFile,
+    topicFile,
     allowedChatIds: parseRequiredAllowedChatIds(process.env.TELEGRAM_ALLOWED_CHAT_IDS),
     defaultApprovalDecision: "decline",
     userHome,

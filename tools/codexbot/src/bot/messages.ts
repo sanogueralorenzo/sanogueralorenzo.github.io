@@ -1,11 +1,12 @@
 export const HELP_TEXT = [
   "Codex Bot",
   "",
-  "Commands: /new /resume /delete /goal /help",
+  "Use Telegram Topics: each topic is a permanent Codex thread.",
+  "Commands: /new [title] /archive /rename <title> /goal /help",
   "Tip: Voice notes work!"
 ].join("\n");
 
-export const THREAD_NOT_BOUND_MESSAGE = "No thread bound.\n\nUse /resume and pick one, or /new.";
+export const THREAD_NOT_BOUND_MESSAGE = "No Codex session exists for this topic yet.\n\nSend a message to start one.";
 
 export function formatFailure(prefix: string, message: string): string {
   return `${prefix}\n\n${message}`;

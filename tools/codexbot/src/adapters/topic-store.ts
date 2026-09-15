@@ -2,33 +2,44 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import process from "node:process";
 
-type BindingMap = Record<string, string>;
+export type TopicBinding = {
+  threadId: string;
+  title: string;
+  cwd: string;
+};
 
-export class BindingStore {
+type BindingMap = Record<string, TopicBinding>;
+
+export function topicKey(chatId: string, topicId: number): string {
+  return chatId + ":" + topicId;
+}
+
+export class TopicStore {
   private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly filePath: string) {}
 
-  async get(chatId: string): Promise<string | null> {
+  async get(chatId: string, topicId: number): Promise<TopicBinding | null> {
     const bindings = await this.readAll();
-    return bindings[chatId] ?? null;
+    return bindings[topicKey(chatId, topicId)] ?? null;
   }
 
-  async set(chatId: string, threadId: string): Promise<void> {
+  async set(chatId: string, topicId: number, binding: TopicBinding): Promise<void> {
     await this.enqueueWrite(async () => {
       const bindings = await this.readAll();
-      bindings[chatId] = threadId;
+      bindings[topicKey(chatId, topicId)] = binding;
       await this.writeAll(bindings);
     });
   }
 
-  async remove(chatId: string): Promise<boolean> {
+  async remove(chatId: string, topicId: number): Promise<boolean> {
     return this.enqueueWrite(async () => {
       const bindings = await this.readAll();
-      if (!bindings[chatId]) {
+      const key = topicKey(chatId, topicId);
+      if (!bindings[key]) {
         return false;
       }
-      delete bindings[chatId];
+      delete bindings[key];
       await this.writeAll(bindings);
       return true;
     });
@@ -45,9 +56,21 @@ export class BindingStore {
       }
 
       const out: BindingMap = {};
-      for (const [k, v] of Object.entries(parsed)) {
-        if (typeof v === "string") {
-          out[k] = v;
+      for (const [key, value] of Object.entries(parsed)) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) {
+          continue;
+        }
+        const binding = value as Record<string, unknown>;
+        if (
+          typeof binding.threadId === "string" &&
+          typeof binding.title === "string" &&
+          typeof binding.cwd === "string"
+        ) {
+          out[key] = {
+            threadId: binding.threadId,
+            title: binding.title,
+            cwd: binding.cwd,
+          };
         }
       }
       return out;
@@ -58,8 +81,8 @@ export class BindingStore {
 
   private async writeAll(bindings: BindingMap): Promise<void> {
     await this.ensureFile();
-    const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(tmpPath, `${JSON.stringify(bindings, null, 2)}\n`, "utf8");
+    const tmpPath = this.filePath + "." + process.pid + "." + Date.now() + ".tmp";
+    await writeFile(tmpPath, JSON.stringify(bindings, null, 2) + "\n", "utf8");
     await rename(tmpPath, this.filePath);
   }
 

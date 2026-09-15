@@ -2,18 +2,15 @@ import { Bot } from "grammy";
 import { ActionName } from "../shared/actions.js";
 import { PromptContext } from "./context.js";
 import { mapTextAction } from "./router.js";
-import { ReplyFn } from "./context.js";
 
 type MessageHandlers = {
-  onStart: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onHelp: (chatId: string, reply: ReplyFn) => Promise<void>;
-  onAction: (chatId: string, action: ActionName, reply: ReplyFn) => Promise<void>;
-  onTryResumeText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
-  onTryNewFolderText: (chatId: string, text: string, reply: ReplyFn) => Promise<boolean>;
-  onTryApprovalText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
-  onTryUserInputText: (ctx: PromptContext, chatId: string, text: string) => Promise<boolean>;
-  onPrompt: (ctx: PromptContext, chatId: string, text: string) => Promise<void>;
-  onVoice: (ctx: PromptContext, chatId: string) => Promise<void>;
+  onStart: (ctx: PromptContext) => Promise<void>;
+  onHelp: (ctx: PromptContext) => Promise<void>;
+  onAction: (ctx: PromptContext, action: ActionName) => Promise<void>;
+  onTryApprovalText: (ctx: PromptContext, text: string) => Promise<boolean>;
+  onTryUserInputText: (ctx: PromptContext, text: string) => Promise<boolean>;
+  onPrompt: (ctx: PromptContext, text: string) => Promise<void>;
+  onVoice: (ctx: PromptContext) => Promise<void>;
 };
 
 export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): void {
@@ -23,18 +20,11 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
       return;
     }
 
-    const chatId = String(ctx.chat.id);
-    const reply: ReplyFn = (replyText, options) => ctx.reply(replyText, options);
-    if (await handlers.onTryUserInputText(ctx as PromptContext, chatId, text)) {
+    const promptContext = ctx as PromptContext;
+    if (await handlers.onTryUserInputText(promptContext, text)) {
       return;
     }
-    if (await handlers.onTryApprovalText(ctx as PromptContext, chatId, text)) {
-      return;
-    }
-    if (await handlers.onTryResumeText(chatId, text, reply)) {
-      return;
-    }
-    if (await handlers.onTryNewFolderText(chatId, text, reply)) {
+    if (await handlers.onTryApprovalText(promptContext, text)) {
       return;
     }
 
@@ -43,22 +33,21 @@ export function registerMessageHandlers(bot: Bot, handlers: MessageHandlers): vo
     if (mappedAction) {
       switch (mappedAction) {
         case "start":
-          await handlers.onStart(chatId, reply);
+          await handlers.onStart(promptContext);
           return;
         case "help":
-          await handlers.onHelp(chatId, reply);
+          await handlers.onHelp(promptContext);
           return;
         default:
-          await handlers.onAction(chatId, mappedAction, reply);
+          await handlers.onAction(promptContext, mappedAction);
       }
       return;
     }
 
-    await handlers.onPrompt(ctx as PromptContext, chatId, text);
+    await handlers.onPrompt(promptContext, text);
   });
 
   bot.on("message:voice", async (ctx) => {
-    const chatId = String(ctx.chat.id);
-    await handlers.onVoice(ctx as PromptContext, chatId);
+    await handlers.onVoice(ctx as PromptContext);
   });
 }

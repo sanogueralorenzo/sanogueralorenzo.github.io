@@ -1,23 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildThreadSelectionLabels,
-  parseApprovalDecisionText,
-  parseSelectionFromOptions
-} from "./keyboards.js";
-
-describe("buildThreadSelectionLabels", () => {
-  it("uses stable numeric labels", () => {
-    expect(buildThreadSelectionLabels(["", "Hello world"])).toEqual(["1", "2"]);
-  });
-});
-
-describe("parseSelectionFromOptions", () => {
-  it("accepts numeric choices and rejects full labels", () => {
-    const options = ["1", "2"];
-    expect(parseSelectionFromOptions("2", options)).toBe(2);
-    expect(parseSelectionFromOptions("1. Alpha", options)).toBeNull();
-  });
-});
+import { parseApprovalDecisionText } from "./keyboards.js";
 
 describe("parseApprovalDecisionText", () => {
   it("maps approval labels to decision values", () => {

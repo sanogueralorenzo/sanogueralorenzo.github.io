@@ -26,8 +26,6 @@ function registerHandlers() {
     onStart: vi.fn(),
     onHelp: vi.fn(),
     onAction: vi.fn(),
-    onTryResumeText: vi.fn(async () => false),
-    onTryNewFolderText: vi.fn(async () => false),
     onTryApprovalText: vi.fn(async () => false),
     onTryUserInputText: vi.fn(async () => false),
     onPrompt: vi.fn(),
@@ -54,7 +52,7 @@ describe("registerMessageHandlers", () => {
 
     await sendText("/unknown ship the Telegram bridge");
 
-    expect(handlers.onPrompt).toHaveBeenCalledWith(expect.anything(), "123", "/unknown ship the Telegram bridge");
+    expect(handlers.onPrompt).toHaveBeenCalledWith(expect.anything(), "/unknown ship the Telegram bridge");
   });
 
   it("still handles known text actions before prompts", async () => {
@@ -62,7 +60,7 @@ describe("registerMessageHandlers", () => {
 
     await sendText("new");
 
-    expect(handlers.onAction).toHaveBeenCalledWith("123", "new", expect.any(Function));
+    expect(handlers.onAction).toHaveBeenCalledWith(expect.objectContaining({ chat: { id: 123 } }), "new");
     expect(handlers.onPrompt).not.toHaveBeenCalled();
   });
 });

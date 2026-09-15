@@ -20,7 +20,11 @@ function setup(boundThreadId: string | null = "thread-1") {
   const replies: string[] = [];
   const deps = {
     store: {
-      get: vi.fn(async () => boundThreadId),
+      get: vi.fn(async () => boundThreadId ? {
+        threadId: boundThreadId,
+        title: "Topic",
+        cwd: "/repo",
+      } : null),
     },
     getGoal: vi.fn(async () => goal()),
     setGoalObjective: vi.fn(async (_threadId: string, objective: string) => goal({ objective })),
@@ -39,7 +43,7 @@ describe("createGoalActions", () => {
   it("shows the current goal when no payload is provided", async () => {
     const { actions, deps, replies, reply } = setup();
 
-    await actions.executeGoalCommand("123", "", reply);
+    await actions.executeGoalCommand("123", 42, "", reply);
 
     expect(deps.getGoal).toHaveBeenCalledWith("thread-1");
     expect(replies).toEqual(["Goal: ship the bridge\nStatus: active"]);
@@ -48,7 +52,7 @@ describe("createGoalActions", () => {
   it("sets a new active goal from the payload", async () => {
     const { actions, deps, replies, reply } = setup();
 
-    await actions.executeGoalCommand("123", "review the PR", reply);
+    await actions.executeGoalCommand("123", 42, "review the PR", reply);
 
     expect(deps.setGoalObjective).toHaveBeenCalledWith("thread-1", "review the PR");
     expect(replies).toEqual(["Goal set:\nreview the PR"]);
@@ -57,8 +61,8 @@ describe("createGoalActions", () => {
   it("pauses and resumes only when a goal exists", async () => {
     const { actions, deps, replies, reply } = setup();
 
-    await actions.executeGoalCommand("123", "pause", reply);
-    await actions.executeGoalCommand("123", "resume", reply);
+    await actions.executeGoalCommand("123", 42, "pause", reply);
+    await actions.executeGoalCommand("123", 42, "resume", reply);
 
     expect(deps.setGoalStatus).toHaveBeenNthCalledWith(1, "thread-1", "paused");
     expect(deps.setGoalStatus).toHaveBeenNthCalledWith(2, "thread-1", "active");
@@ -68,7 +72,7 @@ describe("createGoalActions", () => {
   it("clears the current goal", async () => {
     const { actions, deps, replies, reply } = setup();
 
-    await actions.executeGoalCommand("123", "clear", reply);
+    await actions.executeGoalCommand("123", 42, "clear", reply);
 
     expect(deps.clearGoal).toHaveBeenCalledWith("thread-1");
     expect(replies).toEqual(["Goal cleared."]);
@@ -77,10 +81,10 @@ describe("createGoalActions", () => {
   it("does not call app-server goal APIs when no thread is bound", async () => {
     const { actions, deps, replies, reply } = setup(null);
 
-    await actions.executeGoalCommand("123", "review the PR", reply);
+    await actions.executeGoalCommand("123", 42, "review the PR", reply);
 
     expect(deps.setGoalObjective).not.toHaveBeenCalled();
     expect(deps.getGoal).not.toHaveBeenCalled();
-    expect(replies[0]).toContain("No thread bound.");
+    expect(replies[0]).toContain("No Codex session exists for this topic yet.");
   });
 });
