@@ -15,6 +15,14 @@ enum ShorteningLevel: String, CaseIterable {
         }
     }
 
+    var sliderIndex: Int {
+        Self.allCases.firstIndex(of: self)!
+    }
+
+    static func atSliderIndex(_ index: Int) -> Self {
+        allCases[min(max(index, 0), allCases.count - 1)]
+    }
+
     var promptInstruction: String {
         switch self {
         case .light:
@@ -29,10 +37,11 @@ enum ShorteningLevel: String, CaseIterable {
     }
 
     static func load(from defaults: UserDefaults = .standard) -> Self {
-        defaults.string(forKey: "shortening").flatMap(Self.init(rawValue:)) ?? .light
+        let saved = defaults.string(forKey: "conciseness") ?? defaults.string(forKey: "shortening")
+        return saved.flatMap(Self.init(rawValue:)) ?? .light
     }
 
     func save(to defaults: UserDefaults = .standard) {
-        defaults.set(rawValue, forKey: "shortening")
+        defaults.set(rawValue, forKey: "conciseness")
     }
 }

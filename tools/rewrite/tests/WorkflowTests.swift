@@ -45,7 +45,7 @@ enum WorkflowTests {
         try expect(run.pasteboard.string(forType: .string) == "Edited: " + run.source, "Completed rewrite was not copied")
         try expect(run.dotHidden, "Completion did not clear the dot")
         let titles = run.menu.item.menu!.items.filter { !$0.isHidden && !$0.isSeparatorItem }.map(\.title)
-        try expect(titles == ["Rewrite", "Provider", "Shortening", "Quit"], "Completion did not return to the idle menu")
+        try expect(titles == ["Rewrite", "Provider", "Conciseness", "Quit"], "Completion did not return to the idle menu")
     }
     static func restart() async throws {
         let run = try Workflow(); defer { run.close() }
@@ -79,9 +79,10 @@ enum WorkflowTests {
     }
     static func shorteningSwitch() async throws {
         let run = try Workflow(); defer { run.close() }
-        let shortening = run.menu.item.menu!.items.first { $0.title == "Shortening" }!.submenu!
-        shortening.performActionForItem(at: 2)
-        try expect(run.controller.shortening == .strong && shortening.items[2].state == .on, "Shortening menu did not switch")
+        let conciseness = run.menu.item.menu!.items.first { $0.title == "Conciseness" }!
+        let slider = conciseness.view!.subviews.compactMap { $0 as? NSSlider }.first!
+        slider.doubleValue = 2; slider.sendAction(slider.action, to: slider.target)
+        try expect(run.controller.shortening == .strong, "Conciseness slider did not switch")
         run.controller.begin()
         try await run.finished()
         let starts = run.fixture.events.filter { $0["event"] as? String == "started" }

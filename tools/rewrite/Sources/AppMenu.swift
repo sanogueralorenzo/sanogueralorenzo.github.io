@@ -6,14 +6,56 @@ private final class StatusDot: NSView {
 }
 
 @MainActor
+private final class ConcisenessControl: NSView {
+    var onChange: ((ShorteningLevel) -> Void)?
+    private let slider = NSSlider()
+    private let lessLabel = NSTextField(labelWithString: "Less concise")
+    private let moreLabel = NSTextField(labelWithString: "More concise")
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        slider.minValue = 0; slider.maxValue = Double(ShorteningLevel.allCases.count - 1)
+        slider.numberOfTickMarks = ShorteningLevel.allCases.count
+        slider.allowsTickMarkValuesOnly = true; slider.isContinuous = true
+        slider.target = self; slider.action = #selector(sliderChanged(_:))
+        slider.setAccessibilityLabel("Conciseness")
+        addSubview(slider)
+        for label in [lessLabel, moreLabel] {
+            label.font = .systemFont(ofSize: 10)
+            label.textColor = .secondaryLabelColor
+            addSubview(label)
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layout() {
+        super.layout()
+        slider.frame = NSRect(x: 0, y: bounds.height - 28, width: bounds.width, height: 22)
+        lessLabel.sizeToFit(); moreLabel.sizeToFit()
+        lessLabel.frame.origin = NSPoint(x: 0, y: 2)
+        moreLabel.frame.origin = NSPoint(x: bounds.width - moreLabel.frame.width, y: 2)
+    }
+
+    func setLevel(_ level: ShorteningLevel) {
+        slider.doubleValue = Double(level.sliderIndex)
+        slider.setAccessibilityValue(level.menuTitle)
+    }
+
+    @objc private func sliderChanged(_ sender: NSSlider) {
+        onChange?(ShorteningLevel.atSliderIndex(Int(sender.doubleValue.rounded())))
+    }
+}
+
+@MainActor
 final class AppMenu: NSObject {
     var onRewrite: (() -> Void)?
     var onCancel: (() -> Void)?
     var onProvider: ((RewriteProvider) -> Void)?
     var onShortening: ((ShorteningLevel) -> Void)?
     private var providerItems: [NSMenuItem] = []
-    private var shorteningItems: [NSMenuItem] = []
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    private let concisenessControl = ConcisenessControl(frame: NSRect(x: 0, y: 0, width: 280, height: 54))
     private let progress = NSMenuItem(title: "Rewriting…", action: nil, keyEquivalent: "")
     private let rewrite = NSMenuItem(title: "Rewrite", action: #selector(begin), keyEquivalent: "r")
     private let cancel = NSMenuItem(title: "Cancel Rewrite", action: #selector(cancelRewrite), keyEquivalent: "")
@@ -47,13 +89,9 @@ final class AppMenu: NSObject {
         }
         let provider = NSMenuItem(title: "Provider", action: nil, keyEquivalent: "")
         provider.submenu = providers; menu.addItem(provider)
-        let shorteningMenu = NSMenu(); shorteningMenu.autoenablesItems = false
-        for level in ShorteningLevel.allCases {
-            let entry = shorteningMenu.addItem(withTitle: level.menuTitle, action: #selector(shorteningClicked(_:)), keyEquivalent: "")
-            entry.target = self; shorteningItems.append(entry)
-        }
-        let shortening = NSMenuItem(title: "Shortening", action: nil, keyEquivalent: "")
-        shortening.submenu = shorteningMenu; menu.addItem(shortening)
+        let conciseness = NSMenuItem(title: "Conciseness", action: nil, keyEquivalent: "")
+        conciseness.view = concisenessControl; menu.addItem(conciseness)
+        concisenessControl.onChange = { [weak self] level in self?.onShortening?(level) }
         menu.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "").target = self
         item.menu = menu; setRewriting(false)
     }
@@ -94,15 +132,9 @@ final class AppMenu: NSObject {
     func setProvider(_ provider: RewriteProvider) {
         for entry in providerItems { entry.state = entry.title == provider.rawValue ? .on : .off }
     }
-    func setShortening(_ level: ShorteningLevel) {
-        for entry in shorteningItems { entry.state = entry.title == level.menuTitle ? .on : .off }
-    }
+    func setShortening(_ level: ShorteningLevel) { concisenessControl.setLevel(level) }
     @objc private func providerClicked(_ sender: NSMenuItem) {
         guard let provider = RewriteProvider(rawValue: sender.title) else { return }
         onProvider?(provider); setProvider(provider)
-    }
-    @objc private func shorteningClicked(_ sender: NSMenuItem) {
-        guard let level = ShorteningLevel.allCases.first(where: { $0.menuTitle == sender.title }) else { return }
-        onShortening?(level); setShortening(level)
     }
 }
