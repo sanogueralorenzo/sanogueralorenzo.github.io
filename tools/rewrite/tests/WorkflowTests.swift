@@ -79,14 +79,13 @@ enum WorkflowTests {
     }
     static func shorteningSwitch() async throws {
         let run = try Workflow(); defer { run.close() }
-        let conciseness = run.menu.item.menu!.items.first { $0.title == "Conciseness" }!
-        let slider = conciseness.view!.subviews.compactMap { $0 as? NSSlider }.first!
-        slider.doubleValue = 2; slider.sendAction(slider.action, to: slider.target)
-        try expect(run.controller.shortening == .strong, "Conciseness slider did not switch")
+        let conciseness = run.menu.item.menu!.items.first { $0.title == "Conciseness" }!.submenu!
+        conciseness.performActionForItem(at: 2)
+        try expect(run.controller.shortening == .strong && conciseness.items[2].state == .on, "Conciseness menu did not switch")
         run.controller.begin()
         try await run.finished()
         let starts = run.fixture.events.filter { $0["event"] as? String == "started" }
-        try expect(starts.count == 1 && (starts[0]["system_prompt"] as? String)?.contains("40% fewer words") == true,
+        try expect(starts.count == 1 && (starts[0]["system_prompt"] as? String)?.contains("50% fewer words") == true,
                    "Selected shortening level did not reach Pi's system prompt")
     }
     static func invalidOutput() async throws {
