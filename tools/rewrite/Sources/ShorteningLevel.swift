@@ -25,12 +25,7 @@ enum ShorteningLevel: String, CaseIterable {
     }
 
     static func load(from defaults: UserDefaults = .standard) -> Self {
-        let saved = defaults.string(forKey: "conciseness") ?? defaults.string(forKey: "shortening")
-        switch saved {
-        case "Medium": return .balanced
-        case "Maximum": return .strong
-        default: return saved.flatMap(Self.init(rawValue:)) ?? .light
-        }
+        defaults.string(forKey: "conciseness").flatMap(Self.init(rawValue:)) ?? .light
     }
 
     func save(to defaults: UserDefaults = .standard) {
