@@ -1,25 +1,35 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
 config_version=5
+
 [application]
-; Stable internal name preserves the existing user:// save directory. Window titles are set in C#.
+
 config/name="Boats n Beasts"
-run/main_scene="res://main.tscn"
-config/features=PackedStringArray("4.7", "C#", "Forward Plus")
-run/max_fps=120
 config/description="Sail. Fish. Upgrade. An ocean of possibility."
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+run/max_fps=120
+
 [display]
+
 window/size/viewport_width=1440
 window/size/viewport_height=900
 window/size/window_width_override=1280
 window/size/window_height_override=800
 window/stretch/mode="canvas_items"
-[rendering]
-renderer/rendering_method="forward_plus"
-renderer/rendering_method.mobile="mobile"
-renderer/rendering_method.web="gl_compatibility"
-lights_and_shadows/directional_shadow/size=4096
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
-textures/default_filters/use_nearest_mipmap_filter=false
-textures/vram_compression/import_etc2_astc=true
-environment/defaults/default_clear_color=Color(0.025,0.19,0.56,1)
+
 [dotnet]
+
 project/assembly_name="BoatsNBeasts"
+
+[rendering]
+
+textures/vram_compression/import_etc2_astc=true
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+environment/defaults/default_clear_color=Color(0.025, 0.19, 0.56, 1)

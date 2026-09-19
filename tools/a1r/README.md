@@ -1,5 +1,7 @@
 # A1R
 
+![A1R banner](assets/a1r-banner.png)
+
 > A small personal runtime for ongoing work.
 
 A1R is a lean, local-first runtime for sessions, tools, memory, and execution—available wherever you work.
@@ -13,8 +15,7 @@ input → decide → act → remember
 ## Planned
 
 - CLI
-- Telegram bot
-- macOS app
+- native desktop apps
 - persistent sessions
 - deep links to existing sessions
 - local memory
