@@ -12,7 +12,6 @@ live("runs an opt-in Codex subscription turn without reading stored credentials"
   const cwd = temporary("agent-codex-live-");
   const client = createAgentCodexAppServer(
     { homeDir: process.env.AGENT_HOME ?? join(homedir(), ".agent"), codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" },
-    { requestTimeoutMs: 60_000 },
   );
   cleanup(() => client.stop());
   const account = await client.account(true);

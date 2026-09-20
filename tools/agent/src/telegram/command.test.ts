@@ -3,19 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   installService: vi.fn(),
   readSecret: vi.fn(),
-  readSecretLine: vi.fn(),
   setup: vi.fn(),
-  writeSecret: vi.fn(),
 }));
 
 vi.mock("../cli/setup.js", () => ({
-  readSecretLine: mocks.readSecretLine,
+  readSecretLine: vi.fn(),
   setupAgent: mocks.setup,
 }));
 
 vi.mock("../local/credentials.js", () => ({
   readSecret: mocks.readSecret,
-  writeSecret: mocks.writeSecret,
+  writeSecret: vi.fn(),
 }));
 
 vi.mock("./service.js", () => ({
@@ -26,7 +24,6 @@ import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
-    mocks.readSecretLine.mockRejectedValue(new Error("stop at Telegram setup"));
     mocks.setup.mockRejectedValue(new Error("stop after backend setup"));
   });
 
@@ -51,5 +48,4 @@ describe("Telegram guided setup", () => {
 
     expect(mocks.installService).toHaveBeenCalledOnce();
   });
-
 });
