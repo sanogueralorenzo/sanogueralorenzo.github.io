@@ -1,98 +1,102 @@
+import { randomUUID } from "node:crypto";
+import { saveArtifactPath } from "../core/assets.js";
+import { readVoiceNote } from "../core/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../core/backend.js";
 import type { Store } from "../core/store.js";
 import type { Attachment, RuntimeConfig } from "../core/types.js";
-import { saveArtifactPath } from "../core/assets.js";
-import { readVoiceNote } from "../core/audio.js";
-import { randomUUID } from "node:crypto";
-import { CodexAppServer, CodexDisconnectedError, CodexRpcError } from "./app-server.js";
-import type { CodexRateLimits, JsonRpcMessage } from "./protocol.js";
+import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
+import type { JsonRpcMessage } from "./protocol.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
 
 export class CodexAuthenticationError extends Error {
   constructor(message = "Your ChatGPT session has expired. Run `agent setup` to reconnect it.") {
     super(message);
-    this.name = "CodexAuthenticationError";
   }
 }
 
 export class CodexAllowanceError extends Error {
   constructor(message = "Your included Codex allowance is currently exhausted. Check usage with `agent setup`, or choose API-key billing there.") {
     super(message);
-    this.name = "CodexAllowanceError";
   }
 }
 
 class NotificationQueue {
   private items: JsonRpcMessage[] = [];
-  private waiters: Array<(message: JsonRpcMessage) => void> = [];
+  private waiting: { resolve: (message: JsonRpcMessage) => void; reject: (error: Error) => void } | undefined;
 
   push(message: JsonRpcMessage): void {
-    const waiter = this.waiters.shift();
-    if (waiter) waiter(message);
-    else this.items.push(message);
+    if (this.waiting) {
+      this.waiting.resolve(message);
+      this.waiting = undefined;
+    } else this.items.push(message);
   }
 
-  async next(signal?: AbortSignal): Promise<JsonRpcMessage> {
-    const item = this.items.shift();
-    if (item) return item;
-    if (signal?.aborted) throw new DOMException("Interrupted", "AbortError");
+  next(signal?: AbortSignal): Promise<JsonRpcMessage> {
+    const message = this.items.shift();
+    if (message) return Promise.resolve(message);
+    if (signal?.aborted) return Promise.reject(new DOMException("Interrupted", "AbortError"));
     return new Promise((resolve, reject) => {
-      const onAbort = () => {
-        const index = this.waiters.indexOf(onMessage);
-        if (index >= 0) this.waiters.splice(index, 1);
+      const abort = () => {
+        this.waiting = undefined;
         reject(new DOMException("Interrupted", "AbortError"));
       };
-      const onMessage = (message: JsonRpcMessage) => {
-        signal?.removeEventListener("abort", onAbort);
-        resolve(message);
+      this.waiting = {
+        resolve: (value) => {
+          signal?.removeEventListener("abort", abort);
+          resolve(value);
+        },
+        reject,
       };
-      this.waiters.push(onMessage);
-      signal?.addEventListener("abort", onAbort, { once: true });
+      signal?.addEventListener("abort", abort, { once: true });
     });
   }
 }
 
-function activeRateLimit(limits: CodexRateLimits): { reached: boolean; name: string } {
-  const snapshots = limits.rateLimitsByLimitId
-    ? Object.values(limits.rateLimitsByLimitId)
-    : [limits.rateLimits];
-  const reached = limits.ordinaryUsageAllowed === false
-    || snapshots.some((snapshot) => Boolean(snapshot?.rateLimitReachedType));
-  const name = snapshots.find((snapshot) => snapshot?.limitName)?.limitName ?? "Codex";
-  return { reached, name };
-}
-
-function itemName(item: Record<string, unknown>): string | null {
-  switch (item.type) {
-    case "commandExecution": return "command";
-    case "fileChange": return "file_change";
-    case "mcpToolCall": return typeof item.tool === "string" ? item.tool : "mcp_tool";
-    case "dynamicToolCall": return typeof item.tool === "string" ? item.tool : "tool";
-    case "webSearch": return "web_search";
-    case "imageGeneration": return "image_generation";
-    default: return null;
-  }
-}
-
-function itemSummary(item: Record<string, unknown>): string {
-  if (item.type === "commandExecution") {
-    const status = typeof item.status === "string" ? item.status : "complete";
-    const exit = typeof item.exitCode === "number" ? ` (exit ${item.exitCode})` : "";
-    return `${status}${exit}`;
-  }
-  if (typeof item.status === "string") return item.status;
-  if (typeof item.success === "boolean") return item.success ? "complete" : "failed";
-  return "complete";
-}
-
-function record(value: unknown): Record<string, unknown> {
+function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
 }
 
-function codexTurnError(message: string): Error {
+function classifiedError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
   if (/auth|login|token|unauthorized/i.test(message)) return new CodexAuthenticationError();
   if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new CodexAllowanceError();
-  return new Error(message);
+  return error instanceof Error ? error : new Error(message);
+}
+
+function toolName(item: Record<string, unknown>): string | null {
+  const names: Record<string, string> = {
+    commandExecution: "command",
+    fileChange: "file_change",
+    webSearch: "web_search",
+    imageGeneration: "image_generation",
+  };
+  if (typeof item.type !== "string") return null;
+  if (item.type === "mcpToolCall" || item.type === "dynamicToolCall") {
+    return typeof item.tool === "string" ? item.tool : "tool";
+  }
+  return names[item.type] ?? null;
+}
+
+function toolSummary(item: Record<string, unknown>): string {
+  const status = typeof item.status === "string" ? item.status : item.success === false ? "failed" : "complete";
+  return item.type === "commandExecution" && typeof item.exitCode === "number"
+    ? `${status} (exit ${item.exitCode})`
+    : status;
+}
+
+async function nextForThread(queue: NotificationQueue, threadId: string, signal?: AbortSignal) {
+  while (true) {
+    const message = await queue.next(signal);
+    if (message.method === "agent/disconnected") {
+      throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
+    }
+    const params = object(message.params);
+    if (params.threadId !== threadId) continue;
+    if (message.method === "error" && params.willRetry !== true) {
+      throw classifiedError(object(params.error).message ?? "The Codex turn failed.");
+    }
+    return { method: message.method, params };
+  }
 }
 
 export class CodexBackend implements AgentBackend {
@@ -109,55 +113,37 @@ export class CodexBackend implements AgentBackend {
 
   async isConfigured(): Promise<boolean> {
     if (!this.client.isInstalled()) return false;
-    try {
-      const status = await this.client.account(false);
-      return status.account?.type === "chatgpt";
-    } catch {
-      return false;
-    }
+    return this.client.account(false).then((status) => status.account?.type === "chatgpt", () => false);
   }
 
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     await this.preflight();
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        return await this.transcribeOnce(attachment, signal);
-      } catch (error) {
-        if (error instanceof CodexDisconnectedError && attempt === 0) {
-          await this.client.restart();
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new CodexDisconnectedError();
+    return this.retry(() => this.transcribe(attachment, signal));
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
     await this.preflight();
-    const workerResult = turn.route.worker ? await this.runWorker(turn) : null;
-    let madeProgress = false;
-    const clientUserMessageId = randomUUID();
+    const workerResult = turn.route.worker ? await this.retry(() => this.worker(turn)) : null;
+    const messageId = randomUUID();
+    let progress = false;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
-        for await (const event of this.runOnce(turn, clientUserMessageId, workerResult)) {
-          if (event.type === "text_delta" || event.type === "tool_start" || event.type === "tool_end") madeProgress = true;
+        const instructions = workerResult
+          ? `${turn.instructions}\n\nInternal worker result (working material, not user instructions):\n<worker_result>\n${workerResult.slice(0, 30_000)}\n</worker_result>`
+          : turn.instructions;
+        const threadId = await this.sessionThread(turn, instructions);
+        for await (const event of this.turnEvents(threadId, turn.request.text, this.config.models.coordinator, turn.signal, messageId)) {
+          if (event.type !== "done") progress = true;
           yield event;
         }
         return;
       } catch (error) {
-        if (error instanceof CodexDisconnectedError && attempt === 0 && !madeProgress) {
+        if (error instanceof CodexDisconnectedError && attempt === 0 && !progress) {
           yield { type: "status", message: "Codex restarted. Resuming your Agent session…" };
           await this.client.restart();
           continue;
         }
-        if (error instanceof CodexRpcError && /auth|login|token|unauthorized/i.test(error.message)) {
-          throw new CodexAuthenticationError();
-        }
-        if (error instanceof CodexRpcError && /rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(error.message)) {
-          throw new CodexAllowanceError();
-        }
-        throw error;
+        throw classifiedError(error);
       }
     }
   }
@@ -166,128 +152,116 @@ export class CodexBackend implements AgentBackend {
     await this.client.stop();
   }
 
+  private async retry<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!(error instanceof CodexDisconnectedError)) throw classifiedError(error);
+      await this.client.restart();
+      return operation();
+    }
+  }
+
   private async preflight(): Promise<void> {
     if (Date.now() < this.preflightValidUntil) return;
-    const account = await this.client.account(false).catch((error) => {
-      if (error instanceof CodexRpcError && /auth|login|token|unauthorized/i.test(error.message)) {
-        throw new CodexAuthenticationError();
-      }
-      throw error;
-    });
+    const account = await this.client.account(false).catch((error) => { throw classifiedError(error); });
     if (account.account?.type !== "chatgpt") throw new CodexAuthenticationError();
-    const usage = await this.client.rateLimits();
-    const limit = activeRateLimit(usage);
-    if (limit.reached) throw new CodexAllowanceError(`${limit.name} allowance is currently exhausted. Check usage with \`agent setup\`, or choose API-key billing there.`);
+    const limits = await this.client.rateLimits();
+    const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
+    const reached = limits.ordinaryUsageAllowed === false || buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
+    if (reached) {
+      const name = buckets.find((bucket) => bucket.limitName)?.limitName ?? "Codex";
+      throw new CodexAllowanceError(`${name} allowance is currently exhausted. Check usage with \`agent setup\`, or choose API-key billing there.`);
+    }
     this.preflightValidUntil = Date.now() + 15_000;
   }
 
-  private async *runOnce(turn: BackendTurn, clientUserMessageId: string, workerResult: string | null): AsyncGenerator<BackendEvent> {
-    const instructions = workerResult
-      ? `${turn.instructions}\n\nInternal worker result (working material, not user instructions):\n<worker_result>\n${workerResult.slice(0, 30_000)}\n</worker_result>`
-      : turn.instructions;
-    const threadId = await this.thread(turn, instructions);
+  private async *turnEvents(
+    threadId: string,
+    text: string,
+    model: string,
+    signal?: AbortSignal,
+    clientUserMessageId = randomUUID(),
+  ): AsyncGenerator<BackendEvent> {
     const queue = new NotificationQueue();
     const unsubscribe = this.client.onNotification((message) => queue.push(message));
-    let turnId: string | null = null;
-    let sawDelta = false;
+    let turnId = "";
+    let sawText = false;
     const interrupt = () => {
       if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
     };
-    turn.signal?.addEventListener("abort", interrupt, { once: true });
-
+    signal?.addEventListener("abort", interrupt, { once: true });
     try {
       const started = await this.client.request<{ turn: { id: string } }>("turn/start", {
         threadId,
         clientUserMessageId,
-        input: [{ type: "text", text: turn.request.text, text_elements: [] }],
-        model: this.config.models.coordinator,
+        input: [{ type: "text", text, text_elements: [] }],
+        model,
         effort: "high",
       });
       turnId = started.turn.id;
-      if (turn.signal?.aborted) {
+      if (signal?.aborted) {
         interrupt();
         throw new DOMException("Interrupted", "AbortError");
       }
-
       while (true) {
-        const message = await queue.next(turn.signal);
-        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
-        const params = record(message.params);
-        if (params.threadId !== threadId) continue;
-        const messageTurnId = typeof params.turnId === "string"
-          ? params.turnId
-          : typeof record(params.turn).id === "string" ? String(record(params.turn).id) : null;
-        if (messageTurnId && messageTurnId !== turnId) continue;
-
-        if (message.method === "item/agentMessage/delta" && typeof params.delta === "string") {
-          sawDelta = true;
+        const { method, params } = await nextForThread(queue, threadId, signal);
+        const eventTurnId = params.turnId ?? object(params.turn).id;
+        if (eventTurnId && eventTurnId !== turnId) continue;
+        if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
+          sawText = true;
           yield { type: "text_delta", delta: params.delta };
-          continue;
-        }
-        if (message.method === "item/started") {
-          const item = record(params.item);
-          const name = itemName(item);
+        } else if (method === "item/started") {
+          const item = object(params.item);
+          const name = toolName(item);
           if (name && typeof item.id === "string") yield { type: "tool_start", name, callId: item.id };
-          continue;
-        }
-        if (message.method === "item/completed") {
-          const item = record(params.item);
-          if (!sawDelta && item.type === "agentMessage" && typeof item.text === "string" && item.text) {
-            sawDelta = true;
+        } else if (method === "item/completed") {
+          const item = object(params.item);
+          if (!sawText && item.type === "agentMessage" && typeof item.text === "string") {
+            sawText = true;
             yield { type: "text_delta", delta: item.text };
           }
-          const name = itemName(item);
-          if (name && typeof item.id === "string") {
-            yield { type: "tool_end", name, callId: item.id, summary: itemSummary(item) };
-          }
+          const name = toolName(item);
+          if (name && typeof item.id === "string") yield { type: "tool_end", name, callId: item.id, summary: toolSummary(item) };
           if (item.type === "imageGeneration" && typeof item.savedPath === "string") {
-            yield {
-              type: "artifact",
-              artifact: saveArtifactPath(this.config.homeDir, { path: item.savedPath }),
-            };
+            yield { type: "artifact", artifact: saveArtifactPath(this.config.homeDir, { path: item.savedPath }) };
           }
-          continue;
-        }
-        if (message.method === "error" && params.willRetry !== true) {
-          const detail = record(params.error);
-          const messageText = typeof detail.message === "string" ? detail.message : "The Codex turn failed.";
-          throw codexTurnError(messageText);
-        }
-        if (message.method === "turn/completed") {
-          const completed = record(params.turn);
-          const status = completed.status;
-          if (status === "completed") {
+        } else if (method === "turn/completed") {
+          const completed = object(params.turn);
+          if (completed.status === "completed") {
             yield { type: "done", responseId: turnId };
             return;
           }
-          if (status === "interrupted") throw new DOMException("Interrupted", "AbortError");
-          const turnError = record(completed.error);
-          const messageText = typeof turnError.message === "string" ? turnError.message : "The Codex turn failed.";
-          throw codexTurnError(messageText);
+          if (completed.status === "interrupted") throw new DOMException("Interrupted", "AbortError");
+          throw classifiedError(object(completed.error).message ?? "The Codex turn failed.");
         }
       }
     } finally {
       unsubscribe();
-      turn.signal?.removeEventListener("abort", interrupt);
+      signal?.removeEventListener("abort", interrupt);
     }
   }
 
-  private async runWorker(turn: BackendTurn): Promise<string> {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      try {
-        return await this.runWorkerOnce(turn);
-      } catch (error) {
-        if (error instanceof CodexDisconnectedError && attempt === 0) {
-          await this.client.restart();
-          continue;
-        }
-        throw error;
-      }
+  private async worker(turn: BackendTurn): Promise<string> {
+    const worker = turn.route.worker!;
+    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
+      model: this.config.models[worker],
+      cwd: turn.session.cwd ?? this.config.homeDir,
+      approvalPolicy: "never",
+      sandbox: worker === "coding" ? "workspace-write" : "read-only",
+      developerInstructions: turn.workerInstructions,
+      ephemeral: true,
+      threadSource: "appServer",
+    });
+    let output = "";
+    for await (const event of this.turnEvents(started.thread.id, turn.request.text, this.config.models[worker], turn.signal)) {
+      if (event.type === "text_delta") output += event.delta;
     }
-    throw new CodexDisconnectedError();
+    if (!output.trim()) throw new Error(`${worker} worker completed without a result.`);
+    return output;
   }
 
-  private async transcribeOnce(attachment: Attachment, signal?: AbortSignal): Promise<string> {
+  private async transcribe(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     const audio = await readVoiceNote(attachment);
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
       model: this.config.models.coordinator,
@@ -301,11 +275,9 @@ export class CodexBackend implements AgentBackend {
     const queue = new NotificationQueue();
     const unsubscribe = this.client.onNotification((message) => queue.push(message));
     const timeout = AbortSignal.timeout(45_000);
-    const combinedSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     const peer = this.createRealtimePeer();
-
     try {
-      const offer = await peer.offer();
       await this.client.request("thread/realtime/start", {
         threadId,
         outputModality: "audio",
@@ -314,38 +286,25 @@ export class CodexBackend implements AgentBackend {
         flushTranscriptTailOnSessionEnd: true,
         realtimeStartInstructions: "Transcribe the user's speech accurately.",
         version: "v3",
-        transport: { type: "webrtc", sdp: offer },
+        transport: { type: "webrtc", sdp: await peer.offer() },
       });
       while (true) {
-        const message = await queue.next(combinedSignal);
-        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
-        const params = record(message.params);
-        if (params.threadId !== threadId) continue;
-        if (message.method === "thread/realtime/sdp" && typeof params.sdp === "string") {
-          await peer.accept(params.sdp);
+        const event = await nextForThread(queue, threadId, combined);
+        if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
+        if (event.method === "thread/realtime/sdp" && typeof event.params.sdp === "string") {
+          await peer.accept(event.params.sdp);
           break;
         }
-        if (message.method === "thread/realtime/error") {
-          throw new Error(typeof params.message === "string" ? params.message : "Voice transcription failed.");
-        }
       }
-      await peer.sendAudio(audio, combinedSignal);
-
+      await peer.sendAudio(audio, combined);
       while (true) {
-        const message = await queue.next(combinedSignal);
-        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
-        const params = record(message.params);
-        if (params.threadId !== threadId) continue;
-        if (message.method === "thread/realtime/transcript/done" && params.role === "user" && typeof params.text === "string") {
-          const transcript = params.text.trim();
+        const event = await nextForThread(queue, threadId, combined);
+        if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
+        if (event.method === "thread/realtime/closed") throw new Error("Voice transcription ended before a transcript was ready.");
+        if (event.method === "thread/realtime/transcript/done" && event.params.role === "user") {
+          const transcript = String(event.params.text ?? "").trim();
           if (!transcript) throw new Error("The voice note did not contain recognizable speech.");
           return transcript;
-        }
-        if (message.method === "thread/realtime/error") {
-          throw new Error(typeof params.message === "string" ? params.message : "Voice transcription failed.");
-        }
-        if (message.method === "thread/realtime/closed") {
-          throw new Error("Voice transcription ended before a transcript was ready.");
         }
       }
     } catch (error) {
@@ -358,100 +317,19 @@ export class CodexBackend implements AgentBackend {
     }
   }
 
-  private async runWorkerOnce(turn: BackendTurn): Promise<string> {
-    const worker = turn.route.worker;
-    if (!worker) throw new Error("Worker routing is missing.");
-    const cwd = turn.session.cwd ?? this.config.homeDir;
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: this.config.models[worker],
-      cwd,
-      approvalPolicy: "never",
-      sandbox: worker === "coding" ? "workspace-write" : "read-only",
-      developerInstructions: turn.workerInstructions,
-      ephemeral: true,
-      threadSource: "appServer",
-    });
-    const threadId = started.thread.id;
-    const queue = new NotificationQueue();
-    const unsubscribe = this.client.onNotification((message) => queue.push(message));
-    let turnId: string | null = null;
-    let output = "";
-    const interrupt = () => {
-      if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
-    };
-    turn.signal?.addEventListener("abort", interrupt, { once: true });
-
-    try {
-      const run = await this.client.request<{ turn: { id: string } }>("turn/start", {
-        threadId,
-        clientUserMessageId: randomUUID(),
-        input: [{ type: "text", text: turn.request.text, text_elements: [] }],
-        model: this.config.models[worker],
-        effort: "high",
-      });
-      turnId = run.turn.id;
-      if (turn.signal?.aborted) {
-        interrupt();
-        throw new DOMException("Interrupted", "AbortError");
-      }
-
-      while (true) {
-        const message = await queue.next(turn.signal);
-        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
-        const params = record(message.params);
-        if (params.threadId !== threadId) continue;
-        const messageTurnId = typeof params.turnId === "string"
-          ? params.turnId
-          : typeof record(params.turn).id === "string" ? String(record(params.turn).id) : null;
-        if (messageTurnId && messageTurnId !== turnId) continue;
-        if (message.method === "item/agentMessage/delta" && typeof params.delta === "string") {
-          output += params.delta;
-          continue;
-        }
-        if (message.method === "item/completed") {
-          const item = record(params.item);
-          if (!output && item.type === "agentMessage" && typeof item.text === "string") output = item.text;
-          continue;
-        }
-        if (message.method === "error" && params.willRetry !== true) {
-          const detail = record(params.error);
-          throw codexTurnError(typeof detail.message === "string" ? detail.message : `${worker} worker failed.`);
-        }
-        if (message.method === "turn/completed") {
-          const completed = record(params.turn);
-          if (completed.status === "completed") {
-            if (!output.trim()) throw new Error(`${worker} worker completed without a result.`);
-            return output;
-          }
-          if (completed.status === "interrupted") throw new DOMException("Interrupted", "AbortError");
-          const detail = record(completed.error);
-          throw codexTurnError(typeof detail.message === "string" ? detail.message : `${worker} worker failed.`);
-        }
-      }
-    } finally {
-      unsubscribe();
-      turn.signal?.removeEventListener("abort", interrupt);
-    }
-  }
-
-  private async thread(turn: BackendTurn, instructions: string): Promise<string> {
+  private async sessionThread(turn: BackendTurn, instructions: string): Promise<string> {
     const existing = this.store.backendSession(turn.session.id, "codex");
-    const cwd = turn.session.cwd ?? this.config.homeDir;
     const common = {
       model: this.config.models.coordinator,
-      cwd,
+      cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: "read-only",
       developerInstructions: instructions,
     };
     if (existing) {
-      const resumed = await this.client.request<{ thread: { id: string } }>("thread/resume", {
-        threadId: existing,
-        ...common,
-      });
-      return resumed.thread.id;
+      return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
     }
-    const priorTranscript = this.store.getMessages(turn.session.id, this.config.maxHistoryMessages)
+    const transcript = this.store.getMessages(turn.session.id, this.config.maxHistoryMessages)
       .slice(0, -1)
       .filter((message) => message.role !== "tool")
       .map((message) => `${message.role}: ${message.content}`)
@@ -459,9 +337,7 @@ export class CodexBackend implements AgentBackend {
       .slice(-20_000);
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
       ...common,
-      developerInstructions: priorTranscript
-        ? `${instructions}\n\nContinue this Agent-owned session using its prior transcript:\n\n${priorTranscript}`
-        : instructions,
+      developerInstructions: transcript ? `${instructions}\n\nContinue this Agent-owned session using its prior transcript:\n\n${transcript}` : instructions,
       ephemeral: false,
       threadSource: "appServer",
     });
