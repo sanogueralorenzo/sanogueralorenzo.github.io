@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
@@ -10,6 +10,8 @@ import type { Store } from "../conversation/store.js";
 const run = promisify(execFile);
 const MAX_OUTPUT = 30_000;
 const string = { type: "string" } as const;
+const READ_PROGRAMS = ["rg", "find", "ls", "pwd"];
+const WRITE_PROGRAMS = ["npm", "pnpm", "yarn", "node", "python3", "git", ...READ_PROGRAMS, "swift", "swiftc", "xcodebuild", "gradle", "./gradlew", "pytest", "cargo", "go", "make"];
 
 export interface ToolContext {
   cwd: string | null;
@@ -140,26 +142,6 @@ export function createTools(store: Store, toolSet: ToolSet): AgentTool[] {
       const path = await projectPath(context.cwd, text(args, "path"));
       return { output: clipped(await readFile(path, "utf8")), summary: `read ${relative(context.cwd!, path)}` };
     }),
-    tool("list_files", "List files in a project directory.", { path: string }, async (args, context) => {
-      const entries = await readdir(await projectPath(context.cwd, text(args, "path")), { withFileTypes: true });
-      return {
-        output: entries.slice(0, 500).map((entry) => `${entry.isDirectory() ? "d" : "f"} ${entry.name}`).join("\n"),
-        summary: `${entries.length} entries`,
-      };
-    }),
-    tool("search_files", "Search project text with ripgrep.", { query: string, path: string }, async (args, context) => {
-      const path = await projectPath(context.cwd, text(args, "path"));
-      try {
-        const { stdout } = await run("rg", ["-n", "--hidden", "--glob", "!.git", "--glob", "!.env*", "--glob", "!**/.env*", "--glob", "!**/*.{pem,p12,key}", "--", text(args, "query"), path], {
-          cwd: context.cwd!, timeout: 15_000, maxBuffer: MAX_OUTPUT * 2, signal: context.signal,
-        });
-        return { output: clipped(stdout), summary: "search complete" };
-      } catch (error) {
-        const result = error as { code?: number; stderr?: string };
-        if (result.code === 1) return { output: "No matches.", summary: "no matches" };
-        throw new Error(clipped(result.stderr || String(error)));
-      }
-    }),
   );
 
   if (toolSet === "write") tools.push(
@@ -177,12 +159,17 @@ export function createTools(store: Store, toolSet: ToolSet): AgentTool[] {
       await writeFile(path, content.replace(oldText, String(args.newText ?? "")), "utf8");
       return { output: "Replaced.", summary: `edited ${relative(context.cwd!, path)}` };
     }),
-    tool("run_command", "Run one non-interactive development command without a shell.", {
-      program: { type: "string", enum: ["npm", "pnpm", "yarn", "node", "python3", "git", "rg", "find", "ls", "pwd", "swift", "swiftc", "xcodebuild", "gradle", "./gradlew", "pytest", "cargo", "go", "make"] },
+  );
+
+  if (toolSet === "read" || toolSet === "write") tools.push(
+    tool("run_command", "Run one non-interactive project command without a shell.", {
+      program: { type: "string", enum: toolSet === "read" ? READ_PROGRAMS : WRITE_PROGRAMS },
       args: { type: "array", items: string },
     }, async (args, context) => {
       if (!context.cwd) throw new Error("This session has no active project directory.");
       const program = text(args, "program");
+      const programs = toolSet === "read" ? READ_PROGRAMS : WRITE_PROGRAMS;
+      if (!programs.includes(program)) throw new Error(`Command is not available to this worker: ${program}`);
       const commandArgs = args.args;
       if (!Array.isArray(commandArgs) || !commandArgs.every((value) => typeof value === "string")) throw new Error("Expected a string array: args");
       if (commandArgs.some((value) => isAbsolute(value) || value === ".." || value.startsWith(`..${sep}`) || value.includes(`${sep}..${sep}`))) {

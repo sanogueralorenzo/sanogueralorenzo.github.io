@@ -19,14 +19,15 @@ function fixture() {
 }
 
 describe("coding tool boundaries", () => {
-  it("can expose project inspection without exposing mutation", () => {
+  it("can expose project inspection without exposing mutation", async () => {
     const root = temporary("agent-tools-readonly-");
     const state = temporary("agent-tools-readonly-state-");
     const store = new Store(state);
-    const names = createTools(store, "read")
-      .map((tool) => tool.definition.name);
+    const tools = createTools(store, "read");
+    const names = tools.map((tool) => tool.definition.name);
 
-    expect(names).toEqual(["memory_search", "read_file", "list_files", "search_files"]);
+    expect(names).toEqual(["memory_search", "read_file", "run_command"]);
+    await expect(tools.at(-1)!.execute({ program: "node", args: ["script.mjs"] }, { cwd: root, memoryScope: "test" })).rejects.toThrow("not available");
     store.close();
   });
 
