@@ -50,6 +50,14 @@ async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelo
 }
 
 describe("RuntimeServer", () => {
+  it("opens an idle event stream immediately", async () => {
+    const runtime = { async *run() {} } as unknown as AgentRuntime;
+    const { request } = await serve(runtime);
+    const response = await request("/v1/events");
+    const first = await response.body!.getReader().read();
+    expect(new TextDecoder().decode(first.value)).toBe(": connected\n\n");
+  });
+
   it("authenticates clients and publishes one shared run stream", async () => {
     let receivedTurn: Record<string, unknown> | undefined;
     const runtime = {

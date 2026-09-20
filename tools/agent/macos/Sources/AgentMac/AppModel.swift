@@ -41,6 +41,7 @@ struct ChatMessage: Identifiable, Equatable {
 
     func start() async {
         observer?.cancel()
+        activity = ""
         state = .starting
         do {
             let client = try await launcher.ensureRunning()

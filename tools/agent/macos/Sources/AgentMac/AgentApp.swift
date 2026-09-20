@@ -84,7 +84,7 @@ struct ConversationView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 18) {
                         if model.messages.isEmpty {
-                            ContentUnavailableView("What can I help with?", systemImage: "sparkles", description: Text("Personal help and coding work share the same memory and runtime."))
+                            ContentUnavailableView("What can I help with?", systemImage: "sparkles", description: Text("Start a conversation."))
                                 .padding(.top, 80)
                         }
                         ForEach(model.messages) { message in

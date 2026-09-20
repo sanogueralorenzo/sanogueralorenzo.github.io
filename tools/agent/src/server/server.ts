@@ -163,6 +163,7 @@ export class RuntimeServer {
       "x-accel-buffering": "no",
     });
     response.flushHeaders();
+    response.write(": connected\n\n");
     try {
       for await (const event of this.runs.events(controller.signal)) {
         response.write(`data: ${JSON.stringify(event)}\n\n`);
