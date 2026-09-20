@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { chmodSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
 import type { RuntimeConfig } from "../core/types.js";
@@ -50,6 +50,17 @@ export function prepareAgentCodexHome(homeDir: string): string {
     mkdirSync(codexHome, { mode: 0o700 });
   }
   chmodSync(codexHome, 0o700);
+  const configPath = join(codexHome, "config.toml");
+  if (existsSync(configPath)) {
+    const stat = lstatSync(configPath);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error("Agent's private Codex configuration must be a real file.");
+    }
+  }
+  const temporary = `${configPath}.${process.pid}.tmp`;
+  writeFileSync(temporary, "[agents]\nenabled = false\n", { mode: 0o600 });
+  renameSync(temporary, configPath);
+  chmodSync(configPath, 0o600);
   return codexHome;
 }
 

@@ -13,6 +13,7 @@ export interface BackendTurn {
   session: Session;
   route: RouteDecision;
   instructions: string;
+  workerInstructions: string;
   memoryScope: string;
   signal?: AbortSignal;
 }

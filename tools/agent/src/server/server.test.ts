@@ -36,7 +36,7 @@ describe("RuntimeServer", () => {
     paths.push(homeDir);
     const config: RuntimeConfig = {
       homeDir, host: "127.0.0.1", port: 0,
-      models: { fast: "fast", standard: "standard", deep: "deep" },
+      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
       maxToolRounds: 2, maxHistoryMessages: 10,
       codexCommand: "codex",
     };
@@ -73,7 +73,7 @@ describe("RuntimeServer", () => {
     paths.push(homeDir);
     const config: RuntimeConfig = {
       homeDir, host: "127.0.0.1", port: 0,
-      models: { fast: "fast", standard: "standard", deep: "deep" },
+      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
       maxToolRounds: 2, maxHistoryMessages: 10, codexCommand: "codex",
     };
     const store = new Store(homeDir);

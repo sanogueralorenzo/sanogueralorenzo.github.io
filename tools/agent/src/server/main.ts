@@ -13,7 +13,7 @@ import { RuntimeServer } from "./server.js";
 
 const config = loadConfig();
 const store = new Store(config.homeDir);
-const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
+const model = new OpenAIModelClient(readSecret("openai", config.homeDir));
 const responses = new ResponsesBackend(config, store, model);
 const codexClient = createAgentCodexAppServer(config);
 const codex = new CodexBackend(config, store, codexClient);

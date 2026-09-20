@@ -4,11 +4,10 @@ import type {
   Response,
   ResponseInputItem,
 } from "openai/resources/responses/responses";
-import type { ModelTier, RuntimeConfig } from "./types.js";
 
 export interface ModelRequest {
   model: string;
-  tier: ModelTier;
+  reasoningEffort: "high";
   instructions: string;
   input: ResponseInputItem[];
   tools: FunctionTool[];
@@ -24,14 +23,13 @@ export interface ModelStreamEvent {
 export interface ModelClient {
   isConfigured?(): boolean;
   stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response>;
-  delegate(task: string, context: string, signal?: AbortSignal): Promise<string>;
 }
 
 export class OpenAIModelClient implements ModelClient {
   private client: OpenAI;
   private configured: boolean;
 
-  constructor(private readonly config: RuntimeConfig, apiKey = process.env.OPENAI_API_KEY) {
+  constructor(apiKey = process.env.OPENAI_API_KEY) {
     this.configured = Boolean(apiKey);
     this.client = new OpenAI({ apiKey: apiKey ?? "not-configured" });
   }
@@ -56,7 +54,7 @@ export class OpenAIModelClient implements ModelClient {
       tools: request.tools,
       tool_choice: request.tools.length > 0 ? "auto" : "none",
       parallel_tool_calls: true,
-      reasoning: { effort: request.tier === "deep" ? "high" : request.tier === "standard" ? "medium" : "low" },
+      reasoning: { effort: request.reasoningEffort },
       include: ["reasoning.encrypted_content"],
       prompt_cache_key: request.promptCacheKey,
       store: false,
@@ -82,15 +80,4 @@ export class OpenAIModelClient implements ModelClient {
     return finalResponse;
   }
 
-  async delegate(task: string, context: string, signal?: AbortSignal): Promise<string> {
-    if (!this.configured) throw new Error("OpenAI is not connected. Run `agent setup` once, then try again.");
-    const response = await this.client.responses.create({
-      model: this.config.models.fast,
-      instructions: "You are a focused internal Agent worker. Investigate the bounded task using only the supplied context. Return concise findings to the parent assistant. Do not address the end user.",
-      input: `${task}\n\nContext:\n${context.slice(0, 20_000)}`,
-      reasoning: { effort: "low" },
-      store: false,
-    }, signal ? { signal } : undefined);
-    return response.output_text;
-  }
 }

@@ -90,7 +90,7 @@ async function chooseDefault(): Promise<SetupChoice> {
 function createSetupContext() {
   const config = loadConfig();
   const store = new Store(config.homeDir, "agent.sqlite", { recoverRuns: false });
-  const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
+  const model = new OpenAIModelClient(readSecret("openai", config.homeDir));
   const codex = createAgentCodexAppServer(config);
   const service = new BackendSetupService(
     store,

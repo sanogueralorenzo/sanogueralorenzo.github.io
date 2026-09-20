@@ -38,20 +38,21 @@ function config(homeDir: string): RuntimeConfig {
     homeDir,
     host: "127.0.0.1",
     port: 0,
-    models: { fast: "fast", standard: "standard", deep: "deep" },
+    models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
     maxToolRounds: 4,
     maxHistoryMessages: 20,
     codexCommand: "codex",
   };
 }
 
-function turn(store: Store, homeDir: string): BackendTurn {
+function turn(store: Store, homeDir: string, worker: BackendTurn["route"]["worker"] = "coding"): BackendTurn {
   const session = store.resolveSession({ scopeKey: "project:test", kind: "coding", cwd: homeDir, title: "test" });
   return {
     request: { text: "Fix the test", cwd: homeDir, channel: "api" },
     session,
-    route: { kind: "coding", tier: "standard", reasons: [], allowTools: true, allowDelegation: true },
+    route: { kind: "coding", worker, reasons: [] },
     instructions: "Act as Agent. Use the supplied memory.",
+    workerInstructions: "Act as Agent's internal coding worker.",
     memoryScope: `project:${homeDir}`,
   };
 }
@@ -92,6 +93,8 @@ describe("Codex app-server contract", () => {
       OPENAI_API_KEY: null,
     });
     expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
+    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe("[agents]\nenabled = false\n");
+    expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
     await appServer.beginLogin("browser");
     await appServer.beginLogin("headless");
     const loginRequests = readFileSync(rpcLog, "utf8").trim().split("\n")
@@ -198,7 +201,53 @@ describe("Codex app-server contract", () => {
 
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
-    expect(store.backendSession(turn(store, homeDir).session.id, "codex")).toBe("thread-1");
+    expect(store.backendSession(turn(store, homeDir).session.id, "codex")).toBe("thread-2");
+    await backend.close();
+    store.close();
+  });
+
+  it("pins Sol-high coding work and Luna-high coordination without exposing native subagents", async () => {
+    const homeDir = temp("agent-codex-model-policy-");
+    const log = join(homeDir, "rpc.log");
+    const store = new Store(homeDir);
+    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
+
+    await collect(backend, turn(store, homeDir));
+
+    const requests = readFileSync(log, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
+    const threads = requests.filter((request) => request.method === "thread/start");
+    const turns = requests.filter((request) => request.method === "turn/start");
+    expect(threads.map((request) => [request.params.model, request.params.sandbox, request.params.ephemeral])).toEqual([
+      ["gpt-5.6-sol", "workspace-write", true],
+      ["gpt-5.6-luna", "read-only", false],
+    ]);
+    expect(turns.map((request) => [request.params.model, request.params.effort])).toEqual([
+      ["gpt-5.6-sol", "high"],
+      ["gpt-5.6-luna", "high"],
+    ]);
+    expect(readFileSync(log, "utf8")).not.toContain("gpt-6-astra");
+    await backend.close();
+    store.close();
+  });
+
+  it("starts Astra-high only when the route records an explicit request", async () => {
+    const homeDir = temp("agent-codex-astra-policy-");
+    const log = join(homeDir, "rpc.log");
+    const store = new Store(homeDir);
+    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
+    const input = turn(store, homeDir, "astra");
+    input.request.text = "Use Astra high to investigate this architecture";
+
+    await collect(backend, input);
+
+    const requests = readFileSync(log, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
+    expect(requests.filter((request) => request.method === "thread/start").map((request) => request.params.model)).toEqual([
+      "gpt-6-astra",
+      "gpt-5.6-luna",
+    ]);
+    expect(requests.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high", "high"]);
     await backend.close();
     store.close();
   });
@@ -252,9 +301,8 @@ describe("Codex app-server contract", () => {
     const backend = new CodexBackend(config(homeDir), store, appServer);
     const events = await collect(backend, turn(store, homeDir));
 
-    expect(events).toContainEqual({ type: "status", message: "Codex restarted. Resuming your Agent session…" });
     expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
-    expect(readFileSync(log, "utf8")).toContain("thread/resume");
+    expect(readFileSync(log, "utf8").match(/"method":"thread\/start"/g)?.length).toBeGreaterThanOrEqual(2);
     await backend.close();
     store.close();
   });
@@ -263,7 +311,7 @@ describe("Codex app-server contract", () => {
     const homeDir = temp("agent-codex-missing-thread-");
     const log = join(homeDir, "rpc.log");
     const store = new Store(homeDir);
-    const input = turn(store, homeDir);
+    const input = turn(store, homeDir, null);
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
     const backend = new CodexBackend(config(homeDir), store, client("missing-thread", { AGENT_FAKE_LOG: log }));
 

@@ -15,7 +15,6 @@ export interface ToolContext {
   sessionId: string;
   memoryScope: string;
   signal?: AbortSignal;
-  delegate?: (task: string) => Promise<string>;
 }
 
 export interface ToolResult {
@@ -114,7 +113,7 @@ async function prepareWritePath(root: string | null, requested: string): Promise
   return scopedPath(canonicalRoot, requested, true);
 }
 
-export function createTools(store: Store, options: { allowCodeTools: boolean; allowDelegation: boolean }): AgentTool[] {
+export function createTools(store: Store, options: { allowCodeTools: boolean; allowMemoryWrite?: boolean }): AgentTool[] {
   const tools: AgentTool[] = [
     {
       definition: {
@@ -134,7 +133,9 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
         return { output: found.map((item) => `- ${item.content}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
       },
     },
-    {
+  ];
+
+  if (options.allowMemoryWrite !== false) tools.push({
       definition: {
         type: "function",
         name: "remember",
@@ -153,8 +154,7 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
         store.remember(context.memoryScope, fact, context.sessionId);
         return { output: "Saved.", summary: "memory saved" };
       },
-    },
-  ];
+    });
 
   if (options.allowCodeTools) {
     tools.push(
@@ -291,20 +291,6 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
         },
       },
     );
-  }
-
-  if (options.allowDelegation) {
-    tools.push({
-      definition: {
-        type: "function", name: "delegate_task", description: "Delegate one independent read-only investigation and return its concise findings.", strict: true,
-        parameters: { type: "object", properties: { task: { type: "string" } }, required: ["task"], additionalProperties: false },
-      },
-      async execute(args, context) {
-        if (!context.delegate) throw new Error("Delegation is unavailable.");
-        const output = await context.delegate(requireString(args, "task"));
-        return { output, summary: "delegated investigation complete" };
-      },
-    });
   }
 
   return tools;

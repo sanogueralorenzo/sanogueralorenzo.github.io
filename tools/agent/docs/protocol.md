@@ -35,6 +35,12 @@ Current event types are `session`, `status`, `text_delta`, `tool_start`, `tool_e
 
 The `session` event includes `backend: "codex" | "responses"`. All later events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
 
+## Orchestration contract
+
+Every Agent session has one persistent `gpt-5.6-luna` coordinator running at high reasoning. Bounded tasks may run first on an isolated Luna-high worker; coding and implementation run on an isolated `gpt-5.6-sol` high worker. Worker output is private working material returned to the coordinator for the single user-facing response.
+
+`gpt-6-astra` high is gated by an explicit request for Astra in the current user message and is never selected by automatic routing. Agent's private Codex profile disables Codex-native automatic subagent spawning so both the ChatGPT and API-key backends follow this same policy without fallback behavior.
+
 ## Codex app-server boundary
 
 Agent launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and login methods are used. Browser mode sends `{ "type": "chatgpt" }`, intentionally retaining app-server's default local success page. Headless mode sends `{ "type": "chatgptDeviceCode" }` and returns only the verification URL and one-time code required by the client. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to Agent's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. Agent stores only the explicitly selected backend and the opaque thread ID associated with an Agent session. Failed authentication never changes the selected backend or Agent-owned state.

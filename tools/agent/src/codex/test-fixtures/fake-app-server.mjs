@@ -6,6 +6,8 @@ const marker = process.env.AGENT_FAKE_MARKER;
 const log = process.env.AGENT_FAKE_LOG;
 const envLog = process.env.AGENT_FAKE_ENV_LOG;
 const lines = readline.createInterface({ input: process.stdin });
+let threadCounter = 0;
+let turnCounter = 0;
 
 if (envLog) writeFileSync(envLog, JSON.stringify({
   CODEX_HOME: process.env.CODEX_HOME ?? null,
@@ -124,7 +126,8 @@ lines.on("line", (line) => {
     return;
   }
   if (method === "thread/start") {
-    send({ id, result: { thread: { id: "thread-1" }, model: "fake", modelProvider: "openai", cwd: params.cwd } });
+    threadCounter += 1;
+    send({ id, result: { thread: { id: `thread-${threadCounter}` }, model: params.model ?? "fake", modelProvider: "openai", cwd: params.cwd } });
     return;
   }
   if (method === "thread/resume") {
@@ -140,7 +143,8 @@ lines.on("line", (line) => {
       writeFileSync(marker, "restarted\n");
       process.exit(23);
     }
-    const turnId = "turn-1";
+    turnCounter += 1;
+    const turnId = `turn-${turnCounter}`;
     send({ id, result: { turn: { id: turnId, status: "inProgress", items: [], itemsView: "full", error: null } } });
     if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId), 5);
     return;

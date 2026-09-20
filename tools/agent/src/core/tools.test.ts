@@ -17,7 +17,7 @@ function fixture() {
   const state = mkdtempSync(join(tmpdir(), "agent-tools-state-"));
   paths.push(root, state);
   const store = new Store(state);
-  const tools = createTools(store, { allowCodeTools: true, allowDelegation: false });
+  const tools = createTools(store, { allowCodeTools: true });
   const context = { cwd: root, sessionId: "test", memoryScope: "test" };
   return { root, store, tools, context };
 }

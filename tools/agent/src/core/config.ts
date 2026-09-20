@@ -16,9 +16,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig 
     host: env.AGENT_HOST ?? "127.0.0.1",
     port: Number.isFinite(port) ? port : 47821,
     models: {
-      fast: env.AGENT_MODEL_FAST ?? "gpt-5.6-luna",
-      standard: env.AGENT_MODEL_STANDARD ?? "gpt-5.6-terra",
-      deep: env.AGENT_MODEL_DEEP ?? "gpt-6-astra",
+      coordinator: "gpt-5.6-luna",
+      bounded: "gpt-5.6-luna",
+      coding: "gpt-5.6-sol",
+      astra: "gpt-6-astra",
     },
     maxToolRounds: Number.parseInt(env.AGENT_MAX_TOOL_ROUNDS ?? "10", 10),
     maxHistoryMessages: Number.parseInt(env.AGENT_MAX_HISTORY ?? "40", 10),

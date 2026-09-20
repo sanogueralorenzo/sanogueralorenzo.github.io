@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { buildInstructions } from "./context.js";
+import { buildInstructions, buildWorkerInstructions } from "./context.js";
 import type { BackendRegistry } from "./backend.js";
 import { routeTurn } from "./router.js";
 import { containsSecret, redactSecrets } from "./security.js";
@@ -48,8 +48,8 @@ export class AgentRuntime {
       ? explicitSession
       : gatewayLinked?.kind === route.kind
         ? gatewayLinked
-        : !request.cwd && route.kind === "coding"
-          ? this.store.latestSession("coding")
+        : !request.cwd
+          ? this.store.latestSession(route.kind)
           : null;
     const session = this.store.resolveSession({
       ...(!request.fresh && linked?.id ? { sessionId: linked.id } : {}),
@@ -69,7 +69,7 @@ export class AgentRuntime {
       yield { type: "error", message: error instanceof Error ? error.message : String(error), recoverable: true };
       return;
     }
-    const modelName = backend.kind === "responses" ? this.config.models[route.tier] : backend.label;
+    const modelName = this.config.models.coordinator;
     yield { type: "session", session, route, model: modelName, backend: backend.kind };
 
     const release = await this.lockSession(session.id);
@@ -82,6 +82,9 @@ export class AgentRuntime {
     }
     const memories = this.store.searchMemories(memoryScope, request.text);
     const instructions = buildInstructions({ session, route, memories });
+    const workerInstructions = route.worker
+      ? buildWorkerInstructions({ session, route, memories, worker: route.worker })
+      : instructions;
     let assistantText = "";
     let responseId: string | null = null;
     let lastCheckpointAt = Date.now();
@@ -93,6 +96,7 @@ export class AgentRuntime {
         session,
         route,
         instructions,
+        workerInstructions,
         memoryScope,
         ...(options.signal ? { signal: options.signal } : {}),
       })) {

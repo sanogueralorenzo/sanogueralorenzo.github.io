@@ -2,18 +2,17 @@ import { describe, expect, it } from "vitest";
 import { routeTurn } from "./router.js";
 
 describe("routeTurn", () => {
-  it("routes a casual Telegram message as fast personal work", () => {
+  it("keeps a casual Telegram greeting on the coordinator", () => {
     expect(routeTurn({ text: "hello", channel: "telegram" })).toMatchObject({
       kind: "personal",
-      tier: "fast",
-      allowTools: false,
+      worker: null,
     });
   });
 
   it("routes project work as coding", () => {
     expect(routeTurn({ text: "fix the failing test", cwd: "/tmp/project", channel: "cli" })).toMatchObject({
       kind: "coding",
-      allowTools: true,
+      worker: "coding",
     });
   });
 
@@ -27,10 +26,16 @@ describe("routeTurn", () => {
     expect(routeTurn({ text: "continue", channel: "telegram" }, "coding")).toMatchObject({ kind: "coding" });
   });
 
-  it("reserves the deep tier for complex work", () => {
-    expect(routeTurn({ text: "investigate the root cause of this performance regression" })).toMatchObject({
-      tier: "deep",
-      allowDelegation: true,
+  it("uses Luna for bounded personal work", () => {
+    expect(routeTurn({ text: "summarize this note", channel: "telegram" })).toMatchObject({
+      kind: "personal",
+      worker: "bounded",
     });
+  });
+
+  it("allows Astra only for an explicit positive request", () => {
+    expect(routeTurn({ text: "Use Astra high to investigate this architecture" })).toMatchObject({ worker: "astra" });
+    expect(routeTurn({ text: "Investigate this architecture without using Astra" })).not.toMatchObject({ worker: "astra" });
+    expect(routeTurn({ text: "What is Astra?" })).not.toMatchObject({ worker: "astra" });
   });
 });

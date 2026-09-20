@@ -1,13 +1,11 @@
 export type WorkKind = "personal" | "coding";
-export type ModelTier = "fast" | "standard" | "deep";
+export type WorkerKind = "bounded" | "coding" | "astra";
 export type BackendKind = "codex" | "responses";
 
 export interface RouteDecision {
   kind: WorkKind;
-  tier: ModelTier;
+  worker: WorkerKind | null;
   reasons: string[];
-  allowTools: boolean;
-  allowDelegation: boolean;
 }
 
 export interface Session {
@@ -60,7 +58,12 @@ export interface RuntimeConfig {
   homeDir: string;
   host: string;
   port: number;
-  models: Record<ModelTier, string>;
+  models: {
+    coordinator: "gpt-5.6-luna";
+    bounded: "gpt-5.6-luna";
+    coding: "gpt-5.6-sol";
+    astra: "gpt-6-astra";
+  };
   maxToolRounds: number;
   maxHistoryMessages: number;
   codexCommand: string;
