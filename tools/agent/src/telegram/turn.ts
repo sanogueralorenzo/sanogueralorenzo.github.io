@@ -1,9 +1,9 @@
 import type { RuntimeClient } from "../client/client.js";
-import type { Artifact, TurnRequest } from "../conversation/types.js";
+import type { Artifact, RunEnvelope, TurnRequest } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { splitTelegramText } from "./text.js";
 
-type TurnClient = Pick<RuntimeClient, "events" | "cancel">;
+type TurnClient = Pick<RuntimeClient, "submit" | "stop">;
 
 export interface TelegramTurnResult { chunks: string[]; artifacts: Artifact[] }
 
@@ -15,42 +15,47 @@ export function checkTelegramVoiceSize(size: number | undefined): void {
   if (size !== undefined && size > MAX_ATTACHMENT_BYTES) throw new Error("Voice note exceeds the 25 MB limit.");
 }
 
+export function telegramFailure(error: unknown): string {
+  return error instanceof Error && /25 MB/.test(error.message)
+    ? error.message
+    : "I could not start that response. Please try again.";
+}
+
 export class TelegramTurns {
-  private active = false;
+  private current: { id: string; output: string; error: string; artifacts: Artifact[] } | null = null;
 
   constructor(private readonly client: TurnClient) {}
 
-  stop(): Promise<boolean> {
-    return this.client.cancel();
+  async submit(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<boolean> {
+    return await this.client.submit({ ...await prepare(), channel: "telegram" }) !== null;
   }
 
-  async run(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<TelegramTurnResult | null> {
-    if (this.active) return null;
-    this.active = true;
-    let output = "";
-    let runtimeError = "";
-    const artifacts: Artifact[] = [];
-    try {
-      for await (const event of this.client.events({ ...await prepare(), channel: "telegram" })) {
-        if (event.type === "text_delta") output += event.delta;
-        else if (event.type === "artifact") artifacts.push(event.artifact);
-        else if (event.type === "error") runtimeError = event.message;
-      }
-      return {
-        chunks: splitTelegramText([output.trim(), runtimeError].filter(Boolean).join("\n\n")),
-        artifacts,
-      };
-    } catch (error) {
-      const message = output.trim()
-        ? `${output.trim()}\n\nInterrupted. Your session is saved; send another message to continue.`
-        : error instanceof Error && error.name === "AbortError"
-          ? "Interrupted. Your session is saved; send another message to continue."
-        : error instanceof Error && /25 MB/.test(error.message)
-          ? error.message
-          : "I could not finish that response. Your session is saved; please try again.";
-      return { chunks: [message], artifacts: [] };
-    } finally {
-      this.active = false;
-    }
+  stop(): Promise<boolean> {
+    return this.client.stop();
+  }
+
+  consume({ runId, event }: RunEnvelope): TelegramTurnResult | null {
+    if (event.type === "turn") this.current = { id: runId, output: "", error: "", artifacts: [] };
+    const current = this.current;
+    if (!current || current.id !== runId) return null;
+    if (event.type === "text_delta") current.output += event.delta;
+    else if (event.type === "artifact") current.artifacts.push(event.artifact);
+    else if (event.type === "error") current.error = event.message;
+    if (event.type !== "done" && event.type !== "error") return null;
+    this.current = null;
+    return {
+      chunks: splitTelegramText([current.output.trim(), current.error].filter(Boolean).join("\n\n")),
+      artifacts: current.artifacts,
+    };
+  }
+
+  interrupt(): TelegramTurnResult | null {
+    const current = this.current;
+    if (!current) return null;
+    this.current = null;
+    const message = current.output.trim()
+      ? `${current.output.trim()}\n\nInterrupted. Your session is saved; send another message to continue.`
+      : "Interrupted. Your session is saved; send another message to continue.";
+    return { chunks: [message], artifacts: current.artifacts };
   }
 }

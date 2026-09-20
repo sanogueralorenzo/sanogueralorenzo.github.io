@@ -8,7 +8,7 @@ import { readSecret } from "../local/credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 import { keepTelegramTyping } from "./text.js";
-import { checkTelegramVoiceSize, isTelegramOwner, TelegramTurns } from "./turn.js";
+import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, type TelegramTurnResult, TelegramTurns } from "./turn.js";
 
 async function runGateway(token: string): Promise<void> {
   const config = loadConfig();
@@ -17,6 +17,8 @@ async function runGateway(token: string): Promise<void> {
   await supervisor.start();
   const bot = new Bot(token);
   let stopping: Promise<void> | null = null;
+  const deliveryController = new AbortController();
+  let deliveryTask: Promise<void> | null = null;
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
   const turns = new TelegramTurns(client);
@@ -31,9 +33,62 @@ async function runGateway(token: string): Promise<void> {
     },
   });
   const stop = (): Promise<void> => stopping ??= (async () => {
+    deliveryController.abort();
     updater.stop();
-    await Promise.all([bot.stop(), supervisor.stop()]);
+    supervisor.stop();
+    await Promise.all([bot.stop(), deliveryTask]);
   })();
+
+  const deliver = async (result: TelegramTurnResult): Promise<void> => {
+    const owner = ownerId();
+    if (!owner) return;
+    for (const chunk of result.chunks) await bot.api.sendMessage(owner, chunk);
+    for (const artifact of result.artifacts) {
+      if (artifact.kind === "image") await bot.api.sendPhoto(owner, new InputFile(artifact.path));
+      else await bot.api.sendDocument(owner, new InputFile(artifact.path, artifact.name));
+    }
+    if (!result.chunks.length && !result.artifacts.length) await bot.api.sendMessage(owner, "Done.");
+  };
+
+  const observe = async (): Promise<void> => {
+    let cursor = 0;
+    let updateHeld = false;
+    let stopTyping: () => void = () => undefined;
+    while (!deliveryController.signal.aborted) {
+      try {
+        if (cursor === 0) {
+          const state = await client.runState();
+          cursor = state.active ? state.active.startSequence - 1 : state.latestSequence;
+        }
+        for await (const envelope of client.events(cursor, deliveryController.signal)) {
+          cursor = envelope.sequence;
+          if (envelope.event.type === "turn") {
+            updateHeld = updater.beginTurn();
+            const owner = ownerId();
+            stopTyping = owner ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing")) : () => undefined;
+          }
+          const result = turns.consume(envelope);
+          if (result) {
+            stopTyping();
+            stopTyping = () => undefined;
+            if (updateHeld) updater.endTurn();
+            updateHeld = false;
+            await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
+          }
+        }
+      } catch {
+        if (deliveryController.signal.aborted) return;
+        stopTyping();
+        stopTyping = () => undefined;
+        const interrupted = turns.interrupt();
+        if (updateHeld) updater.endTurn();
+        updateHeld = false;
+        if (interrupted) await deliver(interrupted).catch(() => undefined);
+        await client.waitUntilHealthy().catch(() => undefined);
+        cursor = 0;
+      }
+    }
+  };
 
   bot.command("start", async (ctx) => {
     if (ctx.chat.type !== "private" || !ctx.from) return;
@@ -61,27 +116,13 @@ async function runGateway(token: string): Promise<void> {
     if (!ctx.chat || !ctx.from || !ctx.message || ctx.chat.type !== "private") return;
     if (!isOwner(ctx)) return void await ctx.reply("This Agent bot is private.");
     if (!updater.beginTurn()) return void await ctx.reply("Applying an Agent update. I’ll reconnect shortly.");
-    const stopTyping = keepTelegramTyping(() => ctx.replyWithChatAction("typing"));
     try {
-      const result = await turns.run(prepare);
-      stopTyping();
-      if (!result) {
+      if (!await turns.submit(prepare)) {
         await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
-        return;
       }
-      const { chunks, artifacts } = result;
-      if (chunks[0]) {
-        await ctx.reply(chunks[0], { reply_parameters: { message_id: ctx.message.message_id } });
-        for (const chunk of chunks.slice(1)) await ctx.reply(chunk);
-      }
-      for (const artifact of artifacts) {
-        const options = chunks.length ? {} : { reply_parameters: { message_id: ctx.message.message_id } };
-        if (artifact.kind === "image") await ctx.replyWithPhoto(new InputFile(artifact.path), options);
-        else await ctx.replyWithDocument(new InputFile(artifact.path, artifact.name), options);
-      }
-      if (!chunks.length && !artifacts.length) await ctx.reply("Done.", { reply_parameters: { message_id: ctx.message.message_id } });
+    } catch (error) {
+      await ctx.reply(telegramFailure(error));
     } finally {
-      stopTyping();
       updater.endTurn();
     }
   };
@@ -110,6 +151,7 @@ async function runGateway(token: string): Promise<void> {
   await bot.start({ onStart: async (info) => {
     console.log(`Agent Telegram is online as @${info.username}.`);
     await updater.start();
+    deliveryTask = observe();
     const owner = pendingUpdateOwner(config.homeDir);
     if (owner && await bot.api.sendMessage(owner, "Agent updated and reconnected.").then(() => true, () => false)) {
       acknowledgeUpdate(config.homeDir);

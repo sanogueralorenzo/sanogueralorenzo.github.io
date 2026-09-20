@@ -8,6 +8,9 @@ public struct RuntimeDiscovery: Decodable, Sendable {
 
 public struct RuntimeEvent: Decodable, Sendable {
     public let type: String
+    public let text: String?
+    public let channel: String?
+    public let hasAttachments: Bool?
     public let delta: String?
     public let message: String?
     public let name: String?
@@ -16,6 +19,23 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let artifact: RuntimeArtifact?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
+}
+
+public struct RunInfo: Decodable, Sendable {
+    public let id: String
+    public let origin: String
+    public let startSequence: Int
+}
+
+public struct RunState: Decodable, Sendable {
+    public let active: RunInfo?
+    public let latestSequence: Int
+}
+
+public struct RunEnvelope: Decodable, Sendable {
+    public let runId: String
+    public let sequence: Int
+    public let event: RuntimeEvent
 }
 
 public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {

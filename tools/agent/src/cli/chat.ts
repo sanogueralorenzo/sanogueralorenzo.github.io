@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { RuntimeClient } from "../client/client.js";
+import type { RunEnvelope } from "../conversation/types.js";
 import { loadConfig } from "../local/config.js";
 import { RuntimeSupervisor } from "./supervisor.js";
 
@@ -26,12 +27,91 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let sessionId: string | undefined;
   let fresh = false;
-  let interrupted = false;
+  let activeRunId: string | undefined;
+  let wroteText = false;
+  let cursor = 0;
+  let stopping = false;
+  const observerController = new AbortController();
+  const completed = new Set<string>();
+  const waiters = new Map<string, () => void>();
+
+  const finish = (runId: string) => {
+    const waiter = waiters.get(runId);
+    if (waiter) {
+      waiters.delete(runId);
+      waiter();
+    } else {
+      completed.add(runId);
+    }
+  };
+  const waitFor = (runId: string) => {
+    if (completed.delete(runId)) return Promise.resolve();
+    return new Promise<void>((resolve) => waiters.set(runId, resolve));
+  };
+  const render = ({ runId, event }: RunEnvelope) => {
+    if (event.type === "turn") {
+      activeRunId = runId;
+      wroteText = false;
+      if (event.channel !== "cli") {
+        const input = event.text.trim() || (event.hasAttachments ? "Voice message" : "Message");
+        process.stdout.write(`${promptActive ? "\n" : ""}${ansi.cyan(event.channel)} › ${input}\n`);
+      }
+    } else if (event.type === "session") {
+      sessionId = event.session.id;
+      fresh = false;
+    } else if (event.type === "text_delta") {
+      process.stdout.write(event.delta);
+      wroteText = true;
+    } else if (event.type === "tool_start") {
+      process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.name}`)}\n`);
+      wroteText = false;
+    } else if (event.type === "status") {
+      process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.message}`)}\n`);
+      wroteText = false;
+    } else if (event.type === "artifact") {
+      process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.artifact.name}`)} ${event.artifact.path}\n`);
+      wroteText = false;
+    } else if (event.type === "error") {
+      process.stdout.write(`${wroteText ? "\n" : ""}${ansi.red(event.message)}\n`);
+      wroteText = false;
+      activeRunId = undefined;
+      finish(runId);
+    } else if (event.type === "done") {
+      if (wroteText) process.stdout.write("\n");
+      wroteText = false;
+      activeRunId = undefined;
+      finish(runId);
+    }
+  };
+
+  const observe = async () => {
+    while (!stopping) {
+      try {
+        if (cursor === 0) {
+          const state = await client.runState();
+          cursor = state.active ? state.active.startSequence - 1 : state.latestSequence;
+        }
+        for await (const event of client.events(cursor, observerController.signal)) {
+          cursor = event.sequence;
+          render(event);
+        }
+      } catch {
+        if (stopping) return;
+        if (activeRunId) {
+          status("The runtime restarted. Your saved session was restored.");
+          finish(activeRunId);
+          activeRunId = undefined;
+        }
+        await client.waitUntilHealthy().catch(() => undefined);
+        cursor = 0;
+      }
+    }
+  };
+  const observer = observe();
 
   const onSigint = () => {
-    if (client.isRunning) {
-      interrupted = true;
-      void client.cancel();
+    if (activeRunId) {
+      void client.stop();
     } else {
       rl.close();
     }
@@ -74,44 +154,29 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
 
-      interrupted = false;
-      let wroteText = false;
       try {
-        for await (const event of client.events({
+        const run = await client.submit({
           text: input,
           cwd: process.cwd(),
           ...(sessionId ? { sessionId } : {}),
           ...(fresh ? { fresh: true } : {}),
           channel: "cli",
-        })) {
-          if (event.type === "session") {
-            sessionId = event.session.id;
-            fresh = false;
-          } else if (event.type === "text_delta") {
-            process.stdout.write(event.delta);
-            wroteText = true;
-          } else if (event.type === "tool_start") {
-            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.name}`)}\n`);
-            wroteText = false;
-          } else if (event.type === "status") {
-            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.message}`)}\n`);
-            wroteText = false;
-          } else if (event.type === "artifact") {
-            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.artifact.name}`)} ${event.artifact.path}\n`);
-            wroteText = false;
-          } else if (event.type === "error") {
-            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.red(event.message)}\n`);
-            wroteText = false;
-          }
+        });
+        if (!run) {
+          status("Agent is already working. Ctrl-C stops the active response.");
+          continue;
         }
-        if (wroteText) process.stdout.write("\n");
+        activeRunId = run.id;
+        await waitFor(run.id);
       } catch (error) {
         console.log(ansi.red(error instanceof Error ? error.message : String(error)));
-        if (!interrupted) status("The runtime connection changed. Your saved session will resume on the next message.");
-        await client.waitUntilHealthy().catch(() => undefined);
+        status("The runtime connection changed. Your saved session will resume on the next message.");
       }
     }
   } finally {
+    stopping = true;
+    observerController.abort();
+    await observer;
     process.off("SIGINT", onSigint);
     rl.close();
     await supervisor.stop();

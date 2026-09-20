@@ -4,7 +4,6 @@ import AgentProtocol
 public enum RuntimeClientError: LocalizedError {
     case notRunning
     case incompatible
-    case busy
     case disconnected
     case invalidEvent
     case badResponse(Int, String)
@@ -13,8 +12,7 @@ public enum RuntimeClientError: LocalizedError {
         switch self {
         case .notRunning: "Agent runtime is not running."
         case .incompatible: "This Agent runtime uses an incompatible protocol."
-        case .busy: "A response is already running."
-        case .disconnected: "Agent runtime disconnected before the response completed."
+        case .disconnected: "Agent runtime disconnected."
         case .invalidEvent: "Agent runtime sent an invalid event."
         case let .badResponse(code, message): "Runtime error \(code): \(message)"
         }
@@ -25,7 +23,6 @@ public actor RuntimeClient {
     private let baseURL: URL
     private let token: String
     private let session: URLSession
-    private var activeRequest: Task<Void, Never>?
 
     public init(baseURL: URL, token: String, session: URLSession = .shared) {
         self.baseURL = baseURL
@@ -47,7 +44,7 @@ public actor RuntimeClient {
             throw RuntimeClientError.notRunning
         }
         let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
-        guard discovery.protocolVersion == 2,
+        guard discovery.protocolVersion == 3,
               let baseURL = URL(string: "http://127.0.0.1:\(discovery.port)") else {
             throw RuntimeClientError.incompatible
         }
@@ -89,48 +86,54 @@ public actor RuntimeClient {
         return try await value(path: "/v1/sessions/\(id)/messages")
     }
 
-    public func events(text: String, sessionId: String?, fresh: Bool) throws -> AsyncThrowingStream<RuntimeEvent, Error> {
-        guard activeRequest == nil else { throw RuntimeClientError.busy }
+    public func runState() async throws -> RunState { try await value(path: "/v1/runs") }
+
+    public func submit(text: String, sessionId: String?, fresh: Bool) async throws -> RunInfo? {
         let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, fresh: fresh))
-        let request = try request(path: "/v1/chat", method: "POST", body: body)
-        let (stream, continuation) = AsyncThrowingStream<RuntimeEvent, Error>.makeStream()
+        let (data, response) = try await session.data(for: request(path: "/v1/runs", method: "POST", body: body))
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 409 { return nil }
+        guard (200..<300).contains(status) else {
+            throw RuntimeClientError.badResponse(status, String(decoding: data, as: UTF8.self))
+        }
+        return try JSONDecoder().decode(RunStartResponse.self, from: data).run
+    }
+
+    public func events(after: Int) throws -> AsyncThrowingStream<RunEnvelope, Error> {
+        let request = try request(path: "/v1/events?after=\(after)")
+        let (stream, continuation) = AsyncThrowingStream<RunEnvelope, Error>.makeStream()
         let task = Task { [session] in
             do {
-                var terminal = false
                 let (bytes, response) = try await session.bytes(for: request)
                 guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                    throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not start response")
+                    throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
                 }
                 for try await line in bytes.lines where line.hasPrefix("data: ") {
                     guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
-                    let event = try JSONDecoder().decode(RuntimeEvent.self, from: data)
-                    terminal = terminal || event.isTerminal
-                    continuation.yield(event)
+                    continuation.yield(try JSONDecoder().decode(RunEnvelope.self, from: data))
                 }
-                if !terminal { throw RuntimeClientError.disconnected }
-                self.finished()
-                continuation.finish()
+                if Task.isCancelled { continuation.finish() }
+                else { continuation.finish(throwing: RuntimeClientError.disconnected) }
             } catch is DecodingError {
-                self.finished()
                 continuation.finish(throwing: RuntimeClientError.invalidEvent)
             } catch {
-                self.finished()
                 continuation.finish(throwing: error)
             }
         }
-        activeRequest = task
         continuation.onTermination = { _ in task.cancel() }
         return stream
     }
 
-    public func cancel() -> Bool {
-        guard let activeRequest else { return false }
-        activeRequest.cancel()
-        return true
+    public func stop() async throws -> Bool {
+        let result: StopResponse = try await value(path: "/v1/runs/stop", method: "POST")
+        return result.stopped
     }
 
     private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
-        var request = URLRequest(url: baseURL.appending(path: path))
+        guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
+            throw RuntimeClientError.badResponse(0, "Invalid runtime URL")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -152,8 +155,7 @@ public actor RuntimeClient {
     private func value<T: Decodable>(path: String, method: String = "GET", body: [String: String]? = nil) async throws -> T {
         try JSONDecoder().decode(T.self, from: await data(path: path, method: method, body: body))
     }
-
-    private func finished() {
-        activeRequest = nil
-    }
 }
+
+private struct RunStartResponse: Decodable { let run: RunInfo }
+private struct StopResponse: Decodable { let stopped: Bool }

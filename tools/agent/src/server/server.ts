@@ -6,7 +6,8 @@ import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import { MAX_HISTORY_MESSAGES } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
-import { RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeEvent, type TurnRequest } from "../conversation/types.js";
+import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
+import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type TurnRequest } from "../conversation/types.js";
 import type { BackendSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
@@ -38,7 +39,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 
 export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
-  private readonly controllers = new Set<AbortController>();
+  private readonly runs: RunCoordinator;
   private server = createServer(this.handle.bind(this));
 
   constructor(
@@ -46,7 +47,9 @@ export class RuntimeServer {
     private readonly runtime: AgentRuntime,
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
-  ) {}
+  ) {
+    this.runs = new RunCoordinator(runtime);
+  }
 
   async listen(): Promise<number> {
     await new Promise<void>((resolve, reject) => {
@@ -59,7 +62,7 @@ export class RuntimeServer {
   }
 
   async close(): Promise<void> {
-    for (const controller of this.controllers) controller.abort();
+    await this.runs.close();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
     const path = join(this.config.homeDir, "runtime.json");
     const discovery = readPrivateJson<{ pid: number; token: string }>(path);
@@ -86,6 +89,10 @@ export class RuntimeServer {
         return json(response, 200, await this.setup.waitForCodexLogin(loginId));
       }
       switch (route) {
+        case "GET /v1/events": return this.events(url, response);
+        case "GET /v1/runs": return json(response, 200, this.runs.state());
+        case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
+        case "POST /v1/runs/stop": return json(response, 200, { stopped: this.runs.stop() });
         case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
         case "POST /v1/setup/openai": {
@@ -118,16 +125,19 @@ export class RuntimeServer {
           const { path: _path, ...visible } = attachment;
           return json(response, 201, visible);
         }
-        case "POST /v1/chat": return this.chat(request, response);
         default: return json(response, 404, { error: "not_found" });
       }
     } catch (error) {
-      if (!response.headersSent) json(response, 400, { error: error instanceof Error ? error.message : String(error) });
+      const status = error instanceof RunBusyError ? 409 : 400;
+      const detail = error instanceof RunBusyError
+        ? { error: "busy", run: error.run }
+        : { error: error instanceof Error ? error.message : String(error) };
+      if (!response.headersSent) json(response, status, detail);
       else response.end();
     }
   }
 
-  private async chat(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  private async turn(request: IncomingMessage): Promise<TurnRequest> {
     const body = await readJson(request);
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (body.attachmentIds !== undefined && (
@@ -139,10 +149,22 @@ export class RuntimeServer {
     if (!text && attachmentIds.length === 0) throw new Error("text or an attachment is required");
     const attachments = attachmentIds.map((id) => this.store.getAttachment(id));
     if (attachments.some((attachment) => !attachment)) throw new Error("attachment not found");
-    const channel = body.channel;
+    const channel = body.channel as Channel;
     if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
+    return {
+      text,
+      ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
+      ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
+      ...(typeof body.sessionId === "string" ? { sessionId: body.sessionId } : {}),
+      ...(body.fresh === true ? { fresh: true } : {}),
+      channel,
+    };
+  }
+
+  private async events(url: URL, response: ServerResponse): Promise<void> {
+    const after = Number(url.searchParams.get("after") ?? "0");
+    if (!Number.isSafeInteger(after) || after < 0) throw new Error("after must be a non-negative integer");
     const controller = new AbortController();
-    this.controllers.add(controller);
     response.once("close", () => controller.abort());
     response.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
@@ -151,19 +173,11 @@ export class RuntimeServer {
       "x-accel-buffering": "no",
     });
     response.flushHeaders();
-    const send = (event: RuntimeEvent) => response.write(`data: ${JSON.stringify(event)}\n\n`);
-    const turn: TurnRequest = {
-      text,
-      ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
-      ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
-      ...(typeof body.sessionId === "string" ? { sessionId: body.sessionId } : {}),
-      ...(body.fresh === true ? { fresh: true } : {}),
-      channel,
-    };
     try {
-      for await (const event of this.runtime.run(turn, { signal: controller.signal })) send(event);
+      for await (const event of this.runs.events(after, controller.signal)) {
+        response.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
     } finally {
-      this.controllers.delete(controller);
       response.end();
     }
   }

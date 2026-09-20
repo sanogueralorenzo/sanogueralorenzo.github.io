@@ -31,27 +31,25 @@ struct ChatMessage: Identifiable, Equatable {
     var setupMessage = ""
     var isSettingUp = false
 
-    private let launcher = RuntimeLauncher()
-    private var client: RuntimeClient?
-    private var sessionId: String?
-    private var fresh = false
+    @ObservationIgnored private let launcher = RuntimeLauncher()
+    @ObservationIgnored private var client: RuntimeClient?
+    @ObservationIgnored private var observer: Task<Void, Never>?
+    @ObservationIgnored private var sessionId: String?
+    @ObservationIgnored private var activeRunId: String?
+    @ObservationIgnored private var assistantId: UUID?
+    @ObservationIgnored private var fresh = false
 
     func start() async {
+        observer?.cancel()
         state = .starting
         do {
             let client = try await launcher.ensureRunning()
             self.client = client
-            let setup = try await client.setupStatus()
-            setupStatus = setup
-            if setup.configured {
-                if let transcript = try await client.resumeLatest() {
-                    sessionId = transcript.session.id
-                    messages = transcript.messages.compactMap { message in
-                        guard message.role == "user" || message.role == "assistant" else { return nil }
-                        return ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
-                    }
-                }
+            setupStatus = try await client.setupStatus()
+            if setupStatus?.configured == true {
+                try await loadTranscript(client)
                 state = .ready
+                observe(client)
             } else {
                 state = .needsSetup
             }
@@ -91,43 +89,21 @@ struct ChatMessage: Identifiable, Equatable {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let client, !isRunning else { return }
         input = ""
-        isRunning = true
-        activity = "Thinking"
-        let assistantID = UUID()
-        messages.append(ChatMessage(id: UUID(), role: .user, text: text))
-        messages.append(ChatMessage(id: assistantID, role: .assistant, text: ""))
         do {
-            let events = try await client.events(text: text, sessionId: sessionId, fresh: fresh)
-            for try await event in events {
-                switch event.type {
-                case "session":
-                    sessionId = event.session?.id
-                    fresh = false
-                case "text_delta":
-                    edit(assistantID) { $0.text += event.delta ?? "" }
-                case "artifact":
-                    if let artifact = event.artifact { edit(assistantID) { $0.artifacts.append(artifact) } }
-                case "tool_start":
-                    activity = event.name.map { "Using \($0.replacingOccurrences(of: "_", with: " "))" } ?? "Working"
-                case "status":
-                    activity = event.message ?? "Working"
-                case "error":
-                    edit(assistantID) { if $0.text.isEmpty { $0.text = event.message ?? "Something went wrong." } }
-                default: break
-                }
+            guard let run = try await client.submit(text: text, sessionId: sessionId, fresh: fresh) else {
+                activity = "Agent is already working"
+                return
             }
+            activeRunId = run.id
+            isRunning = true
+            activity = "Thinking"
         } catch {
-            edit(assistantID) {
-                $0.text = $0.text.isEmpty ? error.localizedDescription : $0.text + "\n\nInterrupted. Your session is saved."
-            }
-            self.client = try? await launcher.ensureRunning()
+            messages.append(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
         }
-        isRunning = false
-        activity = ""
     }
 
     func stop() async {
-        _ = await client?.cancel()
+        _ = try? await client?.stop()
     }
 
     func newConversation() {
@@ -135,6 +111,96 @@ struct ChatMessage: Identifiable, Equatable {
         sessionId = nil
         fresh = true
         messages = []
+    }
+
+    private func observe(_ initialClient: RuntimeClient) {
+        observer?.cancel()
+        observer = Task {
+            var client = initialClient
+            var cursor = 0
+            while !Task.isCancelled {
+                do {
+                    if cursor == 0 {
+                        let runs = try await client.runState()
+                        cursor = runs.active.map { $0.startSequence - 1 } ?? runs.latestSequence
+                    }
+                    for try await envelope in try await client.events(after: cursor) {
+                        cursor = envelope.sequence
+                        apply(envelope)
+                    }
+                } catch {
+                    if Task.isCancelled { return }
+                    activity = activeRunId == nil ? "Reconnecting" : "Response interrupted; reconnecting"
+                    do {
+                        client = try await launcher.ensureRunning()
+                        self.client = client
+                        try await loadTranscript(client)
+                        cursor = 0
+                        activity = ""
+                    } catch {
+                        state = .failed(error.localizedDescription)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    private func apply(_ envelope: RunEnvelope) {
+        let event = envelope.event
+        switch event.type {
+        case "turn":
+            activeRunId = envelope.runId
+            isRunning = true
+            activity = "Thinking"
+            let text = event.text?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayed = text?.isEmpty == false ? text! : event.hasAttachments == true ? "Voice message" : "Message"
+            if messages.last?.role != .user || messages.last?.text != displayed {
+                messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
+            }
+            let id = UUID()
+            assistantId = id
+            messages.append(ChatMessage(id: id, role: .assistant, text: ""))
+        case "session":
+            sessionId = event.session?.id
+            fresh = false
+        case "text_delta":
+            if let id = assistantId { edit(id) { $0.text += event.delta ?? "" } }
+        case "artifact":
+            if let id = assistantId, let artifact = event.artifact { edit(id) { $0.artifacts.append(artifact) } }
+        case "tool_start":
+            activity = event.name.map { "Using \($0.replacingOccurrences(of: "_", with: " "))" } ?? "Working"
+        case "status":
+            activity = event.message ?? "Working"
+        case "error":
+            if let id = assistantId { edit(id) { if $0.text.isEmpty { $0.text = event.message ?? "Something went wrong." } } }
+            finish(envelope.runId)
+        case "done":
+            finish(envelope.runId)
+        default:
+            break
+        }
+    }
+
+    private func finish(_ runId: String) {
+        guard activeRunId == runId else { return }
+        activeRunId = nil
+        assistantId = nil
+        isRunning = false
+        activity = ""
+    }
+
+    private func loadTranscript(_ client: RuntimeClient) async throws {
+        if let transcript = try await client.resumeLatest() {
+            sessionId = transcript.session.id
+            messages = transcript.messages.compactMap { message in
+                guard message.role == "user" || message.role == "assistant" else { return nil }
+                return ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
+            }
+        }
+        activeRunId = nil
+        assistantId = nil
+        isRunning = false
     }
 
     private func configure(_ message: String = "", action: (RuntimeClient) async throws -> Void) async {
@@ -147,6 +213,7 @@ struct ChatMessage: Identifiable, Equatable {
             setupStatus = try await client.setupStatus()
             setupMessage = ""
             state = .ready
+            observe(client)
         } catch {
             setupMessage = error.localizedDescription
         }

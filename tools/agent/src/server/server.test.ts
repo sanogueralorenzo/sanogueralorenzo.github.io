@@ -5,7 +5,9 @@ import type { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
+import { RuntimeClient } from "../client/client.js";
 import { RuntimeServer, type RuntimeSetup } from "./server.js";
+import type { RunEnvelope } from "../conversation/types.js";
 
 function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
   return {
@@ -37,11 +39,20 @@ async function serve(runtime: AgentRuntime, setup = setupStub()) {
   const request = (path: string, method = "GET", body?: unknown) => fetch(`http://127.0.0.1:${port}${path}`, {
     method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  return { port, token, headers, request };
+  return { port, token, headers, request, client: new RuntimeClient(homeDir) };
+}
+
+async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelope[]> {
+  const result: RunEnvelope[] = [];
+  for await (const event of events) {
+    result.push(event);
+    if (event.event.type === "done" || event.event.type === "error") break;
+  }
+  return result;
 }
 
 describe("RuntimeServer", () => {
-  it("authenticates clients and streams the shared event protocol", async () => {
+  it("authenticates clients and publishes one shared run stream", async () => {
     let receivedTurn: Record<string, unknown> | undefined;
     const runtime = {
       async *run(turn: Record<string, unknown>): AsyncGenerator<RuntimeEvent> {
@@ -51,7 +62,7 @@ describe("RuntimeServer", () => {
         yield { type: "done", sessionId: "session" };
       },
     } as unknown as AgentRuntime;
-    const { port, token, request } = await serve(runtime);
+    const { port, token, request, client } = await serve(runtime);
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
     const uploaded = await fetch(`http://127.0.0.1:${port}/v1/attachments`, {
@@ -66,21 +77,25 @@ describe("RuntimeServer", () => {
     expect(uploaded.status).toBe(201);
     const attachment = await uploaded.json() as { id: string; path?: string };
     expect(attachment.path).toBeUndefined();
-    const streamed = await request("/v1/chat", "POST", {
+    const firstEvents = collectRun(client.events(0));
+    const secondEvents = collectRun(client.events(0));
+    const run = await client.submit({
       text: "hello", attachmentIds: [attachment.id], channel: "api",
     });
-    const body = await streamed.text();
-    expect(streamed.headers.get("content-type")).toContain("text/event-stream");
-    expect(body).toContain('"type":"text_delta","delta":"hello"');
-    expect(body).toContain('"type":"done"');
+    const [firstStream, secondStream] = await Promise.all([firstEvents, secondEvents]);
+    expect(run).not.toBeNull();
+    expect(firstStream).toEqual(secondStream);
+    expect(firstStream.map(({ event }) => event.type)).toEqual(["turn", "status", "text_delta", "done"]);
+    expect(firstStream.every((event) => event.runId === run?.id)).toBe(true);
     expect(receivedTurn).toMatchObject({
       text: "hello",
       attachmentIds: [attachment.id],
       attachments: [{ id: attachment.id, name: "voice note.ogg", mimeType: "audio/ogg" }],
     });
+    expect((await request("/v1/chat", "POST", { text: "old", channel: "api" })).status).toBe(404);
   });
 
-  it("cancels the runtime when a client closes its stream", async () => {
+  it("keeps a run alive when a subscriber disconnects and stops it explicitly", async () => {
     let interrupted!: () => void;
     const interruption = new Promise<void>((resolve) => { interrupted = resolve; });
     const runtime = {
@@ -90,16 +105,14 @@ describe("RuntimeServer", () => {
         await new Promise<void>((resolve) => options.signal.addEventListener("abort", () => resolve(), { once: true }));
       },
     } as unknown as AgentRuntime;
-    const { port, token } = await serve(runtime);
-    const controller = new AbortController();
-    const response = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ text: "hello", channel: "api" }),
-      signal: controller.signal,
-    });
-    await response.body!.getReader().read();
-    controller.abort();
+    const { client } = await serve(runtime);
+    const observer = client.events(0)[Symbol.asyncIterator]();
+    await client.submit({ text: "hello", channel: "api" });
+    await observer.next();
+    await observer.return?.();
+    expect(await client.runState()).toMatchObject({ active: { origin: "api" } });
+    expect(await client.submit({ text: "second", channel: "telegram" })).toBeNull();
+    expect(await client.stop()).toBe(true);
     await expect(interruption).resolves.toBeUndefined();
   });
 

@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { temporary } from "../test-support.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 
 function fixture() {
   const root = temporary("agent-self-update-");
+  mkdirSync(join(root, "src"));
+  writeFileSync(join(root, "src", "agent.ts"), "export const version = 1;\n");
   return { projectRoot: root, homeDir: root };
 }
 
@@ -50,12 +54,29 @@ describe("Telegram self-update", () => {
     harness = updateHarness({
       verify: async () => {
         checks += 1;
-        if (checks === 1) harness.updater.noteChange();
+        if (checks === 1) {
+          writeFileSync(join(harness.projectRoot, "src", "agent.ts"), "export const version = 2;\n");
+          harness.updater.noteChange();
+        }
       },
     });
     harness.updater.noteChange();
     await harness.stopped;
     expect(checks).toBe(2);
+  });
+
+  it("ignores verification-only file notifications when source content is unchanged", async () => {
+    let checks = 0;
+    let harness!: ReturnType<typeof updateHarness>;
+    harness = updateHarness({
+      verify: async () => {
+        checks += 1;
+        harness.updater.noteChange();
+      },
+    });
+    harness.updater.noteChange();
+    await harness.stopped;
+    expect(checks).toBe(1);
   });
 
   it("keeps the current process available when verification fails", async () => {

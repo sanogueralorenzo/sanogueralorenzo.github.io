@@ -28,8 +28,6 @@ function failureMessage(error: unknown, signal?: AbortSignal): string {
 }
 
 export class AgentRuntime {
-  private readonly sessionTails = new Map<string, Promise<void>>();
-
   constructor(
     private readonly store: Store,
     private readonly backends: BackendRegistry,
@@ -77,7 +75,6 @@ export class AgentRuntime {
     });
     yield { type: "session", session };
 
-    const release = await this.lockSession(session.id);
     this.store.addMessage(session.id, "user", redactSecrets(request.text));
     const runId = this.store.startRun(session.id);
     const memoryScope = route.kind === "coding" && session.cwd ? `project:${resolve(session.cwd)}` : "personal";
@@ -126,21 +123,7 @@ export class AgentRuntime {
       terminal = { type: "error", message: failureMessage(error, options.signal) };
     } finally {
       this.store.finishRun(runId);
-      release();
     }
     yield terminal;
-  }
-
-  private async lockSession(sessionId: string): Promise<() => void> {
-    const previous = this.sessionTails.get(sessionId) ?? Promise.resolve();
-    let unlock!: () => void;
-    const current = new Promise<void>((resolve) => { unlock = resolve; });
-    const tail = previous.then(() => current);
-    this.sessionTails.set(sessionId, tail);
-    await previous;
-    return () => {
-      unlock();
-      if (this.sessionTails.get(sessionId) === tail) this.sessionTails.delete(sessionId);
-    };
   }
 }

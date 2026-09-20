@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { rmSync, watch, type FSWatcher } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync, rmSync, watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { readPrivateJson, writePrivateJson } from "../local/files.js";
@@ -7,6 +8,24 @@ import { readPrivateJson, writePrivateJson } from "../local/files.js";
 const execFileAsync = promisify(execFile);
 const ROOT_FILES = new Set(["package.json", "package-lock.json", "tsconfig.json", "vitest.config.ts"]);
 const UPDATE_STATE = "self-update.json";
+
+function sourceFingerprint(projectRoot: string): string {
+  const hash = createHash("sha256");
+  const add = (path: string): void => {
+    for (const entry of readdirSync(path, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const child = join(path, entry.name);
+      if (entry.isDirectory()) add(child);
+      else if (entry.isFile()) hash.update(child).update(readFileSync(child));
+    }
+  };
+  const source = join(projectRoot, "src");
+  if (existsSync(source)) add(source);
+  for (const name of [...ROOT_FILES].sort()) {
+    const path = join(projectRoot, name);
+    if (existsSync(path)) hash.update(name).update(readFileSync(path));
+  }
+  return hash.digest("hex");
+}
 
 interface SelfUpdateOptions {
   projectRoot: string;
@@ -102,7 +121,9 @@ export class TelegramSelfUpdate {
     this.dirty = false;
     this.verifyController = new AbortController();
     try {
+      const before = sourceFingerprint(this.options.projectRoot);
       await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
+      if (this.dirty && sourceFingerprint(this.options.projectRoot) === before) this.dirty = false;
       if (this.dirty) return;
       const ownerId = this.options.ownerId();
       if (ownerId) writePrivateJson(join(this.options.homeDir, UPDATE_STATE), { notificationOwnerId: ownerId });

@@ -143,23 +143,6 @@ describe("AgentRuntime", () => {
     expect(resumed.at(-1)?.type).toBe("done");
   });
 
-  it("serializes simultaneous turns targeting the same session", async () => {
-    let active = 0;
-    let maxActive = 0;
-    const model = testModel(async () => {
-      maxActive = Math.max(maxActive, ++active);
-      await new Promise((resolve) => setTimeout(resolve, 30));
-      active -= 1;
-      return textResponse(randomUUID(), "ok");
-    });
-    const { assistant } = testRuntime(model);
-    await Promise.all([
-      collect(assistant, { text: "hello", channel: "api" }),
-      collect(assistant, { text: "hello again", channel: "api" }),
-    ]);
-    expect(maxActive).toBe(1);
-  });
-
   it("transcribes runtime-owned audio before routing and persists the transcript", async () => {
     const transcriptions: string[] = [];
     const model = routingModel(async (attachment) => {
