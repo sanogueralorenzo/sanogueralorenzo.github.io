@@ -18,7 +18,7 @@
     "telegram": "tsx src/bin/agent.ts telegram",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude src/codex/codex.live.test.ts",
-    "test:live": "AGENT_LIVE_CODEX=1 vitest run src/codex/codex.live.test.ts",
+    "test:live": "vitest run src/codex/codex.live.test.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "macos:build": "swift build --package-path macos",
     "macos:run": "swift run --package-path macos AgentMac"
