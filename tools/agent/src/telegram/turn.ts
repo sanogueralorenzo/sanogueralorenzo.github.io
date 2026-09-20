@@ -34,6 +34,10 @@ export class TelegramTurns {
     return this.client.stop();
   }
 
+  active(): boolean {
+    return this.current !== null;
+  }
+
   consume({ runId, event }: RunEnvelope): TelegramTurnResult | null {
     if (event.type === "turn") this.current = { id: runId, output: "", error: "", artifacts: [] };
     const current = this.current;

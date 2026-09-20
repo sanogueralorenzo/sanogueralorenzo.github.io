@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Bot, InputFile, type Context } from "grammy";
@@ -6,7 +7,6 @@ import { RuntimeSupervisor } from "../cli/supervisor.js";
 import { loadConfig } from "../local/config.js";
 import { readSecret } from "../local/credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
-import { TelegramReload } from "./reload.js";
 import { keepTelegramTyping } from "./text.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, type TelegramTurnResult, TelegramTurns } from "./turn.js";
 
@@ -24,17 +24,23 @@ async function runGateway(token: string): Promise<void> {
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
   const turns = new TelegramTurns(client);
-  const reload = new TelegramReload({
-    projectRoot: join(dirname(fileURLToPath(import.meta.url)), "../.."),
-    restart: async () => stop(),
-  });
+  const marker = join(dirname(fileURLToPath(import.meta.url)), "../../dist/.ready");
+  const ready = (): string => {
+    try { return readFileSync(marker, "utf8").trim(); } catch { return ""; }
+  };
+  const build = ready();
+  let reloadTimer: NodeJS.Timeout;
   const stop = (): Promise<void> => stopping ??= (async () => {
     deliveryController.abort();
     markDeliveryReady();
-    reload.stop();
+    clearInterval(reloadTimer);
     supervisor.stop();
     await Promise.all([bot.stop(), deliveryTask]);
   })();
+  reloadTimer = setInterval(() => {
+    const next = ready();
+    if (next && next !== build && !turns.active()) void stop();
+  }, 250);
 
   const deliver = async (result: TelegramTurnResult): Promise<void> => {
     const owner = ownerId();
@@ -55,7 +61,6 @@ async function runGateway(token: string): Promise<void> {
         markDeliveryReady();
         for await (const envelope of events) {
           if (envelope.event.type === "turn") {
-            reload.turnStarted();
             const owner = ownerId();
             stopTyping = owner ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing")) : () => undefined;
           }
@@ -64,7 +69,6 @@ async function runGateway(token: string): Promise<void> {
             stopTyping();
             stopTyping = () => undefined;
             await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
-            reload.turnDelivered();
           }
         }
       } catch {
@@ -73,7 +77,6 @@ async function runGateway(token: string): Promise<void> {
         stopTyping = () => undefined;
         const interrupted = turns.interrupt();
         if (interrupted) await deliver(interrupted).catch(() => undefined);
-        reload.turnDelivered();
         await client.waitUntilHealthy().catch(() => undefined);
       }
     }
@@ -146,7 +149,6 @@ async function runGateway(token: string): Promise<void> {
       { command: "stop", description: "Stop the current response" },
     ]);
     console.log(`Agent Telegram is online as @${info.username}.`);
-    reload.start();
   } });
 }
 
