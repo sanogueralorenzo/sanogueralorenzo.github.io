@@ -71,77 +71,17 @@ export const SETUP_CHOICES = [
   { id: "headless", label: "Set up headless or remote device (one-time code)" },
   { id: "api", label: "Set up with OpenAI API key (independent usage-based billing)" },
 ] as const;
-export const SETUP_SELECTOR_HINT = "↑/↓ select · Enter confirm · 1–3 choose";
+export const SETUP_PROMPT = "Setup method (default: 1): ";
 
 type SetupChoice = typeof SETUP_CHOICES[number]["id"];
-type SetupSelectorAction = "none" | "move" | "confirm" | "cancel";
-
-export function renderSetupSelector(selectedIndex: number): string {
-  const choices = SETUP_CHOICES.map((choice, index) => {
-    const marker = index === selectedIndex ? ">" : " ";
-    return `${marker} ${index + 1}. ${choice.label}`;
-  });
-  return [...choices, "", SETUP_SELECTOR_HINT].join("\n") + "\n";
-}
-
-export function setupSelectorTransition(
-  selectedIndex: number,
-  input: string,
-): { selectedIndex: number; action: SetupSelectorAction } {
-  if (input === "\u0003") return { selectedIndex, action: "cancel" };
-  if (input === "\r" || input === "\n") return { selectedIndex, action: "confirm" };
-  if (/^[1-3]$/.test(input)) return { selectedIndex: Number(input) - 1, action: "confirm" };
-  if (input === "\u001b[A") {
-    return { selectedIndex: (selectedIndex - 1 + SETUP_CHOICES.length) % SETUP_CHOICES.length, action: "move" };
-  }
-  if (input === "\u001b[B") {
-    return { selectedIndex: (selectedIndex + 1) % SETUP_CHOICES.length, action: "move" };
-  }
-  return { selectedIndex, action: "none" };
-}
 
 async function chooseDefault(): Promise<SetupChoice> {
   if (!process.stdin.isTTY) return "browser";
-  let selectedIndex = 0;
-  const renderedLines = SETUP_CHOICES.length + 2;
-  const draw = (redraw = false) => {
-    if (redraw) process.stdout.write(`\u001b[${renderedLines}A\r\u001b[J`);
-    process.stdout.write(renderSetupSelector(selectedIndex));
-  };
-
-  draw();
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
-  process.stdin.setEncoding("utf8");
-  return new Promise((resolve, reject) => {
-    const finish = (error?: Error) => {
-      process.stdin.off("data", onData);
-      process.stdin.setRawMode(false);
-      process.stdin.pause();
-      if (error) reject(error);
-      else resolve(SETUP_CHOICES[selectedIndex]?.id ?? "browser");
-    };
-    const onData = (input: string) => {
-      const transition = setupSelectorTransition(selectedIndex, input);
-      if (transition.action === "cancel") {
-        finish(new Error("Setup cancelled."));
-        return;
-      }
-      if (transition.action === "move") {
-        selectedIndex = transition.selectedIndex;
-        draw(true);
-        return;
-      }
-      if (transition.action === "confirm") {
-        if (transition.selectedIndex !== selectedIndex) {
-          selectedIndex = transition.selectedIndex;
-          draw(true);
-        }
-        finish();
-      }
-    };
-    process.stdin.on("data", onData);
-  });
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  SETUP_CHOICES.forEach((choice, index) => console.log(`${index + 1}. ${choice.label}`));
+  const answer = (await rl.question(SETUP_PROMPT)).trim();
+  rl.close();
+  return answer === "2" ? "headless" : answer === "3" ? "api" : "browser";
 }
 
 export async function setupA1R(args: string[] = []): Promise<void> {

@@ -35,11 +35,10 @@ a1r chat --dev
 ```text
 Connect A1R
 
-> 1. Set up with ChatGPT browser
-  2. Set up headless or remote device (one-time code)
-  3. Set up with OpenAI API key (independent usage-based billing)
-
-↑/↓ select · Enter confirm · 1–3 choose
+1. Set up with ChatGPT browser
+2. Set up headless or remote device (one-time code)
+3. Set up with OpenAI API key (independent usage-based billing)
+Setup method (default: 1):
 ```
 
 Browser setup opens the authorization page without printing its long URL unless opening the browser fails. Headless setup prints the URL and one-time code it needs. Every successful setup ends with `Connect Success`.
