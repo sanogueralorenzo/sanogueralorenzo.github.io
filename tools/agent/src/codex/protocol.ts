@@ -10,17 +10,6 @@ export interface CodexAccountStatus {
   account: { type: "apiKey" | "chatgpt" | "amazonBedrock"; planType?: string } | null;
 }
 
-export interface RateLimitSnapshot {
-  limitName?: string | null;
-  rateLimitReachedType?: string | null;
-}
-
-export interface CodexRateLimits {
-  ordinaryUsageAllowed: boolean | null;
-  rateLimits: RateLimitSnapshot;
-  rateLimitsByLimitId: Record<string, RateLimitSnapshot> | null;
-}
-
 export type CodexLoginMode = "browser" | "headless";
 
 export type CodexLoginStart =

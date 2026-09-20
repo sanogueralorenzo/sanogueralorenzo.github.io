@@ -128,9 +128,6 @@ export async function setupAgent(args: string[] = []): Promise<void> {
       throw new Error("Install the Codex CLI and retry, or run `agent setup --api-key`.");
     }
     if (before.codex.connected) {
-      if (before.codex.allowanceAvailable === false) {
-        throw new Error("Included Codex usage is unavailable right now. Try again after it resets, or explicitly run `agent setup --api-key` to choose API billing.");
-      }
       await service.selectBackend("codex");
       console.log("Connect Success");
       return;

@@ -22,18 +22,6 @@ const notify = (method, params) => send({ method, params });
 const record = (method, params) => {
   if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
 };
-const limits = {
-  ordinaryUsageAllowed: scenario !== "exhausted",
-  rateLimits: {
-    limitId: "codex",
-    limitName: "Codex",
-    primary: { usedPercent: scenario === "exhausted" ? 100 : 22, resetsAt: 1893456000 },
-    planType: "plus",
-    rateLimitReachedType: scenario === "exhausted" ? "rate_limit_reached" : null,
-  },
-  rateLimitsByLimitId: null,
-};
-
 function completeTurn(threadId, turnId) {
   if (scenario === "image" && artifactPath) {
     notify("item/started", { threadId, turnId, item: { type: "imageGeneration", id: "image-1" } });
@@ -53,9 +41,6 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (method === "account/read") {
     const connected = scenario !== "expired" && !scenario.startsWith("login");
     return reply(id, { account: connected ? { type: "chatgpt", planType: "plus" } : null });
-  }
-  if (method === "account/rateLimits/read") {
-    return scenario === "missing-rate-limits" ? fail(id, "unsupported fake method: account/rateLimits/read") : reply(id, limits);
   }
   if (method === "account/login/start") {
     const loginId = "login-1";

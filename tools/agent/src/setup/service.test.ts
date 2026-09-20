@@ -38,10 +38,10 @@ function setup(scenario: string | null, apiKey = false, selected?: BackendKind) 
 }
 
 describe("BackendSetupService", () => {
-  it("reports ChatGPT connection and included usage", async () => {
+  it("reports a ChatGPT connection", async () => {
     const { store, service } = setup("normal");
     const status = await service.status();
-    expect(status.codex).toMatchObject({ installed: true, connected: true, planType: "plus", allowanceAvailable: true });
+    expect(status.codex).toMatchObject({ installed: true, connected: true, planType: "plus" });
     await service.selectBackend("codex");
     expect(store.getSetting("backend")).toBe("codex");
   });
@@ -68,20 +68,10 @@ describe("BackendSetupService", () => {
     expect(store.getSetting("backend")).toBe("codex");
   });
 
-  it("requires the current Codex usage API", async () => {
-    const { service } = setup("missing-rate-limits", false, "codex");
-    await expect(service.status()).resolves.toMatchObject({
-      configured: false,
-      selectedBackend: "codex",
-      codex: { connected: true, allowanceAvailable: null, error: expect.stringContaining("unsupported fake method") },
-    });
-  });
-
   it("switches to a saved API key only when explicitly selected", async () => {
     const { store, service } = setup("exhausted", true, "codex");
     const status = await service.status();
-    expect(status).toMatchObject({ configured: false, selectedBackend: "codex", openAIConfigured: true });
-    expect(status.codex.allowanceAvailable).toBe(false);
+    expect(status).toMatchObject({ configured: true, selectedBackend: "codex", openAIConfigured: true });
     await service.selectBackend("responses");
     expect(store.getSetting("backend")).toBe("responses");
   });

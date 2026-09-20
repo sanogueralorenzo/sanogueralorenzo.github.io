@@ -12,7 +12,6 @@ export interface SetupStatus {
     installed: boolean;
     connected: boolean;
     planType: string | null;
-    allowanceAvailable: boolean | null;
     error?: string;
   };
 }
@@ -29,21 +28,12 @@ export class BackendSetupService {
     const installed = this.codex.isInstalled();
     let connected = false;
     let planType: string | null = null;
-    let allowanceAvailable: boolean | null = null;
     let error: string | undefined;
     if (installed) {
       try {
         const account = await this.codex.account(true);
         connected = account.account?.type === "chatgpt";
         planType = account.account?.type === "chatgpt" ? account.account.planType ?? null : null;
-        if (connected) {
-          const limits = await this.codex.rateLimits();
-          allowanceAvailable = limits.ordinaryUsageAllowed;
-          if (allowanceAvailable === null) {
-            const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
-            allowanceAvailable = !buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
-          }
-        }
       } catch (cause) {
         error = cause instanceof Error ? cause.message : String(cause);
       }
@@ -53,7 +43,7 @@ export class BackendSetupService {
       ? stored
       : null;
     const configured = selectedBackend === "codex"
-      ? connected && allowanceAvailable === true
+      ? connected
       : selectedBackend === "responses" ? this.responses.isConfigured() : false;
     return {
       configured,
@@ -63,7 +53,6 @@ export class BackendSetupService {
         installed,
         connected,
         planType,
-        allowanceAvailable,
         ...(error ? { error } : {}),
       },
     };

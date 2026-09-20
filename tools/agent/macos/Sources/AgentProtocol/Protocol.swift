@@ -39,7 +39,6 @@ public struct SetupStatus: Decodable, Sendable {
 public struct CodexSetupStatus: Decodable, Sendable {
     public let installed: Bool
     public let connected: Bool
-    public let allowanceAvailable: Bool?
 }
 
 public struct SessionList: Decodable, Sendable {

@@ -9,7 +9,6 @@ import type {
   CodexLoginMode,
   CodexLoginResult,
   CodexLoginStart,
-  CodexRateLimits,
   JsonRpcMessage,
 } from "./protocol.js";
 import { redactSecrets } from "../workspace/security.js";
@@ -145,10 +144,6 @@ export class CodexAppServer extends EventEmitter {
 
   async account(refreshToken = true): Promise<CodexAccountStatus> {
     return this.request<CodexAccountStatus>("account/read", { refreshToken });
-  }
-
-  async rateLimits(): Promise<CodexRateLimits> {
-    return this.request<CodexRateLimits>("account/rateLimits/read", {});
   }
 
   async beginLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {

@@ -51,10 +51,8 @@ struct SetupView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true || model.setupStatus?.codex.allowanceAvailable == false)
-            if model.setupStatus?.codex.allowanceAvailable == false {
-                Text("Included Codex usage is currently unavailable.").foregroundStyle(.secondary)
-            } else if model.setupStatus?.codex.installed != true {
+            .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true)
+            if model.setupStatus?.codex.installed != true {
                 Text("Install the Codex CLI to use ChatGPT.").foregroundStyle(.secondary)
             }
             Divider().frame(maxWidth: 420)

@@ -23,7 +23,7 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
       configured: false,
       selectedBackend: null,
       openAIConfigured: false,
-      codex: { installed: false, connected: false, planType: null, allowanceAvailable: null },
+      codex: { installed: false, connected: false, planType: null },
     }),
     setOpenAIKey: async () => undefined,
     selectBackend: async () => undefined,
@@ -102,7 +102,7 @@ describe("RuntimeServer", () => {
         configured: false,
         selectedBackend: null,
         openAIConfigured: false,
-        codex: { installed: true, connected: false, planType: null, allowanceAvailable: null },
+        codex: { installed: true, connected: false, planType: null },
       }),
       selectBackend: async (backend) => { selected = backend; },
       startCodexLogin: async (mode) => {

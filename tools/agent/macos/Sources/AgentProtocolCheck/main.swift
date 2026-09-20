@@ -16,7 +16,7 @@ let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil
 guard String(decoding: request, as: UTF8.self).contains("\"fresh\":true") else {
     fatalError("Agent new-session protocol check failed")
 }
-let setupData = Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus","allowanceAvailable":true}}"#.utf8)
+let setupData = Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus"}}"#.utf8)
 let setup = try JSONDecoder().decode(SetupStatus.self, from: setupData)
 guard setup.codex.connected else {
     fatalError("Agent Codex setup protocol check failed")
