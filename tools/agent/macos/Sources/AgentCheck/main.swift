@@ -1,12 +1,13 @@
 import Foundation
+import Synchronization
 import AgentClient
 import AgentProtocol
 
 func check(_ condition: @autoclosure () -> Bool, _ message: String) { precondition(condition(), message) }
 
 final class MockURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler: ((MockURLProtocol) -> Void)?
-    nonisolated(unsafe) static var stopped: (() -> Void)?
+    nonisolated(unsafe) static var handler: (@Sendable (MockURLProtocol) -> Void)?
+    nonisolated(unsafe) static var stopped: (@Sendable () -> Void)?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -21,16 +22,6 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
         client?.urlProtocol(self, didLoad: Data(body.utf8))
         if finish { client?.urlProtocolDidFinishLoading(self) }
     }
-}
-
-final class RequestState: @unchecked Sendable {
-    private let lock = NSLock()
-    private var value = (started: false, stopped: false)
-
-    var started: Bool { lock.withLock { value.started } }
-    var stopped: Bool { lock.withLock { value.stopped } }
-    func start() { lock.withLock { value.started = true } }
-    func stop() { lock.withLock { value.stopped = true } }
 }
 
 @main
@@ -88,17 +79,17 @@ struct AgentCheck {
             check(error.localizedDescription == "Agent runtime disconnected before the response completed.", "Agent interruption check failed")
         }
 
-        let state = RequestState()
+        let state = Mutex((started: false, stopped: false))
         MockURLProtocol.handler = { protocolValue in
-            state.start()
+            state.withLock { $0.started = true }
             protocolValue.respond("data: {\"type\":\"status\",\"message\":\"Working\"}\n\n", finish: false)
         }
-        MockURLProtocol.stopped = { state.stop() }
+        MockURLProtocol.stopped = { state.withLock { $0.stopped = true } }
         let activeClient = client()
         let stream = try await activeClient.events(text: "hello", sessionId: nil, fresh: false)
         let collecting = Task { (try? await collect(stream)) == nil }
-        for _ in 0..<100 where !state.started { try await Task.sleep(for: .milliseconds(10)) }
-        check(state.started, "Agent client did not start its request")
+        for _ in 0..<100 where !state.withLock({ $0.started }) { try await Task.sleep(for: .milliseconds(10)) }
+        check(state.withLock { $0.started }, "Agent client did not start its request")
         do {
             _ = try await activeClient.events(text: "again", sessionId: nil, fresh: false)
             preconditionFailure("Agent accepted simultaneous responses")
@@ -108,7 +99,7 @@ struct AgentCheck {
         let cancelled = await activeClient.cancel()
         let cancellationFinished = await collecting.value
         check(cancelled, "Agent did not cancel its active request")
-        check(cancellationFinished && state.stopped, "Agent cancellation check failed")
+        check(cancellationFinished && state.withLock { $0.stopped }, "Agent cancellation check failed")
         let cancelledAgain = await activeClient.cancel()
         check(!cancelledAgain, "Agent retained a completed request")
         print("Agent checks passed")

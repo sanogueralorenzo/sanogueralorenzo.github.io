@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Observation
 import AgentClient
 import AgentProtocol
 
@@ -13,7 +14,7 @@ struct ChatMessage: Identifiable, Equatable {
 }
 
 @MainActor
-final class AppModel: ObservableObject {
+@Observable final class AppModel {
     enum State: Equatable {
         case starting
         case needsSetup
@@ -21,14 +22,14 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
-    @Published var state: State = .starting
-    @Published var messages: [ChatMessage] = []
-    @Published var input = ""
-    @Published var activity = ""
-    @Published var isRunning = false
-    @Published var setupStatus: SetupStatus?
-    @Published var setupMessage = ""
-    @Published var isSettingUp = false
+    var state: State = .starting
+    var messages: [ChatMessage] = []
+    var input = ""
+    var activity = ""
+    var isRunning = false
+    var setupStatus: SetupStatus?
+    var setupMessage = ""
+    var isSettingUp = false
 
     private let launcher = RuntimeLauncher()
     private var client: RuntimeClient?

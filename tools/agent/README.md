@@ -35,7 +35,7 @@ Telegram reuses the existing Agent connection, accepts text or voice notes, pair
 npm run macos:run
 ```
 
-The SwiftUI app launches and uses the same local runtime as the CLI and Telegram.
+The SwiftUI app requires macOS 26 and uses the same local runtime as the CLI and Telegram.
 
 ## Data and security
 

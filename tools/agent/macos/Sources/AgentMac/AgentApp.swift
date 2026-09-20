@@ -3,7 +3,7 @@ import AgentProtocol
 
 @main
 struct AgentApp: App {
-    @StateObject private var model = AppModel()
+    @State private var model = AppModel()
 
     var body: some Scene {
         WindowGroup {
@@ -17,7 +17,7 @@ struct AgentApp: App {
 }
 
 struct RootView: View {
-    @ObservedObject var model: AppModel
+    @Bindable var model: AppModel
 
     var body: some View {
         switch model.state {
@@ -37,7 +37,7 @@ struct RootView: View {
 }
 
 struct SetupView: View {
-    @ObservedObject var model: AppModel
+    @Bindable var model: AppModel
     @State private var key = ""
 
     var body: some View {
@@ -73,7 +73,7 @@ struct SetupView: View {
 }
 
 struct ConversationView: View {
-    @ObservedObject var model: AppModel
+    @Bindable var model: AppModel
 
     var body: some View {
         VStack(spacing: 0) {
