@@ -30,11 +30,17 @@ a1r setup
 a1r chat --dev
 ```
 
-`a1r setup` detects an existing login in A1R's private Codex profile, shows the plan and available usage returned by app-server, and asks for exactly one setup method:
+`a1r setup` asks for exactly one setup method:
 
-1. **Browser login** (recommended) opens the documented ChatGPT authorization page and finishes on app-server's neutral local confirmation page instead of handing off to the Codex app.
-2. **Headless device** displays the documented verification URL and one-time code for remote servers, SSH sessions, containers, or machines without a usable local browser callback.
-3. **OpenAI API key** explicitly selects A1R's independent Responses API runtime with usage-based billing.
+```text
+Connect A1R
+
+1. Set up with ChatGPT browser
+2. Set up headless or remote device (one-time code)
+3. Set up with OpenAI API key (independent usage-based billing)
+```
+
+Browser setup opens the authorization page without printing its long URL unless opening the browser fails. Headless setup prints the URL and one-time code it needs. Every successful setup ends with `Connect Success`.
 
 The corresponding non-interactive commands are:
 

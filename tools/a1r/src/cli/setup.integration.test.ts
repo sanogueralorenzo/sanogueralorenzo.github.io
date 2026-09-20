@@ -29,6 +29,7 @@ async function runSetup(
     initialBackend?: "codex" | "responses";
     seedState?: boolean;
     apiConfigured?: boolean;
+    browserOpens?: boolean;
   } = {},
 ): Promise<{ output: string; rpc: string; backend: string | null; error: Error | null; statePreserved: boolean }> {
   const homeDir = mkdtempSync(join(tmpdir(), "a1r-cli-setup-"));
@@ -60,7 +61,14 @@ async function runSetup(
   process.env.A1R_CODEX_COMMAND = options.installed === false ? join(homeDir, "missing-codex") : executable(homeDir);
   process.env.A1R_FAKE_SCENARIO = options.scenario ?? "normal";
   process.env.A1R_FAKE_LOG = rpcLog;
-  process.env.PATH = ""; // Prevent the test from opening a real browser.
+  if (options.browserOpens) {
+    const browserCommand = join(homeDir, process.platform === "darwin" ? "open" : "xdg-open");
+    writeFileSync(browserCommand, "#!/bin/sh\nexit 0\n");
+    chmodSync(browserCommand, 0o700);
+    process.env.PATH = homeDir;
+  } else {
+    process.env.PATH = ""; // Prevent the test from opening a real browser.
+  }
   if (options.apiConfigured) process.env.OPENAI_API_KEY = "sk-test-explicit-choice";
   else delete process.env.OPENAI_API_KEY;
   const output: string[] = [];
@@ -111,9 +119,9 @@ describe.sequential("CLI subscription setup", () => {
   it("offers exactly browser, headless device, and API-key setup", () => {
     expect(SETUP_CHOICES.map((choice) => choice.id)).toEqual(["browser", "headless", "api"]);
     expect(SETUP_CHOICES.map((choice) => choice.label)).toEqual([
-      expect.stringMatching(/browser.*recommended/i),
-      expect.stringMatching(/headless.*one-time code/i),
-      expect.stringMatching(/API key.*independent/i),
+      "Set up with ChatGPT browser",
+      "Set up headless or remote device (one-time code)",
+      "Set up with OpenAI API key (independent usage-based billing)",
     ]);
   });
 
@@ -122,21 +130,28 @@ describe.sequential("CLI subscription setup", () => {
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("codex");
-    expect(result.output).toContain("A1R-specific ChatGPT login");
-    expect(result.output).toContain("reuse its private ChatGPT login");
+    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect A1R", "Connect Success"]);
     expect(result.rpc).not.toContain("account/login/start");
   });
 
-  it("opens only browser login for a disconnected private profile", async () => {
-    const result = await runSetup(["--chatgpt"], { scenario: "login-success" });
+  it("opens browser login without printing its URL or setup commentary", async () => {
+    const result = await runSetup(["--chatgpt"], { scenario: "login-success", browserOpens: true });
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("codex");
-    expect(result.output).toContain("Open this official ChatGPT sign-in page");
-    expect(result.output).toContain("https://auth.openai.com/fake");
+    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect A1R", "Connect Success"]);
+    expect(result.output).not.toContain("https://auth.openai.com/fake");
     expect(result.rpc).toContain('"type":"chatgpt"');
     expect(result.rpc).not.toContain("chatgptDeviceCode");
     expect(result.rpc).not.toContain("useHostedLoginSuccessPage");
+  });
+
+  it("prints the browser URL only when it cannot open a browser", async () => {
+    const result = await runSetup(["--chatgpt"], { scenario: "login-success" });
+
+    expect(result.error).toBeNull();
+    expect(result.output).toContain("Open: https://auth.openai.com/fake");
+    expect(result.output).toContain("Connect Success");
   });
 
   it("displays the one-time code only for explicit headless setup", async () => {
@@ -144,9 +159,12 @@ describe.sequential("CLI subscription setup", () => {
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("codex");
-    expect(result.output).toContain("On any device, open this official ChatGPT page");
-    expect(result.output).toContain("https://auth.openai.com/codex/device");
-    expect(result.output).toContain("Enter this one-time code: A1R-TEST");
+    expect(result.output.split("\n").filter((line) => line.trim())).toEqual([
+      "Connect A1R",
+      "Open: https://auth.openai.com/codex/device",
+      "Code: A1R-TEST",
+      "Connect Success",
+    ]);
     expect(result.rpc).toContain('"type":"chatgptDeviceCode"');
   });
 
@@ -188,14 +206,14 @@ describe.sequential("CLI subscription setup", () => {
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("responses");
-    expect(result.output).toContain("Selected the saved OpenAI API key");
+    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect A1R", "Connect Success"]);
     expect(result.rpc).not.toContain("account/login/start");
   });
 
   it("fails clearly when Codex is missing without selecting another backend", async () => {
     const result = await runSetup(["--chatgpt"], { installed: false });
 
-    expect(result.error?.message).toMatch(/requires the official Codex CLI/);
+    expect(result.error?.message).toMatch(/Install the Codex CLI/);
     expect(result.backend).toBeNull();
     expect(result.output).not.toContain("Use API-key billing");
   });
