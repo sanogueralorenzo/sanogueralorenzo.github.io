@@ -82,11 +82,11 @@ export class Store {
     this.db = new DatabaseSync(databasePath);
     chmodSync(databasePath, 0o600);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
-    this.migrate();
+    this.initializeSchema();
     if (options.recoverRuns !== false) this.recoverInterruptedRuns();
   }
 
-  private migrate(): void {
+  private initializeSchema(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
@@ -148,10 +148,6 @@ export class Store {
         UNIQUE(backend, external_id)
       );
     `);
-    const runColumns = this.db.prepare("PRAGMA table_info(runs)").all() as unknown as Array<{ name: string }>;
-    if (!runColumns.some((column) => column.name === "output")) {
-      this.db.exec("ALTER TABLE runs ADD COLUMN output TEXT NOT NULL DEFAULT ''");
-    }
   }
 
   private recoverInterruptedRuns(): void {
@@ -312,10 +308,6 @@ export class Store {
       INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
       ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
     `).run(sessionId, backend, externalId, now());
-  }
-
-  removeBackendSession(sessionId: string, backend: string): void {
-    this.db.prepare("DELETE FROM backend_sessions WHERE session_id = ? AND backend = ?").run(sessionId, backend);
   }
 
   close(): void {

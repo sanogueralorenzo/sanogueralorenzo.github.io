@@ -173,10 +173,10 @@ describe.sequential("CLI subscription setup", () => {
     expect(result.rpc).toContain('"type":"chatgptDeviceCode"');
   });
 
-  it("directs the old device-code flag to the headless option", async () => {
+  it("rejects removed setup options", async () => {
     const result = await runSetup(["--device-code"]);
 
-    expect(result.error?.message).toMatch(/setup --headless/);
+    expect(result.error?.message).toBe("Unknown setup option: --device-code");
     expect(result.backend).toBeNull();
     expect(result.rpc).toBe("");
   });

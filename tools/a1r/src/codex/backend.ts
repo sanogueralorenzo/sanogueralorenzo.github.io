@@ -149,15 +149,9 @@ export class CodexBackend implements AgentBackend {
       throw error;
     });
     if (account.account?.type !== "chatgpt") throw new CodexAuthenticationError();
-    try {
-      const usage = await this.client.rateLimits();
-      const limit = activeRateLimit(usage);
-      if (limit.reached) throw new CodexAllowanceError(`${limit.name} allowance is currently exhausted. Check usage with \`a1r setup\`, or choose API-key billing there.`);
-    } catch (error) {
-      // Older documented app-server versions may not provide rate-limit data.
-      if (error instanceof CodexAllowanceError) throw error;
-      if (!(error instanceof CodexRpcError && error.code === -32601)) throw error;
-    }
+    const usage = await this.client.rateLimits();
+    const limit = activeRateLimit(usage);
+    if (limit.reached) throw new CodexAllowanceError(`${limit.name} allowance is currently exhausted. Check usage with \`a1r setup\`, or choose API-key billing there.`);
     this.preflightValidUntil = Date.now() + 15_000;
   }
 
@@ -255,16 +249,11 @@ export class CodexBackend implements AgentBackend {
       developerInstructions: turn.instructions,
     };
     if (existing) {
-      try {
-        const resumed = await this.client.request<{ thread: { id: string } }>("thread/resume", {
-          threadId: existing,
-          ...common,
-        });
-        return resumed.thread.id;
-      } catch (error) {
-        if (!(error instanceof CodexRpcError && /not found|unknown thread|does not exist/i.test(error.message))) throw error;
-        this.store.removeBackendSession(turn.session.id, "codex");
-      }
+      const resumed = await this.client.request<{ thread: { id: string } }>("thread/resume", {
+        threadId: existing,
+        ...common,
+      });
+      return resumed.thread.id;
     }
     const priorTranscript = this.store.getMessages(turn.session.id, this.config.maxHistoryMessages)
       .slice(0, -1)

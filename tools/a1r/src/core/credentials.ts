@@ -19,7 +19,7 @@ export function readSecret(name: SecretName, homeDir: string): string | undefine
         stdio: ["ignore", "pipe", "ignore"],
       }).trim();
     } catch {
-      // Fall through to the portable local credential file.
+      return undefined;
     }
   }
   try {
@@ -39,8 +39,8 @@ export function writeSecret(name: SecretName, value: string, homeDir: string): "
         stdio: "ignore",
       });
       return "keychain";
-    } catch {
-      // Portable fallback keeps local setup usable without Keychain access.
+    } catch (cause) {
+      throw new Error(`A1R could not save ${name} in macOS Keychain: ${cause instanceof Error ? cause.message : String(cause)}`);
     }
   }
   mkdirSync(homeDir, { recursive: true, mode: 0o700 });

@@ -76,8 +76,8 @@ describe("BackendSetupService", () => {
     store.close();
   });
 
-  it("requires a new private-profile login after the previous shared-login backend selection", async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-migration-"));
+  it("reports a selected Codex backend as disconnected when its login has expired", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-expired-"));
     paths.push(homeDir);
     const store = new Store(homeDir);
     store.setSetting("backend", "codex");
@@ -96,6 +96,28 @@ describe("BackendSetupService", () => {
     });
     await expect(service.selectBackend("codex")).rejects.toThrow(/Continue with ChatGPT/);
     expect(store.getSetting("backend")).toBe("codex");
+    await codex.stop();
+    store.close();
+  });
+
+  it("requires the current Codex usage API", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-current-protocol-"));
+    paths.push(homeDir);
+    const store = new Store(homeDir);
+    store.setSetting("backend", "codex");
+    const codex = new CodexAppServer({
+      command: process.execPath,
+      args: [fixture],
+      installed: true,
+      env: { ...process.env, A1R_FAKE_SCENARIO: "missing-rate-limits" },
+    });
+    const service = new BackendSetupService(store, model(false), codex, () => undefined);
+
+    await expect(service.status()).resolves.toMatchObject({
+      configured: false,
+      selectedBackend: "codex",
+      codex: { connected: true, allowanceAvailable: null, error: expect.stringContaining("unsupported fake method") },
+    });
     await codex.stop();
     store.close();
   });

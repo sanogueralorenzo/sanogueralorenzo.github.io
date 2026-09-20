@@ -7,7 +7,7 @@ import { BackendRegistry, BackendUnavailableError, type AgentBackend, type Backe
 import { Store } from "../core/store.js";
 import type { RuntimeConfig } from "../core/types.js";
 import { A1RRuntime } from "../core/runtime.js";
-import { CodexAppServer, createA1RCodexAppServer, prepareA1RCodexHome } from "./app-server.js";
+import { CodexAppServer, CodexRpcError, createA1RCodexAppServer, prepareA1RCodexHome } from "./app-server.js";
 import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
@@ -259,23 +259,19 @@ describe("Codex app-server contract", () => {
     store.close();
   });
 
-  it("migrates an old global-profile thread binding by rebuilding from the A1R transcript", async () => {
-    const homeDir = temp("a1r-codex-migrate-thread-");
+  it("does not replace a missing Codex thread", async () => {
+    const homeDir = temp("a1r-codex-missing-thread-");
     const log = join(homeDir, "rpc.log");
     const store = new Store(homeDir);
     const input = turn(store, homeDir);
-    store.addMessage(input.session.id, "user", "Earlier question");
-    store.addMessage(input.session.id, "assistant", "Earlier A1R context");
-    store.addMessage(input.session.id, "user", "Fix the test");
-    store.bindBackendSession(input.session.id, "codex", "old-global-thread");
+    store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
     const backend = new CodexBackend(config(homeDir), store, client("missing-thread", { A1R_FAKE_LOG: log }));
 
-    const events = await collect(backend, input);
+    await expect(collect(backend, input)).rejects.toBeInstanceOf(CodexRpcError);
 
-    expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
     expect(readFileSync(log, "utf8")).toContain("thread/resume");
-    expect(readFileSync(log, "utf8")).toContain("thread/start");
-    expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
+    expect(readFileSync(log, "utf8")).not.toContain("thread/start");
+    expect(store.backendSession(input.session.id, "codex")).toBe("missing-thread-id");
     await backend.close();
     store.close();
   });

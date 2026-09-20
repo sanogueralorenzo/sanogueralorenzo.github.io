@@ -81,7 +81,10 @@ async function chooseDefault(): Promise<SetupChoice> {
   SETUP_CHOICES.forEach((choice, index) => console.log(`${index + 1}. ${choice.label}`));
   const answer = (await rl.question(SETUP_PROMPT)).trim();
   rl.close();
-  return answer === "2" ? "headless" : answer === "3" ? "api" : "browser";
+  if (answer === "" || answer === "1") return "browser";
+  if (answer === "2") return "headless";
+  if (answer === "3") return "api";
+  throw new Error("Choose 1, 2, or 3.");
 }
 
 function createSetupContext() {
@@ -110,9 +113,6 @@ export async function isA1RConfigured(): Promise<boolean> {
 
 export async function setupA1R(args: string[] = []): Promise<void> {
   const unknown = args.filter((arg) => arg !== "--chatgpt" && arg !== "--headless" && arg !== "--api-key");
-  if (unknown.includes("--device-code")) {
-    throw new Error("Use `a1r setup --headless` for device-code login.");
-  }
   if (unknown.length > 0) throw new Error(`Unknown setup option: ${unknown[0]}`);
   const forcedChoices = [args.includes("--chatgpt"), args.includes("--headless"), args.includes("--api-key")]
     .filter(Boolean).length;

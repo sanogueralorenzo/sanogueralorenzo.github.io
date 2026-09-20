@@ -211,6 +211,9 @@ export async function runConfiguredTelegramGateway(): Promise<void> {
 
 export async function runTelegramCommand(args: string[]): Promise<void> {
   const config = loadConfig();
+  if (args[0] !== undefined && args[0] !== "setup") {
+    throw new Error(`Unknown Telegram command: ${args[0]}`);
+  }
   if (args[0] === "setup") {
     const setupArgs = args.slice(1);
     if (setupArgs.length > 0 || !await isA1RConfigured()) await setupA1R(setupArgs);

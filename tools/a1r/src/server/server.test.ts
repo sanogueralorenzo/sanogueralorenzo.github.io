@@ -5,13 +5,30 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { A1RRuntime } from "../core/runtime.js";
 import { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../core/types.js";
-import { readDiscovery, RuntimeServer } from "./server.js";
+import { readDiscovery, RuntimeServer, type RuntimeSetup } from "./server.js";
 
 const paths: string[] = [];
 
 afterEach(() => {
   for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
 });
+
+function setupStub(): RuntimeSetup {
+  return {
+    status: async () => ({
+      configured: false,
+      selectedBackend: null,
+      recommendedBackend: "codex",
+      openAIConfigured: false,
+      codex: { installed: false, connected: false, planType: null, allowanceAvailable: null, usage: [] },
+    }),
+    setOpenAIKey: async () => undefined,
+    selectBackend: async () => undefined,
+    startCodexLogin: async () => ({ type: "chatgpt", loginId: "login", authUrl: "https://auth.openai.com/fake" }),
+    codexLoginStatus: async () => ({ state: "complete" }),
+    cancelCodexLogin: async () => undefined,
+  };
+}
 
 describe("RuntimeServer", () => {
   it("authenticates clients and streams the shared event protocol", async () => {
@@ -31,7 +48,7 @@ describe("RuntimeServer", () => {
         yield { type: "done", sessionId: "session", responseId: "response" };
       },
     } as unknown as A1RRuntime;
-    const server = new RuntimeServer(config, runtime, store);
+    const server = new RuntimeServer(config, runtime, store, setupStub());
     const port = await server.listen();
     const discovery = readDiscovery(homeDir)!;
 
@@ -40,7 +57,7 @@ describe("RuntimeServer", () => {
     const streamed = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
       method: "POST",
       headers: { authorization: `Bearer ${discovery.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ text: "hello", requestId: "test-request" }),
+      body: JSON.stringify({ text: "hello", requestId: "test-request", channel: "api" }),
     });
     const body = await streamed.text();
     expect(streamed.headers.get("content-type")).toContain("text/event-stream");
@@ -89,8 +106,13 @@ describe("RuntimeServer", () => {
 
     const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
     await expect(status.json()).resolves.toMatchObject({ recommendedBackend: "codex", codex: { installed: true } });
-    const login = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+    const missingMode = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
       method: "POST", headers, body: JSON.stringify({}),
+    });
+    expect(missingMode.status).toBe(400);
+    expect(loginModes).toEqual([]);
+    const login = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+      method: "POST", headers, body: JSON.stringify({ mode: "browser" }),
     });
     await expect(login.json()).resolves.toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
     expect(loginModes).toEqual(["browser"]);

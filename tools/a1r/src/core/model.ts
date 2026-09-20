@@ -49,49 +49,37 @@ export class OpenAIModelClient implements ModelClient {
 
   async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
     if (!this.configured) throw new Error("OpenAI is not connected. Run `a1r setup` once, then try again.");
-    const candidates = [...new Set([request.model, this.config.models.standard, this.config.models.fast])];
-    for (const [index, model] of candidates.entries()) {
-      let emitted = false;
-      try {
-        const stream = await this.client.responses.create({
-          model,
-          instructions: request.instructions,
-          input: request.input,
-          tools: request.tools,
-          tool_choice: request.tools.length > 0 ? "auto" : "none",
-          parallel_tool_calls: true,
-          reasoning: { effort: request.tier === "deep" ? "high" : request.tier === "standard" ? "medium" : "low" },
-          include: ["reasoning.encrypted_content"],
-          prompt_cache_key: request.promptCacheKey,
-          store: false,
-          stream: true,
-        }, request.signal ? { signal: request.signal } : undefined);
+    const stream = await this.client.responses.create({
+      model: request.model,
+      instructions: request.instructions,
+      input: request.input,
+      tools: request.tools,
+      tool_choice: request.tools.length > 0 ? "auto" : "none",
+      parallel_tool_calls: true,
+      reasoning: { effort: request.tier === "deep" ? "high" : request.tier === "standard" ? "medium" : "low" },
+      include: ["reasoning.encrypted_content"],
+      prompt_cache_key: request.promptCacheKey,
+      store: false,
+      stream: true,
+    }, request.signal ? { signal: request.signal } : undefined);
 
-        let finalResponse: Response | null = null;
-        for await (const event of stream) {
-          if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") {
-            emitted = true;
-            yield { type: "text_delta", delta: event.delta };
-          }
-          if (event.type === "response.completed") finalResponse = event.response;
-          if (event.type === "response.incomplete") {
-            const reason = event.response.incomplete_details?.reason ?? "unknown reason";
-            throw new Error(`The OpenAI response was incomplete: ${reason}.`);
-          }
-          if (event.type === "response.failed") {
-            throw new Error(event.response.error?.message ?? "The OpenAI response failed.");
-          }
-          if (event.type === "error") throw new Error(event.message);
-        }
-        if (!finalResponse) throw new Error("The OpenAI stream ended before a final response arrived.");
-        return finalResponse;
-      } catch (error) {
-        const status = (error as { status?: number }).status;
-        const canFallback = !emitted && index < candidates.length - 1 && (status === 400 || status === 404);
-        if (!canFallback) throw error;
+    let finalResponse: Response | null = null;
+    for await (const event of stream) {
+      if (event.type === "response.output_text.delta" || event.type === "response.refusal.delta") {
+        yield { type: "text_delta", delta: event.delta };
       }
+      if (event.type === "response.completed") finalResponse = event.response;
+      if (event.type === "response.incomplete") {
+        const reason = event.response.incomplete_details?.reason ?? "unknown reason";
+        throw new Error(`The OpenAI response was incomplete: ${reason}.`);
+      }
+      if (event.type === "response.failed") {
+        throw new Error(event.response.error?.message ?? "The OpenAI response failed.");
+      }
+      if (event.type === "error") throw new Error(event.message);
     }
-    throw new Error("No configured OpenAI model is available.");
+    if (!finalResponse) throw new Error("The OpenAI stream ended before a final response arrived.");
+    return finalResponse;
   }
 
   async delegate(task: string, context: string, signal?: AbortSignal): Promise<string> {

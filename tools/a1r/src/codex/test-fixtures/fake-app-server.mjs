@@ -65,7 +65,9 @@ lines.on("line", (line) => {
     return;
   }
   if (method === "account/rateLimits/read") {
-    if (scenario === "exhausted") {
+    if (scenario === "missing-rate-limits") {
+      send({ id, error: { code: -32601, message: "unsupported fake method: account/rateLimits/read" } });
+    } else if (scenario === "exhausted") {
       send({ id, result: {
         ...allowedLimits,
         ordinaryUsageAllowed: false,
@@ -122,10 +124,6 @@ lines.on("line", (line) => {
     return;
   }
   if (method === "thread/start") {
-    if (scenario === "missing-thread" && !String(params.developerInstructions ?? "").includes("Earlier A1R context")) {
-      send({ id, error: { code: -32000, message: "missing migrated A1R transcript" } });
-      return;
-    }
     send({ id, result: { thread: { id: "thread-1" }, model: "fake", modelProvider: "openai", cwd: params.cwd } });
     return;
   }

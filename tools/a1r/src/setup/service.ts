@@ -62,17 +62,13 @@ export class BackendSetupService {
         connected = account.account?.type === "chatgpt";
         planType = account.account?.type === "chatgpt" ? account.account.planType ?? null : null;
         if (connected) {
-          try {
-            const limits = await this.codex.rateLimits();
-            allowanceAvailable = limits.ordinaryUsageAllowed;
-            if (allowanceAvailable === null) {
-              const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
-              allowanceAvailable = !buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
-            }
-            usage = summaries(limits);
-          } catch {
-            // Usage is optional in the documented protocol.
+          const limits = await this.codex.rateLimits();
+          allowanceAvailable = limits.ordinaryUsageAllowed;
+          if (allowanceAvailable === null) {
+            const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
+            allowanceAvailable = !buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
           }
+          usage = summaries(limits);
         }
       } catch (cause) {
         error = cause instanceof Error ? cause.message : String(cause);
@@ -83,7 +79,7 @@ export class BackendSetupService {
       ? stored
       : null;
     const configured = selectedBackend === "codex"
-      ? connected && allowanceAvailable !== false
+      ? connected && allowanceAvailable === true
       : selectedBackend === "responses" ? this.responses.isConfigured() : false;
     return {
       configured,

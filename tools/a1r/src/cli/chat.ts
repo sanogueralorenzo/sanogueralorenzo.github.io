@@ -47,7 +47,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       const input = (await rl.question(ansi.cyan("› "))).trim();
       promptActive = false;
       if (!input) continue;
-      if (input === "/quit" || input === "/exit") break;
+      if (input === "/quit") break;
       if (input === "/help") {
         console.log("Talk normally. A1R chooses context, model, memory, and tools automatically. Ctrl-C stops the current response.");
         continue;
