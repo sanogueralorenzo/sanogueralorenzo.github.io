@@ -123,7 +123,7 @@ describe.sequential("CLI subscription setup", () => {
       "Set up headless or remote device (one-time code)",
       "Set up with OpenAI API key (independent usage-based billing)",
     ]);
-    expect(SETUP_PROMPT).toBe("Setup method (default: 1): ");
+    expect(SETUP_PROMPT).toBe("Select 1–3 (Enter for 1): ");
   });
 
   it("reuses an existing A1R-specific login transparently during ordinary setup", async () => {
