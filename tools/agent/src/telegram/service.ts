@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { accessSync, chmodSync, constants, existsSync, lstatSync, mkdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,26 +83,9 @@ function executablePath(command: string): string {
   return command;
 }
 
-function serviceIsLoaded(service: string): boolean {
-  try {
-    execFileSync("/bin/launchctl", ["print", service], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function waitForServiceUnload(service: string): Promise<void> {
-  const deadline = Date.now() + 3_000;
-  while (serviceIsLoaded(service)) {
-    if (Date.now() >= deadline) throw new Error("Agent timed out while replacing the previous Telegram background service.");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-}
-
-export async function installTelegramBackgroundService(
+export function installTelegramBackgroundService(
   config: Pick<RuntimeConfig, "homeDir" | "codexCommand">,
-): Promise<void> {
+): void {
   if (process.platform !== "darwin") throw new Error("The Agent Telegram background service currently requires macOS.");
   if (typeof process.getuid !== "function") throw new Error("Agent could not determine the current macOS user.");
 
@@ -110,8 +93,6 @@ export async function installTelegramBackgroundService(
   const sourceMode = modulePath.endsWith(".ts");
   const serviceEntry = realpathSync(join(dirname(modulePath), `main.${sourceMode ? "ts" : "js"}`));
   const launchAgents = join(homedir(), "Library", "LaunchAgents");
-  mkdirSync(launchAgents, { recursive: true, mode: 0o755 });
-  if (lstatSync(launchAgents).isSymbolicLink()) throw new Error("The user LaunchAgents directory must not be a symbolic link.");
   ensurePrivateDirectory(config.homeDir);
 
   const binDirectory = join(config.homeDir, "bin");
@@ -120,10 +101,6 @@ export async function installTelegramBackgroundService(
   writePrivateFile(launcherPath, renderTelegramGatewayLauncher(process.execPath, serviceEntry), 0o700);
 
   const plistPath = join(launchAgents, `${TELEGRAM_SERVICE_LABEL}.plist`);
-  if (existsSync(plistPath) && lstatSync(plistPath).isSymbolicLink()) {
-    throw new Error("The Agent Telegram LaunchAgent must not be a symbolic link.");
-  }
-  const temporary = `${plistPath}.${process.pid}.tmp`;
   const plist = renderTelegramLaunchAgent({
     launcherPath,
     workingDirectory: resolve(dirname(serviceEntry), "../.."),
@@ -131,9 +108,7 @@ export async function installTelegramBackgroundService(
     codexCommand: executablePath(config.codexCommand),
     ...(process.env.PATH ? { path: process.env.PATH } : {}),
   });
-  writeFileSync(temporary, plist, { mode: 0o600 });
-  renameSync(temporary, plistPath);
-  chmodSync(plistPath, 0o600);
+  writePrivateFile(plistPath, plist);
 
   const domain = `gui/${process.getuid()}`;
   const service = `${domain}/${TELEGRAM_SERVICE_LABEL}`;
@@ -142,7 +117,6 @@ export async function installTelegramBackgroundService(
   } catch {
     // The service is not loaded on first setup.
   }
-  await waitForServiceUnload(service);
   try {
     execFileSync("/bin/launchctl", ["bootstrap", domain, plistPath], { stdio: "ignore" });
     execFileSync("/bin/launchctl", ["kickstart", "-k", service], { stdio: "ignore" });
