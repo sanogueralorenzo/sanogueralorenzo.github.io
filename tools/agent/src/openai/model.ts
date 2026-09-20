@@ -34,7 +34,7 @@ export class OpenAIModelClient implements ModelClient {
 
   constructor(apiKey = process.env.OPENAI_API_KEY) {
     this.configured = Boolean(apiKey);
-    this.client = new OpenAI({ apiKey: apiKey ?? "not-configured" });
+    this.client = new OpenAI({ apiKey: apiKey || "not-configured" });
   }
 
   isConfigured(): boolean {

@@ -11,6 +11,7 @@ const roots: string[] = [];
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
@@ -48,28 +49,19 @@ async function runSetup(
     }
     seed.close();
   }
-  const previous = {
-    home: process.env.AGENT_HOME,
-    command: process.env.AGENT_CODEX_COMMAND,
-    scenario: process.env.AGENT_FAKE_SCENARIO,
-    log: process.env.AGENT_FAKE_LOG,
-    path: process.env.PATH,
-    openAIKey: process.env.OPENAI_API_KEY,
-  };
-  process.env.AGENT_HOME = homeDir;
-  process.env.AGENT_CODEX_COMMAND = options.installed === false ? join(homeDir, "missing-codex") : executable(homeDir);
-  process.env.AGENT_FAKE_SCENARIO = options.scenario ?? "normal";
-  process.env.AGENT_FAKE_LOG = rpcLog;
+  vi.stubEnv("AGENT_HOME", homeDir);
+  vi.stubEnv("AGENT_CODEX_COMMAND", options.installed === false ? join(homeDir, "missing-codex") : executable(homeDir));
+  vi.stubEnv("AGENT_FAKE_SCENARIO", options.scenario ?? "normal");
+  vi.stubEnv("AGENT_FAKE_LOG", rpcLog);
   if (options.browserOpens) {
     const browserCommand = join(homeDir, process.platform === "darwin" ? "open" : "xdg-open");
     writeFileSync(browserCommand, "#!/bin/sh\nexit 0\n");
     chmodSync(browserCommand, 0o700);
-    process.env.PATH = homeDir;
+    vi.stubEnv("PATH", homeDir);
   } else {
-    process.env.PATH = ""; // Prevent the test from opening a real browser.
+    vi.stubEnv("PATH", ""); // Prevent the test from opening a real browser.
   }
-  if (options.apiConfigured) process.env.OPENAI_API_KEY = "sk-test-explicit-choice";
-  else delete process.env.OPENAI_API_KEY;
+  vi.stubEnv("OPENAI_API_KEY", options.apiConfigured ? "sk-test-explicit-choice" : "");
   const output: string[] = [];
   vi.spyOn(console, "log").mockImplementation((...values) => output.push(values.join(" ")));
   vi.spyOn(process.stdout, "write").mockImplementation((value) => {
@@ -78,42 +70,26 @@ async function runSetup(
   });
   let error: Error | null = null;
   try {
-    try {
-      await setupAgent(args);
-    } catch (cause) {
-      error = cause instanceof Error ? cause : new Error(String(cause));
-    }
-    const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
-    const configured = await isAgentConfigured();
-    let backend: string | null = null;
-    let statePreserved = seededSessionId === null;
-    if (existsSync(join(homeDir, "agent.sqlite"))) {
-      const store = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
-      backend = store.getSetting("backend");
-      if (seededSessionId) {
-        statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
-          && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
-          && store.searchMemories("project:preserved", "Preserved memory")[0]?.content === "Preserved memory"
-          && store.backendSession(seededSessionId, "codex") === "preserved-thread";
-      }
-      store.close();
-    }
-    return {
-      output: output.join("\n"),
-      rpc: setupRpc,
-      backend,
-      configured,
-      error,
-      statePreserved,
-    };
-  } finally {
-    if (previous.home === undefined) delete process.env.AGENT_HOME; else process.env.AGENT_HOME = previous.home;
-    if (previous.command === undefined) delete process.env.AGENT_CODEX_COMMAND; else process.env.AGENT_CODEX_COMMAND = previous.command;
-    if (previous.scenario === undefined) delete process.env.AGENT_FAKE_SCENARIO; else process.env.AGENT_FAKE_SCENARIO = previous.scenario;
-    if (previous.log === undefined) delete process.env.AGENT_FAKE_LOG; else process.env.AGENT_FAKE_LOG = previous.log;
-    if (previous.path === undefined) delete process.env.PATH; else process.env.PATH = previous.path;
-    if (previous.openAIKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previous.openAIKey;
+    await setupAgent(args);
+  } catch (cause) {
+    error = cause instanceof Error ? cause : new Error(String(cause));
   }
+  const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
+  const configured = await isAgentConfigured();
+  let backend: string | null = null;
+  let statePreserved = seededSessionId === null;
+  if (existsSync(join(homeDir, "agent.sqlite"))) {
+    const store = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
+    backend = store.getSetting("backend");
+    if (seededSessionId) {
+      statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
+        && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
+        && store.searchMemories("project:preserved", "Preserved memory")[0]?.content === "Preserved memory"
+        && store.backendSession(seededSessionId, "codex") === "preserved-thread";
+    }
+    store.close();
+  }
+  return { output: output.join("\n"), rpc: setupRpc, backend, configured, error, statePreserved };
 }
 
 describe.sequential("CLI subscription setup", () => {

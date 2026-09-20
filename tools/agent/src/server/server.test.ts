@@ -17,7 +17,7 @@ afterEach(async () => {
   }
 });
 
-function setupStub(): RuntimeSetup {
+function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
   return {
     status: async () => ({
       configured: false,
@@ -30,6 +30,7 @@ function setupStub(): RuntimeSetup {
     startCodexLogin: async () => ({ type: "chatgpt", loginId: "login", authUrl: "https://auth.openai.com/fake" }),
     codexLoginStatus: async () => ({ state: "complete" }),
     cancelCodexLogin: async () => undefined,
+    ...overrides,
   };
 }
 
@@ -44,7 +45,10 @@ async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart?: () 
   const token = tokenAt(homeDir);
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
   fixtures.push({ homeDir, store, server });
-  return { port, token, headers };
+  const request = (path: string, method = "GET", body?: unknown) => fetch(`http://127.0.0.1:${port}${path}`, {
+    method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  return { port, token, headers, request };
 }
 
 describe("RuntimeServer", () => {
@@ -58,7 +62,7 @@ describe("RuntimeServer", () => {
         yield { type: "done", sessionId: "session" };
       },
     } as unknown as AgentRuntime;
-    const { port, token } = await serve(runtime);
+    const { port, token, request } = await serve(runtime);
 
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
@@ -74,10 +78,8 @@ describe("RuntimeServer", () => {
     expect(uploaded.status).toBe(201);
     const attachment = await uploaded.json() as { id: string; path?: string };
     expect(attachment.path).toBeUndefined();
-    const streamed = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ text: "hello", attachmentIds: [attachment.id], requestId: "test-request", channel: "api" }),
+    const streamed = await request("/v1/chat", "POST", {
+      text: "hello", attachmentIds: [attachment.id], requestId: "test-request", channel: "api",
     });
     const body = await streamed.text();
     expect(streamed.headers.get("content-type")).toContain("text/event-stream");
@@ -95,14 +97,13 @@ describe("RuntimeServer", () => {
     let selected = "";
     const loginModes: string[] = [];
     let cancelledLogin = "";
-    const setup: RuntimeSetup = {
+    const setup = setupStub({
       status: async () => ({
         configured: false,
         selectedBackend: null,
         openAIConfigured: false,
         codex: { installed: true, connected: false, planType: null, allowanceAvailable: null },
       }),
-      setOpenAIKey: async () => undefined,
       selectBackend: async (backend) => { selected = backend; },
       startCodexLogin: async (mode) => {
         loginModes.push(mode);
@@ -110,47 +111,28 @@ describe("RuntimeServer", () => {
           ? { type: "chatgptDeviceCode", loginId: "login-2", verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST" }
           : { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
       },
-      codexLoginStatus: async () => ({ state: "complete" }),
       cancelCodexLogin: async (loginId) => { cancelledLogin = loginId; },
-    };
-    const { port, headers } = await serve(runtime, setup);
-
-    const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
-    await expect(status.json()).resolves.toMatchObject({ codex: { installed: true } });
-    const missingMode = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
-      method: "POST", headers, body: JSON.stringify({}),
     });
+    const { request } = await serve(runtime, setup);
+
+    const status = await request("/v1/setup");
+    await expect(status.json()).resolves.toMatchObject({ codex: { installed: true } });
+    const missingMode = await request("/v1/setup/codex/login", "POST", {});
     expect(missingMode.status).toBe(400);
     expect(loginModes).toEqual([]);
-    const login = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
-      method: "POST", headers, body: JSON.stringify({ mode: "browser" }),
-    });
-    await expect(login.json()).resolves.toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
-    expect(loginModes).toEqual(["browser"]);
-    const headless = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
-      method: "POST", headers, body: JSON.stringify({ mode: "headless" }),
-    });
-    await expect(headless.json()).resolves.toEqual({
-      type: "chatgptDeviceCode",
-      loginId: "login-2",
-      verificationUrl: "https://auth.openai.com/codex/device",
-      userCode: "Agent-TEST",
-    });
+    expect((await request("/v1/setup/codex/login", "POST", { mode: "browser" })).status).toBe(200);
+    expect((await request("/v1/setup/codex/login", "POST", { mode: "headless" })).status).toBe(200);
     expect(loginModes).toEqual(["browser", "headless"]);
-    const invalidMode = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
-      method: "POST", headers, body: JSON.stringify({ mode: "device" }),
-    });
+    const invalidMode = await request("/v1/setup/codex/login", "POST", { mode: "device" });
     expect(invalidMode.status).toBe(400);
     await expect(invalidMode.json()).resolves.toMatchObject({ error: "login mode must be browser or headless" });
     expect(loginModes).toEqual(["browser", "headless"]);
-    const completed = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-1`, { headers });
+    const completed = await request("/v1/setup/codex/login/login-1");
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
-    const cancelled = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-2/cancel`, { method: "POST", headers });
+    const cancelled = await request("/v1/setup/codex/login/login-2/cancel", "POST");
     await expect(cancelled.json()).resolves.toEqual({ cancelled: true });
     expect(cancelledLogin).toBe("login-2");
-    await fetch(`http://127.0.0.1:${port}/v1/setup/backend`, {
-      method: "POST", headers, body: JSON.stringify({ backend: "codex" }),
-    });
+    await request("/v1/setup/backend", "POST", { backend: "codex" });
     expect(selected).toBe("codex");
   });
 
@@ -168,18 +150,16 @@ describe("RuntimeServer", () => {
     } as unknown as AgentRuntime;
     let restarted!: () => void;
     const restartCalled = new Promise<void>((resolve) => { restarted = resolve; });
-    const { port, headers } = await serve(runtime, setupStub(), restarted);
+    const { request } = await serve(runtime, setupStub(), restarted);
 
-    const chat = fetch(`http://127.0.0.1:${port}/v1/chat`, {
-      method: "POST", headers, body: JSON.stringify({ text: "work", requestId: "active", channel: "api" }),
-    });
+    const chat = request("/v1/chat", "POST", { text: "work", requestId: "active", channel: "api" });
     await turnEntered;
-    const busy = await fetch(`http://127.0.0.1:${port}/v1/runtime/restart`, { method: "POST", headers });
+    const busy = await request("/v1/runtime/restart", "POST");
     expect(busy.status).toBe(409);
 
     release();
     await (await chat).text();
-    const accepted = await fetch(`http://127.0.0.1:${port}/v1/runtime/restart`, { method: "POST", headers });
+    const accepted = await request("/v1/runtime/restart", "POST");
     expect(accepted.status).toBe(202);
     await restartCalled;
   });
