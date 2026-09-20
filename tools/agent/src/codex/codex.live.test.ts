@@ -6,9 +6,7 @@ import { cleanup, temporary } from "../test-support.js";
 import { createAgentCodexAppServer } from "./app-server.js";
 import type { JsonRpcMessage } from "./protocol.js";
 
-const live = process.env.AGENT_LIVE_CODEX === "1" ? it : it.skip;
-
-live("runs an opt-in Codex subscription turn without reading stored credentials", async () => {
+it("runs an opt-in Codex subscription turn without reading stored credentials", async () => {
   const cwd = temporary("agent-codex-live-");
   const client = createAgentCodexAppServer(
     { homeDir: process.env.AGENT_HOME ?? join(homedir(), ".agent"), codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" },

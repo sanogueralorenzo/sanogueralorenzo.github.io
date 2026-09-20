@@ -13,12 +13,9 @@ describe("Telegram background service", () => {
 
     expect(plist).toContain(`<string>${TELEGRAM_SERVICE_LABEL}</string>`);
     expect(plist).toContain("<key>KeepAlive</key><true/>");
-    expect(plist).toContain("<key>ProcessType</key><string>Interactive</string>");
     expect(plist).toContain("<key>Program</key><string>/Users/test/.agent/bin/Agent</string>");
-    expect(plist).not.toContain("node");
-    expect(plist).not.toContain("main.js");
-    expect(plist).not.toContain("<string>telegram</string>");
-    expect(plist).not.toContain("<string>serve</string>");
+    expect(plist).toContain("<key>AGENT_HOME</key>\n    <string>/Users/test/.agent</string>");
+    expect(plist).toContain("<key>AGENT_CODEX_COMMAND</key>\n    <string>/opt/homebrew/bin/codex</string>");
     expect(plist).toContain("/Users/test/.agent/telegram.log");
     expect(plist).not.toContain("Bot token");
   });

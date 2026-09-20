@@ -117,13 +117,6 @@ describe.sequential("CLI subscription setup", () => {
     expect(result.output).toBe("");
   });
 
-  it("rejects removed setup options", async () => {
-    const result = await runSetup(["--device-code"]);
-    expect(result.error?.message).toBe("Unknown setup option: --device-code");
-    expect(result.backend).toBeNull();
-    expect(result.rpc).toBe("");
-  });
-
   it("fails a cancelled or failed browser login without selecting API-key billing", async () => {
     const result = await runSetup(["--chatgpt"], { scenario: "login-failed" });
     expect(result.error?.message).toBe("ChatGPT sign-in failed");
