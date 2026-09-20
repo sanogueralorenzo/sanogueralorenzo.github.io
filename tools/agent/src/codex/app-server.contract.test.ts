@@ -8,7 +8,7 @@ import type { RuntimeConfig } from "../conversation/types.js";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { cleanup, temporary } from "../test-support.js";
 import { CodexAppServer, CodexRpcError, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
-import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
+import { CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
 
@@ -16,7 +16,6 @@ function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer
   const appServer = new CodexAppServer({
     command: process.execPath,
     args: [fixture],
-    installed: true,
     requestTimeoutMs: 2_000,
     env: { ...process.env, AGENT_FAKE_SCENARIO: scenario, ...extra },
   });
@@ -36,7 +35,6 @@ const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
 function config(homeDir: string): RuntimeConfig {
   return {
     homeDir,
-    host: "127.0.0.1",
     port: 0,
     codexCommand: "codex",
   };
@@ -77,7 +75,6 @@ describe("Codex app-server contract", () => {
       { homeDir, codexCommand: process.execPath },
       {
         args: [fixture],
-        installed: true,
         env: {
           CODEX_HOME: "/tmp/must-not-be-used",
           CODEX_SQLITE_HOME: "/tmp/must-not-be-used",
@@ -295,11 +292,11 @@ describe("Codex app-server contract", () => {
   });
 
   it.each([
-    ["expired", CodexAuthenticationError],
-    ["exhausted", CodexAllowanceError],
-  ])("classifies %s account failures", async (scenario, ErrorType) => {
+    ["expired", /session has expired/],
+    ["exhausted", /allowance is currently exhausted/],
+  ])("classifies %s account failures", async (scenario, message) => {
     const { backend, input } = backendFixture(scenario);
-    await expect(collect(backend, input)).rejects.toBeInstanceOf(ErrorType);
+    await expect(collect(backend, input)).rejects.toThrow(message);
   });
 
   it("uses API-key mode only after it was explicitly selected", async () => {

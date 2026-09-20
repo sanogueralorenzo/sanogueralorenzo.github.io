@@ -22,7 +22,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig 
   const port = Number.parseInt(env.AGENT_PORT ?? "47821", 10);
   return {
     homeDir,
-    host: env.AGENT_HOST ?? "127.0.0.1",
     port: Number.isFinite(port) ? port : 47821,
     codexCommand: env.AGENT_CODEX_COMMAND ?? "codex",
   };

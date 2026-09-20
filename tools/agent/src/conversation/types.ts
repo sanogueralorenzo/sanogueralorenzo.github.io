@@ -68,7 +68,6 @@ export interface TurnRequest {
 
 export interface RuntimeConfig {
   homeDir: string;
-  host: string;
   port: number;
   codexCommand: string;
 }

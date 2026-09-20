@@ -47,20 +47,19 @@ export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
   private readonly controllers = new Map<string, AbortController>();
   private server = createServer(this.handle.bind(this));
-  private restarting = false;
 
   constructor(
     private readonly config: RuntimeConfig,
     private readonly runtime: AgentRuntime,
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
-    private readonly onRestart?: () => void,
+    private readonly onRestart: () => void,
   ) {}
 
   async listen(): Promise<number> {
     await new Promise<void>((resolve, reject) => {
       this.server.once("error", reject);
-      this.server.listen(this.config.port, this.config.host, () => resolve());
+      this.server.listen(this.config.port, "127.0.0.1", () => resolve());
     });
     const port = (this.server.address() as AddressInfo).port;
     writePrivateFile(join(this.config.homeDir, "runtime.json"), `${JSON.stringify({ protocolVersion: 1, port, token: this.token, pid: process.pid })}\n`);
@@ -76,7 +75,7 @@ export class RuntimeServer {
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const url = new URL(request.url ?? "/", `http://${this.config.host}`);
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
     if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: 1, pid: process.pid });
     if (request.headers.authorization !== `Bearer ${this.token}`) return json(response, 401, { error: "unauthorized" });
 
@@ -128,9 +127,7 @@ export class RuntimeServer {
           return json(response, 200, { cancelled: Boolean(controller) });
         }
         case "POST /v1/runtime/restart": {
-          if (!this.onRestart) return json(response, 501, { error: "restart_unavailable" });
           if (this.controllers.size) return json(response, 409, { error: "runtime_busy" });
-          this.restarting = true;
           json(response, 202, { restarting: true });
           setImmediate(this.onRestart);
           return;
@@ -147,9 +144,7 @@ export class RuntimeServer {
           const { path: _path, ...visible } = attachment;
           return json(response, 201, visible);
         }
-        case "POST /v1/chat":
-          if (this.restarting) return json(response, 503, { error: "runtime_restarting" });
-          return this.chat(request, response);
+        case "POST /v1/chat": return this.chat(request, response);
         default: return json(response, 404, { error: "not_found" });
       }
     } catch (error) {

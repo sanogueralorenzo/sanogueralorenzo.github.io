@@ -26,10 +26,10 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
 
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
-async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart?: () => void) {
+async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart = () => undefined) {
   const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
-  const config: RuntimeConfig = { homeDir, host: "127.0.0.1", port: 0, codexCommand: "codex" };
+  const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
   const server = new RuntimeServer(config, runtime, store, setup, onRestart);
   const port = await server.listen();
   const token = tokenAt(homeDir);

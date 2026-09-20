@@ -54,7 +54,6 @@ function routingModel(transcribeAudio?: ModelClient["transcribeAudio"]): TestMod
 function config(homeDir: string): RuntimeConfig {
   return {
     homeDir,
-    host: "127.0.0.1",
     port: 0,
     codexCommand: "codex",
   };

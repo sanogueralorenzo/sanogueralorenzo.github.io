@@ -15,11 +15,10 @@ function setup(scenario: string | null, apiKey = false, selected?: BackendKind) 
   const store = new Store(homeDir);
   if (selected) store.setSetting("backend", selected);
   const codex = scenario === null
-    ? new CodexAppServer({ command: "missing-codex", installed: false })
+    ? new CodexAppServer({ command: "missing-codex" })
     : new CodexAppServer({
       command: process.execPath,
       args: [fakeServer],
-      installed: true,
       env: { ...process.env, AGENT_FAKE_SCENARIO: scenario },
     });
   const model = { isConfigured: () => apiKey, setApiKey: async () => undefined } as unknown as OpenAIModelClient;

@@ -30,7 +30,6 @@ export interface CodexAppServerOptions {
   command: string;
   args?: string[];
   env?: NodeJS.ProcessEnv;
-  installed?: boolean;
   requestTimeoutMs?: number;
 }
 
@@ -85,7 +84,6 @@ export class CodexAppServer extends EventEmitter {
   }
 
   isInstalled(): boolean {
-    if (this.options.installed !== undefined) return this.options.installed;
     const result = spawnSync(this.options.command, ["--version"], { stdio: "ignore" });
     return !result.error && result.status === 0;
   }

@@ -26,7 +26,7 @@ const server = new RuntimeServer(config, runtime, store, setup, () => void close
 
 const port = await server.listen();
 if (process.send) process.send({ type: "ready", port });
-else console.log(`Agent runtime listening on http://${config.host}:${port}`);
+else console.log(`Agent runtime listening on http://127.0.0.1:${port}`);
 
 let closing = false;
 async function close(): Promise<void> {

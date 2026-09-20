@@ -10,26 +10,14 @@ import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import type { JsonRpcMessage } from "./protocol.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
 
-export class CodexAuthenticationError extends Error {
-  constructor(message = "Your ChatGPT session has expired. Run `agent setup` to reconnect it.") {
-    super(message);
-  }
-}
-
-export class CodexAllowanceError extends Error {
-  constructor(message = "Your included Codex allowance is currently exhausted. Check usage with `agent setup`, or choose API-key billing there.") {
-    super(message);
-  }
-}
-
 function object(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
 }
 
 function classifiedError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
-  if (/auth|login|token|unauthorized/i.test(message)) return new CodexAuthenticationError();
-  if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new CodexAllowanceError();
+  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your ChatGPT session has expired. Run `agent setup` to reconnect it.");
+  if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your included Codex allowance is currently exhausted. Check usage with `agent setup`, or choose API-key billing there.");
   return error instanceof Error ? error : new Error(message);
 }
 
