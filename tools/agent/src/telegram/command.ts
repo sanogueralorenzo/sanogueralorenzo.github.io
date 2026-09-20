@@ -1,5 +1,4 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Bot, InputFile, type Context } from "grammy";
@@ -10,6 +9,7 @@ import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../core/assets.js";
+import { readPrivateJson, writePrivateJson } from "../core/files.js";
 import { installTelegramBackgroundService } from "./service.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 import { keepTelegramTyping, pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
@@ -27,22 +27,11 @@ function statePath(homeDir: string): string {
 }
 
 function readState(homeDir: string): TelegramState | null {
-  try {
-    return JSON.parse(readFileSync(statePath(homeDir), "utf8")) as TelegramState;
-  } catch {
-    return null;
-  }
+  return readPrivateJson(statePath(homeDir));
 }
 
 function writeState(homeDir: string, state: TelegramState): void {
-  mkdirSync(homeDir, { recursive: true, mode: 0o700 });
-  chmodSync(homeDir, 0o700);
-  const path = statePath(homeDir);
-  if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new Error("Telegram state must not be a symbolic link.");
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporary, path);
-  chmodSync(path, 0o600);
+  writePrivateJson(statePath(homeDir), state);
 }
 
 async function setupTelegram(): Promise<string> {

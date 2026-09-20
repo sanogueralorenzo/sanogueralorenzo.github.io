@@ -1,19 +1,14 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import {
-  chmodSync,
   existsSync,
-  lstatSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
   watch,
-  writeFileSync,
   type FSWatcher,
 } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import { promisify } from "node:util";
+import { readPrivateJson, writePrivateJson } from "../core/files.js";
 
 const execFileAsync = promisify(execFile);
 const ROOT_FILES = new Set(["package.json", "package-lock.json", "tsconfig.json", "vitest.config.ts"]);
@@ -72,22 +67,11 @@ function statePath(homeDir: string): string {
 }
 
 function readState(homeDir: string): UpdateState | null {
-  try {
-    return JSON.parse(readFileSync(statePath(homeDir), "utf8")) as UpdateState;
-  } catch {
-    return null;
-  }
+  return readPrivateJson(statePath(homeDir));
 }
 
 function writeState(homeDir: string, state: UpdateState): void {
-  mkdirSync(homeDir, { recursive: true, mode: 0o700 });
-  chmodSync(homeDir, 0o700);
-  const path = statePath(homeDir);
-  if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new Error("Agent update state must not be a symbolic link.");
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporary, path);
-  chmodSync(path, 0o600);
+  writePrivateJson(statePath(homeDir), state);
 }
 
 export function pendingUpdateOwner(homeDir: string): string | null {

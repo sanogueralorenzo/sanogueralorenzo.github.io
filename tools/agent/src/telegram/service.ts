@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RuntimeConfig } from "../core/types.js";
+import { ensurePrivateDirectory, writePrivateFile } from "../core/files.js";
 
 export const TELEGRAM_SERVICE_LABEL = "dev.agent.telegram";
 
@@ -132,20 +133,12 @@ export async function installTelegramBackgroundService(
   const launchAgents = join(homedir(), "Library", "LaunchAgents");
   mkdirSync(launchAgents, { recursive: true, mode: 0o755 });
   if (lstatSync(launchAgents).isSymbolicLink()) throw new Error("The user LaunchAgents directory must not be a symbolic link.");
-  mkdirSync(config.homeDir, { recursive: true, mode: 0o700 });
-  chmodSync(config.homeDir, 0o700);
+  ensurePrivateDirectory(config.homeDir);
 
   const binDirectory = join(config.homeDir, "bin");
-  mkdirSync(binDirectory, { recursive: true, mode: 0o700 });
-  if (lstatSync(binDirectory).isSymbolicLink()) throw new Error("The Agent bin directory must not be a symbolic link.");
+  ensurePrivateDirectory(binDirectory);
   const launcherPath = join(binDirectory, "Agent");
-  if (existsSync(launcherPath) && lstatSync(launcherPath).isSymbolicLink()) {
-    throw new Error("The Agent Telegram launcher must not be a symbolic link.");
-  }
-  const launcherTemporary = `${launcherPath}.${process.pid}.tmp`;
-  writeFileSync(launcherTemporary, renderTelegramGatewayLauncher(process.execPath, serviceEntry), { mode: 0o700 });
-  renameSync(launcherTemporary, launcherPath);
-  chmodSync(launcherPath, 0o700);
+  writePrivateFile(launcherPath, renderTelegramGatewayLauncher(process.execPath, serviceEntry), 0o700);
 
   const plistPath = join(launchAgents, `${TELEGRAM_SERVICE_LABEL}.plist`);
   if (existsSync(plistPath) && lstatSync(plistPath).isSymbolicLink()) {

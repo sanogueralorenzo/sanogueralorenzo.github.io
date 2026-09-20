@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { unlinkSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
@@ -9,6 +9,7 @@ import type { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js";
 import type { BackendSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../core/assets.js";
+import { readPrivateJson, writePrivateFile } from "../core/files.js";
 
 interface Discovery {
   protocolVersion: 1;
@@ -71,20 +72,17 @@ export class RuntimeServer {
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
     const path = join(this.config.homeDir, "runtime.json");
     try {
-      const discovery = JSON.parse(readFileSync(path, "utf8")) as Discovery;
-      if (discovery.pid === process.pid && discovery.token === this.token) unlinkSync(path);
+      const discovery = readPrivateJson<Discovery>(path);
+      if (discovery?.pid === process.pid && discovery.token === this.token) unlinkSync(path);
     } catch {
       // A replacement runtime may already own discovery.
     }
   }
 
   private writeDiscovery(port: number): void {
-    mkdirSync(this.config.homeDir, { recursive: true, mode: 0o700 });
     const path = join(this.config.homeDir, "runtime.json");
-    const temp = `${path}.${process.pid}.tmp`;
     const discovery: Discovery = { protocolVersion: 1, port, token: this.token, pid: process.pid };
-    writeFileSync(temp, `${JSON.stringify(discovery)}\n`, { mode: 0o600 });
-    renameSync(temp, path);
+    writePrivateFile(path, `${JSON.stringify(discovery)}\n`);
   }
 
   private authorized(request: IncomingMessage): boolean {

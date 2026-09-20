@@ -1,8 +1,9 @@
-import { chmodSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Attachment, Memory, Message, Session, WorkKind } from "./types.js";
+import { ensurePrivateDirectory } from "./files.js";
 
 const now = () => new Date().toISOString();
 const SESSION_COLUMNS = `id, scope_key AS "scopeKey", kind, cwd, title, updated_at AS "updatedAt"`;
@@ -12,11 +13,7 @@ export class Store {
   readonly db: DatabaseSync;
 
   constructor(homeDir: string, filename = "agent.sqlite", options: { recoverRuns?: boolean } = {}) {
-    mkdirSync(homeDir, { recursive: true, mode: 0o700 });
-    const homeStat = lstatSync(homeDir);
-    if (homeStat.isSymbolicLink()) throw new Error("AGENT_HOME must not be a symbolic link.");
-    if (typeof process.getuid === "function" && homeStat.uid !== process.getuid()) throw new Error("AGENT_HOME is owned by another user.");
-    chmodSync(homeDir, 0o700);
+    ensurePrivateDirectory(homeDir);
     const databasePath = join(homeDir, filename);
     if (existsSync(databasePath) && lstatSync(databasePath).isSymbolicLink()) throw new Error("Agent database must not be a symbolic link.");
     this.db = new DatabaseSync(databasePath);

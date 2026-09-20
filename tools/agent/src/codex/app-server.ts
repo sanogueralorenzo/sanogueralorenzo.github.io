@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { chmodSync, existsSync, lstatSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
 import type { RuntimeConfig } from "../core/types.js";
@@ -12,6 +12,7 @@ import type {
   JsonRpcMessage,
 } from "./protocol.js";
 import { redactSecrets } from "../core/security.js";
+import { ensurePrivateDirectory, writePrivateFile } from "../core/files.js";
 
 type NotificationListener = (message: JsonRpcMessage) => void;
 
@@ -39,17 +40,14 @@ export interface CodexAppServerOptions {
 
 export function prepareAgentCodexHome(homeDir: string): string {
   const codexHome = join(homeDir, "codex");
-  mkdirSync(homeDir, { recursive: true, mode: 0o700 });
-  chmodSync(homeDir, 0o700);
+  ensurePrivateDirectory(homeDir);
   if (existsSync(codexHome)) {
     const stat = lstatSync(codexHome);
     if (stat.isSymbolicLink() || !stat.isDirectory()) {
       throw new Error("Agent's private Codex profile must be a real directory, not a file or symbolic link.");
     }
-  } else {
-    mkdirSync(codexHome, { mode: 0o700 });
   }
-  chmodSync(codexHome, 0o700);
+  ensurePrivateDirectory(codexHome);
   const configPath = join(codexHome, "config.toml");
   if (existsSync(configPath)) {
     const stat = lstatSync(configPath);
@@ -57,10 +55,7 @@ export function prepareAgentCodexHome(homeDir: string): string {
       throw new Error("Agent's private Codex configuration must be a real file.");
     }
   }
-  const temporary = `${configPath}.${process.pid}.tmp`;
-  writeFileSync(temporary, "[agents]\nenabled = false\n", { mode: 0o600 });
-  renameSync(temporary, configPath);
-  chmodSync(configPath, 0o600);
+  writePrivateFile(configPath, "[agents]\nenabled = false\n");
   return codexHome;
 }
 
