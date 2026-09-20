@@ -18,7 +18,7 @@ const responses = new ResponsesBackend(config, store, model);
 const codexClient = createAgentCodexAppServer(config);
 const codex = new CodexBackend(config, store, codexClient);
 const backends = new BackendRegistry(store, responses, codex);
-const runtime = new AgentRuntime(config, store, backends);
+const runtime = new AgentRuntime(store, backends);
 const setup = new BackendSetupService(store, model, codexClient, (key) => {
   writeSecret("openai", key, config.homeDir);
 });

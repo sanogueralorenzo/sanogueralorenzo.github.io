@@ -63,7 +63,7 @@ function runtime(homeDir: string, store: Store, model: ModelClient): AgentRuntim
   const currentConfig = config(homeDir);
   const responses = new ResponsesBackend(currentConfig, store, model);
   store.setSetting("backend", "responses");
-  return new AgentRuntime(currentConfig, store, new BackendRegistry(store, responses, responses));
+  return new AgentRuntime(store, new BackendRegistry(store, responses, responses));
 }
 
 function testRuntime(model: ModelClient) {

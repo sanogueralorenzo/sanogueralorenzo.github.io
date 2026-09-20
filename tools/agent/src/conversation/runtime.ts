@@ -4,11 +4,7 @@ import type { BackendRegistry } from "./backend.js";
 import { routeTurn } from "./router.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
-import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "./types.js";
-
-export interface RunOptions {
-  signal?: AbortSignal;
-}
+import type { RuntimeEvent, TurnRequest } from "./types.js";
 
 function scopeFor(request: TurnRequest, kind: "personal" | "coding"): string {
   if (kind === "coding" && request.cwd) return `project:${resolve(request.cwd)}`;
@@ -25,52 +21,46 @@ function explicitMemory(text: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
+function failureMessage(error: unknown, signal?: AbortSignal): string {
+  return signal?.aborted || (error instanceof Error && error.name === "AbortError")
+    ? "Interrupted. Your session is saved."
+    : error instanceof Error ? error.message : String(error);
+}
+
 export class AgentRuntime {
   private readonly sessionTails = new Map<string, Promise<void>>();
 
   constructor(
-    private readonly config: RuntimeConfig,
     private readonly store: Store,
     private readonly backends: BackendRegistry,
   ) {}
 
-  async *run(incoming: TurnRequest, options: RunOptions = {}): AsyncGenerator<RuntimeEvent> {
+  async *run(incoming: TurnRequest, options: { signal?: AbortSignal } = {}): AsyncGenerator<RuntimeEvent> {
     let backend;
     let terminal: RuntimeEvent;
     try {
       backend = await this.backends.resolve();
     } catch (error) {
-      yield { type: "error", message: error instanceof Error ? error.message : String(error) };
+      yield { type: "error", message: failureMessage(error) };
       return;
     }
 
-    const audio = incoming.attachments?.filter((attachment) => attachment.kind === "audio") ?? [];
     let text = incoming.text.trim();
     try {
-      for (const attachment of audio) {
+      for (const attachment of incoming.attachments?.filter(({ kind }) => kind === "audio") ?? []) {
         yield { type: "status", message: "Listening…" };
         const transcript = await backend.transcribeAudio(attachment, options.signal);
         text = [text, transcript].filter(Boolean).join("\n\n");
       }
     } catch (error) {
-      const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
-      yield {
-        type: "error",
-        message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
-      };
+      yield { type: "error", message: failureMessage(error, options.signal) };
       return;
     }
     if (!text) {
       yield { type: "error", message: "The message is empty." };
       return;
     }
-    const request: TurnRequest = {
-      ...incoming,
-      text,
-      ...(incoming.attachments
-        ? { attachments: incoming.attachments.filter((attachment) => attachment.kind !== "audio") }
-        : {}),
-    };
+    const request: TurnRequest = { ...incoming, text };
     const explicitSession = request.sessionId ? this.store.getSession(request.sessionId) : null;
     const priorSession = request.fresh ? null : explicitSession ?? this.store.listSessions(1)[0];
     const route = routeTurn(request, priorSession?.kind);
@@ -130,17 +120,12 @@ export class AgentRuntime {
         }
       }
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", assistantText);
-      this.store.finishRun(runId);
       terminal = { type: "done", sessionId: session.id };
     } catch (error) {
-      const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
-      this.store.finishRun(runId);
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", `${assistantText}\n\n[interrupted]`);
-      terminal = {
-        type: "error",
-        message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
-      };
+      terminal = { type: "error", message: failureMessage(error, options.signal) };
     } finally {
+      this.store.finishRun(runId);
       release();
     }
     yield terminal;

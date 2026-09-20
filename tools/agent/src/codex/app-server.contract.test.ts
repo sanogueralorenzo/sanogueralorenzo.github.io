@@ -248,7 +248,7 @@ describe("Codex app-server contract", () => {
     const store = trackedStore(homeDir);
     store.setSetting("backend", "codex");
     const codex = new CodexBackend(config(homeDir), store, client("normal"));
-    const runtime = new AgentRuntime(config(homeDir), store, new BackendRegistry(store, codex, codex));
+    const runtime = new AgentRuntime(store, new BackendRegistry(store, codex, codex));
     const events = [];
     for await (const event of runtime.run({ text: "Fix the test", cwd: homeDir, channel: "api" })) events.push(event);
 
