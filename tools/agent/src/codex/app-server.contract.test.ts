@@ -75,6 +75,14 @@ async function collect(backend: CodexBackend, input: BackendTurn) {
   return events;
 }
 
+function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, worker: BackendTurn["route"]["worker"] = "coding") {
+  const homeDir = temp("agent-codex-");
+  const log = join(homeDir, "rpc.log");
+  const store = trackedStore(homeDir);
+  const backend = new CodexBackend(config(homeDir), store, client(scenario, { AGENT_FAKE_LOG: log, ...extra }));
+  return { homeDir, log, store, backend, input: turn(store, homeDir, worker) };
+}
+
 describe("Codex app-server contract", () => {
   it("runs production app-server in a private, locked-down Agent profile", async () => {
     const homeDir = temp("agent-codex-profile-");
@@ -123,43 +131,28 @@ describe("Codex app-server contract", () => {
     expect(() => prepareAgentCodexHome(homeDir)).toThrow(/real directory/);
   });
 
-  it("starts browser login with a neutral local confirmation page", async () => {
-    const homeDir = temp("agent-codex-browser-");
+  it.each([
+    ["browser", "chatgpt", { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" }],
+    ["headless", "chatgptDeviceCode", {
+      type: "chatgptDeviceCode", loginId: "login-1", verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST",
+    }],
+  ] as const)("starts the explicit %s login flow", async (mode, requestType, expected) => {
+    const homeDir = temp(`agent-codex-${mode}-`);
     const log = join(homeDir, "rpc.log");
     const appServer = client("login-success", { AGENT_FAKE_LOG: log });
-    const login = await appServer.beginLogin("browser");
+    const login = await appServer.beginLogin(mode);
 
-    expect(login).toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
+    expect(login).toEqual(expected);
     const request = requests(log).find((message) => message.method === "account/login/start");
-    expect(request?.params).toEqual({ type: "chatgpt" });
+    expect(request?.params).toEqual({ type: requestType });
     await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
   });
 
-  it("starts the documented device-code flow only for explicit headless setup", async () => {
-    const homeDir = temp("agent-codex-headless-");
-    const log = join(homeDir, "rpc.log");
-    const appServer = client("login-success", { AGENT_FAKE_LOG: log });
-    const login = await appServer.beginLogin("headless");
-
-    expect(login).toEqual({
-      type: "chatgptDeviceCode",
-      loginId: "login-1",
-      verificationUrl: "https://auth.openai.com/codex/device",
-      userCode: "Agent-TEST",
-    });
-    const request = requests(log).find((message) => message.method === "account/login/start");
-    expect(request?.params).toEqual({ type: "chatgptDeviceCode" });
-    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
-  });
-
-  it("rejects a device response during browser login instead of switching flows", async () => {
-    const appServer = client("device-response");
-    await expect(appServer.beginLogin("browser")).rejects.toThrow(/valid browser login/);
-  });
-
-  it("rejects a browser response during headless login instead of switching flows", async () => {
-    const appServer = client("browser-response");
-    await expect(appServer.beginLogin("headless")).rejects.toThrow(/valid headless login/);
+  it.each([
+    ["browser", "device-response"],
+    ["headless", "browser-response"],
+  ] as const)("never substitutes another flow for %s login", async (mode, scenario) => {
+    await expect(client(scenario).beginLogin(mode)).rejects.toThrow(new RegExp(`valid ${mode} login`));
   });
 
   it.each([
@@ -194,15 +187,12 @@ describe("Codex app-server contract", () => {
   });
 
   it("normalizes streamed agent and tool events", async () => {
-    const homeDir = temp("agent-codex-stream-");
-    const store = trackedStore(homeDir);
-    const appServer = client("normal");
-    const backend = new CodexBackend(config(homeDir), store, appServer);
-    const events = await collect(backend, turn(store, homeDir));
+    const { store, backend, input } = backendFixture();
+    const events = await collect(backend, input);
 
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
-    expect(store.backendSession(turn(store, homeDir).session.id, "codex")).toBe("thread-2");
+    expect(store.backendSession(input.session.id, "codex")).toBe("thread-2");
   });
 
   it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
@@ -256,12 +246,8 @@ describe("Codex app-server contract", () => {
   });
 
   it("pins Sol-high coding work and Luna-high coordination without exposing native subagents", async () => {
-    const homeDir = temp("agent-codex-model-policy-");
-    const log = join(homeDir, "rpc.log");
-    const store = trackedStore(homeDir);
-    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
-
-    await collect(backend, turn(store, homeDir));
+    const { backend, input, log } = backendFixture();
+    await collect(backend, input);
 
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
@@ -278,11 +264,7 @@ describe("Codex app-server contract", () => {
   });
 
   it("starts Astra-high only when the route records an explicit request", async () => {
-    const homeDir = temp("agent-codex-astra-policy-");
-    const log = join(homeDir, "rpc.log");
-    const store = trackedStore(homeDir);
-    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
-    const input = turn(store, homeDir, "astra");
+    const { backend, input, log } = backendFixture("normal", {}, "astra");
     input.request.text = "Use Astra high to investigate this architecture";
 
     await collect(backend, input);
@@ -359,18 +341,12 @@ describe("Codex app-server contract", () => {
     expect(store.backendSession(input.session.id, "codex")).toBe("missing-thread-id");
   });
 
-  it("reports expired authentication distinctly", async () => {
-    const homeDir = temp("agent-codex-auth-");
-    const store = trackedStore(homeDir);
-    const backend = new CodexBackend(config(homeDir), store, client("expired"));
-    await expect(collect(backend, turn(store, homeDir))).rejects.toBeInstanceOf(CodexAuthenticationError);
-  });
-
-  it("reports exhausted included allowance without using an API key", async () => {
-    const homeDir = temp("agent-codex-limit-");
-    const store = trackedStore(homeDir);
-    const backend = new CodexBackend(config(homeDir), store, client("exhausted"));
-    await expect(collect(backend, turn(store, homeDir))).rejects.toBeInstanceOf(CodexAllowanceError);
+  it.each([
+    ["expired", CodexAuthenticationError],
+    ["exhausted", CodexAllowanceError],
+  ])("classifies %s account failures", async (scenario, ErrorType) => {
+    const { backend, input } = backendFixture(scenario);
+    await expect(collect(backend, input)).rejects.toBeInstanceOf(ErrorType);
   });
 
   it("uses API-key mode only after it was explicitly selected", async () => {

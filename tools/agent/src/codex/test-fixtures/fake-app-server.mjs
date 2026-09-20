@@ -4,14 +4,11 @@ import readline from "node:readline";
 const scenario = process.env.AGENT_FAKE_SCENARIO ?? "normal";
 const marker = process.env.AGENT_FAKE_MARKER;
 const log = process.env.AGENT_FAKE_LOG;
-const envLog = process.env.AGENT_FAKE_ENV_LOG;
 const artifactPath = process.env.AGENT_FAKE_ARTIFACT;
-const lines = readline.createInterface({ input: process.stdin });
 let threadCounter = 0;
 let turnCounter = 0;
-let realtimeTranscriptSent = false;
 
-if (envLog) writeFileSync(envLog, JSON.stringify({
+if (process.env.AGENT_FAKE_ENV_LOG) writeFileSync(process.env.AGENT_FAKE_ENV_LOG, JSON.stringify({
   CODEX_HOME: process.env.CODEX_HOME ?? null,
   CODEX_SQLITE_HOME: process.env.CODEX_SQLITE_HOME ?? null,
   CODEX_ACCESS_TOKEN: process.env.CODEX_ACCESS_TOKEN ?? null,
@@ -19,178 +16,97 @@ if (envLog) writeFileSync(envLog, JSON.stringify({
 }));
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
+const reply = (id, result = {}) => send({ id, result });
+const fail = (id, message) => send({ id, error: { code: -32601, message } });
+const notify = (method, params) => send({ method, params });
 const record = (method, params) => {
   if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
 };
-const allowedLimits = {
-  ordinaryUsageAllowed: true,
+const limits = {
+  ordinaryUsageAllowed: scenario !== "exhausted",
   rateLimits: {
     limitId: "codex",
     limitName: "Codex",
-    primary: { usedPercent: 22, windowDurationMins: 300, resetsAt: 1893456000 },
-    secondary: null,
+    primary: { usedPercent: scenario === "exhausted" ? 100 : 22, resetsAt: 1893456000 },
     planType: "plus",
-    rateLimitReachedType: null,
+    rateLimitReachedType: scenario === "exhausted" ? "rate_limit_reached" : null,
   },
   rateLimitsByLimitId: null,
 };
 
 function completeTurn(threadId, turnId) {
   if (scenario === "image" && artifactPath) {
-    send({ method: "item/started", params: {
-      threadId, turnId, startedAtMs: Date.now(),
-      item: { type: "imageGeneration", id: "image-1", status: "inProgress" },
-    } });
-    send({ method: "item/completed", params: {
-      threadId, turnId, completedAtMs: Date.now(),
-      item: { type: "imageGeneration", id: "image-1", status: "completed", savedPath: artifactPath },
-    } });
+    notify("item/started", { threadId, turnId, item: { type: "imageGeneration", id: "image-1" } });
+    notify("item/completed", { threadId, turnId, item: { type: "imageGeneration", id: "image-1", savedPath: artifactPath } });
   }
-  send({ method: "item/started", params: {
-    threadId, turnId, startedAtMs: Date.now(),
-    item: { type: "commandExecution", id: "tool-1", command: "pwd", cwd: process.cwd(), status: "inProgress" },
-  } });
-  send({ method: "item/completed", params: {
-    threadId, turnId, completedAtMs: Date.now(),
-    item: { type: "commandExecution", id: "tool-1", command: "pwd", cwd: process.cwd(), status: "completed", exitCode: 0 },
-  } });
-  send({ method: "item/agentMessage/delta", params: { threadId, turnId, itemId: "message-1", delta: "Hello from Codex." } });
-  send({ method: "turn/completed", params: {
-    threadId,
-    turn: { id: turnId, status: "completed", items: [], itemsView: "full", error: null },
-  } });
+  notify("item/started", { threadId, turnId, item: { type: "commandExecution", id: "tool-1" } });
+  notify("item/completed", { threadId, turnId, item: { type: "commandExecution", id: "tool-1", exitCode: 0 } });
+  notify("item/agentMessage/delta", { threadId, turnId, delta: "Hello from Codex." });
+  notify("turn/completed", { threadId, turn: { id: turnId, status: "completed" } });
 }
 
-lines.on("line", (line) => {
-  const message = JSON.parse(line);
-  const { id, method, params = {} } = message;
+readline.createInterface({ input: process.stdin }).on("line", (line) => {
+  const { id, method, params = {} } = JSON.parse(line);
   record(method, params);
   if (method === "initialized") return;
-  if (method === "initialize") {
-    send({ id, result: { userAgent: "fake-codex", platformFamily: "unix", platformOs: "test" } });
-    return;
-  }
+  if (method === "initialize") return reply(id);
   if (method === "account/read") {
-    if (scenario === "expired" || scenario.startsWith("login")) {
-      send({ id, result: { account: null, requiresOpenaiAuth: true } });
-    } else {
-      send({ id, result: { account: { type: "chatgpt", email: "fake@example.test", planType: "plus" }, requiresOpenaiAuth: true } });
-    }
-    return;
+    const connected = scenario !== "expired" && !scenario.startsWith("login");
+    return reply(id, { account: connected ? { type: "chatgpt", planType: "plus" } : null });
   }
   if (method === "account/rateLimits/read") {
-    if (scenario === "missing-rate-limits") {
-      send({ id, error: { code: -32601, message: "unsupported fake method: account/rateLimits/read" } });
-    } else if (scenario === "exhausted") {
-      send({ id, result: {
-        ...allowedLimits,
-        ordinaryUsageAllowed: false,
-        rateLimits: { ...allowedLimits.rateLimits, rateLimitReachedType: "rate_limit_reached", primary: { ...allowedLimits.rateLimits.primary, usedPercent: 100 } },
-      } });
-    } else send({ id, result: allowedLimits });
-    return;
+    return scenario === "missing-rate-limits" ? fail(id, "unsupported fake method: account/rateLimits/read") : reply(id, limits);
   }
   if (method === "account/login/start") {
     const loginId = "login-1";
-    if (params.type === "chatgpt") {
-      if (Object.keys(params).length !== 1) {
-        send({ id, error: { code: -32602, message: "local browser login parameters required" } });
-        return;
-      }
-      if (scenario === "device-response") {
-        send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST" } });
-        return;
-      }
-      send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
-    } else if (params.type === "chatgptDeviceCode") {
-      if (Object.keys(params).length !== 1) {
-        send({ id, error: { code: -32602, message: "headless login parameters required" } });
-        return;
-      }
-      if (scenario === "browser-response") {
-        send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
-        return;
-      }
-      send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST" } });
+    const browser = params.type === "chatgpt";
+    if (scenario === "device-response" || (!browser && scenario !== "browser-response")) {
+      reply(id, { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST" });
     } else {
-      send({ id, error: { code: -32602, message: "unsupported login type" } });
-      return;
+      reply(id, { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" });
     }
     if (scenario === "login-pending") return;
-    const loginError = scenario === "login-failed"
-      ? "ChatGPT sign-in failed"
+    const error = scenario === "login-failed" ? "ChatGPT sign-in failed"
       : scenario === "login-expired" ? "The one-time code expired"
         : scenario === "login-cancelled" ? "ChatGPT sign-in was cancelled" : null;
-    setTimeout(() => send({ method: "account/login/completed", params: {
-      loginId,
-      success: loginError === null,
-      error: loginError,
-    } }), 10);
+    setTimeout(() => notify("account/login/completed", { loginId, success: !error, error }), 10);
     return;
   }
   if (method === "account/login/cancel") {
-    send({ id, result: {} });
-    setTimeout(() => send({ method: "account/login/completed", params: {
-      loginId: params.loginId,
-      success: false,
-      error: "ChatGPT sign-in was cancelled",
-    } }), 1);
-    return;
+    reply(id);
+    return setTimeout(() => notify("account/login/completed", {
+      loginId: params.loginId, success: false, error: "ChatGPT sign-in was cancelled",
+    }), 1);
   }
-  if (method === "thread/start") {
-    threadCounter += 1;
-    send({ id, result: { thread: { id: `thread-${threadCounter}` }, model: params.model ?? "fake", modelProvider: "openai", cwd: params.cwd } });
-    return;
-  }
+  if (method === "thread/start") return reply(id, { thread: { id: `thread-${++threadCounter}` } });
   if (method === "thread/resume") {
-    if (scenario === "missing-thread") {
-      send({ id, error: { code: -32000, message: "thread not found in this Codex profile" } });
-      return;
-    }
-    send({ id, result: { thread: { id: params.threadId }, model: "fake", modelProvider: "openai", cwd: params.cwd } });
-    return;
+    return scenario === "missing-thread"
+      ? fail(id, "thread not found in this Codex profile")
+      : reply(id, { thread: { id: params.threadId } });
   }
   if (method === "turn/start") {
     if (scenario === "reconnect" && marker && !existsSync(marker)) {
       writeFileSync(marker, "restarted\n");
       process.exit(23);
     }
-    turnCounter += 1;
-    const turnId = `turn-${turnCounter}`;
-    send({ id, result: { turn: { id: turnId, status: "inProgress", items: [], itemsView: "full", error: null } } });
+    const turnId = `turn-${++turnCounter}`;
+    reply(id, { turn: { id: turnId } });
     if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId), 5);
     return;
   }
   if (method === "turn/interrupt") {
-    send({ id, result: {} });
-    send({ method: "turn/completed", params: {
-      threadId: params.threadId,
-      turn: { id: params.turnId, status: "interrupted", items: [], itemsView: "full", error: null },
-    } });
-    return;
+    reply(id);
+    return notify("turn/completed", { threadId: params.threadId, turn: { id: params.turnId, status: "interrupted" } });
   }
   if (method === "thread/realtime/start") {
-    send({ id, result: {} });
-    send({ method: "thread/realtime/started", params: { threadId: params.threadId, sessionId: "realtime-1" } });
-    send({ method: "thread/realtime/sdp", params: { threadId: params.threadId, sdp: "fake-answer" } });
-    if (!realtimeTranscriptSent) {
-      realtimeTranscriptSent = true;
-      setTimeout(() => send({
-        method: "thread/realtime/transcript/done",
-        params: { threadId: params.threadId, role: "user", text: "Hello from Codex." },
-      }), 5);
-    }
-    return;
+    reply(id);
+    notify("thread/realtime/sdp", { threadId: params.threadId, sdp: "fake-answer" });
+    return setTimeout(() => notify("thread/realtime/transcript/done", {
+      threadId: params.threadId, role: "user", text: "Hello from Codex.",
+    }), 5);
   }
-  if (method === "thread/realtime/appendAudio") {
-    send({ id, result: {} });
-    return;
-  }
-  if (method === "thread/realtime/stop") {
-    send({ id, result: {} });
-    return;
-  }
-  send({ id, error: { code: -32601, message: `unsupported fake method: ${method}` } });
+  if (method === "thread/realtime/stop") return reply(id);
+  fail(id, `unsupported fake method: ${method}`);
 });
 
 process.on("SIGTERM", () => process.exit(0));
