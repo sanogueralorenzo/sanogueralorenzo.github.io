@@ -5,9 +5,7 @@ import { splitTelegramText } from "./text.js";
 
 type TurnClient = Pick<RuntimeClient, "isRunning" | "events" | "cancel">;
 
-export type TelegramTurnResult =
-  | { state: "busy" }
-  | { state: "complete"; chunks: string[]; artifacts: Artifact[] };
+export interface TelegramTurnResult { chunks: string[]; artifacts: Artifact[] }
 
 export function isTelegramOwner(ownerId: string | undefined, chatType: string | undefined, userId: number | undefined): boolean {
   return chatType === "private" && userId !== undefined && ownerId === String(userId);
@@ -30,8 +28,8 @@ export class TelegramTurns {
     return this.client.cancel();
   }
 
-  async run(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<TelegramTurnResult> {
-    if (this.busy) return { state: "busy" };
+  async run(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<TelegramTurnResult | null> {
+    if (this.busy) return null;
     this.preparing = true;
     let output = "";
     let runtimeError = "";
@@ -43,7 +41,6 @@ export class TelegramTurns {
         else if (event.type === "error") runtimeError = event.message;
       }
       return {
-        state: "complete",
         chunks: splitTelegramText([output.trim(), runtimeError].filter(Boolean).join("\n\n")),
         artifacts,
       };
@@ -55,7 +52,7 @@ export class TelegramTurns {
         : error instanceof Error && /25 MB/.test(error.message)
           ? error.message
           : "I could not finish that response. Your session is saved; please try again.";
-      return { state: "complete", chunks: [message], artifacts: [] };
+      return { chunks: [message], artifacts: [] };
     } finally {
       this.preparing = false;
     }

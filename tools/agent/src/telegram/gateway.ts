@@ -60,13 +60,12 @@ async function runGateway(token: string): Promise<void> {
   const respond = async (ctx: Context, prepare: () => Promise<{ text: string; attachmentIds?: string[] }>): Promise<void> => {
     if (!ctx.chat || !ctx.from || !ctx.message || ctx.chat.type !== "private") return;
     if (!isOwner(ctx)) return void await ctx.reply("This Agent bot is private.");
-    if (turns.busy) return void await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
     if (!updater.beginTurn()) return void await ctx.reply("Applying an Agent update. I’ll reconnect shortly.");
     const stopTyping = keepTelegramTyping(() => ctx.replyWithChatAction("typing"));
     try {
       const result = await turns.run(prepare);
       stopTyping();
-      if (result.state === "busy") {
+      if (!result) {
         await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
         return;
       }

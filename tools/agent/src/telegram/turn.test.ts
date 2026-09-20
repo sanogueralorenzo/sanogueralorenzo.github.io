@@ -26,7 +26,7 @@ describe("Telegram turns", () => {
     runtime.isRunning = true;
     const turns = new TelegramTurns(runtime);
 
-    await expect(turns.run(async () => ({ text: "hello" }))).resolves.toEqual({ state: "busy" });
+    await expect(turns.run(async () => ({ text: "hello" }))).resolves.toBeNull();
     await expect(turns.stop()).resolves.toBe(true);
     expect(runtime.cancel).toHaveBeenCalledOnce();
   });
@@ -40,8 +40,8 @@ describe("Telegram turns", () => {
     ]));
 
     const result = await turns.run(async () => ({ text: "create it" }));
-    expect(result.state).toBe("complete");
-    if (result.state !== "complete") return;
+    expect(result).not.toBeNull();
+    if (!result) return;
     expect(result.chunks.length).toBeGreaterThan(1);
     expect(result.chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
     expect(result.artifacts).toEqual([artifact]);
@@ -53,7 +53,6 @@ describe("Telegram turns", () => {
     ], new Error("disconnected")));
 
     await expect(turns.run(async () => ({ text: "hello" }))).resolves.toMatchObject({
-      state: "complete",
       chunks: [expect.stringContaining("Partial answer\n\nInterrupted")],
     });
   });
@@ -61,7 +60,6 @@ describe("Telegram turns", () => {
   it("reports cancellation before any text as an interruption", async () => {
     const turns = new TelegramTurns(client([], new DOMException("stopped", "AbortError")));
     await expect(turns.run(async () => ({ text: "hello" }))).resolves.toMatchObject({
-      state: "complete",
       chunks: [expect.stringMatching(/^Interrupted\./)],
     });
   });
