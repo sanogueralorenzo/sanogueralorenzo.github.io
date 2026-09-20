@@ -22,19 +22,20 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
 
   vi.stubEnv("AGENT_HOME", homeDir);
   vi.stubEnv("AGENT_PORT", "0");
-  const statuses: string[] = [];
-  const supervisor = new RuntimeSupervisor(new RuntimeClient(homeDir), true, (message) => statuses.push(message));
+  const client = new RuntimeClient(homeDir);
+  const supervisor = new RuntimeSupervisor(client, true, () => undefined);
   const original = statSync(watchedFile);
   try {
     await supervisor.start();
+    const originalPid = JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).pid as number;
     if (backend === "codex") writeFileSync(join(homeDir, "codex", "profile.marker"), "private profile survives\n");
     const changed = new Date(Date.now() + 1_000);
     utimesSync(watchedFile, changed, changed);
-    const deadline = Date.now() + 10_000;
-    while (!statuses.includes("Runtime reloaded. Session restored.") && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    expect(statuses).toContain("Runtime reloaded. Session restored.");
+    await vi.waitFor(async () => {
+      const pid = JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).pid as number;
+      expect(pid).not.toBe(originalPid);
+      expect(await client.healthy()).toBe(true);
+    }, { timeout: 10_000, interval: 50 });
   } finally {
     await supervisor.stop();
     utimesSync(watchedFile, original.atime, original.mtime);
