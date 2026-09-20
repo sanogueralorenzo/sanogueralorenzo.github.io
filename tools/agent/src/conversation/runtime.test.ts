@@ -81,7 +81,6 @@ describe("AgentRuntime", () => {
       : textResponse("second", "Remembered."));
     const { store, assistant } = testRuntime(model);
     const events = await collect(assistant, { text: "Please remember that I like short answers", channel: "api" });
-
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
     const sessionEvent = events[0];
     if (sessionEvent?.type !== "session") throw new Error("missing session event");
@@ -95,7 +94,6 @@ describe("AgentRuntime", () => {
     const model = routingModel();
     const { path, assistant } = testRuntime(model);
     const events = await collect(assistant, { text: "Fix the failing test", cwd: path, channel: "cli" });
-
     expect(model.calls.map((call) => [call.model, call.reasoningEffort])).toEqual([
       ["gpt-5.6-sol", "high"],
       ["gpt-5.6-luna", "high"],
@@ -111,7 +109,6 @@ describe("AgentRuntime", () => {
     const { path, store, assistant } = testRuntime(automatic);
     await collect(assistant, { text: "Investigate the root cause of this performance regression", channel: "api", fresh: true });
     expect(automatic.calls.map((call) => call.model)).toEqual(["gpt-5.6-luna", "gpt-5.6-luna"]);
-
     const explicit = routingModel();
     await collect(runtime(path, store, explicit), { text: "Use Astra high to investigate this code architecture", cwd: path, channel: "api", fresh: true });
     expect(explicit.calls.map((call) => call.model)).toEqual(["gpt-6-astra", "gpt-5.6-luna"]);
@@ -128,7 +125,6 @@ describe("AgentRuntime", () => {
     const telegramSession = telegram.find((event) => event.type === "session")?.session.id;
     const macos = await collect(assistant, { text: "continue", channel: "macos", ...(cliSession ? { sessionId: cliSession } : {}) });
     const macosSession = macos.find((event) => event.type === "session")?.session.id;
-
     expect(telegramSession).toBe(cliSession);
     expect(macosSession).toBe(cliSession);
   });
@@ -142,7 +138,6 @@ describe("AgentRuntime", () => {
     const interrupted = await collect(assistant, { text: "Fix the test", cwd: path, channel: "cli" });
     const session = interrupted.find((event) => event.type === "session")?.session;
     expect(interrupted.at(-1)).toMatchObject({ type: "error", message: "Interrupted. Your session is saved." });
-
     const resumed = await collect(assistant, { text: "continue fixing it", cwd: path, channel: "macos", sessionId: session?.id });
     expect(resumed.find((event) => event.type === "session")?.session.id).toBe(session?.id);
     expect(resumed.at(-1)?.type).toBe("done");
@@ -185,7 +180,6 @@ describe("AgentRuntime", () => {
         path: audioPath,
       }],
     });
-
     expect(events[0]).toEqual({ type: "status", message: "Listening…" });
     expect(events.find((event) => event.type === "session")?.session.kind).toBe("coding");
     expect(model.calls.map((call) => call.model)).toEqual(["gpt-5.6-sol", "gpt-5.6-luna"]);
@@ -207,7 +201,6 @@ describe("AgentRuntime", () => {
       channel: "api",
     });
     const event = events.find((candidate) => candidate.type === "artifact");
-
     expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", mimeType: "image/png" } });
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
     expect(events.at(-1)?.type).toBe("done");

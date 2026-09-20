@@ -80,7 +80,6 @@ describe("Codex app-server contract", () => {
       },
     );
     cleanup(() => appServer.stop());
-
     await appServer.account(false);
     expect(JSON.parse(readFileSync(envLog, "utf8"))).toEqual({
       CODEX_HOME: join(homeDir, "codex"),
@@ -112,7 +111,6 @@ describe("Codex app-server contract", () => {
     const log = join(homeDir, "rpc.log");
     const appServer = client("login-success", { AGENT_FAKE_LOG: log });
     const login = await appServer.beginLogin(mode);
-
     expect(login).toEqual(expected);
     const request = requests(log).find((message) => message.method === "account/login/start");
     expect(request?.params).toEqual({ type: requestType });
@@ -149,9 +147,7 @@ describe("Codex app-server contract", () => {
     const login = await appServer.beginLogin("headless");
     const controller = new AbortController();
     const waiting = appServer.waitForLogin(login.loginId, 1_000, controller.signal);
-
     controller.abort();
-
     await expect(waiting).resolves.toEqual({ state: "failed", error: "Setup cancelled." });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(readFileSync(log, "utf8")).toContain("account/login/cancel");
@@ -160,7 +156,6 @@ describe("Codex app-server contract", () => {
   it("normalizes streamed agent and tool events", async () => {
     const { store, backend, input } = backendFixture();
     const events = await collect(backend, input);
-
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
     expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
@@ -180,12 +175,10 @@ describe("Codex app-server contract", () => {
       sendAudio: async (audio) => { sent.push(audio.frames.length); },
       close: async () => undefined,
     }));
-
     await expect(backend.transcribeAudio({
       id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg",
       size: 214, path: audioPath,
     })).resolves.toBe("Hello from Codex.");
-
     const rpc = requests(log);
     expect(rpc.some((request) => request.method === "turn/start")).toBe(false);
     expect(rpc.find((request) => request.method === "thread/realtime/start")?.params).toMatchObject({
@@ -210,7 +203,6 @@ describe("Codex app-server contract", () => {
     const backend = new CodexBackend(config(homeDir), store, client("image", { AGENT_FAKE_ARTIFACT: generated }));
     const events = await collect(backend, turn(store, homeDir, null));
     const event = events.find((candidate) => candidate.type === "artifact");
-
     expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", name: "generated.png", mimeType: "image/png" } });
     expect(event?.type === "artifact" && event.artifact.path).not.toBe(generated);
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
@@ -223,7 +215,6 @@ describe("Codex app-server contract", () => {
     const { backend, input, log } = backendFixture("normal", {}, worker);
     input.request.text = text;
     await collect(backend, input);
-
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
     expect(threads.map((request) => request.params.model)).toEqual(models);
@@ -240,7 +231,6 @@ describe("Codex app-server contract", () => {
     const runtime = new AgentRuntime(store, new BackendRegistry(store, codex, codex));
     const events = [];
     for await (const event of runtime.run({ text: "Fix the test", cwd: homeDir, channel: "api" })) events.push(event);
-
     expect(events[0]).toMatchObject({ type: "session" });
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
     const session = events[0]?.type === "session" ? events[0].session : null;
@@ -252,7 +242,6 @@ describe("Codex app-server contract", () => {
     const controller = new AbortController();
     const running = collect(backend, { ...input, signal: controller.signal });
     setTimeout(() => controller.abort(), 50);
-
     await expect(running).rejects.toMatchObject({ name: "AbortError" });
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(readFileSync(log, "utf8")).toContain("turn/interrupt");
@@ -263,7 +252,6 @@ describe("Codex app-server contract", () => {
     const marker = join(homeDir, "restart.marker");
     const fixture = backendFixture("reconnect", { AGENT_FAKE_MARKER: marker });
     const events = await collect(fixture.backend, fixture.input);
-
     expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
     expect(requests(fixture.log).filter((request) => request.method.startsWith("thread/")).map((request) => request.method))
       .toEqual(["thread/start", "thread/resume"]);
@@ -272,9 +260,7 @@ describe("Codex app-server contract", () => {
   it("does not replace a missing Codex thread", async () => {
     const { backend, input, store, log } = backendFixture("missing-thread", {}, null);
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
-
     await expect(collect(backend, input)).rejects.toThrow("thread not found");
-
     expect(readFileSync(log, "utf8")).toContain("thread/resume");
     expect(readFileSync(log, "utf8")).not.toContain("thread/start");
     expect(store.backendSession(input.session.id, "codex")).toBe("missing-thread-id");
@@ -291,7 +277,6 @@ describe("Codex app-server contract", () => {
   it("uses API-key mode only after it was explicitly selected", async () => {
     const { store, backend } = backendFixture();
     const registry = new BackendRegistry(store, backend, backend);
-
     expect(() => registry.resolve()).toThrow("no selected connection");
     store.setSetting("backend", "responses");
     expect(registry.resolve()).toBe(backend);

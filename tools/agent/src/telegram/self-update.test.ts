@@ -32,15 +32,12 @@ describe("Telegram self-update", () => {
       ownerId: () => "42",
       verify: async () => { order.push("verify"); },
     }, () => order.push("gateway"));
-
     expect(updater.beginTurn()).toBe(true);
     updater.noteChange();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(order).toEqual([]);
-
     updater.endTurn();
     await stopped;
-
     expect(order).toEqual(["verify", "gateway"]);
     expect(pendingUpdateOwner(homeDir)).toBe("42");
     acknowledgeUpdate(homeDir);
@@ -56,10 +53,8 @@ describe("Telegram self-update", () => {
         if (checks === 1) harness.updater.noteChange();
       },
     });
-
     harness.updater.noteChange();
     await harness.stopped;
-
     expect(checks).toBe(2);
   });
 
@@ -70,10 +65,8 @@ describe("Telegram self-update", () => {
       verify: async () => { throw new Error("tests failed"); },
       onFailure: failure,
     });
-
     updater.noteChange();
     await vi.waitFor(() => expect(failure).toHaveBeenCalledWith("tests failed"));
-
     expect(updater.beginTurn()).toBe(true);
     updater.endTurn();
     updater.stop();
@@ -93,7 +86,6 @@ describe("Telegram self-update", () => {
         }, { once: true }));
       },
     });
-
     updater.noteChange();
     await started;
     updater.stop();

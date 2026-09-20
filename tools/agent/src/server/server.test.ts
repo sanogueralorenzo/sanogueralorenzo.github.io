@@ -52,7 +52,6 @@ describe("RuntimeServer", () => {
       },
     } as unknown as AgentRuntime;
     const { port, token, request } = await serve(runtime);
-
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
     const uploaded = await fetch(`http://127.0.0.1:${port}/v1/attachments`, {

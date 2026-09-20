@@ -119,7 +119,6 @@ describe.sequential("CLI subscription setup", () => {
 
   it("rejects removed setup options", async () => {
     const result = await runSetup(["--device-code"]);
-
     expect(result.error?.message).toBe("Unknown setup option: --device-code");
     expect(result.backend).toBeNull();
     expect(result.rpc).toBe("");
@@ -127,7 +126,6 @@ describe.sequential("CLI subscription setup", () => {
 
   it("fails a cancelled or failed browser login without selecting API-key billing", async () => {
     const result = await runSetup(["--chatgpt"], { scenario: "login-failed" });
-
     expect(result.error?.message).toBe("ChatGPT sign-in failed");
     expect(result.backend).toBeNull();
     expect(result.output).not.toContain("Use API-key billing");
@@ -143,7 +141,6 @@ describe.sequential("CLI subscription setup", () => {
       initialBackend: "responses",
       seedState: true,
     });
-
     expect(result.error?.message).toBe(message);
     expect(result.backend).toBe("responses");
     expect(result.statePreserved).toBe(true);
@@ -152,7 +149,6 @@ describe.sequential("CLI subscription setup", () => {
 
   it("fails clearly when Codex is missing without selecting another backend", async () => {
     const result = await runSetup(["--chatgpt"], { installed: false });
-
     expect(result.error?.message).toMatch(/Install the Codex CLI/);
     expect(result.backend).toBeNull();
     expect(result.output).not.toContain("Use API-key billing");
