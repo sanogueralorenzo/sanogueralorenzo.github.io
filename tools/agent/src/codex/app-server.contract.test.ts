@@ -75,7 +75,7 @@ async function collect(backend: CodexBackend, input: BackendTurn) {
   return events;
 }
 
-function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, worker: BackendTurn["route"]["worker"] = "coding") {
+function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, worker: BackendTurn["route"]["worker"] = null) {
   const homeDir = temp("agent-codex-");
   const log = join(homeDir, "rpc.log");
   const store = trackedStore(homeDir);
@@ -192,7 +192,7 @@ describe("Codex app-server contract", () => {
 
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
-    expect(store.backendSession(input.session.id, "codex")).toBe("thread-2");
+    expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
   });
 
   it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
@@ -245,35 +245,19 @@ describe("Codex app-server contract", () => {
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
   });
 
-  it("pins Sol-high coding work and Luna-high coordination without exposing native subagents", async () => {
-    const { backend, input, log } = backendFixture();
+  it.each([
+    ["coding", "Fix the test", ["gpt-5.6-sol", "gpt-5.6-luna"], ["workspace-write", "read-only"]],
+    ["astra", "Use Astra high to investigate this architecture", ["gpt-6-astra", "gpt-5.6-luna"], ["read-only", "read-only"]],
+  ] as const)("runs the explicit %s worker before Luna-high coordination", async (worker, text, models, sandboxes) => {
+    const { backend, input, log } = backendFixture("normal", {}, worker);
+    input.request.text = text;
     await collect(backend, input);
 
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
-    const turns = rpc.filter((request) => request.method === "turn/start");
-    expect(threads.map((request) => [request.params.model, request.params.sandbox, request.params.ephemeral])).toEqual([
-      ["gpt-5.6-sol", "workspace-write", true],
-      ["gpt-5.6-luna", "read-only", false],
-    ]);
-    expect(turns.map((request) => [request.params.model, request.params.effort])).toEqual([
-      ["gpt-5.6-sol", "high"],
-      ["gpt-5.6-luna", "high"],
-    ]);
-    expect(readFileSync(log, "utf8")).not.toContain("gpt-6-astra");
-  });
-
-  it("starts Astra-high only when the route records an explicit request", async () => {
-    const { backend, input, log } = backendFixture("normal", {}, "astra");
-    input.request.text = "Use Astra high to investigate this architecture";
-
-    await collect(backend, input);
-
-    const rpc = requests(log);
-    expect(rpc.filter((request) => request.method === "thread/start").map((request) => request.params.model)).toEqual([
-      "gpt-6-astra",
-      "gpt-5.6-luna",
-    ]);
+    expect(threads.map((request) => request.params.model)).toEqual(models);
+    expect(threads.map((request) => request.params.sandbox)).toEqual(sandboxes);
+    expect(threads.map((request) => request.params.ephemeral)).toEqual([true, false]);
     expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high", "high"]);
   });
 
@@ -298,14 +282,9 @@ describe("Codex app-server contract", () => {
   });
 
   it("interrupts an active turn through turn/interrupt", async () => {
-    const homeDir = temp("agent-codex-cancel-");
-    const log = join(homeDir, "rpc.log");
-    const store = trackedStore(homeDir);
-    const appServer = client("cancel", { AGENT_FAKE_LOG: log });
-    const backend = new CodexBackend(config(homeDir), store, appServer);
+    const { backend, input, log } = backendFixture("cancel");
     const controller = new AbortController();
-    const input = { ...turn(store, homeDir), signal: controller.signal };
-    const running = collect(backend, input);
+    const running = collect(backend, { ...input, signal: controller.signal });
     setTimeout(() => controller.abort(), 50);
 
     await expect(running).rejects.toMatchObject({ name: "AbortError" });
@@ -314,25 +293,19 @@ describe("Codex app-server contract", () => {
   });
 
   it("restarts app-server and resumes the opaque Codex thread", async () => {
-    const homeDir = temp("agent-codex-reconnect-");
+    const homeDir = temp("agent-codex-reconnect-marker-");
     const marker = join(homeDir, "restart.marker");
-    const log = join(homeDir, "rpc.log");
-    const store = trackedStore(homeDir);
-    const appServer = client("reconnect", { AGENT_FAKE_MARKER: marker, AGENT_FAKE_LOG: log });
-    const backend = new CodexBackend(config(homeDir), store, appServer);
-    const events = await collect(backend, turn(store, homeDir));
+    const fixture = backendFixture("reconnect", { AGENT_FAKE_MARKER: marker });
+    const events = await collect(fixture.backend, fixture.input);
 
     expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
-    expect(readFileSync(log, "utf8").match(/"method":"thread\/start"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(requests(fixture.log).filter((request) => request.method.startsWith("thread/")).map((request) => request.method))
+      .toEqual(["thread/start", "thread/resume"]);
   });
 
   it("does not replace a missing Codex thread", async () => {
-    const homeDir = temp("agent-codex-missing-thread-");
-    const log = join(homeDir, "rpc.log");
-    const store = trackedStore(homeDir);
-    const input = turn(store, homeDir, null);
+    const { backend, input, store, log } = backendFixture("missing-thread", {}, null);
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
-    const backend = new CodexBackend(config(homeDir), store, client("missing-thread", { AGENT_FAKE_LOG: log }));
 
     await expect(collect(backend, input)).rejects.toBeInstanceOf(CodexRpcError);
 
