@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "tsx src/bin/agent.ts chat --dev",
-    "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --input-type=module --eval \"import { chmodSync, writeFileSync } from 'node:fs'; chmodSync('dist/bin/agent.js', 0o755); writeFileSync('dist/.ready', Date.now() + '\\n')\"",
+    "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --input-type=module --eval \"import { chmodSync } from 'node:fs'; chmodSync('dist/bin/agent.js', 0o755)\"",
     "start": "node dist/bin/agent.js chat",
     "serve": "tsx src/bin/agent.ts serve",
     "telegram": "tsx src/bin/agent.ts telegram",

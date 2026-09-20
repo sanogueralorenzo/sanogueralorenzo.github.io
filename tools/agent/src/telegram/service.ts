@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { accessSync, constants, realpathSync, rmSync } from "node:fs";
+import { accessSync, constants, existsSync, realpathSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import type { RuntimeConfig } from "../conversation/types.js";
 import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
 
 export const TELEGRAM_SERVICE_LABEL = "dev.agent.telegram";
+const TELEGRAM_RESTART_REQUEST = "telegram.restart";
 
 interface LaunchAgentOptions {
   launcherPath: string;
@@ -75,6 +76,17 @@ export function installTelegramGatewayLauncher(homeDir: string, executable: stri
   rmSync(join(binDirectory, "Agent"), { force: true });
   writePrivateFile(launcherPath, renderTelegramGatewayLauncher(executable, serviceEntry), 0o700);
   return launcherPath;
+}
+
+export function requestTelegramRestart(homeDir: string): void {
+  writePrivateFile(join(homeDir, TELEGRAM_RESTART_REQUEST), "restart\n");
+}
+
+export function consumeTelegramRestart(homeDir: string): boolean {
+  const path = join(homeDir, TELEGRAM_RESTART_REQUEST);
+  if (!existsSync(path)) return false;
+  rmSync(path);
+  return true;
 }
 
 function executablePath(command: string): string {

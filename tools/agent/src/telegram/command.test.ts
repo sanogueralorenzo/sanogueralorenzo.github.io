@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   installService: vi.fn(),
   readSecret: vi.fn(),
+  requestRestart: vi.fn(),
   setup: vi.fn(),
 }));
 
@@ -18,12 +19,14 @@ vi.mock("../local/credentials.js", () => ({
 
 vi.mock("./service.js", () => ({
   installTelegramBackgroundService: mocks.installService,
+  requestTelegramRestart: mocks.requestRestart,
 }));
 
 import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     mocks.setup.mockRejectedValue(new Error("stop after backend setup"));
   });
 
@@ -47,5 +50,12 @@ describe("Telegram guided setup", () => {
     await expect(runTelegramCommand([])).resolves.toBeUndefined();
 
     expect(mocks.installService).toHaveBeenCalledOnce();
+  });
+
+  it("records a model-requested restart without reinstalling the service", async () => {
+    await expect(runTelegramCommand(["restart"])).resolves.toBeUndefined();
+
+    expect(mocks.requestRestart).toHaveBeenCalledOnce();
+    expect(mocks.installService).not.toHaveBeenCalled();
   });
 });

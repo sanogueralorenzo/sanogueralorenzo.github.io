@@ -1,8 +1,15 @@
-import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { temporary } from "../test-support.js";
-import { installTelegramGatewayLauncher, TELEGRAM_SERVICE_LABEL, renderTelegramGatewayLauncher, renderTelegramLaunchAgent } from "./service.js";
+import {
+  consumeTelegramRestart,
+  installTelegramGatewayLauncher,
+  requestTelegramRestart,
+  TELEGRAM_SERVICE_LABEL,
+  renderTelegramGatewayLauncher,
+  renderTelegramLaunchAgent,
+} from "./service.js";
 
 describe("Telegram background service", () => {
   it("attributes the persistent launch agent to Agent", () => {
@@ -43,5 +50,18 @@ describe("Telegram background service", () => {
     expect(readFileSync(launcher, "utf8")).toContain("exec '/usr/bin/node' '/repo/dist/telegram/main.js'");
     expect(lstatSync(launcher).mode & 0o777).toBe(0o700);
     expect(readdirSync(join(homeDir, "bin"))).toEqual(["agent"]);
+  });
+
+  it("records and consumes one private restart request", () => {
+    const homeDir = temporary("agent-telegram-restart-");
+    const request = join(homeDir, "telegram.restart");
+
+    requestTelegramRestart(homeDir);
+
+    expect(readFileSync(request, "utf8")).toBe("restart\n");
+    expect(lstatSync(request).mode & 0o777).toBe(0o600);
+    expect(consumeTelegramRestart(homeDir)).toBe(true);
+    expect(existsSync(request)).toBe(false);
+    expect(consumeTelegramRestart(homeDir)).toBe(false);
   });
 });

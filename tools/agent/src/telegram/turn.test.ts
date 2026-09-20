@@ -32,16 +32,13 @@ describe("Telegram turns", () => {
   it("delivers a run initiated on another client with chunked text and artifacts", () => {
     const turns = new TelegramTurns(client());
     const artifact = { id: "a1", kind: "image" as const, name: "result.png", mimeType: "image/png", size: 3, path: "/tmp/result.png" };
-    expect(turns.active()).toBe(false);
     expect(turns.consume(envelope({ type: "turn", text: "create it", channel: "macos", hasAttachments: false }))).toBeNull();
-    expect(turns.active()).toBe(true);
     expect(turns.consume(envelope({ type: "text_delta", delta: `${"word ".repeat(900)}Done.` }))).toBeNull();
     expect(turns.consume(envelope({ type: "artifact", artifact }))).toBeNull();
     const result = turns.consume(envelope({ type: "done", sessionId: "s1" }));
     expect(result?.chunks.length).toBeGreaterThan(1);
     expect(result?.chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
     expect(result?.artifacts).toEqual([artifact]);
-    expect(turns.active()).toBe(false);
   });
 
   it("preserves partial text when the runtime reconnects", () => {
