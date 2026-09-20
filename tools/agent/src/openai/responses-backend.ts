@@ -13,13 +13,6 @@ const wantsImage = (text: string) => /\b(?:create|draw|generate|make)\b[\s\S]{0,
 const cacheKey = (scope: string) => createHash("sha256").update(`agent:${scope}`).digest("hex").slice(0, 32);
 const functionCalls = (response: Response) => response.output.filter((item): item is ResponseFunctionToolCall => item.type === "function_call");
 
-async function resultOf<T>(generator: AsyncGenerator<BackendEvent, T>): Promise<T> {
-  while (true) {
-    const next = await generator.next();
-    if (next.done) return next.value;
-  }
-}
-
 interface Completion {
   model: string;
   instructions: string;
@@ -53,14 +46,14 @@ export class ResponsesBackend implements AgentBackend {
       const tools = createTools(this.store, worker === "coding"
         ? "write"
         : worker === "astra" && turn.route.kind === "coding" ? "read" : "memory");
-      const result = await resultOf(this.complete({
+      const result = yield* this.complete({
         model: MODELS[worker],
         instructions: turn.workerInstructions,
         input: [{ role: "user", content: turn.request.text }],
         tools,
         visible: false,
         turn,
-      }));
+      });
       workerResult = result.text;
       if (!workerResult.trim()) throw new Error(`${worker} worker completed without a result.`);
     }
