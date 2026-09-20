@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { unlinkSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
@@ -63,7 +63,7 @@ export class RuntimeServer {
       this.server.listen(this.config.port, this.config.host, () => resolve());
     });
     const port = (this.server.address() as AddressInfo).port;
-    this.writeDiscovery(port);
+    writePrivateFile(join(this.config.homeDir, "runtime.json"), `${JSON.stringify({ protocolVersion: 1, port, token: this.token, pid: process.pid })}\n`);
     return port;
   }
 
@@ -71,28 +71,14 @@ export class RuntimeServer {
     for (const controller of this.controllers.values()) controller.abort();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
     const path = join(this.config.homeDir, "runtime.json");
-    try {
-      const discovery = readPrivateJson<Discovery>(path);
-      if (discovery?.pid === process.pid && discovery.token === this.token) unlinkSync(path);
-    } catch {
-      // A replacement runtime may already own discovery.
-    }
-  }
-
-  private writeDiscovery(port: number): void {
-    const path = join(this.config.homeDir, "runtime.json");
-    const discovery: Discovery = { protocolVersion: 1, port, token: this.token, pid: process.pid };
-    writePrivateFile(path, `${JSON.stringify(discovery)}\n`);
-  }
-
-  private authorized(request: IncomingMessage): boolean {
-    return request.headers.authorization === `Bearer ${this.token}`;
+    const discovery = readPrivateJson<Discovery>(path);
+    if (discovery?.pid === process.pid && discovery.token === this.token) rmSync(path, { force: true });
   }
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", `http://${this.config.host}`);
     if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: 1, pid: process.pid });
-    if (!this.authorized(request)) return json(response, 401, { error: "unauthorized" });
+    if (request.headers.authorization !== `Bearer ${this.token}`) return json(response, 401, { error: "unauthorized" });
 
     try {
       const route = `${request.method} ${url.pathname}`;
@@ -179,30 +165,15 @@ export class RuntimeServer {
       !Array.isArray(body.attachmentIds)
       || body.attachmentIds.length > 8
       || !body.attachmentIds.every((id) => typeof id === "string" && id.length > 0)
-    )) {
-      json(response, 400, { error: "attachmentIds must contain at most 8 IDs" });
-      return;
-    }
+    )) throw new Error("attachmentIds must contain at most 8 IDs");
     const attachmentIds = (body.attachmentIds ?? []) as string[];
-    if (!text && attachmentIds.length === 0) {
-      json(response, 400, { error: "text or an attachment is required" });
-      return;
-    }
+    if (!text && attachmentIds.length === 0) throw new Error("text or an attachment is required");
     const attachments = attachmentIds.map((id) => this.store.getAttachment(id));
-    if (attachments.some((attachment) => !attachment)) {
-      json(response, 400, { error: "attachment not found" });
-      return;
-    }
+    if (attachments.some((attachment) => !attachment)) throw new Error("attachment not found");
     const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
-    if (!requestId) {
-      json(response, 400, { error: "requestId is required" });
-      return;
-    }
+    if (!requestId) throw new Error("requestId is required");
     const channel = body.channel;
-    if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") {
-      json(response, 400, { error: "channel must be cli, telegram, macos, or api" });
-      return;
-    }
+    if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
     if (this.controllers.has(requestId)) {
       json(response, 409, { error: "request_already_running" });
       return;

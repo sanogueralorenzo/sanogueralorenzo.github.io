@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { Response, ResponseInputItem } from "openai/resources/responses/responses";
 import { describe, expect, it } from "vitest";
 import { BackendRegistry } from "./backend.js";
-import type { ModelClient, ModelRequest, ModelStreamEvent } from "../openai/model.js";
+import type { ModelClient, ModelRequest } from "../openai/model.js";
 import { ResponsesBackend } from "../openai/responses-backend.js";
 import { AgentRuntime } from "./runtime.js";
 import { Store } from "./store.js";
@@ -25,80 +25,30 @@ function textResponse(id: string, text: string): Response {
   }], text);
 }
 
-class MemoryModel implements ModelClient {
-  calls: ModelRequest[] = [];
+type TestModel = ModelClient & { calls: ModelRequest[] };
 
-  async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
-    this.calls.push(request);
-    if (this.calls.length === 1) {
-      return response("first", [{
-        type: "function_call",
-        call_id: "call-1",
-        name: "remember",
-        arguments: JSON.stringify({ fact: "Mario likes short answers" }),
-      }]);
-    }
-    yield { type: "text_delta", delta: "Remembered." };
-    return textResponse("second", "Remembered.");
-  }
+function testModel(
+  reply: (request: ModelRequest, call: number) => Response | Promise<Response>,
+  transcribeAudio?: ModelClient["transcribeAudio"],
+): TestModel {
+  const calls: ModelRequest[] = [];
+  return {
+    calls,
+    async *stream(request) {
+      calls.push(request);
+      const result = await reply(request, calls.length);
+      if (result.output_text) yield { type: "text_delta", delta: result.output_text };
+      return result;
+    },
+    ...(transcribeAudio ? { transcribeAudio } : {}),
+  };
 }
 
-class RoutingModel implements ModelClient {
-  calls: ModelRequest[] = [];
-
-  async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
-    this.calls.push(request);
-    if (request.model !== "gpt-5.6-luna" || request.instructions.includes("internal Luna worker") || request.instructions.includes("internal Sol") || request.instructions.includes("internal Astra")) {
-      return textResponse(`worker-${this.calls.length}`, "Worker result.");
-    }
-    yield { type: "text_delta", delta: "Combined." };
-    return textResponse(`coordinator-${this.calls.length}`, "Combined.");
-  }
-}
-
-class LockingModel implements ModelClient {
-  active = 0;
-  maxActive = 0;
-
-  async *stream(): AsyncGenerator<ModelStreamEvent, Response> {
-    this.active += 1;
-    this.maxActive = Math.max(this.maxActive, this.active);
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    this.active -= 1;
-    yield { type: "text_delta", delta: "ok" };
-    return textResponse(randomUUID(), "ok");
-  }
-}
-
-class InterruptOnceModel implements ModelClient {
-  calls = 0;
-
-  async *stream(): AsyncGenerator<ModelStreamEvent, Response> {
-    this.calls += 1;
-    if (this.calls === 1) throw new DOMException("Interrupted", "AbortError");
-    return textResponse(randomUUID(), this.calls === 2 ? "Worker recovered." : "Recovered.");
-  }
-}
-
-class VoiceModel extends RoutingModel {
-  transcriptions: string[] = [];
-
-  async transcribeAudio(attachment: Parameters<NonNullable<ModelClient["transcribeAudio"]>>[0]): Promise<string> {
-    this.transcriptions.push(attachment.path);
-    return "Fix the TypeScript test";
-  }
-}
-
-class ImageModel implements ModelClient {
-  async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
-    if (request.instructions.includes("internal Luna worker")) return textResponse("worker", "Generate the requested image.");
-    return response("image-response", [{
-      type: "image_generation_call",
-      id: "image-1",
-      status: "completed",
-      result: Buffer.from("png-data").toString("base64"),
-    }]);
-  }
+function routingModel(transcribeAudio?: ModelClient["transcribeAudio"]): TestModel {
+  return testModel((request, call) => {
+    const worker = request.model !== "gpt-5.6-luna" || /internal (?:Luna worker|Sol|Astra)/.test(request.instructions);
+    return textResponse(`${worker ? "worker" : "coordinator"}-${call}`, worker ? "Worker result." : "Combined.");
+  }, transcribeAudio);
 }
 
 function config(homeDir: string): RuntimeConfig {
@@ -132,7 +82,12 @@ async function collect(assistant: AgentRuntime, request: Parameters<AgentRuntime
 
 describe("AgentRuntime", () => {
   it("keeps memory and final synthesis on the persistent Luna-high coordinator", async () => {
-    const model = new MemoryModel();
+    const model = testModel((_request, call) => call === 1
+      ? response("first", [{
+        type: "function_call", call_id: "call-1", name: "remember",
+        arguments: JSON.stringify({ fact: "Mario likes short answers" }),
+      }])
+      : textResponse("second", "Remembered."));
     const { store, assistant } = testRuntime(model);
     const events = await collect(assistant, { text: "Please remember that I like short answers", channel: "api" });
 
@@ -146,7 +101,7 @@ describe("AgentRuntime", () => {
   });
 
   it("runs coding through Sol-high before Luna-high synthesis without exposing the worker", async () => {
-    const model = new RoutingModel();
+    const model = routingModel();
     const { path, assistant } = testRuntime(model);
     const events = await collect(assistant, { text: "Fix the failing test", cwd: path, channel: "cli" });
 
@@ -161,12 +116,12 @@ describe("AgentRuntime", () => {
   });
 
   it("never selects Astra automatically and permits it only on an explicit user request", async () => {
-    const automatic = new RoutingModel();
+    const automatic = routingModel();
     const { path, store, assistant } = testRuntime(automatic);
     await collect(assistant, { text: "Investigate the root cause of this performance regression", channel: "api", fresh: true });
     expect(automatic.calls.map((call) => call.model)).toEqual(["gpt-5.6-luna", "gpt-5.6-luna"]);
 
-    const explicit = new RoutingModel();
+    const explicit = routingModel();
     await collect(runtime(path, store, explicit), { text: "Use Astra high to investigate this code architecture", cwd: path, channel: "api", fresh: true });
     expect(explicit.calls.map((call) => call.model)).toEqual(["gpt-6-astra", "gpt-5.6-luna"]);
     expect(explicit.calls.every((call) => call.reasoningEffort === "high")).toBe(true);
@@ -175,7 +130,7 @@ describe("AgentRuntime", () => {
   });
 
   it("reuses one personal session across CLI, Telegram, and macOS", async () => {
-    const { store, assistant } = testRuntime(new RoutingModel());
+    const { store, assistant } = testRuntime(routingModel());
     const cli = await collect(assistant, { text: "hello", channel: "cli" });
     const cliSession = cli.find((event) => event.type === "session")?.session.id;
     const telegram = await collect(assistant, { text: "summarize this note", channel: "telegram" });
@@ -188,7 +143,11 @@ describe("AgentRuntime", () => {
   });
 
   it("keeps the session resumable after an interrupted worker", async () => {
-    const { path, assistant } = testRuntime(new InterruptOnceModel());
+    const model = testModel((_request, call) => {
+      if (call === 1) throw new DOMException("Interrupted", "AbortError");
+      return textResponse(randomUUID(), call === 2 ? "Worker recovered." : "Recovered.");
+    });
+    const { path, assistant } = testRuntime(model);
     const interrupted = await collect(assistant, { text: "Fix the test", cwd: path, channel: "cli" });
     const session = interrupted.find((event) => event.type === "session")?.session;
     expect(interrupted.at(-1)).toMatchObject({ type: "error", message: "Interrupted. Your session is saved." });
@@ -199,17 +158,28 @@ describe("AgentRuntime", () => {
   });
 
   it("serializes simultaneous turns targeting the same session", async () => {
-    const model = new LockingModel();
+    let active = 0;
+    let maxActive = 0;
+    const model = testModel(async () => {
+      maxActive = Math.max(maxActive, ++active);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      active -= 1;
+      return textResponse(randomUUID(), "ok");
+    });
     const { assistant } = testRuntime(model);
     await Promise.all([
       collect(assistant, { text: "hello", channel: "api" }),
       collect(assistant, { text: "hello again", channel: "api" }),
     ]);
-    expect(model.maxActive).toBe(1);
+    expect(maxActive).toBe(1);
   });
 
   it("transcribes runtime-owned audio before routing and persists the transcript", async () => {
-    const model = new VoiceModel();
+    const transcriptions: string[] = [];
+    const model = routingModel(async (attachment) => {
+      transcriptions.push(attachment.path);
+      return "Fix the TypeScript test";
+    });
     const { path, store, assistant } = testRuntime(model);
     const audioPath = join(path, "voice.ogg");
     writeFileSync(audioPath, "audio");
@@ -231,11 +201,17 @@ describe("AgentRuntime", () => {
     expect(model.calls.map((call) => call.model)).toEqual(["gpt-5.6-sol", "gpt-5.6-luna"]);
     const session = events.find((event) => event.type === "session")?.session;
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
-    expect(model.transcriptions).toEqual([audioPath]);
+    expect(transcriptions).toEqual([audioPath]);
   });
 
   it("normalizes Responses image output into the shared artifact event", async () => {
-    const { assistant } = testRuntime(new ImageModel());
+    const model = testModel((request) => request.instructions.includes("internal Luna worker")
+      ? textResponse("worker", "Generate the requested image.")
+      : response("image-response", [{
+        type: "image_generation_call", id: "image-1", status: "completed",
+        result: Buffer.from("png-data").toString("base64"),
+      }]));
+    const { assistant } = testRuntime(model);
     const events = await collect(assistant, {
       text: "Create an image of a quiet blue horizon",
       channel: "api",
