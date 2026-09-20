@@ -41,48 +41,30 @@ struct SetupView: View {
     @State private var key = ""
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             Image(systemName: "wind").font(.system(size: 48)).foregroundStyle(.tint)
             Text("Welcome to Agent").font(.largeTitle.weight(.semibold))
-            Text("Continue with ChatGPT to use your included Codex allowance. Agent uses a private Codex profile, separate from the Codex CLI, and browser sign-in finishes on a local Agent confirmation page.")
+            Text("Connect with ChatGPT or an OpenAI API key.")
                 .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
-            if let plan = model.setupStatus?.codex.planType {
-                Text("ChatGPT \(plan.capitalized)")
-                    .font(.headline)
-                Text("Agent found its private ChatGPT login and will reuse it if you continue.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             Button(model.setupStatus?.codex.connected == true ? "Continue with ChatGPT" : "Sign in with ChatGPT") {
                 Task { await model.continueWithChatGPT() }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true || model.setupStatus?.codex.allowanceAvailable == false)
-            if model.setupStatus?.codex.installed == true && model.setupStatus?.codex.connected != true {
-                Text("Setting up a remote or headless machine? Run agent setup --headless there to use a one-time code.")
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            }
             if model.setupStatus?.codex.allowanceAvailable == false {
-                Text("Included Codex usage is unavailable right now. Try again after reset, or explicitly choose API billing below to switch modes.")
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                Text("Included Codex usage is currently unavailable.").foregroundStyle(.secondary)
+            } else if model.setupStatus?.codex.installed != true {
+                Text("Install the Codex CLI to use ChatGPT.").foregroundStyle(.secondary)
             }
-            if model.setupStatus?.codex.installed != true {
-                Text("Install the official Codex CLI to enable ChatGPT subscription mode.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            HStack { Rectangle().frame(height: 1).foregroundStyle(.quaternary); Text("or use API billing").font(.caption).foregroundStyle(.secondary); Rectangle().frame(height: 1).foregroundStyle(.quaternary) }
-                .frame(maxWidth: 420)
+            Divider().frame(maxWidth: 420)
             if model.setupStatus?.openAIConfigured == true {
                 Button("Use saved API key") { Task { await model.useSavedAPIKey() } }
                     .disabled(model.isSettingUp)
             } else {
                 SecureField("OpenAI API key", text: $key).textFieldStyle(.roundedBorder).frame(maxWidth: 420)
-                HStack {
-                    Link("Create an API key", destination: URL(string: "https://platform.openai.com/api-keys")!)
-                    Spacer()
-                    Button("Connect") { Task { await model.connectOpenAI(key) } }
-                        .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
-                }.frame(maxWidth: 420)
+                Button("Connect API key") { Task { await model.connectOpenAI(key) } }
+                    .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
             }
             if model.isSettingUp { ProgressView().controlSize(.small) }
             if !model.setupMessage.isEmpty {

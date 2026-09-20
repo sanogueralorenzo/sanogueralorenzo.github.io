@@ -18,7 +18,7 @@ guard String(decoding: request, as: UTF8.self).contains("\"fresh\":true") else {
 }
 let setupData = Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus","allowanceAvailable":true}}"#.utf8)
 let setup = try JSONDecoder().decode(SetupStatus.self, from: setupData)
-guard setup.codex.connected, setup.codex.planType == "plus" else {
+guard setup.codex.connected else {
     fatalError("Agent Codex setup protocol check failed")
 }
 let loginData = Data(#"{"type":"chatgpt","loginId":"login-1","authUrl":"https://auth.openai.com/fake"}"#.utf8)

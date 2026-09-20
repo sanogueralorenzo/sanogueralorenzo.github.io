@@ -91,121 +91,81 @@ export class RuntimeServer {
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", `http://${this.config.host}`);
-    if (request.method === "GET" && url.pathname === "/v1/health") {
-      json(response, 200, { ok: true, protocolVersion: 1, pid: process.pid });
-      return;
-    }
-    if (!this.authorized(request)) {
-      json(response, 401, { error: "unauthorized" });
-      return;
-    }
+    if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: 1, pid: process.pid });
+    if (!this.authorized(request)) return json(response, 401, { error: "unauthorized" });
 
     try {
-      if (request.method === "GET" && url.pathname === "/v1/sessions") {
-        json(response, 200, { sessions: this.store.listSessions() });
-        return;
-      }
-      if (request.method === "GET" && url.pathname.startsWith("/v1/sessions/") && url.pathname.endsWith("/messages")) {
+      const route = `${request.method} ${url.pathname}`;
+      if (route.startsWith("GET /v1/sessions/") && route.endsWith("/messages")) {
         const id = decodeURIComponent(url.pathname.slice("/v1/sessions/".length, -"/messages".length));
         const session = this.store.getSession(id);
-        if (!session) {
-          json(response, 404, { error: "session_not_found" });
-          return;
-        }
-        json(response, 200, { session, messages: this.store.getMessages(id, MAX_HISTORY_MESSAGES) });
-        return;
+        return session
+          ? json(response, 200, { session, messages: this.store.getMessages(id, MAX_HISTORY_MESSAGES) })
+          : json(response, 404, { error: "session_not_found" });
       }
-      if (request.method === "GET" && url.pathname === "/v1/setup") {
-        json(response, 200, await this.setup.status());
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/setup/openai") {
-        const body = await readJson(request);
-        const key = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
-        if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
-        await this.setup.setOpenAIKey(key);
-        json(response, 200, { connected: true });
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/setup/backend") {
-        const body = await readJson(request);
-        const backend = body.backend;
-        if (backend !== "codex" && backend !== "responses") throw new Error("backend must be codex or responses");
-        await this.setup.selectBackend(backend);
-        json(response, 200, { connected: true, backend });
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/setup/codex/login") {
-        const body = await readJson(request);
-        const mode = body.mode;
-        if (mode !== "browser" && mode !== "headless") throw new Error("login mode must be browser or headless");
-        json(response, 200, await this.setup.startCodexLogin(mode));
-        return;
-      }
-      if (request.method === "GET" && url.pathname.startsWith("/v1/setup/codex/login/")) {
+      if (route.startsWith("GET /v1/setup/codex/login/")) {
         const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length));
-        json(response, 200, await this.setup.codexLoginStatus(loginId));
-        return;
+        return json(response, 200, await this.setup.codexLoginStatus(loginId));
       }
-      if (request.method === "POST" && url.pathname.startsWith("/v1/setup/codex/login/") && url.pathname.endsWith("/cancel")) {
+      if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/cancel")) {
         const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length, -"/cancel".length));
         if (!loginId) throw new Error("login id is required");
         await this.setup.cancelCodexLogin(loginId);
-        json(response, 200, { cancelled: true });
-        return;
+        return json(response, 200, { cancelled: true });
       }
-      if (request.method === "POST" && url.pathname === "/v1/cancel") {
-        const body = await readJson(request);
-        const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
-        if (!requestId) throw new Error("requestId is required");
-        const controller = this.controllers.get(requestId);
-        controller?.abort();
-        json(response, 200, { cancelled: Boolean(controller) });
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/runtime/restart") {
-        if (!this.onRestart) {
-          json(response, 501, { error: "restart_unavailable" });
+      switch (route) {
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
+        case "GET /v1/setup": return json(response, 200, await this.setup.status());
+        case "POST /v1/setup/openai": {
+          const { apiKey } = await readJson(request);
+          const key = typeof apiKey === "string" ? apiKey.trim() : "";
+          if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
+          await this.setup.setOpenAIKey(key);
+          return json(response, 200, { connected: true });
+        }
+        case "POST /v1/setup/backend": {
+          const { backend } = await readJson(request);
+          if (backend !== "codex" && backend !== "responses") throw new Error("backend must be codex or responses");
+          await this.setup.selectBackend(backend);
+          return json(response, 200, { connected: true, backend });
+        }
+        case "POST /v1/setup/codex/login": {
+          const { mode } = await readJson(request);
+          if (mode !== "browser" && mode !== "headless") throw new Error("login mode must be browser or headless");
+          return json(response, 200, await this.setup.startCodexLogin(mode));
+        }
+        case "POST /v1/cancel": {
+          const { requestId } = await readJson(request);
+          if (typeof requestId !== "string" || !requestId.trim()) throw new Error("requestId is required");
+          const controller = this.controllers.get(requestId.trim());
+          controller?.abort();
+          return json(response, 200, { cancelled: Boolean(controller) });
+        }
+        case "POST /v1/runtime/restart": {
+          if (!this.onRestart) return json(response, 501, { error: "restart_unavailable" });
+          if (this.controllers.size) return json(response, 409, { error: "runtime_busy" });
+          this.restarting = true;
+          json(response, 202, { restarting: true });
+          setImmediate(this.onRestart);
           return;
         }
-        if (this.controllers.size > 0) {
-          json(response, 409, { error: "runtime_busy" });
-          return;
+        case "POST /v1/attachments": {
+          const header = request.headers["x-agent-filename"];
+          const name = Array.isArray(header) ? header[0] : header;
+          if (!name) throw new Error("x-agent-filename is required");
+          const attachment = saveAttachment(this.config.homeDir, this.store, {
+            name: decodeURIComponent(name),
+            mimeType: String(request.headers["content-type"] ?? "application/octet-stream").split(";", 1)[0]!.trim(),
+            data: await readBody(request, MAX_ATTACHMENT_BYTES),
+          });
+          const { path: _path, ...visible } = attachment;
+          return json(response, 201, visible);
         }
-        this.restarting = true;
-        json(response, 202, { restarting: true });
-        setImmediate(this.onRestart);
-        return;
+        case "POST /v1/chat":
+          if (this.restarting) return json(response, 503, { error: "runtime_restarting" });
+          return this.chat(request, response);
+        default: return json(response, 404, { error: "not_found" });
       }
-      if (request.method === "POST" && url.pathname === "/v1/attachments") {
-        const encodedName = request.headers["x-agent-filename"];
-        const rawName = Array.isArray(encodedName) ? encodedName[0] : encodedName;
-        if (!rawName) throw new Error("x-agent-filename is required");
-        const name = decodeURIComponent(rawName);
-        const mimeType = String(request.headers["content-type"] ?? "application/octet-stream").split(";", 1)[0]!.trim();
-        const attachment = saveAttachment(this.config.homeDir, this.store, {
-          name,
-          mimeType,
-          data: await readBody(request, MAX_ATTACHMENT_BYTES),
-        });
-        json(response, 201, {
-          id: attachment.id,
-          kind: attachment.kind,
-          name: attachment.name,
-          mimeType: attachment.mimeType,
-          size: attachment.size,
-        });
-        return;
-      }
-      if (request.method === "POST" && url.pathname === "/v1/chat") {
-        if (this.restarting) {
-          json(response, 503, { error: "runtime_restarting" });
-          return;
-        }
-        await this.chat(request, response);
-        return;
-      }
-      json(response, 404, { error: "not_found" });
     } catch (error) {
       if (!response.headersSent) json(response, 400, { error: error instanceof Error ? error.message : String(error) });
       else response.end();

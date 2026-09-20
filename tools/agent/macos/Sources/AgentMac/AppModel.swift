@@ -68,46 +68,31 @@ final class AppModel: ObservableObject {
     }
 
     func continueWithChatGPT() async {
-        guard let client, !isSettingUp else { return }
-        isSettingUp = true
-        defer { isSettingUp = false }
-        var pendingLoginId: String?
-        do {
+        await configure("Opening ChatGPT sign-in…") { client in
             if setupStatus?.codex.connected == true {
                 try await client.selectBackend("codex")
-                setupStatus = try await client.setupStatus()
-                setupMessage = "Reusing Agent's private ChatGPT login."
-                state = .ready
                 return
             }
-            setupMessage = "Starting secure ChatGPT sign-in for Agent…"
             let login = try await client.startCodexLogin(mode: "browser")
-            pendingLoginId = login.loginId
             setupMessage = "Finish signing in in your browser."
             guard login.type == "chatgpt", let authUrl = login.authUrl else {
                 throw RuntimeClientError.badResponse(400, "Agent expected browser login but received another login flow.")
             }
             if let destination = URL(string: authUrl) { NSWorkspace.shared.open(destination) }
-            for _ in 0..<300 {
-                try await Task.sleep(for: .seconds(1))
-                let result = try await client.codexLoginStatus(loginId: login.loginId)
-                if result.state == "complete" {
-                    pendingLoginId = nil
-                    setupStatus = try await client.setupStatus()
-                    setupMessage = ""
-                    state = .ready
-                    return
+            do {
+                for _ in 0..<300 {
+                    try await Task.sleep(for: .seconds(1))
+                    let result = try await client.codexLoginStatus(loginId: login.loginId)
+                    if result.state == "complete" { return }
+                    if result.state == "failed" {
+                        throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.")
+                    }
                 }
-                if result.state == "failed" {
-                    pendingLoginId = nil
-                    throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.")
-                }
+                throw RuntimeClientError.badResponse(408, "ChatGPT sign-in timed out. Try again.")
+            } catch {
+                try? await client.cancelCodexLogin(loginId: login.loginId)
+                throw error
             }
-            throw RuntimeClientError.badResponse(408, "ChatGPT sign-in timed out. Try again.")
-        } catch {
-            if let pendingLoginId { try? await client.cancelCodexLogin(loginId: pendingLoginId) }
-            setupMessage = error.localizedDescription
-            setupStatus = try? await client.setupStatus()
         }
     }
 
