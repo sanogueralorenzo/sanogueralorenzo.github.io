@@ -76,20 +76,49 @@ lines.on("line", (line) => {
   }
   if (method === "account/login/start") {
     const loginId = "login-1";
-    if (params.type !== "chatgpt" || params.useHostedLoginSuccessPage !== true || params.appBrand !== "chatgpt") {
-      send({ id, error: { code: -32602, message: "browser login parameters required" } });
-      return;
-    }
-    if (scenario === "device-response") {
+    if (params.type === "chatgpt") {
+      if (Object.keys(params).length !== 1) {
+        send({ id, error: { code: -32602, message: "local browser login parameters required" } });
+        return;
+      }
+      if (scenario === "device-response") {
+        send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" } });
+        return;
+      }
+      send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
+    } else if (params.type === "chatgptDeviceCode") {
+      if (Object.keys(params).length !== 1) {
+        send({ id, error: { code: -32602, message: "headless login parameters required" } });
+        return;
+      }
+      if (scenario === "browser-response") {
+        send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
+        return;
+      }
       send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" } });
+    } else {
+      send({ id, error: { code: -32602, message: "unsupported login type" } });
       return;
     }
-    send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
+    if (scenario === "login-pending") return;
+    const loginError = scenario === "login-failed"
+      ? "ChatGPT sign-in failed"
+      : scenario === "login-expired" ? "The one-time code expired"
+        : scenario === "login-cancelled" ? "ChatGPT sign-in was cancelled" : null;
     setTimeout(() => send({ method: "account/login/completed", params: {
       loginId,
-      success: scenario !== "login-failed",
-      error: scenario === "login-failed" ? "browser sign-in failed" : null,
+      success: loginError === null,
+      error: loginError,
     } }), 10);
+    return;
+  }
+  if (method === "account/login/cancel") {
+    send({ id, result: {} });
+    setTimeout(() => send({ method: "account/login/completed", params: {
+      loginId: params.loginId,
+      success: false,
+      error: "ChatGPT sign-in was cancelled",
+    } }), 1);
     return;
   }
   if (method === "thread/start") {

@@ -45,11 +45,11 @@ export interface CodexRateLimits {
   rateLimitsByLimitId: Record<string, RateLimitSnapshot> | null;
 }
 
-export interface CodexLoginStart {
-  type: "chatgpt";
-  loginId: string;
-  authUrl: string;
-}
+export type CodexLoginMode = "browser" | "headless";
+
+export type CodexLoginStart =
+  | { type: "chatgpt"; loginId: string; authUrl: string }
+  | { type: "chatgptDeviceCode"; loginId: string; verificationUrl: string; userCode: string };
 
 export interface CodexLoginResult {
   state: "pending" | "complete" | "failed";

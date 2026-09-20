@@ -96,10 +96,18 @@ public struct BackendRequest: Encodable, Sendable {
     public init(backend: String) { self.backend = backend }
 }
 
+public struct CodexLoginRequest: Encodable, Sendable {
+    public let mode: String
+
+    public init(mode: String) { self.mode = mode }
+}
+
 public struct CodexLoginStart: Decodable, Sendable {
     public let type: String
     public let loginId: String
-    public let authUrl: String
+    public let authUrl: String?
+    public let verificationUrl: String?
+    public let userCode: String?
 }
 
 public struct CodexLoginResult: Decodable, Sendable {

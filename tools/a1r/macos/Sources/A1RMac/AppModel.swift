@@ -91,6 +91,7 @@ final class AppModel: ObservableObject {
         guard let client, !isSettingUp else { return }
         isSettingUp = true
         defer { isSettingUp = false }
+        var pendingLoginId: String?
         do {
             if setupStatus?.codex.connected == true {
                 try await client.selectBackend("codex")
@@ -100,22 +101,31 @@ final class AppModel: ObservableObject {
                 return
             }
             setupMessage = "Starting secure ChatGPT sign-in for A1R…"
-            let login = try await client.startCodexLogin()
+            let login = try await client.startCodexLogin(mode: "browser")
+            pendingLoginId = login.loginId
             setupMessage = "Finish signing in in your browser."
-            if let destination = URL(string: login.authUrl) { NSWorkspace.shared.open(destination) }
+            guard login.type == "chatgpt", let authUrl = login.authUrl else {
+                throw RuntimeClientError.badResponse(400, "A1R expected browser login but received another login flow.")
+            }
+            if let destination = URL(string: authUrl) { NSWorkspace.shared.open(destination) }
             for _ in 0..<300 {
                 try await Task.sleep(for: .seconds(1))
                 let result = try await client.codexLoginStatus(loginId: login.loginId)
                 if result.state == "complete" {
+                    pendingLoginId = nil
                     setupStatus = try await client.setupStatus()
                     setupMessage = ""
                     state = .ready
                     return
                 }
-                if result.state == "failed" { throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.") }
+                if result.state == "failed" {
+                    pendingLoginId = nil
+                    throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.")
+                }
             }
             throw RuntimeClientError.badResponse(408, "ChatGPT sign-in timed out. Try again.")
         } catch {
+            if let pendingLoginId { try? await client.cancelCodexLogin(loginId: pendingLoginId) }
             setupMessage = error.localizedDescription
             setupStatus = try? await client.setupStatus()
         }

@@ -77,8 +77,9 @@ struct RuntimeClient: Sendable {
         try check(response, data: data)
     }
 
-    func startCodexLogin() async throws -> CodexLoginStart {
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login", method: "POST"))
+    func startCodexLogin(mode: String) async throws -> CodexLoginStart {
+        let body = try JSONEncoder().encode(CodexLoginRequest(mode: mode))
+        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login", method: "POST", body: body))
         try check(response, data: data)
         return try JSONDecoder().decode(CodexLoginStart.self, from: data)
     }
@@ -88,6 +89,12 @@ struct RuntimeClient: Sendable {
         let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login/\(id)"))
         try check(response, data: data)
         return try JSONDecoder().decode(CodexLoginResult.self, from: data)
+    }
+
+    func cancelCodexLogin(loginId: String) async throws {
+        let id = loginId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? loginId
+        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login/\(id)/cancel", method: "POST"))
+        try check(response, data: data)
     }
 
     func resumeLatest() async throws -> Transcript? {

@@ -2,7 +2,7 @@ import type { OpenAIModelClient } from "../core/model.js";
 import type { Store } from "../core/store.js";
 import type { BackendKind } from "../core/types.js";
 import type { CodexAppServer } from "../codex/app-server.js";
-import type { CodexLoginResult, CodexLoginStart, CodexRateLimits, RateLimitSnapshot } from "../codex/protocol.js";
+import type { CodexLoginMode, CodexLoginResult, CodexLoginStart, CodexRateLimits, RateLimitSnapshot } from "../codex/protocol.js";
 
 export interface UsageSummary {
   name: string;
@@ -119,14 +119,18 @@ export class BackendSetupService {
     this.store.setSetting("backend", backend);
   }
 
-  async startCodexLogin(): Promise<CodexLoginStart> {
+  async startCodexLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {
     if (!this.codex.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, then run setup again.");
-    return this.codex.beginLogin();
+    return this.codex.beginLogin(mode);
   }
 
   async codexLoginStatus(loginId: string): Promise<CodexLoginResult> {
     const status = this.codex.loginStatus(loginId);
     if (status.state === "complete") this.store.setSetting("backend", "codex");
     return status;
+  }
+
+  async cancelCodexLogin(loginId: string): Promise<void> {
+    await this.codex.cancelLogin(loginId);
   }
 }

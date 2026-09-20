@@ -62,7 +62,8 @@ describe("RuntimeServer", () => {
     const store = new Store(homeDir);
     const runtime = { async *run() {} } as unknown as A1RRuntime;
     let selected = "";
-    let loginStarts = 0;
+    const loginModes: string[] = [];
+    let cancelledLogin = "";
     const server = new RuntimeServer(config, runtime, store, {
       status: async () => ({
         configured: false,
@@ -73,11 +74,14 @@ describe("RuntimeServer", () => {
       }),
       setOpenAIKey: async () => undefined,
       selectBackend: async (backend) => { selected = backend; },
-      startCodexLogin: async () => {
-        loginStarts += 1;
-        return { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
+      startCodexLogin: async (mode) => {
+        loginModes.push(mode);
+        return mode === "headless"
+          ? { type: "chatgptDeviceCode", loginId: "login-2", verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" }
+          : { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
       },
       codexLoginStatus: async () => ({ state: "complete" }),
+      cancelCodexLogin: async (loginId) => { cancelledLogin = loginId; },
     });
     const port = await server.listen();
     const token = readDiscovery(homeDir)!.token;
@@ -89,15 +93,28 @@ describe("RuntimeServer", () => {
       method: "POST", headers, body: JSON.stringify({}),
     });
     await expect(login.json()).resolves.toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
-    expect(loginStarts).toBe(1);
-    const removedDeviceFlow = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+    expect(loginModes).toEqual(["browser"]);
+    const headless = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+      method: "POST", headers, body: JSON.stringify({ mode: "headless" }),
+    });
+    await expect(headless.json()).resolves.toEqual({
+      type: "chatgptDeviceCode",
+      loginId: "login-2",
+      verificationUrl: "https://auth.openai.com/codex/device",
+      userCode: "A1R-TEST",
+    });
+    expect(loginModes).toEqual(["browser", "headless"]);
+    const invalidMode = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
       method: "POST", headers, body: JSON.stringify({ mode: "device" }),
     });
-    expect(removedDeviceFlow.status).toBe(400);
-    await expect(removedDeviceFlow.json()).resolves.toMatchObject({ error: expect.stringMatching(/browser login only/) });
-    expect(loginStarts).toBe(1);
+    expect(invalidMode.status).toBe(400);
+    await expect(invalidMode.json()).resolves.toMatchObject({ error: "login mode must be browser or headless" });
+    expect(loginModes).toEqual(["browser", "headless"]);
     const completed = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-1`, { headers });
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
+    const cancelled = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-2/cancel`, { method: "POST", headers });
+    await expect(cancelled.json()).resolves.toEqual({ cancelled: true });
+    expect(cancelledLogin).toBe("login-2");
     await fetch(`http://127.0.0.1:${port}/v1/setup/backend`, {
       method: "POST", headers, body: JSON.stringify({ backend: "codex" }),
     });

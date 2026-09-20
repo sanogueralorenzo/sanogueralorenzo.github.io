@@ -66,6 +66,7 @@ describe("Codex app-server contract", () => {
   it("runs production app-server in a private, locked-down A1R profile", async () => {
     const homeDir = temp("a1r-codex-profile-");
     const envLog = join(homeDir, "env.json");
+    const rpcLog = join(homeDir, "rpc.log");
     const appServer = createA1RCodexAppServer(
       { homeDir, codexCommand: process.execPath },
       {
@@ -78,6 +79,7 @@ describe("Codex app-server contract", () => {
           OPENAI_API_KEY: "must-not-leak",
           A1R_FAKE_SCENARIO: "normal",
           A1R_FAKE_ENV_LOG: envLog,
+          A1R_FAKE_LOG: rpcLog,
         },
       },
     );
@@ -90,6 +92,12 @@ describe("Codex app-server contract", () => {
       OPENAI_API_KEY: null,
     });
     expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
+    await appServer.beginLogin("browser");
+    await appServer.beginLogin("headless");
+    const loginRequests = readFileSync(rpcLog, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> })
+      .filter((message) => message.method === "account/login/start");
+    expect(loginRequests.map((request) => request.params.type)).toEqual(["chatgpt", "chatgptDeviceCode"]);
     await appServer.stop();
   });
 
@@ -100,31 +108,84 @@ describe("Codex app-server contract", () => {
     expect(() => prepareA1RCodexHome(homeDir)).toThrow(/real directory/);
   });
 
-  it("starts only the documented hosted browser login without handling tokens", async () => {
+  it("starts browser login with a neutral local confirmation page", async () => {
     const homeDir = temp("a1r-codex-browser-");
     const log = join(homeDir, "rpc.log");
     const appServer = client("login-success", { A1R_FAKE_LOG: log });
-    const login = await appServer.beginLogin();
+    const login = await appServer.beginLogin("browser");
 
     expect(login).toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
     const request = readFileSync(log, "utf8").trim().split("\n")
       .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> })
       .find((message) => message.method === "account/login/start");
-    expect(request?.params).toEqual({ type: "chatgpt", useHostedLoginSuccessPage: true, appBrand: "chatgpt" });
+    expect(request?.params).toEqual({ type: "chatgpt" });
     await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
     await appServer.stop();
   });
 
-  it("rejects a non-browser login response instead of switching flows", async () => {
-    const appServer = client("device-response");
-    await expect(appServer.beginLogin()).rejects.toThrow(/valid browser login/);
+  it("starts the documented device-code flow only for explicit headless setup", async () => {
+    const homeDir = temp("a1r-codex-headless-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("login-success", { A1R_FAKE_LOG: log });
+    const login = await appServer.beginLogin("headless");
+
+    expect(login).toEqual({
+      type: "chatgptDeviceCode",
+      loginId: "login-1",
+      verificationUrl: "https://auth.openai.com/codex/device",
+      userCode: "A1R-TEST",
+    });
+    const request = readFileSync(log, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> })
+      .find((message) => message.method === "account/login/start");
+    expect(request?.params).toEqual({ type: "chatgptDeviceCode" });
+    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
     await appServer.stop();
   });
 
-  it("surfaces a failed login without exposing credentials", async () => {
-    const appServer = client("login-failed");
-    const login = await appServer.beginLogin();
-    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "failed", error: "browser sign-in failed" });
+  it("rejects a device response during browser login instead of switching flows", async () => {
+    const appServer = client("device-response");
+    await expect(appServer.beginLogin("browser")).rejects.toThrow(/valid browser login/);
+    await appServer.stop();
+  });
+
+  it("rejects a browser response during headless login instead of switching flows", async () => {
+    const appServer = client("browser-response");
+    await expect(appServer.beginLogin("headless")).rejects.toThrow(/valid headless login/);
+    await appServer.stop();
+  });
+
+  it.each([
+    ["browser", "login-failed", "ChatGPT sign-in failed"],
+    ["headless", "login-expired", "The one-time code expired"],
+    ["headless", "login-cancelled", "ChatGPT sign-in was cancelled"],
+  ] as const)("surfaces %s login failure state without exposing credentials", async (mode, scenario, error) => {
+    const appServer = client(scenario);
+    const login = await appServer.beginLogin(mode);
+    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "failed", error });
+    await appServer.stop();
+  });
+
+  it("times out a pending headless login clearly", async () => {
+    const appServer = client("login-pending");
+    const login = await appServer.beginLogin("headless");
+    await expect(appServer.waitForLogin(login.loginId, 10)).resolves.toEqual({ state: "failed", error: "Login timed out. Run setup again." });
+    await appServer.stop();
+  });
+
+  it("cancels a pending headless login when setup is interrupted", async () => {
+    const homeDir = temp("a1r-codex-login-cancel-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("login-pending", { A1R_FAKE_LOG: log });
+    const login = await appServer.beginLogin("headless");
+    const controller = new AbortController();
+    const waiting = appServer.waitForLogin(login.loginId, 1_000, controller.signal);
+
+    controller.abort();
+
+    await expect(waiting).resolves.toEqual({ state: "failed", error: "Setup cancelled." });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(readFileSync(log, "utf8")).toContain("account/login/cancel");
     await appServer.stop();
   });
 

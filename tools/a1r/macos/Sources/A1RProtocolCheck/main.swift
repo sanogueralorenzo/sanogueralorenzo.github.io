@@ -21,7 +21,18 @@ guard setup.codex.connected,
 }
 let loginData = Data(#"{"type":"chatgpt","loginId":"login-1","authUrl":"https://auth.openai.com/fake"}"#.utf8)
 let login = try JSONDecoder().decode(CodexLoginStart.self, from: loginData)
-guard login.type == "chatgpt", login.loginId == "login-1", login.authUrl.hasPrefix("https://") else {
+guard login.type == "chatgpt", login.loginId == "login-1", login.authUrl?.hasPrefix("https://") == true else {
     fatalError("A1R browser-login protocol check failed")
+}
+let headlessData = Data(#"{"type":"chatgptDeviceCode","loginId":"login-2","verificationUrl":"https://auth.openai.com/codex/device","userCode":"A1R-TEST"}"#.utf8)
+let headless = try JSONDecoder().decode(CodexLoginStart.self, from: headlessData)
+guard headless.type == "chatgptDeviceCode",
+      headless.verificationUrl?.hasPrefix("https://") == true,
+      headless.userCode == "A1R-TEST" else {
+    fatalError("A1R headless-login protocol check failed")
+}
+let headlessRequest = try JSONEncoder().encode(CodexLoginRequest(mode: "headless"))
+guard String(decoding: headlessRequest, as: UTF8.self).contains("\"mode\":\"headless\"") else {
+    fatalError("A1R headless-login request check failed")
 }
 print("A1R protocol check passed")

@@ -26,8 +26,9 @@ const server = new RuntimeServer(config, runtime, store, {
   status: () => setup.status(),
   setOpenAIKey: (key) => setup.setOpenAIKey(key),
   selectBackend: (backend) => setup.selectBackend(backend),
-  startCodexLogin: () => setup.startCodexLogin(),
+  startCodexLogin: (mode) => setup.startCodexLogin(mode),
   codexLoginStatus: (loginId) => setup.codexLoginStatus(loginId),
+  cancelCodexLogin: (loginId) => setup.cancelCodexLogin(loginId),
 });
 
 const port = await server.listen();

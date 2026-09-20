@@ -7,7 +7,7 @@ import type { A1RRuntime } from "../core/runtime.js";
 import type { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js";
 import type { BackendKind } from "../core/types.js";
-import type { CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
+import type { CodexLoginMode, CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
 import type { SetupStatus } from "../setup/service.js";
 
 interface Discovery {
@@ -48,8 +48,9 @@ export class RuntimeServer {
       status: () => Promise<SetupStatus>;
       setOpenAIKey: (key: string) => Promise<void>;
       selectBackend: (backend: BackendKind) => Promise<void>;
-      startCodexLogin: () => Promise<CodexLoginStart>;
+      startCodexLogin: (mode: CodexLoginMode) => Promise<CodexLoginStart>;
       codexLoginStatus: (loginId: string) => Promise<CodexLoginResult>;
+      cancelCodexLogin: (loginId: string) => Promise<void>;
     },
   ) {}
 
@@ -150,14 +151,23 @@ export class RuntimeServer {
       if (request.method === "POST" && url.pathname === "/v1/setup/codex/login") {
         if (!this.setup) throw new Error("Runtime setup is unavailable.");
         const body = await readJson(request);
-        if (Object.keys(body).length > 0) throw new Error("A1R supports browser login only; this request must not include a login mode.");
-        json(response, 200, await this.setup.startCodexLogin());
+        const mode = body.mode ?? "browser";
+        if (mode !== "browser" && mode !== "headless") throw new Error("login mode must be browser or headless");
+        json(response, 200, await this.setup.startCodexLogin(mode));
         return;
       }
       if (request.method === "GET" && url.pathname.startsWith("/v1/setup/codex/login/")) {
         if (!this.setup) throw new Error("Runtime setup is unavailable.");
         const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length));
         json(response, 200, await this.setup.codexLoginStatus(loginId));
+        return;
+      }
+      if (request.method === "POST" && url.pathname.startsWith("/v1/setup/codex/login/") && url.pathname.endsWith("/cancel")) {
+        if (!this.setup) throw new Error("Runtime setup is unavailable.");
+        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length, -"/cancel".length));
+        if (!loginId) throw new Error("login id is required");
+        await this.setup.cancelCodexLogin(loginId);
+        json(response, 200, { cancelled: true });
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/cancel") {

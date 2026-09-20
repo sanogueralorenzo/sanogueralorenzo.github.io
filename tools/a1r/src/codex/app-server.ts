@@ -5,6 +5,7 @@ import { createInterface, type Interface } from "node:readline";
 import type { RuntimeConfig } from "../core/types.js";
 import type {
   CodexAccountStatus,
+  CodexLoginMode,
   CodexLoginResult,
   CodexLoginStart,
   CodexRateLimits,
@@ -128,7 +129,7 @@ export class CodexAppServer {
 
     try {
       await this.rawRequest("initialize", {
-        clientInfo: { name: "a1r", title: "A1R", version: "0.4.0" },
+        clientInfo: { name: "a1r", title: "A1R", version: "0.5.0" },
       });
       this.notify("initialized", {});
     } catch (error) {
@@ -160,37 +161,66 @@ export class CodexAppServer {
     return this.request<CodexRateLimits>("account/rateLimits/read", {});
   }
 
-  async beginLogin(): Promise<CodexLoginStart> {
-    const result = await this.request<Partial<CodexLoginStart>>("account/login/start", {
-      type: "chatgpt",
-      useHostedLoginSuccessPage: true,
-      appBrand: "chatgpt",
+  async beginLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {
+    const result = await this.request<Record<string, unknown>>("account/login/start", {
+      type: mode === "headless" ? "chatgptDeviceCode" : "chatgpt",
     });
-    if (result.type !== "chatgpt" || typeof result.loginId !== "string" || typeof result.authUrl !== "string") {
-      throw new Error("Codex app-server did not return a valid browser login.");
+    const validBrowser = mode === "browser"
+      && result.type === "chatgpt"
+      && typeof result.loginId === "string"
+      && typeof result.authUrl === "string";
+    const validHeadless = mode === "headless"
+      && result.type === "chatgptDeviceCode"
+      && typeof result.loginId === "string"
+      && typeof result.verificationUrl === "string"
+      && typeof result.userCode === "string";
+    if (!validBrowser && !validHeadless) {
+      throw new Error(`Codex app-server did not return a valid ${mode} login.`);
     }
-    if (!this.logins.has(result.loginId)) this.logins.set(result.loginId, { state: "pending" });
-    return result as CodexLoginStart;
+    const login = result as CodexLoginStart;
+    if (!this.logins.has(login.loginId)) this.logins.set(login.loginId, { state: "pending" });
+    return login;
   }
 
   loginStatus(loginId: string): CodexLoginResult {
     return this.logins.get(loginId) ?? { state: "failed", error: "Unknown login attempt." };
   }
 
-  async waitForLogin(loginId: string, timeoutMs = 5 * 60_000): Promise<CodexLoginResult> {
+  async cancelLogin(loginId: string): Promise<void> {
+    await this.request("account/login/cancel", { loginId });
+    if (this.loginStatus(loginId).state === "pending") {
+      this.logins.set(loginId, { state: "failed", error: "ChatGPT sign-in was cancelled." });
+    }
+  }
+
+  async waitForLogin(loginId: string, timeoutMs = 5 * 60_000, signal?: AbortSignal): Promise<CodexLoginResult> {
     const current = this.loginStatus(loginId);
     if (current.state !== "pending") return current;
     return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        unsubscribe();
-        resolve({ state: "failed", error: "Login timed out. Run setup again." });
-      }, timeoutMs);
-      const unsubscribe = this.onNotification((message) => {
-        if (message.method !== "account/login/completed" || message.params?.loginId !== loginId) return;
+      let finished = false;
+      let unsubscribe: () => void = () => undefined;
+      const finish = (result: CodexLoginResult) => {
+        if (finished) return;
+        finished = true;
         clearTimeout(timer);
         unsubscribe();
-        resolve(this.loginStatus(loginId));
+        signal?.removeEventListener("abort", onAbort);
+        resolve(result);
+      };
+      const onAbort = () => {
+        finish({ state: "failed", error: "Setup cancelled." });
+        void this.cancelLogin(loginId).catch(() => undefined);
+      };
+      const timer = setTimeout(() => {
+        finish({ state: "failed", error: "Login timed out. Run setup again." });
+        void this.cancelLogin(loginId).catch(() => undefined);
+      }, timeoutMs);
+      unsubscribe = this.onNotification((message) => {
+        if (message.method !== "account/login/completed" || message.params?.loginId !== loginId) return;
+        finish(this.loginStatus(loginId));
       });
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener("abort", onAbort, { once: true });
     });
   }
 

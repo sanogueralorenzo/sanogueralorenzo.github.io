@@ -43,7 +43,7 @@ struct SetupView: View {
         VStack(spacing: 18) {
             Image(systemName: "wind").font(.system(size: 48)).foregroundStyle(.tint)
             Text("Welcome to A1R").font(.largeTitle.weight(.semibold))
-            Text("Continue with ChatGPT to use your included Codex allowance. A1R uses a private Codex profile, separate from the Codex CLI, while authentication stays inside the official app-server.")
+            Text("Continue with ChatGPT to use your included Codex allowance. A1R uses a private Codex profile, separate from the Codex CLI, and browser sign-in finishes on a local A1R confirmation page.")
                 .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
             if let plan = model.setupStatus?.codex.planType {
                 Text("ChatGPT \(plan.capitalized)")
@@ -61,6 +61,10 @@ struct SetupView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true || model.setupStatus?.codex.allowanceAvailable == false)
+            if model.setupStatus?.codex.installed == true && model.setupStatus?.codex.connected != true {
+                Text("Setting up a remote or headless machine? Run a1r setup --headless there to use a one-time code.")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
             if model.setupStatus?.codex.allowanceAvailable == false {
                 Text("Included Codex usage is unavailable right now. Try again after reset, or explicitly choose API billing below to switch modes.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)

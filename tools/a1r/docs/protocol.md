@@ -8,8 +8,9 @@ A1R surfaces connect to the runtime on loopback HTTP. The runtime atomically wri
 - `GET /v1/setup` — setup state
 - `POST /v1/setup/openai` — validate and store an OpenAI key
 - `POST /v1/setup/backend` — select `codex` or `responses`
-- `POST /v1/setup/codex/login` — start the documented hosted browser login; the request has no fields and non-empty legacy mode requests are rejected
+- `POST /v1/setup/codex/login` — start explicit ChatGPT login with `{ "mode": "browser" | "headless" }`; an omitted mode remains browser for older clients
 - `GET /v1/setup/codex/login/:id` — poll a login attempt without exposing credentials
+- `POST /v1/setup/codex/login/:id/cancel` — cancel a pending browser or headless login
 - `GET /v1/sessions` — recent locally owned sessions
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/chat` — submit a turn and receive Server-Sent Events
@@ -36,4 +37,4 @@ The `session` event may include `backend: "codex" | "responses"`. All later even
 
 ## Codex app-server boundary
 
-A1R launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and browser-login methods are used. Browser login sends `{ "type": "chatgpt", "useHostedLoginSuccessPage": true, "appBrand": "chatgpt" }`; there is no device-code route. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to A1R's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. A1R stores only the explicitly selected backend and the opaque thread ID associated with an A1R session, and reconstructs a missing pre-migration Codex thread from its own saved transcript.
+A1R launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and login methods are used. Browser mode sends `{ "type": "chatgpt" }`, intentionally retaining app-server's default local success page. Headless mode sends `{ "type": "chatgptDeviceCode" }` and returns only the verification URL and one-time code required by the client. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to A1R's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. A1R stores only the explicitly selected backend and the opaque thread ID associated with an A1R session, and reconstructs a missing pre-migration Codex thread from its own saved transcript. Failed authentication never changes the selected backend or A1R-owned state.
