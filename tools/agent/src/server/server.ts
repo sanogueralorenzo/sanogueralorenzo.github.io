@@ -156,10 +156,7 @@ export class RuntimeServer {
     }
     const controller = new AbortController();
     this.controllers.set(requestId, controller);
-    let finished = false;
-    const abortDisconnected = () => { if (!finished) controller.abort(); };
-    request.once("aborted", abortDisconnected);
-    response.once("close", abortDisconnected);
+    response.once("close", () => controller.abort());
     response.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
       "cache-control": "no-cache, no-transform",
@@ -180,7 +177,6 @@ export class RuntimeServer {
       for await (const event of this.runtime.run(turn, { signal: controller.signal })) send(event);
     } finally {
       this.controllers.delete(requestId);
-      finished = true;
       response.end();
     }
   }
