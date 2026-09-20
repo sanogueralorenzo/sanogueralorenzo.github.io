@@ -33,7 +33,7 @@ async function close(): Promise<void> {
   if (closing) return;
   closing = true;
   await server.close();
-  await codex.close();
+  codexClient.stop();
   store.close();
   process.exit(0);
 }

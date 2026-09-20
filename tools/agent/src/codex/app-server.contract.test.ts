@@ -16,7 +16,6 @@ function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer
   const appServer = new CodexAppServer({
     command: process.execPath,
     args: [fixture],
-    requestTimeoutMs: 2_000,
     env: { ...process.env, AGENT_FAKE_SCENARIO: scenario, ...extra },
   });
   cleanup(() => appServer.stop());

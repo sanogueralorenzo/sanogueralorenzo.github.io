@@ -19,9 +19,6 @@ const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
-const record = (method, params) => {
-  if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
-};
 function completeTurn(threadId, turnId) {
   if (scenario === "image" && artifactPath) {
     notify("item/started", { threadId, turnId, item: { type: "imageGeneration", id: "image-1" } });
@@ -35,7 +32,7 @@ function completeTurn(threadId, turnId) {
 
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params = {} } = JSON.parse(line);
-  record(method, params);
+  if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
   if (method === "initialized") return;
   if (method === "initialize") return reply(id);
   if (method === "account/read") {

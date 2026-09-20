@@ -24,7 +24,6 @@ export interface CodexAppServerOptions {
   command: string;
   args?: string[];
   env?: NodeJS.ProcessEnv;
-  requestTimeoutMs?: number;
 }
 
 export function prepareAgentCodexHome(homeDir: string): string {
@@ -167,7 +166,7 @@ export class CodexAppServer extends EventEmitter {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`Codex app-server timed out while handling ${method}.`));
-      }, this.options.requestTimeoutMs ?? 30_000);
+      }, 30_000);
       this.pending.set(id, { resolve, reject, timer });
       child.stdin.write(`${JSON.stringify({ method, id, params })}\n`, (error) => {
         if (!error) return;

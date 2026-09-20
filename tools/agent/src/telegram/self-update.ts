@@ -8,10 +8,6 @@ const execFileAsync = promisify(execFile);
 const ROOT_FILES = new Set(["package.json", "package-lock.json", "tsconfig.json", "vitest.config.ts"]);
 const UPDATE_STATE = "self-update.json";
 
-interface UpdateState {
-  notificationOwnerId: string;
-}
-
 interface SelfUpdateOptions {
   projectRoot: string;
   homeDir: string;
@@ -23,7 +19,7 @@ interface SelfUpdateOptions {
 }
 
 export function pendingUpdateOwner(homeDir: string): string | null {
-  return readPrivateJson<UpdateState>(join(homeDir, UPDATE_STATE))?.notificationOwnerId ?? null;
+  return readPrivateJson<{ notificationOwnerId: string }>(join(homeDir, UPDATE_STATE))?.notificationOwnerId ?? null;
 }
 
 export function acknowledgeUpdate(homeDir: string): void {

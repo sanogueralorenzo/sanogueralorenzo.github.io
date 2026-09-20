@@ -55,7 +55,7 @@ export class BackendSetupService {
   }
 
   async startCodexLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {
-    if (!this.codex.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, then run setup again.");
+    if (!this.codex.isInstalled()) throw new Error("Install the Codex CLI and retry.");
     return this.codex.beginLogin(mode);
   }
 

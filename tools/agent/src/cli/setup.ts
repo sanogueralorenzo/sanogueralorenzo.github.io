@@ -115,9 +115,6 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
       await apiKeySetup(service, before.openAIConfigured);
       return;
     }
-    if (!before.codex.installed) {
-      throw new Error("Install the Codex CLI and retry, or run `agent setup --api-key`.");
-    }
     if (before.codex.connected) {
       await service.selectBackend("codex");
       console.log("Connect Success");

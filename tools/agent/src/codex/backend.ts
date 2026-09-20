@@ -98,8 +98,6 @@ export class CodexBackend implements AgentBackend {
     }
   }
 
-  close(): void { this.client.stop(); }
-
   private async retry<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();
