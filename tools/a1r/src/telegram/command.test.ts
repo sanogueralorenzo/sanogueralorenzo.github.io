@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   configured: vi.fn(),
+  installService: vi.fn(),
+  readSecret: vi.fn(),
   readSecretLine: vi.fn(),
   setup: vi.fn(),
+  writeSecret: vi.fn(),
 }));
 
 vi.mock("../cli/setup.js", () => ({
@@ -12,13 +15,25 @@ vi.mock("../cli/setup.js", () => ({
   setupA1R: mocks.setup,
 }));
 
-import { runTelegramCommand, startTelegramGatewayProcess } from "./command.js";
+vi.mock("../core/credentials.js", () => ({
+  readSecret: mocks.readSecret,
+  writeSecret: mocks.writeSecret,
+}));
+
+vi.mock("./service.js", () => ({
+  installTelegramBackgroundService: mocks.installService,
+}));
+
+import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
     mocks.configured.mockReset().mockResolvedValue(false);
+    mocks.installService.mockReset();
+    mocks.readSecret.mockReset();
     mocks.readSecretLine.mockReset().mockRejectedValue(new Error("stop at Telegram setup"));
     mocks.setup.mockReset().mockRejectedValue(new Error("stop after backend setup"));
+    mocks.writeSecret.mockReset();
   });
 
   it.each([
@@ -48,31 +63,12 @@ describe("Telegram guided setup", () => {
     expect(mocks.readSecretLine).toHaveBeenCalledWith("Bot token (hidden): ");
   });
 
-  it("returns immediately when the platform installs a background gateway", async () => {
-    const install = vi.fn(() => true);
-    const runForeground = vi.fn();
+  it("starts the configured background service and returns", async () => {
+    mocks.readSecret.mockReturnValue("telegram-token");
 
-    await expect(startTelegramGatewayProcess(
-      { homeDir: "/tmp/a1r", codexCommand: "codex" },
-      "secret-token",
-      install,
-      runForeground,
-    )).resolves.toBe("background");
+    await expect(runTelegramCommand([])).resolves.toBeUndefined();
 
-    expect(install).toHaveBeenCalledOnce();
-    expect(runForeground).not.toHaveBeenCalled();
+    expect(mocks.installService).toHaveBeenCalledOnce();
   });
 
-  it("keeps the foreground gateway fallback on unsupported platforms", async () => {
-    const runForeground = vi.fn().mockResolvedValue(undefined);
-
-    await expect(startTelegramGatewayProcess(
-      { homeDir: "/tmp/a1r", codexCommand: "codex" },
-      "secret-token",
-      () => false,
-      runForeground,
-    )).resolves.toBe("foreground");
-
-    expect(runForeground).toHaveBeenCalledExactlyOnceWith("secret-token");
-  });
 });

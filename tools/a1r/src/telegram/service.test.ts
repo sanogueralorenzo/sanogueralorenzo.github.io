@@ -5,7 +5,7 @@ describe("Telegram background service", () => {
   it("renders a persistent launch agent with the internal gateway entry point", () => {
     const plist = renderTelegramLaunchAgent({
       executable: "/opt/homebrew/bin/node",
-      entryPath: "/opt/a1r & tools/dist/bin/a1r.js",
+      serviceEntry: "/opt/a1r & tools/dist/telegram/main.js",
       workingDirectory: "/opt/a1r & tools",
       homeDir: "/Users/test/.a1r",
       codexCommand: "/opt/homebrew/bin/codex",
@@ -13,9 +13,10 @@ describe("Telegram background service", () => {
     });
 
     expect(plist).toContain(`<string>${TELEGRAM_SERVICE_LABEL}</string>`);
-    expect(plist).toContain("<string>telegram</string>\n    <string>serve</string>");
     expect(plist).toContain("<key>KeepAlive</key>\n  <true/>");
-    expect(plist).toContain("/opt/a1r &amp; tools/dist/bin/a1r.js");
+    expect(plist).toContain("/opt/a1r &amp; tools/dist/telegram/main.js");
+    expect(plist).not.toContain("<string>telegram</string>");
+    expect(plist).not.toContain("<string>serve</string>");
     expect(plist).toContain("/Users/test/.a1r/telegram.log");
     expect(plist).not.toContain("Bot token");
   });
@@ -23,7 +24,7 @@ describe("Telegram background service", () => {
   it("runs TypeScript development entry points through tsx", () => {
     const plist = renderTelegramLaunchAgent({
       executable: "/usr/bin/node",
-      entryPath: "/repo/tools/a1r/src/bin/a1r.ts",
+      serviceEntry: "/repo/tools/a1r/src/telegram/main.ts",
       workingDirectory: "/repo/tools/a1r",
       homeDir: "/tmp/a1r",
       codexCommand: "/usr/bin/codex",

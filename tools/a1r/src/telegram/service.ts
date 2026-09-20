@@ -2,13 +2,14 @@ import { execFileSync } from "node:child_process";
 import { accessSync, chmodSync, constants, existsSync, lstatSync, mkdirSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { RuntimeConfig } from "../core/types.js";
 
 export const TELEGRAM_SERVICE_LABEL = "dev.a1r.telegram";
 
 interface LaunchAgentOptions {
   executable: string;
-  entryPath: string;
+  serviceEntry: string;
   workingDirectory: string;
   homeDir: string;
   codexCommand: string;
@@ -29,13 +30,11 @@ function stringEntry(value: string): string {
 }
 
 export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
-  const sourceMode = options.entryPath.endsWith(".ts");
+  const sourceMode = options.serviceEntry.endsWith(".ts");
   const args = [
     options.executable,
     ...(sourceMode ? ["--import", "tsx"] : []),
-    options.entryPath,
-    "telegram",
-    "serve",
+    options.serviceEntry,
   ];
   const environment: Array<[string, string]> = [
     ["A1R_HOME", options.homeDir],
@@ -98,13 +97,13 @@ function executablePath(command: string): string {
 
 export function installTelegramBackgroundService(
   config: Pick<RuntimeConfig, "homeDir" | "codexCommand">,
-  entryPath = process.argv[1],
-): boolean {
-  if (process.platform !== "darwin") return false;
-  if (!entryPath) throw new Error("A1R could not determine its executable path for the Telegram service.");
+): void {
+  if (process.platform !== "darwin") throw new Error("The A1R Telegram background service currently requires macOS.");
   if (typeof process.getuid !== "function") throw new Error("A1R could not determine the current macOS user.");
 
-  const absoluteEntry = realpathSync(resolve(entryPath));
+  const modulePath = fileURLToPath(import.meta.url);
+  const sourceMode = modulePath.endsWith(".ts");
+  const serviceEntry = realpathSync(join(dirname(modulePath), `main.${sourceMode ? "ts" : "js"}`));
   const launchAgents = join(homedir(), "Library", "LaunchAgents");
   mkdirSync(launchAgents, { recursive: true, mode: 0o755 });
   if (lstatSync(launchAgents).isSymbolicLink()) throw new Error("The user LaunchAgents directory must not be a symbolic link.");
@@ -118,8 +117,8 @@ export function installTelegramBackgroundService(
   const temporary = `${plistPath}.${process.pid}.tmp`;
   const plist = renderTelegramLaunchAgent({
     executable: process.execPath,
-    entryPath: absoluteEntry,
-    workingDirectory: resolve(dirname(absoluteEntry), "../.."),
+    serviceEntry,
+    workingDirectory: resolve(dirname(serviceEntry), "../.."),
     homeDir: config.homeDir,
     codexCommand: executablePath(config.codexCommand),
     ...(process.env.PATH ? { path: process.env.PATH } : {}),
@@ -141,5 +140,4 @@ export function installTelegramBackgroundService(
   } catch (cause) {
     throw new Error(`A1R could not start the Telegram background service: ${cause instanceof Error ? cause.message : String(cause)}`);
   }
-  return true;
 }
