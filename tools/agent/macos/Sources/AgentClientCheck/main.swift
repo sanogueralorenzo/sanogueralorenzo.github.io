@@ -70,6 +70,14 @@ struct AgentClientCheck {
         let completed = try await collect(try await client().events(text: "hello", sessionId: nil, fresh: false))
         check(completed == ["text_delta", "done"], "Agent client stream check failed")
 
+        MockURLProtocol.handler = { _, protocolValue in protocolValue.respond("data: {broken}\n\n") }
+        do {
+            _ = try await collect(try await client().events(text: "hello", sessionId: nil, fresh: false))
+            preconditionFailure("Agent client accepted a malformed event")
+        } catch {
+            check(error.localizedDescription == "Agent runtime sent an invalid event.", "Agent malformed-event check failed")
+        }
+
         MockURLProtocol.handler = { _, protocolValue in
             protocolValue.respond("data: {\"type\":\"status\",\"message\":\"Working\"}\n\n")
         }

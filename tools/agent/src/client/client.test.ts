@@ -71,4 +71,18 @@ describe("RuntimeClient event stream", () => {
     await expect(client.cancel()).resolves.toBe(false);
     chatResponse?.end();
   });
+
+  it("closes the HTTP stream when its consumer stops early", async () => {
+    let closed!: () => void;
+    const connectionClosed = new Promise<void>((resolve) => { closed = resolve; });
+    const client = await fixture((_request, response) => {
+      response.once("close", closed);
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write("data: {\"type\":\"status\",\"message\":\"Working\"}\n\n");
+    });
+
+    for await (const _event of client.events({ text: "hello" })) break;
+    await expect(connectionClosed).resolves.toBeUndefined();
+    expect(client.isRunning).toBe(false);
+  });
 });

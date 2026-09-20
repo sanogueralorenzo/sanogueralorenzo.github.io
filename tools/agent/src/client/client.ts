@@ -113,6 +113,7 @@ export class RuntimeClient {
       }
       if (!terminal) throw new Error("Agent runtime disconnected before the response completed.");
     } finally {
+      controller.abort();
       if (this.activeRequest === controller) this.activeRequest = null;
     }
   }

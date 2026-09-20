@@ -50,6 +50,8 @@ export class TelegramTurns {
     } catch (error) {
       const message = output.trim()
         ? `${output.trim()}\n\nInterrupted. Your session is saved; send another message to continue.`
+        : error instanceof Error && error.name === "AbortError"
+          ? "Interrupted. Your session is saved; send another message to continue."
         : error instanceof Error && /25 MB/.test(error.message)
           ? error.message
           : "I could not finish that response. Your session is saved; please try again.";

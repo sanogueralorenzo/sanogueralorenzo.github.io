@@ -58,6 +58,14 @@ describe("Telegram turns", () => {
     });
   });
 
+  it("reports cancellation before any text as an interruption", async () => {
+    const turns = new TelegramTurns(client([], new DOMException("stopped", "AbortError")));
+    await expect(turns.run(async () => ({ text: "hello" }))).resolves.toMatchObject({
+      state: "complete",
+      chunks: [expect.stringMatching(/^Interrupted\./)],
+    });
+  });
+
   it("enforces the voice limit before and after download", () => {
     expect(() => checkTelegramVoiceSize(MAX_ATTACHMENT_BYTES)).not.toThrow();
     expect(() => checkTelegramVoiceSize(MAX_ATTACHMENT_BYTES + 1)).toThrow("25 MB");
