@@ -69,13 +69,9 @@ export class BackendSetupService {
     return this.codex.beginLogin(mode);
   }
 
-  async codexLoginStatus(loginId: string): Promise<CodexLoginResult> {
-    const status = this.codex.loginStatus(loginId);
+  async waitForCodexLogin(loginId: string, signal?: AbortSignal): Promise<CodexLoginResult> {
+    const status = await this.codex.waitForLogin(loginId, 5 * 60_000, signal);
     if (status.state === "complete") this.store.setSetting("backend", "codex");
     return status;
-  }
-
-  async cancelCodexLogin(loginId: string): Promise<void> {
-    await this.codex.cancelLogin(loginId);
   }
 }

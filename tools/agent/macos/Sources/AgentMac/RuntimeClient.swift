@@ -46,6 +46,7 @@ struct RuntimeClient: Sendable {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
+        request.timeoutInterval = 310
         return request
     }
 
@@ -72,14 +73,9 @@ struct RuntimeClient: Sendable {
         try await value(path: "/v1/setup/codex/login", method: "POST", body: ["mode": mode])
     }
 
-    func codexLoginStatus(loginId: String) async throws -> CodexLoginResult {
+    func waitForCodexLogin(loginId: String) async throws -> CodexLoginResult {
         let id = loginId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? loginId
-        return try await value(path: "/v1/setup/codex/login/\(id)")
-    }
-
-    func cancelCodexLogin(loginId: String) async throws {
-        let id = loginId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? loginId
-        _ = try await data(path: "/v1/setup/codex/login/\(id)/cancel", method: "POST")
+        return try await value(path: "/v1/setup/codex/login/\(id)/wait", method: "POST")
     }
 
     func resumeLatest() async throws -> Transcript? {

@@ -18,8 +18,7 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
     setOpenAIKey: async () => undefined,
     selectBackend: async () => undefined,
     startCodexLogin: async () => ({ type: "chatgpt", loginId: "login", authUrl: "https://auth.openai.com/fake" }),
-    codexLoginStatus: async () => ({ state: "complete" }),
-    cancelCodexLogin: async () => undefined,
+    waitForCodexLogin: async () => ({ state: "complete" }),
     ...overrides,
   };
 }
@@ -86,7 +85,6 @@ describe("RuntimeServer", () => {
     const runtime = { async *run() {} } as unknown as AgentRuntime;
     let selected = "";
     const loginModes: string[] = [];
-    let cancelledLogin = "";
     const setup = setupStub({
       status: async () => ({
         configured: false,
@@ -101,7 +99,6 @@ describe("RuntimeServer", () => {
           ? { type: "chatgptDeviceCode", loginId: "login-2", verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST" }
           : { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
       },
-      cancelCodexLogin: async (loginId) => { cancelledLogin = loginId; },
     });
     const { request } = await serve(runtime, setup);
 
@@ -117,11 +114,8 @@ describe("RuntimeServer", () => {
     expect(invalidMode.status).toBe(400);
     await expect(invalidMode.json()).resolves.toMatchObject({ error: "login mode must be browser or headless" });
     expect(loginModes).toEqual(["browser", "headless"]);
-    const completed = await request("/v1/setup/codex/login/login-1");
+    const completed = await request("/v1/setup/codex/login/login-1/wait", "POST");
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
-    const cancelled = await request("/v1/setup/codex/login/login-2/cancel", "POST");
-    await expect(cancelled.json()).resolves.toEqual({ cancelled: true });
-    expect(cancelledLogin).toBe("login-2");
     await request("/v1/setup/backend", "POST", { backend: "codex" });
     expect(selected).toBe("codex");
   });

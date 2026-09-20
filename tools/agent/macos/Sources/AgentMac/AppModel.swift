@@ -79,19 +79,9 @@ final class AppModel: ObservableObject {
                 throw RuntimeClientError.badResponse(400, "Agent expected browser login but received another login flow.")
             }
             if let destination = URL(string: authUrl) { NSWorkspace.shared.open(destination) }
-            do {
-                for _ in 0..<300 {
-                    try await Task.sleep(for: .seconds(1))
-                    let result = try await client.codexLoginStatus(loginId: login.loginId)
-                    if result.state == "complete" { return }
-                    if result.state == "failed" {
-                        throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.")
-                    }
-                }
-                throw RuntimeClientError.badResponse(408, "ChatGPT sign-in timed out. Try again.")
-            } catch {
-                try? await client.cancelCodexLogin(loginId: login.loginId)
-                throw error
+            let result = try await client.waitForCodexLogin(loginId: login.loginId)
+            if result.state != "complete" {
+                throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.")
             }
         }
     }

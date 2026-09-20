@@ -19,7 +19,7 @@ interface Discovery {
 }
 
 export type RuntimeSetup = Pick<BackendSetupService,
-  "status" | "setOpenAIKey" | "selectBackend" | "startCodexLogin" | "codexLoginStatus" | "cancelCodexLogin">;
+  "status" | "setOpenAIKey" | "selectBackend" | "startCodexLogin" | "waitForCodexLogin">;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -88,15 +88,10 @@ export class RuntimeServer {
           ? json(response, 200, { session, messages: this.store.getMessages(id, MAX_HISTORY_MESSAGES) })
           : json(response, 404, { error: "session_not_found" });
       }
-      if (route.startsWith("GET /v1/setup/codex/login/")) {
-        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length));
-        return json(response, 200, await this.setup.codexLoginStatus(loginId));
-      }
-      if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/cancel")) {
-        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length, -"/cancel".length));
+      if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/wait")) {
+        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length, -"/wait".length));
         if (!loginId) throw new Error("login id is required");
-        await this.setup.cancelCodexLogin(loginId);
-        return json(response, 200, { cancelled: true });
+        return json(response, 200, await this.setup.waitForCodexLogin(loginId));
       }
       switch (route) {
         case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });

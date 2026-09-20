@@ -136,13 +136,12 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
     const controller = new AbortController();
     const cancel = () => controller.abort();
     process.once("SIGINT", cancel);
-    const result = await codex.waitForLogin(login.loginId, 5 * 60_000, controller.signal)
+    const result = await service.waitForCodexLogin(login.loginId, controller.signal)
       .finally(() => process.off("SIGINT", cancel));
     if (result.state !== "complete") {
       const retry = choice === "headless" ? "agent setup --headless" : "agent setup --chatgpt";
       throw new Error(result.error ?? `ChatGPT ${choice} login was not completed. Run \`${retry}\` to try again.`);
     }
-    await service.codexLoginStatus(login.loginId);
     console.log("Connect Success");
   } finally {
     await codex.stop();
