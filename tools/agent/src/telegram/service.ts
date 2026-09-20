@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { accessSync, constants, realpathSync } from "node:fs";
+import { accessSync, constants, realpathSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,15 @@ export function renderTelegramGatewayLauncher(executable: string, serviceEntry: 
   return `#!/bin/sh\nexec ${args.map(shellArgument).join(" ")}\n`;
 }
 
+export function installTelegramGatewayLauncher(homeDir: string, executable: string, serviceEntry: string): string {
+  const binDirectory = join(homeDir, "bin");
+  ensurePrivateDirectory(binDirectory);
+  const launcherPath = join(binDirectory, "agent");
+  rmSync(join(binDirectory, "Agent"), { force: true });
+  writePrivateFile(launcherPath, renderTelegramGatewayLauncher(executable, serviceEntry), 0o700);
+  return launcherPath;
+}
+
 function executablePath(command: string): string {
   if (command.includes("/")) return resolve(command);
   for (const directory of (process.env.PATH ?? "").split(delimiter)) {
@@ -95,10 +104,7 @@ export function installTelegramBackgroundService(
   const launchAgents = join(homedir(), "Library", "LaunchAgents");
   ensurePrivateDirectory(config.homeDir);
 
-  const binDirectory = join(config.homeDir, "bin");
-  ensurePrivateDirectory(binDirectory);
-  const launcherPath = join(binDirectory, "Agent");
-  writePrivateFile(launcherPath, renderTelegramGatewayLauncher(process.execPath, serviceEntry), 0o700);
+  const launcherPath = installTelegramGatewayLauncher(config.homeDir, process.execPath, serviceEntry);
 
   const plistPath = join(launchAgents, `${TELEGRAM_SERVICE_LABEL}.plist`);
   const plist = renderTelegramLaunchAgent({
@@ -113,7 +119,7 @@ export function installTelegramBackgroundService(
   const domain = `gui/${process.getuid()}`;
   const service = `${domain}/${TELEGRAM_SERVICE_LABEL}`;
   try {
-    execFileSync("/bin/launchctl", ["bootout", service], { stdio: "ignore" });
+    execFileSync("/bin/launchctl", ["bootout", domain, plistPath], { stdio: "ignore" });
   } catch {
     // The service is not loaded on first setup.
   }
