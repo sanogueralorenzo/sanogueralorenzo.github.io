@@ -27,41 +27,17 @@ function setup(scenario: string | null, apiKey = false, selected?: BackendKind) 
 }
 
 describe("BackendSetupService", () => {
-  it("reports a ChatGPT connection", async () => {
-    const { store, service } = setup("normal");
-    const status = await service.status();
-    expect(status.codex).toMatchObject({ installed: true, connected: true });
-    await service.selectBackend("codex");
-    expect(store.getSetting("backend")).toBe("codex");
-  });
-
-  it("preserves explicitly selected API-key mode when Codex is unavailable", async () => {
-    const { store, service } = setup(null, true, "responses");
-    await expect(service.status()).resolves.toMatchObject({
-      configured: true, selectedBackend: "responses", openAIConfigured: true, codex: { installed: false },
-    });
-    await service.selectBackend("responses");
-    expect(store.getSetting("backend")).toBe("responses");
-  });
-
-  it("does not select a saved API key unless the user explicitly chooses it", async () => {
-    const { store, service } = setup(null, true);
-    await expect(service.status()).resolves.toMatchObject({ configured: false, selectedBackend: null, openAIConfigured: true });
-    expect(store.getSetting("backend")).toBeNull();
-  });
-
-  it("reports a selected Codex backend as disconnected when its login has expired", async () => {
-    const { store, service } = setup("expired", false, "codex");
-    await expect(service.status()).resolves.toMatchObject({ configured: false, selectedBackend: "codex", codex: { connected: false } });
-    await expect(service.selectBackend("codex")).rejects.toThrow(/Continue with ChatGPT/);
-    expect(store.getSetting("backend")).toBe("codex");
-  });
-
-  it("switches to a saved API key only when explicitly selected", async () => {
-    const { store, service } = setup("exhausted", true, "codex");
-    const status = await service.status();
-    expect(status).toMatchObject({ configured: true, selectedBackend: "codex", openAIConfigured: true });
-    await service.selectBackend("responses");
-    expect(store.getSetting("backend")).toBe("responses");
+  it.each([
+    ["connected ChatGPT", "normal", false, undefined, { codex: { installed: true, connected: true } }, "codex", null, "codex"],
+    ["selected API key without Codex", null, true, "responses", { configured: true, selectedBackend: "responses", openAIConfigured: true, codex: { installed: false } }, "responses", null, "responses"],
+    ["unselected saved API key", null, true, undefined, { configured: false, selectedBackend: null, openAIConfigured: true }, undefined, null, null],
+    ["expired selected ChatGPT", "expired", false, "codex", { configured: false, selectedBackend: "codex", codex: { connected: false } }, "codex", "Continue with ChatGPT", "codex"],
+    ["explicit switch to API key", "exhausted", true, "codex", { configured: true, selectedBackend: "codex", openAIConfigured: true }, "responses", null, "responses"],
+  ] as const)("handles %s", async (_name, scenario, apiKey, selected, status, choice, error, stored) => {
+    const { store, service } = setup(scenario, apiKey, selected);
+    await expect(service.status()).resolves.toMatchObject(status);
+    if (choice && error) await expect(service.selectBackend(choice)).rejects.toThrow(error);
+    else if (choice) await service.selectBackend(choice);
+    expect(store.getSetting("backend")).toBe(stored);
   });
 });
