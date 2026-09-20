@@ -13,7 +13,7 @@ function fixture() {
   const root = temporary("agent-tools-");
   const state = temporary("agent-tools-state-");
   const store = new Store(state);
-  const tools = createTools(store, { allowCodeTools: true });
+  const tools = createTools(store, "write");
   const context = { cwd: root, memoryScope: "test" };
   return { root, store, tools, context };
 }
@@ -23,10 +23,10 @@ describe("coding tool boundaries", () => {
     const root = temporary("agent-tools-readonly-");
     const state = temporary("agent-tools-readonly-state-");
     const store = new Store(state);
-    const names = createTools(store, { allowCodeTools: true, allowCodeWrites: false })
+    const names = createTools(store, "read")
       .map((tool) => tool.definition.name);
 
-    expect(names).toEqual(["memory_search", "remember", "read_file", "list_files", "search_files"]);
+    expect(names).toEqual(["memory_search", "read_file", "list_files", "search_files"]);
     store.close();
   });
 

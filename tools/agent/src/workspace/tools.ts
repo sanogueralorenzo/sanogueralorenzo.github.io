@@ -120,20 +120,22 @@ function refuses(program: string, args: string[]): boolean {
     || (program === "git" && args.some((value) => ["clean", "reset", "push"].includes(value)));
 }
 
-export function createTools(store: Store, options: { allowCodeTools: boolean; allowCodeWrites?: boolean; allowMemoryWrite?: boolean }): AgentTool[] {
+export type ToolSet = "coordinator" | "memory" | "read" | "write";
+
+export function createTools(store: Store, toolSet: ToolSet): AgentTool[] {
   const tools = [tool("memory_search", "Search durable personal or project memory.", { query: string }, async (args, context) => {
     const found = store.searchMemories(context.memoryScope, text(args, "query"));
     return { output: found.map((item) => `- ${item.content}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
   })];
 
-  if (options.allowMemoryWrite !== false) tools.push(tool("remember", "Save one durable, non-secret fact or preference.", { fact: string }, async (args, context) => {
+  if (toolSet === "coordinator") tools.push(tool("remember", "Save one durable, non-secret fact or preference.", { fact: string }, async (args, context) => {
     const fact = text(args, "fact").trim();
     if (/\b(api[_ -]?key|password|secret|token)\b/i.test(fact) || containsSecret(fact)) throw new Error("Agent will not store suspected secrets in memory.");
     store.remember(context.memoryScope, fact);
     return { output: "Saved.", summary: "memory saved" };
   }));
 
-  if (options.allowCodeTools) tools.push(
+  if (toolSet === "read" || toolSet === "write") tools.push(
     tool("read_file", "Read a UTF-8 project file.", { path: string }, async (args, context) => {
       const path = await projectPath(context.cwd, text(args, "path"));
       return { output: clipped(await readFile(path, "utf8")), summary: `read ${relative(context.cwd!, path)}` };
@@ -160,7 +162,7 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
     }),
   );
 
-  if (options.allowCodeTools && options.allowCodeWrites !== false) tools.push(
+  if (toolSet === "write") tools.push(
     tool("write_file", "Create or replace a UTF-8 project file.", { path: string, content: string }, async (args, context) => {
       const path = await projectPath(context.cwd, text(args, "path"), true);
       await writeFile(path, text(args, "content"), "utf8");
