@@ -84,6 +84,30 @@ async function chooseDefault(): Promise<SetupChoice> {
   return answer === "2" ? "headless" : answer === "3" ? "api" : "browser";
 }
 
+function createSetupContext() {
+  const config = loadConfig();
+  const store = new Store(config.homeDir, "a1r.sqlite", { recoverRuns: false });
+  const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
+  const codex = createA1RCodexAppServer(config);
+  const service = new BackendSetupService(
+    store,
+    model,
+    codex,
+    (key) => { writeSecret("openai", key, config.homeDir); },
+  );
+  return { config, store, codex, service };
+}
+
+export async function isA1RConfigured(): Promise<boolean> {
+  const { store, codex, service } = createSetupContext();
+  try {
+    return (await service.status()).configured;
+  } finally {
+    await codex.stop();
+    store.close();
+  }
+}
+
 export async function setupA1R(args: string[] = []): Promise<void> {
   const unknown = args.filter((arg) => arg !== "--chatgpt" && arg !== "--headless" && arg !== "--api-key");
   if (unknown.includes("--device-code")) {
@@ -96,16 +120,7 @@ export async function setupA1R(args: string[] = []): Promise<void> {
     throw new Error("Choose exactly one setup method: browser, headless device, or API key.");
   }
 
-  const config = loadConfig();
-  const store = new Store(config.homeDir, "a1r.sqlite", { recoverRuns: false });
-  const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
-  const codex = createA1RCodexAppServer(config);
-  const service = new BackendSetupService(
-    store,
-    model,
-    codex,
-    (key) => { writeSecret("openai", key, config.homeDir); },
-  );
+  const { config, store, codex, service } = createSetupContext();
 
   try {
     console.log("\nConnect A1R\n");

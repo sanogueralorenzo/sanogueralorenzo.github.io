@@ -1,18 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const setup = vi.hoisted(() => vi.fn());
+const mocks = vi.hoisted(() => ({
+  configured: vi.fn(),
+  readSecretLine: vi.fn(),
+  setup: vi.fn(),
+}));
 
 vi.mock("../cli/setup.js", () => ({
-  readSecretLine: vi.fn(),
-  setupA1R: setup,
+  isA1RConfigured: mocks.configured,
+  readSecretLine: mocks.readSecretLine,
+  setupA1R: mocks.setup,
 }));
 
 import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
-    setup.mockReset();
-    setup.mockRejectedValue(new Error("stop after backend setup"));
+    mocks.configured.mockReset().mockResolvedValue(false);
+    mocks.readSecretLine.mockReset().mockRejectedValue(new Error("stop at Telegram setup"));
+    mocks.setup.mockReset().mockRejectedValue(new Error("stop after backend setup"));
   });
 
   it.each([
@@ -20,12 +26,25 @@ describe("Telegram guided setup", () => {
     ["headless device", ["--headless"]],
     ["API key", ["--api-key"]],
   ])("forwards the explicit %s choice to the shared setup", async (_label, args) => {
+    mocks.configured.mockResolvedValue(true);
     await expect(runTelegramCommand(["setup", ...args])).rejects.toThrow("stop after backend setup");
-    expect(setup).toHaveBeenCalledExactlyOnceWith(args);
+    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith(args);
+    expect(mocks.configured).not.toHaveBeenCalled();
   });
 
-  it("uses the shared three-choice prompt when no setup flag is supplied", async () => {
+  it("uses the shared three-choice prompt when A1R is not configured", async () => {
     await expect(runTelegramCommand(["setup"])).rejects.toThrow("stop after backend setup");
-    expect(setup).toHaveBeenCalledExactlyOnceWith([]);
+    expect(mocks.configured).toHaveBeenCalledOnce();
+    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith([]);
+  });
+
+  it("skips backend setup when A1R already has a usable connection", async () => {
+    mocks.configured.mockResolvedValue(true);
+
+    await expect(runTelegramCommand(["setup"])).rejects.toThrow("stop at Telegram setup");
+
+    expect(mocks.configured).toHaveBeenCalledOnce();
+    expect(mocks.setup).not.toHaveBeenCalled();
+    expect(mocks.readSecretLine).toHaveBeenCalledWith("Bot token (hidden): ");
   });
 });

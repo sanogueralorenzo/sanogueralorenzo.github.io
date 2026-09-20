@@ -74,7 +74,7 @@ a1r telegram setup
 a1r telegram setup --headless # remote/headless host
 ```
 
-The guided flow first uses the same three browser, headless-device, or API-key choices as the CLI, then validates a dedicated BotFather token, refuses bots already attached to a webhook, stores the token privately, and prints a single-use pairing link that expires after ten minutes. Only the paired private Telegram account can use it.
+The guided flow reuses A1R's existing connection when the CLI is already configured. Otherwise it first uses the same three browser, headless-device, or API-key choices as the CLI. It then validates a dedicated BotFather token, refuses bots already attached to a webhook, stores the token privately, and prints a single-use pairing link that expires after ten minutes. Only the paired private Telegram account can use it. Passing `--chatgpt`, `--headless`, or `--api-key` explicitly reruns that connection setup before Telegram pairing.
 
 Telegram remains thin: messages enter the same local runtime over authenticated HTTP/SSE. `/stop` cancels the active Responses or Codex turn. Coding requests resume the most recent local coding project; ordinary requests use the personal conversation. The computer and gateway must remain online.
 

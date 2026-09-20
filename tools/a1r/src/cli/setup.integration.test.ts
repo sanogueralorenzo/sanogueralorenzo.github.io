@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Store } from "../core/store.js";
-import { SETUP_CHOICES, SETUP_PROMPT, setupA1R } from "./setup.js";
+import { SETUP_CHOICES, SETUP_PROMPT, isA1RConfigured, setupA1R } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 const roots: string[] = [];
@@ -31,7 +31,7 @@ async function runSetup(
     apiConfigured?: boolean;
     browserOpens?: boolean;
   } = {},
-): Promise<{ output: string; rpc: string; backend: string | null; error: Error | null; statePreserved: boolean }> {
+): Promise<{ output: string; rpc: string; backend: string | null; configured: boolean; error: Error | null; statePreserved: boolean }> {
   const homeDir = mkdtempSync(join(tmpdir(), "a1r-cli-setup-"));
   roots.push(homeDir);
   const rpcLog = join(homeDir, "rpc.log");
@@ -84,6 +84,8 @@ async function runSetup(
     } catch (cause) {
       error = cause instanceof Error ? cause : new Error(String(cause));
     }
+    const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
+    const configured = await isA1RConfigured();
     let backend: string | null = null;
     let statePreserved = seededSessionId === null;
     if (existsSync(join(homeDir, "a1r.sqlite"))) {
@@ -100,8 +102,9 @@ async function runSetup(
     }
     return {
       output: output.join("\n"),
-      rpc: existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "",
+      rpc: setupRpc,
       backend,
+      configured,
       error,
       statePreserved,
     };
@@ -131,6 +134,7 @@ describe.sequential("CLI subscription setup", () => {
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("codex");
+    expect(result.configured).toBe(true);
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect A1R", "Connect Success"]);
     expect(result.rpc).not.toContain("account/login/start");
   });
@@ -207,6 +211,7 @@ describe.sequential("CLI subscription setup", () => {
 
     expect(result.error).toBeNull();
     expect(result.backend).toBe("responses");
+    expect(result.configured).toBe(true);
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect A1R", "Connect Success"]);
     expect(result.rpc).not.toContain("account/login/start");
   });

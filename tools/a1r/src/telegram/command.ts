@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { Bot } from "grammy";
 import { RuntimeClient } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
-import { readSecretLine, setupA1R } from "../cli/setup.js";
+import { isA1RConfigured, readSecretLine, setupA1R } from "../cli/setup.js";
 import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
@@ -202,7 +202,10 @@ async function runGateway(token: string): Promise<void> {
 
 export async function runTelegramCommand(args: string[]): Promise<void> {
   const config = loadConfig();
-  if (args[0] === "setup") await setupA1R(args.slice(1));
+  if (args[0] === "setup") {
+    const setupArgs = args.slice(1);
+    if (setupArgs.length > 0 || !await isA1RConfigured()) await setupA1R(setupArgs);
+  }
   const token = args[0] === "setup" ? await setupTelegram() : readSecret("telegram", config.homeDir);
   if (!token) throw new Error("Telegram is not connected. Run `a1r telegram setup`.");
   try {
