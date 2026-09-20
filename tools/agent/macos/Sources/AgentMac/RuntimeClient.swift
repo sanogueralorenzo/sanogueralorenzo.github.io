@@ -58,9 +58,7 @@ struct RuntimeClient: Sendable {
         }
     }
 
-    func setupStatus() async throws -> SetupStatus {
-        try await value(path: "/v1/setup")
-    }
+    func setupStatus() async throws -> SetupStatus { try await value(path: "/v1/setup") }
 
     func connectOpenAI(key: String) async throws {
         _ = try await data(path: "/v1/setup/openai", method: "POST", body: ["apiKey": key])

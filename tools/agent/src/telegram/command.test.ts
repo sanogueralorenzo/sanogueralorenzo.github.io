@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  configured: vi.fn(),
   installService: vi.fn(),
   readSecret: vi.fn(),
   readSecretLine: vi.fn(),
@@ -10,7 +9,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../cli/setup.js", () => ({
-  isAgentConfigured: mocks.configured,
   readSecretLine: mocks.readSecretLine,
   setupAgent: mocks.setup,
 }));
@@ -28,7 +26,6 @@ import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
-    mocks.configured.mockReset().mockResolvedValue(false);
     mocks.installService.mockReset();
     mocks.readSecret.mockReset();
     mocks.readSecretLine.mockReset().mockRejectedValue(new Error("stop at Telegram setup"));
@@ -41,26 +38,13 @@ describe("Telegram guided setup", () => {
     ["headless device", ["--headless"]],
     ["API key", ["--api-key"]],
   ])("forwards the explicit %s choice to the shared setup", async (_label, args) => {
-    mocks.configured.mockResolvedValue(true);
     await expect(runTelegramCommand(["setup", ...args])).rejects.toThrow("stop after backend setup");
-    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith(args);
-    expect(mocks.configured).not.toHaveBeenCalled();
+    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith(args, false);
   });
 
-  it("uses the shared three-choice prompt when Agent is not configured", async () => {
+  it("lets shared setup skip an existing connection", async () => {
     await expect(runTelegramCommand(["setup"])).rejects.toThrow("stop after backend setup");
-    expect(mocks.configured).toHaveBeenCalledOnce();
-    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith([]);
-  });
-
-  it("skips backend setup when Agent already has a usable connection", async () => {
-    mocks.configured.mockResolvedValue(true);
-
-    await expect(runTelegramCommand(["setup"])).rejects.toThrow("stop at Telegram setup");
-
-    expect(mocks.configured).toHaveBeenCalledOnce();
-    expect(mocks.setup).not.toHaveBeenCalled();
-    expect(mocks.readSecretLine).toHaveBeenCalledWith("Bot token (hidden): ");
+    expect(mocks.setup).toHaveBeenCalledExactlyOnceWith([], true);
   });
 
   it("starts the configured background service and returns", async () => {

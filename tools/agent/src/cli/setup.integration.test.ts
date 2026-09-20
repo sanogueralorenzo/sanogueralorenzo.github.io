@@ -30,6 +30,7 @@ async function runSetup(
     apiConfigured?: boolean;
     browserOpens?: boolean;
   } = {},
+  skipIfConfigured = false,
 ) {
   const homeDir = temporary("agent-cli-setup-");
   const rpcLog = join(homeDir, "rpc.log");
@@ -67,7 +68,7 @@ async function runSetup(
   });
   let error: Error | null = null;
   try {
-    await setupAgent(args);
+    await setupAgent(args, skipIfConfigured);
   } catch (cause) {
     error = cause instanceof Error ? cause : new Error(String(cause));
   }
@@ -112,6 +113,13 @@ describe.sequential("CLI subscription setup", () => {
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(lines);
     for (const text of includes) expect(result.rpc).toContain(text);
     for (const text of excludes) expect(`${result.output}\n${result.rpc}`).not.toContain(text);
+  });
+
+  it("stays silent when a client reuses an already configured connection", async () => {
+    const result = await runSetup([], { initialBackend: "codex" }, true);
+    expect(result.error).toBeNull();
+    expect(result.backend).toBe("codex");
+    expect(result.output).toBe("");
   });
 
   it("rejects removed setup options", async () => {

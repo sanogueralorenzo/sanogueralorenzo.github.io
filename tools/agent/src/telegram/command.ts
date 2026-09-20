@@ -1,4 +1,4 @@
-import { isAgentConfigured, setupAgent } from "../cli/setup.js";
+import { setupAgent } from "../cli/setup.js";
 import { loadConfig } from "../local/config.js";
 import { readSecret } from "../local/credentials.js";
 import { setupTelegram } from "./pairing.js";
@@ -9,7 +9,7 @@ export async function runTelegramCommand(args: string[]): Promise<void> {
   const config = loadConfig();
   if (args[0] === "setup") {
     const setupArgs = args.slice(1);
-    if (setupArgs.length || !await isAgentConfigured()) await setupAgent(setupArgs);
+    await setupAgent(setupArgs, setupArgs.length === 0);
     await setupTelegram();
   } else if (!readSecret("telegram", config.homeDir)) {
     throw new Error("Telegram is not connected. Run `agent telegram setup`.");

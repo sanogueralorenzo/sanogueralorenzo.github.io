@@ -94,17 +94,7 @@ function createSetupContext() {
   return { store, codex, service };
 }
 
-export async function isAgentConfigured(): Promise<boolean> {
-  const { store, codex, service } = createSetupContext();
-  try {
-    return (await service.status()).configured;
-  } finally {
-    await codex.stop();
-    store.close();
-  }
-}
-
-export async function setupAgent(args: string[] = []): Promise<void> {
+export async function setupAgent(args: string[] = [], skipIfConfigured = false): Promise<void> {
   const flags = { "--chatgpt": "browser", "--headless": "headless", "--api-key": "api" } as const;
   const unknown = args.find((arg) => !(arg in flags));
   if (unknown) throw new Error(`Unknown setup option: ${unknown}`);
@@ -116,8 +106,9 @@ export async function setupAgent(args: string[] = []): Promise<void> {
   const { store, codex, service } = createSetupContext();
 
   try {
-    console.log("\nConnect Agent\n");
     const before = await service.status();
+    if (skipIfConfigured && requested.length === 0 && before.configured) return;
+    console.log("\nConnect Agent\n");
 
     const choice: SetupChoice = requested[0] ?? await chooseDefault();
     if (choice === "api") {

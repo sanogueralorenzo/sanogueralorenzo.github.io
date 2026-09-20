@@ -11,7 +11,6 @@ export interface SetupStatus {
   codex: {
     installed: boolean;
     connected: boolean;
-    error?: string;
   };
 }
 
@@ -26,14 +25,8 @@ export class BackendSetupService {
   async status(): Promise<SetupStatus> {
     const installed = this.codex.isInstalled();
     let connected = false;
-    let error: string | undefined;
     if (installed) {
-      try {
-        const account = await this.codex.account(true);
-        connected = account.account?.type === "chatgpt";
-      } catch (cause) {
-        error = cause instanceof Error ? cause.message : String(cause);
-      }
+      connected = (await this.codex.account(true)).account?.type === "chatgpt";
     }
     const stored = this.store.getSetting("backend");
     const selectedBackend = stored === "codex" || stored === "responses"
@@ -49,7 +42,6 @@ export class BackendSetupService {
       codex: {
         installed,
         connected,
-        ...(error ? { error } : {}),
       },
     };
   }
