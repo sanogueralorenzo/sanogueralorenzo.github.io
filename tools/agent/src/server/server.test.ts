@@ -7,10 +7,14 @@ import { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../core/types.js";
 import { RuntimeServer, type RuntimeSetup } from "./server.js";
 
-const paths: string[] = [];
+const fixtures: Array<{ homeDir: string; store: Store; server: RuntimeServer }> = [];
 
-afterEach(() => {
-  for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
+afterEach(async () => {
+  for (const fixture of fixtures.splice(0)) {
+    await fixture.server.close();
+    fixture.store.close();
+    rmSync(fixture.homeDir, { recursive: true, force: true });
+  }
 });
 
 function setupStub(): RuntimeSetup {
@@ -31,15 +35,20 @@ function setupStub(): RuntimeSetup {
 
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
+async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart?: () => void) {
+  const homeDir = mkdtempSync(join(tmpdir(), "agent-server-"));
+  const store = new Store(homeDir);
+  const config: RuntimeConfig = { homeDir, host: "127.0.0.1", port: 0, codexCommand: "codex" };
+  const server = new RuntimeServer(config, runtime, store, setup, onRestart);
+  const port = await server.listen();
+  const token = tokenAt(homeDir);
+  const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+  fixtures.push({ homeDir, store, server });
+  return { port, token, headers };
+}
+
 describe("RuntimeServer", () => {
   it("authenticates clients and streams the shared event protocol", async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), "agent-server-"));
-    paths.push(homeDir);
-    const config: RuntimeConfig = {
-      homeDir, host: "127.0.0.1", port: 0,
-      codexCommand: "codex",
-    };
-    const store = new Store(homeDir);
     let receivedTurn: Record<string, unknown> | undefined;
     const runtime = {
       async *run(turn: Record<string, unknown>): AsyncGenerator<RuntimeEvent> {
@@ -49,9 +58,7 @@ describe("RuntimeServer", () => {
         yield { type: "done", sessionId: "session", responseId: "response" };
       },
     } as unknown as AgentRuntime;
-    const server = new RuntimeServer(config, runtime, store, setupStub());
-    const port = await server.listen();
-    const token = tokenAt(homeDir);
+    const { port, token } = await serve(runtime);
 
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
@@ -81,24 +88,14 @@ describe("RuntimeServer", () => {
       attachmentIds: [attachment.id],
       attachments: [{ id: attachment.id, kind: "audio", name: "voice note.ogg", mimeType: "audio/ogg" }],
     });
-
-    await server.close();
-    store.close();
   });
 
   it("exposes backend-neutral guided setup endpoints", async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), "agent-server-setup-"));
-    paths.push(homeDir);
-    const config: RuntimeConfig = {
-      homeDir, host: "127.0.0.1", port: 0,
-      codexCommand: "codex",
-    };
-    const store = new Store(homeDir);
     const runtime = { async *run() {} } as unknown as AgentRuntime;
     let selected = "";
     const loginModes: string[] = [];
     let cancelledLogin = "";
-    const server = new RuntimeServer(config, runtime, store, {
+    const setup: RuntimeSetup = {
       status: async () => ({
         configured: false,
         selectedBackend: null,
@@ -115,10 +112,8 @@ describe("RuntimeServer", () => {
       },
       codexLoginStatus: async () => ({ state: "complete" }),
       cancelCodexLogin: async (loginId) => { cancelledLogin = loginId; },
-    });
-    const port = await server.listen();
-    const token = tokenAt(homeDir);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    };
+    const { port, headers } = await serve(runtime, setup);
 
     const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
     await expect(status.json()).resolves.toMatchObject({ codex: { installed: true } });
@@ -157,18 +152,9 @@ describe("RuntimeServer", () => {
       method: "POST", headers, body: JSON.stringify({ backend: "codex" }),
     });
     expect(selected).toBe("codex");
-
-    await server.close();
-    store.close();
   });
 
   it("accepts a graceful restart only after active turns finish", async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), "agent-server-restart-"));
-    paths.push(homeDir);
-    const config: RuntimeConfig = {
-      homeDir, host: "127.0.0.1", port: 0,
-      codexCommand: "codex",
-    };
     let entered!: () => void;
     let release!: () => void;
     const turnEntered = new Promise<void>((resolve) => { entered = resolve; });
@@ -182,11 +168,7 @@ describe("RuntimeServer", () => {
     } as unknown as AgentRuntime;
     let restarted!: () => void;
     const restartCalled = new Promise<void>((resolve) => { restarted = resolve; });
-    const store = new Store(homeDir);
-    const server = new RuntimeServer(config, runtime, store, setupStub(), restarted);
-    const port = await server.listen();
-    const token = tokenAt(homeDir);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const { port, headers } = await serve(runtime, setupStub(), restarted);
 
     const chat = fetch(`http://127.0.0.1:${port}/v1/chat`, {
       method: "POST", headers, body: JSON.stringify({ text: "work", requestId: "active", channel: "api" }),
@@ -200,8 +182,5 @@ describe("RuntimeServer", () => {
     const accepted = await fetch(`http://127.0.0.1:${port}/v1/runtime/restart`, { method: "POST", headers });
     expect(accepted.status).toBe(202);
     await restartCalled;
-
-    await server.close();
-    store.close();
   });
 });

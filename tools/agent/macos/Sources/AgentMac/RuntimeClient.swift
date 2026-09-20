@@ -16,7 +16,8 @@ enum RuntimeClientError: LocalizedError {
 }
 
 struct RuntimeClient: Sendable {
-    let homeDirectory: URL
+    let baseURL: URL
+    let token: String
 
     static func discover() throws -> RuntimeClient {
         let homeDirectory: URL
@@ -28,23 +29,21 @@ struct RuntimeClient: Sendable {
         } else {
             homeDirectory = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".agent")
         }
-        let path = homeDirectory.appending(path: "runtime.json")
-        guard let data = try? Data(contentsOf: path) else { throw RuntimeClientError.notRunning }
-        let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
-        guard discovery.protocolVersion == 1 else { throw RuntimeClientError.incompatible }
-        return RuntimeClient(homeDirectory: homeDirectory)
-    }
-
-    private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
-        let data = try Data(contentsOf: homeDirectory.appending(path: "runtime.json"))
+        guard let data = try? Data(contentsOf: homeDirectory.appending(path: "runtime.json")) else {
+            throw RuntimeClientError.notRunning
+        }
         let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
         guard discovery.protocolVersion == 1,
               let baseURL = URL(string: "http://127.0.0.1:\(discovery.port)") else {
             throw RuntimeClientError.incompatible
         }
+        return RuntimeClient(baseURL: baseURL, token: discovery.token)
+    }
+
+    private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
-        request.setValue("Bearer \(discovery.token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
         return request

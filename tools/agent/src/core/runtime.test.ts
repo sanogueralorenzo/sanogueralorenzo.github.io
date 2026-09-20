@@ -11,10 +11,13 @@ import { AgentRuntime } from "./runtime.js";
 import { Store } from "./store.js";
 import type { RuntimeConfig, RuntimeEvent } from "./types.js";
 
-const paths: string[] = [];
+const fixtures: Array<{ path: string; store: Store }> = [];
 
 afterEach(() => {
-  for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
+  for (const fixture of fixtures.splice(0)) {
+    fixture.store.close();
+    rmSync(fixture.path, { recursive: true, force: true });
+  }
 });
 
 function response(id: string, output: Response["output"], outputText = ""): Response {
@@ -123,6 +126,13 @@ function runtime(homeDir: string, store: Store, model: ModelClient): AgentRuntim
   return new AgentRuntime(currentConfig, store, new BackendRegistry(store, responses));
 }
 
+function testRuntime(model: ModelClient) {
+  const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
+  const store = new Store(path);
+  fixtures.push({ path, store });
+  return { path, store, assistant: runtime(path, store, model) };
+}
+
 async function collect(assistant: AgentRuntime, request: Parameters<AgentRuntime["run"]>[0]): Promise<RuntimeEvent[]> {
   const events: RuntimeEvent[] = [];
   for await (const event of assistant.run(request)) events.push(event);
@@ -131,11 +141,9 @@ async function collect(assistant: AgentRuntime, request: Parameters<AgentRuntime
 
 describe("AgentRuntime", () => {
   it("keeps memory and final synthesis on the persistent Luna-high coordinator", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
     const model = new MemoryModel();
-    const events = await collect(runtime(path, store, model), { text: "Please remember that I like short answers", channel: "api" });
+    const { store, assistant } = testRuntime(model);
+    const events = await collect(assistant, { text: "Please remember that I like short answers", channel: "api" });
 
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
     const sessionEvent = events[0];
@@ -145,15 +153,12 @@ describe("AgentRuntime", () => {
     expect(store.searchMemories("personal", "short answers")[0]?.content).toBe("Mario likes short answers");
     expect((model.calls[1]?.input.at(-1) as ResponseInputItem.FunctionCallOutput).type).toBe("function_call_output");
     expect(model.calls.every((call) => call.model === "gpt-5.6-luna" && call.reasoningEffort === "high")).toBe(true);
-    store.close();
   });
 
   it("runs coding through Sol-high before Luna-high synthesis without exposing the worker", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
     const model = new RoutingModel();
-    const events = await collect(runtime(path, store, model), { text: "Fix the failing test", cwd: path, channel: "cli" });
+    const { path, assistant } = testRuntime(model);
+    const events = await collect(assistant, { text: "Fix the failing test", cwd: path, channel: "cli" });
 
     expect(model.calls.map((call) => [call.model, call.reasoningEffort])).toEqual([
       ["gpt-5.6-sol", "high"],
@@ -163,15 +168,11 @@ describe("AgentRuntime", () => {
     expect(model.calls[1]?.tools.some((tool) => tool.name === "write_file")).toBe(false);
     expect(model.calls[1]?.instructions).toContain("<worker_result>");
     expect(events.map((event) => event.type)).toEqual(["session", "text_delta", "done"]);
-    store.close();
   });
 
   it("never selects Astra automatically and permits it only on an explicit user request", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
     const automatic = new RoutingModel();
-    const assistant = runtime(path, store, automatic);
+    const { path, store, assistant } = testRuntime(automatic);
     await collect(assistant, { text: "Investigate the root cause of this performance regression", channel: "api", fresh: true });
     expect(automatic.calls.map((call) => call.model)).toEqual(["gpt-5.6-luna", "gpt-5.6-luna"]);
 
@@ -181,14 +182,10 @@ describe("AgentRuntime", () => {
     expect(explicit.calls.every((call) => call.reasoningEffort === "high")).toBe(true);
     expect(explicit.calls[0]?.tools.some((tool) => tool.name === "read_file")).toBe(true);
     expect(explicit.calls[0]?.tools.some((tool) => tool.name === "write_file")).toBe(false);
-    store.close();
   });
 
   it("reuses one personal session across CLI, Telegram, and macOS", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
-    const assistant = runtime(path, store, new RoutingModel());
+    const { store, assistant } = testRuntime(new RoutingModel());
     const cli = await collect(assistant, { text: "hello", channel: "cli" });
     const cliSession = cli.find((event) => event.type === "session")?.session.id;
     const telegram = await collect(assistant, { text: "summarize this note", channel: "telegram" });
@@ -198,14 +195,10 @@ describe("AgentRuntime", () => {
 
     expect(telegramSession).toBe(cliSession);
     expect(macosSession).toBe(cliSession);
-    store.close();
   });
 
   it("keeps the session resumable after an interrupted worker", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
-    const assistant = runtime(path, store, new InterruptOnceModel());
+    const { path, assistant } = testRuntime(new InterruptOnceModel());
     const interrupted = await collect(assistant, { text: "Fix the test", cwd: path, channel: "cli" });
     const session = interrupted.find((event) => event.type === "session")?.session;
     expect(interrupted.at(-1)).toMatchObject({ type: "error", message: "Interrupted. Your session is saved." });
@@ -213,31 +206,24 @@ describe("AgentRuntime", () => {
     const resumed = await collect(assistant, { text: "continue fixing it", cwd: path, channel: "macos", sessionId: session?.id });
     expect(resumed.find((event) => event.type === "session")?.session.id).toBe(session?.id);
     expect(resumed.at(-1)?.type).toBe("done");
-    store.close();
   });
 
   it("serializes simultaneous turns targeting the same session", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
     const model = new LockingModel();
-    const assistant = runtime(path, store, model);
+    const { assistant } = testRuntime(model);
     await Promise.all([
       collect(assistant, { text: "hello", channel: "api" }),
       collect(assistant, { text: "hello again", channel: "api" }),
     ]);
     expect(model.maxActive).toBe(1);
-    store.close();
   });
 
   it("transcribes runtime-owned audio before routing and persists the transcript", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
+    const model = new VoiceModel();
+    const { path, store, assistant } = testRuntime(model);
     const audioPath = join(path, "voice.ogg");
     writeFileSync(audioPath, "audio");
-    const store = new Store(path);
-    const model = new VoiceModel();
-    const events = await collect(runtime(path, store, model), {
+    const events = await collect(assistant, {
       text: "",
       channel: "telegram",
       attachments: [{
@@ -256,14 +242,11 @@ describe("AgentRuntime", () => {
     const session = events.find((event) => event.type === "session")?.session;
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
     expect(model.transcriptions).toEqual([audioPath]);
-    store.close();
   });
 
   it("normalizes Responses image output into the shared artifact event", async () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
-    paths.push(path);
-    const store = new Store(path);
-    const events = await collect(runtime(path, store, new ImageModel()), {
+    const { assistant } = testRuntime(new ImageModel());
+    const events = await collect(assistant, {
       text: "Create an image of a quiet blue horizon",
       channel: "api",
     });
@@ -272,6 +255,5 @@ describe("AgentRuntime", () => {
     expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", mimeType: "image/png" } });
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
     expect(events.at(-1)?.type).toBe("done");
-    store.close();
   });
 });
