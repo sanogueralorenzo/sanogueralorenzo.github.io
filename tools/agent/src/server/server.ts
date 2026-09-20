@@ -4,16 +4,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
-import { MAX_HISTORY_MESSAGES } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
 import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type TurnRequest } from "../conversation/types.js";
-import type { BackendSetupService } from "../setup/service.js";
+import type { AgentSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
 
-export type RuntimeSetup = Pick<BackendSetupService,
-  "status" | "setOpenAIKey" | "selectBackend" | "startCodexLogin" | "waitForCodexLogin">;
+export type RuntimeSetup = Pick<AgentSetupService,
+  "status" | "connectApiKey" | "startCodexLogin" | "waitForCodexLogin">;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -80,7 +79,7 @@ export class RuntimeServer {
         const id = decodeURIComponent(url.pathname.slice("/v1/sessions/".length, -"/messages".length));
         const session = this.store.getSession(id);
         return session
-          ? json(response, 200, { session, messages: this.store.getMessages(id, MAX_HISTORY_MESSAGES) })
+          ? json(response, 200, { session, messages: this.store.getMessages(id) })
           : json(response, 404, { error: "session_not_found" });
       }
       if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/wait")) {
@@ -98,14 +97,8 @@ export class RuntimeServer {
           const { apiKey } = await readJson(request);
           const key = typeof apiKey === "string" ? apiKey.trim() : "";
           if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
-          await this.setup.setOpenAIKey(key);
+          await this.setup.connectApiKey(key);
           return json(response, 200, { connected: true });
-        }
-        case "POST /v1/setup/backend": {
-          const { backend } = await readJson(request);
-          if (backend !== "codex" && backend !== "responses") throw new Error("backend must be codex or responses");
-          await this.setup.selectBackend(backend);
-          return json(response, 200, { connected: true, backend });
         }
         case "POST /v1/setup/codex/login": {
           const { mode } = await readJson(request);

@@ -13,12 +13,10 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
   return {
     status: async () => ({
       configured: false,
-      selectedBackend: null,
-      openAIConfigured: false,
+      authMode: null,
       codex: { installed: false, connected: false },
     }),
-    setOpenAIKey: async () => undefined,
-    selectBackend: async () => undefined,
+    connectApiKey: async () => undefined,
     startCodexLogin: async () => ({ type: "chatgpt", loginId: "login", authUrl: "https://auth.openai.com/fake" }),
     waitForCodexLogin: async () => ({ state: "complete" }),
     ...overrides,
@@ -116,18 +114,17 @@ describe("RuntimeServer", () => {
     await expect(interruption).resolves.toBeUndefined();
   });
 
-  it("exposes backend-neutral guided setup endpoints", async () => {
+  it("exposes shared guided setup endpoints", async () => {
     const runtime = { async *run() {} } as unknown as AgentRuntime;
-    let selected = "";
+    let apiKey = "";
     const loginModes: string[] = [];
     const setup = setupStub({
       status: async () => ({
         configured: false,
-        selectedBackend: null,
-        openAIConfigured: false,
+        authMode: null,
         codex: { installed: true, connected: false },
       }),
-      selectBackend: async (backend) => { selected = backend; },
+      connectApiKey: async (key) => { apiKey = key; },
       startCodexLogin: async (mode) => {
         loginModes.push(mode);
         return mode === "headless"
@@ -151,7 +148,8 @@ describe("RuntimeServer", () => {
     expect(loginModes).toEqual(["browser", "headless"]);
     const completed = await request("/v1/setup/codex/login/login-1/wait", "POST");
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
-    await request("/v1/setup/backend", "POST", { backend: "codex" });
-    expect(selected).toBe("codex");
+    expect((await request("/v1/setup/openai", "POST", { apiKey: "sk-test" })).status).toBe(200);
+    expect(apiKey).toBe("sk-test");
+    expect((await request("/v1/setup/backend", "POST", { backend: "codex" })).status).toBe(404);
   });
 });

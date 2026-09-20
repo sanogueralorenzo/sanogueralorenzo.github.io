@@ -139,9 +139,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
           client.setupStatus(),
         ]);
         const current = data.sessions.find((session) => session.id === sessionId);
-        const billing = setup.selectedBackend === "codex"
-          ? "ChatGPT"
-          : "API-key billing";
+        const billing = setup.authMode === "chatgpt" ? "ChatGPT" : "API-key billing";
         status(current
           ? `${current.title} · ${billing} · saved ${new Date(current.updatedAt).toLocaleTimeString()}`
           : `Runtime connected · ${billing}. Session will be selected automatically.`);

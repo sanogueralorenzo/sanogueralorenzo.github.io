@@ -50,8 +50,9 @@ struct AgentCheck {
         check(String(decoding: request, as: UTF8.self).contains("\"fresh\":true"), "Agent protocol check failed")
         let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","path":"/tmp/result.png"}}"#.utf8))
         check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
-        let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":false,"openAIConfigured":false,"codex":{"installed":true,"connected":true}}"#.utf8))
+        let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
+        check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
 
         MockURLProtocol.handler = { request, protocolValue in
             check(request.url?.path == "/v1/events" && request.url?.query == nil, "Agent live event URL check failed")

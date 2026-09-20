@@ -2,10 +2,9 @@ import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../local/config.js";
-import { readSecret, writeSecret } from "../local/credentials.js";
-import { OpenAIModelClient } from "../openai/model.js";
+import { deleteSecret, readSecret } from "../local/credentials.js";
 import { Store } from "../conversation/store.js";
-import { BackendSetupService } from "../setup/service.js";
+import { AgentSetupService } from "../setup/service.js";
 
 export async function readSecretLine(prompt: string): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -50,12 +49,11 @@ function openBrowser(url: string): boolean {
   return !result.error && result.status === 0;
 }
 
-async function apiKeySetup(service: BackendSetupService, alreadyConfigured = false): Promise<void> {
-  if (alreadyConfigured) await service.selectBackend("responses");
-  else {
+async function apiKeySetup(service: AgentSetupService, alreadyConnected = false): Promise<void> {
+  if (!alreadyConnected) {
     const key = await readSecretLine("OpenAI API key: ");
     if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
-    await service.setOpenAIKey(key);
+    await service.connectApiKey(key);
   }
   console.log("Connect Success");
 }
@@ -83,15 +81,13 @@ async function chooseDefault(): Promise<SetupChoice> {
 function createSetupContext() {
   const config = loadConfig();
   const store = new Store(config.homeDir, "agent.sqlite", { recoverRuns: false });
-  const model = new OpenAIModelClient(readSecret("openai", config.homeDir));
   const codex = createAgentCodexAppServer(config);
-  const service = new BackendSetupService(
+  const service = new AgentSetupService(
     store,
-    model,
     codex,
-    (key) => { writeSecret("openai", key, config.homeDir); },
+    () => deleteSecret("openai", config.homeDir),
   );
-  return { store, codex, service };
+  return { config, store, codex, service };
 }
 
 export async function setupAgent(args: string[] = [], skipIfConfigured = false): Promise<void> {
@@ -103,20 +99,20 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
     throw new Error("Choose exactly one setup method: browser, headless device, or API key.");
   }
 
-  const { store, codex, service } = createSetupContext();
+  const { config, store, codex, service } = createSetupContext();
 
   try {
+    await service.migrateLegacyApiKey(readSecret("openai", config.homeDir));
     const before = await service.status();
     if (skipIfConfigured && requested.length === 0 && before.configured) return;
     console.log("\nConnect Agent\n");
 
     const choice: SetupChoice = requested[0] ?? await chooseDefault();
     if (choice === "api") {
-      await apiKeySetup(service, before.openAIConfigured);
+      await apiKeySetup(service, before.authMode === "apiKey");
       return;
     }
-    if (before.codex.connected) {
-      await service.selectBackend("codex");
+    if (before.authMode === "chatgpt") {
       console.log("Connect Success");
       return;
     }

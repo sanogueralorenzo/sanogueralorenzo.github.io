@@ -39,7 +39,7 @@ The SwiftUI app requires macOS 26 and uses the same local runtime as the CLI and
 
 ## Data and security
 
-Agent stores state under `~/.agent`. ChatGPT authentication stays inside Agent's private `~/.agent/codex` profile. Secrets use macOS Keychain or a mode-0600 credential file on Linux. Clients connect only through an authenticated loopback endpoint.
+Agent stores state under `~/.agent`. ChatGPT and API-key authentication stay inside Agent's private `~/.agent/codex` profile. Telegram credentials use macOS Keychain or a mode-0600 credential file on Linux. Clients connect only through an authenticated loopback endpoint.
 
 ## Check
 

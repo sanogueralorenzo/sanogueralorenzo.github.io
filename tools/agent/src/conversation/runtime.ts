@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { buildInstructions, buildWorkerInstructions } from "./context.js";
-import type { BackendRegistry } from "./backend.js";
+import type { AgentBackend } from "./backend.js";
 import { routeTurn } from "./router.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
@@ -30,24 +30,17 @@ function failureMessage(error: unknown, signal?: AbortSignal): string {
 export class AgentRuntime {
   constructor(
     private readonly store: Store,
-    private readonly backends: BackendRegistry,
+    private readonly backend: AgentBackend,
   ) {}
 
   async *run(incoming: TurnRequest, options: { signal?: AbortSignal } = {}): AsyncGenerator<RuntimeEvent> {
-    let backend;
     let terminal: RuntimeEvent;
-    try {
-      backend = await this.backends.resolve();
-    } catch (error) {
-      yield { type: "error", message: failureMessage(error) };
-      return;
-    }
 
     let text = incoming.text.trim();
     try {
       for (const attachment of incoming.attachments ?? []) {
         yield { type: "status", message: "Listening…" };
-        const transcript = await backend.transcribeAudio(attachment, options.signal);
+        const transcript = await this.backend.transcribeAudio(attachment, options.signal);
         text = [text, transcript].filter(Boolean).join("\n\n");
       }
     } catch (error) {
@@ -92,7 +85,7 @@ export class AgentRuntime {
     let lastCheckpointLength = 0;
 
     try {
-      for await (const event of backend.run({
+      for await (const event of this.backend.run({
         request,
         session,
         route,

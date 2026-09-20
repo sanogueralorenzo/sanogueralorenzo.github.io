@@ -3,7 +3,7 @@ import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
 import { readVoiceNote } from "../workspace/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
-import { MAX_HISTORY_MESSAGES, MODELS } from "../local/config.js";
+import { MODELS } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
@@ -16,8 +16,8 @@ function object(value: unknown): Record<string, unknown> {
 
 function classifiedError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
-  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your ChatGPT session has expired. Run `agent setup` to reconnect it.");
-  if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your included Codex allowance is currently exhausted. Check usage with `agent setup`, or choose API-key billing there.");
+  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your Agent connection has expired. Run `agent setup` to reconnect it.");
+  if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your current OpenAI allowance or credits are exhausted.");
   return error instanceof Error ? error : new Error(message);
 }
 
@@ -263,15 +263,8 @@ export class CodexBackend implements AgentBackend {
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
     }
-    const transcript = this.store.getMessages(turn.session.id, MAX_HISTORY_MESSAGES)
-      .slice(0, -1)
-      .filter((message) => message.role !== "tool")
-      .map((message) => `${message.role}: ${message.content}`)
-      .join("\n\n")
-      .slice(-20_000);
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
       ...common,
-      developerInstructions: transcript ? `${instructions}\n\nContinue this Agent-owned session using its prior transcript:\n\n${transcript}` : instructions,
       ephemeral: false,
       threadSource: "appServer",
     });

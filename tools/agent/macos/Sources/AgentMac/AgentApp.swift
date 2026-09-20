@@ -56,14 +56,9 @@ struct SetupView: View {
                 Text("Install the Codex CLI to use ChatGPT.").foregroundStyle(.secondary)
             }
             Divider().frame(maxWidth: 420)
-            if model.setupStatus?.openAIConfigured == true {
-                Button("Use saved API key") { Task { await model.useSavedAPIKey() } }
-                    .disabled(model.isSettingUp)
-            } else {
-                SecureField("OpenAI API key", text: $key).textFieldStyle(.roundedBorder).frame(maxWidth: 420)
-                Button("Connect API key") { Task { await model.connectOpenAI(key) } }
-                    .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
-            }
+            SecureField("OpenAI API key", text: $key).textFieldStyle(.roundedBorder).frame(maxWidth: 420)
+            Button("Connect API key") { Task { await model.connectOpenAI(key) } }
+                .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
             if model.isSettingUp { ProgressView().controlSize(.small) }
             if !model.setupMessage.isEmpty {
                 Text(model.setupMessage).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)

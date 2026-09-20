@@ -84,7 +84,7 @@ async function runSetup(
   return { output: output.join("\n"), rpc: setupRpc, backend, error, statePreserved };
 }
 
-describe.sequential("CLI subscription setup", () => {
+describe.sequential("CLI setup", () => {
   it("offers exactly browser, headless device, and API-key setup", () => {
     expect(SETUP_CHOICES.map((choice) => choice.id)).toEqual(["browser", "headless", "api"]);
     expect(SETUP_CHOICES.map((choice) => choice.label)).toEqual([
@@ -96,15 +96,15 @@ describe.sequential("CLI subscription setup", () => {
   });
 
   it.each([
-    ["saved ChatGPT login", ["--chatgpt"], {}, "codex", ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
-    ["browser", ["--chatgpt"], { scenario: "login-success", browserOpens: true }, "codex", ["Connect Agent", "Connect Success"], ['"type":"chatgpt"'], ["https://auth.openai.com/fake", "chatgptDeviceCode", "useHostedLoginSuccessPage"]],
-    ["browser without opener", ["--chatgpt"], { scenario: "login-success" }, "codex", ["Connect Agent", "Open: https://auth.openai.com/fake", "Connect Success"], [], []],
-    ["headless", ["--headless"], { scenario: "login-success" }, "codex", ["Connect Agent", "Open: https://auth.openai.com/codex/device", "Code: Agent-TEST", "Connect Success"], ['"type":"chatgptDeviceCode"'], []],
-    ["API key", ["--api-key"], { apiConfigured: true }, "responses", ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
-  ] as const)("connects with %s", async (_name, args, options, backend, lines, includes, excludes) => {
+    ["saved ChatGPT login", ["--chatgpt"], { initialBackend: "codex" }, ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
+    ["browser", ["--chatgpt"], { scenario: "login-success", browserOpens: true }, ["Connect Agent", "Connect Success"], ['"type":"chatgpt"'], ["https://auth.openai.com/fake", "chatgptDeviceCode", "useHostedLoginSuccessPage"]],
+    ["browser without opener", ["--chatgpt"], { scenario: "login-success" }, ["Connect Agent", "Open: https://auth.openai.com/fake", "Connect Success"], [], []],
+    ["headless", ["--headless"], { scenario: "login-success" }, ["Connect Agent", "Open: https://auth.openai.com/codex/device", "Code: Agent-TEST", "Connect Success"], ['"type":"chatgptDeviceCode"'], []],
+    ["migrated API key", ["--api-key"], { scenario: "expired", initialBackend: "responses", apiConfigured: true }, ["Connect Agent", "Connect Success"], ['"type":"apiKey"'], ["sk-test-explicit-choice"]],
+  ] as const)("connects with %s", async (_name, args, options, lines, includes, excludes) => {
     const result = await runSetup([...args], options);
     expect(result.error).toBeNull();
-    expect(result.backend).toBe(backend);
+    expect(result.backend).toBeNull();
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(lines);
     for (const text of includes) expect(result.rpc).toContain(text);
     for (const text of excludes) expect(`${result.output}\n${result.rpc}`).not.toContain(text);
@@ -113,11 +113,11 @@ describe.sequential("CLI subscription setup", () => {
   it("stays silent when a client reuses an already configured connection", async () => {
     const result = await runSetup([], { initialBackend: "codex" }, true);
     expect(result.error).toBeNull();
-    expect(result.backend).toBe("codex");
+    expect(result.backend).toBeNull();
     expect(result.output).toBe("");
   });
 
-  it("fails a cancelled or failed browser login without selecting API-key billing", async () => {
+  it("fails a cancelled or failed browser login without selecting another auth mode", async () => {
     const result = await runSetup(["--chatgpt"], { scenario: "login-failed" });
     expect(result.error?.message).toBe("ChatGPT sign-in failed");
     expect(result.backend).toBeNull();
@@ -128,14 +128,14 @@ describe.sequential("CLI subscription setup", () => {
   it.each([
     ["login-expired", "The one-time code expired"],
     ["login-cancelled", "ChatGPT sign-in was cancelled"],
-  ])("preserves the prior backend and all Agent state when headless login is %s", async (scenario, message) => {
+  ])("preserves all Agent state when headless login is %s", async (scenario, message) => {
     const result = await runSetup(["--headless"], {
       scenario,
       initialBackend: "responses",
       seedState: true,
     });
     expect(result.error?.message).toBe(message);
-    expect(result.backend).toBe("responses");
+    expect(result.backend).toBeNull();
     expect(result.statePreserved).toBe(true);
     expect(result.output).not.toContain("Use API-key billing");
   });

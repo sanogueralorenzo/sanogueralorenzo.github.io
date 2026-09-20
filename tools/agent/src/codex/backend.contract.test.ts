@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BackendRegistry, type BackendTurn } from "../conversation/backend.js";
+import type { BackendTurn } from "../conversation/backend.js";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig } from "../conversation/types.js";
@@ -68,6 +68,12 @@ describe("Codex turn transport", () => {
     expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
   });
 
+  it("lets Codex compact context without changing the shared event contract", async () => {
+    const { backend, input } = backendFixture("context-compaction");
+    const events = await collect(backend, input);
+    expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
+  });
+
   it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
     const homeDir = temporary("agent-codex-voice-");
     const log = join(homeDir, "rpc.log");
@@ -131,9 +137,8 @@ describe("Codex turn transport", () => {
   it("preserves the runtime session and event contract", async () => {
     const homeDir = temporary("agent-codex-runtime-");
     const store = trackedStore(homeDir);
-    store.setSetting("backend", "codex");
     const codex = new CodexBackend(config(homeDir), store, client("normal"));
-    const runtime = new AgentRuntime(store, new BackendRegistry(store, codex, codex));
+    const runtime = new AgentRuntime(store, codex);
     const events = [];
     for await (const event of runtime.run({ text: "Fix the test", cwd: homeDir, channel: "api" })) events.push(event);
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
@@ -161,6 +166,17 @@ describe("Codex turn transport", () => {
       .toEqual(["thread/start", "thread/resume"]);
   });
 
+  it("resumes the same persistent thread on later turns", async () => {
+    const fixture = backendFixture();
+    await collect(fixture.backend, fixture.input);
+    await collect(fixture.backend, { ...fixture.input, request: { ...fixture.input.request, text: "Continue" } });
+    expect(requests(fixture.log).filter((request) => request.method.startsWith("thread/"))
+      .map((request) => [request.method, request.params.threadId])).toEqual([
+        ["thread/start", undefined],
+        ["thread/resume", "thread-1"],
+      ]);
+  });
+
   it("does not replace a missing Codex thread", async () => {
     const { backend, input, store, log } = backendFixture("missing-thread", {}, null);
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
@@ -171,8 +187,8 @@ describe("Codex turn transport", () => {
   });
 
   it.each([
-    ["expired", /session has expired/],
-    ["exhausted", /allowance is currently exhausted/],
+    ["expired", /connection has expired/],
+    ["exhausted", /allowance or credits are exhausted/],
   ])("classifies %s account failures", async (scenario, message) => {
     const { backend, input } = backendFixture(scenario);
     await expect(collect(backend, input)).rejects.toThrow(message);

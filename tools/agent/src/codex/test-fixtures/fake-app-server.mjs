@@ -7,6 +7,9 @@ const log = process.env.AGENT_FAKE_LOG;
 const artifactPath = process.env.AGENT_FAKE_ARTIFACT;
 let threadCounter = 0;
 let turnCounter = 0;
+let account = scenario === "expired" || scenario.startsWith("login")
+  ? null
+  : { type: scenario === "api-account" ? "apiKey" : "chatgpt", planType: "plus" };
 
 if (process.env.AGENT_FAKE_ENV_LOG) writeFileSync(process.env.AGENT_FAKE_ENV_LOG, JSON.stringify({
   CODEX_HOME: process.env.CODEX_HOME ?? null,
@@ -20,6 +23,10 @@ const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
 function completeTurn(threadId, turnId) {
+  if (scenario === "context-compaction") {
+    notify("item/started", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
+    notify("item/completed", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
+  }
   if (scenario === "image" && artifactPath) {
     notify("item/started", { threadId, turnId, item: { type: "imageGeneration", id: "image-1" } });
     notify("item/completed", { threadId, turnId, item: { type: "imageGeneration", id: "image-1", savedPath: artifactPath } });
@@ -32,14 +39,17 @@ function completeTurn(threadId, turnId) {
 
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params = {} } = JSON.parse(line);
-  if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
+  if (log) appendFileSync(log, `${JSON.stringify({ method, params: params.apiKey ? { ...params, apiKey: "[redacted]" } : params })}\n`);
   if (method === "initialized") return;
   if (method === "initialize") return reply(id);
   if (method === "account/read") {
-    const connected = scenario !== "expired" && !scenario.startsWith("login");
-    return reply(id, { account: connected ? { type: "chatgpt", planType: "plus" } : null });
+    return reply(id, { account });
   }
   if (method === "account/login/start") {
+    if (params.type === "apiKey") {
+      account = { type: "apiKey" };
+      return reply(id, { type: "apiKey" });
+    }
     const loginId = "login-1";
     const browser = params.type === "chatgpt";
     if (scenario === "device-response" || (!browser && scenario !== "browser-response")) {
@@ -51,7 +61,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const error = scenario === "login-failed" ? "ChatGPT sign-in failed"
       : scenario === "login-expired" ? "The one-time code expired"
         : scenario === "login-cancelled" ? "ChatGPT sign-in was cancelled" : null;
-    setTimeout(() => notify("account/login/completed", { loginId, success: !error, error }), 10);
+    setTimeout(() => {
+      if (!error) account = { type: "chatgpt", planType: "plus" };
+      notify("account/login/completed", { loginId, success: !error, error });
+    }, 10);
     return;
   }
   if (method === "account/login/cancel") {

@@ -8,8 +8,6 @@ export const MODELS = {
   coding: "gpt-5.6-sol",
   astra: "gpt-6-astra",
 } as const;
-export const MAX_TOOL_ROUNDS = 10;
-export const MAX_HISTORY_MESSAGES = 40;
 
 function expandHome(value: string): string {
   return value === "~" || value.startsWith("~/")

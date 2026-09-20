@@ -195,6 +195,10 @@ export class Store {
     `).run(key, value, now());
   }
 
+  deleteSetting(key: string): void {
+    this.db.prepare("DELETE FROM settings WHERE key = ?").run(key);
+  }
+
   backendSession(sessionId: string, backend: string): string | null {
     const row = this.db.prepare("SELECT external_id FROM backend_sessions WHERE session_id = ? AND backend = ?")
       .get(sessionId, backend) as { external_id: string } | undefined;

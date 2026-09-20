@@ -59,19 +59,12 @@ struct ChatMessage: Identifiable, Equatable {
     }
 
     func connectOpenAI(_ key: String) async {
-        await configure("Checking API key…") { try await $0.connectOpenAI(key: key) }
-    }
-
-    func useSavedAPIKey() async {
-        await configure { try await $0.selectBackend("responses") }
+        await configure("Connecting API key…") { try await $0.connectOpenAI(key: key) }
     }
 
     func continueWithChatGPT() async {
         await configure("Opening ChatGPT sign-in…") { client in
-            if setupStatus?.codex.connected == true {
-                try await client.selectBackend("codex")
-                return
-            }
+            if setupStatus?.authMode == "chatgpt" { return }
             let login = try await client.startCodexLogin(mode: "browser")
             setupMessage = "Finish signing in in your browser."
             guard login.type == "chatgpt", let authUrl = login.authUrl else {

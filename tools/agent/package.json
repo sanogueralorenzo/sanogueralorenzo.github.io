@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "tsx src/bin/agent.ts chat --dev",
-    "build": "tsc -p tsconfig.json",
+    "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "start": "node dist/bin/agent.js chat",
     "serve": "tsx src/bin/agent.ts serve",
     "telegram": "tsx src/bin/agent.ts telegram",
@@ -26,7 +26,6 @@
   "dependencies": {
     "codec-parser": "^2.5.0",
     "grammy": "^1.40.0",
-    "openai": "^6.16.0",
     "werift": "^0.24.4"
   },
   "devDependencies": {

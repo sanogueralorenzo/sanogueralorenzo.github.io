@@ -2,18 +2,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CodexAppServer } from "../codex/app-server.js";
-import type { OpenAIModelClient } from "../openai/model.js";
 import { Store } from "../conversation/store.js";
-import type { BackendKind } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
-import { BackendSetupService } from "./service.js";
+import { AgentSetupService } from "./service.js";
 
 const fakeServer = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 
-function setup(scenario: string | null, apiKey = false, selected?: BackendKind) {
+function setup(scenario: string | null) {
   const homeDir = temporary("agent-setup-");
   const store = new Store(homeDir);
-  if (selected) store.setSetting("backend", selected);
   const codex = scenario === null
     ? new CodexAppServer({ command: "missing-codex" })
     : new CodexAppServer({
@@ -21,23 +18,41 @@ function setup(scenario: string | null, apiKey = false, selected?: BackendKind) 
       args: [fakeServer],
       env: { ...process.env, AGENT_FAKE_SCENARIO: scenario },
     });
-  const model = { isConfigured: () => apiKey, setApiKey: async () => undefined } as unknown as OpenAIModelClient;
-  cleanup(async () => { await codex.stop(); store.close(); });
-  return { store, service: new BackendSetupService(store, model, codex, () => undefined) };
+  let removed = 0;
+  const service = new AgentSetupService(store, codex, () => { removed += 1; });
+  cleanup(() => { codex.stop(); store.close(); });
+  return { store, service, removed: () => removed };
 }
 
-describe("BackendSetupService", () => {
+describe("AgentSetupService", () => {
   it.each([
-    ["connected ChatGPT", "normal", false, undefined, { codex: { installed: true, connected: true } }, "codex", null, "codex"],
-    ["selected API key without Codex", null, true, "responses", { configured: true, selectedBackend: "responses", openAIConfigured: true, codex: { installed: false } }, "responses", null, "responses"],
-    ["unselected saved API key", null, true, undefined, { configured: false, selectedBackend: null, openAIConfigured: true }, undefined, null, null],
-    ["expired selected ChatGPT", "expired", false, "codex", { configured: false, selectedBackend: "codex", codex: { connected: false } }, "codex", "Continue with ChatGPT", "codex"],
-    ["explicit switch to API key", "exhausted", true, "codex", { configured: true, selectedBackend: "codex", openAIConfigured: true }, "responses", null, "responses"],
-  ] as const)("handles %s", async (_name, scenario, apiKey, selected, status, choice, error, stored) => {
-    const { store, service } = setup(scenario, apiKey, selected);
-    await expect(service.status()).resolves.toMatchObject(status);
-    if (choice && error) await expect(service.selectBackend(choice)).rejects.toThrow(error);
-    else if (choice) await service.selectBackend(choice);
-    expect(store.getSetting("backend")).toBe(stored);
+    ["normal", { configured: true, authMode: "chatgpt", codex: { installed: true, connected: true } }],
+    ["api-account", { configured: true, authMode: "apiKey", codex: { installed: true, connected: true } }],
+    ["expired", { configured: false, authMode: null, codex: { installed: true, connected: false } }],
+    [null, { configured: false, authMode: null, codex: { installed: false, connected: false } }],
+  ] as const)("reports the active %s account", async (scenario, expected) => {
+    await expect(setup(scenario).service.status()).resolves.toEqual(expected);
+  });
+
+  it("switches from ChatGPT to API-key auth inside the same app-server", async () => {
+    const { service } = setup("normal");
+    await service.connectApiKey("sk-test");
+    await expect(service.status()).resolves.toMatchObject({ configured: true, authMode: "apiKey" });
+  });
+
+  it("moves a legacy Responses selection into app-server and deletes old connection records", async () => {
+    const { store, service, removed } = setup("expired");
+    store.setSetting("backend", "responses");
+    await service.migrateLegacyApiKey("sk-legacy");
+    expect(store.getSetting("backend")).toBeNull();
+    expect(removed()).toBe(1);
+    await expect(service.status()).resolves.toMatchObject({ configured: true, authMode: "apiKey" });
+  });
+
+  it("does not silently choose another auth mode when ChatGPT login fails", async () => {
+    const { service } = setup("login-failed");
+    const login = await service.startCodexLogin("browser");
+    await expect(service.waitForCodexLogin(login.loginId)).resolves.toEqual({ state: "failed", error: "ChatGPT sign-in failed" });
+    await expect(service.status()).resolves.toMatchObject({ configured: false, authMode: null });
   });
 });

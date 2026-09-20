@@ -135,6 +135,11 @@ export class CodexAppServer extends EventEmitter {
     return login;
   }
 
+  async loginWithApiKey(apiKey: string): Promise<void> {
+    const result = await this.request<{ type?: string }>("account/login/start", { type: "apiKey", apiKey });
+    if (result.type !== "apiKey") throw new Error("Codex app-server did not accept the OpenAI API key.");
+  }
+
   async waitForLogin(loginId: string, timeoutMs = 5 * 60_000, signal?: AbortSignal): Promise<CodexLoginResult> {
     const timeout = AbortSignal.timeout(timeoutMs);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;

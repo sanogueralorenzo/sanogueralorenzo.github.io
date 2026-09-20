@@ -44,7 +44,7 @@ public struct RuntimeSession: Decodable, Sendable {
 
 public struct SetupStatus: Decodable, Sendable {
     public let configured: Bool
-    public let openAIConfigured: Bool
+    public let authMode: String?
     public let codex: CodexSetupStatus
 }
 

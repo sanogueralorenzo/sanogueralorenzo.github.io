@@ -10,6 +10,8 @@ export interface CodexAccountStatus {
   account: { type: "apiKey" | "chatgpt" | "amazonBedrock" } | null;
 }
 
+export type CodexAuthMode = "apiKey" | "chatgpt";
+
 export type CodexLoginMode = "browser" | "headless";
 
 export type CodexLoginStart =

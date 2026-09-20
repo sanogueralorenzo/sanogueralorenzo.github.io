@@ -66,10 +66,6 @@ public actor RuntimeClient {
         _ = try await data(path: "/v1/setup/openai", method: "POST", body: ["apiKey": key])
     }
 
-    public func selectBackend(_ backend: String) async throws {
-        _ = try await data(path: "/v1/setup/backend", method: "POST", body: ["backend": backend])
-    }
-
     public func startCodexLogin(mode: String) async throws -> CodexLoginStart {
         try await value(path: "/v1/setup/codex/login", method: "POST", body: ["mode": mode])
     }

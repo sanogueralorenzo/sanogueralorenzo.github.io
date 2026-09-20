@@ -78,6 +78,17 @@ describe("Codex profile and login", () => {
     await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
   });
 
+  it("stores API-key authentication in the same private Codex profile", async () => {
+    const homeDir = temporary("agent-codex-api-key-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("expired", { AGENT_FAKE_LOG: log });
+    await appServer.loginWithApiKey("sk-test-secret");
+    await expect(appServer.account()).resolves.toEqual({ account: { type: "apiKey" } });
+    expect(requests(log).find((message) => message.method === "account/login/start")?.params)
+      .toEqual({ type: "apiKey", apiKey: "[redacted]" });
+    expect(readFileSync(log, "utf8")).not.toContain("sk-test-secret");
+  });
+
   it.each([
     ["browser", "device-response"],
     ["headless", "browser-response"],
