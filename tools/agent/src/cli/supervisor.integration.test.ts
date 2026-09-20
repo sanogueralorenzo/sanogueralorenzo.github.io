@@ -46,7 +46,7 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   expect(recovered.getSession(session.id)?.title).toBe("Reload-safe session");
   expect(recovered.getSession(session.id)?.cwd).toBe(homeDir);
   expect(recovered.getMessages(session.id)[0]?.content).toBe("Keep this transcript");
-  expect(recovered.searchMemories(`project:${homeDir}`, "this memory")[0]?.content).toBe("Keep this memory");
+  expect(recovered.searchMemories(`project:${homeDir}`, "this memory")[0]).toBe("Keep this memory");
   if (backend === "codex") expect(recovered.backendSession(session.id, "codex")).toBe("thread-persisted");
   if (backend === "codex") expect(readFileSync(join(homeDir, "codex", "profile.marker"), "utf8")).toBe("private profile survives\n");
   recovered.close();

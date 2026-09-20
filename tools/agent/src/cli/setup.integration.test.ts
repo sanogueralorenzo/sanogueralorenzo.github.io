@@ -76,7 +76,7 @@ async function runSetup(
     if (seededSessionId) {
       statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
         && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
-        && store.searchMemories("project:preserved", "Preserved memory")[0]?.content === "Preserved memory"
+        && store.searchMemories("project:preserved", "Preserved memory")[0] === "Preserved memory"
         && store.backendSession(seededSessionId, "codex") === "preserved-thread";
     }
     store.close();

@@ -86,7 +86,7 @@ describe("AgentRuntime", () => {
     const sessionEvent = events[0];
     if (sessionEvent?.type !== "session") throw new Error("missing session event");
     expect(store.getMessages(sessionEvent.session.id).map((message) => message.role)).toEqual(["user", "tool", "assistant"]);
-    expect(store.searchMemories("personal", "short answers")[0]?.content).toBe("Mario likes short answers");
+    expect(store.searchMemories("personal", "short answers")[0]).toBe("Mario likes short answers");
     expect((model.calls[1]?.input.at(-1) as ResponseInputItem.FunctionCallOutput).type).toBe("function_call_output");
     expect(model.calls.every((call) => call.model === "gpt-5.6-luna" && call.reasoningEffort === "high")).toBe(true);
   });

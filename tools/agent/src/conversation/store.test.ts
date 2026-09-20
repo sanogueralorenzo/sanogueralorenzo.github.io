@@ -23,7 +23,7 @@ describe("Store", () => {
     store.remember("personal", "Mario prefers concise answers");
     store.remember("personal", "The garden is watered on Sunday");
 
-    expect(store.searchMemories("personal", "answer concisely", 1)[0]?.content).toContain("concise");
+    expect(store.searchMemories("personal", "answer concisely", 1)[0]).toContain("concise");
     expect(store.searchMemories("personal", "unrelated zebra phrase", 8)).toEqual([]);
     store.close();
   });

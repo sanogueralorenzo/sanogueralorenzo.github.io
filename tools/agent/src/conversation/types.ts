@@ -21,10 +21,6 @@ export interface Message {
   content: string;
 }
 
-export interface Memory {
-  content: string;
-}
-
 interface StoredFile {
   id: string;
   name: string;

@@ -127,7 +127,7 @@ export type ToolSet = "coordinator" | "memory" | "read" | "write";
 export function createTools(store: Store, toolSet: ToolSet): AgentTool[] {
   const tools = [tool("memory_search", "Search durable personal or project memory.", { query: string }, async (args, context) => {
     const found = store.searchMemories(context.memoryScope, text(args, "query"));
-    return { output: found.map((item) => `- ${item.content}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
+    return { output: found.map((item) => `- ${item}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
   })];
 
   if (toolSet === "coordinator") tools.push(tool("remember", "Save one durable, non-secret fact or preference.", { fact: string }, async (args, context) => {

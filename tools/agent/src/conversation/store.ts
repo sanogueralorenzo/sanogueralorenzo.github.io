@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Attachment, Memory, Message, Session, WorkKind } from "./types.js";
+import type { Attachment, Message, Session, WorkKind } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -160,16 +160,12 @@ export class Store {
     `).run(scope, content.trim(), timestamp, timestamp);
   }
 
-  searchMemories(scope: string, query: string, limit = 8): Memory[] {
+  searchMemories(scope: string, query: string, limit = 8): string[] {
     const words = query.toLowerCase().split(/\W+/).filter((word) => word.length > 2).slice(0, 8);
-    const rows = this.db.prepare(`SELECT content, updated_at AS "updatedAt" FROM memories WHERE scope IN (?, 'global') ORDER BY updated_at DESC LIMIT 100`)
-      .all(scope) as unknown as Array<Memory & { updatedAt: string }>;
-    const scored = rows.map((row) => ({
-      row,
-      score: words.reduce((sum, word) => sum + (row.content.toLowerCase().includes(word) ? 1 : 0), 0),
-    })).filter((item) => words.length === 0 || item.score > 0);
-    scored.sort((a, b) => b.score - a.score || b.row.updatedAt.localeCompare(a.row.updatedAt));
-    return scored.slice(0, limit).map(({ row }) => ({ content: row.content }));
+    const rows = this.db.prepare("SELECT content FROM memories WHERE scope = ? ORDER BY updated_at DESC LIMIT 100")
+      .all(scope) as unknown as Array<{ content: string }>;
+    return rows.filter(({ content }) => words.length === 0 || words.some((word) => content.toLowerCase().includes(word)))
+      .slice(0, limit).map(({ content }) => content);
   }
 
   startRun(sessionId: string): string {
