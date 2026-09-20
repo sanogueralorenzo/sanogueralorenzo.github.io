@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Store } from "../core/store.js";
-import { SETUP_CHOICES, setupA1R } from "./setup.js";
+import { SETUP_CHOICES, SETUP_PROMPT, setupA1R } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 const roots: string[] = [];
@@ -123,6 +123,7 @@ describe.sequential("CLI subscription setup", () => {
       "Set up headless or remote device (one-time code)",
       "Set up with OpenAI API key (independent usage-based billing)",
     ]);
+    expect(SETUP_PROMPT).toBe("Choose [1]: ");
   });
 
   it("reuses an existing A1R-specific login transparently during ordinary setup", async () => {

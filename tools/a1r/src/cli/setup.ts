@@ -71,6 +71,7 @@ export const SETUP_CHOICES = [
   { id: "headless", label: "Set up headless or remote device (one-time code)" },
   { id: "api", label: "Set up with OpenAI API key (independent usage-based billing)" },
 ] as const;
+export const SETUP_PROMPT = "Choose [1]: ";
 
 type SetupChoice = typeof SETUP_CHOICES[number]["id"];
 
@@ -78,7 +79,7 @@ async function chooseDefault(): Promise<SetupChoice> {
   if (!process.stdin.isTTY) return "browser";
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   SETUP_CHOICES.forEach((choice, index) => console.log(`${index + 1}. ${choice.label}`));
-  const answer = (await rl.question("Choice [1]: ")).trim();
+  const answer = (await rl.question(SETUP_PROMPT)).trim();
   rl.close();
   return answer === "2" ? "headless" : answer === "3" ? "api" : "browser";
 }
