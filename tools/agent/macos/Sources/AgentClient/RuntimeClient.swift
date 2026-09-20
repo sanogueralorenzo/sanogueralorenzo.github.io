@@ -25,7 +25,7 @@ public actor RuntimeClient {
     private let baseURL: URL
     private let token: String
     private let session: URLSession
-    private var activeRequestId: String?
+    private var activeRequest: Task<Void, Never>?
 
     public init(baseURL: URL, token: String, session: URLSession = .shared) {
         self.baseURL = baseURL
@@ -47,7 +47,7 @@ public actor RuntimeClient {
             throw RuntimeClientError.notRunning
         }
         let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
-        guard discovery.protocolVersion == 1,
+        guard discovery.protocolVersion == 2,
               let baseURL = URL(string: "http://127.0.0.1:\(discovery.port)") else {
             throw RuntimeClientError.incompatible
         }
@@ -90,46 +90,44 @@ public actor RuntimeClient {
     }
 
     public func events(text: String, sessionId: String?, fresh: Bool) throws -> AsyncThrowingStream<RuntimeEvent, Error> {
-        guard activeRequestId == nil else { throw RuntimeClientError.busy }
-        let requestId = UUID().uuidString
-        activeRequestId = requestId
-        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, requestId: requestId, fresh: fresh))
+        guard activeRequest == nil else { throw RuntimeClientError.busy }
+        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, fresh: fresh))
         let request = try request(path: "/v1/chat", method: "POST", body: body)
-        return AsyncThrowingStream { continuation in
-            let task = Task { [session] in
-                do {
-                    var terminal = false
-                    let (bytes, response) = try await session.bytes(for: request)
-                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                        throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not start response")
-                    }
-                    for try await line in bytes.lines where line.hasPrefix("data: ") {
-                        guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
-                        let event = try JSONDecoder().decode(RuntimeEvent.self, from: data)
-                        guard event.isValid else { throw RuntimeClientError.invalidEvent }
-                        terminal = terminal || event.isTerminal
-                        continuation.yield(event)
-                    }
-                    if !terminal { throw RuntimeClientError.disconnected }
-                    self.finished(requestId)
-                    continuation.finish()
-                } catch is DecodingError {
-                    self.finished(requestId)
-                    continuation.finish(throwing: RuntimeClientError.invalidEvent)
-                } catch {
-                    self.finished(requestId)
-                    continuation.finish(throwing: error)
+        let (stream, continuation) = AsyncThrowingStream<RuntimeEvent, Error>.makeStream()
+        let task = Task { [session] in
+            do {
+                var terminal = false
+                let (bytes, response) = try await session.bytes(for: request)
+                guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                    throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not start response")
                 }
+                for try await line in bytes.lines where line.hasPrefix("data: ") {
+                    guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
+                    let event = try JSONDecoder().decode(RuntimeEvent.self, from: data)
+                    guard event.isValid else { throw RuntimeClientError.invalidEvent }
+                    terminal = terminal || event.isTerminal
+                    continuation.yield(event)
+                }
+                if !terminal { throw RuntimeClientError.disconnected }
+                self.finished()
+                continuation.finish()
+            } catch is DecodingError {
+                self.finished()
+                continuation.finish(throwing: RuntimeClientError.invalidEvent)
+            } catch {
+                self.finished()
+                continuation.finish(throwing: error)
             }
-            continuation.onTermination = { _ in task.cancel() }
         }
+        activeRequest = task
+        continuation.onTermination = { _ in task.cancel() }
+        return stream
     }
 
-    public func cancel() async throws -> Bool {
-        guard let activeRequestId else { return false }
-        struct Cancellation: Decodable { let cancelled: Bool }
-        let result: Cancellation = try await value(path: "/v1/cancel", method: "POST", body: ["requestId": activeRequestId])
-        return result.cancelled
+    public func cancel() -> Bool {
+        guard let activeRequest else { return false }
+        activeRequest.cancel()
+        return true
     }
 
     private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
@@ -156,7 +154,7 @@ public actor RuntimeClient {
         try JSONDecoder().decode(T.self, from: await data(path: path, method: method, body: body))
     }
 
-    private func finished(_ requestId: String) {
-        if activeRequestId == requestId { activeRequestId = nil }
+    private func finished() {
+        activeRequest = nil
     }
 }

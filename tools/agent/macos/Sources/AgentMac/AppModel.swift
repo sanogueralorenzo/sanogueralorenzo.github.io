@@ -126,7 +126,7 @@ final class AppModel: ObservableObject {
     }
 
     func stop() async {
-        _ = try? await client?.cancel()
+        _ = await client?.cancel()
     }
 
     func newConversation() {

@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { RUNTIME_PROTOCOL_VERSION } from "../conversation/types.js";
 import { writePrivateJson } from "../local/files.js";
 import { cleanup, temporary } from "../test-support.js";
 
@@ -32,7 +33,7 @@ describe("CLI stream", () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     cleanup(() => new Promise<void>((resolve) => server.close(() => resolve())));
     writePrivateJson(join(homeDir, "runtime.json"), {
-      protocolVersion: 1,
+      protocolVersion: RUNTIME_PROTOCOL_VERSION,
       port: (server.address() as AddressInfo).port,
       token: "test-token",
       pid: process.pid,
@@ -68,6 +69,5 @@ describe("CLI stream", () => {
     expect(exitCode, stderr).toBe(0);
     expect(stdout).toContain("CLI answer");
     expect(turn).toMatchObject({ text: "hello", channel: "cli" });
-    expect(turn.requestId).toEqual(expect.any(String));
   });
 });

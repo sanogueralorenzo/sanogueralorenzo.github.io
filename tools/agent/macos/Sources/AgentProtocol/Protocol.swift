@@ -70,13 +70,11 @@ public struct ChatRequest: Encodable, Sendable {
     public let text: String
     public let sessionId: String?
     public let channel = "macos"
-    public let requestId: String
     public let fresh: Bool
 
-    public init(text: String, sessionId: String?, requestId: String, fresh: Bool) {
+    public init(text: String, sessionId: String?, fresh: Bool) {
         self.text = text
         self.sessionId = sessionId
-        self.requestId = requestId
         self.fresh = fresh
     }
 }

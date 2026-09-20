@@ -4,28 +4,14 @@ import AgentProtocol
 
 func check(_ condition: @autoclosure () -> Bool, _ message: String) { precondition(condition(), message) }
 
-func requestBody(_ request: URLRequest) -> Data {
-    if let body = request.httpBody { return body }
-    guard let stream = request.httpBodyStream else { return Data() }
-    stream.open()
-    defer { stream.close() }
-    var result = Data()
-    var buffer = [UInt8](repeating: 0, count: 4096)
-    while stream.hasBytesAvailable {
-        let count = stream.read(&buffer, maxLength: buffer.count)
-        if count <= 0 { break }
-        result.append(buffer, count: count)
-    }
-    return result
-}
-
 final class MockURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: ((URLRequest, MockURLProtocol) -> Void)?
+    nonisolated(unsafe) static var stopped: (() -> Void)?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() { Self.handler?(request, self) }
-    override func stopLoading() {}
+    override func stopLoading() { Self.stopped?() }
 
     func respond(_ body: String, status: Int = 200, finish: Bool = true) {
         client?.urlProtocol(self, didReceive: HTTPURLResponse(
@@ -39,24 +25,18 @@ final class MockURLProtocol: URLProtocol, @unchecked Sendable {
 
 final class RequestState: @unchecked Sendable {
     private let lock = NSLock()
-    private var chatProtocol: MockURLProtocol?
-    private(set) var chatId = ""
-    private(set) var cancelledId = ""
+    private var didStart = false
+    private var wasStopped = false
 
-    var started: Bool { lock.withLock { chatProtocol != nil } }
+    var started: Bool { lock.withLock { didStart } }
+    var stopped: Bool { lock.withLock { wasStopped } }
 
-    func start(id: String, protocolValue: MockURLProtocol) {
-        lock.withLock {
-            chatId = id
-            chatProtocol = protocolValue
-        }
+    func start() {
+        lock.withLock { didStart = true }
     }
 
-    func cancel(id: String) -> MockURLProtocol? {
-        lock.withLock {
-            cancelledId = id
-            return chatProtocol
-        }
+    func stop() {
+        lock.withLock { wasStopped = true }
     }
 }
 
@@ -101,21 +81,21 @@ struct AgentClientCheck {
         }
 
         let state = RequestState()
-        MockURLProtocol.handler = { request, protocolValue in
-            let body = try! JSONSerialization.jsonObject(with: requestBody(request)) as! [String: Any]
-            let requestId = body["requestId"] as! String
-            if request.url?.path == "/v1/chat" {
-                state.start(id: requestId, protocolValue: protocolValue)
-                protocolValue.respond("data: {\"type\":\"status\",\"message\":\"Working\"}\n\n", finish: false)
-            } else {
-                let chat = state.cancel(id: requestId)
-                protocolValue.respond("{\"cancelled\":true}")
-                chat?.respond("data: {\"type\":\"error\",\"message\":\"Interrupted\"}\n\n")
-            }
+        MockURLProtocol.handler = { _, protocolValue in
+            state.start()
+            protocolValue.respond("data: {\"type\":\"status\",\"message\":\"Working\"}\n\n", finish: false)
         }
+        MockURLProtocol.stopped = { state.stop() }
         let activeClient = client()
         let stream = try await activeClient.events(text: "hello", sessionId: nil, fresh: false)
-        let collecting = Task { try await collect(stream) }
+        let collecting = Task {
+            do {
+                _ = try await collect(stream)
+                return false
+            } catch {
+                return true
+            }
+        }
         for _ in 0..<100 where !state.started { try await Task.sleep(for: .milliseconds(10)) }
         check(state.started, "Agent client did not start its request")
         do {
@@ -124,12 +104,11 @@ struct AgentClientCheck {
         } catch {
             check(error.localizedDescription == "A response is already running.", "Agent busy-state check failed")
         }
-        let cancelled = try await activeClient.cancel()
-        let cancelledEvents = try await collecting.value
+        let cancelled = await activeClient.cancel()
+        let cancellationFinished = await collecting.value
         check(cancelled, "Agent client did not cancel its active request")
-        check(cancelledEvents == ["status", "error"], "Agent cancellation stream check failed")
-        check(state.cancelledId == state.chatId, "Agent client cancellation used a different request ID")
-        let cancelledAgain = try await activeClient.cancel()
+        check(cancellationFinished && state.stopped, "Agent cancellation stream check failed")
+        let cancelledAgain = await activeClient.cancel()
         check(!cancelledAgain, "Agent client retained a completed request")
         print("Agent client check passed")
     }

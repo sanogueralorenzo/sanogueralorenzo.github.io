@@ -1,7 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { RuntimeEvent, Session, TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type RuntimeEvent, type Session, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RuntimeEvent {
@@ -28,21 +27,22 @@ function decodeEvent(data: string): RuntimeEvent {
 }
 
 export class RuntimeClient {
-  private activeRequestId: string | null = null;
+  private activeRequest: AbortController | null = null;
 
   constructor(private readonly homeDir: string) {}
 
   get isRunning(): boolean {
-    return this.activeRequestId !== null;
+    return this.activeRequest !== null;
   }
 
   private connection(): { baseUrl: string; token: string } {
-    let discovery: { port: number; token: string };
+    let discovery: { protocolVersion: number; port: number; token: string };
     try {
       discovery = JSON.parse(readFileSync(join(this.homeDir, "runtime.json"), "utf8")) as typeof discovery;
     } catch {
       throw new Error("Agent runtime is not running.");
     }
+    if (discovery.protocolVersion !== RUNTIME_PROTOCOL_VERSION) throw new Error("Agent runtime uses an incompatible protocol.");
     return { baseUrl: `http://127.0.0.1:${discovery.port}`, token: discovery.token };
   }
 
@@ -77,15 +77,16 @@ export class RuntimeClient {
   }
 
   async *events(turn: TurnRequest): AsyncGenerator<RuntimeEvent> {
-    if (this.activeRequestId) throw new Error("A response is already running.");
-    const requestId = randomUUID();
-    this.activeRequestId = requestId;
+    if (this.activeRequest) throw new Error("A response is already running.");
+    const controller = new AbortController();
+    this.activeRequest = controller;
     let terminal = false;
     try {
       const response = await this.fetch("/v1/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...turn, requestId }),
+        body: JSON.stringify(turn),
+        signal: controller.signal,
       });
       if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
 
@@ -112,7 +113,7 @@ export class RuntimeClient {
       }
       if (!terminal) throw new Error("Agent runtime disconnected before the response completed.");
     } finally {
-      if (this.activeRequestId === requestId) this.activeRequestId = null;
+      if (this.activeRequest === controller) this.activeRequest = null;
     }
   }
 
@@ -130,14 +131,9 @@ export class RuntimeClient {
   }
 
   async cancel(): Promise<boolean> {
-    if (!this.activeRequestId) return false;
-    const response = await this.fetch("/v1/cancel", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ requestId: this.activeRequestId }),
-    });
-    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
-    return (await response.json() as { cancelled?: boolean }).cancelled === true;
+    if (!this.activeRequest) return false;
+    this.activeRequest.abort();
+    return true;
   }
 
   sessions(): Promise<{ sessions: Session[] }> {

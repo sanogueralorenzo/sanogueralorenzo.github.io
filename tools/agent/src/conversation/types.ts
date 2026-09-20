@@ -1,4 +1,5 @@
 export type WorkKind = "personal" | "coding";
+export const RUNTIME_PROTOCOL_VERSION = 2;
 export type WorkerKind = "bounded" | "coding" | "astra";
 export type BackendKind = "codex" | "responses";
 

@@ -67,7 +67,7 @@ describe("RuntimeServer", () => {
     const attachment = await uploaded.json() as { id: string; path?: string };
     expect(attachment.path).toBeUndefined();
     const streamed = await request("/v1/chat", "POST", {
-      text: "hello", attachmentIds: [attachment.id], requestId: "test-request", channel: "api",
+      text: "hello", attachmentIds: [attachment.id], channel: "api",
     });
     const body = await streamed.text();
     expect(streamed.headers.get("content-type")).toContain("text/event-stream");
@@ -78,6 +78,29 @@ describe("RuntimeServer", () => {
       attachmentIds: [attachment.id],
       attachments: [{ id: attachment.id, name: "voice note.ogg", mimeType: "audio/ogg" }],
     });
+  });
+
+  it("cancels the runtime when a client closes its stream", async () => {
+    let interrupted!: () => void;
+    const interruption = new Promise<void>((resolve) => { interrupted = resolve; });
+    const runtime = {
+      async *run(_turn: unknown, options: { signal: AbortSignal }): AsyncGenerator<RuntimeEvent> {
+        options.signal.addEventListener("abort", () => interrupted(), { once: true });
+        yield { type: "status", message: "working" };
+        await new Promise<void>((resolve) => options.signal.addEventListener("abort", () => resolve(), { once: true }));
+      },
+    } as unknown as AgentRuntime;
+    const { port, token } = await serve(runtime);
+    const controller = new AbortController();
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ text: "hello", channel: "api" }),
+      signal: controller.signal,
+    });
+    await response.body!.getReader().read();
+    controller.abort();
+    await expect(interruption).resolves.toBeUndefined();
   });
 
   it("exposes backend-neutral guided setup endpoints", async () => {

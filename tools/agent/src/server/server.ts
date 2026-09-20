@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import { MAX_HISTORY_MESSAGES } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
-import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeEvent, type TurnRequest } from "../conversation/types.js";
 import type { BackendSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
@@ -38,7 +38,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 
 export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
-  private readonly controllers = new Map<string, AbortController>();
+  private readonly controllers = new Set<AbortController>();
   private server = createServer(this.handle.bind(this));
 
   constructor(
@@ -54,12 +54,12 @@ export class RuntimeServer {
       this.server.listen(this.config.port, "127.0.0.1", () => resolve());
     });
     const port = (this.server.address() as AddressInfo).port;
-    writePrivateFile(join(this.config.homeDir, "runtime.json"), `${JSON.stringify({ protocolVersion: 1, port, token: this.token, pid: process.pid })}\n`);
+    writePrivateFile(join(this.config.homeDir, "runtime.json"), `${JSON.stringify({ protocolVersion: RUNTIME_PROTOCOL_VERSION, port, token: this.token, pid: process.pid })}\n`);
     return port;
   }
 
   async close(): Promise<void> {
-    for (const controller of this.controllers.values()) controller.abort();
+    for (const controller of this.controllers) controller.abort();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
     const path = join(this.config.homeDir, "runtime.json");
     const discovery = readPrivateJson<{ pid: number; token: string }>(path);
@@ -68,7 +68,7 @@ export class RuntimeServer {
 
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
-    if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: 1, pid: process.pid });
+    if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: RUNTIME_PROTOCOL_VERSION, pid: process.pid });
     if (request.headers.authorization !== `Bearer ${this.token}`) return json(response, 401, { error: "unauthorized" });
 
     try {
@@ -106,13 +106,6 @@ export class RuntimeServer {
           if (mode !== "browser" && mode !== "headless") throw new Error("login mode must be browser or headless");
           return json(response, 200, await this.setup.startCodexLogin(mode));
         }
-        case "POST /v1/cancel": {
-          const { requestId } = await readJson(request);
-          if (typeof requestId !== "string" || !requestId.trim()) throw new Error("requestId is required");
-          const controller = this.controllers.get(requestId.trim());
-          controller?.abort();
-          return json(response, 200, { cancelled: Boolean(controller) });
-        }
         case "POST /v1/attachments": {
           const header = request.headers["x-agent-filename"];
           const name = Array.isArray(header) ? header[0] : header;
@@ -146,16 +139,10 @@ export class RuntimeServer {
     if (!text && attachmentIds.length === 0) throw new Error("text or an attachment is required");
     const attachments = attachmentIds.map((id) => this.store.getAttachment(id));
     if (attachments.some((attachment) => !attachment)) throw new Error("attachment not found");
-    const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
-    if (!requestId) throw new Error("requestId is required");
     const channel = body.channel;
     if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
-    if (this.controllers.has(requestId)) {
-      json(response, 409, { error: "request_already_running" });
-      return;
-    }
     const controller = new AbortController();
-    this.controllers.set(requestId, controller);
+    this.controllers.add(controller);
     response.once("close", () => controller.abort());
     response.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
@@ -176,7 +163,7 @@ export class RuntimeServer {
     try {
       for await (const event of this.runtime.run(turn, { signal: controller.signal })) send(event);
     } finally {
-      this.controllers.delete(requestId);
+      this.controllers.delete(controller);
       response.end();
     }
   }

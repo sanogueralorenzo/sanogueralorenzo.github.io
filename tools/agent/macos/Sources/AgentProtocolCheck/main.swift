@@ -9,7 +9,7 @@ let done = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"don
 check(done.isValid && done.isTerminal, "Agent terminal-event check failed")
 let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","mimeType":"image/png","size":12,"path":"/tmp/result.png"}}"#.utf8))
 check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
-let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil, requestId: "r1", fresh: true))
+let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil, fresh: true))
 check(String(decoding: request, as: UTF8.self).contains("\"fresh\":true"), "Agent new-session protocol check failed")
 let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus"}}"#.utf8))
 check(setup.codex.connected, "Agent Codex setup protocol check failed")
