@@ -93,7 +93,7 @@ export class AgentRuntime {
     const memoryScope = route.kind === "coding" && session.cwd ? `project:${resolve(session.cwd)}` : "personal";
     const remembered = explicitMemory(request.text);
     if (remembered && !containsSecret(remembered) && !/\b(api[_ -]?key|password|secret|token)\b/i.test(remembered)) {
-      this.store.remember(memoryScope, remembered, session.id);
+      this.store.remember(memoryScope, remembered);
     }
     const memories = this.store.searchMemories(memoryScope, request.text);
     const instructions = buildInstructions({ session, route, memories });

@@ -13,7 +13,6 @@ const string = { type: "string" } as const;
 
 export interface ToolContext {
   cwd: string | null;
-  sessionId: string;
   memoryScope: string;
   signal?: AbortSignal;
 }
@@ -130,7 +129,7 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
   if (options.allowMemoryWrite !== false) tools.push(tool("remember", "Save one durable, non-secret fact or preference.", { fact: string }, async (args, context) => {
     const fact = text(args, "fact").trim();
     if (/\b(api[_ -]?key|password|secret|token)\b/i.test(fact) || containsSecret(fact)) throw new Error("Agent will not store suspected secrets in memory.");
-    store.remember(context.memoryScope, fact, context.sessionId);
+    store.remember(context.memoryScope, fact);
     return { output: "Saved.", summary: "memory saved" };
   }));
 

@@ -48,7 +48,6 @@ export class Store {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         scope TEXT NOT NULL,
         content TEXT NOT NULL,
-        source_session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         UNIQUE(scope, content)
@@ -154,13 +153,13 @@ export class Store {
     `).all(sessionId, limit) as unknown as Message[];
   }
 
-  remember(scope: string, content: string, sourceSessionId?: string): void {
+  remember(scope: string, content: string): void {
     const timestamp = now();
     this.db.prepare(`
-      INSERT INTO memories (scope, content, source_session_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO memories (scope, content, created_at, updated_at)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT(scope, content) DO UPDATE SET updated_at = excluded.updated_at
-    `).run(scope, content.trim(), sourceSessionId ?? null, timestamp, timestamp);
+    `).run(scope, content.trim(), timestamp, timestamp);
   }
 
   searchMemories(scope: string, query: string, limit = 8): Memory[] {

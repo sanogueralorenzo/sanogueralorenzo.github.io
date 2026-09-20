@@ -41,7 +41,7 @@ async function runSetup(
       const session = seed.resolveSession({ scopeKey: "project:preserved", kind: "coding", cwd: homeDir, title: "Preserve me" });
       seededSessionId = session.id;
       seed.addMessage(session.id, "user", "Preserved transcript");
-      seed.remember("project:preserved", "Preserved memory", session.id);
+      seed.remember("project:preserved", "Preserved memory");
       seed.bindBackendSession(session.id, "codex", "preserved-thread");
     }
     seed.close();

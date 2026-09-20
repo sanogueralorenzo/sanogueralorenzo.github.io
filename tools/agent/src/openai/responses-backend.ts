@@ -157,7 +157,6 @@ export class ResponsesBackend implements AgentBackend {
     try {
       const result = await executeTool(tools, call.name, call.arguments, {
         cwd: turn.session.cwd,
-        sessionId: turn.session.id,
         memoryScope: turn.memoryScope,
         ...(turn.signal ? { signal: turn.signal } : {}),
       });

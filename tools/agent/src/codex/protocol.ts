@@ -7,7 +7,7 @@ export interface JsonRpcMessage {
 }
 
 export interface CodexAccountStatus {
-  account: { type: "apiKey" | "chatgpt" | "amazonBedrock"; planType?: string } | null;
+  account: { type: "apiKey" | "chatgpt" | "amazonBedrock" } | null;
 }
 
 export type CodexLoginMode = "browser" | "headless";

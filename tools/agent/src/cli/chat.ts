@@ -65,7 +65,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         ]);
         const current = data.sessions.find((session) => session.id === sessionId);
         const billing = setup.selectedBackend === "codex"
-          ? `ChatGPT${setup.codex.planType ? ` ${setup.codex.planType}` : ""}`
+          ? "ChatGPT"
           : "API-key billing";
         status(current
           ? `${current.title} · ${billing} · saved ${new Date(current.updatedAt).toLocaleTimeString()}`

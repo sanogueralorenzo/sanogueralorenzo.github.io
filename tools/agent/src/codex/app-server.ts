@@ -14,8 +14,6 @@ import type {
 import { redactSecrets } from "../workspace/security.js";
 import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
 
-type NotificationListener = (message: JsonRpcMessage) => void;
-
 export class CodexRpcError extends Error {
   constructor(readonly code: number, message: string, readonly data?: unknown) {
     super(message);
@@ -135,11 +133,6 @@ export class CodexAppServer extends EventEmitter {
   notify(method: string, params: Record<string, unknown>): void {
     if (!this.process?.stdin.writable) throw new CodexDisconnectedError();
     this.process.stdin.write(`${JSON.stringify({ method, params })}\n`);
-  }
-
-  onNotification(listener: NotificationListener): () => void {
-    this.on("notification", listener);
-    return () => this.off("notification", listener);
   }
 
   async account(refreshToken = true): Promise<CodexAccountStatus> {

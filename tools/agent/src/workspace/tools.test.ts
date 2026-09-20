@@ -14,7 +14,7 @@ function fixture() {
   const state = temporary("agent-tools-state-");
   const store = new Store(state);
   const tools = createTools(store, { allowCodeTools: true });
-  const context = { cwd: root, sessionId: "test", memoryScope: "test" };
+  const context = { cwd: root, memoryScope: "test" };
   return { root, store, tools, context };
 }
 

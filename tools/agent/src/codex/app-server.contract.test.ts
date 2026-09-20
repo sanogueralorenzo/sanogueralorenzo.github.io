@@ -2,7 +2,7 @@ import { existsSync, lstatSync, readFileSync, symlinkSync, writeFileSync } from 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { BackendRegistry, type AgentBackend, type BackendTurn } from "../conversation/backend.js";
+import { BackendRegistry, type BackendTurn } from "../conversation/backend.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig } from "../conversation/types.js";
 import { AgentRuntime } from "../conversation/runtime.js";
@@ -11,10 +11,6 @@ import { CodexAppServer, CodexRpcError, createAgentCodexAppServer, prepareAgentC
 import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
-
-function temp(name: string): string {
-  return temporary(name);
-}
 
 function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer {
   const appServer = new CodexAppServer({
@@ -65,7 +61,7 @@ async function collect(backend: CodexBackend, input: BackendTurn) {
 }
 
 function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, worker: BackendTurn["route"]["worker"] = null) {
-  const homeDir = temp("agent-codex-");
+  const homeDir = temporary("agent-codex-");
   const log = join(homeDir, "rpc.log");
   const store = trackedStore(homeDir);
   const backend = new CodexBackend(config(homeDir), store, client(scenario, { AGENT_FAKE_LOG: log, ...extra }));
@@ -74,7 +70,7 @@ function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, work
 
 describe("Codex app-server contract", () => {
   it("runs production app-server in a private, locked-down Agent profile", async () => {
-    const homeDir = temp("agent-codex-profile-");
+    const homeDir = temporary("agent-codex-profile-");
     const envLog = join(homeDir, "env.json");
     const rpcLog = join(homeDir, "rpc.log");
     const appServer = createAgentCodexAppServer(
@@ -114,8 +110,8 @@ describe("Codex app-server contract", () => {
   });
 
   it("refuses a symbolic-link credential profile", () => {
-    const homeDir = temp("agent-codex-profile-link-");
-    const target = temp("agent-codex-profile-target-");
+    const homeDir = temporary("agent-codex-profile-link-");
+    const target = temporary("agent-codex-profile-target-");
     symlinkSync(target, join(homeDir, "codex"));
     expect(() => prepareAgentCodexHome(homeDir)).toThrow(/real directory/);
   });
@@ -126,7 +122,7 @@ describe("Codex app-server contract", () => {
       type: "chatgptDeviceCode", loginId: "login-1", verificationUrl: "https://auth.openai.com/codex/device", userCode: "Agent-TEST",
     }],
   ] as const)("starts the explicit %s login flow", async (mode, requestType, expected) => {
-    const homeDir = temp(`agent-codex-${mode}-`);
+    const homeDir = temporary(`agent-codex-${mode}-`);
     const log = join(homeDir, "rpc.log");
     const appServer = client("login-success", { AGENT_FAKE_LOG: log });
     const login = await appServer.beginLogin(mode);
@@ -161,7 +157,7 @@ describe("Codex app-server contract", () => {
   });
 
   it("cancels a pending headless login when setup is interrupted", async () => {
-    const homeDir = temp("agent-codex-login-cancel-");
+    const homeDir = temporary("agent-codex-login-cancel-");
     const log = join(homeDir, "rpc.log");
     const appServer = client("login-pending", { AGENT_FAKE_LOG: log });
     const login = await appServer.beginLogin("headless");
@@ -185,7 +181,7 @@ describe("Codex app-server contract", () => {
   });
 
   it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
-    const homeDir = temp("agent-codex-voice-");
+    const homeDir = temporary("agent-codex-voice-");
     const log = join(homeDir, "rpc.log");
     const audioPath = join(homeDir, "voice.ogg");
     writeFileSync(audioPath, Buffer.from("T2dnUwACAAAAAAAAAAA4TQibAAAAABbLz/IBE09wdXNIZWFkAQE4AYC7AAAAAABPZ2dTAAAAAAAAAAAAADhNCJsBAAAACYU5GQE8T3B1c1RhZ3MMAAAATGF2ZjYzLjEuMTAyAQAAABwAAABlbmNvZGVyPUxhdmM2My4xLjEwMiBsaWJvcHVzT2dnUwAEuAgAAAAAAAA4TQibAgAAAASvZ7YDDRYOCINtgtAc/epJ/gE/wAinGl2KmC5fbwXLShrtt/PI1gXBXsAIBm0zkArsfUCzkSIpxA==", "base64"));
@@ -221,7 +217,7 @@ describe("Codex app-server contract", () => {
   });
 
   it("copies generated images into one backend-neutral artifact event", async () => {
-    const homeDir = temp("agent-codex-artifact-");
+    const homeDir = temporary("agent-codex-artifact-");
     const generated = join(homeDir, "generated.png");
     writeFileSync(generated, "png-data");
     const store = trackedStore(homeDir);
@@ -251,16 +247,11 @@ describe("Codex app-server contract", () => {
   });
 
   it("uses the unchanged Agent session, transcript, and client event contract", async () => {
-    const homeDir = temp("agent-codex-runtime-");
+    const homeDir = temporary("agent-codex-runtime-");
     const store = trackedStore(homeDir);
     store.setSetting("backend", "codex");
-    const appServer = client("normal");
-    const codex = new CodexBackend(config(homeDir), store, appServer);
-    const responses: AgentBackend = {
-      kind: "responses", label: "responses", isConfigured: () => false,
-      async *run() { yield { type: "done" }; },
-    };
-    const runtime = new AgentRuntime(config(homeDir), store, new BackendRegistry(store, responses, codex));
+    const codex = new CodexBackend(config(homeDir), store, client("normal"));
+    const runtime = new AgentRuntime(config(homeDir), store, new BackendRegistry(store, codex, codex));
     const events = [];
     for await (const event of runtime.run({ text: "Fix the test", cwd: homeDir, channel: "api" })) events.push(event);
 
@@ -282,7 +273,7 @@ describe("Codex app-server contract", () => {
   });
 
   it("restarts app-server and resumes the opaque Codex thread", async () => {
-    const homeDir = temp("agent-codex-reconnect-marker-");
+    const homeDir = temporary("agent-codex-reconnect-marker-");
     const marker = join(homeDir, "restart.marker");
     const fixture = backendFixture("reconnect", { AGENT_FAKE_MARKER: marker });
     const events = await collect(fixture.backend, fixture.input);
@@ -312,19 +303,11 @@ describe("Codex app-server contract", () => {
   });
 
   it("uses API-key mode only after it was explicitly selected", async () => {
-    const homeDir = temp("agent-codex-explicit-api-");
-    const store = trackedStore(homeDir);
-    const backend = (kind: "codex" | "responses", configured: boolean): AgentBackend => ({
-      kind,
-      label: kind,
-      isConfigured: () => configured,
-      async *run() { yield { type: "done" }; },
-    });
-    const responses = backend("responses", true);
-    const registry = new BackendRegistry(store, responses, backend("codex", false));
+    const { store, backend } = backendFixture();
+    const registry = new BackendRegistry(store, backend, backend);
 
     expect(() => registry.resolve()).toThrow("no selected connection");
     store.setSetting("backend", "responses");
-    expect(registry.resolve()).toBe(responses);
+    expect(registry.resolve()).toBe(backend);
   });
 });

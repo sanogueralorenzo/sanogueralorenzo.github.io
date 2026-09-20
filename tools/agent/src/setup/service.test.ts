@@ -31,7 +31,7 @@ describe("BackendSetupService", () => {
   it("reports a ChatGPT connection", async () => {
     const { store, service } = setup("normal");
     const status = await service.status();
-    expect(status.codex).toMatchObject({ installed: true, connected: true, planType: "plus" });
+    expect(status.codex).toMatchObject({ installed: true, connected: true });
     await service.selectBackend("codex");
     expect(store.getSetting("backend")).toBe("codex");
   });

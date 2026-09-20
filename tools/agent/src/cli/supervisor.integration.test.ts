@@ -15,7 +15,7 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   const store = new Store(homeDir);
   const session = store.resolveSession({ scopeKey: `project:${homeDir}`, kind: "coding", cwd: homeDir, title: "Reload-safe session" });
   store.addMessage(session.id, "user", "Keep this transcript");
-  store.remember(`project:${homeDir}`, "Keep this memory", session.id);
+  store.remember(`project:${homeDir}`, "Keep this memory");
   store.setSetting("backend", backend);
   if (backend === "codex") store.bindBackendSession(session.id, "codex", "thread-persisted");
   store.close();
