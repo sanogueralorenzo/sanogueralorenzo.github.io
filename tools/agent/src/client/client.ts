@@ -4,8 +4,37 @@ import { join } from "node:path";
 import type { RuntimeEvent, Session, TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
+function decodeEvent(data: string): RuntimeEvent {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw new Error("Agent runtime sent a malformed event.");
+  }
+  if (!value || typeof value !== "object" || typeof (value as { type?: unknown }).type !== "string") {
+    throw new Error("Agent runtime sent an invalid event.");
+  }
+  const event = value as Record<string, unknown>;
+  const valid = event.type === "session"
+    ? typeof (event.session as Record<string, unknown> | undefined)?.id === "string"
+    : event.type === "text_delta" ? typeof event.delta === "string"
+      : event.type === "status" || event.type === "error" ? typeof event.message === "string"
+        : event.type === "artifact" ? typeof (event.artifact as Record<string, unknown> | undefined)?.path === "string"
+          : event.type === "tool_start" ? typeof event.name === "string" && typeof event.callId === "string"
+            : event.type === "tool_end" ? typeof event.name === "string" && typeof event.callId === "string" && typeof event.summary === "string"
+              : event.type === "done" && typeof event.sessionId === "string";
+  if (!valid) throw new Error("Agent runtime sent an invalid event.");
+  return value as RuntimeEvent;
+}
+
 export class RuntimeClient {
+  private activeRequestId: string | null = null;
+
   constructor(private readonly homeDir: string) {}
+
+  get isRunning(): boolean {
+    return this.activeRequestId !== null;
+  }
 
   private connection(): { baseUrl: string; token: string } {
     let discovery: { port: number; token: string };
@@ -47,29 +76,43 @@ export class RuntimeClient {
     throw new Error("Agent runtime did not become ready.");
   }
 
-  async chat(turn: TurnRequest, onEvent: (event: RuntimeEvent) => void, requestId: string = randomUUID()): Promise<void> {
-    const response = await this.fetch("/v1/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...turn, requestId }),
-    });
-    if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+  async *events(turn: TurnRequest): AsyncGenerator<RuntimeEvent> {
+    if (this.activeRequestId) throw new Error("A response is already running.");
+    const requestId = randomUUID();
+    this.activeRequestId = requestId;
+    let terminal = false;
+    try {
+      const response = await this.fetch("/v1/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...turn, requestId }),
+      });
+      if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const next = await reader.read();
-      if (next.done) break;
-      buffer += decoder.decode(next.value, { stream: true }).replaceAll("\r\n", "\n");
-      let boundary = buffer.indexOf("\n\n");
-      while (boundary >= 0) {
-        const block = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        const data = block.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
-        if (data) onEvent(JSON.parse(data) as RuntimeEvent);
-        boundary = buffer.indexOf("\n\n");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const next = await reader.read();
+        buffer += decoder.decode(next.value, { stream: !next.done });
+        let boundary = buffer.search(/\r?\n\r?\n/);
+        while (boundary >= 0) {
+          const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)![0];
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + separator.length);
+          const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+          if (data) {
+            const event = decodeEvent(data);
+            terminal ||= event.type === "done" || event.type === "error";
+            yield event;
+          }
+          boundary = buffer.search(/\r?\n\r?\n/);
+        }
+        if (next.done) break;
       }
+      if (!terminal) throw new Error("Agent runtime disconnected before the response completed.");
+    } finally {
+      if (this.activeRequestId === requestId) this.activeRequestId = null;
     }
   }
 
@@ -86,12 +129,15 @@ export class RuntimeClient {
     return response.json() as Promise<{ id: string }>;
   }
 
-  async cancel(requestId: string): Promise<void> {
-    await this.fetch("/v1/cancel", {
+  async cancel(): Promise<boolean> {
+    if (!this.activeRequestId) return false;
+    const response = await this.fetch("/v1/cancel", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ requestId }),
+      body: JSON.stringify({ requestId: this.activeRequestId }),
     });
+    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+    return (await response.json() as { cancelled?: boolean }).cancelled === true;
   }
 
   sessions(): Promise<{ sessions: Session[] }> {

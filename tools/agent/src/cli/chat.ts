@@ -1,8 +1,6 @@
-import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { RuntimeClient } from "../client/client.js";
 import { loadConfig } from "../local/config.js";
-import type { RuntimeEvent } from "../conversation/types.js";
 import { RuntimeSupervisor } from "./supervisor.js";
 
 const ansi = {
@@ -28,13 +26,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let sessionId: string | undefined;
   let fresh = false;
-  let activeRequestId: string | null = null;
   let interrupted = false;
 
   const onSigint = () => {
-    if (activeRequestId) {
+    if (client.isRunning) {
       interrupted = true;
-      void client.cancel(activeRequestId);
+      void client.cancel();
     } else {
       rl.close();
     }
@@ -77,17 +74,16 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
 
-      activeRequestId = randomUUID();
       interrupted = false;
       let wroteText = false;
       try {
-        await client.chat({
+        for await (const event of client.events({
           text: input,
           cwd: process.cwd(),
           ...(sessionId ? { sessionId } : {}),
           ...(fresh ? { fresh: true } : {}),
           channel: "cli",
-        }, (event: RuntimeEvent) => {
+        })) {
           if (event.type === "session") {
             sessionId = event.session.id;
             fresh = false;
@@ -107,14 +103,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
             process.stdout.write(`${wroteText ? "\n" : ""}${ansi.red(event.message)}\n`);
             wroteText = false;
           }
-        }, activeRequestId);
+        }
         if (wroteText) process.stdout.write("\n");
       } catch (error) {
         console.log(ansi.red(error instanceof Error ? error.message : String(error)));
         if (!interrupted) status("The runtime connection changed. Your saved session will resume on the next message.");
         await client.waitUntilHealthy().catch(() => undefined);
-      } finally {
-        activeRequestId = null;
       }
     }
   } finally {
