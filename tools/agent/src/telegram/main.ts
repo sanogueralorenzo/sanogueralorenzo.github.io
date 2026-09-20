@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runConfiguredTelegramGateway } from "./command.js";
+import { runConfiguredTelegramGateway } from "./gateway.js";
 
 try {
   await runConfiguredTelegramGateway();
