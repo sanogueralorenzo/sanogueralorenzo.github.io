@@ -6,10 +6,6 @@ public struct RuntimeDiscovery: Decodable, Sendable {
     public let token: String
 }
 
-public struct RuntimeEnvelope: Decodable, Sendable {
-    public let event: RuntimeEvent
-}
-
 public struct RuntimeEvent: Decodable, Sendable {
     public let type: String
     public let delta: String?

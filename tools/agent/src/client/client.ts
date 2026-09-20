@@ -67,7 +67,7 @@ export class RuntimeClient {
         const block = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + 2);
         const data = block.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
-        if (data) onEvent((JSON.parse(data) as { event: RuntimeEvent }).event);
+        if (data) onEvent(JSON.parse(data) as RuntimeEvent);
         boundary = buffer.indexOf("\n\n");
       }
     }

@@ -103,7 +103,7 @@ struct RuntimeClient: Sendable {
                     for try await line in bytes.lines {
                         if line.hasPrefix("data: "),
                            let data = line.dropFirst(6).data(using: .utf8) {
-                            continuation.yield(try JSONDecoder().decode(RuntimeEnvelope.self, from: data).event)
+                            continuation.yield(try JSONDecoder().decode(RuntimeEvent.self, from: data))
                         }
                     }
                     continuation.finish()

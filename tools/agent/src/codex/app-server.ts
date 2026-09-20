@@ -233,10 +233,6 @@ export class CodexAppServer extends EventEmitter {
       else pending.resolve(message.result);
       return;
     }
-    if (message.id !== undefined && message.method) {
-      this.respondToServerRequest(message);
-      return;
-    }
     if (message.method === "account/login/completed") {
       const loginId = typeof message.params?.loginId === "string" ? message.params.loginId : null;
       if (loginId) {
@@ -246,18 +242,6 @@ export class CodexAppServer extends EventEmitter {
       }
     }
     this.emit("notification", message);
-  }
-
-  private respondToServerRequest(message: JsonRpcMessage): void {
-    if (!this.process?.stdin.writable || message.id === undefined) return;
-    let result: unknown;
-    if (message.method === "item/commandExecution/requestApproval" || message.method === "item/fileChange/requestApproval") {
-      result = { decision: "decline" };
-    } else {
-      this.process.stdin.write(`${JSON.stringify({ id: message.id, error: { code: -32601, message: "Agent does not implement this server request." } })}\n`);
-      return;
-    }
-    this.process.stdin.write(`${JSON.stringify({ id: message.id, result })}\n`);
   }
 
   private disconnected(code: number | null, signal: NodeJS.Signals | null, error?: Error): void {

@@ -191,11 +191,7 @@ export class RuntimeServer {
       "x-accel-buffering": "no",
     });
     response.flushHeaders();
-    let sequence = 0;
-    const send = (event: RuntimeEvent) => {
-      sequence += 1;
-      response.write(`id: ${sequence}\nevent: ${event.type}\ndata: ${JSON.stringify({ v: 1, seq: sequence, requestId, event })}\n\n`);
-    };
+    const send = (event: RuntimeEvent) => response.write(`data: ${JSON.stringify(event)}\n\n`);
     const turn: TurnRequest = {
       text,
       ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
