@@ -3,13 +3,12 @@ import { fileURLToPath } from "node:url";
 import { Bot, InputFile, type Context } from "grammy";
 import { RuntimeClient } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
-import type { RuntimeEvent } from "../conversation/types.js";
 import { loadConfig } from "../local/config.js";
 import { readSecret } from "../local/credentials.js";
-import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
-import { keepTelegramTyping, splitTelegramText } from "./text.js";
+import { keepTelegramTyping } from "./text.js";
+import { checkTelegramVoiceSize, isTelegramOwner, TelegramTurns } from "./turn.js";
 
 async function runGateway(token: string): Promise<void> {
   const config = loadConfig();
@@ -17,10 +16,10 @@ async function runGateway(token: string): Promise<void> {
   const supervisor = new RuntimeSupervisor(client, false, (message) => console.log(`· ${message}`));
   await supervisor.start();
   const bot = new Bot(token);
-  let activeRequestId: string | null = null;
   let stopping: Promise<void> | null = null;
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
-  const isOwner = (ctx: Context) => ctx.chat?.type === "private" && ctx.from && ownerId() === String(ctx.from.id);
+  const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
+  const turns = new TelegramTurns(client);
   const updater = new TelegramSelfUpdate({
     projectRoot: join(dirname(fileURLToPath(import.meta.url)), "../.."),
     homeDir: config.homeDir,
@@ -55,29 +54,23 @@ async function runGateway(token: string): Promise<void> {
   });
   bot.command("stop", async (ctx) => {
     if (!isOwner(ctx)) return;
-    if (activeRequestId) await client.cancel(activeRequestId);
-    else await ctx.reply("Nothing is running.");
+    if (!await turns.stop()) await ctx.reply("Nothing is running.");
   });
 
   const respond = async (ctx: Context, prepare: () => Promise<{ text: string; attachmentIds?: string[] }>): Promise<void> => {
     if (!ctx.chat || !ctx.from || !ctx.message || ctx.chat.type !== "private") return;
     if (!isOwner(ctx)) return void await ctx.reply("This Agent bot is private.");
-    if (activeRequestId) return void await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
+    if (turns.busy) return void await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
     if (!updater.beginTurn()) return void await ctx.reply("Applying an Agent update. I’ll reconnect shortly.");
-    const requestId = `telegram:${ctx.update.update_id}`;
-    let output = "";
-    let runtimeError = "";
-    const artifacts: Array<Extract<RuntimeEvent, { type: "artifact" }>["artifact"]> = [];
     const stopTyping = keepTelegramTyping(() => ctx.replyWithChatAction("typing"));
     try {
-      activeRequestId = requestId;
-      await client.chat({ ...await prepare(), channel: "telegram" }, (event) => {
-        if (event.type === "text_delta") output += event.delta;
-        if (event.type === "artifact") artifacts.push(event.artifact);
-        if (event.type === "error") runtimeError = event.message;
-      }, requestId);
+      const result = await turns.run(prepare);
       stopTyping();
-      const chunks = splitTelegramText([output.trim(), runtimeError].filter(Boolean).join("\n\n"));
+      if (result.state === "busy") {
+        await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
+        return;
+      }
+      const { chunks, artifacts } = result;
       if (chunks[0]) {
         await ctx.reply(chunks[0], { reply_parameters: { message_id: ctx.message.message_id } });
         for (const chunk of chunks.slice(1)) await ctx.reply(chunk);
@@ -88,17 +81,8 @@ async function runGateway(token: string): Promise<void> {
         else await ctx.replyWithDocument(new InputFile(artifact.path, artifact.name), options);
       }
       if (!chunks.length && !artifacts.length) await ctx.reply("Done.", { reply_parameters: { message_id: ctx.message.message_id } });
-    } catch (error) {
-      stopTyping();
-      const message = output.trim()
-        ? `${output.trim()}\n\nInterrupted. Your session is saved; send another message to continue.`
-        : error instanceof Error && /25 MB/.test(error.message)
-          ? error.message
-          : "I could not finish that response. Your session is saved; please try again.";
-      await ctx.reply(message, { reply_parameters: { message_id: ctx.message.message_id } }).catch(() => undefined);
     } finally {
       stopTyping();
-      activeRequestId = null;
       updater.endTurn();
     }
   };
@@ -108,13 +92,13 @@ async function runGateway(token: string): Promise<void> {
   });
   bot.on("message:voice", async (ctx) => respond(ctx, async () => {
     const voice = ctx.message.voice;
-    if (voice.file_size && voice.file_size > MAX_ATTACHMENT_BYTES) throw new Error("Voice note exceeds the 25 MB limit.");
+    checkTelegramVoiceSize(voice.file_size);
     const file = await bot.api.getFile(voice.file_id);
     if (!file.file_path) throw new Error("Telegram did not provide the voice note.");
     const response = await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`);
     if (!response.ok) throw new Error("Telegram could not download the voice note.");
     const data = new Uint8Array(await response.arrayBuffer());
-    if (data.byteLength > MAX_ATTACHMENT_BYTES) throw new Error("Voice note exceeds the 25 MB limit.");
+    checkTelegramVoiceSize(data.byteLength);
     const attachment = await client.uploadAttachment({
       name: `voice-${voice.file_unique_id}.ogg`, mimeType: voice.mime_type ?? "audio/ogg", data,
     });
