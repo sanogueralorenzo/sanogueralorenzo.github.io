@@ -29,7 +29,7 @@ const server = new RuntimeServer(config, runtime, store, {
   startCodexLogin: (mode) => setup.startCodexLogin(mode),
   codexLoginStatus: (loginId) => setup.codexLoginStatus(loginId),
   cancelCodexLogin: (loginId) => setup.cancelCodexLogin(loginId),
-});
+}, () => void close());
 
 const port = await server.listen();
 if (process.send) process.send({ type: "ready", port });

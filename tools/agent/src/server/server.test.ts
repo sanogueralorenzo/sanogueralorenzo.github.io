@@ -145,4 +145,48 @@ describe("RuntimeServer", () => {
     await server.close();
     store.close();
   });
+
+  it("accepts a graceful restart only after active turns finish", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "agent-server-restart-"));
+    paths.push(homeDir);
+    const config: RuntimeConfig = {
+      homeDir, host: "127.0.0.1", port: 0,
+      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
+      maxToolRounds: 2, maxHistoryMessages: 10, codexCommand: "codex",
+    };
+    let entered!: () => void;
+    let release!: () => void;
+    const turnEntered = new Promise<void>((resolve) => { entered = resolve; });
+    const turnReleased = new Promise<void>((resolve) => { release = resolve; });
+    const runtime = {
+      async *run(): AsyncGenerator<RuntimeEvent> {
+        entered();
+        await turnReleased;
+        yield { type: "done", sessionId: "session", responseId: null };
+      },
+    } as unknown as AgentRuntime;
+    let restarted!: () => void;
+    const restartCalled = new Promise<void>((resolve) => { restarted = resolve; });
+    const store = new Store(homeDir);
+    const server = new RuntimeServer(config, runtime, store, setupStub(), restarted);
+    const port = await server.listen();
+    const token = readDiscovery(homeDir)!.token;
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const chat = fetch(`http://127.0.0.1:${port}/v1/chat`, {
+      method: "POST", headers, body: JSON.stringify({ text: "work", requestId: "active", channel: "api" }),
+    });
+    await turnEntered;
+    const busy = await fetch(`http://127.0.0.1:${port}/v1/runtime/restart`, { method: "POST", headers });
+    expect(busy.status).toBe(409);
+
+    release();
+    await (await chat).text();
+    const accepted = await fetch(`http://127.0.0.1:${port}/v1/runtime/restart`, { method: "POST", headers });
+    expect(accepted.status).toBe(202);
+    await restartCalled;
+
+    await server.close();
+    store.close();
+  });
 });

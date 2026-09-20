@@ -15,8 +15,11 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/chat` — submit a turn and receive Server-Sent Events
 - `POST /v1/cancel` — cancel by client request ID
+- `POST /v1/runtime/restart` — request an idle-only graceful runtime restart
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
+
+The runtime rejects restart requests while any turn is active. The Telegram background gateway watches Agent's own runtime sources, waits until the requesting reply is delivered, runs the full check and production build, then requests this graceful restart and exits. The macOS user service relaunches the gateway, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current runtime running.
 
 `POST /v1/chat` accepts `text`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, `senderId`, and a client-generated `requestId`. The runtime—not the client—decides the work kind, backend, model behavior, tools, memory scope, and final session.
 

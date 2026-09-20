@@ -48,12 +48,14 @@ export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
   private readonly controllers = new Map<string, AbortController>();
   private server = createServer(this.handle.bind(this));
+  private restarting = false;
 
   constructor(
     private readonly config: RuntimeConfig,
     private readonly runtime: AgentRuntime,
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
+    private readonly onRestart?: () => void,
   ) {}
 
   async listen(): Promise<number> {
@@ -165,7 +167,25 @@ export class RuntimeServer {
         json(response, 200, { cancelled: Boolean(controller) });
         return;
       }
+      if (request.method === "POST" && url.pathname === "/v1/runtime/restart") {
+        if (!this.onRestart) {
+          json(response, 501, { error: "restart_unavailable" });
+          return;
+        }
+        if (this.controllers.size > 0) {
+          json(response, 409, { error: "runtime_busy" });
+          return;
+        }
+        this.restarting = true;
+        json(response, 202, { restarting: true });
+        setImmediate(this.onRestart);
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/chat") {
+        if (this.restarting) {
+          json(response, 503, { error: "runtime_restarting" });
+          return;
+        }
         await this.chat(request, response);
         return;
       }

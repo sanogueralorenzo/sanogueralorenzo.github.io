@@ -1,6 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Bot } from "grammy";
 import { RuntimeClient } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
@@ -9,6 +10,7 @@ import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
 import { installTelegramBackgroundService } from "./service.js";
+import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 import { pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
 
 interface TelegramState {
@@ -89,9 +91,31 @@ async function runGateway(token: string): Promise<void> {
   await supervisor.start();
   const bot = new Bot(token);
   const active = new Map<string, string>();
+  let stopping: Promise<void> | null = null;
   const isOwner = (chatType: string, userId: number | undefined) => {
     const current = readState(config.homeDir);
     return chatType === "private" && userId !== undefined && current?.ownerId === String(userId);
+  };
+  const updater = new TelegramSelfUpdate({
+    projectRoot: join(dirname(fileURLToPath(import.meta.url)), "../.."),
+    homeDir: config.homeDir,
+    requestRuntimeRestart: () => client.requestRestart(),
+    stopGateway: async () => stop(),
+    ownerId: () => readState(config.homeDir)?.ownerId,
+    onStatus: (message) => console.log(`· ${message}`),
+    onFailure: async () => {
+      const ownerId = readState(config.homeDir)?.ownerId;
+      if (ownerId) await bot.api.sendMessage(ownerId, "Agent update failed verification. The current version is still running.").catch(() => undefined);
+    },
+  });
+
+  const stop = (): Promise<void> => {
+    if (stopping) return stopping;
+    stopping = (async () => {
+      updater.stop();
+      await Promise.all([bot.stop(), supervisor.stop()]);
+    })();
+    return stopping;
   };
 
   bot.command("start", async (ctx) => {
@@ -146,6 +170,10 @@ async function runGateway(token: string): Promise<void> {
       await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
       return;
     }
+    if (!updater.beginTurn()) {
+      await ctx.reply("Applying an Agent update. I’ll reconnect shortly.");
+      return;
+    }
     const requestId = `telegram:${ctx.update.update_id}`;
     let placeholder: { message_id: number } | null = null;
     let output = "";
@@ -184,17 +212,23 @@ async function runGateway(token: string): Promise<void> {
     } finally {
       if (timer) clearInterval(timer);
       active.delete(senderId);
+      updater.endTurn();
     }
   });
 
   bot.catch((error) => console.error(`Telegram gateway error: ${error.message.replaceAll(token, "[redacted]")}`));
-  const stop = async () => {
-    await bot.stop();
-    await supervisor.stop();
-  };
   process.once("SIGINT", () => void stop());
   process.once("SIGTERM", () => void stop());
-  await bot.start({ onStart: (info) => console.log(`Agent Telegram is online as @${info.username}.`) });
+  await bot.start({ onStart: async (info) => {
+    console.log(`Agent Telegram is online as @${info.username}.`);
+    await updater.start();
+    const ownerId = pendingUpdateOwner(config.homeDir);
+    if (ownerId) {
+      const delivered = await bot.api.sendMessage(ownerId, "Agent updated and reconnected.")
+        .then(() => true, () => false);
+      if (delivered) acknowledgeUpdate(config.homeDir);
+    }
+  } });
 }
 
 export async function runConfiguredTelegramGateway(): Promise<void> {

@@ -62,7 +62,7 @@ export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
     "  <key>KeepAlive</key>",
     "  <true/>",
     "  <key>ProcessType</key>",
-    "  <string>Background</string>",
+    "  <string>Interactive</string>",
     "  <key>ThrottleInterval</key>",
     "  <integer>3</integer>",
     "  <key>StandardOutPath</key>",

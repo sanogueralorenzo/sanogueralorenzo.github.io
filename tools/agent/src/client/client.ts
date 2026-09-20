@@ -74,6 +74,17 @@ export class RuntimeClient {
     });
   }
 
+  async requestRestart(): Promise<boolean> {
+    const { baseUrl, token } = this.connection();
+    const response = await fetch(`${baseUrl}/v1/runtime/restart`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    if (response.status === 409) return false;
+    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+    return true;
+  }
+
   async sessions(): Promise<unknown> {
     const { baseUrl, token } = this.connection();
     const response = await fetch(`${baseUrl}/v1/sessions`, { headers: { authorization: `Bearer ${token}` } });
