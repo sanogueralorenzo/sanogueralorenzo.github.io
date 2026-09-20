@@ -5,7 +5,7 @@ import type {
   ResponseInputItem,
   Tool,
 } from "openai/resources/responses/responses";
-import type { Attachment } from "./types.js";
+import type { Attachment } from "../conversation/types.js";
 
 export interface ModelRequest {
   model: string;

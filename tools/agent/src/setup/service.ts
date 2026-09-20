@@ -1,6 +1,6 @@
-import type { OpenAIModelClient } from "../core/model.js";
-import type { Store } from "../core/store.js";
-import type { BackendKind } from "../core/types.js";
+import type { OpenAIModelClient } from "../openai/model.js";
+import type { Store } from "../conversation/store.js";
+import type { BackendKind } from "../conversation/types.js";
 import type { CodexAppServer } from "../codex/app-server.js";
 import type { CodexLoginMode, CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
 

@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import type { Response, ResponseFunctionToolCall, ResponseInputItem, Tool } from "openai/resources/responses/responses";
-import { saveArtifactData } from "./assets.js";
-import type { AgentBackend, BackendEvent, BackendTurn } from "./backend.js";
-import { MAX_HISTORY_MESSAGES, MAX_TOOL_ROUNDS, MODELS } from "./config.js";
+import { saveArtifactData } from "../workspace/assets.js";
+import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
+import { MAX_HISTORY_MESSAGES, MAX_TOOL_ROUNDS, MODELS } from "../local/config.js";
 import type { ModelClient } from "./model.js";
-import type { Store } from "./store.js";
-import { createTools, executeTool, type AgentTool } from "./tools.js";
-import type { Attachment, RuntimeConfig } from "./types.js";
+import type { Store } from "../conversation/store.js";
+import { createTools, executeTool, type AgentTool } from "../workspace/tools.js";
+import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 
 const parallelTools = new Set(["memory_search", "read_file", "list_files", "search_files"]);
 const wantsImage = (text: string) => /\b(?:create|draw|generate|make)\b[\s\S]{0,80}\b(?:image|illustration|picture|logo|icon)\b/i.test(text);

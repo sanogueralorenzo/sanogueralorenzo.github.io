@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { RuntimeClient } from "../client/client.js";
-import { Store } from "../core/store.js";
-import type { BackendKind } from "../core/types.js";
+import { Store } from "../conversation/store.js";
+import type { BackendKind } from "../conversation/types.js";
 import { RuntimeSupervisor } from "./supervisor.js";
 
 const roots: string[] = [];
@@ -66,7 +66,7 @@ const sourceRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe.sequential("hot reload", () => {
   it("restores Responses mode state", async () => {
-    await verifyReload("responses", join(sourceRoot, "core", "backend.ts"));
+    await verifyReload("responses", join(sourceRoot, "conversation", "backend.ts"));
   }, 15_000);
 
   it("restores Codex mode and its opaque thread binding", async () => {

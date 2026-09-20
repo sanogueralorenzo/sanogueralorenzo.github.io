@@ -3,8 +3,8 @@ import { accessSync, chmodSync, constants, existsSync, lstatSync, mkdirSync, rea
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RuntimeConfig } from "../core/types.js";
-import { ensurePrivateDirectory, writePrivateFile } from "../core/files.js";
+import type { RuntimeConfig } from "../conversation/types.js";
+import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
 
 export const TELEGRAM_SERVICE_LABEL = "dev.agent.telegram";
 

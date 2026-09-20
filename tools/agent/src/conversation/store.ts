@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Attachment, Memory, Message, Session, WorkKind } from "./types.js";
-import { ensurePrivateDirectory } from "./files.js";
+import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
 const SESSION_COLUMNS = `id, scope_key AS "scopeKey", kind, cwd, title, updated_at AS "updatedAt"`;

@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync, copyFileSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
-import type { Store } from "./store.js";
-import type { Artifact, Attachment, AttachmentKind } from "./types.js";
+import type { Store } from "../conversation/store.js";
+import type { Artifact, Attachment, AttachmentKind } from "../conversation/types.js";
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 

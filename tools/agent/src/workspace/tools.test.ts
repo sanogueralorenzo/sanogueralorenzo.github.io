@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSy
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { Store } from "./store.js";
+import { Store } from "../conversation/store.js";
 import { createTools } from "./tools.js";
 
 const paths: string[] = [];

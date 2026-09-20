@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
-import { loadConfig } from "../core/config.js";
-import { readSecret, writeSecret } from "../core/credentials.js";
-import { OpenAIModelClient } from "../core/model.js";
-import { Store } from "../core/store.js";
+import { loadConfig } from "../local/config.js";
+import { readSecret, writeSecret } from "../local/credentials.js";
+import { OpenAIModelClient } from "../openai/model.js";
+import { Store } from "../conversation/store.js";
 import { BackendSetupService } from "../setup/service.js";
 
 export async function readSecretLine(prompt: string): Promise<string> {

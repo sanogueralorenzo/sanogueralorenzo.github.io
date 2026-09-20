@@ -5,7 +5,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
-import { readPrivateJson, writePrivateJson } from "../core/files.js";
+import { readPrivateJson, writePrivateJson } from "../local/files.js";
 
 const execFileAsync = promisify(execFile);
 const ROOT_FILES = new Set(["package.json", "package-lock.json", "tsconfig.json", "vitest.config.ts"]);

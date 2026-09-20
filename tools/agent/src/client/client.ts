@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { RuntimeEvent, Session, TurnRequest } from "../core/types.js";
+import type { RuntimeEvent, Session, TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 interface Envelope {

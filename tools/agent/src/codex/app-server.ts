@@ -3,7 +3,7 @@ import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
-import type { RuntimeConfig } from "../core/types.js";
+import type { RuntimeConfig } from "../conversation/types.js";
 import type {
   CodexAccountStatus,
   CodexLoginMode,
@@ -12,8 +12,8 @@ import type {
   CodexRateLimits,
   JsonRpcMessage,
 } from "./protocol.js";
-import { redactSecrets } from "../core/security.js";
-import { ensurePrivateDirectory, writePrivateFile } from "../core/files.js";
+import { redactSecrets } from "../workspace/security.js";
+import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
 
 type NotificationListener = (message: JsonRpcMessage) => void;
 

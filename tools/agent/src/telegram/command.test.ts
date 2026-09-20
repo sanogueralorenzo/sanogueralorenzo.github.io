@@ -15,7 +15,7 @@ vi.mock("../cli/setup.js", () => ({
   setupAgent: mocks.setup,
 }));
 
-vi.mock("../core/credentials.js", () => ({
+vi.mock("../local/credentials.js", () => ({
   readSecret: mocks.readSecret,
   writeSecret: mocks.writeSecret,
 }));

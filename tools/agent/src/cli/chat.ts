@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { RuntimeClient } from "../client/client.js";
-import { loadConfig } from "../core/config.js";
-import type { RuntimeEvent } from "../core/types.js";
+import { loadConfig } from "../local/config.js";
+import type { RuntimeEvent } from "../conversation/types.js";
 import { RuntimeSupervisor } from "./supervisor.js";
 
 const ansi = {

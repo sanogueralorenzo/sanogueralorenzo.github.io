@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import type { RuntimeConfig } from "./types.js";
+import type { RuntimeConfig } from "../conversation/types.js";
 
 export const MODELS = {
   coordinator: "gpt-5.6-luna",

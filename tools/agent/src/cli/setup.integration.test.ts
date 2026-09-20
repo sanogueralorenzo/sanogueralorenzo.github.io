@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Store } from "../core/store.js";
+import { Store } from "../conversation/store.js";
 import { SETUP_CHOICES, SETUP_PROMPT, isAgentConfigured, setupAgent } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");

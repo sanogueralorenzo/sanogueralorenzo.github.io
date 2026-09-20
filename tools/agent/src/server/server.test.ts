@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AgentRuntime } from "../core/runtime.js";
-import { Store } from "../core/store.js";
-import type { RuntimeConfig, RuntimeEvent } from "../core/types.js";
+import type { AgentRuntime } from "../conversation/runtime.js";
+import { Store } from "../conversation/store.js";
+import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { RuntimeServer, type RuntimeSetup } from "./server.js";
 
 const fixtures: Array<{ homeDir: string; store: Store; server: RuntimeServer }> = [];

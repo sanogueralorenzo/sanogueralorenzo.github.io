@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { CodexAppServer } from "../codex/app-server.js";
-import type { OpenAIModelClient } from "../core/model.js";
-import { Store } from "../core/store.js";
-import type { BackendKind } from "../core/types.js";
+import type { OpenAIModelClient } from "../openai/model.js";
+import { Store } from "../conversation/store.js";
+import type { BackendKind } from "../conversation/types.js";
 import { BackendSetupService } from "./service.js";
 
 const fakeServer = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");

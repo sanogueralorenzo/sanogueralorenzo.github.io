@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { buildInstructions, buildWorkerInstructions } from "./context.js";
 import type { BackendRegistry } from "./backend.js";
 import { routeTurn } from "./router.js";
-import { containsSecret, redactSecrets } from "./security.js";
+import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
 import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "./types.js";
 

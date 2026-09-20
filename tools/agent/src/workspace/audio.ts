@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import CodecParser, { type OggPage } from "codec-parser";
-import type { Attachment } from "./types.js";
+import type { Attachment } from "../conversation/types.js";
 
 export interface OpusFrame {
   data: Buffer;

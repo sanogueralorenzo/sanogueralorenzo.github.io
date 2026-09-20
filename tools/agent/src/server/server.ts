@@ -3,13 +3,13 @@ import { unlinkSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
-import type { AgentRuntime } from "../core/runtime.js";
-import { MAX_HISTORY_MESSAGES } from "../core/config.js";
-import type { Store } from "../core/store.js";
-import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js";
+import type { AgentRuntime } from "../conversation/runtime.js";
+import { MAX_HISTORY_MESSAGES } from "../local/config.js";
+import type { Store } from "../conversation/store.js";
+import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../conversation/types.js";
 import type { BackendSetupService } from "../setup/service.js";
-import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../core/assets.js";
-import { readPrivateJson, writePrivateFile } from "../core/files.js";
+import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
+import { readPrivateJson, writePrivateFile } from "../local/files.js";
 
 interface Discovery {
   protocolVersion: 1;

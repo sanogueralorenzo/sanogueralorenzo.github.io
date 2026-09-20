@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { saveArtifactPath } from "../core/assets.js";
-import { readVoiceNote } from "../core/audio.js";
-import type { AgentBackend, BackendEvent, BackendTurn } from "../core/backend.js";
-import { MAX_HISTORY_MESSAGES, MODELS } from "../core/config.js";
-import type { Store } from "../core/store.js";
-import type { Attachment, RuntimeConfig } from "../core/types.js";
+import { saveArtifactPath } from "../workspace/assets.js";
+import { readVoiceNote } from "../workspace/audio.js";
+import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
+import { MAX_HISTORY_MESSAGES, MODELS } from "../local/config.js";
+import type { Store } from "../conversation/store.js";
+import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import type { JsonRpcMessage } from "./protocol.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";

@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { BackendRegistry, BackendUnavailableError, type AgentBackend, type BackendTurn } from "../core/backend.js";
-import { Store } from "../core/store.js";
-import type { RuntimeConfig } from "../core/types.js";
-import { AgentRuntime } from "../core/runtime.js";
+import { BackendRegistry, BackendUnavailableError, type AgentBackend, type BackendTurn } from "../conversation/backend.js";
+import { Store } from "../conversation/store.js";
+import type { RuntimeConfig } from "../conversation/types.js";
+import { AgentRuntime } from "../conversation/runtime.js";
 import { CodexAppServer, CodexRpcError, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
 import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
 

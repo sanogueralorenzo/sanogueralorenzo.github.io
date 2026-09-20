@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { loadConfig } from "../core/config.js";
-import { readSecret, writeSecret } from "../core/credentials.js";
-import { BackendRegistry } from "../core/backend.js";
-import { OpenAIModelClient } from "../core/model.js";
-import { ResponsesBackend } from "../core/responses-backend.js";
-import { AgentRuntime } from "../core/runtime.js";
-import { Store } from "../core/store.js";
+import { loadConfig } from "../local/config.js";
+import { readSecret, writeSecret } from "../local/credentials.js";
+import { BackendRegistry } from "../conversation/backend.js";
+import { OpenAIModelClient } from "../openai/model.js";
+import { ResponsesBackend } from "../openai/responses-backend.js";
+import { AgentRuntime } from "../conversation/runtime.js";
+import { Store } from "../conversation/store.js";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { CodexBackend } from "../codex/backend.js";
 import { BackendSetupService } from "../setup/service.js";

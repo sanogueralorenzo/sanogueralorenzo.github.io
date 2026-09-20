@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { MediaStreamTrack, RTCPeerConnection, RtpHeader, RtpPacket } from "werift";
-import type { OpusAudio } from "../core/audio.js";
+import type { OpusAudio } from "../workspace/audio.js";
 
 export interface RealtimePeer {
   offer(): Promise<string>;

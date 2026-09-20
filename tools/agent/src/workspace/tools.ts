@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path
 import { promisify } from "node:util";
 import type OpenAI from "openai";
 import { containsSecret, isSensitivePath } from "./security.js";
-import type { Store } from "./store.js";
+import type { Store } from "../conversation/store.js";
 
 const run = promisify(execFile);
 const MAX_OUTPUT = 30_000;
