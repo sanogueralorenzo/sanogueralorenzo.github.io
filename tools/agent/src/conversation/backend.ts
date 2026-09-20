@@ -7,7 +7,7 @@ export type BackendEvent =
   | { type: "artifact"; artifact: Artifact }
   | { type: "tool_start"; name: string; callId: string }
   | { type: "tool_end"; name: string; callId: string; summary: string }
-  | { type: "done"; responseId: string | null };
+  | { type: "done" };
 
 export interface BackendTurn {
   request: TurnRequest;
@@ -27,12 +27,6 @@ export interface AgentBackend {
   close?(): void | Promise<void>;
 }
 
-export class BackendUnavailableError extends Error {
-  constructor(message: string, readonly backend: BackendKind) {
-    super(message);
-  }
-}
-
 export class BackendRegistry {
   constructor(
     private readonly store: Store,
@@ -40,30 +34,16 @@ export class BackendRegistry {
     private readonly codex?: AgentBackend,
   ) {}
 
-  selectedKind(): BackendKind | null {
-    const selected = this.store.getSetting("backend");
-    return selected === "codex" || selected === "responses" ? selected : null;
-  }
-
   async resolve(): Promise<AgentBackend> {
-    const selected = this.selectedKind();
+    const selected = this.store.getSetting("backend");
     if (selected === "codex") {
-      // A selected Codex backend performs its own account/allowance preflight so
-      // authentication failures remain precise and we avoid duplicate RPCs.
       if (this.codex) return this.codex;
-      throw new BackendUnavailableError(
-        "ChatGPT needs to be reconnected. Run `agent setup`, or choose API-key billing there.",
-        "codex",
-      );
+      throw new Error("ChatGPT needs to be reconnected. Run `agent setup`, or choose API-key billing there.");
     }
     if (selected === "responses") {
       if (await this.responses.isConfigured()) return this.responses;
-      throw new BackendUnavailableError("An OpenAI API key is required. Run `agent setup`.", "responses");
+      throw new Error("An OpenAI API key is required. Run `agent setup`.");
     }
-
-    throw new BackendUnavailableError(
-      "Agent has no selected connection. Run `agent setup`; billing modes are never selected automatically.",
-      "codex",
-    );
+    throw new Error("Agent has no selected connection. Run `agent setup`; billing modes are never selected automatically.");
   }
 }

@@ -4,21 +4,6 @@ import { join } from "node:path";
 import type { RuntimeEvent, Session, TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
-interface Envelope {
-  v: 1;
-  seq: number;
-  requestId: string;
-  event: RuntimeEvent;
-}
-
-export interface UploadedAttachment {
-  id: string;
-  kind: "audio" | "image" | "file";
-  name: string;
-  mimeType: string;
-  size: number;
-}
-
 export class RuntimeClient {
   constructor(private readonly homeDir: string) {}
 
@@ -82,13 +67,13 @@ export class RuntimeClient {
         const block = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + 2);
         const data = block.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
-        if (data) onEvent((JSON.parse(data) as Envelope).event);
+        if (data) onEvent((JSON.parse(data) as { event: RuntimeEvent }).event);
         boundary = buffer.indexOf("\n\n");
       }
     }
   }
 
-  async uploadAttachment(input: { name: string; mimeType: string; data: Uint8Array }): Promise<UploadedAttachment> {
+  async uploadAttachment(input: { name: string; mimeType: string; data: Uint8Array }): Promise<{ id: string }> {
     const response = await this.fetch("/v1/attachments", {
       method: "POST",
       headers: {
@@ -98,7 +83,7 @@ export class RuntimeClient {
       body: Buffer.from(input.data),
     });
     if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
-    return response.json() as Promise<UploadedAttachment>;
+    return response.json() as Promise<{ id: string }>;
   }
 
   async cancel(requestId: string): Promise<void> {

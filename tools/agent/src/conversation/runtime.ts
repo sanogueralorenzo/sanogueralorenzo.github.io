@@ -101,7 +101,6 @@ export class AgentRuntime {
       ? buildWorkerInstructions({ session, route, memories, worker: route.worker })
       : instructions;
     let assistantText = "";
-    let responseId: string | null = null;
     let lastCheckpointAt = Date.now();
     let lastCheckpointLength = 0;
 
@@ -118,7 +117,7 @@ export class AgentRuntime {
         if (event.type === "text_delta") {
           assistantText += event.delta;
           if (assistantText.length - lastCheckpointLength >= 500 || Date.now() - lastCheckpointAt >= 1_000) {
-            this.store.checkpointRun(runId, assistantText, responseId ?? undefined);
+            this.store.checkpointRun(runId, assistantText);
             lastCheckpointAt = Date.now();
             lastCheckpointLength = assistantText.length;
           }
@@ -126,24 +125,16 @@ export class AgentRuntime {
         } else if (event.type === "tool_end") {
           this.store.addMessage(session.id, "tool", `${event.name}: ${event.summary}`);
           yield event;
-        } else if (event.type === "done") {
-          responseId = event.responseId;
-        } else {
+        } else if (event.type !== "done") {
           yield event;
         }
       }
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", assistantText);
-      this.store.finishRun(runId, "complete", responseId ?? undefined, undefined, assistantText);
+      this.store.finishRun(runId, "complete", assistantText);
       terminal = { type: "done", sessionId: session.id };
     } catch (error) {
       const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
-      this.store.finishRun(
-        runId,
-        interrupted ? "interrupted" : "failed",
-        responseId ?? undefined,
-        error instanceof Error ? error.message : String(error),
-        assistantText,
-      );
+      this.store.finishRun(runId, interrupted ? "interrupted" : "failed", assistantText);
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", `${assistantText}\n\n[interrupted]`);
       terminal = {
         type: "error",

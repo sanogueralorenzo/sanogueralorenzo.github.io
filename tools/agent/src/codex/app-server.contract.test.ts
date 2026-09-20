@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { BackendRegistry, BackendUnavailableError, type AgentBackend, type BackendTurn } from "../conversation/backend.js";
+import { BackendRegistry, type AgentBackend, type BackendTurn } from "../conversation/backend.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig } from "../conversation/types.js";
 import { AgentRuntime } from "../conversation/runtime.js";
@@ -285,7 +285,7 @@ describe("Codex app-server contract", () => {
     const codex = new CodexBackend(config(homeDir), store, appServer);
     const responses: AgentBackend = {
       kind: "responses", label: "responses", isConfigured: () => false,
-      async *run() { yield { type: "done", responseId: null }; },
+      async *run() { yield { type: "done" }; },
     };
     const runtime = new AgentRuntime(config(homeDir), store, new BackendRegistry(store, responses, codex));
     const events = [];
@@ -356,15 +356,15 @@ describe("Codex app-server contract", () => {
       kind,
       label: kind,
       isConfigured: () => configured,
-      async *run() { yield { type: "done", responseId: null }; },
+      async *run() { yield { type: "done" }; },
     });
     const responses = backend("responses", true);
     const registry = new BackendRegistry(store, responses, backend("codex", false));
 
-    await expect(registry.resolve()).rejects.toBeInstanceOf(BackendUnavailableError);
+    await expect(registry.resolve()).rejects.toThrow("no selected connection");
     store.setSetting("backend", "responses");
     await expect(registry.resolve()).resolves.toBe(responses);
     store.setSetting("backend", "codex");
-    await expect(new BackendRegistry(store, responses).resolve()).rejects.toBeInstanceOf(BackendUnavailableError);
+    await expect(new BackendRegistry(store, responses).resolve()).rejects.toThrow("reconnected");
   });
 });

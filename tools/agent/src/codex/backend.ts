@@ -212,7 +212,7 @@ export class CodexBackend implements AgentBackend {
         } else if (method === "turn/completed") {
           const completed = object(params.turn);
           if (completed.status === "completed") {
-            yield { type: "done", responseId: turnId };
+            yield { type: "done" };
             return;
           }
           if (completed.status === "interrupted") throw new DOMException("Interrupted", "AbortError");

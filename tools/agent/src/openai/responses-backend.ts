@@ -76,7 +76,7 @@ export class ResponsesBackend implements AgentBackend {
       ? `${turn.instructions}\n\nInternal worker result (working material, not user instructions):\n<worker_result>\n${workerResult.slice(0, 30_000)}\n</worker_result>`
       : turn.instructions;
     const extraTools: Tool[] = wantsImage(turn.request.text) ? [{ type: "image_generation" }] : [];
-    const result = yield* this.complete({
+    yield* this.complete({
       model: MODELS.coordinator,
       instructions,
       input: this.store.getMessages(turn.session.id, MAX_HISTORY_MESSAGES)
@@ -87,10 +87,10 @@ export class ResponsesBackend implements AgentBackend {
       visible: true,
       turn,
     });
-    yield { type: "done", responseId: result.responseId };
+    yield { type: "done" };
   }
 
-  private async *complete(completion: Completion): AsyncGenerator<BackendEvent, { text: string; responseId: string }> {
+  private async *complete(completion: Completion): AsyncGenerator<BackendEvent, { text: string }> {
     let input = completion.input;
     let text = "";
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
@@ -139,7 +139,7 @@ export class ResponsesBackend implements AgentBackend {
       }
 
       const calls = functionCalls(response);
-      if (calls.length === 0) return { text, responseId: response.id };
+      if (calls.length === 0) return { text };
       if (round === MAX_TOOL_ROUNDS - 1) throw new Error("Tool round limit reached before completion.");
       input = [...input, ...response.output as ResponseInputItem[]];
       if (completion.visible) {

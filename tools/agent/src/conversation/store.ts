@@ -186,14 +186,13 @@ export class Store {
     return id;
   }
 
-  checkpointRun(id: string, output: string, responseId?: string): void {
-    this.db.prepare("UPDATE runs SET output = ?, response_id = COALESCE(?, response_id) WHERE id = ?")
-      .run(output, responseId ?? null, id);
+  checkpointRun(id: string, output: string): void {
+    this.db.prepare("UPDATE runs SET output = ? WHERE id = ?").run(output, id);
   }
 
-  finishRun(id: string, state: "complete" | "failed" | "interrupted", responseId?: string, error?: string, output?: string): void {
-    this.db.prepare("UPDATE runs SET state = ?, response_id = ?, error = ?, output = COALESCE(?, output), finished_at = ? WHERE id = ?")
-      .run(state, responseId ?? null, error ?? null, output ?? null, now(), id);
+  finishRun(id: string, state: "complete" | "failed" | "interrupted", output?: string): void {
+    this.db.prepare("UPDATE runs SET state = ?, output = COALESCE(?, output), finished_at = ? WHERE id = ?")
+      .run(state, output ?? null, now(), id);
   }
 
   getSetting(key: string): string | null {
