@@ -24,14 +24,9 @@ export class BackendSetupService {
 
   async status(): Promise<SetupStatus> {
     const installed = this.codex.isInstalled();
-    let connected = false;
-    if (installed) {
-      connected = (await this.codex.account(true)).account?.type === "chatgpt";
-    }
+    const connected = installed && (await this.codex.account(true)).account?.type === "chatgpt";
     const stored = this.store.getSetting("backend");
-    const selectedBackend = stored === "codex" || stored === "responses"
-      ? stored
-      : null;
+    const selectedBackend = stored === "codex" || stored === "responses" ? stored : null;
     const configured = selectedBackend === "codex"
       ? connected
       : selectedBackend === "responses" ? this.responses.isConfigured() : false;
@@ -39,10 +34,7 @@ export class BackendSetupService {
       configured,
       selectedBackend,
       openAIConfigured: this.responses.isConfigured(),
-      codex: {
-        installed,
-        connected,
-      },
+      codex: { installed, connected },
     };
   }
 
@@ -53,13 +45,11 @@ export class BackendSetupService {
   }
 
   async selectBackend(backend: BackendKind): Promise<void> {
-    if (backend === "responses") {
-      if (!this.responses.isConfigured()) throw new Error("Connect an OpenAI API key before selecting API-key billing.");
-    } else {
-      const account = await this.codex.account(true);
-      if (account.account?.type !== "chatgpt") {
-        throw new Error("Continue with ChatGPT before selecting Codex subscription mode.");
-      }
+    if (backend === "responses" && !this.responses.isConfigured()) {
+      throw new Error("Connect an OpenAI API key before selecting API-key billing.");
+    }
+    if (backend === "codex" && (await this.codex.account(true)).account?.type !== "chatgpt") {
+      throw new Error("Continue with ChatGPT before selecting Codex subscription mode.");
     }
     this.store.setSetting("backend", backend);
   }
