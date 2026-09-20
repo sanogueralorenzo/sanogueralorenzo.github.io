@@ -205,4 +205,16 @@ describe("AgentRuntime", () => {
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
     expect(events.at(-1)?.type).toBe("done");
   });
+
+  it("uses only the explicitly selected backend", () => {
+    const homeDir = temporary("agent-backend-choice-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const backend = new ResponsesBackend({ homeDir, port: 0, codexCommand: "codex" }, store, routingModel());
+    const registry = new BackendRegistry(store, backend, backend);
+
+    expect(() => registry.resolve()).toThrow("no selected connection");
+    store.setSetting("backend", "responses");
+    expect(registry.resolve()).toBe(backend);
+  });
 });
