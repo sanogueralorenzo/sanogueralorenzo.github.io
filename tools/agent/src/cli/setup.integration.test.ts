@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Store } from "../conversation/store.js";
 import { temporary } from "../test-support.js";
-import { SETUP_CHOICES, SETUP_PROMPT, isAgentConfigured, setupAgent } from "./setup.js";
+import { SETUP_CHOICES, SETUP_PROMPT, setupAgent } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 
@@ -30,7 +30,7 @@ async function runSetup(
     apiConfigured?: boolean;
     browserOpens?: boolean;
   } = {},
-): Promise<{ output: string; rpc: string; backend: string | null; configured: boolean; error: Error | null; statePreserved: boolean }> {
+) {
   const homeDir = temporary("agent-cli-setup-");
   const rpcLog = join(homeDir, "rpc.log");
   let seededSessionId: string | null = null;
@@ -72,7 +72,6 @@ async function runSetup(
     error = cause instanceof Error ? cause : new Error(String(cause));
   }
   const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
-  const configured = await isAgentConfigured();
   let backend: string | null = null;
   let statePreserved = seededSessionId === null;
   if (existsSync(join(homeDir, "agent.sqlite"))) {
@@ -86,7 +85,7 @@ async function runSetup(
     }
     store.close();
   }
-  return { output: output.join("\n"), rpc: setupRpc, backend, configured, error, statePreserved };
+  return { output: output.join("\n"), rpc: setupRpc, backend, error, statePreserved };
 }
 
 describe.sequential("CLI subscription setup", () => {
@@ -100,48 +99,19 @@ describe.sequential("CLI subscription setup", () => {
     expect(SETUP_PROMPT).toBe("Select 1–3 (Enter for 1): ");
   });
 
-  it("reuses an existing Agent-specific login transparently during ordinary setup", async () => {
-    const result = await runSetup(["--chatgpt"]);
-
+  it.each([
+    ["saved ChatGPT login", ["--chatgpt"], {}, "codex", ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
+    ["browser", ["--chatgpt"], { scenario: "login-success", browserOpens: true }, "codex", ["Connect Agent", "Connect Success"], ['"type":"chatgpt"'], ["https://auth.openai.com/fake", "chatgptDeviceCode", "useHostedLoginSuccessPage"]],
+    ["browser without opener", ["--chatgpt"], { scenario: "login-success" }, "codex", ["Connect Agent", "Open: https://auth.openai.com/fake", "Connect Success"], [], []],
+    ["headless", ["--headless"], { scenario: "login-success" }, "codex", ["Connect Agent", "Open: https://auth.openai.com/codex/device", "Code: Agent-TEST", "Connect Success"], ['"type":"chatgptDeviceCode"'], []],
+    ["API key", ["--api-key"], { apiConfigured: true }, "responses", ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
+  ] as const)("connects with %s", async (_name, args, options, backend, lines, includes, excludes) => {
+    const result = await runSetup([...args], options);
     expect(result.error).toBeNull();
-    expect(result.backend).toBe("codex");
-    expect(result.configured).toBe(true);
-    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect Agent", "Connect Success"]);
-    expect(result.rpc).not.toContain("account/login/start");
-  });
-
-  it("opens browser login without printing its URL or setup commentary", async () => {
-    const result = await runSetup(["--chatgpt"], { scenario: "login-success", browserOpens: true });
-
-    expect(result.error).toBeNull();
-    expect(result.backend).toBe("codex");
-    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect Agent", "Connect Success"]);
-    expect(result.output).not.toContain("https://auth.openai.com/fake");
-    expect(result.rpc).toContain('"type":"chatgpt"');
-    expect(result.rpc).not.toContain("chatgptDeviceCode");
-    expect(result.rpc).not.toContain("useHostedLoginSuccessPage");
-  });
-
-  it("prints the browser URL only when it cannot open a browser", async () => {
-    const result = await runSetup(["--chatgpt"], { scenario: "login-success" });
-
-    expect(result.error).toBeNull();
-    expect(result.output).toContain("Open: https://auth.openai.com/fake");
-    expect(result.output).toContain("Connect Success");
-  });
-
-  it("displays the one-time code only for explicit headless setup", async () => {
-    const result = await runSetup(["--headless"], { scenario: "login-success" });
-
-    expect(result.error).toBeNull();
-    expect(result.backend).toBe("codex");
-    expect(result.output.split("\n").filter((line) => line.trim())).toEqual([
-      "Connect Agent",
-      "Open: https://auth.openai.com/codex/device",
-      "Code: Agent-TEST",
-      "Connect Success",
-    ]);
-    expect(result.rpc).toContain('"type":"chatgptDeviceCode"');
+    expect(result.backend).toBe(backend);
+    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(lines);
+    for (const text of includes) expect(result.rpc).toContain(text);
+    for (const text of excludes) expect(`${result.output}\n${result.rpc}`).not.toContain(text);
   });
 
   it("rejects removed setup options", async () => {
@@ -175,16 +145,6 @@ describe.sequential("CLI subscription setup", () => {
     expect(result.backend).toBe("responses");
     expect(result.statePreserved).toBe(true);
     expect(result.output).not.toContain("Use API-key billing");
-  });
-
-  it("selects API-key mode only when explicitly requested", async () => {
-    const result = await runSetup(["--api-key"], { apiConfigured: true });
-
-    expect(result.error).toBeNull();
-    expect(result.backend).toBe("responses");
-    expect(result.configured).toBe(true);
-    expect(result.output.split("\n").filter((line) => line.trim())).toEqual(["Connect Agent", "Connect Success"]);
-    expect(result.rpc).not.toContain("account/login/start");
   });
 
   it("fails clearly when Codex is missing without selecting another backend", async () => {

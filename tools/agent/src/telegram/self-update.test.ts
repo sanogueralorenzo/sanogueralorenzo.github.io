@@ -15,25 +15,36 @@ function fixture(): { projectRoot: string; homeDir: string; source: string } {
   return { projectRoot, homeDir, source };
 }
 
+type UpdateOptions = ConstructorParameters<typeof TelegramSelfUpdate>[0];
+
+function updateHarness(options: Partial<UpdateOptions> = {}, onStop?: () => void) {
+  const files = fixture();
+  let finish!: () => void;
+  const stopped = new Promise<void>((resolve) => { finish = resolve; });
+  let value!: TelegramSelfUpdate;
+  value = new TelegramSelfUpdate({
+    ...files,
+    ownerId: () => undefined,
+    debounceMs: 5,
+    verify: async () => undefined,
+    requestRuntimeRestart: async () => true,
+    stopGateway: async () => { onStop?.(); value.stop(); finish(); },
+    ...options,
+  });
+  return { ...files, updater: value, stopped };
+}
+
 describe("Telegram self-update", () => {
   it("waits for the active reply, verifies a stable build, and restarts once", async () => {
-    const { projectRoot, homeDir } = fixture();
     const order: string[] = [];
-    let finishStop!: () => void;
-    const stopped = new Promise<void>((resolve) => { finishStop = resolve; });
-    let updater!: TelegramSelfUpdate;
-    updater = new TelegramSelfUpdate({
-      projectRoot,
-      homeDir,
+    const { updater, homeDir, stopped } = updateHarness({
       ownerId: () => "42",
-      debounceMs: 5,
       verify: async () => { order.push("verify"); },
       requestRuntimeRestart: async () => {
         order.push("runtime");
         return true;
       },
-      stopGateway: async () => { order.push("gateway"); updater.stop(); finishStop(); },
-    });
+    }, () => order.push("gateway"));
 
     expect(updater.beginTurn()).toBe(true);
     updater.noteChange();
@@ -50,45 +61,33 @@ describe("Telegram self-update", () => {
   });
 
   it("re-verifies when source content changes during the check", async () => {
-    const { projectRoot, homeDir, source } = fixture();
     let checks = 0;
-    let finishStop!: () => void;
-    const stopped = new Promise<void>((resolve) => { finishStop = resolve; });
-    let updater!: TelegramSelfUpdate;
-    updater = new TelegramSelfUpdate({
-      projectRoot,
-      homeDir,
-      ownerId: () => undefined,
-      debounceMs: 5,
+    let instance!: TelegramSelfUpdate;
+    let harness!: ReturnType<typeof updateHarness>;
+    harness = updateHarness({
       verify: async () => {
         checks += 1;
         if (checks === 1) {
-          writeFileSync(source, "export const version = 2;\n");
-          updater.noteChange();
+          writeFileSync(harness.source, "export const version = 2;\n");
+          instance.noteChange();
         }
       },
-      requestRuntimeRestart: async () => true,
-      stopGateway: async () => { updater.stop(); finishStop(); },
     });
+    instance = harness.updater;
 
-    updater.noteChange();
-    await stopped;
+    instance.noteChange();
+    await harness.stopped;
 
     expect(checks).toBe(2);
   });
 
   it("keeps the current process available when verification fails", async () => {
-    const { projectRoot, homeDir } = fixture();
     const restart = vi.fn(async () => true);
     const failure = vi.fn();
-    const updater = new TelegramSelfUpdate({
-      projectRoot,
-      homeDir,
+    const { updater } = updateHarness({
       ownerId: () => "42",
-      debounceMs: 5,
       verify: async () => { throw new Error("tests failed"); },
       requestRuntimeRestart: restart,
-      stopGateway: async () => undefined,
       onFailure: failure,
     });
 
@@ -102,17 +101,12 @@ describe("Telegram self-update", () => {
   });
 
   it("cancels verification when the background service is replaced", async () => {
-    const { projectRoot, homeDir } = fixture();
     let verificationStarted!: () => void;
     const started = new Promise<void>((resolve) => { verificationStarted = resolve; });
     let verificationAborted!: () => void;
     const aborted = new Promise<void>((resolve) => { verificationAborted = resolve; });
     const restart = vi.fn(async () => true);
-    const updater = new TelegramSelfUpdate({
-      projectRoot,
-      homeDir,
-      ownerId: () => undefined,
-      debounceMs: 5,
+    const { updater } = updateHarness({
       verify: async (signal) => {
         verificationStarted();
         await new Promise<void>((_resolve, reject) => signal.addEventListener("abort", () => {
@@ -121,7 +115,6 @@ describe("Telegram self-update", () => {
         }, { once: true }));
       },
       requestRuntimeRestart: restart,
-      stopGateway: async () => undefined,
     });
 
     updater.noteChange();
