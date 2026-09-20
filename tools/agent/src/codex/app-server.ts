@@ -14,12 +14,6 @@ import type {
 import { redactSecrets } from "../workspace/security.js";
 import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
 
-export class CodexRpcError extends Error {
-  constructor(readonly code: number, message: string, readonly data?: unknown) {
-    super(message);
-  }
-}
-
 export class CodexDisconnectedError extends Error {
   constructor(message = "Codex app-server disconnected.") {
     super(message);
@@ -74,9 +68,8 @@ export class CodexAppServer extends EventEmitter {
   private process: ChildProcessWithoutNullStreams | null = null;
   private starting: Promise<void> | null = null;
   private nextId = 1;
-  private pending = new Map<number | string, PendingRequest>();
+  private pending = new Map<number, PendingRequest>();
   private logins = new Map<string, CodexLoginResult>();
-  private closing = false;
   private stderr = "";
 
   constructor(private readonly options: CodexAppServerOptions) {
@@ -95,8 +88,6 @@ export class CodexAppServer extends EventEmitter {
   }
 
   private async start(): Promise<void> {
-    if (!this.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, then run ChatGPT setup again. API-key billing is available only through an explicit `agent setup --api-key` selection.");
-    this.closing = false;
     this.stderr = "";
     const child = spawn(this.options.command, this.options.args ?? ["app-server"], {
       stdio: ["pipe", "pipe", "pipe"],
@@ -150,25 +141,14 @@ export class CodexAppServer extends EventEmitter {
     return login;
   }
 
-  loginStatus(loginId: string): CodexLoginResult {
-    return this.logins.get(loginId) ?? { state: "failed", error: "Unknown login attempt." };
-  }
-
-  async cancelLogin(loginId: string): Promise<void> {
-    await this.request("account/login/cancel", { loginId });
-    if (this.loginStatus(loginId).state === "pending") {
-      this.logins.set(loginId, { state: "failed", error: "ChatGPT sign-in was cancelled." });
-    }
-  }
-
   async waitForLogin(loginId: string, timeoutMs = 5 * 60_000, signal?: AbortSignal): Promise<CodexLoginResult> {
     const timeout = AbortSignal.timeout(timeoutMs);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
     try {
-      while (this.loginStatus(loginId).state === "pending") await delay(25, undefined, { signal: combined });
-      return this.loginStatus(loginId);
+      while (this.logins.get(loginId)?.state === "pending") await delay(25, undefined, { signal: combined });
+      return this.logins.get(loginId) ?? { state: "failed", error: "Unknown login attempt." };
     } catch {
-      await this.cancelLogin(loginId).catch(() => undefined);
+      await this.request("account/login/cancel", { loginId }).catch(() => undefined);
       return { state: "failed", error: signal?.aborted ? "Setup cancelled." : "Login timed out. Run setup again." };
     }
   }
@@ -179,7 +159,6 @@ export class CodexAppServer extends EventEmitter {
   }
 
   stop(): void {
-    this.closing = true;
     const child = this.process;
     this.process = null;
     if (child?.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
@@ -211,12 +190,12 @@ export class CodexAppServer extends EventEmitter {
     } catch {
       return;
     }
-    if (message.id !== undefined && (message.result !== undefined || message.error !== undefined)) {
+    if (typeof message.id === "number" && (message.result !== undefined || message.error !== undefined)) {
       const pending = this.pending.get(message.id);
       if (!pending) return;
       clearTimeout(pending.timer);
       this.pending.delete(message.id);
-      if (message.error) pending.reject(new CodexRpcError(message.error.code, message.error.message, message.error.data));
+      if (message.error) pending.reject(new Error(message.error.message));
       else pending.resolve(message.result);
       return;
     }
@@ -233,7 +212,6 @@ export class CodexAppServer extends EventEmitter {
 
   private disconnected(child: ChildProcessWithoutNullStreams, code: number | null, signal: NodeJS.Signals | null, error?: Error): void {
     if (this.process !== child) return;
-    const wasClosing = this.closing;
     this.process = null;
     const detail = redactSecrets(error?.message ?? this.stderr.trim() ?? `exit ${code ?? signal ?? "unknown"}`);
     const disconnected = new CodexDisconnectedError(`Codex app-server disconnected (${detail}).`);
@@ -242,8 +220,6 @@ export class CodexAppServer extends EventEmitter {
       request.reject(disconnected);
     }
     this.pending.clear();
-    if (!wasClosing) {
-      this.emit("notification", { method: "agent/disconnected", params: { message: disconnected.message } });
-    }
+    this.emit("notification", { method: "agent/disconnected", params: { message: disconnected.message } });
   }
 }

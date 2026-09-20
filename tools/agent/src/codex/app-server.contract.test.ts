@@ -7,7 +7,7 @@ import { Store } from "../conversation/store.js";
 import type { RuntimeConfig } from "../conversation/types.js";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { cleanup, temporary } from "../test-support.js";
-import { CodexAppServer, CodexRpcError, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
+import { CodexAppServer, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
 import { CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
@@ -284,7 +284,7 @@ describe("Codex app-server contract", () => {
     const { backend, input, store, log } = backendFixture("missing-thread", {}, null);
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
 
-    await expect(collect(backend, input)).rejects.toBeInstanceOf(CodexRpcError);
+    await expect(collect(backend, input)).rejects.toThrow("thread not found");
 
     expect(readFileSync(log, "utf8")).toContain("thread/resume");
     expect(readFileSync(log, "utf8")).not.toContain("thread/start");

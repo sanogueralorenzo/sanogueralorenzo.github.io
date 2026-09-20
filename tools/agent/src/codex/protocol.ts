@@ -3,7 +3,7 @@ export interface JsonRpcMessage {
   method?: string;
   params?: Record<string, unknown>;
   result?: unknown;
-  error?: { code: number; message: string; data?: unknown };
+  error?: { code: number; message: string };
 }
 
 export interface CodexAccountStatus {
