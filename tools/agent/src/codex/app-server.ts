@@ -108,8 +108,8 @@ export class CodexAppServer extends EventEmitter {
     child.stderr.on("data", (chunk: string) => {
       this.stderr = `${this.stderr}${chunk}`.slice(-4_000);
     });
-    child.once("exit", (code, signal) => this.disconnected(code, signal));
-    child.once("error", (error) => this.disconnected(null, null, error));
+    child.once("exit", (code, signal) => this.disconnected(child, code, signal));
+    child.once("error", (error) => this.disconnected(child, null, null, error));
 
     try {
       await this.rawRequest("initialize", {
@@ -174,26 +174,15 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async restart(): Promise<void> {
-    await this.stop();
+    this.stop();
     await this.ensureStarted();
   }
 
-  async stop(): Promise<void> {
+  stop(): void {
     this.closing = true;
     const child = this.process;
     this.process = null;
-    if (!child || child.exitCode !== null || child.signalCode !== null) return;
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        child.kill("SIGKILL");
-        resolve();
-      }, 1_000);
-      child.once("exit", () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      child.kill("SIGTERM");
-    });
+    if (child?.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
   }
 
   private rawRequest(method: string, params: Record<string, unknown>): Promise<unknown> {
@@ -242,7 +231,8 @@ export class CodexAppServer extends EventEmitter {
     this.emit("notification", message);
   }
 
-  private disconnected(code: number | null, signal: NodeJS.Signals | null, error?: Error): void {
+  private disconnected(child: ChildProcessWithoutNullStreams, code: number | null, signal: NodeJS.Signals | null, error?: Error): void {
+    if (this.process !== child) return;
     const wasClosing = this.closing;
     this.process = null;
     const detail = redactSecrets(error?.message ?? this.stderr.trim() ?? `exit ${code ?? signal ?? "unknown"}`);
