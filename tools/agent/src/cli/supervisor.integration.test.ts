@@ -1,22 +1,17 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RuntimeClient } from "../client/client.js";
 import { Store } from "../conversation/store.js";
 import type { BackendKind } from "../conversation/types.js";
+import { temporary } from "../test-support.js";
 import { RuntimeSupervisor } from "./supervisor.js";
 
-const roots: string[] = [];
-
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
+afterEach(() => vi.unstubAllEnvs());
 
 async function verifyReload(backend: BackendKind, watchedFile: string): Promise<void> {
-  const homeDir = mkdtempSync(join(tmpdir(), `agent-hot-${backend}-`));
-  roots.push(homeDir);
+  const homeDir = temporary(`agent-hot-${backend}-`);
   const store = new Store(homeDir);
   const session = store.resolveSession({ scopeKey: `project:${homeDir}`, kind: "coding", cwd: homeDir, title: "Reload-safe session" });
   store.addMessage(session.id, "user", "Keep this transcript");
@@ -25,10 +20,8 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   if (backend === "codex") store.bindBackendSession(session.id, "codex", "thread-persisted");
   store.close();
 
-  const previousHome = process.env.AGENT_HOME;
-  const previousPort = process.env.AGENT_PORT;
-  process.env.AGENT_HOME = homeDir;
-  process.env.AGENT_PORT = "0";
+  vi.stubEnv("AGENT_HOME", homeDir);
+  vi.stubEnv("AGENT_PORT", "0");
   const statuses: string[] = [];
   const supervisor = new RuntimeSupervisor(new RuntimeClient(homeDir), true, (message) => statuses.push(message));
   const original = statSync(watchedFile);
@@ -45,10 +38,6 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   } finally {
     await supervisor.stop();
     utimesSync(watchedFile, original.atime, original.mtime);
-    if (previousHome === undefined) delete process.env.AGENT_HOME;
-    else process.env.AGENT_HOME = previousHome;
-    if (previousPort === undefined) delete process.env.AGENT_PORT;
-    else process.env.AGENT_PORT = previousPort;
   }
 
   const recovered = new Store(homeDir, "agent.sqlite", { recoverRuns: false });

@@ -1,21 +1,17 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { Store } from "../conversation/store.js";
+import { temporary } from "../test-support.js";
 import { createTools } from "./tools.js";
-
-const paths: string[] = [];
 
 afterEach(() => {
   delete process.env.AGENT_TEST_SECRET;
-  for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "agent-tools-"));
-  const state = mkdtempSync(join(tmpdir(), "agent-tools-state-"));
-  paths.push(root, state);
+  const root = temporary("agent-tools-");
+  const state = temporary("agent-tools-state-");
   const store = new Store(state);
   const tools = createTools(store, { allowCodeTools: true });
   const context = { cwd: root, sessionId: "test", memoryScope: "test" };
@@ -24,9 +20,8 @@ function fixture() {
 
 describe("coding tool boundaries", () => {
   it("can expose project inspection without exposing mutation", () => {
-    const root = mkdtempSync(join(tmpdir(), "agent-tools-readonly-"));
-    const state = mkdtempSync(join(tmpdir(), "agent-tools-readonly-state-"));
-    paths.push(root, state);
+    const root = temporary("agent-tools-readonly-");
+    const state = temporary("agent-tools-readonly-state-");
     const store = new Store(state);
     const names = createTools(store, { allowCodeTools: true, allowCodeWrites: false })
       .map((tool) => tool.definition.name);
@@ -59,8 +54,7 @@ describe("coding tool boundaries", () => {
 
   it("does not follow a file symlink outside the active project", async () => {
     const { root, store, tools, context } = fixture();
-    const outside = join(dirname(root), `${basename(root)}-outside.txt`);
-    paths.push(outside);
+    const outside = join(temporary("agent-outside-"), "outside.txt");
     writeFileSync(outside, "safe");
     symlinkSync(outside, join(root, "link.txt"));
     const tool = tools.find((candidate) => candidate.definition.name === "write_file")!;
@@ -72,8 +66,7 @@ describe("coding tool boundaries", () => {
 
   it("does not create through an outside directory symlink", async () => {
     const { root, store, tools, context } = fixture();
-    const outside = mkdtempSync(join(tmpdir(), "agent-outside-"));
-    paths.push(outside);
+    const outside = temporary("agent-outside-");
     symlinkSync(outside, join(root, "linked-directory"));
     const tool = tools.find((candidate) => candidate.definition.name === "write_file")!;
 

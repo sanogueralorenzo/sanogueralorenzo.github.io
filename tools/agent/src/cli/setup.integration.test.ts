@@ -1,18 +1,16 @@
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Store } from "../conversation/store.js";
+import { temporary } from "../test-support.js";
 import { SETUP_CHOICES, SETUP_PROMPT, isAgentConfigured, setupAgent } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
-const roots: string[] = [];
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
 function executable(homeDir: string): string {
@@ -33,8 +31,7 @@ async function runSetup(
     browserOpens?: boolean;
   } = {},
 ): Promise<{ output: string; rpc: string; backend: string | null; configured: boolean; error: Error | null; statePreserved: boolean }> {
-  const homeDir = mkdtempSync(join(tmpdir(), "agent-cli-setup-"));
-  roots.push(homeDir);
+  const homeDir = temporary("agent-cli-setup-");
   const rpcLog = join(homeDir, "rpc.log");
   let seededSessionId: string | null = null;
   if (options.initialBackend || options.seedState) {

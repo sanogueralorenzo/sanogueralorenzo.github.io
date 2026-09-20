@@ -1,21 +1,11 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
+import { cleanup, temporary } from "../test-support.js";
 import { RuntimeServer, type RuntimeSetup } from "./server.js";
-
-const fixtures: Array<{ homeDir: string; store: Store; server: RuntimeServer }> = [];
-
-afterEach(async () => {
-  for (const fixture of fixtures.splice(0)) {
-    await fixture.server.close();
-    fixture.store.close();
-    rmSync(fixture.homeDir, { recursive: true, force: true });
-  }
-});
 
 function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
   return {
@@ -37,14 +27,14 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
 async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart?: () => void) {
-  const homeDir = mkdtempSync(join(tmpdir(), "agent-server-"));
+  const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
   const config: RuntimeConfig = { homeDir, host: "127.0.0.1", port: 0, codexCommand: "codex" };
   const server = new RuntimeServer(config, runtime, store, setup, onRestart);
   const port = await server.listen();
   const token = tokenAt(homeDir);
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-  fixtures.push({ homeDir, store, server });
+  cleanup(async () => { await server.close(); store.close(); });
   const request = (path: string, method = "GET", body?: unknown) => fetch(`http://127.0.0.1:${port}${path}`, {
     method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });

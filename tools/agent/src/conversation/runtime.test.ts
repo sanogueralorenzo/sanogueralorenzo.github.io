@@ -1,24 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Response, ResponseInputItem } from "openai/resources/responses/responses";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BackendRegistry } from "./backend.js";
 import type { ModelClient, ModelRequest, ModelStreamEvent } from "../openai/model.js";
 import { ResponsesBackend } from "../openai/responses-backend.js";
 import { AgentRuntime } from "./runtime.js";
 import { Store } from "./store.js";
 import type { RuntimeConfig, RuntimeEvent } from "./types.js";
-
-const fixtures: Array<{ path: string; store: Store }> = [];
-
-afterEach(() => {
-  for (const fixture of fixtures.splice(0)) {
-    fixture.store.close();
-    rmSync(fixture.path, { recursive: true, force: true });
-  }
-});
+import { cleanup, temporary } from "../test-support.js";
 
 function response(id: string, output: Response["output"], outputText = ""): Response {
   return { id, output, output_text: outputText } as Response;
@@ -127,9 +118,9 @@ function runtime(homeDir: string, store: Store, model: ModelClient): AgentRuntim
 }
 
 function testRuntime(model: ModelClient) {
-  const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
+  const path = temporary("agent-runtime-");
   const store = new Store(path);
-  fixtures.push({ path, store });
+  cleanup(() => store.close());
   return { path, store, assistant: runtime(path, store, model) };
 }
 

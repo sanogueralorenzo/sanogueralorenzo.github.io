@@ -1,30 +1,19 @@
-import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, lstatSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { BackendRegistry, type AgentBackend, type BackendTurn } from "../conversation/backend.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig } from "../conversation/types.js";
 import { AgentRuntime } from "../conversation/runtime.js";
+import { cleanup, temporary } from "../test-support.js";
 import { CodexAppServer, CodexRpcError, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
 import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
-const paths: string[] = [];
-const clients: CodexAppServer[] = [];
-const stores: Store[] = [];
-
-afterEach(async () => {
-  await Promise.all(clients.splice(0).map((client) => client.stop()));
-  for (const store of stores.splice(0)) store.close();
-  for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
-});
 
 function temp(name: string): string {
-  const path = mkdtempSync(join(tmpdir(), name));
-  paths.push(path);
-  return path;
+  return temporary(name);
 }
 
 function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer {
@@ -35,13 +24,13 @@ function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer
     requestTimeoutMs: 2_000,
     env: { ...process.env, AGENT_FAKE_SCENARIO: scenario, ...extra },
   });
-  clients.push(appServer);
+  cleanup(() => appServer.stop());
   return appServer;
 }
 
 function trackedStore(homeDir: string): Store {
   const value = new Store(homeDir);
-  stores.push(value);
+  cleanup(() => value.close());
   return value;
 }
 
@@ -104,7 +93,7 @@ describe("Codex app-server contract", () => {
         },
       },
     );
-    clients.push(appServer);
+    cleanup(() => appServer.stop());
 
     await appServer.account(false);
     expect(JSON.parse(readFileSync(envLog, "utf8"))).toEqual({

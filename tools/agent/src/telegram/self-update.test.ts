@@ -1,18 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { temporary } from "../test-support.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 
-const roots: string[] = [];
-
-afterEach(() => {
-  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
-});
-
 function fixture(): { projectRoot: string; homeDir: string; source: string } {
-  const root = mkdtempSync(join(tmpdir(), "agent-self-update-"));
-  roots.push(root);
+  const root = temporary("agent-self-update-");
   const projectRoot = join(root, "project");
   const homeDir = join(root, "home");
   const source = join(projectRoot, "src", "main.ts");

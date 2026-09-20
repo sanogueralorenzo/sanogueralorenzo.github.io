@@ -1,19 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import { temporary } from "../test-support.js";
 import { Store } from "./store.js";
 
-const paths: string[] = [];
-
-afterEach(() => {
-  for (const path of paths.splice(0)) rmSync(path, { recursive: true, force: true });
-});
-
 function createStore(): Store {
-  const path = mkdtempSync(join(tmpdir(), "agent-store-"));
-  paths.push(path);
-  return new Store(path);
+  return new Store(temporary("agent-store-"));
 }
 
 describe("Store", () => {
@@ -39,8 +29,7 @@ describe("Store", () => {
   });
 
   it("recovers checkpointed output after an unclean runtime stop", () => {
-    const path = mkdtempSync(join(tmpdir(), "agent-store-"));
-    paths.push(path);
+    const path = temporary("agent-store-");
     const first = new Store(path);
     const session = first.resolveSession({ scopeKey: "personal:local", kind: "personal" });
     const run = first.startRun(session.id);

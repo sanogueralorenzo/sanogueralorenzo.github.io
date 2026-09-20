@@ -1,27 +1,17 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CodexAppServer } from "../codex/app-server.js";
 import type { OpenAIModelClient } from "../openai/model.js";
 import { Store } from "../conversation/store.js";
 import type { BackendKind } from "../conversation/types.js";
+import { cleanup, temporary } from "../test-support.js";
 import { BackendSetupService } from "./service.js";
 
 const fakeServer = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
-const fixtures: Array<{ homeDir: string; store: Store; codex: CodexAppServer }> = [];
-
-afterEach(async () => {
-  for (const fixture of fixtures.splice(0)) {
-    await fixture.codex.stop();
-    fixture.store.close();
-    rmSync(fixture.homeDir, { recursive: true, force: true });
-  }
-});
 
 function setup(scenario: string | null, apiKey = false, selected?: BackendKind) {
-  const homeDir = mkdtempSync(join(tmpdir(), "agent-setup-"));
+  const homeDir = temporary("agent-setup-");
   const store = new Store(homeDir);
   if (selected) store.setSetting("backend", selected);
   const codex = scenario === null
@@ -33,7 +23,7 @@ function setup(scenario: string | null, apiKey = false, selected?: BackendKind) 
       env: { ...process.env, AGENT_FAKE_SCENARIO: scenario },
     });
   const model = { isConfigured: () => apiKey, setApiKey: async () => undefined } as unknown as OpenAIModelClient;
-  fixtures.push({ homeDir, store, codex });
+  cleanup(async () => { await codex.stop(); store.close(); });
   return { store, service: new BackendSetupService(store, model, codex, () => undefined) };
 }
 
