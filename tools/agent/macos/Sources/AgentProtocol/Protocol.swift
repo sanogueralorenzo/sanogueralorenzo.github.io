@@ -27,15 +27,12 @@ public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
     public let id: String
     public let kind: String
     public let name: String
-    public let mimeType: String
-    public let size: Int
     public let path: String
 }
 
 public struct RuntimeSession: Decodable, Sendable {
     public let id: String
     public let title: String
-    public let kind: String
 }
 
 public struct SetupStatus: Decodable, Sendable {
@@ -52,15 +49,12 @@ public struct CodexSetupStatus: Decodable, Sendable {
     public let planType: String?
     public let allowanceAvailable: Bool?
     public let usage: [UsageSummary]
-    public let error: String?
 }
 
 public struct UsageSummary: Decodable, Sendable, Identifiable {
     public var id: String { name }
     public let name: String
-    public let usedPercent: Double
     public let remainingPercent: Double
-    public let resetsAt: Double?
 }
 
 public struct SessionList: Decodable, Sendable {
@@ -92,32 +86,10 @@ public struct ChatRequest: Encodable, Sendable {
     }
 }
 
-public struct APIKeyRequest: Encodable, Sendable {
-    public let apiKey: String
-
-    public init(apiKey: String) {
-        self.apiKey = apiKey
-    }
-}
-
-public struct BackendRequest: Encodable, Sendable {
-    public let backend: String
-
-    public init(backend: String) { self.backend = backend }
-}
-
-public struct CodexLoginRequest: Encodable, Sendable {
-    public let mode: String
-
-    public init(mode: String) { self.mode = mode }
-}
-
 public struct CodexLoginStart: Decodable, Sendable {
     public let type: String
     public let loginId: String
     public let authUrl: String?
-    public let verificationUrl: String?
-    public let userCode: String?
 }
 
 public struct CodexLoginResult: Decodable, Sendable {

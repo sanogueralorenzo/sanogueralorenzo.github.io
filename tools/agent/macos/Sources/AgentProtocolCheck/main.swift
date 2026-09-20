@@ -29,15 +29,4 @@ let login = try JSONDecoder().decode(CodexLoginStart.self, from: loginData)
 guard login.type == "chatgpt", login.loginId == "login-1", login.authUrl?.hasPrefix("https://") == true else {
     fatalError("Agent browser-login protocol check failed")
 }
-let headlessData = Data(#"{"type":"chatgptDeviceCode","loginId":"login-2","verificationUrl":"https://auth.openai.com/codex/device","userCode":"Agent-TEST"}"#.utf8)
-let headless = try JSONDecoder().decode(CodexLoginStart.self, from: headlessData)
-guard headless.type == "chatgptDeviceCode",
-      headless.verificationUrl?.hasPrefix("https://") == true,
-      headless.userCode == "Agent-TEST" else {
-    fatalError("Agent headless-login protocol check failed")
-}
-let headlessRequest = try JSONEncoder().encode(CodexLoginRequest(mode: "headless"))
-guard String(decoding: headlessRequest, as: UTF8.self).contains("\"mode\":\"headless\"") else {
-    fatalError("Agent headless-login request check failed")
-}
 print("Agent protocol check passed")

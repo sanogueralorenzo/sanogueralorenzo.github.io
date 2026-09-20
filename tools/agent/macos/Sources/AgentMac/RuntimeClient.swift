@@ -60,51 +60,36 @@ struct RuntimeClient: Sendable {
     }
 
     func setupStatus() async throws -> SetupStatus {
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup"))
-        try check(response, data: data)
-        return try JSONDecoder().decode(SetupStatus.self, from: data)
+        try await value(path: "/v1/setup")
     }
 
     func connectOpenAI(key: String) async throws {
-        let body = try JSONEncoder().encode(APIKeyRequest(apiKey: key))
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/openai", method: "POST", body: body))
-        try check(response, data: data)
+        _ = try await data(path: "/v1/setup/openai", method: "POST", body: ["apiKey": key])
     }
 
     func selectBackend(_ backend: String) async throws {
-        let body = try JSONEncoder().encode(BackendRequest(backend: backend))
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/backend", method: "POST", body: body))
-        try check(response, data: data)
+        _ = try await data(path: "/v1/setup/backend", method: "POST", body: ["backend": backend])
     }
 
     func startCodexLogin(mode: String) async throws -> CodexLoginStart {
-        let body = try JSONEncoder().encode(CodexLoginRequest(mode: mode))
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login", method: "POST", body: body))
-        try check(response, data: data)
-        return try JSONDecoder().decode(CodexLoginStart.self, from: data)
+        try await value(path: "/v1/setup/codex/login", method: "POST", body: ["mode": mode])
     }
 
     func codexLoginStatus(loginId: String) async throws -> CodexLoginResult {
         let id = loginId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? loginId
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login/\(id)"))
-        try check(response, data: data)
-        return try JSONDecoder().decode(CodexLoginResult.self, from: data)
+        return try await value(path: "/v1/setup/codex/login/\(id)")
     }
 
     func cancelCodexLogin(loginId: String) async throws {
         let id = loginId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? loginId
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login/\(id)/cancel", method: "POST"))
-        try check(response, data: data)
+        _ = try await data(path: "/v1/setup/codex/login/\(id)/cancel", method: "POST")
     }
 
     func resumeLatest() async throws -> Transcript? {
-        let (listData, listResponse) = try await URLSession.shared.data(for: try request(path: "/v1/sessions"))
-        try check(listResponse, data: listData)
-        guard let session = try JSONDecoder().decode(SessionList.self, from: listData).sessions.first else { return nil }
+        let sessions: SessionList = try await value(path: "/v1/sessions")
+        guard let session = sessions.sessions.first else { return nil }
         let id = session.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? session.id
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/sessions/\(id)/messages"))
-        try check(response, data: data)
-        return try JSONDecoder().decode(Transcript.self, from: data)
+        return try await value(path: "/v1/sessions/\(id)/messages")
     }
 
     func events(text: String, sessionId: String?, requestId: String, fresh: Bool) -> AsyncThrowingStream<RuntimeEvent, Error> {
@@ -136,10 +121,17 @@ struct RuntimeClient: Sendable {
         _ = try? await URLSession.shared.data(for: request)
     }
 
-    private func check(_ response: URLResponse, data: Data) throws {
+    private func data(path: String, method: String = "GET", body: [String: String]? = nil) async throws -> Data {
+        let encoded = try body.map { try JSONEncoder().encode($0) }
+        let (data, response) = try await URLSession.shared.data(for: try request(path: path, method: method, body: encoded))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             throw RuntimeClientError.badResponse(status, String(decoding: data, as: UTF8.self))
         }
+        return data
+    }
+
+    private func value<T: Decodable>(path: String, method: String = "GET", body: [String: String]? = nil) async throws -> T {
+        try JSONDecoder().decode(T.self, from: await data(path: path, method: method, body: body))
     }
 }

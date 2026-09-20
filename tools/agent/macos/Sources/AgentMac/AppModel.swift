@@ -60,32 +60,11 @@ final class AppModel: ObservableObject {
     }
 
     func connectOpenAI(_ key: String) async {
-        isSettingUp = true
-        setupMessage = "Checking API key…"
-        defer { isSettingUp = false }
-        do {
-            guard let client else { return }
-            try await client.connectOpenAI(key: key)
-            setupStatus = try await client.setupStatus()
-            setupMessage = ""
-            state = .ready
-        } catch {
-            setupMessage = error.localizedDescription
-        }
+        await configure("Checking API key…") { try await $0.connectOpenAI(key: key) }
     }
 
     func useSavedAPIKey() async {
-        guard let client, !isSettingUp else { return }
-        isSettingUp = true
-        defer { isSettingUp = false }
-        do {
-            try await client.selectBackend("responses")
-            setupStatus = try await client.setupStatus()
-            setupMessage = ""
-            state = .ready
-        } catch {
-            setupMessage = error.localizedDescription
-        }
+        await configure { try await $0.selectBackend("responses") }
     }
 
     func continueWithChatGPT() async {
@@ -150,30 +129,21 @@ final class AppModel: ObservableObject {
                     sessionId = event.session?.id
                     fresh = false
                 case "text_delta":
-                    if let index = messages.firstIndex(where: { $0.id == assistantID }) {
-                        messages[index].text += event.delta ?? ""
-                    }
+                    edit(assistantID) { $0.text += event.delta ?? "" }
                 case "artifact":
-                    if let artifact = event.artifact,
-                       let index = messages.firstIndex(where: { $0.id == assistantID }) {
-                        messages[index].artifacts.append(artifact)
-                    }
+                    if let artifact = event.artifact { edit(assistantID) { $0.artifacts.append(artifact) } }
                 case "tool_start":
                     activity = event.name.map { "Using \($0.replacingOccurrences(of: "_", with: " "))" } ?? "Working"
                 case "status":
                     activity = event.message ?? "Working"
                 case "error":
-                    if let index = messages.firstIndex(where: { $0.id == assistantID }), messages[index].text.isEmpty {
-                        messages[index].text = event.message ?? "Something went wrong."
-                    }
+                    edit(assistantID) { if $0.text.isEmpty { $0.text = event.message ?? "Something went wrong." } }
                 default: break
                 }
             }
         } catch {
-            if let index = messages.firstIndex(where: { $0.id == assistantID }), messages[index].text.isEmpty {
-                messages[index].text = error.localizedDescription
-            } else if let index = messages.firstIndex(where: { $0.id == assistantID }) {
-                messages[index].text += "\n\nInterrupted. Your session is saved."
+            edit(assistantID) {
+                $0.text = $0.text.isEmpty ? error.localizedDescription : $0.text + "\n\nInterrupted. Your session is saved."
             }
             self.client = try? await launcher.ensureRunning()
         }
@@ -192,5 +162,24 @@ final class AppModel: ObservableObject {
         sessionId = nil
         fresh = true
         messages = []
+    }
+
+    private func configure(_ message: String = "", action: (RuntimeClient) async throws -> Void) async {
+        guard let client, !isSettingUp else { return }
+        isSettingUp = true
+        setupMessage = message
+        defer { isSettingUp = false }
+        do {
+            try await action(client)
+            setupStatus = try await client.setupStatus()
+            setupMessage = ""
+            state = .ready
+        } catch {
+            setupMessage = error.localizedDescription
+        }
+    }
+
+    private func edit(_ id: UUID, update: (inout ChatMessage) -> Void) {
+        if let index = messages.firstIndex(where: { $0.id == id }) { update(&messages[index]) }
     }
 }
