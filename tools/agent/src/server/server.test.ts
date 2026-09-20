@@ -55,7 +55,7 @@ describe("RuntimeServer", () => {
         receivedTurn = turn;
         yield { type: "status", message: "ready" };
         yield { type: "text_delta", delta: "hello" };
-        yield { type: "done", sessionId: "session", responseId: "response" };
+        yield { type: "done", sessionId: "session" };
       },
     } as unknown as AgentRuntime;
     const { port, token } = await serve(runtime);
@@ -163,7 +163,7 @@ describe("RuntimeServer", () => {
       async *run(): AsyncGenerator<RuntimeEvent> {
         entered();
         await turnReleased;
-        yield { type: "done", sessionId: "session", responseId: null };
+        yield { type: "done", sessionId: "session" };
       },
     } as unknown as AgentRuntime;
     let restarted!: () => void;

@@ -1,5 +1,4 @@
 import { resolve } from "node:path";
-import { MODELS } from "./config.js";
 import { buildInstructions, buildWorkerInstructions } from "./context.js";
 import type { BackendRegistry } from "./backend.js";
 import { routeTurn } from "./router.js";
@@ -41,7 +40,7 @@ export class AgentRuntime {
     try {
       backend = await this.backends.resolve();
     } catch (error) {
-      yield { type: "error", message: error instanceof Error ? error.message : String(error), recoverable: true };
+      yield { type: "error", message: error instanceof Error ? error.message : String(error) };
       return;
     }
 
@@ -58,12 +57,11 @@ export class AgentRuntime {
       yield {
         type: "error",
         message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
-        recoverable: true,
       };
       return;
     }
     if (!text) {
-      yield { type: "error", message: "The message is empty.", recoverable: true };
+      yield { type: "error", message: "The message is empty." };
       return;
     }
     const request: TurnRequest = {
@@ -87,8 +85,7 @@ export class AgentRuntime {
       ...(request.cwd ? { cwd: resolve(request.cwd) } : {}),
       title: titleFrom(request.text),
     });
-    const modelName = MODELS.coordinator;
-    yield { type: "session", session, route, model: modelName, backend: backend.kind };
+    yield { type: "session", session };
 
     const release = await this.lockSession(session.id);
     this.store.addMessage(session.id, "user", redactSecrets(request.text));
@@ -137,7 +134,7 @@ export class AgentRuntime {
       }
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", assistantText);
       this.store.finishRun(runId, "complete", responseId ?? undefined, undefined, assistantText);
-      terminal = { type: "done", sessionId: session.id, responseId };
+      terminal = { type: "done", sessionId: session.id };
     } catch (error) {
       const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
       this.store.finishRun(
@@ -151,7 +148,6 @@ export class AgentRuntime {
       terminal = {
         type: "error",
         message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
-        recoverable: true,
       };
     } finally {
       release();

@@ -148,7 +148,6 @@ describe("AgentRuntime", () => {
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
     const sessionEvent = events[0];
     if (sessionEvent?.type !== "session") throw new Error("missing session event");
-    expect(sessionEvent.model).toBe("gpt-5.6-luna");
     expect(store.getMessages(sessionEvent.session.id).map((message) => message.role)).toEqual(["user", "tool", "assistant"]);
     expect(store.searchMemories("personal", "short answers")[0]?.content).toBe("Mario likes short answers");
     expect((model.calls[1]?.input.at(-1) as ResponseInputItem.FunctionCallOutput).type).toBe("function_call_output");
@@ -237,7 +236,7 @@ describe("AgentRuntime", () => {
     });
 
     expect(events[0]).toEqual({ type: "status", message: "Listening…" });
-    expect(events.find((event) => event.type === "session")?.route.kind).toBe("coding");
+    expect(events.find((event) => event.type === "session")?.session.kind).toBe("coding");
     expect(model.calls.map((call) => call.model)).toEqual(["gpt-5.6-sol", "gpt-5.6-luna"]);
     const session = events.find((event) => event.type === "session")?.session;
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");

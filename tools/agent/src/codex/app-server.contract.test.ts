@@ -291,7 +291,7 @@ describe("Codex app-server contract", () => {
     const events = [];
     for await (const event of runtime.run({ text: "Fix the test", cwd: homeDir, channel: "api" })) events.push(event);
 
-    expect(events[0]).toMatchObject({ type: "session", backend: "codex" });
+    expect(events[0]).toMatchObject({ type: "session" });
     expect(events.map((event) => event.type)).toEqual(["session", "tool_start", "tool_end", "text_delta", "done"]);
     const session = events[0]?.type === "session" ? events[0].session : null;
     expect(session && store.getMessages(session.id).map((message) => message.role)).toEqual(["user", "tool", "assistant"]);

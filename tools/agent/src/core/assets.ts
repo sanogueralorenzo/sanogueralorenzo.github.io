@@ -32,6 +32,18 @@ function extensionFor(mimeType: string): string {
   return known[mimeType] ?? "";
 }
 
+function destination(homeDir: string, directoryName: "attachments" | "artifacts", extension: string) {
+  const id = randomUUID();
+  const directory = join(homeDir, directoryName);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(directory, 0o700);
+  return { id, path: join(directory, `${id}${extension}`) };
+}
+
+function artifact(id: string, path: string, name: string, mimeType: string, size: number): Artifact {
+  return { id, path, name, mimeType, size, kind: mimeType.startsWith("image/") ? "image" : "file" };
+}
+
 export function saveAttachment(
   homeDir: string,
   store: Store,
@@ -39,13 +51,9 @@ export function saveAttachment(
 ): Attachment {
   if (input.data.length === 0) throw new Error("Attachment is empty.");
   if (input.data.length > MAX_ATTACHMENT_BYTES) throw new Error("Attachment exceeds the 25 MB limit.");
-  const id = randomUUID();
   const name = safeName(input.name);
   const extension = extname(name) || extensionFor(input.mimeType);
-  const directory = join(homeDir, "attachments");
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
-  const path = join(directory, `${id}${extension}`);
+  const { id, path } = destination(homeDir, "attachments", extension);
   writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
   return store.addAttachment({
     id,
@@ -62,15 +70,11 @@ export function saveArtifactData(
   input: { name: string; mimeType: string; data: Buffer },
 ): Artifact {
   if (input.data.length === 0) throw new Error("Artifact is empty.");
-  const id = randomUUID();
   const name = safeName(input.name);
   const extension = extname(name) || extensionFor(input.mimeType);
-  const directory = join(homeDir, "artifacts");
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
-  const path = join(directory, `${id}${extension}`);
+  const { id, path } = destination(homeDir, "artifacts", extension);
   writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
-  return { id, kind: input.mimeType.startsWith("image/") ? "image" : "file", name, mimeType: input.mimeType, size: input.data.length, path };
+  return artifact(id, path, name, input.mimeType, input.data.length);
 }
 
 export function saveArtifactPath(
@@ -83,14 +87,10 @@ export function saveArtifactPath(
   const name = safeName(input.name ?? basename(source));
   const extension = extname(name) || extname(source);
   const mimeType = input.mimeType ?? mimeForExtension(extension);
-  const id = randomUUID();
-  const directory = join(homeDir, "artifacts");
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  chmodSync(directory, 0o700);
-  const path = join(directory, `${id}${extension}`);
+  const { id, path } = destination(homeDir, "artifacts", extension);
   copyFileSync(source, path);
   chmodSync(path, 0o600);
-  return { id, kind: mimeType.startsWith("image/") ? "image" : "file", name, mimeType, size: sourceStat.size, path };
+  return artifact(id, path, name, mimeType, sourceStat.size);
 }
 
 function mimeForExtension(extension: string): string {

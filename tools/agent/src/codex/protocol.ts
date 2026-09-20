@@ -1,9 +1,3 @@
-export interface JsonRpcResponse {
-  id: number | string;
-  result?: unknown;
-  error?: { code: number; message: string; data?: unknown };
-}
-
 export interface JsonRpcMessage {
   id?: number | string;
   method?: string;
@@ -12,31 +6,13 @@ export interface JsonRpcMessage {
   error?: { code: number; message: string; data?: unknown };
 }
 
-export interface CodexAccount {
-  type: "apiKey" | "chatgpt" | "amazonBedrock";
-  email?: string | null;
-  planType?: string;
-}
-
 export interface CodexAccountStatus {
-  account: CodexAccount | null;
-  requiresOpenaiAuth: boolean;
-}
-
-export interface RateLimitWindow {
-  usedPercent: number;
-  windowDurationMins: number | null;
-  resetsAt: number | null;
+  account: { type: "apiKey" | "chatgpt" | "amazonBedrock"; planType?: string } | null;
 }
 
 export interface RateLimitSnapshot {
-  limitId: string | null;
-  limitName: string | null;
-  primary: RateLimitWindow | null;
-  secondary: RateLimitWindow | null;
-  planType: string | null;
-  rateLimitReachedType: string | null;
-  credits?: { hasCredits: boolean; unlimited: boolean; balance: string | null } | null;
+  limitName?: string | null;
+  rateLimitReachedType?: string | null;
 }
 
 export interface CodexRateLimits {

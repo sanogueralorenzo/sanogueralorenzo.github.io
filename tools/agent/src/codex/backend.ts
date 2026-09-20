@@ -244,17 +244,14 @@ export class CodexBackend implements AgentBackend {
 
   private async worker(turn: BackendTurn): Promise<string> {
     const worker = turn.route.worker!;
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: MODELS[worker],
-      cwd: turn.session.cwd ?? this.config.homeDir,
-      approvalPolicy: "never",
-      sandbox: worker === "coding" ? "workspace-write" : "read-only",
-      developerInstructions: turn.workerInstructions,
-      ephemeral: true,
-      threadSource: "appServer",
-    });
+    const threadId = await this.startThread(
+      MODELS[worker],
+      turn.session.cwd ?? this.config.homeDir,
+      worker === "coding" ? "workspace-write" : "read-only",
+      turn.workerInstructions,
+    );
     let output = "";
-    for await (const event of this.turnEvents(started.thread.id, turn.request.text, MODELS[worker], turn.signal)) {
+    for await (const event of this.turnEvents(threadId, turn.request.text, MODELS[worker], turn.signal)) {
       if (event.type === "text_delta") output += event.delta;
     }
     if (!output.trim()) throw new Error(`${worker} worker completed without a result.`);
@@ -263,15 +260,7 @@ export class CodexBackend implements AgentBackend {
 
   private async transcribe(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     const audio = await readVoiceNote(attachment);
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: MODELS.coordinator,
-      cwd: this.config.homeDir,
-      approvalPolicy: "never",
-      sandbox: "read-only",
-      ephemeral: true,
-      threadSource: "appServer",
-    });
-    const threadId = started.thread.id;
+    const threadId = await this.startThread(MODELS.coordinator, this.config.homeDir, "read-only");
     const queue = new NotificationQueue();
     const unsubscribe = this.client.onNotification((message) => queue.push(message));
     const timeout = AbortSignal.timeout(45_000);
@@ -289,8 +278,7 @@ export class CodexBackend implements AgentBackend {
         transport: { type: "webrtc", sdp: await peer.offer() },
       });
       while (true) {
-        const event = await nextForThread(queue, threadId, combined);
-        if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
+        const event = await this.nextRealtime(queue, threadId, combined);
         if (event.method === "thread/realtime/sdp" && typeof event.params.sdp === "string") {
           await peer.accept(event.params.sdp);
           break;
@@ -298,8 +286,7 @@ export class CodexBackend implements AgentBackend {
       }
       await peer.sendAudio(audio, combined);
       while (true) {
-        const event = await nextForThread(queue, threadId, combined);
-        if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
+        const event = await this.nextRealtime(queue, threadId, combined);
         if (event.method === "thread/realtime/closed") throw new Error("Voice transcription ended before a transcript was ready.");
         if (event.method === "thread/realtime/transcript/done" && event.params.role === "user") {
           const transcript = String(event.params.text ?? "").trim();
@@ -315,6 +302,20 @@ export class CodexBackend implements AgentBackend {
       await peer.close().catch(() => undefined);
       unsubscribe();
     }
+  }
+
+  private async startThread(model: string, cwd: string, sandbox: "read-only" | "workspace-write", instructions?: string): Promise<string> {
+    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
+      model, cwd, sandbox, approvalPolicy: "never", ephemeral: true, threadSource: "appServer",
+      ...(instructions ? { developerInstructions: instructions } : {}),
+    });
+    return started.thread.id;
+  }
+
+  private async nextRealtime(queue: NotificationQueue, threadId: string, signal: AbortSignal) {
+    const event = await nextForThread(queue, threadId, signal);
+    if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
+    return event;
   }
 
   private async sessionThread(turn: BackendTurn, instructions: string): Promise<string> {

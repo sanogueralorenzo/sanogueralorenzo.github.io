@@ -46,14 +46,14 @@ export interface Artifact {
 }
 
 export type RuntimeEvent =
-  | { type: "session"; session: Session; route: RouteDecision; model: string; backend: BackendKind }
+  | { type: "session"; session: Session }
   | { type: "status"; message: string }
   | { type: "text_delta"; delta: string }
   | { type: "artifact"; artifact: Artifact }
   | { type: "tool_start"; name: string; callId: string }
   | { type: "tool_end"; name: string; callId: string; summary: string }
-  | { type: "done"; sessionId: string; responseId: string | null }
-  | { type: "error"; message: string; recoverable: boolean };
+  | { type: "done"; sessionId: string }
+  | { type: "error"; message: string };
 
 export interface TurnRequest {
   text: string;
