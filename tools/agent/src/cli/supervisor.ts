@@ -3,12 +3,13 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import type { RuntimeClient } from "../client/client.js";
 
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
 export class RuntimeSupervisor {
   private child: ChildProcess | null = null;
   private monitorTimer: NodeJS.Timeout | null = null;
   private recovering = false;
   private stopping = false;
-  private ownsRuntime = false;
 
   constructor(
     private readonly client: RuntimeClient,
@@ -18,7 +19,6 @@ export class RuntimeSupervisor {
 
   async start(): Promise<void> {
     if (!await this.client.healthy()) {
-      this.ownsRuntime = true;
       this.spawnRuntime();
       await this.client.waitUntilHealthy();
     }
@@ -31,7 +31,6 @@ export class RuntimeSupervisor {
     this.onStatus("Runtime disconnected; reconnecting…");
     try {
       if (!this.child) {
-        this.ownsRuntime = true;
         this.spawnRuntime();
       }
       await this.client.waitUntilHealthy();
@@ -43,17 +42,13 @@ export class RuntimeSupervisor {
     }
   }
 
-  private projectRoot(): string {
-    return resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  }
-
   private spawnRuntime(): void {
     const sourceMode = fileURLToPath(import.meta.url).endsWith(".ts");
     const runSource = sourceMode || this.dev;
-    const entry = join(this.projectRoot(), runSource ? "src/server/main.ts" : "dist/server/main.js");
+    const entry = join(projectRoot, runSource ? "src/server/main.ts" : "dist/server/main.js");
     const args = runSource ? [...(this.dev ? ["--watch"] : []), "--import", "tsx", entry] : [entry];
     this.child = spawn(process.execPath, args, {
-      cwd: this.projectRoot(),
+      cwd: projectRoot,
       env: process.env,
       stdio: ["ignore", "ignore", "pipe"],
     });
@@ -66,25 +61,10 @@ export class RuntimeSupervisor {
     });
   }
 
-  private async stopChild(): Promise<void> {
-    const child = this.child;
-    if (!child || child.exitCode !== null) return;
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        child.kill("SIGKILL");
-        resolve();
-      }, 2_000);
-      child.once("exit", () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      child.kill("SIGTERM");
-    });
-  }
-
-  async stop(): Promise<void> {
+  stop(): void {
     this.stopping = true;
     if (this.monitorTimer) clearInterval(this.monitorTimer);
-    await this.stopChild();
+    this.child?.kill("SIGTERM");
+    this.child = null;
   }
 }
