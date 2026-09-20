@@ -25,11 +25,11 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
 
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
-async function serve(runtime: AgentRuntime, setup = setupStub(), onRestart = () => undefined) {
+async function serve(runtime: AgentRuntime, setup = setupStub()) {
   const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
   const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
-  const server = new RuntimeServer(config, runtime, store, setup, onRestart);
+  const server = new RuntimeServer(config, runtime, store, setup);
   const port = await server.listen();
   const token = tokenAt(homeDir);
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -118,33 +118,5 @@ describe("RuntimeServer", () => {
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
     await request("/v1/setup/backend", "POST", { backend: "codex" });
     expect(selected).toBe("codex");
-  });
-
-  it("accepts a graceful restart only after active turns finish", async () => {
-    let entered!: () => void;
-    let release!: () => void;
-    const turnEntered = new Promise<void>((resolve) => { entered = resolve; });
-    const turnReleased = new Promise<void>((resolve) => { release = resolve; });
-    const runtime = {
-      async *run(): AsyncGenerator<RuntimeEvent> {
-        entered();
-        await turnReleased;
-        yield { type: "done", sessionId: "session" };
-      },
-    } as unknown as AgentRuntime;
-    let restarted!: () => void;
-    const restartCalled = new Promise<void>((resolve) => { restarted = resolve; });
-    const { request } = await serve(runtime, setupStub(), restarted);
-
-    const chat = request("/v1/chat", "POST", { text: "work", requestId: "active", channel: "api" });
-    await turnEntered;
-    const busy = await request("/v1/runtime/restart", "POST");
-    expect(busy.status).toBe(409);
-
-    release();
-    await (await chat).text();
-    const accepted = await request("/v1/runtime/restart", "POST");
-    expect(accepted.status).toBe(202);
-    await restartCalled;
   });
 });

@@ -94,13 +94,6 @@ export class RuntimeClient {
     });
   }
 
-  async requestRestart(): Promise<boolean> {
-    const response = await this.fetch("/v1/runtime/restart", { method: "POST" });
-    if (response.status === 409) return false;
-    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
-    return true;
-  }
-
   sessions(): Promise<{ sessions: Session[] }> {
     return this.json("/v1/sessions");
   }

@@ -53,7 +53,6 @@ export class RuntimeServer {
     private readonly runtime: AgentRuntime,
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
-    private readonly onRestart: () => void,
   ) {}
 
   async listen(): Promise<number> {
@@ -120,12 +119,6 @@ export class RuntimeServer {
           const controller = this.controllers.get(requestId.trim());
           controller?.abort();
           return json(response, 200, { cancelled: Boolean(controller) });
-        }
-        case "POST /v1/runtime/restart": {
-          if (this.controllers.size) return json(response, 409, { error: "runtime_busy" });
-          json(response, 202, { restarting: true });
-          setImmediate(this.onRestart);
-          return;
         }
         case "POST /v1/attachments": {
           const header = request.headers["x-agent-filename"];

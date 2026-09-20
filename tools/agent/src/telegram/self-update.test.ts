@@ -27,7 +27,6 @@ function updateHarness(options: Partial<UpdateOptions> = {}, onStop?: () => void
     ownerId: () => undefined,
     debounceMs: 5,
     verify: async () => undefined,
-    requestRuntimeRestart: async () => true,
     stopGateway: async () => { onStop?.(); value.stop(); finish(); },
     ...options,
   });
@@ -40,10 +39,6 @@ describe("Telegram self-update", () => {
     const { updater, homeDir, stopped } = updateHarness({
       ownerId: () => "42",
       verify: async () => { order.push("verify"); },
-      requestRuntimeRestart: async () => {
-        order.push("runtime");
-        return true;
-      },
     }, () => order.push("gateway"));
 
     expect(updater.beginTurn()).toBe(true);
@@ -54,7 +49,7 @@ describe("Telegram self-update", () => {
     updater.endTurn();
     await stopped;
 
-    expect(order).toEqual(["verify", "runtime", "gateway"]);
+    expect(order).toEqual(["verify", "gateway"]);
     expect(pendingUpdateOwner(homeDir)).toBe("42");
     acknowledgeUpdate(homeDir);
     expect(pendingUpdateOwner(homeDir)).toBeNull();
@@ -82,19 +77,16 @@ describe("Telegram self-update", () => {
   });
 
   it("keeps the current process available when verification fails", async () => {
-    const restart = vi.fn(async () => true);
     const failure = vi.fn();
     const { updater } = updateHarness({
       ownerId: () => "42",
       verify: async () => { throw new Error("tests failed"); },
-      requestRuntimeRestart: restart,
       onFailure: failure,
     });
 
     updater.noteChange();
     await vi.waitFor(() => expect(failure).toHaveBeenCalledWith("tests failed"));
 
-    expect(restart).not.toHaveBeenCalled();
     expect(updater.beginTurn()).toBe(true);
     updater.endTurn();
     updater.stop();
@@ -105,7 +97,6 @@ describe("Telegram self-update", () => {
     const started = new Promise<void>((resolve) => { verificationStarted = resolve; });
     let verificationAborted!: () => void;
     const aborted = new Promise<void>((resolve) => { verificationAborted = resolve; });
-    const restart = vi.fn(async () => true);
     const { updater } = updateHarness({
       verify: async (signal) => {
         verificationStarted();
@@ -114,7 +105,6 @@ describe("Telegram self-update", () => {
           reject(new DOMException("Aborted", "AbortError"));
         }, { once: true }));
       },
-      requestRuntimeRestart: restart,
     });
 
     updater.noteChange();
@@ -123,6 +113,5 @@ describe("Telegram self-update", () => {
     await aborted;
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(restart).not.toHaveBeenCalled();
   });
 });

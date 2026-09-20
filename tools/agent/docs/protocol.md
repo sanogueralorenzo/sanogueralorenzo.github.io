@@ -16,11 +16,10 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
 - `POST /v1/chat` — submit a turn and receive Server-Sent Events
 - `POST /v1/cancel` — cancel by client request ID
-- `POST /v1/runtime/restart` — request an idle-only graceful runtime restart
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
-The runtime rejects restart requests while any turn is active. The Telegram background gateway watches Agent's own runtime sources, waits until the requesting reply is delivered, runs the full check and production build, then requests this graceful restart and exits. The macOS user service relaunches the gateway, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current runtime running.
+The Telegram background gateway watches Agent's sources, waits until the active reply is delivered, and runs the full check and production build. It then stops its runtime and exits. The macOS user service relaunches the pair, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current process running.
 
 `POST /v1/attachments` accepts raw bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/chat` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, `senderId`, and a client-generated `requestId`. Paths never cross the upload boundary. The runtime resolves attachments, transcribes audio through the explicitly selected backend, then decides the work kind, model behavior, tools, memory scope, and final session from the transcript.
 

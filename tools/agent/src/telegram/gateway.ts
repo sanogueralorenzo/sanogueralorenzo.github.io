@@ -24,7 +24,6 @@ async function runGateway(token: string): Promise<void> {
   const updater = new TelegramSelfUpdate({
     projectRoot: join(dirname(fileURLToPath(import.meta.url)), "../.."),
     homeDir: config.homeDir,
-    requestRuntimeRestart: () => client.requestRestart(),
     stopGateway: async () => stop(),
     ownerId,
     onFailure: async () => {

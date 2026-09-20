@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { rmSync, watch, type FSWatcher } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { readPrivateJson, writePrivateJson } from "../local/files.js";
 
@@ -16,7 +15,6 @@ interface UpdateState {
 interface SelfUpdateOptions {
   projectRoot: string;
   homeDir: string;
-  requestRuntimeRestart: () => Promise<boolean>;
   stopGateway: () => Promise<void>;
   ownerId: () => string | undefined;
   verify?: (signal: AbortSignal) => Promise<void>;
@@ -120,9 +118,7 @@ export class TelegramSelfUpdate {
     this.verifyController = new AbortController();
     try {
       await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
-      await delay(this.debounceMs);
       if (this.dirty) return;
-      if (!await this.options.requestRuntimeRestart()) throw new Error("Agent is busy; the update was not applied.");
       const ownerId = this.options.ownerId();
       if (ownerId) writeState(this.options.homeDir, { notificationOwnerId: ownerId });
       await this.options.stopGateway();

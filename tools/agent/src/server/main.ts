@@ -22,7 +22,7 @@ const runtime = new AgentRuntime(config, store, backends);
 const setup = new BackendSetupService(store, model, codexClient, (key) => {
   writeSecret("openai", key, config.homeDir);
 });
-const server = new RuntimeServer(config, runtime, store, setup, () => void close());
+const server = new RuntimeServer(config, runtime, store, setup);
 
 const port = await server.listen();
 if (process.send) process.send({ type: "ready", port });
