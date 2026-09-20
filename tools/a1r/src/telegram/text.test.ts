@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pairingHash, splitTelegramText } from "./text.js";
+import { TELEGRAM_PAIRING_TTL_MS, pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
 
 describe("Telegram helpers", () => {
   it("splits long messages without losing text", () => {
@@ -12,5 +12,12 @@ describe("Telegram helpers", () => {
   it("hashes pairing codes deterministically", () => {
     expect(pairingHash("hello")).toBe(pairingHash("hello"));
     expect(pairingHash("hello")).not.toBe(pairingHash("world"));
+  });
+
+  it("expires pairing links after three minutes", () => {
+    const now = Date.UTC(2026, 8, 19, 12, 0, 0);
+
+    expect(TELEGRAM_PAIRING_TTL_MS).toBe(180_000);
+    expect(pairingExpiresAt(now)).toBe("2026-09-19T12:03:00.000Z");
   });
 });

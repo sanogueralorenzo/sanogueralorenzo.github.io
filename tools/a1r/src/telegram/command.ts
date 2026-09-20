@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual, createHash } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Bot } from "grammy";
@@ -8,7 +8,7 @@ import { isA1RConfigured, readSecretLine, setupA1R } from "../cli/setup.js";
 import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
-import { splitTelegramText } from "./text.js";
+import { pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
 
 interface TelegramState {
   botId: string;
@@ -41,10 +41,6 @@ function writeState(homeDir: string, state: TelegramState): void {
   chmodSync(path, 0o600);
 }
 
-function hash(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 async function setupTelegram(): Promise<string> {
   const config = loadConfig();
   console.log("\nConnect A1R to Telegram\n");
@@ -74,10 +70,10 @@ async function setupTelegram(): Promise<string> {
     writeState(config.homeDir, {
       botId: String(me.id),
       username: me.username,
-      pairingHash: hash(code),
-      pairingExpiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+      pairingHash: pairingHash(code),
+      pairingExpiresAt: pairingExpiresAt(),
     });
-    console.log(`\nOpen this private pairing link within 10 minutes:\nhttps://t.me/${me.username}?start=pair_${code}`);
+    console.log(`\nOpen this private pairing link within 3 minutes:\nhttps://t.me/${me.username}?start=pair_${code}`);
   } else {
     writeState(config.homeDir, { ...existing, botId: String(me.id), username: me.username });
     console.log(`@${me.username} is already paired. Starting the gateway…`);
@@ -109,7 +105,7 @@ async function runGateway(token: string): Promise<void> {
       await ctx.reply("This A1R bot is not available.");
       return;
     }
-    const supplied = hash(payload.slice(5));
+    const supplied = pairingHash(payload.slice(5));
     const expected = current.pairingHash;
     const valid = supplied.length === expected.length
       && timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))

@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+
+export const TELEGRAM_PAIRING_TTL_MS = 3 * 60_000;
+
 export function splitTelegramText(text: string, limit = 4096): string[] {
   const chunks: string[] = [];
   let remaining = text.trim();
@@ -17,4 +21,7 @@ export function splitTelegramText(text: string, limit = 4096): string[] {
 export function pairingHash(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
-import { createHash } from "node:crypto";
+
+export function pairingExpiresAt(now = Date.now()): string {
+  return new Date(now + TELEGRAM_PAIRING_TTL_MS).toISOString();
+}
