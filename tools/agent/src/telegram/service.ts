@@ -25,10 +25,6 @@ function xml(value: string): string {
     .replaceAll("'", "&apos;");
 }
 
-function stringEntry(value: string): string {
-  return `    <string>${xml(value)}</string>`;
-}
-
 export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
   const environment: Array<[string, string]> = [
     ["AGENT_HOME", options.homeDir],
@@ -36,44 +32,27 @@ export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
   ];
   if (options.path) environment.push(["PATH", options.path]);
   const logPath = join(options.homeDir, "telegram.log");
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
-    '<plist version="1.0">',
-    "<dict>",
-    "  <key>Label</key>",
-    `  <string>${TELEGRAM_SERVICE_LABEL}</string>`,
-    "  <key>Program</key>",
-    `  <string>${xml(options.launcherPath)}</string>`,
-    "  <key>ProgramArguments</key>",
-    "  <array>",
-    stringEntry(options.launcherPath),
-    "  </array>",
-    "  <key>WorkingDirectory</key>",
-    `  <string>${xml(options.workingDirectory)}</string>`,
-    "  <key>EnvironmentVariables</key>",
-    "  <dict>",
-    ...environment.flatMap(([key, value]) => [
-      `    <key>${key}</key>`,
-      `    <string>${xml(value)}</string>`,
-    ]),
-    "  </dict>",
-    "  <key>RunAtLoad</key>",
-    "  <true/>",
-    "  <key>KeepAlive</key>",
-    "  <true/>",
-    "  <key>ProcessType</key>",
-    "  <string>Interactive</string>",
-    "  <key>ThrottleInterval</key>",
-    "  <integer>3</integer>",
-    "  <key>StandardOutPath</key>",
-    `  <string>${xml(logPath)}</string>`,
-    "  <key>StandardErrorPath</key>",
-    `  <string>${xml(logPath)}</string>`,
-    "</dict>",
-    "</plist>",
-    "",
-  ].join("\n");
+  const variables = environment.map(([key, value]) => `    <key>${key}</key>\n    <string>${xml(value)}</string>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${TELEGRAM_SERVICE_LABEL}</string>
+  <key>Program</key><string>${xml(options.launcherPath)}</string>
+  <key>ProgramArguments</key><array><string>${xml(options.launcherPath)}</string></array>
+  <key>WorkingDirectory</key><string>${xml(options.workingDirectory)}</string>
+  <key>EnvironmentVariables</key><dict>
+${variables}
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>ThrottleInterval</key><integer>3</integer>
+  <key>StandardOutPath</key><string>${xml(logPath)}</string>
+  <key>StandardErrorPath</key><string>${xml(logPath)}</string>
+</dict>
+</plist>
+`;
 }
 
 function shellArgument(value: string): string {

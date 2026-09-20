@@ -1,12 +1,8 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import {
-  existsSync,
-  watch,
-  type FSWatcher,
-} from "node:fs";
+import { existsSync, watch, type FSWatcher } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { basename, join, relative } from "node:path";
+import { join, relative } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { readPrivateJson, writePrivateJson } from "../core/files.js";
@@ -97,7 +93,7 @@ async function verifyAgent(projectRoot: string, signal: AbortSignal): Promise<vo
 }
 
 export class TelegramSelfUpdate {
-  private readonly watchers: FSWatcher[] = [];
+  private watcher: FSWatcher | null = null;
   private readonly debounceMs: number;
   private activeTurns = 0;
   private dirty = false;
@@ -111,13 +107,10 @@ export class TelegramSelfUpdate {
   }
 
   async start(): Promise<void> {
-    const source = join(this.options.projectRoot, "src");
-    if (existsSync(source)) {
-      this.watchers.push(watch(source, { recursive: true }, () => this.noteChange()));
-    }
-    this.watchers.push(watch(this.options.projectRoot, (_event, filename) => {
-      if (filename && ROOT_FILES.has(basename(String(filename)))) this.noteChange();
-    }));
+    this.watcher = watch(this.options.projectRoot, { recursive: true }, (_event, filename) => {
+      const path = String(filename ?? "");
+      if (/^src[\\/]/.test(path) || ROOT_FILES.has(path)) this.noteChange();
+    });
 
     const fingerprint = await agentSourceFingerprint(this.options.projectRoot);
     const state = readState(this.options.homeDir);
@@ -146,7 +139,7 @@ export class TelegramSelfUpdate {
     this.stopped = true;
     this.verifyController?.abort();
     if (this.timer) clearTimeout(this.timer);
-    for (const watcher of this.watchers.splice(0)) watcher.close();
+    this.watcher?.close();
   }
 
   private schedule(): void {
