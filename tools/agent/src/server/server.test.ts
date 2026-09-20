@@ -77,7 +77,7 @@ describe("RuntimeServer", () => {
     expect(receivedTurn).toMatchObject({
       text: "hello",
       attachmentIds: [attachment.id],
-      attachments: [{ id: attachment.id, kind: "audio", name: "voice note.ogg", mimeType: "audio/ogg" }],
+      attachments: [{ id: attachment.id, name: "voice note.ogg", mimeType: "audio/ogg" }],
     });
   });
 

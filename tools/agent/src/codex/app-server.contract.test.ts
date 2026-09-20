@@ -193,7 +193,7 @@ describe("Codex app-server contract", () => {
     }));
 
     await expect(backend.transcribeAudio({
-      id: "voice-1", kind: "audio", name: "voice.ogg", mimeType: "audio/ogg",
+      id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg",
       size: 214, path: audioPath,
     })).resolves.toBe("Hello from Codex.");
 

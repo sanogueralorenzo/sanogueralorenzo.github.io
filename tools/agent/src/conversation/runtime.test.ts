@@ -187,7 +187,6 @@ describe("AgentRuntime", () => {
       channel: "telegram",
       attachments: [{
         id: "voice-1",
-        kind: "audio",
         name: "voice.ogg",
         mimeType: "audio/ogg",
         size: 5,

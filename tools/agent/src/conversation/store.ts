@@ -7,7 +7,7 @@ import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
 const SESSION_COLUMNS = `id, scope_key AS "scopeKey", kind, cwd, title, updated_at AS "updatedAt"`;
-const ATTACHMENT_COLUMNS = `id, kind, name, mime_type AS "mimeType", size, path`;
+const ATTACHMENT_COLUMNS = `id, name, mime_type AS "mimeType", size, path`;
 
 export class Store {
   readonly db: DatabaseSync;
@@ -73,7 +73,7 @@ export class Store {
       );
       CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY,
-        kind TEXT NOT NULL CHECK (kind IN ('audio', 'image', 'file')),
+        kind TEXT NOT NULL CHECK (kind = 'audio'),
         name TEXT NOT NULL,
         mime_type TEXT NOT NULL,
         size INTEGER NOT NULL,
@@ -217,7 +217,7 @@ export class Store {
     this.db.prepare(`
       INSERT INTO attachments (id, kind, name, mime_type, size, path, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(input.id, input.kind, input.name, input.mimeType, input.size, input.path, timestamp);
+    `).run(input.id, "audio", input.name, input.mimeType, input.size, input.path, timestamp);
     return input;
   }
 

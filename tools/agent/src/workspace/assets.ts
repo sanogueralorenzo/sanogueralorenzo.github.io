@@ -2,19 +2,13 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, copyFileSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import type { Store } from "../conversation/store.js";
-import type { Artifact, Attachment, AttachmentKind } from "../conversation/types.js";
+import type { Artifact, Attachment } from "../conversation/types.js";
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 function safeName(value: string): string {
   const name = basename(value).replaceAll(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 120).trim();
   return name && name !== "." && name !== ".." ? name : "attachment";
-}
-
-function kindFor(mimeType: string): AttachmentKind {
-  if (mimeType.startsWith("audio/")) return "audio";
-  if (mimeType.startsWith("image/")) return "image";
-  return "file";
 }
 
 function extensionFor(mimeType: string): string {
@@ -58,7 +52,8 @@ export function saveAttachment(
 ): Attachment {
   if (input.data.length === 0) throw new Error("Attachment is empty.");
   if (input.data.length > MAX_ATTACHMENT_BYTES) throw new Error("Attachment exceeds the 25 MB limit.");
-  return store.addAttachment({ ...saveData(homeDir, "attachments", input), kind: kindFor(input.mimeType) });
+  if (!input.mimeType.startsWith("audio/")) throw new Error("Only voice-note attachments are supported.");
+  return store.addAttachment(saveData(homeDir, "attachments", input));
 }
 
 export function saveArtifactData(

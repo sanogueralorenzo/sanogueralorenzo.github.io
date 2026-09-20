@@ -47,7 +47,7 @@ export class AgentRuntime {
 
     let text = incoming.text.trim();
     try {
-      for (const attachment of incoming.attachments?.filter(({ kind }) => kind === "audio") ?? []) {
+      for (const attachment of incoming.attachments ?? []) {
         yield { type: "status", message: "Listening…" };
         const transcript = await backend.transcribeAudio(attachment, options.signal);
         text = [text, transcript].filter(Boolean).join("\n\n");

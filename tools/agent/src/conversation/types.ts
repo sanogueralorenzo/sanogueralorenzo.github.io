@@ -25,8 +25,6 @@ export interface Memory {
   content: string;
 }
 
-export type AttachmentKind = "audio" | "image" | "file";
-
 interface StoredFile {
   id: string;
   name: string;
@@ -35,9 +33,7 @@ interface StoredFile {
   path: string;
 }
 
-export interface Attachment extends StoredFile {
-  kind: AttachmentKind;
-}
+export interface Attachment extends StoredFile {}
 
 export interface Artifact extends StoredFile {
   kind: "image" | "file";
