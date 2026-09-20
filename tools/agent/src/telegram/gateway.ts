@@ -100,7 +100,7 @@ async function runGateway(token: string): Promise<void> {
     await ctx.reply(replies[result]);
   });
   bot.command("help", async (ctx) => {
-    if (isOwner(ctx)) await ctx.reply("Ask for personal help or coding work in ordinary language. Agent chooses the session, memory, tools, and model for you.");
+    if (isOwner(ctx)) await ctx.reply("Ask for personal help or coding work in ordinary language. Agent keeps the same session, memory, and tools across clients.");
   });
   bot.command("status", async (ctx) => {
     if (isOwner(ctx)) await ctx.reply(await client.healthy() ? "Agent is ready." : "Agent is reconnecting.");

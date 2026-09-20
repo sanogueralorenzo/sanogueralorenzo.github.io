@@ -52,19 +52,14 @@ describe("AgentRuntime", () => {
     expect(backend.turns[0]?.instructions).toContain("Mario likes short answers");
   });
 
-  it("routes coding and explicit Astra work without exposing backend choices to clients", async () => {
+  it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
     const { homeDir, backend, runtime } = testRuntime();
     await collect(runtime, { text: "Fix the failing test", cwd: homeDir, channel: "cli", fresh: true });
-    await collect(runtime, { text: "Investigate the performance regression", channel: "api", fresh: true });
-    await collect(runtime, { text: "Use Astra high to investigate this architecture", cwd: homeDir, channel: "api", fresh: true });
-    expect(backend.turns.map((turn) => [turn.route.kind, turn.route.worker])).toEqual([
-      ["coding", "coding"],
-      ["personal", "bounded"],
-      ["coding", "astra"],
-    ]);
+    expect(backend.turns[0]?.instructions).toBe("Own this turn end to end and give the user one coherent response.");
+    expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
-  it("reuses one personal session across CLI, Telegram, and macOS", async () => {
+  it("reuses one session across CLI, Telegram, and macOS", async () => {
     const { runtime } = testRuntime();
     const cli = await collect(runtime, { text: "hello", channel: "cli" });
     const cliSession = cli.find((event) => event.type === "session")?.session.id;
@@ -85,7 +80,7 @@ describe("AgentRuntime", () => {
     expect(resumed.at(-1)?.type).toBe("done");
   });
 
-  it("transcribes runtime-owned audio before routing and persists the transcript", async () => {
+  it("transcribes runtime-owned audio before the turn and persists the transcript", async () => {
     const { homeDir, store, backend, runtime } = testRuntime();
     const audioPath = join(homeDir, "voice.ogg");
     writeFileSync(audioPath, "audio");
@@ -96,8 +91,16 @@ describe("AgentRuntime", () => {
     });
     expect(events[0]).toEqual({ type: "status", message: "Listening…" });
     const session = events.find((event) => event.type === "session")?.session;
-    expect(session?.kind).toBe("coding");
+    expect(session?.cwd).toBeNull();
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
     expect(backend.transcriptions).toEqual([audioPath]);
+  });
+
+  it("carries a CLI-established workspace across clients without classifying the request", async () => {
+    const { homeDir, backend, runtime } = testRuntime();
+    const cli = await collect(runtime, { text: "Inspect this project", cwd: homeDir, channel: "cli" });
+    const sessionId = cli.find((event) => event.type === "session")?.session.id;
+    await collect(runtime, { text: "Now fix it", channel: "telegram", sessionId });
+    expect(backend.turns.map((turn) => turn.session.cwd)).toEqual([homeDir, homeDir]);
   });
 });

@@ -1,4 +1,4 @@
-import type { Attachment, ProgressEvent, RouteDecision, Session, TurnRequest } from "./types.js";
+import type { Attachment, ProgressEvent, Session, TurnRequest } from "./types.js";
 
 export type BackendEvent =
   | ProgressEvent
@@ -7,10 +7,7 @@ export type BackendEvent =
 export interface BackendTurn {
   request: TurnRequest;
   session: Session;
-  route: RouteDecision;
   instructions: string;
-  workerInstructions: string;
-  memoryScope: string;
   signal?: AbortSignal;
 }
 

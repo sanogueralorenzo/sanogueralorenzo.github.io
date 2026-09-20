@@ -13,6 +13,7 @@ import type {
 } from "./protocol.js";
 import { redactSecrets } from "../workspace/security.js";
 import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
+import { BASE_INSTRUCTIONS } from "../conversation/instructions.js";
 
 export class CodexDisconnectedError extends Error {
   constructor(message = "Codex app-server disconnected.") {
@@ -30,7 +31,9 @@ export function prepareAgentCodexHome(homeDir: string): string {
   const codexHome = join(homeDir, "codex");
   ensurePrivateDirectory(homeDir);
   ensurePrivateDirectory(codexHome);
-  writePrivateFile(join(codexHome, "config.toml"), "[agents]\nenabled = false\n");
+  const instructions = join(codexHome, "instructions.md");
+  writePrivateFile(instructions, `${BASE_INSTRUCTIONS}\n`);
+  writePrivateFile(join(codexHome, "config.toml"), `model_instructions_file = ${JSON.stringify(instructions)}\n\n[agents]\nenabled = false\n`);
   return codexHome;
 }
 

@@ -124,7 +124,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       if (!input) continue;
       if (input === "/quit") break;
       if (input === "/help") {
-        console.log("Talk normally. Agent chooses context, model, memory, and tools automatically. Ctrl-C stops the current response.");
+        console.log("Talk normally. Agent keeps context, memory, and tools with the conversation. Ctrl-C stops the current response.");
         continue;
       }
       if (input === "/new") {

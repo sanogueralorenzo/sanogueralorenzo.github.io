@@ -33,15 +33,12 @@ const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
 
 const config = (homeDir: string): RuntimeConfig => ({ homeDir, port: 0, codexCommand: "codex" });
 
-function turn(store: Store, homeDir: string, worker: BackendTurn["route"]["worker"] = "coding"): BackendTurn {
-  const session = store.resolveSession({ scopeKey: "project:test", kind: "coding", cwd: homeDir, title: "test" });
+function turn(store: Store, homeDir: string, workspace = true): BackendTurn {
+  const session = store.resolveSession({ scopeKey: "assistant:local", ...(workspace ? { cwd: homeDir } : {}), title: "test" });
   return {
     request: { text: "Fix the test", cwd: homeDir, channel: "api" },
     session,
-    route: { kind: "coding", worker },
     instructions: "Act as Agent. Use the supplied memory.",
-    workerInstructions: "Act as Agent's internal coding worker.",
-    memoryScope: `project:${homeDir}`,
   };
 }
 
@@ -51,12 +48,12 @@ async function collect(backend: CodexBackend, input: BackendTurn) {
   return events;
 }
 
-function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}, worker: BackendTurn["route"]["worker"] = null) {
+function backendFixture(scenario = "normal", extra: NodeJS.ProcessEnv = {}) {
   const homeDir = temporary("agent-codex-");
   const log = join(homeDir, "rpc.log");
   const store = trackedStore(homeDir);
   const backend = new CodexBackend(config(homeDir), store, client(scenario, { AGENT_FAKE_LOG: log, ...extra }));
-  return { homeDir, log, store, backend, input: turn(store, homeDir, worker) };
+  return { homeDir, log, store, backend, input: turn(store, homeDir) };
 }
 
 describe("Codex turn transport", () => {
@@ -113,25 +110,31 @@ describe("Codex turn transport", () => {
     writeFileSync(generated, "png-data");
     const store = trackedStore(homeDir);
     const backend = new CodexBackend(config(homeDir), store, client("image", { AGENT_FAKE_ARTIFACT: generated }));
-    const events = await collect(backend, turn(store, homeDir, null));
+    const events = await collect(backend, turn(store, homeDir));
     const event = events.find((candidate) => candidate.type === "artifact");
     expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", name: "generated.png", mimeType: "image/png" } });
     expect(event?.type === "artifact" && event.artifact.path).not.toBe(generated);
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
   });
 
-  it.each([
-    ["coding", ["gpt-5.6-sol", "gpt-5.6-luna"], ["workspace-write", "read-only"]],
-    ["astra", ["gpt-6-astra", "gpt-5.6-luna"], ["read-only", "read-only"]],
-  ] as const)("translates the %s worker into app-server settings", async (worker, models, sandboxes) => {
-    const { backend, input, log } = backendFixture("normal", {}, worker);
+  it("uses one Luna turn with a workspace boundary instead of routing through workers", async () => {
+    const { backend, input, log } = backendFixture();
     await collect(backend, input);
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
-    expect(threads.map((request) => request.params.model)).toEqual(models);
-    expect(threads.map((request) => request.params.sandbox)).toEqual(sandboxes);
-    expect(threads.map((request) => request.params.ephemeral)).toEqual([true, false]);
-    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high", "high"]);
+    expect(threads.map((request) => request.params.model)).toEqual(["gpt-5.6-luna"]);
+    expect(threads.map((request) => request.params.sandbox)).toEqual(["workspace-write"]);
+    expect(threads.map((request) => request.params.ephemeral)).toEqual([false]);
+    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high"]);
+  });
+
+  it("keeps sessions without a CLI workspace read-only", async () => {
+    const homeDir = temporary("agent-codex-personal-");
+    const log = join(homeDir, "rpc.log");
+    const store = trackedStore(homeDir);
+    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
+    await collect(backend, turn(store, homeDir, false));
+    expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
   });
 
   it("preserves the runtime session and event contract", async () => {
@@ -178,7 +181,7 @@ describe("Codex turn transport", () => {
   });
 
   it("does not replace a missing Codex thread", async () => {
-    const { backend, input, store, log } = backendFixture("missing-thread", {}, null);
+    const { backend, input, store, log } = backendFixture("missing-thread");
     store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
     await expect(collect(backend, input)).rejects.toThrow("thread not found");
     expect(readFileSync(log, "utf8")).toContain("thread/resume");

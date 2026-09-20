@@ -34,7 +34,7 @@ async function runSetup(
     const seed = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
     if (options.initialBackend) seed.setSetting("backend", options.initialBackend);
     if (options.seedState) {
-      const session = seed.resolveSession({ scopeKey: "project:preserved", kind: "coding", cwd: homeDir, title: "Preserve me" });
+      const session = seed.resolveSession({ scopeKey: "assistant:local", cwd: homeDir, title: "Preserve me" });
       seededSessionId = session.id;
       seed.addMessage(session.id, "user", "Preserved transcript");
       seed.remember("project:preserved", "Preserved memory");

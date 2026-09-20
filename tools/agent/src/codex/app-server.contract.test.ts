@@ -49,8 +49,13 @@ describe("Codex profile and login", () => {
       OPENAI_API_KEY: null,
     });
     expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
-    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe("[agents]\nenabled = false\n");
+    const instructions = join(homeDir, "codex", "instructions.md");
+    expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a quiet, capable assistant");
+    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
+      `model_instructions_file = ${JSON.stringify(instructions)}\n\n[agents]\nenabled = false\n`,
+    );
     expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
+    expect(lstatSync(instructions).mode & 0o777).toBe(0o600);
     const initialized = requests(rpcLog).find((message) => message.method === "initialize");
     expect(initialized?.params.capabilities).toEqual({ experimentalApi: true, requestAttestation: false });
   });

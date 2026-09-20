@@ -20,7 +20,7 @@ Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
 The Telegram background gateway watches Agent's sources, waits until the active reply is delivered, and runs the full check and production build. It then stops its runtime and exits. The macOS user service relaunches the pair, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current process running.
 
-`POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/runs` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, and `channel`. Paths never cross the upload boundary. The runtime resolves and transcribes voice notes through Codex app-server, then decides the work kind, model behavior, tools, memory scope, and final session from the transcript.
+`POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/runs` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, and `channel`. Paths never cross the upload boundary. The runtime resolves voice notes, session continuity, memory, and workspace access before sending one turn through Codex app-server.
 
 The runtime owns one active run globally. Starting another returns `409 busy`. Disconnecting an event subscriber never stops work; only `POST /v1/runs/stop` cancels it. Clients connect to the live feed before accepting input. Events are not buffered or replayed: a client that was disconnected does not receive earlier live output and reloads completed history from SQLite.
 
@@ -36,9 +36,9 @@ All events are backend-neutral. Codex app-server notifications such as agent-mes
 
 ## Orchestration contract
 
-Every Agent session has one persistent `gpt-5.6-luna` coordinator running at high reasoning. Bounded tasks may run first on an isolated Luna-high worker; coding and implementation run on an isolated `gpt-5.6-sol` high worker. Worker output is private working material returned to the coordinator for the single user-facing response.
+Every Agent session is one persistent `gpt-5.6-luna` thread at high reasoning. Personal and coding work use the same prompt, tools, memory, compaction, and event stream. Sessions without a CLI-established workspace are read-only; that workspace persists when Telegram or macOS resumes the session. Agent's private Codex profile disables automatic subagent spawning.
 
-`gpt-6-astra` high is gated by an explicit request for Astra in the current user message and is never selected by automatic routing. Agent's private Codex profile disables Codex-native automatic subagent spawning so ChatGPT and API-key authentication follow this same policy without fallback behavior.
+The private profile replaces Codex's built-in base instructions with Agent's short shared prompt. Per-turn developer instructions contain only the coordinator responsibility and relevant memory. Codex loads project `AGENTS.md` files itself.
 
 ## Codex app-server boundary
 

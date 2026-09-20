@@ -2,11 +2,11 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Attachment, Message, Session, WorkKind } from "./types.js";
+import type { Attachment, Message, Session } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
-const SESSION_COLUMNS = `id, scope_key AS "scopeKey", kind, cwd, title, updated_at AS "updatedAt"`;
+const SESSION_COLUMNS = `id, scope_key AS "scopeKey", cwd, title, updated_at AS "updatedAt"`;
 const ATTACHMENT_COLUMNS = `id, name, mime_type AS "mimeType", size, path`;
 
 export class Store {
@@ -28,7 +28,6 @@ export class Store {
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         scope_key TEXT NOT NULL UNIQUE,
-        kind TEXT NOT NULL CHECK (kind IN ('personal', 'coding')),
         cwd TEXT,
         title TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -95,13 +94,17 @@ export class Store {
   resolveSession(input: {
     sessionId?: string;
     scopeKey: string;
-    kind: WorkKind;
     cwd?: string;
     title?: string;
   }): Session {
     if (input.sessionId) {
       const exact = this.getSession(input.sessionId);
-      if (exact) return exact;
+      if (exact) {
+        const timestamp = now();
+        this.db.prepare("UPDATE sessions SET cwd = COALESCE(?, cwd), updated_at = ? WHERE id = ?")
+          .run(input.cwd ?? null, timestamp, exact.id);
+        return this.getSession(exact.id)!;
+      }
     }
 
     const existing = this.db.prepare(`
@@ -118,9 +121,9 @@ export class Store {
     const timestamp = now();
     const id = randomUUID();
     this.db.prepare(`
-      INSERT INTO sessions (id, scope_key, kind, cwd, title, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, input.scopeKey, input.kind, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
+      INSERT INTO sessions (id, scope_key, cwd, title, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, input.scopeKey, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
     return this.getSession(id)!;
   }
 
@@ -132,8 +135,8 @@ export class Store {
     return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT ?`).all(limit) as unknown as Session[];
   }
 
-  latestSession(kind: WorkKind): Session | null {
-    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE kind = ? ORDER BY updated_at DESC LIMIT 1`).get(kind) as unknown as Session ?? null;
+  latestSession(): Session | null {
+    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT 1`).get() as unknown as Session ?? null;
   }
 
   addMessage(sessionId: string, role: Message["role"], content: string): void {

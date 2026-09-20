@@ -1,17 +1,9 @@
-export type WorkKind = "personal" | "coding";
 export const RUNTIME_PROTOCOL_VERSION = 1;
-export type WorkerKind = "bounded" | "coding" | "astra";
 export type Channel = "cli" | "telegram" | "macos" | "api";
-
-export interface RouteDecision {
-  kind: WorkKind;
-  worker: WorkerKind | null;
-}
 
 export interface Session {
   id: string;
   scopeKey: string;
-  kind: WorkKind;
   cwd: string | null;
   title: string;
   updatedAt: string;

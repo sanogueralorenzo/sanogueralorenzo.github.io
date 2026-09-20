@@ -1,15 +1,9 @@
 import { resolve } from "node:path";
-import { buildInstructions, buildWorkerInstructions } from "./context.js";
+import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
-import { routeTurn } from "./router.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
 import type { RuntimeEvent, TurnRequest } from "./types.js";
-
-function scopeFor(request: TurnRequest, kind: "personal" | "coding"): string {
-  if (kind === "coding" && request.cwd) return `project:${resolve(request.cwd)}`;
-  return "personal:local";
-}
 
 function titleFrom(text: string): string {
   const firstLine = text.trim().split("\n", 1)[0] ?? "New conversation";
@@ -53,16 +47,12 @@ export class AgentRuntime {
     }
     const request: TurnRequest = { ...incoming, text };
     const explicitSession = request.sessionId ? this.store.getSession(request.sessionId) : null;
-    const priorSession = request.fresh ? null : explicitSession ?? this.store.listSessions(1)[0];
-    const route = routeTurn(request, priorSession?.kind);
-    const baseScopeKey = scopeFor(request, route.kind);
+    const priorSession = request.fresh ? null : explicitSession ?? this.store.latestSession();
+    const baseScopeKey = "assistant:local";
     const scopeKey = request.fresh ? `${baseScopeKey}:${Date.now()}` : baseScopeKey;
-    const candidate = explicitSession ?? (!request.cwd ? this.store.latestSession(route.kind) : null);
-    const linked = candidate?.kind === route.kind ? candidate : null;
     const session = this.store.resolveSession({
-      ...(!request.fresh && linked?.id ? { sessionId: linked.id } : {}),
+      ...(!request.fresh && priorSession?.id ? { sessionId: priorSession.id } : {}),
       scopeKey,
-      kind: route.kind,
       ...(request.cwd ? { cwd: resolve(request.cwd) } : {}),
       title: titleFrom(request.text),
     });
@@ -70,16 +60,13 @@ export class AgentRuntime {
 
     this.store.addMessage(session.id, "user", redactSecrets(request.text));
     const runId = this.store.startRun(session.id);
-    const memoryScope = route.kind === "coding" && session.cwd ? `project:${resolve(session.cwd)}` : "personal";
+    const memoryScope = session.cwd ? `project:${resolve(session.cwd)}` : "personal";
     const remembered = explicitMemory(request.text);
     if (remembered && !containsSecret(remembered) && !/\b(api[_ -]?key|password|secret|token)\b/i.test(remembered)) {
       this.store.remember(memoryScope, remembered);
     }
     const memories = this.store.searchMemories(memoryScope, request.text);
-    const instructions = buildInstructions({ session, route, memories });
-    const workerInstructions = route.worker
-      ? buildWorkerInstructions({ session, route, memories, worker: route.worker })
-      : instructions;
+    const instructions = buildInstructions(memories);
     let assistantText = "";
     let lastCheckpointAt = Date.now();
     let lastCheckpointLength = 0;
@@ -88,10 +75,7 @@ export class AgentRuntime {
       for await (const event of this.backend.run({
         request,
         session,
-        route,
         instructions,
-        workerInstructions,
-        memoryScope,
         ...(options.signal ? { signal: options.signal } : {}),
       })) {
         if (event.type === "text_delta") {

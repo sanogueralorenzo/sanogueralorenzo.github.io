@@ -9,9 +9,9 @@ function createStore(): Store {
 describe("Store", () => {
   it("resumes a session by scope and persists its transcript", () => {
     const store = createStore();
-    const first = store.resolveSession({ scopeKey: "project:/tmp/example", kind: "coding", cwd: "/tmp/example" });
+    const first = store.resolveSession({ scopeKey: "assistant:local", cwd: "/tmp/example" });
     store.addMessage(first.id, "user", "hello");
-    const resumed = store.resolveSession({ scopeKey: "project:/tmp/example", kind: "coding", cwd: "/tmp/example" });
+    const resumed = store.resolveSession({ scopeKey: "assistant:local", cwd: "/tmp/example" });
 
     expect(resumed.id).toBe(first.id);
     expect(store.getMessages(first.id)).toMatchObject([{ role: "user", content: "hello" }]);
@@ -31,7 +31,7 @@ describe("Store", () => {
   it("recovers checkpointed output after an unclean runtime stop", () => {
     const path = temporary("agent-store-");
     const first = new Store(path);
-    const session = first.resolveSession({ scopeKey: "personal:local", kind: "personal" });
+    const session = first.resolveSession({ scopeKey: "assistant:local" });
     const run = first.startRun(session.id);
     first.checkpointRun(run, "partial answer");
     first.close();

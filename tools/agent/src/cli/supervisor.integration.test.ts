@@ -12,7 +12,7 @@ afterEach(() => vi.unstubAllEnvs());
 async function verifyReload(watchedFile: string): Promise<void> {
   const homeDir = temporary("agent-hot-reload-");
   const store = new Store(homeDir);
-  const session = store.resolveSession({ scopeKey: `project:${homeDir}`, kind: "coding", cwd: homeDir, title: "Reload-safe session" });
+  const session = store.resolveSession({ scopeKey: "assistant:local", cwd: homeDir, title: "Reload-safe session" });
   store.addMessage(session.id, "user", "Keep this transcript");
   store.remember(`project:${homeDir}`, "Keep this memory");
   store.bindBackendSession(session.id, "codex", "thread-persisted");
