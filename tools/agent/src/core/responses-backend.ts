@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import type { Response, ResponseFunctionToolCall, ResponseInputItem } from "openai/resources/responses/responses";
+import { saveArtifactData } from "./assets.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "./backend.js";
 import type { ModelClient } from "./model.js";
 import type { Store } from "./store.js";
 import { createTools, executeTool, type AgentTool } from "./tools.js";
-import type { RuntimeConfig, WorkerKind } from "./types.js";
+import type { Attachment, RuntimeConfig, WorkerKind } from "./types.js";
 
 function isFunctionCall(item: { type: string }): item is ResponseFunctionToolCall {
   return item.type === "function_call";
@@ -12,6 +13,10 @@ function isFunctionCall(item: { type: string }): item is ResponseFunctionToolCal
 
 function cacheKey(scopeKey: string): string {
   return createHash("sha256").update(`agent:${scopeKey}`).digest("hex").slice(0, 32);
+}
+
+function wantsImage(text: string): boolean {
+  return /\b(?:create|draw|generate|make)\b[\s\S]{0,80}\b(?:image|illustration|picture|logo|icon)\b/i.test(text);
 }
 
 const parallelTools = new Set(["memory_search", "read_file", "list_files", "search_files"]);
@@ -30,6 +35,13 @@ export class ResponsesBackend implements AgentBackend {
     return this.model.isConfigured?.() ?? true;
   }
 
+  async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
+    if (!this.model.transcribeAudio) throw new Error("This OpenAI connection does not support voice transcription.");
+    const transcript = await this.model.transcribeAudio(attachment, signal);
+    if (!transcript) throw new Error("The voice note did not contain recognizable speech.");
+    return transcript;
+  }
+
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
     const workerResult = turn.route.worker ? await this.runWorker(turn, turn.route.worker) : null;
     const instructions = workerResult
@@ -39,6 +51,10 @@ export class ResponsesBackend implements AgentBackend {
       .filter((message) => message.role !== "tool")
       .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }));
     const tools = createTools(this.store, { allowCodeTools: false, allowMemoryWrite: true });
+    const modelTools = [
+      ...tools.map((tool) => tool.definition),
+      ...(wantsImage(turn.request.text) ? [{ type: "image_generation" as const }] : []),
+    ];
 
     for (let round = 0; round < this.config.maxToolRounds; round += 1) {
       if (turn.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
@@ -47,7 +63,7 @@ export class ResponsesBackend implements AgentBackend {
         reasoningEffort: "high",
         instructions,
         input,
-        tools: tools.map((tool) => tool.definition),
+        tools: modelTools,
         promptCacheKey: cacheKey(turn.session.scopeKey),
         ...(turn.signal ? { signal: turn.signal } : {}),
       });
@@ -64,6 +80,17 @@ export class ResponsesBackend implements AgentBackend {
       }
 
       if (!roundText && response.output_text) yield { type: "text_delta", delta: response.output_text };
+      for (const item of response.output) {
+        if (item.type !== "image_generation_call" || !item.result) continue;
+        yield {
+          type: "artifact",
+          artifact: saveArtifactData(this.config.homeDir, {
+            name: `generated-${item.id}.png`,
+            mimeType: "image/png",
+            data: Buffer.from(item.result, "base64"),
+          }),
+        };
+      }
       const calls = response.output.filter(isFunctionCall);
       if (calls.length === 0) {
         yield { type: "done", responseId: response.id };

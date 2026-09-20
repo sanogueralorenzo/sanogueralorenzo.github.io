@@ -18,6 +18,19 @@ export function splitTelegramText(text: string, limit = 4096): string[] {
   return chunks;
 }
 
+export function keepTelegramTyping(send: () => Promise<unknown>, intervalMs = 4_000): () => void {
+  let stopped = false;
+  const pulse = () => {
+    if (!stopped) void send().catch(() => undefined);
+  };
+  pulse();
+  const timer = setInterval(pulse, intervalMs);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
+
 export function pairingHash(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }

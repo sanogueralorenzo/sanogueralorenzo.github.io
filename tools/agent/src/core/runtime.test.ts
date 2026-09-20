@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Response, ResponseInputItem } from "openai/resources/responses/responses";
@@ -83,6 +83,27 @@ class InterruptOnceModel implements ModelClient {
     this.calls += 1;
     if (this.calls === 1) throw new DOMException("Interrupted", "AbortError");
     return textResponse(randomUUID(), this.calls === 2 ? "Worker recovered." : "Recovered.");
+  }
+}
+
+class VoiceModel extends RoutingModel {
+  transcriptions: string[] = [];
+
+  async transcribeAudio(attachment: Parameters<NonNullable<ModelClient["transcribeAudio"]>>[0]): Promise<string> {
+    this.transcriptions.push(attachment.path);
+    return "Fix the TypeScript test";
+  }
+}
+
+class ImageModel implements ModelClient {
+  async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
+    if (request.instructions.includes("internal Luna worker")) return textResponse("worker", "Generate the requested image.");
+    return response("image-response", [{
+      type: "image_generation_call",
+      id: "image-1",
+      status: "completed",
+      result: Buffer.from("png-data").toString("base64"),
+    }]);
   }
 }
 
@@ -210,6 +231,53 @@ describe("AgentRuntime", () => {
       collect(assistant, { text: "hello again", channel: "api" }),
     ]);
     expect(model.maxActive).toBe(1);
+    store.close();
+  });
+
+  it("transcribes runtime-owned audio before routing and persists the transcript", async () => {
+    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
+    paths.push(path);
+    const audioPath = join(path, "voice.ogg");
+    writeFileSync(audioPath, "audio");
+    const store = new Store(path);
+    const model = new VoiceModel();
+    const events = await collect(runtime(path, store, model), {
+      text: "",
+      channel: "telegram",
+      senderId: "42",
+      attachments: [{
+        id: "voice-1",
+        kind: "audio",
+        name: "voice.ogg",
+        mimeType: "audio/ogg",
+        size: 5,
+        path: audioPath,
+        createdAt: new Date(0).toISOString(),
+      }],
+    });
+
+    expect(events[0]).toEqual({ type: "status", message: "Listening…" });
+    expect(events.find((event) => event.type === "session")?.route.kind).toBe("coding");
+    expect(model.calls.map((call) => call.model)).toEqual(["gpt-5.6-sol", "gpt-5.6-luna"]);
+    const session = events.find((event) => event.type === "session")?.session;
+    expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
+    expect(model.transcriptions).toEqual([audioPath]);
+    store.close();
+  });
+
+  it("normalizes Responses image output into the shared artifact event", async () => {
+    const path = mkdtempSync(join(tmpdir(), "agent-runtime-"));
+    paths.push(path);
+    const store = new Store(path);
+    const events = await collect(runtime(path, store, new ImageModel()), {
+      text: "Create an image of a quiet blue horizon",
+      channel: "api",
+    });
+    const event = events.find((candidate) => candidate.type === "artifact");
+
+    expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", mimeType: "image/png" } });
+    expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
+    expect(events.at(-1)?.type).toBe("done");
     store.close();
   });
 });

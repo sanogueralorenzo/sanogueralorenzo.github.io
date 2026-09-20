@@ -1,9 +1,10 @@
 import type { Store } from "./store.js";
-import type { BackendKind, RouteDecision, Session, TurnRequest } from "./types.js";
+import type { Artifact, Attachment, BackendKind, RouteDecision, Session, TurnRequest } from "./types.js";
 
 export type BackendEvent =
   | { type: "status"; message: string }
   | { type: "text_delta"; delta: string }
+  | { type: "artifact"; artifact: Artifact }
   | { type: "tool_start"; name: string; callId: string }
   | { type: "tool_end"; name: string; callId: string; summary: string }
   | { type: "done"; responseId: string | null };
@@ -22,6 +23,7 @@ export interface AgentBackend {
   readonly kind: BackendKind;
   readonly label: string;
   isConfigured(): boolean | Promise<boolean>;
+  transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
   close?(): void | Promise<void>;
 }

@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Memory, Message, Session, WorkKind } from "./types.js";
+import type { Attachment, Memory, Message, Session, WorkKind } from "./types.js";
 
 interface SessionRow {
   id: string;
@@ -30,6 +30,16 @@ interface MemoryRow {
   source_session_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface AttachmentRow {
+  id: string;
+  kind: Attachment["kind"];
+  name: string;
+  mime_type: string;
+  size: number;
+  path: string;
+  created_at: string;
 }
 
 const now = () => new Date().toISOString();
@@ -65,6 +75,18 @@ function toMemory(row: MemoryRow): Memory {
     sourceSessionId: row.source_session_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function toAttachment(row: AttachmentRow): Attachment {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    mimeType: row.mime_type,
+    size: row.size,
+    path: row.path,
+    createdAt: row.created_at,
   };
 }
 
@@ -146,6 +168,15 @@ export class Store {
         updated_at TEXT NOT NULL,
         PRIMARY KEY(session_id, backend),
         UNIQUE(backend, external_id)
+      );
+      CREATE TABLE IF NOT EXISTS attachments (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL CHECK (kind IN ('audio', 'image', 'file')),
+        name TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        path TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
       );
     `);
   }
@@ -308,6 +339,20 @@ export class Store {
       INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
       ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
     `).run(sessionId, backend, externalId, now());
+  }
+
+  addAttachment(input: Omit<Attachment, "createdAt">): Attachment {
+    const timestamp = now();
+    this.db.prepare(`
+      INSERT INTO attachments (id, kind, name, mime_type, size, path, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(input.id, input.kind, input.name, input.mimeType, input.size, input.path, timestamp);
+    return { ...input, createdAt: timestamp };
+  }
+
+  getAttachment(id: string): Attachment | null {
+    const row = this.db.prepare("SELECT * FROM attachments WHERE id = ?").get(id) as AttachmentRow | undefined;
+    return row ? toAttachment(row) : null;
   }
 
   close(): void {

@@ -6,6 +6,7 @@ struct ChatMessage: Identifiable, Equatable {
     let id: UUID
     let role: Role
     var text: String
+    var artifacts: [RuntimeArtifact] = []
 
     enum Role: Equatable { case user, assistant }
 }
@@ -151,6 +152,11 @@ final class AppModel: ObservableObject {
                 case "text_delta":
                     if let index = messages.firstIndex(where: { $0.id == assistantID }) {
                         messages[index].text += event.delta ?? ""
+                    }
+                case "artifact":
+                    if let artifact = event.artifact,
+                       let index = messages.firstIndex(where: { $0.id == assistantID }) {
+                        messages[index].artifacts.append(artifact)
                     }
                 case "tool_start":
                     activity = event.name.map { "Using \($0.replacingOccurrences(of: "_", with: " "))" } ?? "Working"

@@ -1,16 +1,18 @@
 import OpenAI from "openai";
+import { createReadStream } from "node:fs";
 import type {
-  FunctionTool,
   Response,
   ResponseInputItem,
+  Tool,
 } from "openai/resources/responses/responses";
+import type { Attachment } from "./types.js";
 
 export interface ModelRequest {
   model: string;
   reasoningEffort: "high";
   instructions: string;
   input: ResponseInputItem[];
-  tools: FunctionTool[];
+  tools: Tool[];
   promptCacheKey: string;
   signal?: AbortSignal;
 }
@@ -23,6 +25,7 @@ export interface ModelStreamEvent {
 export interface ModelClient {
   isConfigured?(): boolean;
   stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response>;
+  transcribeAudio?(attachment: Attachment, signal?: AbortSignal): Promise<string>;
 }
 
 export class OpenAIModelClient implements ModelClient {
@@ -78,6 +81,16 @@ export class OpenAIModelClient implements ModelClient {
     }
     if (!finalResponse) throw new Error("The OpenAI stream ended before a final response arrived.");
     return finalResponse;
+  }
+
+  async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
+    if (!this.configured) throw new Error("OpenAI is not connected. Run `agent setup` once, then try again.");
+    const transcription = await this.client.audio.transcriptions.create({
+      file: createReadStream(attachment.path),
+      model: "gpt-transcribe",
+      response_format: "json",
+    }, signal ? { signal } : undefined);
+    return transcription.text.trim();
   }
 
 }

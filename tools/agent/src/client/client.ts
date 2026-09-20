@@ -10,6 +10,14 @@ interface Envelope {
   event: RuntimeEvent;
 }
 
+export interface UploadedAttachment {
+  id: string;
+  kind: "audio" | "image" | "file";
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
 export class RuntimeClient {
   constructor(private readonly homeDir: string) {}
 
@@ -63,6 +71,21 @@ export class RuntimeClient {
         boundary = buffer.indexOf("\n\n");
       }
     }
+  }
+
+  async uploadAttachment(input: { name: string; mimeType: string; data: Uint8Array }): Promise<UploadedAttachment> {
+    const { baseUrl, token } = this.connection();
+    const response = await fetch(`${baseUrl}/v1/attachments`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": input.mimeType,
+        "x-agent-filename": encodeURIComponent(input.name),
+      },
+      body: Buffer.from(input.data),
+    });
+    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+    return response.json() as Promise<UploadedAttachment>;
   }
 
   async cancel(requestId: string): Promise<void> {

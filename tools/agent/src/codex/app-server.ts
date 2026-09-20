@@ -141,6 +141,7 @@ export class CodexAppServer {
     try {
       await this.rawRequest("initialize", {
         clientInfo: { name: "agent", title: "Agent", version: "0.5.0" },
+        capabilities: { experimentalApi: true, requestAttestation: false },
       });
       this.notify("initialized", {});
     } catch (error) {

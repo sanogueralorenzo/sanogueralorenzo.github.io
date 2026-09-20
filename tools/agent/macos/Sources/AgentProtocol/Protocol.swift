@@ -20,6 +20,16 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let message: String?
     public let name: String?
     public let session: RuntimeSession?
+    public let artifact: RuntimeArtifact?
+}
+
+public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
+    public let id: String
+    public let kind: String
+    public let name: String
+    public let mimeType: String
+    public let size: Int
+    public let path: String
 }
 
 public struct RuntimeSession: Decodable, Sendable {

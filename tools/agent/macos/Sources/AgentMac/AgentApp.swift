@@ -1,4 +1,5 @@
 import SwiftUI
+import AgentProtocol
 
 @main
 struct AgentApp: App {
@@ -150,11 +151,39 @@ struct MessageView: View {
     var body: some View {
         HStack(alignment: .top) {
             if message.role == .user { Spacer(minLength: 80) }
-            Text(message.text.isEmpty ? "…" : message.text)
-                .textSelection(.enabled)
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(message.role == .user ? Color.accentColor.opacity(0.14) : Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
+            VStack(alignment: .leading, spacing: 10) {
+                if !message.text.isEmpty || message.artifacts.isEmpty {
+                    Text(message.text.isEmpty ? "…" : message.text).textSelection(.enabled)
+                }
+                ForEach(message.artifacts) { artifact in
+                    ArtifactView(artifact: artifact)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(message.role == .user ? Color.accentColor.opacity(0.14) : Color.secondary.opacity(0.09), in: RoundedRectangle(cornerRadius: 14))
             if message.role == .assistant { Spacer(minLength: 80) }
+        }
+    }
+}
+
+struct ArtifactView: View {
+    let artifact: RuntimeArtifact
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if artifact.kind == "image", let image = NSImage(contentsOfFile: artifact.path) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 420, maxHeight: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            Button {
+                NSWorkspace.shared.open(URL(fileURLWithPath: artifact.path))
+            } label: {
+                Label(artifact.name, systemImage: artifact.kind == "image" ? "photo" : "doc")
+            }
+            .buttonStyle(.link)
         }
     }
 }

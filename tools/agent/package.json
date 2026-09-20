@@ -23,8 +23,10 @@
     "macos:run": "swift run --package-path macos AgentMac"
   },
   "dependencies": {
+    "codec-parser": "^2.5.0",
     "grammy": "^1.40.0",
-    "openai": "^6.16.0"
+    "openai": "^6.16.0",
+    "werift": "^0.24.4"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

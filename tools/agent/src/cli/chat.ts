@@ -100,6 +100,9 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
           } else if (event.type === "status") {
             process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.message}`)}\n`);
             wroteText = false;
+          } else if (event.type === "artifact") {
+            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.artifact.name}`)} ${event.artifact.path}\n`);
+            wroteText = false;
           } else if (event.type === "error") {
             process.stdout.write(`${wroteText ? "\n" : ""}${ansi.red(event.message)}\n`);
             wroteText = false;

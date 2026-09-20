@@ -8,6 +8,11 @@ guard envelope.seq == 2,
       envelope.event.delta == "hello" else {
     fatalError("Agent protocol decoding check failed")
 }
+let artifactData = Data(#"{"v":1,"seq":3,"requestId":"r1","event":{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","mimeType":"image/png","size":12,"path":"/tmp/result.png"}}}"#.utf8)
+let artifact = try JSONDecoder().decode(RuntimeEnvelope.self, from: artifactData)
+guard artifact.event.artifact?.name == "result.png" else {
+    fatalError("Agent artifact protocol check failed")
+}
 let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil, requestId: "r1", fresh: true))
 guard String(decoding: request, as: UTF8.self).contains("\"fresh\":true") else {
     fatalError("Agent new-session protocol check failed")

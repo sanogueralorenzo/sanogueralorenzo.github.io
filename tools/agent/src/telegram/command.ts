@@ -2,16 +2,17 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Bot } from "grammy";
+import { Bot, InputFile, type Context } from "grammy";
 import { RuntimeClient } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
 import { isAgentConfigured, readSecretLine, setupAgent } from "../cli/setup.js";
 import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
+import { MAX_ATTACHMENT_BYTES } from "../core/assets.js";
 import { installTelegramBackgroundService } from "./service.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
-import { pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
+import { keepTelegramTyping, pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
 
 interface TelegramState {
   botId: string;
@@ -155,11 +156,14 @@ async function runGateway(token: string): Promise<void> {
     if (!isOwner(ctx.chat.type, ctx.from?.id)) return;
     const requestId = active.get(String(ctx.from?.id));
     if (requestId) await client.cancel(requestId);
-    await ctx.reply(requestId ? "Stopped. Your session is saved." : "Nothing is running.");
+    if (!requestId) await ctx.reply("Nothing is running.");
   });
 
-  bot.on("message:text", async (ctx) => {
-    if (ctx.chat.type !== "private" || ctx.message.text.startsWith("/")) return;
+  const respond = async (
+    ctx: Context,
+    prepare: () => Promise<{ text: string; attachmentIds?: string[] }>,
+  ): Promise<void> => {
+    if (!ctx.chat || !ctx.from || !ctx.message || ctx.chat.type !== "private") return;
     const current = readState(config.homeDir);
     if (current?.ownerId !== String(ctx.from.id)) {
       await ctx.reply("This Agent bot is private.");
@@ -175,45 +179,72 @@ async function runGateway(token: string): Promise<void> {
       return;
     }
     const requestId = `telegram:${ctx.update.update_id}`;
-    let placeholder: { message_id: number } | null = null;
     let output = "";
-    let lastRendered = "Thinking…";
-    let renderChain = Promise.resolve();
-    const scheduleRender = () => {
-      renderChain = renderChain.then(async () => {
-        if (!placeholder) return;
-        const next = output.trim() || "Thinking…";
-        if (next === lastRendered) return;
-        lastRendered = next;
-        await ctx.api.editMessageText(ctx.chat.id, placeholder.message_id, next.slice(-4096)).catch(() => undefined);
-      });
-    };
-    let timer: NodeJS.Timeout | null = null;
+    let runtimeError = "";
+    const artifacts: Array<Extract<RuntimeEvent, { type: "artifact" }>["artifact"]> = [];
+    const stopTyping = keepTelegramTyping(() => ctx.replyWithChatAction("typing"));
     try {
-      placeholder = await ctx.reply("Thinking…", { reply_parameters: { message_id: ctx.message.message_id } });
       active.set(senderId, requestId);
-      timer = setInterval(scheduleRender, 900);
-      await client.chat({ text: ctx.message.text, channel: "telegram", senderId }, (event: RuntimeEvent) => {
+      const input = await prepare();
+      await client.chat({ ...input, channel: "telegram", senderId }, (event: RuntimeEvent) => {
         if (event.type === "text_delta") output += event.delta;
-        if (event.type === "tool_start") void ctx.replyWithChatAction("typing");
-        if (event.type === "error") output += `${output ? "\n\n" : ""}_${event.message}_`;
+        if (event.type === "artifact") artifacts.push(event.artifact);
+        if (event.type === "error") runtimeError = event.message;
       }, requestId);
-      if (timer) clearInterval(timer);
-      await renderChain;
-      const chunks = splitTelegramText(output || "Done.");
-      await ctx.api.editMessageText(ctx.chat.id, placeholder.message_id, chunks[0] ?? "Done.").catch(() => undefined);
-      for (const chunk of chunks.slice(1)) await ctx.reply(chunk);
-    } catch {
-      if (timer) clearInterval(timer);
-      await renderChain;
-      const message = `${output}${output ? "\n\n" : ""}Interrupted. Your session is saved; send another message to continue.`;
-      if (placeholder) await ctx.api.editMessageText(ctx.chat.id, placeholder.message_id, message.slice(-4096)).catch(() => undefined);
-      else await ctx.reply("I could not start that response. Agent is reconnecting; please try again.").catch(() => undefined);
+      stopTyping();
+      const finalText = [output.trim(), runtimeError].filter(Boolean).join("\n\n");
+      const chunks = finalText ? splitTelegramText(finalText) : [];
+      if (chunks[0]) {
+        await ctx.reply(chunks[0], { reply_parameters: { message_id: ctx.message.message_id } });
+        for (const chunk of chunks.slice(1)) await ctx.reply(chunk);
+      }
+      for (const artifact of artifacts) {
+        const options = chunks.length === 0
+          ? { reply_parameters: { message_id: ctx.message.message_id } }
+          : {};
+        if (artifact.kind === "image") await ctx.replyWithPhoto(new InputFile(artifact.path), options);
+        else await ctx.replyWithDocument(new InputFile(artifact.path, artifact.name), options);
+      }
+      if (chunks.length === 0 && artifacts.length === 0) {
+        await ctx.reply("Done.", { reply_parameters: { message_id: ctx.message.message_id } });
+      }
+    } catch (error) {
+      stopTyping();
+      const message = output.trim()
+        ? `${output.trim()}\n\nInterrupted. Your session is saved; send another message to continue.`
+        : error instanceof Error && /25 MB/.test(error.message)
+          ? error.message
+          : "I could not finish that response. Your session is saved; please try again.";
+      await ctx.reply(message, { reply_parameters: { message_id: ctx.message.message_id } }).catch(() => undefined);
     } finally {
-      if (timer) clearInterval(timer);
+      stopTyping();
       active.delete(senderId);
       updater.endTurn();
     }
+  };
+
+  bot.on("message:text", async (ctx) => {
+    if (ctx.chat.type !== "private" || ctx.message.text.startsWith("/")) return;
+    await respond(ctx, async () => ({ text: ctx.message.text }));
+  });
+
+  bot.on("message:voice", async (ctx) => {
+    await respond(ctx, async () => {
+      const voice = ctx.message.voice;
+      if (voice.file_size && voice.file_size > MAX_ATTACHMENT_BYTES) throw new Error("Voice note exceeds the 25 MB limit.");
+      const file = await bot.api.getFile(voice.file_id);
+      if (!file.file_path) throw new Error("Telegram did not provide the voice note.");
+      const response = await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`);
+      if (!response.ok) throw new Error("Telegram could not download the voice note.");
+      const data = new Uint8Array(await response.arrayBuffer());
+      if (data.byteLength > MAX_ATTACHMENT_BYTES) throw new Error("Voice note exceeds the 25 MB limit.");
+      const attachment = await client.uploadAttachment({
+        name: `voice-${voice.file_unique_id}.ogg`,
+        mimeType: voice.mime_type ?? "audio/ogg",
+        data,
+      });
+      return { text: "", attachmentIds: [attachment.id] };
+    });
   });
 
   bot.catch((error) => console.error(`Telegram gateway error: ${error.message.replaceAll(token, "[redacted]")}`));

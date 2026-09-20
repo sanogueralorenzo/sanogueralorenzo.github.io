@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { TELEGRAM_PAIRING_TTL_MS, pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { keepTelegramTyping, TELEGRAM_PAIRING_TTL_MS, pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
+afterEach(() => vi.useRealTimers());
 
 describe("Telegram helpers", () => {
   it("splits long messages without losing text", () => {
@@ -19,5 +20,17 @@ describe("Telegram helpers", () => {
 
     expect(TELEGRAM_PAIRING_TTL_MS).toBe(180_000);
     expect(pairingExpiresAt(now)).toBe("2026-09-19T12:03:00.000Z");
+  });
+
+  it("keeps the activity indicator alive without publishing draft text", async () => {
+    vi.useFakeTimers();
+    const send = vi.fn(async () => undefined);
+    const stop = keepTelegramTyping(send, 4_000);
+    expect(send).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(8_100);
+    expect(send).toHaveBeenCalledTimes(3);
+    stop();
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(send).toHaveBeenCalledTimes(3);
   });
 });

@@ -41,8 +41,10 @@ describe("RuntimeServer", () => {
       codexCommand: "codex",
     };
     const store = new Store(homeDir);
+    let receivedTurn: Record<string, unknown> | undefined;
     const runtime = {
-      async *run(): AsyncGenerator<RuntimeEvent> {
+      async *run(turn: Record<string, unknown>): AsyncGenerator<RuntimeEvent> {
+        receivedTurn = turn;
         yield { type: "status", message: "ready" };
         yield { type: "text_delta", delta: "hello" };
         yield { type: "done", sessionId: "session", responseId: "response" };
@@ -54,15 +56,32 @@ describe("RuntimeServer", () => {
 
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
+    const uploaded = await fetch(`http://127.0.0.1:${port}/v1/attachments`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${discovery.token}`,
+        "content-type": "audio/ogg",
+        "x-agent-filename": encodeURIComponent("voice note.ogg"),
+      },
+      body: Buffer.from("voice-data"),
+    });
+    expect(uploaded.status).toBe(201);
+    const attachment = await uploaded.json() as { id: string; path?: string };
+    expect(attachment.path).toBeUndefined();
     const streamed = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
       method: "POST",
       headers: { authorization: `Bearer ${discovery.token}`, "content-type": "application/json" },
-      body: JSON.stringify({ text: "hello", requestId: "test-request", channel: "api" }),
+      body: JSON.stringify({ text: "hello", attachmentIds: [attachment.id], requestId: "test-request", channel: "api" }),
     });
     const body = await streamed.text();
     expect(streamed.headers.get("content-type")).toContain("text/event-stream");
     expect(body).toContain('"type":"text_delta","delta":"hello"');
     expect(body).toContain('"type":"done"');
+    expect(receivedTurn).toMatchObject({
+      text: "hello",
+      attachmentIds: [attachment.id],
+      attachments: [{ id: attachment.id, kind: "audio", name: "voice note.ogg", mimeType: "audio/ogg" }],
+    });
 
     await server.close();
     store.close();

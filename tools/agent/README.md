@@ -27,7 +27,7 @@ Setup offers browser, headless device-code, and API-key connection. Use `agent c
 agent telegram setup
 ```
 
-Telegram reuses the existing Agent connection, pairs one private account through a three-minute link, and installs **Agent** as a macOS user service. The Mac must remain online.
+Telegram reuses the existing Agent connection, accepts text or voice notes, pairs one private account through a three-minute link, and installs **Agent** as a macOS user service. The Mac must remain online.
 
 ## macOS
 

@@ -5,9 +5,11 @@ const scenario = process.env.AGENT_FAKE_SCENARIO ?? "normal";
 const marker = process.env.AGENT_FAKE_MARKER;
 const log = process.env.AGENT_FAKE_LOG;
 const envLog = process.env.AGENT_FAKE_ENV_LOG;
+const artifactPath = process.env.AGENT_FAKE_ARTIFACT;
 const lines = readline.createInterface({ input: process.stdin });
 let threadCounter = 0;
 let turnCounter = 0;
+let realtimeTranscriptSent = false;
 
 if (envLog) writeFileSync(envLog, JSON.stringify({
   CODEX_HOME: process.env.CODEX_HOME ?? null,
@@ -34,6 +36,16 @@ const allowedLimits = {
 };
 
 function completeTurn(threadId, turnId) {
+  if (scenario === "image" && artifactPath) {
+    send({ method: "item/started", params: {
+      threadId, turnId, startedAtMs: Date.now(),
+      item: { type: "imageGeneration", id: "image-1", status: "inProgress" },
+    } });
+    send({ method: "item/completed", params: {
+      threadId, turnId, completedAtMs: Date.now(),
+      item: { type: "imageGeneration", id: "image-1", status: "completed", savedPath: artifactPath },
+    } });
+  }
   send({ method: "item/started", params: {
     threadId, turnId, startedAtMs: Date.now(),
     item: { type: "commandExecution", id: "tool-1", command: "pwd", cwd: process.cwd(), status: "inProgress" },
@@ -155,6 +167,27 @@ lines.on("line", (line) => {
       threadId: params.threadId,
       turn: { id: params.turnId, status: "interrupted", items: [], itemsView: "full", error: null },
     } });
+    return;
+  }
+  if (method === "thread/realtime/start") {
+    send({ id, result: {} });
+    send({ method: "thread/realtime/started", params: { threadId: params.threadId, sessionId: "realtime-1" } });
+    send({ method: "thread/realtime/sdp", params: { threadId: params.threadId, sdp: "fake-answer" } });
+    if (!realtimeTranscriptSent) {
+      realtimeTranscriptSent = true;
+      setTimeout(() => send({
+        method: "thread/realtime/transcript/done",
+        params: { threadId: params.threadId, role: "user", text: "Hello from Codex." },
+      }), 5);
+    }
+    return;
+  }
+  if (method === "thread/realtime/appendAudio") {
+    send({ id, result: {} });
+    return;
+  }
+  if (method === "thread/realtime/stop") {
+    send({ id, result: {} });
     return;
   }
   send({ id, error: { code: -32601, message: `unsupported fake method: ${method}` } });

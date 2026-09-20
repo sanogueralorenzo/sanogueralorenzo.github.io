@@ -1,4 +1,4 @@
-import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,6 +95,10 @@ describe("Codex app-server contract", () => {
     expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
     expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe("[agents]\nenabled = false\n");
     expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
+    const initialized = readFileSync(rpcLog, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> })
+      .find((message) => message.method === "initialize");
+    expect(initialized?.params.capabilities).toEqual({ experimentalApi: true, requestAttestation: false });
     await appServer.beginLogin("browser");
     await appServer.beginLogin("headless");
     const loginRequests = readFileSync(rpcLog, "utf8").trim().split("\n")
@@ -202,6 +206,61 @@ describe("Codex app-server contract", () => {
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
     expect(store.backendSession(turn(store, homeDir).session.id, "codex")).toBe("thread-2");
+    await backend.close();
+    store.close();
+  });
+
+  it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
+    const homeDir = temp("agent-codex-voice-");
+    const log = join(homeDir, "rpc.log");
+    const audioPath = join(homeDir, "voice.ogg");
+    writeFileSync(audioPath, Buffer.from("T2dnUwACAAAAAAAAAAA4TQibAAAAABbLz/IBE09wdXNIZWFkAQE4AYC7AAAAAABPZ2dTAAAAAAAAAAAAADhNCJsBAAAACYU5GQE8T3B1c1RhZ3MMAAAATGF2ZjYzLjEuMTAyAQAAABwAAABlbmNvZGVyPUxhdmM2My4xLjEwMiBsaWJvcHVzT2dnUwAEuAgAAAAAAAA4TQibAgAAAASvZ7YDDRYOCINtgtAc/epJ/gE/wAinGl2KmC5fbwXLShrtt/PI1gXBXsAIBm0zkArsfUCzkSIpxA==", "base64"));
+    const store = new Store(homeDir);
+    const accepted: string[] = [];
+    const sent: number[] = [];
+    const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }), () => ({
+      offer: async () => "fake-offer",
+      accept: async (sdp) => { accepted.push(sdp); },
+      sendAudio: async (audio) => { sent.push(audio.frames.length); },
+      close: async () => undefined,
+    }));
+
+    await expect(backend.transcribeAudio({
+      id: "voice-1", kind: "audio", name: "voice.ogg", mimeType: "audio/ogg",
+      size: 214, path: audioPath, createdAt: new Date(0).toISOString(),
+    })).resolves.toBe("Hello from Codex.");
+
+    const requests = readFileSync(log, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
+    expect(requests.some((request) => request.method === "turn/start")).toBe(false);
+    expect(requests.find((request) => request.method === "thread/realtime/start")?.params).toMatchObject({
+      outputModality: "audio",
+      includeStartupContext: false,
+      clientManagedHandoffs: true,
+      version: "v3",
+      transport: { type: "webrtc", sdp: "fake-offer" },
+    });
+    expect(accepted).toEqual(["fake-answer"]);
+    expect(sent[0]).toBeGreaterThan(0);
+    expect(requests.some((request) => request.method === "thread/realtime/appendAudio")).toBe(false);
+    expect(requests.at(-1)?.method).toBe("thread/realtime/stop");
+    expect(readFileSync(log, "utf8")).not.toContain("OPENAI_API_KEY");
+    await backend.close();
+    store.close();
+  });
+
+  it("copies generated images into one backend-neutral artifact event", async () => {
+    const homeDir = temp("agent-codex-artifact-");
+    const generated = join(homeDir, "generated.png");
+    writeFileSync(generated, "png-data");
+    const store = new Store(homeDir);
+    const backend = new CodexBackend(config(homeDir), store, client("image", { AGENT_FAKE_ARTIFACT: generated }));
+    const events = await collect(backend, turn(store, homeDir, null));
+    const event = events.find((candidate) => candidate.type === "artifact");
+
+    expect(event).toMatchObject({ type: "artifact", artifact: { kind: "image", name: "generated.png", mimeType: "image/png" } });
+    expect(event?.type === "artifact" && event.artifact.path).not.toBe(generated);
+    expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
     await backend.close();
     store.close();
   });

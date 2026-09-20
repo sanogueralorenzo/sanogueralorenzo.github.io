@@ -35,7 +35,43 @@ export class AgentRuntime {
     private readonly backends: BackendRegistry,
   ) {}
 
-  async *run(request: TurnRequest, options: RunOptions = {}): AsyncGenerator<RuntimeEvent> {
+  async *run(incoming: TurnRequest, options: RunOptions = {}): AsyncGenerator<RuntimeEvent> {
+    let backend;
+    try {
+      backend = await this.backends.resolve();
+    } catch (error) {
+      yield { type: "error", message: error instanceof Error ? error.message : String(error), recoverable: true };
+      return;
+    }
+
+    const audio = incoming.attachments?.filter((attachment) => attachment.kind === "audio") ?? [];
+    let text = incoming.text.trim();
+    try {
+      for (const attachment of audio) {
+        yield { type: "status", message: "Listening…" };
+        const transcript = await backend.transcribeAudio(attachment, options.signal);
+        text = [text, transcript].filter(Boolean).join("\n\n");
+      }
+    } catch (error) {
+      const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
+      yield {
+        type: "error",
+        message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
+        recoverable: true,
+      };
+      return;
+    }
+    if (!text) {
+      yield { type: "error", message: "The message is empty.", recoverable: true };
+      return;
+    }
+    const request: TurnRequest = {
+      ...incoming,
+      text,
+      ...(incoming.attachments
+        ? { attachments: incoming.attachments.filter((attachment) => attachment.kind !== "audio") }
+        : {}),
+    };
     const explicitSession = request.sessionId ? this.store.getSession(request.sessionId) : null;
     const gatewayLinked = request.channel === "telegram" && request.senderId
       ? this.store.gatewaySession("telegram", request.senderId)
@@ -62,13 +98,6 @@ export class AgentRuntime {
       this.store.linkGateway("telegram", request.senderId, session.id);
     }
 
-    let backend;
-    try {
-      backend = await this.backends.resolve();
-    } catch (error) {
-      yield { type: "error", message: error instanceof Error ? error.message : String(error), recoverable: true };
-      return;
-    }
     const modelName = this.config.models.coordinator;
     yield { type: "session", session, route, model: modelName, backend: backend.kind };
 
@@ -113,6 +142,8 @@ export class AgentRuntime {
           yield event;
         } else if (event.type === "done") {
           responseId = event.responseId;
+        } else if (event.type === "artifact") {
+          yield event;
         } else {
           yield event;
         }

@@ -9,6 +9,7 @@ import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js"
 import type { BackendKind } from "../core/types.js";
 import type { CodexLoginMode, CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
 import type { SetupStatus } from "../setup/service.js";
+import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../core/assets.js";
 
 interface Discovery {
   protocolVersion: 1;
@@ -42,6 +43,18 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
   }
   if (chunks.length === 0) return {};
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+}
+
+async function readBytes(request: IncomingMessage, limit: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.from(chunk);
+    size += buffer.length;
+    if (size > limit) throw new Error("Attachment exceeds the 25 MB limit.");
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks);
 }
 
 export class RuntimeServer {
@@ -181,6 +194,26 @@ export class RuntimeServer {
         setImmediate(this.onRestart);
         return;
       }
+      if (request.method === "POST" && url.pathname === "/v1/attachments") {
+        const encodedName = request.headers["x-agent-filename"];
+        const rawName = Array.isArray(encodedName) ? encodedName[0] : encodedName;
+        if (!rawName) throw new Error("x-agent-filename is required");
+        const name = decodeURIComponent(rawName);
+        const mimeType = String(request.headers["content-type"] ?? "application/octet-stream").split(";", 1)[0]!.trim();
+        const attachment = saveAttachment(this.config.homeDir, this.store, {
+          name,
+          mimeType,
+          data: await readBytes(request, MAX_ATTACHMENT_BYTES),
+        });
+        json(response, 201, {
+          id: attachment.id,
+          kind: attachment.kind,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          size: attachment.size,
+        });
+        return;
+      }
       if (request.method === "POST" && url.pathname === "/v1/chat") {
         if (this.restarting) {
           json(response, 503, { error: "runtime_restarting" });
@@ -199,8 +232,22 @@ export class RuntimeServer {
   private async chat(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const body = await readJson(request);
     const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (!text) {
-      json(response, 400, { error: "text is required" });
+    if (body.attachmentIds !== undefined && (
+      !Array.isArray(body.attachmentIds)
+      || body.attachmentIds.length > 8
+      || !body.attachmentIds.every((id) => typeof id === "string" && id.length > 0)
+    )) {
+      json(response, 400, { error: "attachmentIds must contain at most 8 IDs" });
+      return;
+    }
+    const attachmentIds = (body.attachmentIds ?? []) as string[];
+    if (!text && attachmentIds.length === 0) {
+      json(response, 400, { error: "text or an attachment is required" });
+      return;
+    }
+    const attachments = attachmentIds.map((id) => this.store.getAttachment(id));
+    if (attachments.some((attachment) => !attachment)) {
+      json(response, 400, { error: "attachment not found" });
       return;
     }
     const requestId = typeof body.requestId === "string" ? body.requestId.trim() : "";
@@ -237,6 +284,7 @@ export class RuntimeServer {
     };
     const turn: TurnRequest = {
       text,
+      ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
       ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
       ...(typeof body.sessionId === "string" ? { sessionId: body.sessionId } : {}),
       ...(body.fresh === true ? { fresh: true } : {}),

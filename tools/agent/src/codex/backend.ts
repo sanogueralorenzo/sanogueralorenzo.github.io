@@ -1,9 +1,12 @@
 import type { AgentBackend, BackendEvent, BackendTurn } from "../core/backend.js";
 import type { Store } from "../core/store.js";
-import type { RuntimeConfig } from "../core/types.js";
+import type { Attachment, RuntimeConfig } from "../core/types.js";
+import { saveArtifactPath } from "../core/assets.js";
+import { readVoiceNote } from "../core/audio.js";
 import { randomUUID } from "node:crypto";
 import { CodexAppServer, CodexDisconnectedError, CodexRpcError } from "./app-server.js";
 import type { CodexRateLimits, JsonRpcMessage } from "./protocol.js";
+import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
 
 export class CodexAuthenticationError extends Error {
   constructor(message = "Your ChatGPT session has expired. Run `agent setup` to reconnect it.") {
@@ -101,6 +104,7 @@ export class CodexBackend implements AgentBackend {
     private readonly config: RuntimeConfig,
     private readonly store: Store,
     readonly client: CodexAppServer,
+    private readonly createRealtimePeer: () => RealtimePeer = () => new NodeRealtimePeer(),
   ) {}
 
   async isConfigured(): Promise<boolean> {
@@ -111,6 +115,22 @@ export class CodexBackend implements AgentBackend {
     } catch {
       return false;
     }
+  }
+
+  async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
+    await this.preflight();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await this.transcribeOnce(attachment, signal);
+      } catch (error) {
+        if (error instanceof CodexDisconnectedError && attempt === 0) {
+          await this.client.restart();
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new CodexDisconnectedError();
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
@@ -220,6 +240,12 @@ export class CodexBackend implements AgentBackend {
           if (name && typeof item.id === "string") {
             yield { type: "tool_end", name, callId: item.id, summary: itemSummary(item) };
           }
+          if (item.type === "imageGeneration" && typeof item.savedPath === "string") {
+            yield {
+              type: "artifact",
+              artifact: saveArtifactPath(this.config.homeDir, { path: item.savedPath }),
+            };
+          }
           continue;
         }
         if (message.method === "error" && params.willRetry !== true) {
@@ -259,6 +285,77 @@ export class CodexBackend implements AgentBackend {
       }
     }
     throw new CodexDisconnectedError();
+  }
+
+  private async transcribeOnce(attachment: Attachment, signal?: AbortSignal): Promise<string> {
+    const audio = await readVoiceNote(attachment);
+    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
+      model: this.config.models.coordinator,
+      cwd: this.config.homeDir,
+      approvalPolicy: "never",
+      sandbox: "read-only",
+      ephemeral: true,
+      threadSource: "appServer",
+    });
+    const threadId = started.thread.id;
+    const queue = new NotificationQueue();
+    const unsubscribe = this.client.onNotification((message) => queue.push(message));
+    const timeout = AbortSignal.timeout(45_000);
+    const combinedSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    const peer = this.createRealtimePeer();
+
+    try {
+      const offer = await peer.offer();
+      await this.client.request("thread/realtime/start", {
+        threadId,
+        outputModality: "audio",
+        includeStartupContext: false,
+        clientManagedHandoffs: true,
+        flushTranscriptTailOnSessionEnd: true,
+        realtimeStartInstructions: "Transcribe the user's speech accurately.",
+        version: "v3",
+        transport: { type: "webrtc", sdp: offer },
+      });
+      while (true) {
+        const message = await queue.next(combinedSignal);
+        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
+        const params = record(message.params);
+        if (params.threadId !== threadId) continue;
+        if (message.method === "thread/realtime/sdp" && typeof params.sdp === "string") {
+          await peer.accept(params.sdp);
+          break;
+        }
+        if (message.method === "thread/realtime/error") {
+          throw new Error(typeof params.message === "string" ? params.message : "Voice transcription failed.");
+        }
+      }
+      await peer.sendAudio(audio, combinedSignal);
+
+      while (true) {
+        const message = await queue.next(combinedSignal);
+        if (message.method === "agent/disconnected") throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
+        const params = record(message.params);
+        if (params.threadId !== threadId) continue;
+        if (message.method === "thread/realtime/transcript/done" && params.role === "user" && typeof params.text === "string") {
+          const transcript = params.text.trim();
+          if (!transcript) throw new Error("The voice note did not contain recognizable speech.");
+          return transcript;
+        }
+        if (message.method === "thread/realtime/error") {
+          throw new Error(typeof params.message === "string" ? params.message : "Voice transcription failed.");
+        }
+        if (message.method === "thread/realtime/closed") {
+          throw new Error("Voice transcription ended before a transcript was ready.");
+        }
+      }
+    } catch (error) {
+      if (timeout.aborted && !signal?.aborted) throw new Error("Voice transcription timed out.");
+      throw error;
+    } finally {
+      await this.client.request("thread/realtime/stop", { threadId }).catch(() => undefined);
+      await peer.close().catch(() => undefined);
+      unsubscribe();
+    }
   }
 
   private async runWorkerOnce(turn: BackendTurn): Promise<string> {
