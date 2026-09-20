@@ -22,16 +22,8 @@ interface SelfUpdateOptions {
   debounceMs?: number;
 }
 
-function readState(homeDir: string): UpdateState | null {
-  return readPrivateJson(join(homeDir, UPDATE_STATE));
-}
-
-function writeState(homeDir: string, state: UpdateState): void {
-  writePrivateJson(join(homeDir, UPDATE_STATE), state);
-}
-
 export function pendingUpdateOwner(homeDir: string): string | null {
-  return readState(homeDir)?.notificationOwnerId ?? null;
+  return readPrivateJson<UpdateState>(join(homeDir, UPDATE_STATE))?.notificationOwnerId ?? null;
 }
 
 export function acknowledgeUpdate(homeDir: string): void {
@@ -59,7 +51,6 @@ async function verifyAgent(projectRoot: string, signal: AbortSignal): Promise<vo
 
 export class TelegramSelfUpdate {
   private watcher: FSWatcher | null = null;
-  private readonly debounceMs: number;
   private activeTurns = 0;
   private dirty = false;
   private applying = false;
@@ -67,9 +58,7 @@ export class TelegramSelfUpdate {
   private timer: NodeJS.Timeout | null = null;
   private verifyController: AbortController | null = null;
 
-  constructor(private readonly options: SelfUpdateOptions) {
-    this.debounceMs = options.debounceMs ?? 500;
-  }
+  constructor(private readonly options: SelfUpdateOptions) {}
 
   start(): void {
     this.watcher = watch(this.options.projectRoot, { recursive: true }, (_event, filename) => {
@@ -85,7 +74,7 @@ export class TelegramSelfUpdate {
   }
 
   endTurn(): void {
-    this.activeTurns = Math.max(0, this.activeTurns - 1);
+    this.activeTurns -= 1;
     this.schedule();
   }
 
@@ -108,7 +97,7 @@ export class TelegramSelfUpdate {
     this.timer = setTimeout(() => {
       this.timer = null;
       void this.apply();
-    }, this.debounceMs);
+    }, this.options.debounceMs ?? 500);
   }
 
   private async apply(): Promise<void> {
@@ -120,7 +109,7 @@ export class TelegramSelfUpdate {
       await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
       if (this.dirty) return;
       const ownerId = this.options.ownerId();
-      if (ownerId) writeState(this.options.homeDir, { notificationOwnerId: ownerId });
+      if (ownerId) writePrivateJson(join(this.options.homeDir, UPDATE_STATE), { notificationOwnerId: ownerId });
       await this.options.stopGateway();
     } catch (error) {
       if (this.stopped) return;
