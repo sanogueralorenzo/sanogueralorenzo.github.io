@@ -18,7 +18,7 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
-The Telegram background gateway watches Agent's sources, waits until the active reply is delivered, and runs the full check and production build. It then stops its runtime and exits. The macOS user service relaunches the pair, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current process running.
+The production build writes `dist/.ready` only after compilation and packaging complete. The Telegram gateway watches that marker, waits until any active reply is delivered, then exits quietly. Its macOS user service relaunches it against the same runtime and SQLite-backed sessions. An incomplete build writes no marker and leaves the current gateway running.
 
 `POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/runs` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, and `channel`. Paths never cross the upload boundary. The runtime resolves voice notes, session continuity, memory, and workspace access before sending one turn through Codex app-server.
 
