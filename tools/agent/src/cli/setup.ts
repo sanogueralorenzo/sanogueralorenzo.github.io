@@ -46,23 +46,17 @@ export async function readSecretLine(prompt: string): Promise<string> {
 function openBrowser(url: string): boolean {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "rundll32" : "xdg-open";
   const args = process.platform === "win32" ? ["url.dll,FileProtocolHandler", url] : [url];
-  try {
-    const result = spawnSync(command, args, { stdio: "ignore" });
-    return !result.error && result.status === 0;
-  } catch {
-    return false;
-  }
+  const result = spawnSync(command, args, { stdio: "ignore" });
+  return !result.error && result.status === 0;
 }
 
 async function apiKeySetup(service: BackendSetupService, alreadyConfigured = false): Promise<void> {
-  if (alreadyConfigured) {
-    await service.selectBackend("responses");
-    console.log("Connect Success");
-    return;
+  if (alreadyConfigured) await service.selectBackend("responses");
+  else {
+    const key = await readSecretLine("OpenAI API key: ");
+    if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
+    await service.setOpenAIKey(key);
   }
-  const key = await readSecretLine("OpenAI API key: ");
-  if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
-  await service.setOpenAIKey(key);
   console.log("Connect Success");
 }
 
@@ -81,10 +75,9 @@ async function chooseDefault(): Promise<SetupChoice> {
   SETUP_CHOICES.forEach((choice, index) => console.log(`${index + 1}. ${choice.label}`));
   const answer = (await rl.question(SETUP_PROMPT)).trim();
   rl.close();
-  if (answer === "" || answer === "1") return "browser";
-  if (answer === "2") return "headless";
-  if (answer === "3") return "api";
-  throw new Error("Choose 1, 2, or 3.");
+  const choice = SETUP_CHOICES[Number(answer || "1") - 1]?.id;
+  if (!choice) throw new Error("Choose 1, 2, or 3.");
+  return choice;
 }
 
 function createSetupContext() {
@@ -98,7 +91,7 @@ function createSetupContext() {
     codex,
     (key) => { writeSecret("openai", key, config.homeDir); },
   );
-  return { config, store, codex, service };
+  return { store, codex, service };
 }
 
 export async function isAgentConfigured(): Promise<boolean> {
@@ -112,23 +105,21 @@ export async function isAgentConfigured(): Promise<boolean> {
 }
 
 export async function setupAgent(args: string[] = []): Promise<void> {
-  const unknown = args.filter((arg) => arg !== "--chatgpt" && arg !== "--headless" && arg !== "--api-key");
-  if (unknown.length > 0) throw new Error(`Unknown setup option: ${unknown[0]}`);
-  const forcedChoices = [args.includes("--chatgpt"), args.includes("--headless"), args.includes("--api-key")]
-    .filter(Boolean).length;
-  if (forcedChoices > 1) {
+  const flags = { "--chatgpt": "browser", "--headless": "headless", "--api-key": "api" } as const;
+  const unknown = args.find((arg) => !(arg in flags));
+  if (unknown) throw new Error(`Unknown setup option: ${unknown}`);
+  const requested = args.map((arg) => flags[arg as keyof typeof flags]);
+  if (new Set(requested).size > 1) {
     throw new Error("Choose exactly one setup method: browser, headless device, or API key.");
   }
 
-  const { config, store, codex, service } = createSetupContext();
+  const { store, codex, service } = createSetupContext();
 
   try {
     console.log("\nConnect Agent\n");
     const before = await service.status();
 
-    const choice: SetupChoice = args.includes("--api-key")
-      ? "api"
-      : args.includes("--headless") ? "headless" : args.includes("--chatgpt") ? "browser" : await chooseDefault();
+    const choice: SetupChoice = requested[0] ?? await chooseDefault();
     if (choice === "api") {
       await apiKeySetup(service, before.openAIConfigured);
       return;
