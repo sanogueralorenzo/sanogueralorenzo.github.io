@@ -218,7 +218,7 @@ export async function runTelegramCommand(args: string[]): Promise<void> {
   const token = args[0] === "setup" ? await setupTelegram() : readSecret("telegram", config.homeDir);
   if (!token) throw new Error("Telegram is not connected. Run `a1r telegram setup`.");
   try {
-    installTelegramBackgroundService(config);
+    await installTelegramBackgroundService(config);
     console.log("A1R Telegram is running in the background.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

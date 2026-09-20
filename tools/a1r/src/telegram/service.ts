@@ -103,9 +103,26 @@ function executablePath(command: string): string {
   return command;
 }
 
-export function installTelegramBackgroundService(
+function serviceIsLoaded(service: string): boolean {
+  try {
+    execFileSync("/bin/launchctl", ["print", service], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForServiceUnload(service: string): Promise<void> {
+  const deadline = Date.now() + 3_000;
+  while (serviceIsLoaded(service)) {
+    if (Date.now() >= deadline) throw new Error("A1R timed out while replacing the previous Telegram background service.");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
+export async function installTelegramBackgroundService(
   config: Pick<RuntimeConfig, "homeDir" | "codexCommand">,
-): void {
+): Promise<void> {
   if (process.platform !== "darwin") throw new Error("The A1R Telegram background service currently requires macOS.");
   if (typeof process.getuid !== "function") throw new Error("A1R could not determine the current macOS user.");
 
@@ -153,6 +170,7 @@ export function installTelegramBackgroundService(
   } catch {
     // The service is not loaded on first setup.
   }
+  await waitForServiceUnload(service);
   try {
     execFileSync("/bin/launchctl", ["bootstrap", domain, plistPath], { stdio: "ignore" });
     execFileSync("/bin/launchctl", ["kickstart", "-k", service], { stdio: "ignore" });
