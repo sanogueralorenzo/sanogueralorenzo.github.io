@@ -1,6 +1,6 @@
 # Local protocol
 
-Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically writes `~/.agent/runtime.json` with protocol version `4`, its port, PID, and a random bearer token. The file is mode 0600 and regenerated at every start.
+Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically writes `~/.agent/runtime.json` with protocol version `1`, its port, PID, and a random bearer token. The file is mode 0600 and regenerated at every start.
 
 ## Endpoints
 

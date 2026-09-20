@@ -44,7 +44,7 @@ public actor RuntimeClient {
             throw RuntimeClientError.notRunning
         }
         let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
-        guard discovery.protocolVersion == 4,
+        guard discovery.protocolVersion == 1,
               let baseURL = URL(string: "http://127.0.0.1:\(discovery.port)") else {
             throw RuntimeClientError.incompatible
         }

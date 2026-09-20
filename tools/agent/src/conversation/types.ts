@@ -1,5 +1,5 @@
 export type WorkKind = "personal" | "coding";
-export const RUNTIME_PROTOCOL_VERSION = 4;
+export const RUNTIME_PROTOCOL_VERSION = 1;
 export type WorkerKind = "bounded" | "coding" | "astra";
 export type BackendKind = "codex" | "responses";
 export type Channel = "cli" | "telegram" | "macos" | "api";
