@@ -5,7 +5,6 @@ export type BackendKind = "codex" | "responses";
 export interface RouteDecision {
   kind: WorkKind;
   worker: WorkerKind | null;
-  reasons: string[];
 }
 
 export interface Session {

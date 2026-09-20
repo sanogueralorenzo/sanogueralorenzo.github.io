@@ -38,6 +38,7 @@ export class AgentRuntime {
 
   async *run(incoming: TurnRequest, options: RunOptions = {}): AsyncGenerator<RuntimeEvent> {
     let backend;
+    let terminal: RuntimeEvent;
     try {
       backend = await this.backends.resolve();
     } catch (error) {
@@ -81,13 +82,8 @@ export class AgentRuntime {
     const route = routeTurn(request, priorSession?.kind);
     const baseScopeKey = scopeFor(request, route.kind);
     const scopeKey = request.fresh ? `${baseScopeKey}:${Date.now()}` : baseScopeKey;
-    const linked = explicitSession?.kind === route.kind
-      ? explicitSession
-      : gatewayLinked?.kind === route.kind
-        ? gatewayLinked
-        : !request.cwd
-          ? this.store.latestSession(route.kind)
-          : null;
+    const candidate = explicitSession ?? gatewayLinked ?? (!request.cwd ? this.store.latestSession(route.kind) : null);
+    const linked = candidate?.kind === route.kind ? candidate : null;
     const session = this.store.resolveSession({
       ...(!request.fresh && linked?.id ? { sessionId: linked.id } : {}),
       scopeKey,
@@ -143,16 +139,13 @@ export class AgentRuntime {
           yield event;
         } else if (event.type === "done") {
           responseId = event.responseId;
-        } else if (event.type === "artifact") {
-          yield event;
         } else {
           yield event;
         }
       }
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", assistantText);
       this.store.finishRun(runId, "complete", responseId ?? undefined, undefined, assistantText);
-      release();
-      yield { type: "done", sessionId: session.id, responseId };
+      terminal = { type: "done", sessionId: session.id, responseId };
     } catch (error) {
       const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
       this.store.finishRun(
@@ -163,13 +156,15 @@ export class AgentRuntime {
         assistantText,
       );
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", `${assistantText}\n\n[interrupted]`);
-      release();
-      yield {
+      terminal = {
         type: "error",
         message: interrupted ? "Interrupted. Your session is saved." : error instanceof Error ? error.message : String(error),
         recoverable: true,
       };
+    } finally {
+      release();
     }
+    yield terminal;
   }
 
   private async lockSession(sessionId: string): Promise<() => void> {

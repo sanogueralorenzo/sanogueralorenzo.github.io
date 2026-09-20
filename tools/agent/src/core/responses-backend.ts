@@ -32,7 +32,6 @@ interface Completion {
 
 export class ResponsesBackend implements AgentBackend {
   readonly kind = "responses" as const;
-  readonly label = "OpenAI Responses API";
 
   constructor(
     private readonly config: RuntimeConfig,

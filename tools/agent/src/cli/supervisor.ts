@@ -6,7 +6,7 @@ import type { RuntimeClient } from "../client/client.js";
 
 export class RuntimeSupervisor {
   private child: ChildProcess | null = null;
-  private watchers: FSWatcher[] = [];
+  private watcher: FSWatcher | null = null;
   private restartTimer: NodeJS.Timeout | null = null;
   private monitorTimer: NodeJS.Timeout | null = null;
   private recovering = false;
@@ -84,14 +84,7 @@ export class RuntimeSupervisor {
   }
 
   private startWatching(): void {
-    for (const directory of ["core", "codex", "server", "setup", "prompts", "tools"]) {
-      const path = join(this.projectRoot(), "src", directory);
-      try {
-        this.watchers.push(watch(path, { recursive: true }, () => this.scheduleRestart()));
-      } catch {
-        // Optional directories may not exist yet.
-      }
-    }
+    this.watcher = watch(join(this.projectRoot(), "src"), { recursive: true }, () => this.scheduleRestart());
   }
 
   private scheduleRestart(): void {
@@ -128,7 +121,7 @@ export class RuntimeSupervisor {
     this.stopping = true;
     if (this.restartTimer) clearTimeout(this.restartTimer);
     if (this.monitorTimer) clearInterval(this.monitorTimer);
-    for (const watcher of this.watchers) watcher.close();
+    this.watcher?.close();
     await this.stopChild();
   }
 }

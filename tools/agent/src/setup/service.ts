@@ -6,9 +6,7 @@ import type { CodexLoginMode, CodexLoginResult, CodexLoginStart, CodexRateLimits
 
 export interface UsageSummary {
   name: string;
-  usedPercent: number;
   remainingPercent: number;
-  resetsAt: number | null;
 }
 
 export interface SetupStatus {
@@ -34,9 +32,7 @@ function summaries(limits: CodexRateLimits): UsageSummary[] {
     if (!snapshot.primary) return [];
     return [{
       name: snapshot.limitName ?? id,
-      usedPercent: snapshot.primary.usedPercent,
       remainingPercent: Math.max(0, Math.min(100, 100 - snapshot.primary.usedPercent)),
-      resetsAt: snapshot.primary.resetsAt,
     }];
   });
 }

@@ -32,12 +32,5 @@ export function routeTurn(request: TurnRequest, priorKind?: "personal" | "coding
         ? "bounded"
         : null;
 
-  return {
-    kind,
-    worker,
-    reasons: [
-      explicitCode ? "coding language" : explicitPersonal ? "personal language" : projectContext ? "project context" : "personal context",
-      worker === "astra" ? "explicit Astra request" : worker === "coding" ? "coding implementation" : worker === "bounded" ? "bounded task" : "coordinator task",
-    ],
-  };
+  return { kind, worker };
 }

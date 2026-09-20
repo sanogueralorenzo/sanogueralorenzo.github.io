@@ -102,7 +102,6 @@ async function nextForThread(queue: NotificationQueue, threadId: string, signal?
 
 export class CodexBackend implements AgentBackend {
   readonly kind = "codex" as const;
-  readonly label = "Codex subscription";
   private preflightValidUntil = 0;
 
   constructor(

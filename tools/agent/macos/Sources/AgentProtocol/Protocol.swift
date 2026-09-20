@@ -38,7 +38,6 @@ public struct RuntimeSession: Decodable, Sendable {
 public struct SetupStatus: Decodable, Sendable {
     public let configured: Bool
     public let selectedBackend: String?
-    public let recommendedBackend: String
     public let openAIConfigured: Bool
     public let codex: CodexSetupStatus
 }

@@ -21,7 +21,6 @@ export interface BackendTurn {
 
 export interface AgentBackend {
   readonly kind: BackendKind;
-  readonly label: string;
   isConfigured(): boolean | Promise<boolean>;
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
@@ -31,7 +30,6 @@ export interface AgentBackend {
 export class BackendUnavailableError extends Error {
   constructor(message: string, readonly backend: BackendKind) {
     super(message);
-    this.name = "BackendUnavailableError";
   }
 }
 

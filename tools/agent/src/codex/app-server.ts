@@ -2,6 +2,7 @@ import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:chil
 import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
+import { setTimeout as delay } from "node:timers/promises";
 import type { RuntimeConfig } from "../core/types.js";
 import type {
   CodexAccountStatus,
@@ -172,20 +173,12 @@ export class CodexAppServer {
     const result = await this.request<Record<string, unknown>>("account/login/start", {
       type: mode === "headless" ? "chatgptDeviceCode" : "chatgpt",
     });
-    const validBrowser = mode === "browser"
-      && result.type === "chatgpt"
-      && typeof result.loginId === "string"
-      && typeof result.authUrl === "string";
-    const validHeadless = mode === "headless"
-      && result.type === "chatgptDeviceCode"
-      && typeof result.loginId === "string"
-      && typeof result.verificationUrl === "string"
-      && typeof result.userCode === "string";
-    if (!validBrowser && !validHeadless) {
-      throw new Error(`Codex app-server did not return a valid ${mode} login.`);
-    }
-    const login = result as CodexLoginStart;
-    if (!this.logins.has(login.loginId)) this.logins.set(login.loginId, { state: "pending" });
+    const login = result as unknown as CodexLoginStart;
+    const valid = typeof login.loginId === "string" && (mode === "browser"
+      ? login.type === "chatgpt" && typeof login.authUrl === "string"
+      : login.type === "chatgptDeviceCode" && typeof login.verificationUrl === "string" && typeof login.userCode === "string");
+    if (!valid) throw new Error(`Codex app-server did not return a valid ${mode} login.`);
+    this.logins.set(login.loginId, { state: "pending" });
     return login;
   }
 
@@ -201,34 +194,15 @@ export class CodexAppServer {
   }
 
   async waitForLogin(loginId: string, timeoutMs = 5 * 60_000, signal?: AbortSignal): Promise<CodexLoginResult> {
-    const current = this.loginStatus(loginId);
-    if (current.state !== "pending") return current;
-    return new Promise((resolve) => {
-      let finished = false;
-      let unsubscribe: () => void = () => undefined;
-      const finish = (result: CodexLoginResult) => {
-        if (finished) return;
-        finished = true;
-        clearTimeout(timer);
-        unsubscribe();
-        signal?.removeEventListener("abort", onAbort);
-        resolve(result);
-      };
-      const onAbort = () => {
-        finish({ state: "failed", error: "Setup cancelled." });
-        void this.cancelLogin(loginId).catch(() => undefined);
-      };
-      const timer = setTimeout(() => {
-        finish({ state: "failed", error: "Login timed out. Run setup again." });
-        void this.cancelLogin(loginId).catch(() => undefined);
-      }, timeoutMs);
-      unsubscribe = this.onNotification((message) => {
-        if (message.method !== "account/login/completed" || message.params?.loginId !== loginId) return;
-        finish(this.loginStatus(loginId));
-      });
-      if (signal?.aborted) onAbort();
-      else signal?.addEventListener("abort", onAbort, { once: true });
-    });
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    try {
+      while (this.loginStatus(loginId).state === "pending") await delay(25, undefined, { signal: combined });
+      return this.loginStatus(loginId);
+    } catch {
+      await this.cancelLogin(loginId).catch(() => undefined);
+      return { state: "failed", error: signal?.aborted ? "Setup cancelled." : "Login timed out. Run setup again." };
+    }
   }
 
   async restart(): Promise<void> {

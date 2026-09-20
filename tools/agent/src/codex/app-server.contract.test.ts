@@ -47,7 +47,7 @@ function turn(store: Store, homeDir: string, worker: BackendTurn["route"]["worke
   return {
     request: { text: "Fix the test", cwd: homeDir, channel: "api" },
     session,
-    route: { kind: "coding", worker, reasons: [] },
+    route: { kind: "coding", worker },
     instructions: "Act as Agent. Use the supplied memory.",
     workerInstructions: "Act as Agent's internal coding worker.",
     memoryScope: `project:${homeDir}`,
