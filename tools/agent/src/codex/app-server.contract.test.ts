@@ -38,9 +38,6 @@ function config(homeDir: string): RuntimeConfig {
     homeDir,
     host: "127.0.0.1",
     port: 0,
-    models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
-    maxToolRounds: 4,
-    maxHistoryMessages: 20,
     codexCommand: "codex",
   };
 }
@@ -227,7 +224,7 @@ describe("Codex app-server contract", () => {
 
     await expect(backend.transcribeAudio({
       id: "voice-1", kind: "audio", name: "voice.ogg", mimeType: "audio/ogg",
-      size: 214, path: audioPath, createdAt: new Date(0).toISOString(),
+      size: 214, path: audioPath,
     })).resolves.toBe("Hello from Codex.");
 
     const requests = readFileSync(log, "utf8").trim().split("\n")

@@ -4,91 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import type { Attachment, Memory, Message, Session, WorkKind } from "./types.js";
 
-interface SessionRow {
-  id: string;
-  scope_key: string;
-  kind: WorkKind;
-  cwd: string | null;
-  title: string;
-  summary: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface MessageRow {
-  id: number;
-  session_id: string;
-  role: Message["role"];
-  content: string;
-  created_at: string;
-}
-
-interface MemoryRow {
-  id: number;
-  scope: string;
-  content: string;
-  source_session_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AttachmentRow {
-  id: string;
-  kind: Attachment["kind"];
-  name: string;
-  mime_type: string;
-  size: number;
-  path: string;
-  created_at: string;
-}
-
 const now = () => new Date().toISOString();
-
-function toSession(row: SessionRow): Session {
-  return {
-    id: row.id,
-    scopeKey: row.scope_key,
-    kind: row.kind,
-    cwd: row.cwd,
-    title: row.title,
-    summary: row.summary,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toMessage(row: MessageRow): Message {
-  return {
-    id: row.id,
-    sessionId: row.session_id,
-    role: row.role,
-    content: row.content,
-    createdAt: row.created_at,
-  };
-}
-
-function toMemory(row: MemoryRow): Memory {
-  return {
-    id: row.id,
-    scope: row.scope,
-    content: row.content,
-    sourceSessionId: row.source_session_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function toAttachment(row: AttachmentRow): Attachment {
-  return {
-    id: row.id,
-    kind: row.kind,
-    name: row.name,
-    mimeType: row.mime_type,
-    size: row.size,
-    path: row.path,
-    createdAt: row.created_at,
-  };
-}
+const SESSION_COLUMNS = `id, scope_key AS "scopeKey", kind, cwd, title, updated_at AS "updatedAt"`;
+const ATTACHMENT_COLUMNS = `id, kind, name, mime_type AS "mimeType", size, path`;
 
 export class Store {
   readonly db: DatabaseSync;
@@ -203,13 +121,14 @@ export class Store {
     }
 
     const existing = this.db.prepare(`
-      SELECT * FROM sessions
+      SELECT ${SESSION_COLUMNS} FROM sessions
       WHERE scope_key = ? OR instr(scope_key, ? || ':') = 1
       ORDER BY updated_at DESC LIMIT 1
-    `).get(input.scopeKey, input.scopeKey) as SessionRow | undefined;
+    `).get(input.scopeKey, input.scopeKey) as unknown as Session | undefined;
     if (existing) {
-      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(now(), existing.id);
-      return toSession({ ...existing, updated_at: now() });
+      const timestamp = now();
+      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, existing.id);
+      return { ...existing, updatedAt: timestamp };
     }
 
     const timestamp = now();
@@ -222,65 +141,51 @@ export class Store {
   }
 
   getSession(id: string): Session | null {
-    const row = this.db.prepare("SELECT * FROM sessions WHERE id = ?").get(id) as SessionRow | undefined;
-    return row ? toSession(row) : null;
+    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE id = ?`).get(id) as unknown as Session ?? null;
   }
 
   listSessions(limit = 20): Session[] {
-    const rows = this.db.prepare("SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?").all(limit) as unknown as SessionRow[];
-    return rows.map(toSession);
+    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT ?`).all(limit) as unknown as Session[];
   }
 
   latestSession(kind: WorkKind): Session | null {
-    const row = this.db.prepare("SELECT * FROM sessions WHERE kind = ? ORDER BY updated_at DESC LIMIT 1").get(kind) as SessionRow | undefined;
-    return row ? toSession(row) : null;
+    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE kind = ? ORDER BY updated_at DESC LIMIT 1`).get(kind) as unknown as Session ?? null;
   }
 
-  addMessage(sessionId: string, role: Message["role"], content: string): Message {
+  addMessage(sessionId: string, role: Message["role"], content: string): void {
     const timestamp = now();
-    const result = this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)")
+    this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)")
       .run(sessionId, role, content, timestamp);
     this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, sessionId);
-    return {
-      id: Number(result.lastInsertRowid),
-      sessionId,
-      role,
-      content,
-      createdAt: timestamp,
-    };
   }
 
   getMessages(sessionId: string, limit = 40): Message[] {
-    const rows = this.db.prepare(`
-      SELECT * FROM (
-        SELECT * FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?
+    return this.db.prepare(`
+      SELECT role, content FROM (
+        SELECT role, content, id FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?
       ) ORDER BY id ASC
-    `).all(sessionId, limit) as unknown as MessageRow[];
-    return rows.map(toMessage);
+    `).all(sessionId, limit) as unknown as Message[];
   }
 
-  remember(scope: string, content: string, sourceSessionId?: string): Memory {
+  remember(scope: string, content: string, sourceSessionId?: string): void {
     const timestamp = now();
     this.db.prepare(`
       INSERT INTO memories (scope, content, source_session_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(scope, content) DO UPDATE SET updated_at = excluded.updated_at
     `).run(scope, content.trim(), sourceSessionId ?? null, timestamp, timestamp);
-    const row = this.db.prepare("SELECT * FROM memories WHERE scope = ? AND content = ?")
-      .get(scope, content.trim()) as unknown as MemoryRow;
-    return toMemory(row);
   }
 
   searchMemories(scope: string, query: string, limit = 8): Memory[] {
     const words = query.toLowerCase().split(/\W+/).filter((word) => word.length > 2).slice(0, 8);
-    const rows = this.db.prepare("SELECT * FROM memories WHERE scope IN (?, 'global') ORDER BY updated_at DESC LIMIT 100")
-      .all(scope) as unknown as MemoryRow[];
+    const rows = this.db.prepare(`SELECT content, updated_at AS "updatedAt" FROM memories WHERE scope IN (?, 'global') ORDER BY updated_at DESC LIMIT 100`)
+      .all(scope) as unknown as Array<Memory & { updatedAt: string }>;
     const scored = rows.map((row) => ({
       row,
       score: words.reduce((sum, word) => sum + (row.content.toLowerCase().includes(word) ? 1 : 0), 0),
     })).filter((item) => words.length === 0 || item.score > 0);
-    scored.sort((a, b) => b.score - a.score || b.row.updated_at.localeCompare(a.row.updated_at));
-    return scored.slice(0, limit).map(({ row }) => toMemory(row));
+    scored.sort((a, b) => b.score - a.score || b.row.updatedAt.localeCompare(a.row.updatedAt));
+    return scored.slice(0, limit).map(({ row }) => ({ content: row.content }));
   }
 
   startRun(sessionId: string): string {
@@ -309,11 +214,13 @@ export class Store {
 
   gatewaySession(gateway: string, externalId: string): Session | null {
     const row = this.db.prepare(`
-      SELECT sessions.* FROM gateway_links
+      SELECT sessions.id, sessions.scope_key AS "scopeKey", sessions.kind, sessions.cwd,
+        sessions.title, sessions.updated_at AS "updatedAt"
+      FROM gateway_links
       JOIN sessions ON sessions.id = gateway_links.session_id
       WHERE gateway_links.gateway = ? AND gateway_links.external_id = ?
-    `).get(gateway, externalId) as SessionRow | undefined;
-    return row ? toSession(row) : null;
+    `).get(gateway, externalId) as unknown as Session | undefined;
+    return row ?? null;
   }
 
   getSetting(key: string): string | null {
@@ -341,18 +248,17 @@ export class Store {
     `).run(sessionId, backend, externalId, now());
   }
 
-  addAttachment(input: Omit<Attachment, "createdAt">): Attachment {
+  addAttachment(input: Attachment): Attachment {
     const timestamp = now();
     this.db.prepare(`
       INSERT INTO attachments (id, kind, name, mime_type, size, path, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(input.id, input.kind, input.name, input.mimeType, input.size, input.path, timestamp);
-    return { ...input, createdAt: timestamp };
+    return input;
   }
 
   getAttachment(id: string): Attachment | null {
-    const row = this.db.prepare("SELECT * FROM attachments WHERE id = ?").get(id) as AttachmentRow | undefined;
-    return row ? toAttachment(row) : null;
+    return this.db.prepare(`SELECT ${ATTACHMENT_COLUMNS} FROM attachments WHERE id = ?`).get(id) as unknown as Attachment ?? null;
   }
 
   close(): void {

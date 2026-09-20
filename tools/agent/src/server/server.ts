@@ -4,11 +4,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../core/runtime.js";
+import { MAX_HISTORY_MESSAGES } from "../core/config.js";
 import type { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js";
-import type { BackendKind } from "../core/types.js";
-import type { CodexLoginMode, CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
-import type { SetupStatus } from "../setup/service.js";
+import type { BackendSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../core/assets.js";
 
 interface Discovery {
@@ -18,43 +17,29 @@ interface Discovery {
   pid: number;
 }
 
-export interface RuntimeSetup {
-  status: () => Promise<SetupStatus>;
-  setOpenAIKey: (key: string) => Promise<void>;
-  selectBackend: (backend: BackendKind) => Promise<void>;
-  startCodexLogin: (mode: CodexLoginMode) => Promise<CodexLoginStart>;
-  codexLoginStatus: (loginId: string) => Promise<CodexLoginResult>;
-  cancelCodexLogin: (loginId: string) => Promise<void>;
-}
+export type RuntimeSetup = Pick<BackendSetupService,
+  "status" | "setOpenAIKey" | "selectBackend" | "startCodexLogin" | "codexLoginStatus" | "cancelCodexLogin">;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   response.end(JSON.stringify(body));
 }
 
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readBody(request: IncomingMessage, limit: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = Buffer.from(chunk);
     size += buffer.length;
-    if (size > 1_000_000) throw new Error("Request body is too large.");
-    chunks.push(buffer);
-  }
-  if (chunks.length === 0) return {};
-  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
-}
-
-async function readBytes(request: IncomingMessage, limit: number): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.from(chunk);
-    size += buffer.length;
-    if (size > limit) throw new Error("Attachment exceeds the 25 MB limit.");
+    if (size > limit) throw new Error("Request body is too large.");
     chunks.push(buffer);
   }
   return Buffer.concat(chunks);
+}
+
+async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const body = await readBody(request, 1_000_000);
+  return body.length ? JSON.parse(body.toString("utf8")) as Record<string, unknown> : {};
 }
 
 export class RuntimeServer {
@@ -129,7 +114,7 @@ export class RuntimeServer {
           json(response, 404, { error: "session_not_found" });
           return;
         }
-        json(response, 200, { session, messages: this.store.getMessages(id, this.config.maxHistoryMessages) });
+        json(response, 200, { session, messages: this.store.getMessages(id, MAX_HISTORY_MESSAGES) });
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/setup") {
@@ -203,7 +188,7 @@ export class RuntimeServer {
         const attachment = saveAttachment(this.config.homeDir, this.store, {
           name,
           mimeType,
-          data: await readBytes(request, MAX_ATTACHMENT_BYTES),
+          data: await readBody(request, MAX_ATTACHMENT_BYTES),
         });
         json(response, 201, {
           id: attachment.id,
@@ -298,13 +283,5 @@ export class RuntimeServer {
       finished = true;
       response.end();
     }
-  }
-}
-
-export function readDiscovery(homeDir: string): Discovery | null {
-  try {
-    return JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")) as Discovery;
-  } catch {
-    return null;
   }
 }

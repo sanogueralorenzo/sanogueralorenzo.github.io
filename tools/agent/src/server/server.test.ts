@@ -1,11 +1,11 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AgentRuntime } from "../core/runtime.js";
 import { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../core/types.js";
-import { readDiscovery, RuntimeServer, type RuntimeSetup } from "./server.js";
+import { RuntimeServer, type RuntimeSetup } from "./server.js";
 
 const paths: string[] = [];
 
@@ -30,14 +30,14 @@ function setupStub(): RuntimeSetup {
   };
 }
 
+const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
+
 describe("RuntimeServer", () => {
   it("authenticates clients and streams the shared event protocol", async () => {
     const homeDir = mkdtempSync(join(tmpdir(), "agent-server-"));
     paths.push(homeDir);
     const config: RuntimeConfig = {
       homeDir, host: "127.0.0.1", port: 0,
-      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
-      maxToolRounds: 2, maxHistoryMessages: 10,
       codexCommand: "codex",
     };
     const store = new Store(homeDir);
@@ -52,14 +52,14 @@ describe("RuntimeServer", () => {
     } as unknown as AgentRuntime;
     const server = new RuntimeServer(config, runtime, store, setupStub());
     const port = await server.listen();
-    const discovery = readDiscovery(homeDir)!;
+    const token = tokenAt(homeDir);
 
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
     const uploaded = await fetch(`http://127.0.0.1:${port}/v1/attachments`, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${discovery.token}`,
+        authorization: `Bearer ${token}`,
         "content-type": "audio/ogg",
         "x-agent-filename": encodeURIComponent("voice note.ogg"),
       },
@@ -70,7 +70,7 @@ describe("RuntimeServer", () => {
     expect(attachment.path).toBeUndefined();
     const streamed = await fetch(`http://127.0.0.1:${port}/v1/chat`, {
       method: "POST",
-      headers: { authorization: `Bearer ${discovery.token}`, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ text: "hello", attachmentIds: [attachment.id], requestId: "test-request", channel: "api" }),
     });
     const body = await streamed.text();
@@ -92,8 +92,7 @@ describe("RuntimeServer", () => {
     paths.push(homeDir);
     const config: RuntimeConfig = {
       homeDir, host: "127.0.0.1", port: 0,
-      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
-      maxToolRounds: 2, maxHistoryMessages: 10, codexCommand: "codex",
+      codexCommand: "codex",
     };
     const store = new Store(homeDir);
     const runtime = { async *run() {} } as unknown as AgentRuntime;
@@ -120,7 +119,7 @@ describe("RuntimeServer", () => {
       cancelCodexLogin: async (loginId) => { cancelledLogin = loginId; },
     });
     const port = await server.listen();
-    const token = readDiscovery(homeDir)!.token;
+    const token = tokenAt(homeDir);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
@@ -170,8 +169,7 @@ describe("RuntimeServer", () => {
     paths.push(homeDir);
     const config: RuntimeConfig = {
       homeDir, host: "127.0.0.1", port: 0,
-      models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
-      maxToolRounds: 2, maxHistoryMessages: 10, codexCommand: "codex",
+      codexCommand: "codex",
     };
     let entered!: () => void;
     let release!: () => void;
@@ -189,7 +187,7 @@ describe("RuntimeServer", () => {
     const store = new Store(homeDir);
     const server = new RuntimeServer(config, runtime, store, setupStub(), restarted);
     const port = await server.listen();
-    const token = readDiscovery(homeDir)!.token;
+    const token = tokenAt(homeDir);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const chat = fetch(`http://127.0.0.1:${port}/v1/chat`, {

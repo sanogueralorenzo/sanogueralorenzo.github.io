@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Response, ResponseFunctionToolCall, ResponseInputItem, Tool } from "openai/resources/responses/responses";
 import { saveArtifactData } from "./assets.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "./backend.js";
+import { MAX_HISTORY_MESSAGES, MAX_TOOL_ROUNDS, MODELS } from "./config.js";
 import type { ModelClient } from "./model.js";
 import type { Store } from "./store.js";
 import { createTools, executeTool, type AgentTool } from "./tools.js";
@@ -60,7 +61,7 @@ export class ResponsesBackend implements AgentBackend {
         allowMemoryWrite: false,
       });
       const result = await resultOf(this.complete({
-        model: this.config.models[worker],
+        model: MODELS[worker],
         instructions: turn.workerInstructions,
         input: [{ role: "user", content: turn.request.text }],
         tools,
@@ -77,9 +78,9 @@ export class ResponsesBackend implements AgentBackend {
       : turn.instructions;
     const extraTools: Tool[] = wantsImage(turn.request.text) ? [{ type: "image_generation" }] : [];
     const result = yield* this.complete({
-      model: this.config.models.coordinator,
+      model: MODELS.coordinator,
       instructions,
-      input: this.store.getMessages(turn.session.id, this.config.maxHistoryMessages)
+      input: this.store.getMessages(turn.session.id, MAX_HISTORY_MESSAGES)
         .filter((message) => message.role !== "tool")
         .map((message) => ({ role: message.role as "user" | "assistant", content: message.content })),
       tools,
@@ -93,7 +94,7 @@ export class ResponsesBackend implements AgentBackend {
   private async *complete(completion: Completion): AsyncGenerator<BackendEvent, { text: string; responseId: string }> {
     let input = completion.input;
     let text = "";
-    for (let round = 0; round < this.config.maxToolRounds; round += 1) {
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
       if (completion.turn.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
       const stream = this.model.stream({
         model: completion.model,
@@ -140,7 +141,7 @@ export class ResponsesBackend implements AgentBackend {
 
       const calls = functionCalls(response);
       if (calls.length === 0) return { text, responseId: response.id };
-      if (round === this.config.maxToolRounds - 1) throw new Error("Tool round limit reached before completion.");
+      if (round === MAX_TOOL_ROUNDS - 1) throw new Error("Tool round limit reached before completion.");
       input = [...input, ...response.output as ResponseInputItem[]];
       if (completion.visible) {
         for (const call of calls) yield { type: "tool_start", name: call.name, callId: call.call_id };

@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { MODELS } from "./config.js";
 import { buildInstructions, buildWorkerInstructions } from "./context.js";
 import type { BackendRegistry } from "./backend.js";
 import { routeTurn } from "./router.js";
@@ -98,7 +99,7 @@ export class AgentRuntime {
       this.store.linkGateway("telegram", request.senderId, session.id);
     }
 
-    const modelName = this.config.models.coordinator;
+    const modelName = MODELS.coordinator;
     yield { type: "session", session, route, model: modelName, backend: backend.kind };
 
     const release = await this.lockSession(session.id);

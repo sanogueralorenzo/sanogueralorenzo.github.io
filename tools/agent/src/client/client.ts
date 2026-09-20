@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { RuntimeEvent, TurnRequest } from "../core/types.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { RuntimeEvent, Session, TurnRequest } from "../core/types.js";
 import type { SetupStatus } from "../setup/service.js";
-import { readDiscovery } from "../server/server.js";
 
 interface Envelope {
   v: 1;
@@ -22,16 +23,31 @@ export class RuntimeClient {
   constructor(private readonly homeDir: string) {}
 
   private connection(): { baseUrl: string; token: string } {
-    const discovery = readDiscovery(this.homeDir);
-    if (!discovery) throw new Error("Agent runtime is not running.");
+    let discovery: { port: number; token: string };
+    try {
+      discovery = JSON.parse(readFileSync(join(this.homeDir, "runtime.json"), "utf8")) as typeof discovery;
+    } catch {
+      throw new Error("Agent runtime is not running.");
+    }
     return { baseUrl: `http://127.0.0.1:${discovery.port}`, token: discovery.token };
+  }
+
+  private fetch(path: string, init: RequestInit = {}): Promise<Response> {
+    const { baseUrl, token } = this.connection();
+    const headers = new Headers(init.headers);
+    headers.set("authorization", `Bearer ${token}`);
+    return fetch(`${baseUrl}${path}`, { ...init, headers });
+  }
+
+  private async json<T>(path: string): Promise<T> {
+    const response = await this.fetch(path);
+    if (!response.ok) throw new Error(await response.text());
+    return response.json() as Promise<T>;
   }
 
   async healthy(): Promise<boolean> {
     try {
-      const { baseUrl } = this.connection();
-      const response = await fetch(`${baseUrl}/v1/health`, { signal: AbortSignal.timeout(800) });
-      return response.ok;
+      return (await this.fetch("/v1/health", { signal: AbortSignal.timeout(800) })).ok;
     } catch {
       return false;
     }
@@ -47,10 +63,9 @@ export class RuntimeClient {
   }
 
   async chat(turn: TurnRequest, onEvent: (event: RuntimeEvent) => void, requestId: string = randomUUID()): Promise<void> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/chat`, {
+    const response = await this.fetch("/v1/chat", {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...turn, requestId }),
     });
     if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
@@ -74,11 +89,9 @@ export class RuntimeClient {
   }
 
   async uploadAttachment(input: { name: string; mimeType: string; data: Uint8Array }): Promise<UploadedAttachment> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/attachments`, {
+    const response = await this.fetch("/v1/attachments", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${token}`,
         "content-type": input.mimeType,
         "x-agent-filename": encodeURIComponent(input.name),
       },
@@ -89,46 +102,25 @@ export class RuntimeClient {
   }
 
   async cancel(requestId: string): Promise<void> {
-    const { baseUrl, token } = this.connection();
-    await fetch(`${baseUrl}/v1/cancel`, {
+    await this.fetch("/v1/cancel", {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ requestId }),
     });
   }
 
   async requestRestart(): Promise<boolean> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/runtime/restart`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}` },
-    });
+    const response = await this.fetch("/v1/runtime/restart", { method: "POST" });
     if (response.status === 409) return false;
     if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
     return true;
   }
 
-  async sessions(): Promise<unknown> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/sessions`, { headers: { authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error(await response.text());
-    return response.json();
+  sessions(): Promise<{ sessions: Session[] }> {
+    return this.json("/v1/sessions");
   }
 
-  async setupStatus(): Promise<SetupStatus> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/setup`, { headers: { authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error(await response.text());
-    return response.json() as Promise<SetupStatus>;
-  }
-
-  async connectOpenAI(apiKey: string): Promise<void> {
-    const { baseUrl, token } = this.connection();
-    const response = await fetch(`${baseUrl}/v1/setup/openai`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ apiKey }),
-    });
-    if (!response.ok) throw new Error(await response.text());
+  setupStatus(): Promise<SetupStatus> {
+    return this.json("/v1/setup");
   }
 }

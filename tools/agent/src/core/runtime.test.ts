@@ -112,9 +112,6 @@ function config(homeDir: string): RuntimeConfig {
     homeDir,
     host: "127.0.0.1",
     port: 0,
-    models: { coordinator: "gpt-5.6-luna", bounded: "gpt-5.6-luna", coding: "gpt-5.6-sol", astra: "gpt-6-astra" },
-    maxToolRounds: 4,
-    maxHistoryMessages: 20,
     codexCommand: "codex",
   };
 }
@@ -252,7 +249,6 @@ describe("AgentRuntime", () => {
         mimeType: "audio/ogg",
         size: 5,
         path: audioPath,
-        createdAt: new Date(0).toISOString(),
       }],
     });
 

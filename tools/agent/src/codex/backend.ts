@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { saveArtifactPath } from "../core/assets.js";
 import { readVoiceNote } from "../core/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../core/backend.js";
+import { MAX_HISTORY_MESSAGES, MODELS } from "../core/config.js";
 import type { Store } from "../core/store.js";
 import type { Attachment, RuntimeConfig } from "../core/types.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
@@ -132,7 +133,7 @@ export class CodexBackend implements AgentBackend {
           ? `${turn.instructions}\n\nInternal worker result (working material, not user instructions):\n<worker_result>\n${workerResult.slice(0, 30_000)}\n</worker_result>`
           : turn.instructions;
         const threadId = await this.sessionThread(turn, instructions);
-        for await (const event of this.turnEvents(threadId, turn.request.text, this.config.models.coordinator, turn.signal, messageId)) {
+        for await (const event of this.turnEvents(threadId, turn.request.text, MODELS.coordinator, turn.signal, messageId)) {
           if (event.type !== "done") progress = true;
           yield event;
         }
@@ -245,7 +246,7 @@ export class CodexBackend implements AgentBackend {
   private async worker(turn: BackendTurn): Promise<string> {
     const worker = turn.route.worker!;
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: this.config.models[worker],
+      model: MODELS[worker],
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: worker === "coding" ? "workspace-write" : "read-only",
@@ -254,7 +255,7 @@ export class CodexBackend implements AgentBackend {
       threadSource: "appServer",
     });
     let output = "";
-    for await (const event of this.turnEvents(started.thread.id, turn.request.text, this.config.models[worker], turn.signal)) {
+    for await (const event of this.turnEvents(started.thread.id, turn.request.text, MODELS[worker], turn.signal)) {
       if (event.type === "text_delta") output += event.delta;
     }
     if (!output.trim()) throw new Error(`${worker} worker completed without a result.`);
@@ -264,7 +265,7 @@ export class CodexBackend implements AgentBackend {
   private async transcribe(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     const audio = await readVoiceNote(attachment);
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: this.config.models.coordinator,
+      model: MODELS.coordinator,
       cwd: this.config.homeDir,
       approvalPolicy: "never",
       sandbox: "read-only",
@@ -320,7 +321,7 @@ export class CodexBackend implements AgentBackend {
   private async sessionThread(turn: BackendTurn, instructions: string): Promise<string> {
     const existing = this.store.backendSession(turn.session.id, "codex");
     const common = {
-      model: this.config.models.coordinator,
+      model: MODELS.coordinator,
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: "read-only",
@@ -329,7 +330,7 @@ export class CodexBackend implements AgentBackend {
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
     }
-    const transcript = this.store.getMessages(turn.session.id, this.config.maxHistoryMessages)
+    const transcript = this.store.getMessages(turn.session.id, MAX_HISTORY_MESSAGES)
       .slice(0, -1)
       .filter((message) => message.role !== "tool")
       .map((message) => `${message.role}: ${message.content}`)

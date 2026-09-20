@@ -60,10 +60,10 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       }
       if (input === "/status") {
         const [data, setup] = await Promise.all([
-          client.sessions() as Promise<{ sessions?: Array<{ id: string; title: string; updatedAt: string }> }>,
+          client.sessions(),
           client.setupStatus(),
         ]);
-        const current = data.sessions?.find((session) => session.id === sessionId);
+        const current = data.sessions.find((session) => session.id === sessionId);
         const billing = setup.selectedBackend === "codex"
           ? `ChatGPT${setup.codex.planType ? ` ${setup.codex.planType}` : ""}`
           : "API-key billing";

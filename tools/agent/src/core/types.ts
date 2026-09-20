@@ -14,26 +14,16 @@ export interface Session {
   kind: WorkKind;
   cwd: string | null;
   title: string;
-  summary: string;
-  createdAt: string;
   updatedAt: string;
 }
 
 export interface Message {
-  id: number;
-  sessionId: string;
   role: "user" | "assistant" | "tool";
   content: string;
-  createdAt: string;
 }
 
 export interface Memory {
-  id: number;
-  scope: string;
   content: string;
-  sourceSessionId: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export type AttachmentKind = "audio" | "image" | "file";
@@ -45,7 +35,6 @@ export interface Attachment {
   mimeType: string;
   size: number;
   path: string;
-  createdAt: string;
 }
 
 export interface Artifact {
@@ -82,13 +71,5 @@ export interface RuntimeConfig {
   homeDir: string;
   host: string;
   port: number;
-  models: {
-    coordinator: "gpt-5.6-luna";
-    bounded: "gpt-5.6-luna";
-    coding: "gpt-5.6-sol";
-    astra: "gpt-6-astra";
-  };
-  maxToolRounds: number;
-  maxHistoryMessages: number;
   codexCommand: string;
 }
