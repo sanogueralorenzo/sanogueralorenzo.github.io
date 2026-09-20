@@ -37,7 +37,6 @@ describe("BackendSetupService", () => {
     const status = await service.status();
 
     expect(status.codex).toMatchObject({ installed: true, connected: true, planType: "plus", allowanceAvailable: true });
-    expect(status.codex.usage[0]).toMatchObject({ name: "Codex", remainingPercent: 78 });
     await service.selectBackend("codex");
     expect(store.getSetting("backend")).toBe("codex");
     await codex.stop();

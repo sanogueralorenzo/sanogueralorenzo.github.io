@@ -175,7 +175,7 @@ async function runGateway(token: string): Promise<void> {
     try {
       active.set(senderId, requestId);
       const input = await prepare();
-      await client.chat({ ...input, channel: "telegram", senderId }, (event: RuntimeEvent) => {
+      await client.chat({ ...input, channel: "telegram" }, (event: RuntimeEvent) => {
         if (event.type === "text_delta") output += event.delta;
         if (event.type === "artifact") artifacts.push(event.artifact);
         if (event.type === "error") runtimeError = event.message;

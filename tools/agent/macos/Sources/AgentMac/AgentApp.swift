@@ -51,10 +51,6 @@ struct SetupView: View {
                     .font(.headline)
                 Text("Agent found its private ChatGPT login and will reuse it if you continue.")
                     .font(.caption).foregroundStyle(.secondary)
-                ForEach(model.setupStatus?.codex.usage ?? []) { usage in
-                    Text("\(usage.name): \(Int(usage.remainingPercent.rounded()))% available")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
             }
             Button(model.setupStatus?.codex.connected == true ? "Continue with ChatGPT" : "Sign in with ChatGPT") {
                 Task { await model.continueWithChatGPT() }

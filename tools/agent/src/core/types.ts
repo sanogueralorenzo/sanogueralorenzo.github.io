@@ -63,7 +63,6 @@ export interface TurnRequest {
   sessionId?: string;
   fresh?: boolean;
   channel?: "cli" | "telegram" | "macos" | "api";
-  senderId?: string;
 }
 
 export interface RuntimeConfig {

@@ -191,14 +191,13 @@ describe("AgentRuntime", () => {
     const assistant = runtime(path, store, new RoutingModel());
     const cli = await collect(assistant, { text: "hello", channel: "cli" });
     const cliSession = cli.find((event) => event.type === "session")?.session.id;
-    const telegram = await collect(assistant, { text: "summarize this note", channel: "telegram", senderId: "42" });
+    const telegram = await collect(assistant, { text: "summarize this note", channel: "telegram" });
     const telegramSession = telegram.find((event) => event.type === "session")?.session.id;
     const macos = await collect(assistant, { text: "continue", channel: "macos", ...(cliSession ? { sessionId: cliSession } : {}) });
     const macosSession = macos.find((event) => event.type === "session")?.session.id;
 
     expect(telegramSession).toBe(cliSession);
     expect(macosSession).toBe(cliSession);
-    expect(store.gatewaySession("telegram", "42")?.id).toBe(cliSession);
     store.close();
   });
 
@@ -241,7 +240,6 @@ describe("AgentRuntime", () => {
     const events = await collect(runtime(path, store, model), {
       text: "",
       channel: "telegram",
-      senderId: "42",
       attachments: [{
         id: "voice-1",
         kind: "audio",

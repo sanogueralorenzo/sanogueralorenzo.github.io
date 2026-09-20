@@ -2,39 +2,19 @@ import type { OpenAIModelClient } from "../core/model.js";
 import type { Store } from "../core/store.js";
 import type { BackendKind } from "../core/types.js";
 import type { CodexAppServer } from "../codex/app-server.js";
-import type { CodexLoginMode, CodexLoginResult, CodexLoginStart, CodexRateLimits, RateLimitSnapshot } from "../codex/protocol.js";
-
-export interface UsageSummary {
-  name: string;
-  remainingPercent: number;
-}
+import type { CodexLoginMode, CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
 
 export interface SetupStatus {
   configured: boolean;
   selectedBackend: BackendKind | null;
-  recommendedBackend: "codex";
   openAIConfigured: boolean;
   codex: {
     installed: boolean;
     connected: boolean;
     planType: string | null;
     allowanceAvailable: boolean | null;
-    usage: UsageSummary[];
     error?: string;
   };
-}
-
-function summaries(limits: CodexRateLimits): UsageSummary[] {
-  const entries: Array<[string, RateLimitSnapshot]> = limits.rateLimitsByLimitId
-    ? Object.entries(limits.rateLimitsByLimitId)
-    : [[limits.rateLimits.limitId ?? "codex", limits.rateLimits]];
-  return entries.flatMap(([id, snapshot]) => {
-    if (!snapshot.primary) return [];
-    return [{
-      name: snapshot.limitName ?? id,
-      remainingPercent: Math.max(0, Math.min(100, 100 - snapshot.primary.usedPercent)),
-    }];
-  });
 }
 
 export class BackendSetupService {
@@ -50,7 +30,6 @@ export class BackendSetupService {
     let connected = false;
     let planType: string | null = null;
     let allowanceAvailable: boolean | null = null;
-    let usage: UsageSummary[] = [];
     let error: string | undefined;
     if (installed) {
       try {
@@ -64,7 +43,6 @@ export class BackendSetupService {
             const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
             allowanceAvailable = !buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
           }
-          usage = summaries(limits);
         }
       } catch (cause) {
         error = cause instanceof Error ? cause.message : String(cause);
@@ -80,14 +58,12 @@ export class BackendSetupService {
     return {
       configured,
       selectedBackend,
-      recommendedBackend: "codex",
       openAIConfigured: this.responses.isConfigured(),
       codex: {
         installed,
         connected,
         planType,
         allowanceAvailable,
-        usage,
         ...(error ? { error } : {}),
       },
     };

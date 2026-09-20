@@ -4,13 +4,9 @@ public struct RuntimeDiscovery: Decodable, Sendable {
     public let protocolVersion: Int
     public let port: Int
     public let token: String
-    public let pid: Int
 }
 
 public struct RuntimeEnvelope: Decodable, Sendable {
-    public let v: Int
-    public let seq: Int
-    public let requestId: String
     public let event: RuntimeEvent
 }
 
@@ -32,12 +28,10 @@ public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
 
 public struct RuntimeSession: Decodable, Sendable {
     public let id: String
-    public let title: String
 }
 
 public struct SetupStatus: Decodable, Sendable {
     public let configured: Bool
-    public let selectedBackend: String?
     public let openAIConfigured: Bool
     public let codex: CodexSetupStatus
 }
@@ -47,13 +41,6 @@ public struct CodexSetupStatus: Decodable, Sendable {
     public let connected: Bool
     public let planType: String?
     public let allowanceAvailable: Bool?
-    public let usage: [UsageSummary]
-}
-
-public struct UsageSummary: Decodable, Sendable, Identifiable {
-    public var id: String { name }
-    public let name: String
-    public let remainingPercent: Double
 }
 
 public struct SessionList: Decodable, Sendable {

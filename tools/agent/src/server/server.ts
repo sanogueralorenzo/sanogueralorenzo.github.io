@@ -272,7 +272,6 @@ export class RuntimeServer {
       ...(typeof body.sessionId === "string" ? { sessionId: body.sessionId } : {}),
       ...(body.fresh === true ? { fresh: true } : {}),
       channel,
-      ...(typeof body.senderId === "string" ? { senderId: body.senderId } : {}),
     };
     try {
       for await (const event of this.runtime.run(turn, { signal: controller.signal })) send(event);

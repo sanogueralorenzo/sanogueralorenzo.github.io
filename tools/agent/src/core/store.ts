@@ -25,6 +25,7 @@ export class Store {
 
   private initializeSchema(): void {
     this.db.exec(`
+      DROP TABLE IF EXISTS gateway_links;
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         scope_key TEXT NOT NULL UNIQUE,
@@ -64,13 +65,6 @@ export class Store {
         finished_at TEXT
       );
       CREATE INDEX IF NOT EXISTS runs_session_id ON runs(session_id, started_at DESC);
-      CREATE TABLE IF NOT EXISTS gateway_links (
-        gateway TEXT NOT NULL,
-        external_id TEXT NOT NULL,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        created_at TEXT NOT NULL,
-        PRIMARY KEY(gateway, external_id)
-      );
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -200,24 +194,6 @@ export class Store {
   finishRun(id: string, state: "complete" | "failed" | "interrupted", responseId?: string, error?: string, output?: string): void {
     this.db.prepare("UPDATE runs SET state = ?, response_id = ?, error = ?, output = COALESCE(?, output), finished_at = ? WHERE id = ?")
       .run(state, responseId ?? null, error ?? null, output ?? null, now(), id);
-  }
-
-  linkGateway(gateway: string, externalId: string, sessionId: string): void {
-    this.db.prepare(`
-      INSERT INTO gateway_links (gateway, external_id, session_id, created_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT(gateway, external_id) DO UPDATE SET session_id = excluded.session_id
-    `).run(gateway, externalId, sessionId, now());
-  }
-
-  gatewaySession(gateway: string, externalId: string): Session | null {
-    const row = this.db.prepare(`
-      SELECT sessions.id, sessions.scope_key AS "scopeKey", sessions.kind, sessions.cwd,
-        sessions.title, sessions.updated_at AS "updatedAt"
-      FROM gateway_links
-      JOIN sessions ON sessions.id = gateway_links.session_id
-      WHERE gateway_links.gateway = ? AND gateway_links.external_id = ?
-    `).get(gateway, externalId) as unknown as Session | undefined;
-    return row ?? null;
   }
 
   getSetting(key: string): string | null {

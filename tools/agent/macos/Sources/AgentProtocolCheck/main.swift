@@ -3,8 +3,7 @@ import AgentProtocol
 
 let data = Data(#"{"v":1,"seq":2,"requestId":"r1","event":{"type":"text_delta","delta":"hello"}}"#.utf8)
 let envelope = try JSONDecoder().decode(RuntimeEnvelope.self, from: data)
-guard envelope.seq == 2,
-      envelope.event.type == "text_delta",
+guard envelope.event.type == "text_delta",
       envelope.event.delta == "hello" else {
     fatalError("Agent protocol decoding check failed")
 }
@@ -17,11 +16,9 @@ let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil
 guard String(decoding: request, as: UTF8.self).contains("\"fresh\":true") else {
     fatalError("Agent new-session protocol check failed")
 }
-let setupData = Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus","allowanceAvailable":true,"usage":[{"name":"Codex","remainingPercent":75}]}}"#.utf8)
+let setupData = Data(#"{"configured":false,"selectedBackend":null,"openAIConfigured":false,"codex":{"installed":true,"connected":true,"planType":"plus","allowanceAvailable":true}}"#.utf8)
 let setup = try JSONDecoder().decode(SetupStatus.self, from: setupData)
-guard setup.codex.connected,
-      setup.codex.planType == "plus",
-      setup.codex.usage.first?.remainingPercent == 75 else {
+guard setup.codex.connected, setup.codex.planType == "plus" else {
     fatalError("Agent Codex setup protocol check failed")
 }
 let loginData = Data(#"{"type":"chatgpt","loginId":"login-1","authUrl":"https://auth.openai.com/fake"}"#.utf8)

@@ -7,6 +7,7 @@ import {
 } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { readPrivateJson, writePrivateJson } from "../core/files.js";
 
@@ -29,10 +30,6 @@ interface SelfUpdateOptions {
   onStatus?: (message: string) => void;
   onFailure?: (message: string) => Promise<void> | void;
   debounceMs?: number;
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function addDirectory(hash: ReturnType<typeof createHash>, root: string, path: string): Promise<void> {
@@ -62,16 +59,12 @@ export async function agentSourceFingerprint(projectRoot: string): Promise<strin
   return hash.digest("hex");
 }
 
-function statePath(homeDir: string): string {
-  return join(homeDir, UPDATE_STATE);
-}
-
 function readState(homeDir: string): UpdateState | null {
-  return readPrivateJson(statePath(homeDir));
+  return readPrivateJson(join(homeDir, UPDATE_STATE));
 }
 
 function writeState(homeDir: string, state: UpdateState): void {
-  writePrivateJson(statePath(homeDir), state);
+  writePrivateJson(join(homeDir, UPDATE_STATE), state);
 }
 
 export function pendingUpdateOwner(homeDir: string): string | null {
@@ -109,7 +102,6 @@ export class TelegramSelfUpdate {
   private activeTurns = 0;
   private dirty = false;
   private applying = false;
-  private accepting = true;
   private stopped = false;
   private timer: NodeJS.Timeout | null = null;
   private verifyController: AbortController | null = null;
@@ -134,7 +126,7 @@ export class TelegramSelfUpdate {
   }
 
   beginTurn(): boolean {
-    if (!this.accepting || this.stopped) return false;
+    if (this.applying || this.stopped) return false;
     this.activeTurns += 1;
     return true;
   }
@@ -169,7 +161,6 @@ export class TelegramSelfUpdate {
   private async apply(): Promise<void> {
     if (!this.dirty || this.applying || this.activeTurns > 0 || this.stopped) return;
     this.applying = true;
-    this.accepting = false;
     try {
       let verifiedFingerprint = "";
       while (!this.stopped) {
@@ -181,12 +172,8 @@ export class TelegramSelfUpdate {
           await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
         } catch (error) {
           if (this.stopped) return;
-          const afterFailure = await agentSourceFingerprint(this.options.projectRoot);
-          if (afterFailure !== before) {
-            this.dirty = true;
-            continue;
-          }
-          throw error;
+          if (await agentSourceFingerprint(this.options.projectRoot) === before) throw error;
+          continue;
         } finally {
           this.verifyController = null;
         }
@@ -196,7 +183,6 @@ export class TelegramSelfUpdate {
           verifiedFingerprint = after;
           break;
         }
-        this.dirty = true;
       }
       if (this.stopped) return;
 
@@ -206,14 +192,12 @@ export class TelegramSelfUpdate {
         ...(ownerId ? { notificationOwnerId: ownerId } : {}),
       });
       this.options.onStatus?.("Agent update verified; restarting…");
-      let accepted = false;
-      while (!accepted && !this.stopped) {
+      while (!this.stopped) {
         try {
-          accepted = await this.options.requestRuntimeRestart();
+          if (await this.options.requestRuntimeRestart()) break;
         } catch {
           // The supervisor may be replacing a runtime that disconnected independently.
         }
-        if (accepted) break;
         await delay(Math.min(250, this.debounceMs));
       }
       if (this.stopped) return;
@@ -221,7 +205,6 @@ export class TelegramSelfUpdate {
     } catch (error) {
       if (this.stopped) return;
       this.applying = false;
-      this.accepting = true;
       const message = error instanceof Error ? error.message : String(error);
       this.options.onStatus?.(`Agent update was not applied: ${message}`);
       await this.options.onFailure?.(message);

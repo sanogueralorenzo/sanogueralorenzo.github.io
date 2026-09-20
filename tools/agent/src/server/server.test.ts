@@ -18,9 +18,8 @@ function setupStub(): RuntimeSetup {
     status: async () => ({
       configured: false,
       selectedBackend: null,
-      recommendedBackend: "codex",
       openAIConfigured: false,
-      codex: { installed: false, connected: false, planType: null, allowanceAvailable: null, usage: [] },
+      codex: { installed: false, connected: false, planType: null, allowanceAvailable: null },
     }),
     setOpenAIKey: async () => undefined,
     selectBackend: async () => undefined,
@@ -103,9 +102,8 @@ describe("RuntimeServer", () => {
       status: async () => ({
         configured: false,
         selectedBackend: null,
-        recommendedBackend: "codex",
         openAIConfigured: false,
-        codex: { installed: true, connected: false, planType: null, allowanceAvailable: null, usage: [] },
+        codex: { installed: true, connected: false, planType: null, allowanceAvailable: null },
       }),
       setOpenAIKey: async () => undefined,
       selectBackend: async (backend) => { selected = backend; },
@@ -123,7 +121,7 @@ describe("RuntimeServer", () => {
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 
     const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
-    await expect(status.json()).resolves.toMatchObject({ recommendedBackend: "codex", codex: { installed: true } });
+    await expect(status.json()).resolves.toMatchObject({ codex: { installed: true } });
     const missingMode = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
       method: "POST", headers, body: JSON.stringify({}),
     });

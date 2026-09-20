@@ -45,7 +45,6 @@ async function runSetup(
       seed.addMessage(session.id, "user", "Preserved transcript");
       seed.remember("project:preserved", "Preserved memory", session.id);
       seed.bindBackendSession(session.id, "codex", "preserved-thread");
-      seed.linkGateway("telegram", "owner-1", session.id);
     }
     seed.close();
   }
@@ -95,8 +94,7 @@ async function runSetup(
         statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
           && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
           && store.searchMemories("project:preserved", "Preserved memory")[0]?.content === "Preserved memory"
-          && store.backendSession(seededSessionId, "codex") === "preserved-thread"
-          && store.gatewaySession("telegram", "owner-1")?.id === seededSessionId;
+          && store.backendSession(seededSessionId, "codex") === "preserved-thread";
       }
       store.close();
     }

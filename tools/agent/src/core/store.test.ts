@@ -38,15 +38,6 @@ describe("Store", () => {
     store.close();
   });
 
-  it("links gateway identities to a shared session", () => {
-    const store = createStore();
-    const session = store.resolveSession({ scopeKey: "telegram:42", kind: "personal" });
-    store.linkGateway("telegram", "42", session.id);
-
-    expect(store.gatewaySession("telegram", "42")?.id).toBe(session.id);
-    store.close();
-  });
-
   it("recovers checkpointed output after an unclean runtime stop", () => {
     const path = mkdtempSync(join(tmpdir(), "agent-store-"));
     paths.push(path);

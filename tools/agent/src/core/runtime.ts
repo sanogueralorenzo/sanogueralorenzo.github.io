@@ -12,7 +12,6 @@ export interface RunOptions {
 }
 
 function scopeFor(request: TurnRequest, kind: "personal" | "coding"): string {
-  if (request.channel === "telegram" && request.senderId) return `telegram:${request.senderId}`;
   if (kind === "coding" && request.cwd) return `project:${resolve(request.cwd)}`;
   return "personal:local";
 }
@@ -75,14 +74,11 @@ export class AgentRuntime {
         : {}),
     };
     const explicitSession = request.sessionId ? this.store.getSession(request.sessionId) : null;
-    const gatewayLinked = request.channel === "telegram" && request.senderId
-      ? this.store.gatewaySession("telegram", request.senderId)
-      : null;
-    const priorSession = request.fresh ? null : explicitSession ?? gatewayLinked;
+    const priorSession = request.fresh ? null : explicitSession ?? this.store.listSessions(1)[0];
     const route = routeTurn(request, priorSession?.kind);
     const baseScopeKey = scopeFor(request, route.kind);
     const scopeKey = request.fresh ? `${baseScopeKey}:${Date.now()}` : baseScopeKey;
-    const candidate = explicitSession ?? gatewayLinked ?? (!request.cwd ? this.store.latestSession(route.kind) : null);
+    const candidate = explicitSession ?? (!request.cwd ? this.store.latestSession(route.kind) : null);
     const linked = candidate?.kind === route.kind ? candidate : null;
     const session = this.store.resolveSession({
       ...(!request.fresh && linked?.id ? { sessionId: linked.id } : {}),
@@ -91,10 +87,6 @@ export class AgentRuntime {
       ...(request.cwd ? { cwd: resolve(request.cwd) } : {}),
       title: titleFrom(request.text),
     });
-    if (request.channel === "telegram" && request.senderId) {
-      this.store.linkGateway("telegram", request.senderId, session.id);
-    }
-
     const modelName = MODELS.coordinator;
     yield { type: "session", session, route, model: modelName, backend: backend.kind };
 
