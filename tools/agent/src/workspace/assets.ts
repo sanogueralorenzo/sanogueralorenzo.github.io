@@ -40,8 +40,15 @@ function destination(homeDir: string, directoryName: "attachments" | "artifacts"
   return { id, path: join(directory, `${id}${extension}`) };
 }
 
-function artifact(id: string, path: string, name: string, mimeType: string, size: number): Artifact {
-  return { id, path, name, mimeType, size, kind: mimeType.startsWith("image/") ? "image" : "file" };
+function artifact(file: Omit<Artifact, "kind">): Artifact {
+  return { ...file, kind: file.mimeType.startsWith("image/") ? "image" : "file" };
+}
+
+function saveData(homeDir: string, directory: "attachments" | "artifacts", input: { name: string; mimeType: string; data: Buffer }) {
+  const name = safeName(input.name);
+  const { id, path } = destination(homeDir, directory, extname(name) || extensionFor(input.mimeType));
+  writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
+  return { id, path, name, mimeType: input.mimeType, size: input.data.length };
 }
 
 export function saveAttachment(
@@ -51,18 +58,7 @@ export function saveAttachment(
 ): Attachment {
   if (input.data.length === 0) throw new Error("Attachment is empty.");
   if (input.data.length > MAX_ATTACHMENT_BYTES) throw new Error("Attachment exceeds the 25 MB limit.");
-  const name = safeName(input.name);
-  const extension = extname(name) || extensionFor(input.mimeType);
-  const { id, path } = destination(homeDir, "attachments", extension);
-  writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
-  return store.addAttachment({
-    id,
-    kind: kindFor(input.mimeType),
-    name,
-    mimeType: input.mimeType,
-    size: input.data.length,
-    path,
-  });
+  return store.addAttachment({ ...saveData(homeDir, "attachments", input), kind: kindFor(input.mimeType) });
 }
 
 export function saveArtifactData(
@@ -70,11 +66,7 @@ export function saveArtifactData(
   input: { name: string; mimeType: string; data: Buffer },
 ): Artifact {
   if (input.data.length === 0) throw new Error("Artifact is empty.");
-  const name = safeName(input.name);
-  const extension = extname(name) || extensionFor(input.mimeType);
-  const { id, path } = destination(homeDir, "artifacts", extension);
-  writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
-  return artifact(id, path, name, input.mimeType, input.data.length);
+  return artifact(saveData(homeDir, "artifacts", input));
 }
 
 export function saveArtifactPath(
@@ -90,7 +82,7 @@ export function saveArtifactPath(
   const { id, path } = destination(homeDir, "artifacts", extension);
   copyFileSync(source, path);
   chmodSync(path, 0o600);
-  return artifact(id, path, name, mimeType, sourceStat.size);
+  return artifact({ id, path, name, mimeType, size: sourceStat.size });
 }
 
 function mimeForExtension(extension: string): string {

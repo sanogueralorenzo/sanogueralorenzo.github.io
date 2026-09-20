@@ -10,7 +10,6 @@ export interface OpusFrame {
 
 export interface OpusAudio {
   frames: OpusFrame[];
-  durationMs: number;
 }
 
 const MAX_VOICE_DURATION_MS = 10 * 60_000;
@@ -29,5 +28,5 @@ export async function readVoiceNote(attachment: Attachment): Promise<OpusAudio> 
   const durationMs = frames.reduce((total, frame) => total + frame.durationMs, 0);
   if (frames.length === 0 || durationMs === 0) throw new Error("The voice note is empty.");
   if (durationMs > MAX_VOICE_DURATION_MS) throw new Error("Voice note exceeds the 10 minute limit.");
-  return { frames, durationMs };
+  return { frames };
 }
