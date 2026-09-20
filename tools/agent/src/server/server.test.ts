@@ -6,7 +6,7 @@ import { Store } from "../conversation/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
 import { RuntimeClient } from "../client/client.js";
-import { RuntimeServer, type RuntimeSetup } from "./server.js";
+import { RuntimeServer, type RuntimeSetup, type RuntimeSpeed } from "./server.js";
 import type { RunEnvelope } from "../conversation/types.js";
 
 function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
@@ -25,11 +25,15 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
 
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
-async function serve(runtime: AgentRuntime, setup = setupStub()) {
+function speedStub(overrides: Partial<RuntimeSpeed> = {}): RuntimeSpeed {
+  return { fast: () => false, toggleFast: async () => true, ...overrides };
+}
+
+async function serve(runtime: AgentRuntime, setup = setupStub(), speed = speedStub()) {
   const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
   const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
-  const server = new RuntimeServer(config, runtime, store, setup);
+  const server = new RuntimeServer(config, runtime, store, setup, speed);
   const port = await server.listen();
   const token = tokenAt(homeDir);
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -50,6 +54,18 @@ async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelo
 }
 
 describe("RuntimeServer", () => {
+  it("shares one fast setting across clients", async () => {
+    const runtime = { async *run() {} } as unknown as AgentRuntime;
+    let fast = false;
+    const { client } = await serve(runtime, setupStub(), speedStub({
+      fast: () => fast,
+      toggleFast: async () => fast = !fast,
+    }));
+    await expect(client.settings()).resolves.toEqual({ fast: false });
+    await expect(client.toggleFast()).resolves.toEqual({ fast: true });
+    await expect(client.settings()).resolves.toEqual({ fast: true });
+  });
+
   it("opens an idle event stream immediately", async () => {
     const runtime = { async *run() {} } as unknown as AgentRuntime;
     const { request } = await serve(runtime);

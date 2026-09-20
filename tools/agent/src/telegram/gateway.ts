@@ -100,10 +100,22 @@ async function runGateway(token: string): Promise<void> {
     await ctx.reply(replies[result]);
   });
   bot.command("help", async (ctx) => {
-    if (isOwner(ctx)) await ctx.reply("Ask for personal help or coding work in ordinary language. Agent keeps the same session, memory, and tools across clients.");
+    if (isOwner(ctx)) await ctx.reply("Message Agent normally. Use /fast to toggle faster processing with higher usage, or /stop to interrupt a response.");
   });
   bot.command("status", async (ctx) => {
-    if (isOwner(ctx)) await ctx.reply(await client.healthy() ? "Agent is ready." : "Agent is reconnecting.");
+    if (!isOwner(ctx)) return;
+    if (!await client.healthy()) return void await ctx.reply("Agent is reconnecting.");
+    const settings = await client.settings();
+    await ctx.reply(`Agent is ready · ${settings.fast ? "Fast" : "Standard"}.`);
+  });
+  bot.command("fast", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    try {
+      const settings = await client.toggleFast();
+      await ctx.reply(`Fast mode ${settings.fast ? "on" : "off"}.`);
+    } catch (error) {
+      await ctx.reply(telegramFailure(error));
+    }
   });
   bot.command("stop", async (ctx) => {
     if (!isOwner(ctx)) return;
@@ -150,6 +162,12 @@ async function runGateway(token: string): Promise<void> {
   await deliveryReady;
   if (deliveryController.signal.aborted) return;
   await bot.start({ onStart: async (info) => {
+    await bot.api.setMyCommands([
+      { command: "help", description: "What Agent can do" },
+      { command: "status", description: "Connection and speed" },
+      { command: "fast", description: "Toggle fast processing" },
+      { command: "stop", description: "Stop the current response" },
+    ]);
     console.log(`Agent Telegram is online as @${info.username}.`);
     await updater.start();
     const owner = pendingUpdateOwner(config.homeDir);

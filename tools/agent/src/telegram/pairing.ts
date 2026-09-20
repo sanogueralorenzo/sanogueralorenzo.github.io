@@ -36,12 +36,6 @@ export async function setupTelegram(): Promise<string> {
     throw new Error("Telegram could not validate that bot token. Copy a fresh token from @BotFather and try again.");
   }
   if (webhook.url) throw new Error("This bot is connected to a webhook elsewhere. Create a new bot for Agent.");
-  await bot.api.setMyCommands([
-    { command: "start", description: "Open Agent" },
-    { command: "help", description: "What Agent can do" },
-    { command: "status", description: "Connection status" },
-    { command: "stop", description: "Stop the current response" },
-  ]);
   writeSecret("telegram", token, config.homeDir);
 
   const existing = readTelegramState(config.homeDir);

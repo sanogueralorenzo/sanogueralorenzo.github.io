@@ -123,6 +123,12 @@ public actor RuntimeClient {
         return result.stopped
     }
 
+    public func settings() async throws -> RuntimeSettings { try await value(path: "/v1/settings") }
+
+    public func toggleFast() async throws -> RuntimeSettings {
+        try await value(path: "/v1/settings/fast", method: "POST")
+    }
+
     private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
             throw RuntimeClientError.badResponse(0, "Invalid runtime URL")

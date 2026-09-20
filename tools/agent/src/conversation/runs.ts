@@ -42,6 +42,10 @@ export class RunCoordinator {
     return true;
   }
 
+  isBusy(): boolean {
+    return this.active !== null;
+  }
+
   async close(): Promise<void> {
     this.closed = true;
     this.active?.controller.abort();

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_PROTOCOL_VERSION, type RunEnvelope, type RunInfo, type Session, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type RunEnvelope, type RunInfo, type RuntimeSettings, type Session, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RunEnvelope {
@@ -127,6 +127,17 @@ export class RuntimeClient {
     const response = await this.fetch("/v1/runs/stop", { method: "POST" });
     if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
     return (await response.json() as { stopped: boolean }).stopped;
+  }
+
+  settings(): Promise<RuntimeSettings> {
+    return this.json("/v1/settings");
+  }
+
+  async toggleFast(): Promise<RuntimeSettings> {
+    const response = await this.fetch("/v1/settings/fast", { method: "POST" });
+    if (response.status === 409) throw new Error("Agent is working. Change speed after the response finishes.");
+    if (!response.ok) throw new Error(await response.text());
+    return response.json() as Promise<RuntimeSettings>;
   }
 
   sessions(): Promise<{ sessions: Session[] }> {

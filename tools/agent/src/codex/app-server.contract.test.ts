@@ -67,6 +67,24 @@ describe("Codex profile and login", () => {
     expect(() => prepareAgentCodexHome(homeDir)).toThrow(/real directory/);
   });
 
+  it("persists fast processing with only the service tier", async () => {
+    const homeDir = temporary("agent-codex-fast-");
+    const appServer = createAgentCodexAppServer(
+      { homeDir, codexCommand: process.execPath },
+      { args: [fixture], env: { AGENT_FAKE_SCENARIO: "normal" } },
+    );
+    cleanup(() => appServer.stop());
+    expect(appServer.fast()).toBe(false);
+    await expect(appServer.toggleFast()).resolves.toBe(true);
+    const enabled = readFileSync(join(homeDir, "codex", "config.toml"), "utf8");
+    expect(enabled).toContain('service_tier = "fast"');
+    expect(enabled).not.toContain("fast_mode");
+    prepareAgentCodexHome(homeDir);
+    expect(appServer.fast()).toBe(true);
+    await expect(appServer.toggleFast()).resolves.toBe(false);
+    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).not.toContain("service_tier");
+  });
+
   it.each([
     ["browser", "chatgpt", { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" }],
     ["headless", "chatgptDeviceCode", {

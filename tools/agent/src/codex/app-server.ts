@@ -1,5 +1,6 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
@@ -25,6 +26,23 @@ export interface CodexAppServerOptions {
   command: string;
   args?: string[];
   env?: NodeJS.ProcessEnv;
+  profileDir?: string;
+}
+
+function configPath(profileDir: string): string {
+  return join(profileDir, "config.toml");
+}
+
+function isFast(profileDir: string): boolean {
+  try {
+    return /^service_tier = "fast"$/m.test(readFileSync(configPath(profileDir), "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+function writeAgentCodexConfig(profileDir: string, instructions: string, fast: boolean): void {
+  writePrivateFile(configPath(profileDir), `${fast ? `service_tier = "fast"\n` : ""}model_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\n\n[agents]\nenabled = false\n`);
 }
 
 export function prepareAgentCodexHome(homeDir: string): string {
@@ -33,7 +51,7 @@ export function prepareAgentCodexHome(homeDir: string): string {
   ensurePrivateDirectory(codexHome);
   const instructions = join(codexHome, "instructions.md");
   writePrivateFile(instructions, `${BASE_INSTRUCTIONS}\n`);
-  writePrivateFile(join(codexHome, "config.toml"), `model_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\n\n[agents]\nenabled = false\n`);
+  writeAgentCodexConfig(codexHome, instructions, isFast(codexHome));
   return codexHome;
 }
 
@@ -57,6 +75,7 @@ export function createAgentCodexAppServer(
     ...options,
     command: config.codexCommand,
     env,
+    profileDir: codexHome,
   });
 }
 
@@ -158,6 +177,19 @@ export class CodexAppServer extends EventEmitter {
   async restart(): Promise<void> {
     this.stop();
     await this.ensureStarted();
+  }
+
+  fast(): boolean {
+    return this.options.profileDir ? isFast(this.options.profileDir) : false;
+  }
+
+  async toggleFast(): Promise<boolean> {
+    const profileDir = this.options.profileDir;
+    if (!profileDir) throw new Error("Codex profile is unavailable.");
+    const fast = !isFast(profileDir);
+    writeAgentCodexConfig(profileDir, join(profileDir, "instructions.md"), fast);
+    await this.restart();
+    return fast;
   }
 
   stop(): void {

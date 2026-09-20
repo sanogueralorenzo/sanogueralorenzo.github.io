@@ -68,6 +68,14 @@ struct ConversationView: View {
             HStack {
                 Label("Agent", systemImage: "wind").font(.headline)
                 Spacer()
+                Button(model.isFast ? "Use standard speed" : "Use fast mode", systemImage: model.isFast ? "bolt.fill" : "bolt") {
+                    Task { await model.toggleFast() }
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
+                .foregroundStyle(model.isFast ? Color.yellow : Color.secondary)
+                .help(model.isFast ? "Fast mode is on" : "Fast mode is off")
+                .disabled(!model.isConnected || model.isRunning)
                 Button("New", systemImage: "square.and.pencil") { model.newConversation() }
                     .labelStyle(.titleAndIcon)
                     .disabled(model.isRunning)
