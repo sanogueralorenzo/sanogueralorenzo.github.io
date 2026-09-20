@@ -71,7 +71,7 @@ export const SETUP_CHOICES = [
   { id: "headless", label: "Set up headless or remote device (one-time code)" },
   { id: "api", label: "Set up with OpenAI API key (independent usage-based billing)" },
 ] as const;
-export const SETUP_PROMPT = "Choose [1]: ";
+export const SETUP_PROMPT = "Select a setup method (default 1): ";
 
 type SetupChoice = typeof SETUP_CHOICES[number]["id"];
 
