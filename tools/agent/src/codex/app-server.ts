@@ -82,7 +82,7 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async ensureStarted(): Promise<void> {
-    if (this.process && !this.process.killed) return;
+    if (this.process) return;
     this.starting ??= this.start().finally(() => { this.starting = null; });
     await this.starting;
   }
@@ -107,7 +107,7 @@ export class CodexAppServer extends EventEmitter {
         clientInfo: { name: "agent", title: "Agent", version: "0.5.0" },
         capabilities: { experimentalApi: true, requestAttestation: false },
       });
-      this.notify("initialized", {});
+      child.stdin.write(`${JSON.stringify({ method: "initialized", params: {} })}\n`);
     } catch (error) {
       child.kill("SIGTERM");
       throw error;
@@ -117,11 +117,6 @@ export class CodexAppServer extends EventEmitter {
   async request<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     await this.ensureStarted();
     return this.rawRequest(method, params) as Promise<T>;
-  }
-
-  notify(method: string, params: Record<string, unknown>): void {
-    if (!this.process?.stdin.writable) throw new CodexDisconnectedError();
-    this.process.stdin.write(`${JSON.stringify({ method, params })}\n`);
   }
 
   async account(refreshToken = true): Promise<CodexAccountStatus> {

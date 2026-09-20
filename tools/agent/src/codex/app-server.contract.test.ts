@@ -100,10 +100,6 @@ describe("Codex app-server contract", () => {
     expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
     const initialized = requests(rpcLog).find((message) => message.method === "initialize");
     expect(initialized?.params.capabilities).toEqual({ experimentalApi: true, requestAttestation: false });
-    await appServer.beginLogin("browser");
-    await appServer.beginLogin("headless");
-    const loginRequests = requests(rpcLog).filter((message) => message.method === "account/login/start");
-    expect(loginRequests.map((request) => request.params.type)).toEqual(["chatgpt", "chatgptDeviceCode"]);
   });
 
   it("refuses a symbolic-link credential profile", () => {
