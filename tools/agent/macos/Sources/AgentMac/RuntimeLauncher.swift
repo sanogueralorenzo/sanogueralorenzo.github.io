@@ -1,4 +1,5 @@
 import Foundation
+import AgentClient
 
 @MainActor
 final class RuntimeLauncher {

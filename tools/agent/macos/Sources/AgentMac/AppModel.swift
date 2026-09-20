@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import AgentClient
 import AgentProtocol
 
 struct ChatMessage: Identifiable, Equatable {
@@ -32,7 +33,6 @@ final class AppModel: ObservableObject {
     private let launcher = RuntimeLauncher()
     private var client: RuntimeClient?
     private var sessionId: String?
-    private var requestId: String?
     private var fresh = false
 
     func start() async {
@@ -95,10 +95,9 @@ final class AppModel: ObservableObject {
         let assistantID = UUID()
         messages.append(ChatMessage(id: UUID(), role: .user, text: text))
         messages.append(ChatMessage(id: assistantID, role: .assistant, text: ""))
-        let requestId = UUID().uuidString
-        self.requestId = requestId
         do {
-            for try await event in client.events(text: text, sessionId: sessionId, requestId: requestId, fresh: fresh) {
+            let events = try await client.events(text: text, sessionId: sessionId, fresh: fresh)
+            for try await event in events {
                 switch event.type {
                 case "session":
                     sessionId = event.session?.id
@@ -124,12 +123,10 @@ final class AppModel: ObservableObject {
         }
         isRunning = false
         activity = ""
-        self.requestId = nil
     }
 
     func stop() async {
-        guard let requestId else { return }
-        await client?.cancel(requestId: requestId)
+        _ = try? await client?.cancel()
     }
 
     func newConversation() {

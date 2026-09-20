@@ -4,7 +4,9 @@ import AgentProtocol
 func check(_ condition: @autoclosure () -> Bool, _ message: String) { precondition(condition(), message) }
 
 let event = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"text_delta","delta":"hello"}"#.utf8))
-check(event.type == "text_delta" && event.delta == "hello", "Agent protocol decoding check failed")
+check(event.isValid && !event.isTerminal && event.delta == "hello", "Agent protocol decoding check failed")
+let done = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"done","sessionId":"s1"}"#.utf8))
+check(done.isValid && done.isTerminal, "Agent terminal-event check failed")
 let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","mimeType":"image/png","size":12,"path":"/tmp/result.png"}}"#.utf8))
 check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
 let request = try JSONEncoder().encode(ChatRequest(text: "hello", sessionId: nil, requestId: "r1", fresh: true))

@@ -7,7 +7,9 @@ let package = Package(
     products: [.executable(name: "AgentMac", targets: ["AgentMac"])],
     targets: [
         .target(name: "AgentProtocol"),
-        .executableTarget(name: "AgentMac", dependencies: ["AgentProtocol"]),
+        .target(name: "AgentClient", dependencies: ["AgentProtocol"]),
+        .executableTarget(name: "AgentMac", dependencies: ["AgentClient", "AgentProtocol"]),
         .executableTarget(name: "AgentProtocolCheck", dependencies: ["AgentProtocol"]),
+        .executableTarget(name: "AgentClientCheck", dependencies: ["AgentClient", "AgentProtocol"]),
     ]
 )
