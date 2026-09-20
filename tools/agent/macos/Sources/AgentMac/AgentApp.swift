@@ -21,17 +21,10 @@ struct RootView: View {
 
     var body: some View {
         switch model.state {
-        case .starting:
-            ProgressView("Starting Agent…")
         case .needsSetup:
             SetupView(model: model)
-        case .ready:
+        case .conversation:
             ConversationView(model: model)
-        case let .failed(message):
-            ContentUnavailableView("Agent needs attention", systemImage: "exclamationmark.circle", description: Text(message))
-                .safeAreaInset(edge: .bottom) {
-                    Button("Try Again") { Task { await model.start() } }.padding()
-                }
         }
     }
 }
@@ -100,16 +93,25 @@ struct ConversationView: View {
                 HStack { ProgressView().controlSize(.small); Text(model.activity).foregroundStyle(.secondary); Spacer() }
                     .padding(.horizontal, 20).padding(.vertical, 8)
             }
+            if let error = model.connectionError {
+                HStack {
+                    Label(error, systemImage: "exclamationmark.circle").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Retry") { Task { await model.start() } }
+                }
+                .padding(.horizontal, 20).padding(.vertical, 8)
+            }
             Divider()
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Message Agent", text: $model.input, axis: .vertical)
-                    .textFieldStyle(.plain).lineLimit(1...6)
+                    .textFieldStyle(.plain).lineLimit(1...6).disabled(!model.isConnected)
                     .onSubmit { Task { await model.send() } }
                 if model.isRunning {
                     Button("Stop", systemImage: "stop.fill") { Task { await model.stop() } }.labelStyle(.iconOnly)
                 } else {
                     Button("Send", systemImage: "arrow.up.circle.fill") { Task { await model.send() } }
-                        .labelStyle(.iconOnly).font(.title2).disabled(model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .labelStyle(.iconOnly).font(.title2)
+                        .disabled(!model.isConnected || model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }.padding(16)
         }

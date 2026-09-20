@@ -16,17 +16,17 @@ struct ChatMessage: Identifiable, Equatable {
 @MainActor
 @Observable final class AppModel {
     enum State: Equatable {
-        case starting
         case needsSetup
-        case ready
-        case failed(String)
+        case conversation
     }
 
-    var state: State = .starting
+    var state: State = .conversation
     var messages: [ChatMessage] = []
     var input = ""
     var activity = ""
     var isRunning = false
+    var isConnected = false
+    var connectionError: String?
     var setupStatus: SetupStatus?
     var setupMessage = ""
     var isSettingUp = false
@@ -42,20 +42,21 @@ struct ChatMessage: Identifiable, Equatable {
     func start() async {
         observer?.cancel()
         activity = ""
-        state = .starting
+        connectionError = nil
+        isConnected = false
         do {
             let client = try await launcher.ensureRunning()
             self.client = client
             setupStatus = try await client.setupStatus()
             if setupStatus?.configured == true {
-                try await loadTranscript(client)
-                try await observe(client)
-                state = .ready
+                state = .conversation
+                try await connectConversation(client)
             } else {
                 state = .needsSetup
             }
         } catch {
-            state = .failed(error.localizedDescription)
+            state = .conversation
+            connectionError = error.localizedDescription
         }
     }
 
@@ -81,7 +82,7 @@ struct ChatMessage: Identifiable, Equatable {
 
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client, !isRunning else { return }
+        guard !text.isEmpty, let client, isConnected, !isRunning else { return }
         input = ""
         do {
             guard let run = try await client.submit(text: text, sessionId: sessionId, fresh: fresh) else {
@@ -107,11 +108,20 @@ struct ChatMessage: Identifiable, Equatable {
         messages = []
     }
 
-    private func observe(_ initialClient: RuntimeClient) async throws {
+    private func connectConversation(_ client: RuntimeClient) async throws {
+        async let latest = client.resumeLatest()
+        async let feed = client.events()
+        let (transcript, events) = try await (latest, feed)
+        loadTranscript(transcript)
+        observe(events)
+        isConnected = true
+        connectionError = nil
+        activity = ""
+    }
+
+    private func observe(_ initialEvents: AsyncThrowingStream<RunEnvelope, Error>) {
         observer?.cancel()
-        let initialEvents = try await initialClient.events()
         observer = Task {
-            var client = initialClient
             var events = initialEvents
             while !Task.isCancelled {
                 do {
@@ -120,15 +130,23 @@ struct ChatMessage: Identifiable, Equatable {
                     throw RuntimeClientError.disconnected
                 } catch {
                     if Task.isCancelled { return }
+                    isConnected = false
                     activity = activeRunId == nil ? "Reconnecting" : "Response interrupted; reconnecting"
                     do {
-                        client = try await launcher.ensureRunning()
-                        self.client = client
-                        try await loadTranscript(client)
-                        events = try await client.events()
+                        let reconnected = try await launcher.ensureRunning()
+                        async let latest = reconnected.resumeLatest()
+                        async let feed = reconnected.events()
+                        let (transcript, nextEvents) = try await (latest, feed)
+                        self.client = reconnected
+                        loadTranscript(transcript)
+                        events = nextEvents
+                        isConnected = true
+                        connectionError = nil
                         activity = ""
                     } catch {
-                        state = .failed(error.localizedDescription)
+                        if Task.isCancelled { return }
+                        activity = ""
+                        connectionError = error.localizedDescription
                         return
                     }
                 }
@@ -180,8 +198,8 @@ struct ChatMessage: Identifiable, Equatable {
         activity = ""
     }
 
-    private func loadTranscript(_ client: RuntimeClient) async throws {
-        if let transcript = try await client.resumeLatest() {
+    private func loadTranscript(_ transcript: Transcript?) {
+        if let transcript {
             sessionId = transcript.session.id
             messages = transcript.messages.compactMap { message in
                 guard message.role == "user" || message.role == "assistant" else { return nil }
@@ -200,10 +218,8 @@ struct ChatMessage: Identifiable, Equatable {
         defer { isSettingUp = false }
         do {
             try await action(client)
-            setupStatus = try await client.setupStatus()
             setupMessage = ""
-            try await observe(client)
-            state = .ready
+            await start()
         } catch {
             setupMessage = error.localizedDescription
         }
