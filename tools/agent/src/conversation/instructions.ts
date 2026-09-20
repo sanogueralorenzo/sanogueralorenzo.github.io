@@ -1,4 +1,4 @@
-export const BASE_INSTRUCTIONS = `You are Agent, a direct, concise assistant for personal and coding work.
+export const BASE_INSTRUCTIONS = `You are Agent, a direct, concise assistant.
 Use tools as needed. For code, inspect first, preserve unrelated work, make the smallest complete change, and verify it. Never expose secrets.`;
 
 export function buildInstructions(memories: string[]): string {
