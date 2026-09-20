@@ -1,8 +1,6 @@
-import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { existsSync, watch, type FSWatcher } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { rmSync, watch, type FSWatcher } from "node:fs";
+import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { readPrivateJson, writePrivateJson } from "../local/files.js";
@@ -12,8 +10,7 @@ const ROOT_FILES = new Set(["package.json", "package-lock.json", "tsconfig.json"
 const UPDATE_STATE = "self-update.json";
 
 interface UpdateState {
-  deployedFingerprint: string;
-  notificationOwnerId?: string;
+  notificationOwnerId: string;
 }
 
 interface SelfUpdateOptions {
@@ -26,33 +23,6 @@ interface SelfUpdateOptions {
   onStatus?: (message: string) => void;
   onFailure?: (message: string) => Promise<void> | void;
   debounceMs?: number;
-}
-
-async function addDirectory(hash: ReturnType<typeof createHash>, root: string, path: string): Promise<void> {
-  const entries = await readdir(path, { withFileTypes: true });
-  entries.sort((left, right) => left.name.localeCompare(right.name));
-  for (const entry of entries) {
-    const child = join(path, entry.name);
-    if (entry.isDirectory()) {
-      await addDirectory(hash, root, child);
-    } else if (entry.isFile()) {
-      hash.update(relative(root, child));
-      hash.update(await readFile(child));
-    }
-  }
-}
-
-export async function agentSourceFingerprint(projectRoot: string): Promise<string> {
-  const hash = createHash("sha256");
-  const source = join(projectRoot, "src");
-  if (existsSync(source)) await addDirectory(hash, projectRoot, source);
-  for (const name of [...ROOT_FILES].sort()) {
-    const path = join(projectRoot, name);
-    if (!existsSync(path)) continue;
-    hash.update(name);
-    hash.update(await readFile(path));
-  }
-  return hash.digest("hex");
 }
 
 function readState(homeDir: string): UpdateState | null {
@@ -68,9 +38,7 @@ export function pendingUpdateOwner(homeDir: string): string | null {
 }
 
 export function acknowledgeUpdate(homeDir: string): void {
-  const state = readState(homeDir);
-  if (!state?.notificationOwnerId) return;
-  writeState(homeDir, { deployedFingerprint: state.deployedFingerprint });
+  rmSync(join(homeDir, UPDATE_STATE), { force: true });
 }
 
 async function verifyAgent(projectRoot: string, signal: AbortSignal): Promise<void> {
@@ -106,16 +74,11 @@ export class TelegramSelfUpdate {
     this.debounceMs = options.debounceMs ?? 500;
   }
 
-  async start(): Promise<void> {
+  start(): void {
     this.watcher = watch(this.options.projectRoot, { recursive: true }, (_event, filename) => {
       const path = String(filename ?? "");
       if (/^src[\\/]/.test(path) || ROOT_FILES.has(path)) this.noteChange();
     });
-
-    const fingerprint = await agentSourceFingerprint(this.options.projectRoot);
-    const state = readState(this.options.homeDir);
-    if (!state) writeState(this.options.homeDir, { deployedFingerprint: fingerprint });
-    else if (state.deployedFingerprint !== fingerprint) this.noteChange();
   }
 
   beginTurn(): boolean {
@@ -158,17 +121,13 @@ export class TelegramSelfUpdate {
     this.options.onStatus?.("Verifying Agent update…");
     this.verifyController = new AbortController();
     try {
-      const before = await agentSourceFingerprint(this.options.projectRoot);
       await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
       await delay(this.debounceMs);
-      if (before !== await agentSourceFingerprint(this.options.projectRoot)) {
-        this.dirty = true;
-        return;
-      }
+      if (this.dirty) return;
       this.options.onStatus?.("Agent update verified; restarting…");
       if (!await this.options.requestRuntimeRestart()) throw new Error("Agent is busy; the update was not applied.");
       const ownerId = this.options.ownerId();
-      writeState(this.options.homeDir, { deployedFingerprint: before, ...(ownerId ? { notificationOwnerId: ownerId } : {}) });
+      if (ownerId) writeState(this.options.homeDir, { notificationOwnerId: ownerId });
       await this.options.stopGateway();
     } catch (error) {
       if (this.stopped) return;

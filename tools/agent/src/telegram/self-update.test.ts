@@ -62,7 +62,10 @@ describe("Telegram self-update", () => {
       debounceMs: 5,
       verify: async () => {
         checks += 1;
-        if (checks === 1) writeFileSync(source, "export const version = 2;\n");
+        if (checks === 1) {
+          writeFileSync(source, "export const version = 2;\n");
+          updater.noteChange();
+        }
       },
       requestRuntimeRestart: async () => true,
       stopGateway: async () => { updater.stop(); finishStop(); },
