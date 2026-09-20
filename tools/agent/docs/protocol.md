@@ -9,8 +9,7 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `POST /v1/setup/openai` — validate and store an OpenAI key
 - `POST /v1/setup/backend` — select `codex` or `responses`
 - `POST /v1/setup/codex/login` — start explicit ChatGPT login with `{ "mode": "browser" | "headless" }`
-- `GET /v1/setup/codex/login/:id` — poll a login attempt without exposing credentials
-- `POST /v1/setup/codex/login/:id/cancel` — cancel a pending browser or headless login
+- `POST /v1/setup/codex/login/:id/wait` — wait for login completion without exposing credentials
 - `GET /v1/sessions` — recent locally owned sessions
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
@@ -21,22 +20,17 @@ Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
 The Telegram background gateway watches Agent's sources, waits until the active reply is delivered, and runs the full check and production build. It then stops its runtime and exits. The macOS user service relaunches the pair, which reconnects to the same SQLite-backed sessions and sends a short confirmation. A failed check leaves the current process running.
 
-`POST /v1/attachments` accepts raw bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/chat` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, `senderId`, and a client-generated `requestId`. Paths never cross the upload boundary. The runtime resolves attachments, transcribes audio through the explicitly selected backend, then decides the work kind, model behavior, tools, memory scope, and final session from the transcript.
+`POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/chat` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, and a client-generated `requestId`. Paths never cross the upload boundary. The runtime resolves and transcribes voice notes through the explicitly selected backend, then decides the work kind, model behavior, tools, memory scope, and final session from the transcript.
 
-Each SSE data payload is a versioned envelope:
+Each SSE data payload is one runtime event:
 
 ```json
-{
-  "v": 1,
-  "seq": 3,
-  "requestId": "client-id",
-  "event": { "type": "text_delta", "delta": "hello" }
-}
+{ "type": "text_delta", "delta": "hello" }
 ```
 
 Current event types are `session`, `status`, `text_delta`, `artifact`, `tool_start`, `tool_end`, `done`, and `error`. An artifact carries one runtime-owned local image or file path plus its name, MIME type, and size; CLI, Telegram, and macOS only render that shared event. Clients ignore unknown event types so compatible additions do not require lockstep releases.
 
-The `session` event includes `backend: "codex" | "responses"`. All later events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
+All events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
 
 ## Orchestration contract
 
@@ -46,4 +40,4 @@ Every Agent session has one persistent `gpt-5.6-luna` coordinator running at hig
 
 ## Codex app-server boundary
 
-Agent launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, login, and realtime methods are used. Browser mode sends `{ "type": "chatgpt" }`, intentionally retaining app-server's default local success page. Headless mode sends `{ "type": "chatgptDeviceCode" }` and returns only the verification URL and one-time code required by the client. Subscription voice transcription sends the original Opus media through app-server's private v3 WebRTC session and consumes its user-transcript event; API-key mode uses OpenAI's transcription endpoint. Neither mode switches backend or falls back to local speech software. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to Agent's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. Agent stores only the explicitly selected backend and the opaque thread ID associated with an Agent session. Failed authentication never changes the selected backend or Agent-owned state.
+Agent launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only account, thread, turn, interrupt, login, and realtime methods are used. Browser mode sends `{ "type": "chatgpt" }`, intentionally retaining app-server's default local success page. Headless mode sends `{ "type": "chatgptDeviceCode" }` and returns only the verification URL and one-time code required by the client. Subscription voice transcription sends the original Opus media through app-server's private v3 WebRTC session and consumes its user-transcript event; API-key mode uses OpenAI's transcription endpoint. Neither mode switches backend or falls back to local speech software. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to Agent's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. Agent stores only the explicitly selected backend and the opaque thread ID associated with an Agent session. Failed authentication never changes the selected backend or Agent-owned state.
