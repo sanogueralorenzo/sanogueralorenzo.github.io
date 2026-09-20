@@ -8,8 +8,7 @@ import type { RuntimeConfig } from "../core/types.js";
 export const TELEGRAM_SERVICE_LABEL = "dev.a1r.telegram";
 
 interface LaunchAgentOptions {
-  executable: string;
-  serviceEntry: string;
+  launcherPath: string;
   workingDirectory: string;
   homeDir: string;
   codexCommand: string;
@@ -30,12 +29,6 @@ function stringEntry(value: string): string {
 }
 
 export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
-  const sourceMode = options.serviceEntry.endsWith(".ts");
-  const args = [
-    options.executable,
-    ...(sourceMode ? ["--import", "tsx"] : []),
-    options.serviceEntry,
-  ];
   const environment: Array<[string, string]> = [
     ["A1R_HOME", options.homeDir],
     ["A1R_CODEX_COMMAND", options.codexCommand],
@@ -49,9 +42,11 @@ export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
     "<dict>",
     "  <key>Label</key>",
     `  <string>${TELEGRAM_SERVICE_LABEL}</string>`,
+    "  <key>Program</key>",
+    `  <string>${xml(options.launcherPath)}</string>`,
     "  <key>ProgramArguments</key>",
     "  <array>",
-    ...args.map(stringEntry),
+    stringEntry(options.launcherPath),
     "  </array>",
     "  <key>WorkingDirectory</key>",
     `  <string>${xml(options.workingDirectory)}</string>`,
@@ -78,6 +73,19 @@ export function renderTelegramLaunchAgent(options: LaunchAgentOptions): string {
     "</plist>",
     "",
   ].join("\n");
+}
+
+function shellArgument(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+export function renderTelegramGatewayLauncher(executable: string, serviceEntry: string): string {
+  const args = [
+    executable,
+    ...(serviceEntry.endsWith(".ts") ? ["--import", "tsx"] : []),
+    serviceEntry,
+  ];
+  return `#!/bin/sh\nexec ${args.map(shellArgument).join(" ")}\n`;
 }
 
 function executablePath(command: string): string {
@@ -110,14 +118,25 @@ export function installTelegramBackgroundService(
   mkdirSync(config.homeDir, { recursive: true, mode: 0o700 });
   chmodSync(config.homeDir, 0o700);
 
+  const binDirectory = join(config.homeDir, "bin");
+  mkdirSync(binDirectory, { recursive: true, mode: 0o700 });
+  if (lstatSync(binDirectory).isSymbolicLink()) throw new Error("The A1R bin directory must not be a symbolic link.");
+  const launcherPath = join(binDirectory, "A1R Gateway");
+  if (existsSync(launcherPath) && lstatSync(launcherPath).isSymbolicLink()) {
+    throw new Error("The A1R Telegram launcher must not be a symbolic link.");
+  }
+  const launcherTemporary = `${launcherPath}.${process.pid}.tmp`;
+  writeFileSync(launcherTemporary, renderTelegramGatewayLauncher(process.execPath, serviceEntry), { mode: 0o700 });
+  renameSync(launcherTemporary, launcherPath);
+  chmodSync(launcherPath, 0o700);
+
   const plistPath = join(launchAgents, `${TELEGRAM_SERVICE_LABEL}.plist`);
   if (existsSync(plistPath) && lstatSync(plistPath).isSymbolicLink()) {
     throw new Error("The A1R Telegram LaunchAgent must not be a symbolic link.");
   }
   const temporary = `${plistPath}.${process.pid}.tmp`;
   const plist = renderTelegramLaunchAgent({
-    executable: process.execPath,
-    serviceEntry,
+    launcherPath,
     workingDirectory: resolve(dirname(serviceEntry), "../.."),
     homeDir: config.homeDir,
     codexCommand: executablePath(config.codexCommand),
