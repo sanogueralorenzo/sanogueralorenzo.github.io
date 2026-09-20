@@ -52,7 +52,7 @@ describe("Codex profile and login", () => {
     const instructions = join(homeDir, "codex", "instructions.md");
     expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a direct, concise assistant");
     expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
-      `model_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\n\n[agents]\nenabled = false\n`,
+      `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\n\n[agents]\nenabled = false\n`,
     );
     expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
     expect(lstatSync(instructions).mode & 0o777).toBe(0o600);
@@ -67,22 +67,14 @@ describe("Codex profile and login", () => {
     expect(() => prepareAgentCodexHome(homeDir)).toThrow(/real directory/);
   });
 
-  it("persists fast processing with only the service tier", async () => {
+  it("always configures fast processing with only the service tier", () => {
     const homeDir = temporary("agent-codex-fast-");
-    const appServer = createAgentCodexAppServer(
-      { homeDir, codexCommand: process.execPath },
-      { args: [fixture], env: { AGENT_FAKE_SCENARIO: "normal" } },
-    );
-    cleanup(() => appServer.stop());
-    expect(appServer.fast()).toBe(false);
-    await expect(appServer.toggleFast()).resolves.toBe(true);
-    const enabled = readFileSync(join(homeDir, "codex", "config.toml"), "utf8");
-    expect(enabled).toContain('service_tier = "fast"');
-    expect(enabled).not.toContain("fast_mode");
     prepareAgentCodexHome(homeDir);
-    expect(appServer.fast()).toBe(true);
-    await expect(appServer.toggleFast()).resolves.toBe(false);
-    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).not.toContain("service_tier");
+    const config = readFileSync(join(homeDir, "codex", "config.toml"), "utf8");
+    expect(config.match(/^service_tier = "fast"$/gm)).toHaveLength(1);
+    expect(config).not.toContain("fast_mode");
+    prepareAgentCodexHome(homeDir);
+    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(config);
   });
 
   it.each([

@@ -57,10 +57,6 @@ public struct SessionList: Decodable, Sendable {
     public let sessions: [RuntimeSession]
 }
 
-public struct RuntimeSettings: Decodable, Sendable {
-    public let fast: Bool
-}
-
 public struct Transcript: Decodable, Sendable {
     public let session: RuntimeSession
     public let messages: [TranscriptMessage]

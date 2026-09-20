@@ -52,10 +52,6 @@ export interface RunEnvelope {
   event: RuntimeEvent;
 }
 
-export interface RuntimeSettings {
-  fast: boolean;
-}
-
 export interface TurnRequest {
   text: string;
   attachmentIds?: string[];

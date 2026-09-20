@@ -22,7 +22,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim("— quiet help for ongoing work")}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
-  console.log(ansi.dim("/new  /fast  /status  /help  /quit\n"));
+  console.log(ansi.dim("/new  /status  /help  /quit\n"));
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let sessionId: string | undefined;
@@ -124,7 +124,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       if (!input) continue;
       if (input === "/quit") break;
       if (input === "/help") {
-        console.log("Talk normally. /fast toggles faster processing with higher usage. Ctrl-C stops the current response.");
+        console.log("Talk normally. Ctrl-C stops the current response.");
         continue;
       }
       if (input === "/new") {
@@ -134,22 +134,15 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
       if (input === "/status") {
-        const [data, setup, settings] = await Promise.all([
+        const [data, setup] = await Promise.all([
           client.sessions(),
           client.setupStatus(),
-          client.settings(),
         ]);
         const current = data.sessions.find((session) => session.id === sessionId);
         const billing = setup.authMode === "chatgpt" ? "ChatGPT" : "API-key billing";
-        const speed = settings.fast ? "Fast" : "Standard";
         status(current
-          ? `${current.title} · ${billing} · ${speed} · saved ${new Date(current.updatedAt).toLocaleTimeString()}`
-          : `Runtime connected · ${billing} · ${speed}. Session will be selected automatically.`);
-        continue;
-      }
-      if (input === "/fast") {
-        const settings = await client.toggleFast();
-        status(`Fast mode ${settings.fast ? "on" : "off"}.`);
+          ? `${current.title} · ${billing} · saved ${new Date(current.updatedAt).toLocaleTimeString()}`
+          : `Runtime connected · ${billing}. Session will be selected automatically.`);
         continue;
       }
       if (input.startsWith("/")) {

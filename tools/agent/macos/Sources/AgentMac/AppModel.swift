@@ -26,7 +26,6 @@ struct ChatMessage: Identifiable, Equatable {
     var activity = ""
     var isRunning = false
     var isConnected = false
-    var isFast = false
     var connectionError: String?
     var setupStatus: SetupStatus?
     var setupMessage = ""
@@ -109,24 +108,12 @@ struct ChatMessage: Identifiable, Equatable {
         messages = []
     }
 
-    func toggleFast() async {
-        guard let client, isConnected, !isRunning else { return }
-        do {
-            isFast = try await client.toggleFast().fast
-            connectionError = nil
-        } catch {
-            connectionError = error.localizedDescription
-        }
-    }
-
     private func connectConversation(_ client: RuntimeClient) async throws {
         async let latest = client.resumeLatest()
         async let feed = client.events()
-        async let settings = client.settings()
-        let (transcript, events, currentSettings) = try await (latest, feed, settings)
+        let (transcript, events) = try await (latest, feed)
         loadTranscript(transcript)
         observe(events)
-        isFast = currentSettings.fast
         isConnected = true
         connectionError = nil
         activity = ""
@@ -149,12 +136,10 @@ struct ChatMessage: Identifiable, Equatable {
                         let reconnected = try await launcher.ensureRunning()
                         async let latest = reconnected.resumeLatest()
                         async let feed = reconnected.events()
-                        async let settings = reconnected.settings()
-                        let (transcript, nextEvents, currentSettings) = try await (latest, feed, settings)
+                        let (transcript, nextEvents) = try await (latest, feed)
                         self.client = reconnected
                         loadTranscript(transcript)
                         events = nextEvents
-                        isFast = currentSettings.fast
                         isConnected = true
                         connectionError = nil
                         activity = ""

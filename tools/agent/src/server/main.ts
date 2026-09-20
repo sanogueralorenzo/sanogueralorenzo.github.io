@@ -15,7 +15,7 @@ const codex = new CodexBackend(config, store, codexClient);
 const runtime = new AgentRuntime(store, codex);
 const setup = new AgentSetupService(store, codexClient, () => deleteSecret("openai", config.homeDir));
 await setup.migrateLegacyApiKey(readSecret("openai", config.homeDir));
-const server = new RuntimeServer(config, runtime, store, setup, codexClient);
+const server = new RuntimeServer(config, runtime, store, setup);
 
 const port = await server.listen();
 if (process.send) process.send({ type: "ready", port });

@@ -13,10 +13,6 @@ import { readPrivateJson, writePrivateFile } from "../local/files.js";
 
 export type RuntimeSetup = Pick<AgentSetupService,
   "status" | "connectApiKey" | "startCodexLogin" | "waitForCodexLogin">;
-export interface RuntimeSpeed {
-  fast(): boolean;
-  toggleFast(): Promise<boolean>;
-}
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -50,7 +46,6 @@ export class RuntimeServer {
     private readonly runtime: AgentRuntime,
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
-    private readonly speed: RuntimeSpeed,
   ) {
     this.runs = new RunCoordinator(runtime);
   }
@@ -98,11 +93,6 @@ export class RuntimeServer {
         case "POST /v1/runs/stop": return json(response, 200, { stopped: this.runs.stop() });
         case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
-        case "GET /v1/settings": return json(response, 200, { fast: this.speed.fast() });
-        case "POST /v1/settings/fast": {
-          if (this.runs.isBusy()) return json(response, 409, { error: "busy" });
-          return json(response, 200, { fast: await this.speed.toggleFast() });
-        }
         case "POST /v1/setup/openai": {
           const { apiKey } = await readJson(request);
           const key = typeof apiKey === "string" ? apiKey.trim() : "";

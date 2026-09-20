@@ -53,9 +53,6 @@ struct AgentCheck {
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
-        let settings = try JSONDecoder().decode(RuntimeSettings.self, from: Data(#"{"fast":true}"#.utf8))
-        check(settings.fast, "Agent fast setting protocol check failed")
-
         MockURLProtocol.handler = { request, protocolValue in
             check(request.url?.path == "/v1/events" && request.url?.query == nil, "Agent live event URL check failed")
             protocolValue.respond("""
@@ -97,10 +94,6 @@ struct AgentCheck {
                 protocolValue.respond(busy ? #"{"error":"busy"}"# : #"{"run":{"id":"r1","origin":"macos"}}"#, status: busy ? 409 : 202)
             case ("POST", "/v1/runs/stop"):
                 protocolValue.respond(#"{"stopped":true}"#)
-            case ("GET", "/v1/settings"):
-                protocolValue.respond(#"{"fast":false}"#)
-            case ("POST", "/v1/settings/fast"):
-                protocolValue.respond(#"{"fast":true}"#)
             default:
                 protocolValue.respond("{}", status: 404)
             }
@@ -112,11 +105,6 @@ struct AgentCheck {
         check(busy == nil, "Agent busy check failed")
         let didStop = try await apiClient.stop()
         check(didStop, "Agent stop check failed")
-        let standard = try await apiClient.settings()
-        check(!standard.fast, "Agent settings check failed")
-        let fast = try await apiClient.toggleFast()
-        check(fast.fast, "Agent fast toggle check failed")
-
         let stopped = Mutex(false)
         MockURLProtocol.handler = { _, protocolValue in
             protocolValue.respond("data: {\"runId\":\"r1\",\"event\":{\"type\":\"turn\",\"text\":\"hello\",\"channel\":\"api\",\"hasAttachments\":false}}\n\n", stream: true, finish: false)
