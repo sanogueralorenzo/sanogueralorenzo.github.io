@@ -85,6 +85,8 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       : reply(id, { thread: { id: params.threadId } });
   }
   if (method === "turn/start") {
+    if (scenario === "expired") return fail(id, "unauthorized: ChatGPT login expired");
+    if (scenario === "exhausted") return fail(id, "Codex allowance usage limit reached");
     if (scenario === "reconnect" && marker && !existsSync(marker)) {
       writeFileSync(marker, "restarted\n");
       process.exit(23);

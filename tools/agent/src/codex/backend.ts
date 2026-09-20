@@ -102,7 +102,6 @@ async function nextForThread(queue: NotificationQueue, threadId: string, signal?
 
 export class CodexBackend implements AgentBackend {
   readonly kind = "codex" as const;
-  private preflightValidUntil = 0;
 
   constructor(
     private readonly config: RuntimeConfig,
@@ -117,12 +116,10 @@ export class CodexBackend implements AgentBackend {
   }
 
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
-    await this.preflight();
     return this.retry(() => this.transcribe(attachment, signal));
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
-    await this.preflight();
     const workerResult = turn.route.worker ? await this.retry(() => this.worker(turn)) : null;
     const messageId = randomUUID();
     let progress = false;
@@ -160,20 +157,6 @@ export class CodexBackend implements AgentBackend {
       await this.client.restart();
       return operation();
     }
-  }
-
-  private async preflight(): Promise<void> {
-    if (Date.now() < this.preflightValidUntil) return;
-    const account = await this.client.account(false).catch((error) => { throw classifiedError(error); });
-    if (account.account?.type !== "chatgpt") throw new CodexAuthenticationError();
-    const limits = await this.client.rateLimits();
-    const buckets = limits.rateLimitsByLimitId ? Object.values(limits.rateLimitsByLimitId) : [limits.rateLimits];
-    const reached = limits.ordinaryUsageAllowed === false || buckets.some((bucket) => Boolean(bucket.rateLimitReachedType));
-    if (reached) {
-      const name = buckets.find((bucket) => bucket.limitName)?.limitName ?? "Codex";
-      throw new CodexAllowanceError(`${name} allowance is currently exhausted. Check usage with \`agent setup\`, or choose API-key billing there.`);
-    }
-    this.preflightValidUntil = Date.now() + 15_000;
   }
 
   private async *turnEvents(

@@ -1,7 +1,6 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
-import { createInterface, type Interface } from "node:readline";
+import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
 import type { RuntimeConfig } from "../conversation/types.js";
 import type {
@@ -20,14 +19,12 @@ type NotificationListener = (message: JsonRpcMessage) => void;
 export class CodexRpcError extends Error {
   constructor(readonly code: number, message: string, readonly data?: unknown) {
     super(message);
-    this.name = "CodexRpcError";
   }
 }
 
 export class CodexDisconnectedError extends Error {
   constructor(message = "Codex app-server disconnected.") {
     super(message);
-    this.name = "CodexDisconnectedError";
   }
 }
 
@@ -42,21 +39,8 @@ export interface CodexAppServerOptions {
 export function prepareAgentCodexHome(homeDir: string): string {
   const codexHome = join(homeDir, "codex");
   ensurePrivateDirectory(homeDir);
-  if (existsSync(codexHome)) {
-    const stat = lstatSync(codexHome);
-    if (stat.isSymbolicLink() || !stat.isDirectory()) {
-      throw new Error("Agent's private Codex profile must be a real directory, not a file or symbolic link.");
-    }
-  }
   ensurePrivateDirectory(codexHome);
-  const configPath = join(codexHome, "config.toml");
-  if (existsSync(configPath)) {
-    const stat = lstatSync(configPath);
-    if (stat.isSymbolicLink() || !stat.isFile()) {
-      throw new Error("Agent's private Codex configuration must be a real file.");
-    }
-  }
-  writePrivateFile(configPath, "[agents]\nenabled = false\n");
+  writePrivateFile(join(codexHome, "config.toml"), "[agents]\nenabled = false\n");
   return codexHome;
 }
 
@@ -91,7 +75,6 @@ interface PendingRequest {
 
 export class CodexAppServer {
   private process: ChildProcessWithoutNullStreams | null = null;
-  private lines: Interface | null = null;
   private starting: Promise<void> | null = null;
   private nextId = 1;
   private pending = new Map<number | string, PendingRequest>();
@@ -110,9 +93,7 @@ export class CodexAppServer {
 
   async ensureStarted(): Promise<void> {
     if (this.process && !this.process.killed) return;
-    if (!this.starting) {
-      this.starting = this.start().finally(() => { this.starting = null; });
-    }
+    this.starting ??= this.start().finally(() => { this.starting = null; });
     await this.starting;
   }
 
@@ -125,8 +106,7 @@ export class CodexAppServer {
       env: this.options.env ?? process.env,
     });
     this.process = child;
-    this.lines = createInterface({ input: child.stdout });
-    this.lines.on("line", (line) => this.receive(line));
+    createInterface({ input: child.stdout }).on("line", (line) => this.receive(line));
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk: string) => {
       this.stderr = `${this.stderr}${chunk}`.slice(-4_000);
@@ -214,8 +194,6 @@ export class CodexAppServer {
     this.closing = true;
     const child = this.process;
     this.process = null;
-    this.lines?.close();
-    this.lines = null;
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {
@@ -295,8 +273,6 @@ export class CodexAppServer {
   private disconnected(code: number | null, signal: NodeJS.Signals | null, error?: Error): void {
     const wasClosing = this.closing;
     this.process = null;
-    this.lines?.close();
-    this.lines = null;
     const detail = redactSecrets(error?.message ?? this.stderr.trim() ?? `exit ${code ?? signal ?? "unknown"}`);
     const disconnected = new CodexDisconnectedError(`Codex app-server disconnected (${detail}).`);
     for (const request of this.pending.values()) {
