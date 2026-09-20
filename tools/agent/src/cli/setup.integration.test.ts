@@ -1,17 +1,12 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Store } from "../conversation/store.js";
 import { temporary } from "../test-support.js";
 import { SETUP_CHOICES, SETUP_PROMPT, setupAgent } from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.unstubAllEnvs();
-});
 
 function executable(homeDir: string): string {
   const path = join(homeDir, "fake-codex");

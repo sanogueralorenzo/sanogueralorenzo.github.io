@@ -26,11 +26,8 @@ import { runTelegramCommand } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
-    mocks.installService.mockReset();
-    mocks.readSecret.mockReset();
-    mocks.readSecretLine.mockReset().mockRejectedValue(new Error("stop at Telegram setup"));
-    mocks.setup.mockReset().mockRejectedValue(new Error("stop after backend setup"));
-    mocks.writeSecret.mockReset();
+    mocks.readSecretLine.mockRejectedValue(new Error("stop at Telegram setup"));
+    mocks.setup.mockRejectedValue(new Error("stop after backend setup"));
   });
 
   it.each([
