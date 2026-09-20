@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, parse, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 import type { Memory, RouteDecision, Session, WorkerKind } from "./types.js";
 
 function projectInstructions(cwd: string): string[] {
@@ -19,23 +18,6 @@ function projectInstructions(cwd: string): string[] {
   });
 }
 
-function gitContext(cwd: string): string | null {
-  try {
-    const options = {
-      cwd,
-      encoding: "utf8" as const,
-      timeout: 2_000,
-      stdio: ["ignore", "pipe", "ignore"] as ["ignore", "pipe", "ignore"],
-    };
-    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], options).trim();
-    const branch = execFileSync("git", ["branch", "--show-current"], options).trim();
-    const status = execFileSync("git", ["status", "--short"], options).trim();
-    return `Git project: ${root}\nBranch: ${branch || "detached"}\nWorking tree:\n${status || "clean"}`;
-  } catch {
-    return null;
-  }
-}
-
 function sessionContext(input: {
   session: Session;
   route: RouteDecision;
@@ -48,8 +30,6 @@ function sessionContext(input: {
 
   if (session.cwd) {
     sections.push(`Active working directory: ${session.cwd}`);
-    const git = gitContext(session.cwd);
-    if (git) sections.push(git);
     sections.push(...projectInstructions(session.cwd));
   }
 
