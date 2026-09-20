@@ -8,6 +8,7 @@ import { isA1RConfigured, readSecretLine, setupA1R } from "../cli/setup.js";
 import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import type { RuntimeEvent } from "../core/types.js";
+import { installTelegramBackgroundService } from "./service.js";
 import { pairingExpiresAt, pairingHash, splitTelegramText } from "./text.js";
 
 interface TelegramState {
@@ -76,7 +77,7 @@ async function setupTelegram(): Promise<string> {
     console.log(`\nOpen this private pairing link within 3 minutes:\nhttps://t.me/${me.username}?start=pair_${code}`);
   } else {
     writeState(config.homeDir, { ...existing, botId: String(me.id), username: me.username });
-    console.log(`@${me.username} is already paired. Starting the gateway…`);
+    console.log(`@${me.username} is already paired.`);
   }
   return token;
 }
@@ -196,8 +197,25 @@ async function runGateway(token: string): Promise<void> {
   await bot.start({ onStart: (info) => console.log(`A1R Telegram is online as @${info.username}.`) });
 }
 
+export async function startTelegramGatewayProcess(
+  config: Pick<ReturnType<typeof loadConfig>, "homeDir" | "codexCommand">,
+  token: string,
+  installBackground = installTelegramBackgroundService,
+  runForeground = runGateway,
+): Promise<"background" | "foreground"> {
+  if (installBackground(config)) return "background";
+  await runForeground(token);
+  return "foreground";
+}
+
 export async function runTelegramCommand(args: string[]): Promise<void> {
   const config = loadConfig();
+  if (args[0] === "serve") {
+    const token = readSecret("telegram", config.homeDir);
+    if (!token) throw new Error("Telegram is not connected. Run `a1r telegram setup`.");
+    await runGateway(token);
+    return;
+  }
   if (args[0] === "setup") {
     const setupArgs = args.slice(1);
     if (setupArgs.length > 0 || !await isA1RConfigured()) await setupA1R(setupArgs);
@@ -205,7 +223,8 @@ export async function runTelegramCommand(args: string[]): Promise<void> {
   const token = args[0] === "setup" ? await setupTelegram() : readSecret("telegram", config.homeDir);
   if (!token) throw new Error("Telegram is not connected. Run `a1r telegram setup`.");
   try {
-    await runGateway(token);
+    const mode = await startTelegramGatewayProcess(config, token);
+    if (mode === "background") console.log("A1R Telegram is running in the background.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(message.replaceAll(token, "[redacted]"));

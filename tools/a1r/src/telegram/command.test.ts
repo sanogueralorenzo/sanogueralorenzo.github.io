@@ -12,7 +12,7 @@ vi.mock("../cli/setup.js", () => ({
   setupA1R: mocks.setup,
 }));
 
-import { runTelegramCommand } from "./command.js";
+import { runTelegramCommand, startTelegramGatewayProcess } from "./command.js";
 
 describe("Telegram guided setup", () => {
   beforeEach(() => {
@@ -46,5 +46,33 @@ describe("Telegram guided setup", () => {
     expect(mocks.configured).toHaveBeenCalledOnce();
     expect(mocks.setup).not.toHaveBeenCalled();
     expect(mocks.readSecretLine).toHaveBeenCalledWith("Bot token (hidden): ");
+  });
+
+  it("returns immediately when the platform installs a background gateway", async () => {
+    const install = vi.fn(() => true);
+    const runForeground = vi.fn();
+
+    await expect(startTelegramGatewayProcess(
+      { homeDir: "/tmp/a1r", codexCommand: "codex" },
+      "secret-token",
+      install,
+      runForeground,
+    )).resolves.toBe("background");
+
+    expect(install).toHaveBeenCalledOnce();
+    expect(runForeground).not.toHaveBeenCalled();
+  });
+
+  it("keeps the foreground gateway fallback on unsupported platforms", async () => {
+    const runForeground = vi.fn().mockResolvedValue(undefined);
+
+    await expect(startTelegramGatewayProcess(
+      { homeDir: "/tmp/a1r", codexCommand: "codex" },
+      "secret-token",
+      () => false,
+      runForeground,
+    )).resolves.toBe("foreground");
+
+    expect(runForeground).toHaveBeenCalledExactlyOnceWith("secret-token");
   });
 });

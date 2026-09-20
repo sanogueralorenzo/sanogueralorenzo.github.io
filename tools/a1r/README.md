@@ -76,6 +76,8 @@ a1r telegram setup --headless # remote/headless host
 
 The guided flow reuses A1R's existing connection when the CLI is already configured. Otherwise it first uses the same three browser, headless-device, or API-key choices as the CLI. It then validates a dedicated BotFather token, refuses bots already attached to a webhook, stores the token privately, and prints a single-use pairing link that expires after three minutes. Only the paired private Telegram account can use it. Passing `--chatgpt`, `--headless`, or `--api-key` explicitly reruns that connection setup before Telegram pairing.
 
+On macOS, setup installs and starts a private user LaunchAgent, prints `A1R Telegram is running in the background.`, and returns the shell prompt. The gateway starts again at login and is restarted automatically if it fails; logs stay under `~/.a1r/telegram.log`. Running `a1r telegram` repairs or restarts that background service. On other platforms, the command keeps the foreground polling behavior until a native service integration is available.
+
 Telegram remains thin: messages enter the same local runtime over authenticated HTTP/SSE. `/stop` cancels the active Responses or Codex turn. Coding requests resume the most recent local coding project; ordinary requests use the personal conversation. The computer and gateway must remain online.
 
 ## Native macOS app
