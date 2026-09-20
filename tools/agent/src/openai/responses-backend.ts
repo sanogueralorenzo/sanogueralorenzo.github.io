@@ -24,8 +24,6 @@ interface Completion {
 }
 
 export class ResponsesBackend implements AgentBackend {
-  readonly kind = "responses" as const;
-
   constructor(
     private readonly config: RuntimeConfig,
     private readonly store: Store,

@@ -16,10 +16,8 @@ export interface BackendTurn {
 }
 
 export interface AgentBackend {
-  readonly kind: BackendKind;
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
-  close?(): void | Promise<void>;
 }
 
 export class BackendRegistry {

@@ -61,8 +61,6 @@ async function nextForThread(queue: Notifications, threadId: string) {
 }
 
 export class CodexBackend implements AgentBackend {
-  readonly kind = "codex" as const;
-
   constructor(
     private readonly config: RuntimeConfig,
     private readonly store: Store,

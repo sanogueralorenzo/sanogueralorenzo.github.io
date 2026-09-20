@@ -51,16 +51,8 @@ function routingModel(transcribeAudio?: ModelClient["transcribeAudio"]): TestMod
   }, transcribeAudio);
 }
 
-function config(homeDir: string): RuntimeConfig {
-  return {
-    homeDir,
-    port: 0,
-    codexCommand: "codex",
-  };
-}
-
 function runtime(homeDir: string, store: Store, model: ModelClient): AgentRuntime {
-  const currentConfig = config(homeDir);
+  const currentConfig: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
   const responses = new ResponsesBackend(currentConfig, store, model);
   store.setSetting("backend", "responses");
   return new AgentRuntime(store, new BackendRegistry(store, responses, responses));

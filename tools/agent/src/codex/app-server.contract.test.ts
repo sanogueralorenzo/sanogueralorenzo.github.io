@@ -32,13 +32,7 @@ function trackedStore(homeDir: string): Store {
 const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
   .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
 
-function config(homeDir: string): RuntimeConfig {
-  return {
-    homeDir,
-    port: 0,
-    codexCommand: "codex",
-  };
-}
+const config = (homeDir: string): RuntimeConfig => ({ homeDir, port: 0, codexCommand: "codex" });
 
 function turn(store: Store, homeDir: string, worker: BackendTurn["route"]["worker"] = "coding"): BackendTurn {
   const session = store.resolveSession({ scopeKey: "project:test", kind: "coding", cwd: homeDir, title: "test" });

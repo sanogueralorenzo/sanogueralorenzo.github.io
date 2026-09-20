@@ -17,13 +17,8 @@ export interface ModelRequest {
   signal?: AbortSignal;
 }
 
-export interface ModelStreamEvent {
-  type: "text_delta";
-  delta: string;
-}
-
 export interface ModelClient {
-  stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response>;
+  stream(request: ModelRequest): AsyncGenerator<{ type: "text_delta"; delta: string }, Response>;
   transcribeAudio?(attachment: Attachment, signal?: AbortSignal): Promise<string>;
 }
 
@@ -47,7 +42,7 @@ export class OpenAIModelClient implements ModelClient {
     this.configured = true;
   }
 
-  async *stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response> {
+  async *stream(request: ModelRequest): AsyncGenerator<{ type: "text_delta"; delta: string }, Response> {
     if (!this.configured) throw new Error("OpenAI is not connected. Run `agent setup` once, then try again.");
     const stream = await this.client.responses.create({
       model: request.model,

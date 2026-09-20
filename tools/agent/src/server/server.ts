@@ -11,13 +11,6 @@ import type { BackendSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
 
-interface Discovery {
-  protocolVersion: 1;
-  port: number;
-  token: string;
-  pid: number;
-}
-
 export type RuntimeSetup = Pick<BackendSetupService,
   "status" | "setOpenAIKey" | "selectBackend" | "startCodexLogin" | "waitForCodexLogin">;
 
@@ -69,7 +62,7 @@ export class RuntimeServer {
     for (const controller of this.controllers.values()) controller.abort();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
     const path = join(this.config.homeDir, "runtime.json");
-    const discovery = readPrivateJson<Discovery>(path);
+    const discovery = readPrivateJson<{ pid: number; token: string }>(path);
     if (discovery?.pid === process.pid && discovery.token === this.token) rmSync(path, { force: true });
   }
 
