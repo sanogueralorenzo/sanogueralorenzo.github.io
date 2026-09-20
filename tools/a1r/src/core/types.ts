@@ -1,5 +1,6 @@
 export type WorkKind = "personal" | "coding";
 export type ModelTier = "fast" | "standard" | "deep";
+export type BackendKind = "codex" | "responses";
 
 export interface RouteDecision {
   kind: WorkKind;
@@ -38,7 +39,7 @@ export interface Memory {
 }
 
 export type RuntimeEvent =
-  | { type: "session"; session: Session; route: RouteDecision; model: string }
+  | { type: "session"; session: Session; route: RouteDecision; model: string; backend?: BackendKind }
   | { type: "status"; message: string }
   | { type: "text_delta"; delta: string }
   | { type: "tool_start"; name: string; callId: string }
@@ -62,6 +63,7 @@ export interface RuntimeConfig {
   models: Record<ModelTier, string>;
   maxToolRounds: number;
   maxHistoryMessages: number;
+  codexCommand: string;
   telegramToken?: string;
   telegramOwnerId?: string;
 }

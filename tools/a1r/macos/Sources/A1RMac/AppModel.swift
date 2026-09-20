@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import A1RProtocol
 
 struct ChatMessage: Identifiable, Equatable {
@@ -13,7 +14,7 @@ struct ChatMessage: Identifiable, Equatable {
 final class AppModel: ObservableObject {
     enum State: Equatable {
         case starting
-        case needsOpenAI
+        case needsSetup
         case ready
         case failed(String)
     }
@@ -23,6 +24,9 @@ final class AppModel: ObservableObject {
     @Published var input = ""
     @Published var activity = ""
     @Published var isRunning = false
+    @Published var setupStatus: SetupStatus?
+    @Published var setupMessage = ""
+    @Published var isSettingUp = false
 
     private let launcher = RuntimeLauncher()
     private var client: RuntimeClient?
@@ -35,7 +39,9 @@ final class AppModel: ObservableObject {
         do {
             let client = try await launcher.ensureRunning()
             self.client = client
-            if try await client.setupStatus().openAIConfigured {
+            let setup = try await client.setupStatus()
+            setupStatus = setup
+            if setup.configured {
                 if let transcript = try await client.resumeLatest() {
                     sessionId = transcript.session.id
                     messages = transcript.messages.compactMap { message in
@@ -45,7 +51,7 @@ final class AppModel: ObservableObject {
                 }
                 state = .ready
             } else {
-                state = .needsOpenAI
+                state = .needsSetup
             }
         } catch {
             state = .failed(error.localizedDescription)
@@ -53,12 +59,69 @@ final class AppModel: ObservableObject {
     }
 
     func connectOpenAI(_ key: String) async {
+        isSettingUp = true
+        setupMessage = "Checking API key…"
+        defer { isSettingUp = false }
         do {
             guard let client else { return }
             try await client.connectOpenAI(key: key)
+            setupStatus = try await client.setupStatus()
+            setupMessage = ""
             state = .ready
         } catch {
-            state = .failed(error.localizedDescription)
+            setupMessage = error.localizedDescription
+        }
+    }
+
+    func useSavedAPIKey() async {
+        guard let client, !isSettingUp else { return }
+        isSettingUp = true
+        defer { isSettingUp = false }
+        do {
+            try await client.selectBackend("responses")
+            setupStatus = try await client.setupStatus()
+            setupMessage = ""
+            state = .ready
+        } catch {
+            setupMessage = error.localizedDescription
+        }
+    }
+
+    func continueWithChatGPT(deviceCode: Bool = false) async {
+        guard let client, !isSettingUp else { return }
+        isSettingUp = true
+        defer { isSettingUp = false }
+        do {
+            if setupStatus?.codex.connected == true {
+                try await client.selectBackend("codex")
+                setupStatus = try await client.setupStatus()
+                state = .ready
+                return
+            }
+            setupMessage = "Starting secure ChatGPT sign-in…"
+            let login = try await client.startCodexLogin(mode: deviceCode ? "device" : "browser")
+            if let code = login.userCode, let url = login.verificationUrl {
+                setupMessage = "Enter code \(code) in the browser."
+                if let destination = URL(string: url) { NSWorkspace.shared.open(destination) }
+            } else if let url = login.authUrl {
+                setupMessage = "Finish signing in in your browser."
+                if let destination = URL(string: url) { NSWorkspace.shared.open(destination) }
+            }
+            for _ in 0..<300 {
+                try await Task.sleep(for: .seconds(1))
+                let result = try await client.codexLoginStatus(loginId: login.loginId)
+                if result.state == "complete" {
+                    setupStatus = try await client.setupStatus()
+                    setupMessage = ""
+                    state = .ready
+                    return
+                }
+                if result.state == "failed" { throw RuntimeClientError.badResponse(400, result.error ?? "ChatGPT sign-in failed.") }
+            }
+            throw RuntimeClientError.badResponse(408, "ChatGPT sign-in timed out. Try again.")
+        } catch {
+            setupMessage = error.localizedDescription
+            setupStatus = try? await client.setupStatus()
         }
     }
 
@@ -85,6 +148,8 @@ final class AppModel: ObservableObject {
                     }
                 case "tool_start":
                     activity = event.name.map { "Using \($0.replacingOccurrences(of: "_", with: " "))" } ?? "Working"
+                case "status":
+                    activity = event.message ?? "Working"
                 case "error":
                     if let index = messages.firstIndex(where: { $0.id == assistantID }), messages[index].text.isEmpty {
                         messages[index].text = event.message ?? "Something went wrong."

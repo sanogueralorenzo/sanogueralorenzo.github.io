@@ -6,6 +6,9 @@ import type { AddressInfo } from "node:net";
 import type { A1RRuntime } from "../core/runtime.js";
 import type { Store } from "../core/store.js";
 import type { RuntimeConfig, RuntimeEvent, TurnRequest } from "../core/types.js";
+import type { BackendKind } from "../core/types.js";
+import type { CodexLoginResult, CodexLoginStart } from "../codex/protocol.js";
+import type { SetupStatus } from "../setup/service.js";
 
 interface Discovery {
   protocolVersion: 1;
@@ -42,8 +45,11 @@ export class RuntimeServer {
     private readonly runtime: A1RRuntime,
     private readonly store: Store,
     private readonly setup?: {
-      openAIConfigured: () => boolean;
+      status: () => Promise<SetupStatus>;
       setOpenAIKey: (key: string) => Promise<void>;
+      selectBackend: (backend: BackendKind) => Promise<void>;
+      startCodexLogin: (mode: "browser" | "device") => Promise<CodexLoginStart>;
+      codexLoginStatus: (loginId: string) => Promise<CodexLoginResult>;
     },
   ) {}
 
@@ -109,7 +115,18 @@ export class RuntimeServer {
         return;
       }
       if (request.method === "GET" && url.pathname === "/v1/setup") {
-        json(response, 200, { openAIConfigured: this.setup?.openAIConfigured() ?? Boolean(process.env.OPENAI_API_KEY) });
+        if (!this.setup) {
+          const openAIConfigured = Boolean(process.env.OPENAI_API_KEY);
+          json(response, 200, {
+            configured: openAIConfigured,
+            selectedBackend: openAIConfigured ? "responses" : null,
+            recommendedBackend: "codex",
+            openAIConfigured,
+            codex: { installed: false, connected: false, planType: null, allowanceAvailable: null, usage: [] },
+          });
+        } else {
+          json(response, 200, await this.setup.status());
+        }
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/setup/openai") {
@@ -119,6 +136,28 @@ export class RuntimeServer {
         if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
         await this.setup.setOpenAIKey(key);
         json(response, 200, { connected: true });
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/setup/backend") {
+        if (!this.setup) throw new Error("Runtime setup is unavailable.");
+        const body = await readJson(request);
+        const backend = body.backend;
+        if (backend !== "codex" && backend !== "responses") throw new Error("backend must be codex or responses");
+        await this.setup.selectBackend(backend);
+        json(response, 200, { connected: true, backend });
+        return;
+      }
+      if (request.method === "POST" && url.pathname === "/v1/setup/codex/login") {
+        if (!this.setup) throw new Error("Runtime setup is unavailable.");
+        const body = await readJson(request);
+        const mode = body.mode === "device" ? "device" : "browser";
+        json(response, 200, await this.setup.startCodexLogin(mode));
+        return;
+      }
+      if (request.method === "GET" && url.pathname.startsWith("/v1/setup/codex/login/")) {
+        if (!this.setup) throw new Error("Runtime setup is unavailable.");
+        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length));
+        json(response, 200, await this.setup.codexLoginStatus(loginId));
         return;
       }
       if (request.method === "POST" && url.pathname === "/v1/cancel") {

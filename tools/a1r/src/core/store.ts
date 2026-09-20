@@ -71,7 +71,7 @@ function toMemory(row: MemoryRow): Memory {
 export class Store {
   readonly db: DatabaseSync;
 
-  constructor(homeDir: string, filename = "a1r.sqlite") {
+  constructor(homeDir: string, filename = "a1r.sqlite", options: { recoverRuns?: boolean } = {}) {
     mkdirSync(homeDir, { recursive: true, mode: 0o700 });
     const homeStat = lstatSync(homeDir);
     if (homeStat.isSymbolicLink()) throw new Error("A1R_HOME must not be a symbolic link.");
@@ -83,7 +83,7 @@ export class Store {
     chmodSync(databasePath, 0o600);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     this.migrate();
-    this.recoverInterruptedRuns();
+    if (options.recoverRuns !== false) this.recoverInterruptedRuns();
   }
 
   private migrate(): void {
@@ -133,6 +133,19 @@ export class Store {
         session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
         created_at TEXT NOT NULL,
         PRIMARY KEY(gateway, external_id)
+      );
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS backend_sessions (
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        backend TEXT NOT NULL,
+        external_id TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(session_id, backend),
+        UNIQUE(backend, external_id)
       );
     `);
     const runColumns = this.db.prepare("PRAGMA table_info(runs)").all() as unknown as Array<{ name: string }>;
@@ -274,6 +287,35 @@ export class Store {
       WHERE gateway_links.gateway = ? AND gateway_links.external_id = ?
     `).get(gateway, externalId) as SessionRow | undefined;
     return row ? toSession(row) : null;
+  }
+
+  getSetting(key: string): string | null {
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined;
+    return row?.value ?? null;
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db.prepare(`
+      INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, value, now());
+  }
+
+  backendSession(sessionId: string, backend: string): string | null {
+    const row = this.db.prepare("SELECT external_id FROM backend_sessions WHERE session_id = ? AND backend = ?")
+      .get(sessionId, backend) as { external_id: string } | undefined;
+    return row?.external_id ?? null;
+  }
+
+  bindBackendSession(sessionId: string, backend: string, externalId: string): void {
+    this.db.prepare(`
+      INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
+    `).run(sessionId, backend, externalId, now());
+  }
+
+  removeBackendSession(sessionId: string, backend: string): void {
+    this.db.prepare("DELETE FROM backend_sessions WHERE session_id = ? AND backend = ?").run(sessionId, backend);
   }
 
   close(): void {

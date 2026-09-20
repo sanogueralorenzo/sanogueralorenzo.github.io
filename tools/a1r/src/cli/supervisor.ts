@@ -74,7 +74,7 @@ export class RuntimeSupervisor {
   }
 
   private startWatching(): void {
-    for (const directory of ["core", "server", "prompts", "tools"]) {
+    for (const directory of ["core", "codex", "server", "setup", "prompts", "tools"]) {
       const path = join(this.projectRoot(), "src", directory);
       try {
         this.watchers.push(watch(path, { recursive: true }, () => this.scheduleRestart()));

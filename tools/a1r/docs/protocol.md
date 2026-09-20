@@ -7,6 +7,9 @@ A1R surfaces connect to the runtime on loopback HTTP. The runtime atomically wri
 - `GET /v1/health` — unauthenticated liveness only
 - `GET /v1/setup` — setup state
 - `POST /v1/setup/openai` — validate and store an OpenAI key
+- `POST /v1/setup/backend` — select `codex` or `responses`
+- `POST /v1/setup/codex/login` — start documented browser or device-code login
+- `GET /v1/setup/codex/login/:id` — poll a login attempt without exposing credentials
 - `GET /v1/sessions` — recent locally owned sessions
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/chat` — submit a turn and receive Server-Sent Events
@@ -14,7 +17,7 @@ A1R surfaces connect to the runtime on loopback HTTP. The runtime atomically wri
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
-`POST /v1/chat` accepts `text`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, `senderId`, and a client-generated `requestId`. The runtime—not the client—decides the work kind, model, tools, memory scope, and final session.
+`POST /v1/chat` accepts `text`, optional `sessionId`, optional `cwd`, optional `fresh`, `channel`, `senderId`, and a client-generated `requestId`. The runtime—not the client—decides the work kind, backend, model behavior, tools, memory scope, and final session.
 
 Each SSE data payload is a versioned envelope:
 
@@ -28,3 +31,9 @@ Each SSE data payload is a versioned envelope:
 ```
 
 Current event types are `session`, `status`, `text_delta`, `tool_start`, `tool_end`, `done`, and `error`. Clients ignore unknown event types so compatible additions do not require lockstep releases.
+
+The `session` event may include `backend: "codex" | "responses"`. All later events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
+
+## Codex app-server boundary
+
+A1R launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and login methods are used. App-server owns its authentication persistence and billing state; A1R stores only the selected backend and the opaque thread ID associated with an A1R session.

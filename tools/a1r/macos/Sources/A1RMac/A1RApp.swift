@@ -22,7 +22,7 @@ struct RootView: View {
         switch model.state {
         case .starting:
             ProgressView("Starting A1R…")
-        case .needsOpenAI:
+        case .needsSetup:
             SetupView(model: model)
         case .ready:
             ConversationView(model: model)
@@ -43,15 +43,52 @@ struct SetupView: View {
         VStack(spacing: 18) {
             Image(systemName: "wind").font(.system(size: 48)).foregroundStyle(.tint)
             Text("Welcome to A1R").font(.largeTitle.weight(.semibold))
-            Text("Connect an OpenAI API key once. It is validated by your local runtime and stored in macOS Keychain.")
+            Text("Continue with ChatGPT to use your included Codex allowance. Authentication stays inside the official Codex app-server.")
                 .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
-            SecureField("OpenAI API key", text: $key).textFieldStyle(.roundedBorder).frame(maxWidth: 420)
-            HStack {
-                Link("Create an API key", destination: URL(string: "https://platform.openai.com/api-keys")!)
-                Spacer()
-                Button("Connect") { Task { await model.connectOpenAI(key) } }
-                    .buttonStyle(.borderedProminent).disabled(!key.hasPrefix("sk-"))
-            }.frame(maxWidth: 420)
+            if let plan = model.setupStatus?.codex.planType {
+                Text("ChatGPT \(plan.capitalized)")
+                    .font(.headline)
+                ForEach(model.setupStatus?.codex.usage ?? []) { usage in
+                    Text("\(usage.name): \(Int(usage.remainingPercent.rounded()))% available")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Button(model.setupStatus?.codex.connected == true ? "Continue with ChatGPT" : "Sign in with ChatGPT") {
+                Task { await model.continueWithChatGPT() }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true || model.setupStatus?.codex.allowanceAvailable == false)
+            if model.setupStatus?.codex.allowanceAvailable == false {
+                Text("Included Codex usage is unavailable right now. Use API billing below or try again after reset.")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
+            HStack(spacing: 4) {
+                Text(model.setupStatus?.codex.installed == true ? "Browser sign-in not working?" : "Install the official Codex CLI to enable subscription mode.")
+                if model.setupStatus?.codex.installed == true {
+                    Button("Use a device code") { Task { await model.continueWithChatGPT(deviceCode: true) } }
+                        .buttonStyle(.link)
+                        .disabled(model.isSettingUp)
+                }
+            }.font(.caption).foregroundStyle(.secondary)
+            HStack { Rectangle().frame(height: 1).foregroundStyle(.quaternary); Text("or use API billing").font(.caption).foregroundStyle(.secondary); Rectangle().frame(height: 1).foregroundStyle(.quaternary) }
+                .frame(maxWidth: 420)
+            if model.setupStatus?.openAIConfigured == true {
+                Button("Use saved API key") { Task { await model.useSavedAPIKey() } }
+                    .disabled(model.isSettingUp)
+            } else {
+                SecureField("OpenAI API key", text: $key).textFieldStyle(.roundedBorder).frame(maxWidth: 420)
+                HStack {
+                    Link("Create an API key", destination: URL(string: "https://platform.openai.com/api-keys")!)
+                    Spacer()
+                    Button("Connect") { Task { await model.connectOpenAI(key) } }
+                        .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
+                }.frame(maxWidth: 420)
+            }
+            if model.isSettingUp { ProgressView().controlSize(.small) }
+            if !model.setupMessage.isEmpty {
+                Text(model.setupMessage).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            }
         }.padding(40)
     }
 }

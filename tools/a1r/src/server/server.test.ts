@@ -21,6 +21,7 @@ describe("RuntimeServer", () => {
       homeDir, host: "127.0.0.1", port: 0,
       models: { fast: "fast", standard: "standard", deep: "deep" },
       maxToolRounds: 2, maxHistoryMessages: 10,
+      codexCommand: "codex",
     };
     const store = new Store(homeDir);
     const runtime = {
@@ -45,6 +46,51 @@ describe("RuntimeServer", () => {
     expect(streamed.headers.get("content-type")).toContain("text/event-stream");
     expect(body).toContain('"type":"text_delta","delta":"hello"');
     expect(body).toContain('"type":"done"');
+
+    await server.close();
+    store.close();
+  });
+
+  it("exposes backend-neutral guided setup endpoints", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-server-setup-"));
+    paths.push(homeDir);
+    const config: RuntimeConfig = {
+      homeDir, host: "127.0.0.1", port: 0,
+      models: { fast: "fast", standard: "standard", deep: "deep" },
+      maxToolRounds: 2, maxHistoryMessages: 10, codexCommand: "codex",
+    };
+    const store = new Store(homeDir);
+    const runtime = { async *run() {} } as unknown as A1RRuntime;
+    let selected = "";
+    const server = new RuntimeServer(config, runtime, store, {
+      status: async () => ({
+        configured: false,
+        selectedBackend: null,
+        recommendedBackend: "codex",
+        openAIConfigured: false,
+        codex: { installed: true, connected: false, planType: null, allowanceAvailable: null, usage: [] },
+      }),
+      setOpenAIKey: async () => undefined,
+      selectBackend: async (backend) => { selected = backend; },
+      startCodexLogin: async () => ({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" }),
+      codexLoginStatus: async () => ({ state: "complete" }),
+    });
+    const port = await server.listen();
+    const token = readDiscovery(homeDir)!.token;
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
+    await expect(status.json()).resolves.toMatchObject({ recommendedBackend: "codex", codex: { installed: true } });
+    const login = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+      method: "POST", headers, body: JSON.stringify({ mode: "browser" }),
+    });
+    await expect(login.json()).resolves.toMatchObject({ loginId: "login-1" });
+    const completed = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-1`, { headers });
+    await expect(completed.json()).resolves.toEqual({ state: "complete" });
+    await fetch(`http://127.0.0.1:${port}/v1/setup/backend`, {
+      method: "POST", headers, body: JSON.stringify({ backend: "codex" }),
+    });
+    expect(selected).toBe("codex");
 
     await server.close();
     store.close();

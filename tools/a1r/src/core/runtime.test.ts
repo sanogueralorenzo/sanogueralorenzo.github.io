@@ -4,6 +4,8 @@ import { join } from "node:path";
 import type { Response, ResponseInputItem } from "openai/resources/responses/responses";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ModelClient, ModelRequest, ModelStreamEvent } from "./model.js";
+import { BackendRegistry } from "./backend.js";
+import { ResponsesBackend } from "./responses-backend.js";
 import { A1RRuntime } from "./runtime.js";
 import { Store } from "./store.js";
 import type { RuntimeConfig } from "./types.js";
@@ -98,7 +100,14 @@ function config(homeDir: string): RuntimeConfig {
     models: { fast: "fast-model", standard: "standard-model", deep: "deep-model" },
     maxToolRounds: 4,
     maxHistoryMessages: 20,
+    codexCommand: "codex",
   };
+}
+
+function runtime(homeDir: string, store: Store, model: ModelClient): A1RRuntime {
+  const currentConfig = config(homeDir);
+  const responses = new ResponsesBackend(currentConfig, store, model);
+  return new A1RRuntime(currentConfig, store, new BackendRegistry(store, responses));
 }
 
 describe("A1RRuntime", () => {
@@ -107,10 +116,10 @@ describe("A1RRuntime", () => {
     paths.push(path);
     const store = new Store(path);
     const model = new FakeModel();
-    const runtime = new A1RRuntime(config(path), store, model);
+    const assistant = runtime(path, store, model);
     const events = [];
 
-    for await (const event of runtime.run({ text: "Please remember that I like short answers", channel: "api" })) {
+    for await (const event of assistant.run({ text: "Please remember that I like short answers", channel: "api" })) {
       events.push(event);
     }
 
@@ -131,9 +140,9 @@ describe("A1RRuntime", () => {
     paths.push(path);
     const store = new Store(path);
     const model = new ParallelDelegateModel();
-    const runtime = new A1RRuntime(config(path), store, model);
+    const assistant = runtime(path, store, model);
 
-    for await (const _event of runtime.run({ text: "investigate the root cause and compare both approaches", channel: "api" })) { /* consume */ }
+    for await (const _event of assistant.run({ text: "investigate the root cause and compare both approaches", channel: "api" })) { /* consume */ }
 
     expect(model.maxActiveDelegates).toBe(2);
     store.close();
@@ -144,9 +153,9 @@ describe("A1RRuntime", () => {
     paths.push(path);
     const store = new Store(path);
     const model = new LockingModel();
-    const runtime = new A1RRuntime(config(path), store, model);
+    const assistant = runtime(path, store, model);
     const collect = async (text: string) => {
-      for await (const _event of runtime.run({ text, channel: "api" })) { /* consume */ }
+      for await (const _event of assistant.run({ text, channel: "api" })) { /* consume */ }
     };
 
     await Promise.all([collect("hello one"), collect("hello two")]);

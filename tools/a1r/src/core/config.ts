@@ -22,6 +22,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RuntimeConfig 
     },
     maxToolRounds: Number.parseInt(env.A1R_MAX_TOOL_ROUNDS ?? "10", 10),
     maxHistoryMessages: Number.parseInt(env.A1R_MAX_HISTORY ?? "40", 10),
+    codexCommand: env.A1R_CODEX_COMMAND ?? "codex",
     ...(env.TELEGRAM_BOT_TOKEN ? { telegramToken: env.TELEGRAM_BOT_TOKEN } : {}),
     ...(env.A1R_TELEGRAM_OWNER_ID ? { telegramOwnerId: env.A1R_TELEGRAM_OWNER_ID } : {}),
   };

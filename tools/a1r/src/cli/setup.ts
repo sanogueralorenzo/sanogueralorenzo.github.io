@@ -1,7 +1,11 @@
+import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
-import OpenAI from "openai";
+import { CodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../core/config.js";
-import { writeSecret } from "../core/credentials.js";
+import { readSecret, writeSecret } from "../core/credentials.js";
+import { OpenAIModelClient } from "../core/model.js";
+import { Store } from "../core/store.js";
+import { BackendSetupService, type SetupStatus } from "../setup/service.js";
 
 export async function readSecretLine(prompt: string): Promise<string> {
   if (!process.stdin.isTTY) {
@@ -39,15 +43,121 @@ export async function readSecretLine(prompt: string): Promise<string> {
   });
 }
 
-export async function setupOpenAI(): Promise<void> {
-  const config = loadConfig();
-  console.log("\nConnect A1R to OpenAI\n");
+function showUsage(status: SetupStatus): void {
+  if (status.codex.planType) console.log(`Plan: ${status.codex.planType}`);
+  for (const usage of status.codex.usage) {
+    const reset = usage.resetsAt ? ` · resets ${new Date(usage.resetsAt * 1_000).toLocaleString()}` : "";
+    console.log(`${usage.name}: ${Math.round(usage.remainingPercent)}% available${reset}`);
+  }
+  if (status.codex.allowanceAvailable === false) console.log("Included Codex allowance is currently exhausted.");
+}
+
+function openBrowser(url: string): boolean {
+  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "rundll32" : "xdg-open";
+  const args = process.platform === "win32" ? ["url.dll,FileProtocolHandler", url] : [url];
+  try {
+    const result = spawnSync(command, args, { stdio: "ignore" });
+    return !result.error && result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+async function apiKeySetup(service: BackendSetupService, homeDir: string, alreadyConfigured = false): Promise<void> {
+  console.log("\nUse API-key billing\n");
+  if (alreadyConfigured) {
+    await service.selectBackend("responses");
+    console.log("Selected the saved OpenAI API key. A1R will use usage-based API billing.");
+    return;
+  }
   console.log("Create an API key at https://platform.openai.com/api-keys, then paste it here.");
   const key = await readSecretLine("API key (hidden): ");
   if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
   process.stdout.write("Checking key… ");
-  const client = new OpenAI({ apiKey: key });
-  await client.models.list();
-  const location = writeSecret("openai", key, config.homeDir);
-  console.log(`connected. Saved in ${location === "keychain" ? "macOS Keychain" : "a private local file"}.`);
+  await service.setOpenAIKey(key);
+  console.log(`connected. API-key mode selected; saved in macOS Keychain or a private file under ${homeDir}.`);
+}
+
+async function chooseDefault(): Promise<"chatgpt" | "api"> {
+  if (!process.stdin.isTTY) return "chatgpt";
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  console.log("1. Continue with ChatGPT (recommended — uses included Codex allowance)");
+  console.log("2. Use an OpenAI API key (usage-based billing)");
+  const answer = (await rl.question("Choice [1]: ")).trim();
+  rl.close();
+  return answer === "2" ? "api" : "chatgpt";
+}
+
+export async function setupA1R(args: string[] = []): Promise<void> {
+  const config = loadConfig();
+  const store = new Store(config.homeDir, "a1r.sqlite", { recoverRuns: false });
+  const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
+  const codex = new CodexAppServer({ command: config.codexCommand });
+  const service = new BackendSetupService(
+    store,
+    model,
+    codex,
+    (key) => { writeSecret("openai", key, config.homeDir); },
+  );
+
+  try {
+    console.log("\nConnect A1R\n");
+    const before = await service.status();
+    if (before.codex.connected) {
+      console.log("An active ChatGPT/Codex account is available.");
+      showUsage(before);
+    } else if (!before.codex.installed) {
+      console.log("The official Codex CLI is not installed, so ChatGPT subscription mode is unavailable.");
+    }
+
+    const forcedApi = args.includes("--api-key");
+    const forcedChatGPT = args.includes("--chatgpt") || args.includes("--device-code");
+    const choice = forcedApi ? "api" : forcedChatGPT ? "chatgpt" : await chooseDefault();
+    if (choice === "api") {
+      await apiKeySetup(service, config.homeDir, before.openAIConfigured);
+      return;
+    }
+    if (!before.codex.installed) {
+      console.log("Falling back to API-key setup.");
+      await apiKeySetup(service, config.homeDir, before.openAIConfigured);
+      return;
+    }
+    if (before.codex.connected) {
+      if (before.codex.allowanceAvailable === false && !forcedChatGPT) {
+        console.log("Included Codex usage is unavailable right now. Falling back to API-key setup.");
+        await apiKeySetup(service, config.homeDir, before.openAIConfigured);
+        return;
+      }
+      await service.selectBackend("codex");
+      console.log("A1R will continue with ChatGPT. No API billing key is used in this mode.");
+      return;
+    }
+
+    const mode = args.includes("--device-code") ? "device" : "browser";
+    const login = await service.startCodexLogin(mode);
+    if (login.type === "chatgpt") {
+      console.log(`\nOpen this official ChatGPT sign-in page:\n${login.authUrl}`);
+      if (openBrowser(login.authUrl)) console.log("Your browser has been opened. Finish sign-in there.");
+    } else {
+      console.log(`\nOpen ${login.verificationUrl}\nEnter code: ${login.userCode}`);
+      openBrowser(login.verificationUrl);
+    }
+    process.stdout.write("Waiting for ChatGPT… ");
+    const result = await codex.waitForLogin(login.loginId);
+    if (result.state !== "complete") {
+      console.log("not connected.");
+      console.log(result.error ?? "ChatGPT login was not completed.");
+      console.log("Falling back to API-key setup.");
+      await apiKeySetup(service, config.homeDir, before.openAIConfigured);
+      return;
+    }
+    await service.codexLoginStatus(login.loginId);
+    console.log("connected.");
+    const after = await service.status();
+    showUsage(after);
+    console.log("A1R will continue with ChatGPT. Authentication and subscription accounting stay inside Codex app-server.");
+  } finally {
+    await codex.stop();
+    store.close();
+  }
 }

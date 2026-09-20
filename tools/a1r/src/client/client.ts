@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { RuntimeEvent, TurnRequest } from "../core/types.js";
+import type { SetupStatus } from "../setup/service.js";
 import { readDiscovery } from "../server/server.js";
 
 interface Envelope {
@@ -80,11 +81,11 @@ export class RuntimeClient {
     return response.json();
   }
 
-  async setupStatus(): Promise<{ openAIConfigured: boolean }> {
+  async setupStatus(): Promise<SetupStatus> {
     const { baseUrl, token } = this.connection();
     const response = await fetch(`${baseUrl}/v1/setup`, { headers: { authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error(await response.text());
-    return response.json() as Promise<{ openAIConfigured: boolean }>;
+    return response.json() as Promise<SetupStatus>;
   }
 
   async connectOpenAI(apiKey: string): Promise<void> {

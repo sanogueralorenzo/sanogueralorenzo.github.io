@@ -22,6 +22,7 @@ export interface ModelStreamEvent {
 }
 
 export interface ModelClient {
+  isConfigured?(): boolean;
   stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response>;
   delegate(task: string, context: string, signal?: AbortSignal): Promise<string>;
 }

@@ -21,9 +21,15 @@ function projectInstructions(cwd: string): string[] {
 
 function gitContext(cwd: string): string | null {
   try {
-    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", timeout: 2_000 }).trim();
-    const branch = execFileSync("git", ["branch", "--show-current"], { cwd, encoding: "utf8", timeout: 2_000 }).trim();
-    const status = execFileSync("git", ["status", "--short"], { cwd, encoding: "utf8", timeout: 2_000 }).trim();
+    const options = {
+      cwd,
+      encoding: "utf8" as const,
+      timeout: 2_000,
+      stdio: ["ignore", "pipe", "ignore"] as ["ignore", "pipe", "ignore"],
+    };
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], options).trim();
+    const branch = execFileSync("git", ["branch", "--show-current"], options).trim();
+    const status = execFileSync("git", ["status", "--short"], options).trim();
     return `Git project: ${root}\nBranch: ${branch || "detached"}\nWorking tree:\n${status || "clean"}`;
   } catch {
     return null;

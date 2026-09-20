@@ -59,9 +59,17 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
       if (input === "/status") {
-        const data = await client.sessions() as { sessions?: Array<{ id: string; title: string; updatedAt: string }> };
+        const [data, setup] = await Promise.all([
+          client.sessions() as Promise<{ sessions?: Array<{ id: string; title: string; updatedAt: string }> }>,
+          client.setupStatus(),
+        ]);
         const current = data.sessions?.find((session) => session.id === sessionId);
-        status(current ? `${current.title} · saved ${new Date(current.updatedAt).toLocaleTimeString()}` : "Runtime connected. Session will be selected automatically.");
+        const billing = setup.selectedBackend === "codex"
+          ? `ChatGPT${setup.codex.planType ? ` ${setup.codex.planType}` : ""}`
+          : "API-key billing";
+        status(current
+          ? `${current.title} · ${billing} · saved ${new Date(current.updatedAt).toLocaleTimeString()}`
+          : `Runtime connected · ${billing}. Session will be selected automatically.`);
         continue;
       }
       if (input.startsWith("/")) {
@@ -88,6 +96,9 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
             wroteText = true;
           } else if (event.type === "tool_start") {
             process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.name}`)}\n`);
+            wroteText = false;
+          } else if (event.type === "status") {
+            process.stdout.write(`${wroteText ? "\n" : ""}${ansi.dim(`· ${event.message}`)}\n`);
             wroteText = false;
           } else if (event.type === "error") {
             process.stdout.write(`${wroteText ? "\n" : ""}${ansi.red(event.message)}\n`);
