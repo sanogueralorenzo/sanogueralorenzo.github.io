@@ -1,14 +1,15 @@
 import { execFile } from "node:child_process";
 import { mkdir, readFile, readdir, realpath, stat, writeFile } from "node:fs/promises";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import type OpenAI from "openai";
 import { containsSecret, isSensitivePath } from "./security.js";
 import type { Store } from "./store.js";
 
-const execFileAsync = promisify(execFile);
+const run = promisify(execFile);
 const MAX_OUTPUT = 30_000;
+const string = { type: "string" } as const;
 
 export interface ToolContext {
   cwd: string | null;
@@ -27,293 +28,195 @@ export interface AgentTool {
   execute(args: Record<string, unknown>, context: ToolContext): Promise<ToolResult>;
 }
 
-function requireString(args: Record<string, unknown>, key: string): string {
+function tool(
+  name: string,
+  description: string,
+  properties: Record<string, unknown>,
+  execute: AgentTool["execute"],
+): AgentTool {
+  return {
+    definition: {
+      type: "function",
+      name,
+      description,
+      strict: true,
+      parameters: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
+    },
+    execute,
+  };
+}
+
+function text(args: Record<string, unknown>, key: string): string {
   const value = args[key];
-  if (typeof value !== "string" || value.length === 0) throw new Error(`Expected non-empty string: ${key}`);
+  if (typeof value !== "string" || !value) throw new Error(`Expected non-empty string: ${key}`);
   return value;
 }
 
-async function scopedPath(root: string | null, requested: string, mayCreate = false): Promise<string> {
+function clipped(value: string): string {
+  return value.length <= MAX_OUTPUT ? value : `${value.slice(0, MAX_OUTPUT)}\n… output clipped by Agent`;
+}
+
+function assertInside(root: string, target: string): void {
+  const path = relative(root, target);
+  if (path === ".." || path.startsWith(`..${sep}`) || isAbsolute(path)) throw new Error("Path is outside the active project.");
+}
+
+async function projectPath(root: string | null, requested: string, create = false): Promise<string> {
   if (!root) throw new Error("This session has no active project directory.");
   if (isSensitivePath(requested)) throw new Error("Agent will not access credential or secret files.");
-  const canonicalRoot = await realpath(root);
-  const target = resolve(canonicalRoot, requested);
-  let canonical: string;
-  if (mayCreate) {
+  const project = await realpath(root);
+  const target = resolve(project, requested);
+  assertInside(project, target);
+  if (!create) {
+    const canonical = await realpath(target);
+    assertInside(project, canonical);
+    return canonical;
+  }
+  let parent = project;
+  for (const part of relative(project, dirname(target)).split(sep).filter(Boolean)) {
+    const child = resolve(parent, part);
     try {
-      canonical = await realpath(target);
-    } catch {
-      canonical = resolve(await realpath(dirname(target)), basename(target));
+      parent = await realpath(child);
+      assertInside(project, parent);
+      if (!(await stat(parent)).isDirectory()) throw new Error("A parent path is not a directory.");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      await mkdir(child);
+      parent = child;
     }
-  } else {
-    canonical = await realpath(target);
   }
-  const rel = relative(canonicalRoot, canonical);
-  if (rel.startsWith(`..${sep}`) || rel === ".." || isAbsolute(rel)) {
-    throw new Error("Path is outside the active project.");
+  const destination = resolve(parent, basename(target));
+  try {
+    const existing = await realpath(destination);
+    assertInside(project, existing);
+    return existing;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return destination;
   }
-  return canonical;
 }
 
-function clipped(value: string): string {
-  if (value.length <= MAX_OUTPUT) return value;
-  return `${value.slice(0, MAX_OUTPUT)}\n… output clipped by Agent`;
-}
-
-function sandboxedCommand(program: string, args: string[], projectRoot: string): { executable: string; args: string[] } {
+function sandbox(program: string, args: string[], project: string): { executable: string; args: string[] } {
   if (process.platform !== "darwin") return { executable: program, args };
   const quote = (value: string) => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-  const pathDirectories = (process.env.PATH ?? "").split(":").filter(Boolean);
-  const readableRules = [projectRoot, ...pathDirectories]
-    .map((path) => `(subpath "${quote(path)}")`)
-    .join(" ");
+  const readable = [project, ...(process.env.PATH ?? "").split(":").filter(Boolean)]
+    .map((path) => `(subpath "${quote(path)}")`).join(" ");
   const temporary = tmpdir();
-  const writable = [projectRoot, temporary, temporary.startsWith("/var/") ? `/private${temporary}` : temporary];
+  const writable = [project, temporary, temporary.startsWith("/var/") ? `/private${temporary}` : temporary];
   const profile = [
-    "(version 1)",
-    "(deny default)",
-    "(allow process*)",
-    '(deny process-exec (literal "/usr/bin/security"))',
-    "(allow sysctl*)",
-    "(allow mach*)",
-    "(allow ipc*)",
-    "(allow file-read-metadata)",
-    `(allow file-read* (require-any ${readableRules} (require-not (subpath "${quote(homedir())}"))))`,
+    "(version 1)", "(deny default)", "(allow process*)", '(deny process-exec (literal "/usr/bin/security"))',
+    "(allow sysctl*)", "(allow mach*)", "(allow ipc*)", "(allow file-read-metadata)",
+    `(allow file-read* (require-any ${readable} (require-not (subpath "${quote(homedir())}"))))`,
     ...writable.map((path) => `(allow file-write* (subpath "${quote(path)}"))`),
     "(deny network*)",
   ].join(" ");
   return { executable: "/usr/bin/sandbox-exec", args: ["-p", profile, program, ...args] };
 }
 
-async function prepareWritePath(root: string | null, requested: string): Promise<string> {
-  if (!root) throw new Error("This session has no active project directory.");
-  if (isSensitivePath(requested)) throw new Error("Agent will not access credential or secret files.");
-  const canonicalRoot = await realpath(root);
-  const lexicalTarget = resolve(canonicalRoot, requested);
-  const lexicalRelative = relative(canonicalRoot, lexicalTarget);
-  if (lexicalRelative.startsWith(`..${sep}`) || lexicalRelative === ".." || isAbsolute(lexicalRelative)) {
-    throw new Error("Path is outside the active project.");
-  }
-  const parts = lexicalRelative.split(sep);
-  let current = canonicalRoot;
-  for (const part of parts.slice(0, -1)) {
-    const candidate = resolve(current, part);
-    try {
-      const canonical = await realpath(candidate);
-      const rel = relative(canonicalRoot, canonical);
-      if (rel.startsWith(`..${sep}`) || rel === ".." || isAbsolute(rel)) throw new Error("Path is outside the active project.");
-      if (!(await stat(canonical)).isDirectory()) throw new Error("A parent path is not a directory.");
-      current = canonical;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      await mkdir(candidate);
-      current = candidate;
-    }
-  }
-  return scopedPath(canonicalRoot, requested, true);
+function refuses(program: string, args: string[]): boolean {
+  return (program === "node" && args.some((value) => value === "-e" || value === "--eval"))
+    || (program === "python3" && args.includes("-c"))
+    || (program === "find" && args.some((value) => ["-exec", "-execdir", "-delete"].includes(value)))
+    || (program === "npm" && args.some((value) => value === "exec" || value === "x"))
+    || (program === "git" && args.some((value) => ["clean", "reset", "push"].includes(value)));
 }
 
 export function createTools(store: Store, options: { allowCodeTools: boolean; allowCodeWrites?: boolean; allowMemoryWrite?: boolean }): AgentTool[] {
-  const tools: AgentTool[] = [
-    {
-      definition: {
-        type: "function",
-        name: "memory_search",
-        description: "Search durable personal or project memory when earlier context may matter.",
-        strict: true,
-        parameters: {
-          type: "object",
-          properties: { query: { type: "string" } },
-          required: ["query"],
-          additionalProperties: false,
-        },
-      },
-      async execute(args, context) {
-        const found = store.searchMemories(context.memoryScope, requireString(args, "query"));
-        return { output: found.map((item) => `- ${item.content}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
-      },
-    },
-  ];
+  const tools = [tool("memory_search", "Search durable personal or project memory.", { query: string }, async (args, context) => {
+    const found = store.searchMemories(context.memoryScope, text(args, "query"));
+    return { output: found.map((item) => `- ${item.content}`).join("\n") || "No matching memory.", summary: `${found.length} memories` };
+  })];
 
-  if (options.allowMemoryWrite !== false) tools.push({
-      definition: {
-        type: "function",
-        name: "remember",
-        description: "Save one durable, non-secret fact or preference for future conversations.",
-        strict: true,
-        parameters: {
-          type: "object",
-          properties: { fact: { type: "string" } },
-          required: ["fact"],
-          additionalProperties: false,
-        },
-      },
-      async execute(args, context) {
-        const fact = requireString(args, "fact").trim();
-        if (/\b(api[_ -]?key|password|secret|token)\b/i.test(fact) || containsSecret(fact)) throw new Error("Agent will not store suspected secrets in memory.");
-        store.remember(context.memoryScope, fact, context.sessionId);
-        return { output: "Saved.", summary: "memory saved" };
-      },
-    });
+  if (options.allowMemoryWrite !== false) tools.push(tool("remember", "Save one durable, non-secret fact or preference.", { fact: string }, async (args, context) => {
+    const fact = text(args, "fact").trim();
+    if (/\b(api[_ -]?key|password|secret|token)\b/i.test(fact) || containsSecret(fact)) throw new Error("Agent will not store suspected secrets in memory.");
+    store.remember(context.memoryScope, fact, context.sessionId);
+    return { output: "Saved.", summary: "memory saved" };
+  }));
 
-  if (options.allowCodeTools) {
-    tools.push(
-      {
-        definition: {
-          type: "function", name: "read_file", description: "Read a UTF-8 text file inside the active project.", strict: true,
-          parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-        },
-        async execute(args, context) {
-          const path = await scopedPath(context.cwd, requireString(args, "path"));
-          const content = clipped(await readFile(path, "utf8"));
-          return { output: content, summary: `read ${relative(context.cwd!, path)}` };
-        },
-      },
-      {
-        definition: {
-          type: "function", name: "list_files", description: "List files in a project directory. Use a relative path.", strict: true,
-          parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-        },
-        async execute(args, context) {
-          const path = await scopedPath(context.cwd, requireString(args, "path"));
-          const entries = await readdir(path, { withFileTypes: true });
-          return {
-            output: entries.slice(0, 500).map((entry) => `${entry.isDirectory() ? "d" : "f"} ${entry.name}`).join("\n"),
-            summary: `${entries.length} entries`,
-          };
-        },
-      },
-      {
-        definition: {
-          type: "function", name: "search_files", description: "Search project text with ripgrep.", strict: true,
-          parameters: {
-            type: "object",
-            properties: { query: { type: "string" }, path: { type: "string" } },
-            required: ["query", "path"], additionalProperties: false,
-          },
-        },
-        async execute(args, context) {
-          const path = await scopedPath(context.cwd, requireString(args, "path"));
-          try {
-            const { stdout } = await execFileAsync("rg", ["-n", "--hidden", "--glob", "!.git", "--glob", "!.env*", "--glob", "!**/.env*", "--glob", "!**/*.{pem,p12,key}", "--", requireString(args, "query"), path], {
-              cwd: context.cwd!, timeout: 15_000, maxBuffer: MAX_OUTPUT * 2, signal: context.signal,
-            });
-            return { output: clipped(stdout), summary: "search complete" };
-          } catch (error) {
-            const result = error as { code?: number; stdout?: string; stderr?: string };
-            if (result.code === 1) return { output: "No matches.", summary: "no matches" };
-            throw new Error(clipped(result.stderr || String(error)));
-          }
-        },
-      },
-    );
-  }
+  if (options.allowCodeTools) tools.push(
+    tool("read_file", "Read a UTF-8 project file.", { path: string }, async (args, context) => {
+      const path = await projectPath(context.cwd, text(args, "path"));
+      return { output: clipped(await readFile(path, "utf8")), summary: `read ${relative(context.cwd!, path)}` };
+    }),
+    tool("list_files", "List files in a project directory.", { path: string }, async (args, context) => {
+      const entries = await readdir(await projectPath(context.cwd, text(args, "path")), { withFileTypes: true });
+      return {
+        output: entries.slice(0, 500).map((entry) => `${entry.isDirectory() ? "d" : "f"} ${entry.name}`).join("\n"),
+        summary: `${entries.length} entries`,
+      };
+    }),
+    tool("search_files", "Search project text with ripgrep.", { query: string, path: string }, async (args, context) => {
+      const path = await projectPath(context.cwd, text(args, "path"));
+      try {
+        const { stdout } = await run("rg", ["-n", "--hidden", "--glob", "!.git", "--glob", "!.env*", "--glob", "!**/.env*", "--glob", "!**/*.{pem,p12,key}", "--", text(args, "query"), path], {
+          cwd: context.cwd!, timeout: 15_000, maxBuffer: MAX_OUTPUT * 2, signal: context.signal,
+        });
+        return { output: clipped(stdout), summary: "search complete" };
+      } catch (error) {
+        const result = error as { code?: number; stderr?: string };
+        if (result.code === 1) return { output: "No matches.", summary: "no matches" };
+        throw new Error(clipped(result.stderr || String(error)));
+      }
+    }),
+  );
 
-  if (options.allowCodeTools && options.allowCodeWrites !== false) {
-    tools.push(
-      {
-        definition: {
-          type: "function", name: "write_file", description: "Create or replace a UTF-8 text file inside the active project.", strict: true,
-          parameters: {
-            type: "object",
-            properties: { path: { type: "string" }, content: { type: "string" } },
-            required: ["path", "content"], additionalProperties: false,
-          },
-        },
-        async execute(args, context) {
-          const requested = requireString(args, "path");
-          const root = context.cwd;
-          if (!root) throw new Error("This session has no active project directory.");
-          const path = await prepareWritePath(root, requested);
-          await writeFile(path, requireString(args, "content"), "utf8");
-          return { output: "Written.", summary: `wrote ${relative(root, path)}` };
-        },
-      },
-      {
-        definition: {
-          type: "function", name: "replace_in_file", description: "Replace one exact text occurrence inside a project file.", strict: true,
-          parameters: {
-            type: "object",
-            properties: { path: { type: "string" }, oldText: { type: "string" }, newText: { type: "string" } },
-            required: ["path", "oldText", "newText"], additionalProperties: false,
-          },
-        },
-        async execute(args, context) {
-          const path = await scopedPath(context.cwd, requireString(args, "path"));
-          const oldText = requireString(args, "oldText");
-          const content = await readFile(path, "utf8");
-          const occurrences = content.split(oldText).length - 1;
-          if (occurrences !== 1) throw new Error(`Expected exactly one match, found ${occurrences}.`);
-          await writeFile(path, content.replace(oldText, String(args.newText ?? "")), "utf8");
-          return { output: "Replaced.", summary: `edited ${relative(context.cwd!, path)}` };
-        },
-      },
-      {
-        definition: {
-          type: "function", name: "run_command", description: "Run one non-interactive development command in the active project without a shell.", strict: true,
-          parameters: {
-            type: "object",
-            properties: {
-              program: { type: "string", enum: ["npm", "pnpm", "yarn", "node", "python3", "git", "rg", "find", "ls", "pwd", "swift", "swiftc", "xcodebuild", "gradle", "./gradlew", "pytest", "cargo", "go", "make"] },
-              args: { type: "array", items: { type: "string" } },
-            },
-            required: ["program", "args"], additionalProperties: false,
-          },
-        },
-        async execute(args, context) {
-          if (!context.cwd) throw new Error("This session has no active project directory.");
-          const program = requireString(args, "program");
-          const commandArgs = args.args;
-          if (!Array.isArray(commandArgs) || !commandArgs.every((argument) => typeof argument === "string")) {
-            throw new Error("Expected a string array: args");
-          }
-          if (commandArgs.some((argument) => isAbsolute(argument) || argument === ".." || argument.startsWith(`..${sep}`) || argument.includes(`${sep}..${sep}`))) {
-            throw new Error("Command arguments must stay inside the active project.");
-          }
-          if ((program === "node" && commandArgs.some((argument) => argument === "-e" || argument === "--eval"))
-            || (program === "python3" && commandArgs.includes("-c"))
-            || (program === "find" && commandArgs.some((argument) => argument === "-exec" || argument === "-execdir" || argument === "-delete"))
-            || (program === "npm" && commandArgs.some((argument) => argument === "exec" || argument === "x"))
-            || (program === "git" && commandArgs.some((argument) => ["clean", "reset", "push"].includes(argument)))) {
-            throw new Error("Agent refused a destructive or unbounded command.");
-          }
-          try {
-            const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(key)));
-            const executable = program === "./gradlew" ? await scopedPath(context.cwd, program) : program;
-            const command = sandboxedCommand(executable, commandArgs, await realpath(context.cwd));
-            const { stdout, stderr } = await execFileAsync(command.executable, command.args, {
-              cwd: context.cwd, timeout: 120_000, maxBuffer: MAX_OUTPUT * 2, signal: context.signal, env: environment,
-            });
-            const output = clipped([stdout, stderr].filter(Boolean).join("\n")) || "Command completed with no output.";
-            return { output, summary: `${program} complete` };
-          } catch (error) {
-            const result = error as { code?: number; stdout?: string; stderr?: string };
-            return {
-              output: clipped(`Exit ${result.code ?? "failed"}\n${result.stdout ?? ""}\n${result.stderr ?? String(error)}`),
-              summary: `command failed (${result.code ?? "error"})`,
-            };
-          }
-        },
-      },
-    );
-  }
+  if (options.allowCodeTools && options.allowCodeWrites !== false) tools.push(
+    tool("write_file", "Create or replace a UTF-8 project file.", { path: string, content: string }, async (args, context) => {
+      const path = await projectPath(context.cwd, text(args, "path"), true);
+      await writeFile(path, text(args, "content"), "utf8");
+      return { output: "Written.", summary: `wrote ${relative(context.cwd!, path)}` };
+    }),
+    tool("replace_in_file", "Replace one exact text occurrence in a project file.", { path: string, oldText: string, newText: string }, async (args, context) => {
+      const path = await projectPath(context.cwd, text(args, "path"));
+      const oldText = text(args, "oldText");
+      const content = await readFile(path, "utf8");
+      const matches = content.split(oldText).length - 1;
+      if (matches !== 1) throw new Error(`Expected exactly one match, found ${matches}.`);
+      await writeFile(path, content.replace(oldText, String(args.newText ?? "")), "utf8");
+      return { output: "Replaced.", summary: `edited ${relative(context.cwd!, path)}` };
+    }),
+    tool("run_command", "Run one non-interactive development command without a shell.", {
+      program: { type: "string", enum: ["npm", "pnpm", "yarn", "node", "python3", "git", "rg", "find", "ls", "pwd", "swift", "swiftc", "xcodebuild", "gradle", "./gradlew", "pytest", "cargo", "go", "make"] },
+      args: { type: "array", items: string },
+    }, async (args, context) => {
+      if (!context.cwd) throw new Error("This session has no active project directory.");
+      const program = text(args, "program");
+      const commandArgs = args.args;
+      if (!Array.isArray(commandArgs) || !commandArgs.every((value) => typeof value === "string")) throw new Error("Expected a string array: args");
+      if (commandArgs.some((value) => isAbsolute(value) || value === ".." || value.startsWith(`..${sep}`) || value.includes(`${sep}..${sep}`))) {
+        throw new Error("Command arguments must stay inside the active project.");
+      }
+      if (refuses(program, commandArgs)) {
+        throw new Error("Agent refused a destructive or unbounded command.");
+      }
+      const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(key)));
+      const executable = program === "./gradlew" ? await projectPath(context.cwd, program) : program;
+      const command = sandbox(executable, commandArgs, await realpath(context.cwd));
+      try {
+        const { stdout, stderr } = await run(command.executable, command.args, {
+          cwd: context.cwd, timeout: 120_000, maxBuffer: MAX_OUTPUT * 2, signal: context.signal, env: environment,
+        });
+        return { output: clipped([stdout, stderr].filter(Boolean).join("\n")) || "Command completed with no output.", summary: `${program} complete` };
+      } catch (error) {
+        const result = error as { code?: number; stdout?: string; stderr?: string };
+        return {
+          output: clipped(`Exit ${result.code ?? "failed"}\n${result.stdout ?? ""}\n${result.stderr ?? String(error)}`),
+          summary: `command failed (${result.code ?? "error"})`,
+        };
+      }
+    }),
+  );
 
   return tools;
 }
 
-export async function executeTool(
-  tools: AgentTool[],
-  name: string,
-  rawArguments: string,
-  context: ToolContext,
-): Promise<ToolResult> {
-  const tool = tools.find((candidate) => candidate.definition.name === name);
-  if (!tool) throw new Error(`Unknown tool: ${name}`);
-  let args: Record<string, unknown>;
+export function executeTool(tools: AgentTool[], name: string, rawArguments: string, context: ToolContext): Promise<ToolResult> {
+  const selected = tools.find((candidate) => candidate.definition.name === name);
+  if (!selected) throw new Error(`Unknown tool: ${name}`);
   try {
-    args = JSON.parse(rawArguments) as Record<string, unknown>;
+    return selected.execute(JSON.parse(rawArguments) as Record<string, unknown>, context);
   } catch {
     throw new Error(`Invalid JSON arguments for ${name}.`);
   }
-  return tool.execute(args, context);
 }
