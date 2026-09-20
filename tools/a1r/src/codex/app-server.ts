@@ -109,7 +109,7 @@ export class CodexAppServer {
   }
 
   private async start(): Promise<void> {
-    if (!this.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, or use API-key billing.");
+    if (!this.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, then run ChatGPT setup again. API-key billing is available only through an explicit `a1r setup --api-key` selection.");
     this.closing = false;
     this.stderr = "";
     const child = spawn(this.options.command, this.options.args ?? ["app-server"], {
@@ -128,7 +128,7 @@ export class CodexAppServer {
 
     try {
       await this.rawRequest("initialize", {
-        clientInfo: { name: "a1r", title: "A1R", version: "0.3.0" },
+        clientInfo: { name: "a1r", title: "A1R", version: "0.4.0" },
       });
       this.notify("initialized", {});
     } catch (error) {
@@ -160,13 +160,17 @@ export class CodexAppServer {
     return this.request<CodexRateLimits>("account/rateLimits/read", {});
   }
 
-  async beginLogin(mode: "browser" | "device"): Promise<CodexLoginStart> {
-    const result = await this.request<CodexLoginStart>("account/login/start", {
-      type: mode === "device" ? "chatgptDeviceCode" : "chatgpt",
-      ...(mode === "browser" ? { useHostedLoginSuccessPage: true, appBrand: "chatgpt" } : {}),
+  async beginLogin(): Promise<CodexLoginStart> {
+    const result = await this.request<Partial<CodexLoginStart>>("account/login/start", {
+      type: "chatgpt",
+      useHostedLoginSuccessPage: true,
+      appBrand: "chatgpt",
     });
+    if (result.type !== "chatgpt" || typeof result.loginId !== "string" || typeof result.authUrl !== "string") {
+      throw new Error("Codex app-server did not return a valid browser login.");
+    }
     if (!this.logins.has(result.loginId)) this.logins.set(result.loginId, { state: "pending" });
-    return result;
+    return result as CodexLoginStart;
   }
 
   loginStatus(loginId: string): CodexLoginResult {

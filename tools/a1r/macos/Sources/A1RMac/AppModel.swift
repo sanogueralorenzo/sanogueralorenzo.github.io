@@ -87,29 +87,22 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func continueWithChatGPT(deviceCode: Bool = false) async {
+    func continueWithChatGPT() async {
         guard let client, !isSettingUp else { return }
         isSettingUp = true
         defer { isSettingUp = false }
         do {
-            if setupStatus?.codex.connected == true && !deviceCode {
+            if setupStatus?.codex.connected == true {
                 try await client.selectBackend("codex")
                 setupStatus = try await client.setupStatus()
                 setupMessage = "Reusing A1R's private ChatGPT login."
                 state = .ready
                 return
             }
-            setupMessage = deviceCode && setupStatus?.codex.connected == true
-                ? "Starting a fresh device-code login for A1R…"
-                : "Starting secure ChatGPT sign-in for A1R…"
-            let login = try await client.startCodexLogin(mode: deviceCode ? "device" : "browser")
-            if let code = login.userCode, let url = login.verificationUrl {
-                setupMessage = "Enter code \(code) in the browser."
-                if let destination = URL(string: url) { NSWorkspace.shared.open(destination) }
-            } else if let url = login.authUrl {
-                setupMessage = "Finish signing in in your browser."
-                if let destination = URL(string: url) { NSWorkspace.shared.open(destination) }
-            }
+            setupMessage = "Starting secure ChatGPT sign-in for A1R…"
+            let login = try await client.startCodexLogin()
+            setupMessage = "Finish signing in in your browser."
+            if let destination = URL(string: login.authUrl) { NSWorkspace.shared.open(destination) }
             for _ in 0..<300 {
                 try await Task.sleep(for: .seconds(1))
                 let result = try await client.codexLoginStatus(loginId: login.loginId)

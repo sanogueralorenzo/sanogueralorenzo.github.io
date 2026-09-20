@@ -62,7 +62,7 @@ describe("RuntimeServer", () => {
     const store = new Store(homeDir);
     const runtime = { async *run() {} } as unknown as A1RRuntime;
     let selected = "";
-    let loginMode = "";
+    let loginStarts = 0;
     const server = new RuntimeServer(config, runtime, store, {
       status: async () => ({
         configured: false,
@@ -73,11 +73,9 @@ describe("RuntimeServer", () => {
       }),
       setOpenAIKey: async () => undefined,
       selectBackend: async (backend) => { selected = backend; },
-      startCodexLogin: async (mode) => {
-        loginMode = mode;
-        return mode === "device"
-          ? { type: "chatgptDeviceCode", loginId: "login-1", verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" }
-          : { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
+      startCodexLogin: async () => {
+        loginStarts += 1;
+        return { type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" };
       },
       codexLoginStatus: async () => ({ state: "complete" }),
     });
@@ -88,10 +86,16 @@ describe("RuntimeServer", () => {
     const status = await fetch(`http://127.0.0.1:${port}/v1/setup`, { headers });
     await expect(status.json()).resolves.toMatchObject({ recommendedBackend: "codex", codex: { installed: true } });
     const login = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
+      method: "POST", headers, body: JSON.stringify({}),
+    });
+    await expect(login.json()).resolves.toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
+    expect(loginStarts).toBe(1);
+    const removedDeviceFlow = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login`, {
       method: "POST", headers, body: JSON.stringify({ mode: "device" }),
     });
-    await expect(login.json()).resolves.toMatchObject({ type: "chatgptDeviceCode", loginId: "login-1", userCode: "A1R-TEST" });
-    expect(loginMode).toBe("device");
+    expect(removedDeviceFlow.status).toBe(400);
+    await expect(removedDeviceFlow.json()).resolves.toMatchObject({ error: expect.stringMatching(/browser login only/) });
+    expect(loginStarts).toBe(1);
     const completed = await fetch(`http://127.0.0.1:${port}/v1/setup/codex/login/login-1`, { headers });
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
     await fetch(`http://127.0.0.1:${port}/v1/setup/backend`, {

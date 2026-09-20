@@ -19,4 +19,9 @@ guard setup.codex.connected,
       setup.codex.usage.first?.remainingPercent == 75 else {
     fatalError("A1R Codex setup protocol check failed")
 }
+let loginData = Data(#"{"type":"chatgpt","loginId":"login-1","authUrl":"https://auth.openai.com/fake"}"#.utf8)
+let login = try JSONDecoder().decode(CodexLoginStart.self, from: loginData)
+guard login.type == "chatgpt", login.loginId == "login-1", login.authUrl.hasPrefix("https://") else {
+    fatalError("A1R browser-login protocol check failed")
+}
 print("A1R protocol check passed")

@@ -1,6 +1,6 @@
 {
   "name": "a1r",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A quiet local assistant runtime for personal and coding work.",
   "private": true,
   "type": "module",

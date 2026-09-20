@@ -12,7 +12,7 @@ try {
   } else if (command === "serve") {
     await import("../server/main.js");
   } else if (command === "help" || command === "--help" || command === "-h") {
-    console.log(`A1R\n\n  a1r setup                         Continue with ChatGPT or connect an API key\n  a1r setup --device-code           Start a fresh private device-code login\n  a1r chat                          Start the assistant\n  a1r chat --dev                    Start with session-safe hot reload\n  a1r serve                         Run the shared local runtime\n  a1r telegram setup                Connect the Telegram gateway\n  a1r telegram setup --device-code  Use device-code login before Telegram setup\n`);
+    console.log(`A1R\n\n  a1r setup                         Continue with ChatGPT or connect an API key\n  a1r setup --chatgpt               Sign in through the browser using A1R's private profile\n  a1r setup --api-key               Explicitly select independent Responses API mode\n  a1r chat                          Start the assistant\n  a1r chat --dev                    Start with session-safe hot reload\n  a1r serve                         Run the shared local runtime\n  a1r telegram setup                Connect the Telegram gateway\n`);
   } else if (command === "telegram") {
     const { runTelegramCommand } = await import("../telegram/command.js");
     await runTelegramCommand(args);

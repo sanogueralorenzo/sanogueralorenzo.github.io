@@ -107,6 +107,7 @@ function config(homeDir: string): RuntimeConfig {
 function runtime(homeDir: string, store: Store, model: ModelClient): A1RRuntime {
   const currentConfig = config(homeDir);
   const responses = new ResponsesBackend(currentConfig, store, model);
+  store.setSetting("backend", "responses");
   return new A1RRuntime(currentConfig, store, new BackendRegistry(store, responses));
 }
 

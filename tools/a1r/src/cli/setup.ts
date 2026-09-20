@@ -89,6 +89,15 @@ async function chooseDefault(): Promise<"chatgpt" | "api"> {
 }
 
 export async function setupA1R(args: string[] = []): Promise<void> {
+  const unknown = args.filter((arg) => arg !== "--chatgpt" && arg !== "--api-key");
+  if (unknown.includes("--device-code")) {
+    throw new Error("Device-code login has been removed. Run `a1r setup --chatgpt` to sign in with your browser.");
+  }
+  if (unknown.length > 0) throw new Error(`Unknown setup option: ${unknown[0]}`);
+  if (args.includes("--chatgpt") && args.includes("--api-key")) {
+    throw new Error("Choose either ChatGPT browser login or API-key billing, not both.");
+  }
+
   const config = loadConfig();
   const store = new Store(config.homeDir, "a1r.sqlite", { recoverRuns: false });
   const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
@@ -111,49 +120,32 @@ export async function setupA1R(args: string[] = []): Promise<void> {
     }
 
     const forcedApi = args.includes("--api-key");
-    const forcedChatGPT = args.includes("--chatgpt") || args.includes("--device-code");
+    const forcedChatGPT = args.includes("--chatgpt");
     const choice = forcedApi ? "api" : forcedChatGPT ? "chatgpt" : await chooseDefault();
     if (choice === "api") {
       await apiKeySetup(service, config.homeDir, before.openAIConfigured);
       return;
     }
     if (!before.codex.installed) {
-      console.log("Falling back to API-key setup.");
-      await apiKeySetup(service, config.homeDir, before.openAIConfigured);
-      return;
+      throw new Error("ChatGPT setup requires the official Codex CLI. Install it, then run `a1r setup --chatgpt` again. To explicitly use API billing instead, run `a1r setup --api-key`.");
     }
-    const forceDeviceLogin = args.includes("--device-code");
-    if (before.codex.connected && !forceDeviceLogin) {
-      if (before.codex.allowanceAvailable === false && !forcedChatGPT) {
-        console.log("Included Codex usage is unavailable right now. Falling back to API-key setup.");
-        await apiKeySetup(service, config.homeDir, before.openAIConfigured);
-        return;
+    if (before.codex.connected) {
+      if (before.codex.allowanceAvailable === false) {
+        throw new Error("Included Codex usage is unavailable right now. Try again after it resets, or explicitly run `a1r setup --api-key` to choose API billing.");
       }
       await service.selectBackend("codex");
       console.log("A1R will reuse its private ChatGPT login. No global Codex login or API billing key is used.");
       return;
     }
 
-    const mode = forceDeviceLogin ? "device" : "browser";
-    if (forceDeviceLogin && before.codex.connected) {
-      console.log("Starting a fresh device-code login for A1R. Your global Codex login will not be changed.");
-    }
-    const login = await service.startCodexLogin(mode);
-    if (login.type === "chatgpt") {
-      console.log(`\nOpen this official ChatGPT sign-in page:\n${login.authUrl}`);
-      if (openBrowser(login.authUrl)) console.log("Your browser has been opened. Finish sign-in there.");
-    } else {
-      console.log(`\nOpen ${login.verificationUrl}\nEnter code: ${login.userCode}`);
-      openBrowser(login.verificationUrl);
-    }
+    const login = await service.startCodexLogin();
+    console.log(`\nOpen this official ChatGPT sign-in page:\n${login.authUrl}`);
+    if (openBrowser(login.authUrl)) console.log("Your browser has been opened. Finish sign-in there.");
     process.stdout.write("Waiting for ChatGPT… ");
     const result = await codex.waitForLogin(login.loginId);
     if (result.state !== "complete") {
       console.log("not connected.");
-      console.log(result.error ?? "ChatGPT login was not completed.");
-      console.log("Falling back to API-key setup.");
-      await apiKeySetup(service, config.homeDir, before.openAIConfigured);
-      return;
+      throw new Error(result.error ?? "ChatGPT browser login was not completed. Run `a1r setup --chatgpt` to try again.");
     }
     await service.codexLoginStatus(login.loginId);
     console.log("connected.");

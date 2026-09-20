@@ -48,7 +48,7 @@ export class RuntimeServer {
       status: () => Promise<SetupStatus>;
       setOpenAIKey: (key: string) => Promise<void>;
       selectBackend: (backend: BackendKind) => Promise<void>;
-      startCodexLogin: (mode: "browser" | "device") => Promise<CodexLoginStart>;
+      startCodexLogin: () => Promise<CodexLoginStart>;
       codexLoginStatus: (loginId: string) => Promise<CodexLoginResult>;
     },
   ) {}
@@ -150,8 +150,8 @@ export class RuntimeServer {
       if (request.method === "POST" && url.pathname === "/v1/setup/codex/login") {
         if (!this.setup) throw new Error("Runtime setup is unavailable.");
         const body = await readJson(request);
-        const mode = body.mode === "device" ? "device" : "browser";
-        json(response, 200, await this.setup.startCodexLogin(mode));
+        if (Object.keys(body).length > 0) throw new Error("A1R supports browser login only; this request must not include a login mode.");
+        json(response, 200, await this.setup.startCodexLogin());
         return;
       }
       if (request.method === "GET" && url.pathname.startsWith("/v1/setup/codex/login/")) {

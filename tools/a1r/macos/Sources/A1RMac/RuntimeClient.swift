@@ -77,9 +77,8 @@ struct RuntimeClient: Sendable {
         try check(response, data: data)
     }
 
-    func startCodexLogin(mode: String) async throws -> CodexLoginStart {
-        let body = try JSONEncoder().encode(CodexLoginRequest(mode: mode))
-        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login", method: "POST", body: body))
+    func startCodexLogin() async throws -> CodexLoginStart {
+        let (data, response) = try await URLSession.shared.data(for: try request(path: "/v1/setup/codex/login", method: "POST"))
         try check(response, data: data)
         return try JSONDecoder().decode(CodexLoginStart.self, from: data)
     }

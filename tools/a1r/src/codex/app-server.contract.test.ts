@@ -100,35 +100,31 @@ describe("Codex app-server contract", () => {
     expect(() => prepareA1RCodexHome(homeDir)).toThrow(/real directory/);
   });
 
-  it("supports browser and device-code login without handling tokens", async () => {
-    for (const mode of ["browser", "device"] as const) {
-      const appServer = client("login-success");
-      const login = await appServer.beginLogin(mode);
-      expect(login.loginId).toBe("login-1");
-      if (mode === "browser") expect(login.type === "chatgpt" && login.authUrl).toContain("auth.openai.com");
-      else expect(login.type === "chatgptDeviceCode" && login.userCode).toBe("A1R-TEST");
-      await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
-      await appServer.stop();
-    }
+  it("starts only the documented hosted browser login without handling tokens", async () => {
+    const homeDir = temp("a1r-codex-browser-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("login-success", { A1R_FAKE_LOG: log });
+    const login = await appServer.beginLogin();
+
+    expect(login).toEqual({ type: "chatgpt", loginId: "login-1", authUrl: "https://auth.openai.com/fake" });
+    const request = readFileSync(log, "utf8").trim().split("\n")
+      .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> })
+      .find((message) => message.method === "account/login/start");
+    expect(request?.params).toEqual({ type: "chatgpt", useHostedLoginSuccessPage: true, appBrand: "chatgpt" });
+    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
+    await appServer.stop();
   });
 
-  it("starts a fresh device-code login even when the private profile is already connected", async () => {
-    const homeDir = temp("a1r-codex-device-connected-");
-    const log = join(homeDir, "rpc.log");
-    const appServer = client("normal", { A1R_FAKE_LOG: log });
-    expect((await appServer.account(false)).account?.type).toBe("chatgpt");
-
-    const login = await appServer.beginLogin("device");
-
-    expect(login).toMatchObject({ type: "chatgptDeviceCode", userCode: "A1R-TEST" });
-    expect(readFileSync(log, "utf8")).toContain("account/login/start");
+  it("rejects a non-browser login response instead of switching flows", async () => {
+    const appServer = client("device-response");
+    await expect(appServer.beginLogin()).rejects.toThrow(/valid browser login/);
     await appServer.stop();
   });
 
   it("surfaces a failed login without exposing credentials", async () => {
     const appServer = client("login-failed");
-    const login = await appServer.beginLogin("device");
-    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "failed", error: "expired code" });
+    const login = await appServer.beginLogin();
+    await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "failed", error: "browser sign-in failed" });
     await appServer.stop();
   });
 
@@ -241,8 +237,8 @@ describe("Codex app-server contract", () => {
     store.close();
   });
 
-  it("keeps API-key mode as the remembered fallback", async () => {
-    const homeDir = temp("a1r-codex-fallback-");
+  it("uses API-key mode only after it was explicitly selected", async () => {
+    const homeDir = temp("a1r-codex-explicit-api-");
     const store = new Store(homeDir);
     const backend = (kind: "codex" | "responses", configured: boolean): AgentBackend => ({
       kind,
@@ -253,7 +249,7 @@ describe("Codex app-server contract", () => {
     const responses = backend("responses", true);
     const registry = new BackendRegistry(store, responses, backend("codex", false));
 
-    await expect(registry.resolve()).resolves.toBe(responses);
+    await expect(registry.resolve()).rejects.toBeInstanceOf(BackendUnavailableError);
     store.setSetting("backend", "responses");
     await expect(registry.resolve()).resolves.toBe(responses);
     store.setSetting("backend", "codex");

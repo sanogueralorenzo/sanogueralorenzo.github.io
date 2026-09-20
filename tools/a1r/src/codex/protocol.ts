@@ -45,9 +45,11 @@ export interface CodexRateLimits {
   rateLimitsByLimitId: Record<string, RateLimitSnapshot> | null;
 }
 
-export type CodexLoginStart =
-  | { type: "chatgpt"; loginId: string; authUrl: string }
-  | { type: "chatgptDeviceCode"; loginId: string; verificationUrl: string; userCode: string };
+export interface CodexLoginStart {
+  type: "chatgpt";
+  loginId: string;
+  authUrl: string;
+}
 
 export interface CodexLoginResult {
   state: "pending" | "complete" | "failed";

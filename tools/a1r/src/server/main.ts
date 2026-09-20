@@ -26,7 +26,7 @@ const server = new RuntimeServer(config, runtime, store, {
   status: () => setup.status(),
   setOpenAIKey: (key) => setup.setOpenAIKey(key),
   selectBackend: (backend) => setup.selectBackend(backend),
-  startCodexLogin: (mode) => setup.startCodexLogin(mode),
+  startCodexLogin: () => setup.startCodexLogin(),
   codexLoginStatus: (loginId) => setup.codexLoginStatus(loginId),
 });
 

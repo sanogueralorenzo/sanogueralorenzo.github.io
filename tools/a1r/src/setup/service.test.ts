@@ -44,10 +44,11 @@ describe("BackendSetupService", () => {
     store.close();
   });
 
-  it("preserves API-key mode when Codex is unavailable", async () => {
-    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-fallback-"));
+  it("preserves explicitly selected API-key mode when Codex is unavailable", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-explicit-api-"));
     paths.push(homeDir);
     const store = new Store(homeDir);
+    store.setSetting("backend", "responses");
     const codex = new CodexAppServer({ command: "missing-codex", installed: false });
     const service = new BackendSetupService(store, model(true), codex, () => undefined);
     const status = await service.status();
@@ -56,6 +57,22 @@ describe("BackendSetupService", () => {
     expect(status.codex.installed).toBe(false);
     await service.selectBackend("responses");
     expect(store.getSetting("backend")).toBe("responses");
+    store.close();
+  });
+
+  it("does not select a saved API key unless the user explicitly chooses it", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-unselected-api-"));
+    paths.push(homeDir);
+    const store = new Store(homeDir);
+    const codex = new CodexAppServer({ command: "missing-codex", installed: false });
+    const service = new BackendSetupService(store, model(true), codex, () => undefined);
+
+    await expect(service.status()).resolves.toMatchObject({
+      configured: false,
+      selectedBackend: null,
+      openAIConfigured: true,
+    });
+    expect(store.getSetting("backend")).toBeNull();
     store.close();
   });
 
@@ -83,7 +100,7 @@ describe("BackendSetupService", () => {
     store.close();
   });
 
-  it("offers the saved API-key fallback when included allowance is exhausted", async () => {
+  it("switches to a saved API key only when explicitly selected", async () => {
     const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-exhausted-"));
     paths.push(homeDir);
     const store = new Store(homeDir);

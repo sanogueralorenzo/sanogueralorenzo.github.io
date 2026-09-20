@@ -15,8 +15,8 @@ if (envLog) writeFileSync(envLog, JSON.stringify({
 }));
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
-const record = (method) => {
-  if (log) appendFileSync(log, `${method}\n`);
+const record = (method, params) => {
+  if (log) appendFileSync(log, `${JSON.stringify({ method, params })}\n`);
 };
 const allowedLimits = {
   ordinaryUsageAllowed: true,
@@ -50,7 +50,7 @@ function completeTurn(threadId, turnId) {
 lines.on("line", (line) => {
   const message = JSON.parse(line);
   const { id, method, params = {} } = message;
-  record(method);
+  record(method, params);
   if (method === "initialized") return;
   if (method === "initialize") {
     send({ id, result: { userAgent: "fake-codex", platformFamily: "unix", platformOs: "test" } });
@@ -76,15 +76,19 @@ lines.on("line", (line) => {
   }
   if (method === "account/login/start") {
     const loginId = "login-1";
-    if (params.type === "chatgptDeviceCode") {
-      send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" } });
-    } else {
-      send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
+    if (params.type !== "chatgpt" || params.useHostedLoginSuccessPage !== true || params.appBrand !== "chatgpt") {
+      send({ id, error: { code: -32602, message: "browser login parameters required" } });
+      return;
     }
+    if (scenario === "device-response") {
+      send({ id, result: { type: "chatgptDeviceCode", loginId, verificationUrl: "https://auth.openai.com/codex/device", userCode: "A1R-TEST" } });
+      return;
+    }
+    send({ id, result: { type: "chatgpt", loginId, authUrl: "https://auth.openai.com/fake" } });
     setTimeout(() => send({ method: "account/login/completed", params: {
       loginId,
       success: scenario !== "login-failed",
-      error: scenario === "login-failed" ? "expired code" : null,
+      error: scenario === "login-failed" ? "browser sign-in failed" : null,
     } }), 10);
     return;
   }

@@ -15,7 +15,7 @@ A1R supports two OpenAI backends:
 - **Continue with ChatGPT (recommended):** A1R launches the official [`codex app-server`](https://developers.openai.com/codex/app-server) subprocess inside an A1R-specific Codex profile and delegates each agent turn to Codex, which owns ChatGPT authentication, subscription accounting, and turn execution. Eligible ChatGPT/Codex plans use their included allowance.
 - **API-key billing:** A1R uses its independent Responses API execution and tool loop. This is the original runtime and remains fully intact.
 
-The ownership boundary is deliberate. Even in Codex mode, A1R—not app-server—owns the CLI, Telegram and macOS clients, local gateway, session catalog, long-term memory, project routing, recovery, and hot reload. A1R gives app-server a locked-down profile at `~/.a1r/codex`, but never reads its credential files, never handles Codex access tokens, never touches the global `~/.codex` login, and never calls private ChatGPT or Codex endpoints. The app-server child also drops ambient OpenAI/Codex credential variables so they cannot silently bypass the private profile; API-key fallback remains an explicit A1R backend choice.
+The ownership boundary is deliberate. Even in Codex mode, A1R—not app-server—owns the CLI, Telegram and macOS clients, local gateway, session catalog, long-term memory, project routing, recovery, and hot reload. A1R gives app-server a locked-down profile at `~/.a1r/codex`, but never reads its credential files, never handles Codex access tokens, never touches the global `~/.codex` login, and never calls private ChatGPT or Codex endpoints. The app-server child also drops ambient OpenAI/Codex credential variables so they cannot silently bypass the private profile. API-key mode is a separate backend that A1R selects only when the user explicitly chooses it.
 
 ## Try it
 
@@ -30,18 +30,18 @@ a1r setup
 a1r chat --dev
 ```
 
-`a1r setup` recommends **Continue with ChatGPT**, detects an existing login in A1R's private Codex profile, opens the documented browser login when required, shows the plan and available usage returned by app-server, and remembers the backend. It clearly reports when that private login is reused. Device-code login and direct API-key setup are also available:
+`a1r setup` recommends **Continue with ChatGPT**, detects an existing login in A1R's private Codex profile, opens the documented browser login when required, shows the plan and available usage returned by app-server, and remembers the backend. It clearly reports when that private login is reused. The browser flow is the only ChatGPT login flow. API-key mode remains available only as an explicit independent choice:
 
 ```bash
-a1r setup --device-code
+a1r setup --chatgpt
 a1r setup --api-key
 ```
 
-`a1r setup --device-code` always starts a fresh official `chatgptDeviceCode` attempt and prints its verification URL and one-time code, even when A1R is already connected. It does not sign out, replace, or reuse the global Codex CLI account. Browser login remains the default for ordinary setup.
+`a1r setup --chatgpt` signs in through the official app-server browser URL and local callback. A failed, cancelled, or timed-out browser sign-in stops with a clear error; A1R does not switch login flows or billing modes. It does not sign out, replace, copy, or reuse the global Codex CLI account.
 
 Upgrading from A1R 0.2.0 intentionally does not copy the previously shared Codex CLI credentials. Existing A1R sessions, transcripts, memories, projects, and opaque thread bindings remain in place, but subscription mode asks for one new A1R-specific ChatGPT login. If an old thread binding is unavailable in the private profile, A1R starts a replacement thread with the saved A1R transcript and updates the binding. Run `a1r setup` once to complete the safe migration.
 
-If Codex is unavailable or its included allowance is exhausted, setup falls back cleanly to the API-key flow. API keys are validated and stored in macOS Keychain, or in a mode-0600 credential file on other systems. Subscription credentials remain entirely under Codex app-server ownership. A1R never silently changes billing modes during a turn.
+If Codex is unavailable or its included allowance is exhausted, ChatGPT setup stops and explains the next step. It never automatically switches to API-key billing. Users who independently choose `a1r setup --api-key` have their key validated and stored in macOS Keychain, or in a mode-0600 credential file on other systems. Subscription credentials remain entirely under Codex app-server ownership. A1R never silently changes billing modes during setup or a turn.
 
 Useful commands inside the CLI:
 
@@ -57,10 +57,9 @@ Development mode watches A1R code, prompts, tools, and configuration. The termin
 
 ```bash
 a1r telegram setup
-a1r telegram setup --device-code # optional: use the device-code flow
 ```
 
-The guided flow first selects the shared OpenAI backend, then validates a dedicated BotFather token, refuses bots already attached to a webhook, stores the token privately, and prints a single-use pairing link that expires after ten minutes. Only the paired private Telegram account can use it.
+The guided flow first selects the shared OpenAI backend using the same browser-only ChatGPT setup or an explicitly chosen API key, then validates a dedicated BotFather token, refuses bots already attached to a webhook, stores the token privately, and prints a single-use pairing link that expires after ten minutes. Only the paired private Telegram account can use it.
 
 Telegram remains thin: messages enter the same local runtime over authenticated HTTP/SSE. `/stop` cancels the active Responses or Codex turn. Coding requests resume the most recent local coding project; ordinary requests use the personal conversation. The computer and gateway must remain online.
 
@@ -70,7 +69,7 @@ Telegram remains thin: messages enter the same local runtime over authenticated 
 npm run macos:run
 ```
 
-The native SwiftUI client has no web view and no agent implementation. Its onboarding recommends ChatGPT, explains the private A1R profile, launches browser or a fresh device-code login through the runtime, displays plan and allowance information, and offers API-key billing as the fallback. It then streams the same normalized A1R events as the CLI and Telegram clients.
+The native SwiftUI client has no web view and no agent implementation. Its onboarding recommends ChatGPT, explains the private A1R profile, launches the browser-only login through the runtime, displays plan and allowance information, and keeps API-key billing as a separate explicit choice. It then streams the same normalized A1R events as the CLI and Telegram clients.
 
 For a separately installed runtime, set `A1R_EXECUTABLE` to the `a1r` executable before launching the app. A signed `.app` bundle and login item remain distribution work; the source-built native client is usable now.
 
@@ -96,7 +95,7 @@ swift build --package-path macos
 swift run --package-path macos A1RProtocolCheck
 ```
 
-Offline tests use a real fake app-server subprocess and cover browser/device login, streaming, cancellation, reconnection, expired authentication, exhausted allowance, and API fallback. To run the optional live smoke test against the active Codex account without reading or printing any stored credential:
+Offline tests use a real fake app-server subprocess and cover browser-only login, rejection of removed login modes, no automatic billing fallback, streaming, cancellation, reconnection, expired authentication, and exhausted allowance. To run the optional live smoke test against the active A1R Codex profile without reading or printing any stored credential:
 
 ```bash
 A1R_LIVE_CODEX=1 npm test -- src/codex/codex.live.test.ts

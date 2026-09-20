@@ -62,17 +62,13 @@ struct SetupView: View {
             .controlSize(.large)
             .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true || model.setupStatus?.codex.allowanceAvailable == false)
             if model.setupStatus?.codex.allowanceAvailable == false {
-                Text("Included Codex usage is unavailable right now. Use API billing below or try again after reset.")
+                Text("Included Codex usage is unavailable right now. Try again after reset, or explicitly choose API billing below to switch modes.")
                     .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
-            HStack(spacing: 4) {
-                Text(model.setupStatus?.codex.installed == true ? "Browser sign-in not working?" : "Install the official Codex CLI to enable subscription mode.")
-                if model.setupStatus?.codex.installed == true {
-                    Button("Use a device code") { Task { await model.continueWithChatGPT(deviceCode: true) } }
-                        .buttonStyle(.link)
-                        .disabled(model.isSettingUp)
-                }
-            }.font(.caption).foregroundStyle(.secondary)
+            if model.setupStatus?.codex.installed != true {
+                Text("Install the official Codex CLI to enable ChatGPT subscription mode.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack { Rectangle().frame(height: 1).foregroundStyle(.quaternary); Text("or use API billing").font(.caption).foregroundStyle(.secondary); Rectangle().frame(height: 1).foregroundStyle(.quaternary) }
                 .frame(maxWidth: 420)
             if model.setupStatus?.openAIConfigured == true {

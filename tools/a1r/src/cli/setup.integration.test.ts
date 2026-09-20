@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +21,10 @@ function executable(homeDir: string): string {
   return path;
 }
 
-async function runSetup(args: string[]): Promise<{ output: string; rpc: string }> {
+async function runSetup(
+  args: string[],
+  options: { scenario?: string; installed?: boolean } = {},
+): Promise<{ output: string; rpc: string; backend: string | null; error: Error | null }> {
   const homeDir = mkdtempSync(join(tmpdir(), "a1r-cli-setup-"));
   roots.push(homeDir);
   const rpcLog = join(homeDir, "rpc.log");
@@ -33,8 +36,8 @@ async function runSetup(args: string[]): Promise<{ output: string; rpc: string }
     path: process.env.PATH,
   };
   process.env.A1R_HOME = homeDir;
-  process.env.A1R_CODEX_COMMAND = executable(homeDir);
-  process.env.A1R_FAKE_SCENARIO = "normal";
+  process.env.A1R_CODEX_COMMAND = options.installed === false ? join(homeDir, "missing-codex") : executable(homeDir);
+  process.env.A1R_FAKE_SCENARIO = options.scenario ?? "normal";
   process.env.A1R_FAKE_LOG = rpcLog;
   process.env.PATH = ""; // Prevent the test from opening a real browser.
   const output: string[] = [];
@@ -43,12 +46,25 @@ async function runSetup(args: string[]): Promise<{ output: string; rpc: string }
     output.push(String(value));
     return true;
   });
+  let error: Error | null = null;
   try {
-    await setupA1R(args);
-    const store = new Store(homeDir, "a1r.sqlite", { recoverRuns: false });
-    expect(store.getSetting("backend")).toBe("codex");
-    store.close();
-    return { output: output.join("\n"), rpc: readFileSync(rpcLog, "utf8") };
+    try {
+      await setupA1R(args);
+    } catch (cause) {
+      error = cause instanceof Error ? cause : new Error(String(cause));
+    }
+    let backend: string | null = null;
+    if (existsSync(join(homeDir, "a1r.sqlite"))) {
+      const store = new Store(homeDir, "a1r.sqlite", { recoverRuns: false });
+      backend = store.getSetting("backend");
+      store.close();
+    }
+    return {
+      output: output.join("\n"),
+      rpc: existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "",
+      backend,
+      error,
+    };
   } finally {
     if (previous.home === undefined) delete process.env.A1R_HOME; else process.env.A1R_HOME = previous.home;
     if (previous.command === undefined) delete process.env.A1R_CODEX_COMMAND; else process.env.A1R_CODEX_COMMAND = previous.command;
@@ -62,17 +78,46 @@ describe.sequential("CLI subscription setup", () => {
   it("reuses an existing A1R-specific login transparently during ordinary setup", async () => {
     const result = await runSetup(["--chatgpt"]);
 
+    expect(result.error).toBeNull();
+    expect(result.backend).toBe("codex");
     expect(result.output).toContain("A1R-specific ChatGPT login");
     expect(result.output).toContain("reuse its private ChatGPT login");
     expect(result.rpc).not.toContain("account/login/start");
   });
 
-  it("forces and displays device-code login even when A1R is already connected", async () => {
+  it("opens only browser login for a disconnected private profile", async () => {
+    const result = await runSetup(["--chatgpt"], { scenario: "login-success" });
+
+    expect(result.error).toBeNull();
+    expect(result.backend).toBe("codex");
+    expect(result.output).toContain("Open this official ChatGPT sign-in page");
+    expect(result.output).toContain("https://auth.openai.com/fake");
+    expect(result.rpc).toContain('"type":"chatgpt"');
+    expect(result.rpc).not.toContain("chatgptDeviceCode");
+  });
+
+  it("rejects the removed device-code option before starting app-server", async () => {
     const result = await runSetup(["--device-code"]);
 
-    expect(result.output).toContain("Starting a fresh device-code login for A1R");
-    expect(result.output).toContain("https://auth.openai.com/codex/device");
-    expect(result.output).toContain("Enter code: A1R-TEST");
+    expect(result.error?.message).toMatch(/Device-code login has been removed/);
+    expect(result.backend).toBeNull();
+    expect(result.rpc).toBe("");
+  });
+
+  it("fails a cancelled or failed browser login without selecting API-key billing", async () => {
+    const result = await runSetup(["--chatgpt"], { scenario: "login-failed" });
+
+    expect(result.error?.message).toBe("browser sign-in failed");
+    expect(result.backend).toBeNull();
+    expect(result.output).not.toContain("Use API-key billing");
     expect(result.rpc).toContain("account/login/start");
+  });
+
+  it("fails clearly when Codex is missing without selecting another backend", async () => {
+    const result = await runSetup(["--chatgpt"], { installed: false });
+
+    expect(result.error?.message).toMatch(/requires the official Codex CLI/);
+    expect(result.backend).toBeNull();
+    expect(result.output).not.toContain("Use API-key billing");
   });
 });

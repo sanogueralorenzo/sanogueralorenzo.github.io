@@ -60,10 +60,9 @@ export class BackendRegistry {
       throw new BackendUnavailableError("An OpenAI API key is required. Run `a1r setup`.", "responses");
     }
 
-    // Existing A1R installations predate backend selection. Keep their API-key
-    // behavior intact until setup explicitly recommends ChatGPT subscription mode.
-    if (await this.responses.isConfigured()) return this.responses;
-    if (this.codex && await this.codex.isConfigured()) return this.codex;
-    throw new BackendUnavailableError("A1R is not connected. Run `a1r setup`.", "responses");
+    throw new BackendUnavailableError(
+      "A1R has no selected connection. Run `a1r setup`; billing modes are never selected automatically.",
+      "codex",
+    );
   }
 }

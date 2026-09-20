@@ -81,7 +81,7 @@ export class BackendSetupService {
     const stored = this.store.getSetting("backend");
     const selectedBackend = stored === "codex" || stored === "responses"
       ? stored
-      : this.responses.isConfigured() ? "responses" : null;
+      : null;
     const configured = selectedBackend === "codex"
       ? connected && allowanceAvailable !== false
       : selectedBackend === "responses" ? this.responses.isConfigured() : false;
@@ -119,9 +119,9 @@ export class BackendSetupService {
     this.store.setSetting("backend", backend);
   }
 
-  async startCodexLogin(mode: "browser" | "device"): Promise<CodexLoginStart> {
-    if (!this.codex.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, or use API-key billing.");
-    return this.codex.beginLogin(mode);
+  async startCodexLogin(): Promise<CodexLoginStart> {
+    if (!this.codex.isInstalled()) throw new Error("Codex is not installed. Install the official Codex CLI, then run setup again.");
+    return this.codex.beginLogin();
   }
 
   async codexLoginStatus(loginId: string): Promise<CodexLoginResult> {
