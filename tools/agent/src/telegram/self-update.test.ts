@@ -28,7 +28,6 @@ describe("Telegram self-update", () => {
     const order: string[] = [];
     let finishStop!: () => void;
     const stopped = new Promise<void>((resolve) => { finishStop = resolve; });
-    let restartAttempts = 0;
     let updater!: TelegramSelfUpdate;
     updater = new TelegramSelfUpdate({
       projectRoot,
@@ -38,8 +37,7 @@ describe("Telegram self-update", () => {
       verify: async () => { order.push("verify"); },
       requestRuntimeRestart: async () => {
         order.push("runtime");
-        restartAttempts += 1;
-        return restartAttempts === 2;
+        return true;
       },
       stopGateway: async () => { order.push("gateway"); updater.stop(); finishStop(); },
     });
@@ -52,7 +50,7 @@ describe("Telegram self-update", () => {
     updater.endTurn();
     await stopped;
 
-    expect(order).toEqual(["verify", "runtime", "runtime", "gateway"]);
+    expect(order).toEqual(["verify", "runtime", "gateway"]);
     expect(pendingUpdateOwner(homeDir)).toBe("42");
     acknowledgeUpdate(homeDir);
     expect(pendingUpdateOwner(homeDir)).toBeNull();

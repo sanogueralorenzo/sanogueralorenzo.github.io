@@ -154,53 +154,30 @@ export class TelegramSelfUpdate {
   private async apply(): Promise<void> {
     if (!this.dirty || this.applying || this.activeTurns > 0 || this.stopped) return;
     this.applying = true;
+    this.dirty = false;
+    this.options.onStatus?.("Verifying Agent update…");
+    this.verifyController = new AbortController();
     try {
-      let verifiedFingerprint = "";
-      while (!this.stopped) {
-        const before = await agentSourceFingerprint(this.options.projectRoot);
-        this.dirty = false;
-        this.options.onStatus?.("Verifying Agent update…");
-        this.verifyController = new AbortController();
-        try {
-          await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
-        } catch (error) {
-          if (this.stopped) return;
-          if (await agentSourceFingerprint(this.options.projectRoot) === before) throw error;
-          continue;
-        } finally {
-          this.verifyController = null;
-        }
-        await delay(this.debounceMs);
-        const after = await agentSourceFingerprint(this.options.projectRoot);
-        if (after === before) {
-          verifiedFingerprint = after;
-          break;
-        }
+      const before = await agentSourceFingerprint(this.options.projectRoot);
+      await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
+      await delay(this.debounceMs);
+      if (before !== await agentSourceFingerprint(this.options.projectRoot)) {
+        this.dirty = true;
+        return;
       }
-      if (this.stopped) return;
-
-      const ownerId = this.options.ownerId();
-      writeState(this.options.homeDir, {
-        deployedFingerprint: verifiedFingerprint,
-        ...(ownerId ? { notificationOwnerId: ownerId } : {}),
-      });
       this.options.onStatus?.("Agent update verified; restarting…");
-      while (!this.stopped) {
-        try {
-          if (await this.options.requestRuntimeRestart()) break;
-        } catch {
-          // The supervisor may be replacing a runtime that disconnected independently.
-        }
-        await delay(Math.min(250, this.debounceMs));
-      }
-      if (this.stopped) return;
+      if (!await this.options.requestRuntimeRestart()) throw new Error("Agent is busy; the update was not applied.");
+      const ownerId = this.options.ownerId();
+      writeState(this.options.homeDir, { deployedFingerprint: before, ...(ownerId ? { notificationOwnerId: ownerId } : {}) });
       await this.options.stopGateway();
     } catch (error) {
       if (this.stopped) return;
-      this.applying = false;
       const message = error instanceof Error ? error.message : String(error);
       this.options.onStatus?.(`Agent update was not applied: ${message}`);
       await this.options.onFailure?.(message);
+    } finally {
+      this.verifyController = null;
+      this.applying = false;
       this.schedule();
     }
   }
