@@ -1,18 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { temporary } from "../test-support.js";
 import { acknowledgeUpdate, pendingUpdateOwner, TelegramSelfUpdate } from "./self-update.js";
 
-function fixture(): { projectRoot: string; homeDir: string; source: string } {
+function fixture() {
   const root = temporary("agent-self-update-");
-  const projectRoot = join(root, "project");
-  const homeDir = join(root, "home");
-  const source = join(projectRoot, "src", "main.ts");
-  mkdirSync(join(projectRoot, "src"), { recursive: true });
-  writeFileSync(source, "export const version = 1;\n");
-  writeFileSync(join(projectRoot, "package.json"), "{}\n");
-  return { projectRoot, homeDir, source };
+  return { projectRoot: root, homeDir: root };
 }
 
 type UpdateOptions = ConstructorParameters<typeof TelegramSelfUpdate>[0];
@@ -55,22 +47,17 @@ describe("Telegram self-update", () => {
     expect(pendingUpdateOwner(homeDir)).toBeNull();
   });
 
-  it("re-verifies when source content changes during the check", async () => {
+  it("re-verifies when another change arrives during the check", async () => {
     let checks = 0;
-    let instance!: TelegramSelfUpdate;
     let harness!: ReturnType<typeof updateHarness>;
     harness = updateHarness({
       verify: async () => {
         checks += 1;
-        if (checks === 1) {
-          writeFileSync(harness.source, "export const version = 2;\n");
-          instance.noteChange();
-        }
+        if (checks === 1) harness.updater.noteChange();
       },
     });
-    instance = harness.updater;
 
-    instance.noteChange();
+    harness.updater.noteChange();
     await harness.stopped;
 
     expect(checks).toBe(2);
@@ -111,7 +98,5 @@ describe("Telegram self-update", () => {
     await started;
     updater.stop();
     await aborted;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
   });
 });
