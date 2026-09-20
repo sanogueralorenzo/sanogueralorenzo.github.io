@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
 import { readVoiceNote } from "../workspace/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
@@ -18,38 +19,6 @@ export class CodexAuthenticationError extends Error {
 export class CodexAllowanceError extends Error {
   constructor(message = "Your included Codex allowance is currently exhausted. Check usage with `agent setup`, or choose API-key billing there.") {
     super(message);
-  }
-}
-
-class NotificationQueue {
-  private items: JsonRpcMessage[] = [];
-  private waiting: { resolve: (message: JsonRpcMessage) => void; reject: (error: Error) => void } | undefined;
-
-  push(message: JsonRpcMessage): void {
-    if (this.waiting) {
-      this.waiting.resolve(message);
-      this.waiting = undefined;
-    } else this.items.push(message);
-  }
-
-  next(signal?: AbortSignal): Promise<JsonRpcMessage> {
-    const message = this.items.shift();
-    if (message) return Promise.resolve(message);
-    if (signal?.aborted) return Promise.reject(new DOMException("Interrupted", "AbortError"));
-    return new Promise((resolve, reject) => {
-      const abort = () => {
-        this.waiting = undefined;
-        reject(new DOMException("Interrupted", "AbortError"));
-      };
-      this.waiting = {
-        resolve: (value) => {
-          signal?.removeEventListener("abort", abort);
-          resolve(value);
-        },
-        reject,
-      };
-      signal?.addEventListener("abort", abort, { once: true });
-    });
   }
 }
 
@@ -85,9 +54,12 @@ function toolSummary(item: Record<string, unknown>): string {
     : status;
 }
 
-async function nextForThread(queue: NotificationQueue, threadId: string, signal?: AbortSignal) {
+type Notifications = AsyncIterator<[JsonRpcMessage]>;
+
+async function nextForThread(queue: Notifications, threadId: string) {
   while (true) {
-    const message = await queue.next(signal);
+    const { value } = await queue.next();
+    const message = value![0];
     if (message.method === "agent/disconnected") {
       throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
     }
@@ -166,12 +138,13 @@ export class CodexBackend implements AgentBackend {
     signal?: AbortSignal,
     clientUserMessageId = randomUUID(),
   ): AsyncGenerator<BackendEvent> {
-    const queue = new NotificationQueue();
-    const unsubscribe = this.client.onNotification((message) => queue.push(message));
+    const lifetime = new AbortController();
+    const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
     let turnId = "";
     let sawText = false;
     const interrupt = () => {
       if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
+      lifetime.abort();
     };
     signal?.addEventListener("abort", interrupt, { once: true });
     try {
@@ -188,7 +161,7 @@ export class CodexBackend implements AgentBackend {
         throw new DOMException("Interrupted", "AbortError");
       }
       while (true) {
-        const { method, params } = await nextForThread(queue, threadId, signal);
+        const { method, params } = await nextForThread(queue, threadId);
         const eventTurnId = params.turnId ?? object(params.turn).id;
         if (eventTurnId && eventTurnId !== turnId) continue;
         if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
@@ -220,7 +193,7 @@ export class CodexBackend implements AgentBackend {
         }
       }
     } finally {
-      unsubscribe();
+      lifetime.abort();
       signal?.removeEventListener("abort", interrupt);
     }
   }
@@ -244,10 +217,10 @@ export class CodexBackend implements AgentBackend {
   private async transcribe(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     const audio = await readVoiceNote(attachment);
     const threadId = await this.startThread(MODELS.coordinator, this.config.homeDir, "read-only");
-    const queue = new NotificationQueue();
-    const unsubscribe = this.client.onNotification((message) => queue.push(message));
+    const lifetime = new AbortController();
     const timeout = AbortSignal.timeout(45_000);
     const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    const queue = on(this.client, "notification", { signal: AbortSignal.any([combined, lifetime.signal]) }) as Notifications;
     const peer = this.createRealtimePeer();
     try {
       await this.client.request("thread/realtime/start", {
@@ -261,7 +234,7 @@ export class CodexBackend implements AgentBackend {
         transport: { type: "webrtc", sdp: await peer.offer() },
       });
       while (true) {
-        const event = await this.nextRealtime(queue, threadId, combined);
+        const event = await this.nextRealtime(queue, threadId);
         if (event.method === "thread/realtime/sdp" && typeof event.params.sdp === "string") {
           await peer.accept(event.params.sdp);
           break;
@@ -269,7 +242,7 @@ export class CodexBackend implements AgentBackend {
       }
       await peer.sendAudio(audio, combined);
       while (true) {
-        const event = await this.nextRealtime(queue, threadId, combined);
+        const event = await this.nextRealtime(queue, threadId);
         if (event.method === "thread/realtime/closed") throw new Error("Voice transcription ended before a transcript was ready.");
         if (event.method === "thread/realtime/transcript/done" && event.params.role === "user") {
           const transcript = String(event.params.text ?? "").trim();
@@ -283,7 +256,7 @@ export class CodexBackend implements AgentBackend {
     } finally {
       await this.client.request("thread/realtime/stop", { threadId }).catch(() => undefined);
       await peer.close().catch(() => undefined);
-      unsubscribe();
+      lifetime.abort();
     }
   }
 
@@ -295,8 +268,8 @@ export class CodexBackend implements AgentBackend {
     return started.thread.id;
   }
 
-  private async nextRealtime(queue: NotificationQueue, threadId: string, signal: AbortSignal) {
-    const event = await nextForThread(queue, threadId, signal);
+  private async nextRealtime(queue: Notifications, threadId: string) {
+    const event = await nextForThread(queue, threadId);
     if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
     return event;
   }

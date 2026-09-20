@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { setTimeout as delay } from "node:timers/promises";
@@ -73,17 +74,18 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
-export class CodexAppServer {
+export class CodexAppServer extends EventEmitter {
   private process: ChildProcessWithoutNullStreams | null = null;
   private starting: Promise<void> | null = null;
   private nextId = 1;
   private pending = new Map<number | string, PendingRequest>();
-  private listeners = new Set<NotificationListener>();
   private logins = new Map<string, CodexLoginResult>();
   private closing = false;
   private stderr = "";
 
-  constructor(private readonly options: CodexAppServerOptions) {}
+  constructor(private readonly options: CodexAppServerOptions) {
+    super();
+  }
 
   isInstalled(): boolean {
     if (this.options.installed !== undefined) return this.options.installed;
@@ -137,8 +139,8 @@ export class CodexAppServer {
   }
 
   onNotification(listener: NotificationListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    this.on("notification", listener);
+    return () => this.off("notification", listener);
   }
 
   async account(refreshToken = true): Promise<CodexAccountStatus> {
@@ -255,7 +257,7 @@ export class CodexAppServer {
         this.logins.set(loginId, success ? { state: "complete" } : { state: "failed", ...(error ? { error } : {}) });
       }
     }
-    for (const listener of this.listeners) listener(message);
+    this.emit("notification", message);
   }
 
   private respondToServerRequest(message: JsonRpcMessage): void {
@@ -281,7 +283,7 @@ export class CodexAppServer {
     }
     this.pending.clear();
     if (!wasClosing) {
-      for (const listener of this.listeners) listener({ method: "agent/disconnected", params: { message: disconnected.message } });
+      this.emit("notification", { method: "agent/disconnected", params: { message: disconnected.message } });
     }
   }
 }
