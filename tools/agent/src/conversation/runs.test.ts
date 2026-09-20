@@ -24,45 +24,51 @@ async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelo
 }
 
 describe("RunCoordinator", () => {
-  it("executes once for two subscribers and replays the ordered run", async () => {
+  it("broadcasts one execution to live subscribers without replaying it later", async () => {
     const fixture = runtime(async function* () {
       yield { type: "text_delta", delta: "hello" };
       yield { type: "done", sessionId: "s1" };
     });
     const runs = new RunCoordinator(fixture.value);
-    const first = collectRun(runs.events(0, new AbortController().signal));
-    const second = collectRun(runs.events(0, new AbortController().signal));
+    const first = collectRun(runs.events(new AbortController().signal));
+    const second = collectRun(runs.events(new AbortController().signal));
     const run = runs.start({ text: "hi", channel: "cli" });
     const [a, b] = await Promise.all([first, second]);
 
     expect(fixture.executions()).toBe(1);
     expect(a).toEqual(b);
-    expect(a.map(({ sequence }) => sequence)).toEqual([1, 2, 3]);
     expect(a[0]).toMatchObject({ runId: run.id, event: { type: "turn", channel: "cli" } });
-    await expect(collectRun(runs.events(0, new AbortController().signal))).resolves.toEqual(a);
+
+    const late = collectRun(runs.events(new AbortController().signal));
+    const next = runs.start({ text: "next", channel: "telegram" });
+    const c = await late;
+    expect(fixture.executions()).toBe(2);
+    expect(c.every(({ runId }) => runId === next.id)).toBe(true);
   });
 
   it("keeps running when a subscriber leaves and rejects overlapping turns", async () => {
     let release!: () => void;
     let started!: () => void;
+    let finished!: () => void;
     const running = new Promise<void>((resolve) => { started = resolve; });
+    const completed = new Promise<void>((resolve) => { finished = resolve; });
     const fixture = runtime(async function* () {
       yield { type: "status", message: "working" };
       started();
       await new Promise<void>((resolve) => { release = resolve; });
       yield { type: "done", sessionId: "s1" };
+      finished();
     });
     const runs = new RunCoordinator(fixture.value);
-    const observer = runs.events(0, new AbortController().signal)[Symbol.asyncIterator]();
+    const observer = runs.events(new AbortController().signal)[Symbol.asyncIterator]();
     const run = runs.start({ text: "first" });
     await observer.next();
     await observer.return?.();
     await running;
     expect(() => runs.start({ text: "second" })).toThrow(RunBusyError);
-    expect(runs.state().active?.id).toBe(run.id);
+    expect(run.origin).toBe("api");
     release();
-    const replay = await collectRun(runs.events(run.startSequence - 1, new AbortController().signal));
-    expect(replay.at(-1)?.event.type).toBe("done");
+    await completed;
   });
 
   it("cancels only through explicit stop", async () => {
@@ -76,7 +82,7 @@ describe("RunCoordinator", () => {
       yield { type: "error", message: "Interrupted." };
     });
     const runs = new RunCoordinator(fixture.value);
-    const events = collectRun(runs.events(0, new AbortController().signal));
+    const events = collectRun(runs.events(new AbortController().signal));
     runs.start({ text: "stop me" });
     expect(runs.stop()).toBe(true);
     expect((await events).at(-1)?.event.type).toBe("error");

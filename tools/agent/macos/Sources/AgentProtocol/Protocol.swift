@@ -24,17 +24,10 @@ public struct RuntimeEvent: Decodable, Sendable {
 public struct RunInfo: Decodable, Sendable {
     public let id: String
     public let origin: String
-    public let startSequence: Int
-}
-
-public struct RunState: Decodable, Sendable {
-    public let active: RunInfo?
-    public let latestSequence: Int
 }
 
 public struct RunEnvelope: Decodable, Sendable {
     public let runId: String
-    public let sequence: Int
     public let event: RuntimeEvent
 }
 

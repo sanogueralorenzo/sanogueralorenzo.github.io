@@ -48,8 +48,8 @@ struct ChatMessage: Identifiable, Equatable {
             setupStatus = try await client.setupStatus()
             if setupStatus?.configured == true {
                 try await loadTranscript(client)
+                try await observe(client)
                 state = .ready
-                observe(client)
             } else {
                 state = .needsSetup
             }
@@ -113,21 +113,17 @@ struct ChatMessage: Identifiable, Equatable {
         messages = []
     }
 
-    private func observe(_ initialClient: RuntimeClient) {
+    private func observe(_ initialClient: RuntimeClient) async throws {
         observer?.cancel()
+        let initialEvents = try await initialClient.events()
         observer = Task {
             var client = initialClient
-            var cursor = 0
+            var events = initialEvents
             while !Task.isCancelled {
                 do {
-                    if cursor == 0 {
-                        let runs = try await client.runState()
-                        cursor = runs.active.map { $0.startSequence - 1 } ?? runs.latestSequence
-                    }
-                    for try await envelope in try await client.events(after: cursor) {
-                        cursor = envelope.sequence
-                        apply(envelope)
-                    }
+                    for try await envelope in events { apply(envelope) }
+                    if Task.isCancelled { return }
+                    throw RuntimeClientError.disconnected
                 } catch {
                     if Task.isCancelled { return }
                     activity = activeRunId == nil ? "Reconnecting" : "Response interrupted; reconnecting"
@@ -135,7 +131,7 @@ struct ChatMessage: Identifiable, Equatable {
                         client = try await launcher.ensureRunning()
                         self.client = client
                         try await loadTranscript(client)
-                        cursor = 0
+                        events = try await client.events()
                         activity = ""
                     } catch {
                         state = .failed(error.localizedDescription)
@@ -212,8 +208,8 @@ struct ChatMessage: Identifiable, Equatable {
             try await action(client)
             setupStatus = try await client.setupStatus()
             setupMessage = ""
+            try await observe(client)
             state = .ready
-            observe(client)
         } catch {
             setupMessage = error.localizedDescription
         }

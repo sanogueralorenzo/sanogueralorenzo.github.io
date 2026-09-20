@@ -89,8 +89,7 @@ export class RuntimeServer {
         return json(response, 200, await this.setup.waitForCodexLogin(loginId));
       }
       switch (route) {
-        case "GET /v1/events": return this.events(url, response);
-        case "GET /v1/runs": return json(response, 200, this.runs.state());
+        case "GET /v1/events": return this.events(response);
         case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
         case "POST /v1/runs/stop": return json(response, 200, { stopped: this.runs.stop() });
         case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
@@ -161,9 +160,7 @@ export class RuntimeServer {
     };
   }
 
-  private async events(url: URL, response: ServerResponse): Promise<void> {
-    const after = Number(url.searchParams.get("after") ?? "0");
-    if (!Number.isSafeInteger(after) || after < 0) throw new Error("after must be a non-negative integer");
+  private async events(response: ServerResponse): Promise<void> {
     const controller = new AbortController();
     response.once("close", () => controller.abort());
     response.writeHead(200, {
@@ -174,7 +171,7 @@ export class RuntimeServer {
     });
     response.flushHeaders();
     try {
-      for await (const event of this.runs.events(after, controller.signal)) {
+      for await (const event of this.runs.events(controller.signal)) {
         response.write(`data: ${JSON.stringify(event)}\n\n`);
       }
     } finally {

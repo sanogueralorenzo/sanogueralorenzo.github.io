@@ -1,5 +1,5 @@
 export type WorkKind = "personal" | "coding";
-export const RUNTIME_PROTOCOL_VERSION = 3;
+export const RUNTIME_PROTOCOL_VERSION = 4;
 export type WorkerKind = "bounded" | "coding" | "astra";
 export type BackendKind = "codex" | "responses";
 export type Channel = "cli" | "telegram" | "macos" | "api";
@@ -54,18 +54,11 @@ export type RuntimeEvent =
 export interface RunInfo {
   id: string;
   origin: Channel;
-  startSequence: number;
 }
 
 export interface RunEnvelope {
   runId: string;
-  sequence: number;
   event: RuntimeEvent;
-}
-
-export interface RunState {
-  active: RunInfo | null;
-  latestSequence: number;
 }
 
 export interface TurnRequest {

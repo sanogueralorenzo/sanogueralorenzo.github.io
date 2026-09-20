@@ -77,8 +77,9 @@ describe("RuntimeServer", () => {
     expect(uploaded.status).toBe(201);
     const attachment = await uploaded.json() as { id: string; path?: string };
     expect(attachment.path).toBeUndefined();
-    const firstEvents = collectRun(client.events(0));
-    const secondEvents = collectRun(client.events(0));
+    const [firstFeed, secondFeed] = await Promise.all([client.events(), client.events()]);
+    const firstEvents = collectRun(firstFeed);
+    const secondEvents = collectRun(secondFeed);
     const run = await client.submit({
       text: "hello", attachmentIds: [attachment.id], channel: "api",
     });
@@ -106,11 +107,10 @@ describe("RuntimeServer", () => {
       },
     } as unknown as AgentRuntime;
     const { client } = await serve(runtime);
-    const observer = client.events(0)[Symbol.asyncIterator]();
+    const observer = (await client.events())[Symbol.asyncIterator]();
     await client.submit({ text: "hello", channel: "api" });
     await observer.next();
     await observer.return?.();
-    expect(await client.runState()).toMatchObject({ active: { origin: "api" } });
     expect(await client.submit({ text: "second", channel: "telegram" })).toBeNull();
     expect(await client.stop()).toBe(true);
     await expect(interruption).resolves.toBeUndefined();

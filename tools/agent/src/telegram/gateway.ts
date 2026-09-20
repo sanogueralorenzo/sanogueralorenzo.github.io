@@ -19,6 +19,8 @@ async function runGateway(token: string): Promise<void> {
   let stopping: Promise<void> | null = null;
   const deliveryController = new AbortController();
   let deliveryTask: Promise<void> | null = null;
+  let markDeliveryReady!: () => void;
+  const deliveryReady = new Promise<void>((resolve) => { markDeliveryReady = resolve; });
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
   const turns = new TelegramTurns(client);
@@ -34,6 +36,7 @@ async function runGateway(token: string): Promise<void> {
   });
   const stop = (): Promise<void> => stopping ??= (async () => {
     deliveryController.abort();
+    markDeliveryReady();
     updater.stop();
     supervisor.stop();
     await Promise.all([bot.stop(), deliveryTask]);
@@ -51,17 +54,13 @@ async function runGateway(token: string): Promise<void> {
   };
 
   const observe = async (): Promise<void> => {
-    let cursor = 0;
     let updateHeld = false;
     let stopTyping: () => void = () => undefined;
     while (!deliveryController.signal.aborted) {
       try {
-        if (cursor === 0) {
-          const state = await client.runState();
-          cursor = state.active ? state.active.startSequence - 1 : state.latestSequence;
-        }
-        for await (const envelope of client.events(cursor, deliveryController.signal)) {
-          cursor = envelope.sequence;
+        const events = await client.events(deliveryController.signal);
+        markDeliveryReady();
+        for await (const envelope of events) {
           if (envelope.event.type === "turn") {
             updateHeld = updater.beginTurn();
             const owner = ownerId();
@@ -85,7 +84,6 @@ async function runGateway(token: string): Promise<void> {
         updateHeld = false;
         if (interrupted) await deliver(interrupted).catch(() => undefined);
         await client.waitUntilHealthy().catch(() => undefined);
-        cursor = 0;
       }
     }
   };
@@ -148,10 +146,12 @@ async function runGateway(token: string): Promise<void> {
   bot.catch((error) => console.error(`Telegram gateway error: ${error.message.replaceAll(token, "[redacted]")}`));
   process.once("SIGINT", () => void stop());
   process.once("SIGTERM", () => void stop());
+  deliveryTask = observe();
+  await deliveryReady;
+  if (deliveryController.signal.aborted) return;
   await bot.start({ onStart: async (info) => {
     console.log(`Agent Telegram is online as @${info.username}.`);
     await updater.start();
-    deliveryTask = observe();
     const owner = pendingUpdateOwner(config.homeDir);
     if (owner && await bot.api.sendMessage(owner, "Agent updated and reconnected.").then(() => true, () => false)) {
       acknowledgeUpdate(config.homeDir);

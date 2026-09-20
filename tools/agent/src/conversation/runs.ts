@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentRuntime } from "./runtime.js";
-import type { RunEnvelope, RunInfo, RunState, RuntimeEvent, TurnRequest } from "./types.js";
-
-const MAX_EVENTS = 1_000;
+import type { RunEnvelope, RunInfo, RuntimeEvent, TurnRequest } from "./types.js";
 
 export class RunBusyError extends Error {
   constructor(readonly run: RunInfo) {
@@ -14,28 +12,17 @@ type Listener = (event?: RunEnvelope) => void;
 
 export class RunCoordinator {
   private active: (RunInfo & { controller: AbortController }) | null = null;
-  private history: RunEnvelope[] = [];
   private listeners = new Set<Listener>();
-  private sequence = 0;
   private closed = false;
   private executing: Promise<void> | null = null;
 
   constructor(private readonly runtime: Pick<AgentRuntime, "run">) {}
-
-  state(): RunState {
-    const { active } = this;
-    return {
-      active: active ? { id: active.id, origin: active.origin, startSequence: active.startSequence } : null,
-      latestSequence: this.sequence,
-    };
-  }
 
   start(turn: TurnRequest): RunInfo {
     if (this.active) throw new RunBusyError(this.active);
     const run: RunInfo & { controller: AbortController } = {
       id: randomUUID(),
       origin: turn.channel ?? "api",
-      startSequence: this.sequence + 1,
       controller: new AbortController(),
     };
     this.active = run;
@@ -46,7 +33,7 @@ export class RunCoordinator {
       hasAttachments: Boolean(turn.attachments?.length),
     });
     this.executing = this.execute(run, turn);
-    return { id: run.id, origin: run.origin, startSequence: run.startSequence };
+    return { id: run.id, origin: run.origin };
   }
 
   stop(): boolean {
@@ -63,12 +50,11 @@ export class RunCoordinator {
     await this.executing;
   }
 
-  async *events(cursor: number, signal: AbortSignal): AsyncGenerator<RunEnvelope> {
-    let after = cursor > this.sequence ? 0 : cursor;
-    const queued = this.history.filter((event) => event.sequence > after);
+  async *events(signal: AbortSignal): AsyncGenerator<RunEnvelope> {
+    const queued: RunEnvelope[] = [];
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
-      if (event && event.sequence > after) queued.push(event);
+      if (event) queued.push(event);
       wake?.();
       wake = undefined;
     };
@@ -83,8 +69,6 @@ export class RunCoordinator {
         if (!queued.length) await new Promise<void>((resolve) => { wake = resolve; });
         while (queued.length) {
           const event = queued.shift()!;
-          if (event.sequence <= after || !event.runId) continue;
-          after = event.sequence;
           yield event;
         }
       }
@@ -111,9 +95,7 @@ export class RunCoordinator {
   }
 
   private publish(runId: string, event: RuntimeEvent): void {
-    const envelope = { runId, sequence: ++this.sequence, event };
-    this.history.push(envelope);
-    if (this.history.length > MAX_EVENTS) this.history.shift();
+    const envelope = { runId, event };
     for (const listener of this.listeners) listener(envelope);
   }
 }

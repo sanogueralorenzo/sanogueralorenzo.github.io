@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_PROTOCOL_VERSION, type RunEnvelope, type RunInfo, type RunState, type Session, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type RunEnvelope, type RunInfo, type Session, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RunEnvelope {
   try {
     const event = JSON.parse(data) as RunEnvelope;
-    if (!event || typeof event.sequence !== "number" || typeof event.runId !== "string" || typeof event.event?.type !== "string") throw new Error();
+    if (!event || typeof event.runId !== "string" || typeof event.event?.type !== "string") throw new Error();
     return event;
   } catch {
     throw new Error("Agent runtime sent a malformed event.");
@@ -57,42 +57,46 @@ export class RuntimeClient {
     throw new Error("Agent runtime did not become ready.");
   }
 
-  async *events(after: number, signal?: AbortSignal): AsyncGenerator<RunEnvelope> {
+  async events(signal?: AbortSignal): Promise<AsyncGenerator<RunEnvelope>> {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort, { once: true });
+    let response: Response;
     try {
-      const response = await this.fetch(`/v1/events?after=${after}`, { signal: controller.signal });
+      response = await this.fetch("/v1/events", { signal: controller.signal });
       if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const next = await reader.read();
-        buffer += decoder.decode(next.value, { stream: !next.done });
-        let boundary = buffer.search(/\r?\n\r?\n/);
-        while (boundary >= 0) {
-          const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)![0];
-          const block = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + separator.length);
-          const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
-          if (data) {
-            yield decodeEvent(data);
-          }
-          boundary = buffer.search(/\r?\n\r?\n/);
-        }
-        if (next.done) break;
-      }
-      if (!controller.signal.aborted) throw new Error("Agent runtime disconnected.");
-    } finally {
+    } catch (error) {
       controller.abort();
       signal?.removeEventListener("abort", abort);
+      throw error;
     }
-  }
-
-  runState(): Promise<RunState> {
-    return this.json("/v1/runs");
+    const body = response.body;
+    const decode = async function* (): AsyncGenerator<RunEnvelope> {
+      const reader = body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      try {
+        while (true) {
+          const next = await reader.read();
+          buffer += decoder.decode(next.value, { stream: !next.done });
+          let boundary = buffer.search(/\r?\n\r?\n/);
+          while (boundary >= 0) {
+            const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)![0];
+            const block = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + separator.length);
+            const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
+            if (data) yield decodeEvent(data);
+            boundary = buffer.search(/\r?\n\r?\n/);
+          }
+          if (next.done) break;
+        }
+        if (!controller.signal.aborted) throw new Error("Agent runtime disconnected.");
+      } finally {
+        controller.abort();
+        signal?.removeEventListener("abort", abort);
+      }
+    };
+    return decode();
   }
 
   async submit(turn: TurnRequest): Promise<RunInfo | null> {

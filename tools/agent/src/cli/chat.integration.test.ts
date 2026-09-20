@@ -17,8 +17,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/runs" && request.method === "GET") return response.end('{"active":null,"latestSequence":0}');
-      if (request.url?.startsWith("/v1/events")) {
+      if (request.url === "/v1/events") {
         feed = response;
         response.writeHead(200, { "content-type": "text/event-stream" });
         openFeed();
@@ -29,11 +28,11 @@ describe("CLI shared runs", () => {
         for await (const chunk of request) chunks.push(Buffer.from(chunk));
         receivedTurn = JSON.parse(Buffer.concat(chunks).toString()) as Record<string, unknown>;
         response.statusCode = 202;
-        response.end('{"run":{"id":"r1","origin":"cli","startSequence":4}}');
+        response.end('{"run":{"id":"r1","origin":"cli"}}');
         setImmediate(() => feed?.write([
-          'data: {"runId":"r1","sequence":4,"event":{"type":"turn","text":"hello","channel":"cli","hasAttachments":false}}',
-          'data: {"runId":"r1","sequence":5,"event":{"type":"text_delta","delta":"CLI answer"}}',
-          'data: {"runId":"r1","sequence":6,"event":{"type":"done","sessionId":"s1"}}',
+          'data: {"runId":"r1","event":{"type":"turn","text":"hello","channel":"cli","hasAttachments":false}}',
+          'data: {"runId":"r1","event":{"type":"text_delta","delta":"CLI answer"}}',
+          'data: {"runId":"r1","event":{"type":"done","sessionId":"s1"}}',
           "",
         ].join("\n\n")));
         return;
@@ -62,9 +61,9 @@ describe("CLI shared runs", () => {
     child.stderr.on("data", (chunk) => { stderr += String(chunk); });
     await feedReady;
     feed?.write([
-      'data: {"runId":"remote","sequence":1,"event":{"type":"turn","text":"from phone","channel":"telegram","hasAttachments":false}}',
-      'data: {"runId":"remote","sequence":2,"event":{"type":"text_delta","delta":"Remote answer"}}',
-      'data: {"runId":"remote","sequence":3,"event":{"type":"done","sessionId":"s1"}}',
+      'data: {"runId":"remote","event":{"type":"turn","text":"from phone","channel":"telegram","hasAttachments":false}}',
+      'data: {"runId":"remote","event":{"type":"text_delta","delta":"Remote answer"}}',
+      'data: {"runId":"remote","event":{"type":"done","sessionId":"s1"}}',
       "",
     ].join("\n\n"));
     await vi.waitFor(() => expect(stdout).toContain("Remote answer"), { timeout: 5_000 });

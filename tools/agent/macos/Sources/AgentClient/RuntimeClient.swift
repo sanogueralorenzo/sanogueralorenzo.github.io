@@ -44,7 +44,7 @@ public actor RuntimeClient {
             throw RuntimeClientError.notRunning
         }
         let discovery = try JSONDecoder().decode(RuntimeDiscovery.self, from: data)
-        guard discovery.protocolVersion == 3,
+        guard discovery.protocolVersion == 4,
               let baseURL = URL(string: "http://127.0.0.1:\(discovery.port)") else {
             throw RuntimeClientError.incompatible
         }
@@ -86,8 +86,6 @@ public actor RuntimeClient {
         return try await value(path: "/v1/sessions/\(id)/messages")
     }
 
-    public func runState() async throws -> RunState { try await value(path: "/v1/runs") }
-
     public func submit(text: String, sessionId: String?, fresh: Bool) async throws -> RunInfo? {
         let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, fresh: fresh))
         let (data, response) = try await session.data(for: request(path: "/v1/runs", method: "POST", body: body))
@@ -99,15 +97,15 @@ public actor RuntimeClient {
         return try JSONDecoder().decode(RunStartResponse.self, from: data).run
     }
 
-    public func events(after: Int) throws -> AsyncThrowingStream<RunEnvelope, Error> {
-        let request = try request(path: "/v1/events?after=\(after)")
+    public func events() async throws -> AsyncThrowingStream<RunEnvelope, Error> {
+        let request = try request(path: "/v1/events")
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
+        }
         let (stream, continuation) = AsyncThrowingStream<RunEnvelope, Error>.makeStream()
-        let task = Task { [session] in
+        let task = Task {
             do {
-                let (bytes, response) = try await session.bytes(for: request)
-                guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                    throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
-                }
                 for try await line in bytes.lines where line.hasPrefix("data: ") {
                     guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
                     continuation.yield(try JSONDecoder().decode(RunEnvelope.self, from: data))

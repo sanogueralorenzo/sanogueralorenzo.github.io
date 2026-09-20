@@ -28,16 +28,16 @@ async function collect(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelope[
 }
 
 describe("RuntimeClient run protocol", () => {
-  it("decodes sequenced SSE events across chunk boundaries", async () => {
+  it("connects before returning and decodes SSE events across chunk boundaries", async () => {
     const client = await fixture((_request, response) => {
       response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write('data: {"runId":"r1","sequence":1,"event":{"type":"status","message":"Working"}}\r\n\r');
-      response.end('\ndata: {"runId":"r1","sequence":2,"event":{"type":"done","sessionId":"s1"}}\n\n');
+      response.write('data: {"runId":"r1","event":{"type":"status","message":"Working"}}\r\n\r');
+      response.end('\ndata: {"runId":"r1","event":{"type":"done","sessionId":"s1"}}\n\n');
     });
 
-    const events = client.events(0)[Symbol.asyncIterator]();
-    await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", sequence: 1, event: { type: "status" } } });
-    await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", sequence: 2, event: { type: "done" } } });
+    const events = (await client.events())[Symbol.asyncIterator]();
+    await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", event: { type: "status" } } });
+    await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", event: { type: "done" } } });
     await expect(events.next()).rejects.toThrow("runtime disconnected");
   });
 
@@ -46,15 +46,14 @@ describe("RuntimeClient run protocol", () => {
       response.writeHead(200, { "content-type": "text/event-stream" });
       response.end("data: {broken}\n\n");
     });
-    await expect(collect(client.events(0))).rejects.toThrow("malformed event");
+    await expect(collect(await client.events())).rejects.toThrow("malformed event");
   });
 
-  it("submits, reports busy, reads state, and stops through shared endpoints", async () => {
+  it("submits, reports busy, and stops through shared endpoints", async () => {
     const requests: string[] = [];
     const client = await fixture(async (request, response) => {
       requests.push(`${request.method} ${request.url}`);
       response.setHeader("content-type", "application/json");
-      if (request.url === "/v1/runs" && request.method === "GET") return response.end('{"active":null,"latestSequence":4}');
       if (request.url === "/v1/runs" && request.method === "POST") {
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -64,18 +63,17 @@ describe("RuntimeClient run protocol", () => {
           return response.end('{"error":"busy"}');
         }
         response.statusCode = 202;
-        return response.end('{"run":{"id":"r1","origin":"cli","startSequence":5}}');
+        return response.end('{"run":{"id":"r1","origin":"cli"}}');
       }
       if (request.url === "/v1/runs/stop") return response.end('{"stopped":true}');
       response.statusCode = 404;
       response.end();
     });
 
-    await expect(client.runState()).resolves.toEqual({ active: null, latestSequence: 4 });
-    await expect(client.submit({ text: "hello", channel: "cli" })).resolves.toEqual({ id: "r1", origin: "cli", startSequence: 5 });
+    await expect(client.submit({ text: "hello", channel: "cli" })).resolves.toEqual({ id: "r1", origin: "cli" });
     await expect(client.submit({ text: "busy", channel: "cli" })).resolves.toBeNull();
     await expect(client.stop()).resolves.toBe(true);
-    expect(requests).toEqual(["GET /v1/runs", "POST /v1/runs", "POST /v1/runs", "POST /v1/runs/stop"]);
+    expect(requests).toEqual(["POST /v1/runs", "POST /v1/runs", "POST /v1/runs/stop"]);
   });
 
   it("closing a subscription only closes its HTTP stream", async () => {
@@ -84,10 +82,10 @@ describe("RuntimeClient run protocol", () => {
     const client = await fixture((_request, response) => {
       response.once("close", closed);
       response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write('data: {"runId":"r1","sequence":1,"event":{"type":"turn","text":"hello","channel":"api","hasAttachments":false}}\n\n');
+      response.write('data: {"runId":"r1","event":{"type":"turn","text":"hello","channel":"api","hasAttachments":false}}\n\n');
     });
 
-    for await (const _event of client.events(0)) break;
+    for await (const _event of await client.events()) break;
     await expect(connectionClosed).resolves.toBeUndefined();
   });
 });

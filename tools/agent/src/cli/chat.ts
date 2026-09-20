@@ -29,11 +29,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   let fresh = false;
   let activeRunId: string | undefined;
   let wroteText = false;
-  let cursor = 0;
   let stopping = false;
   const observerController = new AbortController();
   const completed = new Set<string>();
   const waiters = new Map<string, () => void>();
+  let connected!: () => void;
+  const firstConnection = new Promise<void>((resolve) => { connected = resolve; });
 
   const finish = (runId: string) => {
     const waiter = waiters.get(runId);
@@ -56,6 +57,8 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         const input = event.text.trim() || (event.hasAttachments ? "Voice message" : "Message");
         process.stdout.write(`${promptActive ? "\n" : ""}${ansi.cyan(event.channel)} › ${input}\n`);
       }
+    } else if (activeRunId !== runId) {
+      return;
     } else if (event.type === "session") {
       sessionId = event.session.id;
       fresh = false;
@@ -87,14 +90,9 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   const observe = async () => {
     while (!stopping) {
       try {
-        if (cursor === 0) {
-          const state = await client.runState();
-          cursor = state.active ? state.active.startSequence - 1 : state.latestSequence;
-        }
-        for await (const event of client.events(cursor, observerController.signal)) {
-          cursor = event.sequence;
-          render(event);
-        }
+        const events = await client.events(observerController.signal);
+        connected();
+        for await (const event of events) render(event);
       } catch {
         if (stopping) return;
         if (activeRunId) {
@@ -103,11 +101,11 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
           activeRunId = undefined;
         }
         await client.waitUntilHealthy().catch(() => undefined);
-        cursor = 0;
       }
     }
   };
   const observer = observe();
+  await firstConnection;
 
   const onSigint = () => {
     if (activeRunId) {
