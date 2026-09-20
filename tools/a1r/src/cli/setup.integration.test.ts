@@ -4,7 +4,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Store } from "../core/store.js";
-import { SETUP_CHOICES, SETUP_PROMPT, setupA1R } from "./setup.js";
+import {
+  SETUP_CHOICES,
+  SETUP_SELECTOR_HINT,
+  renderSetupSelector,
+  setupA1R,
+  setupSelectorTransition,
+} from "./setup.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 const roots: string[] = [];
@@ -123,7 +129,22 @@ describe.sequential("CLI subscription setup", () => {
       "Set up headless or remote device (one-time code)",
       "Set up with OpenAI API key (independent usage-based billing)",
     ]);
-    expect(SETUP_PROMPT).toBe("Select a setup method (default 1): ");
+    expect(renderSetupSelector(0)).toBe([
+      "> 1. Set up with ChatGPT browser",
+      "  2. Set up headless or remote device (one-time code)",
+      "  3. Set up with OpenAI API key (independent usage-based billing)",
+      "",
+      SETUP_SELECTOR_HINT,
+      "",
+    ].join("\n"));
+  });
+
+  it("supports arrow navigation, number shortcuts, Enter, and cancellation", () => {
+    expect(setupSelectorTransition(0, "\u001b[B")).toEqual({ selectedIndex: 1, action: "move" });
+    expect(setupSelectorTransition(0, "\u001b[A")).toEqual({ selectedIndex: 2, action: "move" });
+    expect(setupSelectorTransition(0, "3")).toEqual({ selectedIndex: 2, action: "confirm" });
+    expect(setupSelectorTransition(0, "\r")).toEqual({ selectedIndex: 0, action: "confirm" });
+    expect(setupSelectorTransition(0, "\u0003")).toEqual({ selectedIndex: 0, action: "cancel" });
   });
 
   it("reuses an existing A1R-specific login transparently during ordinary setup", async () => {
