@@ -3,7 +3,7 @@ import type { Artifact, TurnRequest } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { splitTelegramText } from "./text.js";
 
-type TurnClient = Pick<RuntimeClient, "isRunning" | "events" | "cancel">;
+type TurnClient = Pick<RuntimeClient, "events" | "cancel">;
 
 export interface TelegramTurnResult { chunks: string[]; artifacts: Artifact[] }
 
@@ -16,21 +16,17 @@ export function checkTelegramVoiceSize(size: number | undefined): void {
 }
 
 export class TelegramTurns {
-  private preparing = false;
+  private active = false;
 
   constructor(private readonly client: TurnClient) {}
-
-  get busy(): boolean {
-    return this.preparing || this.client.isRunning;
-  }
 
   stop(): Promise<boolean> {
     return this.client.cancel();
   }
 
   async run(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<TelegramTurnResult | null> {
-    if (this.busy) return null;
-    this.preparing = true;
+    if (this.active) return null;
+    this.active = true;
     let output = "";
     let runtimeError = "";
     const artifacts: Artifact[] = [];
@@ -54,7 +50,7 @@ export class TelegramTurns {
           : "I could not finish that response. Your session is saved; please try again.";
       return { chunks: [message], artifacts: [] };
     } finally {
-      this.preparing = false;
+      this.active = false;
     }
   }
 }

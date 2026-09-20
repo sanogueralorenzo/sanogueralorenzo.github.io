@@ -9,7 +9,6 @@ let package = Package(
         .target(name: "AgentProtocol"),
         .target(name: "AgentClient", dependencies: ["AgentProtocol"]),
         .executableTarget(name: "AgentMac", dependencies: ["AgentClient", "AgentProtocol"]),
-        .executableTarget(name: "AgentProtocolCheck", dependencies: ["AgentProtocol"]),
-        .executableTarget(name: "AgentClientCheck", dependencies: ["AgentClient", "AgentProtocol"]),
+        .executableTarget(name: "AgentCheck", dependencies: ["AgentClient", "AgentProtocol"]),
     ]
 )

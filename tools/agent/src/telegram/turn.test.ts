@@ -5,7 +5,6 @@ import { checkTelegramVoiceSize, isTelegramOwner, TelegramTurns } from "./turn.j
 
 function client(events: RuntimeEvent[] = [], failure?: Error) {
   return {
-    isRunning: false,
     cancel: vi.fn(async () => true),
     async *events() {
       for (const event of events) yield event;
@@ -23,12 +22,14 @@ describe("Telegram turns", () => {
 
   it("reports busy turns and delegates stop to the runtime client", async () => {
     const runtime = client();
-    runtime.isRunning = true;
     const turns = new TelegramTurns(runtime);
-
-    await expect(turns.run(async () => ({ text: "hello" }))).resolves.toBeNull();
+    let release!: () => void;
+    const active = turns.run(() => new Promise((resolve) => { release = () => resolve({ text: "hello" }); }));
+    await expect(turns.run(async () => ({ text: "again" }))).resolves.toBeNull();
     await expect(turns.stop()).resolves.toBe(true);
     expect(runtime.cancel).toHaveBeenCalledOnce();
+    release();
+    await active;
   });
 
   it("collects chunked text and artifacts from the shared stream", async () => {

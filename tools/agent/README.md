@@ -46,7 +46,7 @@ Agent stores state under `~/.agent`. ChatGPT authentication stays inside Agent's
 ```bash
 npm run check
 swift build --package-path macos
-swift run --package-path macos AgentProtocolCheck
+swift run --package-path macos AgentCheck
 ```
 
 [agent.dev](https://agent.dev)

@@ -104,7 +104,6 @@ public actor RuntimeClient {
                 for try await line in bytes.lines where line.hasPrefix("data: ") {
                     guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
                     let event = try JSONDecoder().decode(RuntimeEvent.self, from: data)
-                    guard event.isValid else { throw RuntimeClientError.invalidEvent }
                     terminal = terminal || event.isTerminal
                     continuation.yield(event)
                 }

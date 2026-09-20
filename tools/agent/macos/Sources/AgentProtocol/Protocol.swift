@@ -16,18 +16,6 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let artifact: RuntimeArtifact?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
-
-    public var isValid: Bool {
-        switch type {
-        case "session": session != nil
-        case "text_delta": delta != nil
-        case "status", "error": message != nil
-        case "artifact": artifact != nil
-        case "tool_start", "tool_end": name != nil
-        case "done": sessionId != nil
-        default: false
-        }
-    }
 }
 
 public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {

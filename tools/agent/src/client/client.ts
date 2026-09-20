@@ -4,26 +4,13 @@ import { RUNTIME_PROTOCOL_VERSION, type RuntimeEvent, type Session, type TurnReq
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RuntimeEvent {
-  let value: unknown;
   try {
-    value = JSON.parse(data);
+    const event = JSON.parse(data) as RuntimeEvent;
+    if (!event || typeof event.type !== "string") throw new Error();
+    return event;
   } catch {
     throw new Error("Agent runtime sent a malformed event.");
   }
-  if (!value || typeof value !== "object" || typeof (value as { type?: unknown }).type !== "string") {
-    throw new Error("Agent runtime sent an invalid event.");
-  }
-  const event = value as Record<string, unknown>;
-  const valid = event.type === "session"
-    ? typeof (event.session as Record<string, unknown> | undefined)?.id === "string"
-    : event.type === "text_delta" ? typeof event.delta === "string"
-      : event.type === "status" || event.type === "error" ? typeof event.message === "string"
-        : event.type === "artifact" ? typeof (event.artifact as Record<string, unknown> | undefined)?.path === "string"
-          : event.type === "tool_start" ? typeof event.name === "string" && typeof event.callId === "string"
-            : event.type === "tool_end" ? typeof event.name === "string" && typeof event.callId === "string" && typeof event.summary === "string"
-              : event.type === "done" && typeof event.sessionId === "string";
-  if (!valid) throw new Error("Agent runtime sent an invalid event.");
-  return value as RuntimeEvent;
 }
 
 export class RuntimeClient {

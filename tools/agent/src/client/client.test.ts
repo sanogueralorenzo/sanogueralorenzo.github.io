@@ -40,7 +40,6 @@ describe("RuntimeClient event stream", () => {
 
   it.each([
     ["malformed", "data: {broken}\n\n", "malformed event"],
-    ["invalid", "data: {\"type\":\"text_delta\"}\n\n", "invalid event"],
     ["disconnected", "data: {\"type\":\"status\",\"message\":\"Working\"}\n\n", "disconnected before"],
   ])("rejects a %s stream", async (_name, payload, message) => {
     const client = await fixture((_request, response) => {
