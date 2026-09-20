@@ -23,6 +23,18 @@ function fixture() {
 }
 
 describe("coding tool boundaries", () => {
+  it("can expose project inspection without exposing mutation", () => {
+    const root = mkdtempSync(join(tmpdir(), "agent-tools-readonly-"));
+    const state = mkdtempSync(join(tmpdir(), "agent-tools-readonly-state-"));
+    paths.push(root, state);
+    const store = new Store(state);
+    const names = createTools(store, { allowCodeTools: true, allowCodeWrites: false })
+      .map((tool) => tool.definition.name);
+
+    expect(names).toEqual(["memory_search", "remember", "read_file", "list_files", "search_files"]);
+    store.close();
+  });
+
   it("rejects writes outside the active project before creating directories", async () => {
     const { root, store, tools, context } = fixture();
     const outsideName = `${basename(root)}-escape`;

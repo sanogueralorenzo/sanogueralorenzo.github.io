@@ -113,7 +113,7 @@ async function prepareWritePath(root: string | null, requested: string): Promise
   return scopedPath(canonicalRoot, requested, true);
 }
 
-export function createTools(store: Store, options: { allowCodeTools: boolean; allowMemoryWrite?: boolean }): AgentTool[] {
+export function createTools(store: Store, options: { allowCodeTools: boolean; allowCodeWrites?: boolean; allowMemoryWrite?: boolean }): AgentTool[] {
   const tools: AgentTool[] = [
     {
       definition: {
@@ -206,6 +206,11 @@ export function createTools(store: Store, options: { allowCodeTools: boolean; al
           }
         },
       },
+    );
+  }
+
+  if (options.allowCodeTools && options.allowCodeWrites !== false) {
+    tools.push(
       {
         definition: {
           type: "function", name: "write_file", description: "Create or replace a UTF-8 text file inside the active project.", strict: true,

@@ -94,7 +94,11 @@ export class ResponsesBackend implements AgentBackend {
   }
 
   private async runWorker(turn: BackendTurn, worker: WorkerKind): Promise<string> {
-    const tools = createTools(this.store, { allowCodeTools: worker === "coding", allowMemoryWrite: false });
+    const tools = createTools(this.store, {
+      allowCodeTools: worker === "coding" || (worker === "astra" && turn.route.kind === "coding"),
+      allowCodeWrites: worker === "coding",
+      allowMemoryWrite: false,
+    });
     let input: ResponseInputItem[] = [{ role: "user", content: turn.request.text }];
     let accumulated = "";
 

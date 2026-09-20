@@ -158,9 +158,11 @@ describe("AgentRuntime", () => {
     expect(automatic.calls.map((call) => call.model)).toEqual(["gpt-5.6-luna", "gpt-5.6-luna"]);
 
     const explicit = new RoutingModel();
-    await collect(runtime(path, store, explicit), { text: "Use Astra high to investigate this architecture", channel: "api", fresh: true });
+    await collect(runtime(path, store, explicit), { text: "Use Astra high to investigate this code architecture", cwd: path, channel: "api", fresh: true });
     expect(explicit.calls.map((call) => call.model)).toEqual(["gpt-6-astra", "gpt-5.6-luna"]);
     expect(explicit.calls.every((call) => call.reasoningEffort === "high")).toBe(true);
+    expect(explicit.calls[0]?.tools.some((tool) => tool.name === "read_file")).toBe(true);
+    expect(explicit.calls[0]?.tools.some((tool) => tool.name === "write_file")).toBe(false);
     store.close();
   });
 
