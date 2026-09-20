@@ -58,13 +58,9 @@ export class Store {
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
         state TEXT NOT NULL CHECK (state IN ('running', 'complete', 'interrupted', 'failed')),
-        response_id TEXT,
         output TEXT NOT NULL DEFAULT '',
-        error TEXT,
-        started_at TEXT NOT NULL,
-        finished_at TEXT
+        started_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS runs_session_id ON runs(session_id, started_at DESC);
       CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -96,7 +92,7 @@ export class Store {
       SELECT session_id, 'assistant', output || char(10) || char(10) || '[interrupted]', ?
       FROM runs WHERE state = 'running' AND output <> ''
     `).run(now());
-    this.db.prepare("UPDATE runs SET state = 'interrupted', finished_at = ? WHERE state = 'running'").run(now());
+    this.db.prepare("DELETE FROM runs WHERE state = 'running'").run();
   }
 
   resolveSession(input: {
@@ -190,9 +186,8 @@ export class Store {
     this.db.prepare("UPDATE runs SET output = ? WHERE id = ?").run(output, id);
   }
 
-  finishRun(id: string, state: "complete" | "failed" | "interrupted", output?: string): void {
-    this.db.prepare("UPDATE runs SET state = ?, output = COALESCE(?, output), finished_at = ? WHERE id = ?")
-      .run(state, output ?? null, now(), id);
+  finishRun(id: string): void {
+    this.db.prepare("DELETE FROM runs WHERE id = ?").run(id);
   }
 
   getSetting(key: string): string | null {

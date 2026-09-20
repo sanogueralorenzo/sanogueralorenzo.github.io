@@ -130,11 +130,11 @@ export class AgentRuntime {
         }
       }
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", assistantText);
-      this.store.finishRun(runId, "complete", assistantText);
+      this.store.finishRun(runId);
       terminal = { type: "done", sessionId: session.id };
     } catch (error) {
       const interrupted = options.signal?.aborted || (error instanceof Error && error.name === "AbortError");
-      this.store.finishRun(runId, interrupted ? "interrupted" : "failed", assistantText);
+      this.store.finishRun(runId);
       if (assistantText.trim()) this.store.addMessage(session.id, "assistant", `${assistantText}\n\n[interrupted]`);
       terminal = {
         type: "error",

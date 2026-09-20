@@ -23,7 +23,7 @@ export class RuntimeSupervisor {
     if (!await this.client.healthy()) {
       this.ownsRuntime = true;
       this.spawnRuntime();
-      await this.waitForRuntime();
+      await this.client.waitUntilHealthy();
     }
     this.monitorTimer = setInterval(() => void this.ensureRuntime(), 1_000);
     if (this.dev && this.ownsRuntime) this.startWatching();
@@ -38,7 +38,7 @@ export class RuntimeSupervisor {
         this.ownsRuntime = true;
         this.spawnRuntime();
       }
-      await this.waitForRuntime();
+      await this.client.waitUntilHealthy();
       this.onStatus("Runtime reconnected. Session restored.");
     } catch {
       // The next monitor tick retries.
@@ -65,22 +65,9 @@ export class RuntimeSupervisor {
       const message = String(chunk).trim();
       if (message && !message.includes("ExperimentalWarning")) this.onStatus(message);
     });
-    this.child.once("exit", (code) => {
+    this.child.once("exit", () => {
       this.child = null;
-      if (!this.stopping && this.ownsRuntime && code !== 0) {
-        setTimeout(() => void this.ensureRuntime(), 300);
-      }
     });
-  }
-
-  private async waitForRuntime(timeoutMs = 10_000): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      if (await this.client.healthy()) return;
-      if (this.ownsRuntime && !this.child && !this.stopping) this.spawnRuntime();
-      await new Promise((resolve) => setTimeout(resolve, this.child ? 100 : 300));
-    }
-    throw new Error("Agent runtime did not become ready.");
   }
 
   private startWatching(): void {
@@ -97,7 +84,7 @@ export class RuntimeSupervisor {
     this.onStatus("Reloading runtime…");
     await this.stopChild();
     this.spawnRuntime();
-    await this.waitForRuntime();
+    await this.client.waitUntilHealthy();
     this.onStatus("Runtime reloaded. Session restored.");
   }
 
