@@ -39,10 +39,6 @@ export class ResponsesBackend implements AgentBackend {
     private readonly model: ModelClient,
   ) {}
 
-  isConfigured(): boolean {
-    return this.model.isConfigured?.() ?? true;
-  }
-
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     if (!this.model.transcribeAudio) throw new Error("This OpenAI connection does not support voice transcription.");
     const transcript = await this.model.transcribeAudio(attachment, signal);

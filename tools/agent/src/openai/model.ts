@@ -23,7 +23,6 @@ export interface ModelStreamEvent {
 }
 
 export interface ModelClient {
-  isConfigured?(): boolean;
   stream(request: ModelRequest): AsyncGenerator<ModelStreamEvent, Response>;
   transcribeAudio?(attachment: Attachment, signal?: AbortSignal): Promise<string>;
 }

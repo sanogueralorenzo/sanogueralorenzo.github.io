@@ -361,10 +361,8 @@ describe("Codex app-server contract", () => {
     const responses = backend("responses", true);
     const registry = new BackendRegistry(store, responses, backend("codex", false));
 
-    await expect(registry.resolve()).rejects.toThrow("no selected connection");
+    expect(() => registry.resolve()).toThrow("no selected connection");
     store.setSetting("backend", "responses");
-    await expect(registry.resolve()).resolves.toBe(responses);
-    store.setSetting("backend", "codex");
-    await expect(new BackendRegistry(store, responses).resolve()).rejects.toThrow("reconnected");
+    expect(registry.resolve()).toBe(responses);
   });
 });

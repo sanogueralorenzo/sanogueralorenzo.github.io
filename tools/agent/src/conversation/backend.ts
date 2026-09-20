@@ -21,7 +21,6 @@ export interface BackendTurn {
 
 export interface AgentBackend {
   readonly kind: BackendKind;
-  isConfigured(): boolean | Promise<boolean>;
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
   close?(): void | Promise<void>;
@@ -31,19 +30,13 @@ export class BackendRegistry {
   constructor(
     private readonly store: Store,
     private readonly responses: AgentBackend,
-    private readonly codex?: AgentBackend,
+    private readonly codex: AgentBackend,
   ) {}
 
-  async resolve(): Promise<AgentBackend> {
+  resolve(): AgentBackend {
     const selected = this.store.getSetting("backend");
-    if (selected === "codex") {
-      if (this.codex) return this.codex;
-      throw new Error("ChatGPT needs to be reconnected. Run `agent setup`, or choose API-key billing there.");
-    }
-    if (selected === "responses") {
-      if (await this.responses.isConfigured()) return this.responses;
-      throw new Error("An OpenAI API key is required. Run `agent setup`.");
-    }
+    if (selected === "codex") return this.codex;
+    if (selected === "responses") return this.responses;
     throw new Error("Agent has no selected connection. Run `agent setup`; billing modes are never selected automatically.");
   }
 }

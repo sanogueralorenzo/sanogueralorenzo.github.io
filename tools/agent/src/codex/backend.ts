@@ -82,11 +82,6 @@ export class CodexBackend implements AgentBackend {
     private readonly createRealtimePeer: () => RealtimePeer = () => new NodeRealtimePeer(),
   ) {}
 
-  async isConfigured(): Promise<boolean> {
-    if (!this.client.isInstalled()) return false;
-    return this.client.account(false).then((status) => status.account?.type === "chatgpt", () => false);
-  }
-
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
     return this.retry(() => this.transcribe(attachment, signal));
   }
