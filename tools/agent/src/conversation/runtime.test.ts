@@ -55,7 +55,7 @@ describe("AgentRuntime", () => {
   it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
     const { homeDir, backend, runtime } = testRuntime();
     await collect(runtime, { text: "Fix the failing test", cwd: homeDir, channel: "cli", fresh: true });
-    expect(backend.turns[0]?.instructions).toBe("Own this turn end to end and give the user one coherent response.");
+    expect(backend.turns[0]?.instructions).toBe("Act on clear requests and persist until complete. Make reasonable assumptions; ask only when a material choice blocks progress.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
