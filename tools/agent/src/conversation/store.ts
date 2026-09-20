@@ -25,14 +25,12 @@ export class Store {
 
   private initializeSchema(): void {
     this.db.exec(`
-      DROP TABLE IF EXISTS gateway_links;
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         scope_key TEXT NOT NULL UNIQUE,
         kind TEXT NOT NULL CHECK (kind IN ('personal', 'coding')),
         cwd TEXT,
         title TEXT NOT NULL,
-        summary TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -120,8 +118,8 @@ export class Store {
     const timestamp = now();
     const id = randomUUID();
     this.db.prepare(`
-      INSERT INTO sessions (id, scope_key, kind, cwd, title, summary, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, '', ?, ?)
+      INSERT INTO sessions (id, scope_key, kind, cwd, title, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(id, input.scopeKey, input.kind, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
     return this.getSession(id)!;
   }

@@ -27,7 +27,6 @@ async function runGateway(token: string): Promise<void> {
     requestRuntimeRestart: () => client.requestRestart(),
     stopGateway: async () => stop(),
     ownerId,
-    onStatus: (message) => console.log(`· ${message}`),
     onFailure: async () => {
       const owner = ownerId();
       if (owner) await bot.api.sendMessage(owner, "Agent update failed verification. The current version is still running.").catch(() => undefined);

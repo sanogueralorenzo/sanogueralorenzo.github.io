@@ -27,31 +27,32 @@ export interface Memory {
 
 export type AttachmentKind = "audio" | "image" | "file";
 
-export interface Attachment {
+interface StoredFile {
   id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  path: string;
+}
+
+export interface Attachment extends StoredFile {
   kind: AttachmentKind;
-  name: string;
-  mimeType: string;
-  size: number;
-  path: string;
 }
 
-export interface Artifact {
-  id: string;
+export interface Artifact extends StoredFile {
   kind: "image" | "file";
-  name: string;
-  mimeType: string;
-  size: number;
-  path: string;
 }
 
-export type RuntimeEvent =
-  | { type: "session"; session: Session }
+export type ProgressEvent =
   | { type: "status"; message: string }
   | { type: "text_delta"; delta: string }
   | { type: "artifact"; artifact: Artifact }
   | { type: "tool_start"; name: string; callId: string }
-  | { type: "tool_end"; name: string; callId: string; summary: string }
+  | { type: "tool_end"; name: string; callId: string; summary: string };
+
+export type RuntimeEvent =
+  | { type: "session"; session: Session }
+  | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };
 

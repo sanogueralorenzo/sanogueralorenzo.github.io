@@ -1,12 +1,8 @@
 import type { Store } from "./store.js";
-import type { Artifact, Attachment, BackendKind, RouteDecision, Session, TurnRequest } from "./types.js";
+import type { Attachment, BackendKind, ProgressEvent, RouteDecision, Session, TurnRequest } from "./types.js";
 
 export type BackendEvent =
-  | { type: "status"; message: string }
-  | { type: "text_delta"; delta: string }
-  | { type: "artifact"; artifact: Artifact }
-  | { type: "tool_start"; name: string; callId: string }
-  | { type: "tool_end"; name: string; callId: string; summary: string }
+  | ProgressEvent
   | { type: "done" };
 
 export interface BackendTurn {

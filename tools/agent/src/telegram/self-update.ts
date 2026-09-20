@@ -20,7 +20,6 @@ interface SelfUpdateOptions {
   stopGateway: () => Promise<void>;
   ownerId: () => string | undefined;
   verify?: (signal: AbortSignal) => Promise<void>;
-  onStatus?: (message: string) => void;
   onFailure?: (message: string) => Promise<void> | void;
   debounceMs?: number;
 }
@@ -118,13 +117,11 @@ export class TelegramSelfUpdate {
     if (!this.dirty || this.applying || this.activeTurns > 0 || this.stopped) return;
     this.applying = true;
     this.dirty = false;
-    this.options.onStatus?.("Verifying Agent update…");
     this.verifyController = new AbortController();
     try {
       await (this.options.verify ?? ((signal) => verifyAgent(this.options.projectRoot, signal)))(this.verifyController.signal);
       await delay(this.debounceMs);
       if (this.dirty) return;
-      this.options.onStatus?.("Agent update verified; restarting…");
       if (!await this.options.requestRuntimeRestart()) throw new Error("Agent is busy; the update was not applied.");
       const ownerId = this.options.ownerId();
       if (ownerId) writeState(this.options.homeDir, { notificationOwnerId: ownerId });
@@ -132,7 +129,6 @@ export class TelegramSelfUpdate {
     } catch (error) {
       if (this.stopped) return;
       const message = error instanceof Error ? error.message : String(error);
-      this.options.onStatus?.(`Agent update was not applied: ${message}`);
       await this.options.onFailure?.(message);
     } finally {
       this.verifyController = null;
