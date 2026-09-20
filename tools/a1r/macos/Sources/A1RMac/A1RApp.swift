@@ -43,11 +43,13 @@ struct SetupView: View {
         VStack(spacing: 18) {
             Image(systemName: "wind").font(.system(size: 48)).foregroundStyle(.tint)
             Text("Welcome to A1R").font(.largeTitle.weight(.semibold))
-            Text("Continue with ChatGPT to use your included Codex allowance. Authentication stays inside the official Codex app-server.")
+            Text("Continue with ChatGPT to use your included Codex allowance. A1R uses a private Codex profile, separate from the Codex CLI, while authentication stays inside the official app-server.")
                 .foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
             if let plan = model.setupStatus?.codex.planType {
                 Text("ChatGPT \(plan.capitalized)")
                     .font(.headline)
+                Text("A1R found its private ChatGPT login and will reuse it if you continue.")
+                    .font(.caption).foregroundStyle(.secondary)
                 ForEach(model.setupStatus?.codex.usage ?? []) { usage in
                     Text("\(usage.name): \(Int(usage.remainingPercent.rounded()))% available")
                         .font(.caption).foregroundStyle(.secondary)

@@ -59,6 +59,30 @@ describe("BackendSetupService", () => {
     store.close();
   });
 
+  it("requires a new private-profile login after the previous shared-login backend selection", async () => {
+    const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-migration-"));
+    paths.push(homeDir);
+    const store = new Store(homeDir);
+    store.setSetting("backend", "codex");
+    const codex = new CodexAppServer({
+      command: process.execPath,
+      args: [fixture],
+      installed: true,
+      env: { ...process.env, A1R_FAKE_SCENARIO: "expired" },
+    });
+    const service = new BackendSetupService(store, model(false), codex, () => undefined);
+
+    await expect(service.status()).resolves.toMatchObject({
+      configured: false,
+      selectedBackend: "codex",
+      codex: { connected: false },
+    });
+    await expect(service.selectBackend("codex")).rejects.toThrow(/Continue with ChatGPT/);
+    expect(store.getSetting("backend")).toBe("codex");
+    await codex.stop();
+    store.close();
+  });
+
   it("offers the saved API-key fallback when included allowance is exhausted", async () => {
     const homeDir = mkdtempSync(join(tmpdir(), "a1r-setup-exhausted-"));
     paths.push(homeDir);

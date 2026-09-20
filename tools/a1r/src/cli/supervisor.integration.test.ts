@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, statSync, utimesSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,7 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   const original = statSync(watchedFile);
   try {
     await supervisor.start();
+    if (backend === "codex") writeFileSync(join(homeDir, "codex", "profile.marker"), "private profile survives\n");
     const changed = new Date(Date.now() + 1_000);
     utimesSync(watchedFile, changed, changed);
     const deadline = Date.now() + 10_000;
@@ -57,6 +58,7 @@ async function verifyReload(backend: BackendKind, watchedFile: string): Promise<
   expect(recovered.getMessages(session.id)[0]?.content).toBe("Keep this transcript");
   expect(recovered.searchMemories(`project:${homeDir}`, "this memory")[0]?.content).toBe("Keep this memory");
   if (backend === "codex") expect(recovered.backendSession(session.id, "codex")).toBe("thread-persisted");
+  if (backend === "codex") expect(readFileSync(join(homeDir, "codex", "profile.marker"), "utf8")).toBe("private profile survives\n");
   recovered.close();
 }
 

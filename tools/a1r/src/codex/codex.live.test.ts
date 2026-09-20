@@ -1,17 +1,20 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { CodexAppServer } from "./app-server.js";
+import { createA1RCodexAppServer } from "./app-server.js";
 
 const live = process.env.A1R_LIVE_CODEX === "1" ? it : it.skip;
 
 live("runs an opt-in Codex subscription turn without reading stored credentials", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "a1r-codex-live-"));
-  const client = new CodexAppServer({ command: process.env.A1R_CODEX_COMMAND ?? "codex", requestTimeoutMs: 60_000 });
+  const client = createA1RCodexAppServer(
+    { homeDir: process.env.A1R_HOME ?? join(homedir(), ".a1r"), codexCommand: process.env.A1R_CODEX_COMMAND ?? "codex" },
+    { requestTimeoutMs: 60_000 },
+  );
   try {
     const account = await client.account(true);
-    expect(account.account?.type, "Run `codex login` or `a1r setup --chatgpt` first.").toBe("chatgpt");
+    expect(account.account?.type, "Run `a1r setup --chatgpt` first.").toBe("chatgpt");
     const started = await client.request<{ thread: { id: string } }>("thread/start", {
       cwd,
       ephemeral: true,

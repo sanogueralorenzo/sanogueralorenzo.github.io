@@ -8,7 +8,7 @@ A1R surfaces connect to the runtime on loopback HTTP. The runtime atomically wri
 - `GET /v1/setup` — setup state
 - `POST /v1/setup/openai` — validate and store an OpenAI key
 - `POST /v1/setup/backend` — select `codex` or `responses`
-- `POST /v1/setup/codex/login` — start documented browser or device-code login
+- `POST /v1/setup/codex/login` — start documented browser or device-code login; `{ "mode": "device" }` always creates a fresh device-code attempt
 - `GET /v1/setup/codex/login/:id` — poll a login attempt without exposing credentials
 - `GET /v1/sessions` — recent locally owned sessions
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
@@ -36,4 +36,4 @@ The `session` event may include `backend: "codex" | "responses"`. All later even
 
 ## Codex app-server boundary
 
-A1R launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and login methods are used. App-server owns its authentication persistence and billing state; A1R stores only the selected backend and the opaque thread ID associated with an A1R session.
+A1R launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Only documented account, rate-limit, thread, turn, interrupt, and login methods are used. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to A1R's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence and billing state inside that profile. A1R stores only the selected backend and the opaque thread ID associated with an A1R session, and reconstructs a missing pre-migration Codex thread from its own saved transcript.

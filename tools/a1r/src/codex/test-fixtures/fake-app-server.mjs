@@ -4,7 +4,15 @@ import readline from "node:readline";
 const scenario = process.env.A1R_FAKE_SCENARIO ?? "normal";
 const marker = process.env.A1R_FAKE_MARKER;
 const log = process.env.A1R_FAKE_LOG;
+const envLog = process.env.A1R_FAKE_ENV_LOG;
 const lines = readline.createInterface({ input: process.stdin });
+
+if (envLog) writeFileSync(envLog, JSON.stringify({
+  CODEX_HOME: process.env.CODEX_HOME ?? null,
+  CODEX_SQLITE_HOME: process.env.CODEX_SQLITE_HOME ?? null,
+  CODEX_ACCESS_TOKEN: process.env.CODEX_ACCESS_TOKEN ?? null,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? null,
+}));
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const record = (method) => {
@@ -81,10 +89,18 @@ lines.on("line", (line) => {
     return;
   }
   if (method === "thread/start") {
+    if (scenario === "missing-thread" && !String(params.developerInstructions ?? "").includes("Earlier A1R context")) {
+      send({ id, error: { code: -32000, message: "missing migrated A1R transcript" } });
+      return;
+    }
     send({ id, result: { thread: { id: "thread-1" }, model: "fake", modelProvider: "openai", cwd: params.cwd } });
     return;
   }
   if (method === "thread/resume") {
+    if (scenario === "missing-thread") {
+      send({ id, error: { code: -32000, message: "thread not found in this Codex profile" } });
+      return;
+    }
     send({ id, result: { thread: { id: params.threadId }, model: "fake", modelProvider: "openai", cwd: params.cwd } });
     return;
   }

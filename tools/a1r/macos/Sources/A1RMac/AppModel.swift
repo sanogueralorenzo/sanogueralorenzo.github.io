@@ -92,13 +92,16 @@ final class AppModel: ObservableObject {
         isSettingUp = true
         defer { isSettingUp = false }
         do {
-            if setupStatus?.codex.connected == true {
+            if setupStatus?.codex.connected == true && !deviceCode {
                 try await client.selectBackend("codex")
                 setupStatus = try await client.setupStatus()
+                setupMessage = "Reusing A1R's private ChatGPT login."
                 state = .ready
                 return
             }
-            setupMessage = "Starting secure ChatGPT sign-in…"
+            setupMessage = deviceCode && setupStatus?.codex.connected == true
+                ? "Starting a fresh device-code login for A1R…"
+                : "Starting secure ChatGPT sign-in for A1R…"
             let login = try await client.startCodexLogin(mode: deviceCode ? "device" : "browser")
             if let code = login.userCode, let url = login.verificationUrl {
                 setupMessage = "Enter code \(code) in the browser."

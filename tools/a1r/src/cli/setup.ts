@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
-import { CodexAppServer } from "../codex/app-server.js";
+import { createA1RCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../core/config.js";
 import { readSecret, writeSecret } from "../core/credentials.js";
 import { OpenAIModelClient } from "../core/model.js";
@@ -92,7 +92,7 @@ export async function setupA1R(args: string[] = []): Promise<void> {
   const config = loadConfig();
   const store = new Store(config.homeDir, "a1r.sqlite", { recoverRuns: false });
   const model = new OpenAIModelClient(config, readSecret("openai", config.homeDir));
-  const codex = new CodexAppServer({ command: config.codexCommand });
+  const codex = createA1RCodexAppServer(config);
   const service = new BackendSetupService(
     store,
     model,
@@ -104,7 +104,7 @@ export async function setupA1R(args: string[] = []): Promise<void> {
     console.log("\nConnect A1R\n");
     const before = await service.status();
     if (before.codex.connected) {
-      console.log("An active ChatGPT/Codex account is available.");
+      console.log("An A1R-specific ChatGPT login is available in A1R's private Codex profile.");
       showUsage(before);
     } else if (!before.codex.installed) {
       console.log("The official Codex CLI is not installed, so ChatGPT subscription mode is unavailable.");
@@ -122,18 +122,22 @@ export async function setupA1R(args: string[] = []): Promise<void> {
       await apiKeySetup(service, config.homeDir, before.openAIConfigured);
       return;
     }
-    if (before.codex.connected) {
+    const forceDeviceLogin = args.includes("--device-code");
+    if (before.codex.connected && !forceDeviceLogin) {
       if (before.codex.allowanceAvailable === false && !forcedChatGPT) {
         console.log("Included Codex usage is unavailable right now. Falling back to API-key setup.");
         await apiKeySetup(service, config.homeDir, before.openAIConfigured);
         return;
       }
       await service.selectBackend("codex");
-      console.log("A1R will continue with ChatGPT. No API billing key is used in this mode.");
+      console.log("A1R will reuse its private ChatGPT login. No global Codex login or API billing key is used.");
       return;
     }
 
-    const mode = args.includes("--device-code") ? "device" : "browser";
+    const mode = forceDeviceLogin ? "device" : "browser";
+    if (forceDeviceLogin && before.codex.connected) {
+      console.log("Starting a fresh device-code login for A1R. Your global Codex login will not be changed.");
+    }
     const login = await service.startCodexLogin(mode);
     if (login.type === "chatgpt") {
       console.log(`\nOpen this official ChatGPT sign-in page:\n${login.authUrl}`);
@@ -155,7 +159,7 @@ export async function setupA1R(args: string[] = []): Promise<void> {
     console.log("connected.");
     const after = await service.status();
     showUsage(after);
-    console.log("A1R will continue with ChatGPT. Authentication and subscription accounting stay inside Codex app-server.");
+    console.log("A1R will continue with ChatGPT using its private Codex profile. Authentication and subscription accounting stay inside Codex app-server.");
   } finally {
     await codex.stop();
     store.close();

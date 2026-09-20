@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +7,7 @@ import { BackendRegistry, BackendUnavailableError, type AgentBackend, type Backe
 import { Store } from "../core/store.js";
 import type { RuntimeConfig } from "../core/types.js";
 import { A1RRuntime } from "../core/runtime.js";
-import { CodexAppServer } from "./app-server.js";
+import { CodexAppServer, createA1RCodexAppServer, prepareA1RCodexHome } from "./app-server.js";
 import { CodexAllowanceError, CodexAuthenticationError, CodexBackend } from "./backend.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
@@ -63,6 +63,43 @@ async function collect(backend: CodexBackend, input: BackendTurn) {
 }
 
 describe("Codex app-server contract", () => {
+  it("runs production app-server in a private, locked-down A1R profile", async () => {
+    const homeDir = temp("a1r-codex-profile-");
+    const envLog = join(homeDir, "env.json");
+    const appServer = createA1RCodexAppServer(
+      { homeDir, codexCommand: process.execPath },
+      {
+        args: [fixture],
+        installed: true,
+        env: {
+          CODEX_HOME: "/tmp/must-not-be-used",
+          CODEX_SQLITE_HOME: "/tmp/must-not-be-used",
+          CODEX_ACCESS_TOKEN: "must-not-leak",
+          OPENAI_API_KEY: "must-not-leak",
+          A1R_FAKE_SCENARIO: "normal",
+          A1R_FAKE_ENV_LOG: envLog,
+        },
+      },
+    );
+
+    await appServer.account(false);
+    expect(JSON.parse(readFileSync(envLog, "utf8"))).toEqual({
+      CODEX_HOME: join(homeDir, "codex"),
+      CODEX_SQLITE_HOME: join(homeDir, "codex"),
+      CODEX_ACCESS_TOKEN: null,
+      OPENAI_API_KEY: null,
+    });
+    expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
+    await appServer.stop();
+  });
+
+  it("refuses a symbolic-link credential profile", () => {
+    const homeDir = temp("a1r-codex-profile-link-");
+    const target = temp("a1r-codex-profile-target-");
+    symlinkSync(target, join(homeDir, "codex"));
+    expect(() => prepareA1RCodexHome(homeDir)).toThrow(/real directory/);
+  });
+
   it("supports browser and device-code login without handling tokens", async () => {
     for (const mode of ["browser", "device"] as const) {
       const appServer = client("login-success");
@@ -73,6 +110,19 @@ describe("Codex app-server contract", () => {
       await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
       await appServer.stop();
     }
+  });
+
+  it("starts a fresh device-code login even when the private profile is already connected", async () => {
+    const homeDir = temp("a1r-codex-device-connected-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("normal", { A1R_FAKE_LOG: log });
+    expect((await appServer.account(false)).account?.type).toBe("chatgpt");
+
+    const login = await appServer.beginLogin("device");
+
+    expect(login).toMatchObject({ type: "chatgptDeviceCode", userCode: "A1R-TEST" });
+    expect(readFileSync(log, "utf8")).toContain("account/login/start");
+    await appServer.stop();
   });
 
   it("surfaces a failed login without exposing credentials", async () => {
@@ -148,6 +198,27 @@ describe("Codex app-server contract", () => {
     expect(events).toContainEqual({ type: "status", message: "Codex restarted. Resuming your A1R session…" });
     expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
     expect(readFileSync(log, "utf8")).toContain("thread/resume");
+    await backend.close();
+    store.close();
+  });
+
+  it("migrates an old global-profile thread binding by rebuilding from the A1R transcript", async () => {
+    const homeDir = temp("a1r-codex-migrate-thread-");
+    const log = join(homeDir, "rpc.log");
+    const store = new Store(homeDir);
+    const input = turn(store, homeDir);
+    store.addMessage(input.session.id, "user", "Earlier question");
+    store.addMessage(input.session.id, "assistant", "Earlier A1R context");
+    store.addMessage(input.session.id, "user", "Fix the test");
+    store.bindBackendSession(input.session.id, "codex", "old-global-thread");
+    const backend = new CodexBackend(config(homeDir), store, client("missing-thread", { A1R_FAKE_LOG: log }));
+
+    const events = await collect(backend, input);
+
+    expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
+    expect(readFileSync(log, "utf8")).toContain("thread/resume");
+    expect(readFileSync(log, "utf8")).toContain("thread/start");
+    expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
     await backend.close();
     store.close();
   });

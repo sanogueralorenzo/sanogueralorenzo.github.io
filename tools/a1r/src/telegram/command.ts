@@ -202,7 +202,7 @@ async function runGateway(token: string): Promise<void> {
 
 export async function runTelegramCommand(args: string[]): Promise<void> {
   const config = loadConfig();
-  if (args[0] === "setup") await setupA1R();
+  if (args[0] === "setup") await setupA1R(args.slice(1));
   const token = args[0] === "setup" ? await setupTelegram() : readSecret("telegram", config.homeDir);
   if (!token) throw new Error("Telegram is not connected. Run `a1r telegram setup`.");
   try {

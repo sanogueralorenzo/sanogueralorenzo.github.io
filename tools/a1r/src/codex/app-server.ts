@@ -1,5 +1,8 @@
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { chmodSync, existsSync, lstatSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface, type Interface } from "node:readline";
+import type { RuntimeConfig } from "../core/types.js";
 import type {
   CodexAccountStatus,
   CodexLoginResult,
@@ -31,6 +34,45 @@ export interface CodexAppServerOptions {
   env?: NodeJS.ProcessEnv;
   installed?: boolean;
   requestTimeoutMs?: number;
+}
+
+export function prepareA1RCodexHome(homeDir: string): string {
+  const codexHome = join(homeDir, "codex");
+  mkdirSync(homeDir, { recursive: true, mode: 0o700 });
+  chmodSync(homeDir, 0o700);
+  if (existsSync(codexHome)) {
+    const stat = lstatSync(codexHome);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error("A1R's private Codex profile must be a real directory, not a file or symbolic link.");
+    }
+  } else {
+    mkdirSync(codexHome, { mode: 0o700 });
+  }
+  chmodSync(codexHome, 0o700);
+  return codexHome;
+}
+
+export function createA1RCodexAppServer(
+  config: Pick<RuntimeConfig, "homeDir" | "codexCommand">,
+  options: Omit<CodexAppServerOptions, "command" | "env"> & { env?: NodeJS.ProcessEnv } = {},
+): CodexAppServer {
+  const codexHome = prepareA1RCodexHome(config.homeDir);
+  const env = { ...process.env, ...options.env };
+  for (const name of [
+    "CODEX_ACCESS_TOKEN",
+    "CODEX_API_KEY",
+    "OPENAI_API_KEY",
+    "OPENAI_FEDERATION_RULE_ID",
+    "OPENAI_IDENTITY_TOKEN_FILE",
+    "OPENAI_WORKLOAD_IDENTITY_CONTEXT",
+  ]) delete env[name];
+  env.CODEX_HOME = codexHome;
+  env.CODEX_SQLITE_HOME = codexHome;
+  return new CodexAppServer({
+    ...options,
+    command: config.codexCommand,
+    env,
+  });
 }
 
 interface PendingRequest {
@@ -86,7 +128,7 @@ export class CodexAppServer {
 
     try {
       await this.rawRequest("initialize", {
-        clientInfo: { name: "a1r", title: "A1R", version: "0.2.0" },
+        clientInfo: { name: "a1r", title: "A1R", version: "0.3.0" },
       });
       this.notify("initialized", {});
     } catch (error) {
