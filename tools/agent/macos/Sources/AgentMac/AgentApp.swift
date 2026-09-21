@@ -10,7 +10,10 @@ private enum AgentStyle {
     static let line = graphite.opacity(0.13)
     static let clay = Color(red: 0.73, green: 0.38, blue: 0.20)
     static let sage = Color(red: 0.61, green: 0.67, blue: 0.57)
-    static let contentWidth: CGFloat = 560
+    static let contentMaxWidth: CGFloat = 820
+    static let messageMaxWidth: CGFloat = 640
+    static let messageGutter: CGFloat = 48
+    static let edgePadding: CGFloat = 20
 }
 
 @main
@@ -20,7 +23,7 @@ struct AgentApp: App {
     var body: some Scene {
         WindowGroup("Agent") {
             RootView(model: model)
-                .frame(minWidth: 620, minHeight: 520)
+                .frame(minWidth: 420, minHeight: 360)
                 .task { await model.start() }
                 .preferredColorScheme(.light)
                 .tint(AgentStyle.clay)
@@ -95,7 +98,7 @@ struct SetupView: View {
                     .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
             }
             .padding(.horizontal, 14)
-            .frame(width: 360, height: 44)
+            .frame(maxWidth: 360, minHeight: 44)
             .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 13))
             .overlay { RoundedRectangle(cornerRadius: 13).stroke(AgentStyle.line) }
             if model.isSettingUp { ProgressView().controlSize(.small) }
@@ -125,9 +128,9 @@ struct ConversationView: View {
                             MessageView(message: message).id(message.id)
                         }
                     }
-                    .frame(maxWidth: AgentStyle.contentWidth)
+                    .frame(maxWidth: AgentStyle.contentMaxWidth)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 28)
+                    .padding(.horizontal, AgentStyle.edgePadding)
                     .padding(.vertical, 24)
                 }
                 .onChange(of: model.messages) { _, messages in
@@ -140,17 +143,74 @@ struct ConversationView: View {
             }
             MessageComposer(model: model)
         }
-        .toolbar {
-            ToolbarSpacer(.flexible)
-            ToolbarItem(placement: .primaryAction) {
-                Circle()
-                    .fill(model.isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
-                    .frame(width: 12, height: 12)
-                    .accessibilityLabel(model.isConnected ? "Connected" : "Reconnecting")
-                    .allowsHitTesting(false)
-            }
-        }
+        .background(WindowStatusIndicator(isConnected: model.isConnected))
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
+    }
+}
+
+private struct WindowStatusIndicator: NSViewRepresentable {
+    let isConnected: Bool
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> WindowReaderView {
+        let view = WindowReaderView()
+        let coordinator = context.coordinator
+        view.didMoveToWindow = { [weak coordinator] window in coordinator?.install(in: window) }
+        return view
+    }
+
+    func updateNSView(_ view: WindowReaderView, context: Context) {
+        context.coordinator.update(isConnected: isConnected)
+        if let window = view.window { context.coordinator.install(in: window) }
+    }
+
+    static func dismantleNSView(_ view: WindowReaderView, coordinator: Coordinator) {
+        coordinator.remove()
+    }
+
+    @MainActor final class Coordinator {
+        private let accessory = NSTitlebarAccessoryViewController()
+        private let dot = NSView(frame: NSRect(x: 10, y: 8, width: 12, height: 12))
+        private weak var window: NSWindow?
+
+        init() {
+            let container = NSView(frame: NSRect(x: 0, y: 0, width: 32, height: 28))
+            dot.wantsLayer = true
+            dot.layer?.cornerRadius = 6
+            dot.setAccessibilityElement(true)
+            container.addSubview(dot)
+            accessory.view = container
+            accessory.layoutAttribute = .right
+        }
+
+        func install(in window: NSWindow) {
+            guard self.window !== window else { return }
+            remove()
+            window.addTitlebarAccessoryViewController(accessory)
+            self.window = window
+        }
+
+        func update(isConnected: Bool) {
+            dot.layer?.backgroundColor = NSColor(isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45)).cgColor
+            dot.setAccessibilityLabel(isConnected ? "Connected" : "Reconnecting")
+        }
+
+        func remove() {
+            guard let window,
+                  let index = window.titlebarAccessoryViewControllers.firstIndex(where: { $0 === accessory }) else { return }
+            window.removeTitlebarAccessoryViewController(at: index)
+            self.window = nil
+        }
+    }
+}
+
+private final class WindowReaderView: NSView {
+    var didMoveToWindow: ((NSWindow) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let window { didMoveToWindow?(window) }
     }
 }
 
@@ -175,8 +235,8 @@ private struct ActivityLine: View {
             Text(text).font(.caption).foregroundStyle(AgentStyle.muted)
             Spacer()
         }
-        .frame(maxWidth: AgentStyle.contentWidth)
-        .padding(.horizontal, 28)
+        .frame(maxWidth: AgentStyle.contentMaxWidth)
+        .padding(.horizontal, AgentStyle.edgePadding)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
     }
@@ -192,8 +252,8 @@ private struct ConnectionError: View {
             Spacer()
             Button("Retry", action: retry).buttonStyle(.borderless)
         }
-        .frame(maxWidth: AgentStyle.contentWidth)
-        .padding(.horizontal, 28)
+        .frame(maxWidth: AgentStyle.contentMaxWidth)
+        .padding(.horizontal, AgentStyle.edgePadding)
         .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
     }
@@ -225,11 +285,11 @@ private struct MessageComposer: View {
         }
         .padding(10)
         .padding(.leading, 4)
-        .frame(maxWidth: AgentStyle.contentWidth)
+        .frame(maxWidth: AgentStyle.contentMaxWidth)
         .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 18))
         .overlay { RoundedRectangle(cornerRadius: 18).stroke(AgentStyle.line) }
         .shadow(color: AgentStyle.graphite.opacity(0.04), radius: 10, y: 4)
-        .padding(.horizontal, 28)
+        .padding(.horizontal, AgentStyle.edgePadding)
         .padding(.bottom, 22)
         .frame(maxWidth: .infinity)
     }
@@ -240,7 +300,7 @@ struct MessageView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            if message.role == .user { Spacer(minLength: 72) }
+            if message.role == .user { Spacer(minLength: AgentStyle.messageGutter) }
             VStack(alignment: .leading, spacing: 10) {
                 if !message.text.isEmpty || message.artifacts.isEmpty {
                     Text(message.text.isEmpty ? "…" : message.text)
@@ -252,6 +312,7 @@ struct MessageView: View {
                     ArtifactView(artifact: artifact)
                 }
             }
+            .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
             .padding(.horizontal, 15)
             .padding(.vertical, 11)
             .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -260,7 +321,7 @@ struct MessageView: View {
                     RoundedRectangle(cornerRadius: 14).stroke(AgentStyle.line.opacity(0.55))
                 }
             }
-            if message.role == .assistant { Spacer(minLength: 72) }
+            if message.role == .assistant { Spacer(minLength: AgentStyle.messageGutter) }
         }
     }
 }
