@@ -146,7 +146,8 @@ struct ConversationView: View {
                 Circle()
                     .fill(model.isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
                     .frame(width: 9, height: 9)
-                    .help(model.isConnected ? "Connected" : "Reconnecting")
+                    .accessibilityLabel(model.isConnected ? "Connected" : "Reconnecting")
+                    .allowsHitTesting(false)
             }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
