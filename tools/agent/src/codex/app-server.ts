@@ -33,7 +33,7 @@ export function prepareAgentCodexHome(homeDir: string): string {
   ensurePrivateDirectory(codexHome);
   const instructions = join(codexHome, "instructions.md");
   writePrivateFile(instructions, `${BASE_INSTRUCTIONS}\n`);
-  writePrivateFile(join(codexHome, "config.toml"), `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = false\n`);
+  writePrivateFile(join(codexHome, "config.toml"), `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`);
   return codexHome;
 }
 
