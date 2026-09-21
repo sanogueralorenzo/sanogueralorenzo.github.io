@@ -44,8 +44,18 @@ function toolSummary(item: Record<string, unknown>): string {
 
 type Notifications = AsyncIterator<[JsonRpcMessage]>;
 const ROLLOVER_AFTER_COMPACTIONS = 3;
-const HANDOFF_PROMPT = `Prepare a concise continuation handoff for a fresh Agent thread.
-Do not use tools or change anything. Return only the handoff, with the current objective, user constraints, decisions, completed work, unresolved work, and exact paths or identifiers needed to continue. Preserve uncertainty and omit secrets. Keep it under 800 words.`;
+const HANDOFF_PROMPT = `Create a continuation handoff for a fresh Agent thread.
+
+Include only information needed to continue:
+- objective and user constraints
+- important decisions
+- current verified state
+- unresolved work and next action
+- exact paths, commits, or identifiers when relevant
+
+Do not use tools, change anything, include secrets, or explain the rollover.
+Preserve uncertainty. Usually use 100–300 words; never exceed 500.
+Return only the handoff.`;
 
 interface TurnEventOptions {
   model: string;
