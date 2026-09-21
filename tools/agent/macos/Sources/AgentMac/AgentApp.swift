@@ -145,7 +145,7 @@ struct ConversationView: View {
             ToolbarItem(placement: .primaryAction) {
                 Circle()
                     .fill(model.isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
-                    .frame(width: 9, height: 9)
+                    .frame(width: 12, height: 12)
                     .accessibilityLabel(model.isConnected ? "Connected" : "Reconnecting")
                     .allowsHitTesting(false)
             }
