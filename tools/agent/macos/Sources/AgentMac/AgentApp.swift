@@ -152,9 +152,9 @@ private struct AgentHeader: View {
                 .font(.system(size: 16, weight: .semibold))
             HStack {
                 Spacer()
-                Circle()
+                Capsule()
                     .fill(isConnected ? AgentStyle.clay : AgentStyle.muted.opacity(0.45))
-                    .frame(width: 10, height: 10)
+                    .frame(width: 14, height: 5)
                     .help(isConnected ? "Connected" : "Reconnecting")
             }
         }
