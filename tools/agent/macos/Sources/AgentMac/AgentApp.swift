@@ -4,7 +4,7 @@ import AgentProtocol
 private enum AgentStyle {
     static let canvas = Color(red: 0.965, green: 0.949, blue: 0.921)
     static let surface = Color(red: 0.925, green: 0.910, blue: 0.882)
-    static let userSurface = Color(red: 0.925, green: 0.825, blue: 0.755)
+    static let userSurface = Color(red: 0.91, green: 0.87, blue: 0.80)
     static let graphite = Color(red: 0.18, green: 0.17, blue: 0.16)
     static let muted = Color(red: 0.45, green: 0.43, blue: 0.40)
     static let line = graphite.opacity(0.13)
