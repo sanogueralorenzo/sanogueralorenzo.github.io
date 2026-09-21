@@ -19,6 +19,44 @@ public enum RuntimeClientError: LocalizedError {
     }
 }
 
+public final class EventStream: AsyncSequence, Sendable {
+    public typealias Element = RunEnvelope
+
+    private let bytes: URLSession.AsyncBytes
+
+    init(bytes: URLSession.AsyncBytes) { self.bytes = bytes }
+
+    deinit { bytes.task.cancel() }
+
+    public func makeAsyncIterator() -> Iterator {
+        Iterator(stream: self)
+    }
+
+    public struct Iterator: AsyncIteratorProtocol {
+        private let stream: EventStream
+        private var lines: AsyncLineSequence<URLSession.AsyncBytes>.AsyncIterator
+
+        init(stream: EventStream) {
+            self.stream = stream
+            lines = stream.bytes.lines.makeAsyncIterator()
+        }
+
+        public mutating func next() async throws -> RunEnvelope? {
+            do {
+                while let line = try await lines.next() {
+                    guard line.hasPrefix("data: ") else { continue }
+                    guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
+                    return try JSONDecoder().decode(RunEnvelope.self, from: data)
+                }
+                if Task.isCancelled { return nil }
+                throw RuntimeClientError.disconnected
+            } catch is DecodingError {
+                throw RuntimeClientError.invalidEvent
+            }
+        }
+    }
+}
+
 public actor RuntimeClient {
     private let baseURL: URL
     private let token: String
@@ -97,29 +135,13 @@ public actor RuntimeClient {
         return try JSONDecoder().decode(RunStartResponse.self, from: data).run
     }
 
-    public func events() async throws -> AsyncThrowingStream<RunEnvelope, Error> {
+    public func events() async throws -> EventStream {
         let request = try request(path: "/v1/events")
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
         }
-        let (stream, continuation) = AsyncThrowingStream<RunEnvelope, Error>.makeStream()
-        let task = Task {
-            do {
-                for try await line in bytes.lines where line.hasPrefix("data: ") {
-                    guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
-                    continuation.yield(try JSONDecoder().decode(RunEnvelope.self, from: data))
-                }
-                if Task.isCancelled { continuation.finish() }
-                else { continuation.finish(throwing: RuntimeClientError.disconnected) }
-            } catch is DecodingError {
-                continuation.finish(throwing: RuntimeClientError.invalidEvent)
-            } catch {
-                continuation.finish(throwing: error)
-            }
-        }
-        continuation.onTermination = { _ in task.cancel() }
-        return stream
+        return EventStream(bytes: bytes)
     }
 
     public func stop() async throws -> Bool {

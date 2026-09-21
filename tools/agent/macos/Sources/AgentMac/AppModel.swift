@@ -4,7 +4,7 @@ import Observation
 import AgentClient
 import AgentProtocol
 
-struct ChatMessage: Identifiable, Equatable {
+struct ChatMessage: Identifiable {
     let id: UUID
     let role: Role
     var text: String
@@ -30,6 +30,7 @@ struct ChatMessage: Identifiable, Equatable {
     var setupStatus: SetupStatus?
     var setupMessage = ""
     var isSettingUp = false
+    var scrollRequest = 0
 
     @ObservationIgnored private let launcher = RuntimeLauncher()
     @ObservationIgnored private var client: RuntimeClient?
@@ -116,14 +117,14 @@ struct ChatMessage: Identifiable, Equatable {
         async let latest = client.resumeLatest()
         async let feed = client.events()
         let (transcript, events) = try await (latest, feed)
-        loadTranscript(transcript)
+        loadTranscript(transcript, scrollToEnd: true)
         observe(events)
         isConnected = true
         connectionError = nil
         activity = ""
     }
 
-    private func observe(_ initialEvents: AsyncThrowingStream<RunEnvelope, Error>) {
+    private func observe(_ initialEvents: EventStream) {
         observer?.cancel()
         observer = Task {
             var events = initialEvents
@@ -173,6 +174,7 @@ struct ChatMessage: Identifiable, Equatable {
             let id = UUID()
             assistantId = id
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
+            scrollRequest += 1
         case "session":
             if let previous = sessionId, let next = event.session?.id, previous != next, activeRunId == envelope.runId {
                 messages = Array(messages.suffix(2))
@@ -187,7 +189,7 @@ struct ChatMessage: Identifiable, Equatable {
             Task {
                 do {
                     if let transcript = try await client?.transcript(sessionId: destination.id) {
-                        loadTranscript(transcript)
+                        loadTranscript(transcript, scrollToEnd: true)
                     }
                 } catch {
                     connectionError = error.localizedDescription
@@ -217,15 +219,23 @@ struct ChatMessage: Identifiable, Equatable {
         assistantId = nil
         isRunning = false
         activity = ""
+        scrollRequest += 1
     }
 
-    private func loadTranscript(_ transcript: Transcript?) {
+    private func loadTranscript(_ transcript: Transcript?, scrollToEnd: Bool = false) {
         if let transcript {
+            let visible = transcript.messages.filter { $0.role == "user" || $0.role == "assistant" }
+            let unchanged = sessionId == transcript.session.id && messages.count == visible.count &&
+                zip(messages, visible).allSatisfy { current, saved in
+                    current.role == (saved.role == "user" ? .user : .assistant) && current.text == saved.content
+                }
             sessionId = transcript.session.id
-            messages = transcript.messages.compactMap { message in
-                guard message.role == "user" || message.role == "assistant" else { return nil }
-                return ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
+            if !unchanged {
+                messages = visible.map { message in
+                    ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
+                }
             }
+            if scrollToEnd { scrollRequest += 1 }
         }
         activeRunId = nil
         assistantId = nil

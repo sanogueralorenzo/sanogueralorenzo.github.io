@@ -36,7 +36,7 @@ struct AgentCheck {
         )
     }
 
-    static func collectRun(_ stream: AsyncThrowingStream<RunEnvelope, Error>) async throws -> [String] {
+    static func collectRun(_ stream: EventStream) async throws -> [String] {
         var types: [String] = []
         for try await envelope in stream {
             types.append(envelope.event.type)
@@ -118,7 +118,7 @@ struct AgentCheck {
             protocolValue.respond("data: {\"runId\":\"r1\",\"event\":{\"type\":\"turn\",\"text\":\"hello\",\"channel\":\"api\",\"hasAttachments\":false}}\n\n", stream: true, finish: false)
         }
         MockURLProtocol.stopped = { stopped.withLock { $0 = true } }
-        var stream: AsyncThrowingStream<RunEnvelope, Error>? = try await client().events()
+        var stream: EventStream? = try await client().events()
         for try await _ in stream! { break }
         stream = nil
         for _ in 0..<100 where !stopped.withLock({ $0 }) { try await Task.sleep(for: .milliseconds(10)) }

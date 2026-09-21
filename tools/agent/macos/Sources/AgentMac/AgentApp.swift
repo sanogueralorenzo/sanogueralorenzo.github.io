@@ -133,8 +133,8 @@ struct ConversationView: View {
                     .padding(.horizontal, AgentStyle.edgePadding)
                     .padding(.vertical, 24)
                 }
-                .onChange(of: model.messages) { _, messages in
-                    if let id = messages.last?.id { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .bottom) } }
+                .onChange(of: model.scrollRequest) {
+                    if let id = model.messages.last?.id { proxy.scrollTo(id, anchor: .bottom) }
                 }
             }
             if !model.activity.isEmpty { ActivityLine(text: model.activity) }
