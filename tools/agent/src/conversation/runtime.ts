@@ -55,6 +55,22 @@ export class AgentRuntime {
     const request: TurnRequest = { ...incoming, text };
     const latestSession = this.store.latestSession();
     const priorSession = !request.fresh && latestSession && isRecent(latestSession.updatedAt) ? latestSession : null;
+    if (!priorSession) {
+      const candidates = this.store.sessionCards();
+      if (candidates.length) {
+        const targetId = await this.backend.routeSession(request.text, candidates, options.signal);
+        if (targetId) {
+          const target = this.store.activateSession(targetId);
+          if (!target) {
+            yield { type: "error", message: "That conversation is no longer available." };
+            return;
+          }
+          yield { type: "navigate", session: target, url: `agent://sessions/${target.id}` };
+          yield { type: "done", sessionId: target.id };
+          return;
+        }
+      }
+    }
     const baseScopeKey = "assistant:local";
     const scopeKey = priorSession ? baseScopeKey : `${baseScopeKey}:${randomUUID()}`;
     const session = this.store.resolveSession({

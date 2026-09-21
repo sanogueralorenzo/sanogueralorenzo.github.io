@@ -177,6 +177,25 @@ describe("Codex turn transport", () => {
     expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
   });
 
+  it("resolves a saved Agent session through an ephemeral semantic lookup", async () => {
+    const { backend, input, log, store } = backendFixture();
+    store.addMessage(input.session.id, "user", "Simplify the Telegram reconnect flow");
+
+    await expect(backend.routeSession("the bot restart conversation", store.sessionCards()))
+      .resolves.toBe(input.session.id);
+
+    const rpc = requests(log);
+    expect(rpc.find((request) => request.method === "thread/start")?.params).toMatchObject({
+      ephemeral: true,
+      sandbox: "read-only",
+    });
+    expect(rpc.find((request) => request.method === "thread/start")?.params.developerInstructions)
+      .toContain("strong semantic match");
+    expect(rpc.find((request) => request.method === "turn/start")?.params.input)
+      .toEqual([expect.objectContaining({ text: expect.stringContaining("savedConversations") })]);
+    expect(rpc.at(-1)).toMatchObject({ method: "thread/unsubscribe" });
+  });
+
   it("preserves the runtime session and event contract", async () => {
     const homeDir = temporary("agent-codex-runtime-");
     const store = trackedStore(homeDir);

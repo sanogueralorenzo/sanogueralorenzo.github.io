@@ -14,6 +14,13 @@ export interface Message {
   content: string;
 }
 
+export interface SessionCard {
+  id: string;
+  title: string;
+  updatedAt: string;
+  context: string;
+}
+
 interface StoredFile {
   id: string;
   name: string;
@@ -38,6 +45,7 @@ export type ProgressEvent =
 export type RuntimeEvent =
   | { type: "turn"; text: string; channel: Channel; hasAttachments: boolean }
   | { type: "session"; session: Session }
+  | { type: "navigate"; session: Session; url: string }
   | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };

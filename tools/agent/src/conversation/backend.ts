@@ -1,4 +1,4 @@
-import type { Attachment, ProgressEvent, Session, TurnRequest } from "./types.js";
+import type { Attachment, ProgressEvent, Session, SessionCard, TurnRequest } from "./types.js";
 
 export type BackendEvent =
   | ProgressEvent
@@ -13,5 +13,6 @@ export interface BackendTurn {
 
 export interface AgentBackend {
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
+  routeSession(text: string, sessions: SessionCard[], signal?: AbortSignal): Promise<string | null>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
 }

@@ -78,7 +78,11 @@ public actor RuntimeClient {
     public func resumeLatest() async throws -> Transcript? {
         let sessions: SessionList = try await value(path: "/v1/sessions")
         guard let session = sessions.sessions.first else { return nil }
-        let id = session.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? session.id
+        return try await transcript(sessionId: session.id)
+    }
+
+    public func transcript(sessionId: String) async throws -> Transcript {
+        let id = sessionId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sessionId
         return try await value(path: "/v1/sessions/\(id)/messages")
     }
 

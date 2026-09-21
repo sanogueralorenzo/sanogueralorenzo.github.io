@@ -179,6 +179,20 @@ struct ChatMessage: Identifiable, Equatable {
             }
             sessionId = event.session?.id
             fresh = false
+        case "navigate":
+            guard let destination = event.session else { break }
+            sessionId = destination.id
+            fresh = false
+            activity = "Opening conversation"
+            Task {
+                do {
+                    if let transcript = try await client?.transcript(sessionId: destination.id) {
+                        loadTranscript(transcript)
+                    }
+                } catch {
+                    connectionError = error.localizedDescription
+                }
+            }
         case "text_delta":
             if let id = assistantId { edit(id) { $0.text += event.delta ?? "" } }
         case "artifact":

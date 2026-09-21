@@ -10,11 +10,18 @@ import { cleanup, temporary } from "../test-support.js";
 class RecordingBackend implements AgentBackend {
   readonly turns: BackendTurn[] = [];
   readonly transcriptions: string[] = [];
+  readonly routes: string[] = [];
+  routeTo: string | null = null;
   failNext = false;
 
   async transcribeAudio(attachment: Attachment): Promise<string> {
     this.transcriptions.push(attachment.path);
     return "Fix the TypeScript test";
+  }
+
+  async routeSession(text: string): Promise<string | null> {
+    this.routes.push(text);
+    return this.routeTo;
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
@@ -90,6 +97,25 @@ describe("AgentRuntime", () => {
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     const next = await collect(runtime, { text: "second", channel: "macos", fresh: true });
     expect(next.find((event) => event.type === "session")?.session.id).not.toBe(firstSession);
+  });
+
+  it("navigates to a matching session without storing the lookup conversation", async () => {
+    const { store, backend, runtime } = testRuntime();
+    const first = await collect(runtime, { text: "Simplify Telegram reconnects", channel: "cli" });
+    const firstSession = first.find((event) => event.type === "session")?.session.id;
+    backend.routeTo = firstSession ?? null;
+
+    const lookup = await collect(runtime, { text: "take me back to the bot restart work", channel: "macos", fresh: true });
+
+    expect(backend.routes).toEqual(["take me back to the bot restart work"]);
+    expect(lookup).toContainEqual(expect.objectContaining({
+      type: "navigate",
+      url: `agent://sessions/${firstSession}`,
+    }));
+    expect(lookup.at(-1)).toEqual({ type: "done", sessionId: firstSession });
+    expect(store.listSessions()).toHaveLength(1);
+    expect(firstSession && store.getMessages(firstSession).map((message) => message.content))
+      .toEqual(["Simplify Telegram reconnects", "Done."]);
   });
 
   it("keeps the session resumable after interruption", async () => {

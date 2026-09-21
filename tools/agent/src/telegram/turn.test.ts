@@ -56,6 +56,18 @@ describe("Telegram turns", () => {
     expect(result?.artifacts).toEqual([artifact]);
   });
 
+  it("reports shared conversation navigation", () => {
+    const turns = new TelegramTurns(client());
+    turns.consume(envelope({ type: "turn", text: "the bot work", channel: "macos", hasAttachments: false }));
+    turns.consume(envelope({
+      type: "navigate",
+      session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Telegram reconnects", updatedAt: new Date().toISOString() },
+      url: "agent://sessions/s1",
+    }));
+    expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
+      .toMatchObject({ chunks: ["Resumed “Telegram reconnects”."] });
+  });
+
   it("preserves partial text when the runtime reconnects", () => {
     const turns = new TelegramTurns(client());
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));

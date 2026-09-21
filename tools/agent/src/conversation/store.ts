@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Attachment, Message, Session } from "./types.js";
+import type { Attachment, Message, Session, SessionCard } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -76,6 +76,11 @@ export class Store {
         compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
         PRIMARY KEY(session_id, backend)
       );
+      CREATE TABLE IF NOT EXISTS session_handoffs (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK (kind = 'audio'),
@@ -143,6 +148,29 @@ export class Store {
 
   latestSession(): Session | null {
     return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT 1`).get() as unknown as Session ?? null;
+  }
+
+  sessionCards(limit = 50): SessionCard[] {
+    return this.listSessions(limit).map((session) => {
+      const handoff = this.db.prepare("SELECT content FROM session_handoffs WHERE session_id = ?")
+        .get(session.id) as { content: string } | undefined;
+      const recent = this.getMessages(session.id, 4)
+        .filter((message) => message.role !== "tool")
+        .map((message) => `${message.role}: ${message.content.replace(/\s+/g, " ").slice(0, 300)}`)
+        .join("\n");
+      return {
+        id: session.id,
+        title: session.title,
+        updatedAt: session.updatedAt,
+        context: [handoff?.content.slice(0, 800), recent].filter(Boolean).join("\n"),
+      };
+    });
+  }
+
+  activateSession(id: string): Session | null {
+    if (!this.getSession(id)) return null;
+    this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(now(), id);
+    return this.getSession(id);
   }
 
   addMessage(sessionId: string, role: Message["role"], content: string): void {
@@ -246,7 +274,7 @@ export class Store {
     return row?.compactions ?? 0;
   }
 
-  rotateBackendSession(sessionId: string, backend: string, previousId: string, nextId: string): boolean {
+  rotateBackendSession(sessionId: string, backend: string, previousId: string, nextId: string, handoff: string): boolean {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = this.db.prepare(`
@@ -261,6 +289,10 @@ export class Store {
         INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, 0)
         ON CONFLICT(session_id, backend) DO UPDATE SET compactions = 0
       `).run(sessionId, backend);
+      this.db.prepare(`
+        INSERT INTO session_handoffs (session_id, content, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
+      `).run(sessionId, handoff, now());
       this.db.exec("COMMIT");
       return true;
     } catch (error) {

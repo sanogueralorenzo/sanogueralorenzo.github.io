@@ -22,7 +22,7 @@ const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
-function completeTurn(threadId, turnId, handoff = false) {
+function completeTurn(threadId, turnId, handoff = false, sessionRoute = "") {
   if (scenario.startsWith("context-compaction") && !handoff) {
     notify("item/started", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
     notify("item/completed", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
@@ -36,7 +36,9 @@ function completeTurn(threadId, turnId, handoff = false) {
   notify("item/agentMessage/delta", {
     threadId,
     turnId,
-    delta: handoff
+    delta: sessionRoute
+      ? `agent://sessions/${sessionRoute}`
+      : handoff
       ? "Objective: continue the Agent task. Decisions: keep clients thin. Next: handle the user's pending request."
       : "Hello from Codex.",
   });
@@ -89,6 +91,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     return scenario === "context-compaction-inject-failure" ? fail(id, "could not seed thread") : reply(id);
   }
   if (method === "thread/delete") return reply(id);
+  if (method === "thread/unsubscribe") return reply(id, { status: "unsubscribed" });
   if (method === "turn/start") {
     if (scenario === "expired") return fail(id, "unauthorized: ChatGPT login expired");
     if (scenario === "exhausted") return fail(id, "Codex allowance usage limit reached");
@@ -98,8 +101,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     const handoff = params.input?.some?.((item) => typeof item.text === "string" && item.text.includes("continuation handoff")) ?? false;
+    const routeInput = params.input?.find?.((item) => typeof item.text === "string" && item.text.includes("savedConversations"))?.text ?? "";
+    const sessionRoute = routeInput.match?.(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0] ?? "";
     reply(id, { turn: { id: turnId } });
-    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff), 5);
+    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff, sessionRoute), 5);
     return;
   }
   if (method === "turn/interrupt") {

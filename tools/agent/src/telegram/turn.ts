@@ -47,6 +47,7 @@ export class TelegramTurns {
     const current = this.current;
     if (!current || current.id !== runId) return null;
     if (event.type === "text_delta") current.output += event.delta;
+    else if (event.type === "navigate") current.output = `Resumed “${event.session.title}”.`;
     else if (event.type === "artifact") current.artifacts.push(event.artifact);
     else if (event.type === "error") current.error = event.message;
     if (event.type !== "done" && event.type !== "error") return null;

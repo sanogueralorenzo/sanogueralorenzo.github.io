@@ -47,13 +47,14 @@ describe("Store", () => {
     store.bindBackendSession(session.id, "codex", "thread-1");
     store.addBackendCompactions(session.id, "codex", 3);
 
-    expect(store.rotateBackendSession(session.id, "codex", "stale-thread", "thread-2")).toBe(false);
+    expect(store.rotateBackendSession(session.id, "codex", "stale-thread", "thread-2", "stale handoff")).toBe(false);
     expect(store.backendSession(session.id, "codex")).toBe("thread-1");
     expect(store.backendCompactions(session.id, "codex")).toBe(3);
 
-    expect(store.rotateBackendSession(session.id, "codex", "thread-1", "thread-2")).toBe(true);
+    expect(store.rotateBackendSession(session.id, "codex", "thread-1", "thread-2", "Current objective and next action")).toBe(true);
     expect(store.backendSession(session.id, "codex")).toBe("thread-2");
     expect(store.backendCompactions(session.id, "codex")).toBe(0);
+    expect(store.sessionCards()[0]?.context).toContain("Current objective and next action");
     store.close();
   });
 });

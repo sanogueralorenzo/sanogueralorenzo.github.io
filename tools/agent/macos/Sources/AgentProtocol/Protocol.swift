@@ -17,6 +17,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let sessionId: String?
     public let session: RuntimeSession?
     public let artifact: RuntimeArtifact?
+    public let url: String?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
 }
@@ -40,6 +41,7 @@ public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
 
 public struct RuntimeSession: Decodable, Sendable {
     public let id: String
+    public let title: String?
 }
 
 public struct SetupStatus: Decodable, Sendable {

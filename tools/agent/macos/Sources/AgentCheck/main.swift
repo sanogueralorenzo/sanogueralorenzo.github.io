@@ -50,6 +50,8 @@ struct AgentCheck {
         check(String(decoding: request, as: UTF8.self).contains("\"fresh\":true"), "Agent protocol check failed")
         let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","path":"/tmp/result.png"}}"#.utf8))
         check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
+        let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","session":{"id":"s1","title":"Telegram reconnects"}}"#.utf8))
+        check(navigation.session?.title == "Telegram reconnects", "Agent navigation protocol check failed")
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
@@ -105,6 +107,12 @@ struct AgentCheck {
         check(busy == nil, "Agent busy check failed")
         let didStop = try await apiClient.stop()
         check(didStop, "Agent stop check failed")
+        MockURLProtocol.handler = { request, protocolValue in
+            check(request.url?.path == "/v1/sessions/s1/messages", "Agent transcript navigation URL check failed")
+            protocolValue.respond(#"{"session":{"id":"s1","title":"Telegram reconnects"},"messages":[]}"#)
+        }
+        let transcript = try await apiClient.transcript(sessionId: "s1")
+        check(transcript.session.id == "s1", "Agent transcript navigation check failed")
         let stopped = Mutex(false)
         MockURLProtocol.handler = { _, protocolValue in
             protocolValue.respond("data: {\"runId\":\"r1\",\"event\":{\"type\":\"turn\",\"text\":\"hello\",\"channel\":\"api\",\"hasAttachments\":false}}\n\n", stream: true, finish: false)

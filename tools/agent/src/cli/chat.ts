@@ -62,6 +62,10 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
     } else if (event.type === "session") {
       sessionId = event.session.id;
       fresh = false;
+    } else if (event.type === "navigate") {
+      sessionId = event.session.id;
+      fresh = false;
+      status(`Resumed “${event.session.title}”.`);
     } else if (event.type === "text_delta") {
       process.stdout.write(event.delta);
       wroteText = true;
