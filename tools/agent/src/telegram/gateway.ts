@@ -4,7 +4,6 @@ import { RuntimeSupervisor } from "../cli/supervisor.js";
 import { loadConfig } from "../local/config.js";
 import { readSecret } from "../local/credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
-import { consumeTelegramRestart } from "./service.js";
 import { keepTelegramTyping } from "./text.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, type TelegramTurnResult, TelegramTurns } from "./turn.js";
 
@@ -40,18 +39,6 @@ async function runGateway(token: string): Promise<void> {
     if (!result.chunks.length && !result.artifacts.length) await bot.api.sendMessage(owner, "Done.");
   };
 
-  const deliverTurn = async (result: TelegramTurnResult): Promise<boolean> => {
-    try {
-      await deliver(result);
-    } catch (error) {
-      console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`);
-      return false;
-    }
-    if (!consumeTelegramRestart(config.homeDir)) return false;
-    void stop();
-    return true;
-  };
-
   const observe = async (): Promise<void> => {
     let stopTyping: () => void = () => undefined;
     while (!deliveryController.signal.aborted) {
@@ -67,7 +54,7 @@ async function runGateway(token: string): Promise<void> {
           if (result) {
             stopTyping();
             stopTyping = () => undefined;
-            if (await deliverTurn(result)) return;
+            await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
           }
         }
       } catch {
@@ -75,7 +62,7 @@ async function runGateway(token: string): Promise<void> {
         stopTyping();
         stopTyping = () => undefined;
         const interrupted = turns.interrupt();
-        if (interrupted && await deliverTurn(interrupted)) return;
+        if (interrupted) await deliver(interrupted).catch(() => undefined);
         await client.waitUntilHealthy().catch(() => undefined);
       }
     }
