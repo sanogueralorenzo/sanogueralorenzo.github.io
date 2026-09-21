@@ -191,6 +191,7 @@ describe("Codex turn transport", () => {
     const events = await collect(backend, { ...input, sessionTools });
 
     expect(events).toContainEqual({ type: "navigate", sessionId: saved.id });
+    expect(events.filter((event) => event.type === "text_delta")).toEqual([]);
     const rpc = requests(log);
     expect(rpc.find((request) => request.method === "thread/start")?.params).toMatchObject({
       ephemeral: false,
@@ -210,6 +211,18 @@ describe("Codex turn transport", () => {
 
     await backend.discardSession(input.session.id);
     expect(requests(log).at(-1)).toMatchObject({ method: "thread/delete", params: { threadId: "thread-1" } });
+  });
+
+  it("omits completed assistant text after opening a saved conversation", async () => {
+    const { backend, input, store } = backendFixture("session-navigation-completed");
+    const saved = store.resolveSession({ scopeKey: "assistant:saved", title: "Telegram reconnects" });
+    const events = await collect(backend, {
+      ...input,
+      sessionTools: store.sessionCards().filter((session) => session.id === saved.id),
+    });
+
+    expect(events).toContainEqual({ type: "navigate", sessionId: saved.id });
+    expect(events.filter((event) => event.type === "text_delta")).toEqual([]);
   });
 
   it("preserves the runtime session and event contract", async () => {

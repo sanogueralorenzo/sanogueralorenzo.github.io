@@ -49,7 +49,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (log) appendFileSync(log, `${JSON.stringify(method
     ? { method, params: params.apiKey ? { ...params, apiKey: "[redacted]" } : params }
     : { id, result })}\n`);
-  if (!method && scenario === "session-navigation" && dynamicTurn) {
+  if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
       const sessionId = conversations[0]?.id;
@@ -94,7 +94,16 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         turnId: dynamicTurn.turnId,
         item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", status: "completed", success: result?.success },
       });
-      completeTurn(dynamicTurn.threadId, dynamicTurn.turnId);
+      if (scenario === "session-navigation-completed") {
+        notify("item/completed", {
+          threadId: dynamicTurn.threadId,
+          turnId: dynamicTurn.turnId,
+          item: { type: "agentMessage", text: "Opened the conversation." },
+        });
+        notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
+      } else {
+        completeTurn(dynamicTurn.threadId, dynamicTurn.turnId);
+      }
       dynamicTurn = null;
       return;
     }
@@ -153,7 +162,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const turnId = `turn-${++turnCounter}`;
     const handoff = params.input?.some?.((item) => typeof item.text === "string" && item.text.includes("continuation handoff")) ?? false;
     reply(id, { turn: { id: turnId } });
-    if (scenario === "session-navigation") {
+    if (scenario.startsWith("session-navigation")) {
       dynamicTurn = { threadId: params.threadId, turnId };
       notify("item/started", {
         threadId: params.threadId,

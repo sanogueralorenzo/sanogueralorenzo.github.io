@@ -231,8 +231,10 @@ export class CodexBackend implements AgentBackend {
             this.client.respond(id, { success: false, contentItems: [{ type: "inputText", text: "Unknown tool." }] });
           }
         } else if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
-          sawText = true;
-          yield { type: "text_delta", delta: params.delta };
+          if (!navigation) {
+            sawText = true;
+            yield { type: "text_delta", delta: params.delta };
+          }
         } else if (method === "item/started") {
           const item = object(params.item);
           const name = toolName(item);
@@ -240,7 +242,7 @@ export class CodexBackend implements AgentBackend {
         } else if (method === "item/completed") {
           const item = object(params.item);
           if (item.type === "contextCompaction") options.onCompaction?.();
-          if (!sawText && item.type === "agentMessage" && typeof item.text === "string") {
+          if (!navigation && !sawText && item.type === "agentMessage" && typeof item.text === "string") {
             sawText = true;
             yield { type: "text_delta", delta: item.text };
           }
