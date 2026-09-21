@@ -218,6 +218,7 @@ private struct MessageComposer: View {
             TextField("Message Agent", text: $model.input, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...6)
+                .frame(minHeight: 30, alignment: .center)
                 .disabled(!model.isConnected)
                 .onSubmit { Task { await model.send() } }
             Button {
