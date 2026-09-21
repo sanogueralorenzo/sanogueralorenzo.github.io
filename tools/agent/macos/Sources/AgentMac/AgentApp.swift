@@ -228,7 +228,7 @@ private struct MessageComposer: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)
-                    .background(model.isRunning ? AgentStyle.muted : AgentStyle.clay, in: Circle())
+                    .background(model.isRunning ? AgentStyle.clay : AgentStyle.graphite, in: Circle())
             }
             .buttonStyle(.plain)
             .help(model.isRunning ? "Stop" : "Send")
