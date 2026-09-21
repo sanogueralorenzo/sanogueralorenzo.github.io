@@ -9,7 +9,6 @@ private enum AgentStyle {
     static let muted = Color(red: 0.45, green: 0.43, blue: 0.40)
     static let line = graphite.opacity(0.13)
     static let clay = Color(red: 0.73, green: 0.38, blue: 0.20)
-    static let sage = Color(red: 0.61, green: 0.67, blue: 0.57)
     static let contentMaxWidth: CGFloat = 820
     static let messageMaxWidth: CGFloat = 640
     static let messageGutter: CGFloat = 48
@@ -143,74 +142,7 @@ struct ConversationView: View {
             }
             MessageComposer(model: model)
         }
-        .background(WindowStatusIndicator(isConnected: model.isConnected))
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
-    }
-}
-
-private struct WindowStatusIndicator: NSViewRepresentable {
-    let isConnected: Bool
-
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> WindowReaderView {
-        let view = WindowReaderView()
-        let coordinator = context.coordinator
-        view.didMoveToWindow = { [weak coordinator] window in coordinator?.install(in: window) }
-        return view
-    }
-
-    func updateNSView(_ view: WindowReaderView, context: Context) {
-        context.coordinator.update(isConnected: isConnected)
-        if let window = view.window { context.coordinator.install(in: window) }
-    }
-
-    static func dismantleNSView(_ view: WindowReaderView, coordinator: Coordinator) {
-        coordinator.remove()
-    }
-
-    @MainActor final class Coordinator {
-        private let accessory = NSTitlebarAccessoryViewController()
-        private let dot = NSView(frame: NSRect(x: 10, y: 8, width: 12, height: 12))
-        private weak var window: NSWindow?
-
-        init() {
-            let container = NSView(frame: NSRect(x: 0, y: 0, width: 32, height: 28))
-            dot.wantsLayer = true
-            dot.layer?.cornerRadius = 6
-            dot.setAccessibilityElement(true)
-            container.addSubview(dot)
-            accessory.view = container
-            accessory.layoutAttribute = .right
-        }
-
-        func install(in window: NSWindow) {
-            guard self.window !== window else { return }
-            remove()
-            window.addTitlebarAccessoryViewController(accessory)
-            self.window = window
-        }
-
-        func update(isConnected: Bool) {
-            dot.layer?.backgroundColor = NSColor(isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45)).cgColor
-            dot.setAccessibilityLabel(isConnected ? "Connected" : "Reconnecting")
-        }
-
-        func remove() {
-            guard let window,
-                  let index = window.titlebarAccessoryViewControllers.firstIndex(where: { $0 === accessory }) else { return }
-            window.removeTitlebarAccessoryViewController(at: index)
-            self.window = nil
-        }
-    }
-}
-
-private final class WindowReaderView: NSView {
-    var didMoveToWindow: ((NSWindow) -> Void)?
-
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if let window { didMoveToWindow?(window) }
     }
 }
 
