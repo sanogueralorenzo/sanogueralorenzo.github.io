@@ -36,7 +36,7 @@ All events are backend-neutral. Codex app-server notifications such as agent-mes
 
 ## Orchestration contract
 
-Every Agent session is one persistent `gpt-5.6-luna` thread at high reasoning. Personal and coding work use the same prompt, tools, memory, compaction, and event stream. Sessions without a CLI-established workspace are read-only; that workspace persists when Telegram or macOS resumes the session. Agent's private Codex profile enables up to eight subagents. For meaningful code changes, Luna coordinates one writer, parallel read-only reviewers, and one fresh reviser.
+Every Agent session is one persistent `gpt-5.6-luna` thread at high reasoning. Personal and coding work use the same prompt, tools, memory, compaction, and event stream. Sessions without a CLI-established workspace are read-only; that workspace persists when Telegram or macOS resumes the session. Agent's private Codex profile enables up to eight subagents. For meaningful code changes, Luna coordinates one writer, parallel read-only reviewers, and one fresh writer for revisions.
 
 The private profile replaces Codex's built-in base instructions with Agent's short shared prompt. Per-turn developer instructions contain only the coordinator responsibility and relevant memory. Codex loads project `AGENTS.md` files itself.
 
