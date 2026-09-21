@@ -251,12 +251,6 @@ struct MessageView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if message.role == .user { Spacer(minLength: 72) }
-            if message.role == .assistant {
-                Circle()
-                    .fill(AgentStyle.clay.opacity(0.72))
-                    .frame(width: 10, height: 10)
-                    .padding(.top, 12)
-            }
             VStack(alignment: .leading, spacing: 10) {
                 if !message.text.isEmpty || message.artifacts.isEmpty {
                     Text(message.text.isEmpty ? "…" : message.text)
