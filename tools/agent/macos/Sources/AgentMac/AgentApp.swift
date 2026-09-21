@@ -9,6 +9,7 @@ private enum AgentStyle {
     static let muted = Color(red: 0.45, green: 0.43, blue: 0.40)
     static let line = graphite.opacity(0.13)
     static let clay = Color(red: 0.73, green: 0.38, blue: 0.20)
+    static let sage = Color(red: 0.61, green: 0.67, blue: 0.57)
     static let contentWidth: CGFloat = 560
 }
 
@@ -153,7 +154,7 @@ private struct AgentHeader: View {
             HStack {
                 Spacer()
                 Capsule()
-                    .fill(isConnected ? AgentStyle.clay : AgentStyle.muted.opacity(0.45))
+                    .fill(isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
                     .frame(width: 14, height: 5)
                     .help(isConnected ? "Connected" : "Reconnecting")
             }
