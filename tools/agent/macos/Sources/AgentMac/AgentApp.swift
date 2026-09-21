@@ -18,7 +18,7 @@ struct AgentApp: App {
     @State private var model = AppModel()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Agent") {
             RootView(model: model)
                 .frame(minWidth: 620, minHeight: 520)
                 .task { await model.start() }
@@ -26,7 +26,7 @@ struct AgentApp: App {
                 .tint(AgentStyle.clay)
         }
         .defaultSize(width: 720, height: 640)
-        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Conversation") { model.newConversation() }
@@ -117,7 +117,6 @@ struct ConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            AgentHeader(isConnected: model.isConnected)
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 20) {
@@ -141,27 +140,16 @@ struct ConversationView: View {
             }
             MessageComposer(model: model)
         }
-    }
-}
-
-private struct AgentHeader: View {
-    let isConnected: Bool
-
-    var body: some View {
-        ZStack {
-            Text("Agent")
-                .font(.system(size: 16, weight: .semibold))
-            HStack {
-                Spacer()
+        .toolbar {
+            ToolbarSpacer(.flexible)
+            ToolbarItem(placement: .primaryAction) {
                 Circle()
-                    .fill(isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
+                    .fill(model.isConnected ? AgentStyle.sage : AgentStyle.muted.opacity(0.45))
                     .frame(width: 9, height: 9)
-                    .help(isConnected ? "Connected" : "Reconnecting")
+                    .help(model.isConnected ? "Connected" : "Reconnecting")
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 8)
-        .frame(height: 58)
+        .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
     }
 }
 
