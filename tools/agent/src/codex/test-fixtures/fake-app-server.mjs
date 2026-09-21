@@ -22,8 +22,8 @@ const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
-function completeTurn(threadId, turnId) {
-  if (scenario === "context-compaction") {
+function completeTurn(threadId, turnId, handoff = false) {
+  if (scenario.startsWith("context-compaction") && !handoff) {
     notify("item/started", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
     notify("item/completed", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
   }
@@ -33,7 +33,13 @@ function completeTurn(threadId, turnId) {
   }
   notify("item/started", { threadId, turnId, item: { type: "commandExecution", id: "tool-1" } });
   notify("item/completed", { threadId, turnId, item: { type: "commandExecution", id: "tool-1", exitCode: 0 } });
-  notify("item/agentMessage/delta", { threadId, turnId, delta: "Hello from Codex." });
+  notify("item/agentMessage/delta", {
+    threadId,
+    turnId,
+    delta: handoff
+      ? "Objective: continue the Agent task. Decisions: keep clients thin. Next: handle the user's pending request."
+      : "Hello from Codex.",
+  });
   notify("turn/completed", { threadId, turn: { id: turnId, status: "completed" } });
 }
 
@@ -79,6 +85,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       ? fail(id, "thread not found in this Codex profile")
       : reply(id, { thread: { id: params.threadId } });
   }
+  if (method === "thread/inject_items") {
+    return scenario === "context-compaction-inject-failure" ? fail(id, "could not seed thread") : reply(id);
+  }
+  if (method === "thread/delete") return reply(id);
   if (method === "turn/start") {
     if (scenario === "expired") return fail(id, "unauthorized: ChatGPT login expired");
     if (scenario === "exhausted") return fail(id, "Codex allowance usage limit reached");
@@ -87,8 +97,9 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       process.exit(23);
     }
     const turnId = `turn-${++turnCounter}`;
+    const handoff = params.input?.some?.((item) => typeof item.text === "string" && item.text.includes("continuation handoff")) ?? false;
     reply(id, { turn: { id: turnId } });
-    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId), 5);
+    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff), 5);
     return;
   }
   if (method === "turn/interrupt") {

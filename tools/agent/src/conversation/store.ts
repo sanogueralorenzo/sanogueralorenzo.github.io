@@ -70,6 +70,12 @@ export class Store {
         PRIMARY KEY(session_id, backend),
         UNIQUE(backend, external_id)
       );
+      CREATE TABLE IF NOT EXISTS backend_context (
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        backend TEXT NOT NULL,
+        compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
+        PRIMARY KEY(session_id, backend)
+      );
       CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK (kind = 'audio'),
@@ -209,10 +215,58 @@ export class Store {
   }
 
   bindBackendSession(sessionId: string, backend: string, externalId: string): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare(`
+        INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
+      `).run(sessionId, backend, externalId, now());
+      this.db.prepare(`
+        INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, 0)
+        ON CONFLICT(session_id, backend) DO UPDATE SET compactions = 0
+      `).run(sessionId, backend);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  addBackendCompactions(sessionId: string, backend: string, count: number): void {
+    if (count < 1) return;
     this.db.prepare(`
-      INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
-    `).run(sessionId, backend, externalId, now());
+      INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, ?)
+      ON CONFLICT(session_id, backend) DO UPDATE SET compactions = compactions + excluded.compactions
+    `).run(sessionId, backend, count);
+  }
+
+  backendCompactions(sessionId: string, backend: string): number {
+    const row = this.db.prepare("SELECT compactions FROM backend_context WHERE session_id = ? AND backend = ?")
+      .get(sessionId, backend) as { compactions: number } | undefined;
+    return row?.compactions ?? 0;
+  }
+
+  rotateBackendSession(sessionId: string, backend: string, previousId: string, nextId: string): boolean {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = this.db.prepare(`
+        UPDATE backend_sessions SET external_id = ?, updated_at = ?
+        WHERE session_id = ? AND backend = ? AND external_id = ?
+      `).run(nextId, now(), sessionId, backend, previousId);
+      if (result.changes !== 1) {
+        this.db.exec("ROLLBACK");
+        return false;
+      }
+      this.db.prepare(`
+        INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, 0)
+        ON CONFLICT(session_id, backend) DO UPDATE SET compactions = 0
+      `).run(sessionId, backend);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   addAttachment(input: Attachment): Attachment {
