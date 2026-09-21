@@ -18,6 +18,7 @@ private enum AgentStyle {
 @main
 struct AgentApp: App {
     @State private var model = AppModel()
+    @AppStorage("keepWindowOnTop") private var keepWindowOnTop = false
 
     var body: some Scene {
         WindowGroup("Agent") {
@@ -28,12 +29,17 @@ struct AgentApp: App {
                 .tint(AgentStyle.clay)
         }
         .defaultSize(width: 720, height: 640)
+        .windowLevel(keepWindowOnTop ? .floating : .normal)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Conversation") { model.newConversation() }
                     .keyboardShortcut("n")
                     .disabled(model.isRunning)
+            }
+            CommandGroup(replacing: .printItem) {
+                Toggle("Keep Window on Top", isOn: $keepWindowOnTop)
+                    .keyboardShortcut("p")
             }
         }
     }
