@@ -69,12 +69,12 @@ describe("AgentRuntime", () => {
     expect(macos.find((event) => event.type === "session")?.session.id).toBe(cliSession);
   });
 
-  it("starts a separate session after four hours of inactivity", async () => {
+  it("starts a separate session after eight hours of inactivity", async () => {
     const { store, runtime } = testRuntime();
     const first = await collect(runtime, { text: "old topic", channel: "cli" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
-      .run(new Date(Date.now() - 4 * 60 * 60 * 1_000).toISOString(), firstSession);
+      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), firstSession);
 
     const next = await collect(runtime, { text: "new topic", channel: "telegram", sessionId: firstSession });
     const nextSession = next.find((event) => event.type === "session")?.session.id;

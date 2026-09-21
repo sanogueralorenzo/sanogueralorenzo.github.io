@@ -22,7 +22,7 @@ function failureMessage(error: unknown, signal?: AbortSignal): string {
     : error instanceof Error ? error.message : String(error);
 }
 
-const SESSION_IDLE_MS = 4 * 60 * 60 * 1_000;
+const SESSION_IDLE_MS = 8 * 60 * 60 * 1_000;
 
 function isRecent(updatedAt: string): boolean {
   return Date.now() - Date.parse(updatedAt) < SESSION_IDLE_MS;
