@@ -51,8 +51,7 @@ describe("Codex profile and login", () => {
     expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
     const instructions = join(homeDir, "codex", "instructions.md");
     expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a direct, concise assistant");
-    expect(readFileSync(instructions, "utf8")).toContain("Delegate independent, read-heavy work when it materially improves speed or quality");
-    expect(readFileSync(instructions, "utf8")).toContain("After meaningful code changes, run focused reviewers in parallel, resolve valid findings, and verify before replying");
+    expect(readFileSync(instructions, "utf8")).toContain("delegate to one writer, run read-only reviewers in parallel, consolidate valid findings, then delegate fixes to one fresh fixer");
     expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
       `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`,
     );
