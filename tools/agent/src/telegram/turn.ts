@@ -23,11 +23,19 @@ export function telegramFailure(error: unknown): string {
 
 export class TelegramTurns {
   private current: { id: string; output: string; error: string; artifacts: Artifact[] } | null = null;
+  private fresh = false;
 
   constructor(private readonly client: TurnClient) {}
 
   async submit(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<boolean> {
-    return await this.client.submit({ ...await prepare(), channel: "telegram" }) !== null;
+    const request = { ...await prepare(), ...(this.fresh ? { fresh: true } : {}), channel: "telegram" as const };
+    const accepted = await this.client.submit(request) !== null;
+    if (accepted) this.fresh = false;
+    return accepted;
+  }
+
+  newConversation(): void {
+    this.fresh = true;
   }
 
   stop(): Promise<boolean> {

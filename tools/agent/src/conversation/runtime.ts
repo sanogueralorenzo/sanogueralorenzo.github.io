@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
@@ -19,6 +20,12 @@ function failureMessage(error: unknown, signal?: AbortSignal): string {
   return signal?.aborted || (error instanceof Error && error.name === "AbortError")
     ? "Interrupted. Your session is saved."
     : error instanceof Error ? error.message : String(error);
+}
+
+const SESSION_IDLE_MS = 4 * 60 * 60 * 1_000;
+
+function isRecent(updatedAt: string): boolean {
+  return Date.now() - Date.parse(updatedAt) < SESSION_IDLE_MS;
 }
 
 export class AgentRuntime {
@@ -46,12 +53,12 @@ export class AgentRuntime {
       return;
     }
     const request: TurnRequest = { ...incoming, text };
-    const explicitSession = request.sessionId ? this.store.getSession(request.sessionId) : null;
-    const priorSession = request.fresh ? null : explicitSession ?? this.store.latestSession();
+    const latestSession = this.store.latestSession();
+    const priorSession = !request.fresh && latestSession && isRecent(latestSession.updatedAt) ? latestSession : null;
     const baseScopeKey = "assistant:local";
-    const scopeKey = request.fresh ? `${baseScopeKey}:${Date.now()}` : baseScopeKey;
+    const scopeKey = priorSession ? baseScopeKey : `${baseScopeKey}:${randomUUID()}`;
     const session = this.store.resolveSession({
-      ...(!request.fresh && priorSession?.id ? { sessionId: priorSession.id } : {}),
+      ...(priorSession ? { sessionId: priorSession.id } : {}),
       scopeKey,
       ...(request.cwd ? { cwd: resolve(request.cwd) } : {}),
       title: titleFrom(request.text),

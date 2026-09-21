@@ -69,6 +69,29 @@ describe("AgentRuntime", () => {
     expect(macos.find((event) => event.type === "session")?.session.id).toBe(cliSession);
   });
 
+  it("starts a separate session after four hours of inactivity", async () => {
+    const { store, runtime } = testRuntime();
+    const first = await collect(runtime, { text: "old topic", channel: "cli" });
+    const firstSession = first.find((event) => event.type === "session")?.session.id;
+    store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
+      .run(new Date(Date.now() - 4 * 60 * 60 * 1_000).toISOString(), firstSession);
+
+    const next = await collect(runtime, { text: "new topic", channel: "telegram", sessionId: firstSession });
+    const nextSession = next.find((event) => event.type === "session")?.session.id;
+
+    expect(nextSession).not.toBe(firstSession);
+    expect(firstSession && store.getMessages(firstSession).map((message) => message.content)).toEqual(["old topic", "Done."]);
+    expect(nextSession && store.getMessages(nextSession).map((message) => message.content)).toEqual(["new topic", "Done."]);
+  });
+
+  it("starts a separate session when the user requests a new conversation", async () => {
+    const { runtime } = testRuntime();
+    const first = await collect(runtime, { text: "first", channel: "cli" });
+    const firstSession = first.find((event) => event.type === "session")?.session.id;
+    const next = await collect(runtime, { text: "second", channel: "macos", fresh: true });
+    expect(next.find((event) => event.type === "session")?.session.id).not.toBe(firstSession);
+  });
+
   it("keeps the session resumable after interruption", async () => {
     const { backend, runtime } = testRuntime();
     backend.failNext = true;

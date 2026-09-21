@@ -29,6 +29,21 @@ describe("Telegram turns", () => {
     await expect(new TelegramTurns(client(null)).submit(async () => ({ text: "busy" }))).resolves.toBe(false);
   });
 
+  it("starts the next accepted message as a new conversation", async () => {
+    const runtime = client(null);
+    const turns = new TelegramTurns(runtime);
+    turns.newConversation();
+
+    await expect(turns.submit(async () => ({ text: "busy" }))).resolves.toBe(false);
+    runtime.submit.mockResolvedValue({ id: "r2", origin: "telegram" });
+    await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toBe(true);
+    await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toBe(true);
+
+    expect(runtime.submit).toHaveBeenNthCalledWith(1, { text: "busy", fresh: true, channel: "telegram" });
+    expect(runtime.submit).toHaveBeenNthCalledWith(2, { text: "new topic", fresh: true, channel: "telegram" });
+    expect(runtime.submit).toHaveBeenNthCalledWith(3, { text: "continue", channel: "telegram" });
+  });
+
   it("delivers a run initiated on another client with chunked text and artifacts", () => {
     const turns = new TelegramTurns(client());
     const artifact = { id: "a1", kind: "image" as const, name: "result.png", mimeType: "image/png", size: 3, path: "/tmp/result.png" };

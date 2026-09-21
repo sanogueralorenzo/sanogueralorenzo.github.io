@@ -80,7 +80,12 @@ async function runGateway(token: string): Promise<void> {
     await ctx.reply(replies[result]);
   });
   bot.command("help", async (ctx) => {
-    if (isOwner(ctx)) await ctx.reply("Message Agent normally. Use /stop to interrupt a response.");
+    if (isOwner(ctx)) await ctx.reply("Message Agent normally. Use /new for a new conversation or /stop to interrupt a response.");
+  });
+  bot.command("new", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    turns.newConversation();
+    await ctx.reply("New conversation ready.");
   });
   bot.command("status", async (ctx) => {
     if (!isOwner(ctx)) return;
@@ -130,6 +135,7 @@ async function runGateway(token: string): Promise<void> {
   if (deliveryController.signal.aborted) return;
   await bot.start({ onStart: async (info) => {
     await bot.api.setMyCommands([
+      { command: "new", description: "Start a new conversation" },
       { command: "help", description: "What Agent can do" },
       { command: "status", description: "Connection status" },
       { command: "stop", description: "Stop the current response" },

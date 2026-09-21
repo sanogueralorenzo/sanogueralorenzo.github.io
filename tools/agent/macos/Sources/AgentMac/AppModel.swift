@@ -84,6 +84,10 @@ struct ChatMessage: Identifiable, Equatable {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let client, isConnected, !isRunning else { return }
         input = ""
+        if text == "/new" {
+            newConversation()
+            return
+        }
         do {
             guard let run = try await client.submit(text: text, sessionId: sessionId, fresh: fresh) else {
                 activity = "Agent is already working"
@@ -170,6 +174,9 @@ struct ChatMessage: Identifiable, Equatable {
             assistantId = id
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
         case "session":
+            if let previous = sessionId, let next = event.session?.id, previous != next, activeRunId == envelope.runId {
+                messages = Array(messages.suffix(2))
+            }
             sessionId = event.session?.id
             fresh = false
         case "text_delta":
