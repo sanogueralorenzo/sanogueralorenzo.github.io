@@ -173,6 +173,10 @@ export class Store {
     return this.getSession(id);
   }
 
+  deleteSession(id: string): void {
+    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+  }
+
   addMessage(sessionId: string, role: Message["role"], content: string): void {
     const timestamp = now();
     this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, ?, ?, ?)")

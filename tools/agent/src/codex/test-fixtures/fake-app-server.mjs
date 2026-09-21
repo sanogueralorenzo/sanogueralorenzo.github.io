@@ -7,6 +7,7 @@ const log = process.env.AGENT_FAKE_LOG;
 const artifactPath = process.env.AGENT_FAKE_ARTIFACT;
 let threadCounter = 0;
 let turnCounter = 0;
+let dynamicTurn = null;
 let account = scenario === "expired" || scenario.startsWith("login")
   ? null
   : { type: scenario === "api-account" ? "apiKey" : "chatgpt", planType: "plus" };
@@ -22,7 +23,7 @@ const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
-function completeTurn(threadId, turnId, handoff = false, sessionRoute = "") {
+function completeTurn(threadId, turnId, handoff = false) {
   if (scenario.startsWith("context-compaction") && !handoff) {
     notify("item/started", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
     notify("item/completed", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
@@ -36,9 +37,7 @@ function completeTurn(threadId, turnId, handoff = false, sessionRoute = "") {
   notify("item/agentMessage/delta", {
     threadId,
     turnId,
-    delta: sessionRoute
-      ? `agent://sessions/${sessionRoute}`
-      : handoff
+    delta: handoff
       ? "Objective: continue the Agent task. Decisions: keep clients thin. Next: handle the user's pending request."
       : "Hello from Codex.",
   });
@@ -46,8 +45,42 @@ function completeTurn(threadId, turnId, handoff = false, sessionRoute = "") {
 }
 
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
-  const { id, method, params = {} } = JSON.parse(line);
-  if (log) appendFileSync(log, `${JSON.stringify({ method, params: params.apiKey ? { ...params, apiKey: "[redacted]" } : params })}\n`);
+  const { id, method, params = {}, result } = JSON.parse(line);
+  if (log) appendFileSync(log, `${JSON.stringify(method
+    ? { method, params: params.apiKey ? { ...params, apiKey: "[redacted]" } : params }
+    : { id, result })}\n`);
+  if (!method && scenario === "session-navigation" && dynamicTurn) {
+    if (id === "list-conversations") {
+      const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
+      const sessionId = conversations[0]?.id;
+      dynamicTurn.sessionId = sessionId;
+      notify("item/completed", {
+        threadId: dynamicTurn.threadId,
+        turnId: dynamicTurn.turnId,
+        item: { type: "dynamicToolCall", id: "list-item", tool: "list_conversations", status: "completed", success: result?.success },
+      });
+      notify("item/started", {
+        threadId: dynamicTurn.threadId,
+        turnId: dynamicTurn.turnId,
+        item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", arguments: { sessionId }, status: "inProgress" },
+      });
+      return send({
+        id: "open-conversation",
+        method: "item/tool/call",
+        params: { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "open-item", namespace: null, tool: "open_conversation", arguments: { sessionId } },
+      });
+    }
+    if (id === "open-conversation") {
+      notify("item/completed", {
+        threadId: dynamicTurn.threadId,
+        turnId: dynamicTurn.turnId,
+        item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", status: "completed", success: result?.success },
+      });
+      completeTurn(dynamicTurn.threadId, dynamicTurn.turnId);
+      dynamicTurn = null;
+      return;
+    }
+  }
   if (method === "initialized") return;
   if (method === "initialize") return reply(id);
   if (method === "account/read") {
@@ -101,10 +134,21 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     const handoff = params.input?.some?.((item) => typeof item.text === "string" && item.text.includes("continuation handoff")) ?? false;
-    const routeInput = params.input?.find?.((item) => typeof item.text === "string" && item.text.includes("savedConversations"))?.text ?? "";
-    const sessionRoute = routeInput.match?.(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0] ?? "";
     reply(id, { turn: { id: turnId } });
-    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff, sessionRoute), 5);
+    if (scenario === "session-navigation") {
+      dynamicTurn = { threadId: params.threadId, turnId };
+      notify("item/started", {
+        threadId: params.threadId,
+        turnId,
+        item: { type: "dynamicToolCall", id: "list-item", tool: "list_conversations", arguments: {}, status: "inProgress" },
+      });
+      return send({
+        id: "list-conversations",
+        method: "item/tool/call",
+        params: { threadId: params.threadId, turnId, callId: "list-item", namespace: null, tool: "list_conversations", arguments: {} },
+      });
+    }
+    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff), 5);
     return;
   }
   if (method === "turn/interrupt") {

@@ -10,8 +10,8 @@ import { cleanup, temporary } from "../test-support.js";
 class RecordingBackend implements AgentBackend {
   readonly turns: BackendTurn[] = [];
   readonly transcriptions: string[] = [];
-  readonly routes: string[] = [];
-  routeTo: string | null = null;
+  readonly discarded: string[] = [];
+  navigateTo: string | null = null;
   failNext = false;
 
   async transcribeAudio(attachment: Attachment): Promise<string> {
@@ -19,9 +19,8 @@ class RecordingBackend implements AgentBackend {
     return "Fix the TypeScript test";
   }
 
-  async routeSession(text: string): Promise<string | null> {
-    this.routes.push(text);
-    return this.routeTo;
+  async discardSession(sessionId: string): Promise<void> {
+    this.discarded.push(sessionId);
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
@@ -30,6 +29,7 @@ class RecordingBackend implements AgentBackend {
       this.failNext = false;
       throw new DOMException("Interrupted", "AbortError");
     }
+    if (this.navigateTo) yield { type: "navigate", sessionId: this.navigateTo };
     yield { type: "text_delta", delta: "Done." };
     yield { type: "done" };
   }
@@ -103,11 +103,12 @@ describe("AgentRuntime", () => {
     const { store, backend, runtime } = testRuntime();
     const first = await collect(runtime, { text: "Simplify Telegram reconnects", channel: "cli" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
-    backend.routeTo = firstSession ?? null;
+    backend.navigateTo = firstSession ?? null;
 
     const lookup = await collect(runtime, { text: "take me back to the bot restart work", channel: "macos", fresh: true });
 
-    expect(backend.routes).toEqual(["take me back to the bot restart work"]);
+    expect(backend.turns.at(-1)?.sessionTools?.[0]?.id).toBe(firstSession);
+    expect(backend.discarded).toHaveLength(1);
     expect(lookup).toContainEqual(expect.objectContaining({
       type: "navigate",
       url: `agent://sessions/${firstSession}`,

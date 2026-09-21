@@ -121,6 +121,12 @@ export class CodexAppServer extends EventEmitter {
     return this.rawRequest(method, params) as Promise<T>;
   }
 
+  respond(id: number | string, result: unknown): void {
+    const child = this.process;
+    if (!child?.stdin.writable) throw new CodexDisconnectedError();
+    child.stdin.write(`${JSON.stringify({ id, result })}\n`);
+  }
+
   async account(refreshToken = true): Promise<CodexAccountStatus> {
     return this.request<CodexAccountStatus>("account/read", { refreshToken });
   }

@@ -29,7 +29,12 @@ function trackedStore(homeDir: string): Store {
 }
 
 const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
-  .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
+  .map((line) => JSON.parse(line) as {
+    method: string;
+    params: Record<string, unknown>;
+    id?: number | string;
+    result?: Record<string, unknown>;
+  });
 
 const config = (homeDir: string): RuntimeConfig => ({ homeDir, port: 0, codexCommand: "codex" });
 
@@ -177,23 +182,28 @@ describe("Codex turn transport", () => {
     expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
   });
 
-  it("resolves a saved Agent session through an ephemeral semantic lookup", async () => {
-    const { backend, input, log, store } = backendFixture();
-    store.addMessage(input.session.id, "user", "Simplify the Telegram reconnect flow");
+  it("opens a saved conversation from the first normal turn", async () => {
+    const { backend, input, log, store } = backendFixture("session-navigation");
+    const saved = store.resolveSession({ scopeKey: "assistant:saved", title: "Telegram reconnects" });
+    store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
+    const sessionTools = store.sessionCards().filter((session) => session.id === saved.id);
 
-    await expect(backend.routeSession("the bot restart conversation", store.sessionCards()))
-      .resolves.toBe(input.session.id);
+    const events = await collect(backend, { ...input, sessionTools });
 
+    expect(events).toContainEqual({ type: "navigate", sessionId: saved.id });
     const rpc = requests(log);
     expect(rpc.find((request) => request.method === "thread/start")?.params).toMatchObject({
-      ephemeral: true,
-      sandbox: "read-only",
+      ephemeral: false,
+      dynamicTools: [
+        expect.objectContaining({ name: "list_conversations" }),
+        expect.objectContaining({ name: "open_conversation" }),
+      ],
     });
-    expect(rpc.find((request) => request.method === "thread/start")?.params.developerInstructions)
-      .toContain("strong semantic match");
-    expect(rpc.find((request) => request.method === "turn/start")?.params.input)
-      .toEqual([expect.objectContaining({ text: expect.stringContaining("savedConversations") })]);
-    expect(rpc.at(-1)).toMatchObject({ method: "thread/unsubscribe" });
+    expect(rpc.find((request) => request.id === "list-conversations")?.result).toMatchObject({ success: true });
+    expect(rpc.find((request) => request.id === "open-conversation")?.result).toMatchObject({ success: true });
+
+    await backend.discardSession(input.session.id);
+    expect(requests(log).at(-1)).toMatchObject({ method: "thread/delete", params: { threadId: "thread-1" } });
   });
 
   it("preserves the runtime session and event contract", async () => {
