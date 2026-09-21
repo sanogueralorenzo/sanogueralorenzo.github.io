@@ -55,7 +55,7 @@ describe("AgentRuntime", () => {
   it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
     const { homeDir, backend, runtime } = testRuntime();
     await collect(runtime, { text: "Fix the failing test", cwd: homeDir, channel: "cli", fresh: true });
-    expect(backend.turns[0]?.instructions).toBe("Act on clear requests and persist until complete. Make reasonable assumptions; ask only when a material choice blocks progress.");
+    expect(backend.turns[0]?.instructions).toBe("Act on clear requests and persist until complete. Treat new messages as steering unless they clearly cancel or replace the task. Reuse existing authorization and complete reversible preparation before asking. Ask only when a material choice or unapproved irreversible or external action blocks progress.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
