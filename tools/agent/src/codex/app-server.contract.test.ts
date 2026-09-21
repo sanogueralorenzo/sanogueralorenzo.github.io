@@ -52,7 +52,7 @@ describe("Codex profile and login", () => {
     const instructions = join(homeDir, "codex", "instructions.md");
     expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a direct, concise assistant");
     expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
-      `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\n\n[agents]\nenabled = false\n`,
+      `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = false\n`,
     );
     expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
     expect(lstatSync(instructions).mode & 0o777).toBe(0o600);
