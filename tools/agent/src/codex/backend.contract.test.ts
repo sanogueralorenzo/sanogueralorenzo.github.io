@@ -84,6 +84,7 @@ describe("Codex turn transport", () => {
     const handoff = rpc.find((request) => request.method === "turn/start"
       && JSON.stringify(request.params.input).includes("continuation handoff"));
     expect(handoff?.params).toMatchObject({ threadId: "thread-1", sandboxPolicy: { type: "readOnly" } });
+    expect(JSON.stringify(handoff?.params.input)).toContain("relevant tool results, artifacts, and persistent external state");
     expect(JSON.stringify(handoff?.params.input)).toContain("Usually use 100–300 words; never exceed 500");
     expect(rpc.find((request) => request.method === "thread/inject_items")?.params).toMatchObject({
       threadId: "thread-2",

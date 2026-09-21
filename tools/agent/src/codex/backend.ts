@@ -50,6 +50,7 @@ Include only information needed to continue:
 - objective and user constraints
 - important decisions
 - current verified state
+- relevant tool results, artifacts, and persistent external state
 - unresolved work and next action
 - exact paths, commits, or identifiers when relevant
 
