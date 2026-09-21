@@ -154,17 +154,31 @@ export class Store {
     return this.listSessions(limit).map((session) => {
       const handoff = this.db.prepare("SELECT content FROM session_handoffs WHERE session_id = ?")
         .get(session.id) as { content: string } | undefined;
-      const recent = this.getMessages(session.id, 4)
-        .filter((message) => message.role !== "tool")
-        .map((message) => `${message.role}: ${message.content.replace(/\s+/g, " ").slice(0, 300)}`)
-        .join("\n");
+      const latestUser = this.db.prepare("SELECT content FROM messages WHERE session_id = ? AND role = 'user' ORDER BY id DESC LIMIT 1")
+        .get(session.id) as { content: string } | undefined;
       return {
         id: session.id,
         title: session.title,
         updatedAt: session.updatedAt,
-        context: [handoff?.content.slice(0, 800), recent].filter(Boolean).join("\n"),
+        preview: (handoff?.content ?? latestUser?.content ?? "").replace(/\s+/g, " ").slice(0, 200),
       };
     });
+  }
+
+  readConversation(id: string, before?: number) {
+    const handoff = this.db.prepare("SELECT content FROM session_handoffs WHERE session_id = ?")
+      .get(id) as { content: string } | undefined;
+    const rows = this.db.prepare(`
+      SELECT id, role, content FROM messages
+      WHERE session_id = ? AND role != 'tool' AND (? IS NULL OR id < ?)
+      ORDER BY id DESC LIMIT 9
+    `).all(id, before ?? null, before ?? null) as { id: number; role: Message["role"]; content: string }[];
+    const page = rows.slice(0, 8);
+    return {
+      handoff: handoff?.content ?? null,
+      messages: page.reverse().map(({ role, content }) => ({ role, content: content.slice(0, 2_000) })),
+      nextBefore: rows.length > 8 ? page[0]!.id : null,
+    };
   }
 
   activateSession(id: string): Session | null {

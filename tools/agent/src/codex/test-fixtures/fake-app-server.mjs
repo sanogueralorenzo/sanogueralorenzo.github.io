@@ -62,6 +62,24 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       notify("item/started", {
         threadId: dynamicTurn.threadId,
         turnId: dynamicTurn.turnId,
+        item: { type: "dynamicToolCall", id: "read-item", tool: "read_conversation", arguments: { sessionId }, status: "inProgress" },
+      });
+      return send({
+        id: "read-conversation",
+        method: "item/tool/call",
+        params: { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "read-item", namespace: null, tool: "read_conversation", arguments: { sessionId } },
+      });
+    }
+    if (id === "read-conversation") {
+      notify("item/completed", {
+        threadId: dynamicTurn.threadId,
+        turnId: dynamicTurn.turnId,
+        item: { type: "dynamicToolCall", id: "read-item", tool: "read_conversation", status: "completed", success: result?.success },
+      });
+      const sessionId = dynamicTurn.sessionId;
+      notify("item/started", {
+        threadId: dynamicTurn.threadId,
+        turnId: dynamicTurn.turnId,
         item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", arguments: { sessionId }, status: "inProgress" },
       });
       return send({

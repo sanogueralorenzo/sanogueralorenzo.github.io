@@ -54,7 +54,32 @@ describe("Store", () => {
     expect(store.rotateBackendSession(session.id, "codex", "thread-1", "thread-2", "Current objective and next action")).toBe(true);
     expect(store.backendSession(session.id, "codex")).toBe("thread-2");
     expect(store.backendCompactions(session.id, "codex")).toBe(0);
-    expect(store.sessionCards()[0]?.context).toContain("Current objective and next action");
+    expect(store.sessionCards()[0]?.preview).toContain("Current objective and next action");
+    expect(store.readConversation(session.id).handoff).toBe("Current objective and next action");
+    store.close();
+  });
+
+  it("lists short previews and reads one conversation in pages without tool messages", () => {
+    const store = createStore();
+    const session = store.resolveSession({ scopeKey: "assistant:local", title: "Telegram work" });
+    for (let number = 1; number <= 11; number += 1) {
+      store.addMessage(session.id, "user", `Message ${number}: ${"detail ".repeat(40)}`);
+      store.addMessage(session.id, "tool", "command: complete");
+    }
+
+    const card = store.sessionCards()[0]!;
+    expect(card).toMatchObject({ id: session.id, title: "Telegram work" });
+    expect(card.preview.length).toBe(200);
+    expect(JSON.stringify(card)).not.toContain("Message 10");
+
+    const first = store.readConversation(session.id);
+    expect(first.messages).toHaveLength(8);
+    expect(first.messages[0]?.content).toContain("Message 4:");
+    expect(first.nextBefore).not.toBeNull();
+    const older = store.readConversation(session.id, first.nextBefore!);
+    expect(older.messages.map((message) => message.content.slice(0, 9)))
+      .toEqual(["Message 1", "Message 2", "Message 3"]);
+    expect(older.nextBefore).toBeNull();
     store.close();
   });
 });

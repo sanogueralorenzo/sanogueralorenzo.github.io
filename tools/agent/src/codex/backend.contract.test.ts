@@ -196,10 +196,16 @@ describe("Codex turn transport", () => {
       ephemeral: false,
       dynamicTools: [
         expect.objectContaining({ name: "list_conversations" }),
+        expect.objectContaining({ name: "read_conversation" }),
         expect.objectContaining({ name: "open_conversation" }),
       ],
     });
     expect(rpc.find((request) => request.id === "list-conversations")?.result).toMatchObject({ success: true });
+    expect(rpc.find((request) => request.id === "read-conversation")?.result).toMatchObject({ success: true });
+    const listed = JSON.parse((rpc.find((request) => request.id === "list-conversations")?.result?.contentItems as { text: string }[])[0]!.text);
+    const read = JSON.parse((rpc.find((request) => request.id === "read-conversation")?.result?.contentItems as { text: string }[])[0]!.text);
+    expect(listed).toEqual(sessionTools);
+    expect(read.messages).toContainEqual({ role: "user", content: "Simplify the Telegram reconnect flow" });
     expect(rpc.find((request) => request.id === "open-conversation")?.result).toMatchObject({ success: true });
 
     await backend.discardSession(input.session.id);

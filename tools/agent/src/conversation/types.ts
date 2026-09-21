@@ -18,7 +18,7 @@ export interface SessionCard {
   id: string;
   title: string;
   updatedAt: string;
-  context: string;
+  preview: string;
 }
 
 interface StoredFile {
