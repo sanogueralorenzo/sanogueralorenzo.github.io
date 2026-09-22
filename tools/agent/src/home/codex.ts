@@ -221,6 +221,7 @@ export class CodexHomeBackend implements HomeBackend {
   ): Promise<void> {
     await ephemeralToolTurn({
       client: this.client,
+      homeDir: this.config.homeDir,
       cwd: this.config.homeDir,
       instructions,
       prompt,

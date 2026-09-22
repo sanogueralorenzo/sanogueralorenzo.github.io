@@ -27,12 +27,17 @@ interface CodexAppServerOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+export function utilityInstructionsPath(homeDir: string): string {
+  return join(homeDir, "codex", "utility-instructions.md");
+}
+
 export function prepareAgentCodexHome(homeDir: string): string {
   const codexHome = join(homeDir, "codex");
   ensurePrivateDirectory(homeDir);
   ensurePrivateDirectory(codexHome);
   const instructions = join(codexHome, "instructions.md");
   writePrivateFile(instructions, `${BASE_INSTRUCTIONS}\n`);
+  writePrivateFile(utilityInstructionsPath(homeDir), "Follow the instructions supplied for this thread.\n");
   writePrivateFile(join(codexHome, "config.toml"), `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`);
   return codexHome;
 }

@@ -1,10 +1,11 @@
 import { on } from "node:events";
 import { UTILITY_MODEL } from "../local/config.js";
-import type { CodexAppServer } from "./app-server.js";
+import { utilityInstructionsPath, type CodexAppServer } from "./app-server.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
 
 export async function ephemeralToolTurn<T>(input: {
   client: CodexAppServer;
+  homeDir: string;
   cwd: string;
   instructions: string;
   prompt: string;
@@ -24,6 +25,7 @@ export async function ephemeralToolTurn<T>(input: {
     ephemeral: true,
     threadSource: "appServer",
     dynamicTools: input.tools,
+    config: { model_instructions_file: utilityInstructionsPath(input.homeDir) },
     baseInstructions: input.instructions,
   });
   const threadId = started.thread.id;

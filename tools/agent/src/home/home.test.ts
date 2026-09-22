@@ -214,6 +214,11 @@ describe("Agent Home", () => {
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("report_task") },
     ]);
+    expect(threads.map((thread) => thread.config)).toEqual([
+      { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },
+      { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },
+    ]);
+    expect(threads.every((thread) => !String(thread.baseInstructions).includes("You are Agent, a direct, concise assistant"))).toBe(true);
     expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["low", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);

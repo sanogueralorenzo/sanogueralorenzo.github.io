@@ -83,6 +83,7 @@ export class CodexBackend implements AgentBackend {
     let routeError = "Could not find that project or conversation.";
     const handoff = await ephemeralToolTurn<Handoff>({
       client: this.client,
+      homeDir: this.config.homeDir,
       cwd: turn.session.cwd ?? this.config.homeDir,
       tools: [OPEN_FOLDER_TOOL, ...CONVERSATION_TOOLS],
       instructions: [

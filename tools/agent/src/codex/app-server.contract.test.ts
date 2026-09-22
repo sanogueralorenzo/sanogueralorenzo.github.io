@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cleanup, temporary } from "../test-support.js";
-import { CodexAppServer, createAgentCodexAppServer, prepareAgentCodexHome } from "./app-server.js";
+import { CodexAppServer, createAgentCodexAppServer, prepareAgentCodexHome, utilityInstructionsPath } from "./app-server.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
 
@@ -52,6 +52,9 @@ describe("Codex profile and login", () => {
     const instructions = join(homeDir, "codex", "instructions.md");
     expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a direct, concise assistant");
     expect(readFileSync(instructions, "utf8")).toContain("delegate to one writer, run read-only reviewers in parallel, consolidate valid findings, then delegate revisions to one fresh writer");
+    const utilityInstructions = utilityInstructionsPath(homeDir);
+    expect(readFileSync(utilityInstructions, "utf8")).toBe("Follow the instructions supplied for this thread.\n");
+    expect(lstatSync(utilityInstructions).mode & 0o777).toBe(0o600);
     expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
       `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`,
     );
