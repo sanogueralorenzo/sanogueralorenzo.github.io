@@ -9,7 +9,7 @@ export function object(value: unknown): Record<string, unknown> {
 
 export function classifiedError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
-  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your Agent connection has expired. Run `agent setup` to reconnect it.");
+  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your Agent connection has expired. Sign in again to reconnect it.");
   if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your current OpenAI allowance or credits are exhausted.");
   return error instanceof Error ? error : new Error(message);
 }

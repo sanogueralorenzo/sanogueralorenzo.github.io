@@ -22,7 +22,7 @@ Use `agent chat --dev` for source reload during development.
 ## Other clients
 
 - Telegram: `agent telegram setup` pairs a private account and starts the macOS background service. Keep the Mac online.
-- macOS 26+: `npm run macos:run` starts the native app.
+- macOS 26+: `npm run macos:run` starts the native app. Use Account in the toolbar to sign in or reconnect.
 
 See [Local protocol](docs/protocol.md) for runtime and security details.
 

@@ -79,7 +79,6 @@ struct ChatMessage: Identifiable {
 
     func continueWithChatGPT() async {
         await configure("Opening ChatGPT sign-in…") { client in
-            if setupStatus?.authMode == "chatgpt" { return }
             let login = try await client.startCodexLogin(mode: "browser")
             setupMessage = "Finish signing in in your browser."
             guard login.type == "chatgpt", let authUrl = login.authUrl else {

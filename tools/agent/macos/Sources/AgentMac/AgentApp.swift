@@ -49,6 +49,7 @@ struct AgentApp: App {
 
 struct RootView: View {
     @Bindable var model: AppModel
+    @State private var showingAccount = false
 
     var body: some View {
         Group {
@@ -61,12 +62,22 @@ struct RootView: View {
         }
         .foregroundStyle(AgentStyle.graphite)
         .background(AgentStyle.canvas.ignoresSafeArea())
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showingAccount = true } label: {
+                    Label("Account", systemImage: "person.crop.circle")
+                }
+                .help("Account and Settings")
+            }
+        }
+        .sheet(isPresented: $showingAccount) {
+            AccountSettingsView(model: model)
+        }
     }
 }
 
 struct SetupView: View {
     @Bindable var model: AppModel
-    @State private var key = ""
 
     var body: some View {
         VStack(spacing: 24) {
@@ -80,13 +91,56 @@ struct SetupView: View {
                 Text("Connect once, then continue from anywhere.")
                     .foregroundStyle(AgentStyle.muted)
             }
-            Button(model.setupStatus?.codex.connected == true ? "Continue with ChatGPT" : "Sign in with ChatGPT") {
+            AccountControls(model: model)
+            Spacer()
+        }
+        .padding(40)
+    }
+}
+
+private struct AccountSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var model: AppModel
+
+    private var status: String {
+        switch model.setupStatus?.authMode {
+        case "chatgpt": "Connected with ChatGPT"
+        case "apiKey": "Connected with an OpenAI API key"
+        default: "Not connected"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Account").font(.title2.weight(.semibold))
+            Text(status).foregroundStyle(AgentStyle.muted)
+            AccountControls(model: model)
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(28)
+        .frame(width: 420)
+        .foregroundStyle(AgentStyle.graphite)
+        .background(AgentStyle.canvas)
+    }
+}
+
+private struct AccountControls: View {
+    @Bindable var model: AppModel
+    @State private var key = ""
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Button(model.setupStatus?.authMode == "chatgpt" ? "Reconnect ChatGPT" : "Sign in with ChatGPT") {
                 Task { await model.continueWithChatGPT() }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(model.isSettingUp || model.setupStatus?.codex.installed != true)
-            if model.setupStatus?.codex.installed != true {
+            if model.setupStatus?.codex.installed == false {
                 Text("Codex CLI is required for ChatGPT.")
                     .font(.caption)
                     .foregroundStyle(AgentStyle.muted)
@@ -100,9 +154,13 @@ struct SetupView: View {
             HStack(spacing: 10) {
                 SecureField("OpenAI API key", text: $key)
                     .textFieldStyle(.plain)
-                Button("Connect") { Task { await model.connectOpenAI(key) } }
+                Button("Connect") {
+                    let submittedKey = key
+                    key = ""
+                    Task { await model.connectOpenAI(submittedKey) }
+                }
                     .buttonStyle(.bordered)
-                    .disabled(!key.hasPrefix("sk-") || model.isSettingUp)
+                    .disabled(!key.hasPrefix("sk-") || model.isSettingUp || model.setupStatus?.codex.installed != true)
             }
             .padding(.horizontal, 14)
             .frame(maxWidth: 360, minHeight: 44)
@@ -116,9 +174,7 @@ struct SetupView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)
             }
-            Spacer()
         }
-        .padding(40)
     }
 }
 
