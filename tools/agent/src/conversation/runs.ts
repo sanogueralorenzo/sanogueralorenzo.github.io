@@ -9,6 +9,12 @@ export class RunBusyError extends Error {
 }
 
 type Listener = (event?: RunEnvelope) => void;
+export const MAX_EVENT_BUFFER_BYTES = 1_000_000;
+const MAX_PENDING_EVENTS = 1_024;
+
+export class SlowSubscriberError extends Error {
+  constructor() { super("Agent event subscriber fell behind."); }
+}
 
 export class RunCoordinator {
   private active: (RunInfo & { controller: AbortController }) | null = null;
@@ -50,11 +56,24 @@ export class RunCoordinator {
     await this.executing;
   }
 
-  async *events(signal: AbortSignal): AsyncGenerator<RunEnvelope> {
-    const queued: RunEnvelope[] = [];
+  async *events(signal: AbortSignal, onOverflow?: () => void): AsyncGenerator<RunEnvelope> {
+    const queued: { event: RunEnvelope; bytes: number }[] = [];
+    let pendingBytes = 0;
+    let overflow = false;
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
-      if (event) queued.push(event);
+      if (event && !overflow) {
+        const bytes = Buffer.byteLength(JSON.stringify(event));
+        if (queued.length >= MAX_PENDING_EVENTS || pendingBytes + bytes > MAX_EVENT_BUFFER_BYTES) {
+          overflow = true;
+          queued.length = 0;
+          pendingBytes = 0;
+          onOverflow?.();
+        } else {
+          queued.push({ event, bytes });
+          pendingBytes += bytes;
+        }
+      }
       wake?.();
       wake = undefined;
     };
@@ -66,9 +85,12 @@ export class RunCoordinator {
     signal.addEventListener("abort", aborted, { once: true });
     try {
       while (!this.closed && !signal.aborted) {
+        if (overflow) throw new SlowSubscriberError();
         if (!queued.length) await new Promise<void>((resolve) => { wake = resolve; });
+        if (overflow) throw new SlowSubscriberError();
         while (queued.length) {
-          const event = queued.shift()!;
+          const { event, bytes } = queued.shift()!;
+          pendingBytes -= bytes;
           yield event;
         }
       }

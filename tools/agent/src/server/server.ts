@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
-import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
+import { MAX_EVENT_BUFFER_BYTES, RunBusyError, RunCoordinator } from "../conversation/runs.js";
 import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type TurnRequest } from "../conversation/types.js";
 import type { AgentSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
@@ -36,6 +36,19 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
   return body.length ? JSON.parse(body.toString("utf8")) as Record<string, unknown> : {};
 }
 
+function waitForDrain(response: ServerResponse): Promise<void> {
+  if (response.destroyed) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      response.off("drain", done);
+      response.off("close", done);
+      resolve();
+    };
+    response.once("drain", done);
+    response.once("close", done);
+  });
+}
+
 export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
   private readonly runs: RunCoordinator;
@@ -62,7 +75,9 @@ export class RuntimeServer {
 
   async close(): Promise<void> {
     await this.runs.close();
-    await new Promise<void>((resolve) => this.server.close(() => resolve()));
+    const closed = new Promise<void>((resolve) => this.server.close(() => resolve()));
+    this.server.closeAllConnections();
+    await closed;
     const path = join(this.config.homeDir, "runtime.json");
     const discovery = readPrivateJson<{ pid: number; token: string }>(path);
     if (discovery?.pid === process.pid && discovery.token === this.token) rmSync(path, { force: true });
@@ -88,7 +103,7 @@ export class RuntimeServer {
         return json(response, 200, await this.setup.waitForCodexLogin(loginId));
       }
       switch (route) {
-        case "GET /v1/events": return this.events(response);
+        case "GET /v1/events": return await this.events(response);
         case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
         case "POST /v1/runs/stop": return json(response, 200, { stopped: this.runs.stop() });
         case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
@@ -165,8 +180,13 @@ export class RuntimeServer {
     response.flushHeaders();
     response.write(": connected\n\n");
     try {
-      for await (const event of this.runs.events(controller.signal)) {
-        response.write(`data: ${JSON.stringify(event)}\n\n`);
+      for await (const event of this.runs.events(controller.signal, () => response.destroy())) {
+        const frame = `data: ${JSON.stringify(event)}\n\n`;
+        if (Buffer.byteLength(frame) > MAX_EVENT_BUFFER_BYTES) {
+          response.destroy();
+          break;
+        }
+        if (!response.write(frame)) await waitForDrain(response);
       }
     } finally {
       response.end();

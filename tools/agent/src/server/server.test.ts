@@ -6,6 +6,7 @@ import { Store } from "../conversation/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
 import { RuntimeClient } from "../client/client.js";
+import { MAX_EVENT_BUFFER_BYTES } from "../conversation/runs.js";
 import { RuntimeServer, type RuntimeSetup } from "./server.js";
 import type { RunEnvelope } from "../conversation/types.js";
 
@@ -120,6 +121,23 @@ describe("RuntimeServer", () => {
     expect(await client.submit({ text: "second", channel: "telegram" })).toBeNull();
     expect(await client.stop()).toBe(true);
     await expect(interruption).resolves.toBeUndefined();
+  });
+
+  it("closes an oversized event stream without stopping the runtime", async () => {
+    let completed = false;
+    const runtime = {
+      async *run(): AsyncGenerator<RuntimeEvent> {
+        yield { type: "text_delta", delta: "x".repeat(MAX_EVENT_BUFFER_BYTES) };
+        completed = true;
+        yield { type: "done", sessionId: "s1" };
+      },
+    } as unknown as AgentRuntime;
+    const { client } = await serve(runtime);
+    const events = await client.events();
+    await client.submit({ text: "hi", channel: "api" });
+    await expect(collectRun(events)).rejects.toThrow();
+    expect(completed).toBe(true);
+    expect(await client.healthy()).toBe(true);
   });
 
   it("exposes shared guided setup endpoints", async () => {

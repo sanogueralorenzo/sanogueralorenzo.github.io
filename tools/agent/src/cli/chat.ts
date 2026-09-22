@@ -100,7 +100,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       } catch {
         if (stopping) return;
         if (activeRunId) {
-          status("The runtime restarted. Your saved session was restored.");
+          status("Response interrupted. Your session is saved.");
           finish(activeRunId);
           activeRunId = undefined;
         }

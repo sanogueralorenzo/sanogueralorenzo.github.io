@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRuntime } from "./runtime.js";
-import { RunBusyError, RunCoordinator } from "./runs.js";
+import { MAX_EVENT_BUFFER_BYTES, RunBusyError, RunCoordinator, SlowSubscriberError } from "./runs.js";
 import type { RunEnvelope, RuntimeEvent } from "./types.js";
 
 function runtime(run: (signal: AbortSignal) => AsyncGenerator<RuntimeEvent>) {
@@ -88,5 +88,25 @@ describe("RunCoordinator", () => {
     expect((await events).at(-1)?.event.type).toBe("error");
     expect(aborted).toBe(true);
     expect(runs.stop()).toBe(false);
+  });
+
+  it("disconnects a subscriber that falls behind without stopping the run", async () => {
+    let notifyOverflow!: () => void;
+    const overflow = new Promise<void>((resolve) => { notifyOverflow = resolve; });
+    let completed = false;
+    const fixture = runtime(async function* () {
+      yield { type: "text_delta", delta: "x".repeat(MAX_EVENT_BUFFER_BYTES) };
+      completed = true;
+      yield { type: "done", sessionId: "s1" };
+    });
+    const runs = new RunCoordinator(fixture.value);
+    const slow = runs.events(new AbortController().signal, notifyOverflow)[Symbol.asyncIterator]();
+    const first = slow.next();
+    runs.start({ text: "hi" });
+    expect((await first).value?.event.type).toBe("turn");
+    await overflow;
+    await expect(slow.next()).rejects.toBeInstanceOf(SlowSubscriberError);
+    expect(completed).toBe(true);
+    expect(fixture.executions()).toBe(1);
   });
 });
