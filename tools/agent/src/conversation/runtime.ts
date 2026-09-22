@@ -52,13 +52,10 @@ export class AgentRuntime {
     const requested = incoming.sessionId ? this.store.getSession(incoming.sessionId) : null;
     if (incoming.sessionId && !requested) throw new Error("Conversation not found.");
     const selected = requested ?? this.openSession(incoming);
-    const session = incoming.cwd && !selected.cwd
-      ? this.store.setSessionWorkspace(selected.id, resolve(incoming.cwd))
-      : selected;
-    const empty = this.store.getMessages(session.id, 1).length === 0;
+    const empty = this.store.getMessages(selected.id, 1).length === 0;
     return {
-      session, empty, routing: maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length),
-      sessionTools: this.store.sessionCards().filter((card) => card.id !== session.id),
+      session: selected, empty, routing: maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length),
+      sessionTools: this.store.sessionCards().filter((card) => card.id !== selected.id),
     };
   }
 
@@ -133,6 +130,9 @@ export class AgentRuntime {
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
       return;
+    }
+    if (session.id === prepared.session.id && incoming.cwd && !session.cwd) {
+      session = this.store.setSessionWorkspace(session.id, resolve(incoming.cwd));
     }
     if (session.title === "New conversation") session = this.store.renameSession(session.id, titleFrom(handoffTask ?? text));
     yield { type: "session", session };

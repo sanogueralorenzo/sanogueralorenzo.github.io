@@ -180,6 +180,38 @@ describe("AgentRuntime", () => {
       .toEqual(["Simplify Telegram reconnects", "Done."]);
   });
 
+  it("binds the terminal directory only when a provisional CLI turn does not navigate", async () => {
+    const { homeDir, store, backend, runtime } = testRuntime();
+    const source = runtime.openSession({ fresh: true });
+    expect(source.cwd).toBeNull();
+
+    const events = await collect(runtime, {
+      text: "Inspect this project", sessionId: source.id, cwd: homeDir, channel: "cli",
+    });
+
+    expect(events.find((event) => event.type === "session")?.session.cwd).toBe(homeDir);
+    expect(backend.turns.at(-1)?.session.cwd).toBe(homeDir);
+    expect(store.getSession(source.id)?.cwd).toBe(homeDir);
+  });
+
+  it("does not bind the terminal directory when a provisional CLI turn switches sessions", async () => {
+    const { homeDir, store, backend, runtime } = testRuntime();
+    const target = runtime.openSession({ fresh: true, cwd: "/tmp/target-project" });
+    const source = runtime.openSession({ fresh: true });
+    backend.navigateTo = target.id;
+    backend.handoffTask = "Fix the test";
+
+    const events = await collect(runtime, {
+      text: "Resume the target project and fix the test", sessionId: source.id, cwd: homeDir, channel: "cli",
+    });
+
+    expect(backend.turns[0]?.session.cwd).toBeNull();
+    expect(backend.turns.at(-1)?.session.cwd).toBe("/tmp/target-project");
+    expect(events.find((event) => event.type === "navigate")?.session.id).toBe(target.id);
+    expect(store.getSession(source.id)).toBeNull();
+    expect(store.getSession(target.id)?.cwd).toBe("/tmp/target-project");
+  });
+
   it("leaves a populated source conversation untouched when switching without a task", async () => {
     const { store, backend, runtime } = testRuntime();
     const source = store.createSession({ title: "Current work" });

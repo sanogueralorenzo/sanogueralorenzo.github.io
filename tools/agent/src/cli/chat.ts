@@ -14,7 +14,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   };
   const supervisor = new RuntimeSupervisor(client, options.dev, status);
   await supervisor.start();
-  const selected = await client.openSession();
+  const selected = await client.openSession({ fresh: true });
   const sessionId = selected.id;
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim(`— ${selected.title}${selected.cwd ? ` · ${basename(selected.cwd)}` : ""}`)}`);
@@ -101,7 +101,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
       if (input === "/new") {
-        const session = await client.openSession({ fresh: true, cwd: process.cwd() });
+        const session = await client.openSession({ fresh: true });
         await changeSession(session.id);
         status("New conversation ready.");
         continue;

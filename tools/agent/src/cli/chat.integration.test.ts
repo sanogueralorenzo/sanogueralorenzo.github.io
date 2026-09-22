@@ -20,7 +20,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions/auto") {
+      if (request.url === "/v1/sessions") {
         sessionSelections++;
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -99,7 +99,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions/auto") return response.end(JSON.stringify({ session }));
+      if (request.url === "/v1/sessions") return response.end(JSON.stringify({ session }));
       if (request.url?.startsWith("/v1/events?sessionId=")) {
         connections++;
         feed = response;
@@ -166,7 +166,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions/auto") return response.end(JSON.stringify({ session: source }));
+      if (request.url === "/v1/sessions") return response.end(JSON.stringify({ session: source }));
       if (request.url === "/v1/events?sessionId=source") {
         response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
         return response.end(`data: ${JSON.stringify({ sessionId: source.id, runId: "", event: { type: "navigate", session: target, url: "agent://sessions/target" } })}\n\n`);
