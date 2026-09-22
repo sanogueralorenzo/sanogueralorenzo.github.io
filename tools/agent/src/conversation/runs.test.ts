@@ -46,6 +46,33 @@ describe("RunCoordinator", () => {
     expect(c.every(({ runId }) => runId === next.id)).toBe(true);
   });
 
+  it("sends a late subscriber the current turn before later deltas", async () => {
+    let release!: () => void;
+    let reached!: () => void;
+    const paused = new Promise<void>((resolve) => { release = resolve; });
+    const reachedPause = new Promise<void>((resolve) => { reached = resolve; });
+    const fixture = runtime(async function* () {
+      yield { type: "text_delta", delta: "first" };
+      reached();
+      await paused;
+      yield { type: "text_delta", delta: " second" };
+      yield { type: "done", sessionId: "s1" };
+    });
+    const runs = new RunCoordinator(fixture.value);
+    const run = runs.start({ text: "hi", channel: "macos" });
+    await reachedPause;
+    const late = runs.events(new AbortController().signal, undefined, () => ({
+      transcript: null, activeRun: runs.activeSnapshot(), lastRun: null,
+    }))[Symbol.asyncIterator]();
+    expect((await late.next()).value).toMatchObject({ event: { type: "snapshot", snapshot: {
+      activeRun: { run: { id: run.id }, output: "first" },
+    } } });
+    release();
+    expect((await late.next()).value).toMatchObject({ runId: run.id, event: { type: "text_delta", delta: " second" } });
+    expect((await late.next()).value?.event.type).toBe("done");
+    await late.return?.();
+  });
+
   it("keeps running when a subscriber leaves and rejects overlapping turns", async () => {
     let release!: () => void;
     let started!: () => void;

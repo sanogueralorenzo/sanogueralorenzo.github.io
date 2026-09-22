@@ -14,7 +14,7 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
 - `POST /v1/runs` — submit one turn and receive its runtime-assigned run ID
 - `POST /v1/runs/stop` — explicitly stop the active run
-- `GET /v1/events` — follow the shared live Server-Sent Event stream
+- `GET /v1/events` — receive one current-state snapshot, then the shared live Server-Sent Event stream
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
@@ -22,7 +22,7 @@ Telegram does not watch the filesystem or reload itself after builds. During dev
 
 `POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/runs` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, and `channel`. Paths never cross the upload boundary. The runtime resolves voice notes, session continuity, memory, and workspace access before sending one turn through Codex app-server.
 
-The runtime owns one active run globally. Starting another returns `409 busy`. Disconnecting an event subscriber never stops work; only `POST /v1/runs/stop` cancels it. Clients connect to the live feed before accepting input. Events are not buffered or replayed: a client that was disconnected does not receive earlier live output and reloads completed history from SQLite.
+The runtime owns one active run globally. Starting another returns `409 busy`. Disconnecting an event subscriber never stops work; only `POST /v1/runs/stop` cancels it. Clients connect to the feed before accepting input. After subscribing, the server sends an ordered snapshot of the latest SQLite transcript and current run, then live events. There is no event replay buffer; completed turns missed during a disconnect come from SQLite. The stream identifies this contract with `X-Agent-Stream: snapshot`.
 
 Each SSE data payload wraps one runtime event with its run ID:
 
@@ -30,7 +30,7 @@ Each SSE data payload wraps one runtime event with its run ID:
 { "runId": "…", "event": { "type": "text_delta", "delta": "hello" } }
 ```
 
-Current event types are `turn`, `session`, `navigate`, `status`, `text_delta`, `artifact`, `tool_start`, `tool_end`, `done`, and `error`. `turn` identifies the originating surface and lets every connected client render the same user input. `navigate` carries an `agent://sessions/<id>` deep link so every surface selects the same saved conversation. An artifact carries one runtime-owned local image or file path plus its name, MIME type, and size; CLI, Telegram, and macOS only render that shared event. Clients ignore unknown event types so compatible additions do not require lockstep releases.
+Current event types are `snapshot`, `turn`, `session`, `navigate`, `status`, `text_delta`, `artifact`, `tool_start`, `tool_end`, `done`, and `error`. The snapshot contains the latest session's saved messages, any active run's input/output/artifacts, and the last persisted run state. `turn` identifies the originating surface and lets every connected client render the same user input. `navigate` carries an `agent://sessions/<id>` deep link so every surface selects the same saved conversation. An artifact carries one runtime-owned local image or file path plus its name, MIME type, and size; CLI, Telegram, and macOS only render that shared event. Clients ignore unknown event types so compatible additions do not require lockstep releases.
 
 All events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
 

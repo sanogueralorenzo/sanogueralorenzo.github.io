@@ -5,8 +5,8 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
-import { MAX_EVENT_BUFFER_BYTES, RunBusyError, RunCoordinator } from "../conversation/runs.js";
-import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type TurnRequest } from "../conversation/types.js";
+import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
+import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type RuntimeSnapshot, type TurnRequest } from "../conversation/types.js";
 import type { AgentSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
@@ -176,20 +176,28 @@ export class RuntimeServer {
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
       "x-accel-buffering": "no",
+      "x-agent-stream": "snapshot",
     });
     response.flushHeaders();
     response.write(": connected\n\n");
     try {
-      for await (const event of this.runs.events(controller.signal, () => response.destroy())) {
+      for await (const event of this.runs.events(controller.signal, () => response.destroy(), () => this.snapshot())) {
         const frame = `data: ${JSON.stringify(event)}\n\n`;
-        if (Buffer.byteLength(frame) > MAX_EVENT_BUFFER_BYTES) {
-          response.destroy();
-          break;
-        }
         if (!response.write(frame)) await waitForDrain(response);
       }
     } finally {
       response.end();
     }
+  }
+
+  private snapshot(): RuntimeSnapshot {
+    const activeRun = this.runs.activeSnapshot();
+    const session = activeRun?.session ?? this.store.latestSession();
+    const lastRun = this.store.latestRun();
+    return {
+      transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
+      activeRun,
+      lastRun: lastRun ? { id: lastRun.id, sessionId: lastRun.sessionId, state: lastRun.state } : null,
+    };
   }
 }

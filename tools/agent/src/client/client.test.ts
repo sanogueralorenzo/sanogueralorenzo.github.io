@@ -30,12 +30,14 @@ async function collect(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelope[
 describe("RuntimeClient run protocol", () => {
   it("connects before returning and decodes SSE events across chunk boundaries", async () => {
     const client = await fixture((_request, response) => {
-      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
+      response.write('data: {"runId":"","event":{"type":"snapshot","snapshot":{"transcript":null,"activeRun":null,"lastRun":null}}}\r\n\r\n');
       response.write('data: {"runId":"r1","event":{"type":"status","message":"Working"}}\r\n\r');
       response.end('\ndata: {"runId":"r1","event":{"type":"done","sessionId":"s1"}}\n\n');
     });
 
     const events = (await client.events())[Symbol.asyncIterator]();
+    await expect(events.next()).resolves.toMatchObject({ value: { event: { type: "snapshot" } } });
     await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", event: { type: "status" } } });
     await expect(events.next()).resolves.toMatchObject({ value: { runId: "r1", event: { type: "done" } } });
     await expect(events.next()).rejects.toThrow("runtime disconnected");
@@ -43,10 +45,18 @@ describe("RuntimeClient run protocol", () => {
 
   it("rejects malformed events", async () => {
     const client = await fixture((_request, response) => {
-      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
       response.end("data: {broken}\n\n");
     });
     await expect(collect(await client.events())).rejects.toThrow("malformed event");
+  });
+
+  it("rejects an older stream contract before subscribing", async () => {
+    const client = await fixture((_request, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.end();
+    });
+    await expect(client.events()).rejects.toThrow("needs to restart");
   });
 
   it("submits, reports busy, and stops through shared endpoints", async () => {
@@ -81,8 +91,8 @@ describe("RuntimeClient run protocol", () => {
     const connectionClosed = new Promise<void>((resolve) => { closed = resolve; });
     const client = await fixture((_request, response) => {
       response.once("close", closed);
-      response.writeHead(200, { "content-type": "text/event-stream" });
-      response.write('data: {"runId":"r1","event":{"type":"turn","text":"hello","channel":"api","hasAttachments":false}}\n\n');
+      response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
+      response.write('data: {"runId":"","event":{"type":"snapshot","snapshot":{"transcript":null,"activeRun":null,"lastRun":null}}}\n\n');
     });
 
     for await (const _event of await client.events()) break;

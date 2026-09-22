@@ -55,9 +55,33 @@ export interface RunInfo {
   origin: Channel;
 }
 
+export interface RunSnapshot {
+  run: RunInfo;
+  turn: Extract<RuntimeEvent, { type: "turn" }>;
+  session: Session | null;
+  output: string;
+  artifacts: Artifact[];
+  navigation: Extract<RuntimeEvent, { type: "navigate" }> | null;
+}
+
+export interface LastRun {
+  id: string;
+  sessionId: string;
+  state: "running" | "complete" | "interrupted" | "failed";
+  output: string;
+}
+
+export interface RuntimeSnapshot {
+  transcript: { session: Session; messages: Message[] } | null;
+  activeRun: RunSnapshot | null;
+  lastRun: Pick<LastRun, "id" | "sessionId" | "state"> | null;
+}
+
+export type StreamEvent = RuntimeEvent | { type: "snapshot"; snapshot: RuntimeSnapshot };
+
 export interface RunEnvelope {
   runId: string;
-  event: RuntimeEvent;
+  event: StreamEvent;
 }
 
 export interface TurnRequest {

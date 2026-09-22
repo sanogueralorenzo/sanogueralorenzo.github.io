@@ -38,7 +38,41 @@ describe("Store", () => {
 
     const recovered = new Store(path);
     expect(recovered.getMessages(session.id).at(-1)?.content).toContain("partial answer\n\n[interrupted]");
+    expect(recovered.latestRun()).toMatchObject({ id: run, sessionId: session.id, state: "interrupted" });
     recovered.close();
+
+    const reopened = new Store(path);
+    expect(reopened.getMessages(session.id)).toHaveLength(1);
+    reopened.close();
+  });
+
+  it("retains only the latest run state for reconnect reconciliation", () => {
+    const store = createStore();
+    const session = store.resolveSession({ scopeKey: "assistant:local" });
+    store.startRun(session.id, "first");
+    store.finishRun("first", "complete");
+    expect(store.latestRun()).toMatchObject({ id: "first", state: "complete", output: "" });
+    store.startRun(session.id, "second");
+    expect(store.latestRun()).toMatchObject({ id: "second", state: "running" });
+    store.finishRun("second", "interrupted");
+    expect(store.latestRun()).toMatchObject({ id: "second", state: "interrupted", output: "" });
+    expect(store.db.prepare("SELECT COUNT(*) AS count FROM runs").get()).toMatchObject({ count: 1 });
+    store.close();
+  });
+
+  it("commits the final answer and terminal state together", () => {
+    const path = temporary("agent-store-");
+    const store = new Store(path);
+    const session = store.resolveSession({ scopeKey: "assistant:local" });
+    store.startRun(session.id, "r1");
+    store.checkpointRun("r1", "draft");
+    store.finishRun("r1", "complete", "final answer");
+    store.close();
+
+    const reopened = new Store(path);
+    expect(reopened.getMessages(session.id)).toEqual([{ role: "assistant", content: "final answer" }]);
+    expect(reopened.latestRun()).toMatchObject({ id: "r1", state: "complete", output: "" });
+    reopened.close();
   });
 
   it("rotates a backend thread and its compaction count atomically", () => {

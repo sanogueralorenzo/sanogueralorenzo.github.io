@@ -1,5 +1,5 @@
 import { Bot, InputFile, type Context } from "grammy";
-import { RuntimeClient } from "../client/client.js";
+import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
 import { loadConfig } from "../local/config.js";
 import { readSecret } from "../local/credentials.js";
@@ -16,8 +16,10 @@ async function runGateway(token: string): Promise<void> {
   let stopping: Promise<void> | null = null;
   const deliveryController = new AbortController();
   let deliveryTask: Promise<void> | null = null;
+  let deliveryStarted = false;
   let markDeliveryReady!: () => void;
-  const deliveryReady = new Promise<void>((resolve) => { markDeliveryReady = resolve; });
+  let failDeliveryReady!: (error: Error) => void;
+  const deliveryReady = new Promise<void>((resolve, reject) => { markDeliveryReady = resolve; failDeliveryReady = reject; });
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
   const turns = new TelegramTurns(client);
@@ -44,8 +46,19 @@ async function runGateway(token: string): Promise<void> {
     while (!deliveryController.signal.aborted) {
       try {
         const events = await client.events(deliveryController.signal);
-        markDeliveryReady();
         for await (const envelope of events) {
+          if (envelope.event.type === "snapshot") {
+            deliveryStarted = true;
+            markDeliveryReady();
+            stopTyping();
+            const result = turns.reconcile(envelope.event.snapshot);
+            const owner = ownerId();
+            stopTyping = owner && envelope.event.snapshot.activeRun
+              ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing"))
+              : () => undefined;
+            if (result) await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
+            continue;
+          }
           if (envelope.event.type === "turn") {
             const owner = ownerId();
             stopTyping = owner ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing")) : () => undefined;
@@ -57,12 +70,20 @@ async function runGateway(token: string): Promise<void> {
             await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
           }
         }
-      } catch {
+      } catch (error) {
         if (deliveryController.signal.aborted) return;
+        if (error instanceof RuntimeProtocolError) {
+          stopTyping();
+          deliveryController.abort();
+          supervisor.stop();
+          if (deliveryStarted) {
+            console.error(error.message);
+            void bot.stop().catch(() => undefined);
+          } else failDeliveryReady(error);
+          return;
+        }
         stopTyping();
         stopTyping = () => undefined;
-        const interrupted = turns.interrupt();
-        if (interrupted) await deliver(interrupted).catch(() => undefined);
         await client.waitUntilHealthy().catch(() => undefined);
       }
     }
@@ -101,9 +122,10 @@ async function runGateway(token: string): Promise<void> {
     if (!ctx.chat || !ctx.from || !ctx.message || ctx.chat.type !== "private") return;
     if (!isOwner(ctx)) return void await ctx.reply("This Agent bot is private.");
     try {
-      if (!await turns.submit(prepare)) {
+      const submission = await turns.submit(prepare);
+      if (!submission.accepted) {
         await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
-      }
+      } else if (submission.recovered) await deliver(submission.recovered);
     } catch (error) {
       await ctx.reply(telegramFailure(error));
     }

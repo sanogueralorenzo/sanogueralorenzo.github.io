@@ -19,7 +19,8 @@ describe("CLI shared runs", () => {
       if (request.url === "/v1/health") return response.end('{"ok":true}');
       if (request.url === "/v1/events") {
         feed = response;
-        response.writeHead(200, { "content-type": "text/event-stream" });
+        response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
+        response.write('data: {"runId":"","event":{"type":"snapshot","snapshot":{"transcript":null,"activeRun":null,"lastRun":null}}}\n\n');
         openFeed();
         return;
       }
@@ -75,5 +76,70 @@ describe("CLI shared runs", () => {
     expect(exitCode, stderr).toBe(0);
     expect(stdout).toContain("telegram › from phone");
     expect(receivedTurn).toMatchObject({ text: "hello", channel: "cli" });
+  });
+
+  it("finishes a submitted run from the reconnect snapshot even when its turn was missed", async () => {
+    const homeDir = temporary("agent-cli-reconnect-");
+    let feed: ServerResponse | undefined;
+    let connections = 0;
+    let reconnect!: () => void;
+    const reconnected = new Promise<void>((resolve) => { reconnect = resolve; });
+    const server = createServer(async (request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/health") return response.end('{"ok":true}');
+      if (request.url === "/v1/events") {
+        connections++;
+        feed = response;
+        response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
+        const snapshot = connections === 1
+          ? { transcript: null, activeRun: null, lastRun: null }
+          : {
+              transcript: {
+                session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+                messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Recovered answer" }],
+              },
+              activeRun: null,
+              lastRun: { id: "r1", sessionId: "s1", state: "complete" },
+            };
+        response.write(`data: ${JSON.stringify({ runId: "", event: { type: "snapshot", snapshot } })}\n\n`);
+        if (connections === 2) reconnect();
+        return;
+      }
+      if (request.url === "/v1/runs" && request.method === "POST") {
+        for await (const _chunk of request) { /* consume body */ }
+        feed?.destroy();
+        await reconnected;
+        response.statusCode = 202;
+        response.end('{"run":{"id":"r1","origin":"cli"}}');
+        return;
+      }
+      response.statusCode = 404;
+      response.end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    cleanup(() => new Promise<void>((resolve) => server.close(() => resolve())));
+    writePrivateJson(join(homeDir, "runtime.json"), {
+      protocolVersion: RUNTIME_PROTOCOL_VERSION,
+      port: (server.address() as AddressInfo).port,
+      token: "test-token",
+      pid: process.pid,
+    });
+    const child = spawn(process.execPath, ["--import", "tsx", "src/bin/agent.ts", "chat"], {
+      cwd: process.cwd(),
+      env: { ...process.env, AGENT_HOME: homeDir },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    cleanup(() => child.kill("SIGTERM"));
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+    await vi.waitFor(() => expect(stdout).toContain("› "), { timeout: 5_000 });
+    child.stdin.write("hello\n");
+    await vi.waitFor(() => expect(stdout).toContain("Recovered answer"), { timeout: 5_000 });
+    child.stdin.write("/quit\n");
+    const exitCode = await new Promise<number | null>((resolve) => child.once("exit", resolve));
+    expect(exitCode, stderr).toBe(0);
+    expect(connections).toBe(2);
   });
 });

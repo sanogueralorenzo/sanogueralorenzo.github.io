@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RunEnvelope, RuntimeEvent } from "../conversation/types.js";
+import type { RunEnvelope, RuntimeEvent, RuntimeSnapshot } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, TelegramTurns } from "./turn.js";
 
@@ -22,11 +22,11 @@ describe("Telegram turns", () => {
   it("uses centralized submit, busy, and stop semantics", async () => {
     const runtime = client();
     const turns = new TelegramTurns(runtime);
-    await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toBe(true);
+    await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toEqual({ accepted: true, recovered: null });
     expect(runtime.submit).toHaveBeenCalledWith({ text: "hello", channel: "telegram" });
     await expect(turns.stop()).resolves.toBe(true);
     expect(runtime.stop).toHaveBeenCalledOnce();
-    await expect(new TelegramTurns(client(null)).submit(async () => ({ text: "busy" }))).resolves.toBe(false);
+    await expect(new TelegramTurns(client(null)).submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: null });
   });
 
   it("starts the next accepted message as a new conversation", async () => {
@@ -34,10 +34,10 @@ describe("Telegram turns", () => {
     const turns = new TelegramTurns(runtime);
     turns.newConversation();
 
-    await expect(turns.submit(async () => ({ text: "busy" }))).resolves.toBe(false);
+    await expect(turns.submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: null });
     runtime.submit.mockResolvedValue({ id: "r2", origin: "telegram" });
-    await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toBe(true);
-    await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toBe(true);
+    await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toEqual({ accepted: true, recovered: null });
+    await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toEqual({ accepted: true, recovered: null });
 
     expect(runtime.submit).toHaveBeenNthCalledWith(1, { text: "busy", fresh: true, channel: "telegram" });
     expect(runtime.submit).toHaveBeenNthCalledWith(2, { text: "new topic", fresh: true, channel: "telegram" });
@@ -68,12 +68,59 @@ describe("Telegram turns", () => {
       .toMatchObject({ chunks: ["Resumed “Telegram reconnects”."] });
   });
 
-  it("preserves partial text when the runtime reconnects", () => {
+  it("continues an active run from its snapshot without duplicating text", () => {
     const turns = new TelegramTurns(client());
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
     turns.consume(envelope({ type: "text_delta", delta: "Partial answer" }));
-    expect(turns.interrupt()).toMatchObject({ chunks: [expect.stringContaining("Partial answer\n\nInterrupted")] });
-    expect(turns.interrupt()).toBeNull();
+    const snapshot: RuntimeSnapshot = {
+      transcript: null,
+      activeRun: {
+        run: { id: "r1", origin: "cli" },
+        turn: { type: "turn", text: "hello", channel: "cli", hasAttachments: false },
+        session: null,
+        output: "Partial answer plus",
+        artifacts: [],
+        navigation: null,
+      },
+      lastRun: null,
+    };
+    expect(turns.reconcile(snapshot)).toBeNull();
+    turns.consume(envelope({ type: "text_delta", delta: " more" }));
+    expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
+      .toMatchObject({ chunks: ["Partial answer plus more"] });
+  });
+
+  it("delivers a completed turn missed during reconnect only if it was pending", () => {
+    const turns = new TelegramTurns(client());
+    turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
+    const snapshot: RuntimeSnapshot = {
+      transcript: {
+        session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+        messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
+      },
+      activeRun: null,
+      lastRun: { id: "r1", sessionId: "s1", state: "complete" },
+    };
+    expect(turns.reconcile(snapshot)).toMatchObject({ chunks: ["Saved answer"] });
+    expect(turns.reconcile(snapshot)).toBeNull();
+  });
+
+  it("recovers a run that finished before its submit response arrived", async () => {
+    const turns = new TelegramTurns(client());
+    const snapshot: RuntimeSnapshot = {
+      transcript: {
+        session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+        messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
+      },
+      activeRun: null,
+      lastRun: { id: "r1", sessionId: "s1", state: "complete" },
+    };
+    expect(turns.reconcile(snapshot)).toBeNull();
+    await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toMatchObject({
+      accepted: true,
+      recovered: { chunks: ["Saved answer"] },
+    });
+    expect(turns.reconcile(snapshot)).toBeNull();
   });
 
   it("passes runtime errors and preparation failures through concise messages", () => {

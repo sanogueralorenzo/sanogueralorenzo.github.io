@@ -13,10 +13,13 @@ class RecordingBackend implements AgentBackend {
   readonly discarded: string[] = [];
   navigateTo: string | null = null;
   failNext = false;
+  failTranscription = false;
+  transcription = "Fix the TypeScript test";
 
   async transcribeAudio(attachment: Attachment): Promise<string> {
     this.transcriptions.push(attachment.path);
-    return "Fix the TypeScript test";
+    if (this.failTranscription) throw new Error("Could not transcribe the voice note.");
+    return this.transcription;
   }
 
   async discardSession(sessionId: string): Promise<void> {
@@ -57,6 +60,16 @@ describe("AgentRuntime", () => {
     expect(session && store.getMessages(session.id).map((message) => message.role)).toEqual(["user", "assistant"]);
     expect(store.searchMemories("personal", "short answers")).toEqual(["Mario likes short answers"]);
     expect(backend.turns[0]?.instructions).toContain("Mario likes short answers");
+  });
+
+  it("uses the public run ID for the persisted last-turn snapshot", async () => {
+    const { store, runtime } = testRuntime();
+    const events: RuntimeEvent[] = [];
+    for await (const event of runtime.run({ text: "hello", channel: "cli" }, { runId: "public-run" })) events.push(event);
+    const session = events.find((event) => event.type === "session")?.session;
+    expect(store.latestRun()).toMatchObject({
+      id: "public-run", sessionId: session?.id, state: "complete", output: "",
+    });
   });
 
   it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
@@ -144,6 +157,30 @@ describe("AgentRuntime", () => {
     expect(session?.cwd).toBeNull();
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
     expect(backend.transcriptions).toEqual([audioPath]);
+  });
+
+  it("persists an early voice failure under the public run ID", async () => {
+    const { homeDir, store, backend, runtime } = testRuntime();
+    backend.failTranscription = true;
+    const attachment = { id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") };
+    const events: RuntimeEvent[] = [];
+    for await (const event of runtime.run({ text: "", channel: "telegram", attachments: [attachment] }, { runId: "failed-voice" })) events.push(event);
+    expect(events.at(-1)).toEqual({ type: "error", message: "Could not transcribe the voice note." });
+    expect(store.latestRun()).toMatchObject({ id: "failed-voice", state: "failed" });
+    const sessionId = store.latestRun()?.sessionId;
+    expect(sessionId && store.getMessages(sessionId).map((message) => message.content))
+      .toEqual(["Voice message", "Could not transcribe the voice note."]);
+  });
+
+  it("keeps an empty voice transcription attached to its user turn", async () => {
+    const { homeDir, store, backend, runtime } = testRuntime();
+    backend.transcription = "";
+    const attachment = { id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") };
+    const events = await collect(runtime, { text: "", channel: "telegram", attachments: [attachment] });
+    expect(events.at(-1)).toEqual({ type: "error", message: "The message is empty." });
+    const sessionId = store.latestRun()?.sessionId;
+    expect(sessionId && store.getMessages(sessionId).map((message) => message.content))
+      .toEqual(["Voice message", "The message is empty."]);
   });
 
   it("carries a CLI-established workspace across clients without classifying the request", async () => {

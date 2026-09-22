@@ -39,6 +39,9 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var activeRunId: String?
     @ObservationIgnored private var assistantId: UUID?
     @ObservationIgnored private var fresh = false
+    @ObservationIgnored private var submitting = false
+    @ObservationIgnored private var completedRunId: String?
+    @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
 
     func start() async {
         observer?.cancel()
@@ -83,17 +86,26 @@ struct ChatMessage: Identifiable {
 
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client, isConnected, !isRunning else { return }
+        guard !text.isEmpty, let client, isConnected, !isRunning, !submitting else { return }
         input = ""
         if text == "/new" {
             newConversation()
             return
         }
+        submitting = true
+        completedRunId = nil
+        defer { submitting = false }
         do {
             guard let run = try await client.submit(text: text, sessionId: sessionId, fresh: fresh) else {
                 activity = "Agent is already working"
                 return
             }
+            if completedRunId == run.id {
+                completedRunId = nil
+                return
+            }
+            if latestSnapshot?.lastRun?.id == run.id && latestSnapshot?.activeRun == nil { return }
+            completedRunId = nil
             activeRunId = run.id
             isRunning = true
             activity = "Thinking"
@@ -114,11 +126,7 @@ struct ChatMessage: Identifiable {
     }
 
     private func connectConversation(_ client: RuntimeClient) async throws {
-        async let latest = client.resumeLatest()
-        async let feed = client.events()
-        let (transcript, events) = try await (latest, feed)
-        loadTranscript(transcript, scrollToEnd: true)
-        observe(events)
+        observe(try await client.events())
         isConnected = true
         connectionError = nil
         activity = ""
@@ -136,15 +144,11 @@ struct ChatMessage: Identifiable {
                 } catch {
                     if Task.isCancelled { return }
                     isConnected = false
-                    activity = activeRunId == nil ? "Reconnecting" : "Response interrupted; reconnecting"
+                    activity = "Reconnecting"
                     do {
                         let reconnected = try await launcher.ensureRunning()
-                        async let latest = reconnected.resumeLatest()
-                        async let feed = reconnected.events()
-                        let (transcript, nextEvents) = try await (latest, feed)
                         self.client = reconnected
-                        loadTranscript(transcript)
-                        events = nextEvents
+                        events = try await reconnected.events()
                         isConnected = true
                         connectionError = nil
                         activity = ""
@@ -162,6 +166,8 @@ struct ChatMessage: Identifiable {
     private func apply(_ envelope: RunEnvelope) {
         let event = envelope.event
         switch event.type {
+        case "snapshot":
+            if let snapshot = event.snapshot { loadSnapshot(snapshot, scrollToEnd: messages.isEmpty) }
         case "turn":
             activeRunId = envelope.runId
             isRunning = true
@@ -215,11 +221,43 @@ struct ChatMessage: Identifiable {
 
     private func finish(_ runId: String) {
         guard activeRunId == runId else { return }
+        if submitting { completedRunId = runId }
         activeRunId = nil
         assistantId = nil
         isRunning = false
         activity = ""
         scrollRequest += 1
+    }
+
+    private func loadSnapshot(_ snapshot: RuntimeSnapshot, scrollToEnd: Bool = false) {
+        latestSnapshot = snapshot
+        let previousRunId = activeRunId
+        loadTranscript(snapshot.transcript, scrollToEnd: scrollToEnd)
+        if let active = snapshot.activeRun {
+            if let navigation = active.navigation {
+                sessionId = navigation.session.id
+                activeRunId = active.run.id
+                isRunning = true
+                activity = "Opening conversation"
+                return
+            }
+            let text = active.turn.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayed = !text.isEmpty ? text : active.turn.hasAttachments ? "Voice message" : "Message"
+            let storedTurn = active.session != nil && snapshot.transcript?.session.id == active.session?.id &&
+                snapshot.transcript?.messages.last(where: { $0.role == "user" || $0.role == "assistant" })?.role == "user"
+            if !storedTurn && (messages.last?.role != .user || messages.last?.text != displayed) {
+                messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
+            }
+            let id = UUID()
+            messages.append(ChatMessage(id: id, role: .assistant, text: active.output, artifacts: active.artifacts))
+            assistantId = id
+            activeRunId = active.run.id
+            isRunning = true
+            activity = "Thinking"
+            if let session = active.session { sessionId = session.id }
+        } else if let previousRunId, snapshot.lastRun?.id == previousRunId, submitting {
+            completedRunId = previousRunId
+        }
     }
 
     private func loadTranscript(_ transcript: Transcript?, scrollToEnd: Bool = false) {
@@ -236,6 +274,9 @@ struct ChatMessage: Identifiable {
                 }
             }
             if scrollToEnd { scrollRequest += 1 }
+        } else {
+            sessionId = nil
+            messages = []
         }
         activeRunId = nil
         assistantId = nil

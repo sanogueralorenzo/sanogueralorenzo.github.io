@@ -7,10 +7,15 @@ function decodeEvent(data: string): RunEnvelope {
   try {
     const event = JSON.parse(data) as RunEnvelope;
     if (!event || typeof event.runId !== "string" || typeof event.event?.type !== "string") throw new Error();
+    if (event.event.type === "snapshot" && (!event.event.snapshot || typeof event.event.snapshot !== "object")) throw new Error();
     return event;
   } catch {
     throw new Error("Agent runtime sent a malformed event.");
   }
+}
+
+export class RuntimeProtocolError extends Error {
+  constructor() { super("Agent runtime needs to restart for the current stream protocol."); }
 }
 
 export class RuntimeClient {
@@ -65,6 +70,7 @@ export class RuntimeClient {
     try {
       response = await this.fetch("/v1/events", { signal: controller.signal });
       if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+      if (response.headers.get("x-agent-stream") !== "snapshot") throw new RuntimeProtocolError();
     } catch (error) {
       controller.abort();
       signal?.removeEventListener("abort", abort);
@@ -75,6 +81,7 @@ export class RuntimeClient {
       const reader = body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let first = true;
       try {
         while (true) {
           const next = await reader.read();
@@ -85,7 +92,12 @@ export class RuntimeClient {
             const block = buffer.slice(0, boundary);
             buffer = buffer.slice(boundary + separator.length);
             const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
-            if (data) yield decodeEvent(data);
+            if (data) {
+              const event = decodeEvent(data);
+              if (first && event.event.type !== "snapshot") throw new RuntimeProtocolError();
+              first = false;
+              yield event;
+            }
             boundary = buffer.search(/\r?\n\r?\n/);
           }
           if (next.done) break;

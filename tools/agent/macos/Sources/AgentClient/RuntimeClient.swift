@@ -35,6 +35,7 @@ public final class EventStream: AsyncSequence, Sendable {
     public struct Iterator: AsyncIteratorProtocol {
         private let stream: EventStream
         private var lines: AsyncLineSequence<URLSession.AsyncBytes>.AsyncIterator
+        private var first = true
 
         init(stream: EventStream) {
             self.stream = stream
@@ -46,7 +47,15 @@ public final class EventStream: AsyncSequence, Sendable {
                 while let line = try await lines.next() {
                     guard line.hasPrefix("data: ") else { continue }
                     guard let data = line.dropFirst(6).data(using: .utf8) else { continue }
-                    return try JSONDecoder().decode(RunEnvelope.self, from: data)
+                    let envelope = try JSONDecoder().decode(RunEnvelope.self, from: data)
+                    if envelope.event.type == "snapshot" && envelope.event.snapshot == nil {
+                        throw RuntimeClientError.invalidEvent
+                    }
+                    if first && envelope.event.type != "snapshot" {
+                        throw RuntimeClientError.incompatible
+                    }
+                    first = false
+                    return envelope
                 }
                 if Task.isCancelled { return nil }
                 throw RuntimeClientError.disconnected
@@ -113,12 +122,6 @@ public actor RuntimeClient {
         return try await value(path: "/v1/setup/codex/login/\(id)/wait", method: "POST")
     }
 
-    public func resumeLatest() async throws -> Transcript? {
-        let sessions: SessionList = try await value(path: "/v1/sessions")
-        guard let session = sessions.sessions.first else { return nil }
-        return try await transcript(sessionId: session.id)
-    }
-
     public func transcript(sessionId: String) async throws -> Transcript {
         let id = sessionId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sessionId
         return try await value(path: "/v1/sessions/\(id)/messages")
@@ -140,6 +143,9 @@ public actor RuntimeClient {
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
+        }
+        guard http.value(forHTTPHeaderField: "X-Agent-Stream") == "snapshot" else {
+            throw RuntimeClientError.incompatible
         }
         return EventStream(bytes: bytes)
     }

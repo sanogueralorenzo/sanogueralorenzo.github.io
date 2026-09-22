@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Attachment, Message, Session, SessionCard } from "./types.js";
+import type { Attachment, LastRun, Message, Session, SessionCard } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -94,12 +94,19 @@ export class Store {
   }
 
   private recoverInterruptedRuns(): void {
-    this.db.prepare(`
-      INSERT INTO messages (session_id, role, content, created_at)
-      SELECT session_id, 'assistant', output || char(10) || char(10) || '[interrupted]', ?
-      FROM runs WHERE state = 'running' AND output <> ''
-    `).run(now());
-    this.db.prepare("DELETE FROM runs WHERE state = 'running'").run();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare(`
+        INSERT INTO messages (session_id, role, content, created_at)
+        SELECT session_id, 'assistant', output || char(10) || char(10) || '[interrupted]', ?
+        FROM runs WHERE state = 'running' AND output <> ''
+      `).run(now());
+      this.db.prepare("UPDATE runs SET state = 'interrupted', output = '' WHERE state = 'running'").run();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   resolveSession(input: {
@@ -140,6 +147,11 @@ export class Store {
 
   getSession(id: string): Session | null {
     return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE id = ?`).get(id) as unknown as Session ?? null;
+  }
+
+  renameSession(id: string, title: string): Session {
+    this.db.prepare("UPDATE sessions SET title = ? WHERE id = ?").run(title, id);
+    return this.getSession(id)!;
   }
 
   listSessions(limit = 20): Session[] {
@@ -223,10 +235,17 @@ export class Store {
       .slice(0, limit).map(({ content }) => content);
   }
 
-  startRun(sessionId: string): string {
-    const id = randomUUID();
-    this.db.prepare("INSERT INTO runs (id, session_id, state, started_at) VALUES (?, ?, 'running', ?)")
-      .run(id, sessionId, now());
+  startRun(sessionId: string, id: string = randomUUID()): string {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare("DELETE FROM runs WHERE state != 'running'").run();
+      this.db.prepare("INSERT INTO runs (id, session_id, state, started_at) VALUES (?, ?, 'running', ?)")
+        .run(id, sessionId, now());
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
     return id;
   }
 
@@ -234,8 +253,24 @@ export class Store {
     this.db.prepare("UPDATE runs SET output = ? WHERE id = ?").run(output, id);
   }
 
-  finishRun(id: string): void {
-    this.db.prepare("DELETE FROM runs WHERE id = ?").run(id);
+  finishRun(id: string, state: LastRun["state"] = "complete", message?: string): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const run = this.db.prepare("SELECT session_id AS sessionId FROM runs WHERE id = ?")
+        .get(id) as { sessionId: string } | undefined;
+      if (run && message) this.addMessage(run.sessionId, "assistant", message);
+      this.db.prepare("UPDATE runs SET state = ?, output = '' WHERE id = ?").run(state, id);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  latestRun(): LastRun | null {
+    return this.db.prepare(`
+      SELECT id, session_id AS "sessionId", state, output FROM runs ORDER BY started_at DESC LIMIT 1
+    `).get() as unknown as LastRun ?? null;
   }
 
   getSetting(key: string): string | null {

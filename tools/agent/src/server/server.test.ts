@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AgentRuntime } from "../conversation/runtime.js";
+import { AgentRuntime } from "../conversation/runtime.js";
+import type { AgentBackend } from "../conversation/backend.js";
 import { Store } from "../conversation/store.js";
 import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
@@ -26,11 +27,11 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
 
 const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runtime.json"), "utf8")).token as string;
 
-async function serve(runtime: AgentRuntime, setup = setupStub()) {
+async function serve(runtime: AgentRuntime | ((store: Store) => AgentRuntime), setup = setupStub()) {
   const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
   const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
-  const server = new RuntimeServer(config, runtime, store, setup);
+  const server = new RuntimeServer(config, typeof runtime === "function" ? runtime(store) : runtime, store, setup);
   const port = await server.listen();
   const token = tokenAt(homeDir);
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -93,8 +94,8 @@ describe("RuntimeServer", () => {
     const [firstStream, secondStream] = await Promise.all([firstEvents, secondEvents]);
     expect(run).not.toBeNull();
     expect(firstStream).toEqual(secondStream);
-    expect(firstStream.map(({ event }) => event.type)).toEqual(["turn", "status", "text_delta", "done"]);
-    expect(firstStream.every((event) => event.runId === run?.id)).toBe(true);
+    expect(firstStream.map(({ event }) => event.type)).toEqual(["snapshot", "turn", "status", "text_delta", "done"]);
+    expect(firstStream.slice(1).every((event) => event.runId === run?.id)).toBe(true);
     expect(receivedTurn).toMatchObject({
       text: "hello",
       attachmentIds: [attachment.id],
@@ -121,6 +122,52 @@ describe("RuntimeServer", () => {
     expect(await client.submit({ text: "second", channel: "telegram" })).toBeNull();
     expect(await client.stop()).toBe(true);
     await expect(interruption).resolves.toBeUndefined();
+  });
+
+  it("hydrates a late connection with the current output before live updates", async () => {
+    let release!: () => void;
+    let reached!: () => void;
+    const paused = new Promise<void>((resolve) => { release = resolve; });
+    const reachedPause = new Promise<void>((resolve) => { reached = resolve; });
+    const runtime = {
+      async *run(): AsyncGenerator<RuntimeEvent> {
+        yield { type: "text_delta", delta: "first" };
+        reached();
+        await paused;
+        yield { type: "text_delta", delta: " second" };
+        yield { type: "done", sessionId: "s1" };
+      },
+    } as unknown as AgentRuntime;
+    const { client } = await serve(runtime);
+    const run = await client.submit({ text: "hello", channel: "cli" });
+    await reachedPause;
+    const feed = (await client.events())[Symbol.asyncIterator]();
+    expect((await feed.next()).value).toMatchObject({ event: { type: "snapshot", snapshot: {
+      activeRun: { run: { id: run?.id }, output: "first" },
+    } } });
+    release();
+    expect((await feed.next()).value).toMatchObject({ runId: run?.id, event: { type: "text_delta", delta: " second" } });
+    expect((await feed.next()).value?.event.type).toBe("done");
+    await feed.return?.();
+  });
+
+  it("recovers a missed completion from the saved transcript and matching run ID", async () => {
+    const { client } = await serve((store) => new AgentRuntime(store, {
+      async *run() { yield { type: "text_delta", delta: "saved answer" }; yield { type: "done" }; },
+      async transcribeAudio() { return ""; },
+      async discardSession() {},
+    } as AgentBackend));
+    const observed = collectRun(await client.events());
+    const run = await client.submit({ text: "hello", channel: "cli" });
+    await observed;
+    const late = (await client.events())[Symbol.asyncIterator]();
+    const snapshot = (await late.next()).value;
+    expect(snapshot).toMatchObject({ event: { type: "snapshot", snapshot: {
+      transcript: { messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "saved answer" }] },
+      activeRun: null,
+      lastRun: { id: run?.id, state: "complete" },
+    } } });
+    await late.return?.();
   });
 
   it("closes an oversized event stream without stopping the runtime", async () => {

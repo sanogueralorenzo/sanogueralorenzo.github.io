@@ -8,6 +8,7 @@ public struct RuntimeDiscovery: Decodable, Sendable {
 
 public struct RuntimeEvent: Decodable, Sendable {
     public let type: String
+    public let snapshot: RuntimeSnapshot?
     public let text: String?
     public let channel: String?
     public let hasAttachments: Bool?
@@ -32,6 +33,38 @@ public struct RunEnvelope: Decodable, Sendable {
     public let event: RuntimeEvent
 }
 
+public struct RuntimeSnapshot: Decodable, Sendable {
+    public let transcript: Transcript?
+    public let activeRun: ActiveRunSnapshot?
+    public let lastRun: LastRunSnapshot?
+}
+
+public struct ActiveRunSnapshot: Decodable, Sendable {
+    public let run: RunInfo
+    public let turn: TurnSnapshot
+    public let session: RuntimeSession?
+    public let output: String
+    public let artifacts: [RuntimeArtifact]
+    public let navigation: NavigationSnapshot?
+}
+
+public struct NavigationSnapshot: Decodable, Sendable {
+    public let session: RuntimeSession
+    public let url: String
+}
+
+public struct TurnSnapshot: Decodable, Sendable {
+    public let text: String
+    public let channel: String
+    public let hasAttachments: Bool
+}
+
+public struct LastRunSnapshot: Decodable, Sendable {
+    public let id: String
+    public let sessionId: String
+    public let state: String
+}
+
 public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
     public let id: String
     public let kind: String
@@ -53,10 +86,6 @@ public struct SetupStatus: Decodable, Sendable {
 public struct CodexSetupStatus: Decodable, Sendable {
     public let installed: Bool
     public let connected: Bool
-}
-
-public struct SessionList: Decodable, Sendable {
-    public let sessions: [RuntimeSession]
 }
 
 public struct Transcript: Decodable, Sendable {
