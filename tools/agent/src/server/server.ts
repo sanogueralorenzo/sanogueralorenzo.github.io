@@ -6,10 +6,11 @@ import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
 import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
-import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus } from "../conversation/types.js";
 import type { AgentSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
+import { readBody, readJson, readTurn } from "./request.js";
 
 export type RuntimeSetup = Pick<AgentSetupService,
   "status" | "connectApiKey" | "startCodexLogin" | "waitForCodexLogin">;
@@ -17,23 +18,6 @@ export type RuntimeSetup = Pick<AgentSetupService,
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   response.end(JSON.stringify(body));
-}
-
-async function readBody(request: IncomingMessage, limit: number): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.from(chunk);
-    size += buffer.length;
-    if (size > limit) throw new Error("Request body is too large.");
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks);
-}
-
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
-  const body = await readBody(request, 1_000_000);
-  return body.length ? JSON.parse(body.toString("utf8")) as Record<string, unknown> : {};
 }
 
 function waitForDrain(response: ServerResponse): Promise<void> {
@@ -114,7 +98,7 @@ export class RuntimeServer {
           if (sessionId && !current && !redirected) return json(response, 404, { error: "session_not_found" });
           return await this.events(response, sessionId, redirected, runId, handoff?.continues ?? false);
         }
-        case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
+        case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await readTurn(request, this.store)) });
         case "POST /v1/runs/stop": {
           const { runId } = await readJson(request);
           if (typeof runId !== "string" || !runId) throw new Error("runId is required");
@@ -177,34 +161,6 @@ export class RuntimeServer {
       if (!response.headersSent) json(response, status, detail);
       else response.end();
     }
-  }
-
-  private async turn(request: IncomingMessage): Promise<TurnRequest> {
-    const body = await readJson(request);
-    const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (body.attachmentIds !== undefined && (
-      !Array.isArray(body.attachmentIds)
-      || body.attachmentIds.length > 8
-      || !body.attachmentIds.every((id) => typeof id === "string" && id.length > 0)
-    )) throw new Error("attachmentIds must contain at most 8 IDs");
-    const attachmentIds = (body.attachmentIds ?? []) as string[];
-    if (!text && attachmentIds.length === 0) throw new Error("text or an attachment is required");
-    const attachments = attachmentIds.map((id) => this.store.getAttachment(id));
-    if (attachments.some((attachment) => !attachment)) throw new Error("attachment not found");
-    const channel = body.channel as Channel;
-    if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
-    if (typeof body.sessionId !== "string" || !body.sessionId) throw new Error("sessionId is required");
-    if (body.requestId !== undefined && (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId))) {
-      throw new Error("requestId must be a UUID");
-    }
-    return {
-      text,
-      ...(typeof body.requestId === "string" ? { requestId: body.requestId } : {}),
-      ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
-      ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
-      sessionId: body.sessionId,
-      channel,
-    };
   }
 
   private async events(
