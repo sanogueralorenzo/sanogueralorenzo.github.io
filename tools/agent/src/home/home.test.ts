@@ -16,7 +16,7 @@ function worker(run: AgentBackend["run"], steer: AgentBackend["steer"] = async (
 }
 
 describe("Agent Home", () => {
-  it("turns one submission into clickable task entries and final concise outcomes", async () => {
+  it("turns one submission into one clickable task entry and final concise outcome", async () => {
     const store = new Store(temporary("agent-home-"));
     cleanup(() => store.close());
     let release!: () => void;
@@ -27,10 +27,7 @@ describe("Agent Home", () => {
       yield { type: "done" };
     });
     const home: HomeBackend = {
-      async compose() { return [
-        { type: "start", title: "First task", text: "Do the first task carefully." },
-        { type: "start", title: "Second task", text: "Do the second task carefully." },
-      ]; },
+      async compose() { return { type: "start", title: "Combined task", text: "Do both tasks carefully." }; },
       async summarize() { return { state: "ready", summary: "Work complete." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -40,14 +37,12 @@ describe("Agent Home", () => {
     const requestId = "00000000-0000-4000-8000-000000000001";
     runs.start({ text: "Do both", requestId, sessionId: store.homeSession().id, channel: "macos" });
     const first = (await pending).value!;
-    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(2));
+    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(1));
     expect(store.homeEntries()).toMatchObject([
-      { id: requestId, title: "First task", body: "Do the first task carefully.", state: "working" },
-      { title: "Second task", body: "Do the second task carefully.", state: "working" },
+      { id: requestId, title: "Combined task", body: "Do both", state: "working" },
     ]);
     release();
-    await vi.waitFor(() => expect(store.homeEntries().every((entry) => entry.state === "ready")).toBe(true));
-    expect(store.homeEntries().every((entry) => entry.summary === "Work complete.")).toBe(true);
+    await vi.waitFor(() => expect(store.homeEntries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
     expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "Do both", state: "routing" } });
     controller.abort();
     await stream.return?.();
@@ -66,7 +61,7 @@ describe("Agent Home", () => {
       async compose(request) {
         if (request.text === "First") await firstRoute;
         else secondComposed();
-        return [{ type: "start", title: request.text, text: `Clear ${request.text}` }];
+        return { type: "start", title: request.text, text: `Clear ${request.text}` };
       },
       async summarize() { return { state: "ready", summary: "Finished." }; },
     };
@@ -89,7 +84,7 @@ describe("Agent Home", () => {
     const backend = worker(async function* () { await work; yield { type: "done" }; });
     const session = store.createSession({ title: "Existing work" });
     const home: HomeBackend = {
-      async compose(request) { return [{ type: "continue", sessionId: session.id, title: "Follow up", text: request.text }]; },
+      async compose(request) { return { type: "continue", sessionId: session.id, title: "Follow up", text: request.text }; },
       async summarize() { return { state: "ready", summary: "Done." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -119,7 +114,7 @@ describe("Agent Home", () => {
     );
     const session = store.createSession({ title: "Active task" });
     const home: HomeBackend = {
-      async compose(request) { return [{ type: "steer", sessionId: session.id, title: "Refocus task", text: request.text }]; },
+      async compose(request) { return { type: "steer", sessionId: session.id, title: "Refocus task", text: request.text }; },
       async summarize() { return { state: "ready", summary: "Updated work finished." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -146,7 +141,7 @@ describe("Agent Home", () => {
     cleanup(() => store.close());
     const backend = worker(async function* () { yield { type: "text_delta", delta: "Recovered." }; yield { type: "done" }; });
     const home: HomeBackend = {
-      async compose() { return []; },
+      async compose() { throw new Error("Unexpected Home route"); },
       async summarize() { return { state: "ready", summary: "Recovered." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -168,9 +163,9 @@ describe("Agent Home", () => {
       } });
       const backend = new CodexHomeBackend(config, store, client);
       if (scenario === "home-compose") {
-        expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual([
+        expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual(
           { type: "start", text: "Fix the tests", title: "Fix tests" },
-        ]);
+        );
       } else {
         expect(await backend.summarize({ title: "Fix tests", request: "Fix the tests", output: "Done.", state: "complete" }))
           .toMatchObject({ state: "ready" });
@@ -184,6 +179,26 @@ describe("Agent Home", () => {
     ]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["none", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
+  });
+
+  it("accepts only one routing action when Luna repeats a tool call", async () => {
+    const homeDir = temporary("agent-home-duplicate-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const log = join(homeDir, "rpc.log");
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-compose-duplicate", AGENT_FAKE_LOG: log,
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual(
+      { type: "start", text: "Fix the tests", title: "Fix tests" },
+    );
+    client.stop();
+    const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {
+      id?: string; result?: { success?: boolean };
+    });
+    expect(calls.find((call) => call.id === "home-tool-duplicate")?.result?.success).toBe(false);
   });
 
   it("does not invent a destination when Home returns no tool call", async () => {
@@ -215,8 +230,8 @@ describe("Agent Home", () => {
     } });
     const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Resume the reconnect investigation and add these logs" }, [], []))
-      .toEqual([{ type: "continue", sessionId: saved.id, title: "Continue reconnect investigation",
-        text: "Continue the reconnect investigation with the additional logs." }]);
+      .toEqual({ type: "continue", sessionId: saved.id, title: "Continue reconnect investigation",
+        text: "Continue the reconnect investigation with the additional logs." });
     expect(store.getMessages(saved.id)).toHaveLength(2);
 
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {

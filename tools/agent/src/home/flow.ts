@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { failureMessage } from "../conversation/errors.js";
 import type { Store } from "../conversation/store.js";
 import { HOME_SESSION_ID, type HomeEntry, type RuntimeEvent, type Session, type SessionCard, type TurnRequest } from "../conversation/types.js";
@@ -19,25 +18,21 @@ export class HomeFlow {
     },
   ): AsyncGenerator<RuntimeEvent> {
     try {
-      const actions = await this.backend.compose(request, conversations, this.store.homeEntries(), options.signal);
+      const action = await this.backend.compose(request, conversations, this.store.homeEntries(), options.signal);
       await options.beforeDispatch;
       if (options.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
-      for (const [index, action] of actions.entries()) {
-        const entryId = index === 0 ? runId : randomUUID();
-        if (index > 0) this.store.createHomeEntry(entryId, redactSecrets(action.text ?? request.text));
-        const target = action.type === "start"
-          ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
-          : this.store.getSession(action.sessionId)!;
-        const task = action.text?.trim();
-        const dispatched = this.store.dispatchHomeEntry(entryId, target.id, action.title, redactSecrets(task || request.text), Boolean(task));
-        if (dispatched.superseded) yield { type: "home_entry", entry: dispatched.superseded };
-        yield { type: "home_entry", entry: dispatched.entry };
-        if (!task) {
-          yield { type: "home_entry", entry: await this.openedEntry(target) };
-        } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(task), request.channel)) {
-          this.store.enqueueTask(target.id, redactSecrets(task), request.channel ?? "api");
-          yield { type: "task_queued", sessionId: target.id };
-        }
+      const target = action.type === "start"
+        ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
+        : this.store.getSession(action.sessionId)!;
+      const task = action.text?.trim();
+      const dispatched = this.store.dispatchHomeEntry(runId, target.id, action.title, redactSecrets(request.text), Boolean(task));
+      for (const entry of dispatched.superseded) yield { type: "home_entry", entry };
+      yield { type: "home_entry", entry: dispatched.entry };
+      if (!task) {
+        yield { type: "home_entry", entry: await this.openedEntry(target) };
+      } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(task), request.channel)) {
+        this.store.enqueueTask(target.id, redactSecrets(task), request.channel ?? "api");
+        yield { type: "task_queued", sessionId: target.id };
       }
       this.store.finishRun(runId, "complete");
       yield { type: "done", sessionId: HOME_SESSION_ID };

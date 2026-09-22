@@ -184,16 +184,15 @@ export class Store {
 
   dispatchHomeEntry(id: string, sessionId: string, title: string, body: string, working: boolean): {
     entry: HomeEntry;
-    superseded: HomeEntry | null;
+    superseded: HomeEntry[];
   } {
     const timestamp = this.nextHomeUpdate(id);
-    const previous = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? AND id != ? AND state IS NOT NULL ORDER BY rowid DESC LIMIT 1")
-      .get(sessionId, id) as { id: string } | undefined;
-    const previousTimestamp = previous ? this.nextHomeUpdate(previous.id) : null;
+    const previous = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? AND id != ? AND state IS NOT NULL ORDER BY rowid DESC")
+      .all(sessionId, id) as { id: string }[];
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      if (previous) this.db.prepare("UPDATE home_entries SET state = NULL, updated_at = ? WHERE id = ?")
-        .run(previousTimestamp, previous.id);
+      for (const entry of previous) this.db.prepare("UPDATE home_entries SET state = NULL, updated_at = ? WHERE id = ?")
+        .run(this.nextHomeUpdate(entry.id), entry.id);
       this.db.prepare(`
         UPDATE home_entries SET session_id = ?, title = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
       `).run(sessionId, title, body, working ? "working" : "ready", timestamp, id);
@@ -202,7 +201,7 @@ export class Store {
       this.db.exec("ROLLBACK");
       throw error;
     }
-    return { entry: this.homeEntry(id)!, superseded: previous ? this.homeEntry(previous.id) : null };
+    return { entry: this.homeEntry(id)!, superseded: previous.map((entry) => this.homeEntry(entry.id)!) };
   }
 
   updateHomeEntry(sessionId: string, state: Exclude<HomeEntry["state"], "routing" | null>, summary: string | null): HomeEntry | null {

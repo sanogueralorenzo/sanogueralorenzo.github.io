@@ -70,7 +70,7 @@ const REPORT_TASK = {
     type: "object",
     properties: {
       state: { type: "string", enum: ["ready", "needs_input", "failed"] },
-      summary: { type: "string", description: "One line, at most 12 words, stating the outcome or needed action." },
+      summary: { type: "string", description: "One line, at most 12 words, giving the answer, outcome, or needed action." },
     },
     required: ["state", "summary"],
     additionalProperties: false,
@@ -88,8 +88,8 @@ export class CodexHomeBackend implements HomeBackend {
     private readonly client: CodexAppServer,
   ) {}
 
-  async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction[]> {
-    const actions: HomeAction[] = [];
+  async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction> {
+    let action: HomeAction | null = null;
     const states = new Map(this.store.homeEntries().filter((entry) => entry.sessionId && entry.state)
       .map((entry) => [entry.sessionId!, entry.state]));
     const conversationState = (sessionId: string) => {
@@ -107,10 +107,11 @@ export class CodexHomeBackend implements HomeBackend {
         .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
     ].filter(Boolean).join("\n");
     await this.retry(() => {
-      actions.length = 0;
+      action = null;
       return this.toolTurn(
-        "You route requests; never do the work or answer it. Rewrite each work request into a clear, self-contained instruction and give new tasks a short specific title. Use start_task for new conversations. Use continue_task for a follow-up that should run as the next turn. Use steer_task only when the user explicitly asks to change, correct, or add to work that is currently running. Use find_conversations when the target is not listed, then read_conversation only when its preview is insufficient. Omit text only when the user wants to open a conversation without adding work. Preserve relevant context. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
+        "You route requests; never do the work or answer it. Make exactly one routing tool call for the whole user message, even when it contains several requests; the task agent can coordinate them. Rewrite the work into one clear, self-contained instruction and give new tasks a short specific title. Use start_task for new conversations. Use continue_task for a follow-up that should run as the next turn. Use steer_task only when the user explicitly asks to change, correct, or add to work that is currently running. Use find_conversations when the target is not listed, then read_conversation only when its preview is insufficient. Omit text only when the user wants to open a conversation without adding work. Preserve relevant context. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
         prompt, [START_TASK, CONTINUE_TASK, STEER_TASK, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
+          if (action) return response(false, "This Home message is already routed.");
           if (name === FIND_CONVERSATIONS.name) {
             const query = String(args.query ?? "").trim();
             const found = query ? this.store.findConversations(query)
@@ -140,7 +141,7 @@ export class CodexHomeBackend implements HomeBackend {
             if (!title) return response(false, "A new conversation needs a title.");
             const cwd = args.cwd === undefined ? undefined : openFolder(args.cwd, this.config.homeDir).cwd;
             if (args.cwd !== undefined && !cwd) return response(false, "Choose a specific accessible project folder.");
-            actions.push({ type: "start", title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) });
+            action = { type: "start", title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) };
             return response(true, "Conversation opened.");
           }
           if (name === CONTINUE_TASK.name) {
@@ -150,7 +151,7 @@ export class CodexHomeBackend implements HomeBackend {
             if (!title || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
               return response(false, "Choose an existing conversation.");
             }
-            actions.push({ type: "continue", sessionId, title, ...(text ? { text } : {}) });
+            action = { type: "continue", sessionId, title, ...(text ? { text } : {}) };
             return response(true, "Conversation opened.");
           }
           if (name === STEER_TASK.name) {
@@ -160,14 +161,14 @@ export class CodexHomeBackend implements HomeBackend {
             if (!title || !text || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
               return response(false, "Choose an active conversation and provide an instruction.");
             }
-            actions.push({ type: "steer", sessionId, title, text });
+            action = { type: "steer", sessionId, title, text };
             return response(true, "Active work updated.");
           }
           return response(false, "Unknown tool.");
         }, signal);
     });
-    if (!actions.length) throw new Error("Home could not route this request. Try again.");
-    return actions;
+    if (!action) throw new Error("Home could not route this request. Try again.");
+    return action;
   }
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {
@@ -175,7 +176,7 @@ export class CodexHomeBackend implements HomeBackend {
     await this.retry(() => {
       report = null;
       return this.toolTurn(
-        "You report a task turn back to Agent Home. Call report_task exactly once. Use ready for a finished result, needs_input only if the user must answer a question, failed for an unsuccessful turn. Write a plain one-line outcome, at most 12 words. No preamble or praise.",
+        "You report a task turn back to Agent Home. Call report_task exactly once. Use ready for a finished result, needs_input only if the user must answer a question, failed for an unsuccessful turn. For a simple question or greeting, give the answer itself; for other work, state the outcome or needed action. Write one plain line, at most 12 words. Avoid meta summaries such as 'responded to the greeting.' No preamble or praise.",
         `Task: ${input.title}\nRequest: ${input.request.slice(0, 1_000)}\nState: ${input.state}\nResult:\n${input.output.slice(-6_000)}`,
         [REPORT_TASK], (name, args) => {
           if (name !== REPORT_TASK.name) return response(false, "Unknown tool.");

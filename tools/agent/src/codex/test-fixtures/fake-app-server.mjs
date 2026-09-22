@@ -70,6 +70,17 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     return;
   }
   if (!method && id === "home-tool" && dynamicTurn) {
+    if (scenario === "home-compose-duplicate") {
+      return send({ id: "home-tool-duplicate", method: "item/tool/call", params: {
+        threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool-duplicate",
+        tool: "start_task", arguments: { text: "Fix the tests", title: "Fix tests" },
+      } });
+    }
+    notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
+    dynamicTurn = null;
+    return;
+  }
+  if (!method && id === "home-tool-duplicate" && dynamicTurn) {
     notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
     dynamicTurn = null;
     return;
@@ -216,10 +227,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         arguments: { query: scenario === "home-read" ? "Reconnect" : "Tonal" },
       } });
     }
-    if (scenario === "home-compose" || scenario === "home-report") {
+    if (scenario === "home-compose" || scenario === "home-compose-duplicate" || scenario === "home-report") {
       dynamicTurn = { threadId: params.threadId, turnId };
-      const tool = scenario === "home-compose" ? "start_task" : "report_task";
-      const args = scenario === "home-compose"
+      const tool = scenario.startsWith("home-compose") ? "start_task" : "report_task";
+      const args = scenario.startsWith("home-compose")
         ? { text: "Fix the tests", title: "Fix tests" }
         : { state: "ready", summary: "The tests now pass and the app runs cleanly on your Mac today" };
       return send({ id: "home-tool", method: "item/tool/call", params: {

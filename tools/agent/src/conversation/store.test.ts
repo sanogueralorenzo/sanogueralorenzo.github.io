@@ -196,11 +196,15 @@ describe("Store", () => {
     store.dispatchHomeEntry("first", first.id, first.title, "clear first", true);
     store.createHomeEntry("second", "original second");
     store.dispatchHomeEntry("second", second.id, second.title, "clear second", false);
+    store.createHomeEntry("earlier-follow-up", "earlier follow up");
+    store.dispatchHomeEntry("earlier-follow-up", first.id, first.title, "earlier follow up", false);
+    store.db.prepare("UPDATE home_entries SET state = 'ready' WHERE id = 'first'").run();
     store.createHomeEntry("follow-up", "follow up");
-    store.dispatchHomeEntry("follow-up", first.id, first.title, "clear follow up", true);
+    const dispatched = store.dispatchHomeEntry("follow-up", first.id, first.title, "clear follow up", true);
     const after = store.updateHomeEntry(first.id, "needs_input", "Which branch should I use?")!;
-    expect(store.homeEntries().map((entry) => entry.id)).toEqual(["first", "second", "follow-up"]);
-    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "ready", "needs_input"]);
+    expect(dispatched.superseded.map((entry) => entry.id)).toEqual(["earlier-follow-up", "first"]);
+    expect(store.homeEntries().map((entry) => entry.id)).toEqual(["first", "second", "earlier-follow-up", "follow-up"]);
+    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "ready", null, "needs_input"]);
     expect(after).toMatchObject({ summary: "Which branch should I use?", url: `agent://sessions/${first.id}` });
     store.close();
   });
