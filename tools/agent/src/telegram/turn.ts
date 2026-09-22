@@ -96,6 +96,7 @@ export class TelegramTurns {
       return { sessionId, chunks: splitTelegramText(event.message), artifacts: [] };
     }
     if (event.type === "task_report") {
+      if (this.seenReports.get(event.report.sessionId) === event.report.updatedAt) return null;
       this.seenReports.set(event.report.sessionId, event.report.updatedAt);
       if (event.report.state === "working" || event.report.sessionId === this.sessionId) return null;
       return {

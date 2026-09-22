@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import { HOME_SESSION_ID, type Attachment, type LastRun, type Message, type Session, type SessionCard, type TaskReport } from "./types.js";
+import { HOME_SESSION_ID, type Attachment, type Channel, type LastRun, type Message, type Session, type SessionCard, type TaskReport } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -95,6 +95,14 @@ export class Store {
         summary TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS queued_tasks (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS queued_tasks_session ON queued_tasks(session_id, created_at);
     `);
   }
 
@@ -117,9 +125,11 @@ export class Store {
       this.db.prepare("UPDATE runs SET state = 'interrupted', output = '' WHERE state = 'running'").run();
       this.db.prepare(`
         UPDATE home_tasks SET
-          state = CASE WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
+          state = CASE WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_tasks.session_id) THEN 'working'
+            WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
             THEN 'ready' ELSE 'failed' END,
-          summary = CASE WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
+          summary = CASE WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_tasks.session_id) THEN 'Queued.'
+            WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
             THEN 'Finished before restart. Open task for details.' ELSE 'Interrupted. Open task to continue.' END,
           updated_at = ?
         WHERE state = 'working'
@@ -155,7 +165,9 @@ export class Store {
   }
 
   setTaskReport(sessionId: string, state: TaskReport["state"], summary: string): TaskReport {
-    const timestamp = now();
+    const previous = this.db.prepare("SELECT updated_at AS updatedAt FROM home_tasks WHERE session_id = ?")
+      .get(sessionId) as { updatedAt: string } | undefined;
+    const timestamp = new Date(Math.max(Date.now(), previous ? Date.parse(previous.updatedAt) + 1 : 0)).toISOString();
     this.db.prepare(`
       INSERT INTO home_tasks (session_id, state, summary, updated_at) VALUES (?, ?, ?, ?)
       ON CONFLICT(session_id) DO UPDATE SET state = excluded.state, summary = excluded.summary, updated_at = excluded.updated_at
@@ -164,14 +176,30 @@ export class Store {
     return { sessionId, title: session.title, state, summary, url: `agent://sessions/${sessionId}`, updatedAt: timestamp };
   }
 
-  taskReports(limit = 20): TaskReport[] {
+  taskReports(): TaskReport[] {
     const rows = this.db.prepare(`
       SELECT sessions.id AS sessionId, sessions.title, home_tasks.state, home_tasks.summary,
         home_tasks.updated_at AS updatedAt
       FROM home_tasks JOIN sessions ON sessions.id = home_tasks.session_id
-      ORDER BY home_tasks.updated_at DESC LIMIT ?
-    `).all(limit) as unknown as Omit<TaskReport, "url">[];
+      ORDER BY home_tasks.rowid ASC
+    `).all() as unknown as Omit<TaskReport, "url">[];
     return rows.map((row) => ({ ...row, url: `agent://sessions/${row.sessionId}` }));
+  }
+
+  enqueueTask(sessionId: string, text: string, channel: Channel): void {
+    this.db.prepare("INSERT INTO queued_tasks (id, session_id, text, channel, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(randomUUID(), sessionId, text, channel, now());
+  }
+
+  queuedTask(sessionId: string): { id: string; text: string; channel: Channel } | null {
+    return this.db.prepare("SELECT id, text, channel FROM queued_tasks WHERE session_id = ? ORDER BY rowid LIMIT 1")
+      .get(sessionId) as { id: string; text: string; channel: Channel } | undefined ?? null;
+  }
+
+  queuedSessionIds(): string[] {
+    const rows = this.db.prepare("SELECT session_id AS id FROM queued_tasks GROUP BY session_id ORDER BY MIN(rowid)")
+      .all() as { id: string }[];
+    return rows.map((row) => row.id);
   }
 
   setSessionWorkspace(id: string, cwd: string): Session {
@@ -216,6 +244,20 @@ export class Store {
         COALESCE((SELECT content FROM messages WHERE session_id = sessions.id AND role = 'user' ORDER BY id DESC LIMIT 1), '') AS preview
       FROM sessions WHERE id != ? ORDER BY updated_at DESC LIMIT ?
     `).all(HOME_SESSION_ID, limit) as unknown as SessionCard[];
+    return cards.map((card) => ({ ...card, preview: card.preview.replace(/\s+/g, " ").slice(0, 200) }));
+  }
+
+  findConversations(query: string, limit = 10): SessionCard[] {
+    const pattern = `%${query.trim().slice(0, 100)}%`;
+    const cards = this.db.prepare(`
+      SELECT id, cwd, title, updated_at AS "updatedAt",
+        COALESCE((SELECT content FROM messages WHERE session_id = sessions.id AND role = 'user' ORDER BY id DESC LIMIT 1), '') AS preview
+      FROM sessions WHERE id != ? AND (
+        title LIKE ? OR cwd LIKE ? OR EXISTS (
+          SELECT 1 FROM messages WHERE session_id = sessions.id AND role = 'user' AND content LIKE ?
+        )
+      ) ORDER BY updated_at DESC LIMIT ?
+    `).all(HOME_SESSION_ID, pattern, pattern, pattern, limit) as unknown as SessionCard[];
     return cards.map((card) => ({ ...card, preview: card.preview.replace(/\s+/g, " ").slice(0, 200) }));
   }
 
@@ -274,9 +316,14 @@ export class Store {
       .slice(0, limit).map(({ content }) => content);
   }
 
-  startRun(sessionId: string, id: string = randomUUID(), input?: string): string {
+  startRun(sessionId: string, id: string = randomUUID(), input?: string, queuedTaskId?: string): string {
     this.db.exec("BEGIN IMMEDIATE");
     try {
+      if (queuedTaskId) {
+        const consumed = this.db.prepare("DELETE FROM queued_tasks WHERE id = ? AND session_id = ?")
+          .run(queuedTaskId, sessionId);
+        if (consumed.changes !== 1) throw new Error("Queued task was not found.");
+      }
       this.db.prepare("DELETE FROM runs WHERE session_id = ? AND state != 'running'").run(sessionId);
       this.db.prepare("INSERT INTO runs (id, session_id, state, started_at) VALUES (?, ?, 'running', ?)")
         .run(id, sessionId, now());

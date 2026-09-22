@@ -63,6 +63,7 @@ describe("RuntimeServer", () => {
     expect((await client.openSession()).id).toBe("home");
     const task = store.createSession({ title: "Fix tests" });
     store.setTaskReport(task.id, "ready", "Tests pass.");
+    expect((await client.sessions()).taskReports).toMatchObject([{ sessionId: task.id, summary: "Tests pass." }]);
     const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
     const first = await stream.next();
     expect(first.value?.event).toMatchObject({ type: "snapshot", snapshot: {

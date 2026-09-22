@@ -69,7 +69,7 @@ export class CliOutput {
   private restore(snapshot: RuntimeSnapshot): void {
     const first = this.latestSnapshot === undefined;
     this.latestSnapshot = snapshot;
-    for (const report of first ? snapshot.taskReports.slice(0, 5) : snapshot.taskReports) {
+    for (const report of first ? snapshot.taskReports.slice(-5) : snapshot.taskReports) {
       if (!first && this.seenReports.get(report.sessionId) === report.updatedAt) continue;
       this.status(`${report.title} · ${report.summary} ${report.url}`);
     }

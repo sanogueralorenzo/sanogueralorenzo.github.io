@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentRuntime } from "./runtime.js";
+import type { Store } from "./store.js";
 import { HOME_SESSION_ID, type RunEnvelope, type RunInfo, type RunSnapshot, type RuntimeEvent, type RuntimeSnapshot, type TurnRequest } from "./types.js";
 
 export class RunBusyError extends Error {
@@ -21,11 +22,20 @@ export class RunCoordinator {
   private listeners = new Set<Listener>();
   private closed = false;
   private executing = new Set<Promise<void>>();
+  private homeCommit = Promise.resolve();
 
-  constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run">) {}
+  constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run">, private readonly store: Store) {
+    queueMicrotask(() => { for (const id of this.store.queuedSessionIds()) this.startQueued(id); });
+  }
 
   private activeFor(sessionId: string) {
     return [...this.active.values()].find((run) => run.run.sessionId === sessionId && !run.terminal);
+  }
+
+  private startQueued(sessionId: string): void {
+    if (this.closed || this.activeFor(sessionId)) return;
+    const queued = this.store.queuedTask(sessionId);
+    if (queued) this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id });
   }
 
   start(turn: TurnRequest): RunInfo {
@@ -49,7 +59,10 @@ export class RunCoordinator {
       this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
       if (!prepared.routing) this.publish(sessionId, info.id, run.turn);
     }
-    const execution = this.execute(run, turn, prepared);
+    let releaseHome: (() => void) | undefined;
+    const beforeHomeDispatch = sessionId === HOME_SESSION_ID ? this.homeCommit : undefined;
+    if (beforeHomeDispatch) this.homeCommit = new Promise<void>((resolve) => { releaseHome = resolve; });
+    const execution = this.execute(run, turn, prepared, beforeHomeDispatch, releaseHome);
     this.executing.add(execution);
     void execution.finally(() => this.executing.delete(execution));
     return info;
@@ -132,6 +145,8 @@ export class RunCoordinator {
     run: RunSnapshot & { controller: AbortController; terminal: boolean },
     turn: TurnRequest,
     prepared: ReturnType<AgentRuntime["prepareTurn"]>,
+    beforeHomeDispatch?: Promise<void>,
+    releaseHome?: () => void,
   ): Promise<void> {
     let terminal = false;
     try {
@@ -139,14 +154,14 @@ export class RunCoordinator {
         signal: run.controller.signal,
         runId: run.run.id,
         prepared,
+        ...(beforeHomeDispatch ? { beforeHomeDispatch } : {}),
         canHandoff: (targetId) => {
           const busy = this.activeFor(targetId);
           if (busy && busy !== run) throw new RunBusyError(busy.run);
         },
-        isBusy: (targetId) => Boolean(this.activeFor(targetId)),
       })) {
-        if (event.type === "task_launch") {
-          this.start({ text: event.text, sessionId: event.session.id, channel: event.channel });
+        if (event.type === "task_queued") {
+          this.startQueued(event.sessionId);
           continue;
         }
         if (event.type === "task_report") {
@@ -178,10 +193,12 @@ export class RunCoordinator {
         message: error instanceof Error ? error.message : String(error),
       });
     } finally {
+      releaseHome?.();
       this.active.delete(run.run.id);
       if (run.run.sessionId !== HOME_SESSION_ID) this.publish(run.run.sessionId, run.run.id, {
         type: "session_activity", sessionId: run.run.sessionId, runId: null,
       });
+      this.startQueued(run.run.sessionId);
     }
   }
 

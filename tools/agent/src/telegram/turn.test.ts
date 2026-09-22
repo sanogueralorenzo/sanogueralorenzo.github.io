@@ -113,6 +113,7 @@ describe("Telegram turns", () => {
     expect(turns.consume(envelope({ type: "task_report", report }, "task-run", "home"))).toEqual({
       sessionId: "task-1", chunks: ["Fix tests: All tests pass."], artifacts: [], taskSessionId: "task-1",
     });
+    expect(turns.consume(envelope({ type: "task_report", report }, "task-run", "home"))).toBeNull();
   });
 
   it("reports shared conversation navigation", async () => {

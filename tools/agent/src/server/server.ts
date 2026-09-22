@@ -60,7 +60,7 @@ export class RuntimeServer {
     private readonly store: Store,
     private readonly setup: RuntimeSetup,
   ) {
-    this.runs = new RunCoordinator(runtime);
+    this.runs = new RunCoordinator(runtime, store);
   }
 
   async listen(): Promise<number> {
@@ -120,7 +120,7 @@ export class RuntimeServer {
           if (typeof runId !== "string" || !runId) throw new Error("runId is required");
           return json(response, 200, { stopped: this.runs.stop(runId) });
         }
-        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses() });
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), taskReports: this.store.taskReports() });
         case "POST /v1/sessions": {
           const { cwd } = await readJson(request);
           const session = this.runtime.openSession({ fresh: true, ...(typeof cwd === "string" ? { cwd } : {}) });

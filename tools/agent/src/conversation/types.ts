@@ -63,7 +63,7 @@ export type RuntimeEvent =
   | { type: "navigate"; session: Session; url: string; continues: boolean }
   | { type: "task_report"; report: TaskReport }
   | { type: "home_error"; message: string }
-  | { type: "task_launch"; session: Session; text: string; channel: Channel }
+  | { type: "task_queued"; sessionId: string }
   | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };
@@ -113,6 +113,7 @@ export interface TurnRequest {
   cwd?: string;
   sessionId?: string;
   channel?: Channel;
+  queuedTaskId?: string;
 }
 
 export interface RuntimeConfig {

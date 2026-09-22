@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRuntime } from "./runtime.js";
 import { MAX_EVENT_BUFFER_BYTES, RunBusyError, RunCoordinator, SlowSubscriberError } from "./runs.js";
+import { Store } from "./store.js";
 import type { RunEnvelope, RuntimeEvent } from "./types.js";
+import { cleanup, temporary } from "../test-support.js";
 
 function runtime(run: (signal: AbortSignal) => AsyncGenerator<RuntimeEvent>) {
   let executions = 0;
+  const store = new Store(temporary("agent-runs-"));
+  cleanup(() => store.close());
   return {
+    store,
     value: {
       prepareTurn(turn: { sessionId?: string }) {
         const id = turn.sessionId ?? "s1";
@@ -35,7 +40,7 @@ describe("RunCoordinator", () => {
       yield { type: "text_delta", delta: "hello" };
       yield { type: "done", sessionId: "s1" };
     });
-    const runs = new RunCoordinator(fixture.value);
+    const runs = new RunCoordinator(fixture.value, fixture.store);
     const first = collectRun(runs.events(new AbortController().signal));
     const second = collectRun(runs.events(new AbortController().signal));
     const run = runs.start({ text: "hi", channel: "cli" });
@@ -65,7 +70,7 @@ describe("RunCoordinator", () => {
       yield { type: "text_delta", delta: " second" };
       yield { type: "done", sessionId: "s1" };
     });
-    const runs = new RunCoordinator(fixture.value);
+    const runs = new RunCoordinator(fixture.value, fixture.store);
     const run = runs.start({ text: "hi", channel: "macos" });
     await reachedPause;
     const late = runs.events(new AbortController().signal, undefined, () => ({
@@ -93,7 +98,7 @@ describe("RunCoordinator", () => {
       yield { type: "done", sessionId: "s1" };
       finished();
     });
-    const runs = new RunCoordinator(fixture.value);
+    const runs = new RunCoordinator(fixture.value, fixture.store);
     const observer = runs.events(new AbortController().signal)[Symbol.asyncIterator]();
     const run = runs.start({ text: "first" });
     await observer.next();
@@ -115,7 +120,7 @@ describe("RunCoordinator", () => {
       aborted = signal.aborted;
       yield { type: "error", message: "Interrupted." };
     });
-    const runs = new RunCoordinator(fixture.value);
+    const runs = new RunCoordinator(fixture.value, fixture.store);
     const events = collectRun(runs.events(new AbortController().signal));
     const run = runs.start({ text: "stop me" });
     expect(runs.stop(run.id)).toBe(true);
@@ -133,7 +138,7 @@ describe("RunCoordinator", () => {
       completed = true;
       yield { type: "done", sessionId: "s1" };
     });
-    const runs = new RunCoordinator(fixture.value);
+    const runs = new RunCoordinator(fixture.value, fixture.store);
     const slow = runs.events(new AbortController().signal, notifyOverflow)[Symbol.asyncIterator]();
     const first = slow.next();
     runs.start({ text: "hi" });

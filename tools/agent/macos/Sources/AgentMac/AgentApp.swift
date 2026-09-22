@@ -154,7 +154,7 @@ struct ConversationView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, AgentStyle.edgePadding)
                     }
-                    .scrollPosition(id: $model.homeScrollPosition, anchor: .top)
+                    .scrollPosition(id: $model.homeScrollPosition, anchor: .bottom)
                     .frame(height: min(CGFloat(model.taskReports.count) * 90, 260))
                     .padding(.bottom, 12)
                 }

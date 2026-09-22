@@ -187,4 +187,47 @@ describe("Store", () => {
     expect(store.sessionCards().find((item) => item.id === empty.id)?.preview).toBe("");
     store.close();
   });
+
+  it("keeps Home cards in opening order and makes each update distinguishable", () => {
+    const store = createStore();
+    const first = store.createSession({ title: "First" });
+    const second = store.createSession({ title: "Second" });
+    const before = store.setTaskReport(first.id, "working", "Working.");
+    store.setTaskReport(second.id, "ready", "Ready.");
+    const after = store.setTaskReport(first.id, "needs_input", "Which branch should I use?");
+    expect(store.taskReports().map((report) => report.sessionId)).toEqual([first.id, second.id]);
+    expect(after.updatedAt > before.updatedAt).toBe(true);
+    expect(store.taskReports()[0]).toMatchObject({ state: "needs_input", summary: "Which branch should I use?" });
+    store.close();
+  });
+
+  it("retains queued follow-ups through restart and consumes them with their run", () => {
+    const path = temporary("agent-queued-");
+    const store = new Store(path);
+    const session = store.createSession({ title: "Saved work" });
+    store.setTaskReport(session.id, "working", "Queued.");
+    store.enqueueTask(session.id, "First follow-up", "macos");
+    store.enqueueTask(session.id, "Second follow-up", "telegram");
+    store.close();
+
+    const recovered = new Store(path);
+    expect(recovered.taskReports()[0]).toMatchObject({ state: "working", summary: "Queued." });
+    expect(recovered.queuedSessionIds()).toEqual([session.id]);
+    const first = recovered.queuedTask(session.id)!;
+    recovered.startRun(session.id, "queued-run", first.text, first.id);
+    expect(recovered.queuedTask(session.id)?.text).toBe("Second follow-up");
+    recovered.finishRun("queued-run", "complete", "Done.");
+    recovered.close();
+  });
+
+  it("finds older conversations by project, title, or message", () => {
+    const store = createStore();
+    const older = store.createSession({ cwd: "/projects/tonal/android", title: "Tonal build" });
+    store.addMessage(older.id, "user", "Investigate the emulator branch");
+    for (let index = 0; index < 60; index += 1) store.createSession({ title: `Other ${index}` });
+    expect(store.sessionCards().some((card) => card.id === older.id)).toBe(false);
+    expect(store.findConversations("tonal")[0]?.id).toBe(older.id);
+    expect(store.findConversations("emulator")[0]?.id).toBe(older.id);
+    store.close();
+  });
 });

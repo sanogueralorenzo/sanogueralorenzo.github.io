@@ -1,5 +1,5 @@
 import { on } from "node:events";
-import type { RuntimeConfig, SessionCard, TaskReport, TurnRequest } from "../conversation/types.js";
+import { HOME_SESSION_ID, type RuntimeConfig, type SessionCard, type TaskReport, type TurnRequest } from "../conversation/types.js";
 import type { Store } from "../conversation/store.js";
 import { MODEL } from "../local/config.js";
 import { CodexAppServer, CodexDisconnectedError } from "../codex/app-server.js";
@@ -13,11 +13,11 @@ const START_TASK = {
   inputSchema: {
     type: "object",
     properties: {
-      text: { type: "string", description: "The complete work request for the new task." },
+      text: { type: "string", description: "Work to start now; omit to create an idle conversation." },
       title: { type: "string", description: "A short, specific title." },
       cwd: { type: "string", description: "Absolute project folder, only when the task needs one." },
     },
-    required: ["text", "title"],
+    required: ["title"],
     additionalProperties: false,
   },
 };
@@ -27,8 +27,19 @@ const CONTINUE_TASK = {
   description: "Send a follow-up to one existing Agent task conversation.",
   inputSchema: {
     type: "object",
-    properties: { sessionId: { type: "string" }, text: { type: "string" } },
-    required: ["sessionId", "text"],
+    properties: { sessionId: { type: "string" }, text: { type: "string", description: "Follow-up work; omit to show the existing conversation in Home." } },
+    required: ["sessionId"],
+    additionalProperties: false,
+  },
+};
+
+const FIND_CONVERSATIONS = {
+  name: "find_conversations",
+  description: "Find an older saved conversation by project, title, or message text before resuming it.",
+  inputSchema: {
+    type: "object",
+    properties: { query: { type: "string" } },
+    required: ["query"],
     additionalProperties: false,
   },
 };
@@ -62,40 +73,45 @@ export class CodexHomeBackend implements HomeBackend {
     const actions: HomeAction[] = [];
     const prompt = [
       `User request: ${request.text}`,
+      `Recent Home requests: ${JSON.stringify(this.store.getMessages(HOME_SESSION_ID, 8)
+        .filter((message) => message.role === "user").slice(-4).map((message) => message.content.slice(0, 300)))}`,
       request.cwd ? `Terminal directory: ${request.cwd}` : "",
-      `Saved conversations: ${JSON.stringify(conversations.map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview })))}`,
-      `Background tasks: ${JSON.stringify(reports.map(({ sessionId, title, state, summary }) => ({ sessionId, title, state, summary })))}`,
+      `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview })))}`,
+      `Recent tasks: ${JSON.stringify([...reports].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
+        .map(({ sessionId, title, state, summary }) => ({ sessionId, title, state, summary })))}`,
     ].filter(Boolean).join("\n");
     await this.retry(() => {
       actions.length = 0;
       return this.toolTurn(
-        "You are Agent Home. Never do the user's work or answer it. Call start_task for each independent outcome; call continue_task only for a clear follow-up to a saved task. Give each task enough context to work independently. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for work on the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
-        prompt, [START_TASK, CONTINUE_TASK], (name, args) => {
+        "You route requests; never do the work or answer it. Use start_task for new conversations and continue_task to resume or update an existing one, even if it is working. Use find_conversations when the target is not listed. Include text only when the user asks for work; omit it when they only want a conversation opened in Home. Preserve relevant context in the work text. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
+        prompt, [START_TASK, CONTINUE_TASK, FIND_CONVERSATIONS], (name, args) => {
+          if (name === FIND_CONVERSATIONS.name) {
+            const query = String(args.query ?? "").trim();
+            return response(Boolean(query), JSON.stringify(query ? this.store.findConversations(query) : []));
+          }
           if (name === START_TASK.name) {
             const text = String(args.text ?? "").trim();
             const title = String(args.title ?? "").trim().slice(0, 64);
-            if (!text || !title) return response(false, "A task needs text and title.");
+            if (!title) return response(false, "A new conversation needs a title.");
             const cwd = args.cwd === undefined ? undefined : openFolder(args.cwd, this.config.homeDir).cwd;
             if (args.cwd !== undefined && !cwd) return response(false, "Choose a specific accessible project folder.");
-            actions.push({ type: "start", text, title, ...(cwd ? { cwd } : {}) });
-            return response(true, "Task queued.");
+            actions.push({ type: "start", title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) });
+            return response(true, "Conversation opened.");
           }
           if (name === CONTINUE_TASK.name) {
             const text = String(args.text ?? "").trim();
             const sessionId = String(args.sessionId ?? "");
-            if (!text || !conversations.some((card) => card.id === sessionId) || !this.store.getSession(sessionId)) {
-              return response(false, "Choose an existing conversation and a follow-up request.");
+            if (!this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
+              return response(false, "Choose an existing conversation.");
             }
-            actions.push({ type: "continue", text, sessionId });
-            return response(true, "Follow-up queued.");
+            actions.push({ type: "continue", sessionId, ...(text ? { text } : {}) });
+            return response(true, "Conversation opened.");
           }
           return response(false, "Unknown tool.");
         }, signal);
     });
-    return actions.length ? actions : [{
-      type: "start", text: request.text,
-      title: request.text.trim().split("\n", 1)[0]!.slice(0, 64),
-    }];
+    if (!actions.length) throw new Error("Home could not route this request. Try again.");
+    return actions;
   }
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {

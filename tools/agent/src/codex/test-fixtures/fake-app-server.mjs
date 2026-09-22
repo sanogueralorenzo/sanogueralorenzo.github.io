@@ -74,6 +74,13 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     dynamicTurn = null;
     return;
   }
+  if (!method && id === "home-find" && dynamicTurn) {
+    const found = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
+    return send({ id: "home-tool", method: "item/tool/call", params: {
+      threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
+      tool: "continue_task", arguments: { sessionId: found[0]?.id },
+    } });
+  }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
@@ -184,6 +191,12 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
+    if (scenario === "home-find") {
+      dynamicTurn = { threadId: params.threadId, turnId };
+      return send({ id: "home-find", method: "item/tool/call", params: {
+        threadId: params.threadId, turnId, callId: "home-find", tool: "find_conversations", arguments: { query: "Tonal" },
+      } });
+    }
     if (scenario === "home-compose" || scenario === "home-report") {
       dynamicTurn = { threadId: params.threadId, turnId };
       const tool = scenario === "home-compose" ? "start_task" : "report_task";

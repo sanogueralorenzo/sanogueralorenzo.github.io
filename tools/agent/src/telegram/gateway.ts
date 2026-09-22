@@ -142,7 +142,12 @@ async function runGateway(token: string): Promise<void> {
     if (!isOwner(ctx)) return;
     await turns.home();
     switchDelivery();
-    await ctx.reply("Home ready.");
+    const reports = (await client.sessions()).taskReports.slice(-5);
+    await ctx.reply(reports.length ? "Home · recent tasks" : "Home ready.", reports.length ? {
+      reply_markup: { inline_keyboard: reports.map((report) => [{
+        text: `${report.title} · ${report.summary}`.slice(0, 64), callback_data: `task:${report.sessionId}`,
+      }]) },
+    } : {});
   });
   bot.command("new", async (ctx) => {
     if (!isOwner(ctx)) return;

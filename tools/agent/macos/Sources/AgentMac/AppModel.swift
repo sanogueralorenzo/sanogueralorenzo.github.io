@@ -244,10 +244,11 @@ struct ChatMessage: Identifiable {
     private func apply(_ envelope: RunEnvelope) {
         let event = envelope.event
         if event.type == "task_report", let report = event.report {
-            taskReports.removeAll { $0.sessionId == report.sessionId }
-            taskReports.insert(report, at: 0)
-            if selectedSessionId == Self.homeSessionId {
-                homeScrollPosition = report.sessionId
+            if let index = taskReports.firstIndex(where: { $0.sessionId == report.sessionId }) {
+                taskReports[index] = report
+            } else {
+                taskReports.append(report)
+                if selectedSessionId == Self.homeSessionId { homeScrollPosition = report.sessionId }
             }
             return
         }
@@ -326,7 +327,7 @@ struct ChatMessage: Identifiable {
         sessions = snapshot.sessions
         taskReports = snapshot.taskReports
         if selectedSessionId == Self.homeSessionId {
-            homeScrollPosition = taskReports.first?.sessionId
+            homeScrollPosition = taskReports.last?.sessionId
             messages = []
             activeRunId = nil
             isRunning = false
