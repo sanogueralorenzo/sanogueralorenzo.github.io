@@ -5,8 +5,9 @@ import { readVoiceNote } from "../workspace/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
 import { MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
-import type { Attachment, RuntimeConfig, SessionCard } from "../conversation/types.js";
+import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
+import { CONVERSATION_TOOLS, conversationTool } from "./conversation-tools.js";
 import type { JsonRpcMessage } from "./protocol.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
 
@@ -43,40 +44,6 @@ function toolSummary(item: Record<string, unknown>): string {
 }
 
 type Notifications = AsyncIterator<[JsonRpcMessage]>;
-const SESSION_TOOLS = [
-  {
-    name: "list_conversations",
-    description: "List saved Agent conversations with titles and brief previews.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
-  },
-  {
-    name: "read_conversation",
-    description: "Read recent messages from a listed conversation when its preview is not enough to identify it. Use nextBefore for older messages.",
-    inputSchema: {
-      type: "object",
-      properties: { sessionId: { type: "string" }, before: { type: "integer" } },
-      required: ["sessionId"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "open_conversation",
-    description: "Open a listed conversation only after identifying a strong match.",
-    inputSchema: {
-      type: "object",
-      properties: { sessionId: { type: "string" } },
-      required: ["sessionId"],
-      additionalProperties: false,
-    },
-  },
-];
-
-interface TurnEventOptions {
-  model: string;
-  signal?: AbortSignal;
-  clientUserMessageId?: string;
-  sessionTools?: SessionCard[];
-}
 
 async function nextForThread(queue: Notifications, threadId: string) {
   while (true) {
@@ -117,12 +84,7 @@ export class CodexBackend implements AgentBackend {
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const threadId = await this.sessionThread(turn);
-        for await (const event of this.turnEvents(threadId, turn.request.text, {
-          model: MODEL,
-          ...(turn.signal ? { signal: turn.signal } : {}),
-          clientUserMessageId: messageId,
-          ...(turn.sessionTools ? { sessionTools: turn.sessionTools } : {}),
-        })) {
+        for await (const event of this.turnEvents(threadId, turn, messageId)) {
           if (event.type !== "done") progress = true;
           yield event;
         }
@@ -150,8 +112,8 @@ export class CodexBackend implements AgentBackend {
 
   private async *turnEvents(
     threadId: string,
-    text: string,
-    options: TurnEventOptions,
+    turn: BackendTurn,
+    messageId: string,
   ): AsyncGenerator<BackendEvent> {
     const lifetime = new AbortController();
     const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
@@ -162,17 +124,17 @@ export class CodexBackend implements AgentBackend {
       if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
       lifetime.abort();
     };
-    options.signal?.addEventListener("abort", interrupt, { once: true });
+    turn.signal?.addEventListener("abort", interrupt, { once: true });
     try {
       const started = await this.client.request<{ turn: { id: string } }>("turn/start", {
         threadId,
-        clientUserMessageId: options.clientUserMessageId ?? randomUUID(),
-        input: [{ type: "text", text, text_elements: [] }],
-        model: options.model,
+        clientUserMessageId: messageId,
+        input: [{ type: "text", text: turn.request.text, text_elements: [] }],
+        model: MODEL,
         effort: "high",
       });
       turnId = started.turn.id;
-      if (options.signal?.aborted) {
+      if (turn.signal?.aborted) {
         interrupt();
         throw new DOMException("Interrupted", "AbortError");
       }
@@ -180,35 +142,10 @@ export class CodexBackend implements AgentBackend {
         const { id, method, params } = await nextForThread(queue, threadId);
         const eventTurnId = params.turnId ?? object(params.turn).id;
         if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/tool/call" && id !== undefined && options.sessionTools) {
-          const tool = String(params.tool ?? "");
-          const argumentsValue = object(params.arguments);
-          if (tool === "list_conversations") {
-            this.client.respond(id, {
-              success: true,
-              contentItems: [{ type: "inputText", text: JSON.stringify(options.sessionTools) }],
-            });
-          } else if (tool === "read_conversation") {
-            const sessionId = typeof argumentsValue.sessionId === "string" ? argumentsValue.sessionId : "";
-            const match = options.sessionTools.some((session) => session.id === sessionId);
-            const before = typeof argumentsValue.before === "number" && Number.isSafeInteger(argumentsValue.before) && argumentsValue.before > 0
-              ? argumentsValue.before : undefined;
-            const detail = match ? this.store.readConversation(sessionId, before) : null;
-            this.client.respond(id, {
-              success: match,
-              contentItems: [{ type: "inputText", text: detail ? JSON.stringify(detail) : "Conversation not found." }],
-            });
-          } else if (tool === "open_conversation") {
-            const sessionId = typeof argumentsValue.sessionId === "string" ? argumentsValue.sessionId : "";
-            const match = options.sessionTools.some((session) => session.id === sessionId);
-            if (match) navigation = sessionId;
-            this.client.respond(id, {
-              success: match,
-              contentItems: [{ type: "inputText", text: match ? `Opening agent://sessions/${sessionId}` : "Conversation not found." }],
-            });
-          } else {
-            this.client.respond(id, { success: false, contentItems: [{ type: "inputText", text: "Unknown tool." }] });
-          }
+        if (method === "item/tool/call" && id !== undefined && turn.sessionTools) {
+          const answer = conversationTool(this.store, turn.sessionTools, String(params.tool ?? ""), object(params.arguments));
+          if (answer.navigateTo) navigation = answer.navigateTo;
+          this.client.respond(id, answer.result);
         } else if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
           if (!navigation) {
             sawText = true;
@@ -242,7 +179,7 @@ export class CodexBackend implements AgentBackend {
       }
     } finally {
       lifetime.abort();
-      options.signal?.removeEventListener("abort", interrupt);
+      turn.signal?.removeEventListener("abort", interrupt);
     }
   }
 
@@ -314,7 +251,7 @@ export class CodexBackend implements AgentBackend {
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",
       developerInstructions: turn.instructions,
-      dynamicTools: turn.sessionTools ? SESSION_TOOLS : [],
+      dynamicTools: turn.sessionTools ? CONVERSATION_TOOLS : [],
     };
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
