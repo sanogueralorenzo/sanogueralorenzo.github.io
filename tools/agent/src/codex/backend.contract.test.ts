@@ -127,6 +127,7 @@ describe("Codex turn transport", () => {
     })).resolves.toBe("Hello from Codex.");
     const rpc = requests(log);
     expect(rpc.some((request) => request.method === "turn/start")).toBe(false);
+    expect(rpc.find((request) => request.method === "thread/start")?.params.model).toBe("gpt-6-luna");
     expect(rpc.find((request) => request.method === "thread/realtime/start")?.params).toMatchObject({
       outputModality: "audio",
       includeStartupContext: false,
@@ -154,12 +155,13 @@ describe("Codex turn transport", () => {
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
   });
 
-  it("uses one Luna turn with a workspace boundary instead of routing through workers", async () => {
+  it("uses one Sol turn with a workspace boundary instead of routing through workers", async () => {
     const { backend, input, log } = backendFixture();
     await collect(backend, input);
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
-    expect(threads.map((request) => request.params.model)).toEqual(["gpt-5.6-luna"]);
+    expect(threads.map((request) => request.params.model)).toEqual(["gpt-6-sol"]);
+    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.model)).toEqual(["gpt-6-sol"]);
     expect(threads.map((request) => request.params.sandbox)).toEqual(["workspace-write"]);
     expect(threads.map((request) => request.params.ephemeral)).toEqual([false]);
     expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high"]);
@@ -210,10 +212,11 @@ describe("Codex turn transport", () => {
     for await (const _event of runtime.run({ text: "Now fix it", sessionId: destination?.id, channel: "macos" })) { /* consume */ }
     const rpc = requests(log);
     const started = rpc.find((request) => request.method === "thread/start")?.params;
-    expect(started).toMatchObject({ cwd: homeDir, sandbox: "read-only", ephemeral: true });
+    expect(started).toMatchObject({ model: "gpt-6-luna", cwd: homeDir, sandbox: "read-only", ephemeral: true });
     expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
     expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
     expect(rpc.filter((request) => request.method === "thread/start").at(-1)?.params).toMatchObject({
+      model: "gpt-6-sol",
       cwd,
       sandbox: "workspace-write",
       ephemeral: false,

@@ -1,6 +1,6 @@
 import { on } from "node:events";
 import type { Attachment } from "../conversation/types.js";
-import { MODEL } from "../local/config.js";
+import { UTILITY_MODEL } from "../local/config.js";
 import { readVoiceNote } from "../workspace/audio.js";
 import type { CodexAppServer } from "./app-server.js";
 import { nextForThread, type Notifications } from "./notifications.js";
@@ -21,7 +21,7 @@ export async function transcribeVoice(
 ): Promise<string> {
   const audio = await readVoiceNote(attachment);
   const started = await client.request<{ thread: { id: string } }>("thread/start", {
-    model: MODEL,
+    model: UTILITY_MODEL,
     cwd: homeDir,
     sandbox: "read-only",
     approvalPolicy: "never",

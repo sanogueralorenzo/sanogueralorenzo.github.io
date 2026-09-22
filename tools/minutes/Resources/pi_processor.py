@@ -10,7 +10,7 @@ import tempfile
 import time
 import uuid
 
-PROVIDERS = {"openai": ("openai-codex", "gpt-5.6-luna"),
+PROVIDERS = {"openai": ("openai-codex", "gpt-6-luna"),
              "anthropic": ("anthropic", "claude-haiku-4-5-20251001")}
 ISOLATION = ["--offline", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
              "--no-prompt-templates", "--no-context-files", "--no-themes", "--no-approve"]

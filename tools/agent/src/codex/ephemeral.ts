@@ -1,5 +1,5 @@
 import { on } from "node:events";
-import { MODEL } from "../local/config.js";
+import { UTILITY_MODEL } from "../local/config.js";
 import type { CodexAppServer } from "./app-server.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
 
@@ -17,7 +17,7 @@ export async function ephemeralToolTurn<T>(input: {
   const { client, signal } = input;
   if (signal?.aborted) throw new DOMException("Interrupted", "AbortError");
   const started = await client.request<{ thread: { id: string } }>("thread/start", {
-    model: MODEL,
+    model: UTILITY_MODEL,
     cwd: input.cwd,
     approvalPolicy: "never",
     sandbox: "read-only",
@@ -38,7 +38,7 @@ export async function ephemeralToolTurn<T>(input: {
     const turn = await client.request<{ turn: { id: string } }>("turn/start", {
       threadId,
       input: [{ type: "text", text: input.prompt, text_elements: [] }],
-      model: MODEL,
+      model: UTILITY_MODEL,
       effort: input.effort,
     });
     turnId = turn.turn.id;

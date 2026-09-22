@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
 import type { AgentBackend, BackendEvent, BackendTurn, Handoff } from "../conversation/backend.js";
-import { MODEL } from "../local/config.js";
+import { WORK_MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { maySwitchContext, requiresHandoff } from "../conversation/routing.js";
@@ -164,7 +164,7 @@ export class CodexBackend implements AgentBackend {
         threadId,
         clientUserMessageId: messageId,
         input: [{ type: "text", text: turn.request.text, text_elements: [] }],
-        model: MODEL,
+        model: WORK_MODEL,
         effort: "high",
       });
       turnId = started.turn.id;
@@ -218,7 +218,7 @@ export class CodexBackend implements AgentBackend {
   private async sessionThread(turn: BackendTurn): Promise<string> {
     const existing = this.store.codexThread(turn.session.id);
     const common = {
-      model: MODEL,
+      model: WORK_MODEL,
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",

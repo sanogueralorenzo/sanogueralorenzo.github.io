@@ -179,10 +179,11 @@ describe("Agent Home", () => {
     }
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
     expect(calls.filter((call) => call.method === "thread/start").map((call) => call.params)).toMatchObject([
-      { model: "gpt-5.6-luna", ephemeral: true, sandbox: "read-only" },
-      { model: "gpt-5.6-luna", ephemeral: true, sandbox: "read-only" },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
     ]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["none", "none"]);
+    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
   });
 
   it("does not invent a destination when Home returns no tool call", async () => {

@@ -35,7 +35,7 @@ if '--help' in args:
 
 assert all(flag in args for flag in flags)
 provider = args[args.index('--provider') + 1]
-assert args[args.index('--model') + 1] == {'openai-codex': 'gpt-5.6-luna', 'anthropic': 'claude-haiku-4-5-20251001'}[provider]
+assert args[args.index('--model') + 1] == {'openai-codex': 'gpt-6-luna', 'anthropic': 'claude-haiku-4-5-20251001'}[provider]
 assert args[args.index('--thinking') + 1] == 'off'
 assert args[args.index('--mode') + 1] == 'rpc'
 assert args[args.index('--system-prompt') + 1]

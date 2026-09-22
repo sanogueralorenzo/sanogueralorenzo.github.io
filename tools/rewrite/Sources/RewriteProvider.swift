@@ -3,7 +3,7 @@ import Foundation
 enum RewriteProvider: String, CaseIterable {
     case openai = "OpenAI", anthropic = "Anthropic"
     var providerID: String { self == .openai ? "openai-codex" : "anthropic" }
-    var preferredModel: String { self == .openai ? "gpt-5.6-luna" : "claude-haiku-4-5-20251001" }
+    var preferredModel: String { self == .openai ? "gpt-6-luna" : "claude-haiku-4-5-20251001" }
     static func load(from defaults: UserDefaults = .standard) -> Self {
         saved(defaults.string(forKey: "processor")) ?? .openai
     }

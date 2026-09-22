@@ -4,7 +4,7 @@
 
 > A quiet, fast personal assistant that can code.
 
-Agent is one local runtime shared by its CLI, Telegram gateway, and native macOS client. Home dispatches background tasks and shows short results; each task keeps its full conversation.
+Agent is one local runtime shared by its CLI, Telegram gateway, and native macOS client. Home uses GPT-6 Luna to dispatch background tasks and show short results; each task keeps its full conversation with GPT-6 Sol.
 
 ## Run
 

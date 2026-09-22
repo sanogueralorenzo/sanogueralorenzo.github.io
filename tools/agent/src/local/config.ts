@@ -2,7 +2,8 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import type { RuntimeConfig } from "../conversation/types.js";
 
-export const MODEL = "gpt-5.6-luna";
+export const WORK_MODEL = "gpt-6-sol";
+export const UTILITY_MODEL = "gpt-6-luna";
 
 function expandHome(value: string): string {
   return value === "~" || value.startsWith("~/")
