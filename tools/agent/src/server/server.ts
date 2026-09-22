@@ -13,7 +13,7 @@ import { readPrivateJson, writePrivateFile } from "../local/files.js";
 import { readBody, readJson, readTurn } from "./request.js";
 
 export type RuntimeSetup = Pick<AgentSetupService,
-  "status" | "connectApiKey" | "startCodexLogin" | "waitForCodexLogin">;
+  "status" | "connectApiKey" | "logout" | "startCodexLogin" | "waitForCodexLogin">;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -127,6 +127,10 @@ export class RuntimeServer {
           }) });
         }
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
+        case "POST /v1/setup/logout": {
+          await this.setup.logout();
+          return json(response, 200, { connected: false });
+        }
         case "POST /v1/setup/openai": {
           const { apiKey } = await readJson(request);
           const key = typeof apiKey === "string" ? apiKey.trim() : "";

@@ -138,6 +138,10 @@ export class CodexAppServer extends EventEmitter {
     return this.request<CodexAccountStatus>("account/read", { refreshToken });
   }
 
+  async logout(): Promise<void> {
+    await this.request("account/logout");
+  }
+
   async beginLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {
     const result = await this.request<Record<string, unknown>>("account/login/start", {
       type: mode === "headless" ? "chatgptDeviceCode" : "chatgpt",

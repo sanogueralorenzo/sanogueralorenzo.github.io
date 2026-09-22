@@ -6,6 +6,7 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 
 - `GET /v1/health` — unauthenticated liveness only
 - `GET /v1/setup` — setup state
+- `POST /v1/setup/logout` — sign out of Agent's private Codex profile
 - `POST /v1/setup/openai` — connect an OpenAI key through Codex app-server
 - `POST /v1/setup/codex/login` — start explicit ChatGPT login with `{ "mode": "browser" | "headless" }`
 - `POST /v1/setup/codex/login/:id/wait` — wait for login completion without exposing credentials

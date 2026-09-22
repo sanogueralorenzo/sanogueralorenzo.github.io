@@ -109,6 +109,10 @@ public actor RuntimeClient {
 
     public func setupStatus() async throws -> SetupStatus { try await value(path: "/v1/setup") }
 
+    public func logout() async throws {
+        _ = try await data(path: "/v1/setup/logout", method: "POST")
+    }
+
     public func connectOpenAI(key: String) async throws {
         _ = try await data(path: "/v1/setup/openai", method: "POST", body: ["apiKey": key])
     }

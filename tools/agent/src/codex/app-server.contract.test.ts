@@ -20,7 +20,7 @@ function client(scenario: string, extra: NodeJS.ProcessEnv = {}): CodexAppServer
 const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
   .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
 
-describe("Codex profile and login", () => {
+describe("Codex profile and authentication", () => {
   it("runs production app-server in a private, locked-down Agent profile", async () => {
     const homeDir = temporary("agent-codex-profile-");
     const envLog = join(homeDir, "env.json");
@@ -106,6 +106,16 @@ describe("Codex profile and login", () => {
     expect(requests(log).find((message) => message.method === "account/login/start")?.params)
       .toEqual({ type: "apiKey", apiKey: "[redacted]" });
     expect(readFileSync(log, "utf8")).not.toContain("sk-test-secret");
+  });
+
+  it("logs out of the private Codex profile", async () => {
+    const homeDir = temporary("agent-codex-logout-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("normal", { AGENT_FAKE_LOG: log });
+    expect((await appServer.account()).account?.type).toBe("chatgpt");
+    await appServer.logout();
+    expect((await appServer.account()).account).toBeNull();
+    expect(requests(log).map((request) => request.method)).toContain("account/logout");
   });
 
   it.each([

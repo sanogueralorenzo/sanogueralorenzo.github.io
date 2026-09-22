@@ -184,6 +184,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (method === "account/read") {
     return reply(id, { account });
   }
+  if (method === "account/logout") {
+    account = null;
+    return reply(id);
+  }
   if (method === "account/login/start") {
     if (params.type === "apiKey") {
       account = { type: "apiKey" };

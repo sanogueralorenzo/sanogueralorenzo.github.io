@@ -27,16 +27,17 @@ private enum AgentStyle {
 @main
 struct AgentApp: App {
     @State private var model = AppModel()
+    @AppStorage("windowPinned") private var windowPinned = false
 
     var body: some Scene {
         WindowGroup("Agent") {
-            RootView(model: model)
+            RootView(model: model, windowPinned: $windowPinned)
                 .frame(minWidth: 420, minHeight: 360)
                 .task { await model.start() }
                 .tint(AgentStyle.clay)
         }
         .defaultSize(width: 720, height: 640)
-        .windowLevel(.floating)
+        .windowLevel(windowPinned ? .floating : .normal)
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -49,7 +50,8 @@ struct AgentApp: App {
 
 struct RootView: View {
     @Bindable var model: AppModel
-    @State private var showingAccount = false
+    @Binding var windowPinned: Bool
+    @State private var showingLogin = false
 
     var body: some View {
         Group {
@@ -64,14 +66,31 @@ struct RootView: View {
         .background(AgentStyle.canvas.ignoresSafeArea())
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAccount = true } label: {
-                    Label("Account", systemImage: "person.crop.circle")
+                Menu {
+                    if model.setupStatus?.configured == true {
+                        Button("Log Out") { Task { await model.logout() } }
+                            .disabled(model.isSettingUp)
+                    } else {
+                        Button("Log In…") { showingLogin = true }
+                    }
+                    Divider()
+                    Button(windowPinned ? "Unpin Window" : "Pin Window") {
+                        windowPinned.toggle()
+                        (NSApp.keyWindow ?? NSApp.mainWindow)?.level = windowPinned ? .floating : .normal
+                    }
+                    Divider()
+                    Button("Quit Agent") { NSApp.terminate(nil) }
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
                 }
-                .help("Account and Settings")
+                .help("Settings")
             }
         }
-        .sheet(isPresented: $showingAccount) {
-            AccountSettingsView(model: model)
+        .sheet(isPresented: $showingLogin) {
+            SignInView(model: model)
+        }
+        .onChange(of: model.setupStatus?.configured) { _, configured in
+            if configured == true { showingLogin = false }
         }
     }
 }
@@ -91,33 +110,24 @@ struct SetupView: View {
                 Text("Connect once, then continue from anywhere.")
                     .foregroundStyle(AgentStyle.muted)
             }
-            AccountControls(model: model)
+            SignInControls(model: model)
             Spacer()
         }
         .padding(40)
     }
 }
 
-private struct AccountSettingsView: View {
+private struct SignInView: View {
     @Environment(\.dismiss) private var dismiss
     @Bindable var model: AppModel
 
-    private var status: String {
-        switch model.setupStatus?.authMode {
-        case "chatgpt": "Connected with ChatGPT"
-        case "apiKey": "Connected with an OpenAI API key"
-        default: "Not connected"
-        }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Account").font(.title2.weight(.semibold))
-            Text(status).foregroundStyle(AgentStyle.muted)
-            AccountControls(model: model)
+            Text("Log In").font(.title2.weight(.semibold))
+            SignInControls(model: model)
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }
+                Button("Close") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -128,13 +138,13 @@ private struct AccountSettingsView: View {
     }
 }
 
-private struct AccountControls: View {
+private struct SignInControls: View {
     @Bindable var model: AppModel
     @State private var key = ""
 
     var body: some View {
         VStack(spacing: 16) {
-            Button(model.setupStatus?.authMode == "chatgpt" ? "Reconnect ChatGPT" : "Sign in with ChatGPT") {
+            Button("Sign in with ChatGPT") {
                 Task { await model.continueWithChatGPT() }
             }
             .buttonStyle(.borderedProminent)

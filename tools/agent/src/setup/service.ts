@@ -31,6 +31,10 @@ export class AgentSetupService {
     await this.codex.loginWithApiKey(key);
   }
 
+  async logout(): Promise<void> {
+    await this.codex.logout();
+  }
+
   async startCodexLogin(mode: CodexLoginMode): Promise<CodexLoginStart> {
     if (!this.codex.isInstalled()) throw new Error("Install the Codex CLI and retry.");
     return this.codex.beginLogin(mode);

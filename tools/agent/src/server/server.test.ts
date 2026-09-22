@@ -19,6 +19,7 @@ function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
       codex: { installed: false, connected: false },
     }),
     connectApiKey: async () => undefined,
+    logout: async () => undefined,
     startCodexLogin: async () => ({ type: "chatgpt", loginId: "login", authUrl: "https://auth.openai.com/fake" }),
     waitForCodexLogin: async () => ({ state: "complete" }),
     ...overrides,
@@ -385,6 +386,7 @@ describe("RuntimeServer", () => {
   it("exposes shared guided setup endpoints", async () => {
     const runtime = { async *run() {} } as unknown as AgentRuntime;
     let apiKey = "";
+    let loggedOut = false;
     const loginModes: string[] = [];
     const setup = setupStub({
       status: async () => ({
@@ -393,6 +395,7 @@ describe("RuntimeServer", () => {
         codex: { installed: true, connected: false },
       }),
       connectApiKey: async (key) => { apiKey = key; },
+      logout: async () => { loggedOut = true; },
       startCodexLogin: async (mode) => {
         loginModes.push(mode);
         return mode === "headless"
@@ -418,5 +421,7 @@ describe("RuntimeServer", () => {
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
     expect((await request("/v1/setup/openai", "POST", { apiKey: "sk-test" })).status).toBe(200);
     expect(apiKey).toBe("sk-test");
+    expect((await request("/v1/setup/logout", "POST")).status).toBe(200);
+    expect(loggedOut).toBe(true);
   });
 });

@@ -77,6 +77,19 @@ struct ChatMessage: Identifiable {
         await configure("Connecting API key…") { try await $0.connectOpenAI(key: key) }
     }
 
+    func logout() async {
+        guard let client, !isSettingUp else { return }
+        isSettingUp = true
+        defer { isSettingUp = false }
+        do {
+            try await client.logout()
+            setupMessage = ""
+            await start()
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
+
     func continueWithChatGPT() async {
         await configure("Opening ChatGPT sign-in…") { client in
             let login = try await client.startCodexLogin(mode: "browser")
