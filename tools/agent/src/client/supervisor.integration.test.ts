@@ -2,7 +2,7 @@ import { readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RuntimeClient } from "../client/client.js";
+import { RuntimeClient } from "./client.js";
 import { Store } from "../conversation/store.js";
 import { temporary } from "../test-support.js";
 import { RuntimeSupervisor } from "./supervisor.js";

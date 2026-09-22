@@ -1,6 +1,6 @@
 import { Bot, InputFile, type Context } from "grammy";
 import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
-import { RuntimeSupervisor } from "../cli/supervisor.js";
+import { RuntimeSupervisor } from "../client/supervisor.js";
 import { loadConfig } from "../local/config.js";
 import { readTelegramToken } from "./credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";

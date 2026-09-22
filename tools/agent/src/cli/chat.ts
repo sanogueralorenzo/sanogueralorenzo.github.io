@@ -2,7 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import type { RunEnvelope, RuntimeSnapshot } from "../conversation/types.js";
 import { loadConfig } from "../local/config.js";
-import { RuntimeSupervisor } from "./supervisor.js";
+import { RuntimeSupervisor } from "../client/supervisor.js";
 
 const ansi = {
   dim: (text: string) => process.stdout.isTTY ? `\u001b[2m${text}\u001b[22m` : text,
