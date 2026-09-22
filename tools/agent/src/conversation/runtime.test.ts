@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AgentBackend, BackendEvent, BackendTurn } from "./backend.js";
+import type { AgentBackend, BackendEvent, BackendTurn, Handoff } from "./backend.js";
 import { AgentRuntime } from "./runtime.js";
 import { Store } from "./store.js";
 import type { Attachment, RuntimeEvent } from "./types.js";
@@ -10,8 +10,8 @@ import { cleanup, temporary } from "../test-support.js";
 class RecordingBackend implements AgentBackend {
   readonly turns: BackendTurn[] = [];
   readonly transcriptions: string[] = [];
-  readonly discarded: string[] = [];
   navigateTo: string | null = null;
+  handoffTask: string | null = null;
   failNext = false;
   failTranscription = false;
   transcription = "Fix the TypeScript test";
@@ -22,8 +22,10 @@ class RecordingBackend implements AgentBackend {
     return this.transcription;
   }
 
-  async discardSession(sessionId: string): Promise<void> {
-    this.discarded.push(sessionId);
+  async route(turn: BackendTurn): Promise<Handoff | null> {
+    if (!this.navigateTo) return null;
+    this.turns.push(turn);
+    return { destination: { sessionId: this.navigateTo }, task: this.handoffTask };
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
@@ -32,7 +34,6 @@ class RecordingBackend implements AgentBackend {
       this.failNext = false;
       throw new DOMException("Interrupted", "AbortError");
     }
-    if (this.navigateTo) yield { type: "navigate", sessionId: this.navigateTo };
     yield { type: "text_delta", delta: "Done." };
     yield { type: "done" };
   }
@@ -172,7 +173,6 @@ describe("AgentRuntime", () => {
     const lookup = await collect(runtime, { text: "take me back to the bot restart work", sessionId: fresh.id, channel: "macos" });
 
     expect(backend.turns.at(-1)?.sessionTools?.[0]?.id).toBe(firstSession);
-    expect(backend.discarded).toHaveLength(1);
     expect(lookup).toContainEqual(expect.objectContaining({
       type: "navigate",
       url: `agent://sessions/${firstSession}`,
@@ -181,6 +181,20 @@ describe("AgentRuntime", () => {
     expect(store.listSessions()).toHaveLength(1);
     expect(firstSession && store.getMessages(firstSession).map((message) => message.content))
       .toEqual(["Simplify Telegram reconnects", "Done."]);
+  });
+
+  it("leaves a populated source conversation untouched when switching without a task", async () => {
+    const { store, backend, runtime } = testRuntime();
+    const source = store.createSession({ title: "Current work" });
+    store.addMessage(source.id, "user", "Original topic");
+    const target = store.createSession({ title: "Older work" });
+    backend.navigateTo = target.id;
+
+    const events = await collect(runtime, { text: "Resume the older work conversation", sessionId: source.id });
+    expect(events).toContainEqual(expect.objectContaining({ type: "navigate", continues: false }));
+    expect(store.getMessages(source.id)).toEqual([{ role: "user", content: "Original topic" }]);
+    expect(store.getSession(source.id)).not.toBeNull();
+    expect(store.getMessages(target.id)).toEqual([]);
   });
 
   it("keeps the session resumable after interruption", async () => {
@@ -208,6 +222,23 @@ describe("AgentRuntime", () => {
     expect(session?.cwd).toBeNull();
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
     expect(backend.transcriptions).toEqual([audioPath]);
+  });
+
+  it("routes a transcribed voice request and keeps the transcript in the destination", async () => {
+    const { homeDir, store, backend, runtime } = testRuntime();
+    const target = store.createSession({ title: "Saved project" });
+    backend.navigateTo = target.id;
+    backend.handoffTask = "Fix the test";
+    backend.transcription = "Resume the saved project conversation and fix the test";
+    const source = runtime.openSession({ fresh: true });
+    const events = await collect(runtime, {
+      text: "", sessionId: source.id, channel: "telegram",
+      attachments: [{ id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") }],
+    });
+
+    expect(events).toContainEqual(expect.objectContaining({ type: "navigate", continues: true, session: expect.objectContaining({ id: target.id }) }));
+    expect(store.getMessages(target.id)[0]).toEqual({ role: "user", content: backend.transcription });
+    expect(store.getSession(source.id)).toBeNull();
   });
 
   it("persists an early voice failure under the public run ID", async () => {

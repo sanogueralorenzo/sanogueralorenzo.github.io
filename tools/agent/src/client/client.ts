@@ -72,13 +72,16 @@ export class RuntimeClient {
     throw new Error("Agent runtime did not become ready.");
   }
 
-  async events(signal?: AbortSignal, sessionId?: string): Promise<AsyncGenerator<RunEnvelope>> {
+  async events(signal?: AbortSignal, sessionId?: string, runId?: string): Promise<AsyncGenerator<RunEnvelope>> {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort, { once: true });
     let response: Response;
     try {
-      response = await this.fetch(`/v1/events${sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ""}`, { signal: controller.signal });
+      const query = new URLSearchParams();
+      if (sessionId) query.set("sessionId", sessionId);
+      if (runId) query.set("runId", runId);
+      response = await this.fetch(`/v1/events${query.size ? `?${query}` : ""}`, { signal: controller.signal });
       if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
       if (response.headers.get("x-agent-stream") !== "snapshot") throw new RuntimeProtocolError();
     } catch (error) {

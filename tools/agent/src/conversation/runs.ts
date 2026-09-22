@@ -44,7 +44,7 @@ export class RunCoordinator {
     };
     this.active.set(sessionId, run);
     this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
-    this.publish(sessionId, info.id, run.turn);
+    if (!prepared.routing) this.publish(sessionId, info.id, run.turn);
     const execution = this.execute(run, turn, prepared);
     this.executing.add(execution);
     void execution.finally(() => this.executing.delete(execution));
@@ -131,8 +131,26 @@ export class RunCoordinator {
   ): Promise<void> {
     let terminal = false;
     try {
-      for await (const event of this.runtime.run(turn, { signal: run.controller.signal, runId: run.run.id, prepared })) {
+      for await (const event of this.runtime.run(turn, {
+        signal: run.controller.signal,
+        runId: run.run.id,
+        prepared,
+        canHandoff: (targetId) => {
+          const busy = this.active.get(targetId);
+          if (busy && busy !== run) throw new RunBusyError(busy.run);
+        },
+      })) {
         terminal ||= event.type === "done" || event.type === "error";
+        if (event.type === "navigate") {
+          const sourceId = run.run.sessionId;
+          this.publish(sourceId, run.run.id, event);
+          this.active.delete(sourceId);
+          run.run.sessionId = event.session.id;
+          this.active.set(event.session.id, run);
+          this.publish(sourceId, run.run.id, { type: "session_activity", sessionId: sourceId, runId: null });
+          this.publish(event.session.id, run.run.id, { type: "session_activity", sessionId: event.session.id, runId: run.run.id });
+          continue;
+        }
         this.publish(run.run.sessionId, run.run.id, event);
       }
       if (!terminal) this.publish(run.run.sessionId, run.run.id, { type: "error", message: "Agent stopped before completing the response." });
@@ -148,6 +166,7 @@ export class RunCoordinator {
     const active = this.active.get(sessionId);
     if (active?.run.id === runId) {
       if (event.type === "done" || event.type === "error") active.terminal = true;
+      if (event.type === "turn") active.turn = event;
       if (event.type === "session") active.session = event.session;
       if (event.type === "navigate") active.navigation = event;
       if (event.type === "text_delta") active.output += event.delta;

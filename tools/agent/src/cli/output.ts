@@ -104,8 +104,9 @@ export class CliOutput {
       return;
     }
     if (event.type === "navigate") {
-      this.status(`Resumed “${event.session.title}”.`);
-      if (this.activeRunId === runId) {
+      this.status(`Opened “${event.session.title}”.`);
+      if (event.continues) this.activeRunId = runId;
+      if (!event.continues && this.activeRunId === runId) {
         this.activeRunId = undefined;
         this.finish(runId);
       }

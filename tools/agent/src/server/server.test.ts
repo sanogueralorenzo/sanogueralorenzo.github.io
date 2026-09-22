@@ -71,6 +71,7 @@ describe("RuntimeServer", () => {
     const runtime = {
       async *run(turn: Record<string, unknown>): AsyncGenerator<RuntimeEvent> {
         receivedTurn = turn;
+        yield { type: "turn", text: "hello", channel: "api", hasAttachments: true };
         yield { type: "status", message: "ready" };
         yield { type: "text_delta", delta: "hello" };
         yield { type: "done", sessionId: "session" };
@@ -134,6 +135,7 @@ describe("RuntimeServer", () => {
   it("runs two sessions independently and stops only the selected run", async () => {
     const release = new Map<string, () => void>();
     const { client } = await serve((store) => new AgentRuntime(store, {
+      async route() { return null; },
       async *run({ session, signal }) {
         await new Promise<void>((resolve) => {
           release.set(session.id, resolve);
@@ -144,7 +146,6 @@ describe("RuntimeServer", () => {
         yield { type: "done" };
       },
       async transcribeAudio() { return ""; },
-      async discardSession() {},
     } as AgentBackend));
     const first = await client.openSession({ fresh: true });
     const second = await client.openSession({ fresh: true });
@@ -165,9 +166,9 @@ describe("RuntimeServer", () => {
 
   it("keeps Telegram on its persisted conversation across other clients and /new", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
+      async route() { return null; },
       async *run() { yield { type: "text_delta", delta: "Done." }; yield { type: "done" }; },
       async transcribeAudio() { return ""; },
-      async discardSession() {},
     } as AgentBackend));
     const cli = await client.openSession({ fresh: true });
     expect((await client.telegramSession("42")).id).toBe(cli.id);
@@ -189,9 +190,9 @@ describe("RuntimeServer", () => {
 
   it("keeps session content off other sessions' streams while signaling list changes", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
+      async route() { return null; },
       async *run() { yield { type: "text_delta", delta: "private answer" }; yield { type: "done" }; },
       async transcribeAudio() { return ""; },
-      async discardSession() {},
     } as AgentBackend));
     const first = await client.openSession({ fresh: true });
     const second = await client.openSession({ fresh: true });
@@ -212,14 +213,14 @@ describe("RuntimeServer", () => {
       store.addMessage(saved.id, "user", "Earlier work");
       destination = saved.id;
       return new AgentRuntime(store, {
-        async *run() { yield { type: "navigate", sessionId: destination }; yield { type: "done" }; },
+        async route() { return { destination: { sessionId: destination }, task: null }; },
+        async *run() { yield { type: "done" }; },
         async transcribeAudio() { return ""; },
-        async discardSession() {},
       } as AgentBackend);
     });
     const temporarySession = await client.openSession({ fresh: true });
     const live = collectRun(await client.events());
-    await client.submit({ text: "open the earlier work", sessionId: temporarySession.id, channel: "cli" });
+    await client.submit({ text: "resume the conversation about earlier work", sessionId: temporarySession.id, channel: "cli" });
     await live;
 
     const reconnect = (await client.events(undefined, temporarySession.id))[Symbol.asyncIterator]();
@@ -234,6 +235,73 @@ describe("RuntimeServer", () => {
       messages: [{ role: "user", content: "Earlier work" }],
     });
     expect((await client.sessions()).sessions.map((item) => item.id)).not.toContain(temporarySession.id);
+  });
+
+  it("recovers an in-progress handoff from an existing conversation by run ID", async () => {
+    let targetId = "";
+    let release!: () => void;
+    let turns = 0;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    const { client } = await serve((store) => {
+      const target = store.createSession({ title: "Saved project" });
+      targetId = target.id;
+      return new AgentRuntime(store, {
+        async route({ request }) { return request.text.startsWith("Resume")
+          ? { destination: { sessionId: targetId }, task: "Finish the work" } : null; },
+        async *run() { if (++turns > 1) await waiting; yield { type: "text_delta", delta: "Finished." }; yield { type: "done" }; },
+        async transcribeAudio() { return ""; },
+      } as AgentBackend);
+    });
+    const source = await client.openSession({ fresh: true });
+    await client.submit({ text: "Earlier topic", sessionId: source.id, channel: "cli" });
+    await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Finished."));
+    const run = await client.submit({ text: "Resume the conversation about the saved project and finish the work", sessionId: source.id, channel: "cli" });
+    await vi.waitFor(async () => expect((await client.sessions()).sessions.find((item) => item.id === targetId)?.activeRunId).toBe(run?.id));
+
+    const reconnect = (await client.events(undefined, source.id, run?.id))[Symbol.asyncIterator]();
+    expect((await reconnect.next()).value).toMatchObject({
+      sessionId: source.id, runId: run?.id,
+      event: { type: "navigate", continues: true, session: { id: targetId } },
+    });
+    await reconnect.return?.();
+    const target = (await client.events(undefined, targetId))[Symbol.asyncIterator]();
+    expect((await target.next()).value).toMatchObject({ event: { type: "snapshot", snapshot: {
+      activeRuns: [{ run: { id: run?.id } }],
+    } } });
+    await target.return?.();
+    release();
+    await vi.waitFor(async () => expect((await client.transcript(targetId)).messages.at(-1)?.content).toBe("Finished."));
+    expect((await client.transcript(source.id)).messages.map((message) => message.content)).toEqual(["Earlier topic", "Finished."]);
+  });
+
+  it("does not forward work into a conversation that is already busy", async () => {
+    let targetId = "";
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    const { client } = await serve((store) => {
+      targetId = store.createSession({ title: "Busy project" }).id;
+      return new AgentRuntime(store, {
+        async route({ request }) { return request.text.startsWith("Resume")
+          ? { destination: { sessionId: targetId }, task: "Do more work" } : null; },
+        async *run({ session }) {
+          if (session.id === targetId) await waiting;
+          yield { type: "text_delta", delta: "Done." };
+          yield { type: "done" };
+        },
+        async transcribeAudio() { return ""; },
+      } as AgentBackend);
+    });
+    const source = await client.openSession({ fresh: true });
+    await client.submit({ text: "Current topic", sessionId: source.id, channel: "cli" });
+    await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Done."));
+    const active = await client.submit({ text: "Stay busy", sessionId: targetId, channel: "macos" });
+    await vi.waitFor(async () => expect((await client.sessions()).sessions.find((item) => item.id === targetId)?.activeRunId).toBe(active?.id));
+    await client.submit({ text: "Resume the busy project conversation and do more work", sessionId: source.id, channel: "cli" });
+    await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Agent is already working in this conversation."));
+    expect((await client.transcript(source.id)).messages[0]?.content).toBe("Current topic");
+    expect((await client.transcript(targetId)).messages.map((message) => message.content)).toEqual(["Stay busy"]);
+    release();
+    await vi.waitFor(async () => expect((await client.transcript(targetId)).messages.at(-1)?.content).toBe("Done."));
   });
 
   it("hydrates a late connection with the current output before live updates", async () => {
@@ -266,9 +334,9 @@ describe("RuntimeServer", () => {
 
   it("recovers a missed completion from the saved transcript and matching run ID", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
+      async route() { return null; },
       async *run() { yield { type: "text_delta", delta: "saved answer" }; yield { type: "done" }; },
       async transcribeAudio() { return ""; },
-      async discardSession() {},
     } as AgentBackend));
     const session = await client.openSession({ fresh: true });
     const observed = collectRun(await client.events());

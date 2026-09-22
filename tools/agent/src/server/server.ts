@@ -105,10 +105,14 @@ export class RuntimeServer {
       switch (route) {
         case "GET /v1/events": {
           const sessionId = url.searchParams.get("sessionId") ?? undefined;
+          const runId = url.searchParams.get("runId") ?? undefined;
+          const handoff = sessionId && runId ? this.store.handoffFor(runId, sessionId) : null;
           const current = sessionId ? this.store.getSession(sessionId) : null;
-          const redirected = sessionId && !current ? this.store.redirectedSession(sessionId) : null;
+          const redirected = handoff
+            ? this.store.getSession(handoff.targetId)
+            : sessionId && !current ? this.store.redirectedSession(sessionId) : null;
           if (sessionId && !current && !redirected) return json(response, 404, { error: "session_not_found" });
-          return await this.events(response, sessionId, redirected);
+          return await this.events(response, sessionId, redirected, runId, handoff?.continues ?? false);
         }
         case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
         case "POST /v1/runs/stop": {
@@ -201,7 +205,13 @@ export class RuntimeServer {
     };
   }
 
-  private async events(response: ServerResponse, sessionId?: string, redirected?: ReturnType<Store["redirectedSession"]>): Promise<void> {
+  private async events(
+    response: ServerResponse,
+    sessionId?: string,
+    redirected?: ReturnType<Store["redirectedSession"]>,
+    runId?: string,
+    continues = false,
+  ): Promise<void> {
     const controller = new AbortController();
     response.once("close", () => controller.abort());
     response.writeHead(200, {
@@ -214,7 +224,7 @@ export class RuntimeServer {
     response.flushHeaders();
     response.write(": connected\n\n");
     if (redirected && sessionId) {
-      response.end(`data: ${JSON.stringify({ sessionId, runId: "", event: { type: "navigate", session: redirected, url: `agent://sessions/${redirected.id}` } })}\n\n`);
+      response.end(`data: ${JSON.stringify({ sessionId, runId: runId ?? "", event: { type: "navigate", session: redirected, url: `agent://sessions/${redirected.id}`, continues } })}\n\n`);
       return;
     }
     try {

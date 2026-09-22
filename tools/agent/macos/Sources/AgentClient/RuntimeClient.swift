@@ -150,9 +150,10 @@ public actor RuntimeClient {
         return try JSONDecoder().decode(RunStartResponse.self, from: data).run
     }
 
-    public func events(sessionId: String) async throws -> EventStream {
+    public func events(sessionId: String, runId: String? = nil) async throws -> EventStream {
         let id = sessionId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? sessionId
-        let request = try request(path: "/v1/events?sessionId=\(id)")
+        let pending = runId.map { "&runId=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
+        let request = try request(path: "/v1/events?sessionId=\(id)\(pending)")
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")

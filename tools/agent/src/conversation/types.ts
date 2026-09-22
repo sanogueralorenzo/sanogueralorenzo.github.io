@@ -49,7 +49,7 @@ export type RuntimeEvent =
   | { type: "turn"; text: string; channel: Channel; hasAttachments: boolean }
   | { type: "session_activity"; sessionId: string; runId: string | null }
   | { type: "session"; session: Session }
-  | { type: "navigate"; session: Session; url: string }
+  | { type: "navigate"; session: Session; url: string; continues: boolean }
   | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };

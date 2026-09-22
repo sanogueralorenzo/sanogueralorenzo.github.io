@@ -56,6 +56,11 @@ export class Store {
         output TEXT NOT NULL DEFAULT '',
         started_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS run_inputs (
+        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        delivered INTEGER NOT NULL DEFAULT 0
+      );
       CREATE TABLE IF NOT EXISTS codex_threads (
         session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
         thread_id TEXT NOT NULL UNIQUE,
@@ -68,6 +73,12 @@ export class Store {
       CREATE TABLE IF NOT EXISTS session_redirects (
         source_id TEXT PRIMARY KEY,
         target_id TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS run_handoffs (
+        run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+        source_id TEXT NOT NULL,
+        target_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        continues INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY,
@@ -86,9 +97,17 @@ export class Store {
     try {
       this.db.prepare(`
         INSERT INTO messages (session_id, role, content, created_at)
+        SELECT runs.session_id, 'user', run_inputs.content, ?
+        FROM runs JOIN run_inputs ON run_inputs.run_id = runs.id
+        WHERE runs.state = 'running' AND run_inputs.delivered = 0
+      `).run(now());
+      this.db.exec("UPDATE run_inputs SET delivered = 1 WHERE delivered = 0 AND run_id IN (SELECT id FROM runs WHERE state = 'running')");
+      this.db.prepare(`
+        INSERT INTO messages (session_id, role, content, created_at)
         SELECT session_id, 'assistant', output || char(10) || char(10) || '[interrupted]', ?
         FROM runs WHERE state = 'running' AND output <> ''
       `).run(now());
+      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id IN (SELECT session_id FROM runs WHERE state = 'running')").run(now());
       this.db.prepare("UPDATE runs SET state = 'interrupted', output = '' WHERE state = 'running'").run();
       this.db.exec("COMMIT");
     } catch (error) {
@@ -108,7 +127,7 @@ export class Store {
   }
 
   setSessionWorkspace(id: string, cwd: string): Session {
-    this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ?").run(cwd, now(), id);
+    this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ? AND cwd IS NULL").run(cwd, now(), id);
     return this.getSession(id)!;
   }
 
@@ -165,25 +184,6 @@ export class Store {
     };
   }
 
-  activateSession(id: string): Session | null {
-    if (!this.getSession(id)) return null;
-    this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(now(), id);
-    return this.getSession(id);
-  }
-
-  redirectSession(sourceId: string, targetId: string): void {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      this.db.prepare("INSERT INTO session_redirects (source_id, target_id) VALUES (?, ?)").run(sourceId, targetId);
-      this.db.prepare("UPDATE telegram_sessions SET session_id = ? WHERE session_id = ?").run(targetId, sourceId);
-      this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sourceId);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-  }
-
   redirectedSession(id: string): Session | null {
     let current = id;
     while (true) {
@@ -226,12 +226,13 @@ export class Store {
       .slice(0, limit).map(({ content }) => content);
   }
 
-  startRun(sessionId: string, id: string = randomUUID()): string {
+  startRun(sessionId: string, id: string = randomUUID(), input?: string): string {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.prepare("DELETE FROM runs WHERE session_id = ? AND state != 'running'").run(sessionId);
       this.db.prepare("INSERT INTO runs (id, session_id, state, started_at) VALUES (?, ?, 'running', ?)")
         .run(id, sessionId, now());
+      if (input !== undefined) this.db.prepare("INSERT INTO run_inputs (run_id, content) VALUES (?, ?)").run(id, input);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -240,11 +241,81 @@ export class Store {
     return id;
   }
 
+  handoffRun(input: {
+    runId: string;
+    sourceId: string;
+    destination: { sessionId: string } | { cwd: string; title: string };
+    sourceEmpty: boolean;
+    continues: boolean;
+  }): Session {
+    const { runId, sourceId, sourceEmpty, continues } = input;
+    let targetId = "";
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if ("sessionId" in input.destination) {
+        if (!this.getSession(input.destination.sessionId)) throw new Error("That conversation is no longer available.");
+        targetId = input.destination.sessionId;
+      } else targetId = this.createSession(input.destination).id;
+      if (targetId === sourceId) throw new Error("That conversation is already open.");
+      this.db.prepare("DELETE FROM runs WHERE session_id = ? AND state != 'running'").run(targetId);
+      this.db.prepare("UPDATE runs SET session_id = ? WHERE id = ?").run(targetId, runId);
+      this.db.prepare("INSERT INTO run_handoffs (run_id, source_id, target_id, continues) VALUES (?, ?, ?, ?)")
+        .run(runId, sourceId, targetId, continues ? 1 : 0);
+      this.db.prepare("UPDATE telegram_sessions SET session_id = ? WHERE session_id = ?").run(targetId, sourceId);
+      if (sourceEmpty) {
+        this.db.prepare("INSERT INTO session_redirects (source_id, target_id) VALUES (?, ?)").run(sourceId, targetId);
+        this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sourceId);
+      }
+      if (!continues) this.db.prepare("DELETE FROM run_inputs WHERE run_id = ?").run(runId);
+      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(now(), targetId);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return this.getSession(targetId)!;
+  }
+
+  stageRunInput(id: string, content: string): void {
+    this.db.prepare(`
+      INSERT INTO run_inputs (run_id, content) VALUES (?, ?)
+      ON CONFLICT(run_id) DO UPDATE SET content = excluded.content
+    `).run(id, content);
+  }
+
+  deliverRunInput(id: string): void {
+    const row = this.db.prepare(`
+      SELECT runs.session_id AS sessionId, run_inputs.content
+      FROM runs JOIN run_inputs ON run_inputs.run_id = runs.id
+      WHERE runs.id = ? AND run_inputs.delivered = 0
+    `).get(id) as { sessionId: string; content: string } | undefined;
+    if (!row) return;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const timestamp = now();
+      this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, 'user', ?, ?)")
+        .run(row.sessionId, row.content, timestamp);
+      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, row.sessionId);
+      this.db.prepare("UPDATE run_inputs SET delivered = 1 WHERE run_id = ?").run(id);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  handoffFor(runId: string, sourceId: string): { targetId: string; continues: boolean } | null {
+    const row = this.db.prepare("SELECT target_id AS targetId, continues FROM run_handoffs WHERE run_id = ? AND source_id = ?")
+      .get(runId, sourceId) as { targetId: string; continues: number } | undefined;
+    return row ? { targetId: row.targetId, continues: Boolean(row.continues) } : null;
+  }
+
   checkpointRun(id: string, output: string): void {
     this.db.prepare("UPDATE runs SET output = ? WHERE id = ?").run(output, id);
   }
 
   finishRun(id: string, state: LastRun["state"] = "complete", message?: string): void {
+    this.deliverRunInput(id);
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const run = this.db.prepare("SELECT session_id AS sessionId FROM runs WHERE id = ?")

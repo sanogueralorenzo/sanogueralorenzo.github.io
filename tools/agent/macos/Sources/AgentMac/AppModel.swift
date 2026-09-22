@@ -40,6 +40,7 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var client: RuntimeClient?
     @ObservationIgnored private var observer: Task<Void, Never>?
     @ObservationIgnored private var activeRunId: String?
+    @ObservationIgnored private var displayedTurnRunId: String?
     @ObservationIgnored private var assistantId: UUID?
     @ObservationIgnored private var submittingSessionId: String?
     @ObservationIgnored private var completedRunId: String?
@@ -146,6 +147,7 @@ struct ChatMessage: Identifiable {
         selectedSessionId = id
         messages = []
         activeRunId = nil
+        displayedTurnRunId = nil
         submittingSessionId = nil
         assistantId = nil
         latestSnapshot = nil
@@ -189,7 +191,7 @@ struct ChatMessage: Identifiable {
                     do {
                         let reconnected = try await launcher.ensureRunning()
                         self.client = reconnected
-                        events = try await reconnected.events(sessionId: sessionId)
+                        events = try await reconnected.events(sessionId: sessionId, runId: activeRunId)
                         isConnected = true
                         connectionError = nil
                         activity = ""
@@ -215,6 +217,13 @@ struct ChatMessage: Identifiable {
         case "snapshot":
             if let snapshot = event.snapshot { loadSnapshot(snapshot, scrollToEnd: messages.isEmpty) }
         case "turn":
+            if displayedTurnRunId == envelope.runId {
+                if let text = event.text, let index = messages.lastIndex(where: { $0.role == .user }) {
+                    messages[index].text = text
+                }
+                break
+            }
+            displayedTurnRunId = envelope.runId
             activeRunId = envelope.runId
             isRunning = true
             activity = "Thinking"
@@ -238,7 +247,9 @@ struct ChatMessage: Identifiable {
         case "status":
             activity = event.message ?? "Working"
         case "error":
+            if activeRunId == nil { activeRunId = envelope.runId }
             if let id = assistantId { edit(id) { if $0.text.isEmpty { $0.text = event.message ?? "Something went wrong." } } }
+            else { messages.append(ChatMessage(id: UUID(), role: .assistant, text: event.message ?? "Something went wrong.")) }
             finish(envelope.runId)
         case "done":
             finish(envelope.runId)
@@ -251,6 +262,7 @@ struct ChatMessage: Identifiable {
         guard activeRunId == runId else { return }
         if submittingSessionId == selectedSessionId { completedRunId = runId }
         activeRunId = nil
+        displayedTurnRunId = nil
         assistantId = nil
         isRunning = false
         activity = ""
@@ -263,7 +275,7 @@ struct ChatMessage: Identifiable {
         let previousRunId = activeRunId
         loadTranscript(snapshot.transcript, scrollToEnd: scrollToEnd)
         if let active = snapshot.activeRuns.first(where: { $0.run.sessionId == selectedSessionId }) {
-            if let navigation = active.navigation {
+            if let navigation = active.navigation, navigation.session.id != selectedSessionId {
                 Task { await selectSession(navigation.session.id) }
                 return
             }
@@ -274,6 +286,7 @@ struct ChatMessage: Identifiable {
             messages.append(ChatMessage(id: id, role: .assistant, text: active.output, artifacts: active.artifacts))
             assistantId = id
             activeRunId = active.run.id
+            displayedTurnRunId = active.run.id
             isRunning = true
             activity = "Thinking"
         } else if let previousRunId, snapshot.lastRuns.contains(where: { $0.id == previousRunId }), submittingSessionId == selectedSessionId {
@@ -298,6 +311,7 @@ struct ChatMessage: Identifiable {
             messages = []
         }
         activeRunId = nil
+        displayedTurnRunId = nil
         assistantId = nil
         isRunning = false
     }

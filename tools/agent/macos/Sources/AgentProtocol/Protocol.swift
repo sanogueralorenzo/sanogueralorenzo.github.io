@@ -19,6 +19,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let session: RuntimeSession?
     public let artifact: RuntimeArtifact?
     public let url: String?
+    public let continues: Bool?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
 }
@@ -54,6 +55,7 @@ public struct ActiveRunSnapshot: Decodable, Sendable {
 public struct NavigationSnapshot: Decodable, Sendable {
     public let session: RuntimeSession
     public let url: String
+    public let continues: Bool?
 }
 
 public struct TurnSnapshot: Decodable, Sendable {

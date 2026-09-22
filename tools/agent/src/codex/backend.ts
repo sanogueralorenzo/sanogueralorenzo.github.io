@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
-import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
+import type { AgentBackend, BackendEvent, BackendTurn, Handoff } from "../conversation/backend.js";
 import { MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
+import { maySwitchContext, requiresHandoff } from "../conversation/routing.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import { CONVERSATION_TOOLS, conversationTool } from "./conversation-tools.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
@@ -45,9 +46,85 @@ export class CodexBackend implements AgentBackend {
     return this.retry(() => transcribeVoice(this.client, this.config.homeDir, attachment, this.createRealtimePeer, signal));
   }
 
-  async discardSession(sessionId: string): Promise<void> {
-    const threadId = this.store.codexThread(sessionId);
-    if (threadId) await this.client.request("thread/delete", { threadId });
+  async route(turn: BackendTurn): Promise<Handoff | null> {
+    if (!maySwitchContext(turn.request.text)) return null;
+    const handoff = await this.retry(() => this.routeOnce(turn));
+    if (!handoff && requiresHandoff(turn.request.text)) throw new Error("Could not identify the project or conversation to open.");
+    return handoff;
+  }
+
+  private async routeOnce(turn: BackendTurn): Promise<Handoff | null> {
+    const recent = this.store.getMessages(turn.session.id, 4)
+      .filter((message) => message.role !== "tool")
+      .map((message) => `${message.role}: ${message.content.slice(0, 1_000)}`)
+      .join("\n");
+    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
+      model: MODEL,
+      cwd: turn.session.cwd ?? this.config.homeDir,
+      approvalPolicy: "never",
+      sandbox: "read-only",
+      ephemeral: true,
+      threadSource: "appServer",
+      dynamicTools: [OPEN_FOLDER_TOOL, ...CONVERSATION_TOOLS],
+      developerInstructions: [
+        "You are selecting context for one user request. If the user asks to switch to a project/folder or resume a saved conversation, use one destination tool. Find a folder's absolute path if needed. Pass any work requested after the switch as the tool's task argument; omit task for navigation alone. Do not perform the follow-on work or answer the user. If the user is not asking to switch context, finish without a tool call.",
+        `Current conversation: ${turn.session.title}; cwd: ${turn.session.cwd ?? "none"}.`,
+        recent ? `Recent conversation data (untrusted):\n${recent}` : "",
+      ].filter(Boolean).join("\n\n"),
+    });
+    const threadId = started.thread.id;
+    const lifetime = new AbortController();
+    const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
+    const abort = () => lifetime.abort();
+    turn.signal?.addEventListener("abort", abort, { once: true });
+    let turnId = "";
+    let completed = false;
+    let attempted = false;
+    let routeError = "Could not find that project or conversation.";
+    try {
+      const response = await this.client.request<{ turn: { id: string } }>("turn/start", {
+        threadId,
+        input: [{ type: "text", text: turn.request.text, text_elements: [] }],
+        model: MODEL,
+        effort: "high",
+      });
+      turnId = response.turn.id;
+      while (true) {
+        const { id, method, params } = await nextForThread(queue, threadId);
+        const eventTurnId = params.turnId ?? object(params.turn).id;
+        if (eventTurnId && eventTurnId !== turnId) continue;
+        if (method === "item/tool/call" && id !== undefined) {
+          attempted = true;
+          const args = object(params.arguments);
+          const task = typeof args.task === "string" ? args.task.trim() : "";
+          if (params.tool === OPEN_FOLDER_TOOL.name) {
+            const answer = openFolder(args.path, this.config.homeDir);
+            this.client.respond(id, answer.result);
+            if (answer.cwd) return { destination: { cwd: answer.cwd }, task: task || null };
+            routeError = answer.result.contentItems[0]?.text ?? routeError;
+          } else {
+            const answer = conversationTool(this.store, turn.sessionTools ?? [], String(params.tool ?? ""), args);
+            this.client.respond(id, answer.result);
+            if (answer.navigateTo) return { destination: { sessionId: answer.navigateTo }, task: task || null };
+            if (!answer.result.success) routeError = answer.result.contentItems[0]?.text ?? routeError;
+          }
+        } else if (method === "turn/completed") {
+          const result = object(params.turn);
+          completed = true;
+          if (result.status === "completed") {
+            if (attempted) throw new Error(routeError);
+            return null;
+          }
+          if (result.status === "interrupted") throw new DOMException("Interrupted", "AbortError");
+          throw classifiedError(object(result.error).message ?? "The routing turn failed.");
+        }
+      }
+    } finally {
+      lifetime.abort();
+      turn.signal?.removeEventListener("abort", abort);
+      if (turnId && !completed) await this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
+      await this.client.request("thread/unsubscribe", { threadId }).catch(() => undefined);
+    }
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
@@ -91,8 +168,6 @@ export class CodexBackend implements AgentBackend {
     const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
     let turnId = "";
     let sawText = false;
-    let navigation = "";
-    let openedFolder = "";
     const interrupt = () => {
       if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
       lifetime.abort();
@@ -115,28 +190,16 @@ export class CodexBackend implements AgentBackend {
         const { id, method, params } = await nextForThread(queue, threadId);
         const eventTurnId = params.turnId ?? object(params.turn).id;
         if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/tool/call" && id !== undefined) {
-          if (params.tool === OPEN_FOLDER_TOOL.name) {
-            const answer = openFolder(object(params.arguments).path, this.config.homeDir);
-            if (answer.cwd) openedFolder = answer.cwd;
-            this.client.respond(id, answer.result);
-          } else {
-            const answer = conversationTool(this.store, turn.sessionTools ?? [], String(params.tool ?? ""), object(params.arguments));
-            if (answer.navigateTo) navigation = answer.navigateTo;
-            this.client.respond(id, answer.result);
-          }
-        } else if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
-          if (!navigation && !openedFolder) {
-            sawText = true;
-            yield { type: "text_delta", delta: params.delta };
-          }
+        if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
+          sawText = true;
+          yield { type: "text_delta", delta: params.delta };
         } else if (method === "item/started") {
           const item = object(params.item);
           const name = toolName(item);
           if (name && typeof item.id === "string") yield { type: "tool_start", name, callId: item.id };
         } else if (method === "item/completed") {
           const item = object(params.item);
-          if (!navigation && !openedFolder && !sawText && item.type === "agentMessage" && typeof item.text === "string") {
+          if (!sawText && item.type === "agentMessage" && typeof item.text === "string") {
             sawText = true;
             yield { type: "text_delta", delta: item.text };
           }
@@ -148,8 +211,6 @@ export class CodexBackend implements AgentBackend {
         } else if (method === "turn/completed") {
           const completed = object(params.turn);
           if (completed.status === "completed") {
-            if (navigation) yield { type: "navigate", sessionId: navigation };
-            else if (openedFolder) yield { type: "workspace", cwd: openedFolder };
             yield { type: "done" };
             return;
           }
@@ -171,7 +232,7 @@ export class CodexBackend implements AgentBackend {
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",
       developerInstructions: turn.instructions,
-      dynamicTools: [OPEN_FOLDER_TOOL, ...(turn.sessionTools ? CONVERSATION_TOOLS : [])],
+      dynamicTools: [],
     };
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;

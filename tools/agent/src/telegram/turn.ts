@@ -84,7 +84,13 @@ export class TelegramTurns {
   }
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
-    if (sessionId !== this.sessionId && !this.current.has(runId)) return null;
+    if (sessionId !== this.sessionId && !this.current.has(runId) && !this.pending.has(runId)) return null;
+    if (event.type === "session_activity") {
+      if (event.runId && sessionId === this.sessionId && !this.current.has(runId)) {
+        this.current.set(runId, { sessionId, output: "", error: "", artifacts: [] });
+      }
+      return null;
+    }
     if (event.type === "turn") {
       this.current.set(runId, { sessionId, output: "", error: "", artifacts: [] });
       if (event.channel === "telegram") return null;
@@ -92,11 +98,17 @@ export class TelegramTurns {
       const input = redactSecrets(event.text.trim()) || (event.hasAttachments ? "Voice message" : "Message");
       return { sessionId, chunks: splitTelegramText(`You (${source}): ${input}`), artifacts: [] };
     }
-    const current = this.current.get(runId);
+    let current = this.current.get(runId);
+    if (!current && this.pending.has(runId)) {
+      current = { sessionId, output: "", error: "", artifacts: [] };
+      this.current.set(runId, current);
+    }
     if (!current || this.delivered.has(runId)) return null;
     if (event.type === "text_delta") current.output += event.delta;
     else if (event.type === "navigate") {
-      current.output = `Resumed “${event.session.title}”.`;
+      if (!event.continues) current.output = `Opened “${event.session.title}”.`;
+      current.sessionId = event.session.id;
+      if (this.pending.has(runId)) this.pending.set(runId, event.session.id);
       if (this.sessionId === sessionId) this.sessionId = event.session.id;
     }
     else if (event.type === "artifact") current.artifacts.push(event.artifact);
@@ -114,12 +126,14 @@ export class TelegramTurns {
 
   async reconcile(snapshot: RuntimeSnapshot): Promise<TelegramTurnResult[]> {
     this.latestSnapshot = snapshot;
+    const owner = this.ownerId();
+    if (owner) this.sessionId = (await this.client.telegramSession(owner)).id;
     const previous = this.current;
     const activeRuns = snapshot.activeRuns.filter((active) =>
       active.run.sessionId === this.sessionId || active.navigation?.session.id === this.sessionId);
     this.current = new Map(activeRuns.map((active) => [active.run.id, {
       sessionId: active.run.sessionId,
-      output: active.navigation ? `Resumed “${active.navigation.session.title}”.` : active.output,
+      output: active.navigation && !active.navigation.continues ? `Opened “${active.navigation.session.title}”.` : active.output,
       error: "",
       artifacts: active.artifacts,
     }]));
@@ -132,13 +146,14 @@ export class TelegramTurns {
       ...this.pending,
     ])) {
       if (this.current.has(runId) || this.delivered.has(runId)) continue;
-      const last = snapshot.lastRuns.find((run) => run.id === runId && run.sessionId === sessionId);
+      const last = snapshot.lastRuns.find((run) => run.id === runId);
       if (!last) continue;
-      const transcript = snapshot.transcript?.session.id === sessionId
-        ? snapshot.transcript : await this.client.transcript(sessionId);
+      const transcript = snapshot.transcript?.session.id === last.sessionId
+        ? snapshot.transcript : await this.client.transcript(last.sessionId);
       const saved = transcript.messages.at(-1);
-      const output = saved?.role === "assistant" ? saved.content : previous.get(runId)?.output ?? "";
-      recovered.push({ sessionId, chunks: splitTelegramText(output || "Response ended while reconnecting."), artifacts: previous.get(runId)?.artifacts ?? [] });
+      const output = saved?.role === "assistant" ? saved.content : previous.get(runId)?.output
+        || (last.state === "complete" && sessionId !== last.sessionId ? `Opened “${transcript.session.title}”.` : "");
+      recovered.push({ sessionId: last.sessionId, chunks: splitTelegramText(output || "Response ended while reconnecting."), artifacts: previous.get(runId)?.artifacts ?? [] });
       this.pending.delete(runId);
       this.markDelivered(runId);
     }

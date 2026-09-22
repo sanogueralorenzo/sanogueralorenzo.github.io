@@ -19,11 +19,11 @@ describe("Store", () => {
     store.close();
   });
 
-  it("can switch a conversation to another working folder", () => {
+  it("sets an initial workspace without moving an established conversation", () => {
     const store = createStore();
-    const session = store.createSession({ cwd: "/tmp/first" });
-    expect(store.setSessionWorkspace(session.id, "/tmp/second").cwd).toBe("/tmp/second");
-    expect(store.getSession(session.id)?.cwd).toBe("/tmp/second");
+    const session = store.createSession();
+    expect(store.setSessionWorkspace(session.id, "/tmp/first").cwd).toBe("/tmp/first");
+    expect(store.setSessionWorkspace(session.id, "/tmp/second").cwd).toBe("/tmp/first");
     store.close();
   });
 
@@ -37,7 +37,8 @@ describe("Store", () => {
 
     const reopened = new Store(directory);
     expect(reopened.telegramSession("42")).toBe(source.id);
-    reopened.redirectSession(source.id, target.id);
+    const run = reopened.startRun(source.id);
+    reopened.handoffRun({ runId: run, sourceId: source.id, destination: { sessionId: target.id }, sourceEmpty: true, continues: false });
     expect(reopened.telegramSession("42")).toBe(target.id);
     expect(reopened.getSession(source.id)).toBeNull();
     reopened.close();
@@ -69,6 +70,55 @@ describe("Store", () => {
     const reopened = new Store(path);
     expect(reopened.getMessages(session.id)).toHaveLength(1);
     reopened.close();
+  });
+
+  it("recovers an input interrupted during temporary routing", () => {
+    const path = temporary("agent-routing-recovery-");
+    const first = new Store(path);
+    const source = first.createSession();
+    const run = first.startRun(source.id);
+    first.stageRunInput(run, "Go to the project and fix its tests");
+    first.close();
+
+    const recovered = new Store(path);
+    expect(recovered.getMessages(source.id)).toEqual([{ role: "user", content: "Go to the project and fix its tests" }]);
+    expect(recovered.latestRun(source.id)?.state).toBe("interrupted");
+    recovered.close();
+    const reopened = new Store(path);
+    expect(reopened.getMessages(source.id)).toHaveLength(1);
+    reopened.close();
+  });
+
+  it("recovers a request in its destination after a handoff interruption", () => {
+    const path = temporary("agent-handoff-recovery-");
+    const first = new Store(path);
+    const source = first.createSession();
+    const target = first.createSession({ cwd: "/tmp/project" });
+    const run = first.startRun(source.id);
+    first.stageRunInput(run, "Go to the project and fix its tests");
+    first.handoffRun({ runId: run, sourceId: source.id, destination: { sessionId: target.id }, sourceEmpty: true, continues: true });
+    first.close();
+
+    const recovered = new Store(path);
+    expect(recovered.getMessages(target.id)).toEqual([{ role: "user", content: "Go to the project and fix its tests" }]);
+    expect(recovered.handoffFor(run, source.id)).toEqual({ targetId: target.id, continues: true });
+    expect(recovered.latestRun(target.id)?.state).toBe("interrupted");
+    recovered.close();
+  });
+
+  it("keeps a navigation-only handoff out of the destination transcript after interruption", () => {
+    const path = temporary("agent-navigation-recovery-");
+    const first = new Store(path);
+    const source = first.createSession();
+    const target = first.createSession({ title: "Earlier work" });
+    const run = first.startRun(source.id, "switch-run", "Resume earlier work");
+    first.handoffRun({ runId: run, sourceId: source.id, destination: { sessionId: target.id }, sourceEmpty: true, continues: false });
+    first.close();
+
+    const recovered = new Store(path);
+    expect(recovered.getMessages(target.id)).toEqual([]);
+    expect(recovered.handoffFor(run, source.id)).toEqual({ targetId: target.id, continues: false });
+    recovered.close();
   });
 
   it("retains only the latest run state for reconnect reconciliation", () => {

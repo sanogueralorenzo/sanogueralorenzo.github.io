@@ -217,7 +217,7 @@ describe("CLI shared runs", () => {
     await vi.waitFor(() => expect(stdout).toContain("Continued answer"), { timeout: 5_000 });
     child.stdin.write("/quit\n");
     expect(await new Promise<number | null>((resolve) => child.once("exit", resolve)), stderr).toBe(0);
-    expect(stdout).toContain("Resumed “Saved work”.");
+    expect(stdout).toContain("Opened “Saved work”.");
     expect(stdout).not.toContain("Response ended while reconnecting");
     expect(receivedSessionId).toBe("target");
   });

@@ -47,7 +47,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       const stopStream = () => current.abort();
       observerController.signal.addEventListener("abort", stopStream, { once: true });
       try {
-        const events = await client.events(current.signal, output.sessionId);
+        const events = await client.events(current.signal, output.sessionId, output.activeRunId);
         for await (const event of events) {
           output.render(event);
           if (event.event.type === "snapshot") {

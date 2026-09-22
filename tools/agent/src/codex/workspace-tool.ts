@@ -5,10 +5,13 @@ import { isSensitivePath } from "../workspace/security.js";
 
 export const OPEN_FOLDER_TOOL = {
   name: "open_folder",
-  description: "When the user asks to open a local folder, repository, or project, find its absolute path and open it for this conversation. It becomes the working directory on the next turn; stop after opening it.",
+  description: "Choose a local folder, repository, or project as the destination for the user's request.",
   inputSchema: {
     type: "object",
-    properties: { path: { type: "string", description: "Absolute path to the folder." } },
+    properties: {
+      path: { type: "string", description: "Absolute path to the folder." },
+      task: { type: "string", description: "Work requested after opening the folder; omit for navigation only." },
+    },
     required: ["path"],
     additionalProperties: false,
   },
@@ -30,7 +33,7 @@ export function openFolder(path: unknown, agentHome: string): { result: ReturnTy
       || cwd === privateHome || cwd.startsWith(`${privateHome}${sep}`) || isSensitivePath(cwd)) {
       return { result: response(false, "Choose a specific, non-private folder.") };
     }
-    return { result: response(true, `Opened ${cwd}. Continue the user's work in the next turn.`), cwd };
+    return { result: response(true, `Selected ${cwd}.`), cwd };
   } catch {
     return { result: response(false, "Folder not found or inaccessible.") };
   }

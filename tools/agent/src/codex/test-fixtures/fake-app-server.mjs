@@ -61,7 +61,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
-      const sessionId = conversations[0]?.id;
+      const sessionId = (conversations.find((conversation) => conversation.title === "Telegram reconnects") ?? conversations[0])?.id;
       dynamicTurn.sessionId = sessionId;
       notify("item/completed", {
         threadId: dynamicTurn.threadId,
@@ -86,15 +86,16 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         item: { type: "dynamicToolCall", id: "read-item", tool: "read_conversation", status: "completed", success: result?.success },
       });
       const sessionId = dynamicTurn.sessionId;
+      const argumentsValue = { sessionId, ...(scenario === "session-navigation-task" ? { task: "Fix the reconnect flow" } : {}) };
       notify("item/started", {
         threadId: dynamicTurn.threadId,
         turnId: dynamicTurn.turnId,
-        item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", arguments: { sessionId }, status: "inProgress" },
+        item: { type: "dynamicToolCall", id: "open-item", tool: "open_conversation", arguments: argumentsValue, status: "inProgress" },
       });
       return send({
         id: "open-conversation",
         method: "item/tool/call",
-        params: { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "open-item", namespace: null, tool: "open_conversation", arguments: { sessionId } },
+        params: { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "open-item", namespace: null, tool: "open_conversation", arguments: argumentsValue },
       });
     }
     if (id === "open-conversation") {
@@ -167,20 +168,21 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
-    if (scenario === "workspace-open" && turnCounter === 1) {
+    if (scenario.startsWith("workspace-open") && turnCounter === 1) {
       dynamicTurn = { threadId: params.threadId, turnId };
+      const argumentsValue = { path: process.env.AGENT_FAKE_WORKSPACE, ...(scenario === "workspace-open-task" ? { task: "Fix the tests" } : {}) };
       notify("item/started", {
         threadId: params.threadId,
         turnId,
-        item: { type: "dynamicToolCall", id: "folder-item", tool: "open_folder", arguments: { path: process.env.AGENT_FAKE_WORKSPACE }, status: "inProgress" },
+        item: { type: "dynamicToolCall", id: "folder-item", tool: "open_folder", arguments: argumentsValue, status: "inProgress" },
       });
       return send({
         id: "open-folder",
         method: "item/tool/call",
-        params: { threadId: params.threadId, turnId, callId: "folder-item", namespace: null, tool: "open_folder", arguments: { path: process.env.AGENT_FAKE_WORKSPACE } },
+        params: { threadId: params.threadId, turnId, callId: "folder-item", namespace: null, tool: "open_folder", arguments: argumentsValue },
       });
     }
-    if (scenario.startsWith("session-navigation")) {
+    if (scenario.startsWith("session-navigation") && turnCounter === 1) {
       dynamicTurn = { threadId: params.threadId, turnId };
       notify("item/started", {
         threadId: params.threadId,

@@ -110,9 +110,10 @@ describe("Telegram turns", () => {
       type: "navigate",
       session: { id: "s1", cwd: null, title: "Telegram reconnects", updatedAt: new Date().toISOString() },
       url: "agent://sessions/s1",
+      continues: false,
     }));
     expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
-      .toMatchObject({ chunks: ["Resumed “Telegram reconnects”."] });
+      .toMatchObject({ chunks: ["Opened “Telegram reconnects”."] });
   });
 
   it("continues in the opened conversation after navigation", async () => {
@@ -124,12 +125,27 @@ describe("Telegram turns", () => {
       type: "navigate",
       session: { ...session, id: "s2", title: "Earlier work" },
       url: "agent://sessions/s2",
+      continues: false,
     }));
     turns.consume(envelope({ type: "done", sessionId: "s2" }));
     runtime.submit.mockResolvedValue({ id: "r2", sessionId: "s2", origin: "telegram" });
     runtime.telegramSession.mockResolvedValue({ ...session, id: "s2" });
     await turns.submit(async () => ({ text: "continue" }));
     expect(runtime.submit).toHaveBeenLastCalledWith({ text: "continue", sessionId: "s2", channel: "telegram" });
+  });
+
+  it("delivers a follow-on answer from the destination without an extra opening message", async () => {
+    const turns = turnsFor();
+    await turns.ensureSession();
+    turns.consume(envelope({ type: "session_activity", sessionId: "s1", runId: "r1" }));
+    turns.consume(envelope({ type: "navigate", session: { ...session, id: "s2", title: "Project" },
+      url: "agent://sessions/s2", continues: true }));
+    turns.consume({ sessionId: "s2", runId: "r1", event: {
+      type: "turn", text: "Go to project and finish it", channel: "telegram", hasAttachments: false,
+    } });
+    turns.consume({ sessionId: "s2", runId: "r1", event: { type: "text_delta", delta: "Finished." } });
+    expect(turns.consume({ sessionId: "s2", runId: "r1", event: { type: "done", sessionId: "s2" } }))
+      .toMatchObject({ chunks: ["Finished."] });
   });
 
   it("restores the selected active run after a gateway restart", async () => {

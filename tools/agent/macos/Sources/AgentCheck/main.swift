@@ -53,8 +53,8 @@ struct AgentCheck {
         check(String(decoding: request, as: UTF8.self).contains("\"sessionId\":\"s1\""), "Agent protocol check failed")
         let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","path":"/tmp/result.png"}}"#.utf8))
         check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
-        let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","session":{"id":"s1","title":"Telegram reconnects"}}"#.utf8))
-        check(navigation.session?.title == "Telegram reconnects", "Agent navigation protocol check failed")
+        let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","continues":true,"session":{"id":"s1","title":"Telegram reconnects"}}"#.utf8))
+        check(navigation.session?.title == "Telegram reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
@@ -78,6 +78,14 @@ struct AgentCheck {
         var redirected = try await client().events(sessionId: "s1").makeAsyncIterator()
         let redirectEvent = try await redirected.next()
         check(redirectEvent?.event.session?.id == "s2", "Agent session redirect check failed")
+
+        MockURLProtocol.handler = { request, protocolValue in
+            check(request.url?.query == "sessionId=s1&runId=r1", "Agent handoff reconnect URL check failed")
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"r1\",\"event\":{\"type\":\"navigate\",\"continues\":true,\"url\":\"agent://sessions/s2\",\"session\":{\"id\":\"s2\",\"title\":\"Saved work\"}}\n\n", stream: true)
+        }
+        var handoff = try await client().events(sessionId: "s1", runId: "r1").makeAsyncIterator()
+        let handoffEvent = try await handoff.next()
+        check(handoffEvent?.event.continues == true, "Agent handoff reconnect check failed")
 
         MockURLProtocol.handler = { _, protocolValue in protocolValue.respond("data: {broken}\n\n", stream: true) }
         do {

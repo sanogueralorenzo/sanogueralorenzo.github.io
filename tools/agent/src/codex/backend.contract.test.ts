@@ -157,7 +157,7 @@ describe("Codex turn transport", () => {
     expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
   });
 
-  it("opens a folder through one tool and uses it on the next turn across clients", async () => {
+  it("routes a folder request through an ephemeral turn and opens a new project session", async () => {
     const project = temporary("agent-open-project-");
     const cwd = realpathSync(project);
     const { backend, homeDir, log, store } = backendFixture("workspace-open", { AGENT_FAKE_WORKSPACE: project });
@@ -166,37 +166,67 @@ describe("Codex turn transport", () => {
     const opened = [];
     for await (const event of runtime.run({ text: "Open this project", sessionId: session.id, channel: "telegram" })) opened.push(event);
 
-    expect(opened).toContainEqual({ type: "session", session: expect.objectContaining({ id: session.id, cwd }) });
-    expect(opened).toContainEqual({ type: "text_delta", delta: `Opened ${cwd}.` });
+    expect(opened).toContainEqual(expect.objectContaining({ type: "navigate", session: expect.objectContaining({ cwd }), continues: false }));
     expect(opened).not.toContainEqual({ type: "text_delta", delta: "Stale turn text." });
-    expect(store.getSession(session.id)?.cwd).toBe(cwd);
-    expect(store.getMessages(session.id).at(-1)).toEqual({ role: "assistant", content: `Opened ${cwd}.` });
+    const destination = opened.find((event) => event.type === "navigate")?.session;
+    expect(destination?.id).not.toBe(session.id);
+    expect(store.getSession(session.id)).toBeNull();
+    expect(destination && store.getMessages(destination.id)).toEqual([]);
 
-    for await (const _event of runtime.run({ text: "Now fix it", sessionId: session.id, channel: "macos" })) { /* consume */ }
+    for await (const _event of runtime.run({ text: "Now fix it", sessionId: destination?.id, channel: "macos" })) { /* consume */ }
     const rpc = requests(log);
     const started = rpc.find((request) => request.method === "thread/start")?.params;
-    expect(started).toMatchObject({ cwd: homeDir, sandbox: "read-only" });
+    expect(started).toMatchObject({ cwd: homeDir, sandbox: "read-only", ephemeral: true });
     expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
     expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
-    expect(rpc.find((request) => request.method === "thread/resume")?.params).toMatchObject({
+    expect(rpc.filter((request) => request.method === "thread/start").at(-1)?.params).toMatchObject({
       cwd,
       sandbox: "workspace-write",
+      ephemeral: false,
     });
   });
 
-  it("opens a saved conversation from the first normal turn", async () => {
+  it("runs follow-on work only in the new project conversation", async () => {
+    const project = temporary("agent-open-project-task-");
+    const cwd = realpathSync(project);
+    const { backend, log, store } = backendFixture("workspace-open-task", { AGENT_FAKE_WORKSPACE: project });
+    const runtime = new AgentRuntime(store, backend);
+    const source = store.createSession({ title: "Earlier discussion" });
+    store.addMessage(source.id, "user", "Discuss another topic");
+    const prompt = "Go to this project and fix the tests";
+    const events = [];
+    for await (const event of runtime.run({ text: prompt, sessionId: source.id, channel: "macos" })) events.push(event);
+
+    const navigation = events.find((event) => event.type === "navigate");
+    expect(navigation).toMatchObject({ type: "navigate", continues: true, session: { cwd } });
+    const target = navigation?.type === "navigate" ? navigation.session : null;
+    expect(target?.id).not.toBe(source.id);
+    expect(events.map((event) => event.type)).toEqual([
+      "navigate", "session", "turn", "tool_start", "tool_end", "text_delta", "done",
+    ]);
+    expect(store.getMessages(source.id)).toEqual([{ role: "user", content: "Discuss another topic" }]);
+    expect(target && store.getMessages(target.id).map((message) => message.role)).toEqual(["user", "tool", "assistant"]);
+    expect(target && store.getMessages(target.id)[0]?.content).toBe(prompt);
+    const rpc = requests(log);
+    expect(rpc.filter((request) => request.method === "thread/start").map((request) => request.params)).toMatchObject([
+      { ephemeral: true, sandbox: "read-only" },
+      { ephemeral: false, cwd, sandbox: "workspace-write" },
+    ]);
+    expect(rpc.filter((request) => request.method === "turn/start").at(-1)?.params.input).toMatchObject([{ text: prompt }]);
+  });
+
+  it("selects a saved conversation in a temporary turn", async () => {
     const { backend, input, log, store } = backendFixture("session-navigation");
     const saved = store.createSession({ title: "Telegram reconnects" });
     store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
     const sessionTools = store.sessionCards().filter((session) => session.id === saved.id);
 
-    const events = await collect(backend, { ...input, sessionTools });
+    const handoff = await backend.route({ ...input, request: { ...input.request, text: "Resume the conversation about Telegram reconnects" }, sessionTools });
 
-    expect(events).toContainEqual({ type: "navigate", sessionId: saved.id });
-    expect(events.filter((event) => event.type === "text_delta")).toEqual([]);
+    expect(handoff).toEqual({ destination: { sessionId: saved.id }, task: null });
     const rpc = requests(log);
     expect(rpc.find((request) => request.method === "thread/start")?.params).toMatchObject({
-      ephemeral: false,
+      ephemeral: true,
       dynamicTools: [
         expect.objectContaining({ name: "open_folder" }),
         expect.objectContaining({ name: "list_conversations" }),
@@ -212,20 +242,54 @@ describe("Codex turn transport", () => {
     expect(read.messages).toContainEqual({ role: "user", content: "Simplify the Telegram reconnect flow" });
     expect(rpc.find((request) => request.id === "open-conversation")?.result).toMatchObject({ success: true });
 
-    await backend.discardSession(input.session.id);
-    expect(requests(log).at(-1)).toMatchObject({ method: "thread/delete", params: { threadId: "thread-1" } });
+    expect(rpc.some((request) => request.method === "thread/unsubscribe")).toBe(true);
+    expect(rpc.some((request) => request.method === "thread/delete")).toBe(false);
   });
 
-  it("omits completed assistant text after opening a saved conversation", async () => {
+  it("does not expose the temporary turn's assistant text", async () => {
     const { backend, input, store } = backendFixture("session-navigation-completed");
     const saved = store.createSession({ title: "Telegram reconnects" });
-    const events = await collect(backend, {
+    const handoff = await backend.route({
       ...input,
+      request: { ...input.request, text: "Resume the conversation about Telegram reconnects" },
       sessionTools: store.sessionCards().filter((session) => session.id === saved.id),
     });
 
-    expect(events).toContainEqual({ type: "navigate", sessionId: saved.id });
-    expect(events.filter((event) => event.type === "text_delta")).toEqual([]);
+    expect(handoff).toEqual({ destination: { sessionId: saved.id }, task: null });
+  });
+
+  it("resumes an existing conversation and forwards follow-on work without altering the source", async () => {
+    const { backend, log, store } = backendFixture("session-navigation-task");
+    const runtime = new AgentRuntime(store, backend);
+    const source = store.createSession({ title: "Current discussion" });
+    store.addMessage(source.id, "user", "Earlier source topic");
+    const saved = store.createSession({ title: "Telegram reconnects" });
+    store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
+    store.bindCodexThread(saved.id, "saved-thread");
+    const prompt = "Resume the conversation about Telegram reconnects and fix the reconnect flow";
+    const events = [];
+    for await (const event of runtime.run({ text: prompt, sessionId: source.id, channel: "cli" })) events.push(event);
+
+    expect(events).toContainEqual(expect.objectContaining({
+      type: "navigate", continues: true, session: expect.objectContaining({ id: saved.id }),
+    }));
+    expect(events.at(-1)).toEqual({ type: "done", sessionId: saved.id });
+    expect(store.getMessages(source.id)).toEqual([{ role: "user", content: "Earlier source topic" }]);
+    expect(store.getMessages(saved.id).map((message) => message.role)).toEqual(["user", "user", "tool", "assistant"]);
+    expect(requests(log).find((request) => request.method === "thread/resume")?.params.threadId).toBe("saved-thread");
+  });
+
+  it("does not run follow-on work in the old folder when routing cannot choose a destination", async () => {
+    const { backend, log, store } = backendFixture("normal");
+    const runtime = new AgentRuntime(store, backend);
+    const source = store.createSession({ cwd: "/tmp/old-project" });
+    const events = [];
+    for await (const event of runtime.run({ text: "Go to project X and fix the tests", sessionId: source.id })) events.push(event);
+
+    expect(events.at(-1)).toEqual({ type: "error", message: "Could not identify the project or conversation to open." });
+    expect(requests(log).filter((request) => request.method === "thread/start").map((request) => request.params.ephemeral))
+      .toEqual([true]);
+    expect(store.getMessages(source.id).map((message) => message.role)).toEqual(["user", "assistant"]);
   });
 
   it("preserves the runtime session and event contract", async () => {

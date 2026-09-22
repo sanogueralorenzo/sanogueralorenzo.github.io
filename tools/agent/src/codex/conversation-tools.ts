@@ -19,10 +19,13 @@ export const CONVERSATION_TOOLS = [
   },
   {
     name: "open_conversation",
-    description: "Open a listed conversation only after identifying a strong match.",
+    description: "Choose a listed conversation as the destination only after identifying a strong match.",
     inputSchema: {
       type: "object",
-      properties: { sessionId: { type: "string" } },
+      properties: {
+        sessionId: { type: "string" },
+        task: { type: "string", description: "Work requested after resuming; omit for navigation only." },
+      },
       required: ["sessionId"],
       additionalProperties: false,
     },
