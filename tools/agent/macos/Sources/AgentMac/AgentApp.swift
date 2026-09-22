@@ -2,13 +2,22 @@ import SwiftUI
 import AgentProtocol
 
 private enum AgentStyle {
-    static let canvas = Color(red: 0.965, green: 0.949, blue: 0.921)
-    static let surface = Color(red: 0.925, green: 0.910, blue: 0.882)
-    static let userSurface = Color(red: 0.91, green: 0.87, blue: 0.80)
-    static let graphite = Color(red: 0.18, green: 0.17, blue: 0.16)
-    static let muted = Color(red: 0.45, green: 0.43, blue: 0.40)
+    private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: rgb.0, green: rgb.1, blue: rgb.2, alpha: 1)
+        })
+    }
+
+    static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.105, 0.102, 0.097))
+    static let surface = adaptive(light: (0.925, 0.910, 0.882), dark: (0.16, 0.155, 0.145))
+    static let userSurface = adaptive(light: (0.91, 0.87, 0.80), dark: (0.23, 0.19, 0.16))
+    static let graphite = adaptive(light: (0.18, 0.17, 0.16), dark: (0.92, 0.90, 0.87))
+    static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
     static let line = graphite.opacity(0.13)
-    static let clay = Color(red: 0.73, green: 0.38, blue: 0.20)
+    static let clay = adaptive(light: (0.73, 0.38, 0.20), dark: (0.70, 0.34, 0.19))
+    static let inputSurface = adaptive(light: (0.98, 0.97, 0.95), dark: (0.19, 0.18, 0.17))
+    static let sendSurface = adaptive(light: (0.18, 0.17, 0.16), dark: (0.70, 0.34, 0.19))
     static let contentMaxWidth: CGFloat = 820
     static let messageMaxWidth: CGFloat = 640
     static let messageGutter: CGFloat = 48
@@ -24,7 +33,6 @@ struct AgentApp: App {
             RootView(model: model)
                 .frame(minWidth: 420, minHeight: 360)
                 .task { await model.start() }
-                .preferredColorScheme(.light)
                 .tint(AgentStyle.clay)
         }
         .defaultSize(width: 720, height: 640)
@@ -98,7 +106,7 @@ struct SetupView: View {
             }
             .padding(.horizontal, 14)
             .frame(maxWidth: 360, minHeight: 44)
-            .background(.white.opacity(0.42), in: RoundedRectangle(cornerRadius: 13))
+            .background(AgentStyle.inputSurface, in: RoundedRectangle(cornerRadius: 13))
             .overlay { RoundedRectangle(cornerRadius: 13).stroke(AgentStyle.line) }
             if model.isSettingUp { ProgressView().controlSize(.small) }
             if !model.setupMessage.isEmpty {
@@ -294,7 +302,7 @@ private struct MessageComposer: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)
-                    .background(canStop ? AgentStyle.clay : AgentStyle.graphite, in: Circle())
+                    .background(canStop ? AgentStyle.clay : AgentStyle.sendSurface, in: Circle())
             }
             .buttonStyle(.plain)
             .help(canStop ? "Stop" : "Send")
@@ -303,7 +311,7 @@ private struct MessageComposer: View {
         .padding(10)
         .padding(.leading, 4)
         .frame(maxWidth: AgentStyle.contentMaxWidth)
-        .background(.white.opacity(0.38), in: RoundedRectangle(cornerRadius: 18))
+        .background(AgentStyle.inputSurface, in: RoundedRectangle(cornerRadius: 18))
         .overlay { RoundedRectangle(cornerRadius: 18).stroke(AgentStyle.line) }
         .shadow(color: AgentStyle.graphite.opacity(0.04), radius: 10, y: 4)
         .padding(.horizontal, AgentStyle.edgePadding)
