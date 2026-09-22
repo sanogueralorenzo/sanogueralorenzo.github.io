@@ -3,6 +3,7 @@ import type { Attachment, ProgressEvent, Session, SessionCard, TurnRequest } fro
 export type BackendEvent =
   | ProgressEvent
   | { type: "navigate"; sessionId: string }
+  | { type: "workspace"; cwd: string }
   | { type: "done" };
 
 export interface BackendTurn {

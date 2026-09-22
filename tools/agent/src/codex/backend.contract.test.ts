@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -148,13 +148,40 @@ describe("Codex turn transport", () => {
     expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high"]);
   });
 
-  it("keeps sessions without a CLI workspace read-only", async () => {
+  it("keeps sessions without a selected workspace read-only", async () => {
     const homeDir = temporary("agent-codex-personal-");
     const log = join(homeDir, "rpc.log");
     const store = trackedStore(homeDir);
     const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
     await collect(backend, turn(store, homeDir, false));
     expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
+  });
+
+  it("opens a folder through one tool and uses it on the next turn across clients", async () => {
+    const project = temporary("agent-open-project-");
+    const cwd = realpathSync(project);
+    const { backend, homeDir, log, store } = backendFixture("workspace-open", { AGENT_FAKE_WORKSPACE: project });
+    const runtime = new AgentRuntime(store, backend);
+    const session = runtime.openSession({ fresh: true });
+    const opened = [];
+    for await (const event of runtime.run({ text: "Open this project", sessionId: session.id, channel: "telegram" })) opened.push(event);
+
+    expect(opened).toContainEqual({ type: "session", session: expect.objectContaining({ id: session.id, cwd }) });
+    expect(opened).toContainEqual({ type: "text_delta", delta: `Opened ${cwd}.` });
+    expect(opened).not.toContainEqual({ type: "text_delta", delta: "Stale turn text." });
+    expect(store.getSession(session.id)?.cwd).toBe(cwd);
+    expect(store.getMessages(session.id).at(-1)).toEqual({ role: "assistant", content: `Opened ${cwd}.` });
+
+    for await (const _event of runtime.run({ text: "Now fix it", sessionId: session.id, channel: "macos" })) { /* consume */ }
+    const rpc = requests(log);
+    const started = rpc.find((request) => request.method === "thread/start")?.params;
+    expect(started).toMatchObject({ cwd: homeDir, sandbox: "read-only" });
+    expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
+    expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
+    expect(rpc.find((request) => request.method === "thread/resume")?.params).toMatchObject({
+      cwd,
+      sandbox: "workspace-write",
+    });
   });
 
   it("opens a saved conversation from the first normal turn", async () => {
@@ -171,6 +198,7 @@ describe("Codex turn transport", () => {
     expect(rpc.find((request) => request.method === "thread/start")?.params).toMatchObject({
       ephemeral: false,
       dynamicTools: [
+        expect.objectContaining({ name: "open_folder" }),
         expect.objectContaining({ name: "list_conversations" }),
         expect.objectContaining({ name: "read_conversation" }),
         expect.objectContaining({ name: "open_conversation" }),

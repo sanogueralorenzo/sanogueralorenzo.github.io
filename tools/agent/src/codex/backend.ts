@@ -10,6 +10,7 @@ import { CONVERSATION_TOOLS, conversationTool } from "./conversation-tools.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
 import { transcribeVoice } from "./voice.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
+import { OPEN_FOLDER_TOOL, openFolder } from "./workspace-tool.js";
 
 function toolName(item: Record<string, unknown>): string | null {
   const names: Record<string, string> = {
@@ -91,6 +92,7 @@ export class CodexBackend implements AgentBackend {
     let turnId = "";
     let sawText = false;
     let navigation = "";
+    let openedFolder = "";
     const interrupt = () => {
       if (turnId) void this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
       lifetime.abort();
@@ -113,12 +115,18 @@ export class CodexBackend implements AgentBackend {
         const { id, method, params } = await nextForThread(queue, threadId);
         const eventTurnId = params.turnId ?? object(params.turn).id;
         if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/tool/call" && id !== undefined && turn.sessionTools) {
-          const answer = conversationTool(this.store, turn.sessionTools, String(params.tool ?? ""), object(params.arguments));
-          if (answer.navigateTo) navigation = answer.navigateTo;
-          this.client.respond(id, answer.result);
+        if (method === "item/tool/call" && id !== undefined) {
+          if (params.tool === OPEN_FOLDER_TOOL.name) {
+            const answer = openFolder(object(params.arguments).path, this.config.homeDir);
+            if (answer.cwd) openedFolder = answer.cwd;
+            this.client.respond(id, answer.result);
+          } else {
+            const answer = conversationTool(this.store, turn.sessionTools ?? [], String(params.tool ?? ""), object(params.arguments));
+            if (answer.navigateTo) navigation = answer.navigateTo;
+            this.client.respond(id, answer.result);
+          }
         } else if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
-          if (!navigation) {
+          if (!navigation && !openedFolder) {
             sawText = true;
             yield { type: "text_delta", delta: params.delta };
           }
@@ -128,7 +136,7 @@ export class CodexBackend implements AgentBackend {
           if (name && typeof item.id === "string") yield { type: "tool_start", name, callId: item.id };
         } else if (method === "item/completed") {
           const item = object(params.item);
-          if (!navigation && !sawText && item.type === "agentMessage" && typeof item.text === "string") {
+          if (!navigation && !openedFolder && !sawText && item.type === "agentMessage" && typeof item.text === "string") {
             sawText = true;
             yield { type: "text_delta", delta: item.text };
           }
@@ -141,6 +149,7 @@ export class CodexBackend implements AgentBackend {
           const completed = object(params.turn);
           if (completed.status === "completed") {
             if (navigation) yield { type: "navigate", sessionId: navigation };
+            else if (openedFolder) yield { type: "workspace", cwd: openedFolder };
             yield { type: "done" };
             return;
           }
@@ -162,7 +171,7 @@ export class CodexBackend implements AgentBackend {
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",
       developerInstructions: turn.instructions,
-      dynamicTools: turn.sessionTools ? CONVERSATION_TOOLS : [],
+      dynamicTools: [OPEN_FOLDER_TOOL, ...(turn.sessionTools ? CONVERSATION_TOOLS : [])],
     };
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;

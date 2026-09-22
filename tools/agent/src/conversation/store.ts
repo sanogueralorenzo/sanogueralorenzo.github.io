@@ -108,7 +108,7 @@ export class Store {
   }
 
   setSessionWorkspace(id: string, cwd: string): Session {
-    this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ? AND cwd IS NULL").run(cwd, now(), id);
+    this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ?").run(cwd, now(), id);
     return this.getSession(id)!;
   }
 

@@ -47,6 +47,17 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (log) appendFileSync(log, `${JSON.stringify(method
     ? { method, params: params.apiKey ? { ...params, apiKey: "[redacted]" } : params }
     : { id, result })}\n`);
+  if (!method && id === "open-folder" && dynamicTurn) {
+    notify("item/completed", {
+      threadId: dynamicTurn.threadId,
+      turnId: dynamicTurn.turnId,
+      item: { type: "dynamicToolCall", id: "folder-item", tool: "open_folder", status: "completed", success: result?.success },
+    });
+    notify("item/agentMessage/delta", { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, delta: "Stale turn text." });
+    notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
+    dynamicTurn = null;
+    return;
+  }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
@@ -156,6 +167,19 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
+    if (scenario === "workspace-open" && turnCounter === 1) {
+      dynamicTurn = { threadId: params.threadId, turnId };
+      notify("item/started", {
+        threadId: params.threadId,
+        turnId,
+        item: { type: "dynamicToolCall", id: "folder-item", tool: "open_folder", arguments: { path: process.env.AGENT_FAKE_WORKSPACE }, status: "inProgress" },
+      });
+      return send({
+        id: "open-folder",
+        method: "item/tool/call",
+        params: { threadId: params.threadId, turnId, callId: "folder-item", namespace: null, tool: "open_folder", arguments: { path: process.env.AGENT_FAKE_WORKSPACE } },
+      });
+    }
     if (scenario.startsWith("session-navigation")) {
       dynamicTurn = { threadId: params.threadId, turnId };
       notify("item/started", {

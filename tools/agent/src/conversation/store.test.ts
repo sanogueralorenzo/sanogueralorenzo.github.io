@@ -19,6 +19,14 @@ describe("Store", () => {
     store.close();
   });
 
+  it("can switch a conversation to another working folder", () => {
+    const store = createStore();
+    const session = store.createSession({ cwd: "/tmp/first" });
+    expect(store.setSessionWorkspace(session.id, "/tmp/second").cwd).toBe("/tmp/second");
+    expect(store.getSession(session.id)?.cwd).toBe("/tmp/second");
+    store.close();
+  });
+
   it("persists Telegram's selected session and follows navigation", () => {
     const directory = temporary("agent-telegram-binding-");
     const store = new Store(directory);

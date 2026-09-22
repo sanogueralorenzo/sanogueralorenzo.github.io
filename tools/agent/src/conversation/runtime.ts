@@ -132,6 +132,12 @@ export class AgentRuntime {
           yield event;
         } else if (event.type === "navigate") {
           navigationTarget = event.sessionId;
+        } else if (event.type === "workspace") {
+          session = this.store.setSessionWorkspace(session.id, event.cwd);
+          yield { type: "session", session };
+          const confirmation = `${assistantText ? "\n\n" : ""}Opened ${event.cwd}.`;
+          assistantText += confirmation;
+          yield { type: "text_delta", delta: confirmation };
         } else if (event.type !== "done") {
           yield event;
         }
