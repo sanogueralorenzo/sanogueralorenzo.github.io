@@ -214,11 +214,7 @@ struct ChatMessage: Identifiable {
             activeRunId = envelope.runId
             isRunning = true
             activity = "Thinking"
-            let text = event.text?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let displayed = text?.isEmpty == false ? text! : event.hasAttachments == true ? "Voice message" : "Message"
-            if messages.last?.role != .user || messages.last?.text != displayed {
-                messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
-            }
+            appendUserTurn(event.text, hasAttachments: event.hasAttachments == true)
             let id = UUID()
             assistantId = id
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
@@ -267,13 +263,9 @@ struct ChatMessage: Identifiable {
                 Task { await selectSession(navigation.session.id) }
                 return
             }
-            let text = active.turn.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let displayed = !text.isEmpty ? text : active.turn.hasAttachments ? "Voice message" : "Message"
             let storedTurn = active.session != nil && snapshot.transcript?.session.id == active.session?.id &&
                 snapshot.transcript?.messages.last(where: { $0.role == "user" || $0.role == "assistant" })?.role == "user"
-            if !storedTurn && (messages.last?.role != .user || messages.last?.text != displayed) {
-                messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
-            }
+            if !storedTurn { appendUserTurn(active.turn.text, hasAttachments: active.turn.hasAttachments) }
             let id = UUID()
             messages.append(ChatMessage(id: id, role: .assistant, text: active.output, artifacts: active.artifacts))
             assistantId = id
@@ -326,5 +318,13 @@ struct ChatMessage: Identifiable {
 
     private func edit(_ id: UUID, update: (inout ChatMessage) -> Void) {
         if let index = messages.firstIndex(where: { $0.id == id }) { update(&messages[index]) }
+    }
+
+    private func appendUserTurn(_ text: String?, hasAttachments: Bool) {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayed = (trimmed?.isEmpty == false ? trimmed : nil) ?? (hasAttachments ? "Voice message" : "Message")
+        if messages.last?.role != .user || messages.last?.text != displayed {
+            messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
+        }
     }
 }
