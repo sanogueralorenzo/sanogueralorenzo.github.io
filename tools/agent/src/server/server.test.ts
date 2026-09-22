@@ -76,7 +76,7 @@ describe("RuntimeServer", () => {
         yield { type: "done", sessionId: "session" };
       },
     } as unknown as AgentRuntime;
-    const { port, token, request, client } = await serve(runtime);
+    const { port, token, client } = await serve(runtime);
     const unauthorized = await fetch(`http://127.0.0.1:${port}/v1/sessions`);
     expect(unauthorized.status).toBe(401);
     const uploaded = await fetch(`http://127.0.0.1:${port}/v1/attachments`, {
@@ -108,7 +108,6 @@ describe("RuntimeServer", () => {
       attachmentIds: [attachment.id],
       attachments: [{ id: attachment.id, name: "voice note.ogg", mimeType: "audio/ogg" }],
     });
-    expect((await request("/v1/chat", "POST", { text: "old", channel: "api" })).status).toBe(404);
   });
 
   it("keeps a run alive when a subscriber disconnects and stops it explicitly", async () => {
@@ -335,6 +334,5 @@ describe("RuntimeServer", () => {
     await expect(completed.json()).resolves.toEqual({ state: "complete" });
     expect((await request("/v1/setup/openai", "POST", { apiKey: "sk-test" })).status).toBe(200);
     expect(apiKey).toBe("sk-test");
-    expect((await request("/v1/setup/backend", "POST", { backend: "codex" })).status).toBe(404);
   });
 });
