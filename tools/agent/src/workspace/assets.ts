@@ -38,13 +38,6 @@ function artifact(file: Omit<Artifact, "kind">): Artifact {
   return { ...file, kind: file.mimeType.startsWith("image/") ? "image" : "file" };
 }
 
-function saveData(homeDir: string, directory: "attachments" | "artifacts", input: { name: string; mimeType: string; data: Buffer }) {
-  const name = safeName(input.name);
-  const { id, path } = destination(homeDir, directory, extname(name) || extensionFor(input.mimeType));
-  writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
-  return { id, path, name, mimeType: input.mimeType, size: input.data.length };
-}
-
 export function saveAttachment(
   homeDir: string,
   store: Store,
@@ -53,15 +46,10 @@ export function saveAttachment(
   if (input.data.length === 0) throw new Error("Attachment is empty.");
   if (input.data.length > MAX_ATTACHMENT_BYTES) throw new Error("Attachment exceeds the 25 MB limit.");
   if (!input.mimeType.startsWith("audio/")) throw new Error("Only voice-note attachments are supported.");
-  return store.addAttachment(saveData(homeDir, "attachments", input));
-}
-
-export function saveArtifactData(
-  homeDir: string,
-  input: { name: string; mimeType: string; data: Buffer },
-): Artifact {
-  if (input.data.length === 0) throw new Error("Artifact is empty.");
-  return artifact(saveData(homeDir, "artifacts", input));
+  const name = safeName(input.name);
+  const { id, path } = destination(homeDir, "attachments", extname(name) || extensionFor(input.mimeType));
+  writeFileSync(path, input.data, { mode: 0o600, flag: "wx" });
+  return store.addAttachment({ id, path, name, mimeType: input.mimeType, size: input.data.length });
 }
 
 export function saveArtifactPath(

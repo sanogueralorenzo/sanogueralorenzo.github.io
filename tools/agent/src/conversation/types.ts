@@ -100,7 +100,7 @@ export interface RuntimeSnapshot {
   lastRuns: Pick<LastRun, "id" | "sessionId" | "state">[];
 }
 
-export type StreamEvent = RuntimeEvent | { type: "snapshot"; snapshot: RuntimeSnapshot };
+type StreamEvent = RuntimeEvent | { type: "snapshot"; snapshot: RuntimeSnapshot };
 
 export interface RunEnvelope {
   sessionId: string;

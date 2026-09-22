@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const TELEGRAM_PAIRING_TTL_MS = 3 * 60_000;
+const TELEGRAM_PAIRING_TTL_MS = 3 * 60_000;
 
 export function splitTelegramText(text: string, limit = 4096): string[] {
   const chunks: string[] = [];

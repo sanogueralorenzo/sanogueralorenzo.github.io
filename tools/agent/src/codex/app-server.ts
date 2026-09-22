@@ -21,7 +21,7 @@ export class CodexDisconnectedError extends Error {
   }
 }
 
-export interface CodexAppServerOptions {
+interface CodexAppServerOptions {
   command: string;
   args?: string[];
   env?: NodeJS.ProcessEnv;

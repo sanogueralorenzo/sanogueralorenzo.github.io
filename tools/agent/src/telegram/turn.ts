@@ -9,7 +9,7 @@ type TurnClient = Pick<RuntimeClient, "submit" | "stop" | "telegramSession" | "t
 type InFlight = { sessionId: string; output: string; error: string; artifacts: Artifact[] };
 
 export interface TelegramTurnResult { sessionId: string; chunks: string[]; artifacts: Artifact[]; taskSessionId?: string }
-export interface TelegramSubmitResult { accepted: boolean; recovered: TelegramTurnResult[] }
+interface TelegramSubmitResult { accepted: boolean; recovered: TelegramTurnResult[] }
 
 export function isTelegramOwner(ownerId: string | undefined, chatType: string | undefined, userId: number | undefined): boolean {
   return chatType === "private" && userId !== undefined && ownerId === String(userId);
