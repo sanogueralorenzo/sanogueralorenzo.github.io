@@ -40,11 +40,9 @@ export class AgentRuntime {
     return this.store.latestSession(cwd) ?? this.store.createSession(cwd ? { cwd } : {});
   }
 
-  openTelegramSession(ownerId: string, options: { fresh?: boolean; sessionId?: string } = {}): Session {
+  openTelegramSession(ownerId: string, options: { fresh?: boolean } = {}): Session {
     const bound = this.store.telegramSession(ownerId);
-    const session = options.sessionId
-      ? this.openSession({ preferredSessionId: options.sessionId })
-      : options.fresh ? this.openSession({ fresh: true })
+    const session = options.fresh ? this.openSession({ fresh: true })
       : this.openSession(bound ? { preferredSessionId: bound } : {});
     this.store.bindTelegramSession(ownerId, session.id);
     return session;

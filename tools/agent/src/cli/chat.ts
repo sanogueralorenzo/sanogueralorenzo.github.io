@@ -19,13 +19,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim(`— ${selected.title}${selected.cwd ? ` · ${basename(selected.cwd)}` : ""}`)}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
-  console.log(ansi.dim("/new  /sessions  /use  /status  /help  /quit\n"));
+  console.log(ansi.dim("/new  /status  /help  /quit\n"));
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let stopping = false;
   let fatalError: Error | undefined;
   let hasConnected = false;
-  let displayedSessions: string[] = [];
   const observerController = new AbortController();
   let streamController: AbortController | undefined;
   let streamReady = Promise.resolve();
@@ -98,32 +97,13 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       if (!input) continue;
       if (input === "/quit") break;
       if (input === "/help") {
-        console.log("Talk normally. /sessions lists conversations; /use N opens one. Ctrl-C stops this response.");
+        console.log("Talk normally, including to open an earlier conversation. /new starts fresh; Ctrl-C stops this response.");
         continue;
       }
       if (input === "/new") {
         const session = await client.openSession({ fresh: true, cwd: process.cwd() });
         await changeSession(session.id);
         status("New conversation ready.");
-        continue;
-      }
-      if (input === "/sessions") {
-        const { sessions } = await client.sessions();
-        displayedSessions = sessions.map((session) => session.id);
-        sessions.forEach((session, index) => console.log(`${index + 1}. ${session.title}${session.id === output.sessionId ? "  ← current" : ""}`));
-        continue;
-      }
-      if (input.startsWith("/use ")) {
-        const choice = input.slice(5).trim();
-        const id = /^\d+$/.test(choice) ? displayedSessions[Number(choice) - 1] : choice;
-        if (!id) { status("Conversation not found. Use /sessions to see recent conversations."); continue; }
-        try {
-          const session = await client.openSession({ preferredSessionId: id });
-          await changeSession(session.id);
-          status(`Opened “${session.title}”.`);
-        } catch {
-          status("Could not open that conversation. Use /sessions to see recent conversations.");
-        }
         continue;
       }
       if (input === "/status") {

@@ -122,11 +122,6 @@ public actor RuntimeClient {
         return try await value(path: "/v1/setup/codex/login/\(id)/wait", method: "POST")
     }
 
-    public func transcript(sessionId: String) async throws -> Transcript {
-        let id = sessionId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? sessionId
-        return try await value(path: "/v1/sessions/\(id)/messages")
-    }
-
     public func sessions() async throws -> [RuntimeSession] {
         let response: SessionsResponse = try await value(path: "/v1/sessions")
         return response.sessions

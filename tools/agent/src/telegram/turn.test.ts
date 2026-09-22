@@ -10,9 +10,8 @@ function client(run: object | null = { id: "r1", sessionId: "s1", origin: "teleg
   return {
     submit: vi.fn(async () => run),
     stop: vi.fn(async () => true),
-    telegramSession: vi.fn(async (_ownerId: string, options: { fresh?: boolean; sessionId?: string } = {}) => {
+    telegramSession: vi.fn(async (_ownerId: string, options: { fresh?: boolean } = {}) => {
       if (options.fresh) selected = "s2";
-      if (options.sessionId) selected = options.sessionId;
       return { ...session, id: selected };
     }),
     transcript: vi.fn(async () => ({ session, messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }] })),
@@ -56,27 +55,6 @@ describe("Telegram turns", () => {
     expect(runtime.submit).toHaveBeenNthCalledWith(3, { text: "continue", sessionId: "s2", channel: "telegram" });
   });
 
-  it("switches Telegram to an existing conversation and keeps subsequent turns there", async () => {
-    const runtime = client();
-    const turns = turnsFor(runtime);
-    await turns.ensureSession();
-    const selected = await turns.selectConversation("s2");
-    expect(selected.id).toBe("s2");
-    expect(runtime.telegramSession).toHaveBeenCalledWith("42", { sessionId: "s2" });
-    await turns.submit(async () => ({ text: "continue" }));
-    expect(runtime.submit).toHaveBeenCalledWith({ text: "continue", sessionId: "s2", channel: "telegram" });
-  });
-
-  it("keeps an active reply when the selected conversation is picked again", async () => {
-    const turns = turnsFor();
-    await turns.ensureSession();
-    turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
-    await turns.selectConversation("s1");
-    turns.consume(envelope({ type: "text_delta", delta: "Still here" }));
-    expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
-      .toMatchObject({ chunks: ["Still here"] });
-  });
-
   it("delivers a run initiated on another client with chunked text and artifacts", async () => {
     const turns = turnsFor();
     await turns.ensureSession();
@@ -106,14 +84,14 @@ describe("Telegram turns", () => {
     const turns = turnsFor();
     await turns.ensureSession();
     turns.consume(envelope({ type: "turn", text: "the bot work", channel: "macos", hasAttachments: false }));
-    turns.consume(envelope({
+    expect(turns.consume(envelope({
       type: "navigate",
       session: { id: "s1", cwd: null, title: "Telegram reconnects", updatedAt: new Date().toISOString() },
       url: "agent://sessions/s1",
       continues: false,
-    }));
-    expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
-      .toMatchObject({ chunks: ["Opened “Telegram reconnects”."] });
+    }))).toMatchObject({ chunks: ["Opened “Telegram reconnects”."] });
+    expect(turns.consume(envelope({ type: "done", sessionId: "s1" }))).toBeNull();
+    expect(turns.hasActiveRun()).toBe(false);
   });
 
   it("continues in the opened conversation after navigation", async () => {
@@ -134,12 +112,12 @@ describe("Telegram turns", () => {
     expect(runtime.submit).toHaveBeenLastCalledWith({ text: "continue", sessionId: "s2", channel: "telegram" });
   });
 
-  it("delivers a follow-on answer from the destination without an extra opening message", async () => {
+  it("delivers the same opening boundary before a follow-on answer", async () => {
     const turns = turnsFor();
     await turns.ensureSession();
     turns.consume(envelope({ type: "session_activity", sessionId: "s1", runId: "r1" }));
-    turns.consume(envelope({ type: "navigate", session: { ...session, id: "s2", title: "Project" },
-      url: "agent://sessions/s2", continues: true }));
+    expect(turns.consume(envelope({ type: "navigate", session: { ...session, id: "s2", title: "Project" },
+      url: "agent://sessions/s2", continues: true }))).toMatchObject({ chunks: ["Opened “Project”."] });
     turns.consume({ sessionId: "s2", runId: "r1", event: {
       type: "turn", text: "Go to project and finish it", channel: "telegram", hasAttachments: false,
     } });

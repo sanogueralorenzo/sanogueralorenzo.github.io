@@ -157,6 +157,23 @@ describe("Codex turn transport", () => {
     expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
   });
 
+  it("reads saved messages from the active conversation on demand", async () => {
+    const { backend, input, log, store } = backendFixture("history");
+    store.addMessage(input.session.id, "user", "Earlier question");
+    store.addMessage(input.session.id, "assistant", "Earlier answer");
+    await collect(backend, { ...input, request: { ...input.request, text: "Show earlier messages" } });
+    await collect(backend, { ...input, request: { ...input.request, text: "Show them again" } });
+    const rpc = requests(log);
+    expect(rpc.find((request) => request.method === "thread/start")?.params.dynamicTools)
+      .toEqual([expect.objectContaining({ name: "read_history" })]);
+    expect(rpc.find((request) => request.method === "thread/resume")?.params.dynamicTools)
+      .toEqual([expect.objectContaining({ name: "read_history" })]);
+    const result = rpc.find((request) => request.id === "read-history")?.result;
+    expect(result?.success).toBe(true);
+    expect(JSON.parse((result?.contentItems as { text: string }[])[0]!.text).messages)
+      .toEqual([{ role: "user", content: "Earlier question" }, { role: "assistant", content: "Earlier answer" }]);
+  });
+
   it("routes a folder request through an ephemeral turn and opens a new project session", async () => {
     const project = temporary("agent-open-project-");
     const cwd = realpathSync(project);

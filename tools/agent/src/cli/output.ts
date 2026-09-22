@@ -84,8 +84,10 @@ export class CliOutput {
     }
     if (this.activeRunId && this.activeRunId !== active.run.id) this.finish(this.activeRunId);
     if (this.activeRunId !== active.run.id) this.render({ sessionId: this.sessionId, runId: active.run.id, event: active.turn });
-    if (active.navigation && this.sessionId !== active.navigation.session.id) this.status(`Resumed “${active.navigation.session.title}”.`);
-    if (active.session) this.sessionId = active.session.id;
+    if (active.navigation && this.sessionId !== active.navigation.session.id) {
+      this.status(`Opened “${active.navigation.session.title}”.`);
+      this.changeSession(active.navigation.session.id);
+    }
     const missing = active.output.startsWith(this.activeOutput) ? active.output.slice(this.activeOutput.length) : `\n${active.output}`;
     if (missing) process.stdout.write(missing);
     this.activeOutput = active.output;

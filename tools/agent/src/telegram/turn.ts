@@ -1,5 +1,5 @@
 import type { RuntimeClient } from "../client/client.js";
-import type { Artifact, RunEnvelope, RuntimeSnapshot, Session, TurnRequest } from "../conversation/types.js";
+import type { Artifact, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { redactSecrets } from "../workspace/security.js";
 import { splitTelegramText } from "./text.js";
@@ -62,19 +62,6 @@ export class TelegramTurns {
     this.latestSnapshot = undefined;
   }
 
-  async selectConversation(sessionId: string): Promise<Session> {
-    const owner = this.ownerId();
-    if (!owner) throw new Error("Telegram is not paired.");
-    const session = await this.client.telegramSession(owner, { sessionId });
-    if (session.id !== this.sessionId) {
-      this.sessionId = session.id;
-      this.current.clear();
-      this.pending.clear();
-      this.latestSnapshot = undefined;
-    }
-    return session;
-  }
-
   hasActiveRun(): boolean { return this.current.size > 0; }
 
   stop(): Promise<boolean> {
@@ -103,13 +90,22 @@ export class TelegramTurns {
       current = { sessionId, output: "", error: "", artifacts: [] };
       this.current.set(runId, current);
     }
-    if (!current || this.delivered.has(runId)) return null;
+    if (this.delivered.has(runId)) {
+      if (event.type === "done" || event.type === "error") this.current.delete(runId);
+      return null;
+    }
+    if (!current) return null;
     if (event.type === "text_delta") current.output += event.delta;
     else if (event.type === "navigate") {
-      if (!event.continues) current.output = `Opened “${event.session.title}”.`;
       current.sessionId = event.session.id;
       if (this.pending.has(runId)) this.pending.set(runId, event.session.id);
       if (this.sessionId === sessionId) this.sessionId = event.session.id;
+      if (!event.continues) {
+        this.current.delete(runId);
+        this.pending.delete(runId);
+        this.markDelivered(runId);
+      }
+      return { sessionId, chunks: [`Opened “${event.session.title}”.`], artifacts: [] };
     }
     else if (event.type === "artifact") current.artifacts.push(event.artifact);
     else if (event.type === "error") current.error = event.message;
@@ -129,8 +125,8 @@ export class TelegramTurns {
     const owner = this.ownerId();
     if (owner) this.sessionId = (await this.client.telegramSession(owner)).id;
     const previous = this.current;
-    const activeRuns = snapshot.activeRuns.filter((active) =>
-      active.run.sessionId === this.sessionId || active.navigation?.session.id === this.sessionId);
+    const activeRuns = snapshot.activeRuns.filter((active) => !this.delivered.has(active.run.id) &&
+      (active.run.sessionId === this.sessionId || active.navigation?.session.id === this.sessionId));
     this.current = new Map(activeRuns.map((active) => [active.run.id, {
       sessionId: active.run.sessionId,
       output: active.navigation && !active.navigation.continues ? `Opened “${active.navigation.session.title}”.` : active.output,

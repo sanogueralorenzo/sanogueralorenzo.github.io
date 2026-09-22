@@ -10,7 +10,7 @@ struct ChatMessage: Identifiable {
     var text: String
     var artifacts: [RuntimeArtifact] = []
 
-    enum Role: Equatable { case user, assistant }
+    enum Role: Equatable { case user, assistant, notice }
 }
 
 @MainActor
@@ -44,6 +44,7 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var assistantId: UUID?
     @ObservationIgnored private var submittingSessionId: String?
     @ObservationIgnored private var completedRunId: String?
+    @ObservationIgnored private var optimisticUserId: UUID?
     @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
 
     func start() async {
@@ -101,7 +102,8 @@ struct ChatMessage: Identifiable {
         }
         let sessionId = selected
         let optimisticId = UUID()
-        messages.append(ChatMessage(id: optimisticId, role: .user, text: text))
+        optimisticUserId = optimisticId
+        appendMessage(ChatMessage(id: optimisticId, role: .user, text: text))
         scrollRequest += 1
         do {
             submittingSessionId = sessionId
@@ -110,6 +112,7 @@ struct ChatMessage: Identifiable {
             guard let run = try await client.submit(text: text, sessionId: sessionId) else {
                 guard selectedSessionId == sessionId else { return }
                 messages.removeAll { $0.id == optimisticId }
+                if optimisticUserId == optimisticId { optimisticUserId = nil }
                 if input.isEmpty { input = text }
                 activity = "Agent is already working"
                 return
@@ -127,8 +130,9 @@ struct ChatMessage: Identifiable {
         } catch {
             if selectedSessionId == sessionId {
                 messages.removeAll { $0.id == optimisticId }
+                if optimisticUserId == optimisticId { optimisticUserId = nil }
                 if input.isEmpty { input = text }
-                messages.append(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
+                appendMessage(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
             }
         }
     }
@@ -141,29 +145,33 @@ struct ChatMessage: Identifiable {
         guard let client else { return }
         do {
             let session = try await client.openSession(fresh: true)
-            await selectSession(session.id)
+            await selectSession(session.id, notice: "New conversation ready.")
         } catch {
             connectionError = error.localizedDescription
         }
     }
 
-    func selectSession(_ id: String) async {
+    func selectSession(_ id: String, notice: String? = nil, forwarded: ChatMessage? = nil, expectedRunId: String? = nil) async {
         guard let client, id != selectedSessionId else { return }
         observer?.cancel()
         selectedSessionId = id
-        messages = []
-        activeRunId = nil
+        if let notice { appendMessage(ChatMessage(id: UUID(), role: .notice, text: notice)) }
+        if let forwarded { appendMessage(forwarded) }
+        activeRunId = expectedRunId
         displayedTurnRunId = nil
         submittingSessionId = nil
         assistantId = nil
         latestSnapshot = nil
         completedRunId = nil
-        isRunning = false
-        activity = ""
+        isRunning = expectedRunId != nil
+        activity = expectedRunId == nil ? "" : "Thinking"
         isConnected = false
+        scrollRequest += 1
         do {
             try await connectConversation(client, sessionId: id)
         } catch {
+            isRunning = false
+            activity = ""
             connectionError = error.localizedDescription
         }
     }
@@ -221,7 +229,7 @@ struct ChatMessage: Identifiable {
         guard envelope.sessionId == selectedSessionId else { return }
         switch event.type {
         case "snapshot":
-            if let snapshot = event.snapshot { loadSnapshot(snapshot, scrollToEnd: messages.isEmpty) }
+            if let snapshot = event.snapshot { loadSnapshot(snapshot) }
         case "turn":
             if displayedTurnRunId == envelope.runId {
                 if let text = event.text, let index = messages.lastIndex(where: { $0.role == .user }) {
@@ -230,20 +238,24 @@ struct ChatMessage: Identifiable {
                 break
             }
             displayedTurnRunId = envelope.runId
+            optimisticUserId = nil
             activeRunId = envelope.runId
             isRunning = true
             activity = "Thinking"
             appendUserTurn(event.text, hasAttachments: event.hasAttachments == true)
             let id = UUID()
             assistantId = id
-            messages.append(ChatMessage(id: id, role: .assistant, text: ""))
+            appendMessage(ChatMessage(id: id, role: .assistant, text: ""))
             scrollRequest += 1
         case "session":
             Task { await refreshSessions() }
         case "navigate":
             guard let destination = event.session else { break }
             activity = "Opening conversation"
-            Task { await selectSession(destination.id) }
+            let forwarded = optimisticUserId.flatMap { id in messages.first(where: { $0.id == id }) }
+            if let optimisticUserId { messages.removeAll { $0.id == optimisticUserId } }
+            optimisticUserId = nil
+            Task { await selectSession(destination.id, notice: "Opened “\(destination.title ?? "Conversation")”.", forwarded: event.continues == true ? forwarded : nil, expectedRunId: event.continues == true ? envelope.runId : nil) }
         case "text_delta":
             if let id = assistantId { edit(id) { $0.text += event.delta ?? "" } }
         case "artifact":
@@ -255,7 +267,7 @@ struct ChatMessage: Identifiable {
         case "error":
             if activeRunId == nil { activeRunId = envelope.runId }
             if let id = assistantId { edit(id) { if $0.text.isEmpty { $0.text = event.message ?? "Something went wrong." } } }
-            else { messages.append(ChatMessage(id: UUID(), role: .assistant, text: event.message ?? "Something went wrong.")) }
+            else { appendMessage(ChatMessage(id: UUID(), role: .assistant, text: event.message ?? "Something went wrong.")) }
             finish(envelope.runId)
         case "done":
             finish(envelope.runId)
@@ -270,19 +282,19 @@ struct ChatMessage: Identifiable {
         activeRunId = nil
         displayedTurnRunId = nil
         assistantId = nil
+        optimisticUserId = nil
         isRunning = false
         activity = ""
         scrollRequest += 1
     }
 
-    private func loadSnapshot(_ snapshot: RuntimeSnapshot, scrollToEnd: Bool = false) {
+    private func loadSnapshot(_ snapshot: RuntimeSnapshot) {
         latestSnapshot = snapshot
         sessions = snapshot.sessions
         let previousRunId = activeRunId
-        loadTranscript(snapshot.transcript, scrollToEnd: scrollToEnd)
         if let active = snapshot.activeRuns.first(where: { $0.run.sessionId == selectedSessionId }) {
             if let navigation = active.navigation, navigation.session.id != selectedSessionId {
-                Task { await selectSession(navigation.session.id) }
+                Task { await selectSession(navigation.session.id, notice: "Opened “\(navigation.session.title ?? "Conversation")”.", expectedRunId: navigation.continues == true ? active.run.id : nil) }
                 return
             }
             if active.navigation?.continues == false {
@@ -291,41 +303,35 @@ struct ChatMessage: Identifiable {
                 activity = "Opening conversation"
                 return
             }
-            let storedTurn = active.session != nil && snapshot.transcript?.session.id == active.session?.id &&
-                snapshot.transcript?.messages.last(where: { $0.role == "user" || $0.role == "assistant" })?.role == "user"
-            if !storedTurn { appendUserTurn(active.turn.text, hasAttachments: active.turn.hasAttachments) }
-            let id = UUID()
-            messages.append(ChatMessage(id: id, role: .assistant, text: active.output, artifacts: active.artifacts))
-            assistantId = id
+            if displayedTurnRunId != active.run.id {
+                appendUserTurn(active.turn.text, hasAttachments: active.turn.hasAttachments)
+                let id = UUID()
+                appendMessage(ChatMessage(id: id, role: .assistant, text: active.output, artifacts: active.artifacts))
+                assistantId = id
+            } else if let id = assistantId {
+                edit(id) { $0.text = active.output; $0.artifacts = active.artifacts }
+            }
             activeRunId = active.run.id
             displayedTurnRunId = active.run.id
             isRunning = true
             activity = "Thinking"
-        } else if let previousRunId, snapshot.lastRuns.contains(where: { $0.id == previousRunId }), submittingSessionId == selectedSessionId {
-            completedRunId = previousRunId
-        }
-    }
-
-    private func loadTranscript(_ transcript: Transcript?, scrollToEnd: Bool = false) {
-        if let transcript {
-            let visible = transcript.messages.filter { $0.role == "user" || $0.role == "assistant" }
-            let unchanged = selectedSessionId == transcript.session.id && messages.count == visible.count &&
-                zip(messages, visible).allSatisfy { current, saved in
-                    current.role == (saved.role == "user" ? .user : .assistant) && current.text == saved.content
+        } else if let previousRunId, snapshot.lastRuns.contains(where: { $0.id == previousRunId }) {
+            if submittingSessionId == selectedSessionId { completedRunId = previousRunId }
+            if let transcript = snapshot.transcript, transcript.session.id == selectedSessionId {
+                if displayedTurnRunId != previousRunId, let user = transcript.messages.last(where: { $0.role == "user" }) {
+                    appendUserTurn(user.content, hasAttachments: false)
                 }
-            if !unchanged {
-                messages = visible.map { message in
-                    ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
+                if let answer = transcript.messages.last, answer.role == "assistant" {
+                    if let id = assistantId { edit(id) { $0.text = answer.content } }
+                    else { appendMessage(ChatMessage(id: UUID(), role: .assistant, text: answer.content)) }
                 }
             }
-            if scrollToEnd { scrollRequest += 1 }
-        } else {
-            messages = []
+            finish(previousRunId)
+        } else if previousRunId != nil {
+            activeRunId = nil
+            isRunning = false
+            activity = ""
         }
-        activeRunId = nil
-        displayedTurnRunId = nil
-        assistantId = nil
-        isRunning = false
     }
 
     private func refreshSessions() async {
@@ -350,11 +356,16 @@ struct ChatMessage: Identifiable {
         if let index = messages.firstIndex(where: { $0.id == id }) { update(&messages[index]) }
     }
 
+    private func appendMessage(_ message: ChatMessage) {
+        messages.append(message)
+        if messages.count > 200 { messages.removeFirst(messages.count - 200) }
+    }
+
     private func appendUserTurn(_ text: String?, hasAttachments: Bool) {
         let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayed = (trimmed?.isEmpty == false ? trimmed : nil) ?? (hasAttachments ? "Voice message" : "Message")
         if messages.last?.role != .user || messages.last?.text != displayed {
-            messages.append(ChatMessage(id: UUID(), role: .user, text: displayed))
+            appendMessage(ChatMessage(id: UUID(), role: .user, text: displayed))
         }
     }
 }

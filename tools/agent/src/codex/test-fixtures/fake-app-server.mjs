@@ -58,6 +58,17 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     dynamicTurn = null;
     return;
   }
+  if (!method && id === "read-history" && dynamicTurn) {
+    notify("item/completed", {
+      threadId: dynamicTurn.threadId,
+      turnId: dynamicTurn.turnId,
+      item: { type: "dynamicToolCall", id: "history-item", tool: "read_history", status: "completed", success: result?.success },
+    });
+    notify("item/agentMessage/delta", { threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, delta: "Here are the saved messages." });
+    notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
+    dynamicTurn = null;
+    return;
+  }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
@@ -193,6 +204,19 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         id: "list-conversations",
         method: "item/tool/call",
         params: { threadId: params.threadId, turnId, callId: "list-item", namespace: null, tool: "list_conversations", arguments: {} },
+      });
+    }
+    if (scenario === "history") {
+      dynamicTurn = { threadId: params.threadId, turnId };
+      notify("item/started", {
+        threadId: params.threadId,
+        turnId,
+        item: { type: "dynamicToolCall", id: "history-item", tool: "read_history", arguments: {}, status: "inProgress" },
+      });
+      return send({
+        id: "read-history",
+        method: "item/tool/call",
+        params: { threadId: params.threadId, turnId, callId: "history-item", namespace: null, tool: "read_history", arguments: {} },
       });
     }
     if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId), 5);

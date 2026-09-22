@@ -32,8 +32,24 @@ export const CONVERSATION_TOOLS = [
   },
 ];
 
+export const READ_HISTORY_TOOL = {
+  name: "read_history",
+  description: "Read saved messages from the current conversation when the user asks to see earlier messages. Use nextBefore for older messages.",
+  inputSchema: {
+    type: "object",
+    properties: { before: { type: "integer" } },
+    additionalProperties: false,
+  },
+};
+
 function response(success: boolean, text: string) {
   return { success, contentItems: [{ type: "inputText", text }] };
+}
+
+export function readHistory(store: Store, sessionId: string, argumentsValue: Record<string, unknown>) {
+  const before = typeof argumentsValue.before === "number" && Number.isSafeInteger(argumentsValue.before) && argumentsValue.before > 0
+    ? argumentsValue.before : undefined;
+  return response(true, JSON.stringify(store.readConversation(sessionId, before)));
 }
 
 export function conversationTool(

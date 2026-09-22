@@ -114,12 +114,12 @@ describe("RuntimeClient run protocol", () => {
     await expect(client.openSession({ cwd: "/project", preferredSessionId: "saved" })).resolves.toEqual(session);
     await expect(client.openSession({ fresh: true })).resolves.toEqual(session);
     await expect(client.telegramSession("owner", { fresh: true })).resolves.toEqual(session);
-    await expect(client.telegramSession("owner", { sessionId: "saved" })).resolves.toEqual(session);
+    await expect(client.telegramSession("owner")).resolves.toEqual(session);
     expect(requests).toEqual([
       { path: "/v1/sessions/auto", body: { cwd: "/project", preferredSessionId: "saved" }, authorization: "Bearer test-token" },
       { path: "/v1/sessions", body: {}, authorization: "Bearer test-token" },
       { path: "/v1/telegram/session", body: { ownerId: "owner", fresh: true }, authorization: "Bearer test-token" },
-      { path: "/v1/telegram/session", body: { ownerId: "owner", sessionId: "saved" }, authorization: "Bearer test-token" },
+      { path: "/v1/telegram/session", body: { ownerId: "owner" }, authorization: "Bearer test-token" },
     ]);
   });
 

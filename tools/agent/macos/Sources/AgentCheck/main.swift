@@ -81,7 +81,7 @@ struct AgentCheck {
 
         MockURLProtocol.handler = { request, protocolValue in
             check(request.url?.query == "sessionId=s1&runId=r1", "Agent handoff reconnect URL check failed")
-            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"r1\",\"event\":{\"type\":\"navigate\",\"continues\":true,\"url\":\"agent://sessions/s2\",\"session\":{\"id\":\"s2\",\"title\":\"Saved work\"}}\n\n", stream: true)
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"r1\",\"event\":{\"type\":\"navigate\",\"continues\":true,\"url\":\"agent://sessions/s2\",\"session\":{\"id\":\"s2\",\"title\":\"Saved work\"}}}\n\n", stream: true)
         }
         var handoff = try await client().events(sessionId: "s1", runId: "r1").makeAsyncIterator()
         let handoffEvent = try await handoff.next()
@@ -139,12 +139,6 @@ struct AgentCheck {
         check(selectedSession.id == "s1", "Agent session selection check failed")
         let listedSessions = try await apiClient.sessions()
         check(listedSessions.first?.id == "s1", "Agent session list check failed")
-        MockURLProtocol.handler = { request, protocolValue in
-            check(request.url?.path == "/v1/sessions/s1/messages", "Agent transcript navigation URL check failed")
-            protocolValue.respond(#"{"session":{"id":"s1","title":"Telegram reconnects"},"messages":[]}"#)
-        }
-        let transcript = try await apiClient.transcript(sessionId: "s1")
-        check(transcript.session.id == "s1", "Agent transcript navigation check failed")
         let stopped = Mutex(false)
         MockURLProtocol.handler = { _, protocolValue in
             protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true, finish: false)

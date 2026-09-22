@@ -7,7 +7,7 @@ import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { maySwitchContext, requiresHandoff } from "../conversation/routing.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
-import { CONVERSATION_TOOLS, conversationTool } from "./conversation-tools.js";
+import { CONVERSATION_TOOLS, READ_HISTORY_TOOL, conversationTool, readHistory } from "./conversation-tools.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
 import { transcribeVoice } from "./voice.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
@@ -190,7 +190,9 @@ export class CodexBackend implements AgentBackend {
         const { id, method, params } = await nextForThread(queue, threadId);
         const eventTurnId = params.turnId ?? object(params.turn).id;
         if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
+        if (method === "item/tool/call" && id !== undefined && params.tool === READ_HISTORY_TOOL.name) {
+          this.client.respond(id, readHistory(this.store, turn.session.id, object(params.arguments)));
+        } else if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
           sawText = true;
           yield { type: "text_delta", delta: params.delta };
         } else if (method === "item/started") {
@@ -232,7 +234,7 @@ export class CodexBackend implements AgentBackend {
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",
       developerInstructions: turn.instructions,
-      dynamicTools: [],
+      dynamicTools: [READ_HISTORY_TOOL],
     };
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;

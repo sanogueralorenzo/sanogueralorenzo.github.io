@@ -181,10 +181,6 @@ describe("RuntimeServer", () => {
     const fresh = await client.telegramSession("42", { fresh: true });
     expect(fresh.id).not.toBe(cli.id);
     expect((await client.telegramSession("42")).id).toBe(fresh.id);
-    expect((await client.telegramSession("42", { sessionId: cli.id })).id).toBe(cli.id);
-    expect((await client.telegramSession("42")).id).toBe(cli.id);
-    await expect(client.telegramSession("42", { sessionId: "missing" })).rejects.toThrow("Conversation not found.");
-    expect((await client.telegramSession("42")).id).toBe(cli.id);
     await stream.return?.();
   });
 

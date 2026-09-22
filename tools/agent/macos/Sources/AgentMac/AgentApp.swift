@@ -144,25 +144,9 @@ struct ConversationView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Menu {
-                    Button("New Conversation") { Task { await model.newConversation() } }
-                    Divider()
-                    ForEach(model.sessions) { session in
-                        Button {
-                            Task { await model.selectSession(session.id) }
-                        } label: {
-                            HStack {
-                                Text(session.title ?? "New conversation")
-                                if session.activeRunId != nil { Image(systemName: "circle.fill") }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
-                        .lineLimit(1)
-                        .frame(maxWidth: 220)
-                }
-                .menuStyle(.borderlessButton)
+                Text(model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
+                    .lineLimit(1)
+                    .frame(maxWidth: 220)
             }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
@@ -254,29 +238,37 @@ struct MessageView: View {
     let message: ChatMessage
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            if message.role == .user { Spacer(minLength: AgentStyle.messageGutter) }
-            VStack(alignment: .leading, spacing: 10) {
-                if !message.text.isEmpty || message.artifacts.isEmpty {
-                    Text(message.text.isEmpty ? "…" : message.text)
-                        .font(.system(size: 15))
-                        .lineSpacing(3)
-                        .textSelection(.enabled)
+        if message.role == .notice {
+            Text(message.text)
+                .font(.system(size: 12))
+                .foregroundStyle(AgentStyle.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        } else {
+            HStack(alignment: .top, spacing: 10) {
+                if message.role == .user { Spacer(minLength: AgentStyle.messageGutter) }
+                VStack(alignment: .leading, spacing: 10) {
+                    if !message.text.isEmpty || message.artifacts.isEmpty {
+                        Text(message.text.isEmpty ? "…" : message.text)
+                            .font(.system(size: 15))
+                            .lineSpacing(3)
+                            .textSelection(.enabled)
+                    }
+                    ForEach(message.artifacts) { artifact in
+                        ArtifactView(artifact: artifact)
+                    }
                 }
-                ForEach(message.artifacts) { artifact in
-                    ArtifactView(artifact: artifact)
+                .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 11)
+                .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay {
+                    if message.role == .assistant {
+                        RoundedRectangle(cornerRadius: 14).stroke(AgentStyle.line.opacity(0.55))
+                    }
                 }
+                if message.role == .assistant { Spacer(minLength: AgentStyle.messageGutter) }
             }
-            .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
-            .padding(.horizontal, 15)
-            .padding(.vertical, 11)
-            .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay {
-                if message.role == .assistant {
-                    RoundedRectangle(cornerRadius: 14).stroke(AgentStyle.line.opacity(0.55))
-                }
-            }
-            if message.role == .assistant { Spacer(minLength: AgentStyle.messageGutter) }
         }
     }
 }

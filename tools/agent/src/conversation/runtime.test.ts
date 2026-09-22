@@ -77,7 +77,7 @@ describe("AgentRuntime", () => {
     const { homeDir, backend, runtime } = testRuntime();
     const session = runtime.openSession({ fresh: true, cwd: homeDir });
     await collect(runtime, { text: "Fix the failing test", sessionId: session.id, cwd: homeDir, channel: "cli" });
-    expect(backend.turns[0]?.instructions).toBe("Act on clear requests and persist until complete. Treat new messages as steering unless they clearly cancel or replace the task. Reuse existing authorization and complete reversible preparation before asking. Ask only when a material choice or unapproved irreversible or external action blocks progress.");
+    expect(backend.turns[0]?.instructions).toContain("When asked to show earlier messages, use read_history for the saved text.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
@@ -148,10 +148,7 @@ describe("AgentRuntime", () => {
     const fresh = runtime.openTelegramSession("42", { fresh: true });
     expect(fresh.id).not.toBe(telegram.id);
     expect(store.telegramSession("42")).toBe(fresh.id);
-    expect(runtime.openTelegramSession("42", { sessionId: telegram.id }).id).toBe(telegram.id);
-    expect(store.telegramSession("42")).toBe(telegram.id);
-    expect(() => runtime.openTelegramSession("42", { sessionId: "missing" })).toThrow("Conversation not found.");
-    expect(store.telegramSession("42")).toBe(telegram.id);
+    expect(runtime.openTelegramSession("42").id).toBe(fresh.id);
   });
 
   it("starts a separate session when the user requests a new conversation", async () => {

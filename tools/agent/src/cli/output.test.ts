@@ -45,4 +45,21 @@ describe("CLI output", () => {
       write.mockRestore();
     }
   });
+
+  it("uses the same opening boundary when recovering a missed switch", () => {
+    const target: Session = { id: "target", cwd: null, title: "Saved work", updatedAt: "now" };
+    const status = vi.fn();
+    const changeSession = vi.fn();
+    const output = new CliOutput("source", status, changeSession, () => false);
+    output.render({ sessionId: "source", runId: "", event: { type: "snapshot", snapshot: {
+      sessions: [], transcript: null, lastRuns: [], activeRuns: [{
+        run: { id: "r1", sessionId: "source", origin: "cli" },
+        turn: { type: "turn", text: "Resume saved work", channel: "cli", hasAttachments: false },
+        session: target, output: "", artifacts: [],
+        navigation: { type: "navigate", session: target, url: "agent://sessions/target", continues: true },
+      }],
+    } } });
+    expect(status).toHaveBeenCalledWith("Opened “Saved work”.");
+    expect(changeSession).toHaveBeenCalledWith("target");
+  });
 });
