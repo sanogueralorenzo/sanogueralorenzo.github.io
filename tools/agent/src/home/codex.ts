@@ -71,6 +71,8 @@ Call route_tasks once with the complete plan. For each action, quote a unique, n
 
 Use find_conversations when a destination is not listed and read_conversation only when its preview lacks needed context. Carry necessary context between actions. Reuse a saved project's directory or the terminal directory for current project work; omit it for personal work. Omit the instruction only when opening an idle conversation. Output only tool calls.`;
 
+const REPORTER_INSTRUCTIONS = "Report this turn in one report_task call. Use ready for a completed result, needs_input only when the user must respond, and failed for an unsuccessful turn. Write one plain line of at most 12 words: answer questions or greetings directly; otherwise state the concrete outcome or needed action. No title, process narration, generic completion claim, praise, or internal details. Output only the tool call.";
+
 export class CodexHomeBackend implements HomeBackend {
   constructor(
     private readonly config: RuntimeConfig,
@@ -187,7 +189,7 @@ export class CodexHomeBackend implements HomeBackend {
     await this.retry(() => {
       report = null;
       return this.toolTurn(
-        "You report a task turn back to Agent Home. Call report_task exactly once. Use ready for a finished result, needs_input only if the user must answer a question, failed for an unsuccessful turn. For a simple question or greeting, give the answer itself; for other work, state the outcome or needed action. Write one plain line, at most 12 words. Avoid meta summaries such as 'responded to the greeting.' No preamble or praise.",
+        REPORTER_INSTRUCTIONS,
         `Task: ${input.title}\nRequest: ${input.request.slice(0, 1_000)}\nState: ${input.state}\nResult:\n${input.output.slice(-6_000)}`,
         [REPORT_TASK], (name, args) => {
           if (name !== REPORT_TASK.name) return response(false, "Unknown tool.");
@@ -196,7 +198,7 @@ export class CodexHomeBackend implements HomeBackend {
           if (!summary || (state !== "ready" && state !== "needs_input" && state !== "failed")) return response(false, "State and summary are required.");
           report = { state: input.state === "complete" ? state : "failed", summary };
           return response(true, "Reported.");
-        }, signal);
+        }, signal, "low");
     });
     if (!report) throw new Error("Home did not receive a task update.");
     return report;

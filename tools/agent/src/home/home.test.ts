@@ -184,7 +184,7 @@ describe("Agent Home", () => {
     await runs.close();
   });
 
-  it("runs routing on low effort and separate reporting on no reasoning", async () => {
+  it("runs routing and separate reporting on low effort without work instructions", async () => {
     const homeDir = temporary("agent-home-model-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -212,7 +212,7 @@ describe("Agent Home", () => {
     const threads = calls.filter((call) => call.method === "thread/start").map((call) => call.params);
     expect(threads).toMatchObject([
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("report_task") },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("one plain line of at most 12 words") },
     ]);
     expect(threads.map((thread) => thread.config)).toEqual([
       { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },
@@ -220,7 +220,7 @@ describe("Agent Home", () => {
     ]);
     expect(threads.every((thread) => !String(thread.baseInstructions).includes("You are Agent, a direct, concise assistant"))).toBe(true);
     expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
-    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["low", "none"]);
+    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["low", "low"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
     const routeInput = calls.find((call) => call.method === "turn/start")?.params.input as { text: string }[];
     expect(routeInput[0]?.text).toContain('"state":"working"');
