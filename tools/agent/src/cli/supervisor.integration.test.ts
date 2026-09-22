@@ -39,7 +39,7 @@ async function verifyReload(watchedFile: string): Promise<void> {
     utimesSync(watchedFile, original.atime, original.mtime);
   }
 
-  const recovered = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
+  const recovered = new Store(homeDir);
   expect(recovered.getSession(session.id)?.title).toBe("Reload-safe session");
   expect(recovered.getSession(session.id)?.cwd).toBe(homeDir);
   expect(recovered.getMessages(session.id)[0]?.content).toBe("Keep this transcript");

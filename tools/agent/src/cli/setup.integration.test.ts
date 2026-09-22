@@ -29,7 +29,7 @@ async function runSetup(
   const rpcLog = join(homeDir, "rpc.log");
   let seededSessionId: string | null = null;
   if (options.seedState) {
-    const seed = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
+    const seed = new Store(homeDir);
     const session = seed.createSession({ cwd: homeDir, title: "Preserve me" });
     seededSessionId = session.id;
     seed.addMessage(session.id, "user", "Preserved transcript");
@@ -64,7 +64,7 @@ async function runSetup(
   const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
   let statePreserved = seededSessionId === null;
   if (existsSync(join(homeDir, "agent.sqlite"))) {
-    const store = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
+    const store = new Store(homeDir);
     if (seededSessionId) {
       statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
         && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
@@ -73,7 +73,7 @@ async function runSetup(
     }
     store.close();
   }
-  return { output: output.join("\n"), rpc: setupRpc, error, statePreserved };
+  return { output: output.join("\n"), rpc: setupRpc, error, statePreserved, databaseExists: existsSync(join(homeDir, "agent.sqlite")) };
 }
 
 describe.sequential("CLI setup", () => {
@@ -95,6 +95,7 @@ describe.sequential("CLI setup", () => {
   ] as const)("connects with %s", async (_name, args, options, lines, includes, excludes) => {
     const result = await runSetup([...args], options);
     expect(result.error).toBeNull();
+    expect(result.databaseExists).toBe(false);
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(lines);
     for (const text of includes) expect(result.rpc).toContain(text);
     for (const text of excludes) expect(`${result.output}\n${result.rpc}`).not.toContain(text);

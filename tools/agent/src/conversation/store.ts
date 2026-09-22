@@ -12,15 +12,15 @@ const ATTACHMENT_COLUMNS = `id, name, mime_type AS "mimeType", size, path`;
 export class Store {
   readonly db: DatabaseSync;
 
-  constructor(homeDir: string, filename = "agent.sqlite", options: { recoverRuns?: boolean } = {}) {
+  constructor(homeDir: string) {
     ensurePrivateDirectory(homeDir);
-    const databasePath = join(homeDir, filename);
+    const databasePath = join(homeDir, "agent.sqlite");
     if (existsSync(databasePath) && lstatSync(databasePath).isSymbolicLink()) throw new Error("Agent database must not be a symbolic link.");
     this.db = new DatabaseSync(databasePath);
     chmodSync(databasePath, 0o600);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     this.initializeSchema();
-    if (options.recoverRuns !== false) this.recoverInterruptedRuns();
+    this.recoverInterruptedRuns();
   }
 
   private initializeSchema(): void {

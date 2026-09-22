@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../local/config.js";
-import { Store } from "../conversation/store.js";
 import { AgentSetupService } from "../setup/service.js";
 
 export async function readSecretLine(prompt: string): Promise<string> {
@@ -77,14 +76,6 @@ async function chooseDefault(): Promise<SetupChoice> {
   return choice;
 }
 
-function createSetupContext() {
-  const config = loadConfig();
-  const store = new Store(config.homeDir, "agent.sqlite", { recoverRuns: false });
-  const codex = createAgentCodexAppServer(config);
-  const service = new AgentSetupService(codex);
-  return { store, codex, service };
-}
-
 export async function setupAgent(args: string[] = [], skipIfConfigured = false): Promise<void> {
   const flags = { "--chatgpt": "browser", "--headless": "headless", "--api-key": "api" } as const;
   const unknown = args.find((arg) => !(arg in flags));
@@ -94,7 +85,8 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
     throw new Error("Choose exactly one setup method: browser, headless device, or API key.");
   }
 
-  const { store, codex, service } = createSetupContext();
+  const codex = createAgentCodexAppServer(loadConfig());
+  const service = new AgentSetupService(codex);
 
   try {
     const before = await service.status();
@@ -131,7 +123,6 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
     }
     console.log("Connect Success");
   } finally {
-    await codex.stop();
-    store.close();
+    codex.stop();
   }
 }
