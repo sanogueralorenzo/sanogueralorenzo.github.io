@@ -1,26 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
-import { readVoiceNote } from "../workspace/audio.js";
 import type { AgentBackend, BackendEvent, BackendTurn } from "../conversation/backend.js";
 import { MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import { CONVERSATION_TOOLS, conversationTool } from "./conversation-tools.js";
-import type { JsonRpcMessage } from "./protocol.js";
+import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
+import { transcribeVoice } from "./voice.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
-
-function object(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? value as Record<string, unknown> : {};
-}
-
-function classifiedError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your Agent connection has expired. Run `agent setup` to reconnect it.");
-  if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your current OpenAI allowance or credits are exhausted.");
-  return error instanceof Error ? error : new Error(message);
-}
 
 function toolName(item: Record<string, unknown>): string | null {
   const names: Record<string, string> = {
@@ -43,24 +32,6 @@ function toolSummary(item: Record<string, unknown>): string {
     : status;
 }
 
-type Notifications = AsyncIterator<[JsonRpcMessage]>;
-
-async function nextForThread(queue: Notifications, threadId: string) {
-  while (true) {
-    const { value } = await queue.next();
-    const message = value![0];
-    if (message.method === "agent/disconnected") {
-      throw new CodexDisconnectedError(String(message.params?.message ?? "Codex disconnected."));
-    }
-    const params = object(message.params);
-    if (params.threadId !== threadId) continue;
-    if (message.method === "error" && params.willRetry !== true) {
-      throw classifiedError(object(params.error).message ?? "The Codex turn failed.");
-    }
-    return { id: message.id, method: message.method, params };
-  }
-}
-
 export class CodexBackend implements AgentBackend {
   constructor(
     private readonly config: RuntimeConfig,
@@ -70,7 +41,7 @@ export class CodexBackend implements AgentBackend {
   ) {}
 
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
-    return this.retry(() => this.transcribe(attachment, signal));
+    return this.retry(() => transcribeVoice(this.client, this.config.homeDir, attachment, this.createRealtimePeer, signal));
   }
 
   async discardSession(sessionId: string): Promise<void> {
@@ -181,66 +152,6 @@ export class CodexBackend implements AgentBackend {
       lifetime.abort();
       turn.signal?.removeEventListener("abort", interrupt);
     }
-  }
-
-  private async transcribe(attachment: Attachment, signal?: AbortSignal): Promise<string> {
-    const audio = await readVoiceNote(attachment);
-    const threadId = await this.startThread(MODEL, this.config.homeDir, "read-only");
-    const lifetime = new AbortController();
-    const timeout = AbortSignal.timeout(45_000);
-    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
-    const queue = on(this.client, "notification", { signal: AbortSignal.any([combined, lifetime.signal]) }) as Notifications;
-    const peer = this.createRealtimePeer();
-    try {
-      await this.client.request("thread/realtime/start", {
-        threadId,
-        outputModality: "audio",
-        includeStartupContext: false,
-        clientManagedHandoffs: true,
-        flushTranscriptTailOnSessionEnd: true,
-        realtimeStartInstructions: "Transcribe the user's speech accurately.",
-        version: "v3",
-        transport: { type: "webrtc", sdp: await peer.offer() },
-      });
-      while (true) {
-        const event = await this.nextRealtime(queue, threadId);
-        if (event.method === "thread/realtime/sdp" && typeof event.params.sdp === "string") {
-          await peer.accept(event.params.sdp);
-          break;
-        }
-      }
-      await peer.sendAudio(audio, combined);
-      while (true) {
-        const event = await this.nextRealtime(queue, threadId);
-        if (event.method === "thread/realtime/closed") throw new Error("Voice transcription ended before a transcript was ready.");
-        if (event.method === "thread/realtime/transcript/done" && event.params.role === "user") {
-          const transcript = String(event.params.text ?? "").trim();
-          if (!transcript) throw new Error("The voice note did not contain recognizable speech.");
-          return transcript;
-        }
-      }
-    } catch (error) {
-      if (timeout.aborted && !signal?.aborted) throw new Error("Voice transcription timed out.");
-      throw error;
-    } finally {
-      await this.client.request("thread/realtime/stop", { threadId }).catch(() => undefined);
-      await peer.close().catch(() => undefined);
-      lifetime.abort();
-    }
-  }
-
-  private async startThread(model: string, cwd: string, sandbox: "read-only" | "workspace-write", instructions?: string): Promise<string> {
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model, cwd, sandbox, approvalPolicy: "never", ephemeral: true, threadSource: "appServer",
-      ...(instructions ? { developerInstructions: instructions } : {}),
-    });
-    return started.thread.id;
-  }
-
-  private async nextRealtime(queue: Notifications, threadId: string) {
-    const event = await nextForThread(queue, threadId);
-    if (event.method === "thread/realtime/error") throw new Error(String(event.params.message ?? "Voice transcription failed."));
-    return event;
   }
 
   private async sessionThread(turn: BackendTurn): Promise<string> {
