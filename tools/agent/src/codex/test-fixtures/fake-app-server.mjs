@@ -23,8 +23,8 @@ const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const reply = (id, result = {}) => send({ id, result });
 const fail = (id, message) => send({ id, error: { code: -32601, message } });
 const notify = (method, params) => send({ method, params });
-function completeTurn(threadId, turnId, handoff = false) {
-  if (scenario.startsWith("context-compaction") && !handoff) {
+function completeTurn(threadId, turnId) {
+  if (scenario === "context-compaction") {
     notify("item/started", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
     notify("item/completed", { threadId, turnId, item: { type: "contextCompaction", id: "compact-1" } });
   }
@@ -37,9 +37,7 @@ function completeTurn(threadId, turnId, handoff = false) {
   notify("item/agentMessage/delta", {
     threadId,
     turnId,
-    delta: handoff
-      ? "Objective: continue the Agent task. Decisions: keep clients thin. Next: handle the user's pending request."
-      : "Hello from Codex.",
+    delta: "Hello from Codex.",
   });
   notify("turn/completed", { threadId, turn: { id: turnId, status: "completed" } });
 }
@@ -147,9 +145,6 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       ? fail(id, "thread not found in this Codex profile")
       : reply(id, { thread: { id: params.threadId } });
   }
-  if (method === "thread/inject_items") {
-    return scenario === "context-compaction-inject-failure" ? fail(id, "could not seed thread") : reply(id);
-  }
   if (method === "thread/delete") return reply(id);
   if (method === "thread/unsubscribe") return reply(id, { status: "unsubscribed" });
   if (method === "turn/start") {
@@ -160,7 +155,6 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       process.exit(23);
     }
     const turnId = `turn-${++turnCounter}`;
-    const handoff = params.input?.some?.((item) => typeof item.text === "string" && item.text.includes("continuation handoff")) ?? false;
     reply(id, { turn: { id: turnId } });
     if (scenario.startsWith("session-navigation")) {
       dynamicTurn = { threadId: params.threadId, turnId };
@@ -175,7 +169,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         params: { threadId: params.threadId, turnId, callId: "list-item", namespace: null, tool: "list_conversations", arguments: {} },
       });
     }
-    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId, handoff), 5);
+    if (scenario !== "cancel") setTimeout(() => completeTurn(params.threadId, turnId), 5);
     return;
   }
   if (method === "turn/interrupt") {

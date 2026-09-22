@@ -59,17 +59,11 @@ export class Store {
       CREATE TABLE IF NOT EXISTS codex_threads (
         session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
         thread_id TEXT NOT NULL UNIQUE,
-        compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
         updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS telegram_sessions (
         owner_id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE
-      );
-      CREATE TABLE IF NOT EXISTS session_handoffs (
-        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS session_redirects (
         source_id TEXT PRIMARY KEY,
@@ -151,22 +145,18 @@ export class Store {
 
   sessionCards(limit = 50): SessionCard[] {
     return this.listSessions(limit).map((session) => {
-      const handoff = this.db.prepare("SELECT content FROM session_handoffs WHERE session_id = ?")
-        .get(session.id) as { content: string } | undefined;
       const latestUser = this.db.prepare("SELECT content FROM messages WHERE session_id = ? AND role = 'user' ORDER BY id DESC LIMIT 1")
         .get(session.id) as { content: string } | undefined;
       return {
         id: session.id,
         title: session.title,
         updatedAt: session.updatedAt,
-        preview: (handoff?.content ?? latestUser?.content ?? "").replace(/\s+/g, " ").slice(0, 200),
+        preview: (latestUser?.content ?? "").replace(/\s+/g, " ").slice(0, 200),
       };
     });
   }
 
   readConversation(id: string, before?: number) {
-    const handoff = this.db.prepare("SELECT content FROM session_handoffs WHERE session_id = ?")
-      .get(id) as { content: string } | undefined;
     const rows = this.db.prepare(`
       SELECT id, role, content FROM messages
       WHERE session_id = ? AND role != 'tool' AND (? IS NULL OR id < ?)
@@ -174,7 +164,6 @@ export class Store {
     `).all(id, before ?? null, before ?? null) as { id: number; role: Message["role"]; content: string }[];
     const page = rows.slice(0, 8);
     return {
-      handoff: handoff?.content ?? null,
       messages: page.reverse().map(({ role, content }) => ({ role, content: content.slice(0, 2_000) })),
       nextBefore: rows.length > 8 ? page[0]!.id : null,
     };
@@ -288,43 +277,9 @@ export class Store {
 
   bindCodexThread(sessionId: string, threadId: string): void {
     this.db.prepare(`
-      INSERT INTO codex_threads (session_id, thread_id, compactions, updated_at) VALUES (?, ?, 0, ?)
-      ON CONFLICT(session_id) DO UPDATE SET thread_id = excluded.thread_id, compactions = 0, updated_at = excluded.updated_at
+      INSERT INTO codex_threads (session_id, thread_id, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(session_id) DO UPDATE SET thread_id = excluded.thread_id, updated_at = excluded.updated_at
     `).run(sessionId, threadId, now());
-  }
-
-  addCodexCompactions(sessionId: string, count: number): void {
-    if (count < 1) return;
-    this.db.prepare("UPDATE codex_threads SET compactions = compactions + ? WHERE session_id = ?").run(count, sessionId);
-  }
-
-  codexCompactions(sessionId: string): number {
-    const row = this.db.prepare("SELECT compactions FROM codex_threads WHERE session_id = ?")
-      .get(sessionId) as { compactions: number } | undefined;
-    return row?.compactions ?? 0;
-  }
-
-  rotateCodexThread(sessionId: string, previousId: string, nextId: string, handoff: string): boolean {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      const result = this.db.prepare(`
-        UPDATE codex_threads SET thread_id = ?, compactions = 0, updated_at = ?
-        WHERE session_id = ? AND thread_id = ?
-      `).run(nextId, now(), sessionId, previousId);
-      if (result.changes !== 1) {
-        this.db.exec("ROLLBACK");
-        return false;
-      }
-      this.db.prepare(`
-        INSERT INTO session_handoffs (session_id, content, updated_at) VALUES (?, ?, ?)
-        ON CONFLICT(session_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at
-      `).run(sessionId, handoff, now());
-      this.db.exec("COMMIT");
-      return true;
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
   }
 
   addAttachment(input: Attachment): Attachment {

@@ -92,22 +92,16 @@ describe("Store", () => {
     reopened.close();
   });
 
-  it("rotates a Codex thread and its compaction count atomically", () => {
-    const store = createStore();
+  it("keeps a session bound to its Codex thread across restarts", () => {
+    const directory = temporary("agent-codex-binding-");
+    const store = new Store(directory);
     const session = store.createSession();
     store.bindCodexThread(session.id, "thread-1");
-    store.addCodexCompactions(session.id, 3);
-
-    expect(store.rotateCodexThread(session.id, "stale-thread", "thread-2", "stale handoff")).toBe(false);
-    expect(store.codexThread(session.id)).toBe("thread-1");
-    expect(store.codexCompactions(session.id)).toBe(3);
-
-    expect(store.rotateCodexThread(session.id, "thread-1", "thread-2", "Current objective and next action")).toBe(true);
-    expect(store.codexThread(session.id)).toBe("thread-2");
-    expect(store.codexCompactions(session.id)).toBe(0);
-    expect(store.sessionCards()[0]?.preview).toContain("Current objective and next action");
-    expect(store.readConversation(session.id).handoff).toBe("Current objective and next action");
     store.close();
+
+    const reopened = new Store(directory);
+    expect(reopened.codexThread(session.id)).toBe("thread-1");
+    reopened.close();
   });
 
   it("lists short previews and reads one conversation in pages without tool messages", () => {

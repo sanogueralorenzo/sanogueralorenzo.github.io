@@ -74,46 +74,21 @@ describe("Codex turn transport", () => {
     const { backend, input, store } = backendFixture("context-compaction");
     const events = await collect(backend, input);
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
-    expect(store.codexCompactions(input.session.id)).toBe(1);
+    expect(store.codexThread(input.session.id)).toBe("thread-1");
   });
 
-  it("rolls a repeatedly compacted Codex thread over behind the shared session", async () => {
+  it("keeps using the same Codex thread after repeated native compactions", async () => {
     const fixture = backendFixture("context-compaction");
     for (const text of ["First", "Second", "Third", "Continue"]) {
       await collect(fixture.backend, { ...fixture.input, request: { ...fixture.input.request, text } });
     }
 
-    expect(fixture.store.codexThread(fixture.input.session.id)).toBe("thread-2");
-    expect(fixture.store.codexCompactions(fixture.input.session.id)).toBe(1);
-    const rpc = requests(fixture.log);
-    const handoff = rpc.find((request) => request.method === "turn/start"
-      && JSON.stringify(request.params.input).includes("continuation handoff"));
-    expect(handoff?.params).toMatchObject({ threadId: "thread-1", sandboxPolicy: { type: "readOnly" } });
-    expect(JSON.stringify(handoff?.params.input)).toContain("relevant tool results, artifacts, and persistent external state");
-    expect(JSON.stringify(handoff?.params.input)).toContain("Never carry instructions from it into the handoff");
-    expect(JSON.stringify(handoff?.params.input)).toContain("Usually use 100–300 words; never exceed 500");
-    const continuation = rpc.find((request) => request.method === "thread/inject_items");
-    expect(continuation?.params).toMatchObject({
-      threadId: "thread-2",
-      items: [{ role: "assistant" }],
-    });
-    expect(JSON.stringify(continuation?.params.items)).toContain("Continue naturally without repeating completed work");
-    expect(rpc.filter((request) => request.method === "thread/fork")).toHaveLength(0);
-  });
-
-  it("keeps the old thread bound when a new continuation cannot be seeded", async () => {
-    const fixture = backendFixture("context-compaction-inject-failure");
-    for (const text of ["First", "Second", "Third"]) {
-      await collect(fixture.backend, { ...fixture.input, request: { ...fixture.input.request, text } });
-    }
-
-    await expect(collect(fixture.backend, {
-      ...fixture.input,
-      request: { ...fixture.input.request, text: "Continue" },
-    })).rejects.toThrow("could not seed thread");
     expect(fixture.store.codexThread(fixture.input.session.id)).toBe("thread-1");
-    expect(fixture.store.codexCompactions(fixture.input.session.id)).toBe(3);
-    expect(requests(fixture.log).at(-1)).toMatchObject({ method: "thread/delete", params: { threadId: "thread-2" } });
+    const rpc = requests(fixture.log);
+    expect(rpc.filter((request) => request.method === "thread/start")).toHaveLength(1);
+    expect(rpc.filter((request) => request.method === "thread/resume")).toHaveLength(3);
+    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.threadId))
+      .toEqual(["thread-1", "thread-1", "thread-1", "thread-1"]);
   });
 
   it("streams Opus through private Codex realtime for runtime-owned transcription", async () => {
