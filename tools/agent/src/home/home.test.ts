@@ -207,10 +207,12 @@ describe("Agent Home", () => {
       client.stop();
     }
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
-    expect(calls.filter((call) => call.method === "thread/start").map((call) => call.params)).toMatchObject([
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
+    const threads = calls.filter((call) => call.method === "thread/start").map((call) => call.params);
+    expect(threads).toMatchObject([
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("report_task") },
     ]);
+    expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["medium", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
   });

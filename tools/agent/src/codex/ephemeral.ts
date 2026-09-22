@@ -24,7 +24,7 @@ export async function ephemeralToolTurn<T>(input: {
     ephemeral: true,
     threadSource: "appServer",
     dynamicTools: input.tools,
-    developerInstructions: input.instructions,
+    baseInstructions: input.instructions,
   });
   const threadId = started.thread.id;
   const lifetime = new AbortController();

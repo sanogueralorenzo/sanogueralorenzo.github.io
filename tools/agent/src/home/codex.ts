@@ -65,6 +65,12 @@ function response(success: boolean, text: string) {
   return { success, contentItems: [{ type: "inputText", text }] };
 }
 
+const ROUTER_INSTRUCTIONS = `Route the user's message into the fewest actions that cover its distinct outcomes and destinations. Keep dependent steps together; split independent outcomes even when they share context. Do not perform the work.
+
+Call route_tasks once with the complete plan. For each action, quote a unique, non-overlapping part of the message, give a short title and self-contained instruction. Choose start for new work, continue to queue a follow-up in an existing conversation, or steer to change its active work now only when the user explicitly asks.
+
+Use find_conversations when a destination is not listed and read_conversation only when its preview lacks needed context. Carry necessary context between actions. Reuse a saved project's directory or the terminal directory for current project work; omit it for personal work. Omit the instruction only when opening an idle conversation. Output only tool calls.`;
+
 export class CodexHomeBackend implements HomeBackend {
   constructor(
     private readonly config: RuntimeConfig,
@@ -93,7 +99,7 @@ export class CodexHomeBackend implements HomeBackend {
     await this.retry(() => {
       actions = null;
       return this.toolTurn(
-        "You are Agent Home's router. Never do the requested work or answer it. Choose one route per independent destination and deliverable, then call route_tasks once with the complete plan. A greeting or one coherent outcome needs one route; repeated or paraphrased versions of the same request are never separate routes. Unrelated outcomes, such as Taipei restaurants and an air fryer recommendation, need separate new tasks so they can run in parallel. If the user asks to continue an existing conversation and start other work, include both a continue route and a start route. Each route's source must quote a distinct, non-overlapping part of the user message exactly. Use start for new conversations, continue for an ordinary follow-up, and steer only for an explicit correction to work currently running. Use find_conversations when a target is not listed, and read_conversation only when its preview is insufficient. Carry relevant context from the existing conversation into a new task's text when the user requests it. Write each task as a clear, self-contained instruction with a short title. Omit text only for an idle conversation. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If the boundary is uncertain, prefer one route that fully covers the coherent request. Output only tool calls.",
+        ROUTER_INSTRUCTIONS,
         prompt, [ROUTE_TASKS, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
           if (actions) return response(false, "This Home message is already routed.");
           if (name === FIND_CONVERSATIONS.name) {
