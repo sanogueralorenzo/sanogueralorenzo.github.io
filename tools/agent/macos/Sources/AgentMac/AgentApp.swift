@@ -121,50 +121,27 @@ struct ConversationView: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.selectedSessionId == AppModel.homeSessionId {
-                if model.taskReports.isEmpty {
+                if model.homeEntries.isEmpty {
                     Spacer(minLength: 0)
                     EmptyConversationView()
                     Spacer(minLength: 0)
                 } else {
-                    Spacer(minLength: 0)
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 10) {
-                            ForEach(model.taskReports) { report in
-                                Button { Task { await model.selectSession(report.sessionId) } } label: {
-                                    HStack(spacing: 12) {
-                                        Circle()
-                                            .fill(report.state == "working" ? AgentStyle.clay : AgentStyle.muted)
-                                            .frame(width: 7, height: 7)
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(report.title).font(.system(size: 14, weight: .medium))
-                                            Text(report.summary).font(.system(size: 13)).foregroundStyle(AgentStyle.muted)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(AgentStyle.muted)
-                                    }
-                                    .padding(16)
-                                    .background(AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            ForEach(model.homeEntries) { entry in
+                                HomeEntryView(entry: entry) {
+                                    if let sessionId = entry.sessionId { Task { await model.selectSession(sessionId) } }
                                 }
-                                .buttonStyle(.plain)
-                                .id(report.sessionId)
+                                .id(entry.id)
                             }
                         }
                         .scrollTargetLayout()
                         .frame(maxWidth: AgentStyle.contentMaxWidth)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, AgentStyle.edgePadding)
+                        .padding(.vertical, 24)
                     }
                     .scrollPosition(id: $model.homeScrollPosition, anchor: .bottom)
-                    .frame(height: min(CGFloat(model.taskReports.count) * 90, 260))
-                    .padding(.bottom, 12)
-                }
-                if let error = model.homeError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(AgentStyle.muted)
-                        .frame(maxWidth: AgentStyle.contentMaxWidth, alignment: .leading)
-                        .padding(.horizontal, AgentStyle.edgePadding)
-                        .padding(.bottom, 8)
                 }
             } else {
                 ScrollViewReader { proxy in
@@ -209,6 +186,47 @@ struct ConversationView: View {
             }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
+    }
+}
+
+private struct HomeEntryView: View {
+    let entry: HomeEntry
+    let open: () -> Void
+
+    private var isWorking: Bool { entry.state == "routing" || entry.state == "working" }
+    private var needsAttention: Bool { entry.state == "needs_input" || entry.state == "failed" }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Spacer(minLength: AgentStyle.messageGutter)
+            Group {
+                if isWorking {
+                    ProgressView().controlSize(.mini)
+                } else if entry.state == "ready" {
+                    Circle().fill(Color.green.opacity(0.72)).frame(width: 8, height: 8)
+                } else if needsAttention {
+                    Circle().fill(Color.red.opacity(0.72)).frame(width: 8, height: 8)
+                }
+            }
+            .frame(width: 12)
+            Button(action: open) {
+                VStack(alignment: .leading, spacing: 5) {
+                    if let title = entry.title {
+                        Text(title).font(.system(size: 14, weight: .semibold))
+                    }
+                    Text(entry.summary ?? entry.body)
+                        .font(.system(size: 15))
+                        .lineSpacing(3)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
+                .padding(.horizontal, 15)
+                .padding(.vertical, 11)
+                .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+            .disabled(entry.sessionId == nil)
+        }
     }
 }
 

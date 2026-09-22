@@ -20,7 +20,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let artifact: RuntimeArtifact?
     public let url: String?
     public let continues: Bool?
-    public let report: TaskReport?
+    public let entry: HomeEntry?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
 }
@@ -39,20 +39,33 @@ public struct RunEnvelope: Decodable, Sendable {
 
 public struct RuntimeSnapshot: Decodable, Sendable {
     public let sessions: [RuntimeSession]
-    public let taskReports: [TaskReport]
+    public let homeEntries: [HomeEntry]
     public let transcript: Transcript?
     public let activeRuns: [ActiveRunSnapshot]
     public let lastRuns: [LastRunSnapshot]
 }
 
-public struct TaskReport: Decodable, Sendable, Identifiable {
-    public var id: String { sessionId }
-    public let sessionId: String
-    public let title: String
-    public let state: String
-    public let summary: String
-    public let url: String
+public struct HomeEntry: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let sessionId: String?
+    public let title: String?
+    public let body: String
+    public let summary: String?
+    public let state: String?
+    public let url: String?
     public let updatedAt: String
+
+    public init(id: String, sessionId: String? = nil, title: String? = nil, body: String,
+                summary: String? = nil, state: String? = nil, url: String? = nil, updatedAt: String) {
+        self.id = id
+        self.sessionId = sessionId
+        self.title = title
+        self.body = body
+        self.summary = summary
+        self.state = state
+        self.url = url
+        self.updatedAt = updatedAt
+    }
 }
 
 public struct ActiveRunSnapshot: Decodable, Sendable {
@@ -119,11 +132,13 @@ public struct TranscriptMessage: Decodable, Sendable {
 public struct ChatRequest: Encodable, Sendable {
     public let text: String
     public let sessionId: String
+    public let requestId: String?
     public let channel = "macos"
 
-    public init(text: String, sessionId: String) {
+    public init(text: String, sessionId: String, requestId: String? = nil) {
         self.text = text
         self.sessionId = sessionId
+        self.requestId = requestId
     }
 }
 

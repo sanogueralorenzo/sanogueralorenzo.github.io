@@ -35,6 +35,8 @@ function toolSummary(item: Record<string, unknown>): string {
 }
 
 export class CodexBackend implements AgentBackend {
+  private readonly activeTurns = new Map<string, { threadId: string; turnId: string }>();
+
   constructor(
     private readonly config: RuntimeConfig,
     private readonly store: Store,
@@ -51,6 +53,24 @@ export class CodexBackend implements AgentBackend {
     const handoff = await this.retry(() => this.routeOnce(turn));
     if (!handoff && requiresHandoff(turn.request.text)) throw new Error("Could not identify the project or conversation to open.");
     return handoff;
+  }
+
+  async steer(sessionId: string, text: string): Promise<boolean> {
+    const active = this.activeTurns.get(sessionId);
+    if (!active) return false;
+    try {
+      await this.client.request("turn/steer", {
+        threadId: active.threadId,
+        expectedTurnId: active.turnId,
+        input: [{ type: "text", text, text_elements: [] }],
+      });
+      this.store.addMessage(sessionId, "user", text);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (error instanceof CodexDisconnectedError || /active turn|expectedTurnId|in.?flight/i.test(message)) return false;
+      throw classifiedError(error);
+    }
   }
 
   private async routeOnce(turn: BackendTurn): Promise<Handoff | null> {
@@ -182,6 +202,7 @@ export class CodexBackend implements AgentBackend {
         effort: "high",
       });
       turnId = started.turn.id;
+      this.activeTurns.set(turn.session.id, { threadId, turnId });
       if (turn.signal?.aborted) {
         interrupt();
         throw new DOMException("Interrupted", "AbortError");
@@ -221,6 +242,8 @@ export class CodexBackend implements AgentBackend {
         }
       }
     } finally {
+      const active = this.activeTurns.get(turn.session.id);
+      if (active?.threadId === threadId && active.turnId === turnId) this.activeTurns.delete(turn.session.id);
       lifetime.abort();
       turn.signal?.removeEventListener("abort", interrupt);
     }

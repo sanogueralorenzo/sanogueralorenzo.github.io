@@ -24,7 +24,7 @@ export class RunCoordinator {
   private executing = new Set<Promise<void>>();
   private homeCommit = Promise.resolve();
 
-  constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run">, private readonly store: Store) {
+  constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run" | "steer">, private readonly store: Store) {
     queueMicrotask(() => { for (const id of this.store.queuedSessionIds()) this.startQueued(id); });
   }
 
@@ -43,7 +43,7 @@ export class RunCoordinator {
     const sessionId = prepared.session.id;
     const busy = sessionId === HOME_SESSION_ID ? null : this.activeFor(sessionId);
     if (busy) throw new RunBusyError(busy.run);
-    const info: RunInfo = { id: randomUUID(), sessionId, origin: turn.channel ?? "api" };
+    const info: RunInfo = { id: turn.requestId ?? randomUUID(), sessionId, origin: turn.channel ?? "api" };
     const run: RunSnapshot & { controller: AbortController; terminal: boolean } = {
       run: info,
       turn: { type: "turn", text: turn.text, channel: info.origin, hasAttachments: Boolean(turn.attachments?.length) },
@@ -101,7 +101,7 @@ export class RunCoordinator {
     let overflow = false;
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
-      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity" && event.event.type !== "task_report") return;
+      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity" && event.event.type !== "home_entry") return;
       if (event && !overflow) {
         const bytes = Buffer.byteLength(JSON.stringify(event));
         if (queued.length >= MAX_PENDING_EVENTS || pendingBytes + bytes > MAX_EVENT_BUFFER_BYTES) {
@@ -159,18 +159,23 @@ export class RunCoordinator {
           const busy = this.activeFor(targetId);
           if (busy && busy !== run) throw new RunBusyError(busy.run);
         },
+        steer: async (targetId, text, channel) => {
+          const active = this.activeFor(targetId);
+          if (!active || !await this.runtime.steer(targetId, text)) return false;
+          this.publish(targetId, active.run.id, { type: "steer", text, channel: channel ?? "api" });
+          return true;
+        },
       })) {
         if (event.type === "task_queued") {
           this.startQueued(event.sessionId);
           continue;
         }
-        if (event.type === "task_report") {
+        if (event.type === "home_entry") {
           this.publish(HOME_SESSION_ID, run.run.id, event);
           continue;
         }
         terminal ||= event.type === "done" || event.type === "error";
         if (run.run.sessionId === HOME_SESSION_ID) {
-          if (event.type === "error") this.publish(HOME_SESSION_ID, run.run.id, { type: "home_error", message: event.message });
           continue;
         }
         if (event.type === "navigate") {
@@ -185,11 +190,11 @@ export class RunCoordinator {
       }
       if (!terminal) this.publish(run.run.sessionId, run.run.id,
         run.run.sessionId === HOME_SESSION_ID
-          ? { type: "home_error", message: "Home stopped before dispatching the request." }
+          ? { type: "error", message: "Home stopped before dispatching the request." }
           : { type: "error", message: "Agent stopped before completing the response." });
     } catch (error) {
       this.publish(run.run.sessionId, run.run.id, {
-        type: run.run.sessionId === HOME_SESSION_ID ? "home_error" : "error",
+        type: "error",
         message: error instanceof Error ? error.message : String(error),
       });
     } finally {

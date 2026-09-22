@@ -1,9 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { basename, resolve } from "node:path";
 import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
-import type { RuntimeEvent, Session, SessionCard, TaskReport, TurnRequest } from "./types.js";
+import type { HomeEntry, RuntimeEvent, Session, SessionCard, TurnRequest } from "./types.js";
 import { maySwitchContext } from "./routing.js";
 import { HOME_SESSION_ID } from "./types.js";
 import type { HomeBackend } from "../home/backend.js";
@@ -43,11 +44,15 @@ export class AgentRuntime {
     return cwd ? this.store.latestSession(cwd) ?? this.store.createSession({ cwd }) : this.store.homeSession();
   }
 
-  private async taskReport(session: Session, runId: string, request: string, output: string, state: "complete" | "failed" | "interrupted"): Promise<TaskReport | null> {
+  async steer(sessionId: string, text: string): Promise<boolean> {
+    return this.backend.steer(sessionId, redactSecrets(text));
+  }
+
+  private async taskUpdate(session: Session, runId: string, request: string, output: string, state: "complete" | "failed" | "interrupted"): Promise<HomeEntry | null> {
     if (this.store.latestRun(session.id)?.id !== runId) return null;
-    if (this.store.queuedTask(session.id)) return this.store.setTaskReport(session.id, "working", "Queued.");
-    if (state === "interrupted") return this.store.setTaskReport(session.id, "failed", "Interrupted. Open task to continue.");
-    let result: Pick<TaskReport, "state" | "summary">;
+    if (this.store.queuedTask(session.id)) return this.store.updateHomeEntry(session.id, "working", null);
+    if (state === "interrupted") return this.store.updateHomeEntry(session.id, "failed", "Interrupted. Open the task to continue.");
+    let result: { state: "ready" | "needs_input" | "failed"; summary: string };
     try {
       result = await this.home.summarize({
         title: session.title, request: redactSecrets(request), output: redactSecrets(output),
@@ -57,18 +62,16 @@ export class AgentRuntime {
       result = { state: state === "complete" ? "ready" : "failed", summary: "Update unavailable. Open task for details." };
     }
     if (this.store.latestRun(session.id)?.id !== runId) return null;
-    if (this.store.queuedTask(session.id)) return this.store.setTaskReport(session.id, "working", "Queued.");
-    return this.store.setTaskReport(session.id, result.state,
+    if (this.store.queuedTask(session.id)) return this.store.updateHomeEntry(session.id, "working", null);
+    return this.store.updateHomeEntry(session.id, result.state,
       redactSecrets(result.summary).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "));
   }
 
-  private async openedReport(session: Session): Promise<TaskReport> {
-    if (this.store.latestRun(session.id)?.state === "running") return this.store.setTaskReport(session.id, "working", "Working.");
-    const existing = this.store.taskReports().find((report) => report.sessionId === session.id);
-    if (existing) return existing;
+  private async openedEntry(session: Session): Promise<HomeEntry> {
+    if (this.store.latestRun(session.id)?.state === "running") return this.store.updateHomeEntry(session.id, "working", null)!;
     const messages = this.store.getMessages(session.id, 10);
     const answer = messages.filter((message) => message.role === "assistant").at(-1)?.content;
-    if (!answer) return this.store.setTaskReport(session.id, "ready", "Ready for your request.");
+    if (!answer) return this.store.updateHomeEntry(session.id, "ready", "Ready for your request.")!;
     try {
       const result = await this.home.summarize({
         title: session.title,
@@ -76,9 +79,9 @@ export class AgentRuntime {
         output: answer,
         state: "complete",
       });
-      return this.store.setTaskReport(session.id, result.state, redactSecrets(result.summary));
+      return this.store.updateHomeEntry(session.id, result.state, redactSecrets(result.summary))!;
     } catch {
-      return this.store.setTaskReport(session.id, "ready", redactSecrets(answer).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "));
+      return this.store.updateHomeEntry(session.id, "ready", redactSecrets(answer).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "))!;
     }
   }
 
@@ -108,6 +111,7 @@ export class AgentRuntime {
     prepared?: ReturnType<AgentRuntime["prepareTurn"]>;
     canHandoff?: (sessionId: string) => void;
     beforeHomeDispatch?: Promise<void>;
+    steer?: (sessionId: string, text: string, channel: TurnRequest["channel"]) => Promise<boolean>;
   } = {}): AsyncGenerator<RuntimeEvent> {
     let terminal: RuntimeEvent | null = null;
     let text = incoming.text.trim();
@@ -115,7 +119,11 @@ export class AgentRuntime {
     const sessionTools = prepared.sessionTools;
     let session = prepared.session;
     const runId = this.store.startRun(session.id, options.runId, redactSecrets(text || "Voice message"), incoming.queuedTaskId);
-    if (incoming.queuedTaskId) yield { type: "task_report", report: this.store.setTaskReport(session.id, "working", "Working.") };
+    if (session.id === HOME_SESSION_ID) yield { type: "home_entry", entry: this.store.createHomeEntry(runId, redactSecrets(text || "Voice message")) };
+    if (incoming.queuedTaskId) {
+      const entry = this.store.updateHomeEntry(session.id, "working", null);
+      if (entry) yield { type: "home_entry", entry };
+    }
     try {
       for (const attachment of incoming.attachments ?? []) {
         yield { type: "status", message: "Listening…" };
@@ -127,9 +135,9 @@ export class AgentRuntime {
       if (prepared.routing) yield { type: "turn", text: text || "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
-      if (this.store.isHomeTask(session.id)) {
-        const report = await this.taskReport(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
-        if (report) yield { type: "task_report", report };
+      if (this.store.hasHomeEntry(session.id)) {
+        const entry = await this.taskUpdate(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
+        if (entry) yield { type: "home_entry", entry };
       }
       return;
     }
@@ -137,9 +145,9 @@ export class AgentRuntime {
       if (prepared.routing) yield { type: "turn", text: "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, "failed", "The message is empty.");
       yield { type: "error", message: "The message is empty." };
-      if (this.store.isHomeTask(session.id)) {
-        const report = await this.taskReport(session, runId, text, "The message is empty.", "failed");
-        if (report) yield { type: "task_report", report };
+      if (this.store.hasHomeEntry(session.id)) {
+        const entry = await this.taskUpdate(session, runId, text, "The message is empty.", "failed");
+        if (entry) yield { type: "home_entry", entry };
       }
       return;
     }
@@ -148,24 +156,36 @@ export class AgentRuntime {
     if (session.id === HOME_SESSION_ID) {
       this.store.deliverRunInput(runId);
       try {
-        const actions = await this.home.compose(request, sessionTools, this.store.taskReports(), options.signal);
+        const actions = await this.home.compose(request, sessionTools, this.store.homeEntries(), options.signal);
         await options.beforeHomeDispatch;
         if (options.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
-        for (const action of actions) {
+        for (const [index, action] of actions.entries()) {
+          const entryId = index === 0 ? runId : randomUUID();
+          if (index > 0) this.store.createHomeEntry(entryId, redactSecrets(action.text ?? request.text));
           const target = action.type === "start"
             ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
             : this.store.getSession(action.sessionId)!;
           const task = action.text?.trim();
-          if (task) this.store.enqueueTask(target.id, redactSecrets(task), incoming.channel ?? "api");
-          const report = task ? this.store.setTaskReport(target.id, "working", "Queued.") : await this.openedReport(target);
-          yield { type: "task_report", report };
-          if (task) yield { type: "task_queued", sessionId: target.id };
+          const dispatched = this.store.dispatchHomeEntry(entryId, target.id, action.title, redactSecrets(task || request.text), Boolean(task));
+          if (dispatched.superseded) yield { type: "home_entry", entry: dispatched.superseded };
+          let entry = dispatched.entry;
+          yield { type: "home_entry", entry };
+          if (!task) {
+            entry = await this.openedEntry(target);
+            yield { type: "home_entry", entry };
+          } else if (action.type === "steer" && await options.steer?.(target.id, redactSecrets(task), incoming.channel)) {
+            continue;
+          } else {
+            this.store.enqueueTask(target.id, redactSecrets(task), incoming.channel ?? "api");
+            yield { type: "task_queued", sessionId: target.id };
+          }
         }
         this.store.finishRun(runId, "complete");
         yield { type: "done", sessionId: session.id };
       } catch (error) {
         const message = failureMessage(error, options.signal);
         this.store.finishRun(runId, options.signal?.aborted ? "interrupted" : "failed", message);
+        yield { type: "home_entry", entry: this.store.failHomeEntry(runId, message) };
         yield { type: "error", message };
       }
       return;
@@ -207,9 +227,9 @@ export class AgentRuntime {
       }
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
-      if (this.store.isHomeTask(session.id)) {
-        const report = await this.taskReport(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
-        if (report) yield { type: "task_report", report };
+      if (this.store.hasHomeEntry(session.id)) {
+        const entry = await this.taskUpdate(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
+        if (entry) yield { type: "home_entry", entry };
       }
       return;
     }
@@ -265,16 +285,16 @@ export class AgentRuntime {
       terminal = { type: "error", message: failureMessage(error, options.signal) };
     } finally {
       if (!terminal && assistantText.trim()) assistantMessage = `${assistantText}\n\n[interrupted]`;
-      if (terminal?.type === "error" && !assistantMessage && this.store.isHomeTask(session.id)) assistantMessage = terminal.message;
+      if (terminal?.type === "error" && !assistantMessage && this.store.hasHomeEntry(session.id)) assistantMessage = terminal.message;
       this.store.finishRun(runId, terminal?.type === "done" ? "complete" : options.signal?.aborted || !terminal ? "interrupted" : "failed", assistantMessage);
     }
     if (terminal) yield terminal;
-    if (terminal && this.store.isHomeTask(session.id)) {
-      const report = await this.taskReport(
+    if (terminal && this.store.hasHomeEntry(session.id)) {
+      const entry = await this.taskUpdate(
         session, runId, request.text, assistantMessage ?? (terminal.type === "error" ? terminal.message : ""),
         terminal.type === "done" ? "complete" : options.signal?.aborted ? "interrupted" : "failed",
       );
-      if (report) yield { type: "task_report", report };
+      if (entry) yield { type: "home_entry", entry };
     }
   }
 }

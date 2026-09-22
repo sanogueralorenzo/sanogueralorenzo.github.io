@@ -85,7 +85,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     return send({ id: "home-tool", method: "item/tool/call", params: {
       threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
-      tool: "continue_task", arguments: { sessionId: found[0]?.id },
+      tool: "continue_task", arguments: { sessionId: found[0]?.id, title: "Open Tonal Android" },
     } });
   }
   if (!method && id === "home-read" && dynamicTurn) {
@@ -94,6 +94,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
       tool: "continue_task", arguments: {
         sessionId: read.conversation?.id,
+        title: "Continue reconnect investigation",
         text: "Continue the reconnect investigation with the additional logs.",
       },
     } });
@@ -272,6 +273,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     reply(id);
     return notify("turn/completed", { threadId: params.threadId, turn: { id: params.turnId, status: "interrupted" } });
   }
+  if (method === "turn/steer") return reply(id, { turnId: params.expectedTurnId });
   if (method === "thread/realtime/start") {
     reply(id);
     notify("thread/realtime/sdp", { threadId: params.threadId, sdp: "fake-answer" });

@@ -1,5 +1,5 @@
 import { on } from "node:events";
-import { HOME_SESSION_ID, type RuntimeConfig, type SessionCard, type TaskReport, type TurnRequest } from "../conversation/types.js";
+import { HOME_SESSION_ID, type HomeEntry, type RuntimeConfig, type SessionCard, type TurnRequest } from "../conversation/types.js";
 import type { Store } from "../conversation/store.js";
 import { MODEL } from "../local/config.js";
 import { CodexAppServer, CodexDisconnectedError } from "../codex/app-server.js";
@@ -25,11 +25,30 @@ const START_TASK = {
 
 const CONTINUE_TASK = {
   name: "continue_task",
-  description: "Send a follow-up to one existing Agent task conversation.",
+  description: "Queue a follow-up as the next turn in an existing Agent task conversation.",
   inputSchema: {
     type: "object",
-    properties: { sessionId: { type: "string" }, text: { type: "string", description: "Follow-up work; omit to show the existing conversation in Home." } },
-    required: ["sessionId"],
+    properties: {
+      sessionId: { type: "string" },
+      title: { type: "string", description: "A short title for this Home entry." },
+      text: { type: "string", description: "Follow-up work; omit to show the existing conversation in Home." },
+    },
+    required: ["sessionId", "title"],
+    additionalProperties: false,
+  },
+};
+
+const STEER_TASK = {
+  name: "steer_task",
+  description: "Add an immediate correction or instruction to a task that is currently working.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      sessionId: { type: "string" },
+      title: { type: "string", description: "A short title for this Home entry." },
+      text: { type: "string", description: "A clear, self-contained instruction for the active turn." },
+    },
+    required: ["sessionId", "title", "text"],
     additionalProperties: false,
   },
 };
@@ -70,9 +89,10 @@ export class CodexHomeBackend implements HomeBackend {
     private readonly client: CodexAppServer,
   ) {}
 
-  async compose(request: TurnRequest, conversations: SessionCard[], reports: TaskReport[], signal?: AbortSignal): Promise<HomeAction[]> {
+  async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction[]> {
     const actions: HomeAction[] = [];
-    const states = new Map(this.store.taskReports().map((report) => [report.sessionId, report.state]));
+    const states = new Map(this.store.homeEntries().filter((entry) => entry.sessionId && entry.state)
+      .map((entry) => [entry.sessionId!, entry.state]));
     const conversationState = (sessionId: string) => {
       const latestRun = this.store.latestRun(sessionId);
       if (latestRun?.state === "running") return "working";
@@ -84,14 +104,14 @@ export class CodexHomeBackend implements HomeBackend {
         .filter((message) => message.role === "user").slice(-4).map((message) => message.content.slice(0, 300)))}`,
       request.cwd ? `Terminal directory: ${request.cwd}` : "",
       `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview })))}`,
-      `Recent tasks: ${JSON.stringify([...reports].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
-        .map(({ sessionId, title, state, summary }) => ({ sessionId, title, state, summary })))}`,
+      `Recent Home activity: ${JSON.stringify([...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
+        .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
     ].filter(Boolean).join("\n");
     await this.retry(() => {
       actions.length = 0;
       return this.toolTurn(
-        "You route requests; never do the work or answer it. Use start_task for new conversations and continue_task to resume or update an existing one, even if it is working. Use find_conversations when the target is not listed, then read_conversation only when a preview is insufficient to choose confidently. Include text only when the user asks for work; omit it when they only want a conversation opened in Home. Preserve relevant context in the work text. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
-        prompt, [START_TASK, CONTINUE_TASK, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
+        "You route requests; never do the work or answer it. Rewrite each work request into a clear, self-contained instruction and give new tasks a short specific title. Use start_task for new conversations. Use continue_task for a follow-up that should run as the next turn. Use steer_task only when the user explicitly asks to change, correct, or add to work that is currently running. Use find_conversations when the target is not listed, then read_conversation only when its preview is insufficient. Omit text only when the user wants to open a conversation without adding work. Preserve relevant context. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
+        prompt, [START_TASK, CONTINUE_TASK, STEER_TASK, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
           if (name === FIND_CONVERSATIONS.name) {
             const query = String(args.query ?? "").trim();
             const found = query ? this.store.findConversations(query)
@@ -126,12 +146,23 @@ export class CodexHomeBackend implements HomeBackend {
           }
           if (name === CONTINUE_TASK.name) {
             const text = String(args.text ?? "").trim();
+            const title = String(args.title ?? "").trim().slice(0, 64);
             const sessionId = String(args.sessionId ?? "");
-            if (!this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
+            if (!title || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
               return response(false, "Choose an existing conversation.");
             }
-            actions.push({ type: "continue", sessionId, ...(text ? { text } : {}) });
+            actions.push({ type: "continue", sessionId, title, ...(text ? { text } : {}) });
             return response(true, "Conversation opened.");
+          }
+          if (name === STEER_TASK.name) {
+            const text = String(args.text ?? "").trim();
+            const title = String(args.title ?? "").trim().slice(0, 64);
+            const sessionId = String(args.sessionId ?? "");
+            if (!title || !text || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
+              return response(false, "Choose an active conversation and provide an instruction.");
+            }
+            actions.push({ type: "steer", sessionId, title, text });
+            return response(true, "Active work updated.");
           }
           return response(false, "Unknown tool.");
         }, signal);
@@ -141,7 +172,7 @@ export class CodexHomeBackend implements HomeBackend {
   }
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {
-    let report: Pick<TaskReport, "state" | "summary"> | null = null;
+    let report: { state: "ready" | "needs_input" | "failed"; summary: string } | null = null;
     await this.retry(() => {
       report = null;
       return this.toolTurn(
@@ -156,7 +187,7 @@ export class CodexHomeBackend implements HomeBackend {
           return response(true, "Reported.");
         }, signal);
     });
-    if (!report) throw new Error("Home did not receive a task report.");
+    if (!report) throw new Error("Home did not receive a task update.");
     return report;
   }
 

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BackendTurn } from "../conversation/backend.js";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
@@ -68,6 +68,23 @@ describe("Codex turn transport", () => {
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
     expect(store.codexThread(input.session.id)).toBe("thread-1");
+  });
+
+  it("steers the active Codex turn and persists the added user instruction", async () => {
+    const fixture = backendFixture("cancel");
+    const controller = new AbortController();
+    const running = collect(fixture.backend, { ...fixture.input, signal: controller.signal }).catch(() => []);
+    await vi.waitFor(() => expect(requests(fixture.log).some((request) => request.method === "turn/start")).toBe(true));
+
+    await expect(fixture.backend.steer(fixture.input.session.id, "Focus on the failing tests first.")).resolves.toBe(true);
+    expect(fixture.store.getMessages(fixture.input.session.id)).toContainEqual({
+      role: "user", content: "Focus on the failing tests first.",
+    });
+    expect(requests(fixture.log).find((request) => request.method === "turn/steer")?.params).toMatchObject({
+      threadId: "thread-1", expectedTurnId: "turn-1",
+    });
+    controller.abort();
+    await running;
   });
 
   it("lets Codex compact context without changing the shared event contract", async () => {

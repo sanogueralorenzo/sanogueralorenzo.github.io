@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import { HOME_SESSION_ID, type Attachment, type Channel, type LastRun, type Message, type Session, type SessionCard, type TaskReport } from "./types.js";
+import { HOME_SESSION_ID, type Attachment, type Channel, type HomeEntry, type LastRun, type Message, type Session, type SessionCard } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -89,10 +89,14 @@ export class Store {
         path TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS home_tasks (
-        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-        state TEXT NOT NULL CHECK (state IN ('working', 'ready', 'needs_input', 'failed')),
-        summary TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS home_entries (
+        id TEXT PRIMARY KEY,
+        session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
+        title TEXT,
+        body TEXT NOT NULL,
+        summary TEXT,
+        state TEXT CHECK (state IS NULL OR state IN ('routing', 'working', 'ready', 'needs_input', 'failed')),
+        created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS queued_tasks (
@@ -104,6 +108,12 @@ export class Store {
       );
       CREATE INDEX IF NOT EXISTS queued_tasks_session ON queued_tasks(session_id, created_at);
     `);
+  }
+
+  private nextHomeUpdate(id: string): string {
+    const previous = this.db.prepare("SELECT updated_at AS updatedAt FROM home_entries WHERE id = ?")
+      .get(id) as { updatedAt: string } | undefined;
+    return new Date(Math.max(Date.now(), previous ? Date.parse(previous.updatedAt) + 1 : 0)).toISOString();
   }
 
   private recoverInterruptedRuns(): void {
@@ -124,15 +134,15 @@ export class Store {
       this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id IN (SELECT session_id FROM runs WHERE state = 'running')").run(now());
       this.db.prepare("UPDATE runs SET state = 'interrupted', output = '' WHERE state = 'running'").run();
       this.db.prepare(`
-        UPDATE home_tasks SET
-          state = CASE WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_tasks.session_id) THEN 'working'
-            WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
-            THEN 'ready' ELSE 'failed' END,
-          summary = CASE WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_tasks.session_id) THEN 'Queued.'
-            WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
-            THEN 'Finished before restart. Open task for details.' ELSE 'Interrupted. Open task to continue.' END,
+        UPDATE home_entries SET
+          state = CASE WHEN session_id IS NULL THEN 'failed'
+            WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_entries.session_id) THEN 'working'
+            ELSE 'failed' END,
+          summary = CASE WHEN session_id IS NULL THEN 'Could not dispatch before restart.'
+            WHEN EXISTS (SELECT 1 FROM queued_tasks WHERE session_id = home_entries.session_id) THEN NULL
+            ELSE 'Interrupted. Open the task to continue.' END,
           updated_at = ?
-        WHERE state = 'working'
+        WHERE state IN ('routing', 'working')
       `).run(now());
       this.db.exec("COMMIT");
     } catch (error) {
@@ -160,30 +170,70 @@ export class Store {
     return this.getSession(HOME_SESSION_ID)!;
   }
 
-  isHomeTask(sessionId: string): boolean {
-    return Boolean(this.db.prepare("SELECT 1 FROM home_tasks WHERE session_id = ?").get(sessionId));
+  hasHomeEntry(sessionId: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM home_entries WHERE session_id = ?").get(sessionId));
   }
 
-  setTaskReport(sessionId: string, state: TaskReport["state"], summary: string): TaskReport {
-    const previous = this.db.prepare("SELECT updated_at AS updatedAt FROM home_tasks WHERE session_id = ?")
-      .get(sessionId) as { updatedAt: string } | undefined;
-    const timestamp = new Date(Math.max(Date.now(), previous ? Date.parse(previous.updatedAt) + 1 : 0)).toISOString();
+  createHomeEntry(id: string, body: string): HomeEntry {
+    const timestamp = now();
     this.db.prepare(`
-      INSERT INTO home_tasks (session_id, state, summary, updated_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT(session_id) DO UPDATE SET state = excluded.state, summary = excluded.summary, updated_at = excluded.updated_at
-    `).run(sessionId, state, summary, timestamp);
-    const session = this.getSession(sessionId)!;
-    return { sessionId, title: session.title, state, summary, url: `agent://sessions/${sessionId}`, updatedAt: timestamp };
+      INSERT INTO home_entries (id, body, state, created_at, updated_at) VALUES (?, ?, 'routing', ?, ?)
+    `).run(id, body, timestamp, timestamp);
+    return this.homeEntry(id)!;
   }
 
-  taskReports(): TaskReport[] {
+  dispatchHomeEntry(id: string, sessionId: string, title: string, body: string, working: boolean): {
+    entry: HomeEntry;
+    superseded: HomeEntry | null;
+  } {
+    const timestamp = this.nextHomeUpdate(id);
+    const previous = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? AND id != ? AND state IS NOT NULL ORDER BY rowid DESC LIMIT 1")
+      .get(sessionId, id) as { id: string } | undefined;
+    const previousTimestamp = previous ? this.nextHomeUpdate(previous.id) : null;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      if (previous) this.db.prepare("UPDATE home_entries SET state = NULL, updated_at = ? WHERE id = ?")
+        .run(previousTimestamp, previous.id);
+      this.db.prepare(`
+        UPDATE home_entries SET session_id = ?, title = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
+      `).run(sessionId, title, body, working ? "working" : "ready", timestamp, id);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return { entry: this.homeEntry(id)!, superseded: previous ? this.homeEntry(previous.id) : null };
+  }
+
+  updateHomeEntry(sessionId: string, state: Exclude<HomeEntry["state"], "routing" | null>, summary: string | null): HomeEntry | null {
+    const current = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? ORDER BY rowid DESC LIMIT 1")
+      .get(sessionId) as { id: string } | undefined;
+    if (!current) return null;
+    this.db.prepare("UPDATE home_entries SET state = ?, summary = ?, updated_at = ? WHERE id = ?")
+      .run(state, summary, this.nextHomeUpdate(current.id), current.id);
+    return this.homeEntry(current.id);
+  }
+
+  failHomeEntry(id: string, summary: string): HomeEntry {
+    this.db.prepare("UPDATE home_entries SET state = 'failed', summary = ?, updated_at = ? WHERE id = ?")
+      .run(summary, this.nextHomeUpdate(id), id);
+    return this.homeEntry(id)!;
+  }
+
+  homeEntry(id: string): HomeEntry | null {
+    const row = this.db.prepare(`
+      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
+      FROM home_entries WHERE id = ?
+    `).get(id) as Omit<HomeEntry, "url"> | undefined;
+    return row ? { ...row, url: row.sessionId ? `agent://sessions/${row.sessionId}` : null } : null;
+  }
+
+  homeEntries(limit = 100): HomeEntry[] {
     const rows = this.db.prepare(`
-      SELECT sessions.id AS sessionId, sessions.title, home_tasks.state, home_tasks.summary,
-        home_tasks.updated_at AS updatedAt
-      FROM home_tasks JOIN sessions ON sessions.id = home_tasks.session_id
-      ORDER BY home_tasks.rowid ASC
-    `).all() as unknown as Omit<TaskReport, "url">[];
-    return rows.map((row) => ({ ...row, url: `agent://sessions/${row.sessionId}` }));
+      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
+      FROM (SELECT rowid, * FROM home_entries ORDER BY rowid DESC LIMIT ?) ORDER BY rowid ASC
+    `).all(limit) as unknown as Omit<HomeEntry, "url">[];
+    return rows.map((row) => ({ ...row, url: row.sessionId ? `agent://sessions/${row.sessionId}` : null }));
   }
 
   enqueueTask(sessionId: string, text: string, channel: Channel): void {

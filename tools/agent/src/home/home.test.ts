@@ -11,112 +11,62 @@ import { cleanup, temporary } from "../test-support.js";
 import type { HomeBackend } from "./backend.js";
 import { CodexHomeBackend } from "./codex.js";
 
+function worker(run: AgentBackend["run"], steer: AgentBackend["steer"] = async () => false): AgentBackend {
+  return { async route() { return null; }, steer, async transcribeAudio() { return ""; }, run };
+}
+
 describe("Agent Home", () => {
-  it("dispatches durable tasks before they finish and reports only lifecycle updates", async () => {
+  it("turns one submission into clickable task entries and final concise outcomes", async () => {
     const store = new Store(temporary("agent-home-"));
     cleanup(() => store.close());
     let release!: () => void;
     const work = new Promise<void>((resolve) => { release = resolve; });
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() {
-        yield { type: "status", message: "Working" };
-        await work;
-        yield { type: "text_delta", delta: "Completed the work." };
-        yield { type: "done" };
-      },
-    };
+    const backend = worker(async function* () {
+      await work;
+      yield { type: "text_delta", delta: "Completed the work." };
+      yield { type: "done" };
+    });
     const home: HomeBackend = {
       async compose() { return [
-        { type: "start", title: "First task", text: "Do the first task" },
-        { type: "start", title: "Second task", text: "Do the second task" },
+        { type: "start", title: "First task", text: "Do the first task carefully." },
+        { type: "start", title: "Second task", text: "Do the second task carefully." },
       ]; },
-      async summarize() { return { state: "ready", summary: "The work is complete and all requested checks pass without any remaining issues" }; },
-    };
-    const runtime = new AgentRuntime(store, backend, home);
-    const runs = new RunCoordinator(runtime, store);
-    const controller = new AbortController();
-    const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    const firstEvent = stream.next();
-    const run = runs.start({ text: "Do both", sessionId: runtime.openSession().id, channel: "macos" });
-    const events = [(await firstEvent).value!];
-    while (events.filter((event) => event.runId === run.id && event.event.type === "task_report").length < 2) {
-      events.push((await stream.next()).value!);
-    }
-    expect(runs.activeInfos().filter((item) => item.sessionId !== HOME_SESSION_ID)).toHaveLength(2);
-    expect(store.taskReports().map((report) => report.state)).toEqual(["working", "working"]);
-    expect(events.some((event) => event.event.type === "status" && event.sessionId !== HOME_SESSION_ID)).toBe(false);
-    expect(events.filter((event) => event.sessionId === HOME_SESSION_ID).every((event) => event.event.type === "task_report")).toBe(true);
-    release();
-    while (events.filter((event) => event.event.type === "task_report" && event.event.report.state === "ready").length < 2) {
-      events.push((await stream.next()).value!);
-    }
-    expect(store.taskReports()).toHaveLength(2);
-    expect(store.taskReports().every((report) => report.summary.split(" ").length <= 12)).toBe(true);
-    for (const report of store.taskReports()) {
-      expect(store.getMessages(report.sessionId).map((message) => message.role)).toEqual(["user", "assistant"]);
-    }
-    controller.abort();
-    await stream.return?.();
-    await runs.close();
-  });
-
-  it("dispatches consecutive Home requests without holding the composer busy", async () => {
-    const store = new Store(temporary("agent-home-parallel-"));
-    cleanup(() => store.close());
-    let release!: () => void;
-    const work = new Promise<void>((resolve) => { release = resolve; });
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { await work; yield { type: "text_delta", delta: "Done." }; yield { type: "done" }; },
-    };
-    const home: HomeBackend = {
-      async compose(request) { return [{ type: "start", title: request.text, text: request.text }]; },
-      async summarize() { return { state: "ready", summary: "Done." }; },
+      async summarize() { return { state: "ready", summary: "Work complete." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
-    store.homeSession();
     const controller = new AbortController();
     const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    const firstEvent = stream.next();
-    const first = runs.start({ text: "First", sessionId: HOME_SESSION_ID });
-    const second = runs.start({ text: "Second", sessionId: HOME_SESSION_ID });
-    const events = [(await firstEvent).value!];
-    while (events.filter((event) => event.event.type === "task_report").length < 2) events.push((await stream.next()).value!);
-    expect(first.id).not.toBe(second.id);
-    expect(store.taskReports().map((report) => report.title).sort()).toEqual(["First", "Second"]);
-    while (runs.activeInfos().length < 2) events.push((await stream.next()).value!);
-    expect(runs.activeInfos()).toHaveLength(2);
-    expect(runs.activeSnapshots(HOME_SESSION_ID)).toHaveLength(0);
+    const pending = stream.next();
+    const requestId = "00000000-0000-4000-8000-000000000001";
+    runs.start({ text: "Do both", requestId, sessionId: store.homeSession().id, channel: "macos" });
+    const first = (await pending).value!;
+    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(2));
+    expect(store.homeEntries()).toMatchObject([
+      { id: requestId, title: "First task", body: "Do the first task carefully.", state: "working" },
+      { title: "Second task", body: "Do the second task carefully.", state: "working" },
+    ]);
     release();
-    while (events.filter((event) => event.event.type === "task_report" && event.event.report.state === "ready").length < 2) {
-      events.push((await stream.next()).value!);
-    }
-    expect(store.getMessages(HOME_SESSION_ID).map((message) => message.role)).toEqual(["user", "user"]);
+    await vi.waitFor(() => expect(store.homeEntries().every((entry) => entry.state === "ready")).toBe(true));
+    expect(store.homeEntries().every((entry) => entry.summary === "Work complete.")).toBe(true);
+    expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "Do both", state: "routing" } });
     controller.abort();
     await stream.return?.();
     await runs.close();
   });
 
-  it("keeps submitted card order when later routing finishes first", async () => {
+  it("keeps Home responsive and commits routed entries in submission order", async () => {
     const store = new Store(temporary("agent-home-order-"));
     cleanup(() => store.close());
     let releaseFirst!: () => void;
     let secondComposed!: () => void;
     const firstRoute = new Promise<void>((resolve) => { releaseFirst = resolve; });
     const secondRoute = new Promise<void>((resolve) => { secondComposed = resolve; });
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { yield { type: "done" }; },
-    };
+    const backend = worker(async function* () { yield { type: "done" }; });
     const home: HomeBackend = {
       async compose(request) {
         if (request.text === "First") await firstRoute;
         else secondComposed();
-        return [{ type: "start", title: request.text, text: request.text }];
+        return [{ type: "start", title: request.text, text: `Clear ${request.text}` }];
       },
       async summarize() { return { state: "ready", summary: "Finished." }; },
     };
@@ -125,175 +75,87 @@ describe("Agent Home", () => {
     runs.start({ text: "First", sessionId: HOME_SESSION_ID });
     runs.start({ text: "Second", sessionId: HOME_SESSION_ID });
     await secondRoute;
-    expect(store.taskReports()).toEqual([]);
+    expect(store.homeEntries().map((entry) => entry.body)).toEqual(["First", "Second"]);
     releaseFirst();
-    await vi.waitFor(() => expect(store.taskReports().map((report) => report.title)).toEqual(["First", "Second"]));
+    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.title)).toEqual(["First", "Second"]));
     await runs.close();
   });
 
-  it("queues a Home follow-up in the same session while the earlier turn is working", async () => {
-    const store = new Store(temporary("agent-home-followup-"));
+  it("queues follow-ups and gives live status only to the latest entry", async () => {
+    const store = new Store(temporary("agent-home-queue-"));
     cleanup(() => store.close());
     let release!: () => void;
     const work = new Promise<void>((resolve) => { release = resolve; });
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { await work; yield { type: "done" }; },
-    };
-    const prior = store.createSession({ title: "First task" });
-    store.addMessage(prior.id, "user", "First");
-    store.setTaskReport(prior.id, "working", "Started.");
+    const backend = worker(async function* () { await work; yield { type: "done" }; });
+    const session = store.createSession({ title: "Existing work" });
     const home: HomeBackend = {
-      async compose(request) { return [{ type: "continue", sessionId: prior.id, text: request.text }]; },
+      async compose(request) { return [{ type: "continue", sessionId: session.id, title: "Follow up", text: request.text }]; },
       async summarize() { return { state: "ready", summary: "Done." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
     store.homeSession();
-    runs.start({ text: "First", sessionId: prior.id });
-    const controller = new AbortController();
-    const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    const second = stream.next();
-    runs.start({ text: "Also check the tests", sessionId: HOME_SESSION_ID });
-    const third = runs.start({ text: "And the docs", sessionId: HOME_SESSION_ID });
-    let event = (await second).value!;
-    while (event.runId !== third.id || event.event.type !== "task_report") event = (await stream.next()).value!;
-    expect(event.event.report.sessionId).toBe(prior.id);
-    expect(store.taskReports()).toHaveLength(1);
-    expect(store.queuedTask(prior.id)?.text).toBe("Also check the tests");
+    runs.start({ text: "Original work", sessionId: session.id });
+    runs.start({ text: "First follow-up", sessionId: HOME_SESSION_ID });
+    runs.start({ text: "Second follow-up", sessionId: HOME_SESSION_ID });
+    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "working"]));
+    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "working"]);
+    expect(store.queuedTask(session.id)?.text).toBe("First follow-up");
     release();
-    while (event.event.type !== "task_report" || event.event.report.state !== "ready") event = (await stream.next()).value!;
-    expect(store.queuedTask(prior.id)).toBeNull();
-    expect(store.getMessages(prior.id).filter((message) => message.role === "user").map((message) => message.content))
-      .toEqual(["First", "First", "Also check the tests", "And the docs"]);
-    controller.abort();
-    await stream.return?.();
+    await vi.waitFor(() => expect(store.queuedTask(session.id)).toBeNull());
+    expect(store.getMessages(session.id).filter((message) => message.role === "user").map((message) => message.content))
+      .toEqual(["Original work", "First follow-up", "Second follow-up"]);
     await runs.close();
   });
 
-  it("opens two new sessions, resumes one, and updates the resumed card in place", async () => {
-    const store = new Store(temporary("agent-home-mixed-"));
+  it("steers active work immediately", async () => {
+    const store = new Store(temporary("agent-home-steer-"));
     cleanup(() => store.close());
-    const saved = store.createSession({ title: "Journal" });
-    store.addMessage(saved.id, "user", "Write a note");
-    store.addMessage(saved.id, "assistant", "The note is saved.");
     let release!: () => void;
     const work = new Promise<void>((resolve) => { release = resolve; });
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { await work; yield { type: "text_delta", delta: "Finished." }; yield { type: "done" }; },
-    };
+    const steered: string[] = [];
+    const backend = worker(
+      async function* () { await work; yield { type: "done" }; },
+      async (_sessionId, text) => { steered.push(text); return true; },
+    );
+    const session = store.createSession({ title: "Active task" });
     const home: HomeBackend = {
-      async compose(request) {
-        if (request.text === "Resume Journal") return [{ type: "continue", sessionId: saved.id }];
-        if (request.text === "Update Journal") return [{ type: "continue", sessionId: saved.id, text: "Add a date" }];
-        return [{ type: "start", title: request.text, text: request.text }];
-      },
-      async summarize(input) { return input.request === "Add a date"
-        ? { state: "needs_input", summary: "Which date should I use?" }
-        : { state: "ready", summary: "Finished." }; },
+      async compose(request) { return [{ type: "steer", sessionId: session.id, title: "Refocus task", text: request.text }]; },
+      async summarize() { return { state: "ready", summary: "Updated work finished." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
     store.homeSession();
-    const controller = new AbortController();
-    const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    const firstEvent = stream.next();
-    const requests = ["Resume Journal", "Design", "Code", "Update Journal"];
-    const homeRuns = requests.map((text) => runs.start({ text, sessionId: HOME_SESSION_ID }).id);
-    const events = [(await firstEvent).value!];
-    while (events.filter((event) => homeRuns.includes(event.runId) && event.event.type === "task_report").length < 4) {
-      events.push((await stream.next()).value!);
-    }
-    expect(store.taskReports().map((report) => report.title)).toEqual(["Journal", "Design", "Code"]);
-    expect(store.taskReports().find((report) => report.sessionId === saved.id)?.state).toBe("working");
-    while (runs.activeInfos().length < 3) events.push((await stream.next()).value!);
-    expect(runs.activeInfos()).toHaveLength(3);
+    runs.start({ text: "Original", sessionId: session.id });
+    await vi.waitFor(() => expect(runs.activeInfos()).toHaveLength(1));
+    runs.start({ text: "Focus on tests first", sessionId: HOME_SESSION_ID });
+    await vi.waitFor(() => expect(steered).toEqual(["Focus on tests first"]));
+    expect(store.queuedTask(session.id)).toBeNull();
     release();
-    while (store.taskReports().some((report) => report.state === "working")) {
-      events.push((await stream.next()).value!);
-    }
-    expect(store.taskReports().map((report) => report.title)).toEqual(["Journal", "Design", "Code"]);
-    expect(store.taskReports()[0]).toMatchObject({ sessionId: saved.id, state: "needs_input", summary: "Which date should I use?" });
-    controller.abort();
-    await stream.return?.();
+    await vi.waitFor(() => expect(store.homeEntries()[0]?.state).toBe("ready"));
     await runs.close();
   });
 
-  it("opens a new Home card without launching work when no task context is supplied", async () => {
-    const store = new Store(temporary("agent-home-idle-card-"));
-    cleanup(() => store.close());
-    let workerRuns = 0;
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { workerRuns += 1; yield { type: "done" }; },
-    };
-    const home: HomeBackend = {
-      async compose() { return [{ type: "start", title: "Ideas" }]; },
-      async summarize() { return { state: "ready", summary: "Ready." }; },
-    };
-    const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
-    store.homeSession();
-    const controller = new AbortController();
-    const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    const firstEvent = stream.next();
-    runs.start({ text: "Open an ideas conversation", sessionId: HOME_SESSION_ID });
-    let event = (await firstEvent).value!;
-    while (event.event.type !== "task_report") event = (await stream.next()).value!;
-    expect(event.event.report).toMatchObject({ title: "Ideas", state: "ready", summary: "Ready for your request." });
-    expect(workerRuns).toBe(0);
-    expect(store.queuedSessionIds()).toEqual([]);
-    controller.abort();
-    await stream.return?.();
-    await runs.close();
-  });
-
-  it("starts saved queued work after a runtime restart", async () => {
-    const directory = temporary("agent-home-queued-recovery-");
+  it("recovers durable queued work and its Home entry after restart", async () => {
+    const directory = temporary("agent-home-recovery-");
     const original = new Store(directory);
-    const task = original.createSession({ title: "Saved task" });
-    original.enqueueTask(task.id, "Finish the saved request", "cli");
-    original.setTaskReport(task.id, "working", "Queued.");
+    const session = original.createSession({ title: "Saved task" });
+    const entry = original.createHomeEntry("entry", "Finish this");
+    original.dispatchHomeEntry(entry.id, session.id, session.title, "Finish this", true);
+    original.enqueueTask(session.id, "Finish this", "cli");
     original.close();
     const store = new Store(directory);
     cleanup(() => store.close());
-    const backend: AgentBackend = {
-      async route() { return null; },
-      async transcribeAudio() { return ""; },
-      async *run() { yield { type: "text_delta", delta: "Recovered and finished." }; yield { type: "done" }; },
-    };
+    const backend = worker(async function* () { yield { type: "text_delta", delta: "Recovered." }; yield { type: "done" }; });
     const home: HomeBackend = {
       async compose() { return []; },
-      async summarize() { return { state: "ready", summary: "Recovered and finished." }; },
+      async summarize() { return { state: "ready", summary: "Recovered." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
-    const controller = new AbortController();
-    const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
-    let event = (await stream.next()).value!;
-    while (event.event.type !== "task_report" || event.event.report.state !== "ready") event = (await stream.next()).value!;
-    expect(event.event.report.sessionId).toBe(task.id);
-    expect(store.queuedTask(task.id)).toBeNull();
-    expect(store.getMessages(task.id).map((message) => message.role)).toEqual(["user", "assistant"]);
-    controller.abort();
-    await stream.return?.();
+    await vi.waitFor(() => expect(store.queuedTask(session.id)).toBeNull());
+    await vi.waitFor(() => expect(store.homeEntries()[0]).toMatchObject({ state: "ready", summary: "Recovered." }));
     await runs.close();
   });
 
-  it("recovers unfinished reports from saved task runs", () => {
-    const homeDir = temporary("agent-home-recovery-");
-    const store = new Store(homeDir);
-    const task = store.createSession({ title: "Interrupted task" });
-    store.setTaskReport(task.id, "working", "Started.");
-    store.startRun(task.id, "pending", "User request");
-    store.close();
-    const recovered = new Store(homeDir);
-    cleanup(() => recovered.close());
-    expect(recovered.taskReports()[0]).toMatchObject({ state: "failed", summary: "Interrupted. Open task to continue." });
-    expect(recovered.getMessages(task.id)[0]).toMatchObject({ role: "user", content: "User request" });
-  });
-
-  it("runs Home's compose and report turns on Luna without reasoning", async () => {
+  it("runs Home routing and summaries on Luna without reasoning", async () => {
     const homeDir = temporary("agent-home-model-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -323,7 +185,7 @@ describe("Agent Home", () => {
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["none", "none"]);
   });
 
-  it("does not silently start a new session if Home returns no tool call", async () => {
+  it("does not invent a destination when Home returns no tool call", async () => {
     const homeDir = temporary("agent-home-no-tool-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -335,66 +197,44 @@ describe("Agent Home", () => {
     client.stop();
   });
 
-  it("resumes an older saved conversation through Home's search tool", async () => {
-    const homeDir = temporary("agent-home-find-");
-    const store = new Store(homeDir);
-    cleanup(() => store.close());
-    const older = store.createSession({ title: "Tonal Android" });
-    for (let index = 0; index < 60; index += 1) store.createSession({ title: `Other ${index}` });
-    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
-    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
-      ...process.env, AGENT_FAKE_SCENARIO: "home-find",
-    } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
-    expect(await backend.compose({ text: "Resume Tonal Android" }, store.sessionCards(), []))
-      .toEqual([{ type: "continue", sessionId: older.id }]);
-    client.stop();
-  });
-
-  it("reads a saved conversation without opening it before routing the follow-up", async () => {
+  it("finds and reads older conversations without opening them", async () => {
     const homeDir = temporary("agent-home-read-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
     const saved = store.createSession({ title: "Reconnect investigation", cwd: homeDir });
     store.addMessage(saved.id, "user", "Investigate why Telegram reconnects twice.");
     store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
-    store.setTaskReport(saved.id, "ready", "Duplicate reconnect paths identified.");
+    const seed = store.createHomeEntry("seed", "Investigate reconnects");
+    store.dispatchHomeEntry(seed.id, saved.id, saved.title, seed.body, false);
+    store.updateHomeEntry(saved.id, "ready", "Duplicate reconnect paths identified.");
     const log = join(homeDir, "rpc.log");
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-read", AGENT_FAKE_LOG: log,
     } });
     const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
-
     expect(await backend.compose({ text: "Resume the reconnect investigation and add these logs" }, [], []))
-      .toEqual([{ type: "continue", sessionId: saved.id,
+      .toEqual([{ type: "continue", sessionId: saved.id, title: "Continue reconnect investigation",
         text: "Continue the reconnect investigation with the additional logs." }]);
     expect(store.getMessages(saved.id)).toHaveLength(2);
-    expect(store.taskReports()).toHaveLength(1);
 
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {
       id?: string; method?: string; params?: Record<string, unknown>; result?: { contentItems?: { text: string }[] };
     });
-    const started = calls.find((call) => call.method === "thread/start");
-    expect(started?.params?.dynamicTools).toEqual(expect.arrayContaining([
+    expect(calls.find((call) => call.method === "thread/start")?.params?.dynamicTools).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "find_conversations" }),
       expect.objectContaining({ name: "read_conversation" }),
       expect.objectContaining({ name: "start_task" }),
       expect.objectContaining({ name: "continue_task" }),
+      expect.objectContaining({ name: "steer_task" }),
     ]));
-    const found = calls.find((call) => call.id === "home-find")?.result?.contentItems?.[0]?.text;
-    expect(JSON.parse(found ?? "[]")[0]).toMatchObject({
-      id: saved.id, state: "ready", preview: "The gateway has two reconnect paths.",
-    });
-    const read = calls.find((call) => call.id === "home-read")?.result?.contentItems?.[0]?.text;
-    expect(JSON.parse(read ?? "{}")).toMatchObject({
-      conversation: { id: saved.id, title: "Reconnect investigation", cwd: homeDir, state: "ready" },
-      messages: [
+    expect(JSON.parse(calls.find((call) => call.id === "home-find")?.result?.contentItems?.[0]?.text ?? "[]")[0])
+      .toMatchObject({ id: saved.id, state: "ready", preview: "The gateway has two reconnect paths." });
+    expect(JSON.parse(calls.find((call) => call.id === "home-read")?.result?.contentItems?.[0]?.text ?? "{}"))
+      .toMatchObject({ conversation: { id: saved.id, state: "ready" }, messages: [
         { role: "user", content: "Investigate why Telegram reconnects twice." },
         { role: "assistant", content: "The gateway has two reconnect paths." },
-      ],
-      nextBefore: null,
-    });
+      ] });
     client.stop();
   });
 });

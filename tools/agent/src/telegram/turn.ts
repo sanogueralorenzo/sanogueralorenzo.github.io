@@ -31,7 +31,7 @@ export class TelegramTurns {
   private delivered = new Set<string>();
   private sessionId: string | undefined;
   private latestSnapshot: RuntimeSnapshot | undefined;
-  private seenReports = new Map<string, string>();
+  private seenEntries = new Map<string, string>();
 
   constructor(private readonly client: TurnClient, private readonly ownerId: () => string | undefined) {}
 
@@ -92,18 +92,16 @@ export class TelegramTurns {
   }
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
-    if (event.type === "home_error" && this.sessionId === HOME_SESSION_ID) {
-      return { sessionId, chunks: splitTelegramText(event.message), artifacts: [] };
-    }
-    if (event.type === "task_report") {
-      if (this.seenReports.get(event.report.sessionId) === event.report.updatedAt) return null;
-      this.seenReports.set(event.report.sessionId, event.report.updatedAt);
-      if (event.report.state === "working" || event.report.sessionId === this.sessionId) return null;
+    if (event.type === "home_entry") {
+      if (this.seenEntries.get(event.entry.id) === event.entry.updatedAt) return null;
+      this.seenEntries.set(event.entry.id, event.entry.updatedAt);
+      if (!event.entry.sessionId || event.entry.state === "routing" || event.entry.state === "working" || event.entry.state === null
+        || event.entry.sessionId === this.sessionId) return null;
       return {
-        sessionId: event.report.sessionId,
-        chunks: splitTelegramText(`${event.report.title}: ${event.report.summary}`),
+        sessionId: event.entry.sessionId,
+        chunks: splitTelegramText(`${event.entry.title}: ${event.entry.summary ?? event.entry.body}`),
         artifacts: [],
-        taskSessionId: event.report.sessionId,
+        taskSessionId: event.entry.sessionId,
       };
     }
     if (sessionId !== this.sessionId && !this.current.has(runId) && !this.pending.has(runId)) return null;
@@ -119,6 +117,11 @@ export class TelegramTurns {
       const source = event.channel === "macos" ? "Mac" : event.channel.toUpperCase();
       const input = redactSecrets(event.text.trim()) || (event.hasAttachments ? "Voice message" : "Message");
       return { sessionId, chunks: splitTelegramText(`You (${source}): ${input}`), artifacts: [] };
+    }
+    if (event.type === "steer") {
+      if (event.channel === "telegram") return null;
+      const source = event.channel === "macos" ? "Mac" : event.channel.toUpperCase();
+      return { sessionId, chunks: splitTelegramText(`You (${source}): ${redactSecrets(event.text)}`), artifacts: [] };
     }
     let current = this.current.get(runId);
     if (!current && this.pending.has(runId)) {
@@ -156,12 +159,12 @@ export class TelegramTurns {
   }
 
   async reconcile(snapshot: RuntimeSnapshot): Promise<TelegramTurnResult[]> {
-    const oldReports = this.seenReports;
-    this.seenReports = new Map(snapshot.taskReports.map((report) => [report.sessionId, report.updatedAt]));
-    const missedReports = this.latestSnapshot ? snapshot.taskReports
-      .filter((report) => report.state !== "working" && report.sessionId !== this.sessionId &&
-        oldReports.get(report.sessionId) !== report.updatedAt)
-      .map((report) => ({ sessionId: report.sessionId, chunks: splitTelegramText(`${report.title}: ${report.summary}`), artifacts: [], taskSessionId: report.sessionId }))
+    const oldEntries = this.seenEntries;
+    this.seenEntries = new Map(snapshot.homeEntries.map((entry) => [entry.id, entry.updatedAt]));
+    const missedReports = this.latestSnapshot ? snapshot.homeEntries
+      .filter((entry) => entry.sessionId && entry.state !== null && entry.state !== "routing" && entry.state !== "working"
+        && entry.sessionId !== this.sessionId && oldEntries.get(entry.id) !== entry.updatedAt)
+      .map((entry) => ({ sessionId: entry.sessionId!, chunks: splitTelegramText(`${entry.title}: ${entry.summary ?? entry.body}`), artifacts: [], taskSessionId: entry.sessionId! }))
       : [];
     this.latestSnapshot = snapshot;
     const owner = this.ownerId();

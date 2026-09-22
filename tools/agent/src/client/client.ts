@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_PROTOCOL_VERSION, type Message, type RunEnvelope, type RunInfo, type Session, type SessionStatus, type TaskReport, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type HomeEntry, type Message, type RunEnvelope, type RunInfo, type Session, type SessionStatus, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RunEnvelope {
@@ -152,7 +152,7 @@ export class RuntimeClient {
     return (await this.post<{ stopped: boolean }>("/v1/runs/stop", { runId })).stopped;
   }
 
-  sessions(): Promise<{ sessions: SessionStatus[]; taskReports: TaskReport[] }> {
+  sessions(): Promise<{ sessions: SessionStatus[]; homeEntries: HomeEntry[] }> {
     return this.json("/v1/sessions");
   }
 

@@ -120,7 +120,7 @@ export class RuntimeServer {
           if (typeof runId !== "string" || !runId) throw new Error("runId is required");
           return json(response, 200, { stopped: this.runs.stop(runId) });
         }
-        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), taskReports: this.store.taskReports() });
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.homeEntries() });
         case "POST /v1/sessions": {
           const { cwd } = await readJson(request);
           const session = this.runtime.openSession({ fresh: true, ...(typeof cwd === "string" ? { cwd } : {}) });
@@ -194,8 +194,12 @@ export class RuntimeServer {
     const channel = body.channel as Channel;
     if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
     if (typeof body.sessionId !== "string" || !body.sessionId) throw new Error("sessionId is required");
+    if (body.requestId !== undefined && (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId))) {
+      throw new Error("requestId must be a UUID");
+    }
     return {
       text,
+      ...(typeof body.requestId === "string" ? { requestId: body.requestId } : {}),
       ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
       ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
       sessionId: body.sessionId,
@@ -240,7 +244,7 @@ export class RuntimeServer {
     const sessions = this.sessionStatuses();
     return {
       sessions,
-      taskReports: this.store.taskReports(),
+      homeEntries: this.store.homeEntries(),
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
       activeRuns: this.runs.activeSnapshots(sessionId),
       lastRuns: (sessionId ? [session].filter((value): value is NonNullable<typeof value> => Boolean(value)) : sessions)

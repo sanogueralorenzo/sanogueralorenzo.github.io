@@ -17,5 +17,6 @@ export interface BackendTurn {
 export interface AgentBackend {
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
   route(turn: BackendTurn): Promise<Handoff | null>;
+  steer(sessionId: string, text: string): Promise<boolean>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
 }

@@ -134,8 +134,8 @@ public actor RuntimeClient {
         return response.session
     }
 
-    public func submit(text: String, sessionId: String) async throws -> RunInfo? {
-        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId))
+    public func submit(text: String, sessionId: String, requestId: String? = nil) async throws -> RunInfo? {
+        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, requestId: requestId))
         let (data, response) = try await session.data(for: request(path: "/v1/runs", method: "POST", body: body))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 409 { return nil }

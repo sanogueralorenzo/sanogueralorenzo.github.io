@@ -25,14 +25,13 @@ struct ChatMessage: Identifiable {
     var state: State = .conversation
     var messages: [ChatMessage] = []
     var sessions: [RuntimeSession] = []
-    var taskReports: [TaskReport] = []
+    var homeEntries: [HomeEntry] = []
     var selectedSessionId: String?
     var input = ""
     var activity = ""
     var isRunning = false
     var isConnected = false
     var connectionError: String?
-    var homeError: String?
     var setupStatus: SetupStatus?
     var setupMessage = ""
     var isSettingUp = false
@@ -104,15 +103,18 @@ struct ChatMessage: Identifiable {
             return
         }
         if selected == Self.homeSessionId {
-            homeError = nil
+            let requestId = UUID().uuidString
+            let optimistic = HomeEntry(
+                id: requestId, body: text, state: "routing",
+                updatedAt: ISO8601DateFormatter().string(from: Date()))
+            homeEntries.append(optimistic)
+            homeScrollPosition = requestId
             do {
-                guard try await client.submit(text: text, sessionId: selected) != nil else {
-                    homeError = "Could not start that request. Try again."
-                    return
-                }
+                guard try await client.submit(text: text, sessionId: selected, requestId: requestId) != nil else { return }
             } catch {
-                homeError = error.localizedDescription
-                if selectedSessionId == selected && input.isEmpty { input = text }
+                replaceHomeEntry(HomeEntry(
+                    id: requestId, body: text, summary: error.localizedDescription, state: "failed",
+                    updatedAt: ISO8601DateFormatter().string(from: Date())))
             }
             return
         }
@@ -243,17 +245,9 @@ struct ChatMessage: Identifiable {
 
     private func apply(_ envelope: RunEnvelope) {
         let event = envelope.event
-        if event.type == "task_report", let report = event.report {
-            if let index = taskReports.firstIndex(where: { $0.sessionId == report.sessionId }) {
-                taskReports[index] = report
-            } else {
-                taskReports.append(report)
-                if selectedSessionId == Self.homeSessionId { homeScrollPosition = report.sessionId }
-            }
-            return
-        }
-        if event.type == "home_error" {
-            if selectedSessionId == Self.homeSessionId { homeError = event.message }
+        if event.type == "home_entry", let entry = event.entry {
+            replaceHomeEntry(entry)
+            if selectedSessionId == Self.homeSessionId { homeScrollPosition = entry.id }
             return
         }
         if event.type == "session_activity" {
@@ -280,6 +274,9 @@ struct ChatMessage: Identifiable {
             let id = UUID()
             assistantId = id
             appendMessage(ChatMessage(id: id, role: .assistant, text: ""))
+            scrollRequest += 1
+        case "steer":
+            appendUserTurn(event.text, hasAttachments: false)
             scrollRequest += 1
         case "session":
             Task { await refreshSessions() }
@@ -325,9 +322,9 @@ struct ChatMessage: Identifiable {
     private func loadSnapshot(_ snapshot: RuntimeSnapshot) {
         latestSnapshot = snapshot
         sessions = snapshot.sessions
-        taskReports = snapshot.taskReports
+        homeEntries = snapshot.homeEntries
         if selectedSessionId == Self.homeSessionId {
-            homeScrollPosition = taskReports.last?.sessionId
+            homeScrollPosition = homeEntries.last?.id
             messages = []
             activeRunId = nil
             isRunning = false
@@ -407,6 +404,12 @@ struct ChatMessage: Identifiable {
     private func appendMessage(_ message: ChatMessage) {
         messages.append(message)
         if messages.count > 200 { messages.removeFirst(messages.count - 200) }
+    }
+
+    private func replaceHomeEntry(_ entry: HomeEntry) {
+        if let index = homeEntries.firstIndex(where: { $0.id == entry.id }) { homeEntries[index] = entry }
+        else { homeEntries.append(entry) }
+        if homeEntries.count > 200 { homeEntries.removeFirst(homeEntries.count - 200) }
     }
 
     private func appendUserTurn(_ text: String?, hasAttachments: Bool) {

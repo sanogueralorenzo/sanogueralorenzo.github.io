@@ -68,15 +68,19 @@ describe("Telegram turns", () => {
     expect(runtime.telegramSession).toHaveBeenLastCalledWith("42", { home: true });
   });
 
-  it("keeps Home free for more requests and shows dispatch errors without a typing run", async () => {
+  it("keeps Home free for more requests and reports failed dispatches", async () => {
     const runtime = client({ id: "home-run", sessionId: "home", origin: "telegram" });
     const turns = turnsFor(runtime);
     await turns.home();
     await turns.submit(async () => ({ text: "First task" }));
     await turns.submit(async () => ({ text: "Second task" }));
     expect(turns.hasActiveRun()).toBe(false);
-    expect(turns.consume(envelope({ type: "home_error", message: "Could not start that request." }, "home-run", "home")))
-      .toEqual({ sessionId: "home", chunks: ["Could not start that request."], artifacts: [] });
+    expect(turns.consume(envelope({ type: "home_entry", entry: {
+      id: "home-run", sessionId: "task-1", title: "Start work", body: "Start work",
+      summary: "Could not start that request.", state: "failed", url: "agent://sessions/task-1", updatedAt: "now",
+    } }, "home-run", "home"))).toEqual({
+      sessionId: "task-1", chunks: ["Start work: Could not start that request."], artifacts: [], taskSessionId: "task-1",
+    });
   });
 
   it("delivers a run initiated on another client with chunked text and artifacts", async () => {
@@ -107,13 +111,13 @@ describe("Telegram turns", () => {
   it("delivers a completed background task once without its tool stream", async () => {
     const turns = turnsFor();
     await turns.ensureSession();
-    const report = { sessionId: "task-1", title: "Fix tests", state: "ready" as const,
+    const entry = { id: "entry-1", sessionId: "task-1", title: "Fix tests", body: "Fix the tests", state: "ready" as const,
       summary: "All tests pass.", url: "agent://sessions/task-1", updatedAt: "2026-09-22T00:00:00Z" };
     expect(turns.consume(envelope({ type: "status", message: "Using tools" }, "task-run", "task-1"))).toBeNull();
-    expect(turns.consume(envelope({ type: "task_report", report }, "task-run", "home"))).toEqual({
+    expect(turns.consume(envelope({ type: "home_entry", entry }, "task-run", "home"))).toEqual({
       sessionId: "task-1", chunks: ["Fix tests: All tests pass."], artifacts: [], taskSessionId: "task-1",
     });
-    expect(turns.consume(envelope({ type: "task_report", report }, "task-run", "home"))).toBeNull();
+    expect(turns.consume(envelope({ type: "home_entry", entry }, "task-run", "home"))).toBeNull();
   });
 
   it("reports shared conversation navigation", async () => {
@@ -168,7 +172,7 @@ describe("Telegram turns", () => {
     await turns.ensureSession();
     const snapshot: RuntimeSnapshot = {
       sessions: [{ ...session, activeRunId: "r1" }],
-      taskReports: [],
+      homeEntries: [],
       transcript: { session, messages: [{ role: "user", content: "hello" }] },
       activeRuns: [{
         run: { id: "r1", sessionId: "s1", origin: "macos" },
@@ -188,7 +192,7 @@ describe("Telegram turns", () => {
   it("does not deliver another session's turns into the selected Telegram conversation", async () => {
     const turns = turnsFor();
     await turns.ensureSession();
-    await turns.reconcile({ sessions: [{ ...session, activeRunId: null }], taskReports: [], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] });
+    await turns.reconcile({ sessions: [{ ...session, activeRunId: null }], homeEntries: [], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] });
     expect(turns.consume(envelope({ type: "turn", text: "other", channel: "cli", hasAttachments: false }, "r2", "s2"))).toBeNull();
     expect(turns.consume(envelope({ type: "text_delta", delta: "secret" }, "r2", "s2"))).toBeNull();
     expect(turns.consume(envelope({ type: "done", sessionId: "s2" }, "r2", "s2"))).toBeNull();
@@ -201,7 +205,7 @@ describe("Telegram turns", () => {
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
     turns.consume(envelope({ type: "text_delta", delta: "Partial answer" }));
     const snapshot: RuntimeSnapshot = {
-      sessions: [], taskReports: [], transcript: null,
+      sessions: [], homeEntries: [], transcript: null,
       activeRuns: [{
         run: { id: "r1", sessionId: "s1", origin: "cli" },
         turn: { type: "turn", text: "hello", channel: "cli", hasAttachments: false },
@@ -223,7 +227,7 @@ describe("Telegram turns", () => {
     await turns.ensureSession();
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
     const snapshot: RuntimeSnapshot = {
-      sessions: [], taskReports: [], transcript: {
+      sessions: [], homeEntries: [], transcript: {
         session,
         messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
       },
@@ -238,7 +242,7 @@ describe("Telegram turns", () => {
     const turns = turnsFor();
     await turns.ensureSession();
     const snapshot: RuntimeSnapshot = {
-      sessions: [], taskReports: [], transcript: {
+      sessions: [], homeEntries: [], transcript: {
         session,
         messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
       },

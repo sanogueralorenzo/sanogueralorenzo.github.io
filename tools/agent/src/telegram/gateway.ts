@@ -142,10 +142,10 @@ async function runGateway(token: string): Promise<void> {
     if (!isOwner(ctx)) return;
     await turns.home();
     switchDelivery();
-    const reports = (await client.sessions()).taskReports.slice(-5);
-    await ctx.reply(reports.length ? "Home · recent tasks" : "Home ready.", reports.length ? {
-      reply_markup: { inline_keyboard: reports.map((report) => [{
-        text: `${report.title} · ${report.summary}`.slice(0, 64), callback_data: `task:${report.sessionId}`,
+    const entries = (await client.sessions()).homeEntries.filter((entry) => entry.sessionId).slice(-5);
+    await ctx.reply(entries.length ? "Home · recent activity" : "Home ready.", entries.length ? {
+      reply_markup: { inline_keyboard: entries.map((entry) => [{
+        text: `${entry.title} · ${entry.summary ?? entry.body}`.slice(0, 64), callback_data: `task:${entry.sessionId}`,
       }]) },
     } : {});
   });

@@ -58,16 +58,18 @@ async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelo
 }
 
 describe("RuntimeServer", () => {
-  it("opens one shared Home and restores task reports in its snapshot", async () => {
+  it("opens one shared Home and restores its activity feed in the snapshot", async () => {
     const { client, store } = await serve((value) => new AgentRuntime(value, {} as AgentBackend));
     expect((await client.openSession()).id).toBe("home");
     const task = store.createSession({ title: "Fix tests" });
-    store.setTaskReport(task.id, "ready", "Tests pass.");
-    expect((await client.sessions()).taskReports).toMatchObject([{ sessionId: task.id, summary: "Tests pass." }]);
+    store.createHomeEntry("entry", "Fix the tests");
+    store.dispatchHomeEntry("entry", task.id, task.title, "Fix the tests", false);
+    store.updateHomeEntry(task.id, "ready", "Tests pass.");
+    expect((await client.sessions()).homeEntries).toMatchObject([{ sessionId: task.id, summary: "Tests pass." }]);
     const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
     const first = await stream.next();
     expect(first.value?.event).toMatchObject({ type: "snapshot", snapshot: {
-      taskReports: [{ sessionId: task.id, title: "Fix tests", state: "ready", summary: "Tests pass." }],
+      homeEntries: [{ id: "entry", sessionId: task.id, title: "Fix tests", state: "ready", summary: "Tests pass." }],
     } });
     await stream.return?.();
   });

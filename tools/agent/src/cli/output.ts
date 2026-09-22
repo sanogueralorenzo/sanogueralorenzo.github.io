@@ -14,7 +14,7 @@ export class CliOutput {
   private completed = new Set<string>();
   private waiters = new Map<string, () => void>();
   private latestSnapshot: RuntimeSnapshot | undefined;
-  private seenReports = new Map<string, string>();
+  private seenEntries = new Map<string, string>();
 
   constructor(
     public sessionId: string,
@@ -69,11 +69,13 @@ export class CliOutput {
   private restore(snapshot: RuntimeSnapshot): void {
     const first = this.latestSnapshot === undefined;
     this.latestSnapshot = snapshot;
-    for (const report of first ? snapshot.taskReports.slice(-5) : snapshot.taskReports) {
-      if (!first && this.seenReports.get(report.sessionId) === report.updatedAt) continue;
-      this.status(`${report.title} · ${report.summary} ${report.url}`);
+    for (const entry of first ? snapshot.homeEntries.slice(-5) : snapshot.homeEntries) {
+      if (!first && this.seenEntries.get(entry.id) === entry.updatedAt) continue;
+      if (entry.title && entry.state && entry.state !== "routing") {
+        this.status(`${entry.title} · ${entry.summary ?? entry.body}${entry.url ? ` ${entry.url}` : ""}`);
+      }
     }
-    this.seenReports = new Map(snapshot.taskReports.map((report) => [report.sessionId, report.updatedAt]));
+    this.seenEntries = new Map(snapshot.homeEntries.map((entry) => [entry.id, entry.updatedAt]));
     const active = snapshot.activeRuns.find((run) => run.run.sessionId === this.sessionId);
     const lastRun = snapshot.lastRuns.find((run) => run.sessionId === this.sessionId);
     if (!active) {
@@ -122,14 +124,17 @@ export class CliOutput {
       this.changeSession(event.session.id);
       return;
     }
-    if (event.type === "task_report") {
-      if (this.seenReports.get(event.report.sessionId) === event.report.updatedAt) return;
-      this.seenReports.set(event.report.sessionId, event.report.updatedAt);
-      this.status(`${event.report.title} · ${event.report.summary} ${event.report.url}`);
+    if (event.type === "home_entry") {
+      if (this.seenEntries.get(event.entry.id) === event.entry.updatedAt) return;
+      this.seenEntries.set(event.entry.id, event.entry.updatedAt);
+      if (event.entry.title && event.entry.state && event.entry.state !== "routing") {
+        this.status(`${event.entry.title} · ${event.entry.summary ?? event.entry.body}${event.entry.url ? ` ${event.entry.url}` : ""}`);
+      }
       return;
     }
-    if (event.type === "home_error") {
-      this.status(event.message);
+    if (event.type === "steer") {
+      const input = event.text.trim();
+      if (event.channel !== "cli" && input) process.stdout.write(`${this.promptActive() ? "\n" : ""}${ansi.cyan(event.channel)} › ${input}\n`);
       return;
     }
     if (event.type === "turn") {

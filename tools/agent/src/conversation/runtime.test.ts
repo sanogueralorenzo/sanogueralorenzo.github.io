@@ -28,6 +28,8 @@ class RecordingBackend implements AgentBackend {
     return { destination: { sessionId: this.navigateTo }, task: this.handoffTask };
   }
 
+  async steer(): Promise<boolean> { return false; }
+
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
     this.turns.push(turn);
     if (this.failNext) {

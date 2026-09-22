@@ -26,12 +26,14 @@ export interface SessionCard {
   preview: string;
 }
 
-export interface TaskReport {
-  sessionId: string;
-  title: string;
-  state: "working" | "ready" | "needs_input" | "failed";
-  summary: string;
-  url: string;
+export interface HomeEntry {
+  id: string;
+  sessionId: string | null;
+  title: string | null;
+  body: string;
+  summary: string | null;
+  state: "routing" | "working" | "ready" | "needs_input" | "failed" | null;
+  url: string | null;
   updatedAt: string;
 }
 
@@ -61,8 +63,8 @@ export type RuntimeEvent =
   | { type: "session_activity"; sessionId: string; runId: string | null }
   | { type: "session"; session: Session }
   | { type: "navigate"; session: Session; url: string; continues: boolean }
-  | { type: "task_report"; report: TaskReport }
-  | { type: "home_error"; message: string }
+  | { type: "home_entry"; entry: HomeEntry }
+  | { type: "steer"; text: string; channel: Channel }
   | { type: "task_queued"; sessionId: string }
   | ProgressEvent
   | { type: "done"; sessionId: string }
@@ -92,7 +94,7 @@ export interface LastRun {
 
 export interface RuntimeSnapshot {
   sessions: SessionStatus[];
-  taskReports: TaskReport[];
+  homeEntries: HomeEntry[];
   transcript: { session: Session; messages: Message[] } | null;
   activeRuns: RunSnapshot[];
   lastRuns: Pick<LastRun, "id" | "sessionId" | "state">[];
@@ -108,6 +110,7 @@ export interface RunEnvelope {
 
 export interface TurnRequest {
   text: string;
+  requestId?: string;
   attachmentIds?: string[];
   attachments?: Attachment[];
   cwd?: string;

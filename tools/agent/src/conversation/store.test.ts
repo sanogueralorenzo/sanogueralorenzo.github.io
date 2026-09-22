@@ -188,16 +188,20 @@ describe("Store", () => {
     store.close();
   });
 
-  it("keeps Home cards in opening order and makes each update distinguishable", () => {
+  it("keeps Home activity chronological and gives status only to a session's latest entry", () => {
     const store = createStore();
     const first = store.createSession({ title: "First" });
     const second = store.createSession({ title: "Second" });
-    const before = store.setTaskReport(first.id, "working", "Working.");
-    store.setTaskReport(second.id, "ready", "Ready.");
-    const after = store.setTaskReport(first.id, "needs_input", "Which branch should I use?");
-    expect(store.taskReports().map((report) => report.sessionId)).toEqual([first.id, second.id]);
-    expect(after.updatedAt > before.updatedAt).toBe(true);
-    expect(store.taskReports()[0]).toMatchObject({ state: "needs_input", summary: "Which branch should I use?" });
+    store.createHomeEntry("first", "original first");
+    store.dispatchHomeEntry("first", first.id, first.title, "clear first", true);
+    store.createHomeEntry("second", "original second");
+    store.dispatchHomeEntry("second", second.id, second.title, "clear second", false);
+    store.createHomeEntry("follow-up", "follow up");
+    store.dispatchHomeEntry("follow-up", first.id, first.title, "clear follow up", true);
+    const after = store.updateHomeEntry(first.id, "needs_input", "Which branch should I use?")!;
+    expect(store.homeEntries().map((entry) => entry.id)).toEqual(["first", "second", "follow-up"]);
+    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "ready", "needs_input"]);
+    expect(after).toMatchObject({ summary: "Which branch should I use?", url: `agent://sessions/${first.id}` });
     store.close();
   });
 
@@ -205,13 +209,14 @@ describe("Store", () => {
     const path = temporary("agent-queued-");
     const store = new Store(path);
     const session = store.createSession({ title: "Saved work" });
-    store.setTaskReport(session.id, "working", "Queued.");
+    store.createHomeEntry("queued", "First follow-up");
+    store.dispatchHomeEntry("queued", session.id, session.title, "First follow-up", true);
     store.enqueueTask(session.id, "First follow-up", "macos");
     store.enqueueTask(session.id, "Second follow-up", "telegram");
     store.close();
 
     const recovered = new Store(path);
-    expect(recovered.taskReports()[0]).toMatchObject({ state: "working", summary: "Queued." });
+    expect(recovered.homeEntries()[0]).toMatchObject({ state: "working", summary: null });
     expect(recovered.queuedSessionIds()).toEqual([session.id]);
     const first = recovered.queuedTask(session.id)!;
     recovered.startRun(session.id, "queued-run", first.text, first.id);
