@@ -55,13 +55,15 @@ struct AgentCheck {
         check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
         let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","continues":true,"session":{"id":"s1","title":"Telegram reconnects"}}"#.utf8))
         check(navigation.session?.title == "Telegram reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
+        let report = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"task_report","report":{"sessionId":"s1","title":"Fix tests","state":"ready","summary":"Tests pass.","url":"agent://sessions/s1","updatedAt":"2026-09-22T00:00:00Z"}}"#.utf8))
+        check(report.report?.summary == "Tests pass.", "Agent task report protocol check failed")
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
         MockURLProtocol.handler = { request, protocolValue in
             check(request.url?.path == "/v1/events" && request.url?.query == "sessionId=s1", "Agent live event URL check failed")
             protocolValue.respond("""
-            data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}
+            data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"taskReports":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}
 
             data: {"sessionId":"s1","runId":"r1","event":{"type":"turn","text":"hello","channel":"cli","hasAttachments":false}}
 
@@ -96,7 +98,7 @@ struct AgentCheck {
         }
 
         MockURLProtocol.handler = { _, protocolValue in
-            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true)
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"taskReports\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true)
         }
         do {
             for try await _ in try await client().events(sessionId: "s1") {}
@@ -141,7 +143,7 @@ struct AgentCheck {
         check(listedSessions.first?.id == "s1", "Agent session list check failed")
         let stopped = Mutex(false)
         MockURLProtocol.handler = { _, protocolValue in
-            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true, finish: false)
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"taskReports\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true, finish: false)
         }
         MockURLProtocol.stopped = { stopped.withLock { $0 = true } }
         var stream: EventStream? = try await client().events(sessionId: "s1")

@@ -14,12 +14,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   };
   const supervisor = new RuntimeSupervisor(client, options.dev, status);
   await supervisor.start();
-  const selected = await client.openSession({ fresh: true });
+  const selected = await client.openSession();
   const sessionId = selected.id;
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim(`— ${selected.title}${selected.cwd ? ` · ${basename(selected.cwd)}` : ""}`)}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
-  console.log(ansi.dim("/new  /status  /help  /quit\n"));
+  console.log(ansi.dim("/home  /new  /status  /help  /quit\n"));
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let stopping = false;
@@ -97,7 +97,12 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       if (!input) continue;
       if (input === "/quit") break;
       if (input === "/help") {
-        console.log("Talk normally, including to open an earlier conversation. /new starts fresh; Ctrl-C stops this response.");
+        console.log("Talk normally. /home opens your tasks; /new starts a direct conversation; Ctrl-C stops this response.");
+        continue;
+      }
+      if (input === "/home") {
+        await changeSession((await client.openSession()).id);
+        status("Home ready.");
         continue;
       }
       if (input === "/new") {

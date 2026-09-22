@@ -4,7 +4,7 @@
 
 > A quiet, fast personal assistant that can code.
 
-Agent is one local runtime shared by its CLI, Telegram gateway, and native macOS client. It owns sessions, memory, tools, recovery, and client protocol.
+Agent is one local runtime shared by its CLI, Telegram gateway, and native macOS client. Home dispatches background tasks and shows short results; each task keeps its full conversation.
 
 ## Run
 

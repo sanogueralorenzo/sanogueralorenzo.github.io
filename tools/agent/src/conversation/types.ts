@@ -1,4 +1,5 @@
 export const RUNTIME_PROTOCOL_VERSION = 1;
+export const HOME_SESSION_ID = "home";
 export type Channel = "cli" | "telegram" | "macos" | "api";
 
 export interface Session {
@@ -19,9 +20,19 @@ export interface Message {
 
 export interface SessionCard {
   id: string;
+  cwd: string | null;
   title: string;
   updatedAt: string;
   preview: string;
+}
+
+export interface TaskReport {
+  sessionId: string;
+  title: string;
+  state: "working" | "ready" | "needs_input" | "failed";
+  summary: string;
+  url: string;
+  updatedAt: string;
 }
 
 interface StoredFile {
@@ -50,6 +61,8 @@ export type RuntimeEvent =
   | { type: "session_activity"; sessionId: string; runId: string | null }
   | { type: "session"; session: Session }
   | { type: "navigate"; session: Session; url: string; continues: boolean }
+  | { type: "task_report"; report: TaskReport }
+  | { type: "task_launch"; session: Session; text: string; channel: Channel }
   | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };
@@ -78,6 +91,7 @@ export interface LastRun {
 
 export interface RuntimeSnapshot {
   sessions: SessionStatus[];
+  taskReports: TaskReport[];
   transcript: { session: Session; messages: Message[] } | null;
   activeRuns: RunSnapshot[];
   lastRuns: Pick<LastRun, "id" | "sessionId" | "state">[];

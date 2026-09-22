@@ -2,7 +2,7 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import type { Attachment, LastRun, Message, Session, SessionCard } from "./types.js";
+import { HOME_SESSION_ID, type Attachment, type LastRun, type Message, type Session, type SessionCard, type TaskReport } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
@@ -89,6 +89,12 @@ export class Store {
         path TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS home_tasks (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        state TEXT NOT NULL CHECK (state IN ('working', 'ready', 'needs_input', 'failed')),
+        summary TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
     `);
   }
 
@@ -109,6 +115,15 @@ export class Store {
       `).run(now());
       this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id IN (SELECT session_id FROM runs WHERE state = 'running')").run(now());
       this.db.prepare("UPDATE runs SET state = 'interrupted', output = '' WHERE state = 'running'").run();
+      this.db.prepare(`
+        UPDATE home_tasks SET
+          state = CASE WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
+            THEN 'ready' ELSE 'failed' END,
+          summary = CASE WHEN (SELECT state FROM runs WHERE session_id = home_tasks.session_id ORDER BY started_at DESC LIMIT 1) = 'complete'
+            THEN 'Finished before restart. Open task for details.' ELSE 'Interrupted. Open task to continue.' END,
+          updated_at = ?
+        WHERE state = 'working'
+      `).run(now());
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -124,6 +139,39 @@ export class Store {
       VALUES (?, ?, ?, ?, ?)
     `).run(id, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
     return this.getSession(id)!;
+  }
+
+  homeSession(): Session {
+    const existing = this.getSession(HOME_SESSION_ID);
+    if (existing) return existing;
+    const timestamp = now();
+    this.db.prepare("INSERT INTO sessions (id, cwd, title, created_at, updated_at) VALUES (?, NULL, 'Home', ?, ?)")
+      .run(HOME_SESSION_ID, timestamp, timestamp);
+    return this.getSession(HOME_SESSION_ID)!;
+  }
+
+  isHomeTask(sessionId: string): boolean {
+    return Boolean(this.db.prepare("SELECT 1 FROM home_tasks WHERE session_id = ?").get(sessionId));
+  }
+
+  setTaskReport(sessionId: string, state: TaskReport["state"], summary: string): TaskReport {
+    const timestamp = now();
+    this.db.prepare(`
+      INSERT INTO home_tasks (session_id, state, summary, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(session_id) DO UPDATE SET state = excluded.state, summary = excluded.summary, updated_at = excluded.updated_at
+    `).run(sessionId, state, summary, timestamp);
+    const session = this.getSession(sessionId)!;
+    return { sessionId, title: session.title, state, summary, url: `agent://sessions/${sessionId}`, updatedAt: timestamp };
+  }
+
+  taskReports(limit = 20): TaskReport[] {
+    const rows = this.db.prepare(`
+      SELECT sessions.id AS sessionId, sessions.title, home_tasks.state, home_tasks.summary,
+        home_tasks.updated_at AS updatedAt
+      FROM home_tasks JOIN sessions ON sessions.id = home_tasks.session_id
+      ORDER BY home_tasks.updated_at DESC LIMIT ?
+    `).all(limit) as unknown as Omit<TaskReport, "url">[];
+    return rows.map((row) => ({ ...row, url: `agent://sessions/${row.sessionId}` }));
   }
 
   setSessionWorkspace(id: string, cwd: string): Session {
@@ -164,10 +212,10 @@ export class Store {
 
   sessionCards(limit = 50): SessionCard[] {
     const cards = this.db.prepare(`
-      SELECT id, title, updated_at AS "updatedAt",
+      SELECT id, cwd, title, updated_at AS "updatedAt",
         COALESCE((SELECT content FROM messages WHERE session_id = sessions.id AND role = 'user' ORDER BY id DESC LIMIT 1), '') AS preview
-      FROM sessions ORDER BY updated_at DESC LIMIT ?
-    `).all(limit) as unknown as SessionCard[];
+      FROM sessions WHERE id != ? ORDER BY updated_at DESC LIMIT ?
+    `).all(HOME_SESSION_ID, limit) as unknown as SessionCard[];
     return cards.map((card) => ({ ...card, preview: card.preview.replace(/\s+/g, " ").slice(0, 200) }));
   }
 

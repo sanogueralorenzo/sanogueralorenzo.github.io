@@ -116,24 +116,52 @@ struct SetupView: View {
 
 struct ConversationView: View {
     @Bindable var model: AppModel
+    @State private var scrollPosition: String?
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 20) {
-                        if model.messages.isEmpty { EmptyConversationView() }
+                        if model.selectedSessionId == AppModel.homeSessionId {
+                            if model.taskReports.isEmpty && model.messages.isEmpty { EmptyConversationView() }
+                            ForEach(model.taskReports) { report in
+                                Button { Task { await model.selectSession(report.sessionId) } } label: {
+                                    HStack(spacing: 12) {
+                                        Circle()
+                                            .fill(report.state == "working" ? AgentStyle.clay : AgentStyle.muted)
+                                            .frame(width: 7, height: 7)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(report.title).font(.system(size: 14, weight: .medium))
+                                            Text(report.summary).font(.system(size: 13)).foregroundStyle(AgentStyle.muted)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(AgentStyle.muted)
+                                    }
+                                    .padding(16)
+                                    .background(AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
+                                }
+                                .buttonStyle(.plain)
+                                .id(report.sessionId)
+                            }
+                        } else if model.messages.isEmpty { EmptyConversationView() }
                         ForEach(model.messages) { message in
-                            MessageView(message: message).id(message.id)
+                            MessageView(message: message).id(message.id.uuidString)
                         }
                     }
+                    .scrollTargetLayout()
                     .frame(maxWidth: AgentStyle.contentMaxWidth)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, AgentStyle.edgePadding)
                     .padding(.vertical, 24)
                 }
+                .scrollPosition(id: $scrollPosition, anchor: .top)
                 .onChange(of: model.scrollRequest) {
-                    if let id = model.messages.last?.id { proxy.scrollTo(id, anchor: .bottom) }
+                    if let id = model.messages.last?.id { proxy.scrollTo(id.uuidString, anchor: .bottom) }
+                }
+                .onChange(of: model.selectedSessionId) { old, next in
+                    if old == AppModel.homeSessionId { model.homeScrollPosition = scrollPosition }
+                    scrollPosition = next == AppModel.homeSessionId ? model.homeScrollPosition : nil
                 }
             }
             if !model.activity.isEmpty { ActivityLine(text: model.activity) }
@@ -143,8 +171,16 @@ struct ConversationView: View {
             MessageComposer(model: model)
         }
         .toolbar {
+            if model.selectedSessionId != AppModel.homeSessionId {
+                ToolbarItem(placement: .navigation) {
+                    Button { Task { await model.selectSession(AppModel.homeSessionId) } } label: {
+                        Label("Home", systemImage: "chevron.left")
+                    }
+                    .help("Back to Home")
+                }
+            }
             ToolbarItem(placement: .principal) {
-                Text(model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
+                Text(model.selectedSessionId == AppModel.homeSessionId ? "Agent" : model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
                     .lineLimit(1)
                     .frame(maxWidth: 220)
             }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AgentRuntime } from "./runtime.js";
-import type { RunEnvelope, RunInfo, RunSnapshot, RuntimeEvent, RuntimeSnapshot, TurnRequest } from "./types.js";
+import { HOME_SESSION_ID, type RunEnvelope, type RunInfo, type RunSnapshot, type RuntimeEvent, type RuntimeSnapshot, type TurnRequest } from "./types.js";
 
 export class RunBusyError extends Error {
   constructor(readonly run: RunInfo) {
@@ -84,7 +84,7 @@ export class RunCoordinator {
     let overflow = false;
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
-      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity") return;
+      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity" && event.event.type !== "task_report") return;
       if (event && !overflow) {
         const bytes = Buffer.byteLength(JSON.stringify(event));
         if (queued.length >= MAX_PENDING_EVENTS || pendingBytes + bytes > MAX_EVENT_BUFFER_BYTES) {
@@ -140,6 +140,14 @@ export class RunCoordinator {
           if (busy && busy !== run) throw new RunBusyError(busy.run);
         },
       })) {
+        if (event.type === "task_launch") {
+          this.start({ text: event.text, sessionId: event.session.id, channel: event.channel });
+          continue;
+        }
+        if (event.type === "task_report") {
+          this.publish(HOME_SESSION_ID, run.run.id, event);
+          continue;
+        }
         terminal ||= event.type === "done" || event.type === "error";
         if (event.type === "navigate") {
           const sourceId = run.run.sessionId;

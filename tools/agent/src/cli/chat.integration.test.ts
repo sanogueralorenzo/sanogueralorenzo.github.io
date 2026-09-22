@@ -20,7 +20,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions") {
+      if (request.url === "/v1/sessions/auto") {
         sessionSelections++;
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -30,7 +30,7 @@ describe("CLI shared runs", () => {
       if (request.url?.startsWith("/v1/events?sessionId=")) {
         feed = response;
         response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
-        response.write(`data: ${JSON.stringify({ sessionId: "s1", runId: "", event: { type: "snapshot", snapshot: { sessions: [{ ...session, activeRunId: null }], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] } } })}\n\n`);
+        response.write(`data: ${JSON.stringify({ sessionId: "s1", runId: "", event: { type: "snapshot", snapshot: { sessions: [{ ...session, activeRunId: null }], taskReports: [], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] } } })}\n\n`);
         openFeed();
         return;
       }
@@ -99,19 +99,20 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions") return response.end(JSON.stringify({ session }));
+      if (request.url === "/v1/sessions/auto") return response.end(JSON.stringify({ session }));
       if (request.url?.startsWith("/v1/events?sessionId=")) {
         connections++;
         feed = response;
         response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
         const snapshot = connections === 1
-          ? { sessions: [{ ...session, activeRunId: null }], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] }
+          ? { sessions: [{ ...session, activeRunId: null }], taskReports: [], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] }
           : {
               transcript: {
                 session: { id: "s1", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
                 messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Recovered answer" }],
               },
               sessions: [{ ...session, activeRunId: null }],
+              taskReports: [],
               activeRuns: [],
               lastRuns: [{ id: "r1", sessionId: "s1", state: "complete" }],
             };
@@ -166,7 +167,7 @@ describe("CLI shared runs", () => {
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
-      if (request.url === "/v1/sessions") return response.end(JSON.stringify({ session: source }));
+      if (request.url === "/v1/sessions/auto") return response.end(JSON.stringify({ session: source }));
       if (request.url === "/v1/events?sessionId=source") {
         response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
         return response.end(`data: ${JSON.stringify({ sessionId: source.id, runId: "", event: { type: "navigate", session: target, url: "agent://sessions/target" } })}\n\n`);
@@ -174,7 +175,7 @@ describe("CLI shared runs", () => {
       if (request.url === "/v1/events?sessionId=target") {
         targetFeed = response;
         response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
-        response.write(`data: ${JSON.stringify({ sessionId: target.id, runId: "", event: { type: "snapshot", snapshot: { sessions: [{ ...target, activeRunId: null }], transcript: { session: target, messages: [] }, activeRuns: [], lastRuns: [] } } })}\n\n`);
+        response.write(`data: ${JSON.stringify({ sessionId: target.id, runId: "", event: { type: "snapshot", snapshot: { sessions: [{ ...target, activeRunId: null }], taskReports: [], transcript: { session: target, messages: [] }, activeRuns: [], lastRuns: [] } } })}\n\n`);
         return;
       }
       if (request.url === "/v1/runs" && request.method === "POST") {

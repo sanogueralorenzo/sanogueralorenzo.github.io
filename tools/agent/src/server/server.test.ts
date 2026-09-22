@@ -45,7 +45,7 @@ async function serve(runtime: AgentRuntime | ((store: Store) => AgentRuntime), s
   const request = (path: string, method = "GET", body?: unknown) => fetch(`http://127.0.0.1:${port}${path}`, {
     method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  return { port, token, headers, request, client: new RuntimeClient(homeDir) };
+  return { port, token, headers, request, client: new RuntimeClient(homeDir), store };
 }
 
 async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelope[]> {
@@ -58,6 +58,19 @@ async function collectRun(events: AsyncIterable<RunEnvelope>): Promise<RunEnvelo
 }
 
 describe("RuntimeServer", () => {
+  it("opens one shared Home and restores task reports in its snapshot", async () => {
+    const { client, store } = await serve((value) => new AgentRuntime(value, {} as AgentBackend));
+    expect((await client.openSession()).id).toBe("home");
+    const task = store.createSession({ title: "Fix tests" });
+    store.setTaskReport(task.id, "ready", "Tests pass.");
+    const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
+    const first = await stream.next();
+    expect(first.value?.event).toMatchObject({ type: "snapshot", snapshot: {
+      taskReports: [{ sessionId: task.id, title: "Fix tests", state: "ready", summary: "Tests pass." }],
+    } });
+    await stream.return?.();
+  });
+
   it("opens an idle event stream immediately", async () => {
     const runtime = { async *run() {} } as unknown as AgentRuntime;
     const { request } = await serve(runtime);
@@ -171,15 +184,15 @@ describe("RuntimeServer", () => {
       async transcribeAudio() { return ""; },
     } as AgentBackend));
     const cli = await client.openSession({ fresh: true });
-    expect((await client.telegramSession("42")).id).toBe(cli.id);
+    expect((await client.telegramSession("42")).id).toBe("home");
     const other = await client.openSession({ fresh: true });
-    expect((await client.telegramSession("42")).id).toBe(cli.id);
-    const stream = (await client.events(undefined, cli.id))[Symbol.asyncIterator]();
-    expect((await stream.next()).value).toMatchObject({ sessionId: cli.id, event: { type: "snapshot" } });
+    expect((await client.telegramSession("42")).id).toBe("home");
+    const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
+    expect((await stream.next()).value).toMatchObject({ sessionId: "home", event: { type: "snapshot" } });
     await client.submit({ text: "other work", sessionId: other.id, channel: "macos" });
     expect((await stream.next()).value?.event.type).toBe("session_activity");
     const fresh = await client.telegramSession("42", { fresh: true });
-    expect(fresh.id).not.toBe(cli.id);
+    expect(fresh.id).not.toBe("home");
     expect((await client.telegramSession("42")).id).toBe(fresh.id);
     await stream.return?.();
   });

@@ -4,6 +4,7 @@ import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { CodexBackend } from "../codex/backend.js";
+import { CodexHomeBackend } from "../home/codex.js";
 import { AgentSetupService } from "../setup/service.js";
 import { RuntimeServer } from "./server.js";
 
@@ -11,7 +12,7 @@ const config = loadConfig();
 const store = new Store(config.homeDir);
 const codexClient = createAgentCodexAppServer(config);
 const codex = new CodexBackend(config, store, codexClient);
-const runtime = new AgentRuntime(store, codex);
+const runtime = new AgentRuntime(store, codex, new CodexHomeBackend(config, store, codexClient));
 const setup = new AgentSetupService(codexClient);
 const server = new RuntimeServer(config, runtime, store, setup);
 

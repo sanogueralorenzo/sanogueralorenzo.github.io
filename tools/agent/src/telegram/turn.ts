@@ -7,7 +7,7 @@ import { splitTelegramText } from "./text.js";
 type TurnClient = Pick<RuntimeClient, "submit" | "stop" | "telegramSession" | "transcript">;
 type InFlight = { sessionId: string; output: string; error: string; artifacts: Artifact[] };
 
-export interface TelegramTurnResult { sessionId: string; chunks: string[]; artifacts: Artifact[] }
+export interface TelegramTurnResult { sessionId: string; chunks: string[]; artifacts: Artifact[]; taskSessionId?: string }
 export interface TelegramSubmitResult { accepted: boolean; recovered: TelegramTurnResult[] }
 
 export function isTelegramOwner(ownerId: string | undefined, chatType: string | undefined, userId: number | undefined): boolean {
@@ -30,6 +30,7 @@ export class TelegramTurns {
   private delivered = new Set<string>();
   private sessionId: string | undefined;
   private latestSnapshot: RuntimeSnapshot | undefined;
+  private seenReports = new Map<string, string>();
 
   constructor(private readonly client: TurnClient, private readonly ownerId: () => string | undefined) {}
 
@@ -62,6 +63,24 @@ export class TelegramTurns {
     this.latestSnapshot = undefined;
   }
 
+  async home(): Promise<void> {
+    const owner = this.ownerId();
+    if (!owner) throw new Error("Telegram is not paired.");
+    this.sessionId = (await this.client.telegramSession(owner, { home: true })).id;
+    this.current.clear();
+    this.pending.clear();
+    this.latestSnapshot = undefined;
+  }
+
+  async openTask(sessionId: string): Promise<void> {
+    const owner = this.ownerId();
+    if (!owner) throw new Error("Telegram is not paired.");
+    this.sessionId = (await this.client.telegramSession(owner, { preferredSessionId: sessionId })).id;
+    this.current.clear();
+    this.pending.clear();
+    this.latestSnapshot = undefined;
+  }
+
   hasActiveRun(): boolean { return this.current.size > 0; }
 
   stop(): Promise<boolean> {
@@ -71,6 +90,16 @@ export class TelegramTurns {
   }
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
+    if (event.type === "task_report") {
+      this.seenReports.set(event.report.sessionId, event.report.updatedAt);
+      if (event.report.state === "working" || event.report.sessionId === this.sessionId) return null;
+      return {
+        sessionId: event.report.sessionId,
+        chunks: splitTelegramText(`${event.report.title}: ${event.report.summary}`),
+        artifacts: [],
+        taskSessionId: event.report.sessionId,
+      };
+    }
     if (sessionId !== this.sessionId && !this.current.has(runId) && !this.pending.has(runId)) return null;
     if (event.type === "session_activity") {
       if (event.runId && sessionId === this.sessionId && !this.current.has(runId)) {
@@ -121,6 +150,13 @@ export class TelegramTurns {
   }
 
   async reconcile(snapshot: RuntimeSnapshot): Promise<TelegramTurnResult[]> {
+    const oldReports = this.seenReports;
+    this.seenReports = new Map(snapshot.taskReports.map((report) => [report.sessionId, report.updatedAt]));
+    const missedReports = this.latestSnapshot ? snapshot.taskReports
+      .filter((report) => report.state !== "working" && report.sessionId !== this.sessionId &&
+        oldReports.get(report.sessionId) !== report.updatedAt)
+      .map((report) => ({ sessionId: report.sessionId, chunks: splitTelegramText(`${report.title}: ${report.summary}`), artifacts: [], taskSessionId: report.sessionId }))
+      : [];
     this.latestSnapshot = snapshot;
     const owner = this.ownerId();
     if (owner) this.sessionId = (await this.client.telegramSession(owner)).id;
@@ -153,7 +189,7 @@ export class TelegramTurns {
       this.pending.delete(runId);
       this.markDelivered(runId);
     }
-    return recovered;
+    return [...recovered, ...missedReports];
   }
 
   private markDelivered(runId: string): void {

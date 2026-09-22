@@ -135,9 +135,12 @@ export class RuntimeServer {
           return json(response, 200, { session });
         }
         case "POST /v1/telegram/session": {
-          const { ownerId, fresh } = await readJson(request);
+          const { ownerId, fresh, home, preferredSessionId } = await readJson(request);
           if (typeof ownerId !== "string" || !/^\d+$/.test(ownerId)) throw new Error("Telegram owner ID is required.");
-          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, { fresh: fresh === true }) });
+          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, {
+            fresh: fresh === true, home: home === true,
+            ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
+          }) });
         }
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
         case "POST /v1/setup/openai": {
@@ -237,6 +240,7 @@ export class RuntimeServer {
     const sessions = this.sessionStatuses();
     return {
       sessions,
+      taskReports: this.store.taskReports(),
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
       activeRuns: this.runs.activeSnapshots(sessionId),
       lastRuns: (sessionId ? [session].filter((value): value is NonNullable<typeof value> => Boolean(value)) : sessions)

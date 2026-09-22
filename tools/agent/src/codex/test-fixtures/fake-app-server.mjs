@@ -69,6 +69,11 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     dynamicTurn = null;
     return;
   }
+  if (!method && id === "home-tool" && dynamicTurn) {
+    notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
+    dynamicTurn = null;
+    return;
+  }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
@@ -179,6 +184,16 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
+    if (scenario === "home-compose" || scenario === "home-report") {
+      dynamicTurn = { threadId: params.threadId, turnId };
+      const tool = scenario === "home-compose" ? "start_task" : "report_task";
+      const args = scenario === "home-compose"
+        ? { text: "Fix the tests", title: "Fix tests" }
+        : { state: "ready", summary: "The tests now pass and the app runs cleanly on your Mac today" };
+      return send({ id: "home-tool", method: "item/tool/call", params: {
+        threadId: params.threadId, turnId, callId: "home-tool", tool, arguments: args,
+      } });
+    }
     if (scenario.startsWith("workspace-open") && turnCounter === 1) {
       dynamicTurn = { threadId: params.threadId, turnId };
       const argumentsValue = { path: process.env.AGENT_FAKE_WORKSPACE, ...(scenario === "workspace-open-task" ? { task: "Fix the tests" } : {}) };

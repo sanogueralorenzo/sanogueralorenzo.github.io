@@ -14,6 +14,7 @@ export class CliOutput {
   private completed = new Set<string>();
   private waiters = new Map<string, () => void>();
   private latestSnapshot: RuntimeSnapshot | undefined;
+  private seenReports = new Map<string, string>();
 
   constructor(
     public sessionId: string,
@@ -66,7 +67,13 @@ export class CliOutput {
   }
 
   private restore(snapshot: RuntimeSnapshot): void {
+    const first = this.latestSnapshot === undefined;
     this.latestSnapshot = snapshot;
+    for (const report of first ? snapshot.taskReports.slice(0, 5) : snapshot.taskReports) {
+      if (!first && this.seenReports.get(report.sessionId) === report.updatedAt) continue;
+      this.status(`${report.title} · ${report.summary} ${report.url}`);
+    }
+    this.seenReports = new Map(snapshot.taskReports.map((report) => [report.sessionId, report.updatedAt]));
     const active = snapshot.activeRuns.find((run) => run.run.sessionId === this.sessionId);
     const lastRun = snapshot.lastRuns.find((run) => run.sessionId === this.sessionId);
     if (!active) {
@@ -113,6 +120,12 @@ export class CliOutput {
         this.finish(runId);
       }
       this.changeSession(event.session.id);
+      return;
+    }
+    if (event.type === "task_report") {
+      if (this.seenReports.get(event.report.sessionId) === event.report.updatedAt) return;
+      this.seenReports.set(event.report.sessionId, event.report.updatedAt);
+      this.status(`${event.report.title} · ${event.report.summary} ${event.report.url}`);
       return;
     }
     if (event.type === "turn") {

@@ -52,7 +52,7 @@ describe("CLI output", () => {
     const changeSession = vi.fn();
     const output = new CliOutput("source", status, changeSession, () => false);
     output.render({ sessionId: "source", runId: "", event: { type: "snapshot", snapshot: {
-      sessions: [], transcript: null, lastRuns: [], activeRuns: [{
+      sessions: [], taskReports: [], transcript: null, lastRuns: [], activeRuns: [{
         run: { id: "r1", sessionId: "source", origin: "cli" },
         turn: { type: "turn", text: "Resume saved work", channel: "cli", hasAttachments: false },
         session: target, output: "", artifacts: [],

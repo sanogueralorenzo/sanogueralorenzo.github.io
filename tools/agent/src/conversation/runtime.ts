@@ -3,8 +3,10 @@ import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
-import type { RuntimeEvent, Session, SessionCard, TurnRequest } from "./types.js";
+import type { RuntimeEvent, Session, SessionCard, TaskReport, TurnRequest } from "./types.js";
 import { maySwitchContext } from "./routing.js";
+import { HOME_SESSION_ID } from "./types.js";
+import type { HomeBackend } from "../home/backend.js";
 
 function titleFrom(text: string): string {
   const firstLine = text.trim().split("\n", 1)[0] ?? "New conversation";
@@ -26,6 +28,7 @@ export class AgentRuntime {
   constructor(
     private readonly store: Store,
     private readonly backend: AgentBackend,
+    private readonly home: HomeBackend,
   ) {}
 
   openSession(options: { cwd?: string; preferredSessionId?: string; fresh?: boolean } = {}): Session {
@@ -37,12 +40,28 @@ export class AgentRuntime {
       if (!selected) throw new Error("Conversation not found.");
       return selected;
     }
-    return this.store.latestSession(cwd) ?? this.store.createSession(cwd ? { cwd } : {});
+    return cwd ? this.store.latestSession(cwd) ?? this.store.createSession({ cwd }) : this.store.homeSession();
   }
 
-  openTelegramSession(ownerId: string, options: { fresh?: boolean } = {}): Session {
+  private async taskReport(session: Session, request: string, output: string, state: "complete" | "failed" | "interrupted"): Promise<TaskReport> {
+    if (state === "interrupted") return this.store.setTaskReport(session.id, "failed", "Interrupted. Open task to continue.");
+    let result: Pick<TaskReport, "state" | "summary">;
+    try {
+      result = await this.home.summarize({
+        title: session.title, request: redactSecrets(request), output: redactSecrets(output),
+        state,
+      });
+    } catch {
+      result = { state: state === "complete" ? "ready" : "failed", summary: "Update unavailable. Open task for details." };
+    }
+    return this.store.setTaskReport(session.id, result.state,
+      redactSecrets(result.summary).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "));
+  }
+
+  openTelegramSession(ownerId: string, options: { fresh?: boolean; home?: boolean; preferredSessionId?: string } = {}): Session {
     const bound = this.store.telegramSession(ownerId);
-    const session = options.fresh ? this.openSession({ fresh: true })
+    const session = options.preferredSessionId ? this.openSession({ preferredSessionId: options.preferredSessionId })
+      : options.home ? this.store.homeSession() : options.fresh ? this.openSession({ fresh: true })
       : this.openSession(bound ? { preferredSessionId: bound } : {});
     this.store.bindTelegramSession(ownerId, session.id);
     return session;
@@ -54,7 +73,7 @@ export class AgentRuntime {
     const selected = requested ?? this.openSession(incoming);
     const empty = this.store.getMessages(selected.id, 1).length === 0;
     return {
-      session: selected, empty, routing: maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length),
+      session: selected, empty, routing: selected.id !== HOME_SESSION_ID && (maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length)),
       sessionTools: this.store.sessionCards().filter((card) => card.id !== selected.id),
     };
   }
@@ -82,16 +101,43 @@ export class AgentRuntime {
       if (prepared.routing) yield { type: "turn", text: text || "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
+      if (this.store.isHomeTask(session.id)) yield { type: "task_report", report: await this.taskReport(session, text, message,
+        message === "Interrupted. Your session is saved." ? "interrupted" : "failed") };
       return;
     }
     if (!text) {
       if (prepared.routing) yield { type: "turn", text: "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, "failed", "The message is empty.");
       yield { type: "error", message: "The message is empty." };
+      if (this.store.isHomeTask(session.id)) yield { type: "task_report", report: await this.taskReport(session, text, "The message is empty.", "failed") };
       return;
     }
     const request: TurnRequest = { ...incoming, text };
     this.store.stageRunInput(runId, redactSecrets(request.text));
+    if (session.id === HOME_SESSION_ID) {
+      this.store.deliverRunInput(runId);
+      try {
+        const actions = await this.home.compose(request, sessionTools, this.store.taskReports(), options.signal);
+        for (const action of actions) {
+          if (action.type === "continue") options.canHandoff?.(action.sessionId);
+          const target = action.type === "start"
+            ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
+            : this.store.getSession(action.sessionId)!;
+          const report = this.store.setTaskReport(target.id, "working", "Started.");
+          yield { type: "task_report", report };
+          yield { type: "task_launch", session: target, text: action.text, channel: incoming.channel ?? "api" };
+        }
+        const reply = `Started ${actions.length} ${actions.length === 1 ? "task" : "tasks"}.`;
+        this.store.finishRun(runId, "complete", reply);
+        yield { type: "text_delta", delta: reply };
+        yield { type: "done", sessionId: session.id };
+      } catch (error) {
+        const message = failureMessage(error, options.signal);
+        this.store.finishRun(runId, options.signal?.aborted ? "interrupted" : "failed", message);
+        yield { type: "error", message };
+      }
+      return;
+    }
     let handoffTask: string | null = null;
     let sourceContext = "";
     try {
@@ -129,6 +175,8 @@ export class AgentRuntime {
       }
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
+      if (this.store.isHomeTask(session.id)) yield { type: "task_report", report: await this.taskReport(session, text, message,
+        message === "Interrupted. Your session is saved." ? "interrupted" : "failed") };
       return;
     }
     if (session.id === prepared.session.id && incoming.cwd && !session.cwd) {
@@ -183,8 +231,15 @@ export class AgentRuntime {
       terminal = { type: "error", message: failureMessage(error, options.signal) };
     } finally {
       if (!terminal && assistantText.trim()) assistantMessage = `${assistantText}\n\n[interrupted]`;
+      if (terminal?.type === "error" && !assistantMessage && this.store.isHomeTask(session.id)) assistantMessage = terminal.message;
       this.store.finishRun(runId, terminal?.type === "done" ? "complete" : options.signal?.aborted || !terminal ? "interrupted" : "failed", assistantMessage);
     }
     if (terminal) yield terminal;
+    if (terminal && this.store.isHomeTask(session.id)) {
+      yield { type: "task_report", report: await this.taskReport(
+        session, request.text, assistantMessage ?? (terminal.type === "error" ? terminal.message : ""),
+        terminal.type === "done" ? "complete" : options.signal?.aborted ? "interrupted" : "failed",
+      ) };
+    }
   }
 }

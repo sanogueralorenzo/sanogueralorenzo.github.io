@@ -4,7 +4,7 @@ import { RuntimeSupervisor } from "../client/supervisor.js";
 import { loadConfig } from "../local/config.js";
 import { readTelegramToken } from "./credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
-import { keepTelegramTyping } from "./text.js";
+import { keepTelegramTyping, splitTelegramText } from "./text.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, type TelegramTurnResult, TelegramTurns } from "./turn.js";
 
 async function runGateway(token: string): Promise<void> {
@@ -54,7 +54,10 @@ async function runGateway(token: string): Promise<void> {
   const deliver = async (result: TelegramTurnResult): Promise<void> => {
     const owner = ownerId();
     if (!owner) return;
-    for (const chunk of result.chunks) await bot.api.sendMessage(owner, chunk);
+    for (const [index, chunk] of result.chunks.entries()) await bot.api.sendMessage(owner, chunk,
+      result.taskSessionId && index === result.chunks.length - 1
+        ? { reply_markup: { inline_keyboard: [[{ text: "View task", callback_data: `task:${result.taskSessionId}` }]] } }
+        : {});
     for (const artifact of result.artifacts) {
       if (artifact.kind === "image") await bot.api.sendPhoto(owner, new InputFile(artifact.path));
       else await bot.api.sendDocument(owner, new InputFile(artifact.path, artifact.name));
@@ -133,7 +136,13 @@ async function runGateway(token: string): Promise<void> {
     await ctx.reply(replies[result]);
   });
   bot.command("help", async (ctx) => {
-    if (isOwner(ctx)) await ctx.reply("Message Agent normally. Use /new for a new conversation or /stop to interrupt a response.");
+    if (isOwner(ctx)) await ctx.reply("Message Agent normally. Use /home for your tasks, /new for a direct conversation, or /stop to interrupt.");
+  });
+  bot.command("home", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    await turns.home();
+    switchDelivery();
+    await ctx.reply("Home ready.");
   });
   bot.command("new", async (ctx) => {
     if (!isOwner(ctx)) return;
@@ -150,6 +159,16 @@ async function runGateway(token: string): Promise<void> {
   bot.command("stop", async (ctx) => {
     if (!isOwner(ctx)) return;
     if (!await turns.stop()) await ctx.reply("Nothing is running.");
+  });
+  bot.callbackQuery(/^task:([a-f0-9-]+)$/, async (ctx) => {
+    if (!isOwner(ctx)) return void await ctx.answerCallbackQuery();
+    await turns.openTask(ctx.match[1]!);
+    switchDelivery();
+    const transcript = await client.transcript(ctx.match[1]!);
+    const answer = transcript.messages.filter((message) => message.role === "assistant").at(-1)?.content ?? "No response yet.";
+    await ctx.answerCallbackQuery();
+    await ctx.reply(`Opened “${transcript.session.title}”. Continue here; /home returns to your tasks.`);
+    for (const chunk of splitTelegramText(answer)) await ctx.reply(chunk);
   });
 
   const respond = async (ctx: Context, prepare: () => Promise<{ text: string; attachmentIds?: string[] }>): Promise<void> => {
@@ -192,6 +211,7 @@ async function runGateway(token: string): Promise<void> {
   if (deliveryController.signal.aborted) return;
   await bot.start({ onStart: async (info) => {
     await bot.api.setMyCommands([
+      { command: "home", description: "Show your tasks" },
       { command: "new", description: "Start a new conversation" },
       { command: "help", description: "What Agent can do" },
       { command: "status", description: "Connection status" },

@@ -48,10 +48,14 @@ function testRuntime() {
 }
 
 async function collect(runtime: AgentRuntime, request: Parameters<AgentRuntime["run"]>[0]): Promise<RuntimeEvent[]> {
+  const selected = request.sessionId ?? lastSession.get(runtime) ?? runtime.openSession({ fresh: true }).id;
   const events: RuntimeEvent[] = [];
-  for await (const event of runtime.run(request)) events.push(event);
+  for await (const event of runtime.run({ ...request, sessionId: selected })) events.push(event);
+  lastSession.set(runtime, events.find((event) => event.type === "session")?.session.id ?? selected);
   return events;
 }
+
+const lastSession = new WeakMap<AgentRuntime, string>();
 
 describe("AgentRuntime", () => {
   it("persists explicit memory and supplies it to the shared backend", async () => {
@@ -66,7 +70,8 @@ describe("AgentRuntime", () => {
   it("uses the public run ID for the persisted last-turn snapshot", async () => {
     const { store, runtime } = testRuntime();
     const events: RuntimeEvent[] = [];
-    for await (const event of runtime.run({ text: "hello", channel: "cli" }, { runId: "public-run" })) events.push(event);
+    const sessionId = runtime.openSession({ fresh: true }).id;
+    for await (const event of runtime.run({ text: "hello", channel: "cli", sessionId }, { runId: "public-run" })) events.push(event);
     const session = events.find((event) => event.type === "session")?.session;
     expect(store.latestRun()).toMatchObject({
       id: "public-run", sessionId: session?.id, state: "complete", output: "",
@@ -122,14 +127,15 @@ describe("AgentRuntime", () => {
     expect(runtime.openSession({ preferredSessionId: first.id }).id).toBe(first.id);
   });
 
-  it("opens the globally latest session when no selection is supplied", () => {
+  it("opens Home by default while allowing a specific workspace", () => {
     const { store, runtime } = testRuntime();
     const older = runtime.openSession({ fresh: true, cwd: "/tmp/older" });
     const latest = runtime.openSession({ fresh: true, cwd: "/tmp/latest" });
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
       .run(new Date(0).toISOString(), older.id);
-    expect(runtime.openSession().id).toBe(latest.id);
+    expect(runtime.openSession().id).toBe("home");
     expect(runtime.openSession({ cwd: "/tmp/older" }).id).toBe(older.id);
+    expect(latest.id).not.toBe("home");
   });
 
   it("does not create a conversation for an unknown explicit selection", () => {

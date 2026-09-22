@@ -20,6 +20,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let artifact: RuntimeArtifact?
     public let url: String?
     public let continues: Bool?
+    public let report: TaskReport?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
 }
@@ -38,9 +39,20 @@ public struct RunEnvelope: Decodable, Sendable {
 
 public struct RuntimeSnapshot: Decodable, Sendable {
     public let sessions: [RuntimeSession]
+    public let taskReports: [TaskReport]
     public let transcript: Transcript?
     public let activeRuns: [ActiveRunSnapshot]
     public let lastRuns: [LastRunSnapshot]
+}
+
+public struct TaskReport: Decodable, Sendable, Identifiable {
+    public var id: String { sessionId }
+    public let sessionId: String
+    public let title: String
+    public let state: String
+    public let summary: String
+    public let url: String
+    public let updatedAt: String
 }
 
 public struct ActiveRunSnapshot: Decodable, Sendable {
