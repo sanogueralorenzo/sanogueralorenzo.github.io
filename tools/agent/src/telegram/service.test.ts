@@ -1,4 +1,4 @@
-import { lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { temporary } from "../test-support.js";
@@ -33,10 +33,6 @@ describe("Telegram background service", () => {
 
   it("installs one lowercase private launcher", () => {
     const homeDir = temporary("agent-telegram-launcher-");
-    const uppercase = join(homeDir, "bin", "Agent");
-    mkdirSync(join(homeDir, "bin"));
-    writeFileSync(uppercase, "old");
-
     const launcher = installTelegramGatewayLauncher(homeDir, "/usr/bin/node", "/repo/dist/telegram/main.js");
 
     expect(launcher).toBe(join(homeDir, "bin", "agent"));

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { accessSync, constants, realpathSync, rmSync } from "node:fs";
+import { accessSync, constants, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,7 +72,6 @@ export function installTelegramGatewayLauncher(homeDir: string, executable: stri
   const binDirectory = join(homeDir, "bin");
   ensurePrivateDirectory(binDirectory);
   const launcherPath = join(binDirectory, "agent");
-  rmSync(join(binDirectory, "Agent"), { force: true });
   writePrivateFile(launcherPath, renderTelegramGatewayLauncher(executable, serviceEntry), 0o700);
   return launcherPath;
 }
