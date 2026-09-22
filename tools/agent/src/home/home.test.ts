@@ -350,4 +350,51 @@ describe("Agent Home", () => {
       .toEqual([{ type: "continue", sessionId: older.id }]);
     client.stop();
   });
+
+  it("reads a saved conversation without opening it before routing the follow-up", async () => {
+    const homeDir = temporary("agent-home-read-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const saved = store.createSession({ title: "Reconnect investigation", cwd: homeDir });
+    store.addMessage(saved.id, "user", "Investigate why Telegram reconnects twice.");
+    store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
+    store.setTaskReport(saved.id, "ready", "Duplicate reconnect paths identified.");
+    const log = join(homeDir, "rpc.log");
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-read", AGENT_FAKE_LOG: log,
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+
+    expect(await backend.compose({ text: "Resume the reconnect investigation and add these logs" }, [], []))
+      .toEqual([{ type: "continue", sessionId: saved.id,
+        text: "Continue the reconnect investigation with the additional logs." }]);
+    expect(store.getMessages(saved.id)).toHaveLength(2);
+    expect(store.taskReports()).toHaveLength(1);
+
+    const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {
+      id?: string; method?: string; params?: Record<string, unknown>; result?: { contentItems?: { text: string }[] };
+    });
+    const started = calls.find((call) => call.method === "thread/start");
+    expect(started?.params?.dynamicTools).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "find_conversations" }),
+      expect.objectContaining({ name: "read_conversation" }),
+      expect.objectContaining({ name: "start_task" }),
+      expect.objectContaining({ name: "continue_task" }),
+    ]));
+    const found = calls.find((call) => call.id === "home-find")?.result?.contentItems?.[0]?.text;
+    expect(JSON.parse(found ?? "[]")[0]).toMatchObject({
+      id: saved.id, state: "ready", preview: "The gateway has two reconnect paths.",
+    });
+    const read = calls.find((call) => call.id === "home-read")?.result?.contentItems?.[0]?.text;
+    expect(JSON.parse(read ?? "{}")).toMatchObject({
+      conversation: { id: saved.id, title: "Reconnect investigation", cwd: homeDir, state: "ready" },
+      messages: [
+        { role: "user", content: "Investigate why Telegram reconnects twice." },
+        { role: "assistant", content: "The gateway has two reconnect paths." },
+      ],
+      nextBefore: null,
+    });
+    client.stop();
+  });
 });

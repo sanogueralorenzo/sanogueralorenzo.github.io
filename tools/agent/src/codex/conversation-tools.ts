@@ -1,36 +1,38 @@
 import type { Store } from "../conversation/store.js";
 import type { SessionCard } from "../conversation/types.js";
 
-export const CONVERSATION_TOOLS = [
-  {
-    name: "list_conversations",
-    description: "List saved Agent conversations with titles and brief previews.",
-    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+const LIST_CONVERSATIONS_TOOL = {
+  name: "list_conversations",
+  description: "List saved Agent conversations with titles and brief previews.",
+  inputSchema: { type: "object", properties: {}, additionalProperties: false },
+};
+
+export const READ_CONVERSATION_TOOL = {
+  name: "read_conversation",
+  description: "Read recent saved messages without opening or resuming the conversation. Use nextBefore for older messages.",
+  inputSchema: {
+    type: "object",
+    properties: { sessionId: { type: "string" }, before: { type: "integer" } },
+    required: ["sessionId"],
+    additionalProperties: false,
   },
-  {
-    name: "read_conversation",
-    description: "Read recent messages from a listed conversation when its preview is not enough to identify it. Use nextBefore for older messages.",
-    inputSchema: {
-      type: "object",
-      properties: { sessionId: { type: "string" }, before: { type: "integer" } },
-      required: ["sessionId"],
-      additionalProperties: false,
+};
+
+const OPEN_CONVERSATION_TOOL = {
+  name: "open_conversation",
+  description: "Choose a listed conversation as the destination only after identifying a strong match.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      sessionId: { type: "string" },
+      task: { type: "string", description: "Work requested after resuming; omit for navigation only." },
     },
+    required: ["sessionId"],
+    additionalProperties: false,
   },
-  {
-    name: "open_conversation",
-    description: "Choose a listed conversation as the destination only after identifying a strong match.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        sessionId: { type: "string" },
-        task: { type: "string", description: "Work requested after resuming; omit for navigation only." },
-      },
-      required: ["sessionId"],
-      additionalProperties: false,
-    },
-  },
-];
+};
+
+export const CONVERSATION_TOOLS = [LIST_CONVERSATIONS_TOOL, READ_CONVERSATION_TOOL, OPEN_CONVERSATION_TOOL];
 
 export const READ_HISTORY_TOOL = {
   name: "read_history",

@@ -251,26 +251,30 @@ export class Store {
     const pattern = `%${query.trim().slice(0, 100)}%`;
     const cards = this.db.prepare(`
       SELECT id, cwd, title, updated_at AS "updatedAt",
-        COALESCE((SELECT content FROM messages WHERE session_id = sessions.id AND role = 'user' ORDER BY id DESC LIMIT 1), '') AS preview
+        COALESCE(
+          (SELECT content FROM messages WHERE session_id = sessions.id AND role != 'tool' AND content LIKE ? ORDER BY id DESC LIMIT 1),
+          (SELECT content FROM messages WHERE session_id = sessions.id AND role != 'tool' ORDER BY id DESC LIMIT 1),
+          ''
+        ) AS preview
       FROM sessions WHERE id != ? AND (
         title LIKE ? OR cwd LIKE ? OR EXISTS (
-          SELECT 1 FROM messages WHERE session_id = sessions.id AND role = 'user' AND content LIKE ?
+          SELECT 1 FROM messages WHERE session_id = sessions.id AND role != 'tool' AND content LIKE ?
         )
       ) ORDER BY updated_at DESC LIMIT ?
-    `).all(HOME_SESSION_ID, pattern, pattern, pattern, limit) as unknown as SessionCard[];
+    `).all(pattern, HOME_SESSION_ID, pattern, pattern, pattern, limit) as unknown as SessionCard[];
     return cards.map((card) => ({ ...card, preview: card.preview.replace(/\s+/g, " ").slice(0, 200) }));
   }
 
-  readConversation(id: string, before?: number) {
+  readConversation(id: string, before?: number, limit = 8, maxChars = 2_000) {
     const rows = this.db.prepare(`
       SELECT id, role, content FROM messages
       WHERE session_id = ? AND role != 'tool' AND (? IS NULL OR id < ?)
-      ORDER BY id DESC LIMIT 9
-    `).all(id, before ?? null, before ?? null) as { id: number; role: Message["role"]; content: string }[];
-    const page = rows.slice(0, 8);
+      ORDER BY id DESC LIMIT ?
+    `).all(id, before ?? null, before ?? null, limit + 1) as { id: number; role: Message["role"]; content: string }[];
+    const page = rows.slice(0, limit);
     return {
-      messages: page.reverse().map(({ role, content }) => ({ role, content: content.slice(0, 2_000) })),
-      nextBefore: rows.length > 8 ? page[0]!.id : null,
+      messages: page.reverse().map(({ role, content }) => ({ role, content: content.slice(0, maxChars) })),
+      nextBefore: rows.length > limit ? page[0]!.id : null,
     };
   }
 

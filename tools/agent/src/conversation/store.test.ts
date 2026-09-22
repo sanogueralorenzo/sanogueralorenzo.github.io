@@ -224,10 +224,14 @@ describe("Store", () => {
     const store = createStore();
     const older = store.createSession({ cwd: "/projects/tonal/android", title: "Tonal build" });
     store.addMessage(older.id, "user", "Investigate the emulator branch");
+    store.addMessage(older.id, "assistant", "The reconnect loop comes from the gateway.");
     for (let index = 0; index < 60; index += 1) store.createSession({ title: `Other ${index}` });
     expect(store.sessionCards().some((card) => card.id === older.id)).toBe(false);
     expect(store.findConversations("tonal")[0]?.id).toBe(older.id);
     expect(store.findConversations("emulator")[0]?.id).toBe(older.id);
+    expect(store.findConversations("reconnect")[0]).toMatchObject({
+      id: older.id, preview: "The reconnect loop comes from the gateway.",
+    });
     store.close();
   });
 });

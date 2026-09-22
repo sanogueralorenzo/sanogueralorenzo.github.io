@@ -3,6 +3,7 @@ import { HOME_SESSION_ID, type RuntimeConfig, type SessionCard, type TaskReport,
 import type { Store } from "../conversation/store.js";
 import { MODEL } from "../local/config.js";
 import { CodexAppServer, CodexDisconnectedError } from "../codex/app-server.js";
+import { READ_CONVERSATION_TOOL } from "../codex/conversation-tools.js";
 import { classifiedError, nextForThread, object, type Notifications } from "../codex/notifications.js";
 import { openFolder } from "../codex/workspace-tool.js";
 import type { HomeAction, HomeBackend } from "./backend.js";
@@ -71,6 +72,12 @@ export class CodexHomeBackend implements HomeBackend {
 
   async compose(request: TurnRequest, conversations: SessionCard[], reports: TaskReport[], signal?: AbortSignal): Promise<HomeAction[]> {
     const actions: HomeAction[] = [];
+    const states = new Map(this.store.taskReports().map((report) => [report.sessionId, report.state]));
+    const conversationState = (sessionId: string) => {
+      const latestRun = this.store.latestRun(sessionId);
+      if (latestRun?.state === "running") return "working";
+      return states.get(sessionId) ?? "idle";
+    };
     const prompt = [
       `User request: ${request.text}`,
       `Recent Home requests: ${JSON.stringify(this.store.getMessages(HOME_SESSION_ID, 8)
@@ -83,11 +90,30 @@ export class CodexHomeBackend implements HomeBackend {
     await this.retry(() => {
       actions.length = 0;
       return this.toolTurn(
-        "You route requests; never do the work or answer it. Use start_task for new conversations and continue_task to resume or update an existing one, even if it is working. Use find_conversations when the target is not listed. Include text only when the user asks for work; omit it when they only want a conversation opened in Home. Preserve relevant context in the work text. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
-        prompt, [START_TASK, CONTINUE_TASK, FIND_CONVERSATIONS], (name, args) => {
+        "You route requests; never do the work or answer it. Use start_task for new conversations and continue_task to resume or update an existing one, even if it is working. Use find_conversations when the target is not listed, then read_conversation only when a preview is insufficient to choose confidently. Include text only when the user asks for work; omit it when they only want a conversation opened in Home. Preserve relevant context in the work text. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
+        prompt, [START_TASK, CONTINUE_TASK, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
           if (name === FIND_CONVERSATIONS.name) {
             const query = String(args.query ?? "").trim();
-            return response(Boolean(query), JSON.stringify(query ? this.store.findConversations(query) : []));
+            const found = query ? this.store.findConversations(query)
+              .map((conversation) => ({ ...conversation, state: conversationState(conversation.id) })) : [];
+            return response(Boolean(query), JSON.stringify(found));
+          }
+          if (name === READ_CONVERSATION_TOOL.name) {
+            const sessionId = String(args.sessionId ?? "");
+            const session = this.store.getSession(sessionId);
+            if (!session || sessionId === HOME_SESSION_ID) return response(false, "Conversation not found.");
+            const before = typeof args.before === "number" && Number.isSafeInteger(args.before) && args.before > 0
+              ? args.before : undefined;
+            return response(true, JSON.stringify({
+              conversation: {
+                id: session.id,
+                title: session.title,
+                cwd: session.cwd,
+                updatedAt: session.updatedAt,
+                state: conversationState(sessionId),
+              },
+              ...this.store.readConversation(sessionId, before, 6, 1_000),
+            }));
           }
           if (name === START_TASK.name) {
             const text = String(args.text ?? "").trim();

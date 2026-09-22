@@ -76,9 +76,26 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   }
   if (!method && id === "home-find" && dynamicTurn) {
     const found = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
+    if (scenario === "home-read") {
+      dynamicTurn.sessionId = found[0]?.id;
+      return send({ id: "home-read", method: "item/tool/call", params: {
+        threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-read",
+        tool: "read_conversation", arguments: { sessionId: dynamicTurn.sessionId },
+      } });
+    }
     return send({ id: "home-tool", method: "item/tool/call", params: {
       threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
       tool: "continue_task", arguments: { sessionId: found[0]?.id },
+    } });
+  }
+  if (!method && id === "home-read" && dynamicTurn) {
+    const read = JSON.parse(result?.contentItems?.[0]?.text ?? "{}");
+    return send({ id: "home-tool", method: "item/tool/call", params: {
+      threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
+      tool: "continue_task", arguments: {
+        sessionId: read.conversation?.id,
+        text: "Continue the reconnect investigation with the additional logs.",
+      },
     } });
   }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
@@ -191,10 +208,11 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
-    if (scenario === "home-find") {
+    if (scenario === "home-find" || scenario === "home-read") {
       dynamicTurn = { threadId: params.threadId, turnId };
       return send({ id: "home-find", method: "item/tool/call", params: {
-        threadId: params.threadId, turnId, callId: "home-find", tool: "find_conversations", arguments: { query: "Tonal" },
+        threadId: params.threadId, turnId, callId: "home-find", tool: "find_conversations",
+        arguments: { query: scenario === "home-read" ? "Reconnect" : "Tonal" },
       } });
     }
     if (scenario === "home-compose" || scenario === "home-report") {
