@@ -73,7 +73,9 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     if (scenario === "home-compose-duplicate") {
       return send({ id: "home-tool-duplicate", method: "item/tool/call", params: {
         threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool-duplicate",
-        tool: "start_task", arguments: { text: "Fix the tests", title: "Fix tests" },
+        tool: "route_tasks", arguments: { routes: [
+          { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
+        ] },
       } });
     }
     notify("turn/completed", { threadId: dynamicTurn.threadId, turn: { id: dynamicTurn.turnId, status: "completed" } });
@@ -87,7 +89,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   }
   if (!method && id === "home-find" && dynamicTurn) {
     const found = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
-    if (scenario === "home-read") {
+    if (scenario === "home-read" || scenario === "home-compose-mixed") {
       dynamicTurn.sessionId = found[0]?.id;
       return send({ id: "home-read", method: "item/tool/call", params: {
         threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-read",
@@ -96,18 +98,25 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     return send({ id: "home-tool", method: "item/tool/call", params: {
       threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
-      tool: "continue_task", arguments: { sessionId: found[0]?.id, title: "Open Tonal Android" },
+      tool: "route_tasks", arguments: { routes: [
+        { type: "continue", source: "Open Tonal Android", sessionId: found[0]?.id, title: "Open Tonal Android" },
+      ] },
     } });
   }
   if (!method && id === "home-read" && dynamicTurn) {
     const read = JSON.parse(result?.contentItems?.[0]?.text ?? "{}");
+    const routes = scenario === "home-compose-mixed" ? [
+      { type: "continue", source: "Resume the reconnect investigation", sessionId: read.conversation?.id,
+        title: "Continue reconnect investigation", text: "Continue investigating Telegram reconnects." },
+      { type: "start", source: "create a new task about Madrid restaurants", title: "Madrid restaurants",
+        text: `Find Madrid restaurants using this context: ${read.messages?.at(-1)?.content ?? ""}` },
+    ] : [
+      { type: "continue", source: "Resume the reconnect investigation and add these logs", sessionId: read.conversation?.id,
+        title: "Continue reconnect investigation", text: "Continue the reconnect investigation with the additional logs." },
+    ];
     return send({ id: "home-tool", method: "item/tool/call", params: {
       threadId: dynamicTurn.threadId, turnId: dynamicTurn.turnId, callId: "home-tool",
-      tool: "continue_task", arguments: {
-        sessionId: read.conversation?.id,
-        title: "Continue reconnect investigation",
-        text: "Continue the reconnect investigation with the additional logs.",
-      },
+      tool: "route_tasks", arguments: { routes },
     } });
   }
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
@@ -220,18 +229,25 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     }
     const turnId = `turn-${++turnCounter}`;
     reply(id, { turn: { id: turnId } });
-    if (scenario === "home-find" || scenario === "home-read") {
+    if (scenario === "home-find" || scenario === "home-read" || scenario === "home-compose-mixed") {
       dynamicTurn = { threadId: params.threadId, turnId };
       return send({ id: "home-find", method: "item/tool/call", params: {
         threadId: params.threadId, turnId, callId: "home-find", tool: "find_conversations",
-        arguments: { query: scenario === "home-read" ? "Reconnect" : "Tonal" },
+        arguments: { query: scenario === "home-find" ? "Tonal" : "Reconnect" },
       } });
     }
-    if (scenario === "home-compose" || scenario === "home-compose-duplicate" || scenario === "home-report") {
+    if (scenario === "home-compose" || scenario === "home-compose-duplicate" || scenario === "home-compose-multiple"
+      || scenario === "home-compose-overlap" || scenario === "home-report") {
       dynamicTurn = { threadId: params.threadId, turnId };
-      const tool = scenario.startsWith("home-compose") ? "start_task" : "report_task";
+      const tool = scenario.startsWith("home-compose") ? "route_tasks" : "report_task";
       const args = scenario.startsWith("home-compose")
-        ? { text: "Fix the tests", title: "Fix tests" }
+        ? { routes: scenario === "home-compose-multiple" ? [
+          { type: "start", source: "restaurants in Taipei", text: "Find popular restaurants in Taipei.", title: "Taipei restaurants" },
+          { type: "start", source: "a good air fryer", text: "Recommend a good air fryer.", title: "Air fryer picks" },
+        ] : scenario === "home-compose-overlap" ? [
+          { type: "start", source: "How are you?", text: "Answer the greeting.", title: "Greeting" },
+          { type: "start", source: "How are you?", text: "Respond conversationally.", title: "Greeting again" },
+        ] : [{ type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" }] }
         : { state: "ready", summary: "The tests now pass and the app runs cleanly on your Mac today" };
       return send({ id: "home-tool", method: "item/tool/call", params: {
         threadId: params.threadId, turnId, callId: "home-tool", tool, arguments: args,

@@ -9,7 +9,7 @@ export async function ephemeralToolTurn<T>(input: {
   instructions: string;
   prompt: string;
   tools: object[];
-  effort: "none" | "high";
+  effort: "none" | "medium" | "high";
   failureMessage: string;
   signal: AbortSignal | undefined;
   onTool: (name: string, args: Record<string, unknown>) => { response: unknown; result?: T };

@@ -16,7 +16,7 @@ function worker(run: AgentBackend["run"], steer: AgentBackend["steer"] = async (
 }
 
 describe("Agent Home", () => {
-  it("turns one submission into one clickable task entry and final concise outcome", async () => {
+  it("keeps a greeting in one clickable entry through its final outcome", async () => {
     const store = new Store(temporary("agent-home-"));
     cleanup(() => store.close());
     let release!: () => void;
@@ -27,7 +27,7 @@ describe("Agent Home", () => {
       yield { type: "done" };
     });
     const home: HomeBackend = {
-      async compose() { return { type: "start", title: "Combined task", text: "Do both tasks carefully." }; },
+      async compose() { return [{ type: "start", source: "How are you?", title: "How are you?", text: "Answer the greeting." }]; },
       async summarize() { return { state: "ready", summary: "Work complete." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -35,17 +35,51 @@ describe("Agent Home", () => {
     const stream = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
     const pending = stream.next();
     const requestId = "00000000-0000-4000-8000-000000000001";
-    runs.start({ text: "Do both", requestId, sessionId: store.homeSession().id, channel: "macos" });
+    runs.start({ text: "How are you?", requestId, sessionId: store.homeSession().id, channel: "macos" });
     const first = (await pending).value!;
     await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(1));
     expect(store.homeEntries()).toMatchObject([
-      { id: requestId, title: "Combined task", body: "Do both", state: "working" },
+      { id: requestId, title: "How are you?", body: "How are you?", state: "working" },
     ]);
     release();
     await vi.waitFor(() => expect(store.homeEntries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
-    expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "Do both", state: "routing" } });
+    expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "How are you?", state: "routing" } });
     controller.abort();
     await stream.return?.();
+    await runs.close();
+  });
+
+  it("opens separate parallel tasks for independent requests in one message", async () => {
+    const store = new Store(temporary("agent-home-multiple-"));
+    cleanup(() => store.close());
+    let release!: () => void;
+    const work = new Promise<void>((resolve) => { release = resolve; });
+    const requests: string[] = [];
+    const backend = worker(async function* ({ request }) {
+      requests.push(request.text);
+      await work;
+      yield { type: "done" };
+    });
+    const home: HomeBackend = {
+      async compose() { return [
+        { type: "start", source: "restaurants in Taipei", title: "Taipei restaurants", text: "Find popular Taipei restaurants." },
+        { type: "start", source: "a good air fryer", title: "Air fryer picks", text: "Recommend a good air fryer." },
+      ]; },
+      async summarize() { return { state: "ready", summary: "Done." }; },
+    };
+    const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
+    const requestId = "00000000-0000-4000-8000-000000000002";
+    store.homeSession();
+    runs.start({ text: "Find restaurants in Taipei and a good air fryer", requestId, sessionId: HOME_SESSION_ID });
+    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(2));
+    expect(store.homeEntries()).toMatchObject([
+      { id: requestId, title: "Taipei restaurants", body: "restaurants in Taipei", state: "working" },
+      { title: "Air fryer picks", body: "a good air fryer", state: "working" },
+    ]);
+    expect(new Set(store.homeEntries().map((entry) => entry.sessionId)).size).toBe(2);
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    release();
+    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.state)).toEqual(["ready", "ready"]));
     await runs.close();
   });
 
@@ -61,7 +95,7 @@ describe("Agent Home", () => {
       async compose(request) {
         if (request.text === "First") await firstRoute;
         else secondComposed();
-        return { type: "start", title: request.text, text: `Clear ${request.text}` };
+        return [{ type: "start", source: request.text, title: request.text, text: `Clear ${request.text}` }];
       },
       async summarize() { return { state: "ready", summary: "Finished." }; },
     };
@@ -84,7 +118,7 @@ describe("Agent Home", () => {
     const backend = worker(async function* () { await work; yield { type: "done" }; });
     const session = store.createSession({ title: "Existing work" });
     const home: HomeBackend = {
-      async compose(request) { return { type: "continue", sessionId: session.id, title: "Follow up", text: request.text }; },
+      async compose(request) { return [{ type: "continue", source: request.text, sessionId: session.id, title: "Follow up", text: request.text }]; },
       async summarize() { return { state: "ready", summary: "Done." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -114,7 +148,7 @@ describe("Agent Home", () => {
     );
     const session = store.createSession({ title: "Active task" });
     const home: HomeBackend = {
-      async compose(request) { return { type: "steer", sessionId: session.id, title: "Refocus task", text: request.text }; },
+      async compose(request) { return [{ type: "steer", source: request.text, sessionId: session.id, title: "Refocus task", text: request.text }]; },
       async summarize() { return { state: "ready", summary: "Updated work finished." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
@@ -150,7 +184,7 @@ describe("Agent Home", () => {
     await runs.close();
   });
 
-  it("runs Home routing and summaries on Luna without reasoning", async () => {
+  it("runs Home routing and summaries on Luna with focused routing effort", async () => {
     const homeDir = temporary("agent-home-model-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -163,9 +197,9 @@ describe("Agent Home", () => {
       } });
       const backend = new CodexHomeBackend(config, store, client);
       if (scenario === "home-compose") {
-        expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual(
-          { type: "start", text: "Fix the tests", title: "Fix tests" },
-        );
+        expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual([
+          { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
+        ]);
       } else {
         expect(await backend.summarize({ title: "Fix tests", request: "Fix the tests", output: "Done.", state: "complete" }))
           .toMatchObject({ state: "ready" });
@@ -177,11 +211,11 @@ describe("Agent Home", () => {
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only" },
     ]);
-    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["none", "none"]);
+    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["medium", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
   });
 
-  it("accepts only one routing action when Luna repeats a tool call", async () => {
+  it("accepts only one complete plan when Luna repeats a routing tool call", async () => {
     const homeDir = temporary("agent-home-duplicate-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -191,14 +225,42 @@ describe("Agent Home", () => {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-duplicate", AGENT_FAKE_LOG: log,
     } });
     const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
-    expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual(
-      { type: "start", text: "Fix the tests", title: "Fix tests" },
-    );
+    expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual([
+      { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
+    ]);
     client.stop();
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {
       id?: string; result?: { success?: boolean };
     });
     expect(calls.find((call) => call.id === "home-tool-duplicate")?.result?.success).toBe(false);
+  });
+
+  it("routes separate restaurant and air fryer requests to two tasks", async () => {
+    const homeDir = temporary("agent-home-multiple-plan-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-compose-multiple",
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    expect(await backend.compose({ text: "Find restaurants in Taipei and a good air fryer" }, [], []))
+      .toMatchObject([{ type: "start", title: "Taipei restaurants" }, { type: "start", title: "Air fryer picks" }]);
+    client.stop();
+  });
+
+  it("rejects two routes for the same greeting", async () => {
+    const homeDir = temporary("agent-home-overlap-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-compose-overlap",
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    await expect(backend.compose({ text: "How are you?" }, [], []))
+      .rejects.toThrow("Home could not route this request. Try again.");
+    client.stop();
   });
 
   it("does not invent a destination when Home returns no tool call", async () => {
@@ -230,8 +292,9 @@ describe("Agent Home", () => {
     } });
     const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Resume the reconnect investigation and add these logs" }, [], []))
-      .toEqual({ type: "continue", sessionId: saved.id, title: "Continue reconnect investigation",
-        text: "Continue the reconnect investigation with the additional logs." });
+      .toEqual([{ type: "continue", source: "Resume the reconnect investigation and add these logs",
+        sessionId: saved.id, title: "Continue reconnect investigation",
+        text: "Continue the reconnect investigation with the additional logs." }]);
     expect(store.getMessages(saved.id)).toHaveLength(2);
 
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as {
@@ -240,9 +303,7 @@ describe("Agent Home", () => {
     expect(calls.find((call) => call.method === "thread/start")?.params?.dynamicTools).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "find_conversations" }),
       expect.objectContaining({ name: "read_conversation" }),
-      expect.objectContaining({ name: "start_task" }),
-      expect.objectContaining({ name: "continue_task" }),
-      expect.objectContaining({ name: "steer_task" }),
+      expect.objectContaining({ name: "route_tasks" }),
     ]));
     expect(JSON.parse(calls.find((call) => call.id === "home-find")?.result?.contentItems?.[0]?.text ?? "[]")[0])
       .toMatchObject({ id: saved.id, state: "ready", preview: "The gateway has two reconnect paths." });
@@ -251,6 +312,29 @@ describe("Agent Home", () => {
         { role: "user", content: "Investigate why Telegram reconnects twice." },
         { role: "assistant", content: "The gateway has two reconnect paths." },
       ] });
+    client.stop();
+  });
+
+  it("plans a saved-conversation follow-up and a new task with carried context", async () => {
+    const homeDir = temporary("agent-home-mixed-plan-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const saved = store.createSession({ title: "Reconnect investigation" });
+    store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-compose-mixed",
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const actions = await backend.compose({
+      text: "Resume the reconnect investigation and create a new task about Madrid restaurants",
+    }, [], []);
+    expect(actions).toMatchObject([
+      { type: "continue", sessionId: saved.id, source: "Resume the reconnect investigation" },
+      { type: "start", source: "create a new task about Madrid restaurants", title: "Madrid restaurants" },
+    ]);
+    expect(actions[1]?.text).toContain("The gateway has two reconnect paths.");
+    expect(store.sessionCards()).toHaveLength(1);
     client.stop();
   });
 });

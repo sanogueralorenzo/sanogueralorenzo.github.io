@@ -7,47 +7,31 @@ import { classifiedError } from "../codex/notifications.js";
 import { openFolder } from "../codex/workspace-tool.js";
 import type { HomeAction, HomeBackend } from "./backend.js";
 
-const START_TASK = {
-  name: "start_task",
-  description: "Start independent work in a new durable Agent task conversation.",
+const ROUTE_TASKS = {
+  name: "route_tasks",
+  description: "Submit the complete routing plan for this Home message in one call.",
   inputSchema: {
     type: "object",
     properties: {
-      text: { type: "string", description: "Work to start now; omit to create an idle conversation." },
-      title: { type: "string", description: "A short, specific title." },
-      cwd: { type: "string", description: "Absolute project folder, only when the task needs one." },
+      routes: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["start", "continue", "steer"] },
+            source: { type: "string", description: "An exact quote from the user message identifying this distinct request. Quotes must not overlap." },
+            title: { type: "string", description: "A short, specific title for this Home entry." },
+            text: { type: "string", description: "A self-contained instruction for this task; omit only when opening an idle conversation." },
+            sessionId: { type: "string", description: "Existing conversation ID for continue or steer." },
+            cwd: { type: "string", description: "Absolute project folder for a new task, only when needed." },
+          },
+          required: ["type", "source", "title"],
+          additionalProperties: false,
+        },
+      },
     },
-    required: ["title"],
-    additionalProperties: false,
-  },
-};
-
-const CONTINUE_TASK = {
-  name: "continue_task",
-  description: "Queue a follow-up as the next turn in an existing Agent task conversation.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      sessionId: { type: "string" },
-      title: { type: "string", description: "A short title for this Home entry." },
-      text: { type: "string", description: "Follow-up work; omit to show the existing conversation in Home." },
-    },
-    required: ["sessionId", "title"],
-    additionalProperties: false,
-  },
-};
-
-const STEER_TASK = {
-  name: "steer_task",
-  description: "Add an immediate correction or instruction to a task that is currently working.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      sessionId: { type: "string" },
-      title: { type: "string", description: "A short title for this Home entry." },
-      text: { type: "string", description: "A clear, self-contained instruction for the active turn." },
-    },
-    required: ["sessionId", "title", "text"],
+    required: ["routes"],
     additionalProperties: false,
   },
 };
@@ -88,8 +72,8 @@ export class CodexHomeBackend implements HomeBackend {
     private readonly client: CodexAppServer,
   ) {}
 
-  async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction> {
-    let action: HomeAction | null = null;
+  async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction[]> {
+    let actions: HomeAction[] | null = null;
     const states = new Map(this.store.homeEntries().filter((entry) => entry.sessionId && entry.state)
       .map((entry) => [entry.sessionId!, entry.state]));
     const conversationState = (sessionId: string) => {
@@ -107,11 +91,11 @@ export class CodexHomeBackend implements HomeBackend {
         .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
     ].filter(Boolean).join("\n");
     await this.retry(() => {
-      action = null;
+      actions = null;
       return this.toolTurn(
-        "You route requests; never do the work or answer it. Make exactly one routing tool call for the whole user message, even when it contains several requests; the task agent can coordinate them. Rewrite the work into one clear, self-contained instruction and give new tasks a short specific title. Use start_task for new conversations. Use continue_task for a follow-up that should run as the next turn. Use steer_task only when the user explicitly asks to change, correct, or add to work that is currently running. Use find_conversations when the target is not listed, then read_conversation only when its preview is insufficient. Omit text only when the user wants to open a conversation without adding work. Preserve relevant context. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If uncertain, start one task with the full request. Output only tool calls.",
-        prompt, [START_TASK, CONTINUE_TASK, STEER_TASK, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
-          if (action) return response(false, "This Home message is already routed.");
+        "You are Agent Home's router. Never do the requested work or answer it. Choose one route per independent destination and deliverable, then call route_tasks once with the complete plan. A greeting or one coherent outcome needs one route; repeated or paraphrased versions of the same request are never separate routes. Unrelated outcomes, such as Taipei restaurants and an air fryer recommendation, need separate new tasks so they can run in parallel. If the user asks to continue an existing conversation and start other work, include both a continue route and a start route. Each route's source must quote a distinct, non-overlapping part of the user message exactly. Use start for new conversations, continue for an ordinary follow-up, and steer only for an explicit correction to work currently running. Use find_conversations when a target is not listed, and read_conversation only when its preview is insufficient. Carry relevant context from the existing conversation into a new task's text when the user requests it. Write each task as a clear, self-contained instruction with a short title. Omit text only for an idle conversation. Reuse a saved conversation's cwd for new work in that project; use the terminal directory for the current project. Personal tasks have no cwd. If the boundary is uncertain, prefer one route that fully covers the coherent request. Output only tool calls.",
+        prompt, [ROUTE_TASKS, FIND_CONVERSATIONS, READ_CONVERSATION_TOOL], (name, args) => {
+          if (actions) return response(false, "This Home message is already routed.");
           if (name === FIND_CONVERSATIONS.name) {
             const query = String(args.query ?? "").trim();
             const found = query ? this.store.findConversations(query)
@@ -135,40 +119,61 @@ export class CodexHomeBackend implements HomeBackend {
               ...this.store.readConversation(sessionId, before, 6, 1_000),
             }));
           }
-          if (name === START_TASK.name) {
-            const text = String(args.text ?? "").trim();
-            const title = String(args.title ?? "").trim().slice(0, 64);
-            if (!title) return response(false, "A new conversation needs a title.");
-            const cwd = args.cwd === undefined ? undefined : openFolder(args.cwd, this.config.homeDir).cwd;
-            if (args.cwd !== undefined && !cwd) return response(false, "Choose a specific accessible project folder.");
-            action = { type: "start", title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) };
-            return response(true, "Conversation opened.");
-          }
-          if (name === CONTINUE_TASK.name) {
-            const text = String(args.text ?? "").trim();
-            const title = String(args.title ?? "").trim().slice(0, 64);
-            const sessionId = String(args.sessionId ?? "");
-            if (!title || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
-              return response(false, "Choose an existing conversation.");
-            }
-            action = { type: "continue", sessionId, title, ...(text ? { text } : {}) };
-            return response(true, "Conversation opened.");
-          }
-          if (name === STEER_TASK.name) {
-            const text = String(args.text ?? "").trim();
-            const title = String(args.title ?? "").trim().slice(0, 64);
-            const sessionId = String(args.sessionId ?? "");
-            if (!title || !text || !this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) {
-              return response(false, "Choose an active conversation and provide an instruction.");
-            }
-            action = { type: "steer", sessionId, title, text };
-            return response(true, "Active work updated.");
+          if (name === ROUTE_TASKS.name) {
+            const result = this.parseRoutes(args.routes, request.text);
+            if ("error" in result) return response(false, result.error);
+            actions = result.actions;
+            return response(true, `Routed ${actions.length} task${actions.length === 1 ? "" : "s"}.`);
           }
           return response(false, "Unknown tool.");
-        }, signal);
+        }, signal, "medium");
     });
-    if (!action) throw new Error("Home could not route this request. Try again.");
-    return action;
+    if (!actions) throw new Error("Home could not route this request. Try again.");
+    return actions;
+  }
+
+  private parseRoutes(value: unknown, request: string): { actions: HomeAction[] } | { error: string } {
+    if (!Array.isArray(value) || value.length === 0) return { error: "Include at least one route." };
+    const actions: HomeAction[] = [];
+    const spans: { start: number; end: number }[] = [];
+    const sessions = new Set<string>();
+    for (const item of value) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return { error: "Each route must be an object." };
+      const route = item as Record<string, unknown>;
+      const source = typeof route.source === "string" ? route.source.trim() : "";
+      const title = typeof route.title === "string" ? route.title.trim().slice(0, 64) : "";
+      const text = typeof route.text === "string" ? route.text.trim() : "";
+      if (!source || !title || (route.text !== undefined && typeof route.text !== "string")) {
+        return { error: "Each route needs an exact source quote and a short title." };
+      }
+      let start = request.indexOf(source);
+      while (start >= 0 && spans.some((span) => start < span.end && start + source.length > span.start)) {
+        start = request.indexOf(source, start + 1);
+      }
+      if (start < 0) return { error: "Route source quotes must be exact, distinct, non-overlapping parts of the user message." };
+      spans.push({ start, end: start + source.length });
+      if (route.type === "start") {
+        if (route.sessionId !== undefined) return { error: "A new task cannot target an existing conversation." };
+        const cwd = route.cwd === undefined ? undefined : openFolder(route.cwd, this.config.homeDir).cwd;
+        if (route.cwd !== undefined && !cwd) return { error: "Choose a specific accessible project folder." };
+        actions.push({ type: "start", source, title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) });
+        continue;
+      }
+      if (route.type !== "continue" && route.type !== "steer") return { error: "Choose start, continue, or steer for each route." };
+      const sessionId = typeof route.sessionId === "string" ? route.sessionId : "";
+      if (!sessionId || sessionId === HOME_SESSION_ID || !this.store.getSession(sessionId) || route.cwd !== undefined) {
+        return { error: "Choose a saved conversation for each continue or steer route." };
+      }
+      if (sessions.has(sessionId)) return { error: "Use one route per existing conversation; combine its requested work." };
+      sessions.add(sessionId);
+      if (route.type === "steer") {
+        if (!text) return { error: "A steering route needs an instruction." };
+        actions.push({ type: "steer", source, title, sessionId, text });
+      } else {
+        actions.push({ type: "continue", source, title, sessionId, ...(text ? { text } : {}) });
+      }
+    }
+    return { actions };
   }
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {
@@ -206,6 +211,7 @@ export class CodexHomeBackend implements HomeBackend {
     dynamicTools: object[],
     handle: (name: string, args: Record<string, unknown>) => ReturnType<typeof response>,
     signal?: AbortSignal,
+    effort: "none" | "medium" = "none",
   ): Promise<void> {
     await ephemeralToolTurn({
       client: this.client,
@@ -213,7 +219,7 @@ export class CodexHomeBackend implements HomeBackend {
       instructions,
       prompt,
       tools: dynamicTools,
-      effort: "none",
+      effort,
       failureMessage: "The Home turn failed.",
       signal,
       onTool: (name, args) => ({ response: handle(name, args) }),

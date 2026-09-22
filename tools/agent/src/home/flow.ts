@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { failureMessage } from "../conversation/errors.js";
 import type { Store } from "../conversation/store.js";
 import { HOME_SESSION_ID, type HomeEntry, type RuntimeEvent, type Session, type SessionCard, type TurnRequest } from "../conversation/types.js";
@@ -17,29 +18,42 @@ export class HomeFlow {
       steer: ((sessionId: string, text: string, channel: TurnRequest["channel"]) => Promise<boolean>) | undefined;
     },
   ): AsyncGenerator<RuntimeEvent> {
+    let pendingEntryId: string | null = runId;
     try {
-      const action = await this.backend.compose(request, conversations, this.store.homeEntries(), options.signal);
+      const actions = await this.backend.compose(request, conversations, this.store.homeEntries(), options.signal);
       await options.beforeDispatch;
       if (options.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
-      const target = action.type === "start"
-        ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
-        : this.store.getSession(action.sessionId)!;
-      const task = action.text?.trim();
-      const dispatched = this.store.dispatchHomeEntry(runId, target.id, action.title, redactSecrets(request.text), Boolean(task));
-      for (const entry of dispatched.superseded) yield { type: "home_entry", entry };
-      yield { type: "home_entry", entry: dispatched.entry };
-      if (!task) {
-        yield { type: "home_entry", entry: await this.openedEntry(target) };
-      } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(task), request.channel)) {
-        this.store.enqueueTask(target.id, redactSecrets(task), request.channel ?? "api");
-        yield { type: "task_queued", sessionId: target.id };
+      if (!actions.length) throw new Error("Home could not route this request. Try again.");
+      for (const [index, action] of actions.entries()) {
+        if (options.signal?.aborted) throw new DOMException("Interrupted", "AbortError");
+        const entryId = index === 0 ? runId : randomUUID();
+        pendingEntryId = entryId;
+        const body = redactSecrets(actions.length === 1 ? request.text : action.source);
+        if (index > 0) yield { type: "home_entry", entry: this.store.createHomeEntry(entryId, body) };
+        const target = action.type === "start"
+          ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
+          : this.store.getSession(action.sessionId)!;
+        const task = action.text?.trim();
+        const dispatched = this.store.dispatchHomeEntry(entryId, target.id, action.title, body, Boolean(task));
+        for (const entry of dispatched.superseded) yield { type: "home_entry", entry };
+        yield { type: "home_entry", entry: dispatched.entry };
+        if (!task) {
+          yield { type: "home_entry", entry: await this.openedEntry(target) };
+        } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(task), request.channel)) {
+          this.store.enqueueTask(target.id, redactSecrets(task), request.channel ?? "api");
+          pendingEntryId = null;
+          yield { type: "task_queued", sessionId: target.id };
+        }
+        pendingEntryId = null;
       }
       this.store.finishRun(runId, "complete");
       yield { type: "done", sessionId: HOME_SESSION_ID };
     } catch (error) {
       const message = failureMessage(error, options.signal);
       this.store.finishRun(runId, options.signal?.aborted ? "interrupted" : "failed", message);
-      yield { type: "home_entry", entry: this.store.failHomeEntry(runId, message) };
+      if (pendingEntryId && this.store.homeEntry(pendingEntryId)) {
+        yield { type: "home_entry", entry: this.store.failHomeEntry(pendingEntryId, message) };
+      }
       yield { type: "error", message };
     }
   }
