@@ -42,7 +42,6 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var submittingSessionId: String?
     @ObservationIgnored private var completedRunId: String?
     @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
-    @ObservationIgnored private var automaticSession = true
 
     func start() async {
         observer?.cancel()
@@ -55,9 +54,7 @@ struct ChatMessage: Identifiable {
             setupStatus = try await client.setupStatus()
             if setupStatus?.configured == true {
                 state = .conversation
-                let id: String
-                if !automaticSession, let selectedSessionId { id = selectedSessionId }
-                else { id = try await client.openSession(preferredSessionId: selectedSessionId).id }
+                let id = try await client.openSession(preferredSessionId: selectedSessionId).id
                 selectedSessionId = id
                 try await connectConversation(client, sessionId: id)
             } else {
@@ -98,16 +95,8 @@ struct ChatMessage: Identifiable {
             await newConversation()
             return
         }
-        var sessionId = selected
+        let sessionId = selected
         do {
-            if automaticSession {
-                let resumed = try await client.openSession(preferredSessionId: sessionId)
-                guard selectedSessionId == sessionId else { return }
-                if resumed.id != sessionId {
-                    await selectSession(resumed.id, automatic: true)
-                    sessionId = resumed.id
-                }
-            }
             guard selectedSessionId == sessionId, isConnected else { return }
             submittingSessionId = sessionId
             completedRunId = nil
@@ -142,16 +131,15 @@ struct ChatMessage: Identifiable {
         guard let client else { return }
         do {
             let session = try await client.openSession(fresh: true)
-            await selectSession(session.id, automatic: true)
+            await selectSession(session.id)
         } catch {
             connectionError = error.localizedDescription
         }
     }
 
-    func selectSession(_ id: String, automatic: Bool = false) async {
+    func selectSession(_ id: String) async {
         guard let client, id != selectedSessionId else { return }
         observer?.cancel()
-        automaticSession = automatic
         selectedSessionId = id
         messages = []
         activeRunId = nil

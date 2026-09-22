@@ -20,7 +20,6 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   const supervisor = new RuntimeSupervisor(client, options.dev, status);
   await supervisor.start();
   let sessionId = (await client.openSession({ cwd: process.cwd() })).id;
-  let automaticSession = true;
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim("— quiet help for ongoing work")}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
@@ -108,7 +107,6 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
     }
     if (event.type === "navigate") {
       status(`Resumed “${event.session.title}”.`);
-      automaticSession = false;
       if (activeRunId === runId) {
         activeRunId = undefined;
         finish(runId);
@@ -224,7 +222,6 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       }
       if (input === "/new") {
         const session = await client.openSession({ fresh: true, cwd: process.cwd() });
-        automaticSession = true;
         await changeSession(session.id);
         status("New conversation ready.");
         continue;
@@ -241,7 +238,6 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         const id = /^\d+$/.test(choice) ? displayedSessions[Number(choice) - 1] : choice;
         const session = sessions.find((item) => item.id === id);
         if (!session) { status("Conversation not found. Use /sessions to see recent conversations."); continue; }
-        automaticSession = false;
         await changeSession(session.id);
         status(`Opened “${session.title}”.`);
         continue;
@@ -264,10 +260,6 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       }
 
       try {
-        if (automaticSession) {
-          const selected = await client.openSession({ cwd: process.cwd(), preferredSessionId: sessionId });
-          if (selected.id !== sessionId) await changeSession(selected.id);
-        }
         const run = await client.submit({
           text: input,
           cwd: process.cwd(),

@@ -90,41 +90,40 @@ describe("AgentRuntime", () => {
     expect(macos.find((event) => event.type === "session")?.session.id).toBe(cliSession);
   });
 
-  it("starts a separate session after eight hours of inactivity", async () => {
+  it("continues the latest session regardless of inactivity", async () => {
     const { store, runtime } = testRuntime();
     const first = await collect(runtime, { text: "old topic", channel: "cli" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
-      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), firstSession);
+      .run(new Date(0).toISOString(), firstSession);
 
-    const next = await collect(runtime, { text: "new topic", channel: "telegram" });
+    const next = await collect(runtime, { text: "continue", channel: "telegram" });
     const nextSession = next.find((event) => event.type === "session")?.session.id;
 
-    expect(nextSession).not.toBe(firstSession);
-    expect(firstSession && store.getMessages(firstSession).map((message) => message.content)).toEqual(["old topic", "Done."]);
-    expect(nextSession && store.getMessages(nextSession).map((message) => message.content)).toEqual(["new topic", "Done."]);
+    expect(nextSession).toBe(firstSession);
+    expect(firstSession && store.getMessages(firstSession).map((message) => message.content))
+      .toEqual(["old topic", "Done.", "continue", "Done."]);
   });
 
-  it("keeps a client's recent selection but rolls it over after eight idle hours", () => {
+  it("keeps a client's selected session even when another is newer", () => {
     const { store, runtime } = testRuntime();
     const first = runtime.openSession({ fresh: true });
     runtime.openSession({ fresh: true });
-    expect(runtime.openSession({ preferredSessionId: first.id }).id).toBe(first.id);
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
-      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), first.id);
-    expect(runtime.openSession({ preferredSessionId: first.id }).id).not.toBe(first.id);
+      .run(new Date(0).toISOString(), first.id);
+    expect(runtime.openSession({ preferredSessionId: first.id }).id).toBe(first.id);
   });
 
-  it("keeps Telegram's selection independent of the latest session and rolls it after eight idle hours", () => {
+  it("keeps Telegram's selected session until /new", () => {
     const { store, runtime } = testRuntime();
     const telegram = runtime.openTelegramSession("42");
     runtime.openSession({ fresh: true });
-    expect(runtime.openTelegramSession("42").id).toBe(telegram.id);
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
-      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), telegram.id);
-    const next = runtime.openTelegramSession("42");
-    expect(next.id).not.toBe(telegram.id);
-    expect(store.telegramSession("42")).toBe(next.id);
+      .run(new Date(0).toISOString(), telegram.id);
+    expect(runtime.openTelegramSession("42").id).toBe(telegram.id);
+    const fresh = runtime.openTelegramSession("42", true);
+    expect(fresh.id).not.toBe(telegram.id);
+    expect(store.telegramSession("42")).toBe(fresh.id);
   });
 
   it("starts a separate session when the user requests a new conversation", async () => {

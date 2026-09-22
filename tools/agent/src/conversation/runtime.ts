@@ -21,12 +21,6 @@ function failureMessage(error: unknown, signal?: AbortSignal): string {
     : error instanceof Error ? error.message : String(error);
 }
 
-const SESSION_IDLE_MS = 8 * 60 * 60 * 1_000;
-
-function isRecent(updatedAt: string): boolean {
-  return Date.now() - Date.parse(updatedAt) < SESSION_IDLE_MS;
-}
-
 export class AgentRuntime {
   constructor(
     private readonly store: Store,
@@ -39,9 +33,7 @@ export class AgentRuntime {
       ? this.store.getSession(options.preferredSessionId) ?? this.store.redirectedSession(options.preferredSessionId)
       : null;
     const latest = options.preferredSessionId ? null : this.store.latestSession(cwd);
-    const selected = options.fresh ? null
-      : preferred && isRecent(preferred.updatedAt) ? preferred
-      : latest && isRecent(latest.updatedAt) ? latest : null;
+    const selected = options.fresh ? null : preferred ?? latest;
     return selected ?? this.store.createSession(cwd ? { cwd } : {});
   }
 
