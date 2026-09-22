@@ -29,17 +29,22 @@ export class AgentRuntime {
 
   openSession(options: { cwd?: string; preferredSessionId?: string; fresh?: boolean } = {}): Session {
     const cwd = options.cwd ? resolve(options.cwd) : undefined;
-    const preferred = options.preferredSessionId
-      ? this.store.getSession(options.preferredSessionId) ?? this.store.redirectedSession(options.preferredSessionId)
-      : null;
-    const latest = options.preferredSessionId ? null : this.store.latestSession(cwd);
-    const selected = options.fresh ? null : preferred ?? latest;
-    return selected ?? this.store.createSession(cwd ? { cwd } : {});
+    if (options.fresh) return this.store.createSession(cwd ? { cwd } : {});
+    if (options.preferredSessionId) {
+      const selected = this.store.getSession(options.preferredSessionId)
+        ?? this.store.redirectedSession(options.preferredSessionId);
+      if (!selected) throw new Error("Conversation not found.");
+      return selected;
+    }
+    return this.store.latestSession(cwd) ?? this.store.createSession(cwd ? { cwd } : {});
   }
 
-  openTelegramSession(ownerId: string, fresh = false): Session {
+  openTelegramSession(ownerId: string, options: { fresh?: boolean; sessionId?: string } = {}): Session {
     const bound = this.store.telegramSession(ownerId);
-    const session = this.openSession({ fresh, ...(bound && !fresh ? { preferredSessionId: bound } : {}) });
+    const session = options.sessionId
+      ? this.openSession({ preferredSessionId: options.sessionId })
+      : options.fresh ? this.openSession({ fresh: true })
+      : this.openSession(bound ? { preferredSessionId: bound } : {});
     this.store.bindTelegramSession(ownerId, session.id);
     return session;
   }

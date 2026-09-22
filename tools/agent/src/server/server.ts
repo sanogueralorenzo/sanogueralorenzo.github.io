@@ -131,9 +131,14 @@ export class RuntimeServer {
           return json(response, 200, { session });
         }
         case "POST /v1/telegram/session": {
-          const { ownerId, fresh } = await readJson(request);
+          const { ownerId, fresh, sessionId } = await readJson(request);
           if (typeof ownerId !== "string" || !/^\d+$/.test(ownerId)) throw new Error("Telegram owner ID is required.");
-          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, fresh === true) });
+          if (sessionId !== undefined && (typeof sessionId !== "string" || !sessionId)) throw new Error("Conversation not found.");
+          if (fresh === true && sessionId) throw new Error("Choose an existing conversation or start a new one.");
+          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, {
+            fresh: fresh === true,
+            ...(typeof sessionId === "string" ? { sessionId } : {}),
+          }) });
         }
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
         case "POST /v1/setup/openai": {

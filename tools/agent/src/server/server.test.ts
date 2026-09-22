@@ -177,9 +177,13 @@ describe("RuntimeServer", () => {
     expect((await stream.next()).value).toMatchObject({ sessionId: cli.id, event: { type: "snapshot" } });
     await client.submit({ text: "other work", sessionId: other.id, channel: "macos" });
     expect((await stream.next()).value?.event.type).toBe("session_activity");
-    const fresh = await client.telegramSession("42", true);
+    const fresh = await client.telegramSession("42", { fresh: true });
     expect(fresh.id).not.toBe(cli.id);
     expect((await client.telegramSession("42")).id).toBe(fresh.id);
+    expect((await client.telegramSession("42", { sessionId: cli.id })).id).toBe(cli.id);
+    expect((await client.telegramSession("42")).id).toBe(cli.id);
+    await expect(client.telegramSession("42", { sessionId: "missing" })).rejects.toThrow("Conversation not found.");
+    expect((await client.telegramSession("42")).id).toBe(cli.id);
     await stream.return?.();
   });
 

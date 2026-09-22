@@ -16,11 +16,15 @@ describe("CLI shared runs", () => {
     const feedReady = new Promise<void>((resolve) => { openFeed = resolve; });
     let receivedTurn: Record<string, unknown> = {};
     let sessionSelections = 0;
+    let selectionBody: unknown;
     const server = createServer(async (request, response) => {
       response.setHeader("content-type", "application/json");
       if (request.url === "/v1/health") return response.end('{"ok":true}');
       if (request.url === "/v1/sessions/auto") {
         sessionSelections++;
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        selectionBody = JSON.parse(Buffer.concat(chunks).toString());
         return response.end(JSON.stringify({ session }));
       }
       if (request.url?.startsWith("/v1/events?sessionId=")) {
@@ -83,6 +87,7 @@ describe("CLI shared runs", () => {
     expect(stdout).toContain("telegram › from phone");
     expect(receivedTurn).toMatchObject({ text: "hello", channel: "cli", sessionId: "s1" });
     expect(sessionSelections).toBe(1);
+    expect(selectionBody).toEqual({});
   });
 
   it("finishes a submitted run from the reconnect snapshot even when its turn was missed", async () => {

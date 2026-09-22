@@ -160,8 +160,8 @@ export class RuntimeClient {
     })).session;
   }
 
-  async telegramSession(ownerId: string, fresh = false): Promise<Session> {
-    return (await this.post<{ session: Session }>("/v1/telegram/session", { ownerId, fresh })).session;
+  async telegramSession(ownerId: string, options: { fresh?: boolean; sessionId?: string } = {}): Promise<Session> {
+    return (await this.post<{ session: Session }>("/v1/telegram/session", { ownerId, ...options })).session;
   }
 
   async transcript(sessionId: string): Promise<{ session: Session; messages: Message[] }> {

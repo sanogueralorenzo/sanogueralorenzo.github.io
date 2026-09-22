@@ -15,6 +15,8 @@ struct ChatMessage: Identifiable {
 
 @MainActor
 @Observable final class AppModel {
+    private static let selectedSessionKey = "Agent.selectedSessionId"
+
     enum State: Equatable {
         case needsSetup
         case conversation
@@ -54,7 +56,8 @@ struct ChatMessage: Identifiable {
             setupStatus = try await client.setupStatus()
             if setupStatus?.configured == true {
                 state = .conversation
-                let id = try await client.openSession(preferredSessionId: selectedSessionId).id
+                let preferred = selectedSessionId ?? UserDefaults.standard.string(forKey: Self.selectedSessionKey)
+                let id = try await client.openSession(preferredSessionId: preferred).id
                 selectedSessionId = id
                 try await connectConversation(client, sessionId: id)
             } else {
@@ -161,6 +164,7 @@ struct ChatMessage: Identifiable {
         let events = try await client.events(sessionId: sessionId)
         guard selectedSessionId == sessionId else { return }
         observe(events, sessionId: sessionId)
+        UserDefaults.standard.set(sessionId, forKey: Self.selectedSessionKey)
         isConnected = true
         connectionError = nil
         activity = ""

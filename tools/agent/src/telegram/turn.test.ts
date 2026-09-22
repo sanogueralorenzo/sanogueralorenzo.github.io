@@ -10,8 +10,9 @@ function client(run: object | null = { id: "r1", sessionId: "s1", origin: "teleg
   return {
     submit: vi.fn(async () => run),
     stop: vi.fn(async () => true),
-    telegramSession: vi.fn(async (_ownerId: string, fresh?: boolean) => {
-      if (fresh) selected = "s2";
+    telegramSession: vi.fn(async (_ownerId: string, options: { fresh?: boolean; sessionId?: string } = {}) => {
+      if (options.fresh) selected = "s2";
+      if (options.sessionId) selected = options.sessionId;
       return { ...session, id: selected };
     }),
     transcript: vi.fn(async () => ({ session, messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }] })),
@@ -48,11 +49,32 @@ describe("Telegram turns", () => {
     await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toEqual({ accepted: true, recovered: [] });
     await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toEqual({ accepted: true, recovered: [] });
 
-    expect(runtime.telegramSession).toHaveBeenNthCalledWith(1, "42", true);
+    expect(runtime.telegramSession).toHaveBeenNthCalledWith(1, "42", { fresh: true });
     expect(runtime.telegramSession).toHaveBeenNthCalledWith(2, "42");
     expect(runtime.submit).toHaveBeenNthCalledWith(1, { text: "busy", sessionId: "s2", channel: "telegram" });
     expect(runtime.submit).toHaveBeenNthCalledWith(2, { text: "new topic", sessionId: "s2", channel: "telegram" });
     expect(runtime.submit).toHaveBeenNthCalledWith(3, { text: "continue", sessionId: "s2", channel: "telegram" });
+  });
+
+  it("switches Telegram to an existing conversation and keeps subsequent turns there", async () => {
+    const runtime = client();
+    const turns = turnsFor(runtime);
+    await turns.ensureSession();
+    const selected = await turns.selectConversation("s2");
+    expect(selected.id).toBe("s2");
+    expect(runtime.telegramSession).toHaveBeenCalledWith("42", { sessionId: "s2" });
+    await turns.submit(async () => ({ text: "continue" }));
+    expect(runtime.submit).toHaveBeenCalledWith({ text: "continue", sessionId: "s2", channel: "telegram" });
+  });
+
+  it("keeps an active reply when the selected conversation is picked again", async () => {
+    const turns = turnsFor();
+    await turns.ensureSession();
+    turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
+    await turns.selectConversation("s1");
+    turns.consume(envelope({ type: "text_delta", delta: "Still here" }));
+    expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
+      .toMatchObject({ chunks: ["Still here"] });
   });
 
   it("delivers a run initiated on another client with chunked text and artifacts", async () => {

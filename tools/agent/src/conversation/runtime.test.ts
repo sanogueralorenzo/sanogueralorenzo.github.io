@@ -121,6 +121,22 @@ describe("AgentRuntime", () => {
     expect(runtime.openSession({ preferredSessionId: first.id }).id).toBe(first.id);
   });
 
+  it("opens the globally latest session when no selection is supplied", () => {
+    const { store, runtime } = testRuntime();
+    const older = runtime.openSession({ fresh: true, cwd: "/tmp/older" });
+    const latest = runtime.openSession({ fresh: true, cwd: "/tmp/latest" });
+    store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
+      .run(new Date(0).toISOString(), older.id);
+    expect(runtime.openSession().id).toBe(latest.id);
+    expect(runtime.openSession({ cwd: "/tmp/older" }).id).toBe(older.id);
+  });
+
+  it("does not create a conversation for an unknown explicit selection", () => {
+    const { store, runtime } = testRuntime();
+    expect(() => runtime.openSession({ preferredSessionId: "missing" })).toThrow("Conversation not found.");
+    expect(store.listSessions()).toEqual([]);
+  });
+
   it("keeps Telegram's selected session until /new", () => {
     const { store, runtime } = testRuntime();
     const telegram = runtime.openTelegramSession("42");
@@ -128,9 +144,13 @@ describe("AgentRuntime", () => {
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
       .run(new Date(0).toISOString(), telegram.id);
     expect(runtime.openTelegramSession("42").id).toBe(telegram.id);
-    const fresh = runtime.openTelegramSession("42", true);
+    const fresh = runtime.openTelegramSession("42", { fresh: true });
     expect(fresh.id).not.toBe(telegram.id);
     expect(store.telegramSession("42")).toBe(fresh.id);
+    expect(runtime.openTelegramSession("42", { sessionId: telegram.id }).id).toBe(telegram.id);
+    expect(store.telegramSession("42")).toBe(telegram.id);
+    expect(() => runtime.openTelegramSession("42", { sessionId: "missing" })).toThrow("Conversation not found.");
+    expect(store.telegramSession("42")).toBe(telegram.id);
   });
 
   it("starts a separate session when the user requests a new conversation", async () => {

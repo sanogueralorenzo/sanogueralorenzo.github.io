@@ -1,4 +1,5 @@
-import { Bot, InputFile, type Context } from "grammy";
+import { basename } from "node:path";
+import { Bot, InlineKeyboard, InputFile, type Context } from "grammy";
 import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import { RuntimeSupervisor } from "../client/supervisor.js";
 import { loadConfig } from "../local/config.js";
@@ -142,6 +143,27 @@ async function runGateway(token: string): Promise<void> {
     syncTyping();
     await ctx.reply("New conversation ready.");
   });
+  bot.command("sessions", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    const { sessions } = await client.sessions();
+    const buttons = new InlineKeyboard();
+    for (const session of sessions) {
+      const workspace = session.cwd ? basename(session.cwd) : "Personal";
+      buttons.text(`${session.title} · ${workspace}`.slice(0, 60), `session:${session.id}`).row();
+    }
+    await ctx.reply("Choose a conversation:", { reply_markup: buttons });
+  });
+  bot.callbackQuery(/^session:([0-9a-f-]{36})$/, async (ctx) => {
+    if (!isOwner(ctx)) return void await ctx.answerCallbackQuery({ text: "Not available." });
+    try {
+      const session = await turns.selectConversation(ctx.match[1]!);
+      switchDelivery();
+      syncTyping();
+      await ctx.answerCallbackQuery({ text: `Opened “${session.title}”.` });
+    } catch {
+      await ctx.answerCallbackQuery({ text: "Could not open that conversation." });
+    }
+  });
   bot.command("status", async (ctx) => {
     if (!isOwner(ctx)) return;
     if (!await client.healthy()) return void await ctx.reply("Agent is reconnecting.");
@@ -193,6 +215,7 @@ async function runGateway(token: string): Promise<void> {
   await bot.start({ onStart: async (info) => {
     await bot.api.setMyCommands([
       { command: "new", description: "Start a new conversation" },
+      { command: "sessions", description: "Open a conversation" },
       { command: "help", description: "What Agent can do" },
       { command: "status", description: "Connection status" },
       { command: "stop", description: "Stop the current response" },

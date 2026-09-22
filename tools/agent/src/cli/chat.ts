@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import { loadConfig } from "../local/config.js";
@@ -13,9 +14,10 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   };
   const supervisor = new RuntimeSupervisor(client, options.dev, status);
   await supervisor.start();
-  const sessionId = (await client.openSession({ cwd: process.cwd() })).id;
+  const selected = await client.openSession();
+  const sessionId = selected.id;
 
-  console.log(`${ansi.cyan("Agent")} ${ansi.dim("— quiet help for ongoing work")}`);
+  console.log(`${ansi.cyan("Agent")} ${ansi.dim(`— ${selected.title}${selected.cwd ? ` · ${basename(selected.cwd)}` : ""}`)}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
   console.log(ansi.dim("/new  /sessions  /use  /status  /help  /quit\n"));
 
@@ -112,13 +114,16 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         continue;
       }
       if (input.startsWith("/use ")) {
-        const { sessions } = await client.sessions();
         const choice = input.slice(5).trim();
         const id = /^\d+$/.test(choice) ? displayedSessions[Number(choice) - 1] : choice;
-        const session = sessions.find((item) => item.id === id);
-        if (!session) { status("Conversation not found. Use /sessions to see recent conversations."); continue; }
-        await changeSession(session.id);
-        status(`Opened “${session.title}”.`);
+        if (!id) { status("Conversation not found. Use /sessions to see recent conversations."); continue; }
+        try {
+          const session = await client.openSession({ preferredSessionId: id });
+          await changeSession(session.id);
+          status(`Opened “${session.title}”.`);
+        } catch {
+          status("Could not open that conversation. Use /sessions to see recent conversations.");
+        }
         continue;
       }
       if (input === "/status") {

@@ -1,5 +1,5 @@
 import type { RuntimeClient } from "../client/client.js";
-import type { Artifact, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../conversation/types.js";
+import type { Artifact, RunEnvelope, RuntimeSnapshot, Session, TurnRequest } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { splitTelegramText } from "./text.js";
 
@@ -55,9 +55,23 @@ export class TelegramTurns {
   async newConversation(): Promise<void> {
     const owner = this.ownerId();
     if (!owner) throw new Error("Telegram is not paired.");
-    this.sessionId = (await this.client.telegramSession(owner, true)).id;
+    this.sessionId = (await this.client.telegramSession(owner, { fresh: true })).id;
     this.current.clear();
     this.pending.clear();
+    this.latestSnapshot = undefined;
+  }
+
+  async selectConversation(sessionId: string): Promise<Session> {
+    const owner = this.ownerId();
+    if (!owner) throw new Error("Telegram is not paired.");
+    const session = await this.client.telegramSession(owner, { sessionId });
+    if (session.id !== this.sessionId) {
+      this.sessionId = session.id;
+      this.current.clear();
+      this.pending.clear();
+      this.latestSnapshot = undefined;
+    }
+    return session;
   }
 
   hasActiveRun(): boolean { return this.current.size > 0; }
