@@ -84,7 +84,7 @@ describe("AgentRuntime", () => {
     const { homeDir, backend, runtime } = testRuntime();
     const session = runtime.openSession({ fresh: true, cwd: homeDir });
     await collect(runtime, { text: "Fix the failing test", sessionId: session.id, cwd: homeDir, channel: "cli" });
-    expect(backend.turns[0]?.instructions).toContain("Use read_history for requested saved messages.");
+    expect(backend.turns[0]?.instructions).toContain("When asked to show earlier messages, use read_history for the saved text.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
