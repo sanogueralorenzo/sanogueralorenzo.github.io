@@ -120,11 +120,15 @@ struct ConversationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 20) {
-                        if model.selectedSessionId == AppModel.homeSessionId {
-                            if model.taskReports.isEmpty && model.messages.isEmpty { EmptyConversationView() }
+            if model.selectedSessionId == AppModel.homeSessionId {
+                if model.taskReports.isEmpty {
+                    Spacer(minLength: 0)
+                    EmptyConversationView()
+                    Spacer(minLength: 0)
+                } else {
+                    Spacer(minLength: 0)
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 10) {
                             ForEach(model.taskReports) { report in
                                 Button { Task { await model.selectSession(report.sessionId) } } label: {
                                     HStack(spacing: 12) {
@@ -144,27 +148,46 @@ struct ConversationView: View {
                                 .buttonStyle(.plain)
                                 .id(report.sessionId)
                             }
-                        } else if model.messages.isEmpty { EmptyConversationView() }
-                        ForEach(model.messages) { message in
-                            MessageView(message: message).id(message.id.uuidString)
                         }
+                        .scrollTargetLayout()
+                        .frame(maxWidth: AgentStyle.contentMaxWidth)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, AgentStyle.edgePadding)
                     }
-                    .scrollTargetLayout()
-                    .frame(maxWidth: AgentStyle.contentMaxWidth)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, AgentStyle.edgePadding)
-                    .padding(.vertical, 24)
+                    .scrollPosition(id: $model.homeScrollPosition, anchor: .top)
+                    .frame(height: min(CGFloat(model.taskReports.count) * 90, 260))
+                    .padding(.bottom, 12)
                 }
-                .scrollPosition(id: $scrollPosition, anchor: .top)
-                .onChange(of: model.scrollRequest) {
-                    if let id = model.messages.last?.id { proxy.scrollTo(id.uuidString, anchor: .bottom) }
+                if let error = model.homeError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(AgentStyle.muted)
+                        .frame(maxWidth: AgentStyle.contentMaxWidth, alignment: .leading)
+                        .padding(.horizontal, AgentStyle.edgePadding)
+                        .padding(.bottom, 8)
                 }
-                .onChange(of: model.selectedSessionId) { old, next in
-                    if old == AppModel.homeSessionId { model.homeScrollPosition = scrollPosition }
-                    scrollPosition = next == AppModel.homeSessionId ? model.homeScrollPosition : nil
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 20) {
+                            if model.messages.isEmpty { EmptyConversationView() }
+                            ForEach(model.messages) { message in
+                                MessageView(message: message).id(message.id.uuidString)
+                            }
+                        }
+                        .scrollTargetLayout()
+                        .frame(maxWidth: AgentStyle.contentMaxWidth)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, AgentStyle.edgePadding)
+                        .padding(.vertical, 24)
+                    }
+                    .scrollPosition(id: $scrollPosition, anchor: .top)
+                    .onChange(of: model.scrollRequest) {
+                        if let id = model.messages.last?.id { proxy.scrollTo(id.uuidString, anchor: .bottom) }
+                    }
                 }
             }
-            if !model.activity.isEmpty { ActivityLine(text: model.activity) }
+            if model.selectedSessionId != AppModel.homeSessionId && !model.activity.isEmpty { ActivityLine(text: model.activity) }
             if let error = model.connectionError {
                 ConnectionError(message: error) { Task { await model.start() } }
             }
@@ -236,6 +259,7 @@ private struct ConnectionError: View {
 
 private struct MessageComposer: View {
     @Bindable var model: AppModel
+    private var canStop: Bool { model.selectedSessionId != AppModel.homeSessionId && model.isRunning }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
@@ -246,17 +270,17 @@ private struct MessageComposer: View {
                 .disabled(!model.isConnected)
                 .onSubmit { Task { await model.send() } }
             Button {
-                Task { model.isRunning ? await model.stop() : await model.send() }
+                Task { canStop ? await model.stop() : await model.send() }
             } label: {
-                Image(systemName: model.isRunning ? "stop.fill" : "arrow.up")
+                Image(systemName: canStop ? "stop.fill" : "arrow.up")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)
-                    .background(model.isRunning ? AgentStyle.clay : AgentStyle.graphite, in: Circle())
+                    .background(canStop ? AgentStyle.clay : AgentStyle.graphite, in: Circle())
             }
             .buttonStyle(.plain)
-            .help(model.isRunning ? "Stop" : "Send")
-            .disabled(!model.isRunning && (!model.isConnected || model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+            .help(canStop ? "Stop" : "Send")
+            .disabled(!canStop && (!model.isConnected || model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
         }
         .padding(10)
         .padding(.leading, 4)

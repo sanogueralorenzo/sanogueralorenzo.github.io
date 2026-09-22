@@ -92,8 +92,10 @@ export class CodexHomeBackend implements HomeBackend {
           return response(false, "Unknown tool.");
         }, signal);
     });
-    if (!actions.length) throw new Error("Home could not start that work.");
-    return actions;
+    return actions.length ? actions : [{
+      type: "start", text: request.text,
+      title: request.text.trim().split("\n", 1)[0]!.slice(0, 64),
+    }];
   }
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {

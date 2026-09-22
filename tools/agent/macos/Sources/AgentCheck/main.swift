@@ -57,6 +57,8 @@ struct AgentCheck {
         check(navigation.session?.title == "Telegram reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
         let report = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"task_report","report":{"sessionId":"s1","title":"Fix tests","state":"ready","summary":"Tests pass.","url":"agent://sessions/s1","updatedAt":"2026-09-22T00:00:00Z"}}"#.utf8))
         check(report.report?.summary == "Tests pass.", "Agent task report protocol check failed")
+        let homeError = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"home_error","message":"Could not start that request."}"#.utf8))
+        check(homeError.message == "Could not start that request.", "Agent Home error protocol check failed")
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")

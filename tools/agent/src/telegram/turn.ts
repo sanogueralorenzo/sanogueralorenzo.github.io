@@ -1,5 +1,6 @@
 import type { RuntimeClient } from "../client/client.js";
 import type { Artifact, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../conversation/types.js";
+import { HOME_SESSION_ID } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { redactSecrets } from "../workspace/security.js";
 import { splitTelegramText } from "./text.js";
@@ -48,6 +49,7 @@ export class TelegramTurns {
     const sessionId = await this.ensureSession();
     const run = await this.client.submit({ ...await prepare(), sessionId, channel: "telegram" });
     if (!run) return { accepted: false, recovered: [] };
+    if (sessionId === HOME_SESSION_ID) return { accepted: true, recovered: [] };
     this.pending.set(run.id, run.sessionId);
     const recovered = this.latestSnapshot?.lastRuns.some((last) => last.id === run.id)
       ? await this.reconcile(this.latestSnapshot) : [];
@@ -90,6 +92,9 @@ export class TelegramTurns {
   }
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
+    if (event.type === "home_error" && this.sessionId === HOME_SESSION_ID) {
+      return { sessionId, chunks: splitTelegramText(event.message), artifacts: [] };
+    }
     if (event.type === "task_report") {
       this.seenReports.set(event.report.sessionId, event.report.updatedAt);
       if (event.report.state === "working" || event.report.sessionId === this.sessionId) return null;

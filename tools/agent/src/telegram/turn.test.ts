@@ -68,6 +68,17 @@ describe("Telegram turns", () => {
     expect(runtime.telegramSession).toHaveBeenLastCalledWith("42", { home: true });
   });
 
+  it("keeps Home free for more requests and shows dispatch errors without a typing run", async () => {
+    const runtime = client({ id: "home-run", sessionId: "home", origin: "telegram" });
+    const turns = turnsFor(runtime);
+    await turns.home();
+    await turns.submit(async () => ({ text: "First task" }));
+    await turns.submit(async () => ({ text: "Second task" }));
+    expect(turns.hasActiveRun()).toBe(false);
+    expect(turns.consume(envelope({ type: "home_error", message: "Could not start that request." }, "home-run", "home")))
+      .toEqual({ sessionId: "home", chunks: ["Could not start that request."], artifacts: [] });
+  });
+
   it("delivers a run initiated on another client with chunked text and artifacts", async () => {
     const turns = turnsFor();
     await turns.ensureSession();

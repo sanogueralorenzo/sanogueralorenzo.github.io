@@ -62,6 +62,7 @@ export type RuntimeEvent =
   | { type: "session"; session: Session }
   | { type: "navigate"; session: Session; url: string; continues: boolean }
   | { type: "task_report"; report: TaskReport }
+  | { type: "home_error"; message: string }
   | { type: "task_launch"; session: Session; text: string; channel: Channel }
   | ProgressEvent
   | { type: "done"; sessionId: string }

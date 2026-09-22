@@ -32,6 +32,7 @@ struct ChatMessage: Identifiable {
     var isRunning = false
     var isConnected = false
     var connectionError: String?
+    var homeError: String?
     var setupStatus: SetupStatus?
     var setupMessage = ""
     var isSettingUp = false
@@ -48,7 +49,6 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var completedRunId: String?
     @ObservationIgnored private var optimisticUserId: UUID?
     @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
-    @ObservationIgnored private var homeMessages: [ChatMessage] = []
     @ObservationIgnored private var homeDraft = ""
 
     func start() async {
@@ -97,10 +97,23 @@ struct ChatMessage: Identifiable {
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let client, let selected = selectedSessionId,
-              isConnected, !isRunning, submittingSessionId != selected else { return }
+              isConnected, (selected == Self.homeSessionId || (!isRunning && submittingSessionId != selected)) else { return }
         input = ""
         if text == "/new" {
             await newConversation()
+            return
+        }
+        if selected == Self.homeSessionId {
+            homeError = nil
+            do {
+                guard try await client.submit(text: text, sessionId: selected) != nil else {
+                    homeError = "Could not start that request. Try again."
+                    return
+                }
+            } catch {
+                homeError = error.localizedDescription
+                if selectedSessionId == selected && input.isEmpty { input = text }
+            }
             return
         }
         let sessionId = selected
@@ -157,23 +170,24 @@ struct ChatMessage: Identifiable {
     func selectSession(_ id: String, notice: String? = nil, forwarded: ChatMessage? = nil, expectedRunId: String? = nil) async {
         guard let client, id != selectedSessionId else { return }
         if selectedSessionId == Self.homeSessionId {
-            homeMessages = messages
             homeDraft = input
         }
         observer?.cancel()
         selectedSessionId = id
-        messages = id == Self.homeSessionId ? homeMessages : []
+        messages = []
         input = id == Self.homeSessionId ? homeDraft : ""
-        if let notice { appendMessage(ChatMessage(id: UUID(), role: .notice, text: notice)) }
-        if let forwarded { appendMessage(forwarded) }
+        if id != Self.homeSessionId {
+            if let notice { appendMessage(ChatMessage(id: UUID(), role: .notice, text: notice)) }
+            if let forwarded { appendMessage(forwarded) }
+        }
         activeRunId = expectedRunId
         displayedTurnRunId = nil
         submittingSessionId = nil
         assistantId = nil
         latestSnapshot = nil
         completedRunId = nil
-        isRunning = expectedRunId != nil
-        activity = expectedRunId == nil ? "" : "Thinking"
+        isRunning = id != Self.homeSessionId && expectedRunId != nil
+        activity = isRunning ? "Thinking" : ""
         isConnected = false
         do {
             try await connectConversation(client, sessionId: id)
@@ -232,6 +246,13 @@ struct ChatMessage: Identifiable {
         if event.type == "task_report", let report = event.report {
             taskReports.removeAll { $0.sessionId == report.sessionId }
             taskReports.insert(report, at: 0)
+            if selectedSessionId == Self.homeSessionId {
+                homeScrollPosition = report.sessionId
+            }
+            return
+        }
+        if event.type == "home_error" {
+            if selectedSessionId == Self.homeSessionId { homeError = event.message }
             return
         }
         if event.type == "session_activity" {
@@ -304,6 +325,14 @@ struct ChatMessage: Identifiable {
         latestSnapshot = snapshot
         sessions = snapshot.sessions
         taskReports = snapshot.taskReports
+        if selectedSessionId == Self.homeSessionId {
+            homeScrollPosition = taskReports.first?.sessionId
+            messages = []
+            activeRunId = nil
+            isRunning = false
+            activity = ""
+            return
+        }
         if messages.isEmpty, let transcript = snapshot.transcript, transcript.session.id == selectedSessionId {
             messages = transcript.messages.filter { $0.role == "user" || $0.role == "assistant" }.map {
                 ChatMessage(id: UUID(), role: $0.role == "user" ? .user : .assistant, text: $0.content)

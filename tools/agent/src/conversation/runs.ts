@@ -24,12 +24,14 @@ export class RunCoordinator {
 
   constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run">) {}
 
+  private activeFor(sessionId: string) {
+    return [...this.active.values()].find((run) => run.run.sessionId === sessionId && !run.terminal);
+  }
+
   start(turn: TurnRequest): RunInfo {
-    const requestedRun = turn.sessionId ? this.active.get(turn.sessionId) : null;
-    if (requestedRun) throw new RunBusyError(requestedRun.run);
     const prepared = this.runtime.prepareTurn(turn);
     const sessionId = prepared.session.id;
-    const busy = this.active.get(sessionId);
+    const busy = sessionId === HOME_SESSION_ID ? null : this.activeFor(sessionId);
     if (busy) throw new RunBusyError(busy.run);
     const info: RunInfo = { id: randomUUID(), sessionId, origin: turn.channel ?? "api" };
     const run: RunSnapshot & { controller: AbortController; terminal: boolean } = {
@@ -42,9 +44,11 @@ export class RunCoordinator {
       controller: new AbortController(),
       terminal: false,
     };
-    this.active.set(sessionId, run);
-    this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
-    if (!prepared.routing) this.publish(sessionId, info.id, run.turn);
+    this.active.set(info.id, run);
+    if (sessionId !== HOME_SESSION_ID) {
+      this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
+      if (!prepared.routing) this.publish(sessionId, info.id, run.turn);
+    }
     const execution = this.execute(run, turn, prepared);
     this.executing.add(execution);
     void execution.finally(() => this.executing.delete(execution));
@@ -52,7 +56,7 @@ export class RunCoordinator {
   }
 
   stop(runId: string): boolean {
-    const run = [...this.active.values()].find((active) => active.run.id === runId);
+    const run = this.active.get(runId);
     if (!run) return false;
     run.controller.abort();
     return true;
@@ -67,15 +71,15 @@ export class RunCoordinator {
   }
 
   activeSnapshots(sessionId?: string): RunSnapshot[] {
-    const runs = sessionId ? [this.active.get(sessionId)] : [...this.active.values()];
-    return runs.filter((run): run is RunSnapshot & { controller: AbortController; terminal: boolean } => Boolean(run && !run.terminal)).map((run) => {
+    const runs = [...this.active.values()].filter((run) => !run.terminal && run.run.sessionId !== HOME_SESSION_ID && (!sessionId || run.run.sessionId === sessionId));
+    return runs.map((run) => {
       const { run: info, turn, session, output, artifacts, navigation } = run;
       return { run: info, turn, session, output, artifacts: [...artifacts], navigation };
     });
   }
 
   activeInfos(): RunInfo[] {
-    return [...this.active.values()].filter((run) => !run.terminal).map((run) => run.run);
+    return [...this.active.values()].filter((run) => !run.terminal && run.run.sessionId !== HOME_SESSION_ID).map((run) => run.run);
   }
 
   async *events(signal: AbortSignal, onOverflow?: () => void, snapshot?: () => RuntimeSnapshot, sessionId?: string): AsyncGenerator<RunEnvelope> {
@@ -136,9 +140,10 @@ export class RunCoordinator {
         runId: run.run.id,
         prepared,
         canHandoff: (targetId) => {
-          const busy = this.active.get(targetId);
+          const busy = this.activeFor(targetId);
           if (busy && busy !== run) throw new RunBusyError(busy.run);
         },
+        isBusy: (targetId) => Boolean(this.activeFor(targetId)),
       })) {
         if (event.type === "task_launch") {
           this.start({ text: event.text, sessionId: event.session.id, channel: event.channel });
@@ -149,29 +154,39 @@ export class RunCoordinator {
           continue;
         }
         terminal ||= event.type === "done" || event.type === "error";
+        if (run.run.sessionId === HOME_SESSION_ID) {
+          if (event.type === "error") this.publish(HOME_SESSION_ID, run.run.id, { type: "home_error", message: event.message });
+          continue;
+        }
         if (event.type === "navigate") {
           const sourceId = run.run.sessionId;
           this.publish(sourceId, run.run.id, event);
-          this.active.delete(sourceId);
           run.run.sessionId = event.session.id;
-          this.active.set(event.session.id, run);
           this.publish(sourceId, run.run.id, { type: "session_activity", sessionId: sourceId, runId: null });
           this.publish(event.session.id, run.run.id, { type: "session_activity", sessionId: event.session.id, runId: run.run.id });
           continue;
         }
         this.publish(run.run.sessionId, run.run.id, event);
       }
-      if (!terminal) this.publish(run.run.sessionId, run.run.id, { type: "error", message: "Agent stopped before completing the response." });
+      if (!terminal) this.publish(run.run.sessionId, run.run.id,
+        run.run.sessionId === HOME_SESSION_ID
+          ? { type: "home_error", message: "Home stopped before dispatching the request." }
+          : { type: "error", message: "Agent stopped before completing the response." });
     } catch (error) {
-      this.publish(run.run.sessionId, run.run.id, { type: "error", message: error instanceof Error ? error.message : String(error) });
+      this.publish(run.run.sessionId, run.run.id, {
+        type: run.run.sessionId === HOME_SESSION_ID ? "home_error" : "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
-      if (this.active.get(run.run.sessionId)?.run.id === run.run.id) this.active.delete(run.run.sessionId);
-      this.publish(run.run.sessionId, run.run.id, { type: "session_activity", sessionId: run.run.sessionId, runId: null });
+      this.active.delete(run.run.id);
+      if (run.run.sessionId !== HOME_SESSION_ID) this.publish(run.run.sessionId, run.run.id, {
+        type: "session_activity", sessionId: run.run.sessionId, runId: null,
+      });
     }
   }
 
   private publish(sessionId: string, runId: string, event: RuntimeEvent): void {
-    const active = this.active.get(sessionId);
+    const active = this.active.get(runId);
     if (active?.run.id === runId) {
       if (event.type === "done" || event.type === "error") active.terminal = true;
       if (event.type === "turn") active.turn = event;

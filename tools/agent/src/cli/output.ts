@@ -128,6 +128,10 @@ export class CliOutput {
       this.status(`${event.report.title} · ${event.report.summary} ${event.report.url}`);
       return;
     }
+    if (event.type === "home_error") {
+      this.status(event.message);
+      return;
+    }
     if (event.type === "turn") {
       this.activeRunId = runId;
       this.activeOutput = "";

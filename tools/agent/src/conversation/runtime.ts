@@ -83,6 +83,7 @@ export class AgentRuntime {
     runId?: string;
     prepared?: ReturnType<AgentRuntime["prepareTurn"]>;
     canHandoff?: (sessionId: string) => void;
+    isBusy?: (sessionId: string) => boolean;
   } = {}): AsyncGenerator<RuntimeEvent> {
     let terminal: RuntimeEvent | null = null;
     let text = incoming.text.trim();
@@ -119,17 +120,20 @@ export class AgentRuntime {
       try {
         const actions = await this.home.compose(request, sessionTools, this.store.taskReports(), options.signal);
         for (const action of actions) {
-          if (action.type === "continue") options.canHandoff?.(action.sessionId);
+          const busyFollowup = action.type === "continue" && options.isBusy?.(action.sessionId);
+          if (action.type === "continue" && !busyFollowup) options.canHandoff?.(action.sessionId);
+          const previous = action.type === "continue" ? this.store.getSession(action.sessionId)! : null;
           const target = action.type === "start"
             ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
-            : this.store.getSession(action.sessionId)!;
+            : busyFollowup ? this.store.createSession({ title: titleFrom(action.text), ...(previous?.cwd ? { cwd: previous.cwd } : {}) }) : previous!;
+          const task = busyFollowup
+            ? `Earlier task: ${previous!.title}\nEarlier request: ${this.store.getMessages(previous!.id, 6).find((message) => message.role === "user")?.content ?? previous!.title}\nNew request: ${action.text}`
+            : action.text;
           const report = this.store.setTaskReport(target.id, "working", "Started.");
           yield { type: "task_report", report };
-          yield { type: "task_launch", session: target, text: action.text, channel: incoming.channel ?? "api" };
+          yield { type: "task_launch", session: target, text: task, channel: incoming.channel ?? "api" };
         }
-        const reply = `Started ${actions.length} ${actions.length === 1 ? "task" : "tasks"}.`;
-        this.store.finishRun(runId, "complete", reply);
-        yield { type: "text_delta", delta: reply };
+        this.store.finishRun(runId, "complete");
         yield { type: "done", sessionId: session.id };
       } catch (error) {
         const message = failureMessage(error, options.signal);

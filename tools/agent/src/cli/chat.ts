@@ -4,6 +4,7 @@ import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import { loadConfig } from "../local/config.js";
 import { RuntimeSupervisor } from "../client/supervisor.js";
 import { ansi, CliOutput } from "./output.js";
+import { HOME_SESSION_ID } from "../conversation/types.js";
 
 export async function runChat(options: { dev: boolean }): Promise<void> {
   const config = loadConfig();
@@ -139,6 +140,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
           status("Agent is already working. Ctrl-C stops the active response.");
           continue;
         }
+        if (output.sessionId === HOME_SESSION_ID) continue;
         output.submitted(run.id);
         await output.waitFor(run.id);
         if (fatalError) throw fatalError;
