@@ -132,7 +132,7 @@ export class CodexHomeBackend implements HomeBackend {
             return response(true, `Routed ${actions.length} task${actions.length === 1 ? "" : "s"}.`);
           }
           return response(false, "Unknown tool.");
-        }, signal, "medium");
+        }, signal, "low");
     });
     if (!actions) throw new Error("Home could not route this request. Try again.");
     return actions;
@@ -217,7 +217,7 @@ export class CodexHomeBackend implements HomeBackend {
     dynamicTools: object[],
     handle: (name: string, args: Record<string, unknown>) => ReturnType<typeof response>,
     signal?: AbortSignal,
-    effort: "none" | "medium" = "none",
+    effort: "none" | "low" = "none",
   ): Promise<void> {
     await ephemeralToolTurn({
       client: this.client,

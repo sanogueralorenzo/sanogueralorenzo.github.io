@@ -184,7 +184,7 @@ describe("Agent Home", () => {
     await runs.close();
   });
 
-  it("runs Home routing and summaries on Luna with focused routing effort", async () => {
+  it("runs routing on low effort and separate reporting on no reasoning", async () => {
     const homeDir = temporary("agent-home-model-");
     const store = new Store(homeDir);
     cleanup(() => store.close());
@@ -213,7 +213,7 @@ describe("Agent Home", () => {
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("report_task") },
     ]);
     expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
-    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["medium", "none"]);
+    expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["low", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
   });
 
