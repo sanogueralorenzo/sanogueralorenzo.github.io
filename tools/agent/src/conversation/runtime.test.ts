@@ -90,6 +90,13 @@ describe("AgentRuntime", () => {
     expect(macos.find((event) => event.type === "session")?.session.id).toBe(cliSession);
   });
 
+  it("does not replace an unknown requested session with a new one", () => {
+    const { runtime, store } = testRuntime();
+    expect(() => runtime.prepareTurn({ text: "continue", channel: "api", sessionId: "missing" }))
+      .toThrow("Conversation not found.");
+    expect(store.listSessions()).toEqual([]);
+  });
+
   it("continues the latest session regardless of inactivity", async () => {
     const { store, runtime } = testRuntime();
     const first = await collect(runtime, { text: "old topic", channel: "cli" });

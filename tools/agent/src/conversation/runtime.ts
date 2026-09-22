@@ -45,8 +45,9 @@ export class AgentRuntime {
   }
 
   prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean } {
-    if (incoming.sessionId && !this.store.getSession(incoming.sessionId)) throw new Error("Conversation not found.");
-    const selected = incoming.sessionId ? this.store.getSession(incoming.sessionId)! : this.openSession(incoming);
+    const requested = incoming.sessionId ? this.store.getSession(incoming.sessionId) : null;
+    if (incoming.sessionId && !requested) throw new Error("Conversation not found.");
+    const selected = requested ?? this.openSession(incoming);
     const session = incoming.cwd && !selected.cwd
       ? this.store.setSessionWorkspace(selected.id, resolve(incoming.cwd))
       : selected;

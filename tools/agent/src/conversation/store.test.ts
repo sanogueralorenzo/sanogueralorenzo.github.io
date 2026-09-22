@@ -125,6 +125,8 @@ describe("Store", () => {
     expect(older.messages.map((message) => message.content.slice(0, 9)))
       .toEqual(["Message 1", "Message 2", "Message 3"]);
     expect(older.nextBefore).toBeNull();
+    const empty = store.createSession({ title: "Empty conversation" });
+    expect(store.sessionCards().find((item) => item.id === empty.id)?.preview).toBe("");
     store.close();
   });
 });

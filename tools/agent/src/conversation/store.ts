@@ -144,16 +144,12 @@ export class Store {
   }
 
   sessionCards(limit = 50): SessionCard[] {
-    return this.listSessions(limit).map((session) => {
-      const latestUser = this.db.prepare("SELECT content FROM messages WHERE session_id = ? AND role = 'user' ORDER BY id DESC LIMIT 1")
-        .get(session.id) as { content: string } | undefined;
-      return {
-        id: session.id,
-        title: session.title,
-        updatedAt: session.updatedAt,
-        preview: (latestUser?.content ?? "").replace(/\s+/g, " ").slice(0, 200),
-      };
-    });
+    const cards = this.db.prepare(`
+      SELECT id, title, updated_at AS "updatedAt",
+        COALESCE((SELECT content FROM messages WHERE session_id = sessions.id AND role = 'user' ORDER BY id DESC LIMIT 1), '') AS preview
+      FROM sessions ORDER BY updated_at DESC LIMIT ?
+    `).all(limit) as unknown as SessionCard[];
+    return cards.map((card) => ({ ...card, preview: card.preview.replace(/\s+/g, " ").slice(0, 200) }));
   }
 
   readConversation(id: string, before?: number) {
