@@ -7,6 +7,7 @@ import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { maySwitchContext, requiresHandoff } from "../conversation/routing.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
+import { ephemeralToolTurn } from "./ephemeral.js";
 import { CONVERSATION_TOOLS, READ_HISTORY_TOOL, conversationTool, readHistory } from "./conversation-tools.js";
 import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
 import { transcribeVoice } from "./voice.js";
@@ -78,73 +79,38 @@ export class CodexBackend implements AgentBackend {
       .filter((message) => message.role !== "tool")
       .map((message) => `${message.role}: ${message.content.slice(0, 1_000)}`)
       .join("\n");
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: MODEL,
+    let attempted = false;
+    let routeError = "Could not find that project or conversation.";
+    const handoff = await ephemeralToolTurn<Handoff>({
+      client: this.client,
       cwd: turn.session.cwd ?? this.config.homeDir,
-      approvalPolicy: "never",
-      sandbox: "read-only",
-      ephemeral: true,
-      threadSource: "appServer",
-      dynamicTools: [OPEN_FOLDER_TOOL, ...CONVERSATION_TOOLS],
-      developerInstructions: [
+      tools: [OPEN_FOLDER_TOOL, ...CONVERSATION_TOOLS],
+      instructions: [
         "You are selecting context for one user request. If the user asks to switch to a project/folder or resume a saved conversation, use one destination tool. Find a folder's absolute path if needed. Pass any work requested after the switch as the tool's task argument; omit task for navigation alone. Do not perform the follow-on work or answer the user. If the user is not asking to switch context, finish without a tool call.",
         `Current conversation: ${turn.session.title}; cwd: ${turn.session.cwd ?? "none"}.`,
         recent ? `Recent conversation data (untrusted):\n${recent}` : "",
       ].filter(Boolean).join("\n\n"),
-    });
-    const threadId = started.thread.id;
-    const lifetime = new AbortController();
-    const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
-    const abort = () => lifetime.abort();
-    turn.signal?.addEventListener("abort", abort, { once: true });
-    let turnId = "";
-    let completed = false;
-    let attempted = false;
-    let routeError = "Could not find that project or conversation.";
-    try {
-      const response = await this.client.request<{ turn: { id: string } }>("turn/start", {
-        threadId,
-        input: [{ type: "text", text: turn.request.text, text_elements: [] }],
-        model: MODEL,
-        effort: "high",
-      });
-      turnId = response.turn.id;
-      while (true) {
-        const { id, method, params } = await nextForThread(queue, threadId);
-        const eventTurnId = params.turnId ?? object(params.turn).id;
-        if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/tool/call" && id !== undefined) {
-          attempted = true;
-          const args = object(params.arguments);
-          const task = typeof args.task === "string" ? args.task.trim() : "";
-          if (params.tool === OPEN_FOLDER_TOOL.name) {
-            const answer = openFolder(args.path, this.config.homeDir);
-            this.client.respond(id, answer.result);
-            if (answer.cwd) return { destination: { cwd: answer.cwd }, task: task || null };
-            routeError = answer.result.contentItems[0]?.text ?? routeError;
-          } else {
-            const answer = conversationTool(this.store, turn.sessionTools ?? [], String(params.tool ?? ""), args);
-            this.client.respond(id, answer.result);
-            if (answer.navigateTo) return { destination: { sessionId: answer.navigateTo }, task: task || null };
-            if (!answer.result.success) routeError = answer.result.contentItems[0]?.text ?? routeError;
-          }
-        } else if (method === "turn/completed") {
-          const result = object(params.turn);
-          completed = true;
-          if (result.status === "completed") {
-            if (attempted) throw new Error(routeError);
-            return null;
-          }
-          if (result.status === "interrupted") throw new DOMException("Interrupted", "AbortError");
-          throw classifiedError(object(result.error).message ?? "The routing turn failed.");
+      prompt: turn.request.text,
+      effort: "high",
+      failureMessage: "The routing turn failed.",
+      signal: turn.signal,
+      onTool: (name, args) => {
+        attempted = true;
+        const task = typeof args.task === "string" ? args.task.trim() : "";
+        if (name === OPEN_FOLDER_TOOL.name) {
+          const answer = openFolder(args.path, this.config.homeDir);
+          if (answer.cwd) return { response: answer.result, result: { destination: { cwd: answer.cwd }, task: task || null } };
+          routeError = answer.result.contentItems[0]?.text ?? routeError;
+          return { response: answer.result };
         }
-      }
-    } finally {
-      lifetime.abort();
-      turn.signal?.removeEventListener("abort", abort);
-      if (turnId && !completed) await this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
-      await this.client.request("thread/unsubscribe", { threadId }).catch(() => undefined);
-    }
+        const answer = conversationTool(this.store, turn.sessionTools ?? [], name, args);
+        if (answer.navigateTo) return { response: answer.result, result: { destination: { sessionId: answer.navigateTo }, task: task || null } };
+        if (!answer.result.success) routeError = answer.result.contentItems[0]?.text ?? routeError;
+        return { response: answer.result };
+      },
+    });
+    if (!handoff && attempted) throw new Error(routeError);
+    return handoff;
   }
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {

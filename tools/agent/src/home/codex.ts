@@ -1,10 +1,9 @@
-import { on } from "node:events";
 import { HOME_SESSION_ID, type HomeEntry, type RuntimeConfig, type SessionCard, type TurnRequest } from "../conversation/types.js";
 import type { Store } from "../conversation/store.js";
-import { MODEL } from "../local/config.js";
 import { CodexAppServer, CodexDisconnectedError } from "../codex/app-server.js";
 import { READ_CONVERSATION_TOOL } from "../codex/conversation-tools.js";
-import { classifiedError, nextForThread, object, type Notifications } from "../codex/notifications.js";
+import { ephemeralToolTurn } from "../codex/ephemeral.js";
+import { classifiedError } from "../codex/notifications.js";
 import { openFolder } from "../codex/workspace-tool.js";
 import type { HomeAction, HomeBackend } from "./backend.js";
 
@@ -207,52 +206,16 @@ export class CodexHomeBackend implements HomeBackend {
     handle: (name: string, args: Record<string, unknown>) => ReturnType<typeof response>,
     signal?: AbortSignal,
   ): Promise<void> {
-    if (signal?.aborted) throw new DOMException("Interrupted", "AbortError");
-    const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
-      model: MODEL,
+    await ephemeralToolTurn({
+      client: this.client,
       cwd: this.config.homeDir,
-      approvalPolicy: "never",
-      sandbox: "read-only",
-      ephemeral: true,
-      threadSource: "appServer",
-      dynamicTools,
-      developerInstructions: instructions,
+      instructions,
+      prompt,
+      tools: dynamicTools,
+      effort: "none",
+      failureMessage: "The Home turn failed.",
+      signal,
+      onTool: (name, args) => ({ response: handle(name, args) }),
     });
-    const threadId = started.thread.id;
-    const lifetime = new AbortController();
-    const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
-    const abort = () => lifetime.abort();
-    signal?.addEventListener("abort", abort, { once: true });
-    if (signal?.aborted) abort();
-    let turnId = "";
-    let completed = false;
-    try {
-      const turn = await this.client.request<{ turn: { id: string } }>("turn/start", {
-        threadId,
-        input: [{ type: "text", text: prompt, text_elements: [] }],
-        model: MODEL,
-        effort: "none",
-      });
-      turnId = turn.turn.id;
-      while (true) {
-        const { id, method, params } = await nextForThread(queue, threadId);
-        const eventTurnId = params.turnId ?? object(params.turn).id;
-        if (eventTurnId && eventTurnId !== turnId) continue;
-        if (method === "item/tool/call" && id !== undefined) {
-          this.client.respond(id, handle(String(params.tool ?? ""), object(params.arguments)));
-        } else if (method === "turn/completed") {
-          completed = true;
-          const result = object(params.turn);
-          if (result.status === "completed") return;
-          if (result.status === "interrupted") throw new DOMException("Interrupted", "AbortError");
-          throw classifiedError(object(result.error).message ?? "The Home turn failed.");
-        }
-      }
-    } finally {
-      lifetime.abort();
-      signal?.removeEventListener("abort", abort);
-      if (turnId && !completed) await this.client.request("turn/interrupt", { threadId, turnId }).catch(() => undefined);
-      await this.client.request("thread/unsubscribe", { threadId }).catch(() => undefined);
-    }
   }
 }
