@@ -45,6 +45,16 @@ export class RuntimeClient {
     return response.json() as Promise<T>;
   }
 
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    const response = await this.fetch(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
+    return response.json() as Promise<T>;
+  }
+
   async healthy(): Promise<boolean> {
     try {
       return (await this.fetch("/v1/health", { signal: AbortSignal.timeout(800) })).ok;
@@ -136,13 +146,7 @@ export class RuntimeClient {
   }
 
   async stop(runId: string): Promise<boolean> {
-    const response = await this.fetch("/v1/runs/stop", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ runId }),
-    });
-    if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
-    return (await response.json() as { stopped: boolean }).stopped;
+    return (await this.post<{ stopped: boolean }>("/v1/runs/stop", { runId })).stopped;
   }
 
   sessions(): Promise<{ sessions: SessionStatus[] }> {
@@ -150,26 +154,14 @@ export class RuntimeClient {
   }
 
   async openSession(options: { fresh?: boolean; cwd?: string; preferredSessionId?: string } = {}): Promise<Session> {
-    const response = await this.fetch(options.fresh ? "/v1/sessions" : "/v1/sessions/auto", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...(options.cwd ? { cwd: options.cwd } : {}),
-        ...(!options.fresh && options.preferredSessionId ? { preferredSessionId: options.preferredSessionId } : {}),
-      }),
-    });
-    if (!response.ok) throw new Error(await response.text());
-    return (await response.json() as { session: Session }).session;
+    return (await this.post<{ session: Session }>(options.fresh ? "/v1/sessions" : "/v1/sessions/auto", {
+      ...(options.cwd ? { cwd: options.cwd } : {}),
+      ...(!options.fresh && options.preferredSessionId ? { preferredSessionId: options.preferredSessionId } : {}),
+    })).session;
   }
 
   async telegramSession(ownerId: string, fresh = false): Promise<Session> {
-    const response = await this.fetch("/v1/telegram/session", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ownerId, fresh }),
-    });
-    if (!response.ok) throw new Error(await response.text());
-    return (await response.json() as { session: Session }).session;
+    return (await this.post<{ session: Session }>("/v1/telegram/session", { ownerId, fresh })).session;
   }
 
   async transcript(sessionId: string): Promise<{ session: Session; messages: Message[] }> {

@@ -96,6 +96,31 @@ describe("RuntimeClient run protocol", () => {
     expect(requests).toEqual(["POST /v1/runs", "POST /v1/runs", "POST /v1/runs/stop"]);
   });
 
+  it("opens CLI and Telegram sessions through the same JSON transport", async () => {
+    const requests: { path: string; body: unknown; authorization: string | undefined }[] = [];
+    const session = { id: "s1", cwd: null, title: "Test", updatedAt: "now" };
+    const client = await fixture(async (request, response) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      requests.push({
+        path: request.url ?? "",
+        body: JSON.parse(Buffer.concat(chunks).toString()) as unknown,
+        authorization: request.headers.authorization,
+      });
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ session }));
+    });
+
+    await expect(client.openSession({ cwd: "/project", preferredSessionId: "saved" })).resolves.toEqual(session);
+    await expect(client.openSession({ fresh: true })).resolves.toEqual(session);
+    await expect(client.telegramSession("owner", true)).resolves.toEqual(session);
+    expect(requests).toEqual([
+      { path: "/v1/sessions/auto", body: { cwd: "/project", preferredSessionId: "saved" }, authorization: "Bearer test-token" },
+      { path: "/v1/sessions", body: {}, authorization: "Bearer test-token" },
+      { path: "/v1/telegram/session", body: { ownerId: "owner", fresh: true }, authorization: "Bearer test-token" },
+    ]);
+  });
+
   it("closing a subscription only closes its HTTP stream", async () => {
     let closed!: () => void;
     const connectionClosed = new Promise<void>((resolve) => { closed = resolve; });
