@@ -22,6 +22,8 @@ struct ChatMessage: Identifiable {
 
     var state: State = .conversation
     var messages: [ChatMessage] = []
+    var sessions: [RuntimeSession] = []
+    var selectedSessionId: String?
     var input = ""
     var activity = ""
     var isRunning = false
@@ -35,13 +37,12 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private let launcher = RuntimeLauncher()
     @ObservationIgnored private var client: RuntimeClient?
     @ObservationIgnored private var observer: Task<Void, Never>?
-    @ObservationIgnored private var sessionId: String?
     @ObservationIgnored private var activeRunId: String?
     @ObservationIgnored private var assistantId: UUID?
-    @ObservationIgnored private var fresh = false
-    @ObservationIgnored private var submitting = false
+    @ObservationIgnored private var submittingSessionId: String?
     @ObservationIgnored private var completedRunId: String?
     @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
+    @ObservationIgnored private var automaticSession = true
 
     func start() async {
         observer?.cancel()
@@ -54,7 +55,11 @@ struct ChatMessage: Identifiable {
             setupStatus = try await client.setupStatus()
             if setupStatus?.configured == true {
                 state = .conversation
-                try await connectConversation(client)
+                let id: String
+                if !automaticSession, let selectedSessionId { id = selectedSessionId }
+                else { id = try await client.openSession(preferredSessionId: selectedSessionId).id }
+                selectedSessionId = id
+                try await connectConversation(client, sessionId: id)
             } else {
                 state = .needsSetup
             }
@@ -86,59 +91,103 @@ struct ChatMessage: Identifiable {
 
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client, isConnected, !isRunning, !submitting else { return }
+        guard !text.isEmpty, let client, let selected = selectedSessionId,
+              isConnected, !isRunning, submittingSessionId != selected else { return }
         input = ""
         if text == "/new" {
-            newConversation()
+            await newConversation()
             return
         }
-        submitting = true
-        completedRunId = nil
-        defer { submitting = false }
+        var sessionId = selected
         do {
-            guard let run = try await client.submit(text: text, sessionId: sessionId, fresh: fresh) else {
+            if automaticSession {
+                let resumed = try await client.openSession(preferredSessionId: sessionId)
+                guard selectedSessionId == sessionId else { return }
+                if resumed.id != sessionId {
+                    await selectSession(resumed.id, automatic: true)
+                    sessionId = resumed.id
+                }
+            }
+            guard selectedSessionId == sessionId, isConnected else { return }
+            submittingSessionId = sessionId
+            completedRunId = nil
+            defer { if submittingSessionId == sessionId { submittingSessionId = nil } }
+            guard let run = try await client.submit(text: text, sessionId: sessionId) else {
+                guard selectedSessionId == sessionId else { return }
                 activity = "Agent is already working"
                 return
             }
+            guard selectedSessionId == sessionId else { return }
             if completedRunId == run.id {
                 completedRunId = nil
                 return
             }
-            if latestSnapshot?.lastRun?.id == run.id && latestSnapshot?.activeRun == nil { return }
+            if latestSnapshot?.lastRuns.contains(where: { $0.id == run.id }) == true && latestSnapshot?.activeRuns.isEmpty == true { return }
             completedRunId = nil
             activeRunId = run.id
             isRunning = true
             activity = "Thinking"
         } catch {
-            messages.append(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
+            if selectedSessionId == sessionId {
+                messages.append(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
+            }
         }
     }
 
     func stop() async {
-        _ = try? await client?.stop()
+        if let activeRunId { _ = try? await client?.stop(runId: activeRunId) }
     }
 
-    func newConversation() {
-        guard !isRunning else { return }
-        sessionId = nil
-        fresh = true
+    func newConversation() async {
+        guard let client else { return }
+        do {
+            let session = try await client.openSession(fresh: true)
+            await selectSession(session.id, automatic: true)
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
+
+    func selectSession(_ id: String, automatic: Bool = false) async {
+        guard let client, id != selectedSessionId else { return }
+        observer?.cancel()
+        automaticSession = automatic
+        selectedSessionId = id
         messages = []
+        activeRunId = nil
+        submittingSessionId = nil
+        assistantId = nil
+        latestSnapshot = nil
+        completedRunId = nil
+        isRunning = false
+        activity = ""
+        isConnected = false
+        do {
+            try await connectConversation(client, sessionId: id)
+        } catch {
+            connectionError = error.localizedDescription
+        }
     }
 
-    private func connectConversation(_ client: RuntimeClient) async throws {
-        observe(try await client.events())
+    private func connectConversation(_ client: RuntimeClient, sessionId: String) async throws {
+        let events = try await client.events(sessionId: sessionId)
+        guard selectedSessionId == sessionId else { return }
+        observe(events, sessionId: sessionId)
         isConnected = true
         connectionError = nil
         activity = ""
     }
 
-    private func observe(_ initialEvents: EventStream) {
+    private func observe(_ initialEvents: EventStream, sessionId: String) {
         observer?.cancel()
         observer = Task {
             var events = initialEvents
             while !Task.isCancelled {
                 do {
-                    for try await envelope in events { apply(envelope) }
+                    for try await envelope in events {
+                        if Task.isCancelled || selectedSessionId != sessionId { return }
+                        apply(envelope)
+                    }
                     if Task.isCancelled { return }
                     throw RuntimeClientError.disconnected
                 } catch {
@@ -148,7 +197,7 @@ struct ChatMessage: Identifiable {
                     do {
                         let reconnected = try await launcher.ensureRunning()
                         self.client = reconnected
-                        events = try await reconnected.events()
+                        events = try await reconnected.events(sessionId: sessionId)
                         isConnected = true
                         connectionError = nil
                         activity = ""
@@ -165,6 +214,11 @@ struct ChatMessage: Identifiable {
 
     private func apply(_ envelope: RunEnvelope) {
         let event = envelope.event
+        if event.type == "session_activity" {
+            Task { await refreshSessions() }
+            return
+        }
+        guard envelope.sessionId == selectedSessionId else { return }
         switch event.type {
         case "snapshot":
             if let snapshot = event.snapshot { loadSnapshot(snapshot, scrollToEnd: messages.isEmpty) }
@@ -182,25 +236,11 @@ struct ChatMessage: Identifiable {
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
             scrollRequest += 1
         case "session":
-            if let previous = sessionId, let next = event.session?.id, previous != next, activeRunId == envelope.runId {
-                messages = Array(messages.suffix(2))
-            }
-            sessionId = event.session?.id
-            fresh = false
+            Task { await refreshSessions() }
         case "navigate":
             guard let destination = event.session else { break }
-            sessionId = destination.id
-            fresh = false
             activity = "Opening conversation"
-            Task {
-                do {
-                    if let transcript = try await client?.transcript(sessionId: destination.id) {
-                        loadTranscript(transcript, scrollToEnd: true)
-                    }
-                } catch {
-                    connectionError = error.localizedDescription
-                }
-            }
+            Task { await selectSession(destination.id) }
         case "text_delta":
             if let id = assistantId { edit(id) { $0.text += event.delta ?? "" } }
         case "artifact":
@@ -221,7 +261,7 @@ struct ChatMessage: Identifiable {
 
     private func finish(_ runId: String) {
         guard activeRunId == runId else { return }
-        if submitting { completedRunId = runId }
+        if submittingSessionId == selectedSessionId { completedRunId = runId }
         activeRunId = nil
         assistantId = nil
         isRunning = false
@@ -231,14 +271,12 @@ struct ChatMessage: Identifiable {
 
     private func loadSnapshot(_ snapshot: RuntimeSnapshot, scrollToEnd: Bool = false) {
         latestSnapshot = snapshot
+        sessions = snapshot.sessions
         let previousRunId = activeRunId
         loadTranscript(snapshot.transcript, scrollToEnd: scrollToEnd)
-        if let active = snapshot.activeRun {
+        if let active = snapshot.activeRuns.first(where: { $0.run.sessionId == selectedSessionId }) {
             if let navigation = active.navigation {
-                sessionId = navigation.session.id
-                activeRunId = active.run.id
-                isRunning = true
-                activity = "Opening conversation"
+                Task { await selectSession(navigation.session.id) }
                 return
             }
             let text = active.turn.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -254,8 +292,7 @@ struct ChatMessage: Identifiable {
             activeRunId = active.run.id
             isRunning = true
             activity = "Thinking"
-            if let session = active.session { sessionId = session.id }
-        } else if let previousRunId, snapshot.lastRun?.id == previousRunId, submitting {
+        } else if let previousRunId, snapshot.lastRuns.contains(where: { $0.id == previousRunId }), submittingSessionId == selectedSessionId {
             completedRunId = previousRunId
         }
     }
@@ -263,11 +300,10 @@ struct ChatMessage: Identifiable {
     private func loadTranscript(_ transcript: Transcript?, scrollToEnd: Bool = false) {
         if let transcript {
             let visible = transcript.messages.filter { $0.role == "user" || $0.role == "assistant" }
-            let unchanged = sessionId == transcript.session.id && messages.count == visible.count &&
+            let unchanged = selectedSessionId == transcript.session.id && messages.count == visible.count &&
                 zip(messages, visible).allSatisfy { current, saved in
                     current.role == (saved.role == "user" ? .user : .assistant) && current.text == saved.content
                 }
-            sessionId = transcript.session.id
             if !unchanged {
                 messages = visible.map { message in
                     ChatMessage(id: UUID(), role: message.role == "user" ? .user : .assistant, text: message.content)
@@ -275,12 +311,15 @@ struct ChatMessage: Identifiable {
             }
             if scrollToEnd { scrollRequest += 1 }
         } else {
-            sessionId = nil
             messages = []
         }
         activeRunId = nil
         assistantId = nil
         isRunning = false
+    }
+
+    private func refreshSessions() async {
+        if let updated = try? await client?.sessions() { sessions = updated }
     }
 
     private func configure(_ message: String = "", action: (RuntimeClient) async throws -> Void) async {

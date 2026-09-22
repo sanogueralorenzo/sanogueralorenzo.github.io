@@ -74,7 +74,8 @@ describe("AgentRuntime", () => {
 
   it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
     const { homeDir, backend, runtime } = testRuntime();
-    await collect(runtime, { text: "Fix the failing test", cwd: homeDir, channel: "cli", fresh: true });
+    const session = runtime.openSession({ fresh: true, cwd: homeDir });
+    await collect(runtime, { text: "Fix the failing test", sessionId: session.id, cwd: homeDir, channel: "cli" });
     expect(backend.turns[0]?.instructions).toBe("Act on clear requests and persist until complete. Treat new messages as steering unless they clearly cancel or replace the task. Reuse existing authorization and complete reversible preparation before asking. Ask only when a material choice or unapproved irreversible or external action blocks progress.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
@@ -96,7 +97,7 @@ describe("AgentRuntime", () => {
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
       .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), firstSession);
 
-    const next = await collect(runtime, { text: "new topic", channel: "telegram", sessionId: firstSession });
+    const next = await collect(runtime, { text: "new topic", channel: "telegram" });
     const nextSession = next.find((event) => event.type === "session")?.session.id;
 
     expect(nextSession).not.toBe(firstSession);
@@ -104,11 +105,22 @@ describe("AgentRuntime", () => {
     expect(nextSession && store.getMessages(nextSession).map((message) => message.content)).toEqual(["new topic", "Done."]);
   });
 
+  it("keeps a client's recent selection but rolls it over after eight idle hours", () => {
+    const { store, runtime } = testRuntime();
+    const first = runtime.openSession({ fresh: true });
+    runtime.openSession({ fresh: true });
+    expect(runtime.openSession({ preferredSessionId: first.id }).id).toBe(first.id);
+    store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
+      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), first.id);
+    expect(runtime.openSession({ preferredSessionId: first.id }).id).not.toBe(first.id);
+  });
+
   it("starts a separate session when the user requests a new conversation", async () => {
     const { runtime } = testRuntime();
     const first = await collect(runtime, { text: "first", channel: "cli" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
-    const next = await collect(runtime, { text: "second", channel: "macos", fresh: true });
+    const fresh = runtime.openSession({ fresh: true });
+    const next = await collect(runtime, { text: "second", sessionId: fresh.id, channel: "macos" });
     expect(next.find((event) => event.type === "session")?.session.id).not.toBe(firstSession);
   });
 
@@ -118,7 +130,8 @@ describe("AgentRuntime", () => {
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     backend.navigateTo = firstSession ?? null;
 
-    const lookup = await collect(runtime, { text: "take me back to the bot restart work", channel: "macos", fresh: true });
+    const fresh = runtime.openSession({ fresh: true });
+    const lookup = await collect(runtime, { text: "take me back to the bot restart work", sessionId: fresh.id, channel: "macos" });
 
     expect(backend.turns.at(-1)?.sessionTools?.[0]?.id).toBe(firstSession);
     expect(backend.discarded).toHaveLength(1);

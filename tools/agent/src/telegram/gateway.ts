@@ -23,7 +23,22 @@ async function runGateway(token: string): Promise<void> {
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
   const turns = new TelegramTurns(client);
+  let stopTyping: () => void = () => undefined;
+  let typing = false;
+  const syncTyping = () => {
+    const owner = ownerId();
+    if (owner && turns.hasActiveRun()) {
+      if (!typing) {
+        stopTyping = keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing"));
+        typing = true;
+      }
+    } else if (typing) {
+      stopTyping();
+      typing = false;
+    }
+  };
   const stop = (): Promise<void> => stopping ??= (async () => {
+    stopTyping();
     deliveryController.abort();
     markDeliveryReady();
     supervisor.stop();
@@ -42,7 +57,6 @@ async function runGateway(token: string): Promise<void> {
   };
 
   const observe = async (): Promise<void> => {
-    let stopTyping: () => void = () => undefined;
     while (!deliveryController.signal.aborted) {
       try {
         const events = await client.events(deliveryController.signal);
@@ -51,27 +65,20 @@ async function runGateway(token: string): Promise<void> {
             deliveryStarted = true;
             markDeliveryReady();
             stopTyping();
-            const result = turns.reconcile(envelope.event.snapshot);
-            const owner = ownerId();
-            stopTyping = owner && envelope.event.snapshot.activeRun
-              ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing"))
-              : () => undefined;
-            if (result) await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
+            typing = false;
+            const recovered = await turns.reconcile(envelope.event.snapshot);
+            syncTyping();
+            for (const result of recovered) await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
             continue;
           }
-          if (envelope.event.type === "turn") {
-            const owner = ownerId();
-            stopTyping = owner ? keepTelegramTyping(() => bot.api.sendChatAction(owner, "typing")) : () => undefined;
-          }
           const result = turns.consume(envelope);
+          syncTyping();
           if (result) {
-            stopTyping();
-            stopTyping = () => undefined;
             await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
           }
         }
       } catch (error) {
-        if (deliveryController.signal.aborted) return;
+        if (deliveryController.signal.aborted) { stopTyping(); return; }
         if (error instanceof RuntimeProtocolError) {
           stopTyping();
           deliveryController.abort();
@@ -83,10 +90,11 @@ async function runGateway(token: string): Promise<void> {
           return;
         }
         stopTyping();
-        stopTyping = () => undefined;
+        typing = false;
         await client.waitUntilHealthy().catch(() => undefined);
       }
     }
+    stopTyping();
   };
 
   bot.command("start", async (ctx) => {
@@ -106,6 +114,7 @@ async function runGateway(token: string): Promise<void> {
   bot.command("new", async (ctx) => {
     if (!isOwner(ctx)) return;
     turns.newConversation();
+    syncTyping();
     await ctx.reply("New conversation ready.");
   });
   bot.command("status", async (ctx) => {
@@ -125,7 +134,7 @@ async function runGateway(token: string): Promise<void> {
       const submission = await turns.submit(prepare);
       if (!submission.accepted) {
         await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
-      } else if (submission.recovered) await deliver(submission.recovered);
+      } else for (const result of submission.recovered) await deliver(result);
     } catch (error) {
       await ctx.reply(telegramFailure(error));
     }

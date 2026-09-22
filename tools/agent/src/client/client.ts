@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_PROTOCOL_VERSION, type RunEnvelope, type RunInfo, type Session, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type Message, type RunEnvelope, type RunInfo, type Session, type SessionStatus, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RunEnvelope {
   try {
     const event = JSON.parse(data) as RunEnvelope;
-    if (!event || typeof event.runId !== "string" || typeof event.event?.type !== "string") throw new Error();
+    if (!event || typeof event.sessionId !== "string" || typeof event.runId !== "string" || typeof event.event?.type !== "string") throw new Error();
     if (event.event.type === "snapshot" && (!event.event.snapshot || typeof event.event.snapshot !== "object")) throw new Error();
     return event;
   } catch {
@@ -62,13 +62,13 @@ export class RuntimeClient {
     throw new Error("Agent runtime did not become ready.");
   }
 
-  async events(signal?: AbortSignal): Promise<AsyncGenerator<RunEnvelope>> {
+  async events(signal?: AbortSignal, sessionId?: string): Promise<AsyncGenerator<RunEnvelope>> {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener("abort", abort, { once: true });
     let response: Response;
     try {
-      response = await this.fetch("/v1/events", { signal: controller.signal });
+      response = await this.fetch(`/v1/events${sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ""}`, { signal: controller.signal });
       if (!response.ok || !response.body) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
       if (response.headers.get("x-agent-stream") !== "snapshot") throw new RuntimeProtocolError();
     } catch (error) {
@@ -94,7 +94,7 @@ export class RuntimeClient {
             const data = block.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trimStart()).join("\n");
             if (data) {
               const event = decodeEvent(data);
-              if (first && event.event.type !== "snapshot") throw new RuntimeProtocolError();
+              if (first && event.event.type !== "snapshot" && event.event.type !== "navigate") throw new RuntimeProtocolError();
               first = false;
               yield event;
             }
@@ -135,14 +135,35 @@ export class RuntimeClient {
     return response.json() as Promise<{ id: string }>;
   }
 
-  async stop(): Promise<boolean> {
-    const response = await this.fetch("/v1/runs/stop", { method: "POST" });
+  async stop(runId: string): Promise<boolean> {
+    const response = await this.fetch("/v1/runs/stop", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ runId }),
+    });
     if (!response.ok) throw new Error(await response.text() || `Runtime returned ${response.status}.`);
     return (await response.json() as { stopped: boolean }).stopped;
   }
 
-  sessions(): Promise<{ sessions: Session[] }> {
+  sessions(): Promise<{ sessions: SessionStatus[] }> {
     return this.json("/v1/sessions");
+  }
+
+  async openSession(options: { fresh?: boolean; cwd?: string; preferredSessionId?: string } = {}): Promise<Session> {
+    const response = await this.fetch(options.fresh ? "/v1/sessions" : "/v1/sessions/auto", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...(options.cwd ? { cwd: options.cwd } : {}),
+        ...(!options.fresh && options.preferredSessionId ? { preferredSessionId: options.preferredSessionId } : {}),
+      }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json() as { session: Session }).session;
+  }
+
+  async transcript(sessionId: string): Promise<{ session: Session; messages: Message[] }> {
+    return this.json(`/v1/sessions/${encodeURIComponent(sessionId)}/messages`);
   }
 
   setupStatus(): Promise<SetupStatus> {

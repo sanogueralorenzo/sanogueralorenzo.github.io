@@ -4,7 +4,7 @@ import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
 import { containsSecret, redactSecrets } from "../workspace/security.js";
 import type { Store } from "./store.js";
-import type { RuntimeEvent, TurnRequest } from "./types.js";
+import type { RuntimeEvent, Session, SessionCard, TurnRequest } from "./types.js";
 
 function titleFrom(text: string): string {
   const firstLine = text.trim().split("\n", 1)[0] ?? "New conversation";
@@ -34,20 +34,42 @@ export class AgentRuntime {
     private readonly backend: AgentBackend,
   ) {}
 
-  async *run(incoming: TurnRequest, options: { signal?: AbortSignal; runId?: string } = {}): AsyncGenerator<RuntimeEvent> {
+  openSession(options: { cwd?: string; preferredSessionId?: string; fresh?: boolean } = {}): Session {
+    const cwd = options.cwd ? resolve(options.cwd) : undefined;
+    const preferred = options.preferredSessionId
+      ? this.store.getSession(options.preferredSessionId) ?? this.store.redirectedSession(options.preferredSessionId)
+      : null;
+    const latest = options.preferredSessionId ? null : this.store.latestSession(cwd);
+    const selected = options.fresh ? null
+      : preferred && isRecent(preferred.updatedAt) ? preferred
+      : latest && isRecent(latest.updatedAt) ? latest : null;
+    return selected ?? this.store.resolveSession({
+      scopeKey: `assistant:local:${randomUUID()}`,
+      ...(cwd ? { cwd } : {}),
+      title: "New conversation",
+    });
+  }
+
+  prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean } {
+    if (incoming.sessionId && !this.store.getSession(incoming.sessionId)) throw new Error("Conversation not found.");
+    const selected = incoming.sessionId ? this.store.getSession(incoming.sessionId)! : this.openSession(incoming);
+    const session = incoming.cwd && !selected.cwd
+      ? this.store.resolveSession({ sessionId: selected.id, scopeKey: selected.scopeKey, cwd: resolve(incoming.cwd) })
+      : selected;
+    const empty = this.store.getMessages(session.id, 1).length === 0;
+    return { session, empty, sessionTools: empty ? this.store.sessionCards().filter((card) => card.id !== session.id) : [] };
+  }
+
+  async *run(incoming: TurnRequest, options: {
+    signal?: AbortSignal;
+    runId?: string;
+    prepared?: ReturnType<AgentRuntime["prepareTurn"]>;
+  } = {}): AsyncGenerator<RuntimeEvent> {
     let terminal: RuntimeEvent | null = null;
     let text = incoming.text.trim();
-    const latestSession = this.store.latestSession();
-    const priorSession = !incoming.fresh && latestSession && isRecent(latestSession.updatedAt) ? latestSession : null;
-    const sessionTools = priorSession ? [] : this.store.sessionCards();
-    const baseScopeKey = "assistant:local";
-    const scopeKey = priorSession ? baseScopeKey : `${baseScopeKey}:${randomUUID()}`;
-    let session = this.store.resolveSession({
-      ...(priorSession ? { sessionId: priorSession.id } : {}),
-      scopeKey,
-      ...(incoming.cwd ? { cwd: resolve(incoming.cwd) } : {}),
-      title: titleFrom(text || "Voice message"),
-    });
+    const prepared = options.prepared ?? this.prepareTurn(incoming);
+    const sessionTools = prepared.sessionTools;
+    let session = prepared.session;
     const runId = this.store.startRun(session.id, options.runId);
     try {
       for (const attachment of incoming.attachments ?? []) {
@@ -69,7 +91,7 @@ export class AgentRuntime {
       return;
     }
     const request: TurnRequest = { ...incoming, text };
-    if (!incoming.text.trim() && !priorSession) session = this.store.renameSession(session.id, titleFrom(text));
+    if (prepared.empty && session.title === "New conversation") session = this.store.renameSession(session.id, titleFrom(text));
     yield { type: "session", session };
 
     this.store.addMessage(session.id, "user", redactSecrets(request.text));
@@ -118,7 +140,7 @@ export class AgentRuntime {
         const target = this.store.getSession(navigationTarget);
         if (!target) throw new Error("That conversation is no longer available.");
         await this.backend.discardSession(session.id);
-        this.store.deleteSession(session.id);
+        this.store.redirectSession(session.id, target.id);
         const active = this.store.activateSession(target.id)!;
         yield { type: "navigate", session: active, url: `agent://sessions/${active.id}` };
         terminal = { type: "done", sessionId: active.id };

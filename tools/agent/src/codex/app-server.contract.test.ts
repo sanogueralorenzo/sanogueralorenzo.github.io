@@ -140,4 +140,22 @@ describe("Codex profile and login", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(readFileSync(log, "utf8")).toContain("account/login/cancel");
   });
+
+  it("shares one restart when concurrent sessions lose the app-server", async () => {
+    const homeDir = temporary("agent-codex-restart-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("normal", { AGENT_FAKE_LOG: log });
+    await appServer.account();
+    await Promise.all([appServer.restart(), appServer.restart()]);
+    await expect(appServer.account()).resolves.toBeDefined();
+    expect(requests(log).filter((message) => message.method === "initialize")).toHaveLength(2);
+  });
+
+  it("waits for initialization before sending concurrent requests", async () => {
+    const homeDir = temporary("agent-codex-concurrent-start-");
+    const log = join(homeDir, "rpc.log");
+    const appServer = client("normal", { AGENT_FAKE_LOG: log });
+    await Promise.all([appServer.account(), appServer.account()]);
+    expect(requests(log).map((message) => message.method)).toEqual(["initialize", "initialized", "account/read", "account/read"]);
+  });
 });

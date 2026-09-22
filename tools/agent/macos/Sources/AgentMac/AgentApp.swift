@@ -32,9 +32,8 @@ struct AgentApp: App {
         .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Conversation") { model.newConversation() }
+                Button("New Conversation") { Task { await model.newConversation() } }
                     .keyboardShortcut("n")
-                    .disabled(model.isRunning)
             }
         }
     }
@@ -142,6 +141,29 @@ struct ConversationView: View {
                 ConnectionError(message: error) { Task { await model.start() } }
             }
             MessageComposer(model: model)
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Menu {
+                    Button("New Conversation") { Task { await model.newConversation() } }
+                    Divider()
+                    ForEach(model.sessions) { session in
+                        Button {
+                            Task { await model.selectSession(session.id) }
+                        } label: {
+                            HStack {
+                                Text(session.title ?? "New conversation")
+                                if session.activeRunId != nil { Image(systemName: "circle.fill") }
+                            }
+                        }
+                    }
+                } label: {
+                    Text(model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
+                        .lineLimit(1)
+                        .frame(maxWidth: 220)
+                }
+                .menuStyle(.borderlessButton)
+            }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
     }

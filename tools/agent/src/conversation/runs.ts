@@ -4,7 +4,7 @@ import type { RunEnvelope, RunInfo, RunSnapshot, RuntimeEvent, RuntimeSnapshot, 
 
 export class RunBusyError extends Error {
   constructor(readonly run: RunInfo) {
-    super("Agent is already working on another message.");
+    super("Agent is already working in this conversation.");
   }
 }
 
@@ -17,58 +17,74 @@ export class SlowSubscriberError extends Error {
 }
 
 export class RunCoordinator {
-  private active: (RunSnapshot & { controller: AbortController; terminal: boolean }) | null = null;
+  private active = new Map<string, RunSnapshot & { controller: AbortController; terminal: boolean }>();
   private listeners = new Set<Listener>();
   private closed = false;
-  private executing: Promise<void> | null = null;
+  private executing = new Set<Promise<void>>();
 
-  constructor(private readonly runtime: Pick<AgentRuntime, "run">) {}
+  constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run">) {}
 
   start(turn: TurnRequest): RunInfo {
-    if (this.active) throw new RunBusyError(this.active.run);
-    const info: RunInfo = { id: randomUUID(), origin: turn.channel ?? "api" };
+    const requestedRun = turn.sessionId ? this.active.get(turn.sessionId) : null;
+    if (requestedRun) throw new RunBusyError(requestedRun.run);
+    const prepared = this.runtime.prepareTurn(turn);
+    const sessionId = prepared.session.id;
+    const busy = this.active.get(sessionId);
+    if (busy) throw new RunBusyError(busy.run);
+    const info: RunInfo = { id: randomUUID(), sessionId, origin: turn.channel ?? "api" };
     const run: RunSnapshot & { controller: AbortController; terminal: boolean } = {
       run: info,
       turn: { type: "turn", text: turn.text, channel: info.origin, hasAttachments: Boolean(turn.attachments?.length) },
-      session: null,
+      session: prepared.session,
       output: "",
       artifacts: [],
       navigation: null,
       controller: new AbortController(),
       terminal: false,
     };
-    this.active = run;
-    this.publish(info.id, run.turn);
-    this.executing = this.execute(run, turn);
+    this.active.set(sessionId, run);
+    this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
+    this.publish(sessionId, info.id, run.turn);
+    const execution = this.execute(run, turn, prepared);
+    this.executing.add(execution);
+    void execution.finally(() => this.executing.delete(execution));
     return info;
   }
 
-  stop(): boolean {
-    if (!this.active) return false;
-    this.active.controller.abort();
+  stop(runId: string): boolean {
+    const run = [...this.active.values()].find((active) => active.run.id === runId);
+    if (!run) return false;
+    run.controller.abort();
     return true;
   }
 
   async close(): Promise<void> {
     this.closed = true;
-    this.active?.controller.abort();
+    for (const run of this.active.values()) run.controller.abort();
     for (const listener of this.listeners) listener();
     this.listeners.clear();
-    await this.executing;
+    await Promise.all(this.executing);
   }
 
-  activeSnapshot(): RunSnapshot | null {
-    if (!this.active || this.active.terminal) return null;
-    const { run, turn, session, output, artifacts, navigation } = this.active;
-    return { run, turn, session, output, artifacts: [...artifacts], navigation };
+  activeSnapshots(sessionId?: string): RunSnapshot[] {
+    const runs = sessionId ? [this.active.get(sessionId)] : [...this.active.values()];
+    return runs.filter((run): run is RunSnapshot & { controller: AbortController; terminal: boolean } => Boolean(run && !run.terminal)).map((run) => {
+      const { run: info, turn, session, output, artifacts, navigation } = run;
+      return { run: info, turn, session, output, artifacts: [...artifacts], navigation };
+    });
   }
 
-  async *events(signal: AbortSignal, onOverflow?: () => void, snapshot?: () => RuntimeSnapshot): AsyncGenerator<RunEnvelope> {
+  activeInfos(): RunInfo[] {
+    return [...this.active.values()].filter((run) => !run.terminal).map((run) => run.run);
+  }
+
+  async *events(signal: AbortSignal, onOverflow?: () => void, snapshot?: () => RuntimeSnapshot, sessionId?: string): AsyncGenerator<RunEnvelope> {
     const queued: { event: RunEnvelope; bytes: number }[] = [];
     let pendingBytes = 0;
     let overflow = false;
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
+      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity") return;
       if (event && !overflow) {
         const bytes = Buffer.byteLength(JSON.stringify(event));
         if (queued.length >= MAX_PENDING_EVENTS || pendingBytes + bytes > MAX_EVENT_BUFFER_BYTES) {
@@ -91,7 +107,7 @@ export class RunCoordinator {
     this.listeners.add(listener);
     signal.addEventListener("abort", aborted, { once: true });
     try {
-      if (snapshot) yield { runId: "", event: { type: "snapshot", snapshot: snapshot() } };
+      if (snapshot) yield { sessionId: sessionId ?? "", runId: "", event: { type: "snapshot", snapshot: snapshot() } };
       while (!this.closed && !signal.aborted) {
         if (overflow) throw new SlowSubscriberError();
         if (!queued.length) await new Promise<void>((resolve) => { wake = resolve; });
@@ -108,31 +124,36 @@ export class RunCoordinator {
     }
   }
 
-  private async execute(run: RunSnapshot & { controller: AbortController; terminal: boolean }, turn: TurnRequest): Promise<void> {
+  private async execute(
+    run: RunSnapshot & { controller: AbortController; terminal: boolean },
+    turn: TurnRequest,
+    prepared: ReturnType<AgentRuntime["prepareTurn"]>,
+  ): Promise<void> {
     let terminal = false;
     try {
-      for await (const event of this.runtime.run(turn, { signal: run.controller.signal, runId: run.run.id })) {
+      for await (const event of this.runtime.run(turn, { signal: run.controller.signal, runId: run.run.id, prepared })) {
         terminal ||= event.type === "done" || event.type === "error";
-        this.publish(run.run.id, event);
+        this.publish(run.run.sessionId, run.run.id, event);
       }
-      if (!terminal) this.publish(run.run.id, { type: "error", message: "Agent stopped before completing the response." });
+      if (!terminal) this.publish(run.run.sessionId, run.run.id, { type: "error", message: "Agent stopped before completing the response." });
     } catch (error) {
-      this.publish(run.run.id, { type: "error", message: error instanceof Error ? error.message : String(error) });
+      this.publish(run.run.sessionId, run.run.id, { type: "error", message: error instanceof Error ? error.message : String(error) });
     } finally {
-      if (this.active?.run.id === run.run.id) this.active = null;
-      this.executing = null;
+      if (this.active.get(run.run.sessionId)?.run.id === run.run.id) this.active.delete(run.run.sessionId);
+      this.publish(run.run.sessionId, run.run.id, { type: "session_activity", sessionId: run.run.sessionId, runId: null });
     }
   }
 
-  private publish(runId: string, event: RuntimeEvent): void {
-    if (this.active?.run.id === runId) {
-      if (event.type === "done" || event.type === "error") this.active.terminal = true;
-      if (event.type === "session" || event.type === "navigate") this.active.session = event.session;
-      if (event.type === "navigate") this.active.navigation = event;
-      if (event.type === "text_delta") this.active.output += event.delta;
-      if (event.type === "artifact") this.active.artifacts.push(event.artifact);
+  private publish(sessionId: string, runId: string, event: RuntimeEvent): void {
+    const active = this.active.get(sessionId);
+    if (active?.run.id === runId) {
+      if (event.type === "done" || event.type === "error") active.terminal = true;
+      if (event.type === "session") active.session = event.session;
+      if (event.type === "navigate") active.navigation = event;
+      if (event.type === "text_delta") active.output += event.delta;
+      if (event.type === "artifact") active.artifacts.push(event.artifact);
     }
-    const envelope = { runId, event };
+    const envelope = { sessionId, runId, event };
     for (const listener of this.listeners) listener(envelope);
   }
 }

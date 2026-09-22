@@ -9,6 +9,10 @@ export interface Session {
   updatedAt: string;
 }
 
+export interface SessionStatus extends Session {
+  activeRunId: string | null;
+}
+
 export interface Message {
   role: "user" | "assistant" | "tool";
   content: string;
@@ -44,6 +48,7 @@ export type ProgressEvent =
 
 export type RuntimeEvent =
   | { type: "turn"; text: string; channel: Channel; hasAttachments: boolean }
+  | { type: "session_activity"; sessionId: string; runId: string | null }
   | { type: "session"; session: Session }
   | { type: "navigate"; session: Session; url: string }
   | ProgressEvent
@@ -52,6 +57,7 @@ export type RuntimeEvent =
 
 export interface RunInfo {
   id: string;
+  sessionId: string;
   origin: Channel;
 }
 
@@ -72,14 +78,16 @@ export interface LastRun {
 }
 
 export interface RuntimeSnapshot {
+  sessions: SessionStatus[];
   transcript: { session: Session; messages: Message[] } | null;
-  activeRun: RunSnapshot | null;
-  lastRun: Pick<LastRun, "id" | "sessionId" | "state"> | null;
+  activeRuns: RunSnapshot[];
+  lastRuns: Pick<LastRun, "id" | "sessionId" | "state">[];
 }
 
 export type StreamEvent = RuntimeEvent | { type: "snapshot"; snapshot: RuntimeSnapshot };
 
 export interface RunEnvelope {
+  sessionId: string;
   runId: string;
   event: StreamEvent;
 }
@@ -90,7 +98,6 @@ export interface TurnRequest {
   attachments?: Attachment[];
   cwd?: string;
   sessionId?: string;
-  fresh?: boolean;
   channel?: Channel;
 }
 

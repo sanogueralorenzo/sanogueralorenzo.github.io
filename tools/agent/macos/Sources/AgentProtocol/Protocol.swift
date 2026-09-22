@@ -25,18 +25,21 @@ public struct RuntimeEvent: Decodable, Sendable {
 
 public struct RunInfo: Decodable, Sendable {
     public let id: String
+    public let sessionId: String
     public let origin: String
 }
 
 public struct RunEnvelope: Decodable, Sendable {
+    public let sessionId: String
     public let runId: String
     public let event: RuntimeEvent
 }
 
 public struct RuntimeSnapshot: Decodable, Sendable {
+    public let sessions: [RuntimeSession]
     public let transcript: Transcript?
-    public let activeRun: ActiveRunSnapshot?
-    public let lastRun: LastRunSnapshot?
+    public let activeRuns: [ActiveRunSnapshot]
+    public let lastRuns: [LastRunSnapshot]
 }
 
 public struct ActiveRunSnapshot: Decodable, Sendable {
@@ -72,9 +75,10 @@ public struct RuntimeArtifact: Decodable, Sendable, Equatable, Identifiable {
     public let path: String
 }
 
-public struct RuntimeSession: Decodable, Sendable {
+public struct RuntimeSession: Decodable, Sendable, Identifiable {
     public let id: String
     public let title: String?
+    public let activeRunId: String?
 }
 
 public struct SetupStatus: Decodable, Sendable {
@@ -100,14 +104,12 @@ public struct TranscriptMessage: Decodable, Sendable {
 
 public struct ChatRequest: Encodable, Sendable {
     public let text: String
-    public let sessionId: String?
+    public let sessionId: String
     public let channel = "macos"
-    public let fresh: Bool
 
-    public init(text: String, sessionId: String?, fresh: Bool) {
+    public init(text: String, sessionId: String) {
         self.text = text
         self.sessionId = sessionId
-        self.fresh = fresh
     }
 }
 

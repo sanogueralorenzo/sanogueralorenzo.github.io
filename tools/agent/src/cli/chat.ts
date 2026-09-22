@@ -19,14 +19,14 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   };
   const supervisor = new RuntimeSupervisor(client, options.dev, status);
   await supervisor.start();
+  let sessionId = (await client.openSession({ cwd: process.cwd() })).id;
+  let automaticSession = true;
 
   console.log(`${ansi.cyan("Agent")} ${ansi.dim("— quiet help for ongoing work")}`);
   if (options.dev) console.log(ansi.dim("Hot reload is on. Runtime state survives code changes."));
-  console.log(ansi.dim("/new  /status  /help  /quit\n"));
+  console.log(ansi.dim("/new  /sessions  /use  /status  /help  /quit\n"));
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  let sessionId: string | undefined;
-  let fresh = false;
   let activeRunId: string | undefined;
   let activeOutput = "";
   let activeArtifacts = new Set<string>();
@@ -35,7 +35,17 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   let fatalError: Error | undefined;
   let hasConnected = false;
   let latestSnapshot: RuntimeSnapshot | undefined;
+  let displayedSessions: string[] = [];
   const observerController = new AbortController();
+  let streamController: AbortController | undefined;
+  let streamReady = Promise.resolve();
+  let markStreamReady: () => void = () => undefined;
+  const changeSession = async (id: string) => {
+    sessionId = id;
+    streamReady = new Promise<void>((resolve) => { markStreamReady = resolve; });
+    streamController?.abort();
+    await streamReady;
+  };
   const completed = new Set<string>();
   const waiters = new Map<string, () => void>();
   let connected!: () => void;
@@ -57,11 +67,11 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
   };
   const restore = (snapshot: RuntimeSnapshot) => {
     latestSnapshot = snapshot;
-    if (!fresh && snapshot.transcript) sessionId = snapshot.transcript.session.id;
-    const active = snapshot.activeRun;
+    const active = snapshot.activeRuns.find((run) => run.run.sessionId === sessionId);
+    const lastRun = snapshot.lastRuns.find((run) => run.sessionId === sessionId);
     if (!active) {
       if (activeRunId) {
-        const saved = snapshot.lastRun?.id === activeRunId
+        const saved = lastRun?.id === activeRunId
           ? snapshot.transcript?.messages.at(-1)
           : null;
         if (saved?.role === "assistant" && saved.content.startsWith(activeOutput)) {
@@ -77,7 +87,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       return;
     }
     if (activeRunId && activeRunId !== active.run.id) finish(activeRunId);
-    if (activeRunId !== active.run.id) render({ runId: active.run.id, event: active.turn });
+    if (activeRunId !== active.run.id) render({ sessionId, runId: active.run.id, event: active.turn });
     if (active.navigation && sessionId !== active.navigation.session.id) status(`Resumed “${active.navigation.session.title}”.`);
     if (active.session) sessionId = active.session.id;
     const missing = active.output.startsWith(activeOutput) ? active.output.slice(activeOutput.length) : `\n${active.output}`;
@@ -96,6 +106,16 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       restore(event.snapshot);
       return;
     }
+    if (event.type === "navigate") {
+      status(`Resumed “${event.session.title}”.`);
+      automaticSession = false;
+      if (activeRunId === runId) {
+        activeRunId = undefined;
+        finish(runId);
+      }
+      void changeSession(event.session.id);
+      return;
+    }
     if (event.type === "turn") {
       activeRunId = runId;
       activeOutput = "";
@@ -108,12 +128,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
     } else if (activeRunId !== runId) {
       return;
     } else if (event.type === "session") {
-      sessionId = event.session.id;
-      fresh = false;
-    } else if (event.type === "navigate") {
-      sessionId = event.session.id;
-      fresh = false;
-      status(`Resumed “${event.session.title}”.`);
+      // The runtime selected this session before the run began.
     } else if (event.type === "text_delta") {
       process.stdout.write(event.delta);
       activeOutput += event.delta;
@@ -147,17 +162,23 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
 
   const observe = async () => {
     while (!stopping) {
+      const current = new AbortController();
+      streamController = current;
+      const stopStream = () => current.abort();
+      observerController.signal.addEventListener("abort", stopStream, { once: true });
       try {
-        const events = await client.events(observerController.signal);
+        const events = await client.events(current.signal, sessionId);
         for await (const event of events) {
           render(event);
           if (event.event.type === "snapshot") {
             hasConnected = true;
             connected();
+            markStreamReady();
           }
         }
       } catch (error) {
         if (stopping) return;
+        if (current.signal.aborted) continue;
         if (error instanceof RuntimeProtocolError) {
           if (hasConnected) {
             fatalError = error;
@@ -170,6 +191,8 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         }
         status("Reconnecting…");
         await client.waitUntilHealthy().catch(() => undefined);
+      } finally {
+        observerController.signal.removeEventListener("abort", stopStream);
       }
     }
   };
@@ -177,7 +200,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
 
   const onSigint = () => {
     if (activeRunId) {
-      void client.stop();
+      void client.stop(activeRunId);
     } else {
       rl.close();
     }
@@ -196,13 +219,31 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       if (!input) continue;
       if (input === "/quit") break;
       if (input === "/help") {
-        console.log("Talk normally. Ctrl-C stops the current response.");
+        console.log("Talk normally. /sessions lists conversations; /use N opens one. Ctrl-C stops this response.");
         continue;
       }
       if (input === "/new") {
-        sessionId = undefined;
-        fresh = true;
+        const session = await client.openSession({ fresh: true, cwd: process.cwd() });
+        automaticSession = true;
+        await changeSession(session.id);
         status("New conversation ready.");
+        continue;
+      }
+      if (input === "/sessions") {
+        const { sessions } = await client.sessions();
+        displayedSessions = sessions.map((session) => session.id);
+        sessions.forEach((session, index) => console.log(`${index + 1}. ${session.title}${session.id === sessionId ? "  ← current" : ""}`));
+        continue;
+      }
+      if (input.startsWith("/use ")) {
+        const { sessions } = await client.sessions();
+        const choice = input.slice(5).trim();
+        const id = /^\d+$/.test(choice) ? displayedSessions[Number(choice) - 1] : choice;
+        const session = sessions.find((item) => item.id === id);
+        if (!session) { status("Conversation not found. Use /sessions to see recent conversations."); continue; }
+        automaticSession = false;
+        await changeSession(session.id);
+        status(`Opened “${session.title}”.`);
         continue;
       }
       if (input === "/status") {
@@ -223,11 +264,14 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
       }
 
       try {
+        if (automaticSession) {
+          const selected = await client.openSession({ cwd: process.cwd(), preferredSessionId: sessionId });
+          if (selected.id !== sessionId) await changeSession(selected.id);
+        }
         const run = await client.submit({
           text: input,
           cwd: process.cwd(),
-          ...(sessionId ? { sessionId } : {}),
-          ...(fresh ? { fresh: true } : {}),
+          sessionId,
           channel: "cli",
         });
         if (!run) {
@@ -237,7 +281,7 @@ export async function runChat(options: { dev: boolean }): Promise<void> {
         if (!completed.has(run.id)) {
           const alreadyObserving = activeRunId === run.id;
           activeRunId = run.id;
-          if (!alreadyObserving && (latestSnapshot?.activeRun?.run.id === run.id || latestSnapshot?.lastRun?.id === run.id)) {
+          if (!alreadyObserving && (latestSnapshot?.activeRuns.some((active) => active.run.id === run.id) || latestSnapshot?.lastRuns.some((last) => last.id === run.id))) {
             restore(latestSnapshot);
           }
         }

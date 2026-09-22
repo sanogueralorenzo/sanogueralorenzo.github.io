@@ -31,9 +31,9 @@ describe("RuntimeClient run protocol", () => {
   it("connects before returning and decodes SSE events across chunk boundaries", async () => {
     const client = await fixture((_request, response) => {
       response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
-      response.write('data: {"runId":"","event":{"type":"snapshot","snapshot":{"transcript":null,"activeRun":null,"lastRun":null}}}\r\n\r\n');
-      response.write('data: {"runId":"r1","event":{"type":"status","message":"Working"}}\r\n\r');
-      response.end('\ndata: {"runId":"r1","event":{"type":"done","sessionId":"s1"}}\n\n');
+      response.write('data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}\r\n\r\n');
+      response.write('data: {"sessionId":"s1","runId":"r1","event":{"type":"status","message":"Working"}}\r\n\r');
+      response.end('\ndata: {"sessionId":"s1","runId":"r1","event":{"type":"done","sessionId":"s1"}}\n\n');
     });
 
     const events = (await client.events())[Symbol.asyncIterator]();
@@ -49,6 +49,16 @@ describe("RuntimeClient run protocol", () => {
       response.end("data: {broken}\n\n");
     });
     await expect(collect(await client.events())).rejects.toThrow("malformed event");
+  });
+
+  it("accepts a redirect as the first event when a session moved", async () => {
+    const client = await fixture((_request, response) => {
+      response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
+      response.end('data: {"sessionId":"old","runId":"","event":{"type":"navigate","session":{"id":"new","scopeKey":"assistant:new","cwd":null,"title":"Saved work","updatedAt":"now"},"url":"agent://sessions/new"}}\n\n');
+    });
+    const stream = (await client.events())[Symbol.asyncIterator]();
+    await expect(stream.next()).resolves.toMatchObject({ value: { event: { type: "navigate", session: { id: "new" } } } });
+    await stream.return?.();
   });
 
   it("rejects an older stream contract before subscribing", async () => {
@@ -73,16 +83,16 @@ describe("RuntimeClient run protocol", () => {
           return response.end('{"error":"busy"}');
         }
         response.statusCode = 202;
-        return response.end('{"run":{"id":"r1","origin":"cli"}}');
+        return response.end('{"run":{"id":"r1","sessionId":"s1","origin":"cli"}}');
       }
       if (request.url === "/v1/runs/stop") return response.end('{"stopped":true}');
       response.statusCode = 404;
       response.end();
     });
 
-    await expect(client.submit({ text: "hello", channel: "cli" })).resolves.toEqual({ id: "r1", origin: "cli" });
+    await expect(client.submit({ text: "hello", channel: "cli", sessionId: "s1" })).resolves.toEqual({ id: "r1", sessionId: "s1", origin: "cli" });
     await expect(client.submit({ text: "busy", channel: "cli" })).resolves.toBeNull();
-    await expect(client.stop()).resolves.toBe(true);
+    await expect(client.stop("r1")).resolves.toBe(true);
     expect(requests).toEqual(["POST /v1/runs", "POST /v1/runs", "POST /v1/runs/stop"]);
   });
 
@@ -92,7 +102,7 @@ describe("RuntimeClient run protocol", () => {
     const client = await fixture((_request, response) => {
       response.once("close", closed);
       response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
-      response.write('data: {"runId":"","event":{"type":"snapshot","snapshot":{"transcript":null,"activeRun":null,"lastRun":null}}}\n\n');
+      response.write('data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}\n\n');
     });
 
     for await (const _event of await client.events()) break;

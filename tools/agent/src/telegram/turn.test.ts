@@ -3,14 +3,19 @@ import type { RunEnvelope, RuntimeEvent, RuntimeSnapshot } from "../conversation
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, TelegramTurns } from "./turn.js";
 
-function client(run: object | null = { id: "r1", origin: "telegram" }) {
+const session = { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() };
+
+function client(run: object | null = { id: "r1", sessionId: "s1", origin: "telegram" }) {
   return {
     submit: vi.fn(async () => run),
     stop: vi.fn(async () => true),
+    openSession: vi.fn(async (options?: { fresh?: boolean; preferredSessionId?: string }) =>
+      options?.fresh ? { ...session, id: "s2" } : { ...session, id: options?.preferredSessionId ?? "s1" }),
+    transcript: vi.fn(async () => ({ session, messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }] })),
   };
 }
 
-const envelope = (event: RuntimeEvent, runId = "r1"): RunEnvelope => ({ runId, event });
+const envelope = (event: RuntimeEvent, runId = "r1", sessionId = "s1"): RunEnvelope => ({ sessionId, runId, event });
 
 describe("Telegram turns", () => {
   it("allows only the private owner", () => {
@@ -22,11 +27,11 @@ describe("Telegram turns", () => {
   it("uses centralized submit, busy, and stop semantics", async () => {
     const runtime = client();
     const turns = new TelegramTurns(runtime);
-    await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toEqual({ accepted: true, recovered: null });
-    expect(runtime.submit).toHaveBeenCalledWith({ text: "hello", channel: "telegram" });
+    await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toEqual({ accepted: true, recovered: [] });
+    expect(runtime.submit).toHaveBeenCalledWith({ text: "hello", sessionId: "s1", channel: "telegram" });
     await expect(turns.stop()).resolves.toBe(true);
-    expect(runtime.stop).toHaveBeenCalledOnce();
-    await expect(new TelegramTurns(client(null)).submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: null });
+    expect(runtime.stop).toHaveBeenCalledWith("r1");
+    await expect(new TelegramTurns(client(null)).submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: [] });
   });
 
   it("starts the next accepted message as a new conversation", async () => {
@@ -34,14 +39,16 @@ describe("Telegram turns", () => {
     const turns = new TelegramTurns(runtime);
     turns.newConversation();
 
-    await expect(turns.submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: null });
-    runtime.submit.mockResolvedValue({ id: "r2", origin: "telegram" });
-    await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toEqual({ accepted: true, recovered: null });
-    await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toEqual({ accepted: true, recovered: null });
+    await expect(turns.submit(async () => ({ text: "busy" }))).resolves.toEqual({ accepted: false, recovered: [] });
+    runtime.submit.mockResolvedValue({ id: "r2", sessionId: "s2", origin: "telegram" });
+    await expect(turns.submit(async () => ({ text: "new topic" }))).resolves.toEqual({ accepted: true, recovered: [] });
+    await expect(turns.submit(async () => ({ text: "continue" }))).resolves.toEqual({ accepted: true, recovered: [] });
 
-    expect(runtime.submit).toHaveBeenNthCalledWith(1, { text: "busy", fresh: true, channel: "telegram" });
-    expect(runtime.submit).toHaveBeenNthCalledWith(2, { text: "new topic", fresh: true, channel: "telegram" });
-    expect(runtime.submit).toHaveBeenNthCalledWith(3, { text: "continue", channel: "telegram" });
+    expect(runtime.openSession).toHaveBeenNthCalledWith(1, { fresh: true });
+    expect(runtime.openSession).toHaveBeenNthCalledWith(2, { fresh: false, preferredSessionId: "s2" });
+    expect(runtime.submit).toHaveBeenNthCalledWith(1, { text: "busy", sessionId: "s2", channel: "telegram" });
+    expect(runtime.submit).toHaveBeenNthCalledWith(2, { text: "new topic", sessionId: "s2", channel: "telegram" });
+    expect(runtime.submit).toHaveBeenNthCalledWith(3, { text: "continue", sessionId: "s2", channel: "telegram" });
   });
 
   it("delivers a run initiated on another client with chunked text and artifacts", () => {
@@ -68,59 +75,105 @@ describe("Telegram turns", () => {
       .toMatchObject({ chunks: ["Resumed “Telegram reconnects”."] });
   });
 
-  it("continues an active run from its snapshot without duplicating text", () => {
+  it("continues in the opened conversation after navigation", async () => {
+    const runtime = client();
+    const turns = new TelegramTurns(runtime);
+    await turns.submit(async () => ({ text: "open earlier work" }));
+    turns.consume(envelope({ type: "turn", text: "open earlier work", channel: "telegram", hasAttachments: false }));
+    turns.consume(envelope({
+      type: "navigate",
+      session: { ...session, id: "s2", title: "Earlier work" },
+      url: "agent://sessions/s2",
+    }));
+    turns.consume(envelope({ type: "done", sessionId: "s2" }));
+    runtime.submit.mockResolvedValue({ id: "r2", sessionId: "s2", origin: "telegram" });
+    await turns.submit(async () => ({ text: "continue" }));
+    expect(runtime.submit).toHaveBeenLastCalledWith({ text: "continue", sessionId: "s2", channel: "telegram" });
+  });
+
+  it("restores the selected active run after a gateway restart", async () => {
+    const runtime = client();
+    const turns = new TelegramTurns(runtime);
+    const snapshot: RuntimeSnapshot = {
+      sessions: [{ ...session, activeRunId: "r1" }],
+      transcript: { session, messages: [{ role: "user", content: "hello" }] },
+      activeRuns: [{
+        run: { id: "r1", sessionId: "s1", origin: "macos" },
+        turn: { type: "turn", text: "hello", channel: "macos", hasAttachments: false },
+        session, output: "Working", artifacts: [], navigation: null,
+      }],
+      lastRuns: [],
+    };
+    expect(await turns.reconcile(snapshot)).toEqual([]);
+    expect(turns.hasActiveRun()).toBe(true);
+    expect(await turns.stop()).toBe(true);
+    expect(runtime.stop).toHaveBeenCalledWith("r1");
+    expect(turns.consume(envelope({ type: "done", sessionId: "s1" }))).toMatchObject({ chunks: ["Working"] });
+    expect(turns.hasActiveRun()).toBe(false);
+  });
+
+  it("does not deliver another session's turns into the selected Telegram conversation", async () => {
+    const turns = new TelegramTurns(client());
+    await turns.reconcile({ sessions: [{ ...session, activeRunId: null }], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] });
+    expect(turns.consume(envelope({ type: "turn", text: "other", channel: "cli", hasAttachments: false }, "r2", "s2"))).toBeNull();
+    expect(turns.consume(envelope({ type: "text_delta", delta: "secret" }, "r2", "s2"))).toBeNull();
+    expect(turns.consume(envelope({ type: "done", sessionId: "s2" }, "r2", "s2"))).toBeNull();
+    expect(turns.hasActiveRun()).toBe(false);
+  });
+
+  it("continues an active run from its snapshot without duplicating text", async () => {
     const turns = new TelegramTurns(client());
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
     turns.consume(envelope({ type: "text_delta", delta: "Partial answer" }));
     const snapshot: RuntimeSnapshot = {
-      transcript: null,
-      activeRun: {
-        run: { id: "r1", origin: "cli" },
+      sessions: [], transcript: null,
+      activeRuns: [{
+        run: { id: "r1", sessionId: "s1", origin: "cli" },
         turn: { type: "turn", text: "hello", channel: "cli", hasAttachments: false },
         session: null,
         output: "Partial answer plus",
         artifacts: [],
         navigation: null,
-      },
-      lastRun: null,
+      }],
+      lastRuns: [],
     };
-    expect(turns.reconcile(snapshot)).toBeNull();
+    expect(await turns.reconcile(snapshot)).toEqual([]);
     turns.consume(envelope({ type: "text_delta", delta: " more" }));
     expect(turns.consume(envelope({ type: "done", sessionId: "s1" })))
       .toMatchObject({ chunks: ["Partial answer plus more"] });
   });
 
-  it("delivers a completed turn missed during reconnect only if it was pending", () => {
+  it("delivers a completed turn missed during reconnect only if it was pending", async () => {
     const turns = new TelegramTurns(client());
     turns.consume(envelope({ type: "turn", text: "hello", channel: "cli", hasAttachments: false }));
     const snapshot: RuntimeSnapshot = {
-      transcript: {
-        session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+      sessions: [], transcript: {
+        session,
         messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
       },
-      activeRun: null,
-      lastRun: { id: "r1", sessionId: "s1", state: "complete" },
+      activeRuns: [],
+      lastRuns: [{ id: "r1", sessionId: "s1", state: "complete" }],
     };
-    expect(turns.reconcile(snapshot)).toMatchObject({ chunks: ["Saved answer"] });
-    expect(turns.reconcile(snapshot)).toBeNull();
+    expect(await turns.reconcile(snapshot)).toMatchObject([{ chunks: ["Saved answer"] }]);
+    expect(await turns.reconcile(snapshot)).toEqual([]);
   });
 
   it("recovers a run that finished before its submit response arrived", async () => {
     const turns = new TelegramTurns(client());
     const snapshot: RuntimeSnapshot = {
-      transcript: {
-        session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+      sessions: [], transcript: {
+        session,
         messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Saved answer" }],
       },
-      activeRun: null,
-      lastRun: { id: "r1", sessionId: "s1", state: "complete" },
+      activeRuns: [],
+      lastRuns: [{ id: "r1", sessionId: "s1", state: "complete" }],
     };
-    expect(turns.reconcile(snapshot)).toBeNull();
+    expect(await turns.reconcile(snapshot)).toEqual([]);
     await expect(turns.submit(async () => ({ text: "hello" }))).resolves.toMatchObject({
       accepted: true,
-      recovered: { chunks: ["Saved answer"] },
+      recovered: [{ chunks: ["Saved answer"] }],
     });
-    expect(turns.reconcile(snapshot)).toBeNull();
+    expect(await turns.reconcile(snapshot)).toEqual([]);
   });
 
   it("passes runtime errors and preparation failures through concise messages", () => {

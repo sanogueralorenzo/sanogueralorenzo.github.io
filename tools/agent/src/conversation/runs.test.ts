@@ -6,10 +6,16 @@ import type { RunEnvelope, RuntimeEvent } from "./types.js";
 function runtime(run: (signal: AbortSignal) => AsyncGenerator<RuntimeEvent>) {
   let executions = 0;
   return {
-    value: { async *run(_turn: unknown, options: { signal: AbortSignal }) {
+    value: {
+      prepareTurn(turn: { sessionId?: string }) {
+        const id = turn.sessionId ?? "s1";
+        return { session: { id, scopeKey: `assistant:${id}`, cwd: null, title: id, updatedAt: "now" }, empty: false, sessionTools: [] };
+      },
+      async *run(_turn: unknown, options: { signal: AbortSignal }) {
       executions += 1;
       yield* run(options.signal);
-    } } as unknown as AgentRuntime,
+      },
+    } as unknown as AgentRuntime,
     executions: () => executions,
   };
 }
@@ -37,7 +43,8 @@ describe("RunCoordinator", () => {
 
     expect(fixture.executions()).toBe(1);
     expect(a).toEqual(b);
-    expect(a[0]).toMatchObject({ runId: run.id, event: { type: "turn", channel: "cli" } });
+    expect(a[0]).toMatchObject({ runId: run.id, event: { type: "session_activity", sessionId: "s1" } });
+    expect(a[1]).toMatchObject({ runId: run.id, event: { type: "turn", channel: "cli" } });
 
     const late = collectRun(runs.events(new AbortController().signal));
     const next = runs.start({ text: "next", channel: "telegram" });
@@ -62,10 +69,10 @@ describe("RunCoordinator", () => {
     const run = runs.start({ text: "hi", channel: "macos" });
     await reachedPause;
     const late = runs.events(new AbortController().signal, undefined, () => ({
-      transcript: null, activeRun: runs.activeSnapshot(), lastRun: null,
+      sessions: [], transcript: null, activeRuns: runs.activeSnapshots(), lastRuns: [],
     }))[Symbol.asyncIterator]();
     expect((await late.next()).value).toMatchObject({ event: { type: "snapshot", snapshot: {
-      activeRun: { run: { id: run.id }, output: "first" },
+      activeRuns: [{ run: { id: run.id }, output: "first" }],
     } } });
     release();
     expect((await late.next()).value).toMatchObject({ runId: run.id, event: { type: "text_delta", delta: " second" } });
@@ -92,7 +99,7 @@ describe("RunCoordinator", () => {
     await observer.next();
     await observer.return?.();
     await running;
-    expect(() => runs.start({ text: "second" })).toThrow(RunBusyError);
+    expect(() => runs.start({ text: "second", sessionId: "s1" })).toThrow(RunBusyError);
     expect(run.origin).toBe("api");
     release();
     await completed;
@@ -110,11 +117,11 @@ describe("RunCoordinator", () => {
     });
     const runs = new RunCoordinator(fixture.value);
     const events = collectRun(runs.events(new AbortController().signal));
-    runs.start({ text: "stop me" });
-    expect(runs.stop()).toBe(true);
+    const run = runs.start({ text: "stop me" });
+    expect(runs.stop(run.id)).toBe(true);
     expect((await events).at(-1)?.event.type).toBe("error");
     expect(aborted).toBe(true);
-    expect(runs.stop()).toBe(false);
+    expect(runs.stop(run.id)).toBe(false);
   });
 
   it("disconnects a subscriber that falls behind without stopping the run", async () => {
@@ -130,7 +137,7 @@ describe("RunCoordinator", () => {
     const slow = runs.events(new AbortController().signal, notifyOverflow)[Symbol.asyncIterator]();
     const first = slow.next();
     runs.start({ text: "hi" });
-    expect((await first).value?.event.type).toBe("turn");
+    expect((await first).value?.event.type).toBe("session_activity");
     await overflow;
     await expect(slow.next()).rejects.toBeInstanceOf(SlowSubscriberError);
     expect(completed).toBe(true);

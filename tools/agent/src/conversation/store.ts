@@ -81,6 +81,10 @@ export class Store {
         content TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS session_redirects (
+        source_id TEXT PRIMARY KEY,
+        target_id TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS attachments (
         id TEXT PRIMARY KEY,
         kind TEXT NOT NULL CHECK (kind = 'audio'),
@@ -158,8 +162,9 @@ export class Store {
     return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT ?`).all(limit) as unknown as Session[];
   }
 
-  latestSession(): Session | null {
-    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions ORDER BY updated_at DESC LIMIT 1`).get() as unknown as Session ?? null;
+  latestSession(cwd?: string): Session | null {
+    return this.db.prepare(`SELECT ${SESSION_COLUMNS} FROM sessions WHERE (? IS NULL OR cwd = ?) ORDER BY updated_at DESC LIMIT 1`)
+      .get(cwd ?? null, cwd ?? null) as unknown as Session ?? null;
   }
 
   sessionCards(limit = 50): SessionCard[] {
@@ -199,8 +204,26 @@ export class Store {
     return this.getSession(id);
   }
 
-  deleteSession(id: string): void {
-    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+  redirectSession(sourceId: string, targetId: string): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare("INSERT INTO session_redirects (source_id, target_id) VALUES (?, ?)").run(sourceId, targetId);
+      this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sourceId);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  redirectedSession(id: string): Session | null {
+    let current = id;
+    while (true) {
+      const next = this.db.prepare("SELECT target_id AS targetId FROM session_redirects WHERE source_id = ?")
+        .get(current) as { targetId: string } | undefined;
+      if (!next) return current === id ? null : this.getSession(current);
+      current = next.targetId;
+    }
   }
 
   addMessage(sessionId: string, role: Message["role"], content: string): void {
@@ -238,7 +261,7 @@ export class Store {
   startRun(sessionId: string, id: string = randomUUID()): string {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      this.db.prepare("DELETE FROM runs WHERE state != 'running'").run();
+      this.db.prepare("DELETE FROM runs WHERE session_id = ? AND state != 'running'").run(sessionId);
       this.db.prepare("INSERT INTO runs (id, session_id, state, started_at) VALUES (?, ?, 'running', ?)")
         .run(id, sessionId, now());
       this.db.exec("COMMIT");
@@ -267,10 +290,11 @@ export class Store {
     }
   }
 
-  latestRun(): LastRun | null {
+  latestRun(sessionId?: string): LastRun | null {
     return this.db.prepare(`
-      SELECT id, session_id AS "sessionId", state, output FROM runs ORDER BY started_at DESC LIMIT 1
-    `).get() as unknown as LastRun ?? null;
+      SELECT id, session_id AS "sessionId", state, output FROM runs
+      WHERE (? IS NULL OR session_id = ?) ORDER BY started_at DESC LIMIT 1
+    `).get(sessionId ?? null, sessionId ?? null) as unknown as LastRun ?? null;
   }
 
   getSetting(key: string): string | null {

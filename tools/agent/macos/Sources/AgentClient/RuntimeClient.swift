@@ -51,7 +51,7 @@ public final class EventStream: AsyncSequence, Sendable {
                     if envelope.event.type == "snapshot" && envelope.event.snapshot == nil {
                         throw RuntimeClientError.invalidEvent
                     }
-                    if first && envelope.event.type != "snapshot" {
+                    if first && envelope.event.type != "snapshot" && envelope.event.type != "navigate" {
                         throw RuntimeClientError.incompatible
                     }
                     first = false
@@ -127,8 +127,20 @@ public actor RuntimeClient {
         return try await value(path: "/v1/sessions/\(id)/messages")
     }
 
-    public func submit(text: String, sessionId: String?, fresh: Bool) async throws -> RunInfo? {
-        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, fresh: fresh))
+    public func sessions() async throws -> [RuntimeSession] {
+        let response: SessionsResponse = try await value(path: "/v1/sessions")
+        return response.sessions
+    }
+
+    public func openSession(fresh: Bool = false, preferredSessionId: String? = nil) async throws -> RuntimeSession {
+        let response: OpenSessionResponse = try await value(
+            path: fresh ? "/v1/sessions" : "/v1/sessions/auto", method: "POST",
+            body: preferredSessionId.map { ["preferredSessionId": $0] })
+        return response.session
+    }
+
+    public func submit(text: String, sessionId: String) async throws -> RunInfo? {
+        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId))
         let (data, response) = try await session.data(for: request(path: "/v1/runs", method: "POST", body: body))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 409 { return nil }
@@ -138,8 +150,9 @@ public actor RuntimeClient {
         return try JSONDecoder().decode(RunStartResponse.self, from: data).run
     }
 
-    public func events() async throws -> EventStream {
-        let request = try request(path: "/v1/events")
+    public func events(sessionId: String) async throws -> EventStream {
+        let id = sessionId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? sessionId
+        let request = try request(path: "/v1/events?sessionId=\(id)")
         let (bytes, response) = try await session.bytes(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw RuntimeClientError.badResponse((response as? HTTPURLResponse)?.statusCode ?? 0, "Could not observe Agent")
@@ -150,8 +163,8 @@ public actor RuntimeClient {
         return EventStream(bytes: bytes)
     }
 
-    public func stop() async throws -> Bool {
-        let result: StopResponse = try await value(path: "/v1/runs/stop", method: "POST")
+    public func stop(runId: String) async throws -> Bool {
+        let result: StopResponse = try await value(path: "/v1/runs/stop", method: "POST", body: ["runId": runId])
         return result.stopped
     }
 
@@ -185,3 +198,5 @@ public actor RuntimeClient {
 
 private struct RunStartResponse: Decodable { let run: RunInfo }
 private struct StopResponse: Decodable { let stopped: Bool }
+private struct SessionsResponse: Decodable { let sessions: [RuntimeSession] }
+private struct OpenSessionResponse: Decodable { let session: RuntimeSession }

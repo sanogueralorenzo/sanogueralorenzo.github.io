@@ -69,6 +69,7 @@ interface PendingRequest {
 export class CodexAppServer extends EventEmitter {
   private process: ChildProcessWithoutNullStreams | null = null;
   private starting: Promise<void> | null = null;
+  private restarting: Promise<void> | null = null;
   private nextId = 1;
   private pending = new Map<number, PendingRequest>();
   private logins = new Map<string, CodexLoginResult>();
@@ -84,6 +85,7 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async ensureStarted(): Promise<void> {
+    if (this.starting) return this.starting;
     if (this.process) return;
     this.starting ??= this.start().finally(() => { this.starting = null; });
     await this.starting;
@@ -162,8 +164,11 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async restart(): Promise<void> {
-    this.stop();
-    await this.ensureStarted();
+    this.restarting ??= (async () => {
+      this.stop();
+      await this.ensureStarted();
+    })().finally(() => { this.restarting = null; });
+    await this.restarting;
   }
 
   stop(): void {

@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
 import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
-import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type RuntimeSnapshot, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type Channel, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus, type TurnRequest } from "../conversation/types.js";
 import type { AgentSetupService } from "../setup/service.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
@@ -92,7 +92,7 @@ export class RuntimeServer {
       const route = `${request.method} ${url.pathname}`;
       if (route.startsWith("GET /v1/sessions/") && route.endsWith("/messages")) {
         const id = decodeURIComponent(url.pathname.slice("/v1/sessions/".length, -"/messages".length));
-        const session = this.store.getSession(id);
+        const session = this.store.getSession(id) ?? this.store.redirectedSession(id);
         return session
           ? json(response, 200, { session, messages: this.store.getMessages(id) })
           : json(response, 404, { error: "session_not_found" });
@@ -103,10 +103,33 @@ export class RuntimeServer {
         return json(response, 200, await this.setup.waitForCodexLogin(loginId));
       }
       switch (route) {
-        case "GET /v1/events": return await this.events(response);
+        case "GET /v1/events": {
+          const sessionId = url.searchParams.get("sessionId") ?? undefined;
+          const current = sessionId ? this.store.getSession(sessionId) : null;
+          const redirected = sessionId && !current ? this.store.redirectedSession(sessionId) : null;
+          if (sessionId && !current && !redirected) return json(response, 404, { error: "session_not_found" });
+          return await this.events(response, sessionId, redirected);
+        }
         case "POST /v1/runs": return json(response, 202, { run: this.runs.start(await this.turn(request)) });
-        case "POST /v1/runs/stop": return json(response, 200, { stopped: this.runs.stop() });
-        case "GET /v1/sessions": return json(response, 200, { sessions: this.store.listSessions() });
+        case "POST /v1/runs/stop": {
+          const { runId } = await readJson(request);
+          if (typeof runId !== "string" || !runId) throw new Error("runId is required");
+          return json(response, 200, { stopped: this.runs.stop(runId) });
+        }
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses() });
+        case "POST /v1/sessions": {
+          const { cwd } = await readJson(request);
+          const session = this.runtime.openSession({ fresh: true, ...(typeof cwd === "string" ? { cwd } : {}) });
+          return json(response, 201, { session });
+        }
+        case "POST /v1/sessions/auto": {
+          const { cwd, preferredSessionId } = await readJson(request);
+          const session = this.runtime.openSession({
+            ...(typeof cwd === "string" ? { cwd } : {}),
+            ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
+          });
+          return json(response, 200, { session });
+        }
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
         case "POST /v1/setup/openai": {
           const { apiKey } = await readJson(request);
@@ -158,17 +181,17 @@ export class RuntimeServer {
     if (attachments.some((attachment) => !attachment)) throw new Error("attachment not found");
     const channel = body.channel as Channel;
     if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
+    if (typeof body.sessionId !== "string" || !body.sessionId) throw new Error("sessionId is required");
     return {
       text,
       ...(attachmentIds.length ? { attachmentIds, attachments: attachments.filter((attachment) => attachment !== null) } : {}),
       ...(typeof body.cwd === "string" ? { cwd: body.cwd } : {}),
-      ...(typeof body.sessionId === "string" ? { sessionId: body.sessionId } : {}),
-      ...(body.fresh === true ? { fresh: true } : {}),
+      sessionId: body.sessionId,
       channel,
     };
   }
 
-  private async events(response: ServerResponse): Promise<void> {
+  private async events(response: ServerResponse, sessionId?: string, redirected?: ReturnType<Store["redirectedSession"]>): Promise<void> {
     const controller = new AbortController();
     response.once("close", () => controller.abort());
     response.writeHead(200, {
@@ -180,8 +203,12 @@ export class RuntimeServer {
     });
     response.flushHeaders();
     response.write(": connected\n\n");
+    if (redirected && sessionId) {
+      response.end(`data: ${JSON.stringify({ sessionId, runId: "", event: { type: "navigate", session: redirected, url: `agent://sessions/${redirected.id}` } })}\n\n`);
+      return;
+    }
     try {
-      for await (const event of this.runs.events(controller.signal, () => response.destroy(), () => this.snapshot())) {
+      for await (const event of this.runs.events(controller.signal, () => response.destroy(), () => this.snapshot(sessionId), sessionId)) {
         const frame = `data: ${JSON.stringify(event)}\n\n`;
         if (!response.write(frame)) await waitForDrain(response);
       }
@@ -190,14 +217,22 @@ export class RuntimeServer {
     }
   }
 
-  private snapshot(): RuntimeSnapshot {
-    const activeRun = this.runs.activeSnapshot();
-    const session = activeRun?.session ?? this.store.latestSession();
-    const lastRun = this.store.latestRun();
+  private snapshot(sessionId?: string): RuntimeSnapshot {
+    const session = sessionId ? this.store.getSession(sessionId) : this.store.latestSession();
+    const sessions = this.sessionStatuses();
     return {
+      sessions,
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
-      activeRun,
-      lastRun: lastRun ? { id: lastRun.id, sessionId: lastRun.sessionId, state: lastRun.state } : null,
+      activeRuns: this.runs.activeSnapshots(sessionId),
+      lastRuns: (sessionId ? [session].filter((value): value is NonNullable<typeof value> => Boolean(value)) : sessions)
+        .map((item) => this.store.latestRun(item.id))
+        .filter((run): run is NonNullable<typeof run> => Boolean(run))
+        .map(({ id, sessionId: runSessionId, state }) => ({ id, sessionId: runSessionId, state })),
     };
+  }
+
+  private sessionStatuses(): SessionStatus[] {
+    const active = new Map(this.runs.activeInfos().map((run) => [run.sessionId, run.id]));
+    return this.store.listSessions().map((session) => ({ ...session, activeRunId: active.get(session.id) ?? null }));
   }
 }

@@ -9,28 +9,30 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `POST /v1/setup/openai` — connect an OpenAI key through Codex app-server
 - `POST /v1/setup/codex/login` — start explicit ChatGPT login with `{ "mode": "browser" | "headless" }`
 - `POST /v1/setup/codex/login/:id/wait` — wait for login completion without exposing credentials
-- `GET /v1/sessions` — recent locally owned sessions
+- `GET /v1/sessions` — recent sessions and each session's active run ID
+- `POST /v1/sessions/auto` — resume the recent `preferredSessionId` (or latest session) within eight idle hours, otherwise create one
+- `POST /v1/sessions` — create a new session
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
-- `POST /v1/runs` — submit one turn and receive its runtime-assigned run ID
-- `POST /v1/runs/stop` — explicitly stop the active run
-- `GET /v1/events` — receive one current-state snapshot, then the shared live Server-Sent Event stream
+- `POST /v1/runs` — submit to a session and receive its runtime-assigned run ID
+- `POST /v1/runs/stop` — stop one run by ID
+- `GET /v1/events?sessionId=<id>` — receive that session's snapshot and live events; omit the query for all sessions
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
 Telegram does not watch the filesystem or reload itself after builds. During development, run `agent telegram` to restart the background service with the new build.
 
-`POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. `POST /v1/runs` accepts `text`, optional `attachmentIds`, optional `sessionId`, optional `cwd`, optional `fresh`, and `channel`. Paths never cross the upload boundary. The runtime resolves voice notes, session continuity, memory, and workspace access before sending one turn through Codex app-server.
+`POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. Clients open a session before input, then send `text`, `sessionId`, `channel`, and optional `attachmentIds` to `POST /v1/runs`. Paths never cross the upload boundary. The runtime resolves voice notes, memory, and workspace access before sending one turn through Codex app-server.
 
-The runtime owns one active run globally. Starting another returns `409 busy`. Disconnecting an event subscriber never stops work; only `POST /v1/runs/stop` cancels it. Clients connect to the feed before accepting input. After subscribing, the server sends an ordered snapshot of the latest SQLite transcript and current run, then live events. There is no event replay buffer; completed turns missed during a disconnect come from SQLite. The stream identifies this contract with `X-Agent-Stream: snapshot`.
+Agent owns session IDs, saved transcripts, and run state. Codex app-server owns model execution and context. One run may be active per session; separate sessions run concurrently. Starting another turn in the same session returns `409 busy`. Disconnecting a subscriber never stops work; only an explicit stop by run ID does. Clients connect before accepting input and rehydrate from a SQLite-backed snapshot after reconnect. A deleted source session instead starts with a `navigate` event to its saved destination. There is no event replay buffer. The stream identifies this contract with `X-Agent-Stream: snapshot`.
 
 Each SSE data payload wraps one runtime event with its run ID:
 
 ```json
-{ "runId": "…", "event": { "type": "text_delta", "delta": "hello" } }
+{ "sessionId": "…", "runId": "…", "event": { "type": "text_delta", "delta": "hello" } }
 ```
 
-Current event types are `snapshot`, `turn`, `session`, `navigate`, `status`, `text_delta`, `artifact`, `tool_start`, `tool_end`, `done`, and `error`. The snapshot contains the latest session's saved messages, any active run's input/output/artifacts, and the last persisted run state. `turn` identifies the originating surface and lets every connected client render the same user input. `navigate` carries an `agent://sessions/<id>` deep link so every surface selects the same saved conversation. An artifact carries one runtime-owned local image or file path plus its name, MIME type, and size; CLI, Telegram, and macOS only render that shared event. Clients ignore unknown event types so compatible additions do not require lockstep releases.
+Current event types are `snapshot`, `session_activity`, `turn`, `session`, `navigate`, `status`, `text_delta`, `artifact`, `tool_start`, `tool_end`, `done`, and `error`. The snapshot contains recent session statuses, the selected session's saved messages, active output/artifacts, and last persisted run state. A scoped subscriber receives its session's turn events and global `session_activity` events to refresh the conversation list. `turn` identifies the originating surface. `navigate` carries an `agent://sessions/<id>` deep link for opening saved work. An artifact carries one runtime-owned local image or file path plus its name, MIME type, and size; clients only deliver or render it. Clients ignore unknown event types so compatible additions do not require lockstep releases.
 
 All events are backend-neutral. Codex app-server notifications such as agent-message deltas, item lifecycle events, and turn completion are normalized before crossing this boundary, so no client imports or implements the app-server protocol.
 
@@ -44,4 +46,4 @@ The private profile replaces Codex's built-in base instructions with Agent's sho
 
 Agent launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Browser, device-code, and API-key setup send `chatgpt`, `chatgptDeviceCode`, and `apiKey` login requests respectively. Every mode uses the same persistent thread, turn, tool, compaction, interruption, artifact, and realtime transcription path. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to Agent's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence, billing state, model context, and context compaction inside that profile. Agent stores its SQLite transcript, memories, project state, session selection, and opaque Codex thread IDs. Switching authentication changes the account in that profile without selecting another runtime or fallback backend.
 
-The runtime continues the latest Agent session across clients while it has activity within eight hours. After eight idle hours, or when a client sends `fresh`, the new session's first normal turn can list saved conversations by title and brief preview, read a candidate's messages if needed, then open a strong match. Ordinary requests answer without an extra lookup turn. Opening a match deletes the temporary session and Codex thread, activates the saved conversation, and emits one shared deep link. Lookup uses logical Agent sessions and their latest rollover handoff, never obsolete Codex thread generations. Codex thread rollover during context compaction keeps the existing Agent session and transcript.
+Automatic selection continues a recent Agent session while it has activity within eight hours; clients can also create or select a session explicitly. The new session's first normal turn can list saved conversations by title and brief preview, read a candidate's messages if needed, then open a strong match. Ordinary requests answer without an extra lookup turn. Opening a match removes the temporary session and Codex thread, records a redirect for reconnecting clients, activates the saved conversation, and emits a deep link. Lookup uses logical Agent sessions and their latest rollover handoff, never obsolete Codex thread generations. Codex thread rollover during context compaction keeps the existing Agent session and transcript.
