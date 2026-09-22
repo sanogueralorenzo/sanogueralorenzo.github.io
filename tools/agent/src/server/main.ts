@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { loadConfig } from "../local/config.js";
-import { deleteSecret, readSecret } from "../local/credentials.js";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
@@ -13,8 +12,7 @@ const store = new Store(config.homeDir);
 const codexClient = createAgentCodexAppServer(config);
 const codex = new CodexBackend(config, store, codexClient);
 const runtime = new AgentRuntime(store, codex);
-const setup = new AgentSetupService(store, codexClient, () => deleteSecret("openai", config.homeDir));
-await setup.migrateLegacyApiKey(readSecret("openai", config.homeDir));
+const setup = new AgentSetupService(codexClient);
 const server = new RuntimeServer(config, runtime, store, setup);
 
 const port = await server.listen();

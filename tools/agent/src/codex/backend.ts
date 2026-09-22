@@ -124,7 +124,7 @@ export class CodexBackend implements AgentBackend {
   }
 
   async discardSession(sessionId: string): Promise<void> {
-    const threadId = this.store.backendSession(sessionId, "codex");
+    const threadId = this.store.codexThread(sessionId);
     if (threadId) await this.client.request("thread/delete", { threadId });
   }
 
@@ -145,7 +145,7 @@ export class CodexBackend implements AgentBackend {
           if (event.type !== "done") progress = true;
           yield event;
         }
-        this.store.addBackendCompactions(turn.session.id, "codex", compactions);
+        this.store.addCodexCompactions(turn.session.id, compactions);
         return;
       } catch (error) {
         if (error instanceof CodexDisconnectedError && attempt === 0 && !progress) {
@@ -329,7 +329,7 @@ export class CodexBackend implements AgentBackend {
   }
 
   private async sessionThread(turn: BackendTurn): Promise<string> {
-    const existing = this.store.backendSession(turn.session.id, "codex");
+    const existing = this.store.codexThread(turn.session.id);
     const common = {
       model: MODEL,
       cwd: turn.session.cwd ?? this.config.homeDir,
@@ -340,7 +340,7 @@ export class CodexBackend implements AgentBackend {
     };
     if (existing) {
       const resumed = (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
-      return this.store.backendCompactions(turn.session.id, "codex") >= ROLLOVER_AFTER_COMPACTIONS
+      return this.store.codexCompactions(turn.session.id) >= ROLLOVER_AFTER_COMPACTIONS
         ? this.rollover(turn, resumed, common)
         : resumed;
     }
@@ -349,7 +349,7 @@ export class CodexBackend implements AgentBackend {
       ephemeral: false,
       threadSource: "appServer",
     });
-    this.store.bindBackendSession(turn.session.id, "codex", started.thread.id);
+    this.store.bindCodexThread(turn.session.id, started.thread.id);
     return started.thread.id;
   }
 
@@ -383,7 +383,7 @@ export class CodexBackend implements AgentBackend {
           }],
         }],
       });
-      if (!this.store.rotateBackendSession(turn.session.id, "codex", previousId, nextId, handoff)) {
+      if (!this.store.rotateCodexThread(turn.session.id, previousId, nextId, handoff)) {
         throw new Error("The Agent session changed while Codex was preparing its continuation.");
       }
       return nextId;

@@ -3,7 +3,6 @@ export type Channel = "cli" | "telegram" | "macos" | "api";
 
 export interface Session {
   id: string;
-  scopeKey: string;
   cwd: string | null;
   title: string;
   updatedAt: string;

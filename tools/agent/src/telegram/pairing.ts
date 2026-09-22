@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Bot } from "grammy";
 import { readSecretLine } from "../cli/setup.js";
 import { loadConfig } from "../local/config.js";
-import { writeSecret } from "../local/credentials.js";
+import { writeTelegramToken } from "./credentials.js";
 import { readPrivateJson, writePrivateJson } from "../local/files.js";
 import { pairingExpiresAt, pairingHash } from "./text.js";
 
@@ -36,7 +36,7 @@ export async function setupTelegram(): Promise<string> {
     throw new Error("Telegram could not validate that bot token. Copy a fresh token from @BotFather and try again.");
   }
   if (webhook.url) throw new Error("This bot is connected to a webhook elsewhere. Create a new bot for Agent.");
-  writeSecret("telegram", token, config.homeDir);
+  writeTelegramToken(token, config.homeDir);
 
   const existing = readTelegramState(config.homeDir);
   if (existing?.ownerId) {

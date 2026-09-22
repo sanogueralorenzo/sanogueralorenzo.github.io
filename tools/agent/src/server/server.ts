@@ -94,7 +94,7 @@ export class RuntimeServer {
         const id = decodeURIComponent(url.pathname.slice("/v1/sessions/".length, -"/messages".length));
         const session = this.store.getSession(id) ?? this.store.redirectedSession(id);
         return session
-          ? json(response, 200, { session, messages: this.store.getMessages(id) })
+          ? json(response, 200, { session, messages: this.store.getMessages(session.id) })
           : json(response, 404, { error: "session_not_found" });
       }
       if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/wait")) {
@@ -129,6 +129,11 @@ export class RuntimeServer {
             ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
           });
           return json(response, 200, { session });
+        }
+        case "POST /v1/telegram/session": {
+          const { ownerId, fresh } = await readJson(request);
+          if (typeof ownerId !== "string" || !/^\d+$/.test(ownerId)) throw new Error("Telegram owner ID is required.");
+          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, fresh === true) });
         }
         case "GET /v1/setup": return json(response, 200, await this.setup.status());
         case "POST /v1/setup/openai": {

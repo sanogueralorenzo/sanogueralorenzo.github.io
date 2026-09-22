@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../local/config.js";
-import { deleteSecret, readSecret } from "../local/credentials.js";
 import { Store } from "../conversation/store.js";
 import { AgentSetupService } from "../setup/service.js";
 
@@ -82,12 +81,8 @@ function createSetupContext() {
   const config = loadConfig();
   const store = new Store(config.homeDir, "agent.sqlite", { recoverRuns: false });
   const codex = createAgentCodexAppServer(config);
-  const service = new AgentSetupService(
-    store,
-    codex,
-    () => deleteSecret("openai", config.homeDir),
-  );
-  return { config, store, codex, service };
+  const service = new AgentSetupService(codex);
+  return { store, codex, service };
 }
 
 export async function setupAgent(args: string[] = [], skipIfConfigured = false): Promise<void> {
@@ -99,10 +94,9 @@ export async function setupAgent(args: string[] = [], skipIfConfigured = false):
     throw new Error("Choose exactly one setup method: browser, headless device, or API key.");
   }
 
-  const { config, store, codex, service } = createSetupContext();
+  const { store, codex, service } = createSetupContext();
 
   try {
-    await service.migrateLegacyApiKey(readSecret("openai", config.homeDir));
     const before = await service.status();
     if (skipIfConfigured && requested.length === 0 && before.configured) return;
     console.log("\nConnect Agent\n");

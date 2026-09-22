@@ -1,3 +1,5 @@
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { temporary } from "../test-support.js";
 import { Store } from "./store.js";
@@ -7,15 +9,60 @@ function createStore(): Store {
 }
 
 describe("Store", () => {
-  it("resumes a session by scope and persists its transcript", () => {
+  it("keeps sessions distinct and persists their transcripts", () => {
     const store = createStore();
-    const first = store.resolveSession({ scopeKey: "assistant:local", cwd: "/tmp/example" });
+    const first = store.createSession({ cwd: "/tmp/example" });
     store.addMessage(first.id, "user", "hello");
-    const resumed = store.resolveSession({ scopeKey: "assistant:local", cwd: "/tmp/example" });
+    const second = store.createSession({ cwd: "/tmp/example" });
 
-    expect(resumed.id).toBe(first.id);
+    expect(second.id).not.toBe(first.id);
+    expect(store.getSession(first.id)).toMatchObject({ id: first.id, cwd: first.cwd, title: first.title });
     expect(store.getMessages(first.id)).toMatchObject([{ role: "user", content: "hello" }]);
     store.close();
+  });
+
+  it("upgrades saved conversations and Codex thread bindings without losing data", () => {
+    const directory = temporary("agent-legacy-store-");
+    const legacy = new DatabaseSync(join(directory, "agent.sqlite"));
+    legacy.exec(`
+      CREATE TABLE sessions (id TEXT PRIMARY KEY, scope_key TEXT NOT NULL UNIQUE, cwd TEXT, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE messages (id INTEGER PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE backend_sessions (session_id TEXT NOT NULL REFERENCES sessions(id), backend TEXT NOT NULL, external_id TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id, backend));
+      CREATE TABLE backend_context (session_id TEXT NOT NULL REFERENCES sessions(id), backend TEXT NOT NULL, compactions INTEGER NOT NULL, PRIMARY KEY(session_id, backend));
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
+      INSERT INTO sessions VALUES ('saved', 'assistant:local:old', '/tmp/project', 'Saved work', '2026-01-01', '2026-01-02');
+      INSERT INTO messages VALUES (1, 'saved', 'user', 'Keep this work', '2026-01-02');
+      INSERT INTO backend_sessions VALUES ('saved', 'codex', 'codex-thread', '2026-01-02');
+      INSERT INTO backend_context VALUES ('saved', 'codex', 2);
+      INSERT INTO settings VALUES ('backend', 'responses', '2026-01-02');
+    `);
+    legacy.close();
+
+    const store = new Store(directory);
+    expect(store.getSession("saved")).toMatchObject({ title: "Saved work", cwd: "/tmp/project" });
+    expect(store.getMessages("saved")).toEqual([{ role: "user", content: "Keep this work" }]);
+    expect(store.codexThread("saved")).toBe("codex-thread");
+    expect(store.codexCompactions("saved")).toBe(2);
+    expect(store.db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    expect(store.db.prepare("PRAGMA table_info(sessions)").all()).not.toContainEqual(expect.objectContaining({ name: "scope_key" }));
+    expect(store.db.prepare("SELECT name FROM sqlite_master WHERE name IN ('settings', 'backend_sessions', 'backend_context')").all()).toEqual([]);
+    store.close();
+  });
+
+  it("persists Telegram's selected session and follows navigation", () => {
+    const directory = temporary("agent-telegram-binding-");
+    const store = new Store(directory);
+    const source = store.createSession();
+    const target = store.createSession();
+    store.bindTelegramSession("42", source.id);
+    store.close();
+
+    const reopened = new Store(directory);
+    expect(reopened.telegramSession("42")).toBe(source.id);
+    reopened.redirectSession(source.id, target.id);
+    expect(reopened.telegramSession("42")).toBe(target.id);
+    expect(reopened.getSession(source.id)).toBeNull();
+    reopened.close();
   });
 
   it("stores and retrieves relevant memories", () => {
@@ -31,7 +78,7 @@ describe("Store", () => {
   it("recovers checkpointed output after an unclean runtime stop", () => {
     const path = temporary("agent-store-");
     const first = new Store(path);
-    const session = first.resolveSession({ scopeKey: "assistant:local" });
+    const session = first.createSession();
     const run = first.startRun(session.id);
     first.checkpointRun(run, "partial answer");
     first.close();
@@ -48,7 +95,7 @@ describe("Store", () => {
 
   it("retains only the latest run state for reconnect reconciliation", () => {
     const store = createStore();
-    const session = store.resolveSession({ scopeKey: "assistant:local" });
+    const session = store.createSession();
     store.startRun(session.id, "first");
     store.finishRun("first", "complete");
     expect(store.latestRun()).toMatchObject({ id: "first", state: "complete", output: "" });
@@ -63,7 +110,7 @@ describe("Store", () => {
   it("commits the final answer and terminal state together", () => {
     const path = temporary("agent-store-");
     const store = new Store(path);
-    const session = store.resolveSession({ scopeKey: "assistant:local" });
+    const session = store.createSession();
     store.startRun(session.id, "r1");
     store.checkpointRun("r1", "draft");
     store.finishRun("r1", "complete", "final answer");
@@ -75,19 +122,19 @@ describe("Store", () => {
     reopened.close();
   });
 
-  it("rotates a backend thread and its compaction count atomically", () => {
+  it("rotates a Codex thread and its compaction count atomically", () => {
     const store = createStore();
-    const session = store.resolveSession({ scopeKey: "assistant:local" });
-    store.bindBackendSession(session.id, "codex", "thread-1");
-    store.addBackendCompactions(session.id, "codex", 3);
+    const session = store.createSession();
+    store.bindCodexThread(session.id, "thread-1");
+    store.addCodexCompactions(session.id, 3);
 
-    expect(store.rotateBackendSession(session.id, "codex", "stale-thread", "thread-2", "stale handoff")).toBe(false);
-    expect(store.backendSession(session.id, "codex")).toBe("thread-1");
-    expect(store.backendCompactions(session.id, "codex")).toBe(3);
+    expect(store.rotateCodexThread(session.id, "stale-thread", "thread-2", "stale handoff")).toBe(false);
+    expect(store.codexThread(session.id)).toBe("thread-1");
+    expect(store.codexCompactions(session.id)).toBe(3);
 
-    expect(store.rotateBackendSession(session.id, "codex", "thread-1", "thread-2", "Current objective and next action")).toBe(true);
-    expect(store.backendSession(session.id, "codex")).toBe("thread-2");
-    expect(store.backendCompactions(session.id, "codex")).toBe(0);
+    expect(store.rotateCodexThread(session.id, "thread-1", "thread-2", "Current objective and next action")).toBe(true);
+    expect(store.codexThread(session.id)).toBe("thread-2");
+    expect(store.codexCompactions(session.id)).toBe(0);
     expect(store.sessionCards()[0]?.preview).toContain("Current objective and next action");
     expect(store.readConversation(session.id).handoff).toBe("Current objective and next action");
     store.close();
@@ -95,7 +142,7 @@ describe("Store", () => {
 
   it("lists short previews and reads one conversation in pages without tool messages", () => {
     const store = createStore();
-    const session = store.resolveSession({ scopeKey: "assistant:local", title: "Telegram work" });
+    const session = store.createSession({ title: "Telegram work" });
     for (let number = 1; number <= 11; number += 1) {
       store.addMessage(session.id, "user", `Message ${number}: ${"detail ".repeat(40)}`);
       store.addMessage(session.id, "tool", "command: complete");

@@ -9,7 +9,7 @@ function runtime(run: (signal: AbortSignal) => AsyncGenerator<RuntimeEvent>) {
     value: {
       prepareTurn(turn: { sessionId?: string }) {
         const id = turn.sessionId ?? "s1";
-        return { session: { id, scopeKey: `assistant:${id}`, cwd: null, title: id, updatedAt: "now" }, empty: false, sessionTools: [] };
+        return { session: { id, cwd: null, title: id, updatedAt: "now" }, empty: false, sessionTools: [] };
       },
       async *run(_turn: unknown, options: { signal: AbortSignal }) {
       executions += 1;

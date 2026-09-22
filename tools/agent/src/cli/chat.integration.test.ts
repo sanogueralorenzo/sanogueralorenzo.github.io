@@ -8,7 +8,7 @@ import { writePrivateJson } from "../local/files.js";
 import { cleanup, temporary } from "../test-support.js";
 
 describe("CLI shared runs", () => {
-  const session = { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() };
+  const session = { id: "s1", cwd: null, title: "Hello", updatedAt: new Date().toISOString() };
   it("submits once and renders the centralized event feed", async () => {
     const homeDir = temporary("agent-cli-runs-");
     let feed: ServerResponse | undefined;
@@ -98,7 +98,7 @@ describe("CLI shared runs", () => {
           ? { sessions: [{ ...session, activeRunId: null }], transcript: { session, messages: [] }, activeRuns: [], lastRuns: [] }
           : {
               transcript: {
-                session: { id: "s1", scopeKey: "assistant:local", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
+                session: { id: "s1", cwd: null, title: "Hello", updatedAt: new Date().toISOString() },
                 messages: [{ role: "user", content: "hello" }, { role: "assistant", content: "Recovered answer" }],
               },
               sessions: [{ ...session, activeRunId: null }],

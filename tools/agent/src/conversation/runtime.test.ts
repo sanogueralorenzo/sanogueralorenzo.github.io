@@ -115,6 +115,18 @@ describe("AgentRuntime", () => {
     expect(runtime.openSession({ preferredSessionId: first.id }).id).not.toBe(first.id);
   });
 
+  it("keeps Telegram's selection independent of the latest session and rolls it after eight idle hours", () => {
+    const { store, runtime } = testRuntime();
+    const telegram = runtime.openTelegramSession("42");
+    runtime.openSession({ fresh: true });
+    expect(runtime.openTelegramSession("42").id).toBe(telegram.id);
+    store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
+      .run(new Date(Date.now() - 8 * 60 * 60 * 1_000).toISOString(), telegram.id);
+    const next = runtime.openTelegramSession("42");
+    expect(next.id).not.toBe(telegram.id);
+    expect(store.telegramSession("42")).toBe(next.id);
+  });
+
   it("starts a separate session when the user requests a new conversation", async () => {
     const { runtime } = testRuntime();
     const first = await collect(runtime, { text: "first", channel: "cli" });

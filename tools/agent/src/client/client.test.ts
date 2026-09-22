@@ -54,7 +54,7 @@ describe("RuntimeClient run protocol", () => {
   it("accepts a redirect as the first event when a session moved", async () => {
     const client = await fixture((_request, response) => {
       response.writeHead(200, { "content-type": "text/event-stream", "x-agent-stream": "snapshot" });
-      response.end('data: {"sessionId":"old","runId":"","event":{"type":"navigate","session":{"id":"new","scopeKey":"assistant:new","cwd":null,"title":"Saved work","updatedAt":"now"},"url":"agent://sessions/new"}}\n\n');
+      response.end('data: {"sessionId":"old","runId":"","event":{"type":"navigate","session":{"id":"new","cwd":null,"title":"Saved work","updatedAt":"now"},"url":"agent://sessions/new"}}\n\n');
     });
     const stream = (await client.events())[Symbol.asyncIterator]();
     await expect(stream.next()).resolves.toMatchObject({ value: { event: { type: "navigate", session: { id: "new" } } } });

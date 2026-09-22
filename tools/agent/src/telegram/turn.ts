@@ -3,7 +3,7 @@ import type { Artifact, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../con
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { splitTelegramText } from "./text.js";
 
-type TurnClient = Pick<RuntimeClient, "submit" | "stop" | "openSession" | "transcript">;
+type TurnClient = Pick<RuntimeClient, "submit" | "stop" | "telegramSession" | "transcript">;
 type InFlight = { sessionId: string; output: string; error: string; artifacts: Artifact[] };
 
 export interface TelegramTurnResult { sessionId: string; chunks: string[]; artifacts: Artifact[] }
@@ -27,17 +27,24 @@ export class TelegramTurns {
   private current = new Map<string, InFlight>();
   private pending = new Map<string, string>();
   private delivered = new Set<string>();
-  private fresh = false;
   private sessionId: string | undefined;
   private latestSnapshot: RuntimeSnapshot | undefined;
 
-  constructor(private readonly client: TurnClient) {}
+  constructor(private readonly client: TurnClient, private readonly ownerId: () => string | undefined) {}
+
+  get selectedSessionId(): string | undefined { return this.sessionId; }
+
+  async ensureSession(): Promise<string> {
+    const owner = this.ownerId();
+    if (!owner) throw new Error("Telegram is not paired.");
+    const session = await this.client.telegramSession(owner);
+    this.sessionId = session.id;
+    return session.id;
+  }
 
   async submit(prepare: () => Promise<Omit<TurnRequest, "channel">>): Promise<TelegramSubmitResult> {
-    const session = await this.client.openSession({ fresh: this.fresh, ...(this.sessionId ? { preferredSessionId: this.sessionId } : {}) });
-    this.sessionId = session.id;
-    this.fresh = false;
-    const run = await this.client.submit({ ...await prepare(), sessionId: session.id, channel: "telegram" });
+    const sessionId = await this.ensureSession();
+    const run = await this.client.submit({ ...await prepare(), sessionId, channel: "telegram" });
     if (!run) return { accepted: false, recovered: [] };
     this.pending.set(run.id, run.sessionId);
     const recovered = this.latestSnapshot?.lastRuns.some((last) => last.id === run.id)
@@ -45,9 +52,10 @@ export class TelegramTurns {
     return { accepted: true, recovered };
   }
 
-  newConversation(): void {
-    this.fresh = true;
-    this.sessionId = undefined;
+  async newConversation(): Promise<void> {
+    const owner = this.ownerId();
+    if (!owner) throw new Error("Telegram is not paired.");
+    this.sessionId = (await this.client.telegramSession(owner, true)).id;
     this.current.clear();
     this.pending.clear();
   }
@@ -61,7 +69,6 @@ export class TelegramTurns {
   }
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
-    if (!this.sessionId && !this.fresh && event.type === "turn") this.sessionId = sessionId;
     if (sessionId !== this.sessionId && !this.current.has(runId)) return null;
     if (event.type === "turn") this.current.set(runId, { sessionId, output: "", error: "", artifacts: [] });
     const current = this.current.get(runId);
@@ -86,16 +93,6 @@ export class TelegramTurns {
 
   async reconcile(snapshot: RuntimeSnapshot): Promise<TelegramTurnResult[]> {
     this.latestSnapshot = snapshot;
-    if (!this.sessionId && !this.fresh) {
-      this.sessionId = snapshot.transcript?.session.id ?? snapshot.sessions[0]?.id ?? snapshot.activeRuns[0]?.run.sessionId;
-    }
-    if (this.sessionId && !snapshot.sessions.some((session) => session.id === this.sessionId)) {
-      const selected = await this.client.transcript(this.sessionId);
-      if (selected.session.id !== this.sessionId) {
-        this.sessionId = selected.session.id;
-        this.pending.clear();
-      }
-    }
     const previous = this.current;
     const activeRuns = snapshot.activeRuns.filter((active) =>
       active.run.sessionId === this.sessionId || active.navigation?.session.id === this.sessionId);

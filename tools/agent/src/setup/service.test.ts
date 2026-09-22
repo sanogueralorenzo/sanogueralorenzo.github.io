@@ -2,15 +2,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { CodexAppServer } from "../codex/app-server.js";
-import { Store } from "../conversation/store.js";
-import { cleanup, temporary } from "../test-support.js";
+import { cleanup } from "../test-support.js";
 import { AgentSetupService } from "./service.js";
 
 const fakeServer = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 
 function setup(scenario: string | null) {
-  const homeDir = temporary("agent-setup-");
-  const store = new Store(homeDir);
   const codex = scenario === null
     ? new CodexAppServer({ command: "missing-codex" })
     : new CodexAppServer({
@@ -18,10 +15,9 @@ function setup(scenario: string | null) {
       args: [fakeServer],
       env: { ...process.env, AGENT_FAKE_SCENARIO: scenario },
     });
-  let removed = 0;
-  const service = new AgentSetupService(store, codex, () => { removed += 1; });
-  cleanup(() => { codex.stop(); store.close(); });
-  return { store, service, removed: () => removed };
+  const service = new AgentSetupService(codex);
+  cleanup(() => { codex.stop(); });
+  return { service };
 }
 
 describe("AgentSetupService", () => {
@@ -37,15 +33,6 @@ describe("AgentSetupService", () => {
   it("switches from ChatGPT to API-key auth inside the same app-server", async () => {
     const { service } = setup("normal");
     await service.connectApiKey("sk-test");
-    await expect(service.status()).resolves.toMatchObject({ configured: true, authMode: "apiKey" });
-  });
-
-  it("moves a legacy Responses selection into app-server and deletes old connection records", async () => {
-    const { store, service, removed } = setup("expired");
-    store.setSetting("backend", "responses");
-    await service.migrateLegacyApiKey("sk-legacy");
-    expect(store.getSetting("backend")).toBeNull();
-    expect(removed()).toBe(1);
     await expect(service.status()).resolves.toMatchObject({ configured: true, authMode: "apiKey" });
   });
 

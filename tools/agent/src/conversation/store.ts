@@ -6,7 +6,7 @@ import type { Attachment, LastRun, Message, Session, SessionCard } from "./types
 import { ensurePrivateDirectory } from "../local/files.js";
 
 const now = () => new Date().toISOString();
-const SESSION_COLUMNS = `id, scope_key AS "scopeKey", cwd, title, updated_at AS "updatedAt"`;
+const SESSION_COLUMNS = `id, cwd, title, updated_at AS "updatedAt"`;
 const ATTACHMENT_COLUMNS = `id, name, mime_type AS "mimeType", size, path`;
 
 export class Store {
@@ -19,15 +19,57 @@ export class Store {
     this.db = new DatabaseSync(databasePath);
     chmodSync(databasePath, 0o600);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
+    this.upgradeSchema();
     this.initializeSchema();
     if (options.recoverRuns !== false) this.recoverInterruptedRuns();
+  }
+
+  private upgradeSchema(): void {
+    const columns = this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
+    if (!columns.some((column) => column.name === "scope_key")) return;
+    this.db.exec("PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE");
+    try {
+      this.db.exec(`
+        CREATE TABLE sessions_next (
+          id TEXT PRIMARY KEY,
+          cwd TEXT,
+          title TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO sessions_next SELECT id, cwd, title, created_at, updated_at FROM sessions;
+        CREATE TABLE codex_threads (
+          session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL UNIQUE,
+          compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO codex_threads (session_id, thread_id, compactions, updated_at)
+        SELECT s.session_id, s.external_id, COALESCE(c.compactions, 0), s.updated_at
+        FROM backend_sessions s LEFT JOIN backend_context c
+          ON c.session_id = s.session_id AND c.backend = 'codex'
+        WHERE s.backend = 'codex';
+        DROP TABLE IF EXISTS settings;
+        DROP TABLE IF EXISTS backend_context;
+        DROP TABLE IF EXISTS backend_sessions;
+        DROP TABLE sessions;
+        ALTER TABLE sessions_next RENAME TO sessions;
+      `);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    } finally {
+      this.db.exec("PRAGMA foreign_keys = ON");
+    }
+    const invalid = this.db.prepare("PRAGMA foreign_key_check").all();
+    if (invalid.length) throw new Error("Agent database upgrade left invalid conversation references.");
   }
 
   private initializeSchema(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
-        scope_key TEXT NOT NULL UNIQUE,
         cwd TEXT,
         title TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -57,24 +99,15 @@ export class Store {
         output TEXT NOT NULL DEFAULT '',
         started_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
+      CREATE TABLE IF NOT EXISTS codex_threads (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+        thread_id TEXT NOT NULL UNIQUE,
+        compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
         updated_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS backend_sessions (
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        backend TEXT NOT NULL,
-        external_id TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        PRIMARY KEY(session_id, backend),
-        UNIQUE(backend, external_id)
-      );
-      CREATE TABLE IF NOT EXISTS backend_context (
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        backend TEXT NOT NULL,
-        compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
-        PRIMARY KEY(session_id, backend)
+      CREATE TABLE IF NOT EXISTS telegram_sessions (
+        owner_id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE
       );
       CREATE TABLE IF NOT EXISTS session_handoffs (
         session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
@@ -113,40 +146,32 @@ export class Store {
     }
   }
 
-  resolveSession(input: {
-    sessionId?: string;
-    scopeKey: string;
-    cwd?: string;
-    title?: string;
-  }): Session {
-    if (input.sessionId) {
-      const exact = this.getSession(input.sessionId);
-      if (exact) {
-        const timestamp = now();
-        this.db.prepare("UPDATE sessions SET cwd = COALESCE(?, cwd), updated_at = ? WHERE id = ?")
-          .run(input.cwd ?? null, timestamp, exact.id);
-        return this.getSession(exact.id)!;
-      }
-    }
-
-    const existing = this.db.prepare(`
-      SELECT ${SESSION_COLUMNS} FROM sessions
-      WHERE scope_key = ? OR instr(scope_key, ? || ':') = 1
-      ORDER BY updated_at DESC LIMIT 1
-    `).get(input.scopeKey, input.scopeKey) as unknown as Session | undefined;
-    if (existing) {
-      const timestamp = now();
-      this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, existing.id);
-      return { ...existing, updatedAt: timestamp };
-    }
-
+  createSession(input: { cwd?: string; title?: string } = {}): Session {
     const timestamp = now();
     const id = randomUUID();
     this.db.prepare(`
-      INSERT INTO sessions (id, scope_key, cwd, title, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, input.scopeKey, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
+      INSERT INTO sessions (id, cwd, title, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, input.cwd ?? null, input.title ?? "New conversation", timestamp, timestamp);
     return this.getSession(id)!;
+  }
+
+  setSessionWorkspace(id: string, cwd: string): Session {
+    this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ? AND cwd IS NULL").run(cwd, now(), id);
+    return this.getSession(id)!;
+  }
+
+  telegramSession(ownerId: string): string | null {
+    const row = this.db.prepare("SELECT session_id AS sessionId FROM telegram_sessions WHERE owner_id = ?")
+      .get(ownerId) as { sessionId: string } | undefined;
+    return row?.sessionId ?? null;
+  }
+
+  bindTelegramSession(ownerId: string, sessionId: string): void {
+    this.db.prepare(`
+      INSERT INTO telegram_sessions (owner_id, session_id) VALUES (?, ?)
+      ON CONFLICT(owner_id) DO UPDATE SET session_id = excluded.session_id
+    `).run(ownerId, sessionId);
   }
 
   getSession(id: string): Session | null {
@@ -208,6 +233,7 @@ export class Store {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.prepare("INSERT INTO session_redirects (source_id, target_id) VALUES (?, ?)").run(sourceId, targetId);
+      this.db.prepare("UPDATE telegram_sessions SET session_id = ? WHERE session_id = ?").run(targetId, sourceId);
       this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sourceId);
       this.db.exec("COMMIT");
     } catch (error) {
@@ -297,75 +323,41 @@ export class Store {
     `).get(sessionId ?? null, sessionId ?? null) as unknown as LastRun ?? null;
   }
 
-  getSetting(key: string): string | null {
-    const row = this.db.prepare("SELECT value FROM settings WHERE key = ?").get(key) as { value: string } | undefined;
-    return row?.value ?? null;
+  codexThread(sessionId: string): string | null {
+    const row = this.db.prepare("SELECT thread_id AS threadId FROM codex_threads WHERE session_id = ?")
+      .get(sessionId) as { threadId: string } | undefined;
+    return row?.threadId ?? null;
   }
 
-  setSetting(key: string, value: string): void {
+  bindCodexThread(sessionId: string, threadId: string): void {
     this.db.prepare(`
-      INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-    `).run(key, value, now());
+      INSERT INTO codex_threads (session_id, thread_id, compactions, updated_at) VALUES (?, ?, 0, ?)
+      ON CONFLICT(session_id) DO UPDATE SET thread_id = excluded.thread_id, compactions = 0, updated_at = excluded.updated_at
+    `).run(sessionId, threadId, now());
   }
 
-  deleteSetting(key: string): void {
-    this.db.prepare("DELETE FROM settings WHERE key = ?").run(key);
-  }
-
-  backendSession(sessionId: string, backend: string): string | null {
-    const row = this.db.prepare("SELECT external_id FROM backend_sessions WHERE session_id = ? AND backend = ?")
-      .get(sessionId, backend) as { external_id: string } | undefined;
-    return row?.external_id ?? null;
-  }
-
-  bindBackendSession(sessionId: string, backend: string, externalId: string): void {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      this.db.prepare(`
-        INSERT INTO backend_sessions (session_id, backend, external_id, updated_at) VALUES (?, ?, ?, ?)
-        ON CONFLICT(session_id, backend) DO UPDATE SET external_id = excluded.external_id, updated_at = excluded.updated_at
-      `).run(sessionId, backend, externalId, now());
-      this.db.prepare(`
-        INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, 0)
-        ON CONFLICT(session_id, backend) DO UPDATE SET compactions = 0
-      `).run(sessionId, backend);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-  }
-
-  addBackendCompactions(sessionId: string, backend: string, count: number): void {
+  addCodexCompactions(sessionId: string, count: number): void {
     if (count < 1) return;
-    this.db.prepare(`
-      INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, ?)
-      ON CONFLICT(session_id, backend) DO UPDATE SET compactions = compactions + excluded.compactions
-    `).run(sessionId, backend, count);
+    this.db.prepare("UPDATE codex_threads SET compactions = compactions + ? WHERE session_id = ?").run(count, sessionId);
   }
 
-  backendCompactions(sessionId: string, backend: string): number {
-    const row = this.db.prepare("SELECT compactions FROM backend_context WHERE session_id = ? AND backend = ?")
-      .get(sessionId, backend) as { compactions: number } | undefined;
+  codexCompactions(sessionId: string): number {
+    const row = this.db.prepare("SELECT compactions FROM codex_threads WHERE session_id = ?")
+      .get(sessionId) as { compactions: number } | undefined;
     return row?.compactions ?? 0;
   }
 
-  rotateBackendSession(sessionId: string, backend: string, previousId: string, nextId: string, handoff: string): boolean {
+  rotateCodexThread(sessionId: string, previousId: string, nextId: string, handoff: string): boolean {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const result = this.db.prepare(`
-        UPDATE backend_sessions SET external_id = ?, updated_at = ?
-        WHERE session_id = ? AND backend = ? AND external_id = ?
-      `).run(nextId, now(), sessionId, backend, previousId);
+        UPDATE codex_threads SET thread_id = ?, compactions = 0, updated_at = ?
+        WHERE session_id = ? AND thread_id = ?
+      `).run(nextId, now(), sessionId, previousId);
       if (result.changes !== 1) {
         this.db.exec("ROLLBACK");
         return false;
       }
-      this.db.prepare(`
-        INSERT INTO backend_context (session_id, backend, compactions) VALUES (?, ?, 0)
-        ON CONFLICT(session_id, backend) DO UPDATE SET compactions = 0
-      `).run(sessionId, backend);
       this.db.prepare(`
         INSERT INTO session_handoffs (session_id, content, updated_at) VALUES (?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at

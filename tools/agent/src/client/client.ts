@@ -162,6 +162,16 @@ export class RuntimeClient {
     return (await response.json() as { session: Session }).session;
   }
 
+  async telegramSession(ownerId: string, fresh = false): Promise<Session> {
+    const response = await this.fetch("/v1/telegram/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ownerId, fresh }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    return (await response.json() as { session: Session }).session;
+  }
+
   async transcript(sessionId: string): Promise<{ session: Session; messages: Message[] }> {
     return this.json(`/v1/sessions/${encodeURIComponent(sessionId)}/messages`);
   }

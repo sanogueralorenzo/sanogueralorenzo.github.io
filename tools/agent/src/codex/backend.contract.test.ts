@@ -39,7 +39,7 @@ const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
 const config = (homeDir: string): RuntimeConfig => ({ homeDir, port: 0, codexCommand: "codex" });
 
 function turn(store: Store, homeDir: string, workspace = true): BackendTurn {
-  const session = store.resolveSession({ scopeKey: "assistant:local", ...(workspace ? { cwd: homeDir } : {}), title: "test" });
+  const session = store.createSession({ ...(workspace ? { cwd: homeDir } : {}), title: "test" });
   return {
     request: { text: "Fix the test", cwd: homeDir, channel: "api" },
     session,
@@ -67,14 +67,14 @@ describe("Codex turn transport", () => {
     const events = await collect(backend, input);
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
     expect(events.find((event) => event.type === "text_delta")).toMatchObject({ delta: "Hello from Codex." });
-    expect(store.backendSession(input.session.id, "codex")).toBe("thread-1");
+    expect(store.codexThread(input.session.id)).toBe("thread-1");
   });
 
   it("lets Codex compact context without changing the shared event contract", async () => {
     const { backend, input, store } = backendFixture("context-compaction");
     const events = await collect(backend, input);
     expect(events.map((event) => event.type)).toEqual(["tool_start", "tool_end", "text_delta", "done"]);
-    expect(store.backendCompactions(input.session.id, "codex")).toBe(1);
+    expect(store.codexCompactions(input.session.id)).toBe(1);
   });
 
   it("rolls a repeatedly compacted Codex thread over behind the shared session", async () => {
@@ -83,8 +83,8 @@ describe("Codex turn transport", () => {
       await collect(fixture.backend, { ...fixture.input, request: { ...fixture.input.request, text } });
     }
 
-    expect(fixture.store.backendSession(fixture.input.session.id, "codex")).toBe("thread-2");
-    expect(fixture.store.backendCompactions(fixture.input.session.id, "codex")).toBe(1);
+    expect(fixture.store.codexThread(fixture.input.session.id)).toBe("thread-2");
+    expect(fixture.store.codexCompactions(fixture.input.session.id)).toBe(1);
     const rpc = requests(fixture.log);
     const handoff = rpc.find((request) => request.method === "turn/start"
       && JSON.stringify(request.params.input).includes("continuation handoff"));
@@ -111,8 +111,8 @@ describe("Codex turn transport", () => {
       ...fixture.input,
       request: { ...fixture.input.request, text: "Continue" },
     })).rejects.toThrow("could not seed thread");
-    expect(fixture.store.backendSession(fixture.input.session.id, "codex")).toBe("thread-1");
-    expect(fixture.store.backendCompactions(fixture.input.session.id, "codex")).toBe(3);
+    expect(fixture.store.codexThread(fixture.input.session.id)).toBe("thread-1");
+    expect(fixture.store.codexCompactions(fixture.input.session.id)).toBe(3);
     expect(requests(fixture.log).at(-1)).toMatchObject({ method: "thread/delete", params: { threadId: "thread-2" } });
   });
 
@@ -184,7 +184,7 @@ describe("Codex turn transport", () => {
 
   it("opens a saved conversation from the first normal turn", async () => {
     const { backend, input, log, store } = backendFixture("session-navigation");
-    const saved = store.resolveSession({ scopeKey: "assistant:saved", title: "Telegram reconnects" });
+    const saved = store.createSession({ title: "Telegram reconnects" });
     store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
     const sessionTools = store.sessionCards().filter((session) => session.id === saved.id);
 
@@ -215,7 +215,7 @@ describe("Codex turn transport", () => {
 
   it("omits completed assistant text after opening a saved conversation", async () => {
     const { backend, input, store } = backendFixture("session-navigation-completed");
-    const saved = store.resolveSession({ scopeKey: "assistant:saved", title: "Telegram reconnects" });
+    const saved = store.createSession({ title: "Telegram reconnects" });
     const events = await collect(backend, {
       ...input,
       sessionTools: store.sessionCards().filter((session) => session.id === saved.id),
@@ -270,11 +270,11 @@ describe("Codex turn transport", () => {
 
   it("does not replace a missing Codex thread", async () => {
     const { backend, input, store, log } = backendFixture("missing-thread");
-    store.bindBackendSession(input.session.id, "codex", "missing-thread-id");
+    store.bindCodexThread(input.session.id, "missing-thread-id");
     await expect(collect(backend, input)).rejects.toThrow("thread not found");
     expect(readFileSync(log, "utf8")).toContain("thread/resume");
     expect(readFileSync(log, "utf8")).not.toContain("thread/start");
-    expect(store.backendSession(input.session.id, "codex")).toBe("missing-thread-id");
+    expect(store.codexThread(input.session.id)).toBe("missing-thread-id");
   });
 
   it.each([

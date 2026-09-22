@@ -12,10 +12,10 @@ afterEach(() => vi.unstubAllEnvs());
 async function verifyReload(watchedFile: string): Promise<void> {
   const homeDir = temporary("agent-hot-reload-");
   const store = new Store(homeDir);
-  const session = store.resolveSession({ scopeKey: "assistant:local", cwd: homeDir, title: "Reload-safe session" });
+  const session = store.createSession({ cwd: homeDir, title: "Reload-safe session" });
   store.addMessage(session.id, "user", "Keep this transcript");
   store.remember(`project:${homeDir}`, "Keep this memory");
-  store.bindBackendSession(session.id, "codex", "thread-persisted");
+  store.bindCodexThread(session.id, "thread-persisted");
   store.close();
 
   vi.stubEnv("AGENT_HOME", homeDir);
@@ -40,12 +40,11 @@ async function verifyReload(watchedFile: string): Promise<void> {
   }
 
   const recovered = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
-  expect(recovered.getSetting("backend")).toBeNull();
   expect(recovered.getSession(session.id)?.title).toBe("Reload-safe session");
   expect(recovered.getSession(session.id)?.cwd).toBe(homeDir);
   expect(recovered.getMessages(session.id)[0]?.content).toBe("Keep this transcript");
   expect(recovered.searchMemories(`project:${homeDir}`, "this memory")[0]).toBe("Keep this memory");
-  expect(recovered.backendSession(session.id, "codex")).toBe("thread-persisted");
+  expect(recovered.codexThread(session.id)).toBe("thread-persisted");
   expect(readFileSync(join(homeDir, "codex", "profile.marker"), "utf8")).toBe("private profile survives\n");
   recovered.close();
 }

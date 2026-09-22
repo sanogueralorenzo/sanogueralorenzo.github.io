@@ -12,6 +12,7 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `GET /v1/sessions` — recent sessions and each session's active run ID
 - `POST /v1/sessions/auto` — resume the recent `preferredSessionId` (or latest session) within eight idle hours, otherwise create one
 - `POST /v1/sessions` — create a new session
+- `POST /v1/telegram/session` — return the `ownerId`'s persisted session, or create and bind a new one with `{ "ownerId": "…", "fresh": true }`
 - `GET /v1/sessions/:id/messages` — bounded transcript hydration for thin clients
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
 - `POST /v1/runs` — submit to a session and receive its runtime-assigned run ID
@@ -24,7 +25,7 @@ Telegram does not watch the filesystem or reload itself after builds. During dev
 
 `POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. Clients open a session before input, then send `text`, `sessionId`, `channel`, and optional `attachmentIds` to `POST /v1/runs`. Paths never cross the upload boundary. The runtime resolves voice notes, memory, and workspace access before sending one turn through Codex app-server.
 
-Agent owns session IDs, saved transcripts, and run state. Codex app-server owns model execution and context. One run may be active per session; separate sessions run concurrently. Starting another turn in the same session returns `409 busy`. Disconnecting a subscriber never stops work; only an explicit stop by run ID does. Clients connect before accepting input and rehydrate from a SQLite-backed snapshot after reconnect. A deleted source session instead starts with a `navigate` event to its saved destination. There is no event replay buffer. The stream identifies this contract with `X-Agent-Stream: snapshot`.
+Agent owns session IDs, saved transcripts, Telegram's owner-to-session binding, and run state. Codex app-server owns model execution and context. One run may be active per session; separate sessions run concurrently. Starting another turn in the same session returns `409 busy`. Disconnecting a subscriber never stops work; only an explicit stop by run ID does. Clients connect before accepting input and rehydrate from a SQLite-backed snapshot after reconnect. A deleted source session instead starts with a `navigate` event to its saved destination. There is no event replay buffer. The stream identifies this contract with `X-Agent-Stream: snapshot`.
 
 Each SSE data payload wraps one runtime event with its run ID:
 

@@ -164,6 +164,26 @@ describe("RuntimeServer", () => {
     expect((await client.transcript(first.id)).messages).toMatchObject([{ role: "user", content: "first" }]);
   });
 
+  it("keeps Telegram on its persisted conversation across other clients and /new", async () => {
+    const { client } = await serve((store) => new AgentRuntime(store, {
+      async *run() { yield { type: "text_delta", delta: "Done." }; yield { type: "done" }; },
+      async transcribeAudio() { return ""; },
+      async discardSession() {},
+    } as AgentBackend));
+    const cli = await client.openSession({ fresh: true });
+    expect((await client.telegramSession("42")).id).toBe(cli.id);
+    const other = await client.openSession({ fresh: true });
+    expect((await client.telegramSession("42")).id).toBe(cli.id);
+    const stream = (await client.events(undefined, cli.id))[Symbol.asyncIterator]();
+    expect((await stream.next()).value).toMatchObject({ sessionId: cli.id, event: { type: "snapshot" } });
+    await client.submit({ text: "other work", sessionId: other.id, channel: "macos" });
+    expect((await stream.next()).value?.event.type).toBe("session_activity");
+    const fresh = await client.telegramSession("42", true);
+    expect(fresh.id).not.toBe(cli.id);
+    expect((await client.telegramSession("42")).id).toBe(fresh.id);
+    await stream.return?.();
+  });
+
   it("keeps session content off other sessions' streams while signaling list changes", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
       async *run() { yield { type: "text_delta", delta: "private answer" }; yield { type: "done" }; },
@@ -185,7 +205,7 @@ describe("RuntimeServer", () => {
   it("redirects a scoped client that missed conversation navigation", async () => {
     let destination = "";
     const { client } = await serve((store) => {
-      const saved = store.resolveSession({ scopeKey: "assistant:saved", title: "Saved work" });
+      const saved = store.createSession({ title: "Saved work" });
       store.addMessage(saved.id, "user", "Earlier work");
       destination = saved.id;
       return new AgentRuntime(store, {
@@ -206,7 +226,10 @@ describe("RuntimeServer", () => {
     });
     await reconnect.return?.();
     expect((await client.openSession({ preferredSessionId: temporarySession.id })).id).toBe(destination);
-    expect((await client.transcript(temporarySession.id)).session.id).toBe(destination);
+    expect(await client.transcript(temporarySession.id)).toMatchObject({
+      session: { id: destination },
+      messages: [{ role: "user", content: "Earlier work" }],
+    });
     expect((await client.sessions()).sessions.map((item) => item.id)).not.toContain(temporarySession.id);
   });
 

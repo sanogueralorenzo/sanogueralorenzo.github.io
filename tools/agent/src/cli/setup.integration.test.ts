@@ -20,9 +20,7 @@ async function runSetup(
   options: {
     scenario?: string;
     installed?: boolean;
-    initialBackend?: "codex" | "responses";
     seedState?: boolean;
-    apiConfigured?: boolean;
     browserOpens?: boolean;
   } = {},
   skipIfConfigured = false,
@@ -30,16 +28,13 @@ async function runSetup(
   const homeDir = temporary("agent-cli-setup-");
   const rpcLog = join(homeDir, "rpc.log");
   let seededSessionId: string | null = null;
-  if (options.initialBackend || options.seedState) {
+  if (options.seedState) {
     const seed = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
-    if (options.initialBackend) seed.setSetting("backend", options.initialBackend);
-    if (options.seedState) {
-      const session = seed.resolveSession({ scopeKey: "assistant:local", cwd: homeDir, title: "Preserve me" });
-      seededSessionId = session.id;
-      seed.addMessage(session.id, "user", "Preserved transcript");
-      seed.remember("project:preserved", "Preserved memory");
-      seed.bindBackendSession(session.id, "codex", "preserved-thread");
-    }
+    const session = seed.createSession({ cwd: homeDir, title: "Preserve me" });
+    seededSessionId = session.id;
+    seed.addMessage(session.id, "user", "Preserved transcript");
+    seed.remember("project:preserved", "Preserved memory");
+    seed.bindCodexThread(session.id, "preserved-thread");
     seed.close();
   }
   vi.stubEnv("AGENT_HOME", homeDir);
@@ -54,7 +49,6 @@ async function runSetup(
   } else {
     vi.stubEnv("PATH", ""); // Prevent the test from opening a real browser.
   }
-  vi.stubEnv("OPENAI_API_KEY", options.apiConfigured ? "sk-test-explicit-choice" : "");
   const output: string[] = [];
   vi.spyOn(console, "log").mockImplementation((...values) => output.push(values.join(" ")));
   vi.spyOn(process.stdout, "write").mockImplementation((value) => {
@@ -68,20 +62,18 @@ async function runSetup(
     error = cause instanceof Error ? cause : new Error(String(cause));
   }
   const setupRpc = existsSync(rpcLog) ? readFileSync(rpcLog, "utf8") : "";
-  let backend: string | null = null;
   let statePreserved = seededSessionId === null;
   if (existsSync(join(homeDir, "agent.sqlite"))) {
     const store = new Store(homeDir, "agent.sqlite", { recoverRuns: false });
-    backend = store.getSetting("backend");
     if (seededSessionId) {
       statePreserved = store.getSession(seededSessionId)?.title === "Preserve me"
         && store.getMessages(seededSessionId)[0]?.content === "Preserved transcript"
         && store.searchMemories("project:preserved", "Preserved memory")[0] === "Preserved memory"
-        && store.backendSession(seededSessionId, "codex") === "preserved-thread";
+        && store.codexThread(seededSessionId) === "preserved-thread";
     }
     store.close();
   }
-  return { output: output.join("\n"), rpc: setupRpc, backend, error, statePreserved };
+  return { output: output.join("\n"), rpc: setupRpc, error, statePreserved };
 }
 
 describe.sequential("CLI setup", () => {
@@ -96,31 +88,27 @@ describe.sequential("CLI setup", () => {
   });
 
   it.each([
-    ["saved ChatGPT login", ["--chatgpt"], { initialBackend: "codex" }, ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
+    ["saved ChatGPT login", ["--chatgpt"], {}, ["Connect Agent", "Connect Success"], [], ["account/login/start"]],
     ["browser", ["--chatgpt"], { scenario: "login-success", browserOpens: true }, ["Connect Agent", "Connect Success"], ['"type":"chatgpt"'], ["https://auth.openai.com/fake", "chatgptDeviceCode", "useHostedLoginSuccessPage"]],
     ["browser without opener", ["--chatgpt"], { scenario: "login-success" }, ["Connect Agent", "Open: https://auth.openai.com/fake", "Connect Success"], [], []],
     ["headless", ["--headless"], { scenario: "login-success" }, ["Connect Agent", "Open: https://auth.openai.com/codex/device", "Code: Agent-TEST", "Connect Success"], ['"type":"chatgptDeviceCode"'], []],
-    ["migrated API key", ["--api-key"], { scenario: "expired", initialBackend: "responses", apiConfigured: true }, ["Connect Agent", "Connect Success"], ['"type":"apiKey"'], ["sk-test-explicit-choice"]],
   ] as const)("connects with %s", async (_name, args, options, lines, includes, excludes) => {
     const result = await runSetup([...args], options);
     expect(result.error).toBeNull();
-    expect(result.backend).toBeNull();
     expect(result.output.split("\n").filter((line) => line.trim())).toEqual(lines);
     for (const text of includes) expect(result.rpc).toContain(text);
     for (const text of excludes) expect(`${result.output}\n${result.rpc}`).not.toContain(text);
   });
 
   it("stays silent when a client reuses an already configured connection", async () => {
-    const result = await runSetup([], { initialBackend: "codex" }, true);
+    const result = await runSetup([], {}, true);
     expect(result.error).toBeNull();
-    expect(result.backend).toBeNull();
     expect(result.output).toBe("");
   });
 
   it("fails a cancelled or failed browser login without selecting another auth mode", async () => {
     const result = await runSetup(["--chatgpt"], { scenario: "login-failed" });
     expect(result.error?.message).toBe("ChatGPT sign-in failed");
-    expect(result.backend).toBeNull();
     expect(result.output).not.toContain("Use API-key billing");
     expect(result.rpc).toContain("account/login/start");
   });
@@ -131,11 +119,9 @@ describe.sequential("CLI setup", () => {
   ])("preserves all Agent state when headless login is %s", async (scenario, message) => {
     const result = await runSetup(["--headless"], {
       scenario,
-      initialBackend: "responses",
       seedState: true,
     });
     expect(result.error?.message).toBe(message);
-    expect(result.backend).toBeNull();
     expect(result.statePreserved).toBe(true);
     expect(result.output).not.toContain("Use API-key billing");
   });
@@ -143,7 +129,6 @@ describe.sequential("CLI setup", () => {
   it("fails clearly when Codex is missing without selecting another backend", async () => {
     const result = await runSetup(["--chatgpt"], { installed: false });
     expect(result.error?.message).toMatch(/Install the Codex CLI/);
-    expect(result.backend).toBeNull();
     expect(result.output).not.toContain("Use API-key billing");
   });
 });

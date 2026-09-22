@@ -2,7 +2,7 @@ import { Bot, InputFile, type Context } from "grammy";
 import { RuntimeClient, RuntimeProtocolError } from "../client/client.js";
 import { RuntimeSupervisor } from "../cli/supervisor.js";
 import { loadConfig } from "../local/config.js";
-import { readSecret } from "../local/credentials.js";
+import { readTelegramToken } from "./credentials.js";
 import { pairTelegramOwner, readTelegramState } from "./pairing.js";
 import { keepTelegramTyping } from "./text.js";
 import { checkTelegramVoiceSize, isTelegramOwner, telegramFailure, type TelegramTurnResult, TelegramTurns } from "./turn.js";
@@ -15,6 +15,8 @@ async function runGateway(token: string): Promise<void> {
   const bot = new Bot(token);
   let stopping: Promise<void> | null = null;
   const deliveryController = new AbortController();
+  let streamController: AbortController | null = null;
+  let subscribedSessionId: string | undefined;
   let deliveryTask: Promise<void> | null = null;
   let deliveryStarted = false;
   let markDeliveryReady!: () => void;
@@ -22,7 +24,10 @@ async function runGateway(token: string): Promise<void> {
   const deliveryReady = new Promise<void>((resolve, reject) => { markDeliveryReady = resolve; failDeliveryReady = reject; });
   const ownerId = () => readTelegramState(config.homeDir)?.ownerId;
   const isOwner = (ctx: Context) => isTelegramOwner(ownerId(), ctx.chat?.type, ctx.from?.id);
-  const turns = new TelegramTurns(client);
+  const turns = new TelegramTurns(client, ownerId);
+  const switchDelivery = () => {
+    if (subscribedSessionId && turns.selectedSessionId !== subscribedSessionId) streamController?.abort();
+  };
   let stopTyping: () => void = () => undefined;
   let typing = false;
   const syncTyping = () => {
@@ -40,6 +45,7 @@ async function runGateway(token: string): Promise<void> {
   const stop = (): Promise<void> => stopping ??= (async () => {
     stopTyping();
     deliveryController.abort();
+    streamController?.abort();
     markDeliveryReady();
     supervisor.stop();
     await Promise.all([bot.stop(), deliveryTask]);
@@ -58,8 +64,19 @@ async function runGateway(token: string): Promise<void> {
 
   const observe = async (): Promise<void> => {
     while (!deliveryController.signal.aborted) {
+      let abortStream: (() => void) | undefined;
       try {
-        const events = await client.events(deliveryController.signal);
+        if (!ownerId()) {
+          markDeliveryReady();
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        subscribedSessionId = await turns.ensureSession();
+        streamController = new AbortController();
+        const stream = streamController;
+        abortStream = () => stream.abort();
+        deliveryController.signal.addEventListener("abort", abortStream, { once: true });
+        const events = await client.events(streamController.signal, subscribedSessionId);
         for await (const envelope of events) {
           if (envelope.event.type === "snapshot") {
             deliveryStarted = true;
@@ -75,10 +92,12 @@ async function runGateway(token: string): Promise<void> {
           syncTyping();
           if (result) {
             await deliver(result).catch((error) => console.error(`Telegram delivery error: ${String(error).replaceAll(token, "[redacted]")}`));
+            switchDelivery();
           }
         }
       } catch (error) {
         if (deliveryController.signal.aborted) { stopTyping(); return; }
+        if (streamController?.signal.aborted) continue;
         if (error instanceof RuntimeProtocolError) {
           stopTyping();
           deliveryController.abort();
@@ -92,6 +111,10 @@ async function runGateway(token: string): Promise<void> {
         stopTyping();
         typing = false;
         await client.waitUntilHealthy().catch(() => undefined);
+      } finally {
+        if (abortStream) deliveryController.signal.removeEventListener("abort", abortStream);
+        streamController = null;
+        subscribedSessionId = undefined;
       }
     }
     stopTyping();
@@ -100,6 +123,7 @@ async function runGateway(token: string): Promise<void> {
   bot.command("start", async (ctx) => {
     if (ctx.chat.type !== "private" || !ctx.from) return;
     const result = pairTelegramOwner(config.homeDir, ctx.from.id, ctx.match);
+    if (result === "connected" || result === "owner") await turns.ensureSession();
     const replies = {
       owner: "Agent is connected. Message me normally.",
       unavailable: "This Agent bot is not available.",
@@ -113,7 +137,8 @@ async function runGateway(token: string): Promise<void> {
   });
   bot.command("new", async (ctx) => {
     if (!isOwner(ctx)) return;
-    turns.newConversation();
+    await turns.newConversation();
+    switchDelivery();
     syncTyping();
     await ctx.reply("New conversation ready.");
   });
@@ -132,6 +157,7 @@ async function runGateway(token: string): Promise<void> {
     if (!isOwner(ctx)) return void await ctx.reply("This Agent bot is private.");
     try {
       const submission = await turns.submit(prepare);
+      switchDelivery();
       if (!submission.accepted) {
         await ctx.reply("I’m still working on the previous message. Send /stop first if you want to interrupt it.");
       } else for (const result of submission.recovered) await deliver(result);
@@ -177,7 +203,7 @@ async function runGateway(token: string): Promise<void> {
 
 export async function runConfiguredTelegramGateway(): Promise<void> {
   const config = loadConfig();
-  const token = readSecret("telegram", config.homeDir);
+  const token = readTelegramToken(config.homeDir);
   if (!token) throw new Error("Telegram is not connected. Run `agent telegram setup`.");
   try {
     await runGateway(token);

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { buildInstructions } from "./instructions.js";
 import type { AgentBackend } from "./backend.js";
@@ -43,18 +42,21 @@ export class AgentRuntime {
     const selected = options.fresh ? null
       : preferred && isRecent(preferred.updatedAt) ? preferred
       : latest && isRecent(latest.updatedAt) ? latest : null;
-    return selected ?? this.store.resolveSession({
-      scopeKey: `assistant:local:${randomUUID()}`,
-      ...(cwd ? { cwd } : {}),
-      title: "New conversation",
-    });
+    return selected ?? this.store.createSession(cwd ? { cwd } : {});
+  }
+
+  openTelegramSession(ownerId: string, fresh = false): Session {
+    const bound = this.store.telegramSession(ownerId);
+    const session = this.openSession({ fresh, ...(bound && !fresh ? { preferredSessionId: bound } : {}) });
+    this.store.bindTelegramSession(ownerId, session.id);
+    return session;
   }
 
   prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean } {
     if (incoming.sessionId && !this.store.getSession(incoming.sessionId)) throw new Error("Conversation not found.");
     const selected = incoming.sessionId ? this.store.getSession(incoming.sessionId)! : this.openSession(incoming);
     const session = incoming.cwd && !selected.cwd
-      ? this.store.resolveSession({ sessionId: selected.id, scopeKey: selected.scopeKey, cwd: resolve(incoming.cwd) })
+      ? this.store.setSessionWorkspace(selected.id, resolve(incoming.cwd))
       : selected;
     const empty = this.store.getMessages(session.id, 1).length === 0;
     return { session, empty, sessionTools: empty ? this.store.sessionCards().filter((card) => card.id !== session.id) : [] };

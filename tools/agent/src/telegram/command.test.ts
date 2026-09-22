@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   installService: vi.fn(),
-  readSecret: vi.fn(),
+  readTelegramToken: vi.fn(),
   setup: vi.fn(),
 }));
 
@@ -11,9 +11,9 @@ vi.mock("../cli/setup.js", () => ({
   setupAgent: mocks.setup,
 }));
 
-vi.mock("../local/credentials.js", () => ({
-  readSecret: mocks.readSecret,
-  writeSecret: vi.fn(),
+vi.mock("./credentials.js", () => ({
+  readTelegramToken: mocks.readTelegramToken,
+  writeTelegramToken: vi.fn(),
 }));
 
 vi.mock("./service.js", () => ({
@@ -42,7 +42,7 @@ describe("Telegram guided setup", () => {
   });
 
   it("starts the configured background service and returns", async () => {
-    mocks.readSecret.mockReturnValue("telegram-token");
+    mocks.readTelegramToken.mockReturnValue("telegram-token");
 
     await expect(runTelegramCommand([])).resolves.toBeUndefined();
 
