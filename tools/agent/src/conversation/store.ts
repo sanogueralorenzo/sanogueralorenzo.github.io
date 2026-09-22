@@ -19,51 +19,8 @@ export class Store {
     this.db = new DatabaseSync(databasePath);
     chmodSync(databasePath, 0o600);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
-    this.upgradeSchema();
     this.initializeSchema();
     if (options.recoverRuns !== false) this.recoverInterruptedRuns();
-  }
-
-  private upgradeSchema(): void {
-    const columns = this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[];
-    if (!columns.some((column) => column.name === "scope_key")) return;
-    this.db.exec("PRAGMA foreign_keys = OFF; BEGIN IMMEDIATE");
-    try {
-      this.db.exec(`
-        CREATE TABLE sessions_next (
-          id TEXT PRIMARY KEY,
-          cwd TEXT,
-          title TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-        INSERT INTO sessions_next SELECT id, cwd, title, created_at, updated_at FROM sessions;
-        CREATE TABLE codex_threads (
-          session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-          thread_id TEXT NOT NULL UNIQUE,
-          compactions INTEGER NOT NULL DEFAULT 0 CHECK (compactions >= 0),
-          updated_at TEXT NOT NULL
-        );
-        INSERT INTO codex_threads (session_id, thread_id, compactions, updated_at)
-        SELECT s.session_id, s.external_id, COALESCE(c.compactions, 0), s.updated_at
-        FROM backend_sessions s LEFT JOIN backend_context c
-          ON c.session_id = s.session_id AND c.backend = 'codex'
-        WHERE s.backend = 'codex';
-        DROP TABLE IF EXISTS settings;
-        DROP TABLE IF EXISTS backend_context;
-        DROP TABLE IF EXISTS backend_sessions;
-        DROP TABLE sessions;
-        ALTER TABLE sessions_next RENAME TO sessions;
-      `);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    } finally {
-      this.db.exec("PRAGMA foreign_keys = ON");
-    }
-    const invalid = this.db.prepare("PRAGMA foreign_key_check").all();
-    if (invalid.length) throw new Error("Agent database upgrade left invalid conversation references.");
   }
 
   private initializeSchema(): void {

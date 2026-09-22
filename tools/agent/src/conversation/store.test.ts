@@ -1,5 +1,3 @@
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { temporary } from "../test-support.js";
 import { Store } from "./store.js";
@@ -18,34 +16,6 @@ describe("Store", () => {
     expect(second.id).not.toBe(first.id);
     expect(store.getSession(first.id)).toMatchObject({ id: first.id, cwd: first.cwd, title: first.title });
     expect(store.getMessages(first.id)).toMatchObject([{ role: "user", content: "hello" }]);
-    store.close();
-  });
-
-  it("upgrades saved conversations and Codex thread bindings without losing data", () => {
-    const directory = temporary("agent-legacy-store-");
-    const legacy = new DatabaseSync(join(directory, "agent.sqlite"));
-    legacy.exec(`
-      CREATE TABLE sessions (id TEXT PRIMARY KEY, scope_key TEXT NOT NULL UNIQUE, cwd TEXT, title TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-      CREATE TABLE messages (id INTEGER PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL);
-      CREATE TABLE backend_sessions (session_id TEXT NOT NULL REFERENCES sessions(id), backend TEXT NOT NULL, external_id TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id, backend));
-      CREATE TABLE backend_context (session_id TEXT NOT NULL REFERENCES sessions(id), backend TEXT NOT NULL, compactions INTEGER NOT NULL, PRIMARY KEY(session_id, backend));
-      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
-      INSERT INTO sessions VALUES ('saved', 'assistant:local:old', '/tmp/project', 'Saved work', '2026-01-01', '2026-01-02');
-      INSERT INTO messages VALUES (1, 'saved', 'user', 'Keep this work', '2026-01-02');
-      INSERT INTO backend_sessions VALUES ('saved', 'codex', 'codex-thread', '2026-01-02');
-      INSERT INTO backend_context VALUES ('saved', 'codex', 2);
-      INSERT INTO settings VALUES ('backend', 'responses', '2026-01-02');
-    `);
-    legacy.close();
-
-    const store = new Store(directory);
-    expect(store.getSession("saved")).toMatchObject({ title: "Saved work", cwd: "/tmp/project" });
-    expect(store.getMessages("saved")).toEqual([{ role: "user", content: "Keep this work" }]);
-    expect(store.codexThread("saved")).toBe("codex-thread");
-    expect(store.codexCompactions("saved")).toBe(2);
-    expect(store.db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
-    expect(store.db.prepare("PRAGMA table_info(sessions)").all()).not.toContainEqual(expect.objectContaining({ name: "scope_key" }));
-    expect(store.db.prepare("SELECT name FROM sqlite_master WHERE name IN ('settings', 'backend_sessions', 'backend_context')").all()).toEqual([]);
     store.close();
   });
 
