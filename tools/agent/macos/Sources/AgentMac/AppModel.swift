@@ -100,13 +100,17 @@ struct ChatMessage: Identifiable {
             return
         }
         let sessionId = selected
+        let optimisticId = UUID()
+        messages.append(ChatMessage(id: optimisticId, role: .user, text: text))
+        scrollRequest += 1
         do {
-            guard selectedSessionId == sessionId, isConnected else { return }
             submittingSessionId = sessionId
             completedRunId = nil
             defer { if submittingSessionId == sessionId { submittingSessionId = nil } }
             guard let run = try await client.submit(text: text, sessionId: sessionId) else {
                 guard selectedSessionId == sessionId else { return }
+                messages.removeAll { $0.id == optimisticId }
+                if input.isEmpty { input = text }
                 activity = "Agent is already working"
                 return
             }
@@ -122,6 +126,8 @@ struct ChatMessage: Identifiable {
             activity = "Thinking"
         } catch {
             if selectedSessionId == sessionId {
+                messages.removeAll { $0.id == optimisticId }
+                if input.isEmpty { input = text }
                 messages.append(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
             }
         }
@@ -277,6 +283,12 @@ struct ChatMessage: Identifiable {
         if let active = snapshot.activeRuns.first(where: { $0.run.sessionId == selectedSessionId }) {
             if let navigation = active.navigation, navigation.session.id != selectedSessionId {
                 Task { await selectSession(navigation.session.id) }
+                return
+            }
+            if active.navigation?.continues == false {
+                activeRunId = active.run.id
+                isRunning = true
+                activity = "Opening conversation"
                 return
             }
             let storedTurn = active.session != nil && snapshot.transcript?.session.id == active.session?.id &&
