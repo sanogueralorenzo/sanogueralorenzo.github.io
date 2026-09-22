@@ -92,7 +92,7 @@ export class CodexHomeBackend implements HomeBackend {
       `Recent Home requests: ${JSON.stringify(this.store.getMessages(HOME_SESSION_ID, 8)
         .filter((message) => message.role === "user").slice(-4).map((message) => message.content.slice(0, 300)))}`,
       request.cwd ? `Terminal directory: ${request.cwd}` : "",
-      `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview })))}`,
+      `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview, state: conversationState(id) })))}`,
       `Recent Home activity: ${JSON.stringify([...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
         .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
     ].filter(Boolean).join("\n");

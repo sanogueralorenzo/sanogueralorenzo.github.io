@@ -191,13 +191,15 @@ describe("Agent Home", () => {
     const log = join(homeDir, "rpc.log");
     const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const working = store.createSession({ title: "Existing task" });
+    store.startRun(working.id);
     for (const scenario of ["home-compose", "home-report"]) {
       const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
         ...process.env, AGENT_FAKE_SCENARIO: scenario, AGENT_FAKE_LOG: log,
       } });
       const backend = new CodexHomeBackend(config, store, client);
       if (scenario === "home-compose") {
-        expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual([
+        expect(await backend.compose({ text: "Fix the tests" }, store.sessionCards(), [])).toEqual([
           { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
         ]);
       } else {
@@ -215,6 +217,8 @@ describe("Agent Home", () => {
     expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.effort)).toEqual(["low", "none"]);
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
+    const routeInput = calls.find((call) => call.method === "turn/start")?.params.input as { text: string }[];
+    expect(routeInput[0]?.text).toContain('"state":"working"');
   });
 
   it("accepts only one complete plan when Luna repeats a routing tool call", async () => {
