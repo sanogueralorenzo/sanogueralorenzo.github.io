@@ -57,27 +57,21 @@ export class TelegramTurns {
   }
 
   async newConversation(): Promise<void> {
-    const owner = this.ownerId();
-    if (!owner) throw new Error("Telegram is not paired.");
-    this.sessionId = (await this.client.telegramSession(owner, { fresh: true })).id;
-    this.current.clear();
-    this.pending.clear();
-    this.latestSnapshot = undefined;
+    await this.selectSession({ fresh: true });
   }
 
   async home(): Promise<void> {
-    const owner = this.ownerId();
-    if (!owner) throw new Error("Telegram is not paired.");
-    this.sessionId = (await this.client.telegramSession(owner, { home: true })).id;
-    this.current.clear();
-    this.pending.clear();
-    this.latestSnapshot = undefined;
+    await this.selectSession({ home: true });
   }
 
   async openTask(sessionId: string): Promise<void> {
+    await this.selectSession({ preferredSessionId: sessionId });
+  }
+
+  private async selectSession(options: { fresh?: boolean; home?: boolean; preferredSessionId?: string }): Promise<void> {
     const owner = this.ownerId();
     if (!owner) throw new Error("Telegram is not paired.");
-    this.sessionId = (await this.client.telegramSession(owner, { preferredSessionId: sessionId })).id;
+    this.sessionId = (await this.client.telegramSession(owner, options)).id;
     this.current.clear();
     this.pending.clear();
     this.latestSnapshot = undefined;
