@@ -2,13 +2,11 @@
 
 ![Agent banner](assets/agent-banner.png)
 
-> A quiet, fast personal assistant that can code.
+Agent is a local assistant for personal and coding work. Home starts tasks in the background and shows short results; open a task for the full conversation.
 
-Agent is one local runtime shared by its CLI, Telegram gateway, and native macOS client. Home uses GPT-6 Luna to dispatch background tasks and show short results; each task keeps its full conversation with GPT-6 Sol.
+## Start
 
-## Run
-
-Requires Node 22.13+ and either the Codex CLI with an eligible ChatGPT account or an OpenAI API key.
+Requires Node 22.13+, the Codex CLI, and either an eligible ChatGPT account or an OpenAI API key.
 
 ```bash
 cd tools/agent
@@ -16,30 +14,17 @@ npm install
 npm run build
 npm link
 agent setup
-agent chat --dev
+agent chat
 ```
 
-Setup offers browser, headless device-code, and API-key connection. Use `agent chat` without `--dev` for normal use.
+Use `agent chat --dev` for source reload during development.
 
-## Telegram
+## Other clients
 
-```bash
-agent telegram setup
-```
+- Telegram: `agent telegram setup` pairs a private account and starts the macOS background service. Keep the Mac online.
+- macOS 26+: `npm run macos:run` starts the native app.
 
-Telegram reuses the existing Agent connection, accepts text or voice notes, pairs one private account through a three-minute link, and installs **Agent** as a macOS user service. The Mac must remain online.
-
-## macOS
-
-```bash
-npm run macos:run
-```
-
-The SwiftUI app requires macOS 26 and uses the same local runtime as the CLI and Telegram.
-
-## Data and security
-
-Agent stores state under `~/.agent`. ChatGPT and API-key authentication stay inside Agent's private `~/.agent/codex` profile. Telegram credentials use macOS Keychain or a mode-0600 credential file on Linux. Clients connect only through an authenticated loopback endpoint.
+See [Local protocol](docs/protocol.md) for runtime and security details.
 
 ## Check
 
