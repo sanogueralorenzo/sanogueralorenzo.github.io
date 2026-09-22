@@ -3,42 +3,7 @@ import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../local/config.js";
 import { AgentSetupService } from "../setup/service.js";
-
-export async function readSecretLine(prompt: string): Promise<string> {
-  if (!process.stdin.isTTY) {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    const value = await rl.question(prompt);
-    rl.close();
-    return value.trim();
-  }
-
-  process.stdout.write(prompt);
-  process.stdin.setRawMode(true);
-  process.stdin.resume();
-  process.stdin.setEncoding("utf8");
-  return new Promise((resolve, reject) => {
-    let value = "";
-    const finish = () => {
-      process.stdin.off("data", onData);
-      process.stdin.setRawMode(false);
-      process.stdin.pause();
-      process.stdout.write("\n");
-      resolve(value.trim());
-    };
-    const onData = (chunk: string) => {
-      if (chunk === "\r" || chunk === "\n") finish();
-      else if (chunk === "\u0003") {
-        process.stdin.setRawMode(false);
-        reject(new Error("Setup cancelled."));
-      } else if (chunk === "\u007f") {
-        value = value.slice(0, -1);
-      } else {
-        value += chunk;
-      }
-    };
-    process.stdin.on("data", onData);
-  });
-}
+import { readSecretLine } from "./secret.js";
 
 function openBrowser(url: string): boolean {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "rundll32" : "xdg-open";
