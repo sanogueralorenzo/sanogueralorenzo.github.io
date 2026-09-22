@@ -250,6 +250,54 @@ struct ConversationView: View {
             }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
+        .background {
+            EscapeKeyMonitor { window in
+                if model.selectedSessionId == AppModel.homeSessionId {
+                    window.performClose(nil)
+                } else if model.selectedSessionId != nil {
+                    Task { await model.selectSession(AppModel.homeSessionId) }
+                }
+            }
+        }
+    }
+}
+
+private struct EscapeKeyMonitor: NSViewRepresentable {
+    let onEscape: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> EscapeMonitorView {
+        EscapeMonitorView()
+    }
+
+    func updateNSView(_ view: EscapeMonitorView, context: Context) {
+        view.onEscape = onEscape
+    }
+
+    static func dismantleNSView(_ view: EscapeMonitorView, coordinator: ()) {
+        view.stopMonitoring()
+    }
+}
+
+private final class EscapeMonitorView: NSView {
+    var onEscape: ((NSWindow) -> Void)?
+    private var monitor: Any?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        stopMonitoring()
+        guard window != nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, let window = self.window, event.window === window,
+                  event.keyCode == 53,
+                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else { return event }
+            self.onEscape?(window)
+            return nil
+        }
+    }
+
+    func stopMonitoring() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 
