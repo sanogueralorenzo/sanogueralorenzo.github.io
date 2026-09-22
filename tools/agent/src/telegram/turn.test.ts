@@ -81,13 +81,25 @@ describe("Telegram turns", () => {
     const turns = turnsFor();
     await turns.ensureSession();
     const artifact = { id: "a1", kind: "image" as const, name: "result.png", mimeType: "image/png", size: 3, path: "/tmp/result.png" };
-    expect(turns.consume(envelope({ type: "turn", text: "create it", channel: "macos", hasAttachments: false }))).toBeNull();
+    expect(turns.consume(envelope({ type: "turn", text: "create it", channel: "macos", hasAttachments: false })))
+      .toEqual({ sessionId: "s1", chunks: ["You (Mac): create it"], artifacts: [] });
     expect(turns.consume(envelope({ type: "text_delta", delta: `${"word ".repeat(900)}Done.` }))).toBeNull();
     expect(turns.consume(envelope({ type: "artifact", artifact }))).toBeNull();
     const result = turns.consume(envelope({ type: "done", sessionId: "s1" }));
     expect(result?.chunks.length).toBeGreaterThan(1);
     expect(result?.chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
     expect(result?.artifacts).toEqual([artifact]);
+  });
+
+  it("mirrors only other clients' user turns and redacts secrets", async () => {
+    const turns = turnsFor();
+    await turns.ensureSession();
+    expect(turns.consume(envelope({ type: "turn", text: "from Telegram", channel: "telegram", hasAttachments: false })))
+      .toBeNull();
+    expect(turns.consume(envelope({ type: "turn", text: "use sk-1234567890123456", channel: "cli", hasAttachments: false }, "r2")))
+      .toEqual({ sessionId: "s1", chunks: ["You (CLI): use [secret redacted]"], artifacts: [] });
+    expect(turns.consume(envelope({ type: "turn", text: "", channel: "macos", hasAttachments: true }, "r3")))
+      .toEqual({ sessionId: "s1", chunks: ["You (Mac): Voice message"], artifacts: [] });
   });
 
   it("reports shared conversation navigation", async () => {

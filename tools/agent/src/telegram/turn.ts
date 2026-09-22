@@ -1,6 +1,7 @@
 import type { RuntimeClient } from "../client/client.js";
 import type { Artifact, RunEnvelope, RuntimeSnapshot, Session, TurnRequest } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
+import { redactSecrets } from "../workspace/security.js";
 import { splitTelegramText } from "./text.js";
 
 type TurnClient = Pick<RuntimeClient, "submit" | "stop" | "telegramSession" | "transcript">;
@@ -84,7 +85,13 @@ export class TelegramTurns {
 
   consume({ sessionId, runId, event }: RunEnvelope): TelegramTurnResult | null {
     if (sessionId !== this.sessionId && !this.current.has(runId)) return null;
-    if (event.type === "turn") this.current.set(runId, { sessionId, output: "", error: "", artifacts: [] });
+    if (event.type === "turn") {
+      this.current.set(runId, { sessionId, output: "", error: "", artifacts: [] });
+      if (event.channel === "telegram") return null;
+      const source = event.channel === "macos" ? "Mac" : event.channel.toUpperCase();
+      const input = redactSecrets(event.text.trim()) || (event.hasAttachments ? "Voice message" : "Message");
+      return { sessionId, chunks: splitTelegramText(`You (${source}): ${input}`), artifacts: [] };
+    }
     const current = this.current.get(runId);
     if (!current || this.delivered.has(runId)) return null;
     if (event.type === "text_delta") current.output += event.delta;
