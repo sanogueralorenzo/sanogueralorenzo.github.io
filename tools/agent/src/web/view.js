@@ -9,6 +9,9 @@ export function icon(name, size = 18) {
     check: '<path d="m5 12 4 4L19 6"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
+    circle: '<circle cx="12" cy="12" r="9"/>',
+    "check-circle": '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/>',
+    connection: '<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m10.7 7.2-4.4 8.6m7-8.6 4.4 8.6M7.5 18h9"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"/>',
@@ -35,7 +38,8 @@ function renderInlineMarkdown(value) {
   text = text.replace(/\[([^\]]+)\]\(([^\s)]+)(?:\s+"([^"]*)")?\)/g, (_match, label, href, title) => {
     let safeHref;
     try {
-      const url = new URL(href, window.location.origin);
+      const rawHref = href.replace(/&(?:amp|lt|gt|quot|#39);/g, (entity) => ({ "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" })[entity] ?? entity);
+      const url = new URL(rawHref, window.location.origin);
       if (!["http:", "https:", "mailto:"].includes(url.protocol)) return label;
       safeHref = escapeHTML(url.href);
     } catch { return label; }

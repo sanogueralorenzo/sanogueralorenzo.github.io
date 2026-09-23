@@ -219,7 +219,7 @@ export class RuntimeServer {
         "content-security-policy": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         "referrer-policy": "no-referrer",
         "x-content-type-options": "nosniff",
-        ...(pathname === "/" ? { "set-cookie": `agent_session=${this.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400` } : {}),
+        ...(pathname === "/" ? { "set-cookie": `agent_session=${this.token}; HttpOnly; SameSite=Strict; Path=/` } : {}),
       });
       response.end(body);
     } catch {

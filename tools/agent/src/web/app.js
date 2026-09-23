@@ -19,6 +19,7 @@ const state = {
   isConnected: false,
   isRunning: false,
   isUploadingVoice: false,
+  submittingSessionId: null,
   isRecording: false,
   connectionError: "",
   activity: "",
@@ -104,6 +105,7 @@ async function selectSession(sessionId, options = {}) {
   state.isRunning = Boolean(options.runId);
   state.activity = state.isRunning ? "Thinking" : "";
   state.isConnected = false;
+  state.submittingSessionId = null;
   state.connectionError = "";
   if (options.notice) state.messages.push({ role: "notice", text: options.notice });
   render();
@@ -311,6 +313,7 @@ async function send() {
   }
   const selected = state.selectedSessionId;
   if (!selected) return;
+  if (selected !== "home" && state.submittingSessionId === selected) return;
   state.isUploadingVoice = Boolean(note);
   state.connectionError = "";
   render();
@@ -358,9 +361,11 @@ async function send() {
 
   state.messages.push({ role: "user", text: displayText, artifacts: [] });
   state.optimisticRunId = "pending";
+  state.submittingSessionId = selected;
   render();
   try {
     const { run } = await post("/v1/runs", { text, sessionId: selected, attachmentIds, channel: "macos" });
+    if (state.selectedSessionId !== selected) return;
     if (run) {
       if (state.completedRunIds.delete(run.id)) return;
       state.activeRunId = run.id;
@@ -370,12 +375,15 @@ async function send() {
       render();
     }
   } catch (error) {
+    if (state.selectedSessionId !== selected) return;
     state.messages.pop();
     state.input = text;
     state.voiceNote = note;
     state.optimisticRunId = null;
     state.activity = "Agent is already working";
     showError(error);
+  } finally {
+    if (state.submittingSessionId === selected) state.submittingSessionId = null;
   }
 }
 
@@ -385,13 +393,18 @@ async function loginWithChatGPT() {
   state.setupMessage = "Opening ChatGPT sign-in…";
   render();
   const popup = window.open("about:blank", "agent-chatgpt-login");
+  if (!popup) {
+    state.isSettingUp = false;
+    state.setupMessage = "Allow pop-ups for this local Agent page, then try signing in again.";
+    render();
+    return;
+  }
   try {
     const login = await post("/v1/setup/codex/login", { mode: "browser" });
     if (login.type !== "chatgpt" || !login.authUrl) throw new Error("Agent expected browser login but received another login flow.");
     state.setupMessage = "Finish signing in in your browser.";
     render();
-    if (popup) popup.location.href = login.authUrl;
-    else window.location.assign(login.authUrl);
+    popup.location.href = login.authUrl;
     const result = await post(`/v1/setup/codex/login/${encodeURIComponent(login.loginId)}/wait`, {});
     if (result.state !== "complete") throw new Error(result.error ?? "ChatGPT sign-in failed.");
     state.isSettingUp = false;
@@ -562,6 +575,7 @@ root.addEventListener("click", async (event) => {
       break;
     case "new-session":
       state.showingSettings = false;
+      state.showingSessions = false;
       await newSession();
       break;
     case "open-session":

@@ -13,7 +13,7 @@ export function renderHome(state) {
     </section>
     <section class="workspace-card">
       <h2>Your workspace</h2>
-      ${workspaceRow("grid", "Agent runtime", state.isConnected ? "Ready for tasks" : state.connectionError ?? "Connecting…", state.isConnected)}
+      ${workspaceRow("connection", "Agent runtime", state.isConnected ? "Ready for tasks" : "Connecting…", state.isConnected)}
       <div class="card-divider"></div>
       ${workspaceRow("terminal", "Codex", codexStatus, codex?.connected === true)}
     </section>
@@ -25,7 +25,7 @@ export function renderHome(state) {
 }
 
 function workspaceRow(symbol, title, detail, ready) {
-  return `<div class="workspace-row"><span class="workspace-icon">${icon(symbol, 16)}</span><span class="workspace-copy"><strong>${escapeHTML(title)}</strong><small>${escapeHTML(detail)}</small></span><span class="connection-mark ${ready ? "connected" : ""}">${icon(ready ? "check" : "clock", 15)}</span></div>`;
+  return `<div class="workspace-row"><span class="workspace-icon">${icon(symbol, 16)}</span><span class="workspace-copy"><strong>${escapeHTML(title)}</strong><small>${escapeHTML(detail)}</small></span><span class="connection-mark ${ready ? "connected" : ""}">${icon(ready ? "check-circle" : "circle", 15)}</span></div>`;
 }
 
 function renderHomeEntry(entry) {
