@@ -145,7 +145,7 @@ describe("RuntimeServer", () => {
     const run = await client.submit({ text: "hello", sessionId: session.id, channel: "api" });
     await observer.next();
     await observer.return?.();
-    expect(await client.submit({ text: "second", sessionId: session.id, channel: "telegram" })).toBeNull();
+    expect(await client.submit({ text: "second", sessionId: session.id, channel: "macos" })).toBeNull();
     expect(await client.stop(run!.id)).toBe(true);
     await expect(interruption).resolves.toBeUndefined();
   });
@@ -167,10 +167,10 @@ describe("RuntimeServer", () => {
     } as AgentBackend));
     const first = await client.openSession({ fresh: true });
     const second = await client.openSession({ fresh: true });
-    const firstRun = await client.submit({ text: "first", sessionId: first.id, channel: "cli" });
+    const firstRun = await client.submit({ text: "first", sessionId: first.id, channel: "macos" });
     const secondRun = await client.submit({ text: "second", sessionId: second.id, channel: "macos" });
     await vi.waitFor(() => expect(release.size).toBe(2));
-    expect(await client.submit({ text: "overlap", sessionId: first.id, channel: "telegram" })).toBeNull();
+    expect(await client.submit({ text: "overlap", sessionId: first.id, channel: "macos" })).toBeNull();
     const statuses = (await client.sessions()).sessions;
     expect(statuses.find((item) => item.id === first.id)?.activeRunId).toBe(firstRun?.id);
     expect(statuses.find((item) => item.id === second.id)?.activeRunId).toBe(secondRun?.id);
@@ -226,26 +226,6 @@ describe("RuntimeServer", () => {
     await stream.return?.();
   });
 
-  it("keeps Telegram on its persisted conversation across other clients and /new", async () => {
-    const { client } = await serve((store) => new AgentRuntime(store, {
-      async route() { return null; },
-      async *run() { yield { type: "text_delta", delta: "Done." }; yield { type: "done" }; },
-      async transcribeAudio() { return ""; },
-    } as AgentBackend));
-    const cli = await client.openSession({ fresh: true });
-    expect((await client.telegramSession("42")).id).toBe("home");
-    const other = await client.openSession({ fresh: true });
-    expect((await client.telegramSession("42")).id).toBe("home");
-    const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
-    expect((await stream.next()).value).toMatchObject({ sessionId: "home", event: { type: "snapshot" } });
-    await client.submit({ text: "other work", sessionId: other.id, channel: "macos" });
-    expect((await stream.next()).value?.event.type).toBe("session_activity");
-    const fresh = await client.telegramSession("42", { fresh: true });
-    expect(fresh.id).not.toBe("home");
-    expect((await client.telegramSession("42")).id).toBe(fresh.id);
-    await stream.return?.();
-  });
-
   it("keeps session content off other sessions' streams while signaling list changes", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
       async route() { return null; },
@@ -278,7 +258,7 @@ describe("RuntimeServer", () => {
     });
     const temporarySession = await client.openSession({ fresh: true });
     const live = collectRun(await client.events());
-    await client.submit({ text: "resume the conversation about earlier work", sessionId: temporarySession.id, channel: "cli" });
+    await client.submit({ text: "resume the conversation about earlier work", sessionId: temporarySession.id, channel: "macos" });
     await live;
 
     const reconnect = (await client.events(undefined, temporarySession.id))[Symbol.asyncIterator]();
@@ -311,9 +291,9 @@ describe("RuntimeServer", () => {
       } as AgentBackend);
     });
     const source = await client.openSession({ fresh: true });
-    await client.submit({ text: "Earlier topic", sessionId: source.id, channel: "cli" });
+    await client.submit({ text: "Earlier topic", sessionId: source.id, channel: "macos" });
     await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Finished."));
-    const run = await client.submit({ text: "Resume the conversation about the saved project and finish the work", sessionId: source.id, channel: "cli" });
+    const run = await client.submit({ text: "Resume the conversation about the saved project and finish the work", sessionId: source.id, channel: "macos" });
     await vi.waitFor(async () => expect((await client.sessions()).sessions.find((item) => item.id === targetId)?.activeRunId).toBe(run?.id));
 
     const reconnect = (await client.events(undefined, source.id, run?.id))[Symbol.asyncIterator]();
@@ -350,11 +330,11 @@ describe("RuntimeServer", () => {
       } as AgentBackend);
     });
     const source = await client.openSession({ fresh: true });
-    await client.submit({ text: "Current topic", sessionId: source.id, channel: "cli" });
+    await client.submit({ text: "Current topic", sessionId: source.id, channel: "macos" });
     await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Done."));
     const active = await client.submit({ text: "Stay busy", sessionId: targetId, channel: "macos" });
     await vi.waitFor(async () => expect((await client.sessions()).sessions.find((item) => item.id === targetId)?.activeRunId).toBe(active?.id));
-    await client.submit({ text: "Resume the busy project conversation and do more work", sessionId: source.id, channel: "cli" });
+    await client.submit({ text: "Resume the busy project conversation and do more work", sessionId: source.id, channel: "macos" });
     await vi.waitFor(async () => expect((await client.transcript(source.id)).messages.at(-1)?.content).toBe("Agent is already working in this conversation."));
     expect((await client.transcript(source.id)).messages[0]?.content).toBe("Current topic");
     expect((await client.transcript(targetId)).messages.map((message) => message.content)).toEqual(["Stay busy"]);
@@ -378,7 +358,7 @@ describe("RuntimeServer", () => {
     } as unknown as AgentRuntime;
     const { client } = await serve(runtime);
     const session = await client.openSession({ fresh: true });
-    const run = await client.submit({ text: "hello", sessionId: session.id, channel: "cli" });
+    const run = await client.submit({ text: "hello", sessionId: session.id, channel: "macos" });
     await reachedPause;
     const feed = (await client.events())[Symbol.asyncIterator]();
     expect((await feed.next()).value).toMatchObject({ event: { type: "snapshot", snapshot: {
@@ -398,7 +378,7 @@ describe("RuntimeServer", () => {
     } as AgentBackend));
     const session = await client.openSession({ fresh: true });
     const observed = collectRun(await client.events());
-    const run = await client.submit({ text: "hello", sessionId: session.id, channel: "cli" });
+    const run = await client.submit({ text: "hello", sessionId: session.id, channel: "macos" });
     await observed;
     const late = (await client.events())[Symbol.asyncIterator]();
     const snapshot = (await late.next()).value;

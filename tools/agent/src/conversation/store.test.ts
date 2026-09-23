@@ -27,23 +27,6 @@ describe("Store", () => {
     store.close();
   });
 
-  it("persists Telegram's selected session and follows navigation", () => {
-    const directory = temporary("agent-telegram-binding-");
-    const store = new Store(directory);
-    const source = store.createSession();
-    const target = store.createSession();
-    store.bindTelegramSession("42", source.id);
-    store.close();
-
-    const reopened = new Store(directory);
-    expect(reopened.telegramSession("42")).toBe(source.id);
-    const run = reopened.startRun(source.id);
-    reopened.handoffRun({ runId: run, sourceId: source.id, destination: { sessionId: target.id }, sourceEmpty: true, continues: false });
-    expect(reopened.telegramSession("42")).toBe(target.id);
-    expect(reopened.getSession(source.id)).toBeNull();
-    reopened.close();
-  });
-
   it("stores and retrieves relevant memories", () => {
     const store = createStore();
     store.remember("personal", "Mario prefers concise answers");
@@ -164,14 +147,14 @@ describe("Store", () => {
 
   it("lists short previews and reads one conversation in pages without tool messages", () => {
     const store = createStore();
-    const session = store.createSession({ title: "Telegram work" });
+    const session = store.createSession({ title: "Agent work" });
     for (let number = 1; number <= 11; number += 1) {
       store.addMessage(session.id, "user", `Message ${number}: ${"detail ".repeat(40)}`);
       store.addMessage(session.id, "tool", "command: complete");
     }
 
     const card = store.sessionCards()[0]!;
-    expect(card).toMatchObject({ id: session.id, title: "Telegram work" });
+    expect(card).toMatchObject({ id: session.id, title: "Agent work" });
     expect(card.preview.length).toBe(200);
     expect(JSON.stringify(card)).not.toContain("Message 10");
 

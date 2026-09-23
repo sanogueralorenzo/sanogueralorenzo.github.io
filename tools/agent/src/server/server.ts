@@ -101,7 +101,7 @@ export class RuntimeServer {
         case "POST /v1/follow-ups": {
           const { sessionId, text, channel } = await readJson(request);
           if (typeof sessionId !== "string" || typeof text !== "string" || !text.trim()) throw new Error("Conversation and text are required.");
-          return json(response, 201, { task: this.runs.queue(sessionId, text.trim(), channel === "macos" || channel === "telegram" || channel === "cli" ? channel : "api") });
+          return json(response, 201, { task: this.runs.queue(sessionId, text.trim(), channel === "macos" ? channel : "api") });
         }
         case "POST /v1/follow-ups/remove": {
           const { sessionId, taskId } = await readJson(request);
@@ -126,14 +126,6 @@ export class RuntimeServer {
             ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
           });
           return json(response, 200, { session });
-        }
-        case "POST /v1/telegram/session": {
-          const { ownerId, fresh, home, preferredSessionId } = await readJson(request);
-          if (typeof ownerId !== "string" || !/^\d+$/.test(ownerId)) throw new Error("Telegram owner ID is required.");
-          return json(response, 200, { session: this.runtime.openTelegramSession(ownerId, {
-            fresh: fresh === true, home: home === true,
-            ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
-          }) });
         }
         case "POST /v1/attachments": {
           const header = request.headers["x-agent-filename"];

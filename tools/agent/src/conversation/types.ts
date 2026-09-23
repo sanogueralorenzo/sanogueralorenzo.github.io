@@ -1,6 +1,6 @@
 export const RUNTIME_PROTOCOL_VERSION = 1;
 export const HOME_SESSION_ID = "home";
-export type Channel = "cli" | "telegram" | "macos" | "api";
+export type Channel = "macos" | "api";
 
 export interface Session {
   id: string;

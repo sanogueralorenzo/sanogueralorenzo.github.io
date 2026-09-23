@@ -1,6 +1,6 @@
 # Local protocol
 
-Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically writes `~/.agent/runtime.json` with protocol version `1`, its port, PID, and a random bearer token. The file is mode 0600 and regenerated at every start.
+The macOS app connects to the runtime on loopback HTTP. The runtime atomically writes `~/.agent/runtime.json` with protocol version `1`, its port, PID, and a random bearer token. The file is mode 0600 and regenerated at every start.
 
 ## Endpoints
 
@@ -13,7 +13,6 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 - `GET /v1/sessions` — recent sessions, active run IDs, and Home activity entries
 - `POST /v1/sessions/auto` — open an exact `preferredSessionId`, or the latest session when none is specified; create one only when no session exists
 - `POST /v1/sessions` — create a new session
-- `POST /v1/telegram/session` — return the `ownerId`'s persisted session or create one with `fresh: true`
 - `GET /v1/sessions/:id/messages` — saved messages for run recovery
 - `POST /v1/attachments` — store up to 25 MB behind an opaque attachment ID
 - `POST /v1/runs` — submit to a session and receive its run ID; Home clients may supply a UUID `requestId` for optimistic rendering
@@ -25,11 +24,9 @@ Agent surfaces connect to the runtime on loopback HTTP. The runtime atomically w
 
 Every endpoint except health requires `Authorization: Bearer <discovery token>`.
 
-Telegram does not watch the filesystem or reload itself after builds. During development, run `agent telegram` to restart the background service with the new build.
-
 `POST /v1/attachments` accepts voice-note bytes with `Content-Type` and a URL-encoded `X-Agent-Filename`. Clients open a session before input, then send `text`, `sessionId`, `channel`, and optional `attachmentIds` to `POST /v1/runs`. Paths never cross the upload boundary. The runtime resolves voice notes, memory, and workspace access before sending one turn through Codex app-server.
 
-Agent owns session IDs, saved transcripts, Telegram's owner-to-session binding, and run state. Codex app-server owns model execution and context. Task conversations allow one active run each (`409 busy` for direct overlapping turns). Home accepts concurrent submissions and routes them in submission order. An explicit correction can steer the active Codex turn; an ordinary follow-up enters Agent's durable per-session queue and starts as the next turn. In a direct conversation, typed input during an active run queues a follow-up; an empty composer shows Stop. Home never shows Stop. Queued items remain above the conversation composer until started, removed, or steered. Independent sessions run in parallel, and queued work resumes after a runtime restart. Disconnecting a subscriber never stops work; only an explicit stop by run ID does. Clients connect before accepting input and recover active or missed task runs from a SQLite-backed snapshot after reconnect. A client waiting on a run passes its run ID when reconnecting; the runtime returns the saved handoff if that run moved to another session. There is no event replay buffer. The stream identifies this contract with `X-Agent-Stream: snapshot`.
+Agent owns session IDs, saved transcripts, and run state. Codex app-server owns model execution and context. Task conversations allow one active run each (`409 busy` for direct overlapping turns). Home accepts concurrent submissions and routes them in submission order. An explicit correction can steer the active Codex turn; an ordinary follow-up enters Agent's durable per-session queue and starts as the next turn. In a direct conversation, typed input during an active run queues a follow-up; an empty composer shows Stop. Home never shows Stop. Queued items remain above the conversation composer until started, removed, or steered. Independent sessions run in parallel, and queued work resumes after a runtime restart. Disconnecting a subscriber never stops work; only an explicit stop by run ID does. The macOS app connects before accepting input and recovers active or missed task runs from a SQLite-backed snapshot after reconnect. A client waiting on a run passes its run ID when reconnecting; the runtime returns the saved handoff if that run moved to another session. There is no event replay buffer. The stream identifies this contract with `X-Agent-Stream: snapshot`.
 
 Each SSE data payload wraps one runtime event with its run ID:
 
@@ -51,4 +48,4 @@ The private profile supplies shared base instructions to work sessions, with per
 
 Agent launches `codex app-server` with its default stdio transport, sends `initialize` followed by `initialized`, and communicates using newline-delimited JSON-RPC messages. Browser, device-code, and API-key setup send `chatgpt`, `chatgptDeviceCode`, and `apiKey` login requests respectively. Every mode uses the same persistent thread, turn, tool, compaction, interruption, artifact, and realtime transcription path. The child process receives `CODEX_HOME` and `CODEX_SQLITE_HOME` set to Agent's mode-0700 `codex/` directory; ambient OpenAI and Codex authentication variables are removed. App-server exclusively owns authentication persistence, billing state, model context, and context compaction inside that profile. Agent stores its SQLite transcript, memories, project state, session selection, and opaque Codex thread IDs. Switching authentication changes the account in that profile without selecting another runtime or fallback backend.
 
-CLI and macOS open Home by default; Telegram keeps its owner's selected session and can return with `/home`. A Home request can create a new session or find and resume an existing one, with or without follow-on work. Direct conversations still support a natural-language switch: a temporary turn chooses the destination, and the original request is delivered once there. The persistent thread can use `read_history` to retrieve earlier saved messages on request. Codex compacts its thread without changing the Agent session or saved transcript.
+The macOS app opens Home by default. A Home request can create a new session or find and resume an existing one, with or without follow-on work. Direct conversations still support a natural-language switch: a temporary turn chooses the destination, and the original request is delivered once there. The persistent thread can use `read_history` to retrieve earlier saved messages on request. Codex compacts its thread without changing the Agent session or saved transcript.

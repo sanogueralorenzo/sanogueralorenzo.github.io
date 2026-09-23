@@ -69,10 +69,6 @@ export class Store {
         thread_id TEXT NOT NULL UNIQUE,
         updated_at TEXT NOT NULL
       );
-      CREATE TABLE IF NOT EXISTS telegram_sessions (
-        owner_id TEXT PRIMARY KEY,
-        session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE
-      );
       CREATE TABLE IF NOT EXISTS session_redirects (
         source_id TEXT PRIMARY KEY,
         target_id TEXT NOT NULL
@@ -179,19 +175,6 @@ export class Store {
   setSessionWorkspace(id: string, cwd: string): Session {
     this.db.prepare("UPDATE sessions SET cwd = ?, updated_at = ? WHERE id = ? AND cwd IS NULL").run(cwd, now(), id);
     return this.getSession(id)!;
-  }
-
-  telegramSession(ownerId: string): string | null {
-    const row = this.db.prepare("SELECT session_id AS sessionId FROM telegram_sessions WHERE owner_id = ?")
-      .get(ownerId) as { sessionId: string } | undefined;
-    return row?.sessionId ?? null;
-  }
-
-  bindTelegramSession(ownerId: string, sessionId: string): void {
-    this.db.prepare(`
-      INSERT INTO telegram_sessions (owner_id, session_id) VALUES (?, ?)
-      ON CONFLICT(owner_id) DO UPDATE SET session_id = excluded.session_id
-    `).run(ownerId, sessionId);
   }
 
   getSession(id: string): Session | null {
@@ -334,7 +317,6 @@ export class Store {
       this.db.prepare("UPDATE runs SET session_id = ? WHERE id = ?").run(targetId, runId);
       this.db.prepare("INSERT INTO run_handoffs (run_id, source_id, target_id, continues) VALUES (?, ?, ?, ?)")
         .run(runId, sourceId, targetId, continues ? 1 : 0);
-      this.db.prepare("UPDATE telegram_sessions SET session_id = ? WHERE session_id = ?").run(targetId, sourceId);
       if (sourceEmpty) {
         this.db.prepare("INSERT INTO session_redirects (source_id, target_id) VALUES (?, ?)").run(sourceId, targetId);
         this.db.prepare("DELETE FROM sessions WHERE id = ?").run(sourceId);

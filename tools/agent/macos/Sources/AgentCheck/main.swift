@@ -53,8 +53,8 @@ struct AgentCheck {
         check(String(decoding: request, as: UTF8.self).contains("\"sessionId\":\"s1\""), "Agent protocol check failed")
         let artifact = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"artifact","artifact":{"id":"a1","kind":"image","name":"result.png","path":"/tmp/result.png"}}"#.utf8))
         check(artifact.artifact?.name == "result.png", "Agent artifact protocol check failed")
-        let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","continues":true,"session":{"id":"s1","title":"Telegram reconnects"}}"#.utf8))
-        check(navigation.session?.title == "Telegram reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
+        let navigation = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"navigate","url":"agent://sessions/s1","continues":true,"session":{"id":"s1","title":"Runtime reconnects"}}"#.utf8))
+        check(navigation.session?.title == "Runtime reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
         let entry = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"home_entry","entry":{"id":"e1","sessionId":"s1","title":"Fix tests","body":"Fix the tests","requests":[{"text":"Fix the tests","createdAt":"2026-09-22T00:00:00Z"}],"state":"ready","summary":"Tests pass.","url":"agent://sessions/s1","updatedAt":"2026-09-22T00:00:00Z"}}"#.utf8))
         check(entry.entry?.summary == "Tests pass." && entry.entry?.requests.first?.text == "Fix the tests", "Agent Home entry protocol check failed")
         let removedEntry = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"home_entry_removed","id":"e1"}"#.utf8))
@@ -69,7 +69,7 @@ struct AgentCheck {
             protocolValue.respond("""
             data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"homeEntries":[],"queuedTasks":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}
 
-            data: {"sessionId":"s1","runId":"r1","event":{"type":"turn","text":"hello","channel":"cli","hasAttachments":false}}
+            data: {"sessionId":"s1","runId":"r1","event":{"type":"turn","text":"hello","channel":"macos","hasAttachments":false}}
 
             data: {"sessionId":"s1","runId":"r1","event":{"type":"done","sessionId":"s1"}}
 

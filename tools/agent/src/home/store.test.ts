@@ -31,7 +31,7 @@ describe("Home persistence", () => {
     store.home.createEntry("queued", "First follow-up");
     store.home.dispatchEntry("queued", session.id, session.title, "First follow-up", true);
     store.home.enqueueTask(session.id, "First follow-up", "macos");
-    store.home.enqueueTask(session.id, "Second follow-up", "telegram");
+    store.home.enqueueTask(session.id, "Second follow-up", "macos");
     store.close();
 
     const recovered = new Store(path);

@@ -47,15 +47,6 @@ export class AgentRuntime {
     return this.backend.steer(sessionId, redactSecrets(text));
   }
 
-  openTelegramSession(ownerId: string, options: { fresh?: boolean; home?: boolean; preferredSessionId?: string } = {}): Session {
-    const bound = this.store.telegramSession(ownerId);
-    const session = options.preferredSessionId ? this.openSession({ preferredSessionId: options.preferredSessionId })
-      : options.home ? this.store.homeSession() : options.fresh ? this.openSession({ fresh: true })
-      : this.openSession(bound ? { preferredSessionId: bound } : {});
-    this.store.bindTelegramSession(ownerId, session.id);
-    return session;
-  }
-
   prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean; deferTurn: boolean } {
     const requested = incoming.sessionId ? this.store.getSession(incoming.sessionId) : null;
     if (incoming.sessionId && !requested) throw new Error("Conversation not found.");

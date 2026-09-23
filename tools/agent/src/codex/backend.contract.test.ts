@@ -200,7 +200,7 @@ describe("Codex turn transport", () => {
     const runtime = new AgentRuntime(store, backend);
     const session = runtime.openSession({ fresh: true });
     const opened = [];
-    for await (const event of runtime.run({ text: "Open this project", sessionId: session.id, channel: "telegram" })) opened.push(event);
+    for await (const event of runtime.run({ text: "Open this project", sessionId: session.id, channel: "macos" })) opened.push(event);
 
     expect(opened).toContainEqual(expect.objectContaining({ type: "navigate", session: expect.objectContaining({ cwd }), continues: false }));
     expect(opened).not.toContainEqual({ type: "text_delta", delta: "Stale turn text." });
@@ -255,11 +255,11 @@ describe("Codex turn transport", () => {
 
   it("selects a saved conversation in a temporary turn", async () => {
     const { backend, input, log, store } = backendFixture("session-navigation");
-    const saved = store.createSession({ title: "Telegram reconnects" });
-    store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
+    const saved = store.createSession({ title: "Runtime reconnects" });
+    store.addMessage(saved.id, "user", "Simplify the runtime reconnect flow");
     const sessionTools = store.sessionCards().filter((session) => session.id === saved.id);
 
-    const handoff = await backend.route({ ...input, request: { ...input.request, text: "Resume the conversation about Telegram reconnects" }, sessionTools });
+    const handoff = await backend.route({ ...input, request: { ...input.request, text: "Resume the conversation about runtime reconnects" }, sessionTools });
 
     expect(handoff).toEqual({ destination: { sessionId: saved.id }, task: null });
     const rpc = requests(log);
@@ -277,7 +277,7 @@ describe("Codex turn transport", () => {
     const listed = JSON.parse((rpc.find((request) => request.id === "list-conversations")?.result?.contentItems as { text: string }[])[0]!.text);
     const read = JSON.parse((rpc.find((request) => request.id === "read-conversation")?.result?.contentItems as { text: string }[])[0]!.text);
     expect(listed).toEqual(sessionTools);
-    expect(read.messages).toContainEqual({ role: "user", content: "Simplify the Telegram reconnect flow" });
+    expect(read.messages).toContainEqual({ role: "user", content: "Simplify the runtime reconnect flow" });
     expect(rpc.find((request) => request.id === "open-conversation")?.result).toMatchObject({ success: true });
 
     expect(rpc.some((request) => request.method === "thread/unsubscribe")).toBe(true);
@@ -286,10 +286,10 @@ describe("Codex turn transport", () => {
 
   it("does not expose the temporary turn's assistant text", async () => {
     const { backend, input, store } = backendFixture("session-navigation-completed");
-    const saved = store.createSession({ title: "Telegram reconnects" });
+    const saved = store.createSession({ title: "Runtime reconnects" });
     const handoff = await backend.route({
       ...input,
-      request: { ...input.request, text: "Resume the conversation about Telegram reconnects" },
+      request: { ...input.request, text: "Resume the conversation about runtime reconnects" },
       sessionTools: store.sessionCards().filter((session) => session.id === saved.id),
     });
 
@@ -301,12 +301,12 @@ describe("Codex turn transport", () => {
     const runtime = new AgentRuntime(store, backend);
     const source = store.createSession({ title: "Current discussion" });
     store.addMessage(source.id, "user", "Earlier source topic");
-    const saved = store.createSession({ title: "Telegram reconnects" });
-    store.addMessage(saved.id, "user", "Simplify the Telegram reconnect flow");
+    const saved = store.createSession({ title: "Runtime reconnects" });
+    store.addMessage(saved.id, "user", "Simplify the runtime reconnect flow");
     store.bindCodexThread(saved.id, "saved-thread");
-    const prompt = "Resume the conversation about Telegram reconnects and fix the reconnect flow";
+    const prompt = "Resume the conversation about runtime reconnects and fix the reconnect flow";
     const events = [];
-    for await (const event of runtime.run({ text: prompt, sessionId: source.id, channel: "cli" })) events.push(event);
+    for await (const event of runtime.run({ text: prompt, sessionId: source.id, channel: "macos" })) events.push(event);
 
     expect(events).toContainEqual(expect.objectContaining({
       type: "navigate", continues: true, session: expect.objectContaining({ id: saved.id }),

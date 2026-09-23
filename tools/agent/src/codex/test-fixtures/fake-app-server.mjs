@@ -107,7 +107,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
     const read = JSON.parse(result?.contentItems?.[0]?.text ?? "{}");
     const routes = scenario === "home-compose-mixed" ? [
       { type: "continue", source: "Resume the reconnect investigation", sessionId: read.conversation?.id,
-        title: "Continue reconnect investigation", text: "Continue investigating Telegram reconnects." },
+        title: "Continue reconnect investigation", text: "Continue investigating runtime reconnects." },
       { type: "start", source: "create a new task about Madrid restaurants", title: "Madrid restaurants",
         text: `Find Madrid restaurants using this context: ${read.messages?.at(-1)?.content ?? ""}` },
     ] : [
@@ -122,7 +122,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (!method && scenario.startsWith("session-navigation") && dynamicTurn) {
     if (id === "list-conversations") {
       const conversations = JSON.parse(result?.contentItems?.[0]?.text ?? "[]");
-      const sessionId = (conversations.find((conversation) => conversation.title === "Telegram reconnects") ?? conversations[0])?.id;
+      const sessionId = (conversations.find((conversation) => conversation.title === "Runtime reconnects") ?? conversations[0])?.id;
       dynamicTurn.sessionId = sessionId;
       notify("item/completed", {
         threadId: dynamicTurn.threadId,

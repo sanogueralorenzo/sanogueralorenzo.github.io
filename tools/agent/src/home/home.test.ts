@@ -215,7 +215,7 @@ describe("Agent Home", () => {
     const session = original.createSession({ title: "Saved task" });
     const entry = original.home.createEntry("entry", "Finish this");
     original.home.dispatchEntry(entry.id, session.id, session.title, "Finish this", true);
-    original.home.enqueueTask(session.id, "Finish this", "cli");
+    original.home.enqueueTask(session.id, "Finish this", "macos");
     original.close();
     const store = new Store(directory);
     cleanup(() => store.close());
@@ -357,7 +357,7 @@ describe("Agent Home", () => {
     const store = new Store(homeDir);
     cleanup(() => store.close());
     const saved = store.createSession({ title: "Reconnect investigation", cwd: homeDir });
-    store.addMessage(saved.id, "user", "Investigate why Telegram reconnects twice.");
+    store.addMessage(saved.id, "user", "Investigate why Agent reconnects twice.");
     store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
     const seed = store.home.createEntry("seed", "Investigate reconnects");
     store.home.dispatchEntry(seed.id, saved.id, saved.title, seed.body, false);
@@ -386,7 +386,7 @@ describe("Agent Home", () => {
       .toMatchObject({ id: saved.id, state: "ready", preview: "The gateway has two reconnect paths." });
     expect(JSON.parse(calls.find((call) => call.id === "home-read")?.result?.contentItems?.[0]?.text ?? "{}"))
       .toMatchObject({ conversation: { id: saved.id, state: "ready" }, messages: [
-        { role: "user", content: "Investigate why Telegram reconnects twice." },
+        { role: "user", content: "Investigate why Agent reconnects twice." },
         { role: "assistant", content: "The gateway has two reconnect paths." },
       ] });
     client.stop();

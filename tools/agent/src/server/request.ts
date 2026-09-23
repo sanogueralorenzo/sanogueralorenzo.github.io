@@ -35,7 +35,7 @@ export async function readTurn(request: IncomingMessage, store: Store): Promise<
     return attachment;
   });
   const channel = body.channel as Channel;
-  if (channel !== "telegram" && channel !== "macos" && channel !== "cli" && channel !== "api") throw new Error("channel must be cli, telegram, macos, or api");
+  if (channel !== "macos" && channel !== "api") throw new Error("channel must be macos or api");
   if (typeof body.sessionId !== "string" || !body.sessionId) throw new Error("sessionId is required");
   if (body.requestId !== undefined && (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId))) {
     throw new Error("requestId must be a UUID");

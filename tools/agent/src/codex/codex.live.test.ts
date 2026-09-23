@@ -16,7 +16,7 @@ it("runs an opt-in Codex subscription turn without reading stored credentials", 
   );
   cleanup(() => client.stop());
   const account = await client.account(true);
-  expect(account.account?.type, "Run `agent setup --chatgpt` first.").toBe("chatgpt");
+  expect(account.account?.type, "Sign in to the Agent macOS app first.").toBe("chatgpt");
   const started = await client.request<{ thread: { id: string } }>("thread/start", {
     cwd,
     ephemeral: true,

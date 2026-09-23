@@ -1,7 +1,7 @@
 {
   "name": "agent",
   "version": "0.5.0",
-  "description": "A quiet local assistant runtime for personal and coding work.",
+  "description": "The local runtime for the Agent macOS app.",
   "private": true,
   "type": "module",
   "bin": {
@@ -11,11 +11,10 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "dev": "tsx src/bin/agent.ts chat --dev",
+    "dev": "tsx src/bin/agent.ts serve",
     "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --input-type=module --eval \"import { chmodSync } from 'node:fs'; chmodSync('dist/bin/agent.js', 0o755)\"",
-    "start": "node dist/bin/agent.js chat",
+    "start": "node dist/bin/agent.js serve",
     "serve": "tsx src/bin/agent.ts serve",
-    "telegram": "tsx src/bin/agent.ts telegram",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude src/codex/codex.live.test.ts",
     "test:live": "vitest run src/codex/codex.live.test.ts",
@@ -25,7 +24,6 @@
   },
   "dependencies": {
     "codec-parser": "^2.5.0",
-    "grammy": "^1.40.0",
     "werift": "^0.24.4"
   },
   "devDependencies": {

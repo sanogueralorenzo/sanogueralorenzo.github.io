@@ -75,7 +75,7 @@ describe("AgentRuntime", () => {
     const { store, runtime } = testRuntime();
     const events: RuntimeEvent[] = [];
     const sessionId = runtime.openSession({ fresh: true }).id;
-    for await (const event of runtime.run({ text: "hello", channel: "cli", sessionId }, { runId: "public-run" })) events.push(event);
+    for await (const event of runtime.run({ text: "hello", channel: "macos", sessionId }, { runId: "public-run" })) events.push(event);
     const session = events.find((event) => event.type === "session")?.session;
     expect(store.latestRun()).toMatchObject({
       id: "public-run", sessionId: session?.id, state: "complete", output: "",
@@ -85,19 +85,17 @@ describe("AgentRuntime", () => {
   it("uses one coordinator instruction without modes, workers, or duplicated project context", async () => {
     const { homeDir, backend, runtime } = testRuntime();
     const session = runtime.openSession({ fresh: true, cwd: homeDir });
-    await collect(runtime, { text: "Fix the failing test", sessionId: session.id, cwd: homeDir, channel: "cli" });
+    await collect(runtime, { text: "Fix the failing test", sessionId: session.id, cwd: homeDir, channel: "macos" });
     expect(backend.turns[0]?.instructions).toContain("Use read_history for requested saved messages.");
     expect(backend.turns[0]?.instructions).not.toMatch(/worker|coding session|model|AGENTS\.md|working directory/i);
   });
 
-  it("reuses one session across CLI, Telegram, and macOS", async () => {
+  it("reuses the selected session across macOS turns", async () => {
     const { runtime } = testRuntime();
-    const cli = await collect(runtime, { text: "hello", channel: "cli" });
-    const cliSession = cli.find((event) => event.type === "session")?.session.id;
-    const telegram = await collect(runtime, { text: "summarize this note", channel: "telegram" });
-    const macos = await collect(runtime, { text: "continue", channel: "macos", sessionId: cliSession });
-    expect(telegram.find((event) => event.type === "session")?.session.id).toBe(cliSession);
-    expect(macos.find((event) => event.type === "session")?.session.id).toBe(cliSession);
+    const first = await collect(runtime, { text: "hello", channel: "macos" });
+    const sessionId = first.find((event) => event.type === "session")?.session.id;
+    const next = await collect(runtime, { text: "continue", channel: "macos", sessionId });
+    expect(next.find((event) => event.type === "session")?.session.id).toBe(sessionId);
   });
 
   it("does not replace an unknown requested session with a new one", () => {
@@ -109,12 +107,12 @@ describe("AgentRuntime", () => {
 
   it("continues the latest session regardless of inactivity", async () => {
     const { store, runtime } = testRuntime();
-    const first = await collect(runtime, { text: "old topic", channel: "cli" });
+    const first = await collect(runtime, { text: "old topic", channel: "macos" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
       .run(new Date(0).toISOString(), firstSession);
 
-    const next = await collect(runtime, { text: "continue", channel: "telegram" });
+    const next = await collect(runtime, { text: "continue", channel: "macos" });
     const nextSession = next.find((event) => event.type === "session")?.session.id;
 
     expect(nextSession).toBe(firstSession);
@@ -148,22 +146,9 @@ describe("AgentRuntime", () => {
     expect(store.listSessions()).toEqual([]);
   });
 
-  it("keeps Telegram's selected session until /new", () => {
-    const { store, runtime } = testRuntime();
-    const telegram = runtime.openTelegramSession("42");
-    runtime.openSession({ fresh: true });
-    store.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
-      .run(new Date(0).toISOString(), telegram.id);
-    expect(runtime.openTelegramSession("42").id).toBe(telegram.id);
-    const fresh = runtime.openTelegramSession("42", { fresh: true });
-    expect(fresh.id).not.toBe(telegram.id);
-    expect(store.telegramSession("42")).toBe(fresh.id);
-    expect(runtime.openTelegramSession("42").id).toBe(fresh.id);
-  });
-
   it("starts a separate session when the user requests a new conversation", async () => {
     const { runtime } = testRuntime();
-    const first = await collect(runtime, { text: "first", channel: "cli" });
+    const first = await collect(runtime, { text: "first", channel: "macos" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     const fresh = runtime.openSession({ fresh: true });
     const next = await collect(runtime, { text: "second", sessionId: fresh.id, channel: "macos" });
@@ -172,7 +157,7 @@ describe("AgentRuntime", () => {
 
   it("navigates to a matching session without storing the lookup conversation", async () => {
     const { store, backend, runtime } = testRuntime();
-    const first = await collect(runtime, { text: "Simplify Telegram reconnects", channel: "cli" });
+    const first = await collect(runtime, { text: "Simplify runtime reconnects", channel: "macos" });
     const firstSession = first.find((event) => event.type === "session")?.session.id;
     backend.navigateTo = firstSession ?? null;
 
@@ -188,16 +173,16 @@ describe("AgentRuntime", () => {
     expect(lookup.at(-1)).toEqual({ type: "done", sessionId: firstSession });
     expect(store.listSessions()).toHaveLength(1);
     expect(firstSession && store.getMessages(firstSession).map((message) => message.content))
-      .toEqual(["Simplify Telegram reconnects", "Done."]);
+      .toEqual(["Simplify runtime reconnects", "Done."]);
   });
 
-  it("binds the terminal directory only when a provisional CLI turn does not navigate", async () => {
+  it("binds the workspace only when a provisional macOS turn does not navigate", async () => {
     const { homeDir, store, backend, runtime } = testRuntime();
     const source = runtime.openSession({ fresh: true });
     expect(source.cwd).toBeNull();
 
     const events = await collect(runtime, {
-      text: "Inspect this project", sessionId: source.id, cwd: homeDir, channel: "cli",
+      text: "Inspect this project", sessionId: source.id, cwd: homeDir, channel: "macos",
     });
 
     expect(events.find((event) => event.type === "session")?.session.cwd).toBe(homeDir);
@@ -205,7 +190,7 @@ describe("AgentRuntime", () => {
     expect(store.getSession(source.id)?.cwd).toBe(homeDir);
   });
 
-  it("does not bind the terminal directory when a provisional CLI turn switches sessions", async () => {
+  it("does not bind the workspace when a provisional macOS turn switches sessions", async () => {
     const { homeDir, store, backend, runtime } = testRuntime();
     const target = runtime.openSession({ fresh: true, cwd: "/tmp/target-project" });
     const source = runtime.openSession({ fresh: true });
@@ -213,7 +198,7 @@ describe("AgentRuntime", () => {
     backend.handoffTask = "Fix the test";
 
     const events = await collect(runtime, {
-      text: "Resume the target project and fix the test", sessionId: source.id, cwd: homeDir, channel: "cli",
+      text: "Resume the target project and fix the test", sessionId: source.id, cwd: homeDir, channel: "macos",
     });
 
     expect(backend.routes[0]?.session.cwd).toBeNull();
@@ -240,7 +225,7 @@ describe("AgentRuntime", () => {
   it("keeps the session resumable after interruption", async () => {
     const { backend, runtime } = testRuntime();
     backend.failNext = true;
-    const interrupted = await collect(runtime, { text: "Fix the test", channel: "cli" });
+    const interrupted = await collect(runtime, { text: "Fix the test", channel: "macos" });
     const session = interrupted.find((event) => event.type === "session")?.session;
     expect(interrupted.at(-1)).toEqual({ type: "error", message: "Interrupted. Your session is saved." });
     const resumed = await collect(runtime, { text: "continue", channel: "macos", sessionId: session?.id });
@@ -254,7 +239,7 @@ describe("AgentRuntime", () => {
     writeFileSync(audioPath, "audio");
     const events = await collect(runtime, {
       text: "",
-      channel: "telegram",
+      channel: "macos",
       attachments: [{ id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: audioPath }],
     });
     expect(events[0]).toEqual({ type: "status", message: "Listening…" });
@@ -273,7 +258,7 @@ describe("AgentRuntime", () => {
     backend.transcription = "Resume the saved project conversation and fix the test";
     const source = runtime.openSession({ fresh: true });
     const events = await collect(runtime, {
-      text: "", sessionId: source.id, channel: "telegram",
+      text: "", sessionId: source.id, channel: "macos",
       attachments: [{ id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") }],
     });
 
@@ -288,7 +273,7 @@ describe("AgentRuntime", () => {
     backend.failTranscription = true;
     const attachment = { id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") };
     const events: RuntimeEvent[] = [];
-    for await (const event of runtime.run({ text: "", channel: "telegram", attachments: [attachment] }, { runId: "failed-voice" })) events.push(event);
+    for await (const event of runtime.run({ text: "", channel: "macos", attachments: [attachment] }, { runId: "failed-voice" })) events.push(event);
     expect(events.at(-1)).toEqual({ type: "error", message: "Could not transcribe the voice note." });
     expect(store.latestRun()).toMatchObject({ id: "failed-voice", state: "failed" });
     const sessionId = store.latestRun()?.sessionId;
@@ -300,18 +285,18 @@ describe("AgentRuntime", () => {
     const { homeDir, store, backend, runtime } = testRuntime();
     backend.transcription = "";
     const attachment = { id: "voice-1", name: "voice.ogg", mimeType: "audio/ogg", size: 5, path: join(homeDir, "voice.ogg") };
-    const events = await collect(runtime, { text: "", channel: "telegram", attachments: [attachment] });
+    const events = await collect(runtime, { text: "", channel: "macos", attachments: [attachment] });
     expect(events.at(-1)).toEqual({ type: "error", message: "The message is empty." });
     const sessionId = store.latestRun()?.sessionId;
     expect(sessionId && store.getMessages(sessionId).map((message) => message.content))
       .toEqual(["Voice message", "The message is empty."]);
   });
 
-  it("carries a CLI-established workspace across clients without classifying the request", async () => {
+  it("carries the selected workspace across macOS turns", async () => {
     const { homeDir, backend, runtime } = testRuntime();
-    const cli = await collect(runtime, { text: "Inspect this project", cwd: homeDir, channel: "cli" });
-    const sessionId = cli.find((event) => event.type === "session")?.session.id;
-    await collect(runtime, { text: "Now fix it", channel: "telegram", sessionId });
+    const first = await collect(runtime, { text: "Inspect this project", cwd: homeDir, channel: "macos" });
+    const sessionId = first.find((event) => event.type === "session")?.session.id;
+    await collect(runtime, { text: "Now fix it", channel: "macos", sessionId });
     expect(backend.turns.map((turn) => turn.session.cwd)).toEqual([homeDir, homeDir]);
   });
 });

@@ -7,7 +7,7 @@ describe("context switch preflight", () => {
       "Go to project X and fix the tests",
       "Open the repository and explain its build",
       "Checkout this project and run its tests",
-      "Resume the conversation about Telegram and continue",
+      "Resume the conversation about the runtime and continue",
       "Take me back to the bot restart work",
     ]) expect(maySwitchContext(text)).toBe(true);
   });

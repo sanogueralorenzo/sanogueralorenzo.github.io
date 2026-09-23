@@ -83,20 +83,20 @@ describe("RuntimeClient run protocol", () => {
           return response.end('{"error":"busy"}');
         }
         response.statusCode = 202;
-        return response.end('{"run":{"id":"r1","sessionId":"s1","origin":"cli"}}');
+        return response.end('{"run":{"id":"r1","sessionId":"s1","origin":"macos"}}');
       }
       if (request.url === "/v1/runs/stop") return response.end('{"stopped":true}');
       response.statusCode = 404;
       response.end();
     });
 
-    await expect(client.submit({ text: "hello", channel: "cli", sessionId: "s1" })).resolves.toEqual({ id: "r1", sessionId: "s1", origin: "cli" });
-    await expect(client.submit({ text: "busy", channel: "cli" })).resolves.toBeNull();
+    await expect(client.submit({ text: "hello", channel: "macos", sessionId: "s1" })).resolves.toEqual({ id: "r1", sessionId: "s1", origin: "macos" });
+    await expect(client.submit({ text: "busy", channel: "macos" })).resolves.toBeNull();
     await expect(client.stop("r1")).resolves.toBe(true);
     expect(requests).toEqual(["POST /v1/runs", "POST /v1/runs", "POST /v1/runs/stop"]);
   });
 
-  it("opens CLI and Telegram sessions through the same JSON transport", async () => {
+  it("opens sessions through the shared JSON transport", async () => {
     const requests: { path: string; body: unknown; authorization: string | undefined }[] = [];
     const session = { id: "s1", cwd: null, title: "Test", updatedAt: "now" };
     const client = await fixture(async (request, response) => {
@@ -113,13 +113,9 @@ describe("RuntimeClient run protocol", () => {
 
     await expect(client.openSession({ cwd: "/project", preferredSessionId: "saved" })).resolves.toEqual(session);
     await expect(client.openSession({ fresh: true })).resolves.toEqual(session);
-    await expect(client.telegramSession("owner", { fresh: true })).resolves.toEqual(session);
-    await expect(client.telegramSession("owner")).resolves.toEqual(session);
     expect(requests).toEqual([
       { path: "/v1/sessions/auto", body: { cwd: "/project", preferredSessionId: "saved" }, authorization: "Bearer test-token" },
       { path: "/v1/sessions", body: {}, authorization: "Bearer test-token" },
-      { path: "/v1/telegram/session", body: { ownerId: "owner", fresh: true }, authorization: "Bearer test-token" },
-      { path: "/v1/telegram/session", body: { ownerId: "owner" }, authorization: "Bearer test-token" },
     ]);
   });
 

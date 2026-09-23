@@ -43,16 +43,16 @@ describe("RunCoordinator", () => {
     const runs = new RunCoordinator(fixture.value, fixture.store);
     const first = collectRun(runs.events(new AbortController().signal));
     const second = collectRun(runs.events(new AbortController().signal));
-    const run = runs.start({ text: "hi", channel: "cli" });
+    const run = runs.start({ text: "hi", channel: "macos" });
     const [a, b] = await Promise.all([first, second]);
 
     expect(fixture.executions()).toBe(1);
     expect(a).toEqual(b);
     expect(a[0]).toMatchObject({ runId: run.id, event: { type: "session_activity", sessionId: "s1" } });
-    expect(a[1]).toMatchObject({ runId: run.id, event: { type: "turn", channel: "cli" } });
+    expect(a[1]).toMatchObject({ runId: run.id, event: { type: "turn", channel: "macos" } });
 
     const late = collectRun(runs.events(new AbortController().signal));
-    const next = runs.start({ text: "next", channel: "telegram" });
+    const next = runs.start({ text: "next", channel: "macos" });
     const c = await late;
     expect(fixture.executions()).toBe(2);
     expect(c.every(({ runId }) => runId === next.id)).toBe(true);
