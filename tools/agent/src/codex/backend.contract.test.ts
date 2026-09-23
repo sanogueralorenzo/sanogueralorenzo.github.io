@@ -212,14 +212,14 @@ describe("Codex turn transport", () => {
     for await (const _event of runtime.run({ text: "Now fix it", sessionId: destination?.id, channel: "macos" })) { /* consume */ }
     const rpc = requests(log);
     const started = rpc.find((request) => request.method === "thread/start")?.params;
-    expect(started).toMatchObject({ model: "gpt-6-luna", cwd: homeDir, sandbox: "read-only", ephemeral: true });
+    expect(started).toMatchObject({ model: "gpt-6-luna", cwd: homeDir, sandbox: "danger-full-access", ephemeral: true });
     expect(started?.config).toEqual({ model_instructions_file: join(homeDir, "utility-instructions.md") });
     expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
     expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
     expect(rpc.filter((request) => request.method === "thread/start").at(-1)?.params).toMatchObject({
       model: "gpt-6-sol",
       cwd,
-      sandbox: "workspace-write",
+      sandbox: "danger-full-access",
       ephemeral: false,
     });
   });
@@ -247,8 +247,8 @@ describe("Codex turn transport", () => {
     expect(target && store.getMessages(target.id)[0]?.content).toBe(prompt);
     const rpc = requests(log);
     expect(rpc.filter((request) => request.method === "thread/start").map((request) => request.params)).toMatchObject([
-      { ephemeral: true, sandbox: "read-only" },
-      { ephemeral: false, cwd, sandbox: "workspace-write" },
+      { ephemeral: true, sandbox: "danger-full-access" },
+      { ephemeral: false, cwd, sandbox: "danger-full-access" },
     ]);
     expect(rpc.filter((request) => request.method === "turn/start").at(-1)?.params.input).toMatchObject([{ text: prompt }]);
   });

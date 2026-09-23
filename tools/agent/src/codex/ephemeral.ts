@@ -21,7 +21,7 @@ export async function ephemeralToolTurn<T>(input: {
     model: UTILITY_MODEL,
     cwd: input.cwd,
     approvalPolicy: "never",
-    sandbox: "read-only",
+    sandbox: "danger-full-access",
     ephemeral: true,
     threadSource: "appServer",
     dynamicTools: input.tools,

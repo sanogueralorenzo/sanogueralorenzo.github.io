@@ -212,7 +212,7 @@ export class CodexBackend implements AgentBackend {
       model: WORK_MODEL,
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
-      sandbox: turn.session.cwd ? "workspace-write" : "read-only",
+      sandbox: "danger-full-access",
       developerInstructions: savedHistory
         ? `${turn.instructions}\n\nThis Agent conversation has earlier saved messages. Use read_history to inspect them when prior context matters.`
         : turn.instructions,

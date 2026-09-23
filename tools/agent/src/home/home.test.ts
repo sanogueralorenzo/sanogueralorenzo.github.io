@@ -257,8 +257,8 @@ describe("Agent Home", () => {
     const calls = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
     const threads = calls.filter((call) => call.method === "thread/start").map((call) => call.params);
     expect(threads).toMatchObject([
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("usually a few sentences") },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "danger-full-access", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "danger-full-access", baseInstructions: expect.stringContaining("usually a few sentences") },
     ]);
     expect(threads.map((thread) => thread.config)).toEqual([
       { model_instructions_file: join(homeDir, "utility-instructions.md") },

@@ -23,7 +23,7 @@ export async function transcribeVoice(
   const started = await client.request<{ thread: { id: string } }>("thread/start", {
     model: UTILITY_MODEL,
     cwd: homeDir,
-    sandbox: "read-only",
+    sandbox: "danger-full-access",
     approvalPolicy: "never",
     ephemeral: true,
     threadSource: "appServer",
