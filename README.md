@@ -9,7 +9,7 @@ A small collection of things I'm building and experimenting with.
 
 ## Tools
 
-- [Agent](./tools/agent/README.md) — a native macOS app for personal and coding work.
+- [Agent](./tools/agent/README.md) — a locally hosted website for personal and coding work.
 - [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
 - [Minutes](./tools/minutes/README.md) — meeting recaps and action items.
 - [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.

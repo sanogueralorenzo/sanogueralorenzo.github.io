@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { rmSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { join } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
@@ -16,6 +17,16 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   response.end(JSON.stringify(body));
 }
+
+const WEB_ROOT = fileURLToPath(new URL("../web/", import.meta.url));
+const MIME_TYPES: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+};
 
 function waitForDrain(response: ServerResponse): Promise<void> {
   if (response.destroyed) return Promise.resolve();
@@ -34,6 +45,7 @@ export class RuntimeServer {
   private readonly token = randomBytes(32).toString("base64url");
   private readonly runs: RunCoordinator;
   private server = createServer(this.handle.bind(this));
+  private port: number;
 
   constructor(
     private readonly config: RuntimeConfig,
@@ -42,6 +54,7 @@ export class RuntimeServer {
     private readonly setup: RuntimeSetup,
   ) {
     this.runs = new RunCoordinator(runtime, store);
+    this.port = config.port;
   }
 
   async listen(): Promise<number> {
@@ -50,6 +63,7 @@ export class RuntimeServer {
       this.server.listen(this.config.port, "127.0.0.1", () => resolve());
     });
     const port = (this.server.address() as AddressInfo).port;
+    this.port = port;
     writePrivateFile(join(this.config.homeDir, "runtime.json"), `${JSON.stringify({ protocolVersion: RUNTIME_PROTOCOL_VERSION, port, token: this.token, pid: process.pid })}\n`);
     return port;
   }
@@ -67,16 +81,46 @@ export class RuntimeServer {
   private async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     if (request.method === "GET" && url.pathname === "/v1/health") return json(response, 200, { ok: true, protocolVersion: RUNTIME_PROTOCOL_VERSION, pid: process.pid });
-    if (request.headers.authorization !== `Bearer ${this.token}`) return json(response, 401, { error: "unauthorized" });
+
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname.startsWith("/web/"))) {
+      if (!this.isLocalHost(request)) return json(response, 403, { error: "local_only" });
+      return this.serveWeb(url.pathname, response);
+    }
+
+    if (!this.isSameOrigin(request)) return json(response, 403, { error: "cross_origin_request" });
+    const cookie = request.headers.cookie?.split(";").map((value) => value.trim()).find((value) => value.startsWith("agent_session="))?.slice("agent_session=".length);
+    if (request.headers.authorization !== `Bearer ${this.token}` && cookie !== this.token) return json(response, 401, { error: "unauthorized" });
 
     try {
       const route = `${request.method} ${url.pathname}`;
+      if (route === "POST /v1/control/shutdown") {
+        json(response, 200, { stopping: true });
+        setTimeout(() => process.emit("SIGTERM"), 50).unref();
+        return;
+      }
       if (route.startsWith("GET /v1/sessions/") && route.endsWith("/messages")) {
         const id = decodeURIComponent(url.pathname.slice("/v1/sessions/".length, -"/messages".length));
         const session = this.store.getSession(id) ?? this.store.redirectedSession(id);
         return session
           ? json(response, 200, { session, messages: this.store.getMessages(session.id) })
           : json(response, 404, { error: "session_not_found" });
+      }
+      if (route.startsWith("GET /v1/artifacts/")) {
+        const id = decodeURIComponent(url.pathname.slice("/v1/artifacts/".length));
+        if (!/^[0-9a-f-]{36}$/i.test(id)) return json(response, 404, { error: "artifact_not_found" });
+        const fileName = readdirSync(join(this.config.homeDir, "artifacts")).find((name) => name.startsWith(`${id}.`));
+        if (!fileName) return json(response, 404, { error: "artifact_not_found" });
+        const path = join(this.config.homeDir, "artifacts", fileName);
+        if (!statSync(path).isFile()) return json(response, 404, { error: "artifact_not_found" });
+        const inlineName = fileName.replaceAll('"', "_").replaceAll("\\", "_");
+        response.writeHead(200, {
+          "content-type": this.mimeType(extname(fileName)),
+          "content-disposition": `inline; filename="${inlineName}"`,
+          "cache-control": "private, no-store",
+          "x-content-type-options": "nosniff",
+        });
+        response.end(readFileSync(path));
+        return;
       }
       const setupResponse = await handleSetupRequest(route, request, this.setup);
       if (setupResponse) return json(response, setupResponse.status, setupResponse.body);
@@ -149,6 +193,46 @@ export class RuntimeServer {
       if (!response.headersSent) json(response, status, detail);
       else response.end();
     }
+  }
+
+  private isLocalHost(request: IncomingMessage): boolean {
+    const host = request.headers.host?.toLowerCase();
+    return host === `127.0.0.1:${this.port}` || host === `localhost:${this.port}`;
+  }
+
+  private isSameOrigin(request: IncomingMessage): boolean {
+    const origin = request.headers.origin;
+    if (!origin) return true;
+    try { return new URL(origin).host.toLowerCase() === request.headers.host?.toLowerCase(); }
+    catch { return false; }
+  }
+
+  private serveWeb(pathname: string, response: ServerResponse): void {
+    const relativePath = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice("/web/".length));
+    const path = resolve(WEB_ROOT, relativePath);
+    if (path !== WEB_ROOT && !path.startsWith(`${resolve(WEB_ROOT)}${sep}`)) return json(response, 404, { error: "not_found" });
+    try {
+      const body = readFileSync(path);
+      response.writeHead(200, {
+        "content-type": MIME_TYPES[extname(path)] ?? "application/octet-stream",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
+        ...(pathname === "/" ? { "set-cookie": `agent_session=${this.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400` } : {}),
+      });
+      response.end(body);
+    } catch {
+      json(response, 404, { error: "not_found" });
+    }
+  }
+
+  private mimeType(extension: string): string {
+    const known: Record<string, string> = {
+      ".gif": "image/gif", ".jpeg": "image/jpeg", ".jpg": "image/jpeg", ".pdf": "application/pdf",
+      ".png": "image/png", ".svg": "image/svg+xml", ".txt": "text/plain; charset=utf-8", ".webp": "image/webp",
+    };
+    return known[extension.toLowerCase()] ?? "application/octet-stream";
   }
 
   private async events(

@@ -1,7 +1,7 @@
 {
   "name": "agent",
   "version": "0.5.0",
-  "description": "The local runtime for the Agent macOS app.",
+  "description": "The local runtime and website for Agent.",
   "private": true,
   "type": "module",
   "bin": {
@@ -12,7 +12,9 @@
   },
   "scripts": {
     "dev": "tsx src/bin/agent.ts serve",
-    "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --input-type=module --eval \"import { chmodSync } from 'node:fs'; chmodSync('dist/bin/agent.js', 0o755)\"",
+    "web": "tsx src/bin/agent.ts web",
+    "web:dev": "tsx src/bin/agent.ts web",
+    "build": "node --input-type=module --eval \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node --input-type=module --eval \"import { cpSync } from 'node:fs'; cpSync('src/web', 'dist/web', { recursive: true })\" && node --input-type=module --eval \"import { chmodSync } from 'node:fs'; chmodSync('dist/bin/agent.js', 0o755)\"",
     "start": "node dist/bin/agent.js serve",
     "serve": "tsx src/bin/agent.ts serve",
     "typecheck": "tsc --noEmit",

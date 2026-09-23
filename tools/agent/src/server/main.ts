@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { loadConfig } from "../local/config.js";
+import { spawn } from "node:child_process";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
@@ -17,8 +18,15 @@ const setup = new AgentSetupService(codexClient);
 const server = new RuntimeServer(config, runtime, store, setup);
 
 const port = await server.listen();
+const url = `http://127.0.0.1:${port}`;
 if (process.send) process.send({ type: "ready", port });
-else console.log(`Agent runtime listening on http://127.0.0.1:${port}`);
+else if (process.env.AGENT_OPEN_WEB === "1") {
+  console.log(`Agent website: ${url}`);
+  if (process.platform === "darwin") {
+    const browser = spawn("open", [url], { detached: true, stdio: "ignore" });
+    browser.unref();
+  }
+} else console.log(`Agent runtime listening on ${url}`);
 
 let closing = false;
 async function close(): Promise<void> {
