@@ -17,7 +17,7 @@ The skill is available as `$codex-background` in the Mac app. It uses the app's 
 
 The experimental `scripts/listener.py` can read saved child rollout files from byte offsets, track turns in SQLite, and queue progress and completion into the origin task. End-to-end tests showed that `codex queue` delivers once to the same task when it is idle or active. Each delivery is a **new user turn** that runs a model and may wait in the origin's queue. The skill therefore does not install or use the listener automatically.
 
-[Codex App Server](https://learn.chatgpt.com/docs/app-server) documents `thread/inject_items` as adding model-visible history, not as posting a visible assistant update. A separate App Server cannot resume a Mac app task while the desktop owns its active writer. No supported passive same-conversation delivery path was verified. Agent remains available for its own live event stream until that gap is solved.
+[Codex App Server](https://learn.chatgpt.com/docs/app-server) documents `thread/inject_items` as adding model-visible history, not as posting a visible assistant update. A separate App Server cannot resume a Mac app task while the desktop owns its active writer. No supported passive same-conversation delivery path was verified. [Pi Agent](../pi-agent/README.md) provides event-driven background updates in the terminal.
 
 The experimental listener never writes directly to rollout files. Its tests cover complete-line parsing, restart offsets, worktree marker resolution, and queue reconciliation:
 

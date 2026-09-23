@@ -9,7 +9,7 @@ A small collection of things I'm building and experimenting with.
 
 ## Tools
 
-- [Agent](./tools/agent/README.md) — a locally hosted website for personal and coding work.
+- [Pi Agent](./tools/pi-agent/README.md) — background task delegation and updates in the Pi terminal.
 - [Codex Background](./tools/codex-background/README.md) — native Mac app task dispatch.
 - [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
 - [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.
