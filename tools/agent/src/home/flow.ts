@@ -30,7 +30,7 @@ export class HomeFlow {
         const reuseId = action.type === "start" ? undefined : action.entryId;
         const entryId = reuseId ?? (index === 0 ? runId : randomUUID());
         pendingEntryId = reuseId ? (index === 0 ? runId : null) : entryId;
-        const body = redactSecrets(actions.length === 1 ? request.text : action.source);
+        const body = redactSecrets(request.text);
         if (index > 0 && !reuseId) {
           this.store.home.createEntry(entryId, body);
           yield { type: "home_entry", entry: this.store.home.linkMessage(entryId, messageId) };
@@ -51,8 +51,8 @@ export class HomeFlow {
           ].join("\n")
           : task;
         const dispatched = reuseId
-          ? this.store.home.reuseEntry(index === 0 ? runId : "", entryId, target.id, action.title, body, Boolean(task), messageId)
-          : this.store.home.dispatchEntry(entryId, target.id, action.title, body, Boolean(task));
+          ? this.store.home.reuseEntry(index === 0 ? runId : "", entryId, target.id, body, Boolean(task), messageId)
+          : this.store.home.dispatchEntry(entryId, target.id, body, Boolean(task));
         pendingEntryId = entryId;
         if (index === 0 && reuseId) yield { type: "home_entry_removed", id: runId };
         for (const entry of dispatched.superseded) yield { type: "home_entry", entry };

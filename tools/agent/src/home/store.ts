@@ -50,7 +50,7 @@ export class HomeStore {
     return { ...row, requests, url: row.sessionId ? `agent://sessions/${row.sessionId}` : null };
   }
 
-  dispatchEntry(id: string, sessionId: string, title: string, body: string, working: boolean): {
+  dispatchEntry(id: string, sessionId: string, body: string, working: boolean): {
     entry: HomeEntry;
     superseded: HomeEntry[];
   } {
@@ -62,8 +62,8 @@ export class HomeStore {
       for (const entry of previous) this.db.prepare("UPDATE home_entries SET state = NULL WHERE id = ?")
         .run(entry.id);
       this.db.prepare(`
-        UPDATE home_entries SET session_id = ?, title = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
-      `).run(sessionId, title, body, working ? "working" : "ready", timestamp, id);
+        UPDATE home_entries SET session_id = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
+      `).run(sessionId, body, working ? "working" : "ready", timestamp, id);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -72,7 +72,7 @@ export class HomeStore {
     return { entry: this.entry(id)!, superseded: previous.map((entry) => this.entry(entry.id)!) };
   }
 
-  reuseEntry(provisionalId: string, id: string, sessionId: string, title: string, body: string, working: boolean, messageId: number): {
+  reuseEntry(provisionalId: string, id: string, sessionId: string, body: string, working: boolean, messageId: number): {
     entry: HomeEntry;
     superseded: HomeEntry[];
   } {
@@ -86,8 +86,8 @@ export class HomeStore {
       if (provisionalId) this.db.prepare("DELETE FROM home_entries WHERE id = ? AND session_id IS NULL").run(provisionalId);
       for (const entry of previous) this.db.prepare("UPDATE home_entries SET state = NULL WHERE id = ?").run(entry.id);
       this.db.prepare(`
-        UPDATE home_entries SET title = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
-      `).run(title, body, working ? "working" : "ready", this.nextUpdate(id), id);
+        UPDATE home_entries SET body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
+      `).run(body, working ? "working" : "ready", this.nextUpdate(id), id);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -113,7 +113,7 @@ export class HomeStore {
 
   entry(id: string): HomeEntry | null {
     const row = this.db.prepare(`
-      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
+      SELECT id, session_id AS sessionId, body, summary, state, updated_at AS updatedAt
       FROM home_entries WHERE id = ?
     `).get(id) as HomeEntryRow | undefined;
     return row ? this.withRequests(row) : null;
@@ -121,7 +121,7 @@ export class HomeStore {
 
   entries(limit = 100): HomeEntry[] {
     const rows = this.db.prepare(`
-      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
+      SELECT id, session_id AS sessionId, body, summary, state, updated_at AS updatedAt
       FROM (SELECT rowid, * FROM home_entries ORDER BY updated_at DESC, rowid DESC LIMIT ?) ORDER BY updated_at ASC, rowid ASC
     `).all(limit) as unknown as HomeEntryRow[];
     return rows.map((row) => this.withRequests(row));

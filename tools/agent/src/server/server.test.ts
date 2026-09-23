@@ -65,13 +65,13 @@ describe("RuntimeServer", () => {
     expect((await client.openSession()).id).toBe("home");
     const task = store.createSession({ title: "Fix tests" });
     store.home.createEntry("entry", "Fix the tests");
-    store.home.dispatchEntry("entry", task.id, task.title, "Fix the tests", false);
+    store.home.dispatchEntry("entry", task.id, "Fix the tests", false);
     store.home.updateEntry(task.id, "ready", "Tests pass.");
     expect((await client.sessions()).homeEntries).toMatchObject([{ sessionId: task.id, summary: "Tests pass." }]);
     const stream = (await client.events(undefined, "home"))[Symbol.asyncIterator]();
     const first = await stream.next();
     expect(first.value?.event).toMatchObject({ type: "snapshot", snapshot: {
-      homeEntries: [{ id: "entry", sessionId: task.id, title: "Fix tests", state: "ready", summary: "Tests pass." }],
+      homeEntries: [{ id: "entry", sessionId: task.id, state: "ready", summary: "Tests pass." }],
     } });
     await stream.return?.();
   });

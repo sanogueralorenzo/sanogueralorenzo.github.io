@@ -97,7 +97,7 @@ export class CodexHomeBackend implements HomeBackend {
       request.cwd ? `Terminal directory: ${request.cwd}` : "",
       `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview, state: conversationState(id) })))}`,
       `Recent Home activity: ${JSON.stringify([...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
-        .map(({ id, sessionId, title, body, requests, state, summary }) => ({ id, sessionId, title, body,
+        .map(({ id, sessionId, body, requests, state, summary }) => ({ id, sessionId, body,
           requests: requests.slice(-2).map(({ text }) => text.slice(0, 160)), state, summary })))}`,
     ].filter(Boolean).join("\n");
     await retryDisconnected(this.client, () => {

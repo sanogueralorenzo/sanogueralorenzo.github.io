@@ -73,6 +73,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .connection-mark.connected { color: var(--clay); }
 .card-divider { height: 1px; margin: 5px 0; background: var(--line); }
 .recent-tasks { display: flex; flex-direction: column; gap: 12px; }
+.home-exchange { display: flex; flex-direction: column; gap: 14px; }
 .section-heading { display: flex; align-items: center; gap: 8px; }
 .count-badge { color: var(--muted); font-size: 11px; }
 .empty-card { margin: 0; padding: 16px; color: var(--muted); font-size: 13px; border-radius: 16px; background: var(--input); }
@@ -80,7 +81,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-entry + .home-entry { margin-top: 14px; }
 .home-entry:hover { filter: brightness(1.08); }
 .entry-copy { display: grid; gap: 5px; font-size: 15px; line-height: 1.45; }
-.entry-copy strong { font-weight: 600; }
 .state-chip { position: absolute; right: -9px; bottom: -9px; min-width: 34px; height: 30px; border-radius: 14px; border: 4px solid var(--canvas); background: var(--assistant); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
 .state-chip.working { color: white; }
 .session-scroll { scroll-behavior: auto; }

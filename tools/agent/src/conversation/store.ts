@@ -95,7 +95,6 @@ export class Store {
       CREATE TABLE IF NOT EXISTS home_entries (
         id TEXT PRIMARY KEY,
         session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-        title TEXT,
         body TEXT NOT NULL,
         summary TEXT,
         state TEXT CHECK (state IS NULL OR state IN ('routing', 'working', 'ready', 'needs_input', 'failed')),

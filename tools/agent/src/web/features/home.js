@@ -1,4 +1,4 @@
-import { escapeHTML, icon, renderInlineMarkdown } from "../view.js";
+import { escapeHTML, icon, renderInlineMarkdown, renderMarkdown } from "../view.js";
 
 export function renderHome(state) {
   const codex = state.setupStatus?.codex;
@@ -33,7 +33,12 @@ function renderHomeEntry(entry) {
     : entry.state === "ready" ? '<span class="state-chip">👍</span>'
     : entry.state === "needs_input" ? '<span class="state-chip">💬</span>'
     : entry.state === "failed" ? '<span class="state-chip">⚠️</span>' : "";
-  return `<button class="home-entry" data-action="open-session" data-session="${escapeHTML(entry.sessionId ?? "")}" ${entry.sessionId ? "" : "disabled"}><span class="entry-copy">${entry.title ? `<strong>${escapeHTML(entry.title)}</strong>` : ""}<span>${renderInlineMarkdown(entry.summary ?? entry.body)}</span></span>${status}</button>`;
+  const requests = entry.requests?.length ? entry.requests : [{ text: entry.body }];
+  const messages = requests.map(({ text }, index) => `<button class="home-entry" data-action="open-session" data-session="${escapeHTML(entry.sessionId ?? "")}" ${entry.sessionId ? "" : "disabled"}><span class="entry-copy"><span class="message-text markdown-content">${renderMarkdown(text)}</span></span>${index === requests.length - 1 ? status : ""}</button>`).join("");
+  const reply = entry.summary
+    ? `<article class="message-row assistant-row"><div class="message-bubble assistant-bubble"><div class="message-text markdown-content">${renderMarkdown(entry.summary)}</div></div></article>`
+    : "";
+  return `<div class="home-exchange">${messages}${reply}</div>`;
 }
 
 export function renderBottomBar() {

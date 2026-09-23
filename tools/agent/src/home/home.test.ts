@@ -38,7 +38,7 @@ describe("Agent Home", () => {
     runs.start({ text: "How are you?", requestId, sessionId: store.homeSession().id, channel: "macos" });
     const first = (await pending).value!;
     await vi.waitFor(() => expect(store.home.entries()).toMatchObject([
-      { id: requestId, title: "How are you?", body: "How are you?", state: "working" },
+      { id: requestId, body: "How are you?", state: "working" },
     ]));
     release();
     await vi.waitFor(() => expect(store.home.entries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
@@ -72,8 +72,8 @@ describe("Agent Home", () => {
     runs.start({ text: "Find restaurants in Taipei and a good air fryer", requestId, sessionId: HOME_SESSION_ID });
     await vi.waitFor(() => expect(store.home.entries()).toHaveLength(2));
     expect(store.home.entries()).toMatchObject([
-      { id: requestId, title: "Taipei restaurants", body: "restaurants in Taipei", state: "working" },
-      { title: "Air fryer picks", body: "a good air fryer", state: "working" },
+      { id: requestId, body: "Find restaurants in Taipei and a good air fryer", state: "working" },
+      { body: "Find restaurants in Taipei and a good air fryer", state: "working" },
     ]);
     expect(new Set(store.home.entries().map((entry) => entry.sessionId)).size).toBe(2);
     await vi.waitFor(() => expect(requests).toHaveLength(2));
@@ -152,7 +152,7 @@ describe("Agent Home", () => {
     await secondRoute;
     expect(store.home.entries().map((entry) => entry.body)).toEqual(["First", "Second"]);
     releaseFirst();
-    await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.title)).toEqual(["First", "Second"]));
+    await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.body)).toEqual(["First", "Second"]));
     await runs.close();
   });
 
@@ -214,7 +214,7 @@ describe("Agent Home", () => {
     const original = new Store(directory);
     const session = original.createSession({ title: "Saved task" });
     const entry = original.home.createEntry("entry", "Finish this");
-    original.home.dispatchEntry(entry.id, session.id, session.title, "Finish this", true);
+    original.home.dispatchEntry(entry.id, session.id, "Finish this", true);
     original.home.enqueueTask(session.id, "Finish this", "macos");
     original.close();
     const store = new Store(directory);
@@ -312,7 +312,7 @@ describe("Agent Home", () => {
     cleanup(() => store.close());
     const session = store.createSession({ title: "Current task" });
     store.home.createEntry("current-card", "Build the feature");
-    store.home.dispatchEntry("current-card", session.id, session.title, "Build the feature", true);
+    store.home.dispatchEntry("current-card", session.id, "Build the feature", true);
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-reuse",
@@ -360,7 +360,7 @@ describe("Agent Home", () => {
     store.addMessage(saved.id, "user", "Investigate why Agent reconnects twice.");
     store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
     const seed = store.home.createEntry("seed", "Investigate reconnects");
-    store.home.dispatchEntry(seed.id, saved.id, saved.title, seed.body, false);
+    store.home.dispatchEntry(seed.id, saved.id, seed.body, false);
     store.home.updateEntry(saved.id, "ready", "Duplicate reconnect paths identified.");
     const log = join(homeDir, "rpc.log");
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");

@@ -364,12 +364,12 @@ async function send() {
 
   if (selected === "home") {
     const requestId = crypto.randomUUID();
-    replaceHomeEntry({ id: requestId, sessionId: null, title: null, body: displayText, requests: [{ text: displayText, createdAt: new Date().toISOString() }], summary: null, state: "routing", url: null, updatedAt: new Date().toISOString() });
+    replaceHomeEntry({ id: requestId, sessionId: null, body: displayText, requests: [{ text: displayText, createdAt: new Date().toISOString() }], summary: null, state: "routing", url: null, updatedAt: new Date().toISOString() });
     render();
     try {
       await post("/v1/runs", { text, sessionId: selected, requestId, attachmentIds, channel: "macos" });
     } catch (error) {
-      replaceHomeEntry({ id: requestId, sessionId: null, title: null, body: displayText, requests: [], summary: error.message, state: "failed", url: null, updatedAt: new Date().toISOString() });
+      replaceHomeEntry({ id: requestId, sessionId: null, body: displayText, requests: [], summary: error.message, state: "failed", url: null, updatedAt: new Date().toISOString() });
       state.voiceNote = note;
       showError(error);
       return;

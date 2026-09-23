@@ -29,7 +29,6 @@ export interface SessionCard {
 export interface HomeEntry {
   id: string;
   sessionId: string | null;
-  title: string | null;
   body: string;
   requests: { text: string; createdAt: string }[];
   summary: string | null;
