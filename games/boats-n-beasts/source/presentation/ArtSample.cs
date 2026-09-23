@@ -93,10 +93,10 @@ public partial class ArtSample : Node3D
         float size = scenery switch { "Pirate tavern" => landmarkSizes.Tavern, "Shipwreck" => landmarkSizes.Shipwreck, "Sea cave" => landmarkSizes.SeaCave, "Ancient arch" => landmarkSizes.AncientArch, "Lighthouse" => landmarkSizes.Lighthouse, "Market stall" => landmarkSizes.MarketStall, "Windmill" => landmarkSizes.Windmill, _ => 0 };
         string sizeLabel = size > 0 ? $" · model size {size:0.00}" : "";
         status.Text = $"{scenery}{sizeLabel} · {place.Shape?.Profile.ToString() ?? "Open water"} · radius {place.Radius:0.#} · seed {place.Style} · {(close ? "detail" : "gameplay scale")}\n"
-            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh · B capture";
+            + "Q islands · W prison · E tower · R lighthouse · T tavern · Y market · U mill · I wreck · O cave · P arch\nA reference · S whirlpool · D land/sea wreck · F island size · G seed · H smaller · J larger · K crew · L boat\nZ turn left · X turn right · C view · V refresh";
         GD.Print($"ISLAND SAMPLE scenery={scenery} profile={place.Shape?.Profile.ToString() ?? "Open water"} radius={place.Radius} style={place.Style}");
     }
-    public override async void _UnhandledKeyInput(InputEvent ev)
+    public override void _UnhandledKeyInput(InputEvent ev)
     {
         if (ev is not InputEventKey { Pressed: true, Echo: false } key) return;
         if (key.Keycode == Key.K) { boatDetail = !boatDetail; return; }
@@ -113,7 +113,7 @@ public partial class ArtSample : Node3D
         }
         boatDetail = false;
         bool previousWhirlpool = whirlpool;
-        if (key.Keycode is not (Key.C or Key.V or Key.B)) whirlpool = false;
+        if (key.Keycode is not (Key.C or Key.V)) whirlpool = false;
         switch (key.Keycode)
         {
             case Key.S: whirlpool = true; seaWreck = false; beachReference = false; close = true; break;
@@ -141,22 +141,9 @@ public partial class ArtSample : Node3D
                 break;
             case Key.F: seaWreck = false; beachReference = false; islandSize = (islandSize + 1) % IslandSizes.Length; break;
             case Key.V: SaveSettings(); GetTree().Quit(75); return;
-            case Key.B: break;
             default: whirlpool = previousWhirlpool; return;
         }
-        if (key.Keycode != Key.B) { SaveSettings(); ShowIsland(); }
-        if (key.Keycode == Key.B)
-        {
-            await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-            var folder = ProjectSettings.GlobalizePath("res://evidence");
-            System.IO.Directory.CreateDirectory(folder);
-            uint seed = whirlpool ? 23 : seaWreck ? 15 : beachReference ? 2273309013 : IslandStyles[islandStyle] + variant;
-            float radius = whirlpool ? 260 : seaWreck ? landmarkSizes.ForKind(3) * OceanWorld.ShipwreckUnitRadius : beachReference ? 355.70514f : IslandSizes[islandSize];
-            var profile = seaWreck || whirlpool ? "OpenWater" : new IslandShape(radius, seed).Profile.ToString();
-            var file = folder + "/" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + $"-art-{profile}-{radius}-{seed}-" + (close ? "detail" : "scale") + ".png";
-            GetViewport().GetTexture().GetImage().SavePng(file);
-            GD.Print($"ART SAMPLE {file} renderer={RenderingServer.GetCurrentRenderingMethod()} fps={Engine.GetFramesPerSecond()} draws={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}");
-        }
+        SaveSettings(); ShowIsland();
     }
     void SelectLandmark(int style)
     {

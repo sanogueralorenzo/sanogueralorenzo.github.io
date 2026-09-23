@@ -102,41 +102,10 @@ public partial class Game : Node2D
         if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click && !title && Run.Mode == VoyageMode.Sailing)
         { destination = ocean.WorldPoint(click.Position); GetViewport().SetInputAsHandled(); }
     }
-    bool capturing;
-    async void CaptureReview()
-    {
-        if (capturing) return;
-        capturing = true;
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        string folder = ProjectSettings.GlobalizePath("res://evidence"); System.IO.Directory.CreateDirectory(folder);
-        string name = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff") + "-" + (title ? "title" : Run.Mode.ToString().ToLowerInvariant());
-        GetViewport().GetTexture().GetImage().SavePng(folder + "/" + name + ".png");
-        var samples = frameSamples.Order().ToArray();
-        string report = $"Mouse viewport={GetViewport().GetMousePosition()} global={GetGlobalMousePosition()} boatScreen={ocean.Screen(Run.Position)} viewportRect={GetViewportRect()}\nCamera projection={ocean.Projection}; click world={ocean.WorldPoint(GetViewport().GetMousePosition())}; destination={destination}\nNative runtime capture: {name}\nRenderer: {RenderingServer.GetCurrentRenderingMethod()}\nSeed: {Run.World.Seed}\nMode: {Run.Mode}\nGame speed: x{gameSpeed}\nFinished runs: {finishedRuns}; boat selection: {choosingBoat}\nSilver: {silver}; earned this voyage: {Run.SilverEarned}; next eligible combat time: {Run.NextSilverTime:R}\nBoat: {Run.Boat}\nPosition: {Run.Position}\nHealth: {Run.Health}/{Run.MaxHealth}\nKills: {Run.Kills}; level: {Run.Level}; XP: {Run.Xp}/{Run.NextXp}; pending upgrades: {Run.PendingUpgrades}\nActive chunks: {Run.World.Loaded.Count}; enemies: {Run.Enemies.Count}; shots: {Run.Shots.Count}\nActual sailing seconds: {performanceClock:0.0}; peak enemies: {peakEnemyCount}; peak shots: {peakShotCount}\n";
-        report += $"Camera world={ocean.Camera}; departure seconds={ocean.DepartureTime:R}; menu opacity={(departingMenu != null && GodotObject.IsInstanceValid(departingMenu) ? departingMenu.Modulate.A : title ? 1 : 0):R}\n";
-        foreach (var place in Run.World.Places.Where(p => p.Id.StartsWith("home:")).OrderBy(p => p.Id))
-            report += $"Home {place.Id}: {place.Kind} position={place.Position} radius={place.Radius} style={place.Style}\n";
-        report += $"Velocity={Run.Velocity}; boosting={Run.IsBoosting}; boost starts={Run.BoostStarts}; flow={Run.CurrentFlow}; current seconds={Run.CurrentRideTime}; treasure={Run.TreasureCollected}; barrels={Run.BarrelsBroken}; arcane casts={Run.ArcaneCasts}; mines={Run.MinesDropped}/{Run.MinesExploded}; ricochets={Run.CannonRicochets}; pulls={Run.HarpoonPulls}\n";
-        report += $"Combat clock={Run.CombatTime:R}; director={Run.Director.Clock:R}/{Run.Director.Credits:R}; boost={Run.Boost:R}; invulnerable={Run.Invulnerable:R}; ability={Run.AbilityCharge:R}; fire rate={Run.FireRateMultiplier:R}\nWeapon ranks={string.Join(",",Run.Weapons)}; cooldowns={string.Join(",",Run.Cooldowns.Select(x=>x.ToString("R")))}\nDepletion={string.Join(";",Run.World.Depletion.Select(x=>$"{x.Key}={x.Value}"))}\n";
-        report += $"Loot placement: islands={Run.World.Places.Count(p => p.Kind == PlaceKind.Island)}; chests={Run.World.Places.Count(p => p.Kind == PlaceKind.Treasure)}; barrels={Run.World.Places.Count(p => p.Kind == PlaceKind.Barrel)}; depleted={Run.World.Depletion.Count}; visible encounter cache={ocean.CachedEncounters}\n";
-        foreach (var place in Run.World.Places.Where(p => p.Kind is PlaceKind.Treasure or PlaceKind.Barrel))
-            report += $"Loot {place.Id}: {place.Kind} position={place.Position} style={place.Style} heading={place.Heading:R} depleted={Run.World.Depletion.ContainsKey(place.Id)}\n";
-        foreach (var place in Run.World.Places.Where(p => p.Kind is PlaceKind.Island or PlaceKind.Harbor))
-            report += $"Landmark {place.Id}: {place.Kind} position={place.Position} radius={place.Radius:R} style={place.Style} profile={place.Shape?.Profile.ToString() ?? "harbor"}\n";
-        report += $"Boss bombs thrown={Run.BossBombsThrown}; explosions={Run.BossExplosions}; blast hits={Run.BossBlastHits}\n";
-        report += $"Pacing regular target={Run.Director.Target(Run.CombatTime)}; income={Run.Director.Income(Run.CombatTime):R}; boss arrival seconds={SpawnDirector.BossArrivalSeconds:R}\n";
-        report += $"Puffer explosions={Run.PufferExplosions}; blast hits={Run.PufferBlastHits}\n";
-        foreach (var enemy in Run.Enemies) report += $"Enemy {enemy.Id}: {enemy.Kind} position={enemy.Position} hp={enemy.Health:R} time={enemy.Time:R} attack={enemy.AttackClock:R} tell={enemy.Telegraph:R} dash={enemy.Dash:R} speedMultiplier={enemy.SpeedMultiplier:R} swimSpeed={enemy.SwimSpeed:R} fuse={enemy.Fuse:R}\n";
-        foreach (var shot in Run.Shots) report += $"Shot {(shot.Hostile ? "Boss bomb" : shot.Kind.ToString())} hostile={shot.Hostile} position={shot.Position} life={shot.Life:R} target={shot.Target} age={shot.Age:R} flight={shot.FlightDuration:R}\n";
-        report += $"CPU simulation average ms={simulationMs:0.000}; draw submission average ms={ocean.DrawMs:0.000}; cached scenery={ocean.CachedScenery}; engine FPS={Engine.GetFramesPerSecond()}; draw calls={Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame)}; objects={Performance.GetMonitor(Performance.Monitor.RenderTotalObjectsInFrame)}\n";
-        if (samples.Length > 0) report += $"Frame ms mean: {samples.Average():0.00}; p95: {samples[(int)(samples.Length*.95)]:0.00}; p99: {samples[(int)(samples.Length*.99)]:0.00}\n";
-        System.IO.File.WriteAllText(folder + "/" + name + ".txt", report); GD.Print(report); capturing = false;
-    }
     static bool Down(Key key) => Input.IsPhysicalKeyPressed(key);
     public override void _UnhandledKeyInput(InputEvent @event)
     {
         if (@event is not InputEventKey key || !key.Pressed || key.Echo) return;
-        if (key.Keycode == Key.F12) { CaptureReview(); return; }
         if (key.Keycode == Key.Escape)
         {
             if (controls) { controls = false; BuildMenu(); }
