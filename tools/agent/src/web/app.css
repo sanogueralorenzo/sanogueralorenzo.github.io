@@ -155,12 +155,10 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .artifact span { overflow-wrap: anywhere; }
 .image-artifact { display: inline-flex; flex-direction: column; align-items: flex-start; text-decoration: none; }
 .image-artifact img { display: block; max-width: min(420px, 100%); max-height: 320px; object-fit: contain; border-radius: 10px; }
-.setup-view { flex: 1; display: grid; place-items: center; padding: 40px; }
-.setup-content { width: min(420px, 100%); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.setup-mark { width: 12px; height: 12px; border-radius: 50%; background: var(--clay); margin-bottom: 16px; }
-.setup-mark svg { display: none; }
-.setup-content h1 { margin: 0; font-size: 28px; font-weight: 650; }
-.setup-content > p { margin: 0; color: var(--muted); font-size: 14px; }
+.setup-view { flex: 1; min-height: 0; display: flex; overflow: hidden; padding: 0; }
+.onboarding-transcript { width: min(820px, 100%); margin: 0 auto; padding: 22px 20px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.onboarding-connect { width: min(480px, 100%); }
+.onboarding-connect .sign-in-controls { align-items: stretch; }
 .sign-in-controls { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 24px; }
 .primary-button, .secondary-button, .subtle-button { border: 0; border-radius: 9px; padding: 10px 16px; font-size: 14px; cursor: pointer; }
 .primary-button { min-height: 43px; width: min(360px, 100%); color: white; font-weight: 600; background: var(--clay); }
@@ -195,6 +193,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 
 @media (max-width: 520px) {
   .home-content { padding: 18px 12px; gap: 16px; }
+  .onboarding-transcript { padding: 18px 12px; gap: 10px; }
   .topbar { padding: 0 9px; }
   .topbar-side { min-width: 65px; }
   .transcript { padding: 18px 12px; gap: 16px; }
