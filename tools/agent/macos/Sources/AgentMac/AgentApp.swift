@@ -322,7 +322,7 @@ private struct HomeEntryView: View {
     private var isWorking: Bool { entry.state == "routing" || entry.state == "working" }
     private var statusSymbol: String? {
         switch entry.state {
-        case "ready": "✅"
+        case "ready": "👍"
         case "needs_input": "💬"
         case "failed": "⚠️"
         default: nil
@@ -333,13 +333,13 @@ private struct HomeEntryView: View {
         if isWorking {
             ProgressView()
                 .controlSize(.mini)
-                .frame(width: 26, height: 26)
+                .frame(width: 20, height: 20)
                 .background(AgentStyle.canvas, in: Circle())
                 .accessibilityLabel("Working")
         } else if let symbol = statusSymbol {
             Text(symbol)
-                .font(.system(size: 16))
-                .frame(width: 26, height: 26)
+                .font(.system(size: 13))
+                .frame(width: 20, height: 20)
                 .background(AgentStyle.canvas, in: Circle())
                 .accessibilityLabel(entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
         }
@@ -359,15 +359,15 @@ private struct HomeEntryView: View {
                         .multilineTextAlignment(.leading)
                 }
                 .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
-                .padding(.horizontal, 15)
-                .padding(.vertical, 11)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
                 .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .disabled(entry.sessionId == nil)
             .overlay(alignment: .bottomTrailing) {
                 statusBadge
-                    .offset(x: 8, y: 8)
+                    .offset(x: 6, y: 6)
                     .allowsHitTesting(false)
             }
             if !entry.requests.isEmpty {
