@@ -318,7 +318,6 @@ private final class EscapeMonitorView: NSView {
 private struct HomeEntryView: View {
     let entry: HomeEntry
     let open: () -> Void
-    @State private var showingRequests = false
 
     private var isWorking: Bool { entry.state == "routing" || entry.state == "working" }
     private var statusSymbol: String? {
@@ -372,32 +371,6 @@ private struct HomeEntryView: View {
                 statusBadge
                     .offset(x: 4, y: 4)
                     .allowsHitTesting(false)
-            }
-            if !entry.requests.isEmpty {
-                Button { showingRequests = true } label: {
-                    Image(systemName: "text.bubble")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AgentStyle.muted)
-                }
-                .buttonStyle(.plain)
-                .help(entry.requests.enumerated().map { "\($0.offset + 1). \($0.element.text)" }.joined(separator: "\n\n"))
-                .accessibilityLabel("Show original messages")
-                .popover(isPresented: $showingRequests, arrowEdge: .trailing) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Your messages").font(.headline)
-                            ForEach(Array(entry.requests.enumerated()), id: \.offset) { index, request in
-                                if index > 0 { Divider() }
-                                Text(request.text)
-                                    .font(.system(size: 13))
-                                    .textSelection(.enabled)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding(16)
-                    }
-                    .frame(width: 360, height: min(CGFloat(entry.requests.count) * 110 + 55, 360))
-                }
             }
         }
     }
