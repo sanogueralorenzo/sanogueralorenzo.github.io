@@ -9,11 +9,10 @@ private enum AgentStyle {
         })
     }
 
-    static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.105, 0.102, 0.097))
+    static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.045, 0.045, 0.045))
     static let surface = adaptive(light: (0.925, 0.910, 0.882), dark: (0.16, 0.155, 0.145))
-    static let userSurface = adaptive(light: (0.27, 0.35, 0.85), dark: (0.30, 0.40, 0.88))
-    static let assistantSurface = adaptive(light: (0.22, 0.23, 0.26), dark: (0.21, 0.22, 0.25))
-    static let badgeCutout = adaptive(light: (1, 1, 1), dark: (0, 0, 0))
+    static let userSurface = adaptive(light: (0.035, 0.41, 0.86), dark: (0.035, 0.41, 0.86))
+    static let assistantSurface = adaptive(light: (0.14, 0.14, 0.14), dark: (0.14, 0.14, 0.14))
     static let graphite = adaptive(light: (0.18, 0.17, 0.16), dark: (0.92, 0.90, 0.87))
     static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
     static let line = graphite.opacity(0.13)
@@ -24,6 +23,7 @@ private enum AgentStyle {
     static let messageMaxWidth: CGFloat = 640
     static let messageGutter: CGFloat = 48
     static let edgePadding: CGFloat = 20
+    static let bubbleRadius: CGFloat = 30
 }
 
 @main
@@ -203,7 +203,7 @@ struct ConversationView: View {
                     Spacer(minLength: 0)
                 } else {
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 14) {
+                        LazyVStack(alignment: .leading, spacing: 30) {
                             ForEach(model.homeEntries) { entry in
                                 HomeEntryView(entry: entry) {
                                     if let sessionId = entry.sessionId { Task { await model.selectSession(sessionId) } }
@@ -332,17 +332,16 @@ private struct HomeEntryView: View {
 
     @ViewBuilder private var statusBadge: some View {
         if isWorking || statusSymbol != nil {
-            let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
             ZStack {
-                shape.fill(AgentStyle.userSurface)
+                Circle().fill(AgentStyle.assistantSurface)
                 if isWorking {
                     ProgressView().controlSize(.mini).scaleEffect(0.8)
                 } else if let symbol = statusSymbol {
-                    Text(symbol).font(.system(size: 11))
+                    Text(symbol).font(.system(size: 17))
                 }
             }
-            .frame(width: 24, height: 24)
-            .overlay { shape.stroke(AgentStyle.badgeCutout, lineWidth: 3) }
+            .frame(width: 32, height: 32)
+            .overlay { Circle().stroke(AgentStyle.canvas, lineWidth: 4) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isWorking ? "Working" : entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
         }
@@ -365,13 +364,13 @@ private struct HomeEntryView: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 14)
                 .foregroundStyle(.white)
-                .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: AgentStyle.bubbleRadius, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(entry.sessionId == nil)
             .overlay(alignment: .bottomTrailing) {
                 statusBadge
-                    .offset(x: 4, y: 4)
+                    .offset(x: -10, y: 20)
                     .allowsHitTesting(false)
             }
         }
@@ -524,7 +523,7 @@ struct MessageView: View {
                 .foregroundStyle(.white)
                 .tint(.white)
                 .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.assistantSurface,
-                            in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            in: RoundedRectangle(cornerRadius: AgentStyle.bubbleRadius, style: .continuous))
                 if message.role == .assistant { Spacer(minLength: AgentStyle.messageGutter) }
             }
         }
