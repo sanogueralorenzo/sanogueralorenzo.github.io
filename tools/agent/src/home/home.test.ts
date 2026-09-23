@@ -258,7 +258,7 @@ describe("Agent Home", () => {
     const threads = calls.filter((call) => call.method === "thread/start").map((call) => call.params);
     expect(threads).toMatchObject([
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("continue to queue a follow-up") },
-      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("one plain-language line of at most 12 words") },
+      { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("usually a few sentences") },
     ]);
     expect(threads.map((thread) => thread.config)).toEqual([
       { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },

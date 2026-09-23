@@ -39,6 +39,17 @@ export class HomeFlow {
           ? this.store.createSession({ title: action.title, ...(action.cwd ? { cwd: action.cwd } : {}) })
           : this.store.getSession(action.sessionId)!;
         const task = action.text?.trim();
+        const dispatchedTask = !task ? "" : (actions.length > 1 || task !== request.text)
+          ? [
+            "Original user message (verbatim):",
+            request.text,
+            "",
+            ...(actions.length > 1 ? [`Task assigned to this session: ${body}`, ""] : []),
+            "Coordinator brief:",
+            task,
+            ...(actions.length > 1 ? ["", "Handle only this assigned task; other parts of the original request are routed separately."] : []),
+          ].join("\n")
+          : task;
         const dispatched = reuseId
           ? this.store.home.reuseEntry(index === 0 ? runId : "", entryId, target.id, action.title, body, Boolean(task), messageId)
           : this.store.home.dispatchEntry(entryId, target.id, action.title, body, Boolean(task));
@@ -48,8 +59,8 @@ export class HomeFlow {
         yield { type: "home_entry", entry: dispatched.entry };
         if (!task) {
           yield { type: "home_entry", entry: await this.openedEntry(target) };
-        } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(task), request.channel)) {
-          this.store.home.enqueueTask(target.id, redactSecrets(task), request.channel ?? "api", entryId);
+        } else if (action.type !== "steer" || !await options.steer?.(target.id, redactSecrets(dispatchedTask), request.channel)) {
+          this.store.home.enqueueTask(target.id, redactSecrets(dispatchedTask), request.channel ?? "api", entryId);
           pendingEntryId = null;
           yield { type: "task_queued", sessionId: target.id };
         }
@@ -81,8 +92,7 @@ export class HomeFlow {
     }
     if (this.store.latestRun(session.id)?.id !== runId) return null;
     if (this.store.home.queuedTask(session.id)) return this.store.home.updateEntry(session.id, "working", null);
-    return this.store.home.updateEntry(session.id, result.state,
-      redactSecrets(result.summary).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "));
+    return this.store.home.updateEntry(session.id, result.state, redactSecrets(result.summary).trim());
   }
 
   private async openedEntry(session: Session): Promise<HomeEntry> {
@@ -97,9 +107,9 @@ export class HomeFlow {
         output: answer,
         state: "complete",
       });
-      return this.store.home.updateEntry(session.id, result.state, redactSecrets(result.summary))!;
+      return this.store.home.updateEntry(session.id, result.state, redactSecrets(result.summary).trim())!;
     } catch {
-      return this.store.home.updateEntry(session.id, "ready", redactSecrets(answer).trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" "))!;
+      return this.store.home.updateEntry(session.id, "ready", redactSecrets(answer).trim())!;
     }
   }
 }

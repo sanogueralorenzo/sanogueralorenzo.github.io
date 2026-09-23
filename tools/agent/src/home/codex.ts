@@ -22,7 +22,7 @@ const ROUTE_TASKS = {
             type: { type: "string", enum: ["start", "continue", "steer"] },
             source: { type: "string", description: "An exact quote from the user message identifying this distinct request. Quotes must not overlap." },
             title: { type: "string", description: "A short, specific title for this Home entry." },
-            text: { type: "string", description: "A self-contained instruction for this task; omit only when opening an idle conversation." },
+            text: { type: "string", description: "Optional coordinator brief to accompany the user's original message verbatim. Add useful context or scope; never replace or paraphrase the original. Omit only when opening an idle conversation." },
             sessionId: { type: "string", description: "Existing conversation ID for continue or steer." },
             entryId: { type: "string", description: "Existing Home entry ID only when continuing that same task." },
             cwd: { type: "string", description: "Absolute project folder for a new task, only when needed." },
@@ -55,7 +55,7 @@ const REPORT_TASK = {
     type: "object",
     properties: {
       state: { type: "string", enum: ["ready", "needs_input", "failed"] },
-      summary: { type: "string", description: "One line, at most 12 words, giving the answer, outcome, or needed action." },
+      summary: { type: "string", description: "A short conversational update with enough detail to communicate the answer, outcome, or needed action." },
     },
     required: ["state", "summary"],
     additionalProperties: false,
@@ -68,11 +68,11 @@ function response(success: boolean, text: string) {
 
 const ROUTER_INSTRUCTIONS = `Route the user's message into the fewest actions that cover its distinct outcomes and destinations. Keep dependent steps together; split independent outcomes even when they share context. Do not perform the work.
 
-Call route_tasks once with the complete plan. For each action, quote a unique, non-overlapping part of the message, give a short title and self-contained instruction. Choose start for new work, continue to queue a follow-up in an existing conversation, or steer to change its active work now only when the user explicitly asks. Set entryId when continuing the same Home task; a shared conversation alone does not make work the same task.
+Call route_tasks once with the complete plan. For each action, quote a unique, non-overlapping part of the message and give a short title. Keep the user's original message verbatim when it is dispatched; use text only as a separate coordinator brief with useful context or scope. Never replace or paraphrase the original. When splitting independent work, make each brief identify its assigned part and do not duplicate work assigned to another session. Choose start for new work, continue to queue a follow-up in an existing conversation, or steer to change its active work now only when the user explicitly asks. Set entryId when continuing the same Home task; a shared conversation alone does not make work the same task.
 
 Use find_conversations when a destination is not listed and read_conversation only when its preview lacks needed context. Carry necessary context between actions. Reuse a saved project's directory or the terminal directory for current project work; omit it for personal work. Omit the instruction only when opening an idle conversation. Output only tool calls.`;
 
-const REPORTER_INSTRUCTIONS = "Report the turn in one report_task call. Use ready for a completed result, needs_input when the user must respond, and failed for an unsuccessful turn. Summarize the answer, concrete outcome, or next action in one plain-language line of at most 12 words. For a conversational reply, use the reply itself. Output only the tool call.";
+const REPORTER_INSTRUCTIONS = "Report the turn in one report_task call. Use ready for a completed result, needs_input when the user must respond, and failed for an unsuccessful turn. Write a brief conversational update, usually a few sentences, with enough detail to communicate the answer, concrete outcome, or next action. For a conversational reply, use the reply itself. Output only the tool call.";
 
 export class CodexHomeBackend implements HomeBackend {
   constructor(
@@ -200,7 +200,7 @@ export class CodexHomeBackend implements HomeBackend {
         [REPORT_TASK], (name, args) => {
           if (name !== REPORT_TASK.name) return response(false, "Unknown tool.");
           const state = args.state;
-          const summary = String(args.summary ?? "").trim().replace(/\s+/g, " ").split(" ").slice(0, 12).join(" ");
+          const summary = String(args.summary ?? "").trim();
           if (!summary || (state !== "ready" && state !== "needs_input" && state !== "failed")) return response(false, "State and summary are required.");
           report = { state: input.state === "complete" ? state : "failed", summary };
           return response(true, "Reported.");
