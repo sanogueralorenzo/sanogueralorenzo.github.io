@@ -71,8 +71,10 @@ struct RootView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingSettings.toggle() } label: {
-                    Image(systemName: "gearshape")
-                        .foregroundStyle(.white)
+                    Image(systemName: "gearshape.fill")
+                        .symbolRenderingMode(.monochrome)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(.white)
                 }
                 .buttonStyle(.plain)
                 .help("Settings")
