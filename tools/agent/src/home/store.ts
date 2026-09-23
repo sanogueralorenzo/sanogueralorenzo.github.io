@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { Channel, HomeEntry } from "../conversation/types.js";
+import type { Channel, HomeEntry, QueuedTask } from "../conversation/types.js";
 
 const now = () => new Date().toISOString();
 type HomeEntryRow = Omit<HomeEntry, "url">;
@@ -83,9 +83,26 @@ export class HomeStore {
     return rows.map(withUrl);
   }
 
-  enqueueTask(sessionId: string, text: string, channel: Channel): void {
+  enqueueTask(sessionId: string, text: string, channel: Channel): QueuedTask {
+    const task: QueuedTask = { id: randomUUID(), sessionId, text, channel, createdAt: now() };
     this.db.prepare("INSERT INTO queued_tasks (id, session_id, text, channel, created_at) VALUES (?, ?, ?, ?, ?)")
-      .run(randomUUID(), sessionId, text, channel, now());
+      .run(task.id, sessionId, text, channel, task.createdAt);
+    return task;
+  }
+
+  queuedTasks(sessionId: string): QueuedTask[] {
+    return this.db.prepare(`
+      SELECT id, session_id AS sessionId, text, channel, created_at AS createdAt
+      FROM queued_tasks WHERE session_id = ? ORDER BY rowid
+    `).all(sessionId) as unknown as QueuedTask[];
+  }
+
+  removeQueuedTask(sessionId: string, id: string): QueuedTask | null {
+    const task = this.db.prepare(`
+      DELETE FROM queued_tasks WHERE id = ? AND session_id = ?
+      RETURNING id, session_id AS sessionId, text, channel, created_at AS createdAt
+    `).get(id, sessionId) as QueuedTask | undefined;
+    return task ?? null;
   }
 
   queuedTask(sessionId: string): { id: string; text: string; channel: Channel } | null {

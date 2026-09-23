@@ -21,6 +21,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let url: String?
     public let continues: Bool?
     public let entry: HomeEntry?
+    public let tasks: [QueuedTask]?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
 }
@@ -40,9 +41,18 @@ public struct RunEnvelope: Decodable, Sendable {
 public struct RuntimeSnapshot: Decodable, Sendable {
     public let sessions: [RuntimeSession]
     public let homeEntries: [HomeEntry]
+    public let queuedTasks: [QueuedTask]
     public let transcript: Transcript?
     public let activeRuns: [ActiveRunSnapshot]
     public let lastRuns: [LastRunSnapshot]
+}
+
+public struct QueuedTask: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let sessionId: String
+    public let text: String
+    public let channel: String
+    public let createdAt: String
 }
 
 public struct HomeEntry: Decodable, Sendable, Identifiable {

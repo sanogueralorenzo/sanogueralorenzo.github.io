@@ -182,6 +182,50 @@ describe("RuntimeServer", () => {
     expect((await client.transcript(first.id)).messages).toMatchObject([{ role: "user", content: "first" }]);
   });
 
+  it("keeps direct follow-ups visible, editable, removable, and steerable", async () => {
+    let releaseFirst!: () => void;
+    const held = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const turns: string[] = [];
+    const steers: string[] = [];
+    const { client, store } = await serve((value) => new AgentRuntime(value, {
+      async route() { return null; },
+      async steer(_sessionId, text) { steers.push(text); return true; },
+      async *run({ request }) {
+        turns.push(request.text);
+        if (request.text === "first") await held;
+        yield { type: "text_delta", delta: `Done: ${request.text}` };
+        yield { type: "done" };
+      },
+      async transcribeAudio() { return ""; },
+    } as AgentBackend));
+    const session = await client.openSession({ fresh: true });
+    const first = await client.submit({ text: "first", sessionId: session.id, channel: "macos" });
+    await vi.waitFor(() => expect(turns).toEqual(["first"]));
+    const edit = await client.queueFollowUp(session.id, "edit me", "macos");
+    const remove = await client.queueFollowUp(session.id, "remove me", "macos");
+    const steer = await client.queueFollowUp(session.id, "change this turn", "macos");
+    const stream = (await client.events(undefined, session.id))[Symbol.asyncIterator]();
+    expect((await stream.next()).value?.event).toMatchObject({ type: "snapshot", snapshot: {
+      queuedTasks: [{ id: edit.id }, { id: remove.id }, { id: steer.id }],
+    } });
+    expect((await client.removeFollowUp(session.id, edit.id)).text).toBe("edit me");
+    expect((await stream.next()).value?.event).toMatchObject({ type: "queue", tasks: [{ id: remove.id }, { id: steer.id }] });
+    expect((await client.removeFollowUp(session.id, remove.id)).text).toBe("remove me");
+    expect(await client.steerFollowUp(session.id, steer.id, "stale-run")).toBe(false);
+    expect(store.home.queuedTasks(session.id)).toMatchObject([{ id: steer.id }]);
+    expect(await client.steerFollowUp(session.id, steer.id, first!.id)).toBe(true);
+    expect(steers).toEqual(["change this turn"]);
+    expect(store.home.queuedTasks(session.id)).toEqual([]);
+    const next = await client.queueFollowUp(session.id, "next turn", "macos");
+    expect(store.home.queuedTasks(session.id)).toMatchObject([{ id: next.id }]);
+    releaseFirst();
+    await vi.waitFor(() => expect(turns).toEqual(["first", "next turn"]));
+    await vi.waitFor(() => expect(store.home.queuedTasks(session.id)).toEqual([]));
+    await vi.waitFor(async () => expect((await client.transcript(session.id)).messages.filter((message) => message.role === "user")
+      .map((message) => message.content)).toEqual(["first", "next turn"]));
+    await stream.return?.();
+  });
+
   it("keeps Telegram on its persisted conversation across other clients and /new", async () => {
     const { client } = await serve((store) => new AgentRuntime(store, {
       async route() { return null; },

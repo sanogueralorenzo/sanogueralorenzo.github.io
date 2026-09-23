@@ -242,6 +242,9 @@ struct ConversationView: View {
             if let error = model.connectionError {
                 ConnectionError(message: error) { Task { await model.start() } }
             }
+            if model.selectedSessionId != AppModel.homeSessionId && !model.queuedTasks.isEmpty {
+                QueuedFollowUpsView(model: model)
+            }
             MessageComposer(model: model)
         }
         .toolbar {
@@ -399,7 +402,8 @@ private struct ConnectionError: View {
 
 private struct MessageComposer: View {
     @Bindable var model: AppModel
-    private var canStop: Bool { model.selectedSessionId != AppModel.homeSessionId && model.isRunning }
+    private var hasText: Bool { !model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var canStop: Bool { model.selectedSessionId != AppModel.homeSessionId && model.isRunning && !hasText }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 10) {
@@ -419,8 +423,8 @@ private struct MessageComposer: View {
                     .background(canStop ? AgentStyle.clay : AgentStyle.sendSurface, in: Circle())
             }
             .buttonStyle(.plain)
-            .help(canStop ? "Stop" : "Send")
-            .disabled(!canStop && (!model.isConnected || model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+            .help(canStop ? "Stop" : model.isRunning && model.selectedSessionId != AppModel.homeSessionId ? "Queue follow-up" : "Send")
+            .disabled(!model.isConnected || (!canStop && !hasText))
         }
         .padding(10)
         .padding(.leading, 4)
@@ -430,6 +434,39 @@ private struct MessageComposer: View {
         .shadow(color: AgentStyle.graphite.opacity(0.04), radius: 10, y: 4)
         .padding(.horizontal, AgentStyle.edgePadding)
         .padding(.bottom, 22)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct QueuedFollowUpsView: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Queued follow-ups")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AgentStyle.muted)
+            ForEach(model.queuedTasks) { task in
+                HStack(alignment: .top, spacing: 12) {
+                    Text(task.text)
+                        .font(.system(size: 13))
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Edit") { Task { await model.editQueued(task) } }
+                    Button("Remove") { Task { await model.removeQueued(task) } }
+                    Button("Steer") { Task { await model.steerQueued(task) } }
+                        .disabled(!model.isRunning)
+                }
+                .buttonStyle(.borderless)
+                .font(.caption)
+                if task.id != model.queuedTasks.last?.id { Divider() }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: AgentStyle.contentMaxWidth, alignment: .leading)
+        .background(AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, AgentStyle.edgePadding)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
     }
 }

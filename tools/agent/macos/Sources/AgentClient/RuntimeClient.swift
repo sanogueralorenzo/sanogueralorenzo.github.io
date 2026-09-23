@@ -168,6 +168,27 @@ public actor RuntimeClient {
         return result.stopped
     }
 
+    public func queue(text: String, sessionId: String) async throws -> QueuedTask {
+        let result: FollowUpResponse = try await value(path: "/v1/follow-ups", method: "POST", body: [
+            "text": text, "sessionId": sessionId, "channel": "macos",
+        ])
+        return result.task
+    }
+
+    public func removeQueued(taskId: String, sessionId: String) async throws -> QueuedTask {
+        let result: FollowUpResponse = try await value(path: "/v1/follow-ups/remove", method: "POST", body: [
+            "taskId": taskId, "sessionId": sessionId,
+        ])
+        return result.task
+    }
+
+    public func steerQueued(taskId: String, sessionId: String, runId: String) async throws -> Bool {
+        let result: SteerResponse = try await value(path: "/v1/follow-ups/steer", method: "POST", body: [
+            "taskId": taskId, "sessionId": sessionId, "runId": runId,
+        ])
+        return result.steered
+    }
+
     private func request(path: String, method: String = "GET", body: Data? = nil) throws -> URLRequest {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
             throw RuntimeClientError.badResponse(0, "Invalid runtime URL")
@@ -200,3 +221,5 @@ private struct RunStartResponse: Decodable { let run: RunInfo }
 private struct StopResponse: Decodable { let stopped: Bool }
 private struct SessionsResponse: Decodable { let sessions: [RuntimeSession] }
 private struct OpenSessionResponse: Decodable { let session: RuntimeSession }
+private struct FollowUpResponse: Decodable { let task: QueuedTask }
+private struct SteerResponse: Decodable { let steered: Bool }

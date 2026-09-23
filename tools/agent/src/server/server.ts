@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
 import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
-import { RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus } from "../conversation/types.js";
+import { HOME_SESSION_ID, RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus } from "../conversation/types.js";
 import { handleSetupRequest, type RuntimeSetup } from "../setup/http.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
@@ -98,6 +98,21 @@ export class RuntimeServer {
           if (typeof runId !== "string" || !runId) throw new Error("runId is required");
           return json(response, 200, { stopped: this.runs.stop(runId) });
         }
+        case "POST /v1/follow-ups": {
+          const { sessionId, text, channel } = await readJson(request);
+          if (typeof sessionId !== "string" || typeof text !== "string" || !text.trim()) throw new Error("Conversation and text are required.");
+          return json(response, 201, { task: this.runs.queue(sessionId, text.trim(), channel === "macos" || channel === "telegram" || channel === "cli" ? channel : "api") });
+        }
+        case "POST /v1/follow-ups/remove": {
+          const { sessionId, taskId } = await readJson(request);
+          if (typeof sessionId !== "string" || typeof taskId !== "string") throw new Error("Conversation and follow-up are required.");
+          return json(response, 200, { task: this.runs.removeQueued(sessionId, taskId) });
+        }
+        case "POST /v1/follow-ups/steer": {
+          const { sessionId, taskId, runId } = await readJson(request);
+          if (typeof sessionId !== "string" || typeof taskId !== "string" || typeof runId !== "string") throw new Error("Conversation, follow-up, and run are required.");
+          return json(response, 200, { steered: await this.runs.steerQueued(sessionId, taskId, runId) });
+        }
         case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.home.entries() });
         case "POST /v1/sessions": {
           const { cwd } = await readJson(request);
@@ -182,6 +197,7 @@ export class RuntimeServer {
     return {
       sessions,
       homeEntries: this.store.home.entries(),
+      queuedTasks: session && session.id !== HOME_SESSION_ID ? this.store.home.queuedTasks(session.id) : [],
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
       activeRuns: this.runs.activeSnapshots(sessionId),
       lastRuns: (sessionId ? [session].filter((value): value is NonNullable<typeof value> => Boolean(value)) : sessions)

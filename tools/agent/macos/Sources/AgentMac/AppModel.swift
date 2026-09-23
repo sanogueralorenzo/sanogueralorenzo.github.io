@@ -26,6 +26,7 @@ struct ChatMessage: Identifiable {
     var messages: [ChatMessage] = []
     var sessions: [RuntimeSession] = []
     var homeEntries: [HomeEntry] = []
+    var queuedTasks: [QueuedTask] = []
     var selectedSessionId: String?
     var input = ""
     var activity = ""
@@ -108,7 +109,7 @@ struct ChatMessage: Identifiable {
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, let client, let selected = selectedSessionId,
-              isConnected, (selected == Self.homeSessionId || (!isRunning && submittingSessionId != selected)) else { return }
+              isConnected, (selected == Self.homeSessionId || isRunning || submittingSessionId != selected) else { return }
         input = ""
         if text == "/new" {
             await newConversation()
@@ -127,6 +128,17 @@ struct ChatMessage: Identifiable {
                 replaceHomeEntry(HomeEntry(
                     id: requestId, body: text, summary: error.localizedDescription, state: "failed",
                     updatedAt: ISO8601DateFormatter().string(from: Date())))
+            }
+            return
+        }
+        if isRunning {
+            do {
+                _ = try await client.queue(text: text, sessionId: selected)
+            } catch {
+                if selectedSessionId == selected {
+                    input = input.isEmpty ? text : "\(text)\n\n\(input)"
+                    connectionError = error.localizedDescription
+                }
             }
             return
         }
@@ -168,7 +180,35 @@ struct ChatMessage: Identifiable {
     }
 
     func stop() async {
+        guard selectedSessionId != Self.homeSessionId else { return }
         if let activeRunId { _ = try? await client?.stop(runId: activeRunId) }
+    }
+
+    func editQueued(_ task: QueuedTask) async {
+        guard let client, selectedSessionId == task.sessionId else { return }
+        do {
+            let removed = try await client.removeQueued(taskId: task.id, sessionId: task.sessionId)
+            input = input.isEmpty ? removed.text : "\(removed.text)\n\n\(input)"
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
+
+    func removeQueued(_ task: QueuedTask) async {
+        guard let client, selectedSessionId == task.sessionId else { return }
+        do { _ = try await client.removeQueued(taskId: task.id, sessionId: task.sessionId) }
+        catch { connectionError = error.localizedDescription }
+    }
+
+    func steerQueued(_ task: QueuedTask) async {
+        guard let client, selectedSessionId == task.sessionId, let activeRunId else { return }
+        do {
+            if !((try await client.steerQueued(taskId: task.id, sessionId: task.sessionId, runId: activeRunId))) {
+                connectionError = "That turn has finished. The follow-up remains queued."
+            }
+        } catch {
+            connectionError = error.localizedDescription
+        }
     }
 
     func newConversation() async {
@@ -189,6 +229,7 @@ struct ChatMessage: Identifiable {
         observer?.cancel()
         selectedSessionId = id
         messages = []
+        queuedTasks = []
         input = id == Self.homeSessionId ? homeDraft : ""
         if id != Self.homeSessionId {
             if let notice { appendMessage(ChatMessage(id: UUID(), role: .notice, text: notice)) }
@@ -270,6 +311,8 @@ struct ChatMessage: Identifiable {
         switch event.type {
         case "snapshot":
             if let snapshot = event.snapshot { loadSnapshot(snapshot) }
+        case "queue":
+            queuedTasks = event.tasks ?? []
         case "turn":
             if displayedTurnRunId == envelope.runId {
                 if let text = event.text, let index = messages.lastIndex(where: { $0.role == .user }) {
@@ -335,6 +378,7 @@ struct ChatMessage: Identifiable {
         latestSnapshot = snapshot
         sessions = snapshot.sessions
         homeEntries = snapshot.homeEntries
+        queuedTasks = snapshot.queuedTasks
         if selectedSessionId == Self.homeSessionId {
             homeScrollPosition = homeEntries.last?.id
             messages = []

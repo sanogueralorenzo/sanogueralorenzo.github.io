@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { RUNTIME_PROTOCOL_VERSION, type HomeEntry, type Message, type RunEnvelope, type RunInfo, type Session, type SessionStatus, type TurnRequest } from "../conversation/types.js";
+import { RUNTIME_PROTOCOL_VERSION, type HomeEntry, type Message, type QueuedTask, type RunEnvelope, type RunInfo, type Session, type SessionStatus, type TurnRequest } from "../conversation/types.js";
 import type { SetupStatus } from "../setup/service.js";
 
 function decodeEvent(data: string): RunEnvelope {
@@ -70,6 +70,18 @@ export class RuntimeClient {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error("Agent runtime did not become ready.");
+  }
+
+  async queueFollowUp(sessionId: string, text: string, channel: TurnRequest["channel"] = "api"): Promise<QueuedTask> {
+    return (await this.post<{ task: QueuedTask }>("/v1/follow-ups", { sessionId, text, channel })).task;
+  }
+
+  async removeFollowUp(sessionId: string, taskId: string): Promise<QueuedTask> {
+    return (await this.post<{ task: QueuedTask }>("/v1/follow-ups/remove", { sessionId, taskId })).task;
+  }
+
+  async steerFollowUp(sessionId: string, taskId: string, runId: string): Promise<boolean> {
+    return (await this.post<{ steered: boolean }>("/v1/follow-ups/steer", { sessionId, taskId, runId })).steered;
   }
 
   async events(signal?: AbortSignal, sessionId?: string, runId?: string): Promise<AsyncGenerator<RunEnvelope>> {

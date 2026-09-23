@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { AgentRuntime } from "./runtime.js";
 import type { Store } from "./store.js";
-import { HOME_SESSION_ID, type RunEnvelope, type RunInfo, type RunSnapshot, type RuntimeEvent, type RuntimeSnapshot, type TurnRequest } from "./types.js";
+import { HOME_SESSION_ID, type Channel, type QueuedTask, type RunEnvelope, type RunInfo, type RunSnapshot, type RuntimeEvent, type RuntimeSnapshot, type TurnRequest } from "./types.js";
 
 export class RunBusyError extends Error {
   constructor(readonly run: RunInfo) {
@@ -23,6 +23,7 @@ export class RunCoordinator {
   private closed = false;
   private executing = new Set<Promise<void>>();
   private homeCommit = Promise.resolve();
+  private pendingSteers = new Set<string>();
 
   constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run" | "steer">, private readonly store: Store) {
     queueMicrotask(() => { for (const id of this.store.home.queuedSessionIds()) this.startQueued(id); });
@@ -33,9 +34,50 @@ export class RunCoordinator {
   }
 
   private startQueued(sessionId: string): void {
-    if (this.closed || this.activeFor(sessionId)) return;
+    if (this.closed || this.activeFor(sessionId) || this.pendingSteers.has(sessionId)) return;
     const queued = this.store.home.queuedTask(sessionId);
-    if (queued) this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id });
+    if (queued) {
+      this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id });
+      queueMicrotask(() => this.publishQueue(sessionId));
+    }
+  }
+
+  queue(sessionId: string, text: string, channel: Channel): QueuedTask {
+    if (!this.store.getSession(sessionId) || sessionId === HOME_SESSION_ID) throw new Error("Conversation was not found.");
+    const task = this.store.home.enqueueTask(sessionId, text, channel);
+    this.publishQueue(sessionId);
+    this.startQueued(sessionId);
+    return task;
+  }
+
+  removeQueued(sessionId: string, id: string): QueuedTask {
+    if (this.pendingSteers.has(sessionId)) throw new Error("Wait for the steer to finish.");
+    const task = this.store.home.removeQueuedTask(sessionId, id);
+    if (!task) throw new Error("Follow-up is no longer queued.");
+    this.publishQueue(sessionId);
+    return task;
+  }
+
+  async steerQueued(sessionId: string, id: string, expectedRunId: string): Promise<boolean> {
+    const active = this.activeFor(sessionId);
+    if (!active || active.run.id !== expectedRunId || this.pendingSteers.has(sessionId)) return false;
+    const task = this.store.home.queuedTasks(sessionId).find((item) => item.id === id);
+    if (!task) throw new Error("Follow-up is no longer queued.");
+    this.pendingSteers.add(sessionId);
+    try {
+      if (!await this.runtime.steer(sessionId, task.text)) return false;
+      this.store.home.removeQueuedTask(sessionId, id);
+      this.publishQueue(sessionId);
+      this.publish(sessionId, active.run.id, { type: "steer", text: task.text, channel: task.channel });
+      return true;
+    } finally {
+      this.pendingSteers.delete(sessionId);
+      this.startQueued(sessionId);
+    }
+  }
+
+  private publishQueue(sessionId: string): void {
+    this.publish(sessionId, "", { type: "queue", tasks: this.store.home.queuedTasks(sessionId) });
   }
 
   start(turn: TurnRequest): RunInfo {
@@ -167,6 +209,7 @@ export class RunCoordinator {
         },
       })) {
         if (event.type === "task_queued") {
+          this.publishQueue(event.sessionId);
           this.startQueued(event.sessionId);
           continue;
         }

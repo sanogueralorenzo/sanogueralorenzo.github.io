@@ -57,13 +57,15 @@ struct AgentCheck {
         check(navigation.session?.title == "Telegram reconnects" && navigation.continues == true, "Agent navigation protocol check failed")
         let entry = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"home_entry","entry":{"id":"e1","sessionId":"s1","title":"Fix tests","body":"Fix the tests","state":"ready","summary":"Tests pass.","url":"agent://sessions/s1","updatedAt":"2026-09-22T00:00:00Z"}}"#.utf8))
         check(entry.entry?.summary == "Tests pass.", "Agent Home entry protocol check failed")
+        let queue = try JSONDecoder().decode(RuntimeEvent.self, from: Data(#"{"type":"queue","tasks":[{"id":"q1","sessionId":"s1","text":"Next","channel":"macos","createdAt":"2026-09-22T00:00:00Z"}]}"#.utf8))
+        check(queue.tasks?.first?.text == "Next", "Agent queued follow-up protocol check failed")
         let setup = try JSONDecoder().decode(SetupStatus.self, from: Data(#"{"configured":true,"authMode":"apiKey","codex":{"installed":true,"connected":true}}"#.utf8))
         check(setup.codex.connected, "Agent setup protocol check failed")
         check(setup.authMode == "apiKey", "Agent API-key setup protocol check failed")
         MockURLProtocol.handler = { request, protocolValue in
             check(request.url?.path == "/v1/events" && request.url?.query == "sessionId=s1", "Agent live event URL check failed")
             protocolValue.respond("""
-            data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"homeEntries":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}
+            data: {"sessionId":"s1","runId":"","event":{"type":"snapshot","snapshot":{"sessions":[],"homeEntries":[],"queuedTasks":[],"transcript":null,"activeRuns":[],"lastRuns":[]}}}
 
             data: {"sessionId":"s1","runId":"r1","event":{"type":"turn","text":"hello","channel":"cli","hasAttachments":false}}
 
@@ -98,7 +100,7 @@ struct AgentCheck {
         }
 
         MockURLProtocol.handler = { _, protocolValue in
-            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"homeEntries\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true)
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"homeEntries\":[],\"queuedTasks\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true)
         }
         do {
             for try await _ in try await client().events(sessionId: "s1") {}
@@ -118,6 +120,10 @@ struct AgentCheck {
                 protocolValue.respond(busy ? #"{"error":"busy"}"# : #"{"run":{"id":"r1","sessionId":"s1","origin":"macos"}}"#, status: busy ? 409 : 202)
             case ("POST", "/v1/runs/stop"):
                 protocolValue.respond(#"{"stopped":true}"#)
+            case ("POST", "/v1/follow-ups"), ("POST", "/v1/follow-ups/remove"):
+                protocolValue.respond(#"{"task":{"id":"q1","sessionId":"s1","text":"Next","channel":"macos","createdAt":"2026-09-22T00:00:00Z"}}"#)
+            case ("POST", "/v1/follow-ups/steer"):
+                protocolValue.respond(#"{"steered":true}"#)
             default:
                 protocolValue.respond("{}", status: 404)
             }
@@ -129,6 +135,12 @@ struct AgentCheck {
         check(busy == nil, "Agent busy check failed")
         let didStop = try await apiClient.stop(runId: "r1")
         check(didStop, "Agent stop check failed")
+        let queued = try await apiClient.queue(text: "Next", sessionId: "s1")
+        check(queued.id == "q1", "Agent queue check failed")
+        let removed = try await apiClient.removeQueued(taskId: queued.id, sessionId: "s1")
+        check(removed.text == "Next", "Agent remove follow-up check failed")
+        let steered = try await apiClient.steerQueued(taskId: queued.id, sessionId: "s1", runId: "r1")
+        check(steered, "Agent steer follow-up check failed")
         MockURLProtocol.handler = { request, protocolValue in
             if request.url?.path == "/v1/sessions/auto" {
                 protocolValue.respond(#"{"session":{"id":"s1","title":"Saved work"}}"#)
@@ -143,7 +155,7 @@ struct AgentCheck {
         check(listedSessions.first?.id == "s1", "Agent session list check failed")
         let stopped = Mutex(false)
         MockURLProtocol.handler = { _, protocolValue in
-            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"homeEntries\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true, finish: false)
+            protocolValue.respond("data: {\"sessionId\":\"s1\",\"runId\":\"\",\"event\":{\"type\":\"snapshot\",\"snapshot\":{\"sessions\":[],\"homeEntries\":[],\"queuedTasks\":[],\"transcript\":null,\"activeRuns\":[],\"lastRuns\":[]}}}\n\n", stream: true, finish: false)
         }
         MockURLProtocol.stopped = { stopped.withLock { $0 = true } }
         var stream: EventStream? = try await client().events(sessionId: "s1")

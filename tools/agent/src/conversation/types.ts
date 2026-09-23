@@ -37,6 +37,14 @@ export interface HomeEntry {
   updatedAt: string;
 }
 
+export interface QueuedTask {
+  id: string;
+  sessionId: string;
+  text: string;
+  channel: Channel;
+  createdAt: string;
+}
+
 interface StoredFile {
   id: string;
   name: string;
@@ -66,6 +74,7 @@ export type RuntimeEvent =
   | { type: "home_entry"; entry: HomeEntry }
   | { type: "steer"; text: string; channel: Channel }
   | { type: "task_queued"; sessionId: string }
+  | { type: "queue"; tasks: QueuedTask[] }
   | ProgressEvent
   | { type: "done"; sessionId: string }
   | { type: "error"; message: string };
@@ -95,6 +104,7 @@ export interface LastRun {
 export interface RuntimeSnapshot {
   sessions: SessionStatus[];
   homeEntries: HomeEntry[];
+  queuedTasks: QueuedTask[];
   transcript: { session: Session; messages: Message[] } | null;
   activeRuns: RunSnapshot[];
   lastRuns: Pick<LastRun, "id" | "sessionId" | "state">[];
