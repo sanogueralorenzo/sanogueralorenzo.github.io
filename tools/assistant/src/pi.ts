@@ -41,7 +41,7 @@ export class PiService {
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    const tools = role === "coordinator" ? ["read", "grep", "find", "ls", ...customTools.map((tool) => tool.name)]
+    const tools = role === "coordinator" ? customTools.map((tool) => tool.name)
       : role === "reporter" ? []
       : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
       : ["read", "bash", "edit", "write", "grep", "find", "ls", ...customTools.map((tool) => tool.name)];
@@ -57,16 +57,21 @@ export class PiService {
   }
   async utility(role: "coordinator" | "reporter", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
     const session = await this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, role)), customTools);
+    const unsubscribe = acceptedResult ? session.subscribe((event) => {
+      // Pi would make another model call after the accepted tool result; the routing plan is already complete.
+      if (event.type === "tool_execution_end" && acceptedResult()) void session.abort();
+    }) : undefined;
     try {
-      await session.prompt(input, { expandPromptTemplates: false });
-      const last = [...session.messages].reverse().find((message) => message.role === "assistant");
-      if (last?.stopReason === "error") throw new Error(last.errorMessage || `${role} model request failed`);
+      try { await session.prompt(input, { expandPromptTemplates: false }); }
+      catch (error) { if (!acceptedResult?.()) throw error; }
       const accepted = acceptedResult?.();
       if (accepted) return accepted;
+      const last = [...session.messages].reverse().find((message) => message.role === "assistant");
+      if (last?.stopReason === "error") throw new Error(last.errorMessage || `${role} model request failed`);
       const text = last ? assistantText(last) : "";
       if (!text) throw new Error(`${role} returned no answer`);
       return text;
-    } finally { session.dispose(); }
+    } finally { unsubscribe?.(); session.dispose(); }
   }
   transcript(file: string) {
     const manager = SessionManager.open(file);
