@@ -1,13 +1,13 @@
-# Pi Agent
+# Assistant
 
-Pi Agent delegates requests from a Pi terminal session to child Pi tasks. A coordinator chooses worker, scout, or reviewer roles. A reporter model turns meaningful child progress and completion into short updates in the current Pi transcript. The extension runs only while that Pi session is open.
+Assistant is a personal and coding assistant built on Pi. Its current extension delegates requests from a Pi terminal session to child tasks. A coordinator chooses worker, scout, or reviewer roles. A reporter model turns meaningful child progress and completion into short updates in the current Pi transcript. The extension runs only while that Pi session is open.
 
 ## Start
 
 Requires Pi 0.85.1, Node 22+, and working `openai-codex` authentication (`pi auth check --provider openai-codex`).
 
 ```bash
-cd tools/pi-agent
+cd tools/assistant
 npm install
 pi install "$PWD"
 pi
