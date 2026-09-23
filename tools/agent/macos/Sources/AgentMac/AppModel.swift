@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import AVFoundation
 import Observation
 import AgentClient
 import AgentProtocol
@@ -11,6 +12,12 @@ struct ChatMessage: Identifiable {
     var artifacts: [RuntimeArtifact] = []
 
     enum Role: Equatable { case user, assistant, notice }
+}
+
+struct VoiceNote {
+    let data: Data
+    let name: String
+    let mimeType: String
 }
 
 @MainActor
@@ -29,6 +36,9 @@ struct ChatMessage: Identifiable {
     var queuedTasks: [QueuedTask] = []
     var selectedSessionId: String?
     var input = ""
+    var voiceNote: VoiceNote?
+    var isRecording = false
+    var isUploadingVoice = false
     var activity = ""
     var isRunning = false
     var isConnected = false
@@ -50,6 +60,7 @@ struct ChatMessage: Identifiable {
     @ObservationIgnored private var optimisticUserId: UUID?
     @ObservationIgnored private var latestSnapshot: RuntimeSnapshot?
     @ObservationIgnored private var homeDraft = ""
+    @ObservationIgnored private var recorder: AVAudioRecorder?
 
     func start() async {
         observer?.cancel()
@@ -108,26 +119,42 @@ struct ChatMessage: Identifiable {
 
     func send() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let client, let selected = selectedSessionId,
+        let note = voiceNote
+        guard !text.isEmpty || note != nil, let client, let selected = selectedSessionId,
+              !isUploadingVoice, !(isRunning && selected != Self.homeSessionId && note != nil),
               isConnected, (selected == Self.homeSessionId || isRunning || submittingSessionId != selected) else { return }
+        var attachmentIds: [String] = []
+        if let note {
+            isUploadingVoice = true
+            defer { isUploadingVoice = false }
+            do {
+                attachmentIds = [try await client.uploadVoiceNote(data: note.data, name: note.name, mimeType: note.mimeType)]
+            } catch {
+                connectionError = error.localizedDescription
+                return
+            }
+        }
         input = ""
-        if text == "/new" {
+        voiceNote = nil
+        if text == "/new" && note == nil {
             await newConversation()
             return
         }
+        let displayText = text.isEmpty ? "Voice message" : text
         if selected == Self.homeSessionId {
             let requestId = UUID().uuidString
             let optimistic = HomeEntry(
-                id: requestId, body: text, requests: [HomeRequest(text: text, createdAt: ISO8601DateFormatter().string(from: Date()))], state: "routing",
+                id: requestId, body: displayText, requests: [HomeRequest(text: displayText, createdAt: ISO8601DateFormatter().string(from: Date()))], state: "routing",
                 updatedAt: ISO8601DateFormatter().string(from: Date()))
             homeEntries.append(optimistic)
             homeScrollPosition = requestId
             do {
-                guard try await client.submit(text: text, sessionId: selected, requestId: requestId) != nil else { return }
+                guard try await client.submit(text: text, sessionId: selected, requestId: requestId, attachmentIds: attachmentIds) != nil else { return }
             } catch {
                 replaceHomeEntry(HomeEntry(
-                    id: requestId, body: text, summary: error.localizedDescription, state: "failed",
+                    id: requestId, body: displayText, summary: error.localizedDescription, state: "failed",
                     updatedAt: ISO8601DateFormatter().string(from: Date())))
+                voiceNote = note
             }
             return
         }
@@ -145,17 +172,18 @@ struct ChatMessage: Identifiable {
         let sessionId = selected
         let optimisticId = UUID()
         optimisticUserId = optimisticId
-        appendMessage(ChatMessage(id: optimisticId, role: .user, text: text))
+        appendMessage(ChatMessage(id: optimisticId, role: .user, text: displayText))
         scrollRequest += 1
         do {
             submittingSessionId = sessionId
             completedRunId = nil
             defer { if submittingSessionId == sessionId { submittingSessionId = nil } }
-            guard let run = try await client.submit(text: text, sessionId: sessionId) else {
+            guard let run = try await client.submit(text: text, sessionId: sessionId, attachmentIds: attachmentIds) else {
                 guard selectedSessionId == sessionId else { return }
                 messages.removeAll { $0.id == optimisticId }
                 if optimisticUserId == optimisticId { optimisticUserId = nil }
                 if input.isEmpty { input = text }
+                voiceNote = note
                 activity = "Agent is already working"
                 return
             }
@@ -174,8 +202,56 @@ struct ChatMessage: Identifiable {
                 messages.removeAll { $0.id == optimisticId }
                 if optimisticUserId == optimisticId { optimisticUserId = nil }
                 if input.isEmpty { input = text }
+                voiceNote = note
                 appendMessage(ChatMessage(id: UUID(), role: .assistant, text: error.localizedDescription))
             }
+        }
+    }
+
+    func attachVoiceNote(_ url: URL) {
+        let types = ["m4a": "audio/mp4", "mp3": "audio/mpeg", "wav": "audio/wav", "ogg": "audio/ogg", "webm": "audio/webm"]
+        guard let mimeType = types[url.pathExtension.lowercased()] else {
+            connectionError = "Choose an M4A, MP3, WAV, OGG, or WebM voice note."
+            return
+        }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            voiceNote = VoiceNote(data: try Data(contentsOf: url), name: url.lastPathComponent, mimeType: mimeType)
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
+
+    func toggleRecording() async {
+        if isRecording {
+            let url = recorder?.url
+            recorder?.stop()
+            recorder = nil
+            isRecording = false
+            if let url {
+                attachVoiceNote(url)
+                try? FileManager.default.removeItem(at: url)
+            }
+            return
+        }
+        guard await AVCaptureDevice.requestAccess(for: .audio) else {
+            connectionError = "Allow microphone access to record a voice note."
+            return
+        }
+        do {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("agent-\(UUID().uuidString).m4a")
+            let recorder = try AVAudioRecorder(url: url, settings: [
+                AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                AVSampleRateKey: 44_100,
+                AVNumberOfChannelsKey: 1,
+                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+            ])
+            guard recorder.record() else { throw CocoaError(.fileWriteUnknown) }
+            self.recorder = recorder
+            isRecording = true
+        } catch {
+            connectionError = error.localizedDescription
         }
     }
 

@@ -138,8 +138,20 @@ public actor RuntimeClient {
         return response.session
     }
 
-    public func submit(text: String, sessionId: String, requestId: String? = nil) async throws -> RunInfo? {
-        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, requestId: requestId))
+    public func uploadVoiceNote(data: Data, name: String, mimeType: String) async throws -> String {
+        var upload = try request(path: "/v1/attachments", method: "POST", body: data)
+        upload.setValue(mimeType, forHTTPHeaderField: "Content-Type")
+        upload.setValue(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed), forHTTPHeaderField: "X-Agent-Filename")
+        let (responseData, response) = try await session.data(for: upload)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 201 else {
+            throw RuntimeClientError.badResponse(status, String(decoding: responseData, as: UTF8.self))
+        }
+        return try JSONDecoder().decode(AttachmentUpload.self, from: responseData).id
+    }
+
+    public func submit(text: String, sessionId: String, requestId: String? = nil, attachmentIds: [String] = []) async throws -> RunInfo? {
+        let body = try JSONEncoder().encode(ChatRequest(text: text, sessionId: sessionId, requestId: requestId, attachmentIds: attachmentIds))
         let (data, response) = try await session.data(for: request(path: "/v1/runs", method: "POST", body: body))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 409 { return nil }
@@ -218,6 +230,7 @@ public actor RuntimeClient {
 }
 
 private struct RunStartResponse: Decodable { let run: RunInfo }
+private struct AttachmentUpload: Decodable { let id: String }
 private struct StopResponse: Decodable { let stopped: Bool }
 private struct SessionsResponse: Decodable { let sessions: [RuntimeSession] }
 private struct OpenSessionResponse: Decodable { let session: RuntimeSession }

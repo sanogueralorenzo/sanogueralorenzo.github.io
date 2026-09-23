@@ -156,12 +156,14 @@ public struct ChatRequest: Encodable, Sendable {
     public let text: String
     public let sessionId: String
     public let requestId: String?
+    public let attachmentIds: [String]?
     public let channel = "macos"
 
-    public init(text: String, sessionId: String, requestId: String? = nil) {
+    public init(text: String, sessionId: String, requestId: String? = nil, attachmentIds: [String] = []) {
         self.text = text
         self.sessionId = sessionId
         self.requestId = requestId
+        self.attachmentIds = attachmentIds.isEmpty ? nil : attachmentIds
     }
 }
 

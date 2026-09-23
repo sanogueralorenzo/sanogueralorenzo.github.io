@@ -1,5 +1,6 @@
 import SwiftUI
 import AgentProtocol
+import UniformTypeIdentifiers
 
 private enum AgentStyle {
     private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
@@ -17,7 +18,7 @@ private enum AgentStyle {
     static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
     static let line = graphite.opacity(0.13)
     static let clay = adaptive(light: (0.73, 0.38, 0.20), dark: (0.70, 0.34, 0.19))
-    static let inputSurface = adaptive(light: (0.98, 0.97, 0.95), dark: (0.19, 0.18, 0.17))
+    static let inputSurface = adaptive(light: (0.98, 0.97, 0.95), dark: (0.11, 0.11, 0.11))
     static let sendSurface = adaptive(light: (0.18, 0.17, 0.16), dark: (0.70, 0.34, 0.19))
     static let contentMaxWidth: CGFloat = 820
     static let messageMaxWidth: CGFloat = 640
@@ -425,38 +426,91 @@ private struct ConnectionError: View {
 
 private struct MessageComposer: View {
     @Bindable var model: AppModel
+    @State private var importingAudio = false
     private var hasText: Bool { !model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    private var canStop: Bool { model.selectedSessionId != AppModel.homeSessionId && model.isRunning && !hasText }
+    private var hasContent: Bool { hasText || model.voiceNote != nil }
+    private var canStop: Bool { model.selectedSessionId != AppModel.homeSessionId && model.isRunning && !hasContent }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            TextField("Message Agent", text: $model.input, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...6)
-                .frame(minHeight: 30, alignment: .center)
-                .disabled(!model.isConnected)
-                .onSubmit { Task { await model.send() } }
-            Button {
-                Task { canStop ? await model.stop() : await model.send() }
-            } label: {
-                Image(systemName: canStop ? "stop.fill" : "arrow.up")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 30, height: 30)
-                    .background(canStop ? AgentStyle.clay : AgentStyle.sendSurface, in: Circle())
+        VStack(spacing: 8) {
+            if let note = model.voiceNote {
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                    Text(note.name).lineLimit(1)
+                    Button { model.voiceNote = nil } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.plain)
+                        .help("Remove voice note")
+                    Spacer()
+                }
+                .font(.caption)
+                .padding(.horizontal, 18)
+            } else if model.isRecording {
+                Text("Recording… Tap the microphone to finish")
+                    .font(.caption)
+                    .foregroundStyle(AgentStyle.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
             }
-            .buttonStyle(.plain)
-            .help(canStop ? "Stop" : model.isRunning && model.selectedSessionId != AppModel.homeSessionId ? "Queue follow-up" : "Send")
-            .disabled(!model.isConnected || (!canStop && !hasText))
+            HStack(alignment: .bottom, spacing: 10) {
+                Button { importingAudio = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(AgentStyle.graphite)
+                        .frame(width: 36, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Attach voice note")
+                .disabled(!model.isConnected || model.isUploadingVoice || (model.isRunning && model.selectedSessionId != AppModel.homeSessionId))
+
+                TextField("Message", text: $model.input, axis: .vertical)
+                    .font(.system(size: 16))
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...6)
+                    .frame(minHeight: 38, alignment: .center)
+                    .disabled(!model.isConnected || model.isUploadingVoice)
+                    .onSubmit { Task { await model.send() } }
+
+                if hasContent || canStop {
+                    Button {
+                        Task { canStop ? await model.stop() : await model.send() }
+                    } label: {
+                        Image(systemName: canStop ? "stop.fill" : "arrow.up")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 38, height: 38)
+                            .background(canStop ? AgentStyle.clay : AgentStyle.userSurface, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(canStop ? "Stop" : model.isRunning && model.selectedSessionId != AppModel.homeSessionId ? "Queue follow-up" : "Send")
+                    .disabled(!model.isConnected || model.isUploadingVoice || (model.voiceNote != nil && model.isRunning && model.selectedSessionId != AppModel.homeSessionId))
+                } else {
+                    Button { Task { await model.toggleRecording() } } label: {
+                        Image(systemName: model.isRecording ? "stop.fill" : "mic")
+                            .font(.system(size: 20))
+                            .foregroundStyle(model.isRecording ? AgentStyle.clay : AgentStyle.muted)
+                            .frame(width: 38, height: 38)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(model.isRecording ? "Finish voice note" : "Record voice note")
+                    .disabled(!model.isConnected)
+                }
+            }
+            .padding(.leading, 10)
+            .padding(.trailing, 8)
+            .padding(.vertical, 8)
+            .frame(maxWidth: AgentStyle.contentMaxWidth)
+            .background(AgentStyle.inputSurface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         }
-        .padding(10)
-        .padding(.leading, 4)
-        .frame(maxWidth: AgentStyle.contentMaxWidth)
-        .background(AgentStyle.inputSurface, in: RoundedRectangle(cornerRadius: 18))
-        .overlay { RoundedRectangle(cornerRadius: 18).stroke(AgentStyle.line) }
-        .shadow(color: AgentStyle.graphite.opacity(0.04), radius: 10, y: 4)
-        .padding(.horizontal, AgentStyle.edgePadding)
-        .padding(.bottom, 22)
+        .fileImporter(isPresented: $importingAudio, allowedContentTypes: [.audio]) { result in
+            switch result {
+            case let .success(url): model.attachVoiceNote(url)
+            case let .failure(error): model.connectionError = error.localizedDescription
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity)
     }
 }
