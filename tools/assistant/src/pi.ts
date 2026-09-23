@@ -55,12 +55,14 @@ export class PiService {
   async open(cwd: string, file: string, role: TaskRole, customTools: ToolDefinition[] = []) {
     return this.make(cwd, role, SessionManager.open(file, join(this.dataDir, "sessions"), cwd), customTools);
   }
-  async utility(role: "coordinator" | "reporter", input: string, cwd: string, customTools: ToolDefinition[] = []) {
+  async utility(role: "coordinator" | "reporter", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
     const session = await this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, role)), customTools);
     try {
       await session.prompt(input, { expandPromptTemplates: false });
       const last = [...session.messages].reverse().find((message) => message.role === "assistant");
       if (last?.stopReason === "error") throw new Error(last.errorMessage || `${role} model request failed`);
+      const accepted = acceptedResult?.();
+      if (accepted) return accepted;
       const text = last ? assistantText(last) : "";
       if (!text) throw new Error(`${role} returned no answer`);
       return text;

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { PiService, assistantText } from "./pi.ts";
+import { HomeRouter, parseRoutes, type Route } from "./home-routing.ts";
 import { State, now, type HomeEntry, type HomeMessage, type SessionRecord, type TaskRole, type Turn } from "./state.ts";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-type Route = { mode: "start" | "continue" | "steer"; agent: TaskRole; title: string; scope: string; task: string; sessionId?: string; entryId?: string; cwd?: string };
 type Active = { session: AgentSession; turn: Turn; entryIds: string[]; output: string; error: string; stopped: boolean; lastProgress?: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
@@ -13,25 +13,6 @@ const progressByTool: Record<string, string> = { read: "Inspecting files", grep:
   edit: "Making changes", write: "Making changes", bash: "Running commands", delegate_task: "Delegating independent work" };
 const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
-function parseRoutes(raw: string, message: HomeMessage, state: State): Route[] {
-  const json = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { routes?: Route[] };
-  if (!Array.isArray(json.routes) || !json.routes.length || json.routes.length > 8) throw new Error("Coordinator returned an invalid plan");
-  const seen = new Set<string>();
-  for (const route of json.routes) {
-    if (!["start", "continue", "steer"].includes(route.mode) || !["personal", "code", "scout", "reviewer"].includes(route.agent) || !route.title?.trim() || !route.scope?.trim() || !route.task?.trim()) throw new Error("Coordinator returned an incomplete route");
-    if (route.mode !== "start") {
-      if (!route.sessionId) throw new Error("Coordinator omitted a conversation ID");
-      const existing = state.data.sessions.find((session) => session.id === route.sessionId);
-      if (!existing) throw new Error("Coordinator selected an unknown conversation");
-      if (route.agent !== (existing.role || "personal")) throw new Error("Coordinator changed a conversation's agent role");
-      if (seen.has(route.sessionId)) throw new Error("Coordinator assigned two outcomes to one conversation");
-      seen.add(route.sessionId);
-      if (route.mode === "steer" && !/\b(steer|interrupt|change|instead|stop|redirect)\b/i.test(message.text)) throw new Error("Steering requires an explicit request");
-    }
-    if (route.entryId && !state.data.entries.some((entry) => entry.id === route.entryId && entry.sessionId === route.sessionId)) throw new Error("Coordinator selected an unrelated Home entry");
-  }
-  return json.routes;
-}
 function parseReport(raw: string, fallback: string): { summary: string; status: "ready" | "needs_input" } {
   try {
     const result = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { summary?: string; state?: string };
@@ -46,6 +27,7 @@ export class Assistant {
   readonly concurrency: number;
   readonly state: State;
   readonly pi: PiService;
+  readonly router: HomeRouter;
   private listeners = new Set<(event: unknown) => void>();
   private active = new Map<string, Active>();
   private starting = new Set<string>();
@@ -58,6 +40,7 @@ export class Assistant {
     this.concurrency = concurrency;
     this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
     this.pi = new PiService(dataDir);
+    this.router = new HomeRouter(this.state, this.pi, cwd);
     queueMicrotask(() => this.drain());
   }
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
@@ -66,7 +49,7 @@ export class Assistant {
   submitHome(text: string, id?: string) {
     const message = this.state.message(text, id);
     // Discovery overlaps. Only the state-changing routing decisions wait for earlier submissions.
-    const discovered = this.discover(message).then((raw) => {
+    const discovered = this.router.discover(message).then((raw) => {
       try { return { routes: parseRoutes(raw, message, this.state) }; }
       catch (error) { return { error }; }
     }, (error) => ({ error }));
@@ -81,25 +64,11 @@ export class Assistant {
     this.routeCommit = commit.catch(() => undefined);
     return message;
   }
-  private discover(message: HomeMessage) {
-    const sessions = this.state.data.sessions.map((session) => ({ id: session.id, title: session.title, agent: session.role || "personal", status: session.status, cwd: session.cwd,
-      recent: this.state.data.entries.filter((entry) => entry.sessionId === session.id).slice(-3).map((entry) => ({ id: entry.id, scope: entry.scope, status: entry.status, lastUpdate: entry.updates.at(-1)?.text.slice(0, 500) })) }));
-    const readConversation = {
-      name: "read_conversation", label: "Read saved conversation",
-      description: "Read the recent messages of one saved Assistant conversation by its listed ID. Read-only; use only when the preview is insufficient for routing.",
-      parameters: Type.Object({ sessionId: Type.String() }),
-      execute: async (_callId: string, params: { sessionId: string }) => {
-        const record = this.state.data.sessions.find((item) => item.id === params.sessionId);
-        return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.pi.transcript(record.file).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
-      },
-    };
-    return this.pi.utility("coordinator", `Original user message (verbatim):\n${message.text}\n\nCurrent workspace: ${this.cwd}\nSaved conversations and Home entries (read-only preview):\n${JSON.stringify(sessions)}\n\nReturn one JSON object with routes.`, this.cwd, [readConversation]);
-  }
   private async commitRoutes(message: HomeMessage, routes: Route[]) {
     for (const route of routes) {
       let session: SessionRecord;
       if (route.mode === "start") {
-        const cwd = route.cwd?.trim() || homedir();
+        const cwd = route.cwd?.trim() || (route.agent === "personal" ? homedir() : this.cwd);
         const pi = await this.pi.create(cwd, randomUUID(), route.agent);
         session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), role: route.agent, cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
         pi.dispose();
@@ -110,8 +79,9 @@ export class Assistant {
         entry = this.state.data.entries.find((item) => item.id === route.entryId)!;
         entry.sourceText += `\n\n${message.text}`;
         message.entryIds.push(entry.id);
-      } else entry = this.state.entry(message, clean(route.scope), clean(route.title), session.id);
-      const task = `Original user message (verbatim):\n${message.text}\n\nAssigned scope: ${route.scope}\n\nCoordinator brief: ${route.task}`;
+      } else entry = this.state.entry(message, clean(route.source), clean(route.title), session.id);
+      const task = `Original user message (verbatim):\n${message.text}\n\nAssigned scope: ${route.source}\n\nCoordinator brief: ${route.task}` +
+        (routes.length > 1 ? "\n\nHandle only the assigned scope. Other parts of the original message were routed to separate conversations." : "");
       if (route.mode === "steer" && this.active.has(session.id)) {
         if (!this.active.get(session.id)!.entryIds.includes(entry.id)) this.active.get(session.id)!.entryIds.push(entry.id);
         this.active.get(session.id)!.turn.sourceId = message.id;
@@ -210,7 +180,7 @@ export class Assistant {
     this.state.data.sessions.push(record);
     const entry = this.state.entry(source, clean(scope), record.title, record.id);
     this.state.data.turns.push({ id: randomUUID(), sessionId: record.id, entryId: entry.id, sourceId: source.id,
-      text: `Original user message (verbatim):\n${source.text}\n\nAssigned scope: ${scope}\n\nCoordinator brief: ${task}`, status: "queued", createdAt: now() });
+      text: `Original user message (verbatim):\n${source.text}\n\nAssigned scope: ${scope}\n\nCoordinator brief: ${task}\n\nHandle only the assigned scope. Other work is handled in separate conversations.`, status: "queued", createdAt: now() });
     this.state.save();
     this.drain();
     return record.id;
