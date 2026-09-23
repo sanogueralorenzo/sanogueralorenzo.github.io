@@ -7,13 +7,10 @@ import type { AgentRuntime } from "../conversation/runtime.js";
 import type { Store } from "../conversation/store.js";
 import { RunBusyError, RunCoordinator } from "../conversation/runs.js";
 import { RUNTIME_PROTOCOL_VERSION, type RuntimeConfig, type RuntimeSnapshot, type SessionStatus } from "../conversation/types.js";
-import type { AgentSetupService } from "../setup/service.js";
+import { handleSetupRequest, type RuntimeSetup } from "../setup/http.js";
 import { MAX_ATTACHMENT_BYTES, saveAttachment } from "../workspace/assets.js";
 import { readPrivateJson, writePrivateFile } from "../local/files.js";
 import { readBody, readJson, readTurn } from "./request.js";
-
-export type RuntimeSetup = Pick<AgentSetupService,
-  "status" | "connectApiKey" | "logout" | "startCodexLogin" | "waitForCodexLogin">;
 
 function json(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -81,11 +78,8 @@ export class RuntimeServer {
           ? json(response, 200, { session, messages: this.store.getMessages(session.id) })
           : json(response, 404, { error: "session_not_found" });
       }
-      if (route.startsWith("POST /v1/setup/codex/login/") && route.endsWith("/wait")) {
-        const loginId = decodeURIComponent(url.pathname.slice("/v1/setup/codex/login/".length, -"/wait".length));
-        if (!loginId) throw new Error("login id is required");
-        return json(response, 200, await this.setup.waitForCodexLogin(loginId));
-      }
+      const setupResponse = await handleSetupRequest(route, request, this.setup);
+      if (setupResponse) return json(response, setupResponse.status, setupResponse.body);
       switch (route) {
         case "GET /v1/events": {
           const sessionId = url.searchParams.get("sessionId") ?? undefined;
@@ -125,23 +119,6 @@ export class RuntimeServer {
             fresh: fresh === true, home: home === true,
             ...(typeof preferredSessionId === "string" ? { preferredSessionId } : {}),
           }) });
-        }
-        case "GET /v1/setup": return json(response, 200, await this.setup.status());
-        case "POST /v1/setup/logout": {
-          await this.setup.logout();
-          return json(response, 200, { connected: false });
-        }
-        case "POST /v1/setup/openai": {
-          const { apiKey } = await readJson(request);
-          const key = typeof apiKey === "string" ? apiKey.trim() : "";
-          if (!key.startsWith("sk-")) throw new Error("That does not look like an OpenAI API key.");
-          await this.setup.connectApiKey(key);
-          return json(response, 200, { connected: true });
-        }
-        case "POST /v1/setup/codex/login": {
-          const { mode } = await readJson(request);
-          if (mode !== "browser" && mode !== "headless") throw new Error("login mode must be browser or headless");
-          return json(response, 200, await this.setup.startCodexLogin(mode));
         }
         case "POST /v1/attachments": {
           const header = request.headers["x-agent-filename"];

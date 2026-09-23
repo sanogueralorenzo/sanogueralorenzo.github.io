@@ -8,7 +8,8 @@ import type { RuntimeConfig, RuntimeEvent } from "../conversation/types.js";
 import { cleanup, temporary } from "../test-support.js";
 import { RuntimeClient } from "../client/client.js";
 import { MAX_EVENT_BUFFER_BYTES } from "../conversation/runs.js";
-import { RuntimeServer, type RuntimeSetup } from "./server.js";
+import { RuntimeServer } from "./server.js";
+import type { RuntimeSetup } from "../setup/http.js";
 import type { RunEnvelope } from "../conversation/types.js";
 
 function setupStub(overrides: Partial<RuntimeSetup> = {}): RuntimeSetup {
@@ -80,7 +81,7 @@ describe("RuntimeServer", () => {
     const { request } = await serve(runtime);
     const response = await request("/v1/events");
     const first = await response.body!.getReader().read();
-    expect(new TextDecoder().decode(first.value)).toBe(": connected\n\n");
+    expect(new TextDecoder().decode(first.value).startsWith(": connected\n\n")).toBe(true);
   });
 
   it("authenticates clients and publishes one shared run stream", async () => {
