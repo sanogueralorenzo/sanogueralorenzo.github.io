@@ -15,6 +15,7 @@ Desktop.ini
 # -------------------- Local Project Artifacts --------------------
 .precedent/
 .jury/
+__pycache__/
 tools/voice/.cache/
 ekkzo/cli/codex-*/target/
 ekkzo/cli/*/target/
