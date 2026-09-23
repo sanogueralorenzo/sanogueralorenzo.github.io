@@ -1,10 +1,9 @@
 import { post, request, uploadVoice, watchSession } from "./api.js";
 import { renderComposer } from "./features/composer.js";
-import { renderBottomBar, renderHome } from "./features/home.js";
+import { renderHome } from "./features/home.js";
 import { renderHeader, renderSession } from "./features/session.js";
 import { renderLoginDialog, renderSetup } from "./features/setup.js";
-import { renderSessionMenu, renderSettings } from "./features/settings.js";
-import { renderNavigation } from "./features/navigation.js";
+import { renderSettings } from "./features/settings.js";
 import { escapeHTML, icon } from "./view.js";
 
 const root = document.querySelector("#app");
@@ -19,12 +18,6 @@ const state = {
   isSettingUp: false,
   showingLogin: false,
   showingSettings: false,
-  showingSessions: false,
-  showingNavigation: false,
-  navigationPage: "chats",
-  sessionSearch: "",
-  searchMessages: [],
-  searchLoading: false,
   isPinned: false,
   isConnected: false,
   isRunning: false,
@@ -35,9 +28,9 @@ const state = {
   connectionError: "",
   activity: "",
   selectedSessionId: null,
+  selectedSessionTitle: "",
   activeRunId: null,
   homeEntries: [],
-  sessions: [],
   messages: [],
   queuedTasks: [],
   input: "",
@@ -64,8 +57,7 @@ function render() {
     root.innerHTML = `<div class="app-shell"><header class="topbar"><div></div><div></div><div class="topbar-side topbar-end"><button class="icon-button settings-trigger" aria-label="Settings" title="Settings" data-action="toggle-settings">${icon("settings", 17)}</button></div></header>${renderSetup(state)}${renderSettings(state)}${renderLoginDialog(state)}</div>`;
   } else {
     const home = state.selectedSessionId === "home";
-    const searchingChats = state.showingNavigation && state.navigationPage === "search";
-    root.innerHTML = `<div class="app-shell">${searchingChats ? "" : renderHeader(state)}${searchingChats ? renderNavigation(state) : `${home ? `${renderHome(state)}${state.connectionError ? `<div class="connection-error home-error"><span>${escapeHTML(state.connectionError)}</span><button data-action="retry">Retry</button></div>` : ""}` : renderSession(state)}${renderComposer(state)}${home ? renderBottomBar() : ""}`}${searchingChats ? "" : renderNavigation(state)}${renderSettings(state)}${renderSessionMenu(state)}${renderLoginDialog(state)}</div>`;
+    root.innerHTML = `<div class="app-shell">${renderHeader(state)}${home ? `${renderHome(state)}${state.connectionError ? `<div class="connection-error home-error"><span>${escapeHTML(state.connectionError)}</span><button data-action="retry">Retry</button></div>` : ""}` : renderSession(state)}${renderComposer(state)}${renderSettings(state)}${renderLoginDialog(state)}</div>`;
   }
   const newScroll = root.querySelector(".scroll-area");
   if (newScroll) {
@@ -129,6 +121,7 @@ async function selectSession(sessionId, options = {}) {
   if (stream) stream.close();
   stream = null;
   state.selectedSessionId = sessionId;
+  state.selectedSessionTitle = "";
   state.messages = [];
   state.queuedTasks = [];
   state.input = sessionId === "home" ? homeDraft : "";
@@ -171,7 +164,7 @@ function handleEvent(envelope) {
     return;
   }
   if (event.type === "session_activity") {
-    refreshSessions();
+    refreshHomeEntries();
     return;
   }
   if (envelope.sessionId !== state.selectedSessionId) return;
@@ -201,7 +194,8 @@ function handleEvent(envelope) {
       appendUserTurn(event.text, false);
       break;
     case "session":
-      refreshSessions();
+      if (event.session?.id === state.selectedSessionId) state.selectedSessionTitle = event.session.title || "Conversation";
+      refreshHomeEntries();
       break;
     case "navigate":
       if (event.session?.id) {
@@ -244,7 +238,6 @@ function handleEvent(envelope) {
 
 function loadSnapshot(snapshot) {
   if (!snapshot) return;
-  state.sessions = snapshot.sessions ?? [];
   state.homeEntries = snapshot.homeEntries ?? [];
   state.queuedTasks = snapshot.queuedTasks ?? [];
   if (state.selectedSessionId === "home") {
@@ -253,6 +246,9 @@ function loadSnapshot(snapshot) {
     state.isRunning = false;
     state.activity = "";
     return render();
+  }
+  if (snapshot.transcript?.session?.id === state.selectedSessionId) {
+    state.selectedSessionTitle = snapshot.transcript.session.title || "Conversation";
   }
   if (state.messages.length === 0 && snapshot.transcript?.session?.id === state.selectedSessionId) {
     state.messages = snapshot.transcript.messages
@@ -315,27 +311,13 @@ function replaceHomeEntry(entry) {
   if (index < 0) state.homeEntries.push(entry);
   else state.homeEntries[index] = entry;
   state.homeEntries.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
-  if (state.homeEntries.length > 200) state.homeEntries.splice(0, state.homeEntries.length - 200);
 }
 
-async function refreshSessions() {
+async function refreshHomeEntries() {
   try {
     const result = await request("/v1/sessions");
-    state.sessions = result.sessions;
     state.homeEntries = result.homeEntries;
     render();
-  } catch (error) { showError(error); }
-}
-
-async function newSession() {
-  state.showingSettings = false;
-  state.showingSessions = false;
-  state.showingNavigation = false;
-  try {
-    const { session } = await post("/v1/sessions", {});
-    state.needsSetup = false;
-    state.showingLogin = false;
-    await selectSession(session.id, { notice: "New conversation ready." });
   } catch (error) { showError(error); }
 }
 
@@ -344,10 +326,6 @@ async function send() {
   const note = state.voiceNote;
   if ((!text && !note) || !state.isConnected || state.isUploadingVoice
     || (state.isRunning && state.selectedSessionId !== "home" && note)) return;
-  if (text === "/new" && !note) {
-    state.input = "";
-    return newSession();
-  }
   const selected = state.selectedSessionId;
   if (!selected) return;
   if (selected !== "home" && state.submittingSessionId === selected) return;
@@ -568,10 +546,6 @@ async function quitAgent() {
 }
 
 root.addEventListener("input", (event) => {
-  if (event.target.matches('[data-focus="chat-search"]')) {
-    state.sessionSearch = event.target.value;
-    render();
-  }
   if (event.target.matches('[data-form$="api-key"] input')) {
     const loginForm = event.target.form?.dataset.form === "login-api-key";
     const keyName = loginForm ? "loginApiKey" : "apiKey";
@@ -622,94 +596,21 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
-  if ((action === "close-settings" || action === "close-sessions" || action === "close-navigation") && event.target.closest("[data-menu]")) return;
+  if (action === "close-settings" && event.target.closest("[data-menu]")) return;
   if (action === "close-login" && event.target.closest(".login-dialog")) return;
   switch (action) {
-    case "toggle-navigation":
-      state.showingNavigation = !state.showingNavigation;
-      state.navigationPage = "chats";
-      state.showingSettings = false;
-      state.showingSessions = false;
-      render();
-      break;
-    case "close-navigation":
-      state.showingNavigation = false;
-      render();
-      break;
-    case "navigation-main":
-      state.showingNavigation = false;
-      state.navigationPage = "chats";
-      await selectSession("home");
-      break;
-    case "navigation-archive":
-      state.navigationPage = "archived";
-      render();
-      break;
-    case "navigation-back":
-      state.navigationPage = "chats";
-      render();
-      break;
-    case "navigation-search":
-      state.navigationPage = "search";
-      state.sessionSearch = "";
-      state.searchMessages = [];
-      state.searchLoading = true;
-      render();
-      root.querySelector('[data-focus="chat-search"]')?.focus();
-      try {
-        const conversations = await Promise.all(state.sessions.map(async (session) => ({
-          session,
-          ...(await request(`/v1/sessions/${encodeURIComponent(session.id)}/messages`)),
-        })));
-        state.searchMessages = conversations.flatMap(({ session, messages }) => messages
-          .filter((message) => message.role === "user" || message.role === "assistant")
-          .map((message) => ({ sessionId: session.id, title: session.title, role: message.role, text: message.content })));
-      } catch (error) {
-        state.connectionError = error.message;
-      }
-      state.searchLoading = false;
-      render();
-      root.querySelector('[data-focus="chat-search"]')?.focus();
-      break;
-    case "close-search":
-      state.showingNavigation = false;
-      state.navigationPage = "chats";
-      state.sessionSearch = "";
-      state.searchMessages = [];
-      state.searchLoading = false;
-      render();
-      break;
     case "home":
       await selectSession("home");
       break;
-    case "new-session":
-      state.showingSettings = false;
-      state.showingSessions = false;
-      await newSession();
-      break;
     case "open-session":
-      state.showingSessions = false;
-      state.showingNavigation = false;
-      state.navigationPage = "chats";
       await selectSession(button.dataset.session);
       break;
     case "toggle-settings":
       state.showingSettings = !state.showingSettings;
-      state.showingSessions = false;
-      state.showingNavigation = false;
       render();
       break;
     case "close-settings":
       state.showingSettings = false;
-      render();
-      break;
-    case "toggle-sessions":
-      state.showingSessions = !state.showingSessions;
-      state.showingSettings = false;
-      render();
-      break;
-    case "close-sessions":
-      state.showingSessions = false;
       render();
       break;
     case "open-login":
@@ -784,17 +685,9 @@ root.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") {
-    event.preventDefault();
-    void newSession();
-  } else if (event.key === "Escape") {
+  if (event.key === "Escape") {
     if (state.showingLogin) state.showingLogin = false;
-    else if (state.showingNavigation) {
-      state.showingNavigation = false;
-      state.navigationPage = "chats";
-    }
     else if (state.showingSettings) state.showingSettings = false;
-    else if (state.showingSessions) state.showingSessions = false;
     else if (state.selectedSessionId === "home") {
       closeWindow("Close this tab to close Agent. Background work will continue.");
       return;

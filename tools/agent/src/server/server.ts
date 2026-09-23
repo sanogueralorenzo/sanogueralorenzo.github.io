@@ -156,7 +156,7 @@ export class RuntimeServer {
           if (typeof sessionId !== "string" || typeof taskId !== "string" || typeof runId !== "string") throw new Error("Conversation, follow-up, and run are required.");
           return json(response, 200, { steered: await this.runs.steerQueued(sessionId, taskId, runId) });
         }
-        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.home.entries() });
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.home.entries(-1) });
         case "POST /v1/sessions": {
           const { cwd } = await readJson(request);
           const session = this.runtime.openSession({ fresh: true, ...(typeof cwd === "string" ? { cwd } : {}) });
@@ -271,7 +271,7 @@ export class RuntimeServer {
     const sessions = this.sessionStatuses();
     return {
       sessions,
-      homeEntries: this.store.home.entries(),
+      homeEntries: this.store.home.entries(-1),
       queuedTasks: session && session.id !== HOME_SESSION_ID ? this.store.home.queuedTasks(session.id) : [],
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
       activeRuns: this.runs.activeSnapshots(sessionId),

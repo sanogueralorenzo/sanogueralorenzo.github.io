@@ -1,6 +1,6 @@
 # Agent
 
-Agent is a local website for personal and coding work. Home starts tasks in the background and shows short results; open a task for the full conversation.
+Agent is a local website for personal and coding work. Home starts tasks in the background and shows short results; click a Home message to open its full conversation.
 
 ## Start
 
