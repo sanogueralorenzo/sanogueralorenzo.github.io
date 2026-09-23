@@ -6,9 +6,12 @@ import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 type Route = { mode: "start" | "continue" | "steer"; agent: TaskRole; title: string; scope: string; task: string; sessionId?: string; entryId?: string; cwd?: string };
-type Active = { session: AgentSession; turn: Turn; entryIds: string[]; output: string; error: string; stopped: boolean };
+type Active = { session: AgentSession; turn: Turn; entryIds: string[]; output: string; error: string; stopped: boolean; lastProgress?: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+const progressByTool: Record<string, string> = { read: "Inspecting files", grep: "Searching files", find: "Finding files", ls: "Inspecting files",
+  edit: "Making changes", write: "Making changes", bash: "Running commands", delegate_task: "Delegating independent work" };
+const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
 function parseRoutes(raw: string, message: HomeMessage, state: State): Route[] {
   const json = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { routes?: Route[] };
@@ -257,7 +260,17 @@ export class Assistant {
           if (text && event.message.stopReason === "toolUse" && entry) this.state.update(entry, clean(text.slice(0, 900)), "progress", "working", turn.sourceId);
         }
         if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") this.emit({ type: "delta", sessionId: record.id, delta: event.assistantMessageEvent.delta });
-        if (event.type === "tool_execution_start") this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
+        if (event.type === "tool_execution_start") {
+          this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
+          const progress = toolProgress(event.toolName);
+          if (progress !== active!.lastProgress) {
+            active!.lastProgress = progress;
+            for (const id of active!.entryIds) {
+              const target = this.state.data.entries.find((item) => item.id === id);
+              if (target) this.state.update(target, `${progress}…`, "progress", "working", turn.sourceId);
+            }
+          }
+        }
       });
       await session.prompt(turn.text, { expandPromptTemplates: false });
       if (active.stopped) throw new Error("Stopped");
