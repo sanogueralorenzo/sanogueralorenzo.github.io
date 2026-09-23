@@ -321,8 +321,12 @@ async function refreshSessions() {
 }
 
 async function newSession() {
+  state.showingSettings = false;
+  state.showingSessions = false;
   try {
     const { session } = await post("/v1/sessions", {});
+    state.needsSetup = false;
+    state.showingLogin = false;
     await selectSession(session.id, { notice: "New conversation ready." });
   } catch (error) { showError(error); }
 }
