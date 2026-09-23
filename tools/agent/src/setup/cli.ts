@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { createAgentCodexAppServer } from "../codex/app-server.js";
 import { loadConfig } from "../local/config.js";
-import { AgentSetupService } from "../setup/service.js";
-import { readSecretLine } from "./secret.js";
+import { readSecretLine } from "../local/secret.js";
+import { AgentSetupService } from "./service.js";
 
 function openBrowser(url: string): boolean {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "rundll32" : "xdg-open";

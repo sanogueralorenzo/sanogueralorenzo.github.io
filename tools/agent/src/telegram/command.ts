@@ -1,4 +1,4 @@
-import { setupAgent } from "../cli/setup.js";
+import { setupAgent } from "../setup/cli.js";
 import { loadConfig } from "../local/config.js";
 import { readTelegramToken } from "./credentials.js";
 import { setupTelegram } from "./pairing.js";

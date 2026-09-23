@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { join } from "node:path";
 import { Bot } from "grammy";
-import { readSecretLine } from "../cli/secret.js";
+import { readSecretLine } from "../local/secret.js";
 import { loadConfig } from "../local/config.js";
 import { writeTelegramToken } from "./credentials.js";
 import { readPrivateJson, writePrivateJson } from "../local/files.js";

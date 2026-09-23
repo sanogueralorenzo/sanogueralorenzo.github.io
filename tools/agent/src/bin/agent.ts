@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { runChat } from "../cli/chat.js";
-import { setupAgent } from "../cli/setup.js";
+import { setupAgent } from "../setup/cli.js";
 
 const [command = "chat", ...args] = process.argv.slice(2);
 

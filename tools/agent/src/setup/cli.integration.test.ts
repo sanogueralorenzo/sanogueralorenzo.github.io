@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { Store } from "../conversation/store.js";
 import { temporary } from "../test-support.js";
-import { SETUP_CHOICES, SETUP_PROMPT, setupAgent } from "./setup.js";
+import { SETUP_CHOICES, SETUP_PROMPT, setupAgent } from "./cli.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "..", "codex", "test-fixtures", "fake-app-server.mjs");
 

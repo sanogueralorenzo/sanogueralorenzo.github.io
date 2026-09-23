@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   setup: vi.fn(),
 }));
 
-vi.mock("../cli/setup.js", () => ({
+vi.mock("../setup/cli.js", () => ({
   setupAgent: mocks.setup,
 }));
 
