@@ -12,6 +12,7 @@ private enum AgentStyle {
     static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.105, 0.102, 0.097))
     static let surface = adaptive(light: (0.925, 0.910, 0.882), dark: (0.16, 0.155, 0.145))
     static let userSurface = adaptive(light: (0.91, 0.87, 0.80), dark: (0.23, 0.19, 0.16))
+    static let badgeCutout = adaptive(light: (1, 1, 1), dark: (0, 0, 0))
     static let graphite = adaptive(light: (0.18, 0.17, 0.16), dark: (0.92, 0.90, 0.87))
     static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
     static let line = graphite.opacity(0.13)
@@ -330,18 +331,19 @@ private struct HomeEntryView: View {
     }
 
     @ViewBuilder private var statusBadge: some View {
-        if isWorking {
-            ProgressView()
-                .controlSize(.mini)
-                .frame(width: 20, height: 20)
-                .background(AgentStyle.canvas, in: Circle())
-                .accessibilityLabel("Working")
-        } else if let symbol = statusSymbol {
-            Text(symbol)
-                .font(.system(size: 13))
-                .frame(width: 20, height: 20)
-                .background(AgentStyle.canvas, in: Circle())
-                .accessibilityLabel(entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
+        if isWorking || statusSymbol != nil {
+            ZStack {
+                Circle().fill(AgentStyle.userSurface)
+                if isWorking {
+                    ProgressView().controlSize(.mini)
+                } else if let symbol = statusSymbol {
+                    Text(symbol).font(.system(size: 13))
+                }
+            }
+            .frame(width: 24, height: 24)
+            .overlay { Circle().stroke(AgentStyle.badgeCutout, lineWidth: 3) }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(isWorking ? "Working" : entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
         }
     }
 
@@ -367,7 +369,7 @@ private struct HomeEntryView: View {
             .disabled(entry.sessionId == nil)
             .overlay(alignment: .bottomTrailing) {
                 statusBadge
-                    .offset(x: 6, y: 6)
+                    .offset(x: 4, y: 4)
                     .allowsHitTesting(false)
             }
             if !entry.requests.isEmpty {
