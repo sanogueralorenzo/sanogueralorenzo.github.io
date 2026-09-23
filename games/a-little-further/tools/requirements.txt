@@ -1,2 +1,0 @@
-# Optional source inventory tooling; not needed to play.
-UnityPy==1.25.3

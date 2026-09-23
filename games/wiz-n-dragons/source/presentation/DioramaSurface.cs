@@ -1,9 +1,0 @@
-using Godot;
-namespace WizNDragons;
-
-public static class DioramaSurface
-{
-    static ShaderMaterial? material;
-    public static ShaderMaterial Material => material ??= new() { Shader = GD.Load<Shader>("res://source/presentation/diorama-surface.gdshader") };
-    public static void Advance(float clock) { if (material != null) material.SetShaderParameter("clock", clock); }
-}
