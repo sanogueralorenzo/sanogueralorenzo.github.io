@@ -1,5 +1,5 @@
 import type { RuntimeClient } from "../client/client.js";
-import type { Artifact, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../conversation/types.js";
+import type { Artifact, HomeEntry, RunEnvelope, RuntimeSnapshot, TurnRequest } from "../conversation/types.js";
 import { HOME_SESSION_ID } from "../conversation/types.js";
 import { MAX_ATTACHMENT_BYTES } from "../workspace/assets.js";
 import { redactSecrets } from "../workspace/security.js";
@@ -89,14 +89,7 @@ export class TelegramTurns {
     if (event.type === "home_entry") {
       if (this.seenEntries.get(event.entry.id) === event.entry.updatedAt) return null;
       this.seenEntries.set(event.entry.id, event.entry.updatedAt);
-      if (!event.entry.sessionId || event.entry.state === "routing" || event.entry.state === "working" || event.entry.state === null
-        || event.entry.sessionId === this.sessionId) return null;
-      return {
-        sessionId: event.entry.sessionId,
-        chunks: splitTelegramText(`${event.entry.title}: ${event.entry.summary ?? event.entry.body}`),
-        artifacts: [],
-        taskSessionId: event.entry.sessionId,
-      };
+      return this.taskReport(event.entry);
     }
     if (sessionId !== this.sessionId && !this.current.has(runId) && !this.pending.has(runId)) return null;
     if (event.type === "session_activity") {
@@ -153,17 +146,30 @@ export class TelegramTurns {
   }
 
   async reconcile(snapshot: RuntimeSnapshot): Promise<TelegramTurnResult[]> {
-    const oldEntries = this.seenEntries;
-    this.seenEntries = new Map(snapshot.homeEntries.map((entry) => [entry.id, entry.updatedAt]));
-    const missedReports = this.latestSnapshot ? snapshot.homeEntries
-      .filter((entry) => entry.sessionId && entry.state !== null && entry.state !== "routing" && entry.state !== "working"
-        && entry.sessionId !== this.sessionId && oldEntries.get(entry.id) !== entry.updatedAt)
-      .map((entry) => ({ sessionId: entry.sessionId!, chunks: splitTelegramText(`${entry.title}: ${entry.summary ?? entry.body}`), artifacts: [], taskSessionId: entry.sessionId! }))
-      : [];
+    const missedReports = this.reconcileHomeEntries(snapshot);
     this.latestSnapshot = snapshot;
     const owner = this.ownerId();
     if (owner) this.sessionId = (await this.client.telegramSession(owner)).id;
     const previous = this.current;
+    this.restoreActiveRuns(snapshot);
+    return [...await this.recoverFinishedRuns(snapshot, previous), ...missedReports];
+  }
+
+  private reconcileHomeEntries(snapshot: RuntimeSnapshot): TelegramTurnResult[] {
+    const oldEntries = this.seenEntries;
+    this.seenEntries = new Map(snapshot.homeEntries.map((entry) => [entry.id, entry.updatedAt]));
+    const missedReports: TelegramTurnResult[] = [];
+    if (this.latestSnapshot) {
+      for (const entry of snapshot.homeEntries) {
+        if (oldEntries.get(entry.id) === entry.updatedAt) continue;
+        const report = this.taskReport(entry);
+        if (report) missedReports.push(report);
+      }
+    }
+    return missedReports;
+  }
+
+  private restoreActiveRuns(snapshot: RuntimeSnapshot): void {
     const activeRuns = snapshot.activeRuns.filter((active) => !this.delivered.has(active.run.id) &&
       (active.run.sessionId === this.sessionId || active.navigation?.session.id === this.sessionId));
     this.current = new Map(activeRuns.map((active) => [active.run.id, {
@@ -175,6 +181,9 @@ export class TelegramTurns {
     for (const active of activeRuns) {
       if (active.navigation && this.sessionId === active.run.sessionId) this.sessionId = active.navigation.session.id;
     }
+  }
+
+  private async recoverFinishedRuns(snapshot: RuntimeSnapshot, previous: Map<string, InFlight>): Promise<TelegramTurnResult[]> {
     const recovered: TelegramTurnResult[] = [];
     for (const [runId, sessionId] of new Map([
       ...[...previous].map(([id, run]) => [id, run.sessionId] as const),
@@ -192,11 +201,22 @@ export class TelegramTurns {
       this.pending.delete(runId);
       this.markDelivered(runId);
     }
-    return [...recovered, ...missedReports];
+    return recovered;
   }
 
   private markDelivered(runId: string): void {
     this.delivered.add(runId);
     if (this.delivered.size > 100) this.delivered.delete(this.delivered.values().next().value!);
+  }
+
+  private taskReport(entry: HomeEntry): TelegramTurnResult | null {
+    if (!entry.sessionId || entry.state === null || entry.state === "routing" || entry.state === "working"
+      || entry.sessionId === this.sessionId) return null;
+    return {
+      sessionId: entry.sessionId,
+      chunks: splitTelegramText(`${entry.title}: ${entry.summary ?? entry.body}`),
+      artifacts: [],
+      taskSessionId: entry.sessionId,
+    };
   }
 }

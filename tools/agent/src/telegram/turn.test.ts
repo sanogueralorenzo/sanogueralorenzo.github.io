@@ -120,6 +120,22 @@ describe("Telegram turns", () => {
     expect(turns.consume(envelope({ type: "home_entry", entry }, "task-run", "home"))).toBeNull();
   });
 
+  it("recovers a Home task report once after reconnect", async () => {
+    const turns = turnsFor();
+    await turns.ensureSession();
+    const entry = { id: "entry-1", sessionId: "task-1", title: "Fix tests", body: "Fix the tests",
+      state: "working" as const, summary: null, url: "agent://sessions/task-1", updatedAt: "before" };
+    const snapshot: RuntimeSnapshot = {
+      sessions: [], homeEntries: [entry], transcript: null, activeRuns: [], lastRuns: [],
+    };
+    expect(await turns.reconcile(snapshot)).toEqual([]);
+    const completed: RuntimeSnapshot = { ...snapshot, homeEntries: [{ ...entry, state: "ready", summary: "All tests pass.", updatedAt: "after" }] };
+    expect(await turns.reconcile(completed)).toEqual([{
+      sessionId: "task-1", chunks: ["Fix tests: All tests pass."], artifacts: [], taskSessionId: "task-1",
+    }]);
+    expect(await turns.reconcile(completed)).toEqual([]);
+  });
+
   it("reports shared conversation navigation", async () => {
     const turns = turnsFor();
     await turns.ensureSession();
