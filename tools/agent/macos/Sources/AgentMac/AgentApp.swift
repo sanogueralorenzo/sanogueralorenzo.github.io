@@ -320,21 +320,34 @@ private struct HomeEntryView: View {
     @State private var showingRequests = false
 
     private var isWorking: Bool { entry.state == "routing" || entry.state == "working" }
-    private var needsAttention: Bool { entry.state == "needs_input" || entry.state == "failed" }
+    private var statusSymbol: String? {
+        switch entry.state {
+        case "ready": "✅"
+        case "needs_input": "💬"
+        case "failed": "⚠️"
+        default: nil
+        }
+    }
+
+    @ViewBuilder private var statusBadge: some View {
+        if isWorking {
+            ProgressView()
+                .controlSize(.mini)
+                .frame(width: 26, height: 26)
+                .background(AgentStyle.canvas, in: Circle())
+                .accessibilityLabel("Working")
+        } else if let symbol = statusSymbol {
+            Text(symbol)
+                .font(.system(size: 16))
+                .frame(width: 26, height: 26)
+                .background(AgentStyle.canvas, in: Circle())
+                .accessibilityLabel(entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
+        }
+    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
             Spacer(minLength: AgentStyle.messageGutter)
-            Group {
-                if isWorking {
-                    ProgressView().controlSize(.mini)
-                } else if entry.state == "ready" {
-                    Circle().fill(Color.green.opacity(0.72)).frame(width: 8, height: 8)
-                } else if needsAttention {
-                    Circle().fill(Color.red.opacity(0.72)).frame(width: 8, height: 8)
-                }
-            }
-            .frame(width: 12)
             Button(action: open) {
                 VStack(alignment: .leading, spacing: 5) {
                     if let title = entry.title {
@@ -352,6 +365,11 @@ private struct HomeEntryView: View {
             }
             .buttonStyle(.plain)
             .disabled(entry.sessionId == nil)
+            .overlay(alignment: .bottomTrailing) {
+                statusBadge
+                    .offset(x: 8, y: 8)
+                    .allowsHitTesting(false)
+            }
             if !entry.requests.isEmpty {
                 Button { showingRequests = true } label: {
                     Image(systemName: "text.bubble")
