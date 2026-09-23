@@ -98,7 +98,7 @@ export class RuntimeServer {
           if (typeof runId !== "string" || !runId) throw new Error("runId is required");
           return json(response, 200, { stopped: this.runs.stop(runId) });
         }
-        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.homeEntries() });
+        case "GET /v1/sessions": return json(response, 200, { sessions: this.sessionStatuses(), homeEntries: this.store.home.entries() });
         case "POST /v1/sessions": {
           const { cwd } = await readJson(request);
           const session = this.runtime.openSession({ fresh: true, ...(typeof cwd === "string" ? { cwd } : {}) });
@@ -181,7 +181,7 @@ export class RuntimeServer {
     const sessions = this.sessionStatuses();
     return {
       sessions,
-      homeEntries: this.store.homeEntries(),
+      homeEntries: this.store.home.entries(),
       transcript: session ? { session, messages: this.store.getMessages(session.id) } : null,
       activeRuns: this.runs.activeSnapshots(sessionId),
       lastRuns: (sessionId ? [session].filter((value): value is NonNullable<typeof value> => Boolean(value)) : sessions)

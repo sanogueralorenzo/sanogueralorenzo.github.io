@@ -2,8 +2,9 @@ import { chmodSync, existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
-import { HOME_SESSION_ID, type Attachment, type Channel, type HomeEntry, type LastRun, type Message, type Session, type SessionCard } from "./types.js";
+import { HOME_SESSION_ID, type Attachment, type LastRun, type Message, type Session, type SessionCard } from "./types.js";
 import { ensurePrivateDirectory } from "../local/files.js";
+import { HomeStore } from "../home/store.js";
 
 const now = () => new Date().toISOString();
 const SESSION_COLUMNS = `id, cwd, title, updated_at AS "updatedAt"`;
@@ -11,6 +12,7 @@ const ATTACHMENT_COLUMNS = `id, name, mime_type AS "mimeType", size, path`;
 
 export class Store {
   readonly db: DatabaseSync;
+  readonly home: HomeStore;
 
   constructor(homeDir: string) {
     ensurePrivateDirectory(homeDir);
@@ -21,6 +23,7 @@ export class Store {
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
     this.initializeSchema();
     this.recoverInterruptedRuns();
+    this.home = new HomeStore(this.db);
   }
 
   private initializeSchema(): void {
@@ -110,12 +113,6 @@ export class Store {
     `);
   }
 
-  private nextHomeUpdate(id: string): string {
-    const previous = this.db.prepare("SELECT updated_at AS updatedAt FROM home_entries WHERE id = ?")
-      .get(id) as { updatedAt: string } | undefined;
-    return new Date(Math.max(Date.now(), previous ? Date.parse(previous.updatedAt) + 1 : 0)).toISOString();
-  }
-
   private recoverInterruptedRuns(): void {
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -168,87 +165,6 @@ export class Store {
     this.db.prepare("INSERT INTO sessions (id, cwd, title, created_at, updated_at) VALUES (?, NULL, 'Home', ?, ?)")
       .run(HOME_SESSION_ID, timestamp, timestamp);
     return this.getSession(HOME_SESSION_ID)!;
-  }
-
-  hasHomeEntry(sessionId: string): boolean {
-    return Boolean(this.db.prepare("SELECT 1 FROM home_entries WHERE session_id = ?").get(sessionId));
-  }
-
-  createHomeEntry(id: string, body: string): HomeEntry {
-    const timestamp = now();
-    this.db.prepare(`
-      INSERT INTO home_entries (id, body, state, created_at, updated_at) VALUES (?, ?, 'routing', ?, ?)
-    `).run(id, body, timestamp, timestamp);
-    return this.homeEntry(id)!;
-  }
-
-  dispatchHomeEntry(id: string, sessionId: string, title: string, body: string, working: boolean): {
-    entry: HomeEntry;
-    superseded: HomeEntry[];
-  } {
-    const timestamp = this.nextHomeUpdate(id);
-    const previous = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? AND id != ? AND state IS NOT NULL ORDER BY rowid DESC")
-      .all(sessionId, id) as { id: string }[];
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      for (const entry of previous) this.db.prepare("UPDATE home_entries SET state = NULL, updated_at = ? WHERE id = ?")
-        .run(this.nextHomeUpdate(entry.id), entry.id);
-      this.db.prepare(`
-        UPDATE home_entries SET session_id = ?, title = ?, body = ?, summary = NULL, state = ?, updated_at = ? WHERE id = ?
-      `).run(sessionId, title, body, working ? "working" : "ready", timestamp, id);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-    return { entry: this.homeEntry(id)!, superseded: previous.map((entry) => this.homeEntry(entry.id)!) };
-  }
-
-  updateHomeEntry(sessionId: string, state: Exclude<HomeEntry["state"], "routing" | null>, summary: string | null): HomeEntry | null {
-    const current = this.db.prepare("SELECT id FROM home_entries WHERE session_id = ? ORDER BY rowid DESC LIMIT 1")
-      .get(sessionId) as { id: string } | undefined;
-    if (!current) return null;
-    this.db.prepare("UPDATE home_entries SET state = ?, summary = ?, updated_at = ? WHERE id = ?")
-      .run(state, summary, this.nextHomeUpdate(current.id), current.id);
-    return this.homeEntry(current.id);
-  }
-
-  failHomeEntry(id: string, summary: string): HomeEntry {
-    this.db.prepare("UPDATE home_entries SET state = 'failed', summary = ?, updated_at = ? WHERE id = ?")
-      .run(summary, this.nextHomeUpdate(id), id);
-    return this.homeEntry(id)!;
-  }
-
-  homeEntry(id: string): HomeEntry | null {
-    const row = this.db.prepare(`
-      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
-      FROM home_entries WHERE id = ?
-    `).get(id) as Omit<HomeEntry, "url"> | undefined;
-    return row ? { ...row, url: row.sessionId ? `agent://sessions/${row.sessionId}` : null } : null;
-  }
-
-  homeEntries(limit = 100): HomeEntry[] {
-    const rows = this.db.prepare(`
-      SELECT id, session_id AS sessionId, title, body, summary, state, updated_at AS updatedAt
-      FROM (SELECT rowid, * FROM home_entries ORDER BY rowid DESC LIMIT ?) ORDER BY rowid ASC
-    `).all(limit) as unknown as Omit<HomeEntry, "url">[];
-    return rows.map((row) => ({ ...row, url: row.sessionId ? `agent://sessions/${row.sessionId}` : null }));
-  }
-
-  enqueueTask(sessionId: string, text: string, channel: Channel): void {
-    this.db.prepare("INSERT INTO queued_tasks (id, session_id, text, channel, created_at) VALUES (?, ?, ?, ?, ?)")
-      .run(randomUUID(), sessionId, text, channel, now());
-  }
-
-  queuedTask(sessionId: string): { id: string; text: string; channel: Channel } | null {
-    return this.db.prepare("SELECT id, text, channel FROM queued_tasks WHERE session_id = ? ORDER BY rowid LIMIT 1")
-      .get(sessionId) as { id: string; text: string; channel: Channel } | undefined ?? null;
-  }
-
-  queuedSessionIds(): string[] {
-    const rows = this.db.prepare("SELECT session_id AS id FROM queued_tasks GROUP BY session_id ORDER BY MIN(rowid)")
-      .all() as { id: string }[];
-    return rows.map((row) => row.id);
   }
 
   setSessionWorkspace(id: string, cwd: string): Session {

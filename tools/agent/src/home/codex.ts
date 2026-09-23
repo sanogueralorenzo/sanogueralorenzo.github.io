@@ -82,7 +82,7 @@ export class CodexHomeBackend implements HomeBackend {
 
   async compose(request: TurnRequest, conversations: SessionCard[], entries: HomeEntry[], signal?: AbortSignal): Promise<HomeAction[]> {
     let actions: HomeAction[] | null = null;
-    const states = new Map(this.store.homeEntries().filter((entry) => entry.sessionId && entry.state)
+    const states = new Map(this.store.home.entries().filter((entry) => entry.sessionId && entry.state)
       .map((entry) => [entry.sessionId!, entry.state]));
     const conversationState = (sessionId: string) => {
       const latestRun = this.store.latestRun(sessionId);

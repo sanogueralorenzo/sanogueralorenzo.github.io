@@ -81,9 +81,9 @@ export class AgentRuntime {
     const sessionTools = prepared.sessionTools;
     let session = prepared.session;
     const runId = this.store.startRun(session.id, options.runId, redactSecrets(text || "Voice message"), incoming.queuedTaskId);
-    if (session.id === HOME_SESSION_ID) yield { type: "home_entry", entry: this.store.createHomeEntry(runId, redactSecrets(text || "Voice message")) };
+    if (session.id === HOME_SESSION_ID) yield { type: "home_entry", entry: this.store.home.createEntry(runId, redactSecrets(text || "Voice message")) };
     if (incoming.queuedTaskId) {
-      const entry = this.store.updateHomeEntry(session.id, "working", null);
+      const entry = this.store.home.updateEntry(session.id, "working", null);
       if (entry) yield { type: "home_entry", entry };
     }
     try {
@@ -97,7 +97,7 @@ export class AgentRuntime {
       if (prepared.deferTurn) yield { type: "turn", text: text || "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
-      if (this.store.hasHomeEntry(session.id)) {
+      if (this.store.home.hasEntry(session.id)) {
         const entry = await this.homeFlow.taskUpdate(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
         if (entry) yield { type: "home_entry", entry };
       }
@@ -107,7 +107,7 @@ export class AgentRuntime {
       if (prepared.deferTurn) yield { type: "turn", text: "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, "failed", "The message is empty.");
       yield { type: "error", message: "The message is empty." };
-      if (this.store.hasHomeEntry(session.id)) {
+      if (this.store.home.hasEntry(session.id)) {
         const entry = await this.homeFlow.taskUpdate(session, runId, text, "The message is empty.", "failed");
         if (entry) yield { type: "home_entry", entry };
       }
@@ -161,7 +161,7 @@ export class AgentRuntime {
       }
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
-      if (this.store.hasHomeEntry(session.id)) {
+      if (this.store.home.hasEntry(session.id)) {
         const entry = await this.homeFlow.taskUpdate(session, runId, text, message, message === "Interrupted. Your session is saved." ? "interrupted" : "failed");
         if (entry) yield { type: "home_entry", entry };
       }
@@ -218,11 +218,11 @@ export class AgentRuntime {
       terminal = { type: "error", message: failureMessage(error, options.signal) };
     } finally {
       if (!terminal && assistantText.trim()) assistantMessage = `${assistantText}\n\n[interrupted]`;
-      if (terminal?.type === "error" && !assistantMessage && this.store.hasHomeEntry(session.id)) assistantMessage = terminal.message;
+      if (terminal?.type === "error" && !assistantMessage && this.store.home.hasEntry(session.id)) assistantMessage = terminal.message;
       this.store.finishRun(runId, terminal?.type === "done" ? "complete" : options.signal?.aborted || !terminal ? "interrupted" : "failed", assistantMessage);
     }
     if (terminal) yield terminal;
-    if (terminal && this.store.hasHomeEntry(session.id)) {
+    if (terminal && this.store.home.hasEntry(session.id)) {
       const entry = await this.homeFlow.taskUpdate(
         session, runId, request.text, assistantMessage ?? (terminal.type === "error" ? terminal.message : ""),
         terminal.type === "done" ? "complete" : options.signal?.aborted ? "interrupted" : "failed",

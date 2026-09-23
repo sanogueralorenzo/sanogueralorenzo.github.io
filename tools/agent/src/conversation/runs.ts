@@ -25,7 +25,7 @@ export class RunCoordinator {
   private homeCommit = Promise.resolve();
 
   constructor(private readonly runtime: Pick<AgentRuntime, "prepareTurn" | "run" | "steer">, private readonly store: Store) {
-    queueMicrotask(() => { for (const id of this.store.queuedSessionIds()) this.startQueued(id); });
+    queueMicrotask(() => { for (const id of this.store.home.queuedSessionIds()) this.startQueued(id); });
   }
 
   private activeFor(sessionId: string) {
@@ -34,7 +34,7 @@ export class RunCoordinator {
 
   private startQueued(sessionId: string): void {
     if (this.closed || this.activeFor(sessionId)) return;
-    const queued = this.store.queuedTask(sessionId);
+    const queued = this.store.home.queuedTask(sessionId);
     if (queued) this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id });
   }
 

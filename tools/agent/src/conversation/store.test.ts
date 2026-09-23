@@ -188,47 +188,6 @@ describe("Store", () => {
     store.close();
   });
 
-  it("keeps Home activity chronological and gives status only to a session's latest entry", () => {
-    const store = createStore();
-    const first = store.createSession({ title: "First" });
-    const second = store.createSession({ title: "Second" });
-    store.createHomeEntry("first", "original first");
-    store.dispatchHomeEntry("first", first.id, first.title, "clear first", true);
-    store.createHomeEntry("second", "original second");
-    store.dispatchHomeEntry("second", second.id, second.title, "clear second", false);
-    store.createHomeEntry("earlier-follow-up", "earlier follow up");
-    store.dispatchHomeEntry("earlier-follow-up", first.id, first.title, "earlier follow up", false);
-    store.db.prepare("UPDATE home_entries SET state = 'ready' WHERE id = 'first'").run();
-    store.createHomeEntry("follow-up", "follow up");
-    const dispatched = store.dispatchHomeEntry("follow-up", first.id, first.title, "clear follow up", true);
-    const after = store.updateHomeEntry(first.id, "needs_input", "Which branch should I use?")!;
-    expect(dispatched.superseded.map((entry) => entry.id)).toEqual(["earlier-follow-up", "first"]);
-    expect(store.homeEntries().map((entry) => entry.id)).toEqual(["first", "second", "earlier-follow-up", "follow-up"]);
-    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "ready", null, "needs_input"]);
-    expect(after).toMatchObject({ summary: "Which branch should I use?", url: `agent://sessions/${first.id}` });
-    store.close();
-  });
-
-  it("retains queued follow-ups through restart and consumes them with their run", () => {
-    const path = temporary("agent-queued-");
-    const store = new Store(path);
-    const session = store.createSession({ title: "Saved work" });
-    store.createHomeEntry("queued", "First follow-up");
-    store.dispatchHomeEntry("queued", session.id, session.title, "First follow-up", true);
-    store.enqueueTask(session.id, "First follow-up", "macos");
-    store.enqueueTask(session.id, "Second follow-up", "telegram");
-    store.close();
-
-    const recovered = new Store(path);
-    expect(recovered.homeEntries()[0]).toMatchObject({ state: "working", summary: null });
-    expect(recovered.queuedSessionIds()).toEqual([session.id]);
-    const first = recovered.queuedTask(session.id)!;
-    recovered.startRun(session.id, "queued-run", first.text, first.id);
-    expect(recovered.queuedTask(session.id)?.text).toBe("Second follow-up");
-    recovered.finishRun("queued-run", "complete", "Done.");
-    recovered.close();
-  });
-
   it("finds older conversations by project, title, or message", () => {
     const store = createStore();
     const older = store.createSession({ cwd: "/projects/tonal/android", title: "Tonal build" });

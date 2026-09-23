@@ -37,12 +37,12 @@ describe("Agent Home", () => {
     const requestId = "00000000-0000-4000-8000-000000000001";
     runs.start({ text: "How are you?", requestId, sessionId: store.homeSession().id, channel: "macos" });
     const first = (await pending).value!;
-    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(1));
-    expect(store.homeEntries()).toMatchObject([
+    await vi.waitFor(() => expect(store.home.entries()).toHaveLength(1));
+    expect(store.home.entries()).toMatchObject([
       { id: requestId, title: "How are you?", body: "How are you?", state: "working" },
     ]);
     release();
-    await vi.waitFor(() => expect(store.homeEntries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
+    await vi.waitFor(() => expect(store.home.entries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
     expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "How are you?", state: "routing" } });
     controller.abort();
     await stream.return?.();
@@ -71,15 +71,15 @@ describe("Agent Home", () => {
     const requestId = "00000000-0000-4000-8000-000000000002";
     store.homeSession();
     runs.start({ text: "Find restaurants in Taipei and a good air fryer", requestId, sessionId: HOME_SESSION_ID });
-    await vi.waitFor(() => expect(store.homeEntries()).toHaveLength(2));
-    expect(store.homeEntries()).toMatchObject([
+    await vi.waitFor(() => expect(store.home.entries()).toHaveLength(2));
+    expect(store.home.entries()).toMatchObject([
       { id: requestId, title: "Taipei restaurants", body: "restaurants in Taipei", state: "working" },
       { title: "Air fryer picks", body: "a good air fryer", state: "working" },
     ]);
-    expect(new Set(store.homeEntries().map((entry) => entry.sessionId)).size).toBe(2);
+    expect(new Set(store.home.entries().map((entry) => entry.sessionId)).size).toBe(2);
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     release();
-    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.state)).toEqual(["ready", "ready"]));
+    await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.state)).toEqual(["ready", "ready"]));
     await runs.close();
   });
 
@@ -104,9 +104,9 @@ describe("Agent Home", () => {
     runs.start({ text: "First", sessionId: HOME_SESSION_ID });
     runs.start({ text: "Second", sessionId: HOME_SESSION_ID });
     await secondRoute;
-    expect(store.homeEntries().map((entry) => entry.body)).toEqual(["First", "Second"]);
+    expect(store.home.entries().map((entry) => entry.body)).toEqual(["First", "Second"]);
     releaseFirst();
-    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.title)).toEqual(["First", "Second"]));
+    await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.title)).toEqual(["First", "Second"]));
     await runs.close();
   });
 
@@ -126,11 +126,11 @@ describe("Agent Home", () => {
     runs.start({ text: "Original work", sessionId: session.id });
     runs.start({ text: "First follow-up", sessionId: HOME_SESSION_ID });
     runs.start({ text: "Second follow-up", sessionId: HOME_SESSION_ID });
-    await vi.waitFor(() => expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "working"]));
-    expect(store.homeEntries().map((entry) => entry.state)).toEqual([null, "working"]);
-    expect(store.queuedTask(session.id)?.text).toBe("First follow-up");
+    await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.state)).toEqual([null, "working"]));
+    expect(store.home.entries().map((entry) => entry.state)).toEqual([null, "working"]);
+    expect(store.home.queuedTask(session.id)?.text).toBe("First follow-up");
     release();
-    await vi.waitFor(() => expect(store.queuedTask(session.id)).toBeNull());
+    await vi.waitFor(() => expect(store.home.queuedTask(session.id)).toBeNull());
     expect(store.getMessages(session.id).filter((message) => message.role === "user").map((message) => message.content))
       .toEqual(["Original work", "First follow-up", "Second follow-up"]);
     await runs.close();
@@ -157,9 +157,9 @@ describe("Agent Home", () => {
     await vi.waitFor(() => expect(runs.activeInfos()).toHaveLength(1));
     runs.start({ text: "Focus on tests first", sessionId: HOME_SESSION_ID });
     await vi.waitFor(() => expect(steered).toEqual(["Focus on tests first"]));
-    expect(store.queuedTask(session.id)).toBeNull();
+    expect(store.home.queuedTask(session.id)).toBeNull();
     release();
-    await vi.waitFor(() => expect(store.homeEntries()[0]?.state).toBe("ready"));
+    await vi.waitFor(() => expect(store.home.entries()[0]?.state).toBe("ready"));
     await runs.close();
   });
 
@@ -167,9 +167,9 @@ describe("Agent Home", () => {
     const directory = temporary("agent-home-recovery-");
     const original = new Store(directory);
     const session = original.createSession({ title: "Saved task" });
-    const entry = original.createHomeEntry("entry", "Finish this");
-    original.dispatchHomeEntry(entry.id, session.id, session.title, "Finish this", true);
-    original.enqueueTask(session.id, "Finish this", "cli");
+    const entry = original.home.createEntry("entry", "Finish this");
+    original.home.dispatchEntry(entry.id, session.id, session.title, "Finish this", true);
+    original.home.enqueueTask(session.id, "Finish this", "cli");
     original.close();
     const store = new Store(directory);
     cleanup(() => store.close());
@@ -179,8 +179,8 @@ describe("Agent Home", () => {
       async summarize() { return { state: "ready", summary: "Recovered." }; },
     };
     const runs = new RunCoordinator(new AgentRuntime(store, backend, home), store);
-    await vi.waitFor(() => expect(store.queuedTask(session.id)).toBeNull());
-    await vi.waitFor(() => expect(store.homeEntries()[0]).toMatchObject({ state: "ready", summary: "Recovered." }));
+    await vi.waitFor(() => expect(store.home.queuedTask(session.id)).toBeNull());
+    await vi.waitFor(() => expect(store.home.entries()[0]).toMatchObject({ state: "ready", summary: "Recovered." }));
     await runs.close();
   });
 
@@ -293,9 +293,9 @@ describe("Agent Home", () => {
     const saved = store.createSession({ title: "Reconnect investigation", cwd: homeDir });
     store.addMessage(saved.id, "user", "Investigate why Telegram reconnects twice.");
     store.addMessage(saved.id, "assistant", "The gateway has two reconnect paths.");
-    const seed = store.createHomeEntry("seed", "Investigate reconnects");
-    store.dispatchHomeEntry(seed.id, saved.id, saved.title, seed.body, false);
-    store.updateHomeEntry(saved.id, "ready", "Duplicate reconnect paths identified.");
+    const seed = store.home.createEntry("seed", "Investigate reconnects");
+    store.home.dispatchEntry(seed.id, saved.id, saved.title, seed.body, false);
+    store.home.updateEntry(saved.id, "ready", "Duplicate reconnect paths identified.");
     const log = join(homeDir, "rpc.log");
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
