@@ -2,11 +2,23 @@
 
 A small collection of things I'm building and experimenting with.
 
-- [Voice](./tools/voice/README.md) — local-first voice input.
-- [Overlay](./tools/overlay/README.md) — a small Android screen overlay.
-- [Trace](./tools/trace/README.md) — connects commits to agent conversations.
-- [Squirrel Swoop](./games/squirrelswoop/README.md) — an endless downhill gliding game in Godot 4.
-- [Last Cast](./games/lastcast/README.md) — a coastal fishing roguelike in Godot 4.
+## Games
+
+- [Boats ’n’ Beasts](./games/boats-n-beasts/README.md) — a procedural sailing prototype.
+- [Cozy Sora](./games/cozysora/README.md) — a game about quiet summer exploration.
+
+## Tools
+
+- [Agent](./tools/agent/README.md) — a native macOS app for personal and coding work.
+- [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
+- [Minutes](./tools/minutes/README.md) — meeting recaps and action items.
+- [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.
+- [Rewrite](./tools/rewrite/README.md) — a macOS menu app for concise, clear text.
+- [Trace](./tools/trace/README.md) — links AI coding conversations to Git commits.
+- [Voice](./tools/voice/README.md) — private, local dictation.
+
+## Site
+
 - [Site](./site/README.md) — this website.
 
 Each project has its own setup notes.
