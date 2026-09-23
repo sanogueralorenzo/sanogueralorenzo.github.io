@@ -9,7 +9,7 @@ import { requiresHandoff } from "../conversation/routing.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import { ephemeralToolTurn } from "./ephemeral.js";
 import { CONVERSATION_TOOLS, READ_HISTORY_TOOL, conversationTool, readHistory } from "./conversation-tools.js";
-import { classifiedError, nextForThread, object, type Notifications } from "./notifications.js";
+import { classifiedError, nextForThread, object, retryDisconnected, type Notifications } from "./notifications.js";
 import { transcribeVoice } from "./voice.js";
 import { NodeRealtimePeer, type RealtimePeer } from "./webrtc.js";
 import { OPEN_FOLDER_TOOL, openFolder } from "./workspace-tool.js";
@@ -46,11 +46,11 @@ export class CodexBackend implements AgentBackend {
   ) {}
 
   async transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string> {
-    return this.retry(() => transcribeVoice(this.client, this.config.homeDir, attachment, this.createRealtimePeer, signal));
+    return retryDisconnected(this.client, () => transcribeVoice(this.client, this.config.homeDir, attachment, this.createRealtimePeer, signal));
   }
 
   async route(turn: RouteTurn): Promise<Handoff | null> {
-    const handoff = await this.retry(() => this.routeOnce(turn));
+    const handoff = await retryDisconnected(this.client, () => this.routeOnce(turn));
     if (!handoff && requiresHandoff(turn.request.text)) throw new Error("Could not identify the project or conversation to open.");
     return handoff;
   }
@@ -132,16 +132,6 @@ export class CodexBackend implements AgentBackend {
         }
         throw classifiedError(error);
       }
-    }
-  }
-
-  private async retry<T>(operation: () => Promise<T>): Promise<T> {
-    try {
-      return await operation();
-    } catch (error) {
-      if (!(error instanceof CodexDisconnectedError)) throw classifiedError(error);
-      await this.client.restart();
-      return operation();
     }
   }
 

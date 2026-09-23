@@ -1,4 +1,4 @@
-import { CodexDisconnectedError } from "./app-server.js";
+import { CodexDisconnectedError, type CodexAppServer } from "./app-server.js";
 import type { JsonRpcMessage } from "./protocol.js";
 
 export type Notifications = AsyncIterator<[JsonRpcMessage]>;
@@ -12,6 +12,16 @@ export function classifiedError(error: unknown): Error {
   if (/auth|login|token|unauthorized/i.test(message)) return new Error("Your Agent connection has expired. Sign in again to reconnect it.");
   if (/rate.?limit|usage.?limit|credits?.?depleted|allowance/i.test(message)) return new Error("Your current OpenAI allowance or credits are exhausted.");
   return error instanceof Error ? error : new Error(message);
+}
+
+export async function retryDisconnected<T>(client: Pick<CodexAppServer, "restart">, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!(error instanceof CodexDisconnectedError)) throw classifiedError(error);
+    await client.restart();
+    return operation();
+  }
 }
 
 export async function nextForThread(queue: Notifications, threadId: string) {

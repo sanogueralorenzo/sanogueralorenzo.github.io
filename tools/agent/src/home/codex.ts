@@ -1,9 +1,9 @@
 import { HOME_SESSION_ID, type HomeEntry, type RuntimeConfig, type SessionCard, type TurnRequest } from "../conversation/types.js";
 import type { Store } from "../conversation/store.js";
-import { CodexAppServer, CodexDisconnectedError } from "../codex/app-server.js";
+import { CodexAppServer } from "../codex/app-server.js";
 import { READ_CONVERSATION_TOOL } from "../codex/conversation-tools.js";
 import { ephemeralToolTurn } from "../codex/ephemeral.js";
-import { classifiedError } from "../codex/notifications.js";
+import { retryDisconnected } from "../codex/notifications.js";
 import { openFolder } from "../codex/workspace-tool.js";
 import type { HomeAction, HomeBackend } from "./backend.js";
 
@@ -98,7 +98,7 @@ export class CodexHomeBackend implements HomeBackend {
       `Recent Home activity: ${JSON.stringify([...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
         .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
     ].filter(Boolean).join("\n");
-    await this.retry(() => {
+    await retryDisconnected(this.client, () => {
       actions = null;
       return this.toolTurn(
         ROUTER_INSTRUCTIONS,
@@ -186,7 +186,7 @@ export class CodexHomeBackend implements HomeBackend {
 
   async summarize(input: Parameters<HomeBackend["summarize"]>[0], signal?: AbortSignal): ReturnType<HomeBackend["summarize"]> {
     let report: { state: "ready" | "needs_input" | "failed"; summary: string } | null = null;
-    await this.retry(() => {
+    await retryDisconnected(this.client, () => {
       report = null;
       return this.toolTurn(
         REPORTER_INSTRUCTIONS,
@@ -202,15 +202,6 @@ export class CodexHomeBackend implements HomeBackend {
     });
     if (!report) throw new Error("Home did not receive a task update.");
     return report;
-  }
-
-  private async retry<T>(operation: () => Promise<T>): Promise<T> {
-    try { return await operation(); }
-    catch (error) {
-      if (!(error instanceof CodexDisconnectedError)) throw classifiedError(error);
-      await this.client.restart();
-      return operation();
-    }
   }
 
   private async toolTurn(
