@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
 import type { AgentBackend, BackendEvent, BackendTurn, Handoff, RouteTurn } from "../conversation/backend.js";
-import { WORK_MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
 import { requiresHandoff } from "../conversation/routing.js";
@@ -115,20 +114,24 @@ export class CodexBackend implements AgentBackend {
 
   async *run(turn: BackendTurn): AsyncGenerator<BackendEvent> {
     const messageId = randomUUID();
-    let progress = false;
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      let ambiguousMutation: "thread" | "turn" | null = null;
+      const markMutationAttempted = (mutation: "thread" | "turn") => { ambiguousMutation = mutation; };
       try {
-        const threadId = await this.sessionThread(turn);
-        for await (const event of this.turnEvents(threadId, turn, messageId)) {
-          if (event.type !== "done") progress = true;
-          yield event;
-        }
+        const threadId = await this.sessionThread(turn, markMutationAttempted);
+        yield* this.turnEvents(threadId, turn, messageId, markMutationAttempted);
         return;
       } catch (error) {
-        if (error instanceof CodexDisconnectedError && attempt === 0 && !progress) {
+        if (error instanceof CodexDisconnectedError && attempt === 0 && !ambiguousMutation) {
           yield { type: "status", message: "Codex restarted. Resuming your Agent session…" };
           await this.client.restart();
           continue;
+        }
+        if (error instanceof CodexDisconnectedError && ambiguousMutation === "turn") {
+          throw new Error("Codex disconnected after Agent submitted the request. It may still be running; check the linked task before retrying. Agent did not resend it.");
+        }
+        if (error instanceof CodexDisconnectedError && ambiguousMutation === "thread") {
+          throw new Error("Codex disconnected while creating the Agent conversation. It may have been created; Agent did not create another. Check Codex before retrying.");
         }
         throw classifiedError(error);
       }
@@ -139,6 +142,7 @@ export class CodexBackend implements AgentBackend {
     threadId: string,
     turn: BackendTurn,
     messageId: string,
+    markMutationAttempted: (mutation: "thread" | "turn") => void,
   ): AsyncGenerator<BackendEvent> {
     const lifetime = new AbortController();
     const queue = on(this.client, "notification", { signal: lifetime.signal }) as Notifications;
@@ -150,12 +154,12 @@ export class CodexBackend implements AgentBackend {
     };
     turn.signal?.addEventListener("abort", interrupt, { once: true });
     try {
+      await this.client.ensureStarted();
+      markMutationAttempted("turn");
       const started = await this.client.request<{ turn: { id: string } }>("turn/start", {
         threadId,
         clientUserMessageId: messageId,
         input: [{ type: "text", text: turn.request.text, text_elements: [] }],
-        model: WORK_MODEL,
-        effort: "high",
       });
       turnId = started.turn.id;
       this.activeTurns.set(turn.session.id, { threadId, turnId });
@@ -205,11 +209,10 @@ export class CodexBackend implements AgentBackend {
     }
   }
 
-  private async sessionThread(turn: BackendTurn): Promise<string> {
+  private async sessionThread(turn: BackendTurn, markMutationAttempted: (mutation: "thread" | "turn") => void): Promise<string> {
     const existing = this.store.codexThread(turn.session.id);
     const savedHistory = !existing && this.store.getMessages(turn.session.id, 1).length > 0;
     const common = {
-      model: WORK_MODEL,
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: "danger-full-access",
@@ -221,10 +224,11 @@ export class CodexBackend implements AgentBackend {
     if (existing) {
       return (await this.client.request<{ thread: { id: string } }>("thread/resume", { threadId: existing, ...common })).thread.id;
     }
+    await this.client.ensureStarted();
+    markMutationAttempted("thread");
     const started = await this.client.request<{ thread: { id: string } }>("thread/start", {
       ...common,
       ephemeral: false,
-      threadSource: "appServer",
     });
     this.store.bindCodexThread(turn.session.id, started.thread.id);
     return started.thread.id;

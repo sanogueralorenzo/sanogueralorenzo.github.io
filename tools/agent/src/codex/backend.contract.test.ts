@@ -155,25 +155,27 @@ describe("Codex turn transport", () => {
     expect(event?.type === "artifact" && existsSync(event.artifact.path)).toBe(true);
   });
 
-  it("uses one Sol turn with a workspace boundary instead of routing through workers", async () => {
+  it("uses one persistent turn with the active profile instead of routing through workers", async () => {
     const { backend, input, log } = backendFixture();
     await collect(backend, input);
     const rpc = requests(log);
     const threads = rpc.filter((request) => request.method === "thread/start");
-    expect(threads.map((request) => request.params.model)).toEqual(["gpt-6-sol"]);
-    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.model)).toEqual(["gpt-6-sol"]);
-    expect(threads.map((request) => request.params.sandbox)).toEqual(["workspace-write"]);
+    expect(threads[0]?.params).not.toHaveProperty("model");
+    expect(threads[0]?.params).not.toHaveProperty("threadSource");
+    const turns = rpc.filter((request) => request.method === "turn/start");
+    expect(turns[0]?.params).not.toHaveProperty("model");
+    expect(turns[0]?.params).not.toHaveProperty("effort");
+    expect(threads.map((request) => request.params.sandbox)).toEqual(["danger-full-access"]);
     expect(threads.map((request) => request.params.ephemeral)).toEqual([false]);
-    expect(rpc.filter((request) => request.method === "turn/start").map((request) => request.params.effort)).toEqual(["high"]);
   });
 
-  it("keeps sessions without a selected workspace read-only", async () => {
+  it("keeps full access for sessions without a selected workspace", async () => {
     const homeDir = temporary("agent-codex-personal-");
     const log = join(homeDir, "rpc.log");
     const store = trackedStore(homeDir);
     const backend = new CodexBackend(config(homeDir), store, client("normal", { AGENT_FAKE_LOG: log }));
     await collect(backend, turn(store, homeDir, false));
-    expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("read-only");
+    expect(requests(log).find((request) => request.method === "thread/start")?.params.sandbox).toBe("danger-full-access");
   });
 
   it("reads saved messages from the active conversation on demand", async () => {
@@ -216,12 +218,17 @@ describe("Codex turn transport", () => {
     expect(started?.config).toEqual({ model_instructions_file: join(homeDir, "utility-instructions.md") });
     expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
     expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
-    expect(rpc.filter((request) => request.method === "thread/start").at(-1)?.params).toMatchObject({
-      model: "gpt-6-sol",
+    const persistentThread = rpc.filter((request) => request.method === "thread/start").at(-1)?.params;
+    expect(persistentThread).toMatchObject({
       cwd,
       sandbox: "danger-full-access",
       ephemeral: false,
     });
+    expect(persistentThread).not.toHaveProperty("model");
+    expect(persistentThread).not.toHaveProperty("threadSource");
+    const persistentTurn = rpc.filter((request) => request.method === "turn/start").at(-1)?.params;
+    expect(persistentTurn).not.toHaveProperty("model");
+    expect(persistentTurn).not.toHaveProperty("effort");
   });
 
   it("runs follow-on work only in the new project conversation", async () => {
@@ -352,14 +359,17 @@ describe("Codex turn transport", () => {
     expect(readFileSync(log, "utf8")).toContain("turn/interrupt");
   });
 
-  it("restarts app-server and resumes the opaque Codex thread", async () => {
+  it("does not replay a turn when the turn/start acknowledgement is lost", async () => {
     const homeDir = temporary("agent-codex-reconnect-marker-");
     const marker = join(homeDir, "restart.marker");
     const fixture = backendFixture("reconnect", { AGENT_FAKE_MARKER: marker });
-    const events = await collect(fixture.backend, fixture.input);
-    expect(events).toContainEqual({ type: "text_delta", delta: "Hello from Codex." });
-    expect(requests(fixture.log).filter((request) => request.method.startsWith("thread/")).map((request) => request.method))
-      .toEqual(["thread/start", "thread/resume"]);
+    await expect(collect(fixture.backend, fixture.input)).rejects.toThrow(
+      "It may still be running; check the linked task before retrying. Agent did not resend it.",
+    );
+    const rpc = requests(fixture.log);
+    expect(rpc.filter((request) => request.method === "thread/start")).toHaveLength(1);
+    expect(rpc.filter((request) => request.method === "thread/resume")).toHaveLength(0);
+    expect(rpc.filter((request) => request.method === "turn/start")).toHaveLength(1);
   });
 
   it("resumes the same persistent thread on later turns", async () => {

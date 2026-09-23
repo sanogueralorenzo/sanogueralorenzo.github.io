@@ -196,7 +196,7 @@ export class CodexHomeBackend implements HomeBackend {
       report = null;
       return this.toolTurn(
         REPORTER_INSTRUCTIONS,
-        `Task: ${input.title}\nRequest: ${input.request.slice(0, 1_000)}\nState: ${input.state}\nResult:\n${input.output.slice(-6_000)}`,
+        `Task: ${input.title}\nRequest: ${input.request}\nState: ${input.state}\nResult:\n${input.output}`,
         [REPORT_TASK], (name, args) => {
           if (name !== REPORT_TASK.name) return response(false, "Unknown tool.");
           const state = args.state;

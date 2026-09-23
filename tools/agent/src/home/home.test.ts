@@ -249,7 +249,9 @@ describe("Agent Home", () => {
           { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
         ]);
       } else {
-        expect(await backend.summarize({ title: "Fix tests", request: "Fix the tests", output: "Done.", state: "complete" }))
+        const request = `Fix the tests ${"r".repeat(1_200)}`;
+        const output = `Done. ${"o".repeat(7_500)}`;
+        expect(await backend.summarize({ title: "Fix tests", request, output, state: "complete" }))
           .toMatchObject({ state: "ready" });
       }
       client.stop();
@@ -270,6 +272,9 @@ describe("Agent Home", () => {
     expect(calls.filter((call) => call.method === "turn/start").map((call) => call.params.model)).toEqual(["gpt-6-luna", "gpt-6-luna"]);
     const routeInput = calls.find((call) => call.method === "turn/start")?.params.input as { text: string }[];
     expect(routeInput[0]?.text).toContain('"state":"working"');
+    const reportInput = calls.filter((call) => call.method === "turn/start")[1]?.params.input as { text: string }[];
+    expect(reportInput[0]?.text).toContain(`Request: Fix the tests ${"r".repeat(1_200)}`);
+    expect(reportInput[0]?.text).toContain(`Result:\nDone. ${"o".repeat(7_500)}`);
   });
 
   it("accepts only one complete plan when Luna repeats a routing tool call", async () => {
