@@ -196,12 +196,7 @@ export class RuntimeServer {
 
   private isLocalHost(request: IncomingMessage): boolean {
     const host = request.headers.host?.toLowerCase();
-    return host === `127.0.0.1:${this.port}` || host === `localhost:${this.port}` || this.isTailscaleServeRequest(request);
-  }
-
-  private isTailscaleServeRequest(request: IncomingMessage): boolean {
-    const host = request.headers.host?.toLowerCase() ?? "";
-    return host.endsWith(".ts.net") && typeof request.headers["tailscale-user-login"] === "string";
+    return host === `127.0.0.1:${this.port}` || host === `localhost:${this.port}`;
   }
 
   private isSameOrigin(request: IncomingMessage): boolean {

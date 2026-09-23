@@ -144,8 +144,7 @@ export class WebsiteProxy {
 
   private isLocalHost(request: IncomingMessage): boolean {
     const host = request.headers.host?.toLowerCase();
-    const tailscaleHost = host?.endsWith(".ts.net") && typeof request.headers["tailscale-user-login"] === "string";
-    return host === `${this.host}:${this.port}` || (this.host === "127.0.0.1" && host === `localhost:${this.port}`) || Boolean(tailscaleHost);
+    return host === `${this.host}:${this.port}` || (this.host === "127.0.0.1" && host === `localhost:${this.port}`);
   }
 
   private isSameOrigin(request: IncomingMessage): boolean {

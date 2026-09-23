@@ -14,7 +14,7 @@ npm link
 agent web
 ```
 
-`agent web` starts or attaches the website to the shared local runtime and opens Agent at `127.0.0.1`. To open it from another device on the same Tailscale network, connect Tailscale on this Mac and run `agent web --tailscale`; it prints a private HTTPS URL using Tailscale Serve. Keep this command running while using Agent from your phone. The runtime and website proxy stay on loopback; Tailscale Serve provides tailnet-only access. The address and access token are not saved to the repository. For local UI development, use `npm run web:dev` from this directory. Use Settings in the website to sign in.
+`agent web` starts or attaches the website to the shared local runtime and opens Agent at `127.0.0.1`. To open it from another device on the same Tailscale network, connect Tailscale on this Mac and run `agent web --tailscale`; it prints a URL using this Mac's Tailscale address. Keep this command running while using Agent from your phone. The runtime API stays on loopback; only the website proxy binds to the Tailscale address. The address and access token are not saved to the repository. For local UI development, use `npm run web:dev` from this directory. Use Settings in the website to sign in.
 
 See [Local protocol](docs/protocol.md) for runtime and security details.
 
