@@ -332,16 +332,17 @@ private struct HomeEntryView: View {
 
     @ViewBuilder private var statusBadge: some View {
         if isWorking || statusSymbol != nil {
+            let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
             ZStack {
-                Circle().fill(AgentStyle.assistantSurface)
+                shape.fill(AgentStyle.assistantSurface)
                 if isWorking {
                     ProgressView().controlSize(.mini).scaleEffect(0.8)
                 } else if let symbol = statusSymbol {
-                    Text(symbol).font(.system(size: 17))
+                    Text(symbol).font(.system(size: 13))
                 }
             }
             .frame(width: 32, height: 32)
-            .overlay { Circle().stroke(AgentStyle.canvas, lineWidth: 4) }
+            .overlay { shape.stroke(AgentStyle.canvas, lineWidth: 4) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isWorking ? "Working" : entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
         }
