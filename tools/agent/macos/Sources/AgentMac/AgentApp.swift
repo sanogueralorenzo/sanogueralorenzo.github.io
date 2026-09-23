@@ -55,6 +55,7 @@ struct RootView: View {
     @Bindable var model: AppModel
     @Binding var windowPinned: Bool
     @State private var showingLogin = false
+    @State private var showingSettings = false
 
     var body: some View {
         Group {
@@ -69,24 +70,32 @@ struct RootView: View {
         .background(AgentStyle.canvas.ignoresSafeArea())
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    if model.setupStatus?.configured == true {
-                        Button("Log Out") { Task { await model.logout() } }
-                            .disabled(model.isSettingUp)
-                    } else {
-                        Button("Log In…") { showingLogin = true }
-                    }
-                    Divider()
-                    Button(windowPinned ? "Unpin Window" : "Pin Window") {
-                        windowPinned.toggle()
-                        (NSApp.keyWindow ?? NSApp.mainWindow)?.level = windowPinned ? .floating : .normal
-                    }
-                    Divider()
-                    Button("Quit Agent") { NSApp.terminate(nil) }
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
+                Button { showingSettings.toggle() } label: {
+                    Image(systemName: "gearshape")
+                        .foregroundStyle(.white)
                 }
+                .buttonStyle(.plain)
                 .help("Settings")
+                .popover(isPresented: $showingSettings) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if model.setupStatus?.configured == true {
+                            Button("Log Out") { Task { await model.logout() } }
+                                .disabled(model.isSettingUp)
+                        } else {
+                            Button("Log In…") { showingLogin = true }
+                        }
+                        Divider().padding(.vertical, 2)
+                        Button(windowPinned ? "Unpin Window" : "Pin Window") {
+                            windowPinned.toggle()
+                            (NSApp.keyWindow ?? NSApp.mainWindow)?.level = windowPinned ? .floating : .normal
+                        }
+                        Divider().padding(.vertical, 2)
+                        Button("Quit Agent") { NSApp.terminate(nil) }
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(12)
+                    .frame(minWidth: 150)
+                }
             }
         }
         .sheet(isPresented: $showingLogin) {
@@ -258,11 +267,6 @@ struct ConversationView: View {
                     }
                     .help("Back to Home")
                 }
-            }
-            ToolbarItem(placement: .principal) {
-                Text(model.selectedSessionId == AppModel.homeSessionId ? "Agent" : model.sessions.first(where: { $0.id == model.selectedSessionId })?.title ?? "Agent")
-                    .lineLimit(1)
-                    .frame(maxWidth: 220)
             }
         }
         .toolbarBackground(AgentStyle.canvas, for: .windowToolbar)
