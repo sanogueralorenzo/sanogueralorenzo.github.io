@@ -71,7 +71,7 @@ Call route_tasks once with the complete plan. For each action, quote a unique, n
 
 Use find_conversations when a destination is not listed and read_conversation only when its preview lacks needed context. Carry necessary context between actions. Reuse a saved project's directory or the terminal directory for current project work; omit it for personal work. Omit the instruction only when opening an idle conversation. Output only tool calls.`;
 
-const REPORTER_INSTRUCTIONS = "Report this turn in one report_task call. Use ready for a completed result, needs_input only when the user must respond, and failed for an unsuccessful turn. Write one plain line of at most 12 words: for brief conversational replies, show the reply; otherwise give the main takeaway or needed action. No title, process narration, generic completion claim, praise, or internal details. Output only the tool call.";
+const REPORTER_INSTRUCTIONS = "Report the turn in one report_task call. Use ready for a completed result, needs_input when the user must respond, and failed for an unsuccessful turn. Summarize the answer, concrete outcome, or next action in one plain-language line of at most 12 words. For a conversational reply, use the reply itself. Output only the tool call.";
 
 export class CodexHomeBackend implements HomeBackend {
   constructor(
