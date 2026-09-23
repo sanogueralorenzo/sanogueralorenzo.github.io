@@ -1,6 +1,6 @@
 # Codex Background
 
-A Codex Mac app skill that dispatches work to a native task and returns progress and completion to the originating task. Its small macOS LaunchAgent reads the child's `~/.codex/sessions/.../rollout-...-THREAD_ID.jsonl` file. It does not run a model while idle or modify rollout files.
+A Codex Mac app skill for dispatching work to a separate native task. It returns a task link immediately, leaving the originating task free.
 
 ## Install
 
@@ -9,23 +9,18 @@ From this repository root:
 ```sh
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
 ln -s "$PWD/tools/codex-background" "${CODEX_HOME:-$HOME/.codex}/skills/codex-background"
-python3 tools/codex-background/scripts/listener.py install
 ```
 
-The skill is then available as `$codex-background` in the Mac app. The listener runs as `com.sanogueralorenzo.codex-background-listener` under the user's LaunchAgent domain. The skill's dispatch flow calls `install` again when needed; it leaves an already running, current listener in place.
+The skill is available as `$codex-background` in the Mac app. It uses the app's `create_thread` tool. For pending worktree setup, `scripts/resolve_task.py` can find the real task ID later from a unique prompt marker.
 
-## How it works
+## Return path limitation
 
-The skill uses the Mac app's `create_thread` tool. Each child prompt gets a unique dispatch marker. After dispatch, the skill registers the origin task ID and either the real child ID or a pending worktree marker. The listener resolves pending worktree setup from that marker, then follows the child rollout file from a saved byte offset. It stores the last turn ID and an outbox in SQLite at `~/.codex/background-listener/state.sqlite3`.
+The experimental `scripts/listener.py` can read saved child rollout files from byte offsets, track turns in SQLite, and queue progress and completion into the origin task. End-to-end tests showed that `codex queue` delivers once to the same task when it is idle or active. Each delivery is a **new user turn** that runs a model and may wait in the origin's queue. The skill therefore does not install or use the listener automatically.
 
-When the child emits commentary or `task_complete`, the listener calls the bundled `codex queue --thread SOURCE_ID --message ...`. That queue starts a model turn in the **same originating Mac app task** when it is idle, or places the update after its active turn. Ordinary idle periods cause no model calls. Progress updates are limited to one per minute per child; completion is sent immediately.
+[Codex App Server](https://learn.chatgpt.com/docs/app-server) documents `thread/inject_items` as adding model-visible history, not as posting a visible assistant update. A separate App Server cannot resume a Mac app task while the desktop owns its active writer. No supported passive same-conversation delivery path was verified. Agent remains available for its own live event stream until that gap is solved.
 
-The listener records each complete JSONL line once, including after restart. It reconciles an interrupted queue attempt against user turns in the origin's rollout. If acceptance is ambiguous and no user turn is visible yet, it leaves the event marked `uncertain` and does not resend it automatically; this avoids duplicate updates. Inspect it with `python3 tools/codex-background/scripts/listener.py status TOKEN`.
-
-## Check
+The experimental listener never writes directly to rollout files. Its tests cover complete-line parsing, restart offsets, worktree marker resolution, and queue reconciliation:
 
 ```sh
 python3 -m unittest discover -s tools/codex-background/scripts -p 'test_*.py' -v
 ```
-
-The tests cover partial JSONL lines, saved offsets across restart, one delivery per event, pending worktree marker resolution, and ambiguous queue attempts.
