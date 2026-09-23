@@ -332,7 +332,7 @@ private struct HomeEntryView: View {
 
     @ViewBuilder private var statusBadge: some View {
         if isWorking || statusSymbol != nil {
-            let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
             ZStack {
                 shape.fill(AgentStyle.assistantSurface)
                 if isWorking {
@@ -341,7 +341,7 @@ private struct HomeEntryView: View {
                     Text(symbol).font(.system(size: 13))
                 }
             }
-            .frame(width: 32, height: 32)
+            .frame(width: 36, height: 34)
             .overlay { shape.stroke(AgentStyle.canvas, lineWidth: 4) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isWorking ? "Working" : entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
@@ -371,7 +371,7 @@ private struct HomeEntryView: View {
             .disabled(entry.sessionId == nil)
             .overlay(alignment: .bottomTrailing) {
                 statusBadge
-                    .offset(x: -10, y: 20)
+                    .offset(x: -9, y: 22)
                     .allowsHitTesting(false)
             }
         }
