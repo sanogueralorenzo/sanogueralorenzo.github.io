@@ -87,37 +87,16 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .chat-search-input input { min-width: 0; flex: 1; border: 0; outline: 0; color: var(--graphite); background: transparent; font-size: 14px; }
 .scroll-area { overflow: auto; overscroll-behavior: contain; scrollbar-color: color-mix(in srgb, var(--muted) 30%, transparent) transparent; scrollbar-width: thin; }
 .home-scroll, .session-scroll { flex: 1 1 auto; min-height: 0; }
-.home-content { width: min(600px, 100%); margin: 0 auto; padding: 24px 22px 20px; display: flex; flex-direction: column; gap: 22px; }
-.welcome-card { background: var(--surface); border-radius: 20px; padding: 20px; }
-.eyebrow { display: flex; align-items: center; gap: 9px; color: var(--clay); font-size: 13px; font-weight: 600; }
-.eyebrow span { color: var(--graphite); }
-.welcome-card h1 { margin: 15px 0 7px; font-size: 22px; line-height: 1.25; letter-spacing: -.35px; font-weight: 650; }
-.welcome-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
-.welcome-card ul { margin: 13px 0 0; padding: 0; list-style: none; display: grid; gap: 9px; }
-.welcome-card li { display: flex; align-items: baseline; gap: 9px; font-size: 13px; line-height: 1.45; }
-.welcome-card li::before { content: ""; flex: 0 0 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--clay); }
-.workspace-card { background: var(--input); border: 1px solid var(--line); border-radius: 18px; padding: 17px 18px; }
-.workspace-card h2, .recent-tasks h2 { margin: 0; font-size: 14px; line-height: 1.3; font-weight: 650; }
-.workspace-row { min-height: 48px; display: flex; align-items: center; gap: 12px; }
-.workspace-card h2 + .workspace-row { margin-top: 10px; }
-.workspace-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 10px; background: var(--surface); color: var(--muted); display: flex; align-items: center; justify-content: center; }
-.workspace-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.workspace-copy strong { font-size: 12px; font-weight: 550; }
-.workspace-copy small { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.connection-mark { margin-left: auto; color: color-mix(in srgb, var(--muted) 60%, transparent); display: flex; }
-.connection-mark.connected { color: var(--clay); }
-.card-divider { height: 1px; margin: 5px 0; background: var(--line); }
-.recent-tasks { display: flex; flex-direction: column; gap: 12px; }
+.home-content { width: min(820px, 100%); min-height: 100%; margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 20px; }
+.empty-home-chat { flex: 1; min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px; color: var(--muted); }
+.empty-home-chat .brand-mark { width: 34px; height: 34px; margin-bottom: 2px; }
+.empty-home-chat strong { color: var(--graphite); font-size: 20px; font-weight: 550; }
+.empty-home-chat p { margin: 0; font-size: 13px; }
 .home-exchange { display: flex; flex-direction: column; gap: 14px; }
-.section-heading { display: flex; align-items: center; gap: 8px; }
-.count-badge { color: var(--muted); font-size: 11px; }
-.empty-card { margin: 0; padding: 16px; color: var(--muted); font-size: 13px; border-radius: 16px; background: var(--input); }
-.home-entry { display: flex; align-items: center; gap: 10px; margin-left: auto; width: fit-content; max-width: calc(100% - 58px); min-width: min(280px, 70%); padding: 13px 17px; border: 0; border-radius: 20px; color: white; text-align: left; background: var(--user); cursor: pointer; position: relative; }
-.home-entry + .home-entry { margin-top: 14px; }
-.home-entry:hover { filter: brightness(1.08); }
-.entry-copy { display: grid; gap: 5px; font-size: 15px; line-height: 1.45; }
-.state-chip { position: absolute; right: -9px; bottom: -9px; min-width: 34px; height: 30px; border-radius: 14px; border: 4px solid var(--canvas); background: var(--assistant); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
-.state-chip.working { color: white; }
+.home-entry { margin-left: auto; width: fit-content; max-width: calc(100% - 58px); min-width: min(280px, 70%); padding: 13px 17px; border: 0; border-radius: 20px; color: white; text-align: left; background: var(--user); cursor: default; }
+.home-entry[data-action] { cursor: pointer; }
+.home-entry[data-action]:hover { filter: brightness(1.08); }
+.home-progress { width: min(820px, 100%); margin: -4px auto 0; padding: 0 20px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .session-scroll { scroll-behavior: auto; }
 .transcript { width: min(820px, 100%); margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; }
 .message-row { display: flex; width: 100%; }
@@ -215,10 +194,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 @keyframes pulse { 50% { opacity: .35; transform: translateY(-2px); } }
 
 @media (max-width: 520px) {
-  .home-content { padding: 18px 14px 16px; gap: 16px; }
-  .welcome-card { padding: 17px; }
-  .welcome-card h1 { font-size: 20px; }
-  .workspace-card { padding: 15px; }
+  .home-content { padding: 18px 12px; gap: 16px; }
   .topbar { padding: 0 9px; }
   .topbar-side { min-width: 65px; }
   .transcript { padding: 18px 12px; gap: 16px; }
