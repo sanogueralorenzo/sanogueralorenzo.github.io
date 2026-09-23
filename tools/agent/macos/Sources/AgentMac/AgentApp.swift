@@ -9,10 +9,10 @@ private enum AgentStyle {
         })
     }
 
-    static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.045, 0.045, 0.045))
+    static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.016, 0.016, 0.016))
     static let surface = adaptive(light: (0.925, 0.910, 0.882), dark: (0.16, 0.155, 0.145))
-    static let userSurface = adaptive(light: (0.035, 0.41, 0.86), dark: (0.035, 0.41, 0.86))
-    static let assistantSurface = adaptive(light: (0.14, 0.14, 0.14), dark: (0.14, 0.14, 0.14))
+    static let userSurface = adaptive(light: (0.055, 0.45, 0.90), dark: (0.055, 0.45, 0.90))
+    static let assistantSurface = adaptive(light: (0.11, 0.11, 0.11), dark: (0.11, 0.11, 0.11))
     static let graphite = adaptive(light: (0.18, 0.17, 0.16), dark: (0.92, 0.90, 0.87))
     static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
     static let line = graphite.opacity(0.13)
@@ -23,7 +23,7 @@ private enum AgentStyle {
     static let messageMaxWidth: CGFloat = 640
     static let messageGutter: CGFloat = 48
     static let edgePadding: CGFloat = 20
-    static let bubbleRadius: CGFloat = 30
+    static let bubbleRadius: CGFloat = 20
 }
 
 @main
@@ -341,7 +341,7 @@ private struct HomeEntryView: View {
                     Text(symbol).font(.system(size: 13))
                 }
             }
-            .frame(width: 36, height: 34)
+            .frame(width: 34, height: 30)
             .overlay { shape.stroke(AgentStyle.canvas, lineWidth: 4) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isWorking ? "Working" : entry.state == "needs_input" ? "Needs your reply" : entry.state == "failed" ? "Failed" : "Ready")
@@ -354,7 +354,7 @@ private struct HomeEntryView: View {
             Button(action: open) {
                 VStack(alignment: .leading, spacing: 5) {
                     if let title = entry.title {
-                        Text(title).font(.system(size: 14, weight: .semibold))
+                        Text(title).font(.system(size: 15))
                     }
                     Text(entry.summary ?? entry.body)
                         .font(.system(size: 15))
@@ -362,8 +362,8 @@ private struct HomeEntryView: View {
                         .multilineTextAlignment(.leading)
                 }
                 .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
+                .padding(.horizontal, 17)
+                .padding(.vertical, 13)
                 .foregroundStyle(.white)
                 .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: AgentStyle.bubbleRadius, style: .continuous))
             }
@@ -371,7 +371,7 @@ private struct HomeEntryView: View {
             .disabled(entry.sessionId == nil)
             .overlay(alignment: .bottomTrailing) {
                 statusBadge
-                    .offset(x: -9, y: 22)
+                    .offset(x: -6, y: 20)
                     .allowsHitTesting(false)
             }
         }
