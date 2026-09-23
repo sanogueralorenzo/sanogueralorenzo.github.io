@@ -7,8 +7,6 @@ if [[ -n "$GODOT_BIN" ]]; then
   engine="$GODOT_BIN"
 elif [[ -x /Applications/Godot_mono.app/Contents/MacOS/Godot ]]; then
   engine=/Applications/Godot_mono.app/Contents/MacOS/Godot
-elif [[ -x "$HOME/AndroidStudioProjects/sanogueralorenzo.github.io/games/sno-godot-local/toolchain/Godot_mono.app/Contents/MacOS/Godot" ]]; then
-  engine="$HOME/AndroidStudioProjects/sanogueralorenzo.github.io/games/sno-godot-local/toolchain/Godot_mono.app/Contents/MacOS/Godot"
 else
   engine=godot-mono
 fi
