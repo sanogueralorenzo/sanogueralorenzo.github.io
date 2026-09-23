@@ -12,10 +12,7 @@ A small collection of things I'm building and experimenting with.
 - [Agent](./tools/agent/README.md) — a locally hosted website for personal and coding work.
 - [Codex Background](./tools/codex-background/README.md) — native Mac app task dispatch.
 - [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
-- [Minutes](./tools/minutes/README.md) — meeting recaps and action items.
 - [Overlay](./tools/overlay/README.md) — an Android screen overlay for background audio.
-- [Rewrite](./tools/rewrite/README.md) — a macOS menu app for concise, clear text.
-- [Trace](./tools/trace/README.md) — links AI coding conversations to Git commits.
 - [Voice](./tools/voice/README.md) — private, local dictation.
 
 ## Site
