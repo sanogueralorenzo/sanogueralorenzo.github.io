@@ -9,10 +9,6 @@ public partial class Game : Node2D
     OceanView3D ocean = null!;
     Vector2 uiPointer = new(-1000, -1000);
     V2? destination;
-    readonly List<double> frameSamples = new();
-    float performanceClock, lastPerformanceLog;
-    double simulationMs;
-    int peakEnemyCount, peakShotCount;
     int gameSpeed = 1;
     Hud hud = null!;
 
@@ -46,8 +42,6 @@ public partial class Game : Node2D
     }
     public override void _Process(double delta)
     {
-        if (!title && Run.Mode == VoyageMode.Sailing) { frameSamples.Add(delta * 1000); if(frameSamples.Count>7200)frameSamples.RemoveRange(0,3600); performanceClock += (float)delta; peakEnemyCount = Math.Max(peakEnemyCount, Run.Enemies.Count); peakShotCount = Math.Max(peakShotCount, Run.Shots.Count); }
-        if (performanceClock-lastPerformanceLog>30) { lastPerformanceLog=performanceClock; var sorted=frameSamples.Order().ToArray(); GD.Print($"LIVE sailingSeconds={performanceClock:0} frameMeanMs={sorted.Average():0.00} p95Ms={sorted[(int)(sorted.Length*.95)]:0.00} chunks={Run.World.Loaded.Count} enemies={Run.Enemies.Count} shots={Run.Shots.Count} distance={Run.Distance:0} hp={Run.Health:0} combatSeconds={Run.CombatTime:0.0} populationTarget={Run.Director.Target(Run.CombatTime)} boss={Run.BossSpawned}"); }
         float dt = (float)Math.Min(delta, .05); elapsed += dt; toastTime = Math.Max(0, toastTime - dt);
         lootNoticeTime = Math.Max(0, lootNoticeTime - dt);
         // Repeat bounded simulation steps so faster time preserves collision and combat cadence.
@@ -58,9 +52,7 @@ public partial class Game : Node2D
                 V2 move = new((Down(Key.D) || Down(Key.Right) ? 1 : 0) - (Down(Key.A) || Down(Key.Left) ? 1 : 0), (Down(Key.S) || Down(Key.Down) ? 1 : 0) - (Down(Key.W) || Down(Key.Up) ? 1 : 0));
                 if (move != V2.Zero) { destination = null; }
                 if (destination is V2 goal) { var d = goal - Run.Position; if (d.Length() < 45) destination = null; else move = d; }
-                var tickStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 Run.Tick(dt, new(move, (Down(Key.Space) || Down(Key.Shift))));
-                if (Run.Mode == VoyageMode.Sailing) simulationMs = simulationMs * .95 + System.Diagnostics.Stopwatch.GetElapsedTime(tickStart).TotalMilliseconds * .05;
             }
             ocean.Destination = destination;
             foreach (var e in Run.Events)
@@ -127,7 +119,7 @@ public partial class Game : Node2D
     void Start()
     {
         lootNoticeTime = 0;
-        creditedSilver = 0; gameSpeed = 1; destination = null; frameSamples.Clear(); performanceClock = lastPerformanceLog = 0; peakEnemyCount = peakShotCount = 0;
+        creditedSilver = 0; gameSpeed = 1; destination = null;
         if (title)
         {
             // Keep the already-visible voyage, meshes, boat and animation clock.
