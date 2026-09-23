@@ -8,6 +8,5 @@ export function renderSession(state) {
 
 export function renderHeader(state) {
   const isHome = state.selectedSessionId === "home";
-  return `<header class="topbar"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" aria-label="Back to Home" title="Back to Home" data-action="home">${icon("back", 19)}</button>`}</div><div class="brand"><span class="brand-mark">${icon("sparkle", 14)}</span><strong>Agent</strong></div><div class="topbar-side topbar-end"><button class="icon-button" aria-label="New session" title="New session" data-action="new-session">${icon("add", 18)}</button><button class="icon-button settings-trigger" aria-label="Settings" title="Settings" data-action="toggle-settings">${icon("settings", 17)}</button></div></header>`;
+  return `<header class="topbar"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" aria-label="Back to Home" title="Back to Home" data-action="home">${icon("back", 19)}</button>`}</div><div class="brand">${isHome ? `<span class="brand-mark">${icon("sparkle", 14)}</span><strong>Agent</strong>` : ""}</div><div class="topbar-side topbar-end">${isHome ? `<button class="icon-button new-session-button" aria-label="New session" title="New session" data-action="new-session">${icon("compose", 14)}</button>` : ""}<button class="icon-button settings-trigger" aria-label="Settings" title="Settings" data-action="toggle-settings">${icon("settings", 17)}</button></div></header>`;
 }
-

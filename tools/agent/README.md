@@ -14,7 +14,7 @@ npm link
 agent web
 ```
 
-`agent web` starts the shared local runtime and opens Agent at `127.0.0.1`. For local UI development, use `npm run web:dev` from this directory. Use Settings in the website to sign in.
+`agent web` starts or attaches the website to the shared local runtime and opens Agent at `127.0.0.1`. For local UI development, use `npm run web:dev` from this directory. Use Settings in the website to sign in.
 
 See [Local protocol](docs/protocol.md) for runtime and security details.
 

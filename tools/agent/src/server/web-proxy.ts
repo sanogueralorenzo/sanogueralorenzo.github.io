@@ -27,13 +27,22 @@ export class WebsiteProxy {
 
   constructor(private readonly runtime: ExistingRuntime, private readonly homeDir: string) {}
 
-  async listen(): Promise<number> {
-    await new Promise<void>((resolve, reject) => {
-      this.server.once("error", reject);
-      this.server.listen(0, "127.0.0.1", resolve);
-    });
+  async listen(port = 0): Promise<number> {
+    try {
+      await this.listenOn(port);
+    } catch (error) {
+      if (port === 0 || (error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
+      await this.listenOn(0);
+    }
     this.port = (this.server.address() as { port: number }).port;
     return this.port;
+  }
+
+  private listenOn(port: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.server.once("error", reject);
+      this.server.listen(port, "127.0.0.1", resolve);
+    });
   }
 
   close(): void {
@@ -50,8 +59,8 @@ export class WebsiteProxy {
     if (!this.isSameOrigin(request)) return this.json(response, 403, { error: "cross_origin_request" });
     const cookie = request.headers.cookie?.split(";").map((value) => value.trim()).find((value) => value.startsWith("agent_session="))?.slice("agent_session=".length);
     if (cookie !== this.token) return this.json(response, 401, { error: "unauthorized" });
-    if (request.method === "POST" && url.pathname === "/v1/control/shutdown") {
-      this.json(response, 200, { stopping: true });
+    if (request.method === "POST" && url.pathname === "/v1/control/quit") {
+      this.json(response, 200, { closed: true });
       setTimeout(() => this.close(), 50).unref();
       return;
     }

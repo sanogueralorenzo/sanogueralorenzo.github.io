@@ -24,13 +24,19 @@ async function inspectExistingRuntime(): Promise<{ url: string; website: boolean
     if (!health.ok) return null;
     const healthStatus = await health.json() as { pid?: number };
     if (healthStatus.pid !== existing.pid) return { url, website: false, runtime: null };
-    const page = await fetch(`${url}/`, { signal: AbortSignal.timeout(1500) });
-    const isWebsite = page.ok && Boolean(page.headers.get("content-type")?.startsWith("text/html"))
-      && (await page.text()).includes("/web/app.css");
+    const isWebsite = await servesWebsite(url);
     return { url, website: isWebsite, runtime: existing };
   } catch {
     return null;
   }
+}
+
+async function servesWebsite(url: string): Promise<boolean> {
+  try {
+    const page = await fetch(`${url}/`, { signal: AbortSignal.timeout(1500) });
+    return page.ok && Boolean(page.headers.get("content-type")?.startsWith("text/html"))
+      && (await page.text()).includes("/web/app.css");
+  } catch { return false; }
 }
 
 function openWebsite(url: string): void {
@@ -78,8 +84,14 @@ if (webRequested) {
       console.error(`Another service is using ${existing.url}; Agent will not replace its runtime file.`);
       process.exit(1);
     }
+    const proxyPort = existing.runtime.port + 1;
+    const proxyUrl = `http://127.0.0.1:${proxyPort}`;
+    if (proxyPort <= 65535 && await servesWebsite(proxyUrl)) {
+      openWebsite(proxyUrl);
+      process.exit(0);
+    }
     const proxy = new WebsiteProxy(existing.runtime, config.homeDir);
-    const port = await proxy.listen();
+    const port = await proxy.listen(proxyPort <= 65535 ? proxyPort : 0);
     openWebsite(`http://127.0.0.1:${port}`);
     process.on("SIGINT", () => proxy.close());
     process.on("SIGTERM", () => proxy.close());

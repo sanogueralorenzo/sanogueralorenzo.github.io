@@ -20,9 +20,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude src/codex/codex.live.test.ts",
     "test:live": "vitest run src/codex/codex.live.test.ts",
-    "check": "npm run typecheck && npm test && npm run build",
-    "macos:build": "swift build --package-path macos",
-    "macos:run": "swift run --package-path macos AgentMac"
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "codec-parser": "^2.5.0",

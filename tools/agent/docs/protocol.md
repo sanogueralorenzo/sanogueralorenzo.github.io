@@ -2,11 +2,13 @@
 
 The local website and other clients connect to the runtime on loopback HTTP. The runtime atomically writes `~/.agent/runtime.json` with protocol version `1`, its port, PID, and a random bearer token. The file is mode 0600 and regenerated at every start. The website is served by the runtime from that same loopback origin; it receives an HttpOnly, SameSite cookie and never reads the runtime discovery file. The server remains bound to `127.0.0.1`.
 
+If an older runtime is already running, `agent web` starts a small same-origin website proxy that forwards API and event-stream requests with the private runtime token. It leaves the existing runtime and its discovery file untouched. Quitting the website closes the proxy while background work continues.
+
 ## Endpoints
 
 - `GET /v1/health` — unauthenticated liveness only
 - `GET /` and `/web/*` — local website assets
-- `POST /v1/control/shutdown` — gracefully stop the local runtime
+- `POST /v1/control/quit` — close the website proxy when one is in use; the shared runtime and background work continue
 - `GET /v1/artifacts/:id` — view a saved artifact from the private artifact directory
 - `GET /v1/setup` — setup state
 - `POST /v1/setup/logout` — sign out of Agent's private Codex profile

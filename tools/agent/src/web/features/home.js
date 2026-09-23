@@ -1,4 +1,4 @@
-import { escapeHTML, icon } from "../view.js";
+import { escapeHTML, icon, renderInlineMarkdown } from "../view.js";
 
 export function renderHome(state) {
   const codex = state.setupStatus?.codex;
@@ -33,9 +33,9 @@ function renderHomeEntry(entry) {
     : entry.state === "ready" ? '<span class="state-chip">👍</span>'
     : entry.state === "needs_input" ? '<span class="state-chip">💬</span>'
     : entry.state === "failed" ? '<span class="state-chip">⚠️</span>' : "";
-  return `<button class="home-entry" data-action="open-session" data-session="${escapeHTML(entry.sessionId ?? "")}" ${entry.sessionId ? "" : "disabled"}><span class="entry-copy">${entry.title ? `<strong>${escapeHTML(entry.title)}</strong>` : ""}<span>${escapeHTML(entry.summary ?? entry.body)}</span></span>${status}</button>`;
+  return `<button class="home-entry" data-action="open-session" data-session="${escapeHTML(entry.sessionId ?? "")}" ${entry.sessionId ? "" : "disabled"}><span class="entry-copy">${entry.title ? `<strong>${escapeHTML(entry.title)}</strong>` : ""}<span>${renderInlineMarkdown(entry.summary ?? entry.body)}</span></span>${status}</button>`;
 }
 
 export function renderBottomBar() {
-  return `<nav class="bottom-bar" aria-label="Main navigation"><button class="bottom-item selected" data-action="home" disabled>${icon("home", 17)}<span>Home</span></button><button class="bottom-item" data-action="toggle-sessions">${icon("clock", 17)}<span>Sessions</span></button></nav>`;
+  return `<nav class="bottom-bar" aria-label="Main navigation"><button class="bottom-item selected" data-action="home" disabled>${icon("home-fill", 15)}<span>Home</span></button><button class="bottom-item" data-action="toggle-sessions">${icon("clock", 15)}<span>Sessions</span></button></nav>`;
 }

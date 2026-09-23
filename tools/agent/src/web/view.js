@@ -10,11 +10,13 @@ export function icon(name, size = 18) {
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
     circle: '<circle cx="12" cy="12" r="9"/>',
-    "check-circle": '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16.5 8.5"/>',
+    "check-circle": '<circle cx="12" cy="12" r="9" fill="currentColor"/><path d="m8 12 2.5 2.5L16.5 8.5" stroke="var(--canvas)" stroke-width="2.2"/>',
     connection: '<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="m10.7 7.2-4.4 8.6m7-8.6 4.4 8.6M7.5 18h9"/>',
+    compose: '<path d="M14 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-9"/><path d="m12 15 8.5-8.5a2.1 2.1 0 0 0-3-3L9 12l-.7 3.7z"/>',
     file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1z"/>',
+    "home-fill": '<path d="m2.5 10.5 9.5-8.4 9.5 8.4-1.5 1.7-2-1.8V20a1 1 0 0 1-1 1h-3.5v-6h-4v6H6a1 1 0 0 1-1-1v-9.6l-2 1.8z" fill="currentColor" stroke="none"/>',
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/>',
     more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     pin: '<path d="m16 3 5 5-4 1-4 4-1 4-2-2-4 4"/><path d="m8 8 8 8"/>',
@@ -28,7 +30,7 @@ export function icon(name, size = 18) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.sparkle}</svg>`;
 }
 
-function renderInlineMarkdown(value) {
+export function renderInlineMarkdown(value) {
   const code = [];
   let text = escapeHTML(value).replace(/`([^`]+)`/g, (_match, content) => {
     const marker = `\u0000${code.length}\u0000`;
@@ -43,14 +45,17 @@ function renderInlineMarkdown(value) {
       if (!["http:", "https:", "mailto:"].includes(url.protocol)) return label;
       safeHref = escapeHTML(url.href);
     } catch { return label; }
-    return `<a href="${safeHref}"${title ? ` title="${escapeHTML(title)}"` : ""} target="_blank" rel="noreferrer">${label}</a>`;
+    const rendered = `<a href="${safeHref}"${title ? ` title="${escapeHTML(title)}"` : ""} target="_blank" rel="noreferrer">${label}</a>`;
+    const marker = `\u0000${code.length}\u0000`;
+    code.push(rendered);
+    return marker;
   });
   text = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/__([^_]+)__/g, "<strong>$1</strong>")
     .replace(/~~([^~]+)~~/g, "<del>$1</del>")
     .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
     .replace(/(^|[^_])_([^_\n]+)_/g, "$1<em>$2</em>");
-  return text.replace(/\u0000(\d+)\u0000/g, (_match, index) => code[Number(index)] ?? "");
+  return text.replace(/\u0000(\d+)\u0000/g, (_match, index) => code[Number(index)] ?? "").replaceAll("\n", "<br>");
 }
 
 export function renderMarkdown(value = "") {

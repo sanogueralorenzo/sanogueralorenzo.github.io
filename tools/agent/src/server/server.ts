@@ -93,9 +93,8 @@ export class RuntimeServer {
 
     try {
       const route = `${request.method} ${url.pathname}`;
-      if (route === "POST /v1/control/shutdown") {
-        json(response, 200, { stopping: true });
-        setTimeout(() => process.emit("SIGTERM"), 50).unref();
+      if (route === "POST /v1/control/quit") {
+        json(response, 200, { closed: false });
         return;
       }
       if (route.startsWith("GET /v1/sessions/") && route.endsWith("/messages")) {

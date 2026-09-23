@@ -9,6 +9,10 @@ import { escapeHTML, icon } from "./view.js";
 const root = document.querySelector("#app");
 const state = {
   setupStatus: null,
+  apiKey: "",
+  apiKeyValid: false,
+  loginApiKey: "",
+  loginApiKeyValid: false,
   needsSetup: false,
   setupMessage: "",
   isSettingUp: false,
@@ -21,6 +25,7 @@ const state = {
   isUploadingVoice: false,
   submittingSessionId: null,
   isRecording: false,
+  windowClosed: false,
   connectionError: "",
   activity: "",
   selectedSessionId: null,
@@ -43,6 +48,7 @@ let audioChunks = [];
 let pipWindow = null;
 
 function render() {
+  if (state.windowClosed) return;
   const focused = document.activeElement?.dataset?.focus === "composer";
   const selection = focused ? document.activeElement.selectionStart : null;
   const oldScroll = root.querySelector(".scroll-area");
@@ -50,8 +56,6 @@ function render() {
   const stickToBottom = oldScroll ? oldScroll.scrollHeight - oldScroll.scrollTop - oldScroll.clientHeight < 100 : true;
   if (state.needsSetup) {
     root.innerHTML = `<div class="app-shell"><header class="topbar"><div></div><div></div><div class="topbar-side topbar-end"><button class="icon-button settings-trigger" aria-label="Settings" title="Settings" data-action="toggle-settings">${icon("settings", 17)}</button></div></header>${renderSetup(state)}${renderSettings(state)}${renderLoginDialog(state)}</div>`;
-  } else if (!state.setupStatus) {
-    root.innerHTML = '<main class="startup"><i class="spinner"></i><span>Starting Agent…</span></main>';
   } else {
     const home = state.selectedSessionId === "home";
     root.innerHTML = `<div class="app-shell">${renderHeader(state)}${home ? `${renderHome(state)}${state.connectionError ? `<div class="connection-error home-error"><span>${escapeHTML(state.connectionError)}</span><button data-action="retry">Retry</button></div>` : ""}` : renderSession(state)}${renderComposer(state)}${home ? renderBottomBar() : ""}${renderSettings(state)}${renderSessionMenu(state)}${renderLoginDialog(state)}</div>`;
@@ -73,7 +77,24 @@ function showError(error) {
   render();
 }
 
+function closeWindow(message) {
+  state.windowClosed = true;
+  if (stream) stream.close();
+  stream = null;
+  if (mediaRecorder?.state === "recording" || mediaRecorder?.state === "paused") mediaRecorder.stop();
+  mediaRecorder = null;
+  for (const track of mediaStream?.getTracks() ?? []) track.stop();
+  mediaStream = null;
+  window.close();
+  root.innerHTML = `<main class="startup">${escapeHTML(message)}</main>`;
+}
+
 async function start() {
+  if (stream) stream.close();
+  stream = null;
+  state.activity = "";
+  state.connectionError = "";
+  state.isConnected = false;
   try {
     state.setupStatus = await request("/v1/setup");
     if (!state.setupStatus.configured) {
@@ -81,13 +102,16 @@ async function start() {
       render();
       return;
     }
+    state.showingLogin = false;
     state.needsSetup = false;
-    const { session } = await post("/v1/sessions/auto", {});
+    const { session } = await post("/v1/sessions/auto", {
+      ...(state.selectedSessionId ? { preferredSessionId: state.selectedSessionId } : {}),
+    });
     await selectSession(session.id, { keepDraft: false });
   } catch (error) {
-    state.setupStatus = { configured: false, authMode: null, codex: { installed: false, connected: false } };
-    state.needsSetup = true;
-    state.setupMessage = error.message;
+    state.setupStatus = null;
+    state.needsSetup = false;
+    state.connectionError = error.message;
     render();
   }
 }
@@ -306,7 +330,8 @@ async function newSession() {
 async function send() {
   const text = state.input.trim();
   const note = state.voiceNote;
-  if ((!text && !note) || !state.isConnected || state.isUploadingVoice) return;
+  if ((!text && !note) || !state.isConnected || state.isUploadingVoice
+    || (state.isRunning && state.selectedSessionId !== "home" && note)) return;
   if (text === "/new" && !note) {
     state.input = "";
     return newSession();
@@ -421,6 +446,9 @@ async function loginWithChatGPT() {
 async function connectApiKey(form) {
   const key = new FormData(form).get("apiKey");
   if (typeof key !== "string" || !key.startsWith("sk-")) return;
+  const loginForm = form.dataset.form === "login-api-key";
+  state[loginForm ? "loginApiKey" : "apiKey"] = "";
+  state[loginForm ? "loginApiKeyValid" : "apiKeyValid"] = false;
   state.isSettingUp = true;
   state.setupMessage = "Connecting API key…";
   render();
@@ -520,12 +548,22 @@ async function pinWindow() {
 
 async function quitAgent() {
   try {
-    await post("/v1/control/shutdown", {});
-    root.innerHTML = '<main class="startup"><span>Agent has stopped.</span></main>';
+    const { closed } = await post("/v1/control/quit", {});
+    state.showingSettings = false;
+    closeWindow(`${closed ? "The website server is closed." : "You can close this tab to quit Agent."} Background work will continue.`);
   } catch (error) { showError(error); }
 }
 
 root.addEventListener("input", (event) => {
+  if (event.target.matches('[data-form$="api-key"] input')) {
+    const loginForm = event.target.form?.dataset.form === "login-api-key";
+    const keyName = loginForm ? "loginApiKey" : "apiKey";
+    const validName = `${keyName}Valid`;
+    state[keyName] = event.target.value;
+    state[validName] = event.target.value.startsWith("sk-");
+    const button = event.target.form?.querySelector("button");
+    if (button) button.disabled = state.isSettingUp || state.setupStatus?.codex?.installed !== true || !state[validName];
+  }
   if (event.target.matches('[data-focus="composer"]')) {
     state.input = event.target.value;
     event.target.style.height = "38px";
@@ -543,7 +581,7 @@ root.addEventListener("keydown", (event) => {
 });
 
 root.addEventListener("submit", (event) => {
-  if (event.target.matches('[data-form="api-key"]')) {
+  if (event.target.matches('[data-form="api-key"], [data-form="login-api-key"]')) {
     event.preventDefault();
     void connectApiKey(event.target);
   }
@@ -641,8 +679,7 @@ root.addEventListener("click", async (event) => {
       }
       break;
     case "retry":
-      state.connectionError = "";
-      await selectSession(state.selectedSessionId ?? "home");
+      await start();
       break;
     case "edit-queued": {
       const task = state.queuedTasks.find((item) => item.id === button.dataset.task);
@@ -680,7 +717,11 @@ document.addEventListener("keydown", (event) => {
     if (state.showingLogin) state.showingLogin = false;
     else if (state.showingSettings) state.showingSettings = false;
     else if (state.showingSessions) state.showingSessions = false;
-    else if (state.selectedSessionId !== "home") void selectSession("home");
+    else if (state.selectedSessionId === "home") {
+      closeWindow("Close this tab to close Agent. Background work will continue.");
+      return;
+    } else if (state.selectedSessionId) void selectSession("home");
+    else return;
     render();
   }
 });
