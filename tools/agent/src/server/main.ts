@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { loadConfig } from "../local/config.js";
-import { execFileSync, spawn } from "node:child_process";
-import { networkInterfaces } from "node:os";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { AgentRuntime } from "../conversation/runtime.js";
 import { Store } from "../conversation/store.js";
@@ -15,25 +14,6 @@ import { WebsiteProxy, type ExistingRuntime } from "./web-proxy.js";
 
 const config = loadConfig();
 const webRequested = process.env.AGENT_OPEN_WEB === "1";
-const tailscaleRequested = process.env.AGENT_TAILSCALE_WEB === "1";
-
-function tailscaleIPv4(): string {
-  let address: string;
-  try {
-    address = execFileSync("tailscale", ["ip", "-4"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3000 }).trim();
-  } catch {
-    throw new Error("Could not query Tailscale. Make sure its CLI is installed, logged in, and connected.");
-  }
-  const octets = address.split(".").map(Number);
-  const isTailscaleRange = octets.length === 4 && octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)
-    && octets[0] === 100 && octets[1]! >= 64 && octets[1]! <= 127;
-  const isAssignedLocally = Object.values(networkInterfaces()).flatMap((interfaces) => interfaces ?? [])
-    .some((entry) => entry.family === "IPv4" && entry.address === address);
-  if (!isTailscaleRange || !isAssignedLocally) {
-    throw new Error("Tailscale did not report an active IPv4 address for this Mac.");
-  }
-  return address;
-}
 
 async function inspectExistingRuntime(): Promise<{ url: string; website: boolean; runtime: ExistingRuntime | null } | null> {
   const existing = readPrivateJson<ExistingRuntime>(join(config.homeDir, "runtime.json"));
@@ -67,7 +47,7 @@ function openWebsite(url: string): void {
   }
 }
 
-async function startAgentRuntime(tailnetAddress?: string): Promise<void> {
+async function startAgentRuntime(): Promise<void> {
   const store = new Store(config.homeDir);
   const codexClient = createAgentCodexAppServer(config);
   const codex = new CodexBackend(config, store, codexClient);
@@ -76,23 +56,7 @@ async function startAgentRuntime(tailnetAddress?: string): Promise<void> {
   const server = new RuntimeServer(config, runtime, store, setup);
 
   const port = await server.listen();
-  let proxy: WebsiteProxy | undefined;
-  let url = `http://127.0.0.1:${port}`;
-  if (webRequested && tailnetAddress) {
-    try {
-      const runtime = readPrivateJson<ExistingRuntime>(join(config.homeDir, "runtime.json"));
-      if (!runtime) throw new Error("Could not read the local Agent runtime connection details.");
-      proxy = new WebsiteProxy(runtime, config.homeDir);
-      const proxyPort = await proxy.listen(0, tailnetAddress);
-      url = `http://${tailnetAddress}:${proxyPort}`;
-    } catch (error) {
-      proxy?.close();
-      await server.close();
-      codexClient.stop();
-      store.close();
-      throw error;
-    }
-  }
+  const url = `http://127.0.0.1:${port}`;
   if (process.send) process.send({ type: "ready", port });
   else if (webRequested) openWebsite(url);
   else console.log(`Agent runtime listening on ${url}`);
@@ -101,7 +65,6 @@ async function startAgentRuntime(tailnetAddress?: string): Promise<void> {
   async function close(): Promise<void> {
     if (closing) return;
     closing = true;
-    proxy?.close();
     await server.close();
     codexClient.stop();
     store.close();
@@ -113,42 +76,27 @@ async function startAgentRuntime(tailnetAddress?: string): Promise<void> {
 }
 
 if (webRequested) {
-  const tailnetAddress = tailscaleRequested ? tailscaleIPv4() : undefined;
   const existing = await inspectExistingRuntime();
   if (existing?.website) {
-    if (!tailnetAddress || !existing.runtime) openWebsite(existing.url);
-    else {
-      const proxyPort = existing.runtime.port + 1;
-      const proxyUrl = `http://${tailnetAddress}:${proxyPort}`;
-      if (proxyPort <= 65535 && await servesWebsite(proxyUrl)) {
-        openWebsite(proxyUrl);
-        process.exit(0);
-      }
-      const proxy = new WebsiteProxy(existing.runtime, config.homeDir);
-      const port = await proxy.listen(proxyPort <= 65535 ? proxyPort : 0, tailnetAddress);
-      openWebsite(`http://${tailnetAddress}:${port}`);
-      process.on("SIGINT", () => proxy.close());
-      process.on("SIGTERM", () => proxy.close());
-    }
+    openWebsite(existing.url);
   } else if (existing) {
     if (!existing.runtime) {
       console.error(`Another service is using ${existing.url}; Agent will not replace its runtime file.`);
       process.exit(1);
     }
     const proxyPort = existing.runtime.port + 1;
-    const proxyHost = tailnetAddress ?? "127.0.0.1";
-    const proxyUrl = `http://${proxyHost}:${proxyPort}`;
+    const proxyUrl = `http://127.0.0.1:${proxyPort}`;
     if (proxyPort <= 65535 && await servesWebsite(proxyUrl)) {
       openWebsite(proxyUrl);
       process.exit(0);
     }
     const proxy = new WebsiteProxy(existing.runtime, config.homeDir);
-    const port = await proxy.listen(!tailnetAddress && proxyPort <= 65535 ? proxyPort : 0, proxyHost);
-    openWebsite(`http://${proxyHost}:${port}`);
+    const port = await proxy.listen(proxyPort <= 65535 ? proxyPort : 0);
+    openWebsite(`http://127.0.0.1:${port}`);
     process.on("SIGINT", () => proxy.close());
     process.on("SIGTERM", () => proxy.close());
   } else {
-    await startAgentRuntime(tailnetAddress);
+    await startAgentRuntime();
   }
 } else {
   await startAgentRuntime();

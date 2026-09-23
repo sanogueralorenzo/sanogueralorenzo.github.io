@@ -24,26 +24,24 @@ export class WebsiteProxy {
   private readonly token = randomBytes(32).toString("base64url");
   private readonly server = createServer(this.handle.bind(this));
   private port = 0;
-  private host = "127.0.0.1";
 
   constructor(private readonly runtime: ExistingRuntime, private readonly homeDir: string) {}
 
-  async listen(port = 0, host = "127.0.0.1"): Promise<number> {
-    this.host = host;
+  async listen(port = 0): Promise<number> {
     try {
-      await this.listenOn(port, host);
+      await this.listenOn(port);
     } catch (error) {
       if (port === 0 || (error as NodeJS.ErrnoException).code !== "EADDRINUSE") throw error;
-      await this.listenOn(0, host);
+      await this.listenOn(0);
     }
     this.port = (this.server.address() as { port: number }).port;
     return this.port;
   }
 
-  private listenOn(port: number, host: string): Promise<void> {
+  private listenOn(port: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.server.once("error", reject);
-      this.server.listen(port, host, resolve);
+      this.server.listen(port, "127.0.0.1", resolve);
     });
   }
 
@@ -144,7 +142,7 @@ export class WebsiteProxy {
 
   private isLocalHost(request: IncomingMessage): boolean {
     const host = request.headers.host?.toLowerCase();
-    return host === `${this.host}:${this.port}` || (this.host === "127.0.0.1" && host === `localhost:${this.port}`);
+    return host === `127.0.0.1:${this.port}` || host === `localhost:${this.port}`;
   }
 
   private isSameOrigin(request: IncomingMessage): boolean {
