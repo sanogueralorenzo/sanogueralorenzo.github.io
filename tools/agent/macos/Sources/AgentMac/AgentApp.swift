@@ -2,7 +2,7 @@ import SwiftUI
 import AgentProtocol
 import UniformTypeIdentifiers
 
-private enum AgentStyle {
+enum AgentStyle {
     private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
@@ -209,28 +209,7 @@ struct ConversationView: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.selectedSessionId == AppModel.homeSessionId {
-                if model.homeEntries.isEmpty {
-                    Spacer(minLength: 0)
-                    EmptyConversationView()
-                    Spacer(minLength: 0)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 30) {
-                            ForEach(model.homeEntries) { entry in
-                                HomeEntryView(entry: entry) {
-                                    if let sessionId = entry.sessionId { Task { await model.selectSession(sessionId) } }
-                                }
-                                .id(entry.id)
-                            }
-                        }
-                        .scrollTargetLayout()
-                        .frame(maxWidth: AgentStyle.contentMaxWidth)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, AgentStyle.edgePadding)
-                        .padding(.vertical, 24)
-                    }
-                    .scrollPosition(id: $model.homeScrollPosition, anchor: .bottom)
-                }
+                HomeFeatureView(model: model)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -252,14 +231,14 @@ struct ConversationView: View {
                     }
                 }
             }
-            if model.selectedSessionId != AppModel.homeSessionId && !model.activity.isEmpty { ActivityLine(text: model.activity) }
-            if let error = model.connectionError {
-                ConnectionError(message: error) { Task { await model.start() } }
+            if model.selectedSessionId != AppModel.homeSessionId {
+                if !model.activity.isEmpty { ActivityLine(text: model.activity) }
+                if let error = model.connectionError {
+                    ConnectionError(message: error) { Task { await model.start() } }
+                }
+                if !model.queuedTasks.isEmpty { QueuedFollowUpsView(model: model) }
+                MessageComposer(model: model)
             }
-            if model.selectedSessionId != AppModel.homeSessionId && !model.queuedTasks.isEmpty {
-                QueuedFollowUpsView(model: model)
-            }
-            MessageComposer(model: model)
         }
         .toolbar {
             if model.selectedSessionId != AppModel.homeSessionId {
@@ -323,7 +302,7 @@ private final class EscapeMonitorView: NSView {
     }
 }
 
-private struct HomeEntryView: View {
+struct HomeEntryView: View {
     let entry: HomeEntry
     let open: () -> Void
 
@@ -385,7 +364,7 @@ private struct HomeEntryView: View {
     }
 }
 
-private struct EmptyConversationView: View {
+struct EmptyConversationView: View {
     var body: some View {
         VStack(spacing: 12) {
             Circle().fill(AgentStyle.clay).frame(width: 10, height: 10)
@@ -413,7 +392,7 @@ private struct ActivityLine: View {
     }
 }
 
-private struct ConnectionError: View {
+struct ConnectionError: View {
     let message: String
     let retry: () -> Void
 
@@ -430,7 +409,7 @@ private struct ConnectionError: View {
     }
 }
 
-private struct MessageComposer: View {
+struct MessageComposer: View {
     @Bindable var model: AppModel
     @State private var importingAudio = false
     private var hasText: Bool { !model.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
