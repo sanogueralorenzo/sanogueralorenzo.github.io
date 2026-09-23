@@ -55,7 +55,6 @@ it("routes a project-and-task request through an ephemeral Codex turn", async ()
   const handoff = await backend.route({
     session,
     request: { text: `Open the project at ${project} and explain what cwd means.` },
-    instructions: "",
     sessionTools: [],
   });
   expect(handoff).toMatchObject({ destination: { cwd: realpathSync(project) } });
@@ -63,7 +62,6 @@ it("routes a project-and-task request through an ephemeral Codex turn", async ()
   const navigationOnly = await backend.route({
     session,
     request: { text: `Open the project at ${project}.` },
-    instructions: "",
     sessionTools: [],
   });
   expect(navigationOnly).toEqual({ destination: { cwd: realpathSync(project) }, task: null });
@@ -82,7 +80,6 @@ it("finds a saved conversation and carries the follow-on task", async () => {
   const handoff = await backend.route({
     session: current,
     request: { text: "Resume the purple otter conversation and summarize what it tracks." },
-    instructions: "",
     sessionTools: store.sessionCards().filter((card) => card.id !== current.id),
   });
   expect(handoff).toMatchObject({ destination: { sessionId: saved.id } });

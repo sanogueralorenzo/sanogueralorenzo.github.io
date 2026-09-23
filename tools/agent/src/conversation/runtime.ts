@@ -56,13 +56,13 @@ export class AgentRuntime {
     return session;
   }
 
-  prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean; routing: boolean } {
+  prepareTurn(incoming: TurnRequest): { session: Session; sessionTools: SessionCard[]; empty: boolean; deferTurn: boolean } {
     const requested = incoming.sessionId ? this.store.getSession(incoming.sessionId) : null;
     if (incoming.sessionId && !requested) throw new Error("Conversation not found.");
     const selected = requested ?? this.openSession(incoming);
     const empty = this.store.getMessages(selected.id, 1).length === 0;
     return {
-      session: selected, empty, routing: selected.id !== HOME_SESSION_ID && (maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length)),
+      session: selected, empty, deferTurn: selected.id !== HOME_SESSION_ID && (maySwitchContext(incoming.text) || Boolean(incoming.attachments?.length)),
       sessionTools: this.store.sessionCards().filter((card) => card.id !== selected.id),
     };
   }
@@ -94,7 +94,7 @@ export class AgentRuntime {
       }
     } catch (error) {
       const message = failureMessage(error, options.signal);
-      if (prepared.routing) yield { type: "turn", text: text || "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
+      if (prepared.deferTurn) yield { type: "turn", text: text || "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
       yield { type: "error", message };
       if (this.store.hasHomeEntry(session.id)) {
@@ -104,7 +104,7 @@ export class AgentRuntime {
       return;
     }
     if (!text) {
-      if (prepared.routing) yield { type: "turn", text: "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
+      if (prepared.deferTurn) yield { type: "turn", text: "Voice message", channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       this.store.finishRun(runId, "failed", "The message is empty.");
       yield { type: "error", message: "The message is empty." };
       if (this.store.hasHomeEntry(session.id)) {
@@ -127,10 +127,10 @@ export class AgentRuntime {
     let handoffTask: string | null = null;
     let sourceContext = "";
     try {
-      const handoff = await this.backend.route({
-        request, session, instructions: "", sessionTools,
+      const handoff = maySwitchContext(request.text) ? await this.backend.route({
+        request, session, sessionTools,
         ...(options.signal ? { signal: options.signal } : {}),
-      });
+      }) : null;
       if (handoff) {
         const source = session;
         sourceContext = this.store.getMessages(source.id, 6)
@@ -156,7 +156,7 @@ export class AgentRuntime {
       }
     } catch (error) {
       const message = failureMessage(error, options.signal);
-      if (prepared.routing && session.id === prepared.session.id) {
+      if (prepared.deferTurn && session.id === prepared.session.id) {
         yield { type: "turn", text: request.text, channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
       }
       this.store.finishRun(runId, message === "Interrupted. Your session is saved." ? "interrupted" : "failed", message);
@@ -173,7 +173,7 @@ export class AgentRuntime {
     if (session.title === "New conversation") session = this.store.renameSession(session.id, titleFrom(handoffTask ?? text));
     yield { type: "session", session };
     this.store.deliverRunInput(runId);
-    if (prepared.routing) yield { type: "turn", text: request.text, channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
+    if (prepared.deferTurn) yield { type: "turn", text: request.text, channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
     const memoryScope = session.cwd ? `project:${resolve(session.cwd)}` : "personal";
     const remembered = explicitMemory(request.text);
     if (remembered && !containsSecret(remembered) && !/\b(api[_ -]?key|password|secret|token)\b/i.test(remembered)) {
@@ -194,7 +194,6 @@ export class AgentRuntime {
         request,
         session,
         instructions,
-        ...(sessionTools.length ? { sessionTools } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
       })) {
         if (event.type === "text_delta") {

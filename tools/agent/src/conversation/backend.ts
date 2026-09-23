@@ -10,13 +10,19 @@ export interface BackendTurn {
   request: TurnRequest;
   session: Session;
   instructions: string;
-  sessionTools?: SessionCard[];
+  signal?: AbortSignal;
+}
+
+export interface RouteTurn {
+  request: TurnRequest;
+  session: Session;
+  sessionTools: SessionCard[];
   signal?: AbortSignal;
 }
 
 export interface AgentBackend {
   transcribeAudio(attachment: Attachment, signal?: AbortSignal): Promise<string>;
-  route(turn: BackendTurn): Promise<Handoff | null>;
+  route(turn: RouteTurn): Promise<Handoff | null>;
   steer(sessionId: string, text: string): Promise<boolean>;
   run(turn: BackendTurn): AsyncGenerator<BackendEvent>;
 }

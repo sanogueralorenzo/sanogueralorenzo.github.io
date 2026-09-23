@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AgentBackend, BackendEvent, BackendTurn, Handoff } from "./backend.js";
+import type { AgentBackend, BackendEvent, BackendTurn, Handoff, RouteTurn } from "./backend.js";
 import { AgentRuntime } from "./runtime.js";
 import { Store } from "./store.js";
 import type { Attachment, RuntimeEvent } from "./types.js";
@@ -9,6 +9,7 @@ import { cleanup, temporary } from "../test-support.js";
 
 class RecordingBackend implements AgentBackend {
   readonly turns: BackendTurn[] = [];
+  readonly routes: RouteTurn[] = [];
   readonly transcriptions: string[] = [];
   navigateTo: string | null = null;
   handoffTask: string | null = null;
@@ -22,9 +23,9 @@ class RecordingBackend implements AgentBackend {
     return this.transcription;
   }
 
-  async route(turn: BackendTurn): Promise<Handoff | null> {
+  async route(turn: RouteTurn): Promise<Handoff | null> {
+    this.routes.push(turn);
     if (!this.navigateTo) return null;
-    this.turns.push(turn);
     return { destination: { sessionId: this.navigateTo }, task: this.handoffTask };
   }
 
@@ -67,6 +68,7 @@ describe("AgentRuntime", () => {
     expect(session && store.getMessages(session.id).map((message) => message.role)).toEqual(["user", "assistant"]);
     expect(store.searchMemories("personal", "short answers")).toEqual(["Mario likes short answers"]);
     expect(backend.turns[0]?.instructions).toContain("Mario likes short answers");
+    expect(backend.routes).toEqual([]);
   });
 
   it("uses the public run ID for the persisted last-turn snapshot", async () => {
@@ -177,7 +179,8 @@ describe("AgentRuntime", () => {
     const fresh = runtime.openSession({ fresh: true });
     const lookup = await collect(runtime, { text: "take me back to the bot restart work", sessionId: fresh.id, channel: "macos" });
 
-    expect(backend.turns.at(-1)?.sessionTools?.[0]?.id).toBe(firstSession);
+    expect(backend.routes.at(-1)?.sessionTools[0]?.id).toBe(firstSession);
+    expect(backend.routes.map((turn) => turn.request.text)).toEqual(["take me back to the bot restart work"]);
     expect(lookup).toContainEqual(expect.objectContaining({
       type: "navigate",
       url: `agent://sessions/${firstSession}`,
@@ -213,7 +216,7 @@ describe("AgentRuntime", () => {
       text: "Resume the target project and fix the test", sessionId: source.id, cwd: homeDir, channel: "cli",
     });
 
-    expect(backend.turns[0]?.session.cwd).toBeNull();
+    expect(backend.routes[0]?.session.cwd).toBeNull();
     expect(backend.turns.at(-1)?.session.cwd).toBe("/tmp/target-project");
     expect(events.find((event) => event.type === "navigate")?.session.id).toBe(target.id);
     expect(store.getSession(source.id)).toBeNull();
@@ -259,6 +262,7 @@ describe("AgentRuntime", () => {
     expect(session?.cwd).toBeNull();
     expect(session && store.getMessages(session.id)[0]?.content).toBe("Fix the TypeScript test");
     expect(backend.transcriptions).toEqual([audioPath]);
+    expect(backend.routes).toEqual([]);
   });
 
   it("routes a transcribed voice request and keeps the transcript in the destination", async () => {
@@ -275,6 +279,7 @@ describe("AgentRuntime", () => {
 
     expect(events).toContainEqual(expect.objectContaining({ type: "navigate", continues: true, session: expect.objectContaining({ id: target.id }) }));
     expect(store.getMessages(target.id)[0]).toEqual({ role: "user", content: backend.transcription });
+    expect(backend.routes.map((turn) => turn.request.text)).toEqual([backend.transcription]);
     expect(store.getSession(source.id)).toBeNull();
   });
 

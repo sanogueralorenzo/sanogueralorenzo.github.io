@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { on } from "node:events";
 import { saveArtifactPath } from "../workspace/assets.js";
-import type { AgentBackend, BackendEvent, BackendTurn, Handoff } from "../conversation/backend.js";
+import type { AgentBackend, BackendEvent, BackendTurn, Handoff, RouteTurn } from "../conversation/backend.js";
 import { WORK_MODEL } from "../local/config.js";
 import type { Store } from "../conversation/store.js";
 import type { Attachment, RuntimeConfig } from "../conversation/types.js";
-import { maySwitchContext, requiresHandoff } from "../conversation/routing.js";
+import { requiresHandoff } from "../conversation/routing.js";
 import { CodexAppServer, CodexDisconnectedError } from "./app-server.js";
 import { ephemeralToolTurn } from "./ephemeral.js";
 import { CONVERSATION_TOOLS, READ_HISTORY_TOOL, conversationTool, readHistory } from "./conversation-tools.js";
@@ -49,8 +49,7 @@ export class CodexBackend implements AgentBackend {
     return this.retry(() => transcribeVoice(this.client, this.config.homeDir, attachment, this.createRealtimePeer, signal));
   }
 
-  async route(turn: BackendTurn): Promise<Handoff | null> {
-    if (!maySwitchContext(turn.request.text)) return null;
+  async route(turn: RouteTurn): Promise<Handoff | null> {
     const handoff = await this.retry(() => this.routeOnce(turn));
     if (!handoff && requiresHandoff(turn.request.text)) throw new Error("Could not identify the project or conversation to open.");
     return handoff;
@@ -74,7 +73,7 @@ export class CodexBackend implements AgentBackend {
     }
   }
 
-  private async routeOnce(turn: BackendTurn): Promise<Handoff | null> {
+  private async routeOnce(turn: RouteTurn): Promise<Handoff | null> {
     const recent = this.store.getMessages(turn.session.id, 4)
       .filter((message) => message.role !== "tool")
       .map((message) => `${message.role}: ${message.content.slice(0, 1_000)}`)
@@ -104,7 +103,7 @@ export class CodexBackend implements AgentBackend {
           routeError = answer.result.contentItems[0]?.text ?? routeError;
           return { response: answer.result };
         }
-        const answer = conversationTool(this.store, turn.sessionTools ?? [], name, args);
+        const answer = conversationTool(this.store, turn.sessionTools, name, args);
         if (answer.navigateTo) return { response: answer.result, result: { destination: { sessionId: answer.navigateTo }, task: task || null } };
         if (!answer.result.success) routeError = answer.result.contentItems[0]?.text ?? routeError;
         return { response: answer.result };

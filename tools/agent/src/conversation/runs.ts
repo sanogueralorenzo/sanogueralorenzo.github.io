@@ -57,7 +57,7 @@ export class RunCoordinator {
     this.active.set(info.id, run);
     if (sessionId !== HOME_SESSION_ID) {
       this.publish(sessionId, info.id, { type: "session_activity", sessionId, runId: info.id });
-      if (!prepared.routing) this.publish(sessionId, info.id, run.turn);
+      if (!prepared.deferTurn) this.publish(sessionId, info.id, run.turn);
     }
     let releaseHome: (() => void) | undefined;
     const beforeHomeDispatch = sessionId === HOME_SESSION_ID ? this.homeCommit : undefined;
