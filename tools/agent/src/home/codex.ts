@@ -24,6 +24,7 @@ const ROUTE_TASKS = {
             title: { type: "string", description: "A short, specific title for this Home entry." },
             text: { type: "string", description: "A self-contained instruction for this task; omit only when opening an idle conversation." },
             sessionId: { type: "string", description: "Existing conversation ID for continue or steer." },
+            entryId: { type: "string", description: "Existing Home entry ID only when continuing that same task." },
             cwd: { type: "string", description: "Absolute project folder for a new task, only when needed." },
           },
           required: ["type", "source", "title"],
@@ -67,7 +68,7 @@ function response(success: boolean, text: string) {
 
 const ROUTER_INSTRUCTIONS = `Route the user's message into the fewest actions that cover its distinct outcomes and destinations. Keep dependent steps together; split independent outcomes even when they share context. Do not perform the work.
 
-Call route_tasks once with the complete plan. For each action, quote a unique, non-overlapping part of the message, give a short title and self-contained instruction. Choose start for new work, continue to queue a follow-up in an existing conversation, or steer to change its active work now only when the user explicitly asks.
+Call route_tasks once with the complete plan. For each action, quote a unique, non-overlapping part of the message, give a short title and self-contained instruction. Choose start for new work, continue to queue a follow-up in an existing conversation, or steer to change its active work now only when the user explicitly asks. Set entryId when continuing the same Home task; a shared conversation alone does not make work the same task.
 
 Use find_conversations when a destination is not listed and read_conversation only when its preview lacks needed context. Carry necessary context between actions. Reuse a saved project's directory or the terminal directory for current project work; omit it for personal work. Omit the instruction only when opening an idle conversation. Output only tool calls.`;
 
@@ -96,7 +97,8 @@ export class CodexHomeBackend implements HomeBackend {
       request.cwd ? `Terminal directory: ${request.cwd}` : "",
       `Recent conversations: ${JSON.stringify(conversations.slice(0, 12).map(({ id, cwd, title, preview }) => ({ id, cwd, title, preview, state: conversationState(id) })))}`,
       `Recent Home activity: ${JSON.stringify([...entries].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 12)
-        .map(({ sessionId, title, body, state, summary }) => ({ sessionId, title, body, state, summary })))}`,
+        .map(({ id, sessionId, title, body, requests, state, summary }) => ({ id, sessionId, title, body,
+          requests: requests.slice(-2).map(({ text }) => text.slice(0, 160)), state, summary })))}`,
     ].filter(Boolean).join("\n");
     await retryDisconnected(this.client, () => {
       actions = null;
@@ -161,7 +163,7 @@ export class CodexHomeBackend implements HomeBackend {
       if (start < 0) return { error: "Route source quotes must be exact, distinct, non-overlapping parts of the user message." };
       spans.push({ start, end: start + source.length });
       if (route.type === "start") {
-        if (route.sessionId !== undefined) return { error: "A new task cannot target an existing conversation." };
+        if (route.sessionId !== undefined || route.entryId !== undefined) return { error: "A new task cannot target an existing conversation or Home entry." };
         const cwd = route.cwd === undefined ? undefined : openFolder(route.cwd, this.config.homeDir).cwd;
         if (route.cwd !== undefined && !cwd) return { error: "Choose a specific accessible project folder." };
         actions.push({ type: "start", source, title, ...(text ? { text } : {}), ...(cwd ? { cwd } : {}) });
@@ -174,11 +176,15 @@ export class CodexHomeBackend implements HomeBackend {
       }
       if (sessions.has(sessionId)) return { error: "Use one route per existing conversation; combine its requested work." };
       sessions.add(sessionId);
+      const entryId = typeof route.entryId === "string" ? route.entryId : undefined;
+      if (route.entryId !== undefined && (!entryId || this.store.home.entry(entryId)?.sessionId !== sessionId)) {
+        return { error: "Choose a Home entry for this conversation or omit entryId for a new task." };
+      }
       if (route.type === "steer") {
         if (!text) return { error: "A steering route needs an instruction." };
-        actions.push({ type: "steer", source, title, sessionId, text });
+        actions.push({ type: "steer", source, title, sessionId, text, ...(entryId ? { entryId } : {}) });
       } else {
-        actions.push({ type: "continue", source, title, sessionId, ...(text ? { text } : {}) });
+        actions.push({ type: "continue", source, title, sessionId, ...(text ? { text } : {}), ...(entryId ? { entryId } : {}) });
       }
     }
     return { actions };

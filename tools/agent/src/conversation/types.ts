@@ -31,6 +31,7 @@ export interface HomeEntry {
   sessionId: string | null;
   title: string | null;
   body: string;
+  requests: { text: string; createdAt: string }[];
   summary: string | null;
   state: "routing" | "working" | "ready" | "needs_input" | "failed" | null;
   url: string | null;
@@ -72,6 +73,7 @@ export type RuntimeEvent =
   | { type: "session"; session: Session }
   | { type: "navigate"; session: Session; url: string; continues: boolean }
   | { type: "home_entry"; entry: HomeEntry }
+  | { type: "home_entry_removed"; id: string }
   | { type: "steer"; text: string; channel: Channel }
   | { type: "task_queued"; sessionId: string }
   | { type: "queue"; tasks: QueuedTask[] }
@@ -127,6 +129,7 @@ export interface TurnRequest {
   sessionId?: string;
   channel?: Channel;
   queuedTaskId?: string;
+  homeEntryId?: string;
 }
 
 export interface RuntimeConfig {

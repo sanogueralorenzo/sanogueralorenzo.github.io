@@ -102,6 +102,11 @@ export class Store {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS home_entry_messages (
+        entry_id TEXT NOT NULL REFERENCES home_entries(id) ON DELETE CASCADE,
+        message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        PRIMARY KEY (entry_id, message_id)
+      );
       CREATE TABLE IF NOT EXISTS queued_tasks (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -110,6 +115,10 @@ export class Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS queued_tasks_session ON queued_tasks(session_id, created_at);
+      CREATE TABLE IF NOT EXISTS home_queued_tasks (
+        task_id TEXT PRIMARY KEY REFERENCES queued_tasks(id) ON DELETE CASCADE,
+        entry_id TEXT NOT NULL REFERENCES home_entries(id) ON DELETE CASCADE
+      );
     `);
   }
 
@@ -347,21 +356,22 @@ export class Store {
     `).run(id, content);
   }
 
-  deliverRunInput(id: string): void {
+  deliverRunInput(id: string): number | null {
     const row = this.db.prepare(`
       SELECT runs.session_id AS sessionId, run_inputs.content
       FROM runs JOIN run_inputs ON run_inputs.run_id = runs.id
       WHERE runs.id = ? AND run_inputs.delivered = 0
     `).get(id) as { sessionId: string; content: string } | undefined;
-    if (!row) return;
+    if (!row) return null;
     this.db.exec("BEGIN IMMEDIATE");
     try {
       const timestamp = now();
-      this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, 'user', ?, ?)")
+      const message = this.db.prepare("INSERT INTO messages (session_id, role, content, created_at) VALUES (?, 'user', ?, ?)")
         .run(row.sessionId, row.content, timestamp);
       this.db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(timestamp, row.sessionId);
       this.db.prepare("UPDATE run_inputs SET delivered = 1 WHERE run_id = ?").run(id);
       this.db.exec("COMMIT");
+      return Number(message.lastInsertRowid);
     } catch (error) {
       this.db.exec("ROLLBACK");
       throw error;

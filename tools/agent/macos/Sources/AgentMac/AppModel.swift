@@ -118,7 +118,7 @@ struct ChatMessage: Identifiable {
         if selected == Self.homeSessionId {
             let requestId = UUID().uuidString
             let optimistic = HomeEntry(
-                id: requestId, body: text, state: "routing",
+                id: requestId, body: text, requests: [HomeRequest(text: text, createdAt: ISO8601DateFormatter().string(from: Date()))], state: "routing",
                 updatedAt: ISO8601DateFormatter().string(from: Date()))
             homeEntries.append(optimistic)
             homeScrollPosition = requestId
@@ -303,6 +303,10 @@ struct ChatMessage: Identifiable {
             if selectedSessionId == Self.homeSessionId { homeScrollPosition = entry.id }
             return
         }
+        if event.type == "home_entry_removed", let id = event.id {
+            homeEntries.removeAll { $0.id == id }
+            return
+        }
         if event.type == "session_activity" {
             Task { await refreshSessions() }
             return
@@ -465,6 +469,7 @@ struct ChatMessage: Identifiable {
     private func replaceHomeEntry(_ entry: HomeEntry) {
         if let index = homeEntries.firstIndex(where: { $0.id == entry.id }) { homeEntries[index] = entry }
         else { homeEntries.append(entry) }
+        homeEntries.sort { $0.updatedAt < $1.updatedAt }
         if homeEntries.count > 200 { homeEntries.removeFirst(homeEntries.count - 200) }
     }
 

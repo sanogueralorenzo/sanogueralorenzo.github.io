@@ -116,8 +116,9 @@ export class AgentRuntime {
     const request: TurnRequest = { ...incoming, text };
     this.store.stageRunInput(runId, redactSecrets(request.text));
     if (session.id === HOME_SESSION_ID) {
-      this.store.deliverRunInput(runId);
-      yield* this.homeFlow.dispatch(runId, request, sessionTools, {
+      const messageId = this.store.deliverRunInput(runId)!;
+      yield { type: "home_entry", entry: this.store.home.linkMessage(runId, messageId) };
+      yield* this.homeFlow.dispatch(runId, messageId, request, sessionTools, {
         signal: options.signal,
         beforeDispatch: options.beforeHomeDispatch,
         steer: options.steer,
@@ -172,7 +173,11 @@ export class AgentRuntime {
     }
     if (session.title === "New conversation") session = this.store.renameSession(session.id, titleFrom(handoffTask ?? text));
     yield { type: "session", session };
-    this.store.deliverRunInput(runId);
+    const messageId = this.store.deliverRunInput(runId);
+    if (messageId && !incoming.homeEntryId) {
+      const entry = this.store.home.linkLatestMessage(session.id, messageId);
+      if (entry) yield { type: "home_entry", entry };
+    }
     if (prepared.deferTurn) yield { type: "turn", text: request.text, channel: incoming.channel ?? "api", hasAttachments: Boolean(incoming.attachments?.length) };
     const memoryScope = session.cwd ? `project:${resolve(session.cwd)}` : "personal";
     const remembered = explicitMemory(request.text);

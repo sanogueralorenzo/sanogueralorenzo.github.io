@@ -43,4 +43,29 @@ describe("Home persistence", () => {
     recovered.finishRun("queued-run", "complete", "Done.");
     recovered.close();
   });
+
+  it("retains the messages linked to a reused card through restart", () => {
+    const path = temporary("agent-home-message-links-");
+    const store = new Store(path);
+    const home = store.homeSession();
+    const task = store.createSession({ title: "Saved task" });
+    store.startRun(home.id, "home-first", "First request");
+    const firstMessage = store.deliverRunInput("home-first")!;
+    store.home.createEntry("first", "First request");
+    store.home.linkMessage("first", firstMessage);
+    store.home.dispatchEntry("first", task.id, task.title, "First request", false);
+    store.finishRun("home-first", "complete");
+    store.startRun(home.id, "home-follow-up", "Follow up");
+    const secondMessage = store.deliverRunInput("home-follow-up")!;
+    store.home.createEntry("home-follow-up", "Follow up");
+    store.home.reuseEntry("home-follow-up", "first", task.id, task.title, "Follow up", true, secondMessage);
+    store.home.enqueueTask(task.id, "Clearer instruction", "macos", "first");
+    store.close();
+
+    const recovered = new Store(path);
+    expect(recovered.home.entries()).toHaveLength(1);
+    expect(recovered.home.entry("first")?.requests.map(({ text }) => text)).toEqual(["First request", "Follow up"]);
+    expect(recovered.home.queuedTask(task.id)?.homeEntryId).toBe("first");
+    recovered.close();
+  });
 });

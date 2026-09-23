@@ -21,6 +21,7 @@ public struct RuntimeEvent: Decodable, Sendable {
     public let url: String?
     public let continues: Bool?
     public let entry: HomeEntry?
+    public let id: String?
     public let tasks: [QueuedTask]?
 
     public var isTerminal: Bool { type == "done" || type == "error" }
@@ -60,21 +61,33 @@ public struct HomeEntry: Decodable, Sendable, Identifiable {
     public let sessionId: String?
     public let title: String?
     public let body: String
+    public let requests: [HomeRequest]
     public let summary: String?
     public let state: String?
     public let url: String?
     public let updatedAt: String
 
-    public init(id: String, sessionId: String? = nil, title: String? = nil, body: String,
+    public init(id: String, sessionId: String? = nil, title: String? = nil, body: String, requests: [HomeRequest] = [],
                 summary: String? = nil, state: String? = nil, url: String? = nil, updatedAt: String) {
         self.id = id
         self.sessionId = sessionId
         self.title = title
         self.body = body
+        self.requests = requests
         self.summary = summary
         self.state = state
         self.url = url
         self.updatedAt = updatedAt
+    }
+}
+
+public struct HomeRequest: Decodable, Sendable {
+    public let text: String
+    public let createdAt: String
+
+    public init(text: String, createdAt: String) {
+        self.text = text
+        self.createdAt = createdAt
     }
 }
 

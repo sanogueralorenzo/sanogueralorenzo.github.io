@@ -6,7 +6,7 @@ const secretPatterns = [
 ];
 
 export function redactSecrets(value: string): string {
-  return secretPatterns.reduce((text, pattern) => text.replace(pattern, "[secret redacted]"), value);
+  return secretPatterns.reduce((text, pattern) => text.replace(pattern, "***"), value);
 }
 
 export function containsSecret(value: string): boolean {

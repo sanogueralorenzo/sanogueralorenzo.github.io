@@ -37,7 +37,8 @@ export class RunCoordinator {
     if (this.closed || this.activeFor(sessionId) || this.pendingSteers.has(sessionId)) return;
     const queued = this.store.home.queuedTask(sessionId);
     if (queued) {
-      this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id });
+      this.start({ text: queued.text, sessionId, channel: queued.channel, queuedTaskId: queued.id,
+        ...(queued.homeEntryId ? { homeEntryId: queued.homeEntryId } : {}) });
       queueMicrotask(() => this.publishQueue(sessionId));
     }
   }
@@ -143,7 +144,8 @@ export class RunCoordinator {
     let overflow = false;
     let wake: (() => void) | undefined;
     const listener: Listener = (event) => {
-      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity" && event.event.type !== "home_entry") return;
+      if (event && sessionId && event.sessionId !== sessionId && event.event.type !== "session_activity"
+        && event.event.type !== "home_entry" && event.event.type !== "home_entry_removed") return;
       if (event && !overflow) {
         const bytes = Buffer.byteLength(JSON.stringify(event));
         if (queued.length >= MAX_PENDING_EVENTS || pendingBytes + bytes > MAX_EVENT_BUFFER_BYTES) {
@@ -213,7 +215,7 @@ export class RunCoordinator {
           this.startQueued(event.sessionId);
           continue;
         }
-        if (event.type === "home_entry") {
+        if (event.type === "home_entry" || event.type === "home_entry_removed") {
           this.publish(HOME_SESSION_ID, run.run.id, event);
           continue;
         }

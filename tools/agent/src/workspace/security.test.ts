@@ -7,6 +7,7 @@ describe("secret boundaries", () => {
     expect(containsSecret(text)).toBe(true);
     expect(redactSecrets(text)).not.toContain("abc123");
     expect(redactSecrets(text)).not.toContain("sk-");
+    expect(redactSecrets(text)).toBe("*** and ***");
   });
 
   it("recognizes sensitive project paths", () => {

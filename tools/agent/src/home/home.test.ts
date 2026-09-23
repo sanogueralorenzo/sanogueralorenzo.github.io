@@ -37,10 +37,9 @@ describe("Agent Home", () => {
     const requestId = "00000000-0000-4000-8000-000000000001";
     runs.start({ text: "How are you?", requestId, sessionId: store.homeSession().id, channel: "macos" });
     const first = (await pending).value!;
-    await vi.waitFor(() => expect(store.home.entries()).toHaveLength(1));
-    expect(store.home.entries()).toMatchObject([
+    await vi.waitFor(() => expect(store.home.entries()).toMatchObject([
       { id: requestId, title: "How are you?", body: "How are you?", state: "working" },
-    ]);
+    ]));
     release();
     await vi.waitFor(() => expect(store.home.entries()[0]).toMatchObject({ state: "ready", summary: "Work complete." }));
     expect(first.event).toMatchObject({ type: "home_entry", entry: { id: requestId, body: "How are you?", state: "routing" } });
@@ -80,6 +79,53 @@ describe("Agent Home", () => {
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     release();
     await vi.waitFor(() => expect(store.home.entries().map((entry) => entry.state)).toEqual(["ready", "ready"]));
+    await runs.close();
+  });
+
+  it("keeps source messages on the same task card and starts a new card for separate work", async () => {
+    const store = new Store(temporary("agent-home-sources-"));
+    cleanup(() => store.close());
+    let sessionId = "";
+    const firstId = "00000000-0000-4000-8000-000000000031";
+    const home: HomeBackend = {
+      async compose(request) {
+        if (request.text === "First task") return [{ type: "start", source: request.text, title: "First task", text: request.text }];
+        return [{ type: "continue", source: request.text, title: request.text, text: request.text,
+          sessionId, ...(request.text === "Follow up" ? { entryId: firstId } : {}) }];
+      },
+      async summarize() { return { state: "ready", summary: "Done." }; },
+    };
+    const runs = new RunCoordinator(new AgentRuntime(store, worker(async function* () { yield { type: "done" }; }), home), store);
+    store.homeSession();
+    runs.start({ text: "First task", requestId: firstId, sessionId: HOME_SESSION_ID });
+    await vi.waitFor(() => expect(store.home.entry(firstId)?.state).toBe("ready"));
+    sessionId = store.home.entry(firstId)!.sessionId!;
+    const controller = new AbortController();
+    const events = runs.events(controller.signal, undefined, undefined, HOME_SESSION_ID)[Symbol.asyncIterator]();
+    const removed = (async () => {
+      while (true) {
+        const next = await events.next();
+        if (next.value?.event.type === "home_entry_removed") return next.value.event.id;
+      }
+    })();
+    const followUpRun = runs.start({ text: "Follow up", sessionId: HOME_SESSION_ID });
+    expect(await removed).toBe(followUpRun.id);
+    await vi.waitFor(() => expect(store.home.entry(firstId)?.requests.map(({ text }) => text)).toEqual(["First task", "Follow up"]));
+    expect(store.home.entries()).toHaveLength(1);
+    expect(store.home.entry(firstId)?.body).toBe("Follow up");
+    runs.start({ text: "Separate task", sessionId: HOME_SESSION_ID });
+    await vi.waitFor(() => expect(store.home.entries().find((entry) => entry.id !== firstId)?.requests.map(({ text }) => text))
+      .toEqual(["Separate task"]));
+    const entries = store.home.entries();
+    const separate = entries.find((entry) => entry.id !== firstId)!;
+    expect(separate.requests.map(({ text }) => text)).toEqual(["Separate task"]);
+    await vi.waitFor(() => expect(store.home.entry(separate.id)?.state).toBe("ready"));
+    runs.start({ text: "Direct follow-up", sessionId });
+    await vi.waitFor(() => expect(store.home.entry(separate.id)?.requests.map(({ text }) => text))
+      .toEqual(["Separate task", "Direct follow-up"]));
+    expect(store.home.entry(firstId)?.requests.map(({ text }) => text)).toEqual(["First task", "Follow up"]);
+    controller.abort();
+    await events.return?.();
     await runs.close();
   });
 
@@ -257,6 +303,26 @@ describe("Agent Home", () => {
     const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Find restaurants in Taipei and a good air fryer" }, [], []))
       .toMatchObject([{ type: "start", title: "Taipei restaurants" }, { type: "start", title: "Air fryer picks" }]);
+    client.stop();
+  });
+
+  it("accepts a follow-up linked to an existing task card", async () => {
+    const homeDir = temporary("agent-home-reuse-plan-");
+    const store = new Store(homeDir);
+    cleanup(() => store.close());
+    const session = store.createSession({ title: "Current task" });
+    store.home.createEntry("current-card", "Build the feature");
+    store.home.dispatchEntry("current-card", session.id, session.title, "Build the feature", true);
+    const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
+    const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
+      ...process.env, AGENT_FAKE_SCENARIO: "home-compose-reuse",
+      AGENT_FAKE_SESSION_ID: session.id, AGENT_FAKE_ENTRY_ID: "current-card",
+    } });
+    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    expect(await backend.compose({ text: "Please also add tests" }, [], store.home.entries())).toEqual([
+      { type: "continue", source: "Please also add tests", title: "Add tests",
+        text: "Add tests for the current task.", sessionId: session.id, entryId: "current-card" },
+    ]);
     client.stop();
   });
 

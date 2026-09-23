@@ -240,12 +240,15 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
         arguments: { query: scenario === "home-find" ? "Tonal" : "Reconnect" },
       } });
     }
-    if (scenario === "home-compose" || scenario === "home-compose-duplicate" || scenario === "home-compose-multiple"
+    if (scenario === "home-compose" || scenario === "home-compose-reuse" || scenario === "home-compose-duplicate" || scenario === "home-compose-multiple"
       || scenario === "home-compose-overlap" || scenario === "home-report") {
       dynamicTurn = { threadId: params.threadId, turnId };
       const tool = scenario.startsWith("home-compose") ? "route_tasks" : "report_task";
       const args = scenario.startsWith("home-compose")
-        ? { routes: scenario === "home-compose-multiple" ? [
+        ? { routes: scenario === "home-compose-reuse" ? [
+          { type: "continue", source: "Please also add tests", text: "Add tests for the current task.", title: "Add tests",
+            sessionId: process.env.AGENT_FAKE_SESSION_ID, entryId: process.env.AGENT_FAKE_ENTRY_ID },
+        ] : scenario === "home-compose-multiple" ? [
           { type: "start", source: "restaurants in Taipei", text: "Find popular restaurants in Taipei.", title: "Taipei restaurants" },
           { type: "start", source: "a good air fryer", text: "Recommend a good air fryer.", title: "Air fryer picks" },
         ] : scenario === "home-compose-overlap" ? [

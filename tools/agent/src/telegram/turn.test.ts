@@ -103,7 +103,7 @@ describe("Telegram turns", () => {
     expect(turns.consume(envelope({ type: "turn", text: "from Telegram", channel: "telegram", hasAttachments: false })))
       .toBeNull();
     expect(turns.consume(envelope({ type: "turn", text: "use sk-1234567890123456", channel: "cli", hasAttachments: false }, "r2")))
-      .toEqual({ sessionId: "s1", chunks: ["You (CLI): use [secret redacted]"], artifacts: [] });
+      .toEqual({ sessionId: "s1", chunks: ["You (CLI): use ***"], artifacts: [] });
     expect(turns.consume(envelope({ type: "turn", text: "", channel: "macos", hasAttachments: true }, "r3")))
       .toEqual({ sessionId: "s1", chunks: ["You (Mac): Voice message"], artifacts: [] });
   });
