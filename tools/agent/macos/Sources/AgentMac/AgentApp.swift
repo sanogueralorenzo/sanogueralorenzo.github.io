@@ -11,7 +11,8 @@ private enum AgentStyle {
 
     static let canvas = adaptive(light: (0.965, 0.949, 0.921), dark: (0.105, 0.102, 0.097))
     static let surface = adaptive(light: (0.925, 0.910, 0.882), dark: (0.16, 0.155, 0.145))
-    static let userSurface = adaptive(light: (0.91, 0.87, 0.80), dark: (0.23, 0.19, 0.16))
+    static let userSurface = adaptive(light: (0.27, 0.35, 0.85), dark: (0.30, 0.40, 0.88))
+    static let assistantSurface = adaptive(light: (0.22, 0.23, 0.26), dark: (0.21, 0.22, 0.25))
     static let badgeCutout = adaptive(light: (1, 1, 1), dark: (0, 0, 0))
     static let graphite = adaptive(light: (0.18, 0.17, 0.16), dark: (0.92, 0.90, 0.87))
     static let muted = adaptive(light: (0.45, 0.43, 0.40), dark: (0.69, 0.67, 0.64))
@@ -363,7 +364,8 @@ private struct HomeEntryView: View {
                 .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 14)
-                .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: 14))
+                .foregroundStyle(.white)
+                .background(AgentStyle.userSurface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(entry.sessionId == nil)
@@ -519,12 +521,10 @@ struct MessageView: View {
                 .frame(maxWidth: AgentStyle.messageMaxWidth, alignment: .leading)
                 .padding(.horizontal, 15)
                 .padding(.vertical, 11)
-                .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.surface, in: RoundedRectangle(cornerRadius: 14))
-                .overlay {
-                    if message.role == .assistant {
-                        RoundedRectangle(cornerRadius: 14).stroke(AgentStyle.line.opacity(0.55))
-                    }
-                }
+                .foregroundStyle(.white)
+                .tint(.white)
+                .background(message.role == .user ? AgentStyle.userSurface : AgentStyle.assistantSurface,
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 if message.role == .assistant { Spacer(minLength: AgentStyle.messageGutter) }
             }
         }
