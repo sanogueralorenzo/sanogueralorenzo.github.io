@@ -1,43 +1,21 @@
 # Assistant
 
-Assistant is a personal and coding assistant built on Pi. Its current extension delegates requests from a Pi terminal session to child tasks. A coordinator chooses worker, scout, or reviewer roles. A reporter model turns meaningful child progress and completion into short updates in the current Pi transcript. The extension runs only while that Pi session is open.
+Assistant is a local personal and coding assistant powered by the pinned Pi SDK. One Node service owns Home routing, persistent Pi conversations, queues, and updates. The website at `http://127.0.0.1:4180` is its first client; closing the tab does not stop work.
 
 ## Start
 
-Requires Pi 0.85.1, Node 22+, and working `openai-codex` authentication (`pi auth check --provider openai-codex`).
+Requires Node 22+ and a signed-in Codex CLI account in `~/.codex/auth.json`. The Pi CLI is not required. Assistant keeps a private, renewable copy of that Codex credential in its data directory; it does not change Pi's separate login.
 
 ```bash
 cd tools/assistant
-npm install
-pi install "$PWD"
-pi
+npm ci
+npm start
 ```
 
-The package is installed by local path, so edits take effect on the next Pi launch. To try it for one session without installing, run `pi --extension "$PWD/extension.ts"` from this directory.
+To run automatically after login on macOS or Linux, use `service/install.sh`. Run `service/uninstall.sh` to remove the background service. Set `ASSISTANT_PORT`, `ASSISTANT_DATA_DIR`, `ASSISTANT_WORKSPACE`, or `ASSISTANT_CONCURRENCY` before a manual start to override defaults. The service stores its state under `${XDG_DATA_HOME:-~/.local/share}/assistant` and Pi session files under its `sessions` directory.
 
-Typed text requests go to the coordinator. Images are handled by the normal Pi session. Commands:
+Home accepts overlapping requests immediately. The Pi coordinator chooses a saved conversation or creates one or more new conversations; independent outcomes get separate clickable Home entries. A conversation accepts queued follow-ups and explicit steering, with one active turn at a time. Every result returns to its Home entry. On restart, an in-flight turn is marked interrupted and can be continued manually from Home. Queued work survives the restart.
 
-| Command | Purpose |
-| --- | --- |
-| `/agent-jobs` | Show task IDs and states in this Pi session. |
-| `/agent-followup TASK_ID message` | Queue a follow-up for that child after its current turn. |
-| `/agent-cancel TASK_ID` | Stop a child and clear its pending work. |
-| `/agent-direct message` | Run a normal Pi turn in the current session. |
+All roles use the Codex `gpt-6-luna` model with Fast processing. Home routing uses Low reasoning. The reporter and task agents use High reasoning. The coordinator assigns a persistent task agent: **personal** for everyday help, **code** for implementation, **scout** for read-only investigation, or **reviewer** for read-only review. Each has its own base instructions and tool access; the conversation header shows its role. Other model providers are outside this version.
 
-The worker model defaults to `openai-codex/gpt-5.6-sol`; routing and reporting use `openai-codex/gpt-5.6-luna`. Set `PI_AGENT_MODEL` and `PI_AGENT_UTILITY_MODEL` before starting Pi to choose other model IDs.
-
-## How it works
-
-The extension owns the coordinator, worker, scout, reviewer, and reporter subprocesses directly. It reads each child process's JSON event stream, calls the reporter for meaningful progress or completion, and appends the update to the Pi transcript. It runs at most four child tasks at once and only one writing worker per directory. Read-only roles use Pi's read-only tool allowlist.
-
-Tasks and follow-up queues live in memory. A normal Pi close or session switch stops active subprocesses and drops pending work; there is no daemon, event log, automatic replay, or restart recovery. Completed child turns use Pi's normal session files, so you can inspect or manually continue them later with Pi's `--session-id TASK_ID`. Work stopped before Pi saved a child turn may have no recoverable session. Transcript updates may also be lost if Pi closes before its own session is saved.
-
-Agent's base, coordinator, worker, scout, reviewer, and reporter instructions are preserved in `prompts/`. `original-agent-instructions.md` is retained as the source reference. This extension covers background text delegation and updates, not Agent's website or voice interface.
-
-## Static check
-
-```bash
-npm run check
-```
-
-This checks TypeScript types only. No test suite or non-site CI is included.
+Run `npm run check` for the focused TypeScript check. There is no test suite or non-site CI.

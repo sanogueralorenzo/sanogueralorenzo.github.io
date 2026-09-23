@@ -1,0 +1,292 @@
+import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
+import { PiService, assistantText } from "./pi.ts";
+import { State, now, type HomeEntry, type HomeMessage, type SessionRecord, type TaskRole, type Turn } from "./state.ts";
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+
+type Route = { mode: "start" | "continue" | "steer"; agent: TaskRole; title: string; scope: string; task: string; sessionId?: string; entryId?: string; cwd?: string };
+type Active = { session: AgentSession; turn: Turn; entryIds: string[]; output: string; error: string; stopped: boolean };
+const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+function parseRoutes(raw: string, message: HomeMessage, state: State): Route[] {
+  const json = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { routes?: Route[] };
+  if (!Array.isArray(json.routes) || !json.routes.length || json.routes.length > 8) throw new Error("Coordinator returned an invalid plan");
+  const seen = new Set<string>();
+  for (const route of json.routes) {
+    if (!["start", "continue", "steer"].includes(route.mode) || !["personal", "code", "scout", "reviewer"].includes(route.agent) || !route.title?.trim() || !route.scope?.trim() || !route.task?.trim()) throw new Error("Coordinator returned an incomplete route");
+    if (route.mode !== "start") {
+      if (!route.sessionId) throw new Error("Coordinator omitted a conversation ID");
+      const existing = state.data.sessions.find((session) => session.id === route.sessionId);
+      if (!existing) throw new Error("Coordinator selected an unknown conversation");
+      if (route.agent !== (existing.role || "personal")) throw new Error("Coordinator changed a conversation's agent role");
+      if (seen.has(route.sessionId)) throw new Error("Coordinator assigned two outcomes to one conversation");
+      seen.add(route.sessionId);
+      if (route.mode === "steer" && !/\b(steer|interrupt|change|instead|stop|redirect)\b/i.test(message.text)) throw new Error("Steering requires an explicit request");
+    }
+    if (route.entryId && !state.data.entries.some((entry) => entry.id === route.entryId && entry.sessionId === route.sessionId)) throw new Error("Coordinator selected an unrelated Home entry");
+  }
+  return json.routes;
+}
+function parseReport(raw: string, fallback: string): { summary: string; status: "ready" | "needs_input" } {
+  try {
+    const result = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { summary?: string; state?: string };
+    if (typeof result.summary === "string" && result.summary.trim()) return { summary: result.summary.trim(), status: result.state === "needs_input" ? "needs_input" : "ready" };
+  } catch { /* A plain reply is still usable. */ }
+  return { summary: raw.trim() || fallback, status: "ready" };
+}
+
+export class Assistant {
+  readonly dataDir: string;
+  readonly cwd: string;
+  readonly concurrency: number;
+  readonly state: State;
+  readonly pi: PiService;
+  private listeners = new Set<(event: unknown) => void>();
+  private active = new Map<string, Active>();
+  private starting = new Set<string>();
+  private pendingStops = new Set<string>();
+  private routeCommit: Promise<void> = Promise.resolve();
+  private closing = false;
+  constructor(dataDir: string, cwd: string, concurrency = 4) {
+    this.dataDir = dataDir;
+    this.cwd = cwd;
+    this.concurrency = concurrency;
+    this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
+    this.pi = new PiService(dataDir);
+    queueMicrotask(() => this.drain());
+  }
+  subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+  private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
+  snapshot() { return this.state.data; }
+  submitHome(text: string, id?: string) {
+    const message = this.state.message(text, id);
+    // Discovery overlaps. Only the state-changing routing decisions wait for earlier submissions.
+    const discovered = this.discover(message).then((raw) => {
+      try { return { routes: parseRoutes(raw, message, this.state) }; }
+      catch (error) { return { error }; }
+    }, (error) => ({ error }));
+    const commit = this.routeCommit.then(async () => {
+      try {
+        const result = await discovered;
+        if ("error" in result) throw result.error;
+        await this.commitRoutes(message, result.routes);
+      }
+      catch (error) { message.status = "failed"; this.state.entry(message, message.text, "Routing failed", null); const entry = this.state.data.entries.at(-1)!; this.state.update(entry, errorText(error), "error", "failed"); this.state.save(); }
+    });
+    this.routeCommit = commit.catch(() => undefined);
+    return message;
+  }
+  private discover(message: HomeMessage) {
+    const sessions = this.state.data.sessions.map((session) => ({ id: session.id, title: session.title, agent: session.role || "personal", status: session.status, cwd: session.cwd,
+      recent: this.state.data.entries.filter((entry) => entry.sessionId === session.id).slice(-3).map((entry) => ({ id: entry.id, scope: entry.scope, status: entry.status, lastUpdate: entry.updates.at(-1)?.text.slice(0, 500) })) }));
+    const readConversation = {
+      name: "read_conversation", label: "Read saved conversation",
+      description: "Read the recent messages of one saved Assistant conversation by its listed ID. Read-only; use only when the preview is insufficient for routing.",
+      parameters: Type.Object({ sessionId: Type.String() }),
+      execute: async (_callId: string, params: { sessionId: string }) => {
+        const record = this.state.data.sessions.find((item) => item.id === params.sessionId);
+        return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.pi.transcript(record.file).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
+      },
+    };
+    return this.pi.utility("coordinator", `Original user message (verbatim):\n${message.text}\n\nCurrent workspace: ${this.cwd}\nSaved conversations and Home entries (read-only preview):\n${JSON.stringify(sessions)}\n\nReturn one JSON object with routes.`, this.cwd, [readConversation]);
+  }
+  private async commitRoutes(message: HomeMessage, routes: Route[]) {
+    for (const route of routes) {
+      let session: SessionRecord;
+      if (route.mode === "start") {
+        const cwd = route.cwd?.trim() || homedir();
+        const pi = await this.pi.create(cwd, randomUUID(), route.agent);
+        session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), role: route.agent, cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
+        pi.dispose();
+        this.state.data.sessions.push(session);
+      } else session = this.state.data.sessions.find((item) => item.id === route.sessionId)!;
+      let entry: HomeEntry;
+      if (route.entryId) {
+        entry = this.state.data.entries.find((item) => item.id === route.entryId)!;
+        entry.sourceText += `\n\n${message.text}`;
+        message.entryIds.push(entry.id);
+      } else entry = this.state.entry(message, clean(route.scope), clean(route.title), session.id);
+      const task = `Original user message (verbatim):\n${message.text}\n\nAssigned scope: ${route.scope}\n\nCoordinator brief: ${route.task}`;
+      if (route.mode === "steer" && this.active.has(session.id)) {
+        if (!this.active.get(session.id)!.entryIds.includes(entry.id)) this.active.get(session.id)!.entryIds.push(entry.id);
+        this.active.get(session.id)!.turn.sourceId = message.id;
+        entry.status = "working";
+        await this.active.get(session.id)!.session.steer(task);
+        this.state.update(entry, "Steered the active conversation.", "progress", "working", message.id);
+      } else {
+        if (route.mode === "steer") this.state.update(entry, "No active turn; queued as a follow-up.", "progress", "queued", message.id);
+        this.state.data.turns.push({ id: randomUUID(), sessionId: session.id, entryId: entry.id, sourceId: message.id, text: task, status: "queued", createdAt: now() });
+        this.state.save();
+      }
+    }
+    message.status = "routed";
+    this.state.save();
+    this.drain();
+  }
+  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp") {
+    const record = this.state.data.sessions.find((session) => session.id === sessionId);
+    if (!record) throw new Error("Conversation not found");
+    const entry = [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
+    const source = this.state.message(text);
+    source.status = "routed";
+    if (entry) {
+      source.entryIds.push(entry.id);
+      entry.sourceText += `\n\n${text}`;
+    }
+    if (mode === "steer" && this.active.has(sessionId)) {
+      this.active.get(sessionId)!.turn.sourceId = source.id;
+      if (entry) {
+        if (!this.active.get(sessionId)!.entryIds.includes(entry.id)) this.active.get(sessionId)!.entryIds.push(entry.id);
+        this.state.update(entry, "Steered the active conversation.", "progress", "working", source.id);
+      }
+      void this.active.get(sessionId)!.session.steer(text).catch((error) => this.emit({ type: "error", message: errorText(error) }));
+      return { steered: true };
+    }
+    const turn: Turn = { id: randomUUID(), sessionId, entryId: entry?.id || null, sourceId: source.id, text, status: "queued", createdAt: now() };
+    this.state.data.turns.push(turn);
+    this.state.save();
+    this.drain();
+    return { turn };
+  }
+  stop(sessionId: string) {
+    const active = this.active.get(sessionId);
+    if (!active) {
+      if (!this.starting.has(sessionId)) return false;
+      this.pendingStops.add(sessionId);
+      return true;
+    }
+    active.stopped = true;
+    void active.session.abort();
+    return true;
+  }
+  async shutdown() {
+    this.closing = true;
+    const interrupted = this.state.data.turns.filter((item) => item.status === "running");
+    await Promise.allSettled([...this.active.values()].map((run) => run.session.abort()));
+    for (const turn of interrupted) {
+      const entry = this.state.data.entries.find((item) => item.id === turn.entryId);
+      if (entry) { entry.status = "interrupted"; entry.interruptedText = turn.text; entry.interruptedSourceId = turn.sourceId; }
+      const record = this.state.data.sessions.find((item) => item.id === turn.sessionId);
+      if (record) record.status = "interrupted";
+    }
+    this.state.data.turns = this.state.data.turns.filter((item) => item.status !== "running");
+    this.state.save();
+  }
+  resume(entryId: string) {
+    const entry = this.state.data.entries.find((item) => item.id === entryId);
+    if (!entry?.sessionId || entry.status !== "interrupted") throw new Error("This task is not interrupted");
+    entry.status = "queued";
+    const request = entry.interruptedText || `Original user message (verbatim):\n${entry.sourceText}\n\nAssigned scope: ${entry.scope}`;
+    const sourceId = entry.interruptedSourceId || entry.sourceId;
+    entry.interruptedText = undefined;
+    entry.interruptedSourceId = undefined;
+    const turn: Turn = { id: randomUUID(), sessionId: entry.sessionId, entryId, sourceId, text: `Continue the interrupted request in this conversation:\n${request}`, status: "queued", createdAt: now() };
+    const firstWaiting = this.state.data.turns.findIndex((item) => item.sessionId === entry.sessionId);
+    this.state.data.turns.splice(firstWaiting < 0 ? this.state.data.turns.length : firstWaiting, 0, turn);
+    this.state.data.sessions.find((session) => session.id === entry.sessionId)!.status = "idle";
+    this.state.save();
+    this.drain();
+  }
+  transcript(sessionId: string) {
+    const session = this.state.data.sessions.find((item) => item.id === sessionId);
+    if (!session) throw new Error("Conversation not found");
+    return { session, messages: this.pi.transcript(session.file), queue: this.state.data.turns.filter((turn) => turn.sessionId === sessionId) };
+  }
+  private async delegate(turn: Turn, title: string, scope: string, task: string, role: TaskRole) {
+    const parent = this.state.data.entries.find((entry) => entry.id === turn.entryId);
+    if (!parent) throw new Error("Delegation requires a Home task");
+    const source = this.state.data.messages.find((message) => message.id === parent.sourceId)!;
+    const existing = this.state.data.entries.find((entry) => entry.sourceId === source.id && entry.scope.toLowerCase() === scope.trim().toLowerCase());
+    if (existing) return existing.sessionId;
+    const cwd = this.state.data.sessions.find((session) => session.id === turn.sessionId)!.cwd;
+    const pi = await this.pi.create(cwd, randomUUID(), role);
+    const record: SessionRecord = { id: pi.sessionId, title: clean(title.slice(0, 100)), role, cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
+    pi.dispose();
+    this.state.data.sessions.push(record);
+    const entry = this.state.entry(source, clean(scope), record.title, record.id);
+    this.state.data.turns.push({ id: randomUUID(), sessionId: record.id, entryId: entry.id, sourceId: source.id,
+      text: `Original user message (verbatim):\n${source.text}\n\nAssigned scope: ${scope}\n\nCoordinator brief: ${task}`, status: "queued", createdAt: now() });
+    this.state.save();
+    this.drain();
+    return record.id;
+  }
+  private drain() {
+    if (this.closing) return;
+    for (const turn of this.state.data.turns) {
+      if (this.active.size + this.starting.size >= this.concurrency) break;
+      if (turn.status !== "queued" || this.active.has(turn.sessionId) || this.starting.has(turn.sessionId) ||
+        this.state.data.sessions.find((session) => session.id === turn.sessionId)?.status === "interrupted") continue;
+      this.starting.add(turn.sessionId);
+      void this.run(turn);
+    }
+  }
+  private async run(turn: Turn) {
+    const record = this.state.data.sessions.find((session) => session.id === turn.sessionId)!;
+    turn.status = "running";
+    record.status = "running";
+    const entry = this.state.data.entries.find((item) => item.id === turn.entryId);
+    if (entry) entry.status = "working";
+    this.state.save();
+    let session: AgentSession | undefined;
+    let active: Active | undefined;
+    let interruptedTurn = false;
+    try {
+      const delegateTool = {
+        name: "delegate_task", label: "Delegate independent outcome",
+        description: "Create a separate visible Pi conversation for an independent outcome discovered while working on this Home request. Do not delegate dependent steps or duplicate an existing scope. The new conversation runs in parallel or queues automatically.",
+        parameters: Type.Object({ title: Type.String(), scope: Type.String(), task: Type.String(), role: Type.Union([Type.Literal("personal"), Type.Literal("code"), Type.Literal("scout"), Type.Literal("reviewer")]) }),
+        execute: async (_callId: string, params: { title: string; scope: string; task: string; role: TaskRole }) => {
+          if (!params.title.trim() || !params.scope.trim() || !params.task.trim()) throw new Error("Title, scope, and task are required");
+          const sessionId = await this.delegate(turn, params.title, params.scope, params.task, params.role);
+          return { content: [{ type: "text" as const, text: `Delegated to visible conversation ${sessionId}` }], details: undefined };
+        },
+      };
+      const role = record.role || "personal";
+      session = await this.pi.open(record.cwd, record.file, role, entry && (role === "personal" || role === "code") ? [delegateTool] : []);
+      active = { session, turn, entryIds: entry ? [entry.id] : [], output: "", error: "", stopped: false };
+      this.active.set(record.id, active);
+      this.starting.delete(record.id);
+      if (this.pendingStops.has(record.id)) { active.stopped = true; throw new Error("Stopped"); }
+      session.subscribe((event) => {
+        if (event.type === "message_end" && event.message.role === "assistant") {
+          const text = assistantText(event.message);
+          if (text) active!.output = text;
+          if (event.message.stopReason === "error") active!.error = event.message.errorMessage || "Model error";
+          if (text && event.message.stopReason === "toolUse" && entry) this.state.update(entry, clean(text.slice(0, 900)), "progress", "working", turn.sourceId);
+        }
+        if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") this.emit({ type: "delta", sessionId: record.id, delta: event.assistantMessageEvent.delta });
+        if (event.type === "tool_execution_start") this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
+      });
+      await session.prompt(turn.text, { expandPromptTemplates: false });
+      if (active.stopped) throw new Error("Stopped");
+      if (!active.output) active.output = [...session.messages].reverse().map(assistantText).find(Boolean) || "No response";
+      if (active.error) throw new Error(active.error);
+      for (const id of active.entryIds) {
+        const target = this.state.data.entries.find((item) => item.id === id)!;
+        const reported = await this.pi.utility("reporter", `Task: ${target.title}\nRequest: ${turn.text}\nChild result:\n${active.output.slice(-8000)}\n\nWrite the Home update.`, record.cwd)
+          .catch(() => active!.output.slice(0, 1200));
+        const result = parseReport(reported, active.output);
+        this.state.update(target, clean(result.summary), "result", result.status, turn.sourceId);
+      }
+    } catch (error) {
+      const interrupted = active?.stopped || errorText(error).toLowerCase().includes("abort");
+      interruptedTurn = !!interrupted;
+      for (const id of active?.entryIds ?? (entry ? [entry.id] : [])) {
+        const target = this.state.data.entries.find((item) => item.id === id)!;
+        if (interrupted) { target.interruptedText = turn.text; target.interruptedSourceId = turn.sourceId; }
+        this.state.update(target, interrupted ? "Stopped. You can continue this conversation." : errorText(error), "error", interrupted ? "interrupted" : "failed", turn.sourceId);
+      }
+    } finally {
+      session?.dispose();
+      this.active.delete(record.id);
+      this.starting.delete(record.id);
+      this.pendingStops.delete(record.id);
+      record.status = interruptedTurn || this.closing ? "interrupted" : "idle";
+      this.state.data.turns = this.state.data.turns.filter((item) => item.id !== turn.id);
+      this.state.save();
+      this.drain();
+    }
+  }
+}

@@ -1,3 +1,3 @@
-Report this delegated task event in one short conversational update. The current request and current child event are authoritative. Never repeat a result from an earlier request when the current child says something different. If the current child result is a short exact answer, reproduce that answer exactly.
+Report this assistant task result in one short conversational Home update. The current request and child result are authoritative. If the child result is a short exact answer, reproduce it exactly.
 
-For completion, state the actual result, any checks, and any action the user must take. For a failure, explain the concrete failure. Avoid repeating earlier updates, tool-by-tool narration, and unsupported claims. Return only the update text.
+State the actual result, any checks, and any action the user must take. Avoid tool-by-tool narration and unsupported claims. Return only JSON: {"state":"ready" or "needs_input","summary":"your update"}. Use needs_input only when the user must answer before the task can continue.
