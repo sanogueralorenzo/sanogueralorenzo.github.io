@@ -4,6 +4,7 @@ import { renderBottomBar, renderHome } from "./features/home.js";
 import { renderHeader, renderSession } from "./features/session.js";
 import { renderLoginDialog, renderSetup } from "./features/setup.js";
 import { renderSessionMenu, renderSettings } from "./features/settings.js";
+import { renderNavigation } from "./features/navigation.js";
 import { escapeHTML, icon } from "./view.js";
 
 const root = document.querySelector("#app");
@@ -19,6 +20,11 @@ const state = {
   showingLogin: false,
   showingSettings: false,
   showingSessions: false,
+  showingNavigation: false,
+  navigationPage: "chats",
+  sessionSearch: "",
+  searchMessages: [],
+  searchLoading: false,
   isPinned: false,
   isConnected: false,
   isRunning: false,
@@ -49,8 +55,8 @@ let pipWindow = null;
 
 function render() {
   if (state.windowClosed) return;
-  const focused = document.activeElement?.dataset?.focus === "composer";
-  const selection = focused ? document.activeElement.selectionStart : null;
+  const focusTarget = document.activeElement?.dataset?.focus;
+  const selection = focusTarget ? document.activeElement.selectionStart : null;
   const oldScroll = root.querySelector(".scroll-area");
   const oldScrollPosition = oldScroll?.scrollTop ?? 0;
   const stickToBottom = oldScroll ? oldScroll.scrollHeight - oldScroll.scrollTop - oldScroll.clientHeight < 100 : true;
@@ -58,16 +64,17 @@ function render() {
     root.innerHTML = `<div class="app-shell"><header class="topbar"><div></div><div></div><div class="topbar-side topbar-end"><button class="icon-button settings-trigger" aria-label="Settings" title="Settings" data-action="toggle-settings">${icon("settings", 17)}</button></div></header>${renderSetup(state)}${renderSettings(state)}${renderLoginDialog(state)}</div>`;
   } else {
     const home = state.selectedSessionId === "home";
-    root.innerHTML = `<div class="app-shell">${renderHeader(state)}${home ? `${renderHome(state)}${state.connectionError ? `<div class="connection-error home-error"><span>${escapeHTML(state.connectionError)}</span><button data-action="retry">Retry</button></div>` : ""}` : renderSession(state)}${renderComposer(state)}${home ? renderBottomBar() : ""}${renderSettings(state)}${renderSessionMenu(state)}${renderLoginDialog(state)}</div>`;
+    const searchingChats = state.showingNavigation && state.navigationPage === "search";
+    root.innerHTML = `<div class="app-shell">${searchingChats ? "" : renderHeader(state)}${searchingChats ? renderNavigation(state) : `${home ? `${renderHome(state)}${state.connectionError ? `<div class="connection-error home-error"><span>${escapeHTML(state.connectionError)}</span><button data-action="retry">Retry</button></div>` : ""}` : renderSession(state)}${renderComposer(state)}${home ? renderBottomBar() : ""}`}${searchingChats ? "" : renderNavigation(state)}${renderSettings(state)}${renderSessionMenu(state)}${renderLoginDialog(state)}</div>`;
   }
   const newScroll = root.querySelector(".scroll-area");
   if (newScroll) {
     newScroll.scrollTop = stickToBottom ? newScroll.scrollHeight : oldScrollPosition;
   }
-  const input = root.querySelector('[data-focus="composer"]');
-  if (focused && input) {
+  const input = focusTarget ? root.querySelector(`[data-focus="${focusTarget}"]`) : null;
+  if (input) {
     input.focus({ preventScroll: true });
-    input.setSelectionRange(selection, selection);
+    if (selection !== null) input.setSelectionRange(selection, selection);
   }
 }
 
@@ -323,6 +330,7 @@ async function refreshSessions() {
 async function newSession() {
   state.showingSettings = false;
   state.showingSessions = false;
+  state.showingNavigation = false;
   try {
     const { session } = await post("/v1/sessions", {});
     state.needsSetup = false;
@@ -560,6 +568,10 @@ async function quitAgent() {
 }
 
 root.addEventListener("input", (event) => {
+  if (event.target.matches('[data-focus="chat-search"]')) {
+    state.sessionSearch = event.target.value;
+    render();
+  }
   if (event.target.matches('[data-form$="api-key"] input')) {
     const loginForm = event.target.form?.dataset.form === "login-api-key";
     const keyName = loginForm ? "loginApiKey" : "apiKey";
@@ -610,9 +622,63 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
-  if ((action === "close-settings" || action === "close-sessions") && event.target.closest("[data-menu]")) return;
+  if ((action === "close-settings" || action === "close-sessions" || action === "close-navigation") && event.target.closest("[data-menu]")) return;
   if (action === "close-login" && event.target.closest(".login-dialog")) return;
   switch (action) {
+    case "toggle-navigation":
+      state.showingNavigation = !state.showingNavigation;
+      state.navigationPage = "chats";
+      state.showingSettings = false;
+      state.showingSessions = false;
+      render();
+      break;
+    case "close-navigation":
+      state.showingNavigation = false;
+      render();
+      break;
+    case "navigation-main":
+      state.showingNavigation = false;
+      state.navigationPage = "chats";
+      await selectSession("home");
+      break;
+    case "navigation-archive":
+      state.navigationPage = "archived";
+      render();
+      break;
+    case "navigation-back":
+      state.navigationPage = "chats";
+      render();
+      break;
+    case "navigation-search":
+      state.navigationPage = "search";
+      state.sessionSearch = "";
+      state.searchMessages = [];
+      state.searchLoading = true;
+      render();
+      root.querySelector('[data-focus="chat-search"]')?.focus();
+      try {
+        const conversations = await Promise.all(state.sessions.map(async (session) => ({
+          session,
+          ...(await request(`/v1/sessions/${encodeURIComponent(session.id)}/messages`)),
+        })));
+        state.searchMessages = conversations.flatMap(({ session, messages }) => messages
+          .filter((message) => message.role === "user" || message.role === "assistant")
+          .map((message) => ({ sessionId: session.id, title: session.title, role: message.role, text: message.content })));
+      } catch (error) {
+        state.connectionError = error.message;
+      }
+      state.searchLoading = false;
+      render();
+      root.querySelector('[data-focus="chat-search"]')?.focus();
+      break;
+    case "close-search":
+      state.showingNavigation = false;
+      state.navigationPage = "chats";
+      state.sessionSearch = "";
+      state.searchMessages = [];
+      state.searchLoading = false;
+      render();
+      break;
     case "home":
       await selectSession("home");
       break;
@@ -623,11 +689,14 @@ root.addEventListener("click", async (event) => {
       break;
     case "open-session":
       state.showingSessions = false;
+      state.showingNavigation = false;
+      state.navigationPage = "chats";
       await selectSession(button.dataset.session);
       break;
     case "toggle-settings":
       state.showingSettings = !state.showingSettings;
       state.showingSessions = false;
+      state.showingNavigation = false;
       render();
       break;
     case "close-settings":
@@ -720,6 +789,10 @@ document.addEventListener("keydown", (event) => {
     void newSession();
   } else if (event.key === "Escape") {
     if (state.showingLogin) state.showingLogin = false;
+    else if (state.showingNavigation) {
+      state.showingNavigation = false;
+      state.navigationPage = "chats";
+    }
     else if (state.showingSettings) state.showingSettings = false;
     else if (state.showingSessions) state.showingSessions = false;
     else if (state.selectedSessionId === "home") {
