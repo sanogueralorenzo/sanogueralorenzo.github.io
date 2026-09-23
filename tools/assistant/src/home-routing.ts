@@ -2,62 +2,24 @@ import { Type } from "typebox";
 import type { PiService } from "./pi.ts";
 import type { HomeMessage, State, TaskRole } from "./state.ts";
 
-export type Route = { mode: "start" | "continue" | "steer"; agent: TaskRole; title: string; source: string; task: string;
-  sessionId?: string; entryId?: string; newEntry?: boolean; cwd?: string };
+export type Route = { mode: "start"; agent: TaskRole; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
 
-function namedTaskMatches(source: string, state: State) {
-  const name = source.match(/\b(?:in|for|on|continue|resume)\s+(?:the|my|this|that)\s+(.{2,80}?)\s+(?:task|conversation|session)\b/i)?.[1]?.toLowerCase();
-  if (!name) return [];
-  return state.data.sessions.filter((session) => {
-    const descriptions = [session.title, ...state.data.entries.filter((entry) => entry.sessionId === session.id)
-      .flatMap((entry) => [entry.scope, entry.sourceText])];
-    return descriptions.some((description) => description.toLowerCase().includes(name));
-  });
-}
-
-export function parseRoutes(raw: string, message: HomeMessage, state: State): Route[] {
-  const plan = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { routes?: Route[] };
-  if (!Array.isArray(plan?.routes) || !plan.routes.length || plan.routes.length > 8) throw new Error("Coordinator returned an invalid plan");
-  const sources = new Set<string>();
-  const sessions = new Set<string>();
-  for (const route of plan.routes) {
-    if (!route || typeof route !== "object" || !["start", "continue", "steer"].includes(route.mode) ||
-      !["personal", "code", "scout", "reviewer"].includes(route.agent) ||
-      typeof route.title !== "string" || !route.title.trim() || typeof route.source !== "string" || !route.source.trim() ||
-      typeof route.task !== "string" || !route.task.trim()) throw new Error("Coordinator returned an incomplete route");
-    if (!message.text.includes(route.source) || sources.has(route.source)) throw new Error("Each route must quote a distinct part of the message");
-    sources.add(route.source);
-    const namedMatches = namedTaskMatches(plan.routes.length === 1 ? message.text : route.source, state);
-    if (route.mode === "start") {
-      if (route.sessionId || route.entryId) throw new Error("A new task cannot use an existing conversation or Home entry");
-      delete route.newEntry;
-      if (/^\s*(?:resume|take me back to|return to|pick up)\b/i.test(route.source))
-        throw new Error("An explicit resume request must target a saved conversation; use find_conversations");
-      if (namedMatches.length) throw new Error(`This quote names a saved task. Continue its conversation: ${namedMatches.map((item) => item.id).join(", ")}`);
-      continue;
-    }
-    if (!route.sessionId) throw new Error("Coordinator omitted a conversation ID");
-    const existing = state.data.sessions.find((session) => session.id === route.sessionId);
-    if (!existing) throw new Error("Coordinator selected an unknown conversation");
-    if (namedMatches.length === 1 && namedMatches[0].id !== existing.id) throw new Error(`This quote names saved conversation ${namedMatches[0].id}`);
-    if (route.agent !== (existing.role || "personal")) throw new Error("Coordinator changed a conversation's agent role");
-    delete route.cwd;
-    if (route.mode === "steer" && !/\b(steer|interrupt|change|instead|stop|redirect|focus)\b/i.test(message.text))
-      throw new Error("Steering requires an explicit request");
-    if (sessions.has(route.sessionId)) throw new Error("Coordinator assigned two outcomes to one conversation");
-    sessions.add(route.sessionId);
-    if (/\bseparately\b/i.test(route.source) && route.entryId) throw new Error("Separate work needs newEntry: true, not an existing entryId");
-    if (route.newEntry && (route.entryId || route.mode === "steer")) throw new Error("Separate Home work cannot reuse or steer an entry");
-    if (route.entryId && !state.data.entries.some((entry) => entry.id === route.entryId && entry.sessionId === route.sessionId))
-      throw new Error("Coordinator selected an unrelated Home entry");
-    if (!route.entryId && !route.newEntry) {
-      const entries = state.data.entries.filter((entry) => entry.sessionId === route.sessionId);
-      if (entries.length === 1 && (route.mode === "steer" || /\b(?:the|my|this|that)\s+.{2,80}?\s+task\b/i.test(route.source)))
-        route.entryId = entries[0].id;
-      else throw new Error("A continuation needs entryId for a follow-up, or newEntry: true for separate work in that conversation");
-    }
+function parseRoute(value: unknown, state: State): Route {
+  if (!value || typeof value !== "object") throw new Error("Submit one Home destination");
+  const route = value as Record<string, unknown>;
+  if (route.mode === "start") {
+    if (route.sessionId) throw new Error("New work cannot use a saved session ID");
+    if (!["personal", "code", "scout", "reviewer"].includes(String(route.agent)) ||
+      typeof route.title !== "string" || !route.title.trim()) throw new Error("New work needs a role and title");
+    if (route.cwd !== undefined && typeof route.cwd !== "string") throw new Error("Project directory must be a string");
+    return { mode: "start", agent: route.agent as TaskRole, title: route.title, cwd: route.cwd as string | undefined };
   }
-  return plan.routes;
+  if (route.mode === "continue") {
+    if (typeof route.sessionId !== "string" || !state.data.sessions.some((session) => session.id === route.sessionId))
+      throw new Error("Continue with an exact saved session ID from the preview or search result");
+    return { mode: "continue", sessionId: route.sessionId };
+  }
+  throw new Error("Home supports only start or continue. Steering is an explicit action inside an open session");
 }
 
 export class HomeRouter {
@@ -70,19 +32,18 @@ export class HomeRouter {
     this.cwd = cwd;
   }
 
-  async discover(message: HomeMessage) {
+  async discover(message: HomeMessage): Promise<Route> {
     const entries = this.state.data.entries;
     const sessions = this.state.data.sessions.map((session) => {
       const related = entries.filter((entry) => entry.sessionId === session.id)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       return { id: session.id, title: session.title, agent: session.role || "personal", status: session.status, cwd: session.cwd,
         updatedAt: related[0]?.updatedAt || session.createdAt,
-        recent: related.slice(0, 2).map((entry) => ({ id: entry.id, scope: entry.scope, status: entry.status,
-          lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
+        recent: related.slice(0, 2).map((entry) => ({ request: entry.scope.slice(0, 200), lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
     }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     const findConversations = {
       name: "find_conversations", label: "Find saved conversations",
-      description: "Find older saved conversations by project, title, or message text. Read-only; use when the destination is missing from the recent preview.",
+      description: "Find older saved conversations by project, title, or message text when the destination is missing from the recent preview.",
       parameters: Type.Object({ query: Type.String() }),
       execute: async (_callId: string, params: { query: string }) => {
         const query = params.query.trim().toLowerCase();
@@ -101,37 +62,36 @@ export class HomeRouter {
     };
     const readConversation = {
       name: "read_conversation", label: "Read saved conversation",
-      description: "Read recent messages of one saved conversation by its listed ID when its preview is insufficient for routing.",
+      description: "Read recent messages of one saved conversation by its listed ID when its preview is ambiguous.",
       parameters: Type.Object({ sessionId: Type.String() }),
       execute: async (_callId: string, params: { sessionId: string }) => {
         const record = this.state.data.sessions.find((item) => item.id === params.sessionId);
         return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.pi.transcript(record.file).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
       },
     };
-    let accepted: Route[] | undefined;
-    const routeTasks = {
-      name: "route_tasks", label: "Submit Home routing plan",
-      description: "Submit the complete routing plan for this Home message. Invalid plans return a reason so you can correct them.",
-      parameters: Type.Object({ routes: Type.Array(Type.Object({
-        mode: Type.Union([Type.Literal("start"), Type.Literal("continue"), Type.Literal("steer")]),
-        agent: Type.Union([Type.Literal("personal"), Type.Literal("code"), Type.Literal("scout"), Type.Literal("reviewer")]),
-        title: Type.String(), source: Type.String(), task: Type.String(),
-        sessionId: Type.Optional(Type.String()), entryId: Type.Optional(Type.String()), newEntry: Type.Optional(Type.Boolean()), cwd: Type.Optional(Type.String()),
-      }), { minItems: 1, maxItems: 8 }) }),
-      execute: async (_callId: string, params: { routes: Route[] }) => {
-        if (accepted) return { content: [{ type: "text" as const, text: "This Home message already has an accepted plan." }], details: undefined };
+    let accepted: Route | undefined;
+    const routeHome = {
+      name: "route_home", label: "Choose Home destination",
+      description: "Choose one start or continue destination for the entire Home message. Invalid choices return a reason to correct.",
+      parameters: Type.Object({
+        mode: Type.Union([Type.Literal("start"), Type.Literal("continue")]),
+        agent: Type.Optional(Type.Union([Type.Literal("personal"), Type.Literal("code"), Type.Literal("scout"), Type.Literal("reviewer")])),
+        title: Type.Optional(Type.String()), sessionId: Type.Optional(Type.String()), cwd: Type.Optional(Type.String()),
+      }),
+      execute: async (_callId: string, params: unknown) => {
+        if (accepted) return { content: [{ type: "text" as const, text: "Destination already accepted." }], details: undefined };
         try {
-          accepted = parseRoutes(JSON.stringify(params), message, this.state);
-          return { content: [{ type: "text" as const, text: `Accepted ${accepted.length} route${accepted.length === 1 ? "" : "s"}.` }], details: undefined };
+          accepted = parseRoute(params, this.state);
+          return { content: [{ type: "text" as const, text: "Destination accepted." }], details: undefined };
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
-          return { content: [{ type: "text" as const, text: `Invalid plan: ${reason}. Correct it and call route_tasks again.` }], details: undefined };
+          return { content: [{ type: "text" as const, text: `Invalid destination: ${reason}. Correct it and call route_home again.` }], details: undefined };
         }
       },
     };
-    await this.pi.utility("coordinator", `Original user message (verbatim):\n${message.text}\n\nCurrent workspace: ${this.cwd}\nRecent conversations and Home entries: ${JSON.stringify(sessions.slice(0, 12).map(({ updatedAt, ...session }) => session))}\n\nCall route_tasks with one complete plan.`,
-      this.cwd, [findConversations, readConversation, routeTasks], () => accepted ? JSON.stringify({ routes: accepted }) : undefined);
-    if (!accepted) throw new Error("Coordinator did not submit a routing plan");
-    return JSON.stringify({ routes: accepted });
+    await this.pi.utility("coordinator", `Original user message (verbatim):\n${message.text}\n\nCurrent workspace: ${this.cwd}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12).map(({ updatedAt, ...session }) => session))}\n\nCall route_home once for the entire message.`,
+      this.cwd, [findConversations, readConversation, routeHome], () => accepted ? JSON.stringify(accepted) : undefined);
+    if (!accepted) throw new Error("Coordinator did not choose a destination");
+    return accepted;
   }
 }

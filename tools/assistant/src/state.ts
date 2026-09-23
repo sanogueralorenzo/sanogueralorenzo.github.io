@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 
 export type EntryStatus = "routing" | "queued" | "working" | "ready" | "needs_input" | "failed" | "interrupted";
 export type TaskRole = "personal" | "code" | "scout" | "reviewer";
+// New Home requests have one entry; the array preserves saved messages from the earlier split layout.
 export type HomeMessage = { id: string; text: string; createdAt: string; entryIds: string[]; status: "routing" | "routed" | "failed" };
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; createdAt: string };
 export type HomeEntry = { id: string; sourceId: string; sourceText: string; title: string; scope: string; sessionId: string | null; status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[]; createdAt: string; updatedAt: string };

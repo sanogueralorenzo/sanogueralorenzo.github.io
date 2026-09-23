@@ -176,5 +176,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-update { border: 0; text-align: left; cursor: pointer; font-size: 15px; line-height: 1.5; }
 .home-update:hover { filter: brightness(1.12); }
 .home-update:disabled { cursor: default; opacity: 1; }
+.steer-button { width: auto; flex-basis: auto; padding: 0 8px; border-radius: 12px; font-size: 12px; }
 .steer-selected { color: var(--clay); font-weight: 700; }
 .composer-hint { width: min(820px, 100%); margin: 4px auto 0; padding: 0 16px; font-size: 12px; color: var(--clay); }

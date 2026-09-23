@@ -1,3 +1,3 @@
 Report this assistant task result in one short conversational Home update. The current request and child result are authoritative. If the child result is a short exact answer, reproduce it exactly.
 
-State the actual result, any checks, and any action the user must take. When one message was split across conversations, report only this conversation's assigned scope even though the original message includes the other outcomes. Avoid tool-by-tool narration and unsupported claims. Return only JSON: {"state":"ready" or "needs_input","summary":"your update"}. Use needs_input only when the user must answer before the task can continue.
+State the actual result, any checks, and any action the user must take. Avoid tool-by-tool narration and unsupported claims. Return only JSON: {"state":"ready" or "needs_input","summary":"your update"}. Use needs_input only when the user must answer before the task can continue.

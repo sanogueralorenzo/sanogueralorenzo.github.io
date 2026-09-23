@@ -13,6 +13,7 @@ export const assistantText = (message: { role?: string; content?: unknown }): st
     .map((part) => part.text).join("\n").trim();
 };
 function displayUser(text: string) {
+  // Older sessions included a routing scope after the original message.
   if (!text.startsWith("Original user message (verbatim):\n")) return text;
   return text.slice("Original user message (verbatim):\n".length).split("\n\nAssigned scope:")[0];
 }
@@ -44,7 +45,7 @@ export class PiService {
     const tools = role === "coordinator" ? customTools.map((tool) => tool.name)
       : role === "reporter" ? []
       : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
-      : ["read", "bash", "edit", "write", "grep", "find", "ls", ...customTools.map((tool) => tool.name)];
+      : ["read", "bash", "edit", "write", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools, tools });
     return session;
@@ -52,8 +53,8 @@ export class PiService {
   async create(cwd: string, id: string, role: TaskRole) {
     return this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, "sessions"), { id }));
   }
-  async open(cwd: string, file: string, role: TaskRole, customTools: ToolDefinition[] = []) {
-    return this.make(cwd, role, SessionManager.open(file, join(this.dataDir, "sessions"), cwd), customTools);
+  async open(cwd: string, file: string, role: TaskRole) {
+    return this.make(cwd, role, SessionManager.open(file, join(this.dataDir, "sessions"), cwd));
   }
   async utility(role: "coordinator" | "reporter", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
     const session = await this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, role)), customTools);
