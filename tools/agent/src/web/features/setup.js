@@ -1,12 +1,12 @@
 import { escapeHTML, icon } from "../view.js";
 
 export function renderSetup(state) {
-  return `<main class="setup-view"><div class="setup-content"><span class="setup-mark">${icon("sparkle", 16)}</span><h1>Agent</h1><p>Connect once, then continue from anywhere.</p>${renderControls(state, false)}</div></main>`;
+  return `<main class="setup-view"><div class="setup-content"><span class="setup-mark">${icon("sparkle", 16)}</span><h1>Agent</h1><p>Connect your Codex profile for this Mac. Agent shares its login and tools with Codex.</p>${renderControls(state, false)}</div></main>`;
 }
 
 export function renderLoginDialog(state) {
   if (!state.showingLogin) return "";
-  return `<div class="modal-backdrop" data-action="close-login"><section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title"><h2 id="login-title">Log In</h2>${renderControls(state, true)}<div class="dialog-footer"><button class="subtle-button" data-action="close-login">Close</button></div></section></div>`;
+  return `<div class="modal-backdrop" data-action="close-login"><section class="login-dialog" role="dialog" aria-modal="true" aria-labelledby="login-title"><h2 id="login-title">Connect Codex</h2><p class="muted-copy">This uses the same profile as Codex on this Mac.</p>${renderControls(state, true)}<div class="dialog-footer"><button class="subtle-button" data-action="close-login">Close</button></div></section></div>`;
 }
 
 function renderControls(state, loginForm) {

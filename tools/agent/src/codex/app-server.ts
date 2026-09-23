@@ -13,7 +13,6 @@ import type {
 } from "./protocol.js";
 import { redactSecrets } from "../workspace/security.js";
 import { ensurePrivateDirectory, writePrivateFile } from "../local/files.js";
-import { BASE_INSTRUCTIONS } from "../conversation/instructions.js";
 
 export class CodexDisconnectedError extends Error {
   constructor(message = "Codex app-server disconnected.") {
@@ -28,25 +27,19 @@ interface CodexAppServerOptions {
 }
 
 export function utilityInstructionsPath(homeDir: string): string {
-  return join(homeDir, "codex", "utility-instructions.md");
+  return join(homeDir, "utility-instructions.md");
 }
 
-export function prepareAgentCodexHome(homeDir: string): string {
-  const codexHome = join(homeDir, "codex");
+export function prepareAgentUtilityInstructions(homeDir: string): void {
   ensurePrivateDirectory(homeDir);
-  ensurePrivateDirectory(codexHome);
-  const instructions = join(codexHome, "instructions.md");
-  writePrivateFile(instructions, `${BASE_INSTRUCTIONS}\n`);
   writePrivateFile(utilityInstructionsPath(homeDir), "Follow the instructions supplied for this thread.\n");
-  writePrivateFile(join(codexHome, "config.toml"), `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`);
-  return codexHome;
 }
 
 export function createAgentCodexAppServer(
-  config: Pick<RuntimeConfig, "homeDir" | "codexCommand">,
+  config: Pick<RuntimeConfig, "homeDir" | "codexHome" | "codexCommand">,
   options: Omit<CodexAppServerOptions, "command" | "env"> & { env?: NodeJS.ProcessEnv } = {},
 ): CodexAppServer {
-  const codexHome = prepareAgentCodexHome(config.homeDir);
+  prepareAgentUtilityInstructions(config.homeDir);
   const env = { ...process.env, ...options.env };
   for (const name of [
     "CODEX_ACCESS_TOKEN",
@@ -56,8 +49,7 @@ export function createAgentCodexAppServer(
     "OPENAI_IDENTITY_TOKEN_FILE",
     "OPENAI_WORKLOAD_IDENTITY_CONTEXT",
   ]) delete env[name];
-  env.CODEX_HOME = codexHome;
-  env.CODEX_SQLITE_HOME = codexHome;
+  env.CODEX_HOME = config.codexHome;
   return new CodexAppServer({
     ...options,
     command: config.codexCommand,

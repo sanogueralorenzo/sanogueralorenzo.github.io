@@ -12,7 +12,7 @@ import type { JsonRpcMessage } from "./protocol.js";
 it("runs an opt-in Codex subscription turn without reading stored credentials", async () => {
   const cwd = temporary("agent-codex-live-");
   const client = createAgentCodexAppServer(
-    { homeDir: process.env.AGENT_HOME ?? join(homedir(), ".agent"), codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" },
+    { homeDir: process.env.AGENT_HOME ?? join(homedir(), ".agent"), codexHome: process.env.CODEX_HOME ?? join(homedir(), ".codex"), codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" },
   );
   cleanup(() => client.stop());
   const account = await client.account(true);
@@ -48,9 +48,10 @@ it("routes a project-and-task request through an ephemeral Codex turn", async ()
   const agentHome = process.env.AGENT_HOME ?? join(homedir(), ".agent");
   const store = new Store(temporary("agent-route-live-store-"));
   cleanup(() => store.close());
-  const client = createAgentCodexAppServer({ homeDir: agentHome, codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" });
+  const codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+  const client = createAgentCodexAppServer({ homeDir: agentHome, codexHome, codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" });
   cleanup(() => client.stop());
-  const backend = new CodexBackend({ homeDir: agentHome, port: 0, codexCommand: "codex" }, store, client);
+  const backend = new CodexBackend({ homeDir: agentHome, codexHome, port: 0, codexCommand: "codex" }, store, client);
   const session = store.createSession();
   const handoff = await backend.route({
     session,
@@ -71,9 +72,10 @@ it("finds a saved conversation and carries the follow-on task", async () => {
   const agentHome = process.env.AGENT_HOME ?? join(homedir(), ".agent");
   const store = new Store(temporary("agent-conversation-live-store-"));
   cleanup(() => store.close());
-  const client = createAgentCodexAppServer({ homeDir: agentHome, codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" });
+  const codexHome = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+  const client = createAgentCodexAppServer({ homeDir: agentHome, codexHome, codexCommand: process.env.AGENT_CODEX_COMMAND ?? "codex" });
   cleanup(() => client.stop());
-  const backend = new CodexBackend({ homeDir: agentHome, port: 0, codexCommand: "codex" }, store, client);
+  const backend = new CodexBackend({ homeDir: agentHome, codexHome, port: 0, codexCommand: "codex" }, store, client);
   const saved = store.createSession({ title: "Purple otter experiment" });
   store.addMessage(saved.id, "user", "The purple otter experiment tracks river water levels.");
   const current = store.createSession({ title: "Current discussion" });

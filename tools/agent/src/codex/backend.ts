@@ -207,12 +207,15 @@ export class CodexBackend implements AgentBackend {
 
   private async sessionThread(turn: BackendTurn): Promise<string> {
     const existing = this.store.codexThread(turn.session.id);
+    const savedHistory = !existing && this.store.getMessages(turn.session.id, 1).length > 0;
     const common = {
       model: WORK_MODEL,
       cwd: turn.session.cwd ?? this.config.homeDir,
       approvalPolicy: "never",
       sandbox: turn.session.cwd ? "workspace-write" : "read-only",
-      developerInstructions: turn.instructions,
+      developerInstructions: savedHistory
+        ? `${turn.instructions}\n\nThis Agent conversation has earlier saved messages. Use read_history to inspect them when prior context matters.`
+        : turn.instructions,
       dynamicTools: [READ_HISTORY_TOOL],
     };
     if (existing) {

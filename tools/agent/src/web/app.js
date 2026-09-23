@@ -470,6 +470,7 @@ async function connectApiKey(form) {
 }
 
 async function logout() {
+  if (!window.confirm("This signs out of the Codex profile shared by Agent, Codex CLI, and the Codex app on this Mac. Continue?")) return;
   try {
     await post("/v1/setup/logout", {});
     state.setupStatus = null;

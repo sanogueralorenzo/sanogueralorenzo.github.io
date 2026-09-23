@@ -49,6 +49,7 @@ function openWebsite(url: string): void {
 
 async function startAgentRuntime(): Promise<void> {
   const store = new Store(config.homeDir);
+  store.useCodexProfile(config.codexHome);
   const codexClient = createAgentCodexAppServer(config);
   const codex = new CodexBackend(config, store, codexClient);
   const runtime = new AgentRuntime(store, codex, new CodexHomeBackend(config, store, codexClient));

@@ -134,6 +134,7 @@ export interface TurnRequest {
 
 export interface RuntimeConfig {
   homeDir: string;
+  codexHome: string;
   port: number;
   codexCommand: string;
 }

@@ -32,7 +32,7 @@ const tokenAt = (homeDir: string) => JSON.parse(readFileSync(join(homeDir, "runt
 async function serve(runtime: AgentRuntime | ((store: Store) => AgentRuntime), setup = setupStub()) {
   const homeDir = temporary("agent-server-");
   const store = new Store(homeDir);
-  const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
+  const config: RuntimeConfig = { homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" };
   const value = typeof runtime === "function" ? runtime(store) : runtime;
   if (!value.prepareTurn) {
     const preparer = new AgentRuntime(store, {} as AgentBackend);

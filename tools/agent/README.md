@@ -16,6 +16,8 @@ agent web
 
 `agent web` starts or attaches the website to the shared local runtime and opens Agent at `127.0.0.1`. For local UI development, use `npm run web:dev` from this directory. Use Settings in the website to sign in.
 
+Agent uses the Codex profile configured for this Mac, including its sign-in and enabled tools. Signing out from Agent also signs out of Codex CLI and the Codex app.
+
 See [Local protocol](docs/protocol.md) for runtime and security details.
 
 ## Development checks

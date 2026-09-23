@@ -36,7 +36,7 @@ const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
     result?: Record<string, unknown>;
   });
 
-const config = (homeDir: string): RuntimeConfig => ({ homeDir, port: 0, codexCommand: "codex" });
+const config = (homeDir: string): RuntimeConfig => ({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" });
 
 function turn(store: Store, homeDir: string, workspace = true): BackendTurn {
   const session = store.createSession({ ...(workspace ? { cwd: homeDir } : {}), title: "test" });
@@ -213,7 +213,7 @@ describe("Codex turn transport", () => {
     const rpc = requests(log);
     const started = rpc.find((request) => request.method === "thread/start")?.params;
     expect(started).toMatchObject({ model: "gpt-6-luna", cwd: homeDir, sandbox: "read-only", ephemeral: true });
-    expect(started?.config).toEqual({ model_instructions_file: join(homeDir, "codex", "utility-instructions.md") });
+    expect(started?.config).toEqual({ model_instructions_file: join(homeDir, "utility-instructions.md") });
     expect(started?.dynamicTools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "open_folder" })]));
     expect(rpc.find((request) => request.id === "open-folder")?.result).toMatchObject({ success: true });
     expect(rpc.filter((request) => request.method === "thread/start").at(-1)?.params).toMatchObject({

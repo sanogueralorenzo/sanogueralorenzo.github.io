@@ -69,6 +69,10 @@ export class Store {
         thread_id TEXT NOT NULL UNIQUE,
         updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS runtime_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS session_redirects (
         source_id TEXT PRIMARY KEY,
         target_id TEXT NOT NULL
@@ -403,6 +407,25 @@ export class Store {
       INSERT INTO codex_threads (session_id, thread_id, updated_at) VALUES (?, ?, ?)
       ON CONFLICT(session_id) DO UPDATE SET thread_id = excluded.thread_id, updated_at = excluded.updated_at
     `).run(sessionId, threadId, now());
+  }
+
+  useCodexProfile(profilePath: string): void {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const previous = this.db.prepare("SELECT value FROM runtime_settings WHERE key = 'codex_profile'")
+        .get() as { value: string } | undefined;
+      if (previous?.value !== profilePath) {
+        this.db.exec("DELETE FROM codex_threads");
+        this.db.prepare(`
+          INSERT INTO runtime_settings (key, value) VALUES ('codex_profile', ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        `).run(profilePath);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
 
   addAttachment(input: Attachment): Attachment {

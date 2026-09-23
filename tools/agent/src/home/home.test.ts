@@ -235,7 +235,7 @@ describe("Agent Home", () => {
     const store = new Store(homeDir);
     cleanup(() => store.close());
     const log = join(homeDir, "rpc.log");
-    const config: RuntimeConfig = { homeDir, port: 0, codexCommand: "codex" };
+    const config: RuntimeConfig = { homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" };
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
     const working = store.createSession({ title: "Existing task" });
     store.startRun(working.id);
@@ -261,8 +261,8 @@ describe("Agent Home", () => {
       { model: "gpt-6-luna", ephemeral: true, sandbox: "read-only", baseInstructions: expect.stringContaining("usually a few sentences") },
     ]);
     expect(threads.map((thread) => thread.config)).toEqual([
-      { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },
-      { model_instructions_file: join(homeDir, "codex", "utility-instructions.md") },
+      { model_instructions_file: join(homeDir, "utility-instructions.md") },
+      { model_instructions_file: join(homeDir, "utility-instructions.md") },
     ]);
     expect(threads.every((thread) => !String(thread.baseInstructions).includes("You are Agent, a direct, concise assistant"))).toBe(true);
     expect(threads.every((thread) => thread.developerInstructions === undefined)).toBe(true);
@@ -281,7 +281,7 @@ describe("Agent Home", () => {
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-duplicate", AGENT_FAKE_LOG: log,
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Fix the tests" }, [], [])).toEqual([
       { type: "start", source: "Fix the tests", text: "Fix the tests", title: "Fix tests" },
     ]);
@@ -300,7 +300,7 @@ describe("Agent Home", () => {
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-multiple",
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Find restaurants in Taipei and a good air fryer" }, [], []))
       .toMatchObject([{ type: "start", title: "Taipei restaurants" }, { type: "start", title: "Air fryer picks" }]);
     client.stop();
@@ -318,7 +318,7 @@ describe("Agent Home", () => {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-reuse",
       AGENT_FAKE_SESSION_ID: session.id, AGENT_FAKE_ENTRY_ID: "current-card",
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Please also add tests" }, [], store.home.entries())).toEqual([
       { type: "continue", source: "Please also add tests", title: "Add tests",
         text: "Add tests for the current task.", sessionId: session.id, entryId: "current-card" },
@@ -334,7 +334,7 @@ describe("Agent Home", () => {
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-overlap",
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     await expect(backend.compose({ text: "How are you?" }, [], []))
       .rejects.toThrow("Home could not route this request. Try again.");
     client.stop();
@@ -346,7 +346,7 @@ describe("Agent Home", () => {
     cleanup(() => store.close());
     const fixture = join(process.cwd(), "src/codex/test-fixtures/fake-app-server.mjs");
     const client = new CodexAppServer({ command: process.execPath, args: [fixture] });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     await expect(backend.compose({ text: "Resume Tonal Android" }, [], []))
       .rejects.toThrow("Home could not route this request. Try again.");
     client.stop();
@@ -367,7 +367,7 @@ describe("Agent Home", () => {
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-read", AGENT_FAKE_LOG: log,
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     expect(await backend.compose({ text: "Resume the reconnect investigation and add these logs" }, [], []))
       .toEqual([{ type: "continue", source: "Resume the reconnect investigation and add these logs",
         sessionId: saved.id, title: "Continue reconnect investigation",
@@ -402,7 +402,7 @@ describe("Agent Home", () => {
     const client = new CodexAppServer({ command: process.execPath, args: [fixture], env: {
       ...process.env, AGENT_FAKE_SCENARIO: "home-compose-mixed",
     } });
-    const backend = new CodexHomeBackend({ homeDir, port: 0, codexCommand: "codex" }, store, client);
+    const backend = new CodexHomeBackend({ homeDir, codexHome: join(homeDir, ".codex"), port: 0, codexCommand: "codex" }, store, client);
     const actions = await backend.compose({
       text: "Resume the reconnect investigation and create a new task about Madrid restaurants",
     }, [], []);

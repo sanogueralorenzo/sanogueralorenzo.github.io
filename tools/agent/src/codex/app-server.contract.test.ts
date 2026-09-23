@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { cleanup, temporary } from "../test-support.js";
-import { CodexAppServer, createAgentCodexAppServer, prepareAgentCodexHome, utilityInstructionsPath } from "./app-server.js";
+import { CodexAppServer, createAgentCodexAppServer, prepareAgentUtilityInstructions, utilityInstructionsPath } from "./app-server.js";
 
 const fixture = join(dirname(fileURLToPath(import.meta.url)), "test-fixtures", "fake-app-server.mjs");
 
@@ -21,17 +21,17 @@ const requests = (log: string) => readFileSync(log, "utf8").trim().split("\n")
   .map((line) => JSON.parse(line) as { method: string; params: Record<string, unknown> });
 
 describe("Codex profile and authentication", () => {
-  it("runs production app-server in a private, locked-down Agent profile", async () => {
+  it("uses the configured Codex profile and keeps Agent utility instructions private", async () => {
     const homeDir = temporary("agent-codex-profile-");
     const envLog = join(homeDir, "env.json");
     const rpcLog = join(homeDir, "rpc.log");
     const appServer = createAgentCodexAppServer(
-      { homeDir, codexCommand: process.execPath },
+      { homeDir, codexHome: join(homeDir, ".codex"), codexCommand: process.execPath },
       {
         args: [fixture],
         env: {
-          CODEX_HOME: "/tmp/must-not-be-used",
-          CODEX_SQLITE_HOME: "/tmp/must-not-be-used",
+          CODEX_HOME: "/tmp/normal-codex-profile",
+          CODEX_SQLITE_HOME: "/tmp/normal-codex-sqlite",
           CODEX_ACCESS_TOKEN: "must-not-leak",
           OPENAI_API_KEY: "must-not-leak",
           AGENT_FAKE_SCENARIO: "normal",
@@ -43,42 +43,25 @@ describe("Codex profile and authentication", () => {
     cleanup(() => appServer.stop());
     await appServer.account(false);
     expect(JSON.parse(readFileSync(envLog, "utf8"))).toEqual({
-      CODEX_HOME: join(homeDir, "codex"),
-      CODEX_SQLITE_HOME: join(homeDir, "codex"),
+      CODEX_HOME: join(homeDir, ".codex"),
+      CODEX_SQLITE_HOME: "/tmp/normal-codex-sqlite",
       CODEX_ACCESS_TOKEN: null,
       OPENAI_API_KEY: null,
     });
-    expect(lstatSync(join(homeDir, "codex")).mode & 0o777).toBe(0o700);
-    const instructions = join(homeDir, "codex", "instructions.md");
-    expect(readFileSync(instructions, "utf8")).toContain("You are Agent, a direct, concise assistant");
-    expect(readFileSync(instructions, "utf8")).toContain("delegate to one writer, run read-only reviewers in parallel, consolidate valid findings, then delegate revisions to one fresh writer");
+    expect(lstatSync(homeDir).mode & 0o777).toBe(0o700);
     const utilityInstructions = utilityInstructionsPath(homeDir);
     expect(readFileSync(utilityInstructions, "utf8")).toBe("Follow the instructions supplied for this thread.\n");
     expect(lstatSync(utilityInstructions).mode & 0o777).toBe(0o600);
-    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(
-      `service_tier = "fast"\nmodel_instructions_file = ${JSON.stringify(instructions)}\nmodel_verbosity = "low"\nmodel_reasoning_summary = "concise"\n\n[agents]\nenabled = true\nmax_concurrent_threads_per_session = 8\n`,
-    );
-    expect(lstatSync(join(homeDir, "codex", "config.toml")).mode & 0o777).toBe(0o600);
-    expect(lstatSync(instructions).mode & 0o777).toBe(0o600);
+    expect(() => lstatSync(join(homeDir, "codex", "config.toml"))).toThrow();
     const initialized = requests(rpcLog).find((message) => message.method === "initialize");
     expect(initialized?.params.capabilities).toEqual({ experimentalApi: true, requestAttestation: false });
   });
 
-  it("refuses a symbolic-link credential profile", () => {
-    const homeDir = temporary("agent-codex-profile-link-");
+  it("refuses a symbolic-link utility-instructions file", () => {
+    const homeDir = temporary("agent-codex-instructions-link-");
     const target = temporary("agent-codex-profile-target-");
-    symlinkSync(target, join(homeDir, "codex"));
-    expect(() => prepareAgentCodexHome(homeDir)).toThrow(/real directory/);
-  });
-
-  it("always configures fast processing with only the service tier", () => {
-    const homeDir = temporary("agent-codex-fast-");
-    prepareAgentCodexHome(homeDir);
-    const config = readFileSync(join(homeDir, "codex", "config.toml"), "utf8");
-    expect(config.match(/^service_tier = "fast"$/gm)).toHaveLength(1);
-    expect(config).not.toContain("fast_mode");
-    prepareAgentCodexHome(homeDir);
-    expect(readFileSync(join(homeDir, "codex", "config.toml"), "utf8")).toBe(config);
+    symlinkSync(target, utilityInstructionsPath(homeDir));
+    expect(() => prepareAgentUtilityInstructions(homeDir)).toThrow(/symbolic link/);
   });
 
   it.each([
@@ -97,7 +80,7 @@ describe("Codex profile and authentication", () => {
     await expect(appServer.waitForLogin(login.loginId, 1_000)).resolves.toEqual({ state: "complete" });
   });
 
-  it("stores API-key authentication in the same private Codex profile", async () => {
+  it("stores API-key authentication in the configured Codex profile", async () => {
     const homeDir = temporary("agent-codex-api-key-");
     const log = join(homeDir, "rpc.log");
     const appServer = client("expired", { AGENT_FAKE_LOG: log });
@@ -108,7 +91,7 @@ describe("Codex profile and authentication", () => {
     expect(readFileSync(log, "utf8")).not.toContain("sk-test-secret");
   });
 
-  it("logs out of the private Codex profile", async () => {
+  it("logs out of the configured Codex profile", async () => {
     const homeDir = temporary("agent-codex-logout-");
     const log = join(homeDir, "rpc.log");
     const appServer = client("normal", { AGENT_FAKE_LOG: log });
