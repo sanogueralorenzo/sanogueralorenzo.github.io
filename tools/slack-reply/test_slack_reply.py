@@ -91,14 +91,35 @@ class SlackReplyTests(unittest.TestCase):
         self.assertEqual(self.client.posts[0]["thread_ts"], ROOT)
         self.assertEqual(self.state.session("T123", "C123", ROOT), "session-1")
 
-    def test_top_level_has_no_history_or_session(self):
+    def test_top_level_starts_thread_without_channel_history(self):
         with patch.object(reply, "run_codex", return_value=("fresh", "answer")) as codex:
             reply.handle(event(), "T123", USER, self.client, self.state,
                          self.path, "gpt-6-luna", "low", self.path)
         self.assertEqual(self.client.calls, [])
-        self.assertNotIn("thread_ts", self.client.posts[0])
+        self.assertEqual(self.client.posts[0]["thread_ts"], FIRST)
+        self.assertEqual(self.state.session("T123", "C123", FIRST), "fresh")
         self.assertIsNone(codex.call_args.args[1])
         self.assertNotIn("Thread through", codex.call_args.args[0])
+
+    def test_followup_in_new_thread_resumes_top_level_session(self):
+        root = event(ts=ROOT)
+        followup = event(ts="1700000004.000001", text=f"follow up <@{USER}>",
+                         thread_ts=ROOT)
+        self.client.pages = [{
+            "messages": [root, {"ts": "1700000003.000001", "user": USER,
+                                "text": "first answer"}, followup],
+            "response_metadata": {},
+        }]
+        with patch.object(reply, "run_codex", side_effect=[("session-1", "first answer"),
+                                                         ("session-1", "second answer")]) as codex:
+            reply.handle(root, "T123", USER, self.client, self.state,
+                         self.path, "gpt-6-luna", "low", self.path)
+            reply.handle(followup, "T123", USER, self.client, self.state,
+                         self.path, "gpt-6-luna", "low", self.path)
+        self.assertIsNone(codex.call_args_list[0].args[1])
+        self.assertEqual(codex.call_args_list[1].args[1], "session-1")
+        self.assertIn("previous Slack Reply answer", codex.call_args_list[1].args[0])
+        self.assertEqual([post["thread_ts"] for post in self.client.posts], [ROOT, ROOT])
 
     def test_session_survives_restart_in_private_state(self):
         self.state.save_session("T123", "C123", ROOT, "session-1")

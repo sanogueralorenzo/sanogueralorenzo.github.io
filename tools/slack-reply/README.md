@@ -1,6 +1,6 @@
 # Slack Reply
 
-Local Slack Socket Mode bridge to `codex exec`. A message runs Codex only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Replies in threads reuse one Codex session per Slack thread; top-level messages use a fresh session and no channel history. Answers are posted with the authorized user's Slack token.
+Local Slack Socket Mode bridge to `codex exec`. A message runs Codex only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one Codex session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token.
 
 ## Slack setup
 
@@ -28,4 +28,4 @@ chmod 600 .env
 
 `.env` is ignored by Git and `run.sh` requires mode `600`. Use a private workspace and grant the app only the Slack scopes you need. The SQLite session map and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from the `codex` subprocess environment. Codex uses a workspace-write sandbox and never-ask approval policy; its selected model and effort must be supported by your local CLI and account.
 
-To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved Codex session on later self-mentions. A top-level message sends only itself and posts the answer at the top level of the same conversation. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.
+To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved Codex session on later self-mentions. A top-level message sends only itself, starts a thread with the answer, and saves the session for later self-mentions in that thread. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.

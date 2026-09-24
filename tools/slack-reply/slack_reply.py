@@ -186,19 +186,17 @@ def handle(event, team, user_id, client, state, workspace, model, effort, state_
     channel, ts = event["channel"], event["ts"]
     if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
         return
-    thread_ts = event.get("thread_ts")
-    is_reply = bool(thread_ts and thread_ts != ts)
+    thread_ts = event.get("thread_ts") or ts
+    is_reply = thread_ts != ts
     session_id = state.session(team, channel, thread_ts) if is_reply else None
     messages = thread_messages(client, event) if is_reply else None
     prompt = prompt_for(event, messages, state, team)
     new_session_id, answer = run_codex(
         prompt, session_id, workspace, model, effort, state_dir,
     )
-    if is_reply:
-        state.save_session(team, channel, thread_ts, new_session_id)
-    post = {"channel": channel, "text": answer, "unfurl_links": False, "unfurl_media": False}
-    if is_reply:
-        post["thread_ts"] = thread_ts
+    state.save_session(team, channel, thread_ts, new_session_id)
+    post = {"channel": channel, "thread_ts": thread_ts, "text": answer,
+            "unfurl_links": False, "unfurl_media": False}
     response = client.chat_postMessage(**post)
     state.mark("posted", team, channel, response["ts"])
     state.mark("handled", team, channel, ts)
