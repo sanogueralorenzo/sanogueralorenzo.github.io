@@ -1,8 +1,10 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 
 const root = document.querySelector("#app");
+const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
+sessionStorage.removeItem("assistant-reload-draft");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: "", homeDraft: "", sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", steer: false };
+  transcript: [], input: restoredDraft, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", steer: false };
 let renderedView = state.selected;
 
 async function api(path, method = "GET", body) {
@@ -24,7 +26,7 @@ function home() {
     const entry = state.data.entries.find((item) => item.id === message.entryId);
     const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}><span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(entry?.status)}</${entry?.sessionId ? "button" : "div"}>`;
     const updates = entry?.updates.filter((update) => (update.sourceId || entry.sourceId) === message.id).map((update) => `<button class="message-bubble assistant-bubble home-update" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}><span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button>`).join("") || "";
-    const pending = message.status === "routing" ? `<div class="home-progress"><i class="spinner"></i><span>Finding the right conversation…</span></div>` : entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
+    const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
     return `<section class="home-exchange"><div class="message-row user-row home-requests">${request}</div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
   }).join("")}</div></main>`;
 }
@@ -36,6 +38,18 @@ function sessionView() {
 }
 function render() {
   const old = root.querySelector(".scroll-area");
+  if (state.selected === "home" && renderedView === "home" && old?.classList.contains("home-scroll") &&
+    !state.error && !root.querySelector(".connection-error")) {
+    const nearBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 40;
+    const scrollTop = old.scrollTop;
+    old.outerHTML = home();
+    const scroll = root.querySelector(".home-scroll");
+    scroll.scrollTop = nearBottom ? scroll.scrollHeight : scrollTop;
+    const dot = root.querySelector(".connection-dot");
+    dot.classList.toggle("online", state.connected);
+    dot.title = state.connected ? "Connected" : "Reconnecting";
+    return;
+  }
   if (old) state.scroll[renderedView] = old.scrollTop;
   const focus = document.activeElement?.dataset?.focus;
   const cursor = focus ? document.activeElement.selectionStart : null;
@@ -101,10 +115,12 @@ root.addEventListener("keydown", (event) => {
 root.addEventListener("submit", async (event) => {
   if (event.target.id !== "composer") return;
   event.preventDefault();
-  const text = state.input.trim();
+  const composer = event.target.querySelector("textarea");
+  const text = composer.value.trim();
   if (!text) return;
   const selected = state.selected;
   state.input = "";
+  composer.value = "";
   state.error = "";
   if (selected === "home") {
     const id = crypto.randomUUID();
@@ -120,7 +136,17 @@ root.addEventListener("submit", async (event) => {
 
 function connect() {
   const stream = new EventSource("/api/events");
-  stream.onopen = () => { state.connected = true; render(); };
+  let opened = false;
+  stream.onopen = () => {
+    if (opened) {
+      sessionStorage.setItem("assistant-reload-draft", root.querySelector("textarea")?.value || "");
+      location.reload();
+      return;
+    }
+    opened = true;
+    state.connected = true;
+    render();
+  };
   stream.onerror = () => { state.connected = false; render(); };
   stream.onmessage = ({ data }) => {
     const event = JSON.parse(data);

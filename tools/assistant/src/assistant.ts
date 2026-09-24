@@ -23,7 +23,7 @@ export class Assistant {
   private active = new Map<string, Active>();
   private starting = new Set<string>();
   private pendingStops = new Set<string>();
-  private routeCommit: Promise<void> = Promise.resolve();
+  private homeRouting: Promise<void> = Promise.resolve();
   private closing = false;
   constructor(dataDir: string, cwd: string, concurrency = 4) {
     this.dataDir = dataDir;
@@ -39,17 +39,14 @@ export class Assistant {
   snapshot() { return this.state.data; }
   submitHome(text: string, id?: string) {
     const message = this.state.message(text, id);
-    // Discovery overlaps. Only the state-changing routing decisions wait for earlier submissions.
-    const discovered = this.router.discover(message).then((route) => ({ route }), (error) => ({ error }));
-    const commit = this.routeCommit.then(async () => {
+    const routed = this.homeRouting.then(async () => {
       try {
-        const result = await discovered;
-        if ("error" in result) throw result.error;
-        await this.commitRoute(message, result.route);
+        const route = await this.router.discover(message);
+        await this.commitRoute(message, route);
       }
       catch (error) { message.status = "failed"; this.state.entry(message, "Routing failed", null); const entry = this.state.data.entries.at(-1)!; this.state.update(entry, errorText(error), "error", "failed"); this.state.save(); }
     });
-    this.routeCommit = commit.catch(() => undefined);
+    this.homeRouting = routed.catch(() => undefined);
     return message;
   }
   private async commitRoute(message: HomeMessage, route: Route) {
