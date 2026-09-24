@@ -190,6 +190,10 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .entry-copy small { font-size: 15px; font-weight: 600; }
 .state-chip { position: absolute; right: 6px; bottom: -20px; min-width: 34px; height: 30px; border-radius: 14px; border: 4px solid var(--canvas); background: var(--assistant); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; pointer-events: none; }
 .state-chip.working { color: white; }
+.state-chip.with-progress { max-width: min(220px, calc(100% - 12px)); padding: 0 7px; gap: 6px; }
+.state-chip-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; animation: progress-roll-in .2s ease-out; }
+@keyframes progress-roll-in { from { opacity: 0; transform: translateY(5px); } }
+@media (prefers-reduced-motion: reduce) { .state-chip-text { animation: none; } }
 .home-update { border: 0; text-align: left; cursor: pointer; font-size: 15px; line-height: 1.5; }
 .home-update:hover { filter: brightness(1.12); }
 .home-update:disabled { cursor: default; opacity: 1; }

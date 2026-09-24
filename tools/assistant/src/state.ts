@@ -54,6 +54,7 @@ export class State {
     return entry;
   }
   update(entry: HomeEntry, text: string, kind: Update["kind"], status?: EntryStatus, sourceId?: string) {
+    entry.updates = entry.updates.filter((update) => update.kind !== "progress");
     entry.updates.push({ id: randomUUID(), text, kind, sourceId, createdAt: now() });
     if (status) entry.status = status;
     entry.updatedAt = now();
