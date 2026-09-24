@@ -44,6 +44,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "x-accel-buffering": "no" });
       clients.add(res);
       res.write(`data: ${JSON.stringify({ type: "snapshot", data: app.snapshot() })}\n\n`);
+      for (const activity of app.activities()) res.write(`data: ${JSON.stringify(activity)}\n\n`);
       req.on("close", () => clients.delete(res));
       return;
     }

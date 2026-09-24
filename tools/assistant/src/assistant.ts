@@ -5,7 +5,8 @@ import { HomeRouter, type Route } from "./home-routing.ts";
 import { State, now, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 
-type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean; lastProgress?: string };
+type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean;
+  commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const progressByTool: Record<string, string> = { read: "Inspecting files", grep: "Searching files", find: "Finding files", ls: "Inspecting files",
@@ -37,6 +38,8 @@ export class Assistant {
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
   snapshot() { return this.state.data; }
+  activities() { return [...this.active.values()].filter((run) => run.turn.sourceId)
+    .map((run) => ({ type: "homeActivity", sourceId: run.turn.sourceId, text: run.lastProgress })); }
   submitHome(text: string, id?: string) {
     const message = this.state.message(text, id);
     const routed = this.homeRouting.then(async () => {
@@ -175,25 +178,50 @@ export class Assistant {
     try {
       const role = record.role || "personal";
       session = await this.pi.open(record.cwd, record.file, role);
-      active = { session, turn, output: "", error: "", stopped: false };
+      active = { session, turn, output: "", error: "", stopped: false, commentary: "", tool: "", thinking: "", lastProgress: "", savedProgress: "" };
       this.active.set(record.id, active);
       this.starting.delete(record.id);
       if (this.pendingStops.has(record.id)) { active.stopped = true; throw new Error("Stopped"); }
+      const progress = () => clean(active!.commentary || active!.tool || active!.thinking).trim().slice(-1200);
+      const showProgress = () => {
+        const text = progress();
+        if (text === active!.lastProgress) return;
+        active!.lastProgress = text;
+        if (turn.sourceId) this.emit({ type: "homeActivity", sourceId: turn.sourceId, text });
+      };
+      const saveProgress = () => {
+        const text = progress();
+        if (!entry || !text || text === active!.savedProgress) return;
+        active!.savedProgress = text;
+        this.state.update(entry, text, "progress", "working", turn.sourceId);
+      };
       session.subscribe((event) => {
+        if (event.type === "message_start" && event.message.role === "assistant") {
+          active!.commentary = active!.tool = active!.thinking = "";
+          showProgress();
+        }
+        if (event.type === "message_update") {
+          const update = event.assistantMessageEvent;
+          if (update.type === "thinking_start") { active!.thinking = ""; showProgress(); }
+          if (update.type === "thinking_delta") { active!.thinking += update.delta; showProgress(); }
+          if (update.type === "thinking_end") { active!.thinking = update.content; showProgress(); saveProgress(); }
+          if (update.type === "text_delta") {
+            active!.commentary += update.delta;
+            showProgress();
+            this.emit({ type: "delta", sessionId: record.id, delta: update.delta });
+          }
+        }
         if (event.type === "message_end" && event.message.role === "assistant") {
           const text = assistantText(event.message);
           if (text && event.message.stopReason !== "toolUse") active!.output = text;
           if (event.message.stopReason === "error") active!.error = event.message.errorMessage || "Model error";
-          if (text && event.message.stopReason === "toolUse" && entry) this.state.update(entry, clean(text.slice(0, 900)), "progress", "working", turn.sourceId);
+          if (event.message.stopReason === "toolUse") { if (text) active!.commentary = text; showProgress(); saveProgress(); }
         }
-        if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") this.emit({ type: "delta", sessionId: record.id, delta: event.assistantMessageEvent.delta });
         if (event.type === "tool_execution_start") {
           this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
-          const progress = toolProgress(event.toolName);
-          if (progress !== active!.lastProgress) {
-            active!.lastProgress = progress;
-            if (entry) this.state.update(entry, `${progress}…`, "progress", "working", turn.sourceId);
-          }
+          active!.tool = `${toolProgress(event.toolName)}…`;
+          showProgress();
+          saveProgress();
         }
       });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId);
@@ -211,6 +239,7 @@ export class Assistant {
         this.state.update(entry, interrupted ? "Stopped. You can continue this conversation." : errorText(error), "error", interrupted ? "interrupted" : "failed", turn.sourceId);
       }
     } finally {
+      if (turn.sourceId) this.emit({ type: "homeActivity", sourceId: turn.sourceId, text: "" });
       session?.dispose();
       this.active.delete(record.id);
       this.starting.delete(record.id);
