@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { createAgentSession, DefaultResourceLoader, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TaskRole } from "./state.ts";
 import { assistantCodexAuth } from "./codex-auth.ts";
+import { webTools } from "./web.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
 const prompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
@@ -32,15 +33,17 @@ export class PiService {
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: !worker, noContextFiles: !worker,
-      systemPromptOverride: () => [prompt("base"), prompt(role)].join("\n\n"),
+      systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    const tools = role === "coordinator" ? customTools.map((tool) => tool.name)
+    const availableTools = worker ? [...customTools, ...webTools] : customTools;
+    const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
       : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
       : ["read", "bash", "edit", "write", "grep", "find", "ls"];
+    if (worker) tools.push(...webTools.map((tool) => tool.name));
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
-      resourceLoader: loader, sessionManager: manager, customTools, tools });
+      resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
     return session;
   }
   async create(cwd: string, id: string, role: TaskRole) {

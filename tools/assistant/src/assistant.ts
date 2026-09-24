@@ -10,7 +10,7 @@ type Active = { session: AgentSession; turn: Turn; output: string; error: string
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const progressByTool: Record<string, string> = { read: "Inspecting files", grep: "Searching files", find: "Finding files", ls: "Inspecting files",
-  edit: "Making changes", write: "Making changes", bash: "Running commands" };
+  edit: "Making changes", write: "Making changes", bash: "Running commands", web_search: "Searching the web", web_open: "Reading a web page" };
 const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
 export class Assistant {

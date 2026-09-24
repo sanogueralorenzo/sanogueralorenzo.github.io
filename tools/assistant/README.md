@@ -18,4 +18,6 @@ Home accepts overlapping requests immediately. The Pi coordinator starts one con
 
 All roles use the Codex `gpt-6-luna` model with Fast processing. Home routing uses Low reasoning, and task agents use High reasoning. The coordinator assigns a persistent task agent: **personal** for everyday help, **code** for implementation, **scout** for read-only investigation, or **reviewer** for read-only review. Each has its own base instructions and tool access; the conversation header shows its role. Other model providers are outside this version.
 
+Task agents can search the public web and read linked pages for current information.
+
 Run `npm run check` for the focused TypeScript check. There is no test suite or non-site CI.
