@@ -36,7 +36,8 @@ function replyTarget(id) {
 }
 function quote(target, className) {
   if (!target) return "";
-  const preview = target.text.replace(/\s+/g, " ").trim().slice(0, 160);
+  const text = target.text.replace(/\s+/g, " ").trim();
+  const preview = text.length > 80 ? `${text.slice(0, 80).trimEnd()}…` : text;
   return `<span class="${className}"><strong>${target.role}</strong><span>${escapeHTML(preview)}</span></span>`;
 }
 function replyButton(id, sessionId) {
