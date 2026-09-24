@@ -1,0 +1,31 @@
+# Slack Reply
+
+Local Slack Socket Mode bridge to `codex exec`. A message runs Codex only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Replies in threads reuse one Codex session per Slack thread; top-level messages use a fresh session and no channel history. Answers are posted with the authorized user's Slack token.
+
+## Slack setup
+
+1. Create a Slack app named **Slack Reply** with a bot user. Enable **Socket Mode** and create an app-level `xapp-` token with `connections:write`.
+2. Enable **Event Subscriptions**. Subscribe to the bot events `message.channels`, `message.groups`, `message.im`, and `message.mpim` for the conversation types you want. Add the corresponding **bot token scopes** `channels:history`, `groups:history`, `im:history`, and `mpim:history`. Invite the bot to each channel it should listen to. You can omit unused conversation types and their scopes.
+3. Under **User Token Scopes**, grant `chat:write` and the matching history scopes for threads you want to read: `channels:history`, `groups:history`, `im:history`, and/or `mpim:history`. Install or reinstall the app as the user whose messages should trigger it. Copy that user's `xoxp-` token and the app's `xoxb-` bot token. The app checks that the user token belongs to `SLACK_USER_ID` and that both tokens are for the same workspace.
+
+Slack [user tokens perform writes as the user](https://docs.slack.dev/authentication/tokens/). A bot token would post as the bot, so the user token is required. Your workspace must permit the requested user scopes. Missing conversation access or history scopes cause thread retrieval to fail; Slack Reply logs the Slack error and does not fall back to incomplete context. Slack's [`conversations.replies` limits](https://docs.slack.dev/reference/methods/conversations.replies/) may also affect large threads or some distributed apps.
+
+## Run locally
+
+Requires Python 3.10+ and an authenticated `codex` CLI on your `PATH`.
+
+```sh
+cd tools/slack-reply
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+umask 077
+cp .env.example .env
+chmod 600 .env
+# Edit .env with your tokens, Slack user ID, absolute workspace path, model, and effort.
+./run.sh
+```
+
+`.env` is ignored by Git and `run.sh` requires mode `600`. Use a private workspace and grant the app only the Slack scopes you need. The SQLite session map and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from the `codex` subprocess environment. Codex uses a workspace-write sandbox and never-ask approval policy; its selected model and effort must be supported by your local CLI and account.
+
+To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved Codex session on later self-mentions. A top-level message sends only itself and posts the answer at the top level of the same conversation. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.
