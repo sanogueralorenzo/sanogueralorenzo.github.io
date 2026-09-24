@@ -18,12 +18,11 @@ async function api(path, method = "GET", body) {
   return result;
 }
 
-function statusBadge(value, progress) {
+function statusBadge(value) {
   const status = value || "routing";
   const symbol = ({ ready: "👍", failed: "⚠️", interrupted: "⏸️" })[status];
   const working = status === "routing" || status === "queued" || status === "working";
-  const activity = status === "working" ? progress?.replace(/\s+/g, " ").trim().slice(0, 160) : "";
-  return `<span class="state-chip ${working ? "working" : ""} ${activity ? "with-progress" : ""}" role="img" aria-label="${escapeHTML(activity || status.replace("_", " "))}">${working ? '<i class="spinner"></i>' : symbol || ""}${activity ? `<span class="state-chip-text">${escapeHTML(activity)}</span>` : ""}</span>`;
+  return `<span class="state-chip ${working ? "working" : ""}" role="img" aria-label="${escapeHTML(status.replace("_", " "))}">${working ? '<i class="spinner"></i>' : symbol || ""}</span>`;
 }
 function replyTarget(id) {
   if (!id) return null;
@@ -64,10 +63,12 @@ function home() {
   return `<main class="home-scroll scroll-area"><div class="home-content">${state.data.messages.filter((message) => !edited.has(message.id)).map((message) => {
     const entry = state.data.entries.find((item) => item.id === message.entryId);
     const progress = entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
-    const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(messageStatus(message, entry), progress)}</${entry?.sessionId ? "button" : "div"}>`;
+    const status = messageStatus(message, entry);
+    const activity = status === "working" && progress ? `<div class="activity-pill">${escapeHTML(progress.replace(/\s+/g, " ").trim())}</div>` : "";
+    const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(status)}</${entry?.sessionId ? "button" : "div"}>`;
     const updates = entry?.updates.filter((update) => update.kind !== "progress" && (update.sourceId || entry.sourceId) === message.id).map((update) => `<div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.kind === "result" ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.kind === "result" ? quote({ role: "You", text: message.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>`).join("") || "";
     const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
-    return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div></div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
+    return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activity}</div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
   }).join("")}</div></main>`;
 }
 function sessionView() {

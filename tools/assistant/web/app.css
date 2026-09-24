@@ -190,10 +190,9 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .entry-copy small { font-size: 15px; font-weight: 600; }
 .state-chip { position: absolute; right: 6px; bottom: -20px; min-width: 34px; height: 30px; border-radius: 14px; border: 4px solid var(--canvas); background: var(--assistant); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; pointer-events: none; }
 .state-chip.working { color: white; }
-.state-chip.with-progress { width: min(220px, calc(100% - 12px)); padding: 0 7px; gap: 6px; flex-direction: row-reverse; justify-content: flex-start; }
-.state-chip-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; animation: progress-roll-in .2s ease-out; }
+.activity-pill { align-self: flex-end; width: max-content; max-width: min(320px, calc(100% - 44px)); min-height: 30px; margin: -40px 44px 0 0; padding: 3px 8px; border: 4px solid var(--canvas); border-radius: 14px; background: var(--assistant); color: white; font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; animation: progress-roll-in .2s ease-out; }
 @keyframes progress-roll-in { from { opacity: 0; transform: translateY(5px); } }
-@media (prefers-reduced-motion: reduce) { .state-chip-text { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .activity-pill { animation: none; } }
 .home-update { border: 0; text-align: left; cursor: pointer; font-size: 15px; line-height: 1.5; }
 .home-update:hover { filter: brightness(1.12); }
 .home-update:disabled { cursor: default; opacity: 1; }
