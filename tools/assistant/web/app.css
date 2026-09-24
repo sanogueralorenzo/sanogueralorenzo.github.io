@@ -9,6 +9,8 @@
   --line: color-mix(in srgb, var(--graphite) 13%, transparent);
   --clay: #ba6133;
   --input: #faf7f2;
+  --quote-bg: #dce2e9;
+  --quote-text: #435164;
   --shadow: 0 18px 50px #0002;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -27,6 +29,8 @@
   --muted: #b0aba3;
   --clay: #b35730;
     --input: #1c1c1c;
+    --quote-bg: #3b414a;
+    --quote-text: #e0e4e9;
     --shadow: 0 18px 50px #0008;
   }
 }
@@ -176,7 +180,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 .replyable .message-bubble { max-width: min(640px, calc(100% - 38px)); }
 .home-entry:has(.user-context) { margin-top: 16px; }
-.message-context { width: fit-content; max-width: min(400px, 100%); padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; border: 3px solid var(--canvas); border-radius: 14px; background: var(--user); color: white; font-size: 12px; line-height: 1.35; text-align: left; }
+.message-context { width: fit-content; max-width: min(400px, 100%); padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; border: 3px solid var(--canvas); border-radius: 14px; background: var(--quote-bg); color: var(--quote-text); font-size: 12px; line-height: 1.35; text-align: left; }
 .message-context strong { font-size: 11px; }
 .message-context > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .home-entry:has(.user-context), .home-update.with-context { display: flex; flex-direction: column; align-items: flex-start; }
@@ -200,4 +204,5 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .steer-button { width: auto; flex-basis: auto; padding: 0 8px; border-radius: 12px; font-size: 12px; }
 .steer-selected { color: var(--clay); font-weight: 700; }
 .composer-hint { width: min(820px, 100%); margin: 4px auto 0; padding: 0 16px; font-size: 12px; color: var(--clay); }
+.edit-hint { color: var(--muted); }
 @media (hover: none) { .reply-action { opacity: .8; } }
