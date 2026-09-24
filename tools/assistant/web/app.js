@@ -64,7 +64,7 @@ function home() {
     const entry = state.data.entries.find((item) => item.id === message.entryId);
     const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
     const status = messageStatus(message, entry);
-    const activity = status === "working" && progress ? `<div class="activity-pill" data-source="${escapeHTML(message.id)}">${escapeHTML(progress.replace(/\s+/g, " ").trim())}</div>` : "";
+    const activity = `<div class="activity-pill" data-source="${escapeHTML(message.id)}">${status === "working" && progress ? escapeHTML(progress.replace(/\s+/g, " ").trim()) : ""}</div>`;
     const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(status)}</${entry?.sessionId ? "button" : "div"}>`;
     const updates = entry?.updates.filter((update) => update.kind !== "progress" && (update.sourceId || entry.sourceId) === message.id).map((update) => `<div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.kind === "result" ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.kind === "result" ? quote({ role: "You", text: message.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>`).join("") || "";
     const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
@@ -83,13 +83,21 @@ function render(force = false) {
     !state.error && !root.querySelector(".connection-error")) {
     const nearBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 40;
     const scrollTop = old.scrollTop;
-    old.outerHTML = home();
-    const scroll = root.querySelector(".home-scroll");
-    scroll.scrollTop = nearBottom ? scroll.scrollHeight : scrollTop;
+    const next = document.createElement("template");
+    next.innerHTML = home();
+    const current = old.querySelector(".home-content");
+    const fresh = next.content.querySelector(".home-content");
+    const children = [...fresh.children];
+    for (let i = 0; i < children.length; i++) {
+      const existing = current.children[i];
+      const updated = children[i];
+      if (!existing) current.append(updated);
+      else if (!existing.isEqualNode(updated)) existing.replaceWith(updated);
+    }
+    while (current.children.length > children.length) current.lastElementChild.remove();
+    old.scrollTop = nearBottom ? old.scrollHeight : scrollTop;
     scrollActivity();
-    const dot = root.querySelector(".connection-dot");
-    dot.classList.toggle("online", state.connected);
-    dot.title = state.connected ? "Connected" : "Reconnecting";
+    updateConnection();
     return;
   }
   if (old) state.scroll[renderedView] = old.scrollTop;
@@ -252,9 +260,9 @@ function connect() {
     }
     opened = true;
     state.connected = true;
-    render();
+    updateConnection();
   };
-  stream.onerror = () => { state.connected = false; render(); };
+  stream.onerror = () => { state.connected = false; updateConnection(); };
   stream.onmessage = ({ data }) => {
     const event = JSON.parse(data);
     if (event.type === "snapshot") { state.data = event.data; render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview")); if (state.selected !== "home") void loadSession(); }
@@ -264,7 +272,7 @@ function connect() {
       state.liveProgress[event.sourceId] = event.text;
       if (state.selected === "home") {
         const pill = [...root.querySelectorAll(".activity-pill")].find((item) => item.dataset.source === event.sourceId);
-        if (pill && event.text) {
+        if (pill) {
           pill.textContent = event.text.replace(/\s+/g, " ").trim();
           pill.scrollTop = pill.scrollHeight;
         }
@@ -272,6 +280,12 @@ function connect() {
       }
     }
   };
+}
+function updateConnection() {
+  const dot = root.querySelector(".connection-dot");
+  if (!dot) return;
+  dot.classList.toggle("online", state.connected);
+  dot.title = state.connected ? "Connected" : "Reconnecting";
 }
 render();
 connect();
