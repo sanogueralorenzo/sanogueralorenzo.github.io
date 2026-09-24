@@ -1,6 +1,6 @@
 import { Type } from "typebox";
 import type { PiService } from "./pi.ts";
-import type { HomeMessage, State, TaskRole } from "./state.ts";
+import type { HomeEntry, HomeMessage, State, TaskRole } from "./state.ts";
 
 export type Route = { mode: "start"; agent: TaskRole; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
 
@@ -34,12 +34,14 @@ export class HomeRouter {
 
   async discover(message: HomeMessage): Promise<Route> {
     const entries = this.state.data.entries;
+    const requests = (entry: HomeEntry) => this.state.data.messages
+      .filter((item) => item.entryId === entry.id).map((item) => item.text);
     const sessions = this.state.data.sessions.map((session) => {
       const related = entries.filter((entry) => entry.sessionId === session.id)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       return { id: session.id, title: session.title, agent: session.role || "personal", status: session.status, cwd: session.cwd,
         updatedAt: related[0]?.updatedAt || session.createdAt,
-        recent: related.slice(0, 2).map((entry) => ({ request: entry.scope.slice(0, 200), lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
+        recent: related.slice(0, 2).map((entry) => ({ request: (requests(entry).at(-1) || "").slice(0, 200), lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
     }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     const findConversations = {
       name: "find_conversations", label: "Find saved conversations",
@@ -51,7 +53,7 @@ export class HomeRouter {
           !["the", "and", "for", "with", "about", "that", "this", "what", "whether", "resume", "continue"].includes(word));
         const matches = query && words.length ? sessions.map((session) => {
           const related = entries.filter((entry) => entry.sessionId === session.id);
-          const haystack = [session.title, session.cwd, ...related.flatMap((entry) => [entry.scope, entry.sourceText, entry.updates.at(-1)?.text || ""])]
+          const haystack = [session.title, session.cwd, ...related.flatMap((entry) => [...requests(entry), entry.updates.at(-1)?.text || ""])]
             .join(" ").toLowerCase();
           const score = words.filter((word) => haystack.includes(word)).length + (haystack.includes(query) ? words.length : 0);
           return { session, score };

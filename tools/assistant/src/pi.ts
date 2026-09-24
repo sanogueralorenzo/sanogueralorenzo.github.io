@@ -12,12 +12,6 @@ export const assistantText = (message: { role?: string; content?: unknown }): st
     typeof part === "object" && part !== null && "type" in part && part.type === "text" && "text" in part && typeof part.text === "string")
     .map((part) => part.text).join("\n").trim();
 };
-function displayUser(text: string) {
-  // Older sessions included a routing scope after the original message.
-  if (!text.startsWith("Original user message (verbatim):\n")) return text;
-  return text.slice("Original user message (verbatim):\n".length).split("\n\nAssigned scope:")[0];
-}
-
 export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
@@ -78,8 +72,8 @@ export class PiService {
     const manager = SessionManager.open(file);
     return manager.getEntries().filter((entry) => entry.type === "message")
       .map((entry) => entry.message).filter((message) => message.role === "user" || message.role === "assistant")
-      .map((message) => ({ role: message.role, text: message.role === "assistant" ? assistantText(message) : displayUser(
-        Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content)) }))
+      .map((message) => ({ role: message.role, text: message.role === "assistant" ? assistantText(message) :
+        Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }))
       .filter((message) => message.text.trim());
   }
 }

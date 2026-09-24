@@ -55,7 +55,7 @@ export class Assistant {
         if ("error" in result) throw result.error;
         await this.commitRoute(message, result.route);
       }
-      catch (error) { message.status = "failed"; this.state.entry(message, message.text, "Routing failed", null); const entry = this.state.data.entries.at(-1)!; this.state.update(entry, errorText(error), "error", "failed"); this.state.save(); }
+      catch (error) { message.status = "failed"; this.state.entry(message, "Routing failed", null); const entry = this.state.data.entries.at(-1)!; this.state.update(entry, errorText(error), "error", "failed"); this.state.save(); }
     });
     this.routeCommit = commit.catch(() => undefined);
     return message;
@@ -69,7 +69,7 @@ export class Assistant {
       pi.dispose();
       this.state.data.sessions.push(session);
     } else session = this.state.data.sessions.find((item) => item.id === route.sessionId)!;
-    const entry = this.state.entry(message, clean(message.text), session.title, session.id);
+    const entry = this.state.entry(message, session.title, session.id);
     this.state.data.turns.push({ id: randomUUID(), sessionId: session.id, entryId: entry.id, sourceId: message.id,
       text: message.text, status: "queued", createdAt: now() });
     message.status = "routed";
@@ -85,10 +85,7 @@ export class Assistant {
       : [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
     const source = this.state.message(text);
     source.status = "routed";
-    if (entry) {
-      source.entryIds.push(entry.id);
-      entry.sourceText += `\n\n${text}`;
-    }
+    if (entry) source.entryId = entry.id;
     if (mode === "steer" && active) {
       active.turn.sourceId = source.id;
       if (entry) {
@@ -131,7 +128,7 @@ export class Assistant {
     const entry = this.state.data.entries.find((item) => item.id === entryId);
     if (!entry?.sessionId || entry.status !== "interrupted") throw new Error("This task is not interrupted");
     entry.status = "queued";
-    const request = entry.interruptedText || `Original user message (verbatim):\n${entry.sourceText}`;
+    const request = entry.interruptedText || this.state.data.messages.find((message) => message.id === entry.sourceId)?.text || "";
     const sourceId = entry.interruptedSourceId || entry.sourceId;
     entry.interruptedText = undefined;
     entry.interruptedSourceId = undefined;

@@ -21,11 +21,10 @@ function statusBadge(value) {
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
   return `<main class="home-scroll scroll-area"><div class="home-content">${state.data.messages.map((message) => {
-    const entries = message.entryIds.map((id) => state.data.entries.find((entry) => entry.id === id)).filter(Boolean);
-    // Keep older saved split messages navigable; new Home messages have one entry.
-    const request = entries.length > 1 ? entries.map((entry) => `<button class="message-bubble user-bubble home-entry" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}><span class="entry-copy"><small>${escapeHTML(entry.title)}</small><span>${escapeHTML(message.text)}</span></span>${statusBadge(entry.status)}</button>`).join("") : `<${entries[0]?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entries[0]?.sessionId ? `data-action="open" data-session="${escapeHTML(entries[0].sessionId)}"` : ""}><span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(entries[0]?.status)}</${entries[0]?.sessionId ? "button" : "div"}>`;
-    const updates = entries.flatMap((entry) => entry.updates.filter((update) => (update.sourceId || entry.sourceId) === message.id).map((update) => `<button class="message-bubble assistant-bubble home-update" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}><span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button>`)).join("");
-    const pending = message.status === "routing" ? `<div class="home-progress"><i class="spinner"></i><span>Finding the right conversation…</span></div>` : entries.filter((entry) => entry.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id).map((entry) => `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>`).join("");
+    const entry = state.data.entries.find((item) => item.id === message.entryId);
+    const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}><span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(entry?.status)}</${entry?.sessionId ? "button" : "div"}>`;
+    const updates = entry?.updates.filter((update) => (update.sourceId || entry.sourceId) === message.id).map((update) => `<button class="message-bubble assistant-bubble home-update" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}><span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button>`).join("") || "";
+    const pending = message.status === "routing" ? `<div class="home-progress"><i class="spinner"></i><span>Finding the right conversation…</span></div>` : entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
     return `<section class="home-exchange"><div class="message-row user-row home-requests">${request}</div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
   }).join("")}</div></main>`;
 }
@@ -109,7 +108,7 @@ root.addEventListener("submit", async (event) => {
   state.error = "";
   if (selected === "home") {
     const id = crypto.randomUUID();
-    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryIds: [], status: "routing" });
+    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, status: "routing" });
     render();
     try { await api("/api/home", "POST", { id, text }); }
     catch (error) { state.error = error.message; state.input = text; state.data.messages = state.data.messages.filter((item) => item.id !== id); render(); }
