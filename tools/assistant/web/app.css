@@ -180,7 +180,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 .replyable .message-bubble { max-width: min(640px, calc(100% - 38px)); }
 .home-entry:has(.user-context) { margin-top: 16px; }
-.message-context { width: max-content; max-width: 100%; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; border: 3px solid var(--canvas); border-radius: 14px; background: var(--quote-bg); color: var(--quote-text); font-size: 12px; line-height: 1.35; text-align: left; }
+.message-context { width: max-content; max-width: 66.6667%; padding: 7px 10px; display: flex; flex-direction: column; gap: 2px; border: 3px solid var(--canvas); border-radius: 14px; background: var(--quote-bg); color: var(--quote-text); font-size: 12px; line-height: 1.35; text-align: left; }
 .message-context strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; }
 .message-context > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .home-entry:has(.user-context), .home-update.with-context { position: relative; min-width: 110px; margin-top: 20px; padding-top: 33px; display: flex; flex-direction: column; align-items: flex-start; }
