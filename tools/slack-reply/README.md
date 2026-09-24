@@ -1,6 +1,6 @@
 # Slack Reply
 
-Local Slack Socket Mode bridge to `codex exec`. A message runs Codex only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one Codex session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token.
+Local Slack Socket Mode bridge to the Codex or Claude CLI. A message runs the selected provider only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one provider session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token.
 
 ## Slack setup
 
@@ -12,7 +12,7 @@ Slack [user tokens perform writes as the user](https://docs.slack.dev/authentica
 
 ## Run locally
 
-Requires Python 3.10+ and an authenticated `codex` CLI on your `PATH`.
+Requires Python 3.10+ and an authenticated `codex` or `claude` CLI on your `PATH`.
 
 ```sh
 cd tools/slack-reply
@@ -23,9 +23,13 @@ umask 077
 cp .env.example .env
 chmod 600 .env
 # Edit .env with your tokens, Slack user ID, absolute workspace path, model, and effort.
+./run.sh provider          # Show the selected provider (Codex by default).
+./run.sh provider claude   # Or use "codex"; fails if that CLI is absent.
 ./run.sh
 ```
 
-`.env` is ignored by Git and `run.sh` requires mode `600`. Use a private workspace and grant the app only the Slack scopes you need. The SQLite session map and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from the `codex` subprocess environment. Codex uses a workspace-write sandbox and never-ask approval policy; its selected model and effort must be supported by your local CLI and account.
+If Claude reports an expired login, run `claude auth login` before using it here.
 
-To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved Codex session on later self-mentions. A top-level message sends only itself, starts a thread with the answer, and saves the session for later self-mentions in that thread. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.
+`.env` is ignored by Git and `run.sh` requires mode `600`. Set `SLACK_REPLY_WORKSPACE` to the directory both CLIs should use, and grant the app only the Slack scopes you need. The selected provider, session map, and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from both CLI subprocess environments. `CODEX_MODEL` and `CODEX_REASONING_EFFORT` configure Codex; optional `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT` override Claude's local defaults. Codex uses a workspace-write sandbox and never-ask approval policy. Claude runs with `acceptEdits` permission mode; its CLI permissions are distinct from Codex's sandbox. Both CLIs must be authenticated separately.
+
+To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved session on later self-mentions. A top-level message sends only itself, starts a thread with the answer, and saves the session for later self-mentions in that thread. Changing the provider affects new threads; existing threads stay with their original provider so their sessions remain resumable. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.

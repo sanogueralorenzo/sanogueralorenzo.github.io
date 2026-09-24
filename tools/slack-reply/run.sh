@@ -11,4 +11,4 @@ if [ -f .env ]; then
   . ./.env
   set +a
 fi
-exec python3 slack_reply.py
+exec python3 slack_reply.py "$@"
