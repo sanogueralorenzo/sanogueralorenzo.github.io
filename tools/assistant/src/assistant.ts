@@ -76,24 +76,30 @@ export class Assistant {
       if (update) return { entry, text: update.text, role: "assistant" };
     }
   }
-  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", replyToId?: string, id?: string) {
+  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", options: { replyToId?: string; editOfId?: string; id?: string } = {}) {
+    const { replyToId, editOfId, id } = options;
     const record = this.state.data.sessions.find((session) => session.id === sessionId);
     if (!record) throw new Error("Conversation not found");
-    const referenced = replyToId ? this.replyTarget(replyToId) : undefined;
+    if (replyToId && editOfId) throw new Error("Choose Reply or Edit");
+    const referenced = replyToId || editOfId ? this.replyTarget((replyToId || editOfId)!) : undefined;
     if (replyToId && referenced?.entry.sessionId !== sessionId) throw new Error("Reply target is not in this conversation");
     const active = this.active.get(sessionId);
+    if (editOfId && (mode !== "steer" || referenced?.role !== "user" || referenced.entry.sessionId !== sessionId || active?.turn.sourceId !== editOfId))
+      throw new Error("This message is no longer active. Use Reply for a follow-up.");
+    if (editOfId && text === referenced?.text) throw new Error("Change the message before sending a revision");
     const entry = mode === "steer" && active
       ? this.state.data.entries.find((item) => item.id === active.turn.entryId)
       : referenced?.entry || [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
-    const source = this.state.message(text, id, replyToId);
+    const source = this.state.message(text, id, editOfId ? { editOfId } : { replyToId });
     source.status = "routed";
     if (entry) source.entryId = entry.id;
     if (mode === "steer" && active) {
       active.turn.sourceId = source.id;
-      if (entry) {
-        this.state.update(entry, "Steered the active conversation.", "progress", "working", source.id);
-      }
-      void active.session.steer(text).catch((error) => this.emit({ type: "error", message: errorText(error) }));
+      if (editOfId) active.turn.text = text;
+      if (entry) entry.status = "working";
+      this.state.save();
+      void active.session.steer(editOfId ? `Use this revision of my active request:\n${text}` : text)
+        .catch((error) => { if (entry) this.state.update(entry, errorText(error), "error", "failed", source.id); });
       return { steered: true };
     }
     const turn: Turn = { id: randomUUID(), sessionId, entryId: entry?.id || null, sourceId: source.id, replyToId, text, status: "queued", createdAt: now() };

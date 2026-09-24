@@ -3,10 +3,12 @@ import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 const root = document.querySelector("#app");
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
 const restoredReply = sessionStorage.getItem("assistant-reload-reply");
+const restoredEdit = JSON.parse(sessionStorage.getItem("assistant-reload-edit") || "null");
 sessionStorage.removeItem("assistant-reload-draft");
 sessionStorage.removeItem("assistant-reload-reply");
+sessionStorage.removeItem("assistant-reload-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", steer: false };
+  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", steer: false };
 let renderedView = state.selected;
 
 async function api(path, method = "GET", body) {
@@ -18,11 +20,12 @@ async function api(path, method = "GET", body) {
 
 function statusBadge(value) {
   const status = value || "routing";
-  const symbol = ({ ready: "👍", failed: "⚠️", interrupted: "⏸️" })[status];
+  const symbol = ({ ready: "👍", revised: "✏️", failed: "⚠️", interrupted: "⏸️" })[status];
   const working = status === "routing" || status === "queued" || status === "working";
   return `<span class="state-chip ${working ? "working" : ""}" role="img" aria-label="${escapeHTML(status.replace("_", " "))}">${working ? '<i class="spinner"></i>' : symbol || ""}</span>`;
 }
 function replyTarget(id) {
+  if (!id) return null;
   const message = state.data.messages.find((item) => item.id === id);
   if (message) return { role: "You", text: message.text, sessionId: state.data.entries.find((entry) => entry.id === message.entryId)?.sessionId };
   for (const entry of state.data.entries) {
@@ -39,7 +42,12 @@ function quote(target, className) {
 function replyButton(id, sessionId) {
   return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 17)}</button>` : "";
 }
+function messageAction(message, sessionId) {
+  const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
+  return active ? `<button type="button" class="reply-action" data-action="edit" data-edit="${escapeHTML(message.id)}" aria-label="Edit active message" title="Edit and steer">${icon("edit", 17)}</button>` : replyButton(message.id, sessionId);
+}
 function messageStatus(message, entry) {
+  if (state.data.messages.some((item) => item.editOfId === message.id)) return "revised";
   const turn = state.data.turns.find((item) => item.sourceId === message.id);
   if (turn) return turn.status === "running" ? "working" : "queued";
   if (entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id) return "interrupted";
@@ -53,10 +61,11 @@ function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
   return `<main class="home-scroll scroll-area"><div class="home-content">${state.data.messages.map((message) => {
     const entry = state.data.entries.find((item) => item.id === message.entryId);
-    const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(messageStatus(message, entry))}</${entry?.sessionId ? "button" : "div"}>`;
+    const linked = replyTarget(message.editOfId || message.replyToId);
+    const request = `<${entry?.sessionId ? "button" : "div"} class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : ""}>${quote(message.editOfId && linked ? { ...linked, role: "Edited from You" } : linked, "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(messageStatus(message, entry))}</${entry?.sessionId ? "button" : "div"}>`;
     const updates = entry?.updates.filter((update) => (update.sourceId || entry.sourceId) === message.id).map((update) => `<div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.kind === "result" ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.kind === "result" ? quote({ role: "You", text: message.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>`).join("") || "";
     const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
-    return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${replyButton(message.id, entry?.sessionId)}${request}</div></div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
+    return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div></div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
   }).join("")}</div></main>`;
 }
 function sessionView() {
@@ -85,8 +94,10 @@ function render(force = false) {
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
   if (record?.status !== "running") state.steer = false;
-  const reply = isHome && state.replyToId ? replyTarget(state.replyToId) : null;
-  root.innerHTML = `<div class="app-shell"><header class="topbar"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" data-action="home" aria-label="Back to Home" title="Home">${icon("back", 19)}</button>`}</div><div class="brand">${isHome ? `<span class="brand-mark">${icon("sparkle", 14)}</span><strong>Assistant</strong>` : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${reply ? "replying" : ""}" id="composer">${reply ? `<div class="reply-preview">${quote(reply, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="dismiss-reply" aria-label="Cancel reply" title="Cancel reply">${icon("close", 16)}</button></div>` : ""}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  const editing = isHome && state.edit;
+  const preview = editing ? replyTarget(state.edit.id) : isHome && state.replyToId ? replyTarget(state.replyToId) : null;
+  const previewHTML = preview ? `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: preview.text } : preview, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>` : "";
+  root.innerHTML = `<div class="app-shell"><header class="topbar"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" data-action="home" aria-label="Back to Home" title="Home">${icon("back", 19)}</button>`}</div><div class="brand">${isHome ? `<span class="brand-mark">${icon("sparkle", 14)}</span><strong>Assistant</strong>` : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint">Sending this revision steers the active conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
@@ -127,7 +138,18 @@ root.addEventListener("click", async (event) => {
       const target = replyTarget(button.dataset.reply);
       if (target?.sessionId) {
         state.input = root.querySelector("textarea")?.value || "";
+        state.edit = null;
         state.replyToId = button.dataset.reply;
+        render(true);
+        root.querySelector("textarea")?.focus();
+      }
+    }
+    if (button.dataset.action === "edit") {
+      const message = state.data.messages.find((item) => item.id === button.dataset.edit);
+      if (message && state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running")) {
+        state.edit = { id: message.id, previousInput: root.querySelector("textarea")?.value || "", previousReplyToId: state.replyToId };
+        state.replyToId = null;
+        state.input = message.text;
         render(true);
         root.querySelector("textarea")?.focus();
       }
@@ -135,6 +157,13 @@ root.addEventListener("click", async (event) => {
     if (button.dataset.action === "dismiss-reply") {
       state.input = root.querySelector("textarea")?.value || "";
       state.replyToId = null;
+      render(true);
+      root.querySelector("textarea")?.focus();
+    }
+    if (button.dataset.action === "dismiss-edit") {
+      state.input = state.edit?.previousInput || "";
+      state.replyToId = state.edit?.previousReplyToId || null;
+      state.edit = null;
       render(true);
       root.querySelector("textarea")?.focus();
     }
@@ -164,24 +193,35 @@ root.addEventListener("submit", async (event) => {
   const text = composer.value.trim();
   if (!text) return;
   const selected = state.selected;
-  const replyToId = selected === "home" ? state.replyToId : null;
-  const target = replyToId ? replyTarget(replyToId) : null;
-  if (replyToId && !target?.sessionId) { state.error = "This message is not in a conversation yet"; render(true); return; }
-  state.input = "";
+  const edit = selected === "home" ? state.edit : null;
+  const editOfId = edit?.id || null;
+  const replyToId = selected === "home" && !edit ? state.replyToId : null;
+  const target = replyToId || editOfId ? replyTarget(replyToId || editOfId) : null;
+  if ((replyToId || editOfId) && !target?.sessionId) { state.error = "This message is not in a conversation yet"; render(true); return; }
+  if (editOfId && text === target.text) { state.error = "Change the message before sending a revision"; render(true); return; }
+  if (editOfId && !state.data.turns.some((turn) => turn.sourceId === editOfId && turn.status === "running")) {
+    state.error = "This turn has finished. Cancel the edit and use Reply for a follow-up.";
+    render(true);
+    return;
+  }
+  state.input = edit?.previousInput || "";
   composer.value = "";
   state.error = "";
   if (selected === "home") {
     const id = crypto.randomUUID();
-    state.replyToId = null;
-    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, replyToId, status: replyToId ? "routed" : "routing" });
-    render(!!replyToId);
+    state.replyToId = edit?.previousReplyToId || null;
+    state.edit = null;
+    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, replyToId, editOfId, status: replyToId || editOfId ? "routed" : "routing" });
+    render(!!(replyToId || editOfId));
     try {
-      if (replyToId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "followUp", replyToId });
+      if (editOfId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "steer", editOfId });
+      else if (replyToId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "followUp", replyToId });
       else await api("/api/home", "POST", { id, text });
     } catch (error) {
       state.error = error.message;
       state.input = text;
       state.replyToId = replyToId;
+      state.edit = edit;
       state.data.messages = state.data.messages.filter((item) => item.id !== id);
       render(true);
     }
@@ -198,6 +238,7 @@ function connect() {
     if (opened) {
       sessionStorage.setItem("assistant-reload-draft", root.querySelector("textarea")?.value || "");
       if (state.replyToId) sessionStorage.setItem("assistant-reload-reply", state.replyToId);
+      if (state.edit) sessionStorage.setItem("assistant-reload-edit", JSON.stringify(state.edit));
       location.reload();
       return;
     }
@@ -208,7 +249,7 @@ function connect() {
   stream.onerror = () => { state.connected = false; render(); };
   stream.onmessage = ({ data }) => {
     const event = JSON.parse(data);
-    if (event.type === "snapshot") { state.data = event.data; render(!!state.replyToId && !root.querySelector(".reply-preview")); if (state.selected !== "home") void loadSession(); }
+    if (event.type === "snapshot") { state.data = event.data; render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview")); if (state.selected !== "home") void loadSession(); }
     if (event.type === "delta" && event.sessionId === state.selected) { state.streaming += event.delta; render(); }
     if (event.type === "activity" && event.sessionId === state.selected) { state.activity = `Using ${event.name}`; render(); }
   };
