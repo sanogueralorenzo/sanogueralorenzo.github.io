@@ -5,7 +5,7 @@ export function escapeHTML(value = "") {
 export function icon(name, size = 18) {
   const paths = {
     add: '<path d="M12 5v14M5 12h14"/>',
-    back: '<path d="m15 18-6-6 6-6"/><path d="M9 12h11"/>',
+    back: '<path d="m10 18-6-6 6-6"/><path d="M4 12h16"/>',
     check: '<path d="m5 12 4 4L19 6"/>',
     close: '<path d="m18 6-12 12M6 6l12 12"/>',
     circle: '<circle cx="12" cy="12" r="9"/>',
