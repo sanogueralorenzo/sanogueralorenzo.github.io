@@ -55,7 +55,7 @@ const server = createServer(async (req, res) => {
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: "Cross-origin request denied" });
       const request = await body(req);
       if (url.pathname === "/api/home") return json(res, 202, { message: app.submitHome(input(request.text), typeof request.id === "string" ? request.id : undefined) });
-      if (url.pathname === "/api/turns") return json(res, 202, app.submitSession(String(request.sessionId), input(request.text), request.mode === "steer" ? "steer" : "followUp"));
+      if (url.pathname === "/api/turns") return json(res, 202, app.submitSession(String(request.sessionId), input(request.text), request.mode === "steer" ? "steer" : "followUp", typeof request.replyToId === "string" ? request.replyToId : undefined, typeof request.id === "string" ? request.id : undefined));
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }
       return json(res, 404, { error: "Unknown endpoint" });

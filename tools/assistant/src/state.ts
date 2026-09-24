@@ -4,11 +4,11 @@ import { dirname, join } from "node:path";
 
 export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
 export type TaskRole = "personal" | "code" | "scout" | "reviewer";
-export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; status: "routing" | "routed" | "failed" };
+export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; status: "routing" | "routed" | "failed" };
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; createdAt: string };
 export type HomeEntry = { id: string; sourceId: string; title: string; sessionId: string | null; status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[]; createdAt: string; updatedAt: string };
 export type SessionRecord = { id: string; title: string; role?: TaskRole; cwd: string; file: string; status: "idle" | "running" | "interrupted"; createdAt: string };
-export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; text: string; status: "queued" | "running"; createdAt: string };
+export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string };
 export type Data = { version: 1; messages: HomeMessage[]; entries: HomeEntry[]; sessions: SessionRecord[]; turns: Turn[] };
 const empty = (): Data => ({ version: 1, messages: [], entries: [], sessions: [], turns: [] });
 export const now = () => new Date().toISOString();
@@ -39,9 +39,9 @@ export class State {
     renameSync(temp, this.file);
     this.changed();
   }
-  message(text: string, id: string = randomUUID()) {
+  message(text: string, id: string = randomUUID(), replyToId?: string) {
     if (this.data.messages.some((message) => message.id === id)) throw new Error("Request ID already exists");
-    const message: HomeMessage = { id, text, createdAt: now(), entryId: null, status: "routing" };
+    const message: HomeMessage = { id, text, createdAt: now(), entryId: null, replyToId, status: "routing" };
     this.data.messages.push(message);
     this.save();
     return message;

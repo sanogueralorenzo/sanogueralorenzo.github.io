@@ -65,14 +65,27 @@ export class Assistant {
     this.state.save();
     this.drain();
   }
-  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp") {
+  private replyTarget(id: string) {
+    const message = this.state.data.messages.find((item) => item.id === id);
+    if (message) {
+      const entry = this.state.data.entries.find((item) => item.id === message.entryId);
+      return entry && { entry, text: message.text, role: "user" };
+    }
+    for (const entry of this.state.data.entries) {
+      const update = entry.updates.find((item) => item.id === id);
+      if (update) return { entry, text: update.text, role: "assistant" };
+    }
+  }
+  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", replyToId?: string, id?: string) {
     const record = this.state.data.sessions.find((session) => session.id === sessionId);
     if (!record) throw new Error("Conversation not found");
+    const referenced = replyToId ? this.replyTarget(replyToId) : undefined;
+    if (replyToId && referenced?.entry.sessionId !== sessionId) throw new Error("Reply target is not in this conversation");
     const active = this.active.get(sessionId);
     const entry = mode === "steer" && active
       ? this.state.data.entries.find((item) => item.id === active.turn.entryId)
-      : [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
-    const source = this.state.message(text);
+      : referenced?.entry || [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
+    const source = this.state.message(text, id, replyToId);
     source.status = "routed";
     if (entry) source.entryId = entry.id;
     if (mode === "steer" && active) {
@@ -83,7 +96,7 @@ export class Assistant {
       void active.session.steer(text).catch((error) => this.emit({ type: "error", message: errorText(error) }));
       return { steered: true };
     }
-    const turn: Turn = { id: randomUUID(), sessionId, entryId: entry?.id || null, sourceId: source.id, text, status: "queued", createdAt: now() };
+    const turn: Turn = { id: randomUUID(), sessionId, entryId: entry?.id || null, sourceId: source.id, replyToId, text, status: "queued", createdAt: now() };
     this.state.data.turns.push(turn);
     this.state.save();
     this.drain();
@@ -177,7 +190,9 @@ export class Assistant {
           }
         }
       });
-      await session.prompt(turn.text, { expandPromptTemplates: false });
+      const replied = turn.replyToId && this.replyTarget(turn.replyToId);
+      const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
+      await session.prompt(prompt, { expandPromptTemplates: false });
       if (active.stopped) throw new Error("Stopped");
       if (active.error) throw new Error(active.error);
       if (!active.output) throw new Error("Agent returned no final reply");
