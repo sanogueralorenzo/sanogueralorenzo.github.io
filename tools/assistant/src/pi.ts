@@ -19,7 +19,7 @@ export class PiService {
     this.dataDir = dataDir;
     this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
   }
-  private async make(cwd: string, role: "coordinator" | "reporter" | TaskRole, manager: SessionManager, customTools: ToolDefinition[] = []): Promise<AgentSession> {
+  private async make(cwd: string, role: "coordinator" | TaskRole, manager: SessionManager, customTools: ToolDefinition[] = []): Promise<AgentSession> {
     const modelRuntime = await this.runtime;
     const model = modelRuntime.getModel("openai-codex", "gpt-6-luna");
     if (!model) throw new Error("Codex model gpt-6-luna is unavailable in the pinned Pi catalog");
@@ -28,7 +28,7 @@ export class PiService {
       // The Codex subscription endpoint accepts the legacy Fast alias.
       return { ...payload, service_tier: "priority" };
     });
-    const worker = role !== "coordinator" && role !== "reporter";
+    const worker = role !== "coordinator";
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: !worker, noContextFiles: !worker,
@@ -37,7 +37,6 @@ export class PiService {
     });
     await loader.reload();
     const tools = role === "coordinator" ? customTools.map((tool) => tool.name)
-      : role === "reporter" ? []
       : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
       : ["read", "bash", "edit", "write", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
@@ -50,7 +49,7 @@ export class PiService {
   async open(cwd: string, file: string, role: TaskRole) {
     return this.make(cwd, role, SessionManager.open(file, join(this.dataDir, "sessions"), cwd));
   }
-  async utility(role: "coordinator" | "reporter", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
+  async utility(role: "coordinator", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
     const session = await this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, role)), customTools);
     const unsubscribe = acceptedResult ? session.subscribe((event) => {
       // Pi would make another model call after the accepted tool result; the routing plan is already complete.

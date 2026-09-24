@@ -12,14 +12,6 @@ const progressByTool: Record<string, string> = { read: "Inspecting files", grep:
   edit: "Making changes", write: "Making changes", bash: "Running commands" };
 const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
-function parseReport(raw: string, fallback: string): { summary: string; status: "ready" | "needs_input" } {
-  try {
-    const result = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { summary?: string; state?: string };
-    if (typeof result.summary === "string" && result.summary.trim()) return { summary: result.summary.trim(), status: result.state === "needs_input" ? "needs_input" : "ready" };
-  } catch { /* A plain reply is still usable. */ }
-  return { summary: raw.trim() || fallback, status: "ready" };
-}
-
 export class Assistant {
   readonly dataDir: string;
   readonly cwd: string;
@@ -174,7 +166,7 @@ export class Assistant {
       session.subscribe((event) => {
         if (event.type === "message_end" && event.message.role === "assistant") {
           const text = assistantText(event.message);
-          if (text) active!.output = text;
+          if (text && event.message.stopReason !== "toolUse") active!.output = text;
           if (event.message.stopReason === "error") active!.error = event.message.errorMessage || "Model error";
           if (text && event.message.stopReason === "toolUse" && entry) this.state.update(entry, clean(text.slice(0, 900)), "progress", "working", turn.sourceId);
         }
@@ -190,14 +182,9 @@ export class Assistant {
       });
       await session.prompt(turn.text, { expandPromptTemplates: false });
       if (active.stopped) throw new Error("Stopped");
-      if (!active.output) active.output = [...session.messages].reverse().map(assistantText).find(Boolean) || "No response";
       if (active.error) throw new Error(active.error);
-      if (entry) {
-        const reported = await this.pi.utility("reporter", `Task: ${entry.title}\nRequest: ${turn.text}\nChild result:\n${active.output.slice(-8000)}\n\nWrite the Home update.`, record.cwd)
-          .catch(() => active!.output.slice(0, 1200));
-        const result = parseReport(reported, active.output);
-        this.state.update(entry, clean(result.summary), "result", result.status, turn.sourceId);
-      }
+      if (!active.output) throw new Error("Agent returned no final reply");
+      if (entry) this.state.update(entry, clean(active.output), "result", "ready", turn.sourceId);
     } catch (error) {
       const interrupted = active?.stopped || errorText(error).toLowerCase().includes("abort");
       interruptedTurn = !!interrupted;

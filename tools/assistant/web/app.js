@@ -14,7 +14,7 @@ async function api(path, method = "GET", body) {
 
 function statusBadge(value) {
   const status = value || "routing";
-  const symbol = ({ ready: "👍", needs_input: "💬", failed: "⚠️", interrupted: "⏸️" })[status];
+  const symbol = ({ ready: "👍", failed: "⚠️", interrupted: "⏸️" })[status];
   const working = status === "routing" || status === "queued" || status === "working";
   return `<span class="state-chip ${working ? "working" : ""}" role="img" aria-label="${escapeHTML(status.replace("_", " "))}">${working ? '<i class="spinner"></i>' : symbol || ""}</span>`;
 }

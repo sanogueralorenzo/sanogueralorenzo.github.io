@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-export type EntryStatus = "routing" | "queued" | "working" | "ready" | "needs_input" | "failed" | "interrupted";
+export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
 export type TaskRole = "personal" | "code" | "scout" | "reviewer";
 export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; status: "routing" | "routed" | "failed" };
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; createdAt: string };
