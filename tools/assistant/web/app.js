@@ -8,7 +8,7 @@ sessionStorage.removeItem("assistant-reload-draft");
 sessionStorage.removeItem("assistant-reload-reply");
 sessionStorage.removeItem("assistant-reload-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false };
+  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, newReplies: 0, snapshotLoaded: false };
 let renderedView = state.selected;
 
 async function api(path, method = "GET", body) {
@@ -57,19 +57,35 @@ function messageStatus(message, entry) {
   if (latest) return "working";
   return message.status === "routed" ? "queued" : message.status;
 }
+function homeRequest(message, entry) {
+  const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
+  const status = messageStatus(message, entry);
+  const activity = `<div class="activity-pill" data-source="${escapeHTML(message.id)}">${status === "working" && progress ? escapeHTML(progress.replace(/\s+/g, " ").trim()) : ""}</div>`;
+  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(status)}</button>`;
+  const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
+  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activity}</div>${pending}</section>`;
+}
+function homeReply(update, entry, source) {
+  return `<section class="home-exchange"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div></div></section>`;
+}
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
   const edited = new Set(state.data.messages.map((message) => message.editOfId).filter(Boolean));
-  return `<main class="home-scroll scroll-area"><div class="home-content">${state.data.messages.filter((message) => !edited.has(message.id)).map((message) => {
-    const entry = state.data.entries.find((item) => item.id === message.entryId);
-    const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
-    const status = messageStatus(message, entry);
-    const activity = `<div class="activity-pill" data-source="${escapeHTML(message.id)}">${status === "working" && progress ? escapeHTML(progress.replace(/\s+/g, " ").trim()) : ""}</div>`;
-    const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(status)}</button>`;
-    const updates = entry?.updates.filter((update) => update.kind !== "progress" && (update.sourceId || entry.sourceId) === message.id).map((update) => `<div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: message.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>`).join("") || "";
-    const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
-    return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activity}</div>${pending}${updates ? `<div class="message-row assistant-row home-updates">${updates}</div>` : ""}</section>`;
-  }).join("")}</div></main>`;
+  const messages = new Map(state.data.messages.map((message) => [message.id, message]));
+  const entries = new Map(state.data.entries.map((entry) => [entry.id, entry]));
+  const timeline = state.data.messages.filter((message) => !edited.has(message.id)).map((message) => ({ createdAt: message.createdAt, html: homeRequest(message, entries.get(message.entryId)) }));
+  for (const entry of state.data.entries) for (const update of entry.updates) {
+    if (update.kind === "progress") continue;
+    const source = messages.get(update.sourceId || entry.sourceId);
+    if (source && !edited.has(source.id)) timeline.push({ createdAt: update.createdAt, html: homeReply(update, entry, source) });
+  }
+  timeline.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return `<main class="home-scroll scroll-area"><div class="home-content">${timeline.map((item) => item.html).join("")}</div></main>`;
+}
+function nearBottom(scroll) { return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 40; }
+function updateNewReplies() {
+  const button = root.querySelector(".new-replies");
+  if (button) { button.hidden = !state.newReplies; button.textContent = state.newReplies === 1 ? "New reply" : `${state.newReplies} new replies`; }
 }
 function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
@@ -81,7 +97,7 @@ function render(force = false) {
   const old = root.querySelector(".scroll-area");
   if (!force && state.selected === "home" && renderedView === "home" && old?.classList.contains("home-scroll") &&
     !state.error && !root.querySelector(".connection-error")) {
-    const nearBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 40;
+    const wasNearBottom = nearBottom(old);
     const scrollTop = old.scrollTop;
     const next = document.createElement("template");
     next.innerHTML = home();
@@ -95,7 +111,9 @@ function render(force = false) {
       else if (!existing.isEqualNode(updated)) existing.replaceWith(updated);
     }
     while (current.children.length > children.length) current.lastElementChild.remove();
-    old.scrollTop = nearBottom ? old.scrollHeight : scrollTop;
+    old.scrollTop = wasNearBottom ? old.scrollHeight : scrollTop;
+    if (wasNearBottom) state.newReplies = 0;
+    updateNewReplies();
     scrollActivity();
     updateConnection();
     return;
@@ -109,11 +127,15 @@ function render(force = false) {
   const editing = isHome && state.edit;
   const preview = editing ? replyTarget(state.edit.id) : isHome && state.replyToId ? replyTarget(state.replyToId) : null;
   const previewHTML = preview ? `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: preview.text } : preview, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>` : "";
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" data-action="home" aria-label="Back to Home" title="Home">${icon("back", 19)}</button>`}</div><div class="brand">${isHome ? "" : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : `<button class="icon-button back-button" data-action="home" aria-label="Back to Home" title="Home">${icon("back", 19)}</button>`}</div><div class="brand">${isHome ? "" : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area">${isHome ? '<button type="button" class="new-replies" data-action="latest" hidden>New reply</button>' : ""}<form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
-  if (isHome) scrollActivity();
+  if (isHome) {
+    if (scroll && nearBottom(scroll)) state.newReplies = 0;
+    updateNewReplies();
+    scrollActivity();
+  }
   const input = focus ? root.querySelector('[data-focus="composer"]') : null;
   if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
 }
@@ -184,11 +206,20 @@ root.addEventListener("click", async (event) => {
       root.querySelector("textarea")?.focus();
     }
     if (button.dataset.action === "dismiss") { state.error = ""; render(); }
+    if (button.dataset.action === "latest") {
+      const scroll = root.querySelector(".home-scroll");
+      if (scroll) scroll.scrollTop = scroll.scrollHeight;
+      state.newReplies = 0;
+      updateNewReplies();
+    }
     if (button.dataset.action === "toggle-steer") { state.steer = !state.steer; render(); }
     if (button.dataset.action === "stop") await api("/api/stop", "POST", { sessionId: state.selected });
     if (button.dataset.action === "resume") await api("/api/resume", "POST", { entryId: button.dataset.entry });
   } catch (error) { state.error = error.message; render(); }
 });
+root.addEventListener("scroll", (event) => {
+  if (event.target.matches?.(".home-scroll") && nearBottom(event.target)) { state.newReplies = 0; updateNewReplies(); }
+}, true);
 root.addEventListener("input", (event) => {
   if (event.target.matches('[data-focus="composer"]')) {
     state.input = event.target.value;
@@ -265,7 +296,14 @@ function connect() {
   stream.onerror = () => { state.connected = false; updateConnection(); };
   stream.onmessage = ({ data }) => {
     const event = JSON.parse(data);
-    if (event.type === "snapshot") { state.data = event.data; render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview")); if (state.selected !== "home") void loadSession(); }
+    if (event.type === "snapshot") {
+      const previous = new Set(state.data.entries.flatMap((entry) => entry.updates.filter((update) => update.kind !== "progress").map((update) => update.id)));
+      state.data = event.data;
+      if (state.snapshotLoaded) state.newReplies += state.data.entries.flatMap((entry) => entry.updates.filter((update) => update.kind !== "progress" && !previous.has(update.id))).length;
+      state.snapshotLoaded = true;
+      render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview"));
+      if (state.selected !== "home") void loadSession();
+    }
     if (event.type === "delta" && event.sessionId === state.selected) { state.streaming += event.delta; render(); }
     if (event.type === "activity" && event.sessionId === state.selected) { state.activity = `Using ${event.name}`; render(); }
     if (event.type === "homeActivity") {
