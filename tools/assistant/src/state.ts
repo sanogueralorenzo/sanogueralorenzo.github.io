@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
 export type TaskRole = "personal" | "code" | "scout" | "reviewer";
 export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; editOfId?: string; status: "routing" | "routed" | "failed" };
-export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; createdAt: string };
+export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; quoteSource?: boolean; createdAt: string };
 export type HomeEntry = { id: string; sourceId: string; title: string; sessionId: string | null; status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[]; createdAt: string; updatedAt: string };
 export type SessionRecord = { id: string; title: string; role?: TaskRole; cwd: string; file: string; status: "idle" | "running" | "interrupted"; createdAt: string };
 export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string };
@@ -55,7 +55,8 @@ export class State {
   }
   update(entry: HomeEntry, text: string, kind: Update["kind"], status?: EntryStatus, sourceId?: string) {
     entry.updates = entry.updates.filter((update) => update.kind !== "progress");
-    entry.updates.push({ id: randomUUID(), text, kind, sourceId, createdAt: now() });
+    entry.updates.push({ id: randomUUID(), text, kind, sourceId,
+      ...(kind === "result" && { quoteSource: this.data.messages.at(-1)?.id !== (sourceId || entry.sourceId) }), createdAt: now() });
     if (status) entry.status = status;
     entry.updatedAt = now();
     this.save();
