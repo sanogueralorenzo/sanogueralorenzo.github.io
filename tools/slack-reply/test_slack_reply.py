@@ -126,27 +126,27 @@ class SlackReplyTests(unittest.TestCase):
 
     def test_provider_change_applies_to_new_threads_but_pins_existing_sessions(self):
         self.state.save_session("T123", "C123", ROOT, "codex", "codex-session")
-        self.state.set_provider("claude")
+        self.state.set_provider("pi")
         self.client.pages = [{"messages": [event(ts=ROOT), event(ts=FIRST, thread_ts=ROOT)],
                               "response_metadata": {}}]
         self.runner.run.side_effect = [("codex-session", "old answer"),
-                                       ("claude-session", "new answer")]
+                                       ("pi-session", "new answer")]
         with patch.object(reply, "provider_for", return_value=self.runner) as factory:
             self.handle(event(ts=FIRST, thread_ts=ROOT))
             self.handle(event(ts=SECOND))
         self.assertEqual([call.args[0] for call in factory.call_args_list],
-                         ["codex", "claude"])
+                         ["codex", "pi"])
         self.assertEqual(self.state.session("T123", "C123", SECOND),
-                         ("claude", "claude-session"))
+                         ("pi", "pi-session"))
 
     def test_session_and_preference_survive_restart_in_private_state(self):
-        self.state.save_session("T123", "C123", ROOT, "claude", "session-1")
-        self.state.set_provider("claude")
+        self.state.save_session("T123", "C123", ROOT, "pi", "session-1")
+        self.state.set_provider("pi")
         restarted = reply.State(self.path / "state")
         self.addCleanup(restarted.db.close)
         self.assertEqual(restarted.session("T123", "C123", ROOT),
-                         ("claude", "session-1"))
-        self.assertEqual(restarted.provider(), "claude")
+                         ("pi", "session-1"))
+        self.assertEqual(restarted.provider(), "pi")
         self.assertEqual((self.path / "state").stat().st_mode & 0o777, 0o700)
         self.assertEqual((self.path / "state" / "sessions.sqlite3").stat().st_mode & 0o777, 0o600)
 
@@ -168,9 +168,9 @@ class SlackReplyTests(unittest.TestCase):
     def test_provider_command_rejects_missing_cli_without_changing_preference(self):
         with patch.dict(os.environ, {"SLACK_REPLY_STATE_DIR": str(self.path / "state")}):
             with patch.object(reply, "require_available",
-                              side_effect=RuntimeError("claude CLI is not installed")):
+                              side_effect=RuntimeError("pi CLI is not installed")):
                 with self.assertRaisesRegex(RuntimeError, "not installed"):
-                    reply.main(["provider", "claude"])
+                    reply.main(["provider", "pi"])
         self.assertEqual(self.state.provider(), "codex")
 
     def test_provider_command_saves_available_cli_without_slack_credentials(self):
@@ -179,9 +179,9 @@ class SlackReplyTests(unittest.TestCase):
             with patch.object(reply, "require_available"):
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
-                    reply.main(["provider", "claude"])
-        self.assertEqual(self.state.provider(), "claude")
-        self.assertEqual(output.getvalue(), "claude\n")
+                    reply.main(["provider", "pi"])
+        self.assertEqual(self.state.provider(), "pi")
+        self.assertEqual(output.getvalue(), "pi\n")
 
 
 if __name__ == "__main__":

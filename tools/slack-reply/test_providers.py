@@ -14,6 +14,18 @@ def completed(stdout, returncode=0, stderr=""):
     })()
 
 
+def pi_events(session_id, answer, stop_reason="stop", settled=True):
+    events = [
+        {"type": "session", "id": session_id},
+        {"type": "message_end", "message": {"role": "assistant",
+                                            "content": [{"type": "text", "text": answer}],
+                                            "stopReason": stop_reason}},
+    ]
+    if settled:
+        events.append({"type": "agent_settled"})
+    return "\n".join(json.dumps(event) for event in events) + "\n"
+
+
 class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -94,6 +106,50 @@ class ProviderTests(unittest.TestCase):
         with patch.object(providers, "execute", return_value=completed(payload)):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.ClaudeProvider(self.path).run("prompt", "session-1")
+
+    def test_pi_new_session_uses_jsonl_final_answer(self):
+        with patch.dict(os.environ, {"PI_MODEL": "openai-codex/gpt-5.5",
+                                  "PI_THINKING": "medium"}):
+            with patch.object(providers, "execute",
+                              return_value=completed(pi_events("session-1", "Pi answer"))) as execute:
+                session, answer = providers.PiProvider(self.path).run("prompt", None)
+        command = execute.call_args.args[0]
+        self.assertEqual(command[:4], ["pi", "--mode", "json", "-p"])
+        self.assertNotIn("--session", command)
+        self.assertEqual(command[command.index("--model") + 1], "openai-codex/gpt-5.5")
+        self.assertEqual(command[command.index("--thinking") + 1], "medium")
+        self.assertEqual((session, answer), ("session-1", "Pi answer"))
+
+    def test_pi_resumes_exact_session(self):
+        with patch.object(providers, "execute",
+                          return_value=completed(pi_events("session-1", "Follow-up"))) as execute:
+            session, answer = providers.PiProvider(self.path).run("prompt", "session-1")
+        command = execute.call_args.args[0]
+        self.assertEqual(command[command.index("--session") + 1], "session-1")
+        self.assertEqual((session, answer), ("session-1", "Follow-up"))
+
+    def test_pi_keeps_unicode_line_separator_inside_json_string(self):
+        answer = "first\u2028second"
+        events = pi_events("session-1", answer).replace("\\u2028", "\u2028")
+        with patch.object(providers, "execute", return_value=completed(events)):
+            self.assertEqual(providers.PiProvider(self.path).run("prompt", None),
+                             ("session-1", answer))
+
+    def test_pi_rejects_different_or_incomplete_session(self):
+        with patch.object(providers, "execute",
+                          return_value=completed(pi_events("other", "answer"))):
+            with self.assertRaisesRegex(RuntimeError, "different session"):
+                providers.PiProvider(self.path).run("prompt", "session-1")
+        with patch.object(providers, "execute",
+                          return_value=completed(pi_events("session-1", "partial", settled=False))):
+            with self.assertRaisesRegex(RuntimeError, "did not complete"):
+                providers.PiProvider(self.path).run("prompt", None)
+
+    def test_pi_cli_failure_is_reported(self):
+        with patch.object(providers, "execute",
+                          return_value=completed("", returncode=1, stderr="model unavailable")):
+            with self.assertRaisesRegex(RuntimeError, "model unavailable"):
+                providers.PiProvider(self.path).run("prompt", None)
 
 
 if __name__ == "__main__":

@@ -180,7 +180,7 @@ def main(argv=None):
     state_dir = Path(os.environ.get("SLACK_REPLY_STATE_DIR", "~/.local/state/slack-reply")).expanduser()
     if args and args[0] == "provider":
         if len(args) > 2:
-            raise ValueError("Usage: ./run.sh provider [codex|claude]")
+            raise ValueError("Usage: ./run.sh provider [codex|claude|pi]")
         state = State(state_dir)
         try:
             if len(args) == 2:
@@ -191,7 +191,7 @@ def main(argv=None):
             state.db.close()
         return
     if args:
-        raise ValueError("Usage: ./run.sh [provider [codex|claude]]")
+        raise ValueError("Usage: ./run.sh [provider [codex|claude|pi]]")
     from slack_sdk import WebClient
     from slack_sdk.socket_mode import SocketModeClient
     from slack_sdk.socket_mode.response import SocketModeResponse
