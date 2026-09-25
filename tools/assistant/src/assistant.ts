@@ -207,7 +207,7 @@ export class Assistant {
           if (update.type === "thinking_delta") { active!.thinking += update.delta; showProgress(); }
           if (update.type === "thinking_end") { active!.thinking = update.content; showProgress(); saveProgress(); }
           if (update.type === "text_delta") {
-            if (active!.tool !== "Web search") { active!.commentary += update.delta; showProgress(); }
+            if (!active!.tool.startsWith("Web search") && !active!.tool.startsWith("Opening:")) { active!.commentary += update.delta; showProgress(); }
             this.emit({ type: "delta", sessionId: record.id, delta: update.delta });
           }
         }
@@ -226,9 +226,9 @@ export class Assistant {
       });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId);
       const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
-      await withSearchActivity(() => {
+      await withSearchActivity((label) => {
         active!.commentary = "";
-        active!.tool = "Web search";
+        active!.tool = label;
         showProgress();
         saveProgress();
       }, () => session!.prompt(prompt, { expandPromptTemplates: false }));
