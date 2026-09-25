@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createAgentSession, DefaultResourceLoader, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TaskRole } from "./state.ts";
 import { assistantCodexAuth } from "./codex-auth.ts";
-import { webTools } from "./web.ts";
+import { enableHostedSearch } from "./hosted-search.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
 const prompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
@@ -11,14 +11,18 @@ export const assistantText = (message: { role?: string; content?: unknown }): st
   if (message.role !== "assistant" || !Array.isArray(message.content)) return "";
   return message.content.filter((part): part is { type: "text"; text: string } =>
     typeof part === "object" && part !== null && "type" in part && part.type === "text" && "text" in part && typeof part.text === "string")
-    .map((part) => part.text).join("\n").trim();
+    // Failed hosted page opens can leave Pi's empty citation marker in the text.
+    .map((part) => part.text).join("\n").replace(/\s*\(\[\]\(\)\)/g, "").trim();
 };
 export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
   constructor(dataDir: string) {
     this.dataDir = dataDir;
-    this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
+    this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) }).then((runtime) => {
+      enableHostedSearch(runtime);
+      return runtime;
+    });
   }
   private async make(cwd: string, role: "coordinator" | TaskRole, manager: SessionManager, customTools: ToolDefinition[] = []): Promise<AgentSession> {
     const modelRuntime = await this.runtime;
@@ -26,8 +30,9 @@ export class PiService {
     if (!model) throw new Error("Codex model gpt-6-luna is unavailable in the pinned Pi catalog");
     const fast = (pi: ExtensionAPI) => pi.on("before_provider_request", ({ payload }) => {
       if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected Codex request payload");
+      const request = payload as Record<string, unknown>;
       // The Codex subscription endpoint accepts the legacy Fast alias.
-      return { ...payload, service_tier: "priority" };
+      return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
     });
     const worker = role !== "coordinator";
     const loader = new DefaultResourceLoader({
@@ -37,11 +42,10 @@ export class PiService {
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    const availableTools = worker ? [...customTools, ...webTools] : customTools;
+    const availableTools = customTools;
     const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
       : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
       : ["read", "bash", "edit", "write", "grep", "find", "ls"];
-    if (worker) tools.push(...webTools.map((tool) => tool.name));
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
     return session;

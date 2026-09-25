@@ -4,13 +4,14 @@ import { PiService, assistantText } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { State, now, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import { withSearchActivity } from "./hosted-search.ts";
 
 type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean;
   commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const progressByTool: Record<string, string> = { read: "Inspecting files", grep: "Searching files", find: "Finding files", ls: "Inspecting files",
-  edit: "Making changes", write: "Making changes", bash: "Running commands", web_search: "Searching the web", web_open: "Reading a web page" };
+  edit: "Making changes", write: "Making changes", bash: "Running commands" };
 const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
 export class Assistant {
@@ -206,8 +207,7 @@ export class Assistant {
           if (update.type === "thinking_delta") { active!.thinking += update.delta; showProgress(); }
           if (update.type === "thinking_end") { active!.thinking = update.content; showProgress(); saveProgress(); }
           if (update.type === "text_delta") {
-            active!.commentary += update.delta;
-            showProgress();
+            if (active!.tool !== "Web search") { active!.commentary += update.delta; showProgress(); }
             this.emit({ type: "delta", sessionId: record.id, delta: update.delta });
           }
         }
@@ -226,7 +226,12 @@ export class Assistant {
       });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId);
       const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
-      await session.prompt(prompt, { expandPromptTemplates: false });
+      await withSearchActivity(() => {
+        active!.commentary = "";
+        active!.tool = "Web search";
+        showProgress();
+        saveProgress();
+      }, () => session!.prompt(prompt, { expandPromptTemplates: false }));
       if (active.stopped) throw new Error("Stopped");
       if (active.error) throw new Error(active.error);
       if (!active.output) throw new Error("Agent returned no final reply");
