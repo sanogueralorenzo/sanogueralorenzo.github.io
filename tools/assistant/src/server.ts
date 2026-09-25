@@ -7,7 +7,7 @@ import { Assistant } from "./assistant.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(process.env.ASSISTANT_WORKSPACE || process.cwd());
-const dataDir = resolve(process.env.ASSISTANT_DATA_DIR || join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), "assistant"));
+const dataDir = resolve(process.env.ASSISTANT_DATA_DIR || join(homedir(), ".assistant"));
 const app = new Assistant(dataDir, workspace, Number(process.env.ASSISTANT_CONCURRENCY || 4));
 const port = Number(process.env.ASSISTANT_PORT || 4180);
 const clients = new Set<ServerResponse>();

@@ -12,7 +12,7 @@ npm ci
 npm start
 ```
 
-To run automatically after login on macOS or Linux, use `service/install.sh`. Run `service/uninstall.sh` to remove the background service. Set `ASSISTANT_PORT`, `ASSISTANT_DATA_DIR`, `ASSISTANT_WORKSPACE`, or `ASSISTANT_CONCURRENCY` before a manual start to override defaults. The service stores its state under `${XDG_DATA_HOME:-~/.local/share}/assistant` and Pi session files under its `sessions` directory.
+To run automatically after login on macOS or Linux, use `service/install.sh`. Run `service/uninstall.sh` to remove the background service. Set `ASSISTANT_PORT`, `ASSISTANT_DATA_DIR`, `ASSISTANT_WORKSPACE`, or `ASSISTANT_CONCURRENCY` before a manual start to override defaults. The service stores its state under `~/.assistant` and Pi session files under its `sessions` directory.
 
 Home accepts overlapping requests immediately. The Pi coordinator starts one conversation or continues a saved one for each Home message, including messages with several asks. The full message stays in that conversation, and its Home entry links back to the exact saved Pi session. A continuation queues behind active work in the same conversation. To steer an active run, open that conversation and select **Steer** before sending; Pi applies the message after the current tool call finishes. Home never steers automatically. Each conversation has one active turn at a time, and each result returns to its Home entry. On restart, an in-flight turn is marked interrupted and can be continued manually from Home. Queued work survives the restart.
 
