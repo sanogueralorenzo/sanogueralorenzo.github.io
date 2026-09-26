@@ -106,7 +106,8 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .queued-actions { display: flex; flex-shrink: 0; gap: 3px; }
 .queued-actions button { font-size: 11px; }
 .composer-area { position: relative; z-index: 2; flex: 0 0 auto; padding: 0 10px 10px; background: var(--canvas); }
-.new-replies { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); color: var(--graphite); font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.new-replies { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: transparent; display: grid; place-items: center; cursor: pointer; }
+.new-replies::after { content: ""; width: 14px; height: 14px; border: 3px solid var(--canvas); border-radius: 50%; background: var(--user); box-shadow: 0 0 0 1px var(--line); }
 .new-replies[hidden] { display: none; }
 .composer { width: min(820px, 100%); min-height: 54px; margin: 0 auto; display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 28px; background: var(--input); box-shadow: 0 0 0 1px var(--line); }
 .composer-icon { width: 36px; height: 38px; flex: 0 0 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; color: var(--graphite); background: transparent; cursor: pointer; }
