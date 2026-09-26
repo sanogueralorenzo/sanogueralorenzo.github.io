@@ -16,6 +16,9 @@ const toolLabels: Record<string, string> = {
 };
 function toolLabel(name: string, args: unknown) {
   if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
+  const command = (args as { command?: unknown })?.command;
+  if (name === "bash" && typeof command === "string" && /(?:^|[;&|\n])\s*(?:\S*\/)?cua-driver(?:\s|$)/.test(command))
+    return "Using your computer";
   return toolLabels[name] || `Tool: ${name}`;
 }
 
