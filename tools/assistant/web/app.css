@@ -55,7 +55,8 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .brand-mark { color: var(--clay); width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface); flex: 0 0 auto; }
 .icon-button { width: 34px; height: 32px; border: 0; border-radius: 999px; background: transparent; color: var(--graphite); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .icon-button:hover { background: var(--surface); }
-.back-button { margin-left: -4px; }
+.back-button { position: relative; margin-left: -4px; }
+.back-button.has-unread::after { content: ""; position: absolute; top: 2px; right: 1px; width: 10px; height: 10px; border: 2px solid var(--canvas); border-radius: 50%; background: var(--user); }
 .scroll-area { overflow: auto; overscroll-behavior: contain; scrollbar-color: color-mix(in srgb, var(--muted) 30%, transparent) transparent; scrollbar-width: thin; }
 .home-scroll, .session-scroll { flex: 1 1 auto; min-height: 0; }
 .home-content { width: min(820px, 100%); min-height: 100%; margin: 0 auto; padding: 24px 20px 56px; display: flex; flex-direction: column; justify-content: flex-end; gap: 20px; }
