@@ -1,18 +1,18 @@
 import { Type } from "typebox";
 import type { PiService } from "./pi.ts";
-import type { HomeEntry, HomeMessage, State, TaskRole } from "./state.ts";
+import type { HomeEntry, HomeMessage, State } from "./state.ts";
 
-export type Route = { mode: "start"; agent: TaskRole; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
+export type Route = { mode: "start"; agent: "personal" | "code"; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
 
 function parseRoute(value: unknown, state: State): Route {
   if (!value || typeof value !== "object") throw new Error("Submit one Home destination");
   const route = value as Record<string, unknown>;
   if (route.mode === "start") {
     if (route.sessionId) throw new Error("New work cannot use a saved session ID");
-    if (!["personal", "code", "scout", "reviewer"].includes(String(route.agent)) ||
+    if (!["personal", "code"].includes(String(route.agent)) ||
       typeof route.title !== "string" || !route.title.trim()) throw new Error("New work needs a role and title");
     if (route.cwd !== undefined && typeof route.cwd !== "string") throw new Error("Project directory must be a string");
-    return { mode: "start", agent: route.agent as TaskRole, title: route.title, cwd: route.cwd as string | undefined };
+    return { mode: "start", agent: route.agent as "personal" | "code", title: route.title, cwd: route.cwd as string | undefined };
   }
   if (route.mode === "continue") {
     if (typeof route.sessionId !== "string" || !state.data.sessions.some((session) => session.id === route.sessionId))
@@ -77,7 +77,7 @@ export class HomeRouter {
       description: "Choose one start or continue destination for the entire Home message. Invalid choices return a reason to correct.",
       parameters: Type.Object({
         mode: Type.Union([Type.Literal("start"), Type.Literal("continue")]),
-        agent: Type.Optional(Type.Union([Type.Literal("personal"), Type.Literal("code"), Type.Literal("scout"), Type.Literal("reviewer")])),
+        agent: Type.Optional(Type.Union([Type.Literal("personal"), Type.Literal("code")])),
         title: Type.Optional(Type.String()), sessionId: Type.Optional(Type.String()), cwd: Type.Optional(Type.String()),
       }),
       execute: async (_callId: string, params: unknown) => {

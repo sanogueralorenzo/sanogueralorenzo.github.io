@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createAgentSession, DefaultResourceLoader, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import type { TaskRole } from "./state.ts";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { enableHostedSearch } from "./hosted-search.ts";
@@ -25,7 +26,29 @@ export class PiService {
       return runtime;
     });
   }
-  private async make(cwd: string, role: "coordinator" | TaskRole, manager: SessionManager, customTools: ToolDefinition[] = []): Promise<AgentSession> {
+  private delegateTool(cwd: string) {
+    return defineTool({
+      name: "delegate", label: "Delegate read-only work",
+      description: "Ask a separate read-only scout to investigate or reviewer to critique. Give it a focused task and any context it needs. You own the final answer and all actions.",
+      parameters: Type.Object({ role: Type.Union([Type.Literal("scout"), Type.Literal("reviewer")]), task: Type.String({ minLength: 1 }) }),
+      execute: async (_id, params, signal) => {
+        if (signal?.aborted) throw new Error("Delegation stopped");
+        const child = await this.make(cwd, params.role, SessionManager.inMemory(cwd));
+        const abort = () => { void child.abort(); };
+        signal?.addEventListener("abort", abort, { once: true });
+        try {
+          if (signal?.aborted) throw new Error("Delegation stopped");
+          await child.prompt(params.task, { expandPromptTemplates: false });
+          const last = [...child.messages].reverse().find((message) => message.role === "assistant");
+          if (last?.stopReason === "error") throw new Error(last.errorMessage || "Worker failed");
+          const result = last ? assistantText(last) : "";
+          if (!result) throw new Error("Worker returned no answer");
+          return { content: [{ type: "text" as const, text: result }], details: undefined };
+        } finally { signal?.removeEventListener("abort", abort); child.dispose(); }
+      },
+    });
+  }
+  private async make(cwd: string, role: "coordinator" | "scout" | "reviewer" | TaskRole, manager: SessionManager, customTools: ToolDefinition[] = []): Promise<AgentSession> {
     const modelRuntime = await this.runtime;
     const model = modelRuntime.getModel("openai-codex", "gpt-6-luna");
     if (!model) throw new Error("Codex model gpt-6-luna is unavailable in the pinned Pi catalog");
@@ -35,19 +58,20 @@ export class PiService {
       // The Codex subscription endpoint accepts the legacy Fast alias.
       return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
     });
-    const worker = role !== "coordinator";
+    const lead = role === "personal" || role === "code";
     const cuaSkill = join(homedir(), ".cua-driver", "skills", "cua-driver");
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
-      noSkills: !worker, noContextFiles: !worker,
-      additionalSkillPaths: worker && existsSync(cuaSkill) ? [cuaSkill] : [],
+      noSkills: role === "coordinator", noContextFiles: role === "coordinator",
+      additionalSkillPaths: lead && existsSync(cuaSkill) ? [cuaSkill] : [],
       systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    const availableTools = customTools;
+    const availableTools = lead ? [...customTools, this.delegateTool(cwd)] : customTools;
     const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
-      : ["read", "bash", "edit", "write", "grep", "find", "ls"];
+      : lead ? ["read", "bash", "edit", "write", "grep", "find", "ls", "delegate"]
+      : ["read", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
     return session;
