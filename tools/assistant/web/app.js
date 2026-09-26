@@ -66,7 +66,7 @@ function homeRequest(message, entry) {
   return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activity}</div>${pending}</section>`;
 }
 function homeReply(update, entry, source) {
-  return `<section class="home-exchange"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div></div></section>`;
+  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div></div></section>`;
 }
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
@@ -83,20 +83,6 @@ function home() {
   return `<main class="home-scroll scroll-area"><div class="home-content">${timeline.map((item) => item.html).join("")}</div></main>`;
 }
 function nearBottom(scroll) { return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 40; }
-function updateNewReplies() {
-  const button = root.querySelector(".new-replies");
-  const count = state.unseenReplies.size;
-  if (button) {
-    button.hidden = !count;
-    const label = count === 1 ? "Jump to new reply" : `Jump to ${count} new replies`;
-    button.setAttribute("aria-label", label);
-    button.title = label;
-  }
-}
-function clearUnseenReplies() {
-  state.unseenReplies.clear();
-  updateNewReplies();
-}
 function homeBackButton() {
   const unread = [...state.unseenReplies.values()].some((sessionId) => sessionId !== state.selected);
   return `<button class="icon-button back-button ${unread ? "has-unread" : ""}" data-action="home" aria-label="${unread ? "Back to Home, new replies" : "Back to Home"}" title="${unread ? "Home · new replies" : "Home"}">${icon("back", 19)}</button>`;
@@ -126,8 +112,6 @@ function render(force = false) {
     }
     while (current.children.length > children.length) current.lastElementChild.remove();
     old.scrollTop = wasNearBottom ? old.scrollHeight : scrollTop;
-    if (wasNearBottom) clearUnseenReplies();
-    else updateNewReplies();
     scrollActivity();
     updateConnection();
     return;
@@ -141,15 +125,11 @@ function render(force = false) {
   const editing = isHome && state.edit;
   const preview = editing ? replyTarget(state.edit.id) : isHome && state.replyToId ? replyTarget(state.replyToId) : null;
   const previewHTML = preview ? `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: preview.text } : preview, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>` : "";
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand">${isHome ? "" : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area">${isHome ? '<button type="button" class="new-replies" data-action="latest" aria-label="Jump to new replies" title="Jump to new replies" hidden></button>' : ""}<form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand">${isHome ? "" : `<strong>${escapeHTML(record?.title || "Conversation")}</strong><span class="role-label">${escapeHTML(record?.role || "personal")}</span>`}</div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="${isHome ? "Ask anything or give me a task" : "Message this conversation"}" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
-  if (isHome) {
-    if (scroll && nearBottom(scroll)) clearUnseenReplies();
-    else updateNewReplies();
-    scrollActivity();
-  }
+  if (isHome) scrollActivity();
   const input = focus ? root.querySelector('[data-focus="composer"]') : null;
   if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
 }
@@ -169,6 +149,7 @@ async function loadSession() {
 }
 function select(id) {
   if (!id || id === state.selected) return;
+  const unread = id === "home" ? new Set(state.unseenReplies.keys()) : null;
   state.sessionDrafts[state.selected] = state.input;
   state.selected = id;
   localStorage.setItem("assistant-view", id);
@@ -178,6 +159,12 @@ function select(id) {
   state.transcript = [];
   state.streaming = "";
   render();
+  if (unread?.size) {
+    const scroll = root.querySelector(".home-scroll");
+    const first = [...root.querySelectorAll(".home-exchange[data-update]")].find((item) => unread.has(item.dataset.update));
+    if (scroll && first) scroll.scrollTop += first.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 28;
+    state.unseenReplies.clear();
+  }
   void loadSession();
 }
 root.addEventListener("click", async (event) => {
@@ -220,19 +207,11 @@ root.addEventListener("click", async (event) => {
       root.querySelector("textarea")?.focus();
     }
     if (button.dataset.action === "dismiss") { state.error = ""; render(); }
-    if (button.dataset.action === "latest") {
-      const scroll = root.querySelector(".home-scroll");
-      if (scroll) scroll.scrollTop = scroll.scrollHeight;
-      clearUnseenReplies();
-    }
     if (button.dataset.action === "toggle-steer") { state.steer = !state.steer; render(); }
     if (button.dataset.action === "stop") await api("/api/stop", "POST", { sessionId: state.selected });
     if (button.dataset.action === "resume") await api("/api/resume", "POST", { entryId: button.dataset.entry });
   } catch (error) { state.error = error.message; render(); }
 });
-root.addEventListener("scroll", (event) => {
-  if (event.target.matches?.(".home-scroll") && nearBottom(event.target)) clearUnseenReplies();
-}, true);
 root.addEventListener("input", (event) => {
   if (event.target.matches('[data-focus="composer"]')) {
     state.input = event.target.value;
@@ -313,7 +292,7 @@ function connect() {
       const previous = new Set(state.data.entries.flatMap((entry) => entry.updates.filter((update) => update.kind !== "progress").map((update) => update.id)));
       state.data = event.data;
       if (state.snapshotLoaded) for (const entry of state.data.entries) for (const update of entry.updates) {
-        if (update.kind !== "progress" && !previous.has(update.id) && (state.selected === "home" || entry.sessionId !== state.selected))
+        if (update.kind !== "progress" && !previous.has(update.id) && state.selected !== "home" && entry.sessionId !== state.selected)
           state.unseenReplies.set(update.id, entry.sessionId);
       }
       state.snapshotLoaded = true;
