@@ -36,7 +36,7 @@ export class PiService {
       return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
     });
     const worker = role !== "coordinator";
-    const cuaSkill = join(homedir(), ".assistant", "skills", "cua-driver");
+    const cuaSkill = join(homedir(), ".cua-driver", "skills", "cua-driver");
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: !worker, noContextFiles: !worker,

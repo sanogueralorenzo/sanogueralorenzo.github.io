@@ -15,14 +15,13 @@ if [ ! -x "$cua_bin" ] || [ "$("$cua_bin" --version | awk '{print $2}')" != "$cu
   cua_installer=$(curl -fsSL https://cua.ai/driver/install.sh)
   CUA_DRIVER_RS_VERSION="$cua_version" CUA_DRIVER_RS_NO_MODIFY_PATH=1 /bin/bash -c "$cua_installer"
 fi
-skills_dir="$HOME/.assistant/skills"
-cua_skill="$skills_dir/cua-driver"
+cua_skill="$HOME/.cua-driver/skills/cua-driver"
 if [ ! -f "$cua_skill/SKILL.md" ] || [ "$(awk '$1 == "version:" {print $2}' "$cua_skill/SKILL.md")" != "$cua_version" ]; then
-  mkdir -p "$skills_dir"
-  archive="$skills_dir/cua-driver-rs-v$cua_version-skills.tar.gz"
-  curl -fsSL -o "$archive" "https://github.com/trycua/cua/releases/download/cua-driver-rs-v$cua_version/cua-driver-rs-v$cua_version-skills.tar.gz"
-  tar -xzf "$archive" -C "$skills_dir"
-  ln -sfn "cua-driver-rs-v$cua_version-skills" "$cua_skill"
+  "$cua_bin" skills install --agent codex
+fi
+if [ ! -f "$cua_skill/SKILL.md" ] || [ "$(awk '$1 == "version:" {print $2}' "$cua_skill/SKILL.md")" != "$cua_version" ]; then
+  echo "Cua Driver skill does not match version $cua_version" >&2
+  exit 1
 fi
 cua_target="$HOME/Library/LaunchAgents/com.trycua.cua-driver.plist"
 if [ ! -e "$cua_target" ]; then

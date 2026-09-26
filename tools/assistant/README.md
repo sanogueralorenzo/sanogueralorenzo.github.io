@@ -22,4 +22,4 @@ npm ci
 npm start
 ```
 
-Use `service/install.sh` to install pinned Cua Driver and start Assistant after login on macOS. Run `~/.local/bin/cua-driver permissions grant` to enable computer use in System Settings. Run `service/uninstall.sh` to remove the Assistant service. State lives under `~/.assistant`. Run `npm run check` for the TypeScript check.
+Use `service/install.sh` to install pinned Cua Driver and its skill, and start Assistant after login on macOS. Run `~/.local/bin/cua-driver permissions grant` to enable computer use in System Settings. Run `service/uninstall.sh` to remove the Assistant service. State lives under `~/.assistant`. Run `npm run check` for the TypeScript check.
