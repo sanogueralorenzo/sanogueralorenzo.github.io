@@ -40,14 +40,13 @@ export class PiService {
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: !worker, noContextFiles: !worker,
-      additionalSkillPaths: (role === "personal" || role === "code") && existsSync(cuaSkill) ? [cuaSkill] : [],
+      additionalSkillPaths: worker && existsSync(cuaSkill) ? [cuaSkill] : [],
       systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
     const availableTools = customTools;
     const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
-      : role === "scout" || role === "reviewer" ? ["read", "grep", "find", "ls"]
       : ["read", "bash", "edit", "write", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
