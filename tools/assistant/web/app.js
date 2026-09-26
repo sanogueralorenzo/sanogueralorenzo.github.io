@@ -300,7 +300,7 @@ function connect() {
       if (state.selected !== "home") void loadSession();
     }
     if (event.type === "delta" && event.sessionId === state.selected) { state.streaming += event.delta; render(); }
-    if (event.type === "activity" && event.sessionId === state.selected) { state.activity = `Tool: ${event.name}`; render(); }
+    if (event.type === "activity" && event.sessionId === state.selected) { state.activity = event.label; render(); }
     if (event.type === "homeActivity") {
       state.liveProgress[event.sourceId] = event.text;
       if (state.selected === "home") {

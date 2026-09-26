@@ -10,6 +10,14 @@ type Active = { session: AgentSession; turn: Turn; output: string; error: string
   commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+const toolLabels: Record<string, string> = {
+  read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
+  edit: "Editing files", write: "Editing files", bash: "Running a command",
+};
+function toolLabel(name: string, args: unknown) {
+  if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
+  return toolLabels[name] || `Tool: ${name}`;
+}
 
 export class Assistant {
   readonly dataDir: string;
@@ -213,8 +221,9 @@ export class Assistant {
           if (event.message.stopReason === "toolUse") { if (text) active!.commentary = text; showProgress(); saveProgress(); }
         }
         if (event.type === "tool_execution_start") {
-          this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
-          active!.tool = `Tool: ${event.toolName}`;
+          const label = toolLabel(event.toolName, event.args);
+          this.emit({ type: "activity", sessionId: record.id, label });
+          active!.tool = label;
           showProgress();
           saveProgress();
         }
