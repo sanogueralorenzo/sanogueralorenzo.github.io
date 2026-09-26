@@ -2,17 +2,16 @@ import { Type } from "typebox";
 import type { PiService } from "./pi.ts";
 import type { HomeEntry, HomeMessage, State } from "./state.ts";
 
-export type Route = { mode: "start"; agent: "personal" | "code"; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
+export type Route = { mode: "start"; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
 
 function parseRoute(value: unknown, state: State): Route {
   if (!value || typeof value !== "object") throw new Error("Submit one Home destination");
   const route = value as Record<string, unknown>;
   if (route.mode === "start") {
     if (route.sessionId) throw new Error("New work cannot use a saved session ID");
-    if (!["personal", "code"].includes(String(route.agent)) ||
-      typeof route.title !== "string" || !route.title.trim()) throw new Error("New work needs a role and title");
+    if (typeof route.title !== "string" || !route.title.trim()) throw new Error("New work needs a title");
     if (route.cwd !== undefined && typeof route.cwd !== "string") throw new Error("Project directory must be a string");
-    return { mode: "start", agent: route.agent as "personal" | "code", title: route.title, cwd: route.cwd as string | undefined };
+    return { mode: "start", title: route.title, cwd: route.cwd as string | undefined };
   }
   if (route.mode === "continue") {
     if (typeof route.sessionId !== "string" || !state.data.sessions.some((session) => session.id === route.sessionId))
@@ -39,7 +38,7 @@ export class HomeRouter {
     const sessions = this.state.data.sessions.map((session) => {
       const related = entries.filter((entry) => entry.sessionId === session.id)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-      return { id: session.id, title: session.title, agent: session.role || "personal", status: session.status, cwd: session.cwd,
+      return { id: session.id, title: session.title, status: session.status, cwd: session.cwd,
         updatedAt: related[0]?.updatedAt || session.createdAt,
         recent: related.slice(0, 2).map((entry) => ({ request: (requests(entry).at(-1) || "").slice(0, 200), lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
     }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -77,7 +76,6 @@ export class HomeRouter {
       description: "Choose one start or continue destination for the entire Home message. Invalid choices return a reason to correct.",
       parameters: Type.Object({
         mode: Type.Union([Type.Literal("start"), Type.Literal("continue")]),
-        agent: Type.Optional(Type.Union([Type.Literal("personal"), Type.Literal("code")])),
         title: Type.Optional(Type.String()), sessionId: Type.Optional(Type.String()), cwd: Type.Optional(Type.String()),
       }),
       execute: async (_callId: string, params: unknown) => {

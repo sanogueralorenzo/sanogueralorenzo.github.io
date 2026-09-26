@@ -55,9 +55,9 @@ export class Assistant {
   private async commitRoute(message: HomeMessage, route: Route) {
     let session: SessionRecord;
     if (route.mode === "start") {
-      const cwd = route.cwd?.trim() || (route.agent === "personal" ? homedir() : this.cwd);
-      const pi = await this.pi.create(cwd, randomUUID(), route.agent);
-      session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), role: route.agent, cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
+      const cwd = route.cwd?.trim() || homedir();
+      const pi = await this.pi.create(cwd, randomUUID());
+      session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
       pi.dispose();
       this.state.data.sessions.push(session);
     } else session = this.state.data.sessions.find((item) => item.id === route.sessionId)!;
@@ -176,8 +176,7 @@ export class Assistant {
     let active: Active | undefined;
     let interruptedTurn = false;
     try {
-      const role = record.role || "personal";
-      session = await this.pi.open(record.cwd, record.file, role);
+      session = await this.pi.open(record.cwd, record.file);
       active = { session, turn, output: "", error: "", stopped: false, commentary: "", tool: "", thinking: "", lastProgress: "", savedProgress: "" };
       this.active.set(record.id, active);
       this.starting.delete(record.id);

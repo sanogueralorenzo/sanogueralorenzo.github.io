@@ -51,7 +51,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .topbar-end { justify-content: flex-end; }
 .brand { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
 .brand > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.role-label { flex: 0 0 auto; padding: 3px 7px; border-radius: 8px; background: var(--surface); color: var(--muted); font-size: 11px; text-transform: capitalize; }
 .brand-mark { color: var(--clay); width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--surface); flex: 0 0 auto; }
 .icon-button { width: 34px; height: 32px; border: 0; border-radius: 999px; background: transparent; color: var(--graphite); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .icon-button:hover { background: var(--surface); }

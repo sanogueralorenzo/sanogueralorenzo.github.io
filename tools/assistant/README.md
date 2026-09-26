@@ -1,6 +1,6 @@
 # Assistant
 
-Assistant is a local personal and coding assistant built on Pi. Its Node service keeps Home, conversations, and queued work running when the browser closes. Open `http://127.0.0.1:4180`.
+Assistant is a local assistant built on Pi. Home routes new requests and follow-ups to persistent session agents, which can delegate read-only research or review. Its Node service keeps conversations and queued work running when the browser closes. Open `http://127.0.0.1:4180`.
 
 ## Agentic foundations
 
