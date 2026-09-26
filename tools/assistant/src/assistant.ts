@@ -17,7 +17,7 @@ const toolProgress = (name: string) => progressByTool[name] || "Working with too
 export class Assistant {
   readonly dataDir: string;
   readonly cwd: string;
-  readonly concurrency: number;
+  readonly concurrency = 4;
   readonly state: State;
   readonly pi: PiService;
   readonly router: HomeRouter;
@@ -27,10 +27,9 @@ export class Assistant {
   private pendingStops = new Set<string>();
   private homeRouting: Promise<void> = Promise.resolve();
   private closing = false;
-  constructor(dataDir: string, cwd: string, concurrency = 4) {
+  constructor(dataDir: string, cwd: string) {
     this.dataDir = dataDir;
     this.cwd = cwd;
-    this.concurrency = concurrency;
     this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
     this.pi = new PiService(dataDir);
     this.router = new HomeRouter(this.state, this.pi, cwd);

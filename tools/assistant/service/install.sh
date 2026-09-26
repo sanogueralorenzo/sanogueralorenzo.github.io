@@ -2,7 +2,6 @@
 set -eu
 
 assistant_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-workspace_dir=$(CDPATH= cd -- "$assistant_dir/../.." && pwd)
 node_bin=$(command -v node)
 service_name=dev.sanogueralorenzo.assistant
 
@@ -16,7 +15,6 @@ if [ "$(uname -s)" = Darwin ]; then
   <key>Label</key><string>$service_name</string>
   <key>ProgramArguments</key><array><string>$node_bin</string><string>--experimental-strip-types</string><string>$assistant_dir/src/server.ts</string></array>
   <key>WorkingDirectory</key><string>$assistant_dir</string>
-  <key>EnvironmentVariables</key><dict><key>ASSISTANT_WORKSPACE</key><string>$workspace_dir</string></dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$HOME/Library/Logs/assistant.log</string>
   <key>StandardErrorPath</key><string>$HOME/Library/Logs/assistant-error.log</string>
@@ -35,7 +33,6 @@ Description=Assistant local Pi service
 [Service]
 Type=simple
 WorkingDirectory=$assistant_dir
-Environment=ASSISTANT_WORKSPACE=$workspace_dir
 ExecStart=$node_bin --experimental-strip-types $assistant_dir/src/server.ts
 Restart=always
 RestartSec=2
