@@ -2,6 +2,16 @@
 
 Assistant is a local personal and coding assistant powered by the pinned Pi SDK. One Node service owns Home routing, persistent Pi conversations, queues, and updates. The website at `http://127.0.0.1:4180` is its first client; closing the tab does not stop work.
 
+## Goal
+
+Build a production-grade agentic assistant on five core patterns:
+
+1. **Tool use:** choose when to call tools and incorporate their results.
+2. **Reflection:** a generator produces output; an evaluator scores and critiques it against the goal; revise until it passes.
+3. **Planning and task decomposition:** break complex goals into tasks and alternate reasoning with action.
+4. **Orchestrator and workers:** delegate focused tasks to specialized agents, each with a narrow role and its own context.
+5. **Memory and context management:** retain useful state across steps and sessions without carrying irrelevant history.
+
 ## Start
 
 Requires Node 22+ and a signed-in Codex CLI account in `~/.codex/auth.json`. The Pi CLI is not required. Assistant keeps a private, renewable copy of that Codex credential in its data directory; it does not change Pi's separate login.
