@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { createAgentSession, DefaultResourceLoader, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TaskRole } from "./state.ts";
@@ -35,9 +36,11 @@ export class PiService {
       return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
     });
     const worker = role !== "coordinator";
+    const cuaSkill = join(homedir(), ".assistant", "skills", "cua-driver");
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: !worker, noContextFiles: !worker,
+      additionalSkillPaths: (role === "personal" || role === "code") && existsSync(cuaSkill) ? [cuaSkill] : [],
       systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
     });
