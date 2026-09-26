@@ -10,9 +10,6 @@ type Active = { session: AgentSession; turn: Turn; output: string; error: string
   commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
-const progressByTool: Record<string, string> = { read: "Inspecting files", grep: "Searching files", find: "Finding files", ls: "Inspecting files",
-  edit: "Making changes", write: "Making changes", bash: "Running commands" };
-const toolProgress = (name: string) => progressByTool[name] || "Working with tools";
 
 export class Assistant {
   readonly dataDir: string;
@@ -217,7 +214,7 @@ export class Assistant {
         }
         if (event.type === "tool_execution_start") {
           this.emit({ type: "activity", sessionId: record.id, name: event.toolName });
-          active!.tool = `${toolProgress(event.toolName)}…`;
+          active!.tool = `Tool: ${event.toolName}`;
           showProgress();
           saveProgress();
         }
