@@ -14,7 +14,7 @@ The aim is a production-grade agentic system built on five patterns:
 
 ## Start
 
-Requires Node 22+ and a signed-in Codex CLI account in `~/.codex/auth.json`. The Pi CLI is not required.
+Requires Node 26+ and a signed-in Codex CLI account in `~/.codex/auth.json`. The Pi CLI is not required.
 
 ```bash
 cd tools/assistant
@@ -22,4 +22,4 @@ npm ci
 npm start
 ```
 
-Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. State lives under `~/.assistant`. Run `npm run check` for the TypeScript check.
+Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home state lives in `~/.assistant/assistant.db`; Pi session files live in `~/.assistant/sessions`. Run `npm run check` for the TypeScript check.

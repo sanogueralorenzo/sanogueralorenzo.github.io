@@ -290,6 +290,13 @@ function connect() {
     if (event.type === "snapshot") {
       const previous = new Set(state.data.entries.flatMap((entry) => entry.updates.filter((update) => update.kind !== "progress").map((update) => update.id)));
       state.data = event.data;
+      if (state.selected !== "home" && !state.data.sessions.some((session) => session.id === state.selected)) {
+        state.selected = "home";
+        localStorage.setItem("assistant-view", "home");
+        state.transcript = [];
+      }
+      if (state.replyToId && !replyTarget(state.replyToId)) state.replyToId = null;
+      if (state.edit && !replyTarget(state.edit.id)) state.edit = null;
       if (state.snapshotLoaded) for (const entry of state.data.entries) for (const update of entry.updates) {
         if (update.kind !== "progress" && !previous.has(update.id) && state.selected !== "home" && entry.sessionId !== state.selected)
           state.unseenReplies.set(update.id, entry.sessionId);

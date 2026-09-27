@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, closeSync, mkdirSync, openSync } from "node:fs";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 
 export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
 export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; editOfId?: string; status: "routing" | "routed" | "failed" };
@@ -9,20 +10,32 @@ export type HomeEntry = { id: string; sourceId: string; title: string; sessionId
 export type SessionRecord = { id: string; title: string; cwd: string; file: string; status: "idle" | "running" | "interrupted"; createdAt: string };
 export type Turn = { id: string; sessionId: string; entryId: string | null; sourceId?: string; replyToId?: string; text: string; status: "queued" | "running"; createdAt: string };
 export type Data = { version: 1; messages: HomeMessage[]; entries: HomeEntry[]; sessions: SessionRecord[]; turns: Turn[] };
-const empty = (): Data => ({ version: 1, messages: [], entries: [], sessions: [], turns: [] });
 export const now = () => new Date().toISOString();
 
+type Table = "messages" | "entries" | "sessions" | "turns";
+type Row = { value: string };
 export class State {
-  readonly file: string;
-  readonly dir: string;
+  readonly db: DatabaseSync;
   private readonly changed: () => void;
   data: Data;
   constructor(dir: string, changed: () => void) {
-    this.dir = dir;
     this.changed = changed;
-    mkdirSync(dir, { recursive: true });
-    this.file = join(dir, "state.json");
-    this.data = existsSync(this.file) ? JSON.parse(readFileSync(this.file, "utf8")) as Data : empty();
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const file = join(dir, "assistant.db");
+    closeSync(openSync(file, "a", 0o600));
+    chmodSync(file, 0o600);
+    this.db = new DatabaseSync(file);
+    this.db.exec("PRAGMA journal_mode = WAL");
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS entries (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS turns (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+    `);
+    const read = <T>(table: Table) => (this.db.prepare(`SELECT value FROM ${table} ORDER BY rowid`).all() as Row[])
+      .map((row) => JSON.parse(row.value) as T);
+    this.data = { version: 1, messages: read<HomeMessage>("messages"), entries: read<HomeEntry>("entries"),
+      sessions: read<SessionRecord>("sessions"), turns: read<Turn>("turns") };
     // A restarted service never silently replays an in-flight turn. Queued work remains queued.
     for (const session of this.data.sessions) if (session.status === "running") session.status = "interrupted";
     for (const turn of this.data.turns) if (turn.status === "running") {
@@ -33,9 +46,19 @@ export class State {
     this.save();
   }
   save() {
-    const temp = join(dirname(this.file), `.state-${randomUUID()}.tmp`);
-    writeFileSync(temp, JSON.stringify(this.data, null, 2), { mode: 0o600 });
-    renameSync(temp, this.file);
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const write = (table: Table, records: Array<{ id: string }>) => {
+        this.db.exec(`DELETE FROM ${table}`);
+        const insert = this.db.prepare(`INSERT INTO ${table} (id, value) VALUES (?, ?)`);
+        for (const record of records) insert.run(record.id, JSON.stringify(record));
+      };
+      write("messages", this.data.messages);
+      write("entries", this.data.entries);
+      write("sessions", this.data.sessions);
+      write("turns", this.data.turns);
+      this.db.exec("COMMIT");
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
     this.changed();
   }
   message(text: string, id: string = randomUUID(), context: Pick<HomeMessage, "replyToId" | "editOfId"> = {}) {
