@@ -12,6 +12,8 @@ type Active = { session: AgentSession; turn: Turn; output: string; error: string
 type ComputerApproval = ComputerApprovalRequest & { id: string; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+const autoApprovalApps = new Set(["com.apple.finder", "com.apple.textedit", "com.microsoft.edgemac"]);
+const autoApprovalMs = 30 * 60 * 1000;
 const toolLabels: Record<string, string> = {
   read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
   edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer",
@@ -35,6 +37,8 @@ export class Assistant {
   private homeRouting: Promise<void> = Promise.resolve();
   private closing = false;
   private approvals = new Map<string, { view: ComputerApproval; decide: (accepted: boolean) => void }>();
+  private autoApprovalExpiresAt = 0;
+  private autoApprovalTimer?: ReturnType<typeof setTimeout>;
   constructor(dataDir: string, cwd: string) {
     this.dataDir = dataDir;
     this.cwd = cwd;
@@ -46,9 +50,22 @@ export class Assistant {
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
   pendingComputerApprovals() { return [...this.approvals.values()].map((item) => item.view); }
+  computerAutoApproval() { return { expiresAt: this.autoApprovalExpiresAt }; }
+  setComputerAutoApproval(enabled: boolean) {
+    if (this.autoApprovalTimer) clearTimeout(this.autoApprovalTimer);
+    this.autoApprovalTimer = undefined;
+    this.autoApprovalExpiresAt = enabled ? Date.now() + autoApprovalMs : 0;
+    if (enabled) this.autoApprovalTimer = setTimeout(() => this.setComputerAutoApproval(false), autoApprovalMs);
+    this.emit({ type: "computerAutoApproval", ...this.computerAutoApproval() });
+    return this.computerAutoApproval();
+  }
   private publishApprovals() { this.emit({ type: "computerApprovals", approvals: this.pendingComputerApprovals() }); }
   private requestComputerApproval(sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal): Promise<boolean> {
     if (signal.aborted || this.closing) return Promise.resolve(false);
+    if (Date.now() < this.autoApprovalExpiresAt &&
+      (autoApprovalApps.has(request.app?.toLowerCase() || "") || request.browser?.toLowerCase() === "edge")) {
+      return Promise.resolve(true);
+    }
     const view = { ...request, id: randomUUID(), sessionId };
     return new Promise((resolve) => {
       const decide = (accepted: boolean) => {
@@ -156,6 +173,7 @@ export class Assistant {
   }
   async shutdown() {
     this.closing = true;
+    this.setComputerAutoApproval(false);
     for (const approval of [...this.approvals.values()]) approval.decide(false);
     const interrupted = this.state.data.turns.filter((item) => item.status === "running");
     await Promise.allSettled([...this.active.values()].map((run) => run.session.abort()));

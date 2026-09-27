@@ -10,7 +10,7 @@ type RpcMessage = { id?: number; method?: string; params?: Record<string, unknow
 type Pending = { resolve: (value: Record<string, unknown>) => void; reject: (error: Error) => void };
 type McpConfig = { command: string; args: string[]; env: Record<string, string> };
 type ToolContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
-export type ComputerApprovalRequest = { message: string; riskLevel?: string; toolName?: string; app?: string };
+export type ComputerApprovalRequest = { message: string; riskLevel?: string; toolName?: string; app?: string; browser?: string };
 
 function mcpConfig(): McpConfig {
   const root = join(process.env.CODEX_HOME || join(homedir(), ".codex"), "plugins", "cache", "openai-bundled", "unified-computer-use");
@@ -68,7 +68,8 @@ export class ComputerUseClient {
         accepted = await this.approve({ message: params.message,
           riskLevel: typeof meta.riskLevel === "string" ? meta.riskLevel : undefined,
           toolName: typeof meta.tool_name === "string" ? meta.tool_name : undefined,
-          app: typeof toolParams.app === "string" ? toolParams.app : undefined }, this.closeController.signal);
+          app: typeof toolParams.app === "string" ? toolParams.app : undefined,
+          browser: typeof toolParams.browser === "string" ? toolParams.browser : undefined }, this.closeController.signal);
       } catch { /* Closing the session declines any pending approval. */ }
     }
     try { this.send({ id: message.id, result: accepted ? { action: "accept", content: {} } : { action: "decline" } }); }

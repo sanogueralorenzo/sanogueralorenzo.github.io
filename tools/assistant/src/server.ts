@@ -45,6 +45,7 @@ const server = createServer(async (req, res) => {
       clients.add(res);
       res.write(`data: ${JSON.stringify({ type: "snapshot", data: app.snapshot() })}\n\n`);
       res.write(`data: ${JSON.stringify({ type: "computerApprovals", approvals: app.pendingComputerApprovals() })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: "computerAutoApproval", ...app.computerAutoApproval() })}\n\n`);
       for (const activity of app.activities()) res.write(`data: ${JSON.stringify(activity)}\n\n`);
       req.on("close", () => clients.delete(res));
       return;
@@ -65,6 +66,10 @@ const server = createServer(async (req, res) => {
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
       if (url.pathname === "/api/computer-approval") return json(res, 200,
         { decided: app.decideComputerApproval(String(request.id), request.accepted === true) });
+      if (url.pathname === "/api/computer-auto-approval") {
+        if (typeof request.enabled !== "boolean") throw new Error("Specify whether computer auto-approval is enabled");
+        return json(res, 200, app.setComputerAutoApproval(request.enabled));
+      }
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }
       return json(res, 404, { error: "Unknown endpoint" });
     }
