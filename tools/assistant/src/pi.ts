@@ -88,7 +88,7 @@ export class PiService {
     return this.make(cwd, "session", SessionManager.open(file, join(this.dataDir, "sessions"), cwd));
   }
   async utility(role: "coordinator", input: string, cwd: string, customTools: ToolDefinition[] = [], acceptedResult?: () => string | undefined) {
-    const session = await this.make(cwd, role, SessionManager.create(cwd, join(this.dataDir, role)), customTools);
+    const session = await this.make(cwd, role, SessionManager.inMemory(cwd), customTools);
     const unsubscribe = acceptedResult ? session.subscribe((event) => {
       // Pi would make another model call after the accepted tool result; the routing plan is already complete.
       if (event.type === "tool_execution_end" && acceptedResult()) void session.abort();

@@ -13,10 +13,12 @@ export type Data = { version: 1; messages: HomeMessage[]; entries: HomeEntry[]; 
 export const now = () => new Date().toISOString();
 
 type Table = "messages" | "entries" | "sessions" | "turns";
-type Row = { value: string };
+type Row = { id: string; value: string };
+const tables: Table[] = ["messages", "entries", "sessions", "turns"];
 export class State {
   readonly db: DatabaseSync;
   private readonly changed: () => void;
+  private persisted: Record<Table, Map<string, string>>;
   data: Data;
   constructor(dir: string, changed: () => void) {
     this.changed = changed;
@@ -32,10 +34,19 @@ export class State {
       CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS turns (id TEXT PRIMARY KEY, value TEXT NOT NULL);
     `);
-    const read = <T>(table: Table) => (this.db.prepare(`SELECT value FROM ${table} ORDER BY rowid`).all() as Row[])
-      .map((row) => JSON.parse(row.value) as T);
-    this.data = { version: 1, messages: read<HomeMessage>("messages"), entries: read<HomeEntry>("entries"),
-      sessions: read<SessionRecord>("sessions"), turns: read<Turn>("turns") };
+    const read = (table: Table) => this.db.prepare(`SELECT id, value FROM ${table} ORDER BY rowid`).all() as Row[];
+    const messages = read("messages");
+    const entries = read("entries");
+    const sessions = read("sessions");
+    const turns = read("turns");
+    this.persisted = { messages: new Map(messages.map((row) => [row.id, row.value])),
+      entries: new Map(entries.map((row) => [row.id, row.value])),
+      sessions: new Map(sessions.map((row) => [row.id, row.value])),
+      turns: new Map(turns.map((row) => [row.id, row.value])) };
+    this.data = { version: 1, messages: messages.map((row) => JSON.parse(row.value) as HomeMessage),
+      entries: entries.map((row) => JSON.parse(row.value) as HomeEntry),
+      sessions: sessions.map((row) => JSON.parse(row.value) as SessionRecord),
+      turns: turns.map((row) => JSON.parse(row.value) as Turn) };
     // A restarted service never silently replays an in-flight turn. Queued work remains queued.
     for (const session of this.data.sessions) if (session.status === "running") session.status = "interrupted";
     for (const turn of this.data.turns) if (turn.status === "running") {
@@ -46,19 +57,29 @@ export class State {
     this.save();
   }
   save() {
+    const next = { messages: new Map(this.data.messages.map((item) => [item.id, JSON.stringify(item)])),
+      entries: new Map(this.data.entries.map((item) => [item.id, JSON.stringify(item)])),
+      sessions: new Map(this.data.sessions.map((item) => [item.id, JSON.stringify(item)])),
+      turns: new Map(this.data.turns.map((item) => [item.id, JSON.stringify(item)])) };
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const write = (table: Table, records: Array<{ id: string }>) => {
-        this.db.exec(`DELETE FROM ${table}`);
-        const insert = this.db.prepare(`INSERT INTO ${table} (id, value) VALUES (?, ?)`);
-        for (const record of records) insert.run(record.id, JSON.stringify(record));
-      };
-      write("messages", this.data.messages);
-      write("entries", this.data.entries);
-      write("sessions", this.data.sessions);
-      write("turns", this.data.turns);
+      for (const table of tables) {
+        const previous = this.persisted[table];
+        const current = next[table];
+        const savedOrder = [...previous.keys()].filter((id) => current.has(id));
+        savedOrder.push(...[...current.keys()].filter((id) => !previous.has(id)));
+        const reordered = [...current.keys()].some((id, index) => id !== savedOrder[index]);
+        if (reordered) this.db.exec(`DELETE FROM ${table}`);
+        else {
+          const remove = this.db.prepare(`DELETE FROM ${table} WHERE id = ?`);
+          for (const id of previous.keys()) if (!current.has(id)) remove.run(id);
+        }
+        const upsert = this.db.prepare(`INSERT INTO ${table} (id, value) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value`);
+        for (const [id, value] of current) if (reordered || previous.get(id) !== value) upsert.run(id, value);
+      }
       this.db.exec("COMMIT");
     } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+    this.persisted = next;
     this.changed();
   }
   message(text: string, id: string = randomUUID(), context: Pick<HomeMessage, "replyToId" | "editOfId"> = {}) {

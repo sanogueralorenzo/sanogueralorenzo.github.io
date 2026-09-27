@@ -6,7 +6,8 @@
   "engines": { "node": ">=26" },
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/state.test.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.85.1",
