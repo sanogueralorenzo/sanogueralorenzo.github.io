@@ -1,6 +1,8 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 
 const root = document.querySelector("#app");
+const computerApprovalRoot = document.createElement("div");
+document.body.append(computerApprovalRoot);
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
 const restoredReply = sessionStorage.getItem("assistant-reload-reply");
 const restoredEdit = JSON.parse(sessionStorage.getItem("assistant-reload-edit") || "null");
@@ -8,7 +10,7 @@ sessionStorage.removeItem("assistant-reload-draft");
 sessionStorage.removeItem("assistant-reload-reply");
 sessionStorage.removeItem("assistant-reload-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
+  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false, computerApprovals: [] };
 let renderedView = state.selected;
 
 async function api(path, method = "GET", body) {
@@ -17,6 +19,20 @@ async function api(path, method = "GET", body) {
   if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
   return result;
 }
+function renderComputerApprovals() {
+  const approval = state.computerApprovals[0];
+  computerApprovalRoot.innerHTML = approval ? `<div class="computer-approval-backdrop"><section class="computer-approval-dialog" role="dialog" aria-modal="true" aria-labelledby="computer-approval-title"><h2 id="computer-approval-title">Computer Use request</h2><p>${escapeHTML(approval.message)}</p><div class="computer-approval-actions"><button type="button" data-computer-action="decline">Deny</button><button type="button" data-computer-action="accept">Allow once</button></div></section></div>` : "";
+}
+computerApprovalRoot.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-computer-action]");
+  const approval = state.computerApprovals[0];
+  if (!button || !approval) return;
+  for (const item of computerApprovalRoot.querySelectorAll("button")) item.disabled = true;
+  try {
+    const result = await api("/api/computer-approval", "POST", { id: approval.id, accepted: button.dataset.computerAction === "accept" });
+    if (!result.decided) throw new Error("This Computer Use request has expired");
+  } catch (error) { state.error = error.message; render(true); renderComputerApprovals(); }
+});
 
 function statusBadge(value) {
   const status = value || "routing";
@@ -299,6 +315,7 @@ function connect() {
       render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview"));
       if (state.selected !== "home") void loadSession();
     }
+    if (event.type === "computerApprovals") { state.computerApprovals = event.approvals; renderComputerApprovals(); }
     if (event.type === "delta" && event.sessionId === state.selected) { state.streaming += event.delta; render(); }
     if (event.type === "activity" && event.sessionId === state.selected) { state.activity = event.label; render(); }
     if (event.type === "homeActivity") {

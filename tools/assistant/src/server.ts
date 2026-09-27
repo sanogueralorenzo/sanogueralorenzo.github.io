@@ -44,6 +44,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "x-accel-buffering": "no" });
       clients.add(res);
       res.write(`data: ${JSON.stringify({ type: "snapshot", data: app.snapshot() })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: "computerApprovals", approvals: app.pendingComputerApprovals() })}\n\n`);
       for (const activity of app.activities()) res.write(`data: ${JSON.stringify(activity)}\n\n`);
       req.on("close", () => clients.delete(res));
       return;
@@ -62,6 +63,8 @@ const server = createServer(async (req, res) => {
         id: typeof request.id === "string" ? request.id : undefined,
       }));
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
+      if (url.pathname === "/api/computer-approval") return json(res, 200,
+        { decided: app.decideComputerApproval(String(request.id), request.accepted === true) });
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }
       return json(res, 404, { error: "Unknown endpoint" });
     }

@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
+import { ComputerUseClient, type ComputerApprovalRequest } from "./computer-use.ts";
 import { enableHostedSearch } from "./hosted-search.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
@@ -18,8 +18,11 @@ export const assistantText = (message: { role?: string; content?: unknown }): st
 export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
-  constructor(dataDir: string) {
+  private readonly computers = new WeakMap<AgentSession, ComputerUseClient>();
+  private readonly approveComputer?: (sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>;
+  constructor(dataDir: string, approveComputer?: (sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>) {
     this.dataDir = dataDir;
+    this.approveComputer = approveComputer;
     this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) }).then((runtime) => {
       enableHostedSearch(runtime);
       return runtime;
@@ -43,7 +46,7 @@ export class PiService {
           const result = last ? assistantText(last) : "";
           if (!result) throw new Error("Worker returned no answer");
           return { content: [{ type: "text" as const, text: result }], details: undefined };
-        } finally { signal?.removeEventListener("abort", abort); child.dispose(); }
+        } finally { signal?.removeEventListener("abort", abort); this.dispose(child); }
       },
     });
   }
@@ -58,22 +61,30 @@ export class PiService {
       return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
     });
     const sessionAgent = role === "session";
-    const cuaSkill = join(homedir(), ".cua-driver", "skills", "cua-driver");
     const loader = new DefaultResourceLoader({
       cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
       noSkills: role === "coordinator", noContextFiles: role === "coordinator",
-      additionalSkillPaths: sessionAgent && existsSync(cuaSkill) ? [cuaSkill] : [],
       systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    const availableTools = sessionAgent ? [...customTools, this.delegateTool(cwd)] : customTools;
+    let agentSession: AgentSession | undefined;
+    const computer = sessionAgent ? new ComputerUseClient((request, signal) =>
+      this.approveComputer?.(agentSession?.sessionId || "", request, signal) || Promise.resolve(false)) : undefined;
+    const availableTools = sessionAgent ? [...customTools, this.delegateTool(cwd), computer!.tool()] : customTools;
     const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
-      : sessionAgent ? ["read", "bash", "edit", "write", "grep", "find", "ls", "delegate"]
+      : sessionAgent ? ["read", "bash", "edit", "write", "grep", "find", "ls", "delegate", "computer_use"]
       : ["read", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
+    agentSession = session;
+    if (computer) this.computers.set(session, computer);
     return session;
+  }
+  dispose(session: AgentSession) {
+    this.computers.get(session)?.close();
+    this.computers.delete(session);
+    session.dispose();
   }
   async create(cwd: string, id: string) {
     return this.make(cwd, "session", SessionManager.create(cwd, join(this.dataDir, "sessions"), { id }));
@@ -97,7 +108,7 @@ export class PiService {
       const text = last ? assistantText(last) : "";
       if (!text) throw new Error(`${role} returned no answer`);
       return text;
-    } finally { unsubscribe?.(); session.dispose(); }
+    } finally { unsubscribe?.(); this.dispose(session); }
   }
   transcript(file: string) {
     const manager = SessionManager.open(file);

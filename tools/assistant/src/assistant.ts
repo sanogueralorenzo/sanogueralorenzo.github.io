@@ -5,20 +5,19 @@ import { HomeRouter, type Route } from "./home-routing.ts";
 import { State, now, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { withSearchActivity } from "./hosted-search.ts";
+import type { ComputerApprovalRequest } from "./computer-use.ts";
 
 type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean;
   commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
+type ComputerApproval = ComputerApprovalRequest & { id: string; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const toolLabels: Record<string, string> = {
   read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
-  edit: "Editing files", write: "Editing files", bash: "Running a command",
+  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer",
 };
 function toolLabel(name: string, args: unknown) {
   if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
-  const command = (args as { command?: unknown })?.command;
-  if (name === "bash" && typeof command === "string" && /(?:^|[;&|\n])\s*(?:\S*\/)?cua-driver(?:\s|$)/.test(command))
-    return "Using your computer";
   return toolLabels[name] || `Tool: ${name}`;
 }
 
@@ -35,16 +34,41 @@ export class Assistant {
   private pendingStops = new Set<string>();
   private homeRouting: Promise<void> = Promise.resolve();
   private closing = false;
+  private approvals = new Map<string, { view: ComputerApproval; decide: (accepted: boolean) => void }>();
   constructor(dataDir: string, cwd: string) {
     this.dataDir = dataDir;
     this.cwd = cwd;
     this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
-    this.pi = new PiService(dataDir);
+    this.pi = new PiService(dataDir, (sessionId, request, signal) => this.requestComputerApproval(sessionId, request, signal));
     this.router = new HomeRouter(this.state, this.pi, cwd);
     queueMicrotask(() => this.drain());
   }
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private emit(event: unknown) { for (const listener of this.listeners) listener(event); }
+  pendingComputerApprovals() { return [...this.approvals.values()].map((item) => item.view); }
+  private publishApprovals() { this.emit({ type: "computerApprovals", approvals: this.pendingComputerApprovals() }); }
+  private requestComputerApproval(sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal): Promise<boolean> {
+    if (signal.aborted || this.closing) return Promise.resolve(false);
+    const view = { ...request, id: randomUUID(), sessionId };
+    return new Promise((resolve) => {
+      const decide = (accepted: boolean) => {
+        signal.removeEventListener("abort", cancel);
+        this.approvals.delete(view.id);
+        this.publishApprovals();
+        resolve(accepted);
+      };
+      const cancel = () => decide(false);
+      this.approvals.set(view.id, { view, decide });
+      signal.addEventListener("abort", cancel, { once: true });
+      this.publishApprovals();
+    });
+  }
+  decideComputerApproval(id: string, accepted: boolean) {
+    const approval = this.approvals.get(id);
+    if (!approval) return false;
+    approval.decide(accepted);
+    return true;
+  }
   snapshot() { return this.state.data; }
   activities() { return [...this.active.values()].filter((run) => run.turn.sourceId)
     .map((run) => ({ type: "homeActivity", sourceId: run.turn.sourceId, text: run.lastProgress })); }
@@ -66,7 +90,7 @@ export class Assistant {
       const cwd = route.cwd?.trim() || homedir();
       const pi = await this.pi.create(cwd, randomUUID());
       session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
-      pi.dispose();
+      this.pi.dispose(pi);
       this.state.data.sessions.push(session);
     } else session = this.state.data.sessions.find((item) => item.id === route.sessionId)!;
     const entry = this.state.entry(message, session.title, session.id);
@@ -132,6 +156,7 @@ export class Assistant {
   }
   async shutdown() {
     this.closing = true;
+    for (const approval of [...this.approvals.values()]) approval.decide(false);
     const interrupted = this.state.data.turns.filter((item) => item.status === "running");
     await Promise.allSettled([...this.active.values()].map((run) => run.session.abort()));
     for (const turn of interrupted) {
@@ -252,7 +277,7 @@ export class Assistant {
       }
     } finally {
       if (turn.sourceId) this.emit({ type: "homeActivity", sourceId: turn.sourceId, text: "" });
-      session?.dispose();
+      if (session) this.pi.dispose(session);
       this.active.delete(record.id);
       this.starting.delete(record.id);
       this.pendingStops.delete(record.id);
