@@ -22,4 +22,4 @@ npm ci
 npm start
 ```
 
-Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home state lives in `~/.assistant/assistant.db`; Pi session files live in `~/.assistant/sessions`. Run `npm run check` for the TypeScript check.
+Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home and session state live in `~/.assistant/sessions.db`; Pi transcripts live in `~/.assistant/sessions`. Run `npm run check` for the TypeScript check.

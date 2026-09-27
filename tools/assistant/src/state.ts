@@ -21,7 +21,7 @@ export class State {
   constructor(dir: string, changed: () => void) {
     this.changed = changed;
     mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const file = join(dir, "assistant.db");
+    const file = join(dir, "sessions.db");
     closeSync(openSync(file, "a", 0o600));
     chmodSync(file, 0o600);
     this.db = new DatabaseSync(file);
