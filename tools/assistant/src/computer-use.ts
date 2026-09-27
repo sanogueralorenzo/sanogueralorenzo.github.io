@@ -10,7 +10,6 @@ type RpcMessage = { id?: number; method?: string; params?: Record<string, unknow
 type Pending = { resolve: (value: Record<string, unknown>) => void; reject: (error: Error) => void };
 type McpConfig = { command: string; args: string[]; env: Record<string, string> };
 type ToolContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
-export type ComputerApprovalRequest = { message: string; riskLevel?: string; toolName?: string; app?: string; browser?: string };
 
 function mcpConfig(): McpConfig {
   const root = join(process.env.CODEX_HOME || join(homedir(), ".codex"), "plugins", "cache", "openai-bundled", "unified-computer-use");
@@ -26,8 +25,6 @@ function mcpConfig(): McpConfig {
 }
 
 export class ComputerUseClient {
-  private readonly approve?: (request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>;
-  constructor(approve?: (request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>) { this.approve = approve; }
   private process?: ChildProcessWithoutNullStreams;
   private lines?: Interface;
   private ready?: Promise<void>;
@@ -35,7 +32,6 @@ export class ComputerUseClient {
   private pending = new Map<number, Pending>();
   private stderr = "";
   private closed = false;
-  private readonly closeController = new AbortController();
 
   private send(message: Record<string, unknown>) {
     if (!this.process?.stdin.writable) throw new Error("Computer Use server is not running");
@@ -55,24 +51,9 @@ export class ComputerUseClient {
     });
   }
 
-  private async handleServerRequest(message: RpcMessage) {
+  private handleServerRequest(message: RpcMessage) {
     if (message.method !== "elicitation/create" || message.id === undefined) return;
-    const params = message.params || {};
-    const meta = typeof params._meta === "object" && params._meta !== null ? params._meta as Record<string, unknown> : {};
-    const schema = typeof params.requestedSchema === "object" && params.requestedSchema !== null ? params.requestedSchema as Record<string, unknown> : {};
-    const properties = typeof schema.properties === "object" && schema.properties !== null ? schema.properties as Record<string, unknown> : {};
-    const toolParams = typeof meta.tool_params === "object" && meta.tool_params !== null ? meta.tool_params as Record<string, unknown> : {};
-    let accepted = false;
-    if (params.mode === "form" && !Object.keys(properties).length && this.approve && typeof params.message === "string") {
-      try {
-        accepted = await this.approve({ message: params.message,
-          riskLevel: typeof meta.riskLevel === "string" ? meta.riskLevel : undefined,
-          toolName: typeof meta.tool_name === "string" ? meta.tool_name : undefined,
-          app: typeof toolParams.app === "string" ? toolParams.app : undefined,
-          browser: typeof toolParams.browser === "string" ? toolParams.browser : undefined }, this.closeController.signal);
-      } catch { /* Closing the session declines any pending approval. */ }
-    }
-    try { this.send({ id: message.id, result: accepted ? { action: "accept", content: {} } : { action: "decline" } }); }
+    try { this.send({ id: message.id, result: { action: "accept", content: {} } }); }
     catch { /* The server may already have exited. */ }
   }
 
@@ -87,7 +68,7 @@ export class ComputerUseClient {
       this.lines.on("line", (line) => {
         let response: RpcMessage;
         try { response = JSON.parse(line) as RpcMessage; } catch { return; }
-        if (response.method) { void this.handleServerRequest(response); return; }
+        if (response.method) { this.handleServerRequest(response); return; }
         if (response.id === undefined) return;
         const pending = this.pending.get(response.id);
         if (!pending) return;
@@ -136,7 +117,6 @@ export class ComputerUseClient {
   close() {
     if (this.closed) return;
     this.closed = true;
-    this.closeController.abort();
     this.lines?.close();
     this.process?.kill();
     for (const pending of this.pending.values()) pending.reject(new Error("Computer Use session closed"));

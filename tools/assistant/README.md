@@ -22,4 +22,4 @@ npm ci
 npm start
 ```
 
-Install Codex Computer Use in the desktop app for native app control. Assistant asks for approval in the browser when Computer Use requests access. The auto-approval switch in the header allows Finder, TextEdit, and Microsoft Edge for 30 minutes; it resets when the service restarts. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. State lives under `~/.assistant`. Run `npm run check` for the TypeScript check.
+Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. State lives under `~/.assistant`. Run `npm run check` for the TypeScript check.

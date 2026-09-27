@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
-import { ComputerUseClient, type ComputerApprovalRequest } from "./computer-use.ts";
+import { ComputerUseClient } from "./computer-use.ts";
 import { enableHostedSearch } from "./hosted-search.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
@@ -19,10 +19,8 @@ export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
   private readonly computers = new WeakMap<AgentSession, ComputerUseClient>();
-  private readonly approveComputer?: (sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>;
-  constructor(dataDir: string, approveComputer?: (sessionId: string, request: ComputerApprovalRequest, signal: AbortSignal) => Promise<boolean>) {
+  constructor(dataDir: string) {
     this.dataDir = dataDir;
-    this.approveComputer = approveComputer;
     this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) }).then((runtime) => {
       enableHostedSearch(runtime);
       return runtime;
@@ -68,16 +66,13 @@ export class PiService {
       appendSystemPromptOverride: () => [],
     });
     await loader.reload();
-    let agentSession: AgentSession | undefined;
-    const computer = sessionAgent ? new ComputerUseClient((request, signal) =>
-      this.approveComputer?.(agentSession?.sessionId || "", request, signal) || Promise.resolve(false)) : undefined;
+    const computer = sessionAgent ? new ComputerUseClient() : undefined;
     const availableTools = sessionAgent ? [...customTools, this.delegateTool(cwd), computer!.tool()] : customTools;
     const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
       : sessionAgent ? ["read", "bash", "edit", "write", "grep", "find", "ls", "delegate", "computer_use"]
       : ["read", "grep", "find", "ls"];
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
-    agentSession = session;
     if (computer) this.computers.set(session, computer);
     return session;
   }
