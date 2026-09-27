@@ -12,6 +12,8 @@ export type ClientTool = { name: string; description: string; inputSchema: Recor
 const prompts = new URL("../prompts/", import.meta.url);
 const instructions = (role: Role) => ["base", role].map((name) => readFileSync(new URL(`${name}.md`, prompts), "utf8")).join("\n\n");
 const input = (text: string) => [{ type: "text", text, text_elements: [] }];
+const computerUse = join(process.env.CODEX_HOME || join(homedir(), ".codex"), "computer-use", "Codex Computer Use.app",
+  "Contents", "SharedSupport", "SkyComputerUseClient.app", "Contents", "MacOS", "SkyComputerUseClient");
 
 export class CodexService {
   private process?: ChildProcessWithoutNullStreams;
@@ -48,7 +50,10 @@ export class CodexService {
   private connect(): Promise<void> {
     if (this.ready) return this.ready;
     this.ready = (async () => {
-      const child = spawn("codex", ["app-server"], { stdio: ["pipe", "pipe", "pipe"] });
+      const args = ["app-server"];
+      if (existsSync(computerUse)) args.push("-c", `mcp_servers.computer-use.command=${JSON.stringify(computerUse)}`,
+        "-c", 'mcp_servers.computer-use.args=["mcp"]', "-c", "mcp_servers.computer-use.enabled=true");
+      const child = spawn("codex", args, { stdio: ["pipe", "pipe", "pipe"] });
       this.process = child;
       child.on("error", (error) => {
         for (const pending of this.pending.values()) pending.reject(error);
@@ -107,8 +112,6 @@ export class CodexService {
       });
       await this.requestRaw("initialize", { clientInfo: { name: "local_assistant", title: "Assistant", version: "0.1.0" }, capabilities: { experimentalApi: true } });
       this.send({ method: "initialized", params: {} });
-      const cuaSkills = join(homedir(), ".cua-driver", "skills");
-      if (existsSync(cuaSkills)) await this.requestRaw("skills/extraRoots/set", { extraRoots: [cuaSkills] });
     })();
     return this.ready;
   }

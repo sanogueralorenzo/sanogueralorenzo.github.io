@@ -14,9 +14,6 @@ const toolLabels: Record<string, string> = {
 };
 function toolLabel(name: string, args: unknown) {
   if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
-  const command = (args as { command?: unknown })?.command;
-  if (name === "bash" && typeof command === "string" && /(?:^|[;&|\n])\s*(?:\S*\/)?cua-driver(?:\s|$)/.test(command))
-    return "Using your computer";
   return toolLabels[name] || `Tool: ${name}`;
 }
 
@@ -192,7 +189,7 @@ export class Assistant {
         this.state.update(entry, text, "progress", "working", active.turn.sourceId);
       }
     };
-    const item = params.item as { id?: string; type?: string; phase?: string | null; text?: string; command?: string; tool?: string; arguments?: unknown; query?: string; action?: { type?: string; url?: string } } | undefined;
+    const item = params.item as { id?: string; type?: string; phase?: string | null; text?: string; command?: string; server?: string; tool?: string; arguments?: unknown; query?: string; action?: { type?: string; url?: string } } | undefined;
     if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
       active.commentary += params.delta;
       progress();
@@ -215,7 +212,7 @@ export class Assistant {
         : item.type === "webSearch" ? item.action?.type === "openPage" ? `Opening: ${item.action.url || "page"}` : `Web search: ${item.query || ""}`
         : item.type === "collabToolCall" ? "Researching"
         : item.type === "dynamicToolCall" ? toolLabel(item.tool || "", item.arguments)
-        : item.type === "mcpToolCall" ? `Tool: ${item.tool || "MCP"}` : "";
+        : item.type === "mcpToolCall" ? item.server === "computer-use" ? "Using your computer" : `Tool: ${item.tool || "MCP"}` : "";
       if (label) { active.tool = label; active.commentary = ""; this.emit({ type: "activity", sessionId, label }); progress(true); }
     }
     if (method === "item/completed" && item) {

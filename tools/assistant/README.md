@@ -12,4 +12,4 @@ npm ci
 npm start
 ```
 
-Use `service/install.sh` to install the pinned Cua Driver and its skill, then start Assistant after login on macOS. Run `~/.local/bin/cua-driver permissions grant` to enable computer use in System Settings. Run `service/uninstall.sh` to remove the Assistant service. Assistant state lives in `~/.assistant/assistant.db`; existing Pi conversations are not imported. Run `npm run check` for the TypeScript check.
+Enable the Codex Computer Use plugin in the desktop app and grant its Screen Recording and Accessibility permissions. Run `service/install.sh` to start Assistant after login on macOS, or `service/uninstall.sh` to remove its service. Assistant state lives in `~/.assistant/assistant.db`. Run `npm run check` for the TypeScript check.
