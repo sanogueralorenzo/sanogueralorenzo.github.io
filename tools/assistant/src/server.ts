@@ -7,9 +7,9 @@ import { Assistant } from "./assistant.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workspace = resolve(root, "../..");
-const dataDir = process.env.ASSISTANT_DATA_DIR || join(homedir(), ".assistant");
+const dataDir = join(homedir(), ".assistant");
 const app = new Assistant(dataDir, workspace);
-const port = Number(process.env.ASSISTANT_PORT || 4180);
+const port = 4180;
 const clients = new Set<ServerResponse>();
 app.subscribe((event) => {
   const payload = `data: ${JSON.stringify(event)}\n\n`;
@@ -50,7 +50,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, app.snapshot());
     const sessionMatch = url.pathname.match(/^\/api\/sessions\/([a-f0-9-]+)$/);
-    if (req.method === "GET" && sessionMatch) return json(res, 200, await app.transcript(sessionMatch[1]));
+    if (req.method === "GET" && sessionMatch) return json(res, 200, app.transcript(sessionMatch[1]));
     if (req.method === "POST") {
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: "Cross-origin request denied" });

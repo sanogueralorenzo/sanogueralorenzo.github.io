@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
-import { CodexService } from "./codex.ts";
+import { PiService, assistantText } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
-import { State, now, type HomeEntry, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
-type Active = { turn: Turn; codexTurnId: string | null; output: string; error: string; stopped: boolean;
-  commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string;
-  messagePhases: Map<string, string | null>; pendingSteers: Array<{ text: string; sourceId: string; entry?: HomeEntry }> };
+import { State, now, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
+import type { AgentSession } from "@earendil-works/pi-coding-agent";
+import { withSearchActivity } from "./hosted-search.ts";
+
+type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean;
+  commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 const toolLabels: Record<string, string> = {
@@ -14,6 +16,9 @@ const toolLabels: Record<string, string> = {
 };
 function toolLabel(name: string, args: unknown) {
   if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
+  const command = (args as { command?: unknown })?.command;
+  if (name === "bash" && typeof command === "string" && /(?:^|[;&|\n])\s*(?:\S*\/)?cua-driver(?:\s|$)/.test(command))
+    return "Using your computer";
   return toolLabels[name] || `Tool: ${name}`;
 }
 
@@ -22,7 +27,7 @@ export class Assistant {
   readonly cwd: string;
   readonly concurrency = 4;
   readonly state: State;
-  readonly codex: CodexService;
+  readonly pi: PiService;
   readonly router: HomeRouter;
   private listeners = new Set<(event: unknown) => void>();
   private active = new Map<string, Active>();
@@ -34,9 +39,8 @@ export class Assistant {
     this.dataDir = dataDir;
     this.cwd = cwd;
     this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
-    this.codex = new CodexService();
-    this.router = new HomeRouter(this.state, this.codex, cwd);
-    this.codex.subscribe((method, params) => this.onCodexEvent(method, params));
+    this.pi = new PiService(dataDir);
+    this.router = new HomeRouter(this.state, this.pi, cwd);
     queueMicrotask(() => this.drain());
   }
   subscribe(listener: (event: unknown) => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
@@ -60,9 +64,9 @@ export class Assistant {
     let session: SessionRecord;
     if (route.mode === "start") {
       const cwd = route.cwd?.trim() || homedir();
-      const id = await this.codex.create(cwd);
-      session = { id, title: clean(route.title.slice(0, 100)), cwd, status: "idle", createdAt: now() };
-      await this.codex.name(id, session.title);
+      const pi = await this.pi.create(cwd, randomUUID());
+      session = { id: pi.sessionId, title: clean(route.title.slice(0, 100)), cwd, file: pi.sessionFile!, status: "idle", createdAt: now() };
+      pi.dispose();
       this.state.data.sessions.push(session);
     } else session = this.state.data.sessions.find((item) => item.id === route.sessionId)!;
     const entry = this.state.entry(message, session.title, session.id);
@@ -105,10 +109,8 @@ export class Assistant {
       if (editOfId) active.turn.text = text;
       if (entry) entry.status = "working";
       this.state.save();
-      const steer = { text: editOfId ? `Use this revision of my active request:\n${text}` : text, sourceId: source.id, entry };
-      if (active.codexTurnId) void this.codex.steer(sessionId, active.codexTurnId, steer.text)
+      void active.session.steer(editOfId ? `Use this revision of my active request:\n${text}` : text)
         .catch((error) => { if (entry) this.state.update(entry, errorText(error), "error", "failed", source.id); });
-      else active.pendingSteers.push(steer);
       return { steered: true };
     }
     const turn: Turn = { id: randomUUID(), sessionId, entryId: entry?.id || null, sourceId: source.id, replyToId, text, status: "queued", createdAt: now() };
@@ -125,14 +127,13 @@ export class Assistant {
       return true;
     }
     active.stopped = true;
-    if (active.codexTurnId) void this.codex.interrupt(sessionId, active.codexTurnId);
+    void active.session.abort();
     return true;
   }
   async shutdown() {
     this.closing = true;
     const interrupted = this.state.data.turns.filter((item) => item.status === "running");
-    await Promise.allSettled([...this.active.entries()].filter(([, run]) => run.codexTurnId)
-      .map(([id, run]) => this.codex.interrupt(id, run.codexTurnId!)));
+    await Promise.allSettled([...this.active.values()].map((run) => run.session.abort()));
     for (const turn of interrupted) {
       const entry = this.state.data.entries.find((item) => item.id === turn.entryId);
       if (entry) { entry.status = "interrupted"; entry.interruptedText = turn.text; entry.interruptedSourceId = turn.sourceId; }
@@ -141,7 +142,6 @@ export class Assistant {
     }
     this.state.data.turns = this.state.data.turns.filter((item) => item.status !== "running");
     this.state.save();
-    await this.codex.close();
   }
   resume(entryId: string) {
     const entry = this.state.data.entries.find((item) => item.id === entryId);
@@ -158,10 +158,10 @@ export class Assistant {
     this.state.save();
     this.drain();
   }
-  async transcript(sessionId: string) {
+  transcript(sessionId: string) {
     const session = this.state.data.sessions.find((item) => item.id === sessionId);
     if (!session) throw new Error("Conversation not found");
-    return { session, messages: await this.codex.transcript(sessionId), queue: this.state.data.turns.filter((turn) => turn.sessionId === sessionId) };
+    return { session, messages: this.pi.transcript(session.file), queue: this.state.data.turns.filter((turn) => turn.sessionId === sessionId) };
   }
   private drain() {
     if (this.closing) return;
@@ -173,56 +173,6 @@ export class Assistant {
       void this.run(turn);
     }
   }
-  private onCodexEvent(method: string, params: Record<string, unknown>) {
-    const sessionId = params.threadId as string | undefined;
-    const active = sessionId && this.active.get(sessionId);
-    if (!active) return;
-    const entry = this.state.data.entries.find((item) => item.id === active.turn.entryId);
-    const progress = (persist = false) => {
-      const text = clean(active.commentary || active.tool || active.thinking).trim().slice(-1200);
-      if (text !== active.lastProgress) {
-        active.lastProgress = text;
-        if (active.turn.sourceId) this.emit({ type: "homeActivity", sourceId: active.turn.sourceId, text });
-      }
-      if (persist && entry && text && text !== active.savedProgress) {
-        active.savedProgress = text;
-        this.state.update(entry, text, "progress", "working", active.turn.sourceId);
-      }
-    };
-    const item = params.item as { id?: string; type?: string; phase?: string | null; text?: string; command?: string; server?: string; tool?: string; arguments?: unknown; query?: string; action?: { type?: string; url?: string } } | undefined;
-    if (method === "item/agentMessage/delta" && typeof params.delta === "string") {
-      active.commentary += params.delta;
-      progress();
-      if (active.messagePhases.get(String(params.itemId)) === "final_answer")
-        this.emit({ type: "delta", sessionId, delta: params.delta });
-    }
-    if (method === "item/reasoning/summaryTextDelta" && typeof params.delta === "string") {
-      active.thinking += params.delta;
-      progress();
-    }
-    if (method === "item/started" && item) {
-      if (item.type === "agentMessage") {
-        if (item.id) active.messagePhases.set(item.id, item.phase || null);
-        active.commentary = active.tool = active.thinking = "";
-        progress();
-      }
-      if (item.type === "reasoning") active.thinking = "";
-      const label = item.type === "commandExecution" ? toolLabel("bash", { command: item.command })
-        : item.type === "fileChange" ? "Editing files"
-        : item.type === "webSearch" ? item.action?.type === "openPage" ? `Opening: ${item.action.url || "page"}` : `Web search: ${item.query || ""}`
-        : item.type === "collabToolCall" ? "Researching"
-        : item.type === "dynamicToolCall" ? toolLabel(item.tool || "", item.arguments)
-        : item.type === "mcpToolCall" ? item.server === "computer-use" ? "Using your computer" : `Tool: ${item.tool || "MCP"}` : "";
-      if (label) { active.tool = label; active.commentary = ""; this.emit({ type: "activity", sessionId, label }); progress(true); }
-    }
-    if (method === "item/completed" && item) {
-      if (item.type === "agentMessage" && item.text) {
-        if (item.phase === "final_answer" || item.phase === null) active.output = item.text;
-        else { active.commentary = item.text; progress(true); }
-      }
-      if (item.type !== "agentMessage") { active.tool = active.thinking = ""; progress(true); }
-    }
-  }
   private async run(turn: Turn) {
     const record = this.state.data.sessions.find((session) => session.id === turn.sessionId)!;
     turn.status = "running";
@@ -230,32 +180,71 @@ export class Assistant {
     const entry = this.state.data.entries.find((item) => item.id === turn.entryId);
     if (entry) entry.status = "working";
     this.state.save();
+    let session: AgentSession | undefined;
     let active: Active | undefined;
     let interruptedTurn = false;
     try {
-      await this.codex.resume(record.id, record.cwd);
-      active = { turn, codexTurnId: null, output: "", error: "", stopped: false, commentary: "", tool: "", thinking: "", lastProgress: "", savedProgress: "", messagePhases: new Map(), pendingSteers: [] };
+      session = await this.pi.open(record.cwd, record.file);
+      active = { session, turn, output: "", error: "", stopped: false, commentary: "", tool: "", thinking: "", lastProgress: "", savedProgress: "" };
       this.active.set(record.id, active);
       this.starting.delete(record.id);
       if (this.pendingStops.has(record.id)) { active.stopped = true; throw new Error("Stopped"); }
+      const progress = () => clean(active!.commentary || active!.tool || active!.thinking).trim().slice(-1200);
+      const showProgress = () => {
+        const text = progress();
+        if (text === active!.lastProgress) return;
+        active!.lastProgress = text;
+        if (turn.sourceId) this.emit({ type: "homeActivity", sourceId: turn.sourceId, text });
+      };
+      const saveProgress = () => {
+        const text = progress();
+        if (!entry || !text || text === active!.savedProgress) return;
+        active!.savedProgress = text;
+        this.state.update(entry, text, "progress", "working", turn.sourceId);
+      };
+      session.subscribe((event) => {
+        if (event.type === "message_start" && event.message.role === "assistant") {
+          active!.commentary = active!.tool = active!.thinking = "";
+          showProgress();
+        }
+        if (event.type === "message_update") {
+          const update = event.assistantMessageEvent;
+          if (update.type === "thinking_start") { active!.thinking = ""; showProgress(); }
+          if (update.type === "thinking_delta") { active!.thinking += update.delta; showProgress(); }
+          if (update.type === "thinking_end") { active!.thinking = update.content; showProgress(); saveProgress(); }
+          if (update.type === "text_delta") {
+            if (!active!.tool.startsWith("Web search") && !active!.tool.startsWith("Opening:")) { active!.commentary += update.delta; showProgress(); }
+            this.emit({ type: "delta", sessionId: record.id, delta: update.delta });
+          }
+        }
+        if (event.type === "message_end" && event.message.role === "assistant") {
+          const text = assistantText(event.message);
+          if (text && event.message.stopReason !== "toolUse") active!.output = text;
+          if (event.message.stopReason === "error") active!.error = event.message.errorMessage || "Model error";
+          if (event.message.stopReason === "toolUse") { if (text) active!.commentary = text; showProgress(); saveProgress(); }
+        }
+        if (event.type === "tool_execution_start") {
+          const label = toolLabel(event.toolName, event.args);
+          this.emit({ type: "activity", sessionId: record.id, label });
+          active!.tool = label;
+          showProgress();
+          saveProgress();
+        }
+      });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId);
       const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
-      active.codexTurnId = await this.codex.start(record.id, prompt);
-      for (const steer of active.pendingSteers) await this.codex.steer(record.id, active.codexTurnId, steer.text)
-        .catch((error) => { if (steer.entry) this.state.update(steer.entry, errorText(error), "error", "failed", steer.sourceId); });
-      active.pendingSteers = [];
-      if (active.stopped) await this.codex.interrupt(record.id, active.codexTurnId);
-      const completed = await this.codex.wait(record.id, active.codexTurnId);
-      const codexTurn = completed.turn as { status: string; error?: { message?: string } };
-      if (codexTurn.status === "interrupted") throw new Error("Stopped");
-      if (codexTurn.status !== "completed") throw new Error(codexTurn.error?.message || "Codex turn failed");
+      await withSearchActivity((label) => {
+        active!.commentary = "";
+        active!.tool = label;
+        showProgress();
+        saveProgress();
+      }, () => session!.prompt(prompt, { expandPromptTemplates: false }));
       if (active.stopped) throw new Error("Stopped");
       if (active.error) throw new Error(active.error);
       if (!active.output) throw new Error("Agent returned no final reply");
       if (entry) this.state.update(entry, clean(active.output), "result", "ready", turn.sourceId);
     } catch (error) {
-      const failure = errorText(error).toLowerCase();
-      const interrupted = active?.stopped || failure.includes("stopped") || failure.includes("app-server exited");
+      const interrupted = active?.stopped || errorText(error).toLowerCase().includes("abort");
       interruptedTurn = !!interrupted;
       if (entry) {
         if (interrupted) { entry.interruptedText = turn.text; entry.interruptedSourceId = turn.sourceId; }
@@ -263,6 +252,7 @@ export class Assistant {
       }
     } finally {
       if (turn.sourceId) this.emit({ type: "homeActivity", sourceId: turn.sourceId, text: "" });
+      session?.dispose();
       this.active.delete(record.id);
       this.starting.delete(record.id);
       this.pendingStops.delete(record.id);
