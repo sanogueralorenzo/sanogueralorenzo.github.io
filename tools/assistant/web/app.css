@@ -191,6 +191,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .activity-pill { align-self: flex-end; display: flex; align-items: center; gap: 6px; width: max-content; max-width: min(480px, calc(100% - 38px)); min-height: 28px; margin-top: 5px; padding: 4px 10px; border: 0; border-radius: 14px; background: var(--assistant); color: white; text-align: left; font-size: 12px; line-height: 1.35; cursor: pointer; }
 .activity-pill:hover:not(:disabled) { filter: brightness(1.14); }
 .activity-pill:disabled { opacity: 1; cursor: default; }
+.reply-source-pill { align-self: flex-start; margin-top: 0; }
 .pill-symbol { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
 .pill-symbol .spinner { width: 11px; height: 11px; }
 .pill-title, .pill-detail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
