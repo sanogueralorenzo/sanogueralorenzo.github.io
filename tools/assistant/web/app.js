@@ -17,12 +17,6 @@ async function api(path, method = "GET", body) {
   if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
   return result;
 }
-function statusBadge(value) {
-  const status = value || "routing";
-  const symbol = ({ ready: "👍", failed: "⚠️", interrupted: "⏸️" })[status];
-  const working = status === "routing" || status === "queued" || status === "working";
-  return `<span class="state-chip ${working ? "working" : ""}" role="img" aria-label="${escapeHTML(status.replace("_", " "))}">${working ? '<i class="spinner"></i>' : symbol || ""}</span>`;
-}
 function replyTarget(id) {
   if (!id) return null;
   const message = state.data.messages.find((item) => item.id === id);
@@ -59,10 +53,17 @@ function messageStatus(message, entry) {
 function homeRequest(message, entry) {
   const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
   const status = messageStatus(message, entry);
-  const activity = `<div class="activity-pill" data-source="${escapeHTML(message.id)}">${status === "working" && progress ? escapeHTML(progress.replace(/\s+/g, " ").trim()) : ""}</div>`;
-  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span>${statusBadge(status)}</button>`;
-  const pending = entry?.status === "interrupted" && (entry.interruptedSourceId || entry.sourceId) === message.id ? `<div class="home-progress"><span>⏸️ Interrupted</span><button data-action="resume" data-entry="${escapeHTML(entry.id)}">Continue</button></div>` : "";
-  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activity}</div>${pending}</section>`;
+  const title = entry?.sessionId ? entry.title : status === "failed" ? "Routing failed" : "Choosing a conversation…";
+  const detail = ({ routing: "", queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
+    ready: "Open conversation", failed: entry?.sessionId ? "Failed · Open conversation" : "", interrupted: "Continue" })[status] || "";
+  const symbol = ["routing", "queued", "working"].includes(status) ? '<i class="spinner"></i>'
+    : status === "ready" ? icon("check", 14) : status === "interrupted" ? "⏸" : "⚠";
+  const action = status === "interrupted" && entry?.sessionId ? `data-action="resume" data-entry="${escapeHTML(entry.id)}"`
+    : entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled";
+  const pill = `<button type="button" class="activity-pill" data-source="${escapeHTML(message.id)}" data-status="${escapeHTML(status)}" ${action}
+    aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span><strong class="pill-title">${escapeHTML(title)}</strong>${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
+  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
+  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${pill}</div></section>`;
 }
 function homeReply(update, entry, source) {
   return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div></div></section>`;
@@ -111,7 +112,6 @@ function render(force = false) {
     }
     while (current.children.length > children.length) current.lastElementChild.remove();
     old.scrollTop = wasNearBottom ? old.scrollHeight : scrollTop;
-    scrollActivity();
     updateConnection();
     return;
   }
@@ -128,12 +128,8 @@ function render(force = false) {
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
-  if (isHome) scrollActivity();
   const input = focus ? root.querySelector('[data-focus="composer"]') : null;
   if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
-}
-function scrollActivity() {
-  for (const pill of root.querySelectorAll(".activity-pill")) pill.scrollTop = pill.scrollHeight;
 }
 async function loadSession() {
   if (state.selected === "home") return;
@@ -311,11 +307,11 @@ function connect() {
       state.liveProgress[event.sourceId] = event.text;
       if (state.selected === "home") {
         const pill = [...root.querySelectorAll(".activity-pill")].find((item) => item.dataset.source === event.sourceId);
-        if (pill) {
-          pill.textContent = event.text.replace(/\s+/g, " ").trim();
-          pill.scrollTop = pill.scrollHeight;
+        if (pill?.dataset.status === "working") {
+          const detail = pill.querySelector(".pill-detail");
+          if (detail) detail.textContent = event.text.replace(/\s+/g, " ").trim() || "Working…";
+          pill.setAttribute("aria-label", `${pill.querySelector(".pill-title")?.textContent}, ${detail?.textContent}`);
         }
-        else render();
       }
     }
   };

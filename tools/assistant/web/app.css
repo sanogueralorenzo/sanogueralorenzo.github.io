@@ -67,7 +67,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-entry { margin-left: auto; width: fit-content; max-width: calc(100% - 58px); min-width: min(280px, 70%); padding: 13px 17px; border: 0; border-radius: 20px; color: white; text-align: left; background: var(--user); cursor: default; }
 .home-entry[data-action] { cursor: pointer; }
 .home-entry[data-action]:hover { filter: brightness(1.08); }
-.home-progress { width: min(820px, 100%); margin: -4px auto 0; padding: 0 20px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .session-scroll { scroll-behavior: auto; }
 .transcript { width: min(820px, 100%); margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; }
 .message-row { display: flex; width: 100%; }
@@ -189,10 +188,14 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .home-entry:disabled { opacity: 1; cursor: default !important; }
 .entry-copy { display: flex; flex-direction: column; gap: 4px; white-space: pre-wrap; }
 .entry-copy small { font-size: 15px; font-weight: 600; }
-.state-chip { position: absolute; right: 6px; bottom: -20px; min-width: 34px; height: 30px; border-radius: 14px; border: 4px solid var(--canvas); background: var(--assistant); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; pointer-events: none; }
-.state-chip.working { color: white; }
-.activity-pill { position: absolute; top: calc(100% - 10px); right: 44px; width: max-content; max-width: min(480px, calc(100% - 44px)); max-height: calc(4.05em + 14px); min-height: 30px; padding: 3px 8px; border: 4px solid var(--canvas); border-radius: 14px; background: var(--assistant); color: white; font-size: 12px; line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; }
-.activity-pill:empty { display: none; }
+.activity-pill { align-self: flex-end; display: flex; align-items: center; gap: 6px; width: max-content; max-width: min(480px, calc(100% - 38px)); min-height: 28px; margin-top: 5px; padding: 4px 10px; border: 0; border-radius: 14px; background: var(--assistant); color: white; text-align: left; font-size: 12px; line-height: 1.35; cursor: pointer; }
+.activity-pill:hover:not(:disabled) { filter: brightness(1.14); }
+.activity-pill:disabled { opacity: 1; cursor: default; }
+.pill-symbol { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; }
+.pill-symbol .spinner { width: 11px; height: 11px; }
+.pill-title, .pill-detail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pill-title { max-width: 220px; font-weight: 600; }
+.pill-detail::before { content: "·"; margin-right: 6px; opacity: .65; }
 .home-update { border: 0; text-align: left; cursor: pointer; font-size: 15px; line-height: 1.5; }
 .home-update:hover { filter: brightness(1.12); }
 .home-update:disabled { cursor: default; opacity: 1; }
