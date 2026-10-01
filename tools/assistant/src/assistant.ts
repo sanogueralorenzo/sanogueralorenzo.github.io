@@ -73,26 +73,29 @@ export class Assistant {
     this.state.save();
     this.drain();
   }
-  private replyTarget(id: string) {
+  private replyTarget(id: string, sessionId?: string) {
     const message = this.state.data.messages.find((item) => item.id === id);
     if (message) {
       const entry = this.state.data.entries.find((item) => item.id === message.entryId);
-      return entry && { entry, text: message.text, role: "user" };
+      return entry && { entry, sessionId: entry.sessionId, text: message.text, role: "user" };
     }
     for (const entry of this.state.data.entries) {
       const update = entry.updates.find((item) => item.id === id);
-      if (update) return { entry, text: update.text, role: "assistant" };
+      if (update) return { entry, sessionId: entry.sessionId, text: update.text, role: "assistant" };
     }
+    const record = this.state.data.sessions.find((session) => session.id === sessionId);
+    const reply = record && this.pi.transcript(record.file).find((message) => message.id === id && message.replyable);
+    if (reply) return { entry: undefined, sessionId, text: reply.text, role: "assistant" };
   }
   submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", options: { replyToId?: string; editOfId?: string; id?: string } = {}) {
     const { replyToId, editOfId, id } = options;
     const record = this.state.data.sessions.find((session) => session.id === sessionId);
     if (!record) throw new Error("Conversation not found");
     if (replyToId && editOfId) throw new Error("Choose Reply or Edit");
-    const referenced = replyToId || editOfId ? this.replyTarget((replyToId || editOfId)!) : undefined;
-    if (replyToId && referenced?.entry.sessionId !== sessionId) throw new Error("Reply target is not in this conversation");
+    const referenced = replyToId || editOfId ? this.replyTarget((replyToId || editOfId)!, sessionId) : undefined;
+    if (replyToId && referenced?.sessionId !== sessionId) throw new Error("Reply target is not in this conversation");
     const active = this.active.get(sessionId);
-    if (editOfId && (mode !== "steer" || referenced?.role !== "user" || referenced.entry.sessionId !== sessionId || active?.turn.sourceId !== editOfId))
+    if (editOfId && (mode !== "steer" || referenced?.role !== "user" || referenced.sessionId !== sessionId || active?.turn.sourceId !== editOfId))
       throw new Error("This message is no longer active. Use Reply for a follow-up.");
     if (editOfId && text === referenced?.text) throw new Error("Change the message before sending a revision");
     const entry = mode === "steer" && active
@@ -228,7 +231,7 @@ export class Assistant {
           saveProgress();
         }
       });
-      const replied = turn.replyToId && this.replyTarget(turn.replyToId);
+      const replied = turn.replyToId && this.replyTarget(turn.replyToId, record.id);
       const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
       await withSearchActivity((label) => {
         active!.commentary = "";
@@ -239,7 +242,8 @@ export class Assistant {
       if (active.stopped) throw new Error("Stopped");
       if (active.error) throw new Error(active.error);
       if (!active.output) throw new Error("Agent returned no final reply");
-      if (entry) this.state.update(entry, clean(active.output), "result", "ready", turn.sourceId);
+      const replyId = [...session.sessionManager.getBranch()].reverse().find((item) => item.type === "message" && item.message.role === "assistant")?.id;
+      if (entry) this.state.update(entry, clean(active.output), "result", "ready", turn.sourceId, replyId);
     } catch (error) {
       const interrupted = active?.stopped || errorText(error).toLowerCase().includes("abort");
       interruptedTurn = !!interrupted;

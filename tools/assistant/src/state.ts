@@ -96,9 +96,9 @@ export class State {
     this.save();
     return entry;
   }
-  update(entry: HomeEntry, text: string, kind: Update["kind"], status?: EntryStatus, sourceId?: string) {
+  update(entry: HomeEntry, text: string, kind: Update["kind"], status?: EntryStatus, sourceId?: string, id: string = randomUUID()) {
     entry.updates = entry.updates.filter((update) => update.kind !== "progress");
-    entry.updates.push({ id: randomUUID(), text, kind, sourceId,
+    entry.updates.push({ id, text, kind, sourceId,
       ...(kind !== "progress" && { quoteSource: this.data.messages.at(-1)?.id !== (sourceId || entry.sourceId) }), createdAt: now() });
     if (status) entry.status = status;
     entry.updatedAt = now();

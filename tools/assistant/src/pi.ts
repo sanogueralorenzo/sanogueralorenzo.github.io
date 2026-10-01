@@ -108,9 +108,11 @@ export class PiService {
   transcript(file: string) {
     const manager = SessionManager.open(file);
     return manager.getEntries().filter((entry) => entry.type === "message")
-      .map((entry) => entry.message).filter((message) => message.role === "user" || message.role === "assistant")
-      .map((message) => ({ role: message.role, text: message.role === "assistant" ? assistantText(message) :
-        Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }))
+      .flatMap(({ id, message }) => {
+        if (message.role !== "user" && message.role !== "assistant") return [];
+        return [{ id, role: message.role, replyable: message.role === "assistant" && message.stopReason !== "toolUse", text: message.role === "assistant" ? assistantText(message) :
+          Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }];
+      })
       .filter((message) => message.text.trim());
   }
 }

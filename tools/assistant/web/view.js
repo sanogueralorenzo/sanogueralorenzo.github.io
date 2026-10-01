@@ -23,6 +23,7 @@ export function icon(name, size = 18) {
     sparkle: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.1L12 19l-1.9-5.9L4 11l6.1-2.2L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/>',
     stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
     terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/>',
+    "thumbs-up": '<path d="M7 10v11H3V10h4Zm0 0 5-8a3 3 0 0 1 3 3v4h4a2 2 0 0 1 2 2l-1 8a2 2 0 0 1-2 2H7"/>',
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.sparkle}</svg>`;
 }
@@ -112,10 +113,11 @@ export function renderMarkdown(value = "") {
   return blocks.join("");
 }
 
-export function renderMessage(message) {
+export function renderMessage(message, actions = "") {
   if (message.role === "notice") return `<div class="notice">${escapeHTML(message.text)}</div>`;
   const artifacts = (message.artifacts ?? []).map((artifact) => artifact.kind === "image"
     ? `<a class="artifact image-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer"><img src="/v1/artifacts/${encodeURIComponent(artifact.id)}" alt="${escapeHTML(artifact.name)}"><span>${escapeHTML(artifact.name)}</span></a>`
     : `<a class="artifact file-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer">${icon("file", 16)}<span>${escapeHTML(artifact.name)}</span></a>`).join("");
-  return `<article class="message-row ${message.role === "user" ? "user-row" : "assistant-row"}"><div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"}">${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}</div></article>`;
+  const bubble = `<div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"}">${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}</div>`;
+  return `<article class="message-row ${message.role === "user" ? "user-row" : "assistant-row"}">${actions ? `<div class="replyable replyable-assistant">${actions}${bubble}</div>` : bubble}</article>`;
 }

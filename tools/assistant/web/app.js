@@ -10,6 +10,7 @@ sessionStorage.removeItem("assistant-reload-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
   transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
+const pendingThumbs = new Set();
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -25,6 +26,8 @@ function replyTarget(id) {
     const update = entry.updates.find((item) => item.id === id);
     if (update) return { role: "Assistant", text: update.text, sessionId: entry.sessionId };
   }
+  const reply = state.transcript.find((message) => message.id === id && message.role === "assistant");
+  if (reply) return { role: "Assistant", text: reply.text, sessionId: state.selected };
   return null;
 }
 function quote(target, className) {
@@ -35,6 +38,13 @@ function quote(target, className) {
 }
 function replyButton(id, sessionId) {
   return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 17)}</button>` : "";
+}
+function thumbsUpButton(id, sessionId) {
+  if (!id || !sessionId) return "";
+  const sent = state.data.messages.some((message) => message.replyToId === id && message.text === "Go ahead.");
+  const pending = pendingThumbs.has(id);
+  const label = pending ? "Sending Go ahead…" : sent ? "Go ahead sent" : "Send Go ahead";
+  return `<button type="button" class="reply-action thumbs-up-action ${sent ? "reacted" : ""}" data-action="thumbs-up" data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${sent || pending ? "disabled" : ""}>${icon("thumbs-up", 17)}</button>`;
 }
 function messageAction(message, sessionId) {
   const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
@@ -67,7 +77,7 @@ function homeRequest(message, entry) {
 }
 function homeReply(update, entry, source) {
   const sourcePill = entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="Open conversation"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
-  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${replyButton(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
+  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant"><div class="message-actions">${thumbsUpButton(update.id, entry.sessionId)}${replyButton(update.id, entry.sessionId)}</div><button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote({ role: "You", text: source.text }, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
@@ -90,7 +100,8 @@ function homeBackButton() {
 }
 function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
-  const messages = state.transcript.length ? state.transcript.map(renderMessage).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
+  const messages = state.transcript.length ? state.transcript.map((message) => renderMessage(message,
+    message.role === "assistant" && message.replyable ? thumbsUpButton(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
   const queue = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
   return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}${queue.length ? `<section class="queued-card"><h2>Queued follow-ups</h2>${queue.map((turn) => `<div class="queued-row"><span>${escapeHTML(turn.text)}</span></div>`).join("")}</section>` : ""}`;
 }
@@ -165,8 +176,29 @@ function select(id) {
 }
 root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
-  if (!button) return;
+  if (!button || button.disabled) return;
   try {
+    if (button.dataset.action === "thumbs-up") {
+      const replyToId = button.dataset.reply;
+      if (pendingThumbs.has(replyToId)) return;
+      const sessionId = button.dataset.session;
+      const id = crypto.randomUUID();
+      const entry = state.data.entries.find((item) => item.updates.some((update) => update.id === replyToId))
+        || [...state.data.entries].reverse().find((item) => item.sessionId === sessionId);
+      pendingThumbs.add(replyToId);
+      state.error = "";
+      state.data.messages.push({ id, text: "Go ahead.", createdAt: new Date().toISOString(), entryId: entry?.id || null, replyToId, status: "routed" });
+      render();
+      try {
+        await api("/api/turns", "POST", { id, sessionId, text: "Go ahead.", mode: "followUp", replyToId });
+      } catch (error) {
+        state.data.messages = state.data.messages.filter((message) => message.id !== id);
+        throw error;
+      } finally {
+        pendingThumbs.delete(replyToId);
+        render();
+      }
+    }
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
     if (button.dataset.action === "reply") {
