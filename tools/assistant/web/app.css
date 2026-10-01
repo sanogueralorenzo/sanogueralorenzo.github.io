@@ -181,7 +181,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .message-actions { display: flex; flex-direction: column; gap: 4px; flex: 0 0 32px; }
 .thumbs-up-action.pending { opacity: 1; }
 .has-reaction { position: relative; margin-bottom: 13px; }
-.message-reaction { position: absolute; top: 100%; right: 0; transform: translateY(-50%); display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 5px; border: 2px solid var(--canvas); border-radius: 13px; background: color-mix(in srgb, var(--user) 15%, var(--canvas)); font-size: 15px; line-height: 1; }
+.message-reaction { position: absolute; top: 100%; right: 0; transform: translateY(-50%); display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 5px; border-radius: 13px; background: var(--assistant); font-size: 15px; line-height: 1; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 .replyable .message-bubble { max-width: min(640px, calc(100% - 38px)); }
 .home-entry:has(.user-context) { margin-top: 16px; }
