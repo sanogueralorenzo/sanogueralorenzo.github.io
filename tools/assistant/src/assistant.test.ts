@@ -8,7 +8,7 @@ import { Assistant } from "./assistant.ts";
 import { PiService } from "./pi.ts";
 import { State, now } from "./state.ts";
 
-test("Go ahead replies queue in the referenced conversation, including transcript replies", () => {
+test("thumbs-up reactions queue one approval in the referenced conversation", () => {
   const dir = mkdtempSync(join(tmpdir(), "assistant-reply-"));
   const state = new State(dir, () => {});
   try {
@@ -26,17 +26,28 @@ test("Go ahead replies queue in the referenced conversation, including transcrip
     });
 
     for (const replyToId of ["home-reply", "transcript-reply"]) {
-      app.submitSession("session-1", "Go ahead.", "followUp", { replyToId });
+      const options = { replyToId, reaction: "thumbs-up" as const };
+      app.submitSession("session-1", "ignored", "followUp", options);
       const turn = state.data.turns.at(-1)!;
       assert.equal(turn.sessionId, "session-1");
       assert.equal(turn.replyToId, replyToId);
-      assert.equal(turn.text, "Go ahead.");
+      assert.equal(turn.text, "Yes, go ahead.");
       assert.equal(turn.status, "queued");
       assert.equal(state.data.messages.at(-1)?.replyToId, replyToId);
-      assert.throws(() => app.submitSession("session-2", "Go ahead.", "followUp", { replyToId }), /not in this conversation/);
+      assert.equal(state.data.messages.at(-1)?.reaction, "thumbs-up");
+      app.submitSession("session-1", "ignored", "followUp", options);
+      assert.throws(() => app.submitSession("session-2", "ignored", "followUp", options), /not in this conversation/);
     }
     assert.equal(state.data.turns.length, 2);
     assert.throws(() => app.submitSession("session-1", "Go ahead.", "followUp", { replyToId: "missing" }), /not in this conversation/);
+    assert.throws(() => app.submitSession("session-1", "ignored", "steer", { replyToId: "home-reply", reaction: "thumbs-up" }), /React to an assistant reply/);
+    assert.throws(() => app.submitSession("session-1", "ignored", "followUp", { replyToId: request.id, reaction: "thumbs-up" }), /React to an assistant reply/);
+    app.submitSession("session-1", "Yes, go ahead.", "followUp", { replyToId: "home-reply" });
+    assert.equal(state.data.messages.at(-1)?.reaction, undefined);
+    const reopened = new State(dir, () => {});
+    try {
+      assert.equal(reopened.data.messages.filter((message) => message.reaction === "thumbs-up").length, 2);
+    } finally { reopened.db.close(); }
   } finally {
     state.db.close();
     rmSync(dir, { recursive: true, force: true });
@@ -56,11 +67,16 @@ test("transcripts preserve reply IDs and distinguish completed replies from tool
     };
     const commentaryId = manager.appendMessage({ ...message, stopReason: "toolUse" });
     const replyId = manager.appendMessage({ ...message, stopReason: "stop" });
+    manager.appendCustomEntry("assistant-reaction", { reaction: "thumbs-up", replyToId: replyId });
+    const reactionId = manager.appendMessage({ role: "user", content: "Yes, go ahead.", timestamp: Date.now() });
+    const manualId = manager.appendMessage({ role: "user", content: "Yes, go ahead.", timestamp: Date.now() });
     const transcript = PiService.prototype.transcript(manager.getSessionFile()!);
     assert.equal(transcript.find((item) => item.id === commentaryId)?.replyable, false);
     assert.equal(transcript.find((item) => item.id === replyId)?.replyable, true);
     assert.equal(transcript.find((item) => item.role === "user")?.replyable, false);
-    assert.equal(manager.getBranch().at(-1)?.id, replyId);
+    assert.equal(transcript.find((item) => item.id === reactionId)?.reaction, "thumbs-up");
+    assert.equal(transcript.find((item) => item.id === reactionId)?.text, "Yes, go ahead.");
+    assert.equal(transcript.find((item) => item.id === manualId)?.reaction, undefined);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

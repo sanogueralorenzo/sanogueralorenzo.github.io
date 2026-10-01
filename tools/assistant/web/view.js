@@ -113,11 +113,11 @@ export function renderMarkdown(value = "") {
   return blocks.join("");
 }
 
-export function renderMessage(message, actions = "") {
+export function renderMessage(message, actions = "", reaction = "") {
   if (message.role === "notice") return `<div class="notice">${escapeHTML(message.text)}</div>`;
   const artifacts = (message.artifacts ?? []).map((artifact) => artifact.kind === "image"
     ? `<a class="artifact image-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer"><img src="/v1/artifacts/${encodeURIComponent(artifact.id)}" alt="${escapeHTML(artifact.name)}"><span>${escapeHTML(artifact.name)}</span></a>`
     : `<a class="artifact file-artifact" href="/v1/artifacts/${encodeURIComponent(artifact.id)}" target="_blank" rel="noreferrer">${icon("file", 16)}<span>${escapeHTML(artifact.name)}</span></a>`).join("");
-  const bubble = `<div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"}">${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}</div>`;
+  const bubble = `<div class="message-bubble ${message.role === "user" ? "user-bubble" : "assistant-bubble"} ${reaction ? "has-reaction" : ""}">${message.text ? `<div class="message-text markdown-content">${renderMarkdown(message.text)}</div>` : message.role === "assistant" && !artifacts ? '<span class="typing-dots"><i></i><i></i><i></i></span>' : ""}${artifacts}${reaction}</div>`;
   return `<article class="message-row ${message.role === "user" ? "user-row" : "assistant-row"}">${actions ? `<div class="replyable replyable-assistant">${actions}${bubble}</div>` : bubble}</article>`;
 }

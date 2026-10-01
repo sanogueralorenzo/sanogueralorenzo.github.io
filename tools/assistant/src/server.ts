@@ -60,6 +60,7 @@ const server = createServer(async (req, res) => {
         replyToId: typeof request.replyToId === "string" ? request.replyToId : undefined,
         editOfId: typeof request.editOfId === "string" ? request.editOfId : undefined,
         id: typeof request.id === "string" ? request.id : undefined,
+        reaction: request.reaction === "thumbs-up" ? "thumbs-up" : undefined,
       }));
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 export type EntryStatus = "routing" | "queued" | "working" | "ready" | "failed" | "interrupted";
-export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; editOfId?: string; status: "routing" | "routed" | "failed" };
+export type HomeMessage = { id: string; text: string; createdAt: string; entryId: string | null; replyToId?: string; editOfId?: string; reaction?: "thumbs-up"; status: "routing" | "routed" | "failed" };
 export type Update = { id: string; text: string; kind: "progress" | "result" | "error"; sourceId?: string; quoteSource?: boolean; createdAt: string };
 export type HomeEntry = { id: string; sourceId: string; title: string; sessionId: string | null; status: EntryStatus; interruptedText?: string; interruptedSourceId?: string; updates: Update[]; createdAt: string; updatedAt: string };
 export type SessionRecord = { id: string; title: string; cwd: string; file: string; status: "idle" | "running" | "interrupted"; createdAt: string };
@@ -82,7 +82,7 @@ export class State {
     this.persisted = next;
     this.changed();
   }
-  message(text: string, id: string = randomUUID(), context: Pick<HomeMessage, "replyToId" | "editOfId"> = {}) {
+  message(text: string, id: string = randomUUID(), context: Pick<HomeMessage, "replyToId" | "editOfId" | "reaction"> = {}) {
     if (this.data.messages.some((message) => message.id === id)) throw new Error("Request ID already exists");
     const message: HomeMessage = { id, text, createdAt: now(), entryId: null, ...context, status: "routing" };
     this.data.messages.push(message);

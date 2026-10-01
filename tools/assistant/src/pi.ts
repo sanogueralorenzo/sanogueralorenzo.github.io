@@ -107,12 +107,20 @@ export class PiService {
   }
   transcript(file: string) {
     const manager = SessionManager.open(file);
-    return manager.getEntries().filter((entry) => entry.type === "message")
-      .flatMap(({ id, message }) => {
-        if (message.role !== "user" && message.role !== "assistant") return [];
-        return [{ id, role: message.role, replyable: message.role === "assistant" && message.stopReason !== "toolUse", text: message.role === "assistant" ? assistantText(message) :
-          Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }];
-      })
+    let reaction: "thumbs-up" | undefined;
+    return manager.getEntries().flatMap((entry) => {
+      if (entry.type === "custom" && entry.customType === "assistant-reaction") {
+        reaction = "thumbs-up";
+        return [];
+      }
+      if (entry.type !== "message") return [];
+      const { id, message } = entry;
+      if (message.role !== "user" && message.role !== "assistant") return [];
+      const userReaction = message.role === "user" ? reaction : undefined;
+      if (message.role === "user") reaction = undefined;
+      return [{ id, role: message.role, ...(userReaction && { reaction: userReaction }), replyable: message.role === "assistant" && message.stopReason !== "toolUse", text: message.role === "assistant" ? assistantText(message) :
+        Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }];
+    })
       .filter((message) => message.text.trim());
   }
 }

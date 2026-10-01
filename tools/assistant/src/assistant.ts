@@ -87,13 +87,18 @@ export class Assistant {
     const reply = record && this.pi.transcript(record.file).find((message) => message.id === id && message.replyable);
     if (reply) return { entry: undefined, sessionId, text: reply.text, role: "assistant" };
   }
-  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", options: { replyToId?: string; editOfId?: string; id?: string } = {}) {
-    const { replyToId, editOfId, id } = options;
+  submitSession(sessionId: string, text: string, mode: "followUp" | "steer" = "followUp", options: { replyToId?: string; editOfId?: string; id?: string; reaction?: "thumbs-up" } = {}) {
+    const { replyToId, editOfId, id, reaction } = options;
     const record = this.state.data.sessions.find((session) => session.id === sessionId);
     if (!record) throw new Error("Conversation not found");
     if (replyToId && editOfId) throw new Error("Choose Reply or Edit");
     const referenced = replyToId || editOfId ? this.replyTarget((replyToId || editOfId)!, sessionId) : undefined;
     if (replyToId && referenced?.sessionId !== sessionId) throw new Error("Reply target is not in this conversation");
+    if (reaction) {
+      if (mode !== "followUp" || !replyToId || referenced?.role !== "assistant") throw new Error("React to an assistant reply");
+      if (this.state.data.messages.some((message) => message.reaction === reaction && message.replyToId === replyToId)) return { reacted: true };
+      text = "Yes, go ahead.";
+    }
     const active = this.active.get(sessionId);
     if (editOfId && (mode !== "steer" || referenced?.role !== "user" || referenced.sessionId !== sessionId || active?.turn.sourceId !== editOfId))
       throw new Error("This message is no longer active. Use Reply for a follow-up.");
@@ -101,7 +106,7 @@ export class Assistant {
     const entry = mode === "steer" && active
       ? this.state.data.entries.find((item) => item.id === active.turn.entryId)
       : referenced?.entry || [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
-    const source = this.state.message(text, id, editOfId ? { editOfId } : { replyToId });
+    const source = this.state.message(text, id, editOfId ? { editOfId } : { replyToId, ...(reaction && { reaction }) });
     source.status = "routed";
     if (entry) source.entryId = entry.id;
     if (mode === "steer" && active) {
@@ -202,7 +207,13 @@ export class Assistant {
         active!.savedProgress = text;
         this.state.update(entry, text, "progress", "working", turn.sourceId);
       };
+      let firstUserMessage = true;
       session.subscribe((event) => {
+        if (event.type === "message_end" && event.message.role === "user" && firstUserMessage) {
+          firstUserMessage = false;
+          if (this.state.data.messages.find((message) => message.id === turn.sourceId)?.reaction)
+            session!.sessionManager.appendCustomEntry("assistant-reaction", { reaction: "thumbs-up", replyToId: turn.replyToId });
+        }
         if (event.type === "message_start" && event.message.role === "assistant") {
           active!.commentary = active!.tool = active!.thinking = "";
           showProgress();
