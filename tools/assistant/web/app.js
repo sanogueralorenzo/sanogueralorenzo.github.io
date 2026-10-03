@@ -42,16 +42,12 @@ function replyButton(id, sessionId) {
 function thumbsUpButton(id, sessionId) {
   if (!id || !sessionId) return "";
   const pending = pendingThumbs.has(id);
-  if (reactionTo(id) && !pending) return "";
-  const label = pending ? "Sending…" : "Go ahead";
-  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : ""}" data-action="thumbs-up" data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${icon("thumbs-up", 17)}</button>`;
+  const sent = !!reactionTo(id) && !pending;
+  const label = pending ? "Sending…" : sent ? "Go ahead sent" : "Go ahead";
+  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${icon("thumbs-up", 17)}</button>`;
 }
 function reactionTo(id) {
   return state.data.messages.find((message) => message.replyToId === id && message.reaction === "thumbs-up");
-}
-function reactionBadge(id) {
-  if (!reactionTo(id) || pendingThumbs.has(id)) return "";
-  return `<span class="message-reaction" role="img" aria-label="Go ahead sent" title="Go ahead sent">👍</span>`;
 }
 function messageAction(message, sessionId) {
   const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
@@ -88,7 +84,7 @@ function homeReply(update, entry, source) {
   const reaction = reactionTo(update.id);
   const sourcePill = reaction ? activityPill(reaction, entry, "reply-source-pill") : entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="Open conversation"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
   const context = source.reaction ? replyTarget(source.replyToId) : { role: "You", text: source.text };
-  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant"><div class="message-actions">${thumbsUpButton(update.id, entry.sessionId)}${replyButton(update.id, entry.sessionId)}</div><button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""} ${reaction ? "has-reaction" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span>${reactionBadge(update.id)}</button></div>${sourcePill}</div></section>`;
+  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant"><div class="message-actions">${thumbsUpButton(update.id, entry.sessionId)}${replyButton(update.id, entry.sessionId)}</div><button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
@@ -112,7 +108,7 @@ function homeBackButton() {
 function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
-    message.role === "assistant" && message.replyable ? `<div class="message-actions">${thumbsUpButton(message.id, state.selected)}</div>` : "", reactionBadge(message.id))).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
+    message.role === "assistant" && message.replyable ? `<div class="message-actions">${thumbsUpButton(message.id, state.selected)}</div>` : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
   const queue = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
   return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}${queue.length ? `<section class="queued-card"><h2>Queued follow-ups</h2>${queue.map((turn) => `<div class="queued-row"><span>${state.data.messages.find((message) => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : escapeHTML(turn.text)}</span></div>`).join("")}</section>` : ""}`;
 }
