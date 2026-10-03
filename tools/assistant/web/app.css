@@ -187,6 +187,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .reply-action:hover, .reply-action:focus-visible { color: var(--graphite); }
 .reply-action:focus-visible { outline: none; }
 .message-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 32px; }
+.message-actions, .replyable > .reply-action { position: sticky; bottom: 12px; align-self: flex-end; }
 .thumbs-up-action.pending { opacity: 1; }
 .thumbs-up-action.sent { cursor: default; font-size: 14px; line-height: 1; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
