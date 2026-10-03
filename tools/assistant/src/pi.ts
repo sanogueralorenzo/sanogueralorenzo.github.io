@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
@@ -128,4 +128,3 @@ export class PiService {
       .filter((message) => message.text.trim());
   }
 }
-export type PiEvent = AgentSessionEvent;

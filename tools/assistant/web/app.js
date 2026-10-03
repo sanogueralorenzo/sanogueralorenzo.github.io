@@ -1,4 +1,5 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
+import { createMessageActions } from "./message-actions.js";
 
 const root = document.querySelector("#app");
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
@@ -10,48 +11,13 @@ sessionStorage.removeItem("assistant-reload-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
   transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
-const pendingThumbs = new Set();
+const actions = createMessageActions({ state, root, api, render });
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
   return result;
-}
-function replyTarget(id) {
-  if (!id) return null;
-  const message = state.data.messages.find((item) => item.id === id);
-  if (message) return { role: "You", text: message.text, sessionId: state.data.entries.find((entry) => entry.id === message.entryId)?.sessionId };
-  for (const entry of state.data.entries) {
-    const update = entry.updates.find((item) => item.id === id);
-    if (update) return { role: "Assistant", text: update.text, sessionId: entry.sessionId };
-  }
-  const reply = state.transcript.find((message) => message.id === id && message.role === "assistant");
-  if (reply) return { role: "Assistant", text: reply.text, sessionId: state.selected };
-  return null;
-}
-function quote(target, className) {
-  if (!target) return "";
-  const text = target.text.replace(/\s+/g, " ").trim();
-  const preview = text.length > 80 ? `${text.slice(0, 80).trimEnd()}…` : text;
-  return `<span class="${className}"><strong>${target.role}</strong><span>${escapeHTML(preview)}</span></span>`;
-}
-function replyButton(id, sessionId) {
-  return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 14)}</button>` : "";
-}
-function thumbsUpButton(id, sessionId) {
-  if (!id || !sessionId) return "";
-  const pending = pendingThumbs.has(id);
-  const sent = !!reactionTo(id) && !pending;
-  const label = pending ? "Sending…" : sent ? "Go ahead sent" : "Go ahead";
-  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${sent ? '<span aria-hidden="true">👍</span>' : icon("thumbs-up", 14)}</button>`;
-}
-function reactionTo(id) {
-  return state.data.messages.find((message) => message.replyToId === id && message.reaction === "thumbs-up");
-}
-function messageAction(message, sessionId) {
-  const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
-  return active ? `<button type="button" class="reply-action" data-action="edit" data-edit="${escapeHTML(message.id)}" aria-label="Edit active message" title="Edit and steer">${icon("edit", 14)}</button>` : replyButton(message.id, sessionId);
 }
 function messageStatus(message, entry) {
   const turn = state.data.turns.find((item) => item.sourceId === message.id);
@@ -77,14 +43,14 @@ function activityPill(message, entry, className = "") {
     aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span><strong class="pill-title">${escapeHTML(title)}</strong>${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
 }
 function homeRequest(message, entry) {
-  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${quote(replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
-  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${messageAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry)}</div></section>`;
+  const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${actions.quote(actions.replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
+  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry)}</div></section>`;
 }
 function homeReply(update, entry, source) {
-  const reaction = reactionTo(update.id);
+  const reaction = actions.reactionTo(update.id);
   const sourcePill = reaction ? activityPill(reaction, entry, "reply-source-pill") : entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="Open conversation"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
-  const context = source.reaction ? replyTarget(source.replyToId) : { role: "You", text: source.text };
-  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant"><div class="message-actions">${thumbsUpButton(update.id, entry.sessionId)}${replyButton(update.id, entry.sessionId)}</div><button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
+  const context = source.reaction ? actions.replyTarget(source.replyToId) : { role: "You", text: source.text };
+  return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${actions.replyActions(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? actions.quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
 function home() {
   if (!state.data.messages.length) return `<main class="home-scroll scroll-area"><div class="home-content"><div class="empty-home-chat"><span class="brand-mark">${icon("sparkle", 17)}</span><strong>How can I help?</strong><p>Ask me anything or give me a task.</p></div></div></main>`;
@@ -108,7 +74,7 @@ function homeBackButton() {
 function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
-    message.role === "assistant" && message.replyable ? `<div class="message-actions">${thumbsUpButton(message.id, state.selected)}${replyButton(message.id, state.selected)}</div>` : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
+    message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
   const queue = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
   return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}${queue.length ? `<section class="queued-card"><h2>Queued follow-ups</h2>${queue.map((turn) => `<div class="queued-row"><span>${state.data.messages.find((message) => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : escapeHTML(turn.text)}</span></div>`).join("")}</section>` : ""}`;
 }
@@ -141,9 +107,8 @@ function render(force = false) {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   if (record?.status !== "running") state.steer = false;
   const editing = isHome && state.edit;
-  const preview = editing ? replyTarget(state.edit.id) : state.replyToId ? replyTarget(state.replyToId) : null;
-  const previewHTML = preview ? `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: preview.text } : preview, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>` : "";
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${preview ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  const previewHTML = actions.preview();
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${previewHTML ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
@@ -186,62 +151,9 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button || button.disabled) return;
   try {
-    if (button.dataset.action === "thumbs-up") {
-      const replyToId = button.dataset.reply;
-      if (pendingThumbs.has(replyToId)) return;
-      const sessionId = button.dataset.session;
-      const id = crypto.randomUUID();
-      const entry = state.data.entries.find((item) => item.updates.some((update) => update.id === replyToId))
-        || [...state.data.entries].reverse().find((item) => item.sessionId === sessionId);
-      pendingThumbs.add(replyToId);
-      state.error = "";
-      state.data.messages.push({ id, text: "Yes, go ahead.", createdAt: new Date().toISOString(), entryId: entry?.id || null, replyToId, reaction: "thumbs-up", status: "routed" });
-      render();
-      try {
-        await api("/api/turns", "POST", { id, sessionId, text: "Yes, go ahead.", mode: "followUp", replyToId, reaction: "thumbs-up" });
-      } catch (error) {
-        state.data.messages = state.data.messages.filter((message) => message.id !== id);
-        throw error;
-      } finally {
-        pendingThumbs.delete(replyToId);
-        render();
-      }
-    }
+    if (await actions.handleClick(button)) return;
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
-    if (button.dataset.action === "reply") {
-      const target = replyTarget(button.dataset.reply);
-      if (target?.sessionId) {
-        state.input = root.querySelector("textarea")?.value || "";
-        state.edit = null;
-        state.replyToId = button.dataset.reply;
-        render(true);
-        root.querySelector("textarea")?.focus();
-      }
-    }
-    if (button.dataset.action === "edit") {
-      const message = state.data.messages.find((item) => item.id === button.dataset.edit);
-      if (message && state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running")) {
-        state.edit = { id: message.id, previousInput: root.querySelector("textarea")?.value || "", previousReplyToId: state.replyToId };
-        state.replyToId = null;
-        state.input = message.text;
-        render(true);
-        root.querySelector("textarea")?.focus();
-      }
-    }
-    if (button.dataset.action === "dismiss-reply") {
-      state.input = root.querySelector("textarea")?.value || "";
-      state.replyToId = null;
-      render(true);
-      root.querySelector("textarea")?.focus();
-    }
-    if (button.dataset.action === "dismiss-edit") {
-      state.input = state.edit?.previousInput || "";
-      state.replyToId = state.edit?.previousReplyToId || null;
-      state.edit = null;
-      render(true);
-      root.querySelector("textarea")?.focus();
-    }
     if (button.dataset.action === "dismiss") { state.error = ""; render(); }
     if (button.dataset.action === "toggle-steer") { state.steer = !state.steer; render(); }
     if (button.dataset.action === "stop") await api("/api/stop", "POST", { sessionId: state.selected });
@@ -271,7 +183,7 @@ root.addEventListener("submit", async (event) => {
   const edit = selected === "home" ? state.edit : null;
   const editOfId = edit?.id || null;
   const replyToId = !edit ? state.replyToId : null;
-  const target = replyToId || editOfId ? replyTarget(replyToId || editOfId) : null;
+  const target = replyToId || editOfId ? actions.replyTarget(replyToId || editOfId) : null;
   if ((replyToId || editOfId) && !target?.sessionId) { state.error = "This message is not in a conversation yet"; render(true); return; }
   if (editOfId && text === target.text) { state.error = "Change the message before sending a revision"; render(true); return; }
   if (editOfId && !state.data.turns.some((turn) => turn.sourceId === editOfId && turn.status === "running")) {
@@ -334,8 +246,8 @@ function connect() {
         localStorage.setItem("assistant-view", "home");
         state.transcript = [];
       }
-      if (state.replyToId && (state.selected === "home" || state.transcript.length) && !replyTarget(state.replyToId)) state.replyToId = null;
-      if (state.edit && !replyTarget(state.edit.id)) state.edit = null;
+      if (state.replyToId && (state.selected === "home" || state.transcript.length) && !actions.replyTarget(state.replyToId)) state.replyToId = null;
+      if (state.edit && !actions.replyTarget(state.edit.id)) state.edit = null;
       if (state.snapshotLoaded) for (const entry of state.data.entries) for (const update of entry.updates) {
         if (update.kind !== "progress" && !previous.has(update.id) && state.selected !== "home" && entry.sessionId !== state.selected)
           state.unseenReplies.set(update.id, entry.sessionId);

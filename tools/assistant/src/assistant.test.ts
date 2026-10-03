@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { SessionManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import { Assistant } from "./assistant.ts";
 import { PiService } from "./pi.ts";
 import { State, now } from "./state.ts";
@@ -82,6 +82,60 @@ test("session replies retain the selected context when queued or steering active
     assert.equal(prompts[1], "In reply to this earlier assistant message:\n> Another proposal.\n\nNow this one");
     app.submitSession("session", "Ordinary steering", "steer");
     assert.equal(prompts[2], "Ordinary steering");
+  } finally {
+    state.db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("queued replies and approvals deliver the selected earlier context to the session", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "assistant-queued-context-"));
+  const state = new State(dir, () => {});
+  try {
+    state.data.sessions.push({ id: "session", title: "Context", cwd: dir, file: "session", status: "idle", createdAt: now() });
+    const prompts: string[] = [];
+    const reactions: unknown[] = [];
+    let listener: (event: AgentSessionEvent) => void;
+    let completed: () => void;
+    const session = {
+      subscribe: (callback: typeof listener) => { listener = callback; },
+      sessionManager: {
+        appendCustomEntry: (_type: string, data: unknown) => reactions.push(data),
+        getBranch: () => [{ type: "message", id: "result", message: { role: "assistant" } }],
+      },
+      prompt: async (text: string) => {
+        prompts.push(text);
+        listener({ type: "message_end", message: { role: "user", content: text, timestamp: Date.now() } });
+        listener({ type: "message_end", message: {
+          role: "assistant", content: [{ type: "text", text: "Done." }], stopReason: "stop",
+        } } as AgentSessionEvent);
+      },
+    };
+    const app = Object.create(Assistant.prototype) as Assistant;
+    Object.assign(app, {
+      state, concurrency: 1, active: new Map(), starting: new Set(), pendingStops: new Set(), listeners: new Set(),
+      pi: {
+        transcript: () => [
+          { id: "earlier", role: "assistant", replyable: true, text: "First proposal.\nIts details." },
+          { id: "latest", role: "assistant", replyable: true, text: "Another proposal." },
+        ],
+        open: async () => session,
+        onSearchActivity: () => {},
+        dispose: () => completed(),
+      },
+    });
+    const cases: { text: string; reaction?: "thumbs-up" }[] = [
+      { text: "Change this proposal" }, { text: "ignored", reaction: "thumbs-up" },
+    ];
+    for (const { text, reaction } of cases) {
+      const finished = new Promise<void>((resolve) => { completed = resolve; });
+      app.submitSession("session", text, "followUp", { replyToId: "earlier", reaction });
+      await finished;
+      assert.equal(prompts.at(-1), `In reply to this earlier assistant message:\n> First proposal.\n> Its details.\n\n${reaction ? "Yes, go ahead." : text}`);
+      assert.equal(state.data.sessions[0].status, "idle");
+      assert.equal(state.data.turns.length, 0);
+    }
+    assert.deepEqual(reactions, [{ reaction: "thumbs-up", replyToId: "earlier" }]);
   } finally {
     state.db.close();
     rmSync(dir, { recursive: true, force: true });

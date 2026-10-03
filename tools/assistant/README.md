@@ -1,20 +1,10 @@
 # Assistant
 
-![Assistant Home mockup with concurrent conversations and a microphone variant in the composer](docs/assistant.png)
+![Assistant Home with Reply and Go-ahead controls](docs/assistant.jpg)
 
 Assistant is a local assistant built on Pi. Home routes new requests and follow-ups to persistent session agents, which can delegate read-only research or review. Its Node service keeps conversations and queued work running when the browser closes. Open `http://127.0.0.1:4180`.
 
 Hover over an assistant reply on Home or inside a session. Reply quotes that specific message as context; thumbs-up sends “Yes, go ahead.” A 👍 in the hover controls confirms it was sent. Controls are also available on keyboard focus and touch screens.
-
-## Agentic foundations
-
-The aim is a production-grade agentic system built on five patterns:
-
-1. **Tool use:** choose when to call tools and incorporate their results.
-2. **Reflection:** a generator produces output; an evaluator scores and critiques it against the goal; revise until it passes.
-3. **Planning and task decomposition:** break complex goals into tasks and alternate reasoning with action.
-4. **Orchestrator and workers:** delegate focused tasks to specialized agents, each with a narrow role and its own context.
-5. **Memory and context management:** retain useful state across steps and sessions without carrying irrelevant history.
 
 ## Start
 
@@ -26,4 +16,6 @@ npm ci
 npm start
 ```
 
-Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home and session state live in `~/.assistant/sessions.db`; Pi transcripts live in `~/.assistant/sessions`. Run `npm run check` for the TypeScript check.
+Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home and session state live in `~/.assistant/sessions.db`; Pi transcripts live in `~/.assistant/sessions`.
+
+Run `npm run check` for TypeScript and `npm test` for the focused tests.

@@ -35,6 +35,7 @@ function input(value: unknown) {
 const assets: Record<string, [string, string]> = {
   "/": ["index.html", "text/html"], "/app.js": ["app.js", "text/javascript"],
   "/app.css": ["app.css", "text/css"], "/view.js": ["view.js", "text/javascript"],
+  "/message-actions.js": ["message-actions.js", "text/javascript"],
 };
 
 const server = createServer(async (req, res) => {
