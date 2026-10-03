@@ -21,3 +21,5 @@ npm start
 Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts Computer Use approval requests. Use `service/install.sh` to start Assistant after login on macOS, and `service/uninstall.sh` to remove the service. Home and session state live in `~/.assistant/sessions.db`; Pi transcripts live in `~/.assistant/sessions`.
 
 Run `npm run check` for TypeScript and `npm test` for the focused tests.
+
+Run `npm run eval:suggestions` to compare Luna 6 Low and High on 12 prepared follow-up cases, twice each. It makes 48 tool-free model requests and saves timings, suggestions, and token usage under the repository's `.precedent/assistant-suggestions` directory. Pass `-- heldout.json 1` for one pass over six additional cases.

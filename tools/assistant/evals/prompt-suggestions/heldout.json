@@ -1,0 +1,56 @@
+[
+  {
+    "id": "writing-checklist-proposal",
+    "expected": "suggest",
+    "rubric": "Ask for the one-page checklist, a specific offered next step that matches the user's goal.",
+    "messages": [
+      {"role": "user", "text": "These meeting notes are too hard to act on. How can we make them useful?"},
+      {"role": "assistant", "text": "A short checklist grouped by owner would be easier to use. I can turn these notes into a one-page checklist."}
+    ]
+  },
+  {
+    "id": "remaining-comparison-options",
+    "expected": "suggest",
+    "rubric": "Ask for the three requested options, rather than implementation.",
+    "messages": [
+      {"role": "user", "text": "Summarize the usability findings and give me three alternatives."},
+      {"role": "assistant", "text": "The main issue is that the toolbar hides context and takes too much room. I have summarized the findings, but haven't shown the three alternatives yet."}
+    ]
+  },
+  {
+    "id": "exploration-not-implementation",
+    "expected": "none",
+    "rubric": "Do not propose accepting implementation when the user explicitly asked to leave code alone.",
+    "messages": [
+      {"role": "user", "text": "Explain how login could work, but don't change any code. I'm only exploring."},
+      {"role": "assistant", "text": "An authentication gateway could protect access while sharing one session store. I could implement that gateway."}
+    ]
+  },
+  {
+    "id": "unknown-travel-input",
+    "expected": "none",
+    "rubric": "Do not invent the user's departure airport or output a placeholder answer.",
+    "messages": [
+      {"role": "user", "text": "Help me compare flights for a weekend trip."},
+      {"role": "assistant", "text": "Which airport will you depart from?"}
+    ]
+  },
+  {
+    "id": "palette-delivered",
+    "expected": "none",
+    "rubric": "Do not propose applying a palette merely because the requested comparison is delivered.",
+    "messages": [
+      {"role": "user", "text": "Display the sixteen palettes with light and dark examples."},
+      {"role": "assistant", "text": "Here are all sixteen palettes, with both theme treatments. Each conversation keeps the same hue in either theme."}
+    ]
+  },
+  {
+    "id": "pick-measured-effort",
+    "expected": "suggest",
+    "rubric": "Choose Low, the recommendation supported by the comparison, without claiming an implementation already exists.",
+    "messages": [
+      {"role": "user", "text": "Compare Low and High before we decide which one to use for suggestions."},
+      {"role": "assistant", "text": "Low and High produced equally useful suggestions in this test. Low was about twice as fast. I recommend Low for the suggestion generator."}
+    ]
+  }
+]

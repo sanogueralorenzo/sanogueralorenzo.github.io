@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/*.test.ts"
+    "test": "node --experimental-strip-types --test src/*.test.ts",
+    "eval:suggestions": "node --experimental-strip-types evals/prompt-suggestions/run.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "1.0.0",
