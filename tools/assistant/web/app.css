@@ -177,7 +177,8 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .replyable-assistant { align-self: flex-start; }
 .reply-action { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--muted); background: transparent; opacity: 0; cursor: pointer; }
 .replyable:hover .reply-action, .replyable:focus-within .reply-action { opacity: 1; }
-.reply-action:hover { color: var(--graphite); }
+.reply-action:hover, .reply-action:focus-visible { color: var(--graphite); }
+.reply-action:focus-visible { outline: none; }
 .message-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 32px; }
 .thumbs-up-action.pending { opacity: 1; }
 .thumbs-up-action.sent { cursor: default; font-size: 14px; line-height: 1; }
