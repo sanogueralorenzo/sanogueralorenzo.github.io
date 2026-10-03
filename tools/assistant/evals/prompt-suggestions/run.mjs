@@ -22,14 +22,17 @@ if (new Set(levels).size !== levels.length || levels.some((level) => !["off", "l
   throw new Error("Efforts must be a comma-separated list of off, low, or high without duplicates");
 const output = resolve(outputDirectory, `results-${startedAt.replaceAll(":", "-")}.json`);
 const save = () => writeFileSync(output, JSON.stringify({ startedAt, model: model.id, requestedTier: "priority", transport: "sse", repeats, levels,
-  context: "Isolated compact conversation context; no tools or live session transcript. Cache usage is recorded rather than assumed.",
+  ordering: "Rotating effort order, reversed on even repeats",
+  context: "Isolated authored conversation context; no tools or live session transcript. Cache usage is recorded rather than assumed.",
   systemPrompt, cases, results }, null, 2));
 let consecutiveErrors = 0;
 save();
 
 for (let repeat = 1; repeat <= repeats; repeat++) {
   for (const [index, test] of cases.entries()) {
-    const efforts = (index + repeat) % 2 ? levels : [...levels].reverse();
+    const offset = (index + repeat - 1) % levels.length;
+    const efforts = [...levels.slice(offset), ...levels.slice(0, offset)];
+    if (repeat % 2 === 0) efforts.reverse();
     for (const effort of efforts) {
       const started = performance.now();
       let firstTextMs = null;
