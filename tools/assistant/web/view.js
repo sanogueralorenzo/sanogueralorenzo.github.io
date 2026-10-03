@@ -23,7 +23,7 @@ export function icon(name, size = 18) {
     sparkle: '<path d="m12 3 1.9 5.8L20 11l-6.1 2.1L12 19l-1.9-5.9L4 11l6.1-2.2L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/>',
     stop: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
     terminal: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/>',
-    "thumbs-up": '<path d="M4 12h2c3-3 5.5-5.5 6-8 .3-1.5 1-2 2-1.5 2 1 1.5 3.5.5 6-.4 1 .1 1.5 1 1.5H19c2 0 3 2 1.5 3.5 1.5 1 1.5 2.5-.2 3.5 1 1.2.5 2.5-1 3 .5 1.2-.5 2-2 2-4 .2-7-.5-10-1.5-.5-.2-1 .5-2 .5H4c-1.5 0-2-1-2-2.5v-4C2 13 2.5 12 4 12Z"/>',
+    "thumbs-up": '<path d="M4 12h2c3-3 5.5-5.5 6-8 .3-1.5 1-2 2-1.5 2 1 1.5 3.5.5 6-.4 1 .1 1.5 1 1.5H19c3 0 3 3 .5 3.5 2.5.5 2.3 2.9-.2 3.5 1.7.5 1.4 2.4-.6 3 .8 1.2-.3 2-1.7 2-4 .2-7-.5-10-1.5-.5-.2-1 .5-2 .5H4c-1.5 0-2-1-2-2.5v-4C2 13 2.5 12 4 12Z"/>',
   };
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] ?? paths.sparkle}</svg>`;
 }
