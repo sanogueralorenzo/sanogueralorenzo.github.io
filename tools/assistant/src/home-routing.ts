@@ -33,6 +33,14 @@ export class HomeRouter {
 
   async discover(message: HomeMessage): Promise<Route> {
     const entries = this.state.data.entries;
+    const recentExchanges = this.state.data.messages
+      .slice(0, this.state.data.messages.findIndex((item) => item.id === message.id)).slice(-6)
+      .map((previous) => {
+        const entry = entries.find((item) => item.id === previous.entryId);
+        const reply = entry?.updates.filter((update) => update.kind !== "progress" &&
+          (update.sourceId || entry.sourceId) === previous.id && update.createdAt <= message.createdAt).at(-1);
+        return { createdAt: previous.createdAt, sessionId: entry?.sessionId, request: previous.text.slice(0, 1000), reply: reply?.text.slice(0, 1000) };
+      });
     const requests = (entry: HomeEntry) => this.state.data.messages
       .filter((item) => item.entryId === entry.id).map((item) => item.text);
     const sessions = this.state.data.sessions.map((session) => {
@@ -89,7 +97,7 @@ export class HomeRouter {
         }
       },
     };
-    await this.pi.utility("coordinator", `Original user message (verbatim):\n${message.text}\n\nCurrent workspace: ${this.cwd}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12).map(({ updatedAt, ...session }) => session))}\n\nCall route_home once for the entire message.`,
+    await this.pi.utility("coordinator", `Current workspace: ${this.cwd}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home once for the entire message.`,
       this.cwd, [findConversations, readConversation, routeHome], () => accepted ? JSON.stringify(accepted) : undefined);
     if (!accepted) throw new Error("Coordinator did not choose a destination");
     return accepted;
