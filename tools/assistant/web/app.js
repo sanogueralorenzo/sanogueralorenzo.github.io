@@ -37,21 +37,21 @@ function quote(target, className) {
   return `<span class="${className}"><strong>${target.role}</strong><span>${escapeHTML(preview)}</span></span>`;
 }
 function replyButton(id, sessionId) {
-  return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 17)}</button>` : "";
+  return sessionId ? `<button type="button" class="reply-action" data-action="reply" data-reply="${escapeHTML(id)}" aria-label="Reply to message" title="Reply">${icon("reply", 14)}</button>` : "";
 }
 function thumbsUpButton(id, sessionId) {
   if (!id || !sessionId) return "";
   const pending = pendingThumbs.has(id);
   const sent = !!reactionTo(id) && !pending;
   const label = pending ? "Sending…" : sent ? "Go ahead sent" : "Go ahead";
-  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${icon("thumbs-up", 17)}</button>`;
+  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${icon("thumbs-up", 14)}</button>`;
 }
 function reactionTo(id) {
   return state.data.messages.find((message) => message.replyToId === id && message.reaction === "thumbs-up");
 }
 function messageAction(message, sessionId) {
   const active = state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running");
-  return active ? `<button type="button" class="reply-action" data-action="edit" data-edit="${escapeHTML(message.id)}" aria-label="Edit active message" title="Edit and steer">${icon("edit", 17)}</button>` : replyButton(message.id, sessionId);
+  return active ? `<button type="button" class="reply-action" data-action="edit" data-edit="${escapeHTML(message.id)}" aria-label="Edit active message" title="Edit and steer">${icon("edit", 14)}</button>` : replyButton(message.id, sessionId);
 }
 function messageStatus(message, entry) {
   const turn = state.data.turns.find((item) => item.sourceId === message.id);
