@@ -179,7 +179,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .replyable:hover .reply-action, .replyable:focus-within .reply-action { opacity: 1; }
 .reply-action:hover { color: var(--graphite); }
 .message-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 32px; }
-.thumbs-up-action:not(.sent) { color: light-dark(#9c7100, #f6c344); }
 .thumbs-up-action.pending { opacity: 1; }
 .thumbs-up-action.sent { cursor: default; font-size: 14px; line-height: 1; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
