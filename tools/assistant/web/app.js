@@ -44,7 +44,7 @@ function thumbsUpButton(id, sessionId) {
   const pending = pendingThumbs.has(id);
   const sent = !!reactionTo(id) && !pending;
   const label = pending ? "Sending…" : sent ? "Go ahead sent" : "Go ahead";
-  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${icon("thumbs-up", 14)}</button>`;
+  return `<button type="button" class="reply-action thumbs-up-action ${pending ? "pending" : sent ? "sent" : ""}" ${sent ? 'aria-disabled="true"' : 'data-action="thumbs-up"'} data-reply="${escapeHTML(id)}" data-session="${escapeHTML(sessionId)}" aria-label="${label}" title="${label}" ${pending ? "disabled" : ""}>${sent ? '<span aria-hidden="true">👍</span>' : icon("thumbs-up", 14)}</button>`;
 }
 function reactionTo(id) {
   return state.data.messages.find((message) => message.replyToId === id && message.reaction === "thumbs-up");

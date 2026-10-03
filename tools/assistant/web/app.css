@@ -180,8 +180,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .reply-action:hover { color: var(--graphite); }
 .message-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 32px; }
 .thumbs-up-action.pending { opacity: 1; }
-.thumbs-up-action.sent { color: var(--graphite); cursor: default; }
-.thumbs-up-action.sent svg { fill: currentColor; }
+.thumbs-up-action.sent { cursor: default; font-size: 14px; line-height: 1; }
 .home-entry { display: flex; align-items: center; gap: 10px; position: relative; overflow: visible; padding: 13px 17px; border-radius: 20px; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
 .replyable .message-bubble { max-width: min(640px, calc(100% - 38px)); }
 .home-entry:has(.user-context) { margin-top: 16px; }
