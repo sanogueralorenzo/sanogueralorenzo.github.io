@@ -21,6 +21,7 @@ export function suggestionTarget(state) {
 export function createPromptSuggestions({ state, root, api, render }) {
   const cache = new Map();
   const dismissed = new Map();
+  const lastShown = new Map();
 
   function available() {
     const target = suggestionTarget(state);
@@ -36,6 +37,7 @@ export function createPromptSuggestions({ state, root, api, render }) {
     overlay.hidden = !hint;
     textarea.placeholder = hint ? "" : "Message";
     if (!hint) { textarea.removeAttribute("aria-description"); return; }
+    lastShown.set(state.selected, hint.text);
     overlay.querySelector("span").textContent = hint.text;
     overlay.querySelector("button").setAttribute("aria-label", `Use suggested reply: ${hint.text}`);
     textarea.setAttribute("aria-description", `Suggested reply: ${hint.text}. Press Tab to use it.`);
@@ -44,7 +46,7 @@ export function createPromptSuggestions({ state, root, api, render }) {
     const target = suggestionTarget(state);
     const dismissal = target && dismissed.get(target.sessionId);
     if (dismissal?.reason === "draft" && !state.input && !state.replyToId && !state.edit) dismissed.delete(target.sessionId);
-    if (target && !state.input && dismissed.get(target.sessionId)?.replyId !== target.replyId && cache.get(target.sessionId)?.replyId !== target.replyId) {
+    if (target && cache.get(target.sessionId)?.replyId !== target.replyId) {
       const value = { replyId: target.replyId, text: null };
       cache.set(target.sessionId, value);
       void api("/api/suggestions", "POST", target).then((result) => {
@@ -71,5 +73,21 @@ export function createPromptSuggestions({ state, root, api, render }) {
     textarea?.setSelectionRange(hint.text.length, hint.text.length);
     return true;
   }
-  return { sync, dismiss, accept };
+  function escape() {
+    if (state.selected === "home" && state.edit) return false;
+    const target = suggestionTarget({ ...state, replyToId: null });
+    const cached = target && cache.get(target.sessionId);
+    const lastText = lastShown.get(state.selected) || (cached?.replyId === target?.replyId ? cached?.text : null);
+    const matches = !!lastText && state.input === lastText;
+    const quoted = !!state.replyToId;
+    if (matches) state.input = "";
+    if (quoted) state.replyToId = null;
+    if (matches || (!quoted && !state.input)) dismiss();
+    if (matches || quoted) {
+      render(true);
+      root.querySelector('[data-focus="composer"]')?.focus();
+    }
+    return matches || quoted || !state.input;
+  }
+  return { sync, dismiss, accept, escape };
 }

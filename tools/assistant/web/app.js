@@ -192,7 +192,7 @@ root.addEventListener("keydown", (event) => {
   if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && suggestions.accept()) {
     event.preventDefault();
   }
-  if (event.key === "Escape") suggestions.dismiss();
+  if (event.key === "Escape" && suggestions.escape()) event.preventDefault();
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     root.querySelector("#composer").requestSubmit();

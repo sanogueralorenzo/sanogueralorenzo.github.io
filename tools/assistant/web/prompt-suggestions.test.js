@@ -83,6 +83,80 @@ test("Escape keeps a hint dismissed; no suggestion never fills or quotes", async
   assert.equal(f.state.replyToId, null);
 });
 
+test("Escape clears matching suggestion text and its quote in Home and sessions", async () => {
+  for (const selected of ["home", "one"]) {
+    const f = fixture();
+    f.state.selected = selected;
+    f.state.transcript = [{ id: "reply-one", role: "assistant", completed: true }];
+    f.suggestions.sync();
+    f.requests[0].resolve({ text: "Show the mockup." });
+    await tick();
+    f.suggestions.accept();
+    assert.equal(f.suggestions.escape(), true);
+    assert.equal(f.state.input, "");
+    assert.equal(f.state.replyToId, null);
+    f.suggestions.sync();
+    assert.equal(f.overlay.hidden, true);
+    assert.equal(f.textarea.placeholder, "Message");
+    assert.equal(f.requests.length, 1);
+  }
+});
+
+test("Escape only removes the quote from custom or edited drafts", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  for (const draft of ["Show the mockup first.", "Show the mockup. ", "My own reply", ""]) {
+    for (const replyToId of ["reply-one", "older"]) {
+      f.state.input = draft;
+      f.state.replyToId = replyToId;
+      assert.equal(f.suggestions.escape(), true);
+      assert.equal(f.state.input, draft);
+      assert.equal(f.state.replyToId, null);
+    }
+  }
+  f.suggestions.accept();
+  f.state.input = "";
+  f.suggestions.dismiss("draft");
+  f.suggestions.escape();
+  f.suggestions.sync();
+  assert.equal(f.overlay.hidden, false);
+});
+
+test("Escape still recognizes the accepted hint when another conversation finishes", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  f.suggestions.accept();
+  f.state.data.entries.push({ sessionId: "two", updates: [{ id: "reply-two", kind: "result", createdAt: "3" }] });
+  f.suggestions.sync();
+  f.suggestions.escape();
+  assert.equal(f.state.input, "");
+  assert.equal(f.state.replyToId, null);
+});
+
+test("Escape compares persisted suggestions after reload, even with a nonempty draft", async () => {
+  const f = fixture();
+  f.state.input = "Show the mockup.";
+  f.state.replyToId = "reply-one";
+  f.suggestions.sync();
+  assert.equal(f.requests.length, 1);
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  f.suggestions.escape();
+  assert.equal(f.state.input, "");
+  assert.equal(f.state.replyToId, null);
+  f.state.input = "Show the mockup.";
+  f.suggestions.escape();
+  assert.equal(f.state.input, "");
+  f.state.edit = { id: "active-request" };
+  f.state.input = "Show the mockup.";
+  assert.equal(f.suggestions.escape(), false);
+  assert.equal(f.state.input, "Show the mockup.");
+});
+
 test("out-of-order responses cannot replace the newest hint; accepting pins its origin without sending", async () => {
   const f = fixture();
   f.suggestions.sync();
