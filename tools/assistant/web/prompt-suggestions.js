@@ -23,10 +23,12 @@ export function createPromptSuggestions({ state, root, api, render }) {
   const dismissed = new Map();
   const lastShown = new Map();
 
-  function available() {
+  function available(restore = false) {
     const target = suggestionTarget(state);
     const cached = target && cache.get(target.sessionId);
-    return target && !state.input && dismissed.get(target.sessionId)?.replyId !== target.replyId && cached?.replyId === target.replyId && cached.text
+    const dismissal = target && dismissed.get(target.sessionId);
+    const hidden = dismissal?.replyId === target?.replyId && !(restore && dismissal?.reason === "escape");
+    return target && !state.input && !hidden && cached?.replyId === target.replyId && cached.text
       ? { ...target, text: cached.text } : null;
   }
   function paint() {
@@ -62,7 +64,7 @@ export function createPromptSuggestions({ state, root, api, render }) {
     else paint();
   }
   function accept() {
-    const hint = available();
+    const hint = available(true);
     if (!hint) return false;
     dismissed.set(hint.sessionId, { replyId: hint.replyId, reason: "draft" });
     state.input = hint.text;

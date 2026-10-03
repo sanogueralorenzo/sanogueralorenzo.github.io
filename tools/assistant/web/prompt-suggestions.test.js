@@ -64,7 +64,7 @@ test("an accepted hint can be reused after clearing both draft and quote in eith
   }
 });
 
-test("Escape keeps a hint dismissed; no suggestion never fills or quotes", async () => {
+test("Escape hides a hint but Tab can restore it; no suggestion never fills or quotes", async () => {
   const f = fixture();
   f.suggestions.sync();
   f.requests[0].resolve({ text: "Show the mockup." });
@@ -72,8 +72,10 @@ test("Escape keeps a hint dismissed; no suggestion never fills or quotes", async
   f.suggestions.dismiss();
   f.suggestions.sync();
   assert.equal(f.overlay.hidden, true);
-  assert.equal(f.suggestions.accept(), false);
-  assert.equal(f.state.replyToId, null);
+  assert.equal(f.suggestions.accept(), true);
+  assert.equal(f.state.input, "Show the mockup.");
+  assert.equal(f.state.replyToId, "reply-one");
+  f.suggestions.escape();
   f.state.data.entries[0].updates.push({ id: "newer", kind: "result", createdAt: "3" });
   f.suggestions.sync();
   f.requests[1].resolve({ text: null });
@@ -83,7 +85,7 @@ test("Escape keeps a hint dismissed; no suggestion never fills or quotes", async
   assert.equal(f.state.replyToId, null);
 });
 
-test("Escape clears matching suggestion text and its quote in Home and sessions", async () => {
+test("Tab and Escape can repeat without losing the saved hint in Home and sessions", async () => {
   for (const selected of ["home", "one"]) {
     const f = fixture();
     f.state.selected = selected;
@@ -91,15 +93,38 @@ test("Escape clears matching suggestion text and its quote in Home and sessions"
     f.suggestions.sync();
     f.requests[0].resolve({ text: "Show the mockup." });
     await tick();
-    f.suggestions.accept();
-    assert.equal(f.suggestions.escape(), true);
-    assert.equal(f.state.input, "");
-    assert.equal(f.state.replyToId, null);
-    f.suggestions.sync();
-    assert.equal(f.overlay.hidden, true);
-    assert.equal(f.textarea.placeholder, "Message");
+    for (let repeat = 0; repeat < 3; repeat++) {
+      assert.equal(f.suggestions.accept(), true);
+      assert.equal(f.state.input, "Show the mockup.");
+      assert.equal(f.state.replyToId, "reply-one");
+      assert.equal(f.suggestions.escape(), true);
+      assert.equal(f.state.input, "");
+      assert.equal(f.state.replyToId, null);
+      f.suggestions.sync();
+      assert.equal(f.overlay.hidden, true);
+      assert.equal(f.textarea.placeholder, "Message");
+    }
     assert.equal(f.requests.length, 1);
   }
+});
+
+test("Tab cannot restore a dismissed hint during work or after the reply changes", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  f.suggestions.escape();
+  f.state.data.turns.push({ sessionId: "one" });
+  assert.equal(f.suggestions.accept(), false);
+  f.state.data.turns.length = 0;
+  f.state.data.entries[0].updates.push({ id: "newer", kind: "result", createdAt: "3" });
+  f.suggestions.sync();
+  assert.equal(f.suggestions.accept(), false);
+  f.requests[1].resolve({ text: null });
+  await tick();
+  assert.equal(f.suggestions.accept(), false);
+  assert.equal(f.state.input, "");
+  assert.equal(f.state.replyToId, null);
 });
 
 test("Escape only removes the quote from custom or edited drafts", async () => {
