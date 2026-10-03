@@ -48,6 +48,16 @@ export function createMessageActions({ state, root, api, render }) {
     if (!target) return "";
     return `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>`;
   }
+  function destination() {
+    const editing = state.selected === "home" && state.edit;
+    const target = replyTarget(editing ? state.edit.id : state.replyToId);
+    const sessionId = state.selected === "home" ? target?.sessionId : state.selected;
+    if (!sessionId) return '<span title="The assistant chooses an existing conversation or starts a new one">Auto</span>';
+    const title = state.data.sessions.find((session) => session.id === sessionId)?.title
+      || state.data.entries.find((entry) => entry.sessionId === sessionId)?.title || "Conversation";
+    const label = `${editing ? "Editing in" : target ? "Replying in" : "In"} ${title}`;
+    return `<span title="${escapeHTML(label)}">${escapeHTML(label)}</span>`;
+  }
   function refreshComposer() {
     render(true);
     root.querySelector("textarea")?.focus();
@@ -114,5 +124,5 @@ export function createMessageActions({ state, root, api, render }) {
     }
   }
 
-  return { replyTarget, quote, reactionTo, replyActions, requestAction, preview, handleClick };
+  return { replyTarget, quote, reactionTo, replyActions, requestAction, preview, destination, handleClick };
 }
