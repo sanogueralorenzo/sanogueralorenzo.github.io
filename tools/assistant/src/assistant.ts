@@ -4,7 +4,6 @@ import { PiService, assistantText } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { State, now, type HomeMessage, type SessionRecord, type Turn } from "./state.ts";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
-import { withSearchActivity } from "./hosted-search.ts";
 
 type Active = { session: AgentSession; turn: Turn; output: string; error: string; stopped: boolean;
   commentary: string; tool: string; thinking: string; lastProgress: string; savedProgress: string };
@@ -247,12 +246,13 @@ export class Assistant {
       });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId, record.id);
       const prompt = replyPrompt(turn.text, replied || undefined);
-      await withSearchActivity((label) => {
+      this.pi.onSearchActivity(session, (label) => {
         active!.commentary = "";
         active!.tool = label;
         showProgress();
         saveProgress();
-      }, () => session!.prompt(prompt, { expandPromptTemplates: false }));
+      });
+      await session.prompt(prompt, { expandPromptTemplates: false });
       if (active.stopped) throw new Error("Stopped");
       if (active.error) throw new Error(active.error);
       if (!active.output) throw new Error("Agent returned no final reply");

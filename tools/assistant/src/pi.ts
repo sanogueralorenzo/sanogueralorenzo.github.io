@@ -4,7 +4,7 @@ import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, Mod
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
-import { enableHostedSearch } from "./hosted-search.ts";
+import { trackHostedSearch } from "./hosted-search.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
 const prompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
@@ -19,12 +19,10 @@ export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
   private readonly computers = new WeakMap<AgentSession, ComputerUseClient>();
+  private readonly searchActivity = new WeakMap<AgentSession, (label: string) => void>();
   constructor(dataDir: string) {
     this.dataDir = dataDir;
-    this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) }).then((runtime) => {
-      enableHostedSearch(runtime);
-      return runtime;
-    });
+    this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
   }
   private delegateTool(cwd: string) {
     return defineTool({
@@ -52,15 +50,17 @@ export class PiService {
     const modelRuntime = await this.runtime;
     const model = modelRuntime.getModel("openai-codex", "gpt-6-luna");
     if (!model) throw new Error("Codex model gpt-6-luna is unavailable in the pinned Pi catalog");
-    const fast = (pi: ExtensionAPI) => pi.on("before_provider_request", ({ payload }) => {
-      if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected Codex request payload");
-      const request = payload as Record<string, unknown>;
-      // The Codex subscription endpoint accepts the legacy Fast alias.
-      return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
-    });
+    const providerTools = (pi: ExtensionAPI) => {
+      trackHostedSearch(pi, (label) => this.searchActivity.get(session)?.(label));
+      pi.on("before_provider_request", ({ payload }) => {
+        if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected Codex request payload");
+        const request = payload as Record<string, unknown>;
+        return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
+      });
+    };
     const sessionAgent = role === "session";
     const loader = new DefaultResourceLoader({
-      cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [fast], noPromptTemplates: true,
+      cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [providerTools], noPromptTemplates: true,
       noSkills: role === "coordinator", noContextFiles: role === "coordinator",
       systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
       appendSystemPromptOverride: () => [],
@@ -77,9 +77,13 @@ export class PiService {
     return session;
   }
   dispose(session: AgentSession) {
+    this.searchActivity.delete(session);
     this.computers.get(session)?.close();
     this.computers.delete(session);
     session.dispose();
+  }
+  onSearchActivity(session: AgentSession, report: (label: string) => void) {
+    this.searchActivity.set(session, report);
   }
   async create(cwd: string, id: string) {
     return this.make(cwd, "session", SessionManager.create(cwd, join(this.dataDir, "sessions"), { id }));
