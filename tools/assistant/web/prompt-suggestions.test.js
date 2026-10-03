@@ -85,7 +85,7 @@ test("Escape hides a hint but Tab can restore it; no suggestion never fills or q
   assert.equal(f.state.replyToId, null);
 });
 
-test("Tab and Escape can repeat without losing the saved hint in Home and sessions", async () => {
+test("Escape restores the visible accepted hint in Home and sessions without another request", async () => {
   for (const selected of ["home", "one"]) {
     const f = fixture();
     f.state.selected = selected;
@@ -100,9 +100,12 @@ test("Tab and Escape can repeat without losing the saved hint in Home and sessio
       assert.equal(f.suggestions.escape(), true);
       assert.equal(f.state.input, "");
       assert.equal(f.state.replyToId, null);
+      assert.equal(f.overlay.hidden, false);
+      assert.equal(f.span.textContent, "Show the mockup.");
+      assert.equal(f.textarea.placeholder, "");
       f.suggestions.sync();
-      assert.equal(f.overlay.hidden, true);
-      assert.equal(f.textarea.placeholder, "Message");
+      assert.equal(f.overlay.hidden, false);
+      assert.equal(f.textarea.placeholder, "");
     }
     assert.equal(f.requests.length, 1);
   }
@@ -173,6 +176,9 @@ test("Escape compares persisted suggestions after reload, even with a nonempty d
   f.suggestions.escape();
   assert.equal(f.state.input, "");
   assert.equal(f.state.replyToId, null);
+  assert.equal(f.overlay.hidden, false);
+  assert.equal(f.span.textContent, "Show the mockup.");
+  assert.equal(f.textarea.placeholder, "");
   f.state.input = "Show the mockup.";
   f.suggestions.escape();
   assert.equal(f.state.input, "");

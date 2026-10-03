@@ -84,7 +84,8 @@ export function createPromptSuggestions({ state, root, api, render }) {
     const quoted = !!state.replyToId;
     if (matches) state.input = "";
     if (quoted) state.replyToId = null;
-    if (matches || (!quoted && !state.input)) dismiss();
+    if (matches) sync();
+    else if (!quoted && !state.input) dismiss();
     if (matches || quoted) {
       render(true);
       root.querySelector('[data-focus="composer"]')?.focus();
