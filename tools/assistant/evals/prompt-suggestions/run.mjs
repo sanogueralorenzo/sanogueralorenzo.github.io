@@ -17,8 +17,11 @@ const results = [];
 const startedAt = new Date().toISOString();
 const repeats = Number(process.argv[3] || 2);
 if (!Number.isInteger(repeats) || repeats < 1) throw new Error("Repeat count must be a positive integer");
+const levels = (process.argv[4] || "low,high").split(",");
+if (new Set(levels).size !== levels.length || levels.some((level) => !["off", "low", "high"].includes(level)))
+  throw new Error("Efforts must be a comma-separated list of off, low, or high without duplicates");
 const output = resolve(outputDirectory, `results-${startedAt.replaceAll(":", "-")}.json`);
-const save = () => writeFileSync(output, JSON.stringify({ startedAt, model: model.id, requestedTier: "priority", transport: "sse", repeats,
+const save = () => writeFileSync(output, JSON.stringify({ startedAt, model: model.id, requestedTier: "priority", transport: "sse", repeats, levels,
   context: "Isolated compact conversation context; no tools or live session transcript. Cache usage is recorded rather than assumed.",
   systemPrompt, cases, results }, null, 2));
 let consecutiveErrors = 0;
@@ -26,7 +29,7 @@ save();
 
 for (let repeat = 1; repeat <= repeats; repeat++) {
   for (const [index, test] of cases.entries()) {
-    const efforts = (index + repeat) % 2 ? ["low", "high"] : ["high", "low"];
+    const efforts = (index + repeat) % 2 ? levels : [...levels].reverse();
     for (const effort of efforts) {
       const started = performance.now();
       let firstTextMs = null;
@@ -41,6 +44,8 @@ for (let repeat = 1; repeat <= repeats; repeat++) {
           onPayload: (payload) => {
             const request = { ...payload, service_tier: "priority" };
             providerRequest = { model: request.model, effort: request.reasoning?.effort, tier: request.service_tier };
+            if (providerRequest.effort !== (effort === "off" ? "none" : effort))
+              throw new Error(`Requested ${effort}, but provider payload uses ${providerRequest.effort}`);
             return request;
           },
           onProviderStreamEvent: (event) => {
@@ -67,12 +72,12 @@ for (let repeat = 1; repeat <= repeats; repeat++) {
       }
       results.push(record);
       save();
-      console.log(`${results.length}/${cases.length * repeats * 2} ${test.id} ${effort} #${repeat}: ${(record.elapsedMs / 1000).toFixed(2)}s — ${record.error || record.text}`);
+      console.log(`${results.length}/${cases.length * repeats * levels.length} ${test.id} ${effort} #${repeat}: ${(record.elapsedMs / 1000).toFixed(2)}s — ${record.error || record.text}`);
       if (consecutiveErrors >= 3) throw new Error(`Three consecutive requests failed; partial results are saved to ${output}`);
     }
   }
 }
-console.table(["low", "high"].map((effort) => {
+console.table(levels.map((effort) => {
   const rows = results.filter((row) => row.effort === effort && !row.error);
   const times = rows.map((row) => row.elapsedMs / 1000).sort((a, b) => a - b);
   const middle = Math.floor(times.length / 2);

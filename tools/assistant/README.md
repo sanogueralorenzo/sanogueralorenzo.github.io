@@ -22,4 +22,4 @@ Install Codex Computer Use in the desktop app for native app control. Assistant 
 
 Run `npm run check` for TypeScript and `npm test` for the focused tests.
 
-Run `npm run eval:suggestions` to compare Luna 6 Low and High on 12 prepared follow-up cases, twice each. It makes 48 tool-free model requests and saves timings, suggestions, and token usage under the repository's `.precedent/assistant-suggestions` directory. Pass `-- heldout.json 1` for one pass over six additional cases.
+Run `npm run eval:suggestions` to compare Luna 6 Low and High on 12 prepared follow-up cases, twice each. It makes 48 tool-free model requests and saves timings, suggestions, and token usage under the repository's `.precedent/assistant-suggestions` directory. Pass `-- heldout.json 1` for one pass over six additional cases, or `-- cases.json 2 off,low` to compare no reasoning with Low.
