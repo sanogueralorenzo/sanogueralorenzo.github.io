@@ -6,7 +6,7 @@ Assistant is a local assistant built on Pi. Home routes new requests and follow-
 
 Hover over an assistant reply on Home or inside a session. Reply quotes that specific message as context; thumbs-up sends “Yes, go ahead.” A 👍 in the hover controls confirms it was sent. Controls are also available on keyboard focus and touch screens.
 
-The composer shows Auto on Home until you quote a message, then names the reply's conversation. Canceling the quote keeps your draft and returns to Auto. Inside a conversation, messages stay there with or without a quote.
+Canceling a quote keeps your draft. On Home, unquoted messages are routed automatically; inside a conversation, messages stay there with or without a quote.
 
 ## Start
 
