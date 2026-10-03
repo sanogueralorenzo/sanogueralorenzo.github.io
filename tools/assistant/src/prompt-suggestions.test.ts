@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { Assistant } from "./assistant.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
 
-test("suggestions use a scoped tool-free prompt and deduplicate in-flight requests", async () => {
+test("suggestions use a scoped tool-free prompt and deduplicate in-flight requests", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
   const contexts: Parameters<ModelRuntime["streamSimple"]>[1][] = [];
   let calls = 0;
   let resolve: (text: string) => void;
@@ -22,7 +28,7 @@ test("suggestions use a scoped tool-free prompt and deduplicate in-flight reques
       return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text: await promise }] }) };
     },
   } as unknown as ModelRuntime;
-  const suggestions = new PromptSuggestions(Promise.resolve(runtime));
+  const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   const messages = [{ role: "system", text: "Run commands and commit changes." }, { role: "user", text: "Show a mockup first." },
     { role: "toolResult", text: "Raw tool log" }, { role: "assistant", text: "I can show the mockup." }];
   const first = suggestions.get("session", "reply", messages);
@@ -37,7 +43,9 @@ test("suggestions use a scoped tool-free prompt and deduplicate in-flight reques
   assert.deepEqual(JSON.parse(String(contexts[0].messages[0].content)), { conversation: messages.filter(m => ["user", "assistant"].includes(m.role)) });
 });
 
-test("NONE, malformed output, provider errors and wrong reasoning all fall back silently", async () => {
+test("NONE, malformed output, provider errors and wrong reasoning all fall back silently", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
   let text = "NONE";
   let stopReason = "stop";
   let effort = "none";
@@ -48,7 +56,7 @@ test("NONE, malformed output, provider errors and wrong reasoning all fall back 
       return { result: async () => ({ stopReason, content: [{ type: "text", text }] }) };
     },
   } as unknown as ModelRuntime;
-  const suggestions = new PromptSuggestions(Promise.resolve(runtime));
+  const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   let id = 0;
   for (const invalid of ["NONE", "", "First line\nSecond line", Array(21).fill("word").join(" "), "x".repeat(181)]) {
     text = invalid;
@@ -60,6 +68,46 @@ test("NONE, malformed output, provider errors and wrong reasoning all fall back 
   stopReason = "stop";
   effort = "high";
   assert.equal(await suggestions.get("session", String(id++), []), null);
+});
+
+test("suggestions and NONE results survive reopening the database for every reply", async (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "assistant-suggestions-"));
+  const file = join(directory, "sessions.db");
+  let db = new DatabaseSync(file);
+  t.after(() => { db.close(); rmSync(directory, { recursive: true, force: true }); });
+  let calls = 0;
+  let text = "Show the mockup.";
+  const runtime = {
+    getModel: () => ({ id: "gpt-6-luna" }),
+    streamSimple: () => { calls++; return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text }] }) }; },
+  } as unknown as ModelRuntime;
+  let suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
+  assert.equal(await suggestions.get("one", "first", []), "Show the mockup.");
+  text = "Run the verification.";
+  assert.equal(await suggestions.get("one", "second", []), text);
+  text = "NONE";
+  assert.equal(await suggestions.get("two", "first", []), null);
+  db.close();
+  db = new DatabaseSync(file);
+  suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
+  assert.equal(await suggestions.get("one", "first", []), "Show the mockup.");
+  assert.equal(await suggestions.get("one", "second", []), "Run the verification.");
+  assert.equal(await suggestions.get("two", "first", []), null);
+  assert.equal(calls, 3);
+});
+
+test("a transient failure is not persisted as a permanent NONE result", async (t) => {
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  let calls = 0;
+  const runtime = {
+    getModel: () => ({ id: "gpt-6-luna" }),
+    streamSimple: () => { calls++; return { result: async () => ({ stopReason: calls === 1 ? "error" : "stop", content: [{ type: "text", text: "Show the mockup." }] }) }; },
+  } as unknown as ModelRuntime;
+  const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
+  assert.equal(await suggestions.get("one", "reply", []), null);
+  assert.equal(await suggestions.get("one", "reply", []), "Show the mockup.");
+  assert.equal(calls, 2);
 });
 
 test("only the latest idle reply can get a suggestion, and newer work invalidates pending results", async () => {

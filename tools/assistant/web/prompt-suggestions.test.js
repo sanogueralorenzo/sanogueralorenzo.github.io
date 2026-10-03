@@ -24,22 +24,63 @@ function fixture() {
   return { state, overlay, textarea, span, requests, suggestions, renders: () => renders };
 }
 
-test("typing dismisses pending hints and clearing the draft does not bring them back", async () => {
+test("typing hides pending hints and clearing the draft restores the saved hint", async () => {
   const f = fixture();
   f.suggestions.sync();
   f.suggestions.sync();
   assert.equal(f.requests.length, 1);
   f.state.input = "My own draft";
-  f.suggestions.dismiss();
+  f.suggestions.dismiss("draft");
   f.requests[0].resolve({ text: "Show the mockup." });
   await tick();
   assert.equal(f.state.input, "My own draft");
   assert.equal(f.overlay.hidden, true);
   f.state.input = "";
+  f.suggestions.dismiss("draft");
+  assert.equal(f.overlay.hidden, false);
+  assert.equal(f.span.textContent, "Show the mockup.");
+  assert.equal(f.requests.length, 1);
+});
+
+test("an accepted hint can be reused after clearing both draft and quote in either order", async () => {
+  for (const quoteFirst of [false, true]) {
+    const f = fixture();
+    f.suggestions.sync();
+    f.requests[0].resolve({ text: "Show the mockup." });
+    await tick();
+    assert.equal(f.suggestions.accept(), true);
+    if (quoteFirst) f.state.replyToId = null;
+    else f.state.input = "";
+    f.suggestions.dismiss("draft");
+    assert.equal(f.overlay.hidden, true);
+    f.state.input = "";
+    f.state.replyToId = null;
+    f.suggestions.sync();
+    assert.equal(f.overlay.hidden, false);
+    assert.equal(f.suggestions.accept(), true);
+    assert.equal(f.state.input, "Show the mockup.");
+    assert.equal(f.state.replyToId, "reply-one");
+    assert.equal(f.requests.length, 1);
+  }
+});
+
+test("Escape keeps a hint dismissed; no suggestion never fills or quotes", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  f.suggestions.dismiss();
   f.suggestions.sync();
   assert.equal(f.overlay.hidden, true);
+  assert.equal(f.suggestions.accept(), false);
+  assert.equal(f.state.replyToId, null);
+  f.state.data.entries[0].updates.push({ id: "newer", kind: "result", createdAt: "3" });
+  f.suggestions.sync();
+  f.requests[1].resolve({ text: null });
+  await tick();
   assert.equal(f.textarea.placeholder, "Message");
   assert.equal(f.suggestions.accept(), false);
+  assert.equal(f.state.replyToId, null);
 });
 
 test("out-of-order responses cannot replace the newest hint; accepting pins its origin without sending", async () => {

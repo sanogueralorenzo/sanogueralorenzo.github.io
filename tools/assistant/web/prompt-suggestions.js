@@ -25,7 +25,7 @@ export function createPromptSuggestions({ state, root, api, render }) {
   function available() {
     const target = suggestionTarget(state);
     const cached = target && cache.get(target.sessionId);
-    return target && !state.input && dismissed.get(target.sessionId) !== target.replyId && cached?.replyId === target.replyId && cached.text
+    return target && !state.input && dismissed.get(target.sessionId)?.replyId !== target.replyId && cached?.replyId === target.replyId && cached.text
       ? { ...target, text: cached.text } : null;
   }
   function paint() {
@@ -42,7 +42,9 @@ export function createPromptSuggestions({ state, root, api, render }) {
   }
   function sync() {
     const target = suggestionTarget(state);
-    if (target && !state.input && dismissed.get(target.sessionId) !== target.replyId && cache.get(target.sessionId)?.replyId !== target.replyId) {
+    const dismissal = target && dismissed.get(target.sessionId);
+    if (dismissal?.reason === "draft" && !state.input && !state.replyToId && !state.edit) dismissed.delete(target.sessionId);
+    if (target && !state.input && dismissed.get(target.sessionId)?.replyId !== target.replyId && cache.get(target.sessionId)?.replyId !== target.replyId) {
       const value = { replyId: target.replyId, text: null };
       cache.set(target.sessionId, value);
       void api("/api/suggestions", "POST", target).then((result) => {
@@ -51,15 +53,16 @@ export function createPromptSuggestions({ state, root, api, render }) {
     }
     paint();
   }
-  function dismiss() {
+  function dismiss(reason = "escape") {
     const target = suggestionTarget(state);
-    if (target) dismissed.set(target.sessionId, target.replyId);
-    paint();
+    if (target) dismissed.set(target.sessionId, { replyId: target.replyId, reason });
+    if (reason === "draft") sync();
+    else paint();
   }
   function accept() {
     const hint = available();
     if (!hint) return false;
-    dismissed.set(hint.sessionId, hint.replyId);
+    dismissed.set(hint.sessionId, { replyId: hint.replyId, reason: "draft" });
     state.input = hint.text;
     state.replyToId = hint.replyId;
     render(true);

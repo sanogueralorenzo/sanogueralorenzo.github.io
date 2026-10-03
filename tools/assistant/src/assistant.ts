@@ -38,7 +38,7 @@ export class Assistant {
     this.dataDir = dataDir;
     this.cwd = cwd;
     this.state = new State(dataDir, () => { if (this.state) this.emit({ type: "snapshot", data: this.snapshot() }); });
-    this.pi = new PiService(dataDir);
+    this.pi = new PiService(dataDir, this.state.db);
     this.router = new HomeRouter(this.state, this.pi, cwd);
     queueMicrotask(() => this.drain());
   }
@@ -272,6 +272,12 @@ export class Assistant {
       if (!active.output) throw new Error("Agent returned no final reply");
       const replyId = [...session.sessionManager.getBranch()].reverse().find((item) => item.type === "message" && item.message.role === "assistant")?.id;
       if (entry) this.state.update(entry, clean(active.output), "result", "ready", turn.sourceId, replyId);
+      if (replyId) {
+        // Optional background suggestions must never turn completed work into a failed turn.
+        try { void this.pi.suggestions.get(record.id, replyId,
+          this.pi.transcript(record.file).filter((message) => message.role === "user" || message.completed)); }
+        catch {}
+      }
     } catch (error) {
       const interrupted = active?.stopped || errorText(error).toLowerCase().includes("abort");
       interruptedTurn = !!interrupted;

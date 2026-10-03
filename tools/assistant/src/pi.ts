@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { DatabaseSync } from "node:sqlite";
 import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
@@ -22,10 +23,10 @@ export class PiService {
   readonly suggestions: PromptSuggestions;
   private readonly computers = new WeakMap<AgentSession, ComputerUseClient>();
   private readonly searchActivity = new WeakMap<AgentSession, (label: string) => void>();
-  constructor(dataDir: string) {
+  constructor(dataDir: string, db: DatabaseSync) {
     this.dataDir = dataDir;
     this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
-    this.suggestions = new PromptSuggestions(this.runtime);
+    this.suggestions = new PromptSuggestions(this.runtime, db);
   }
   private delegateTool(cwd: string) {
     return defineTool({

@@ -95,6 +95,7 @@ test("queued replies and approvals deliver the selected earlier context to the s
     state.data.sessions.push({ id: "session", title: "Context", cwd: dir, file: "session", status: "idle", createdAt: now() });
     const prompts: string[] = [];
     const reactions: unknown[] = [];
+    const suggested: string[] = [];
     let listener: (event: AgentSessionEvent) => void;
     let completed: () => void;
     const session = {
@@ -115,6 +116,7 @@ test("queued replies and approvals deliver the selected earlier context to the s
     Object.assign(app, {
       state, concurrency: 1, active: new Map(), starting: new Set(), pendingStops: new Set(), listeners: new Set(),
       pi: {
+        suggestions: { get: async (_sessionId: string, replyId: string) => { suggested.push(replyId); return null; } },
         transcript: () => [
           { id: "earlier", role: "assistant", replyable: true, text: "First proposal.\nIts details." },
           { id: "latest", role: "assistant", replyable: true, text: "Another proposal." },
@@ -136,6 +138,7 @@ test("queued replies and approvals deliver the selected earlier context to the s
       assert.equal(state.data.turns.length, 0);
     }
     assert.deepEqual(reactions, [{ reaction: "thumbs-up", replyToId: "earlier" }]);
+    assert.deepEqual(suggested, ["result", "result"]);
   } finally {
     state.db.close();
     rmSync(dir, { recursive: true, force: true });

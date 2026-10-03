@@ -183,7 +183,7 @@ root.addEventListener("click", async (event) => {
 root.addEventListener("input", (event) => {
   if (event.target.matches('[data-focus="composer"]')) {
     state.input = event.target.value;
-    suggestions.dismiss();
+    suggestions.dismiss("draft");
     resizeComposer(event.target);
   }
 });
@@ -216,7 +216,7 @@ root.addEventListener("submit", async (event) => {
     render(true);
     return;
   }
-  suggestions.dismiss();
+  suggestions.dismiss("sent");
   state.input = edit?.previousInput || "";
   composer.value = "";
   state.error = "";
