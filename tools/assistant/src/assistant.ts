@@ -18,6 +18,9 @@ function toolLabel(name: string, args: unknown) {
   if (name === "delegate") return (args as { role?: string })?.role === "reviewer" ? "Reviewing" : "Researching";
   return toolLabels[name] || `Tool: ${name}`;
 }
+function replyPrompt(text: string, reply?: { role: string; text: string }) {
+  return reply ? `In reply to this earlier ${reply.role} message:\n> ${reply.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${text}` : text;
+}
 
 export class Assistant {
   readonly dataDir: string;
@@ -114,7 +117,7 @@ export class Assistant {
       if (editOfId) active.turn.text = text;
       if (entry) entry.status = "working";
       this.state.save();
-      void active.session.steer(editOfId ? `Use this revision of my active request:\n${text}` : text)
+      void active.session.steer(editOfId ? `Use this revision of my active request:\n${text}` : replyPrompt(text, referenced))
         .catch((error) => { if (entry) this.state.update(entry, errorText(error), "error", "failed", source.id); });
       return { steered: true };
     }
@@ -243,7 +246,7 @@ export class Assistant {
         }
       });
       const replied = turn.replyToId && this.replyTarget(turn.replyToId, record.id);
-      const prompt = replied ? `In reply to this earlier ${replied.role} message:\n> ${replied.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${turn.text}` : turn.text;
+      const prompt = replyPrompt(turn.text, replied || undefined);
       await withSearchActivity((label) => {
         active!.commentary = "";
         active!.tool = label;

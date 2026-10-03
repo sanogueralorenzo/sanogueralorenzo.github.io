@@ -54,6 +54,40 @@ test("thumbs-up reactions queue one approval in the referenced conversation", ()
   }
 });
 
+test("session replies retain the selected context when queued or steering active work", () => {
+  const dir = mkdtempSync(join(tmpdir(), "assistant-context-"));
+  const state = new State(dir, () => {});
+  try {
+    state.data.sessions.push({ id: "session", title: "Context", cwd: dir, file: "session", status: "running", createdAt: now() });
+    const prompts: string[] = [];
+    const active = new Map();
+    const app = Object.create(Assistant.prototype) as Assistant;
+    Object.assign(app, {
+      state, active, drain: () => {},
+      pi: { transcript: () => [
+        { id: "earlier", role: "assistant", replyable: true, text: "First proposal.\nIts details." },
+        { id: "latest", role: "assistant", replyable: true, text: "Another proposal." },
+      ] },
+    });
+    app.submitSession("session", "Change this one", "followUp", { replyToId: "earlier" });
+    const turn = state.data.turns.at(-1)!;
+    assert.equal(turn.replyToId, "earlier");
+    assert.equal(turn.text, "Change this one");
+    assert.equal(state.data.messages.at(-1)?.replyToId, "earlier");
+
+    active.set("session", { turn, session: { steer: (prompt: string) => { prompts.push(prompt); return Promise.resolve(); } } });
+    app.submitSession("session", "Focus on this proposal", "steer", { replyToId: "earlier" });
+    assert.equal(prompts[0], "In reply to this earlier assistant message:\n> First proposal.\n> Its details.\n\nFocus on this proposal");
+    app.submitSession("session", "Now this one", "steer", { replyToId: "latest" });
+    assert.equal(prompts[1], "In reply to this earlier assistant message:\n> Another proposal.\n\nNow this one");
+    app.submitSession("session", "Ordinary steering", "steer");
+    assert.equal(prompts[2], "Ordinary steering");
+  } finally {
+    state.db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("transcripts preserve reply IDs and distinguish completed replies from tool commentary", () => {
   const dir = mkdtempSync(join(tmpdir(), "assistant-transcript-"));
   try {
