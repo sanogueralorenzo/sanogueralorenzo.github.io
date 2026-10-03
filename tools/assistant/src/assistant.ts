@@ -170,6 +170,20 @@ export class Assistant {
     if (!session) throw new Error("Conversation not found");
     return { session, messages: this.pi.transcript(session.file), queue: this.state.data.turns.filter((turn) => turn.sessionId === sessionId) };
   }
+  async suggestion(sessionId: string, replyId: string) {
+    const current = () => {
+      const record = this.state.data.sessions.find((session) => session.id === sessionId);
+      if (!record) throw new Error("Conversation not found");
+      if (record.status !== "idle" || this.state.data.turns.some((turn) => turn.sessionId === sessionId)) return null;
+      const messages = this.pi.transcript(record.file);
+      const last = messages.at(-1);
+      return last?.id === replyId && last.completed ? messages : null;
+    };
+    const messages = current();
+    if (!messages) return { text: null };
+    const text = await this.pi.suggestions.get(sessionId, replyId, messages.filter((message) => message.role === "user" || message.completed));
+    return { text: current() ? text : null };
+  }
   private drain() {
     if (this.closing) return;
     for (const turn of this.state.data.turns) {

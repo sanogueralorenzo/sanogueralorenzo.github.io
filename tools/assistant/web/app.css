@@ -108,8 +108,15 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .composer { width: min(820px, 100%); min-height: 54px; margin: 0 auto; display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 28px; background: var(--input); box-shadow: 0 0 0 1px var(--line); }
 .composer-icon { width: 36px; height: 38px; flex: 0 0 36px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; color: var(--graphite); background: transparent; cursor: pointer; }
 .composer-icon:hover:not(:disabled) { background: var(--surface); }
-.composer textarea { min-height: 38px; max-height: 144px; flex: 1 1 auto; resize: none; padding: 8px 2px 4px; border: 0; outline: 0; color: var(--graphite); background: transparent; line-height: 1.4; font-size: 16px; }
+.composer-input { position: relative; flex: 1 1 auto; min-width: 0; }
+.composer textarea { display: block; width: 100%; min-height: 38px; max-height: 144px; resize: none; padding: 8px 2px 4px; border: 0; outline: 0; color: var(--graphite); background: transparent; line-height: 1.4; font-size: 16px; }
 .composer textarea::placeholder { color: var(--muted); }
+.prompt-suggestion { position: absolute; inset: 0; display: flex; align-items: flex-start; gap: 8px; padding: 8px 2px 4px; color: var(--muted); line-height: 1.4; font-size: 16px; pointer-events: none; }
+.prompt-suggestion[hidden] { display: none; }
+.prompt-suggestion > span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.prompt-suggestion button { flex: 0 0 auto; padding: 0 4px; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; pointer-events: auto; }
+.prompt-suggestion button:hover { color: var(--graphite); }
+.prompt-suggestion kbd { font: inherit; font-size: 11px; }
 .send-button { width: 38px; height: 38px; flex: 0 0 38px; display: flex; justify-content: center; align-items: center; border: 0; border-radius: 50%; color: white; background: var(--user); cursor: pointer; }
 .send-button.stop-button { background: var(--clay); }
 .mic-button { color: var(--muted); }

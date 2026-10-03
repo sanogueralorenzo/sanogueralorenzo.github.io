@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { createPromptSuggestions, suggestionTarget } from "./prompt-suggestions.js";
+
+const tick = () => new Promise(setImmediate);
+function fixture() {
+  const state = { connected: true, selected: "home", input: "", replyToId: null, edit: null, transcript: [], data: {
+    sessions: [{ id: "one", status: "idle" }, { id: "two", status: "idle" }], turns: [], messages: [{ status: "routed", createdAt: "1" }],
+    entries: [{ sessionId: "one", updates: [{ id: "reply-one", kind: "result", createdAt: "2" }] }],
+  } };
+  const span = { textContent: "" };
+  const attributes = new Map();
+  const textarea = { placeholder: "Message", focus() {}, setSelectionRange() {}, setAttribute: (key, value) => attributes.set(key, value), removeAttribute: key => attributes.delete(key) };
+  const button = { setAttribute: (key, value) => attributes.set(key, value) };
+  const overlay = { hidden: true, querySelector: selector => selector === "span" ? span : button };
+  const root = { querySelector: selector => selector === ".prompt-suggestion" ? overlay : textarea };
+  const requests = [];
+  let renders = 0;
+  const suggestions = createPromptSuggestions({ state, root, render: () => renders++, api: (_path, _method, body) => {
+    const request = { ...body, ...Promise.withResolvers() };
+    requests.push(request);
+    return request.promise;
+  } });
+  return { state, overlay, textarea, span, requests, suggestions, renders: () => renders };
+}
+
+test("typing dismisses pending hints and clearing the draft does not bring them back", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.suggestions.sync();
+  assert.equal(f.requests.length, 1);
+  f.state.input = "My own draft";
+  f.suggestions.dismiss();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  assert.equal(f.state.input, "My own draft");
+  assert.equal(f.overlay.hidden, true);
+  f.state.input = "";
+  f.suggestions.sync();
+  assert.equal(f.overlay.hidden, true);
+  assert.equal(f.textarea.placeholder, "Message");
+  assert.equal(f.suggestions.accept(), false);
+});
+
+test("out-of-order responses cannot replace the newest hint; accepting pins its origin without sending", async () => {
+  const f = fixture();
+  f.suggestions.sync();
+  f.state.data.entries.push({ sessionId: "two", updates: [{ id: "reply-two", kind: "result", createdAt: "3" }] });
+  f.suggestions.sync();
+  f.requests[1].resolve({ text: "Run the verification." });
+  await tick();
+  f.requests[0].resolve({ text: "Show the mockup." });
+  await tick();
+  assert.equal(f.span.textContent, "Run the verification.");
+  assert.equal(f.suggestions.accept(), true);
+  assert.equal(f.state.input, "Run the verification.");
+  assert.equal(f.state.replyToId, "reply-two");
+  assert.equal(f.renders(), 1);
+  assert.equal(f.requests.length, 2);
+});
+
+test("hints stay scoped to idle completed context and do not interfere with quotes or queued work", () => {
+  const { state } = fixture();
+  assert.deepEqual(suggestionTarget(state), { sessionId: "one", replyId: "reply-one" });
+  state.replyToId = "older";
+  assert.equal(suggestionTarget(state), null);
+  state.replyToId = null;
+  state.data.turns.push({ sessionId: "one" });
+  assert.equal(suggestionTarget(state), null);
+  state.data.turns.length = 0;
+  state.data.entries[0].updates.push({ id: "error", kind: "error", createdAt: "3" });
+  assert.equal(suggestionTarget(state), null);
+  state.selected = "two";
+  state.transcript = [{ id: "commentary", role: "assistant", completed: false }];
+  assert.equal(suggestionTarget(state), null);
+  state.transcript = [{ id: "final", role: "assistant", completed: true }];
+  assert.deepEqual(suggestionTarget(state), { sessionId: "two", replyId: "final" });
+  state.connected = false;
+  assert.equal(suggestionTarget(state), null);
+});

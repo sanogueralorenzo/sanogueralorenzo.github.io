@@ -8,6 +8,8 @@ Hover over an assistant reply on Home or inside a session. Reply quotes that spe
 
 Canceling a quote keeps your draft. On Home, unquoted messages are routed automatically; inside a conversation, messages stay there with or without a quote.
 
+After a completed reply, the empty composer can suggest a follow-up. Press Tab or click the Tab button to fill the draft, then Enter to send. Typing or Escape dismisses it. Suggestions use a separate Luna 6 request with no reasoning, only the suggestion prompt and recent conversation text, and no tools. If nothing useful arrives within five seconds, the normal Message placeholder stays. Accepted hints quote their originating reply so Home keeps the conversation context.
+
 ## Start
 
 Requires Node 26+ and a signed-in Codex CLI account in `~/.codex/auth.json`.

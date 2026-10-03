@@ -6,7 +6,7 @@ import { assistantCodexAuth } from "../../src/codex-auth.ts";
 
 const directory = fileURLToPath(new URL(".", import.meta.url));
 const cases = JSON.parse(readFileSync(new URL(process.argv[2] || "cases.json", import.meta.url), "utf8"));
-const systemPrompt = readFileSync(new URL("prompt.txt", import.meta.url), "utf8");
+const systemPrompt = readFileSync(new URL("../../prompts/suggestion.md", import.meta.url), "utf8");
 const outputDirectory = resolve(directory, "../../../../.precedent/assistant-suggestions");
 mkdirSync(outputDirectory, { recursive: true });
 const runtime = await ModelRuntime.create({ authPath: assistantCodexAuth(outputDirectory), modelsPath: null, refreshOnCreate: false });

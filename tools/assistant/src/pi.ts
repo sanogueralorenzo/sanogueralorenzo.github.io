@@ -5,6 +5,7 @@ import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { trackHostedSearch } from "./hosted-search.ts";
+import { PromptSuggestions } from "./prompt-suggestions.ts";
 
 const prompts = new URL("../prompts/", import.meta.url);
 const prompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
@@ -18,11 +19,13 @@ export const assistantText = (message: { role?: string; content?: unknown }): st
 export class PiService {
   private readonly dataDir: string;
   private readonly runtime: Promise<ModelRuntime>;
+  readonly suggestions: PromptSuggestions;
   private readonly computers = new WeakMap<AgentSession, ComputerUseClient>();
   private readonly searchActivity = new WeakMap<AgentSession, (label: string) => void>();
   constructor(dataDir: string) {
     this.dataDir = dataDir;
     this.runtime = ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
+    this.suggestions = new PromptSuggestions(this.runtime);
   }
   private delegateTool(cwd: string) {
     return defineTool({
@@ -122,7 +125,7 @@ export class PiService {
       if (message.role !== "user" && message.role !== "assistant") return [];
       const userReaction = message.role === "user" ? reaction : undefined;
       if (message.role === "user") reaction = undefined;
-      return [{ id, role: message.role, ...(userReaction && { reaction: userReaction }), replyable: message.role === "assistant" && message.stopReason !== "toolUse", text: message.role === "assistant" ? assistantText(message) :
+      return [{ id, role: message.role, ...(userReaction && { reaction: userReaction }), replyable: message.role === "assistant" && message.stopReason !== "toolUse", completed: message.role === "assistant" && message.stopReason === "stop", text: message.role === "assistant" ? assistantText(message) :
         Array.isArray(message.content) ? message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : String(message.content) }];
     })
       .filter((message) => message.text.trim());

@@ -36,6 +36,7 @@ const assets: Record<string, [string, string]> = {
   "/": ["index.html", "text/html"], "/app.js": ["app.js", "text/javascript"],
   "/app.css": ["app.css", "text/css"], "/view.js": ["view.js", "text/javascript"],
   "/message-actions.js": ["message-actions.js", "text/javascript"],
+  "/prompt-suggestions.js": ["prompt-suggestions.js", "text/javascript"],
 };
 
 const server = createServer(async (req, res) => {
@@ -56,6 +57,7 @@ const server = createServer(async (req, res) => {
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: "Cross-origin request denied" });
       const request = await body(req);
+      if (url.pathname === "/api/suggestions") return json(res, 200, await app.suggestion(input(request.sessionId), input(request.replyId)));
       if (url.pathname === "/api/home") return json(res, 202, { message: app.submitHome(input(request.text), typeof request.id === "string" ? request.id : undefined) });
       if (url.pathname === "/api/turns") return json(res, 202, app.submitSession(String(request.sessionId), input(request.text), request.mode === "steer" ? "steer" : "followUp", {
         replyToId: typeof request.replyToId === "string" ? request.replyToId : undefined,

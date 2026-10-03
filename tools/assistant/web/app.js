@@ -1,5 +1,6 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 import { createMessageActions } from "./message-actions.js";
+import { createPromptSuggestions } from "./prompt-suggestions.js";
 
 const root = document.querySelector("#app");
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
@@ -12,6 +13,7 @@ const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, se
   transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
 const actions = createMessageActions({ state, root, api, render });
+const suggestions = createPromptSuggestions({ state, root, api, render });
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -77,6 +79,11 @@ function home() {
   return `<main class="home-scroll scroll-area"><div class="home-content">${content}</div></main>`;
 }
 function nearBottom(scroll) { return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 40; }
+function resizeComposer(input = root.querySelector('[data-focus="composer"]')) {
+  if (!input) return;
+  input.style.height = "38px";
+  input.style.height = `${Math.min(input.scrollHeight, 144)}px`;
+}
 function homeBackButton() {
   const unread = [...state.unseenReplies.values()].some((sessionId) => sessionId !== state.selected);
   return `<button class="icon-button back-button ${unread ? "has-unread" : ""}" data-action="home" aria-label="${unread ? "Back to Home, new replies" : "Back to Home"}" title="${unread ? "Home · new replies" : "Home"}">${icon("back", 19)}</button>`;
@@ -118,12 +125,14 @@ function render(force = false) {
   if (record?.status !== "running") state.steer = false;
   const editing = isHome && state.edit;
   const previewHTML = actions.preview();
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${previewHTML ? "replying" : ""}" id="composer">${previewHTML}<textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${previewHTML ? "replying" : ""}" id="composer">${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span><button type="button" data-action="accept-suggestion" title="Use suggested reply"><kbd>Tab</kbd></button></div></div>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
   const input = focus ? root.querySelector('[data-focus="composer"]') : null;
   if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
+  resizeComposer();
+  suggestions.sync();
 }
 async function loadSession() {
   if (state.selected === "home") return;
@@ -161,6 +170,7 @@ root.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button || button.disabled) return;
   try {
+    if (button.dataset.action === "accept-suggestion") { suggestions.accept(); return; }
     if (await actions.handleClick(button)) return;
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
@@ -173,12 +183,17 @@ root.addEventListener("click", async (event) => {
 root.addEventListener("input", (event) => {
   if (event.target.matches('[data-focus="composer"]')) {
     state.input = event.target.value;
-    event.target.style.height = "38px";
-    event.target.style.height = `${Math.min(event.target.scrollHeight, 144)}px`;
+    suggestions.dismiss();
+    resizeComposer(event.target);
   }
 });
 root.addEventListener("keydown", (event) => {
-  if (event.target.matches('[data-focus="composer"]') && event.key === "Enter" && !event.shiftKey) {
+  if (!event.target.matches('[data-focus="composer"]') || event.isComposing) return;
+  if (event.key === "Tab" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && suggestions.accept()) {
+    event.preventDefault();
+  }
+  if (event.key === "Escape") suggestions.dismiss();
+  if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
     root.querySelector("#composer").requestSubmit();
   }
@@ -201,6 +216,7 @@ root.addEventListener("submit", async (event) => {
     render(true);
     return;
   }
+  suggestions.dismiss();
   state.input = edit?.previousInput || "";
   composer.value = "";
   state.error = "";
@@ -286,6 +302,7 @@ function updateConnection() {
   if (!dot) return;
   dot.classList.toggle("online", state.connected);
   dot.title = state.connected ? "Connected" : "Reconnecting";
+  suggestions.sync();
 }
 render();
 connect();
