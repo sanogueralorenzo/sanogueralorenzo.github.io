@@ -29,26 +29,27 @@ function messageStatus(message, entry) {
   if (latest) return "working";
   return message.status === "routed" ? "queued" : message.status;
 }
-function activityPill(message, entry, className = "") {
+function activityPill(message, entry, className = "", showConversation = true) {
   const progress = state.liveProgress[message.id] ?? entry?.updates.filter((update) => update.kind === "progress" && (update.sourceId || entry.sourceId) === message.id).at(-1)?.text;
   const status = messageStatus(message, entry);
   const title = entry?.sessionId ? entry.title : status === "failed" ? "Routing failed" : "Choosing a conversation…";
   const detail = ({ routing: "", queued: "Queued", working: progress?.replace(/\s+/g, " ").trim() || "Working…",
-    ready: "Open conversation", failed: entry?.sessionId ? "Failed · Open conversation" : "", interrupted: "Continue" })[status] || "";
+    ready: "", failed: entry?.sessionId ? "Failed" : "", interrupted: "Continue" })[status] || "";
+  if (!showConversation && status === "ready") return "";
   const symbol = ["routing", "queued", "working"].includes(status) ? '<i class="spinner"></i>'
     : status === "ready" ? icon("check", 14) : status === "interrupted" ? "⏸" : "⚠";
   const action = status === "interrupted" && entry?.sessionId ? `data-action="resume" data-entry="${escapeHTML(entry.id)}"`
     : entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled";
   return `<button type="button" class="activity-pill ${className}" data-source="${escapeHTML(message.id)}" data-status="${escapeHTML(status)}" ${action}
-    aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span><strong class="pill-title">${escapeHTML(title)}</strong>${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
+    aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span>${showConversation ? `<strong class="pill-title">${escapeHTML(title)}</strong>` : ""}${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
 }
-function homeRequest(message, entry) {
+function homeRequest(message, entry, showConversation) {
   const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${actions.quote(actions.replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
-  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry)}</div></section>`;
+  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry, "", showConversation)}</div></section>`;
 }
-function homeReply(update, entry, source) {
+function homeReply(update, entry, source, showConversation) {
   const reaction = actions.reactionTo(update.id);
-  const sourcePill = reaction ? activityPill(reaction, entry, "reply-source-pill") : entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="Open conversation"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
+  const sourcePill = reaction ? activityPill(reaction, entry, "reply-source-pill", showConversation) : showConversation && entry.sessionId ? `<button type="button" class="activity-pill reply-source-pill" data-action="open" data-session="${escapeHTML(entry.sessionId)}" aria-label="Open ${escapeHTML(entry.title)} conversation" title="${escapeHTML(entry.title)}"><span class="pill-symbol" aria-hidden="true">${icon("reply", 14)}</span><strong class="pill-title">${escapeHTML(entry.title)}</strong></button>` : "";
   const context = source.reaction ? actions.replyTarget(source.replyToId) : { role: "You", text: source.text };
   return `<section class="home-exchange" data-update="${escapeHTML(update.id)}"><div class="message-row assistant-row home-updates"><div class="replyable replyable-assistant">${actions.replyActions(update.id, entry.sessionId)}<button class="message-bubble assistant-bubble home-update ${update.quoteSource ? "with-context" : ""}" data-action="open" data-session="${escapeHTML(entry.sessionId || "")}" ${entry.sessionId ? "" : "disabled"}>${update.quoteSource ? actions.quote(context, "message-context") : ""}<span class="message-text markdown-content">${renderMarkdown(update.text)}</span></button></div>${sourcePill}</div></section>`;
 }
@@ -57,14 +58,23 @@ function home() {
   const edited = new Set(state.data.messages.map((message) => message.editOfId).filter(Boolean));
   const messages = new Map(state.data.messages.map((message) => [message.id, message]));
   const entries = new Map(state.data.entries.map((entry) => [entry.id, entry]));
-  const timeline = state.data.messages.filter((message) => !message.reaction && !edited.has(message.id)).map((message) => ({ createdAt: message.createdAt, html: homeRequest(message, entries.get(message.entryId)) }));
+  const timeline = state.data.messages.filter((message) => !message.reaction && !edited.has(message.id)).map((message) => {
+    const entry = entries.get(message.entryId);
+    return { createdAt: message.createdAt, sessionId: entry?.sessionId, render: (showConversation) => homeRequest(message, entry, showConversation) };
+  });
   for (const entry of state.data.entries) for (const update of entry.updates) {
     if (update.kind === "progress") continue;
     const source = messages.get(update.sourceId || entry.sourceId);
-    if (source && !edited.has(source.id)) timeline.push({ createdAt: update.createdAt, html: homeReply(update, entry, source) });
+    if (source && !edited.has(source.id)) timeline.push({ createdAt: update.createdAt, sessionId: entry.sessionId, render: (showConversation) => homeReply(update, entry, source, showConversation) });
   }
   timeline.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return `<main class="home-scroll scroll-area"><div class="home-content">${timeline.map((item) => item.html).join("")}</div></main>`;
+  let previousSession;
+  const content = timeline.map((item) => {
+    const showConversation = !item.sessionId || item.sessionId !== previousSession;
+    previousSession = item.sessionId;
+    return item.render(showConversation);
+  }).join("");
+  return `<main class="home-scroll scroll-area"><div class="home-content">${content}</div></main>`;
 }
 function nearBottom(scroll) { return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 40; }
 function homeBackButton() {
