@@ -1,0 +1,57 @@
+{
+  "id": "skill",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "maxTurns": 6,
+  "deadlineMs": 60000,
+  "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation. Initial confirmation is now exposed and included as challenge/regression data. Add genuinely new families before another confirmation round.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 10,
+    "requireZeroNewConstraintViolations": true
+  },
+  "datasets": {
+    "development": [
+      "../data/roles/skill-development.json"
+    ],
+    "challenge": [
+      "../data/roles/skill-confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "full",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/session.md",
+        "../variants/skill/available.md"
+      ],
+      "resources": {
+        "skill": "../variants/skill/full.md"
+      }
+    },
+    {
+      "id": "compact",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/session.md",
+        "../variants/skill/available.md"
+      ],
+      "resources": {
+        "skill": "../variants/skill/compact.md"
+      }
+    },
+    {
+      "id": "minimal_control",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/session.md",
+        "../variants/skill/available.md"
+      ],
+      "resources": {
+        "skill": "../variants/skill/minimal.md"
+      }
+    }
+  ]
+}

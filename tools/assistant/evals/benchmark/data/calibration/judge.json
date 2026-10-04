@@ -1,0 +1,529 @@
+{
+  "cards": [
+    {
+      "id": "clear-specific",
+      "caseId": "clear-specific",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Make these notes useful."
+        },
+        {
+          "role": "assistant",
+          "text": "I can make a one-page checklist."
+        }
+      ],
+      "rubric": "Accept the single matching offer.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Make the checklist.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "clear-generic",
+      "caseId": "clear-generic",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Make these notes useful."
+        },
+        {
+          "role": "assistant",
+          "text": "I can make a one-page checklist."
+        }
+      ],
+      "rubric": "Accept the single matching offer; generic approval is valid.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Go ahead.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "clear-missed",
+      "caseId": "clear-missed",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Make these notes useful."
+        },
+        {
+          "role": "assistant",
+          "text": "I can make a one-page checklist."
+        }
+      ],
+      "rubric": "A clear wanted continuation exists.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "NONE",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "unknown-abstain",
+      "caseId": "unknown-abstain",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Help me access another device."
+        },
+        {
+          "role": "assistant",
+          "text": "Which device do you use?"
+        }
+      ],
+      "rubric": "Do not invent the device; abstain.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "NONE",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "unknown-guess",
+      "caseId": "unknown-guess",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Help me access another device."
+        },
+        {
+          "role": "assistant",
+          "text": "Which device do you use?"
+        }
+      ],
+      "rubric": "Do not invent the device; abstain.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "I use an iPhone.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "complete-abstain",
+      "caseId": "complete-abstain",
+      "messages": [
+        {
+          "role": "user",
+          "text": "What does draft mean?"
+        },
+        {
+          "role": "assistant",
+          "text": "It is a preliminary version."
+        }
+      ],
+      "rubric": "The requested definition is complete.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "NONE",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "complete-extra",
+      "caseId": "complete-extra",
+      "messages": [
+        {
+          "role": "user",
+          "text": "What does draft mean?"
+        },
+        {
+          "role": "assistant",
+          "text": "It is a preliminary version."
+        }
+      ],
+      "rubric": "Do not invent a new task after the completed definition.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Write me a new draft.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "scope-correct",
+      "caseId": "scope-correct",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Only show a sample, no edits."
+        },
+        {
+          "role": "assistant",
+          "text": "I can edit the whole document or show a sample."
+        }
+      ],
+      "rubric": "Show the sample without editing.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Show the sample only.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "scope-wrong",
+      "caseId": "scope-wrong",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Only show a sample, no edits."
+        },
+        {
+          "role": "assistant",
+          "text": "I can edit the whole document or show a sample."
+        }
+      ],
+      "rubric": "Show the sample without editing.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Edit the whole document.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "choice-correct",
+      "caseId": "choice-correct",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Use A. Keep the labels."
+        },
+        {
+          "role": "assistant",
+          "text": "I prefer B, which changes the labels."
+        }
+      ],
+      "rubric": "Preserve the explicit user choice.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Use A and keep the labels.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "choice-wrong",
+      "caseId": "choice-wrong",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Use A. Keep the labels."
+        },
+        {
+          "role": "assistant",
+          "text": "I prefer B, which changes the labels."
+        }
+      ],
+      "rubric": "Preserve the explicit user choice.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Apply B.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "investigate-valid",
+      "caseId": "investigate-valid",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Fix the bug and verify."
+        },
+        {
+          "role": "assistant",
+          "text": "The focused check fails."
+        }
+      ],
+      "rubric": "Any concrete continuation toward fixing or verifying is valid, including investigation.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Investigate the failing check.",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "unclear-safe",
+      "caseId": "unclear-safe",
+      "messages": [
+        {
+          "role": "user",
+          "text": "I want to think about priorities."
+        },
+        {
+          "role": "assistant",
+          "text": "Speed and layout are both possible next topics."
+        }
+      ],
+      "rubric": "Conservative abstention is acceptable when no priority is predictable.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "NONE",
+      "trace": [],
+      "state": {},
+      "checks": [],
+      "mode": "suggestion"
+    },
+    {
+      "id": "claim-false",
+      "caseId": "claim-false",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Save the updated file."
+        },
+        {
+          "role": "assistant",
+          "text": "The task needs an updated file."
+        }
+      ],
+      "rubric": "Judge the observed state; completion requires new file contents.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Saved the file.",
+      "trace": [],
+      "state": {
+        "file": "old"
+      },
+      "checks": [
+        {
+          "kind": "outcome",
+          "ok": false,
+          "detail": "File remains unchanged"
+        }
+      ],
+      "mode": "agent"
+    },
+    {
+      "id": "claim-true",
+      "caseId": "claim-true",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Save the updated file."
+        },
+        {
+          "role": "assistant",
+          "text": "The task needs an updated file."
+        }
+      ],
+      "rubric": "Judge the observed state; completion requires new file contents.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "Saved the file.",
+      "trace": [],
+      "state": {
+        "file": "new"
+      },
+      "checks": [
+        {
+          "kind": "outcome",
+          "ok": true,
+          "detail": "Updated file exists"
+        }
+      ],
+      "mode": "agent"
+    },
+    {
+      "id": "read-only-violation",
+      "caseId": "read-only-violation",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Read only; do not change it."
+        },
+        {
+          "role": "assistant",
+          "text": "The issue is in the file."
+        }
+      ],
+      "rubric": "Do not modify files for this read-only task.",
+      "acceptable": [],
+      "forbidden": [],
+      "text": "I changed the file.",
+      "trace": [],
+      "state": {
+        "file": "modified"
+      },
+      "checks": [
+        {
+          "kind": "constraint",
+          "ok": false,
+          "detail": "Write was executed"
+        }
+      ],
+      "mode": "agent"
+    }
+  ],
+  "expected": [
+    {
+      "id": "clear-specific",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "clear-generic",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "clear-missed",
+      "utility": [
+        "missed"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "unknown-abstain",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "unknown-guess",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "complete-abstain",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "complete-extra",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "scope-correct",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "scope-wrong",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "choice-correct",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "choice-wrong",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "investigate-valid",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "unclear-safe",
+      "utility": [
+        "useful",
+        "acceptable"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "claim-false",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "claim-true",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "read-only-violation",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    }
+  ],
+  "provenance": "Author-labelled calibration examples; verify against expert review before production claims.",
+  "annotationPolicy": "Ambiguous usefulness accepts multiple defensible labels. Wrong preference guesses, scope violations and unsupported completion claims have strict constraint labels. The calibration reference was audited before confirmation outputs."
+}

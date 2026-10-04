@@ -1,0 +1,152 @@
+{
+  "cards": [
+    {
+      "id": "speaker:command",
+      "caseId": "speaker",
+      "mode": "suggestion",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Make this resume bullet stronger: Was responsible for fixing build failures."
+        },
+        {
+          "role": "assistant",
+          "text": "I can rewrite it with an active verb."
+        }
+      ],
+      "rubric": "Predict a sendable next user message. Abstain if the user must supply unavailable information. Preserve existing constraints without requiring their repetition.",
+      "text": "Rewrite it with an active verb.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "unknown:askback",
+      "caseId": "unknown",
+      "mode": "suggestion",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Can you improve my draft?"
+        },
+        {
+          "role": "assistant",
+          "text": "Please upload the draft first."
+        }
+      ],
+      "rubric": "Predict a sendable next user message. Abstain if the user must supply unavailable information. Preserve existing constraints without requiring their repetition.",
+      "text": "Please upload the draft.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "unknown:abstain",
+      "caseId": "unknown",
+      "mode": "suggestion",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Can you improve my draft?"
+        },
+        {
+          "role": "assistant",
+          "text": "Please upload the draft first."
+        }
+      ],
+      "rubric": "Predict a sendable next user message. Abstain if the user must supply unavailable information. Preserve existing constraints without requiring their repetition.",
+      "text": "NONE",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "inherit:short",
+      "caseId": "inherit",
+      "mode": "suggestion",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Shorten this email and keep it friendly."
+        },
+        {
+          "role": "assistant",
+          "text": "I can shorten it to three sentences."
+        }
+      ],
+      "rubric": "Predict a sendable next user message. Abstain if the user must supply unavailable information. Preserve existing constraints without requiring their repetition.",
+      "text": "Make it shorter.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "inherit:specific",
+      "caseId": "inherit",
+      "mode": "suggestion",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Shorten this email and keep it friendly."
+        },
+        {
+          "role": "assistant",
+          "text": "I can shorten it to three sentences."
+        }
+      ],
+      "rubric": "Predict a sendable next user message. Abstain if the user must supply unavailable information. Preserve existing constraints without requiring their repetition.",
+      "text": "Shorten it to three sentences.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    }
+  ],
+  "expected": [
+    {
+      "id": "speaker:command",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "unknown:askback",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "violated"
+      ]
+    },
+    {
+      "id": "unknown:abstain",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "inherit:short",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "inherit:specific",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    }
+  ],
+  "provenance": "Author-labelled speaker and inherited-context controls. Added after development grader audit; not independent human gold. Audit clarified a known bullet versus missing input and treats wrong-speaker output as a role violation."
+}

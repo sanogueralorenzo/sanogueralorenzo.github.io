@@ -1,0 +1,45 @@
+{
+  "id": "researcher",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "maxTurns": 6,
+  "deadlineMs": 60000,
+  "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling. Initial confirmation is now exposed and included as challenge/regression data. Add genuinely new families before another confirmation round.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 10,
+    "requireZeroNewConstraintViolations": true
+  },
+  "datasets": {
+    "development": [
+      "../data/roles/researcher-development.json"
+    ],
+    "challenge": [
+      "../data/roles/researcher-confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/researcher.md"
+      ]
+    },
+    {
+      "id": "compact_base",
+      "files": [
+        "../variants/common/base-compact.md",
+        "../../../prompts/researcher.md"
+      ]
+    },
+    {
+      "id": "compact_role",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/roles/researcher-compact.md"
+      ]
+    }
+  ]
+}

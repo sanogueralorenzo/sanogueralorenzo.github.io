@@ -1,0 +1,46 @@
+{
+  "id": "session",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "maxTurns": 6,
+  "deadlineMs": 60000,
+  "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation. Initial confirmation is now exposed and included as challenge/regression data. Add genuinely new families before another confirmation round.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 10,
+    "requireZeroNewConstraintViolations": true
+  },
+  "datasets": {
+    "development": [
+      "../data/roles/session-development.json"
+    ],
+    "challenge": [
+      "../data/roles/session-challenge.json",
+      "../data/roles/session-confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/session.md"
+      ]
+    },
+    {
+      "id": "compact_base",
+      "files": [
+        "../variants/common/base-compact.md",
+        "../../../prompts/session.md"
+      ]
+    },
+    {
+      "id": "compact_role",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/roles/session-compact.md"
+      ]
+    }
+  ]
+}

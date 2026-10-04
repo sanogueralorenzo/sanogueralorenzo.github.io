@@ -7,8 +7,9 @@
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
     "check": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/*.test.ts web/*.test.js",
-    "eval:suggestions": "node --experimental-strip-types evals/prompt-suggestions/run.mjs"
+    "test": "node --experimental-strip-types --test src/*.test.ts web/*.test.js evals/benchmark/*.test.mjs",
+    "eval:suggestions": "node --experimental-strip-types evals/benchmark/cli.mjs run evals/benchmark/suites/suggestions.json --variants live",
+    "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "1.0.0",

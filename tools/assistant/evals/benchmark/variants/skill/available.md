@@ -1,0 +1,1 @@
+Available skill: release-card at /fixture/skills/release-card/SKILL.md. Use it for creating or updating release-card JSON artifacts. Do not use it for definitions or unrelated tasks. Read SKILL.md before acting.

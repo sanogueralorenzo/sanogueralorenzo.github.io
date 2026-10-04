@@ -1,0 +1,4940 @@
+{
+  "provenance": "Controlled authored-fixture study, October 2026. Semantic review by Luna High with primary-agent family audits; no independent human annotation. Raw artifacts remain local and private. This summary contains synthetic examples and aggregate evidence only.",
+  "recordedTrials": 1794,
+  "utilityEligibleTrials": 1764,
+  "studies": [
+    {
+      "id": "suggestions-development",
+      "rawRun": "suggestions-development.json",
+      "rawReview": "suggestions-development-reviews-v4.json",
+      "runHash": "3ebf708cb3860b0d42b2ced93b5c4b480eb1042becac89f216e11f49e29a724d",
+      "reviewHash": "db0eeeb0f3883f4bfa4435104f4a08816b3163dd4a95464264f67d6e35d53db1",
+      "fingerprint": "801e49da2d86993bfb9bc7c48a3f7d2f49d39c64ff044704d48fc856038fa92a",
+      "startedAt": "2026-10-04T07:45:45.446Z",
+      "finishedAt": "2026-10-04T07:53:57.191Z",
+      "provenance": "Fresh authored cases; not representative production sampling or independent human ground truth. Historical 36 cases are development-only and excluded from confirmation.",
+      "mode": "suggestion",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 18,
+      "families": 17,
+      "trials": 594,
+      "caseInputHash": "0f5df442cbb2e543e3709d270993a95a2e7936e766264634357d5ce7bd94709a",
+      "harness": {
+        "suite.mjs": "4c8587d687f3e5a3a6f73cdb8a8b13bf3b3c7970bad61575aa00141c32deb07c",
+        "trial.mjs": "f366f0712b97a15280554102da81df0d8b8d92f6cebf6ba56ece20e9530fa63c",
+        "grading.mjs": "7de56249ac153f4800d063cd4a12474e685a3770eae8bc144830add9fed8ffed",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "21c0fbd6ceb2ef494e05da6ca2336b6ce4d313b417d58555630968ea145477ec"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "compact",
+          "hash": "81dd0efd3372385b8cb5007ead63fe47de2ce4fe3fa59cc12dddd02c5295ccdd",
+          "words": 113,
+          "effort": "off"
+        },
+        {
+          "id": "contract",
+          "hash": "6989bd7aed9145180f0f858a853c161ece5467e0562dfab0eacd00c208bb7d28",
+          "words": 108,
+          "effort": "off"
+        },
+        {
+          "id": "compact_examples",
+          "hash": "b9f19d4968ab2bdb41b9c75c6a28e1215db2232bf39e9cc6a9de082953f5d26a",
+          "words": 135,
+          "effort": "off"
+        },
+        {
+          "id": "contract_examples",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "off"
+        },
+        {
+          "id": "single_paragraph",
+          "hash": "31229ed2a94c711496fa324203dc751acf3804d2ac18d3b29bf35c5bb0c136bb",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "bullets",
+          "hash": "7db54a635d8b46ad5727aba8df5a07957f85b6a4fe4a8970069393786b712dc7",
+          "words": 184,
+          "effort": "off"
+        },
+        {
+          "id": "tagged",
+          "hash": "e8fd13e2b5314a7c200c1366b5330ccdf0ee566a8972e90d6f99d48796b04f7a",
+          "words": 191,
+          "effort": "off"
+        },
+        {
+          "id": "examples_first",
+          "hash": "fc5d4dad1e3e51f0642fc71c811cfc44d86b30c0bc1e66385dbb2e45dd3a5ad4",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "no_examples",
+          "hash": "d05ac04d8fc13bb2f90c352f26dfd441a4a80a92a2a3d5a9041d5469dafad5dc",
+          "words": 155,
+          "effort": "off"
+        },
+        {
+          "id": "minimal_control",
+          "hash": "4faadb5a1ad9205b574401fbdd51ac6b072dc7ae52d885831384b5b2f4fdd0f6",
+          "words": 19,
+          "effort": "off"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 594
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact": {
+            "totalTokenSavingPercent": 28.47799860308592,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract": {
+            "totalTokenSavingPercent": 32.30046352149343,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "compact_examples": {
+            "totalTokenSavingPercent": 18.80119372658582,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract_examples": {
+            "totalTokenSavingPercent": 22.53476411200711,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "single_paragraph": {
+            "totalTokenSavingPercent": 1.1048320528287525,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "bullets": {
+            "totalTokenSavingPercent": -1.3143691662962587,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "tagged": {
+            "totalTokenSavingPercent": -16.020064766016894,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "examples_first": {
+            "totalTokenSavingPercent": 0,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "no_examples": {
+            "totalTokenSavingPercent": 9.289478697060138,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "minimal_control": {
+            "totalTokenSavingPercent": 69.97269667915424,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "suggestions",
+        "split": "development",
+        "fingerprint": "801e49da2d86993bfb9bc7c48a3f7d2f49d39c64ff044704d48fc856038fa92a",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 51,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.8888888888888888,
+            "inputTokens": 284.55555555555554,
+            "outputTokens": 7.092592592592593,
+            "totalTokens": 291.64814814814815,
+            "cacheReadTokens": 0,
+            "medianMs": 1386.2425830000138,
+            "p90Ms": 2246.296249999985,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 49,
+            "acceptable": 0,
+            "missed": 2,
+            "wrong": 3,
+            "constraintViolations": 3,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 2,
+            "meanUtility": 1.8148148148148149,
+            "inputTokens": 201.55555555555554,
+            "outputTokens": 7.037037037037037,
+            "totalTokens": 208.59259259259258,
+            "cacheReadTokens": 0,
+            "medianMs": 1442.8435419999878,
+            "p90Ms": 3116.8931250000023,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.5555555555555556,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 3
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "contract": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 49,
+            "acceptable": 0,
+            "missed": 4,
+            "wrong": 1,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.8148148148148149,
+            "inputTokens": 190.55555555555554,
+            "outputTokens": 6.888888888888889,
+            "totalTokens": 197.44444444444446,
+            "cacheReadTokens": 0,
+            "medianMs": 1363.382500000007,
+            "p90Ms": 2312.7715000000026,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.5555555555555556,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 0.6666666666666666,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 1.7777777777777777,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_examples": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 49,
+            "acceptable": 0,
+            "missed": 2,
+            "wrong": 3,
+            "constraintViolations": 3,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.8148148148148149,
+            "inputTokens": 229.55555555555554,
+            "outputTokens": 7.2592592592592595,
+            "totalTokens": 236.8148148148148,
+            "cacheReadTokens": 0,
+            "medianMs": 1336.1140830000513,
+            "p90Ms": 2406.942207999993,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.5555555555555556,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 3
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 54,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 2,
+            "inputTokens": 218.55555555555554,
+            "outputTokens": 7.37037037037037,
+            "totalTokens": 225.92592592592592,
+            "cacheReadTokens": 0,
+            "medianMs": 1371.5042080000276,
+            "p90Ms": 2039.0558330000058,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "single_paragraph": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 50,
+            "acceptable": 0,
+            "missed": 4,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.8518518518518519,
+            "inputTokens": 281.55555555555554,
+            "outputTokens": 6.87037037037037,
+            "totalTokens": 288.4259259259259,
+            "cacheReadTokens": 0,
+            "medianMs": 1409.2745829999913,
+            "p90Ms": 2011.4442920000001,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 1.7777777777777777,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "bullets": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 51,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.8888888888888888,
+            "inputTokens": 288.55555555555554,
+            "outputTokens": 6.925925925925926,
+            "totalTokens": 295.48148148148147,
+            "cacheReadTokens": 0,
+            "medianMs": 1354.3699580000248,
+            "p90Ms": 1952.0984580000004,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "tagged": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 51,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.8888888888888888,
+            "inputTokens": 331.55555555555554,
+            "outputTokens": 6.814814814814815,
+            "totalTokens": 338.3703703703704,
+            "cacheReadTokens": 0,
+            "medianMs": 1379.9720420000085,
+            "p90Ms": 2514.359083999996,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "examples_first": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 50,
+            "acceptable": 0,
+            "missed": 4,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.8518518518518519,
+            "inputTokens": 284.55555555555554,
+            "outputTokens": 7.092592592592593,
+            "totalTokens": 291.64814814814815,
+            "cacheReadTokens": 0,
+            "medianMs": 1395.1834999999846,
+            "p90Ms": 2279.049583999993,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 1.7777777777777777,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "no_examples": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 49,
+            "acceptable": 0,
+            "missed": 4,
+            "wrong": 1,
+            "constraintViolations": 1,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 2,
+            "meanUtility": 1.8148148148148149,
+            "inputTokens": 257.55555555555554,
+            "outputTokens": 7,
+            "totalTokens": 264.55555555555554,
+            "cacheReadTokens": 0,
+            "medianMs": 1430.5566659999895,
+            "p90Ms": 2361.3728330000013,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 0.6666666666666666,
+                "violations": 1
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "minimal_control": {
+            "attempts": 54,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 54,
+            "useful": 32,
+            "acceptable": 1,
+            "missed": 9,
+            "wrong": 12,
+            "constraintViolations": 8,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.2037037037037037,
+            "inputTokens": 77.55555555555556,
+            "outputTokens": 10.018518518518519,
+            "totalTokens": 87.57407407407408,
+            "cacheReadTokens": 0,
+            "medianMs": 1515.534249999997,
+            "p90Ms": 2664.5245829999913,
+            "categories": {
+              "writing": {
+                "attempts": 9,
+                "meanUtility": 0.8888888888888888,
+                "violations": 4
+              },
+              "planning": {
+                "attempts": 9,
+                "meanUtility": 1.5555555555555556,
+                "violations": 1
+              },
+              "coding": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 1
+              },
+              "noise": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 9,
+                "meanUtility": 1.5555555555555556,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 6,
+                "meanUtility": 1.5,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 6,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 2
+              },
+              "untrusted": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact": {
+            "meanDifference": -0.07843137254901962,
+            "low": -0.35294117647058826,
+            "high": 0.11764705882352941,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract": {
+            "meanDifference": -0.07843137254901962,
+            "low": -0.2745098039215687,
+            "high": 0.0784313725490196,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "compact_examples": {
+            "meanDifference": -0.07843137254901962,
+            "low": -0.35294117647058826,
+            "high": 0.11764705882352941,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples": {
+            "meanDifference": 0.11764705882352941,
+            "low": 0,
+            "high": 0.35294117647058826,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "single_paragraph": {
+            "meanDifference": -0.03921568627450981,
+            "low": -0.11764705882352941,
+            "high": 0,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "bullets": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "tagged": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "examples_first": {
+            "meanDifference": -0.019607843137254905,
+            "low": -0.058823529411764705,
+            "high": 0,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "no_examples": {
+            "meanDifference": -0.07843137254901962,
+            "low": -0.23529411764705882,
+            "high": 0,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "minimal_control": {
+            "meanDifference": -0.6862745098039217,
+            "low": -1.0980392156862746,
+            "high": -0.27450980392156865,
+            "pairedFamilies": 17,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "suggestions-challenge",
+      "rawRun": "suggestions-challenge.json",
+      "rawReview": "suggestions-challenge-reviewed.json",
+      "runHash": "ca554b0748b6c440842fa970bb6f7cb40ccea0614d178de3bf78cd001549d88b",
+      "reviewHash": "7a267851682ad1a1344b33ceb3a69aa92e10301a179d3df401781d3d3ba2612b",
+      "fingerprint": "aaf23366f384d253dbdd9dec58b18aa958d5859fe3ea98e1b3e294257a1a4836",
+      "startedAt": "2026-10-04T08:07:51.511Z",
+      "finishedAt": "2026-10-04T08:10:28.075Z",
+      "provenance": "Fresh authored cases; not representative production sampling or independent human ground truth. Historical 36 cases are development-only and excluded from confirmation.",
+      "mode": "suggestion",
+      "model": "gpt-6-luna",
+      "repeats": 5,
+      "concurrency": 2,
+      "cases": 12,
+      "families": 12,
+      "trials": 180,
+      "caseInputHash": "37fe9932c27b5391e521c1f066b3eafe8d1dd32656daecb13e2dea597d6b8ea3",
+      "harness": {
+        "suite.mjs": "4c8587d687f3e5a3a6f73cdb8a8b13bf3b3c7970bad61575aa00141c32deb07c",
+        "trial.mjs": "f366f0712b97a15280554102da81df0d8b8d92f6cebf6ba56ece20e9530fa63c",
+        "grading.mjs": "7de56249ac153f4800d063cd4a12474e685a3770eae8bc144830add9fed8ffed",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "c0dd35ba4a63f9beb7e165ff6eb4a8d9c3f590c7bee891ee8ec4f2c0d0fe6368"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "compact",
+          "hash": "81dd0efd3372385b8cb5007ead63fe47de2ce4fe3fa59cc12dddd02c5295ccdd",
+          "words": 113,
+          "effort": "off"
+        },
+        {
+          "id": "contract_examples",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "off"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 180
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 6,
+        "selection": {
+          "compact": {
+            "totalTokenSavingPercent": 24.156262192742883,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract_examples": {
+            "totalTokenSavingPercent": 19.371829886851344,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "suggestions",
+        "split": "challenge",
+        "fingerprint": "aaf23366f384d253dbdd9dec58b18aa958d5859fe3ea98e1b3e294257a1a4836",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 60,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 60,
+            "useful": 59,
+            "acceptable": 1,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 2,
+            "meanUtility": 1.9833333333333334,
+            "inputTokens": 333,
+            "outputTokens": 8.733333333333333,
+            "totalTokens": 341.73333333333335,
+            "cacheReadTokens": 0,
+            "medianMs": 1362.922208,
+            "p90Ms": 2626.6776669999963,
+            "categories": {
+              "scope": {
+                "attempts": 20,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1.9,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact": {
+            "attempts": 60,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 60,
+            "useful": 55,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 2,
+            "constraintViolations": 2,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.8333333333333333,
+            "inputTokens": 250,
+            "outputTokens": 9.183333333333334,
+            "totalTokens": 259.18333333333334,
+            "cacheReadTokens": 0,
+            "medianMs": 1399.789042000004,
+            "p90Ms": 2272.205375000005,
+            "categories": {
+              "scope": {
+                "attempts": 20,
+                "meanUtility": 1.9,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1.6,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 1.6,
+                "violations": 2
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples": {
+            "attempts": 60,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 60,
+            "useful": 55,
+            "acceptable": 0,
+            "missed": 4,
+            "wrong": 1,
+            "constraintViolations": 1,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 2,
+            "meanUtility": 1.8333333333333333,
+            "inputTokens": 267,
+            "outputTokens": 8.533333333333333,
+            "totalTokens": 275.53333333333336,
+            "cacheReadTokens": 0,
+            "medianMs": 1358.3272499999985,
+            "p90Ms": 2455.301542000001,
+            "categories": {
+              "scope": {
+                "attempts": 20,
+                "meanUtility": 1.7,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1.8,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 1.8,
+                "violations": 1
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact": {
+            "meanDifference": -0.15,
+            "low": -0.31666666666666665,
+            "high": -0.016666666666666663,
+            "pairedFamilies": 12,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples": {
+            "meanDifference": -0.15,
+            "low": -0.3833333333333333,
+            "high": 0.016666666666666663,
+            "pairedFamilies": 12,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "suggestions-confirmation",
+      "rawRun": "suggestions-confirmation.json",
+      "rawReview": "suggestions-confirmation-reviews.json",
+      "runHash": "5971c79492fceacff8e82be236bf2bad5082a8e337494af9f7b8e2a7363afc6a",
+      "reviewHash": "723b0f5aed3f92ec16d55863a1738cc2163c0107b268d939c3eb876919c18cb7",
+      "fingerprint": "e504bbbeb54986cadfcbeec8322d3156ae890e806bae6656ae14c4de0c61d0c4",
+      "startedAt": "2026-10-04T08:18:10.370Z",
+      "finishedAt": "2026-10-04T08:25:55.721Z",
+      "provenance": "Fresh authored cases; not representative production sampling or independent human ground truth. Historical 36 cases are development-only and excluded from confirmation.",
+      "mode": "suggestion",
+      "model": "gpt-6-luna",
+      "repeats": 5,
+      "concurrency": 2,
+      "cases": 24,
+      "families": 24,
+      "trials": 360,
+      "caseInputHash": "8c3eb35b160627c4cc05d4ae3fba65186904b678c468576dc510d04e74f2793c",
+      "harness": {
+        "suite.mjs": "9096046e79f2c5a51afbea959a2c23ed3e6f180762de9812b6bdf12e0c5d8b6c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "7567aee9fc5fb87fa21a1d701124cfde47845381f4c72d0c810eb6ade04cb2bb",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "compact",
+          "hash": "81dd0efd3372385b8cb5007ead63fe47de2ce4fe3fa59cc12dddd02c5295ccdd",
+          "words": 113,
+          "effort": "off"
+        },
+        {
+          "id": "contract_examples",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "off"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 360
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact": {
+            "totalTokenSavingPercent": 27.17039152160782,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Constraint violations require rejection or explicit case audit"
+            ]
+          },
+          "contract_examples": {
+            "totalTokenSavingPercent": 21.679204876173742,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Constraint violations require rejection or explicit case audit"
+            ]
+          }
+        },
+        "suite": "suggestions",
+        "split": "confirmation",
+        "fingerprint": "e504bbbeb54986cadfcbeec8322d3156ae890e806bae6656ae14c4de0c61d0c4",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 120,
+            "retriedInfrastructureErrors": 2,
+            "infrastructureErrors": 0,
+            "utilityTrials": 120,
+            "useful": 117,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.95,
+            "inputTokens": 296.25,
+            "outputTokens": 7.266666666666667,
+            "totalTokens": 303.51666666666665,
+            "cacheReadTokens": 0,
+            "medianMs": 1366.3584169999958,
+            "p90Ms": 2501.6977079999924,
+            "categories": {
+              "writing": {
+                "attempts": 15,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 25,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 0.8,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 20,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 15,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact": {
+            "attempts": 120,
+            "retriedInfrastructureErrors": 1,
+            "infrastructureErrors": 0,
+            "utilityTrials": 120,
+            "useful": 102,
+            "acceptable": 1,
+            "missed": 11,
+            "wrong": 6,
+            "constraintViolations": 6,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.7083333333333333,
+            "inputTokens": 213.25,
+            "outputTokens": 7.8,
+            "totalTokens": 221.05,
+            "cacheReadTokens": 0,
+            "medianMs": 1413.0472500000033,
+            "p90Ms": 2188.370750000002,
+            "categories": {
+              "writing": {
+                "attempts": 15,
+                "meanUtility": 1.4666666666666666,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 25,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 1.8,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 1.2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 20,
+                "meanUtility": 1.4,
+                "violations": 6
+              },
+              "completed": {
+                "attempts": 15,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples": {
+            "attempts": 120,
+            "retriedInfrastructureErrors": 2,
+            "infrastructureErrors": 0,
+            "utilityTrials": 120,
+            "useful": 116,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 1,
+            "constraintViolations": 1,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.9333333333333333,
+            "inputTokens": 230.25,
+            "outputTokens": 7.466666666666667,
+            "totalTokens": 237.71666666666667,
+            "cacheReadTokens": 0,
+            "medianMs": 1444.589707999985,
+            "p90Ms": 2118.1801669999986,
+            "categories": {
+              "writing": {
+                "attempts": 15,
+                "meanUtility": 1.8666666666666667,
+                "violations": 0
+              },
+              "planning": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "coding": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope": {
+                "attempts": 25,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "language": {
+                "attempts": 5,
+                "meanUtility": 1.6,
+                "violations": 1
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1.6,
+                "violations": 0
+              },
+              "noise": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 20,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 15,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "ambiguous": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact": {
+            "meanDifference": -0.2416666666666667,
+            "low": -0.5166666666666667,
+            "high": -0.008333333333333331,
+            "pairedFamilies": 24,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples": {
+            "meanDifference": -0.016666666666666663,
+            "low": -0.11666666666666665,
+            "high": 0.08333333333333333,
+            "pairedFamilies": 24,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "suggestion-reasoning",
+      "rawRun": "suggestion-reasoning.json",
+      "rawReview": "suggestion-reasoning-reviewed.json",
+      "runHash": "e563ce006352c8b710138420f77d3dcac114ab66535e493048443ce105e9fdb0",
+      "reviewHash": "1b26476c5a087bfcd0c3a2bef0dfb364f9db0fcb59cbe047c770f9f93370608a",
+      "fingerprint": "e6287906dca762036b3c3b2aeb1d5f584b8e318525578b1bca9aa84ac9f68ea5",
+      "startedAt": "2026-10-04T08:18:49.346Z",
+      "finishedAt": "2026-10-04T08:32:56.962Z",
+      "provenance": "Six challenge families reused for diagnostic reasoning comparison; not independent confirmation or deployment-selection evidence.",
+      "mode": "suggestion",
+      "model": "gpt-6-luna",
+      "repeats": 5,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 180,
+      "caseInputHash": "c2d75e42addcea2aac0da33bc8f109e2db5034a2e3d01c81e5b1385bbcc8d1b8",
+      "harness": {
+        "suite.mjs": "9096046e79f2c5a51afbea959a2c23ed3e6f180762de9812b6bdf12e0c5d8b6c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "7567aee9fc5fb87fa21a1d701124cfde47845381f4c72d0c810eb6ade04cb2bb",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019"
+      },
+      "variants": [
+        {
+          "id": "live_off",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "off"
+        },
+        {
+          "id": "live_low",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "low"
+        },
+        {
+          "id": "live_high",
+          "hash": "5f4324cede4693ad5a3dc64bb13454bdbd26fa3ac4cd989ffa502150bdd8cd34",
+          "words": 177,
+          "effort": "high"
+        },
+        {
+          "id": "contract_examples_off",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "off"
+        },
+        {
+          "id": "contract_examples_low",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "low"
+        },
+        {
+          "id": "contract_examples_high",
+          "hash": "b3cede11c0bc69aed93604e65d62db92743da992c6cdf2b4504cac875d144989",
+          "words": 130,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 180
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "adjudications": 30,
+        "selection": {
+          "live_low": {
+            "totalTokenSavingPercent": -0.0889679715302405,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Unresolved infrastructure or grading uncertainty",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "live_high": {
+            "totalTokenSavingPercent": -20.96307829181494,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Unresolved infrastructure or grading uncertainty",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract_examples_off": {
+            "totalTokenSavingPercent": 21.897241992882567,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Unresolved infrastructure or grading uncertainty",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract_examples_low": {
+            "totalTokenSavingPercent": 10.865213523131667,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Unresolved infrastructure or grading uncertainty",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "contract_examples_high": {
+            "totalTokenSavingPercent": -2.379893238434172,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Unresolved infrastructure or grading uncertainty",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "suggestion-reasoning",
+        "split": "development",
+        "fingerprint": "e6287906dca762036b3c3b2aeb1d5f584b8e318525578b1bca9aa84ac9f68ea5",
+        "baseline": "live_off",
+        "metrics": {
+          "live_off": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 1,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 23,
+            "acceptable": 2,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 1,
+            "meanUtility": 1.92,
+            "inputTokens": 291.6666666666667,
+            "outputTokens": 8.066666666666666,
+            "totalTokens": 299.73333333333335,
+            "cacheReadTokens": 0,
+            "medianMs": 1430.2025409999997,
+            "p90Ms": 3741.279999999999,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 1.8,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          },
+          "live_low": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 1,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 25,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 291.6666666666667,
+            "outputTokens": 8.333333333333334,
+            "totalTokens": 300,
+            "cacheReadTokens": 0,
+            "medianMs": 1441.6252499999973,
+            "p90Ms": 1972.6048750000045,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          },
+          "live_high": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 25,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 10,
+            "meanUtility": 2,
+            "inputTokens": 291.6666666666667,
+            "outputTokens": 70.9,
+            "totalTokens": 362.56666666666666,
+            "cacheReadTokens": 0,
+            "medianMs": 4296.491084000008,
+            "p90Ms": 6815.889375000006,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples_off": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 1,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 25,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 225.66666666666666,
+            "outputTokens": 8.433333333333334,
+            "totalTokens": 234.1,
+            "cacheReadTokens": 0,
+            "medianMs": 1475.1627910000025,
+            "p90Ms": 2562.0407500000147,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples_low": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 25,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 7,
+            "meanUtility": 2,
+            "inputTokens": 225.66666666666666,
+            "outputTokens": 41.5,
+            "totalTokens": 267.1666666666667,
+            "cacheReadTokens": 0,
+            "medianMs": 3237.8419999999996,
+            "p90Ms": 5703.1703750000015,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          },
+          "contract_examples_high": {
+            "attempts": 30,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 25,
+            "useful": 25,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 5,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 9,
+            "meanUtility": 2,
+            "inputTokens": 225.66666666666666,
+            "outputTokens": 81.2,
+            "totalTokens": 306.8666666666667,
+            "cacheReadTokens": 0,
+            "medianMs": 4093.9135410000017,
+            "p90Ms": 7553.687250000003,
+            "categories": {
+              "scope": {
+                "attempts": 5,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "evidence": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clarification": {
+                "attempts": 10,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "completed": {
+                "attempts": 5,
+                "meanUtility": null,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "live_low": {
+            "meanDifference": 0.07999999999999999,
+            "low": 0,
+            "high": 0.23999999999999994,
+            "pairedFamilies": 5,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "live_high": {
+            "meanDifference": 0.07999999999999999,
+            "low": 0,
+            "high": 0.23999999999999994,
+            "pairedFamilies": 5,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples_off": {
+            "meanDifference": 0.07999999999999999,
+            "low": 0,
+            "high": 0.23999999999999994,
+            "pairedFamilies": 5,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples_low": {
+            "meanDifference": 0.07999999999999999,
+            "low": 0,
+            "high": 0.23999999999999994,
+            "pairedFamilies": 5,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "contract_examples_high": {
+            "meanDifference": 0.07999999999999999,
+            "low": 0,
+            "high": 0.23999999999999994,
+            "pairedFamilies": 5,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "coordinator-development-v2",
+      "rawRun": "coordinator-development-v2.json",
+      "rawReview": "coordinator-development-v2-reviews.json",
+      "runHash": "e5ca19ddd40c5cbc114591cac4806646abe07086b75988c656fb36447ba3fb02",
+      "reviewHash": "31a0811351881e10c9c5f1f0543ff6df4512d32780f21ea79f8da61aeba7618e",
+      "fingerprint": "60c4f9329e65e18f1477cdb7ade027bf080f355503887fb004ac4541f64523e4",
+      "startedAt": "2026-10-04T08:16:28.351Z",
+      "finishedAt": "2026-10-04T08:17:22.935Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 54,
+      "caseInputHash": "c0c1082dfc5bb05fa87e0a05cd0613c3325ec46a96bdc08be447769d688b8f44",
+      "harness": {
+        "suite.mjs": "4c8587d687f3e5a3a6f73cdb8a8b13bf3b3c7970bad61575aa00141c32deb07c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "d59c1857fe9d51e479cbded916f7885788a0706aa2feb8f8726d03164919970a",
+          "words": 353,
+          "effort": "low"
+        },
+        {
+          "id": "compact_base",
+          "hash": "79d54cd2832dd54b4cca9235a4fe2c9ce7f9c437a39b1782741ef4bbce5f7b84",
+          "words": 291,
+          "effort": "low"
+        },
+        {
+          "id": "compact_role",
+          "hash": "307eea3a870aea9482716807153bb1a3e89dc723a46edbb7c82b14c44b5f2211",
+          "words": 269,
+          "effort": "low"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 63
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": 12.569642614485655,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Required outcome checks failed",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "compact_role": {
+            "totalTokenSavingPercent": 14.234270960728345,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Required outcome checks failed",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "coordinator",
+        "split": "development",
+        "fingerprint": "60c4f9329e65e18f1477cdb7ade027bf080f355503887fb004ac4541f64523e4",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 15,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 3,
+            "constraintViolations": 3,
+            "uncertain": 0,
+            "deterministicFailures": 3,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.6666666666666667,
+            "inputTokens": 788.3333333333334,
+            "outputTokens": 29.333333333333332,
+            "totalTokens": 817.6666666666666,
+            "cacheReadTokens": 0,
+            "medianMs": 1598.1365000000005,
+            "p90Ms": 3112.699332999997,
+            "categories": {
+              "new-personal": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "implicit-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "comparison-target": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "active-continuation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "known-workspace": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "older-destination": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 12,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 6,
+            "constraintViolations": 6,
+            "uncertain": 0,
+            "deterministicFailures": 6,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.3333333333333333,
+            "inputTokens": 686.7222222222222,
+            "outputTokens": 28.166666666666668,
+            "totalTokens": 714.8888888888889,
+            "cacheReadTokens": 0,
+            "medianMs": 1597.351499999997,
+            "p90Ms": 3168.560334,
+            "categories": {
+              "new-personal": {
+                "attempts": 3,
+                "meanUtility": 0.6666666666666666,
+                "violations": 2
+              },
+              "implicit-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "comparison-target": {
+                "attempts": 3,
+                "meanUtility": 1.3333333333333333,
+                "violations": 1
+              },
+              "active-continuation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "known-workspace": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "older-destination": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 14,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 4,
+            "constraintViolations": 4,
+            "uncertain": 0,
+            "deterministicFailures": 4,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.5555555555555556,
+            "inputTokens": 671.5555555555555,
+            "outputTokens": 29.72222222222222,
+            "totalTokens": 701.2777777777778,
+            "cacheReadTokens": 0,
+            "medianMs": 1744.362957999998,
+            "p90Ms": 3073.826583,
+            "categories": {
+              "new-personal": {
+                "attempts": 3,
+                "meanUtility": 1.3333333333333333,
+                "violations": 1
+              },
+              "implicit-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "comparison-target": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "active-continuation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "known-workspace": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "older-destination": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": -0.3333333333333333,
+            "low": -1.1111111111111112,
+            "high": 0.2222222222222222,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "compact_role": {
+            "meanDifference": -0.11111111111111112,
+            "low": -1,
+            "high": 0.6666666666666666,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "coordinator-confirmation",
+      "rawRun": "coordinator-confirmation.json",
+      "rawReview": "coordinator-confirmation-reviews.json",
+      "runHash": "48b201770a82f7d50a4798a41d79f8d8395abce5086857101794423e5104d36e",
+      "reviewHash": "1bf204214914833ac88ef3af5881f6472f770af8eddb7636d41145249f6e2d5a",
+      "fingerprint": "1664c82cf499cde4c9f2526830cec859538b56e2e3f528eb4601ecb477ed0bc6",
+      "startedAt": "2026-10-04T08:36:45.986Z",
+      "finishedAt": "2026-10-04T08:37:25.162Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 36,
+      "caseInputHash": "b14fb5438b44edbc597b445cb0c5ddc8bbcf7ecdb823379927604322e7952290",
+      "harness": {
+        "suite.mjs": "9096046e79f2c5a51afbea959a2c23ed3e6f180762de9812b6bdf12e0c5d8b6c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "7567aee9fc5fb87fa21a1d701124cfde47845381f4c72d0c810eb6ade04cb2bb",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "d59c1857fe9d51e479cbded916f7885788a0706aa2feb8f8726d03164919970a",
+          "words": 353,
+          "effort": "low"
+        },
+        {
+          "id": "compact_role",
+          "hash": "307eea3a870aea9482716807153bb1a3e89dc723a46edbb7c82b14c44b5f2211",
+          "words": 269,
+          "effort": "low"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 36
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact_role": {
+            "totalTokenSavingPercent": 14.413326895219702,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Constraint violations require rejection or explicit case audit",
+              "Required outcome checks failed"
+            ]
+          }
+        },
+        "suite": "coordinator",
+        "split": "confirmation",
+        "fingerprint": "1664c82cf499cde4c9f2526830cec859538b56e2e3f528eb4601ecb477ed0bc6",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 9,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 9,
+            "constraintViolations": 6,
+            "uncertain": 0,
+            "deterministicFailures": 9,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1,
+            "inputTokens": 663.8333333333334,
+            "outputTokens": 26.5,
+            "totalTokens": 690.3333333333334,
+            "cacheReadTokens": 0,
+            "medianMs": 1541.7190419999988,
+            "p90Ms": 6758.007416999997,
+            "categories": {
+              "named-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "implicit-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "new-personal": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "whole-request": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "known-workspace": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "older-destination": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 6,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 12,
+            "constraintViolations": 9,
+            "uncertain": 0,
+            "deterministicFailures": 12,
+            "deadlineFallbacks": 0,
+            "meanUtility": 0.6666666666666666,
+            "inputTokens": 563.8333333333334,
+            "outputTokens": 27,
+            "totalTokens": 590.8333333333334,
+            "cacheReadTokens": 0,
+            "medianMs": 1814.843332999997,
+            "p90Ms": 3119.0403750000005,
+            "categories": {
+              "named-followup": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "implicit-followup": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "new-personal": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "whole-request": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "known-workspace": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "older-destination": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_role": {
+            "meanDifference": -0.3333333333333333,
+            "low": -1,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "researcher-development",
+      "rawRun": "researcher-development.json",
+      "rawReview": "researcher-development-reviews.json",
+      "runHash": "e9eb1e77515e393f2f6d4075a05ae245cd50e2937f170e0ff5019a23771a69a0",
+      "reviewHash": "cb5750d7ead99d9976f04a79364b4fd1acb50338a7c60664e4071d6066417088",
+      "fingerprint": "60a48378b3c23562866d226b1855e248f81557bf05ed04c88b6a046e71ae17e0",
+      "startedAt": "2026-10-04T08:13:43.931Z",
+      "finishedAt": "2026-10-04T08:16:20.589Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 54,
+      "caseInputHash": "aef24bdefcf429f2e93afb6f04d97933e953dc629ab3c6c27a5f135c60af82f1",
+      "harness": {
+        "suite.mjs": "4c8587d687f3e5a3a6f73cdb8a8b13bf3b3c7970bad61575aa00141c32deb07c",
+        "trial.mjs": "f366f0712b97a15280554102da81df0d8b8d92f6cebf6ba56ece20e9530fa63c",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "03d26afbede70bb70aaecbe83d42ca05eabe1b7850a73a50445653c116935e3a",
+          "words": 220,
+          "effort": "high"
+        },
+        {
+          "id": "compact_base",
+          "hash": "4eb0d587f3124ef31513b4195a4d33f60ba6be06ea909ddc6b4b5f9e743f3d03",
+          "words": 158,
+          "effort": "high"
+        },
+        {
+          "id": "compact_role",
+          "hash": "d82a78beb124c95b61670155e816194e1690b43337397e5ac925f97739dce3d6",
+          "words": 215,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 113
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": 21.06347126006366,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "compact_role": {
+            "totalTokenSavingPercent": 9.879548149535044,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "researcher",
+        "split": "development",
+        "fingerprint": "60a48378b3c23562866d226b1855e248f81557bf05ed04c88b6a046e71ae17e0",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 13,
+            "acceptable": 5,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.7222222222222223,
+            "inputTokens": 802.7222222222222,
+            "outputTokens": 87.44444444444444,
+            "totalTokens": 890.1666666666666,
+            "cacheReadTokens": 0,
+            "medianMs": 4919.073375,
+            "p90Ms": 11415.383625000002,
+            "categories": {
+              "source-reading": {
+                "attempts": 3,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "multiple-sources": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "read-only-boundary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 627.6111111111111,
+            "outputTokens": 75.05555555555556,
+            "totalTokens": 702.6666666666666,
+            "cacheReadTokens": 0,
+            "medianMs": 4435.010624999995,
+            "p90Ms": 10632.104791999998,
+            "categories": {
+              "source-reading": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "multiple-sources": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "read-only-boundary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 13,
+            "acceptable": 5,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.7222222222222223,
+            "inputTokens": 733.5555555555555,
+            "outputTokens": 68.66666666666667,
+            "totalTokens": 802.2222222222222,
+            "cacheReadTokens": 0,
+            "medianMs": 3931.3080419999897,
+            "p90Ms": 8418.811917000014,
+            "categories": {
+              "source-reading": {
+                "attempts": 3,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "multiple-sources": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "read-only-boundary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": 0.2777777777777778,
+            "low": 0,
+            "high": 0.6111111111111112,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "compact_role": {
+            "meanDifference": 0,
+            "low": -0.16666666666666663,
+            "high": 0.16666666666666663,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "researcher-confirmation",
+      "rawRun": "researcher-confirmation.json",
+      "rawReview": "researcher-confirmation-reviews.json",
+      "runHash": "fdd29ad1c57aad1cc8a8146f725cd744e5f42fb22dcdae63d5210037d44adbde",
+      "reviewHash": "d7c21057f62e50e260149d2b03769de7707b54ad8483c83b07e9a2f13b7dbe58",
+      "fingerprint": "4f5c0499476007a3f5a4726d3eafaa7b67b1da6270cc44aa63f54c818177cddd",
+      "startedAt": "2026-10-04T08:20:04.505Z",
+      "finishedAt": "2026-10-04T08:21:37.863Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 36,
+      "caseInputHash": "879a87651f4e52a1a37a0a6ace9707e740309a631a28a4b71740e0ba00889b8f",
+      "harness": {
+        "suite.mjs": "9096046e79f2c5a51afbea959a2c23ed3e6f180762de9812b6bdf12e0c5d8b6c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "7567aee9fc5fb87fa21a1d701124cfde47845381f4c72d0c810eb6ade04cb2bb",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "03d26afbede70bb70aaecbe83d42ca05eabe1b7850a73a50445653c116935e3a",
+          "words": 220,
+          "effort": "high"
+        },
+        {
+          "id": "compact_base",
+          "hash": "4eb0d587f3124ef31513b4195a4d33f60ba6be06ea909ddc6b4b5f9e743f3d03",
+          "words": 158,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 72
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": 20.42771837244828,
+            "status": "meets-local-gate",
+            "reasons": []
+          }
+        },
+        "suite": "researcher",
+        "split": "confirmation",
+        "fingerprint": "4f5c0499476007a3f5a4726d3eafaa7b67b1da6270cc44aa63f54c818177cddd",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 14,
+            "acceptable": 4,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.7777777777777777,
+            "inputTokens": 738.5,
+            "outputTokens": 61.611111111111114,
+            "totalTokens": 800.1111111111111,
+            "cacheReadTokens": 0,
+            "medianMs": 3840.7162910000043,
+            "p90Ms": 9023.569917,
+            "categories": {
+              "source-reading": {
+                "attempts": 3,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "multiple-sources": {
+                "attempts": 3,
+                "meanUtility": 1.6666666666666667,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "read-only-boundary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 564.5,
+            "outputTokens": 72.16666666666667,
+            "totalTokens": 636.6666666666666,
+            "cacheReadTokens": 0,
+            "medianMs": 5130.600542,
+            "p90Ms": 8439.439041999998,
+            "categories": {
+              "source-reading": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "multiple-sources": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "read-only-boundary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": 0.2222222222222222,
+            "low": 0,
+            "high": 0.5555555555555555,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "reviewer-development",
+      "rawRun": "reviewer-development.json",
+      "rawReview": "reviewer-development-reviews.json",
+      "runHash": "00fd5175f4dc39d8938a19b950194a00617ec071af21a9ab32d1e234f60c49e7",
+      "reviewHash": "852fca65750f2948ea088a1cc2cc715136ec199d9149c93d5d4447407246ec51",
+      "fingerprint": "6d3fe30fcd99042c40db1e09624452c0c9fd63aa0fb9af9f79c104b32327a64e",
+      "startedAt": "2026-10-04T08:13:45.121Z",
+      "finishedAt": "2026-10-04T08:16:58.554Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 54,
+      "caseInputHash": "462a7f3dce77481145ce1cef10acb043953ae7c852b4ca186f06551b67b01195",
+      "harness": {
+        "suite.mjs": "4c8587d687f3e5a3a6f73cdb8a8b13bf3b3c7970bad61575aa00141c32deb07c",
+        "trial.mjs": "f366f0712b97a15280554102da81df0d8b8d92f6cebf6ba56ece20e9530fa63c",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "3619f8eaeff0d8611070e3188d5fd677a98ebc2d5d69d7aebf69a8abe4dc98b6",
+          "words": 229,
+          "effort": "high"
+        },
+        {
+          "id": "compact_base",
+          "hash": "100759b8a10c822d71eade19b50bb1935ed71b1cd710e6781c950b251b5694b6",
+          "words": 167,
+          "effort": "high"
+        },
+        {
+          "id": "compact_role",
+          "hash": "0b668ca34145329c764a98b31fd9d83656c2342dce98a5a07972e24cf014dc3d",
+          "words": 215,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 113
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 0,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": -5.058442844878819,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "compact_role": {
+            "totalTokenSavingPercent": 2.4367694644390148,
+            "status": "not-established",
+            "reasons": [
+              "No predeclared selection policy",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "reviewer",
+        "split": "development",
+        "fingerprint": "6d3fe30fcd99042c40db1e09624452c0c9fd63aa0fb9af9f79c104b32327a64e",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 752,
+            "outputTokens": 89.27777777777777,
+            "totalTokens": 841.2777777777778,
+            "cacheReadTokens": 0,
+            "medianMs": 5431.25016700002,
+            "p90Ms": 8458.117041999998,
+            "categories": {
+              "concrete-issue": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clean-verdict": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope-violation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 724.1111111111111,
+            "outputTokens": 159.72222222222223,
+            "totalTokens": 883.8333333333334,
+            "cacheReadTokens": 0,
+            "medianMs": 7174.195749999999,
+            "p90Ms": 14602.024166999996,
+            "categories": {
+              "concrete-issue": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clean-verdict": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope-violation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 726,
+            "outputTokens": 94.77777777777777,
+            "totalTokens": 820.7777777777778,
+            "cacheReadTokens": 0,
+            "medianMs": 5717.435500000007,
+            "p90Ms": 8367.758417000005,
+            "categories": {
+              "concrete-issue": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clean-verdict": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope-violation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "compact_role": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "reviewer-confirmation",
+      "rawRun": "reviewer-confirmation.json",
+      "rawReview": "reviewer-confirmation-reviewed.json",
+      "runHash": "35cfcf182ab589b28aea56711de9f2a79106cdb64b7d140ea9a74ff982f2e58c",
+      "reviewHash": "c006814088ace21c6a682db3475fdcb90cec0bf8af5643544fe9d6d74bad2268",
+      "fingerprint": "9ed476934fa3120b0dd2ac68a931205bb242d61d86e187c75053f58e3cd8a065",
+      "startedAt": "2026-10-04T08:20:06.063Z",
+      "finishedAt": "2026-10-04T08:22:15.325Z",
+      "provenance": "Bounded synthetic tool replay. Role prompt and reasoning match production; fixture tools and environment are not production integration. Authored cases are not representative user sampling.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 36,
+      "caseInputHash": "5631c95e0f0c7f0730234942d20fecd72af4918be2040e8d161ba53cbceaf604",
+      "harness": {
+        "suite.mjs": "9096046e79f2c5a51afbea959a2c23ed3e6f180762de9812b6bdf12e0c5d8b6c",
+        "trial.mjs": "48a999dc7b3a3e1fb888e5b8dd2ac91f2e96d0bb0ff69a0192380cdaba0c1f6f",
+        "grading.mjs": "e96fdfe177fcb2e6828f447a03e4d7f745aa3a7176b3e328b536799586c645cc",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "7567aee9fc5fb87fa21a1d701124cfde47845381f4c72d0c810eb6ade04cb2bb",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "3619f8eaeff0d8611070e3188d5fd677a98ebc2d5d69d7aebf69a8abe4dc98b6",
+          "words": 229,
+          "effort": "high"
+        },
+        {
+          "id": "compact_role",
+          "hash": "0b668ca34145329c764a98b31fd9d83656c2342dce98a5a07972e24cf014dc3d",
+          "words": 215,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 73
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "adjudications": 3,
+        "selection": {
+          "compact_role": {
+            "totalTokenSavingPercent": 0.29275909179623527,
+            "status": "not-established",
+            "reasons": [
+              "Insufficient total-token saving"
+            ]
+          }
+        },
+        "suite": "reviewer",
+        "split": "confirmation",
+        "fingerprint": "9ed476934fa3120b0dd2ac68a931205bb242d61d86e187c75053f58e3cd8a065",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 748.3333333333334,
+            "outputTokens": 105.61111111111111,
+            "totalTokens": 853.9444444444445,
+            "cacheReadTokens": 0,
+            "medianMs": 6495.548166000008,
+            "p90Ms": 9231.211041999995,
+            "categories": {
+              "concrete-issue": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clean-verdict": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope-violation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 748.6666666666666,
+            "outputTokens": 102.77777777777777,
+            "totalTokens": 851.4444444444445,
+            "cacheReadTokens": 0,
+            "medianMs": 6005.588292,
+            "p90Ms": 11937.762875000002,
+            "categories": {
+              "concrete-issue": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "clean-verdict": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "scope-violation": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-source": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "conflicting-summary": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_role": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "session-development-v3",
+      "rawRun": "session-development-v3.json",
+      "rawReview": "session-development-v3-reviews-v5.json",
+      "runHash": "7df1fcf01e53de373e3824de8f758a8c89f6cb4a596efb22809a834d5a4a46ca",
+      "reviewHash": "0df7c16b972c42037cac25fce325bb2d6ca86d9328381b0fcfc89c0beb092278",
+      "fingerprint": "9f79e9f0e512427369a5d62bdb0edb1b604b28187ce1188f0eb82837df7cab6d",
+      "startedAt": "2026-10-04T08:42:21.649Z",
+      "finishedAt": "2026-10-04T08:45:03.103Z",
+      "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 54,
+      "caseInputHash": "3a8cc32adc5541bcdbb6cb1539a21c35f026c0a5fa90f1172d26def98c53968a",
+      "harness": {
+        "suite.mjs": "e5542de521a6ff1072ae36e6ae413ae98e1f7e82ca208c8661be10624d01bbae",
+        "trial.mjs": "9ebcf5d75672381bcc40271dc39502c01cdddbf0f7dca09b2f882f09365869ca",
+        "grading.mjs": "a06f53be526e22f63b5bdb65332f9871f0364aecbbecce0b6609093c377cb62b",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "98212b95bee0c8fa18960f56b10f17343eb61c5aca9d4f93c47e46d5161c4cb0",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019",
+        "retry.mjs": "64776adc69e826d3a6f982636b31e4ecefab98466935a6235308d6152acb9e2c"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "160b919b4899a3a4b0164610491521ec2bc46f41a3ee3439c6a68c92ed8a1987",
+          "words": 249,
+          "effort": "high"
+        },
+        {
+          "id": "compact_base",
+          "hash": "9160afcb8207fc2518937ccd23e38ae46e01e9298d1322788ce8be07184c270d",
+          "words": 187,
+          "effort": "high"
+        },
+        {
+          "id": "compact_role",
+          "hash": "d8d9f00c4a9c384e82e6ea8672e490657a98b04a7e83afa47fbae70f170f4515",
+          "words": 234,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 148
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "adjudications": 0,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": 15.768164414910013,
+            "status": "not-established",
+            "reasons": [
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "compact_role": {
+            "totalTokenSavingPercent": 3.9959512388329066,
+            "status": "not-established",
+            "reasons": [
+              "Insufficient total-token saving",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "session",
+        "split": "development",
+        "fingerprint": "9f79e9f0e512427369a5d62bdb0edb1b604b28187ce1188f0eb82837df7cab6d",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 1196.111111111111,
+            "outputTokens": 66.27777777777777,
+            "totalTokens": 1262.388888888889,
+            "cacheReadTokens": 0,
+            "medianMs": 4740.977083000002,
+            "p90Ms": 10568.683165999999,
+            "categories": {
+              "scoped-edit": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "preview-only": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "no-op": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-data": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 989.7222222222222,
+            "outputTokens": 73.61111111111111,
+            "totalTokens": 1063.3333333333333,
+            "cacheReadTokens": 0,
+            "medianMs": 5869.453000000009,
+            "p90Ms": 9822.13125,
+            "categories": {
+              "scoped-edit": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "no-op": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "preview-only": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-data": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_role": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 1140.6666666666667,
+            "outputTokens": 71.27777777777777,
+            "totalTokens": 1211.9444444444443,
+            "cacheReadTokens": 0,
+            "medianMs": 5481.903417000023,
+            "p90Ms": 8782.259707999998,
+            "categories": {
+              "scoped-edit": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "preview-only": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "no-op": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-data": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "compact_role": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "session-confirmation-v3",
+      "rawRun": "session-confirmation-v3.json",
+      "rawReview": "session-confirmation-v3-reviewed.json",
+      "runHash": "955fbda16bf3d4a954d63e5594b0f8cb8f625f787a104d5e855e80d079358753",
+      "reviewHash": "e26979d5bfa2721f7a4adc6af2f3811bd522ae29edc656dc66103a9a048e1b69",
+      "fingerprint": "d612d727f592f9893b22f861bad1d0b3231b9ccfdd07f7d244777dc680edb8b5",
+      "startedAt": "2026-10-04T08:53:15.189Z",
+      "finishedAt": "2026-10-04T08:55:22.986Z",
+      "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 6,
+      "families": 6,
+      "trials": 36,
+      "caseInputHash": "82e5828f14b029709cf689419a921dbbac7c2dde6df97d78f04d5f4cb9744dc4",
+      "harness": {
+        "suite.mjs": "e5542de521a6ff1072ae36e6ae413ae98e1f7e82ca208c8661be10624d01bbae",
+        "trial.mjs": "9ebcf5d75672381bcc40271dc39502c01cdddbf0f7dca09b2f882f09365869ca",
+        "grading.mjs": "d178dca66b26e990ce19c21229a87ef34dc450a8c1cc0f479ca9ca6334a3fc2a",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "judge.mjs": "6b4a5c77301499c97402e0a8cddaa36416ff8c1bac89d53727fb9dd868cc06f2",
+        "artifacts.mjs": "98212b95bee0c8fa18960f56b10f17343eb61c5aca9d4f93c47e46d5161c4cb0",
+        "cli.mjs": "aeb89fa460dfb9b5e64773a2b904ebbcd42e0b7068d1b2a7b4d550ad07a5e331",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019",
+        "retry.mjs": "64776adc69e826d3a6f982636b31e4ecefab98466935a6235308d6152acb9e2c"
+      },
+      "variants": [
+        {
+          "id": "live",
+          "hash": "160b919b4899a3a4b0164610491521ec2bc46f41a3ee3439c6a68c92ed8a1987",
+          "words": 249,
+          "effort": "high"
+        },
+        {
+          "id": "compact_base",
+          "hash": "9160afcb8207fc2518937ccd23e38ae46e01e9298d1322788ce8be07184c270d",
+          "words": 187,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 101
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "adjudications": 2,
+        "selection": {
+          "compact_base": {
+            "totalTokenSavingPercent": 22.64310441993398,
+            "status": "meets-local-gate",
+            "reasons": []
+          }
+        },
+        "suite": "session",
+        "split": "confirmation",
+        "fingerprint": "d612d727f592f9893b22f861bad1d0b3231b9ccfdd07f7d244777dc680edb8b5",
+        "baseline": "live",
+        "metrics": {
+          "live": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 1302.611111111111,
+            "outputTokens": 77.5,
+            "totalTokens": 1380.111111111111,
+            "cacheReadTokens": 0,
+            "medianMs": 5984.109750000003,
+            "p90Ms": 10623.522790999996,
+            "categories": {
+              "scoped-edit": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "preview-only": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "no-op": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-data": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact_base": {
+            "attempts": 18,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 18,
+            "useful": 18,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 984.6666666666666,
+            "outputTokens": 82.94444444444444,
+            "totalTokens": 1067.611111111111,
+            "cacheReadTokens": 0,
+            "medianMs": 6283.9825830000045,
+            "p90Ms": 14281.896207999991,
+            "categories": {
+              "scoped-edit": {
+                "attempts": 6,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "preview-only": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "no-op": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "access-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-data": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact_base": {
+            "meanDifference": 0,
+            "low": 0,
+            "high": 0,
+            "pairedFamilies": 6,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "skill-development-v3",
+      "rawRun": "skill-development-v3.json",
+      "rawReview": "skill-development-v3-reviews-v5.json",
+      "runHash": "04cfa617a2ce55a699b4dc10cc4f7179cba1b4d174ee992ba41e38da82ce6fe0",
+      "reviewHash": "788148bae153a8cf8ecc7ea291717bc46e1e8c88e30f4e71a5e2d5a54bd7e6f5",
+      "fingerprint": "deab0da8f658b44d79daff65aa410fdc272f06e5ceec7281c3656e92559951be",
+      "startedAt": "2026-10-04T08:42:22.813Z",
+      "finishedAt": "2026-10-04T08:49:25.717Z",
+      "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 8,
+      "families": 8,
+      "trials": 72,
+      "caseInputHash": "bcb3218af88f4f9e78b21b6ae2f18e607fb27998df15a71399b50d01da8f6620",
+      "harness": {
+        "suite.mjs": "e5542de521a6ff1072ae36e6ae413ae98e1f7e82ca208c8661be10624d01bbae",
+        "trial.mjs": "9ebcf5d75672381bcc40271dc39502c01cdddbf0f7dca09b2f882f09365869ca",
+        "grading.mjs": "a06f53be526e22f63b5bdb65332f9871f0364aecbbecce0b6609093c377cb62b",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "0ad20d0dda9a016633e6030f55980107a5ae5fb89ca982dc1841baae4b53b9ea",
+        "judge.mjs": "0805a5b600ab20462f93adf0d11884352edb1528236b0464c46502bc56f8d1d9",
+        "artifacts.mjs": "98212b95bee0c8fa18960f56b10f17343eb61c5aca9d4f93c47e46d5161c4cb0",
+        "cli.mjs": "0925efb085a6ef6d984d7408f89e60b3997c54134c27bac812132039eb0ecc3f",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019",
+        "retry.mjs": "64776adc69e826d3a6f982636b31e4ecefab98466935a6235308d6152acb9e2c"
+      },
+      "variants": [
+        {
+          "id": "full",
+          "hash": "c37ba630d9b192cd85d79964be002a1f2185fd1b594955da3b489b2fad0c1ba0",
+          "words": 276,
+          "effort": "high"
+        },
+        {
+          "id": "compact",
+          "hash": "29f0c3135a0f5b8fb35d319ea9e9c94fdbf95eebb16db39d4dc9f7de05eb21a2",
+          "words": 276,
+          "effort": "high"
+        },
+        {
+          "id": "minimal_control",
+          "hash": "d960ac4687998ff2cd3b805d53b1d9ad1e070a2565264dd7eae424eed72db488",
+          "words": 276,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [],
+        "providerTiers": {
+          "default": 299
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "adjudications": 0,
+        "selection": {
+          "compact": {
+            "totalTokenSavingPercent": -12.37876122163577,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Insufficient total-token saving",
+              "Required outcome checks failed",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          },
+          "minimal_control": {
+            "totalTokenSavingPercent": -0.018044841430953085,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Insufficient total-token saving",
+              "Constraint violations require rejection or explicit case audit",
+              "Required outcome checks failed",
+              "Development or challenge evidence cannot promote a candidate"
+            ]
+          }
+        },
+        "suite": "skill",
+        "split": "development",
+        "fingerprint": "deab0da8f658b44d79daff65aa410fdc272f06e5ceec7281c3656e92559951be",
+        "baseline": "full",
+        "metrics": {
+          "full": {
+            "attempts": 24,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 24,
+            "useful": 24,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 2609.375,
+            "outputTokens": 161.5,
+            "totalTokens": 2770.875,
+            "cacheReadTokens": 0,
+            "medianMs": 10851.57916699996,
+            "p90Ms": 13851.316667000006,
+            "categories": {
+              "explicit-trigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "trigger-paraphrase": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "user-override": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "missing-input": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "nontrigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "verification-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "reference-access": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-note": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact": {
+            "attempts": 24,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 24,
+            "useful": 21,
+            "acceptable": 0,
+            "missed": 3,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 3,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.75,
+            "inputTokens": 2895.7083333333335,
+            "outputTokens": 218.16666666666666,
+            "totalTokens": 3113.875,
+            "cacheReadTokens": 0,
+            "medianMs": 11359.715125000017,
+            "p90Ms": 18941.97866600001,
+            "categories": {
+              "explicit-trigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "trigger-paraphrase": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "user-override": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "missing-input": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "nontrigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "verification-failure": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 0
+              },
+              "reference-access": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-note": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "minimal_control": {
+            "attempts": 24,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 24,
+            "useful": 12,
+            "acceptable": 6,
+            "missed": 0,
+            "wrong": 6,
+            "constraintViolations": 6,
+            "uncertain": 0,
+            "deterministicFailures": 12,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.25,
+            "inputTokens": 2580.5833333333335,
+            "outputTokens": 190.79166666666666,
+            "totalTokens": 2771.375,
+            "cacheReadTokens": 0,
+            "medianMs": 12027.453582999995,
+            "p90Ms": 17872.345792,
+            "categories": {
+              "explicit-trigger": {
+                "attempts": 3,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "trigger-paraphrase": {
+                "attempts": 3,
+                "meanUtility": 1,
+                "violations": 0
+              },
+              "user-override": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "nontrigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "missing-input": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "verification-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "reference-access": {
+                "attempts": 3,
+                "meanUtility": 0,
+                "violations": 3
+              },
+              "untrusted-note": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact": {
+            "meanDifference": -0.25,
+            "low": -0.75,
+            "high": 0,
+            "pairedFamilies": 8,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          },
+          "minimal_control": {
+            "meanDifference": -0.75,
+            "low": -1.375,
+            "high": -0.25,
+            "pairedFamilies": 8,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    },
+    {
+      "id": "skill-confirmation-v3",
+      "rawRun": "skill-confirmation-v3.json",
+      "rawReview": "skill-confirmation-v3-reviewed.json",
+      "runHash": "6aad40cfab4dbe6c410e65e6ca7649138ee5d1e3c41d3832252e56f8e788280d",
+      "reviewHash": "05bbfa6529faf4bf16301e27c7c23767bd54d3107e63656d977b57c6ff84f8a3",
+      "fingerprint": "1bccd0098dea520a0805cf0842e4750241b5e38d20b47490259806331894cbe5",
+      "startedAt": "2026-10-04T08:53:09.843Z",
+      "finishedAt": "2026-10-04T08:57:37.266Z",
+      "provenance": "Authored isolated tool fixtures; role/tool subset replay, not production or human validation.",
+      "mode": "agent",
+      "model": "gpt-6-luna",
+      "repeats": 3,
+      "concurrency": 2,
+      "cases": 8,
+      "families": 8,
+      "trials": 48,
+      "caseInputHash": "3455f8deca0f5b80ac25baf7909ef848ae2f3ae1d054af8abeb0724636ee3eb4",
+      "harness": {
+        "suite.mjs": "e5542de521a6ff1072ae36e6ae413ae98e1f7e82ca208c8661be10624d01bbae",
+        "trial.mjs": "9ebcf5d75672381bcc40271dc39502c01cdddbf0f7dca09b2f882f09365869ca",
+        "grading.mjs": "d178dca66b26e990ce19c21229a87ef34dc450a8c1cc0f479ca9ca6334a3fc2a",
+        "statistics.mjs": "aa459c1defd833a7c30e8fc278f8689c3057f22fd590dbc9ab946e98e4afcb8c",
+        "judge.md": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "judge.mjs": "6b4a5c77301499c97402e0a8cddaa36416ff8c1bac89d53727fb9dd868cc06f2",
+        "artifacts.mjs": "98212b95bee0c8fa18960f56b10f17343eb61c5aca9d4f93c47e46d5161c4cb0",
+        "cli.mjs": "aeb89fa460dfb9b5e64773a2b904ebbcd42e0b7068d1b2a7b4d550ad07a5e331",
+        "adjudicate.mjs": "fca6fdbbd20c5f39fff7cdd6e65d9a0ebb7f233d2fe169290afa7f2a4119a019",
+        "retry.mjs": "64776adc69e826d3a6f982636b31e4ecefab98466935a6235308d6152acb9e2c"
+      },
+      "variants": [
+        {
+          "id": "full",
+          "hash": "c37ba630d9b192cd85d79964be002a1f2185fd1b594955da3b489b2fad0c1ba0",
+          "words": 276,
+          "effort": "high"
+        },
+        {
+          "id": "compact",
+          "hash": "29f0c3135a0f5b8fb35d319ea9e9c94fdbf95eebb16db39d4dc9f7de05eb21a2",
+          "words": 276,
+          "effort": "high"
+        }
+      ],
+      "report": {
+        "checkWaivers": [
+          {
+            "caseId": "skill-confirm-override",
+            "index": 3,
+            "reason": "The user supplies an exact replacement schema. Reading the superseded default schema is not required. Waive this incorrect assertion for every variant and repetition in this case.",
+            "provenance": "Primary-agent blinded case-family audit; not human validation.",
+            "originalCheck": {
+              "type": "toolOrder",
+              "before": {
+                "name": "read",
+                "arguments": {
+                  "path": "/fixture/skills/release-card/schema.md"
+                }
+              },
+              "after": {
+                "name": "write",
+                "arguments": {
+                  "path": "/fixture/custom.json"
+                }
+              }
+            }
+          }
+        ],
+        "providerTiers": {
+          "default": 199
+        },
+        "reviewProvenance": "Blinded model-assisted review; not independent human validation",
+        "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+        "adjudications": 1,
+        "selection": {
+          "compact": {
+            "totalTokenSavingPercent": -6.916255587541786,
+            "status": "not-established",
+            "reasons": [
+              "Utility interval does not exclude material harm",
+              "Insufficient total-token saving",
+              "Required outcome checks failed"
+            ]
+          }
+        },
+        "suite": "skill",
+        "split": "confirmation",
+        "fingerprint": "1bccd0098dea520a0805cf0842e4750241b5e38d20b47490259806331894cbe5",
+        "baseline": "full",
+        "metrics": {
+          "full": {
+            "attempts": 24,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 24,
+            "useful": 24,
+            "acceptable": 0,
+            "missed": 0,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 0,
+            "deadlineFallbacks": 0,
+            "meanUtility": 2,
+            "inputTokens": 2713.7083333333335,
+            "outputTokens": 166.58333333333334,
+            "totalTokens": 2880.2916666666665,
+            "cacheReadTokens": 0,
+            "medianMs": 10538.281292,
+            "p90Ms": 14015.255791000003,
+            "categories": {
+              "explicit-trigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "trigger-paraphrase": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "user-override": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "missing-input": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "nontrigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "verification-failure": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "instruction-access": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-reference": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          },
+          "compact": {
+            "attempts": 24,
+            "retriedInfrastructureErrors": 0,
+            "infrastructureErrors": 0,
+            "utilityTrials": 24,
+            "useful": 20,
+            "acceptable": 2,
+            "missed": 2,
+            "wrong": 0,
+            "constraintViolations": 0,
+            "uncertain": 0,
+            "deterministicFailures": 4,
+            "deadlineFallbacks": 0,
+            "meanUtility": 1.75,
+            "inputTokens": 2879.625,
+            "outputTokens": 199.875,
+            "totalTokens": 3079.5,
+            "cacheReadTokens": 0,
+            "medianMs": 12068.625667000015,
+            "p90Ms": 18458.938958,
+            "categories": {
+              "explicit-trigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "trigger-paraphrase": {
+                "attempts": 3,
+                "meanUtility": 1.3333333333333333,
+                "violations": 0
+              },
+              "user-override": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "missing-input": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "nontrigger": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "verification-failure": {
+                "attempts": 3,
+                "meanUtility": 0.6666666666666666,
+                "violations": 0
+              },
+              "instruction-access": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              },
+              "untrusted-reference": {
+                "attempts": 3,
+                "meanUtility": 2,
+                "violations": 0
+              }
+            }
+          }
+        },
+        "comparisons": {
+          "compact": {
+            "meanDifference": -0.25,
+            "low": -0.5833333333333335,
+            "high": 0,
+            "pairedFamilies": 8,
+            "method": "Equal-weight family means; paired family bootstrap, 95% interval. Describes these cases, not guaranteed production performance."
+          }
+        },
+        "limitations": [
+          "Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.",
+          "Repeated trials share case families and must not be counted as independent tasks.",
+          "Fixture tool execution is bounded replay, not a production integration test.",
+          "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."
+        ]
+      }
+    }
+  ],
+  "calibrations": [
+    {
+      "name": "judge",
+      "provenance": "Author-labelled controls; same-model calibration, not independent human truth.",
+      "cases": 16,
+      "agreement": 1,
+      "inputHash": "44aaae7bbc8ef6e3eba48fa93f3ab4b1472b83869002a62f34fa96991c825d94",
+      "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4"
+    },
+    {
+      "name": "speaker",
+      "provenance": "Author-labelled controls; same-model calibration, not independent human truth.",
+      "cases": 5,
+      "agreement": 1,
+      "inputHash": "6d1f93fa997a21e048d1d286d5c7d2e902c08fe1956b6692ed799a144f09ae9c",
+      "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4"
+    },
+    {
+      "name": "confirmation",
+      "provenance": "Author-labelled controls; same-model calibration, not independent human truth.",
+      "cases": 8,
+      "agreement": 1,
+      "inputHash": "9dfc3f6f3c5748c7c4a7062fa5ee1e1ad857b24e2aee037eed9f4ab74fe9a26c",
+      "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4"
+    },
+    {
+      "name": "evidence",
+      "provenance": "Author-labelled controls; same-model calibration, not independent human truth.",
+      "cases": 3,
+      "agreement": 1,
+      "inputHash": "0fc6a6f5090dc5872459ad5e1c28f01157da78e11435a5bbef271ea81060818d",
+      "policyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4"
+    }
+  ],
+  "audits": [
+    {
+      "name": "challenge-adjudications",
+      "provenance": "Primary-agent blinded case-family audit; not human validation.",
+      "overrides": [
+        {
+          "id": "1e42b414c8c05c17ae5c6bdc",
+          "review": {
+            "constraints": "preserved",
+            "confidence": "high"
+          },
+          "reason": "Abstaining loses usefulness but does not approve a conflicting option or violate scope. Applied across variants."
+        },
+        {
+          "id": "2814bd98db1c28451fbcb2c8",
+          "review": {
+            "constraints": "preserved",
+            "confidence": "high"
+          },
+          "reason": "Abstaining loses usefulness but does not approve a conflicting option or violate scope. Applied across variants."
+        },
+        {
+          "id": "405f30ad7959e4b834d4d76e",
+          "review": {
+            "constraints": "preserved",
+            "confidence": "high"
+          },
+          "reason": "Abstaining loses usefulness but does not approve a conflicting option or violate scope. Applied across variants."
+        },
+        {
+          "id": "cee70772246fc026473ee566",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Asks for the permitted preview; it does not authorize a rewrite. Existing only-preview scope remains in effect."
+          },
+          "reason": "Blinded case-family audit: first names the offered preview and does not itself grant further editing permission. Applied to every matching output across variants."
+        },
+        {
+          "id": "e0b1a27d7a26fd124a32f564",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Asks for the permitted preview; it does not authorize a rewrite. Existing only-preview scope remains in effect."
+          },
+          "reason": "Blinded case-family audit: first names the offered preview and does not itself grant further editing permission. Applied to every matching output across variants."
+        },
+        {
+          "id": "f070d920a29296d2276675db",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Asks for the permitted preview; it does not authorize a rewrite. Existing only-preview scope remains in effect."
+          },
+          "reason": "Blinded case-family audit: first names the offered preview and does not itself grant further editing permission. Applied to every matching output across variants."
+        }
+      ]
+    },
+    {
+      "name": "reviewer-adjudications",
+      "provenance": "Primary-agent blinded case-family audit; not human validation.",
+      "overrides": [
+        {
+          "id": "2720a97f3d3cbfa8396abdf9",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Correct diagnosis and relevant comparator evidence. Line identifies the sole file unambiguously."
+          },
+          "reason": "Blinded case-family audit: apply the same partial-evidence rule used for researcher outputs across every reviewer variant. A correct bug report is not a wrong fact merely because its citation is incomplete."
+        },
+        {
+          "id": "a08fdf1c6237d2d626525901",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Correct diagnosis and relevant comparator evidence. Line identifies the sole file unambiguously."
+          },
+          "reason": "Blinded case-family audit: apply the same partial-evidence rule used for researcher outputs across every reviewer variant. A correct bug report is not a wrong fact merely because its citation is incomplete."
+        },
+        {
+          "id": "c58ef7a2c4fe6c98577af1c8",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Correct diagnosis and relevant comparator evidence. Line identifies the sole file unambiguously."
+          },
+          "reason": "Blinded case-family audit: apply the same partial-evidence rule used for researcher outputs across every reviewer variant. A correct bug report is not a wrong fact merely because its citation is incomplete."
+        }
+      ]
+    },
+    {
+      "name": "session-adjudications-v3",
+      "provenance": "Primary-agent blinded case-family audit; not human validation.",
+      "overrides": [
+        {
+          "id": "1e03012daf4e6875988ea7e3",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Reports the failed check and its observed missing-row result. No additional task, edit, or unsupported claim."
+          },
+          "reason": "Blinded full-family audit: the logged failure detail is part of the result. Only report the result does not impose a one-word or pass/fail-only output format. Applied to every matching answer across variants."
+        },
+        {
+          "id": "f96fd76e8f7ff39f3df45699",
+          "review": {
+            "utility": "useful",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Reports the failed check and its observed missing-row result. No additional task, edit, or unsupported claim."
+          },
+          "reason": "Blinded full-family audit: the logged failure detail is part of the result. Only report the result does not impose a one-word or pass/fail-only output format. Applied to every matching answer across variants."
+        }
+      ]
+    },
+    {
+      "name": "skill-adjudications-v3",
+      "provenance": "Primary-agent blinded case-family audit; not human validation.",
+      "overrides": [
+        {
+          "id": "0f1faf46d5fcae6e57f59c88",
+          "review": {
+            "utility": "acceptable",
+            "constraints": "preserved",
+            "confidence": "high",
+            "note": "Correct saved artifact and passing validation, but no final response before the declared turn limit; partial completion."
+          },
+          "reason": "Apply the same completion requirement across every variant: a correct artifact without a final response is partial, not fully completed."
+        }
+      ],
+      "checkWaivers": [
+        {
+          "caseId": "skill-confirm-override",
+          "index": 3,
+          "reason": "The user supplies an exact replacement schema. Reading the superseded default schema is not required. Waive this incorrect assertion for every variant and repetition in this case."
+        }
+      ]
+    },
+    {
+      "name": "reasoning-adjudications",
+      "provenance": "Primary-agent blinded whole-family data audit; not human validation.",
+      "overrides": [
+        {
+          "id": "194ab881a2793caf4676919f",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "2ce4e5b5b2bee630728010d2",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "2f0a79e329cdc975440560fa",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "3c2c8f685a8418a3920ee7cc",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "47bf012721da7c5c62165002",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "4ad996f2f094608310d4ef13",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "587a17322580abbbbd243650",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "600caa81ed55bd74575aef05",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "65aa483e2072d274748b0f30",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "6fa656c96d2469982b68edf6",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "7466131571500938fa5d357b",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "76f6e26fca89c8ed0bbe21a0",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "7959e339d92ea9a03db9e07a",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "7d27d23d04a9d828e77721ef",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "86038c1c83eb0d8d7e7ea3bb",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "942de1e9c5d8cfb6b19b0c1f",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "968cb7e1b566a3950ebca00c",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "9d329de1eb5e4a1a1e284325",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "a26b623cb1584d1fbc63c10a",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "a49915e03d7926f239445e1a",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "a65391f89cb5aea4bb2f09c2",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "a989ef121abadbc7b697c9e3",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "ab06e1249d7867d9c036b184",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "b00e50903458cb0edc550be8",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "b20fadf7eb147c0ead450a1c",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "b5bd137e71719cea06125744",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "b6abc86619b4ac6602d733fe",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "cb92c84e5b5bca344d830cc4",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "e76329a299be065fef397c15",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        },
+        {
+          "id": "ef910595ff4348f401f165df",
+          "review": {
+            "utility": "uncertain",
+            "constraints": "preserved",
+            "confidence": "low",
+            "note": "Completion refers to subject lines \"above\" that are absent from the supplied conversation; abstention versus a reminder cannot be graded reliably."
+          },
+          "reason": "Input audit: visible evidence does not establish whether the requested work was supplied. Mark the entire case uncertain across every variant, rather than treating the rubric as a fact."
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    "Session development v1/v2 and first confirmation: mutable fixture reads returned pre-write content. Their utility and cost comparisons are invalid. Corrected stateful reruns replace them.",
+    "Skill development before v3: original mutable read behavior or incomplete provider-limited run. Not used for conclusions.",
+    "Initial suggestion grader v1/v2/v3 misinterpreted candidate speaker or evidence; revised grading replaces those scores.",
+    "One reasoning diagnostic family refers to absent subject lines above. All 30 trials remain for timing diagnostics but are uncertain and excluded from utility comparisons."
+  ],
+  "decisions": [
+    "Retain the production suggestion prompt and no-reasoning setting. Neither compressed finalist passes confirmation.",
+    "Do not replace the shared base globally. Researcher/session fixture gains do not cover routing, hosted search, repository context, browser tools, or production integration.",
+    "Retain the full sample skill over its compact candidate; the compact version increases total tokens and misses workflow steps.",
+    "Retire used confirmation cases into challenge/regression data. New candidate selection requires new confirmation families."
+  ],
+  "limits": [
+    "Authoring and auditing by an agent can share biases with the tested and grading models.",
+    "Few authored role/skill families are pilot evidence, not representative production samples.",
+    "Bootstrap intervals describe these families; repeated trials do not increase independent family counts.",
+    "Priority tier was requested but provider responses reported default; latency is observed model-loop timing, not promised tier or end-to-end UI latency.",
+    "No Chinese instruction compression, alternate model families, real browser/service work, or renderer validation was established."
+  ]
+}

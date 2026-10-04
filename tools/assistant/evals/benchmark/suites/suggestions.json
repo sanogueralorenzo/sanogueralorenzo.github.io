@@ -1,0 +1,92 @@
+{
+  "id": "suggestions",
+  "mode": "suggestion",
+  "model": "gpt-6-luna",
+  "effort": "off",
+  "deadlineMs": 5000,
+  "maxTurns": 1,
+  "provenance": "Fresh authored cases; not representative production sampling or independent human ground truth. Historical 36 cases are development-only and excluded from confirmation. Initial confirmation is now exposed and included as challenge/regression data. Add genuinely new families before another confirmation round.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 10,
+    "requireZeroNewConstraintViolations": true,
+    "confirmationRepeats": 5
+  },
+  "datasets": {
+    "development": [
+      "../data/suggestions/development.json"
+    ],
+    "challenge": [
+      "../data/suggestions/challenge.json",
+      "../data/suggestions/confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/suggestion.md"
+      ]
+    },
+    {
+      "id": "compact",
+      "files": [
+        "../variants/suggestions/compact.md"
+      ]
+    },
+    {
+      "id": "contract",
+      "files": [
+        "../variants/suggestions/contract.md"
+      ]
+    },
+    {
+      "id": "compact_examples",
+      "files": [
+        "../variants/suggestions/compact_examples.md"
+      ]
+    },
+    {
+      "id": "contract_examples",
+      "files": [
+        "../variants/suggestions/contract_examples.md"
+      ]
+    },
+    {
+      "id": "single_paragraph",
+      "files": [
+        "../variants/suggestions/single_paragraph.md"
+      ]
+    },
+    {
+      "id": "bullets",
+      "files": [
+        "../variants/suggestions/bullets.md"
+      ]
+    },
+    {
+      "id": "tagged",
+      "files": [
+        "../variants/suggestions/tagged.md"
+      ]
+    },
+    {
+      "id": "examples_first",
+      "files": [
+        "../variants/suggestions/examples_first.md"
+      ]
+    },
+    {
+      "id": "no_examples",
+      "files": [
+        "../variants/suggestions/no_examples.md"
+      ]
+    },
+    {
+      "id": "minimal_control",
+      "files": [
+        "../variants/suggestions/minimal_control.md"
+      ]
+    }
+  ]
+}

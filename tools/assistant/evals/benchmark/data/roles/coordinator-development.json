@@ -1,0 +1,833 @@
+[
+  {
+    "id": "router-dev-personal",
+    "family": "router-dev-personal",
+    "category": "new-personal",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\", \"request\": \"Shorten outline\", \"reply\": \"I can shorten it.\"}\nOriginal user message (verbatim):\nHelp plan a picnic.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'start'} Omit the project directory for this personal task.",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "start"
+        }
+      },
+      {
+        "type": "absent",
+        "keys": [
+          "routeCwd"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "router-dev-implicit",
+    "family": "router-dev-implicit",
+    "category": "implicit-followup",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\", \"request\": \"Shorten outline\", \"reply\": \"I can shorten it.\"}\nOriginal user message (verbatim):\nMake it shorter.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'continue', 'routeSession': 'outline'}",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "continue",
+          "routeSession": "outline"
+        }
+      }
+    ]
+  },
+  {
+    "id": "router-dev-comparison",
+    "family": "router-dev-comparison",
+    "category": "comparison-target",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\", \"request\": \"Improve outline\", \"reply\": \"Outline ready.\"}\nOriginal user message (verbatim):\nCompare that with the Schedule conversation.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'continue', 'routeSession': 'outline'}",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "continue",
+          "routeSession": "outline"
+        }
+      }
+    ]
+  },
+  {
+    "id": "router-dev-active",
+    "family": "router-dev-active",
+    "category": "active-continuation",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\"}\nOriginal user message (verbatim):\nContinue the Schedule conversation with a shorter afternoon.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'continue', 'routeSession': 'schedule'}",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "continue",
+          "routeSession": "schedule"
+        }
+      }
+    ]
+  },
+  {
+    "id": "router-dev-project",
+    "family": "router-dev-project",
+    "category": "known-workspace",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\"}\nOriginal user message (verbatim):\nFix the project tests and show the result.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'start', 'routeCwd': '/fixture/project'}",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "start",
+          "routeCwd": "/fixture/project"
+        }
+      }
+    ]
+  },
+  {
+    "id": "router-dev-older",
+    "family": "router-dev-older",
+    "category": "older-destination",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Current workspace: /fixture/project\nRecent saved conversations: [{\"id\": \"outline\", \"title\": \"Outline\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}, {\"id\": \"schedule\", \"title\": \"Schedule\", \"status\": \"running\", \"cwd\": \"/fixture/project\"}]\nMost recent Home exchange: {\"sessionId\": \"outline\"}\nOriginal user message (verbatim):\nReturn to the checklist conversation from last week.\n\nCall route_home once for the entire message."
+      }
+    ],
+    "rubric": "Route to the requested destination without doing the work or steering. {'routeMode': 'continue', 'routeSession': 'archive'}",
+    "acceptable": [],
+    "forbidden": [],
+    "tools": [
+      {
+        "name": "find_conversations",
+        "description": "Find saved conversations outside the recent preview.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "read_conversation",
+        "description": "Read a listed conversation by saved session id.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sessionId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "route_home",
+        "description": "Choose one start or continue destination. Accepted destinations end this routing task.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "continue"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "fixtures": [
+      {
+        "tool": "find_conversations",
+        "response": "[{\"id\": \"archive\", \"title\": \"Checklist\", \"status\": \"idle\", \"cwd\": \"/fixture/project\"}]"
+      },
+      {
+        "tool": "route_home",
+        "match": {},
+        "response": "Destination accepted.",
+        "effects": {
+          "routeMode": {
+            "argument": "mode"
+          },
+          "routeSession": {
+            "argument": "sessionId"
+          },
+          "routeCwd": {
+            "argument": "cwd"
+          }
+        },
+        "terminal": true,
+        "validate": [
+          {
+            "type": "nonempty",
+            "key": "title",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work needs a title"
+          },
+          {
+            "type": "absent",
+            "key": "sessionId",
+            "when": {
+              "mode": "start"
+            },
+            "message": "New work cannot use a saved session ID"
+          },
+          {
+            "type": "enum",
+            "key": "sessionId",
+            "values": [
+              "outline",
+              "schedule",
+              "archive"
+            ],
+            "when": {
+              "mode": "continue"
+            },
+            "message": "Continue with an exact saved ID"
+          }
+        ]
+      }
+    ],
+    "initialState": {},
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "routeMode": "continue",
+          "routeSession": "archive"
+        }
+      }
+    ]
+  }
+]

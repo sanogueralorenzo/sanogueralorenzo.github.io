@@ -1,0 +1,58 @@
+{
+  "id": "suggestion-reasoning",
+  "mode": "suggestion",
+  "effort": "off",
+  "model": "gpt-6-luna",
+  "deadlineMs": 5000,
+  "maxTurns": 1,
+  "provenance": "Six challenge families reused for diagnostic reasoning comparison; not independent confirmation or deployment-selection evidence.",
+  "datasets": {
+    "development": [
+      "../data/suggestions/reasoning.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live_off",
+      "files": [
+        "../../../prompts/suggestion.md"
+      ],
+      "effort": "off"
+    },
+    {
+      "id": "live_low",
+      "files": [
+        "../../../prompts/suggestion.md"
+      ],
+      "effort": "low"
+    },
+    {
+      "id": "live_high",
+      "files": [
+        "../../../prompts/suggestion.md"
+      ],
+      "effort": "high"
+    },
+    {
+      "id": "contract_examples_off",
+      "files": [
+        "../variants/suggestions/contract_examples.md"
+      ],
+      "effort": "off"
+    },
+    {
+      "id": "contract_examples_low",
+      "files": [
+        "../variants/suggestions/contract_examples.md"
+      ],
+      "effort": "low"
+    },
+    {
+      "id": "contract_examples_high",
+      "files": [
+        "../variants/suggestions/contract_examples.md"
+      ],
+      "effort": "high"
+    }
+  ]
+}

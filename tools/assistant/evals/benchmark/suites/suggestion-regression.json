@@ -1,0 +1,22 @@
+{
+  "id": "suggestion-regression",
+  "mode": "suggestion",
+  "model": "gpt-6-luna",
+  "effort": "off",
+  "maxTurns": 1,
+  "deadlineMs": 5000,
+  "provenance": "Previously reused prompt-tuning cases, including the former heldout set. Development regression only; never independent confirmation.",
+  "datasets": {
+    "development": [
+      "../data/suggestions/regression.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/suggestion.md"
+      ]
+    }
+  ]
+}

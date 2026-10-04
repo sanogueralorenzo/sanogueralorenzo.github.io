@@ -1,0 +1,94 @@
+{
+  "cards": [
+    {
+      "id": "location-missing",
+      "caseId": "partial-source",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Review /fixture/sort.diff. Sort ascending."
+        },
+        {
+          "role": "assistant",
+          "text": "Source /fixture/sort.diff:1: values.sort((a,b)=>b-a)"
+        }
+      ],
+      "rubric": "Correctly identify descending comparator, with helpful source location. Incomplete citation is partial utility, not a wrong diagnosis.",
+      "text": "The comparator b - a sorts descending; use a - b.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "location-line",
+      "caseId": "partial-source",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Review /fixture/sort.diff. Sort ascending."
+        },
+        {
+          "role": "assistant",
+          "text": "Source /fixture/sort.diff:1: values.sort((a,b)=>b-a)"
+        }
+      ],
+      "rubric": "Correctly identify descending comparator, with helpful source location. Incomplete citation is partial utility, not a wrong diagnosis.",
+      "text": "Line 1 sorts descending with b - a; use a - b.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "diagnosis-false",
+      "caseId": "partial-source",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Review /fixture/sort.diff. Sort ascending."
+        },
+        {
+          "role": "assistant",
+          "text": "Source /fixture/sort.diff:1: values.sort((a,b)=>b-a)"
+        }
+      ],
+      "rubric": "Correctly identify descending comparator, with helpful source location. Incomplete citation is partial utility, not a wrong diagnosis.",
+      "text": "The sort is already ascending.",
+      "trace": [],
+      "state": {},
+      "checks": []
+    }
+  ],
+  "expected": [
+    {
+      "id": "location-missing",
+      "utility": [
+        "acceptable"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "location-line",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "diagnosis-false",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    }
+  ],
+  "provenance": "Author-labelled partial-evidence controls after cross-role audit, not independent human gold."
+}
