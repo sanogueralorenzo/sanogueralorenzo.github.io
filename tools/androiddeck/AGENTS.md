@@ -2,7 +2,7 @@
 
 Build a minimal Steam Deck experience on Android with clear responsibilities, minimal dependencies, and efficient startup, resource use, and input handling. Deliver working, reliable behavior with the simplest complete implementation. Optimize measured bottlenecks and keep complexity justified by current requirements.
 
-- Investigate [DroidDeck](https://github.com/Droid-Deck/DroidDeck) to understand the runtime, Steam integration, and Android bridges. Compare realistic alternatives relevant to the current task, then choose the simplest reliable approach that meets the requirements. Reuse its code when that comparison supports it; all other guidance still applies.
+- For unfamiliar integration work, investigate relevant reference implementations and upstream documentation. Compare realistic alternatives for the current task, then choose the simplest reliable approach that meets the requirements. Reuse, adapt, or implement independently when the evidence supports that choice; all other guidance still applies.
 - Require Android 16+ (`minSdk = 36`), ARM64, and supported Adreno hardware. Validate one real device first. Assess `targetSdk` separately against runtime execution requirements.
 - Keep one Steam session mode. The initial scope excludes desktop apps, emulators, external game imports, frame generation, and preview/test update channels.
 - Use a small Kotlin Views/XML frontend and a native rendering surface. Steam owns sign-in, the library, downloads, and its interface.
@@ -15,3 +15,15 @@ Build a minimal Steam Deck experience on Android with clear responsibilities, mi
 - Remove replaced implementations, dependencies, and configuration. Preserve necessary graphics, audio, input, and process handling.
 - For changes to execution or rendering paths, measure the affected performance metrics in release builds on the same device and workload: startup to usable Steam, memory, idle CPU, frame pacing, or input responsiveness. Report improvements only when supported by measurements.
 - Scale validation to the change. Check affected behavior such as runtime installation, session startup, stop/relaunch, and failure cleanup; run broader checks only when the change or evidence warrants them. Use the real device for graphics and gameplay validation; an emulator covers the frontend and generic Android behavior.
+
+## Investigation references
+
+These are starting points, not required dependencies or feature scope. Inspect only the parts relevant to the current problem. Related projects can share implementations, so agreement between forks is not independent validation. Verify chosen behavior on our supported device.
+
+| Project | Useful areas to investigate |
+| --- | --- |
+| [DroidDeck](https://github.com/Droid-Deck/DroidDeck) | Steam Deck-style sessions, Linux runtime, and Android bridges. |
+| [Bannerlator](https://github.com/The412Banner/Bannerlator) | Native ARM64 Linux Steam and Proton integration, controller handling, and compatibility helpers. |
+| [WinNative](https://github.com/WinNative-Emu/WinNative) | Embedded Wayland display, audio, input, and runtime integration. |
+| [Winlator](https://github.com/brunodev85/winlator) | Wine/Box64 execution, graphics, input, and runtime installation. |
+| [GameNative](https://github.com/utkarshdalal/GameNative) | Alternative launcher, game installation, controls, and session management. Its store integrations do not replace our Steam-client scope. |
