@@ -2,6 +2,7 @@
 
 Build a minimal Steam Deck experience on Android with clear responsibilities, minimal dependencies, and efficient startup, resource use, and input handling. Deliver working, reliable behavior with the simplest complete implementation. Optimize measured bottlenecks and keep complexity justified by current requirements.
 
+- During goal work, read [PLAN.md](PLAN.md) and resume the next unfinished milestone. Update its compact resume state after meaningful progress with decisions, validation, prerequisites, and the next concrete action. Keep the objective and completion criteria stable unless the user changes scope; avoid repeated replanning and historical work logs.
 - For unfamiliar integration work, investigate relevant reference implementations and upstream documentation. Compare realistic alternatives for the current task, then choose the simplest reliable approach that meets the requirements. Reuse, adapt, or implement independently when the evidence supports that choice; all other guidance still applies.
 - Require Android 16+ (`minSdk = 36`), ARM64, and supported Adreno hardware. Validate one real device first. Assess `targetSdk` separately against runtime execution requirements.
 - Keep one Steam session mode. The initial scope excludes desktop apps, emulators, external game imports, frame generation, and preview/test update channels.
