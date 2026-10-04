@@ -4,7 +4,9 @@ Retain all six production prompts. Improve answer quality and complete-task reli
 
 ## Decisions
 
-The initial compression diagnostic ran 280 development trials across coordinator, session, reviewer, researcher and suggestion roles. Smaller instructions did not establish a reliable quality gain. Session and reviewer edits mostly tied the baseline, researcher compression sometimes increased workflow tokens, and coordinator edits worsened routing. The shared base already receives skill-relative reference instructions from the production resource loader, so duplicating them adds no demonstrated benefit.
+The initial compression diagnostic ran 280 development trials across coordinator, session, reviewer, researcher and suggestion roles. No candidate established a quality gain within the workflow-cost guardrail. Session, reviewer and suggestion edits mostly tied the baseline, and coordinator edits worsened routing. The shared base already receives skill-relative reference instructions from the production resource loader, so duplicating them adds no demonstrated benefit.
+
+The compact researcher role showed an audited development utility gain of 0.25 [0.0625, 0.4375] across eight families. Mean complete-workflow tokens increased from 19,109 to 21,214 (11.02%), and mean requests from 2.875 to 3.188. This is a promising quality signal on exposed cases, but exceeds the 5% cost-growth guardrail and has no fresh confirmation evidence. Retain the deployed researcher prompt; do not relax the gate after seeing results. Other researcher combinations had quality intervals spanning harm.
 
 After the objective changed, two general coordinator revisions tested personal/project directory selection without adding examples. Each used six exposed development families, two variants and three repeats (36 trials). Independent blinded source audits covered all outcomes; original grades and justified corrections remain separate.
 
