@@ -63,7 +63,7 @@ static const struct wl_callback_listener frame_listener = { frame_done };
 static void release(void *data, struct wl_buffer *buffer) { released = true; }
 static const struct wl_buffer_listener buffer_listener = { release };
 #ifdef DECK_VULKAN_PROBE
-int probe_vulkan(struct wl_display *display, struct wl_surface *surface, struct wp_presentation *presentation, clockid_t clock);
+int probe_vulkan(struct wl_display *display, struct wl_surface *surface, struct wp_presentation *presentation, clockid_t clock, bool keep_open);
 #endif
 static void dispatch_until(struct wl_display *display, const bool *value) {
     while (!*value) if (wl_display_dispatch(display) < 0) { fputs("Wayland connection failed\n", stderr); exit(2); }
@@ -92,8 +92,7 @@ int main(int argc, char **argv) {
     // Validate our own completion timestamps directly. Gamescope's nested
     // client feedback is upstream behavior; this mode verifies visible pixels.
     bool nested = argc > 1 && !strcmp(argv[1], "nested");
-    int status = probe_vulkan(display, surface, nested ? NULL : presentation, presentation_clock);
-    if (status == 0 && nested) { fflush(stdout); pause(); }
+    int status = probe_vulkan(display, surface, nested ? NULL : presentation, presentation_clock, nested);
     wp_presentation_destroy(presentation);
 #else
     const int width = 320, height = 200, bytes = width * height * 4;
@@ -115,6 +114,20 @@ int main(int argc, char **argv) {
         wl_surface_commit(surface);
         dispatch_until(display, &presented);
         dispatch_until(display, &released);
+        if (argc > 1 && !strcmp(argv[1], "remap") && i < 2) {
+            // SDL hides/recreates the shell role on the same wl_surface when
+            // Steam's updater hands off to its main interface.
+            xdg_toplevel_destroy(toplevel);
+            xdg_surface_destroy(xdg);
+            wl_surface_attach(surface, NULL, 0, 0);
+            wl_surface_commit(surface);
+            configured = false;
+            xdg = xdg_wm_base_get_xdg_surface(shell, surface);
+            xdg_surface_add_listener(xdg, &surface_listener, NULL);
+            toplevel = xdg_surface_get_toplevel(xdg);
+            wl_surface_commit(surface);
+            dispatch_until(display, &configured);
+        }
     }
     printf("linux-wayland-ok: 3 frames, 320x200, pid=%ld\n", (long)getpid()); fflush(stdout);
     if (input_mode) probe_input_run(display);

@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <time.h>
+#include <unistd.h>
 #include "presentation-time-client.h"
 
 static clockid_t presentation_clock = -1;
@@ -32,7 +33,7 @@ static void feedback_discarded(void *data, struct wp_presentation_feedback *feed
 }
 static const struct wp_presentation_feedback_listener feedback_listener = { sync_output, feedback_presented, feedback_discarded };
 
-int probe_vulkan(struct wl_display *display, struct wl_surface *window, struct wp_presentation *presentation, clockid_t clock) {
+int probe_vulkan(struct wl_display *display, struct wl_surface *window, struct wp_presentation *presentation, clockid_t clock, bool keep_open) {
     presentation_clock = clock;
     if (wl_display_roundtrip(display) < 0 || (presentation && presentation_clock < 0)) return 4;
     void *library = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
@@ -198,6 +199,9 @@ int probe_vulkan(struct wl_display *display, struct wl_surface *window, struct w
     printf("linux-vulkan-ok: 3 frames, %ux%u, %s\n", extent.width, extent.height, properties.properties.deviceName);
     if (presentation) puts("linux-presentation-ok: 3 ordered display timestamps");
     status = 0;
+    // Keep the submitted buffers alive until Android verifies their pixels.
+    // Destroying the swapchain first lets Gamescope release them before display.
+    if (keep_open) { fflush(stdout); pause(); }
 done:
     if (device && DeviceWaitIdle) DeviceWaitIdle(device);
     if (pool) DestroyCommandPool(device, pool, NULL);

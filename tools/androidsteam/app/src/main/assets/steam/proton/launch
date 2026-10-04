@@ -8,8 +8,8 @@ if [ ! -x "$proton/files/bin-arm64/wine" ]; then
     exit 1
 fi
 # Keep Steam's private client libraries out of Wine's host library lookup.
-export LD_LIBRARY_PATH=/opt/androidsteam/session/usr/lib/aarch64-linux-gnu:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/pulseaudio:/opt/androidsteam/graphics/usr/lib/aarch64-linux-gnu
+export LD_LIBRARY_PATH=/opt/androidsteam/session/usr/lib:/usr/lib/pulseaudio
 # The native overlay's IPC remains active even with Steam's overlay toggle off.
 # Use only the Android adapters in the namespace-free Wine process tree.
-export LD_PRELOAD=/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libsteam-wine-memory.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-drm.so
+export LD_PRELOAD=/opt/androidsteam/session/usr/lib/libsteam-wine-memory.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:/opt/androidsteam/session/usr/lib/libdeck-drm.so
 exec "$proton/proton" "$@"

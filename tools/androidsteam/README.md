@@ -17,11 +17,17 @@ Use JDK 17 or 21, SDK 36, NDK `28.2.13676358`, and CMake `3.22.1`. Set `ANDROID_
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Open Android Steam, choose **Install Linux runtime** (98 MB download; 850 MB free storage), then **Start Steam**. First startup installs the matched drivers/session components and downloads Valve's client and remaining runtime; allow several GB of additional internal storage. **Test Linux runtime** verifies command execution. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs, with user home stored separately from replaceable runtime files.
+Open Android Steam, choose **Install Linux runtime** (154 MiB download; 1.5 GB free storage), then **Start Steam**. First startup installs the matched drivers/session components and downloads Valve's client and remaining runtime; allow several GB of additional internal storage. **Test Linux runtime** verifies command execution. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs, with user home stored separately from replaceable runtime files.
 
 Sign in using Steam's QR code and Steam Guard. You can switch apps during authentication and return through Android Steam's ongoing notification. **Stop Steam** in the ongoing notification ends the session. Use touch to navigate and type with Steam’s onscreen keyboard, which opens when selecting search. USB/Bluetooth keyboards and mice use the Android input bridge. Game controls and audio are still being implemented.
 
 Steam prompts to install **Proton Experimental (ARM64)** when it is missing (about 475 MB download / 1.94 GB installed). For a Windows game, select **Android Steam Proton (ARM64)** under its **Properties → Compatibility**. The small tool runs Valve's Steam-managed ARM64 depot directly and excludes the native overlay from Wine to avoid the reproduced Steam IPC crash on relaunch. For Superflight, set **Launch Options** to `-force-d3d11 -screen-width 1280 -screen-height 720 -screen-fullscreen 1`. Other Proton versions and arbitrary game compatibility are unverified.
+
+## Runtime updates
+
+The Linux base is an Arch ARM snapshot assembled from `native/runtime/seeds.txt` and its checksum-pinned dependency lock. It excludes the generic image’s kernel/firmware, development outputs and manuals; required resources, licenses and package provenance remain. Steam, games and saves live in a separate home directory.
+
+To update, run `python3 native/runtime/update.py`, review the package/source diff, then `bash native/runtime/build.sh /tmp/androidsteam-runtime`. The build needs Python 3, XZ, and a case-sensitive filesystem; on macOS set `TMPDIR` to a case-sensitive APFS volume. Retain the verified package cache because Arch's rolling mirrors can remove older versions. Validate the bundle and the Steam/game baseline on the S24, publish a new fixed release, and update `RuntimeInstaller`’s version, URL, byte count and SHA-256. Installation checks the staged runtime before replacement and recovers an interrupted swap. Users receive the tested bundle through app updates.
 
 ## Checks
 
@@ -32,6 +38,6 @@ adb shell am instrument -w -e verifySteam true -e verifySession true -e verifyVu
   com.sanogueralorenzo.androidsteam.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Device checks require an installed runtime and the supported USB-connected S24. Optional `verifyRuntime`, `verifyDisplay`, and `verifyGraphics` arguments enable fresh runtime installation, shared-memory display, and driver installation checks. Downloads are opt-in. Gradle's connected test task uninstalls the app afterward; use the ADB runner above to retain user data.
+Device checks require an installed runtime and the supported USB-connected S24. Optional `verifyRuntime`, `verifyDisplay`, and `verifyGraphics` arguments enable fresh runtime installation, shared-memory display, and driver installation checks. Downloads are opt-in. `verifyRuntimeSnapshot` tests a checksum-matching `/data/local/tmp/androidsteam-runtime.tar.xz` in a separate validation directory, including replacement, cancellation, failure and recovery. Gradle's connected test task uninstalls the app afterward; use the ADB runner above to retain user data.
 
-See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins/licenses [docs/validation.md](docs/validation.md) for the working game configuration and measurements, and [PLAN.md](PLAN.md) for delivery criteria.
+See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins/licenses, [docs/validation.md](docs/validation.md) for the working game configuration and measurements, and [PLAN.md](PLAN.md) for delivery criteria.

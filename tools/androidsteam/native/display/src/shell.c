@@ -55,7 +55,8 @@ static void acknowledge(struct wl_client *client, struct wl_resource *resource, 
 }
 static void xdg_destroyed(struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
-    if (surface) { surface->xdg = NULL; surface->configured = false; }
+    // A new shell role on this wl_surface needs its own initial configure.
+    if (surface) { surface->xdg = NULL; surface->configured = false; surface->serial = 0; }
 }
 static const struct xdg_surface_interface xdg_impl = {
     .destroy = destroy_request, .get_toplevel = get_toplevel, .get_popup = popup,

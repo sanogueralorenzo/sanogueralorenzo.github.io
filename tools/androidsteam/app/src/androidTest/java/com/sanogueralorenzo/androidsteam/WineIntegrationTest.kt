@@ -22,7 +22,7 @@ class WineIntegrationTest {
             listOf("/opt/androidsteam/app/libwine-memory-probe.so"),
             listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app",
                 "${components.root.path}:/opt/androidsteam/session"),
-            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libsteam-wine-memory.so"))
+            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/libsteam-wine-memory.so"))
         try {
             assertTrue("Wine image mapping check timed out", process.waitFor(15, TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()

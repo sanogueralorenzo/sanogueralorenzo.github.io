@@ -6,7 +6,6 @@ import com.sanogueralorenzo.androidsteam.runtime.VerifiedDownload
 import com.sanogueralorenzo.androidsteam.runtime.checkInstallationCancelled
 import java.io.File
 import java.util.zip.ZipFile
-import org.tukaani.xz.XZInputStream
 
 internal class GraphicsInstaller(private val context: Context) {
     val root = File(context.filesDir, "graphics")
@@ -14,7 +13,6 @@ internal class GraphicsInstaller(private val context: Context) {
     val installed get() = marker.takeIf { it.isFile }?.readText() == VERSION &&
         File(root, "android/libvulkan_freedreno.so").length() == ANDROID_BYTES &&
         File(root, "linux/libvulkan_freedreno.so").length() == LINUX_BYTES &&
-        File(root, "usr/lib/aarch64-linux-gnu/libwayland-client.so.0").isFile &&
         File(root, "linux/freedreno_icd.aarch64.json").isFile
 
     fun install(progress: (String) -> Unit) {
@@ -25,10 +23,6 @@ internal class GraphicsInstaller(private val context: Context) {
             require(context.filesDir.usableSpace >= 80_000_000L) { "Free at least 80 MB of internal storage for graphics, then retry." }
             RuntimeArchive.delete(staging)
             require(staging.mkdirs()) { "Cannot create graphics staging directory." }
-            progress("Preparing Linux graphics libraries…")
-            context.assets.open("graphics-libraries.tar.xz").use { input ->
-                XZInputStream(input, 64 * 1024).use { RuntimeArchive.extract(it, staging, ::checkInstallationCancelled) }
-            }
             installDriver(ANDROID, ANDROID_BYTES, File(staging, "android"), archive, progress)
             installDriver(LINUX, LINUX_BYTES, File(staging, "linux"), archive, progress)
             File(staging, "linux/freedreno_icd.aarch64.json").writeText("""{"file_format_version":"1.0.0","ICD":{"library_path":"./libvulkan_freedreno.so","api_version":"1.1.274"}}""")
@@ -70,7 +64,7 @@ internal class GraphicsInstaller(private val context: Context) {
     }
 
     companion object {
-        const val VERSION = "turnip-v26.3.0-20261003-r4-libraries-2"
+        const val VERSION = "arch-turnip-v26.3.0-20261003-r4-libraries-2"
         private const val BASE = "https://github.com/The412Banner/Banners-Turnip/releases/download/v26.3.0-20261003-r4/Turnip-v26.3.0-20261003-r4"
         private const val ANDROID_BYTES = 13904152L
         private const val LINUX_BYTES = 15351584L

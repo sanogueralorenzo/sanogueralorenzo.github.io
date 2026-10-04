@@ -43,7 +43,7 @@ class GraphicsIntegrationTest {
             val process = linux.start(
                 listOf("/opt/androidsteam/app/libwayland-probe.so", "driver"),
                 listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${graphics.root.path}:/opt/androidsteam/graphics"),
-                mapOf("LD_LIBRARY_PATH" to "/opt/androidsteam/graphics/usr/lib/aarch64-linux-gnu")
+                emptyMap()
             )
             try {
                 assertTrue("Linux driver load timed out", process.waitFor(20, TimeUnit.SECONDS))

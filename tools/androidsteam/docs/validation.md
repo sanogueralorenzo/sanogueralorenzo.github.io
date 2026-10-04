@@ -30,3 +30,23 @@ Use `dumpsys meminfo` for each UID process, `top -b -n 4 -d 5 -u <uid>`, and Sur
 Debug/test/minified-release assembly, lint and 13 unit tests passed. Eight opt-in S24 Steam/Wine/lifecycle checks passed, including packaged dependencies, executable Wine memory behavior and Home/resume/stop cleanup. The shipped PRoot matches the normal pinned build; temporary crash diagnostics are excluded.
 
 Read only bounded game/process logs for launch, arguments and exit status. Authentication logs and credential-bearing Steam configuration are outside diagnostics. Use the README’s ADB instrumentation runner to preserve user data.
+
+## Arch ARM migration
+
+The replacement is assembled from 239 checksum-pinned packages, with kernel/firmware, development outputs and manuals excluded. Steam still requires GTK2; two Debian libraries are pinned separately. Two independent builds produced identical 160638848-byte archives (153.2 MiB), SHA-256 `858d380e199e53e2ceff5790a77a7e5c7c4393ab1b8083f4353fbc652a660204`. Package/source locks and build scripts define updates; users install one tested replacement bundle, preserving their separate home.
+
+Installed before session startup: runtime 788.7 MiB, adapters 0.057 MiB, graphics 28.0 MiB; total 816.7 MiB. The corresponding Ubuntu root/components/graphics baseline occupied827.5 MiB. LLVM remains about 161 MiB because the packaged Mesa libraries depend on it. Compressed size alone is not a performance measurement.
+
+The final snapshot uses GNU libc 2.43, Gamescope 3.16.31, XWayland 24.1.13 and SDL 3.4.16. Real Steam startup exposed two gaps that ELF checks missed: Valve's browser script requires `taskset`, and SDL recreates its shell role on the same Wayland surface. Added util-linux and its real invocation to the dependency check; reset the old shell configure serial on destruction. A repeated same-surface remap check failed before that reset and passed afterward. Steam's Deck interface and owned library rendered; two debug Superflight launches and Quit exits returned 0 with the same Steam process. The game retained its explicit ARM64 Proton tool/D3D11 arguments; native overlay injection was absent from its mappings. Three minified release launches rendered and Quit returned 0 with the same primary Steam process; the first exercised steering, flight, collision and retry. Home/resume preserved Steam, and force-stopping the app left no UID processes behind.
+
+A first minified release sample on the same S24 and animated 1280×720 Superflight menu:
+
+| Metric | Ubuntu baseline | Arch snapshot |
+| --- | --- | --- |
+| Aggregate UID PSS |2335.8 MiB |2281.1 MiB |
+| Median CPU, percent of one core |267.6% |309.4% |
+| Android SurfaceView presentation |34.32 FPS |36.26 FPS |
+
+Arch presented 1609 frames over 44.37 sec; intervals included 677 at 16 ms, 772 at 33 ms, 156 at 50 ms and 4 at 66 ms. CPU used three 5 sec samples, excluding the first `top` sample. These are single samples of a varying generated menu scene, not a controlled engine-FPS or sustained-gameplay comparison. They do not establish that Arch is faster. Broader gameplay, audio, full controls and final performance refinement remain unfinished.
+
+The final combined device suite passed all 12 snapshot, display, Steam, Wine and lifecycle checks (158.019 seconds), including interrupted replacement recovery and cleanup of a read-only previous runtime cache.

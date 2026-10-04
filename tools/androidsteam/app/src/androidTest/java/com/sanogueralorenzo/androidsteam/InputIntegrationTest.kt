@@ -45,7 +45,7 @@ class InputIntegrationTest {
                 process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
                     listOf("/opt/androidsteam/app/libwayland-probe.so", "input"),
                     listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${directory.path}:/run/androidsteam", "${components.root.path}:/opt/androidsteam/session"),
-                    mapOf("XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0", "LD_LIBRARY_PATH" to "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu"))
+                    mapOf("XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0", "LD_LIBRARY_PATH" to "/opt/androidsteam/session/usr/lib"))
                 val running = process
                 reader = Thread { try { running.inputStream.bufferedReader().useLines { it.forEach(lines::add) } } catch (_: java.io.IOException) { } }.apply { start() }
                 await("input-ready"); await("input-keymap-ok"); await("input-keyboard-focus")

@@ -15,7 +15,6 @@ import com.sanogueralorenzo.androidsteam.session.SessionActivity
 import com.sanogueralorenzo.androidsteam.session.SessionController
 import java.io.File
 import java.io.IOException
-import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -72,21 +71,19 @@ class SessionIntegrationTest {
             assertTrue(components.installed)
             components.install { fail("Installed session components should not extract again") }
             assertFalse(File(context.filesDir, "session-components-staging").exists())
-            assertEquals(".", Files.readSymbolicLink(File(components.root, "usr/bin/X11").toPath()).toString())
-            assertFalse(File(components.root, "usr/share/gamescope/scripts/00-gamescope/common/._inspect.lua").exists())
             repeat(2) {
                 val process = LinuxRuntime(context, runtime.root).start(
-                    listOf("/bin/sh", "-c", "ldd /opt/androidsteam/session/usr/games/gamescope && ldd /opt/androidsteam/session/usr/bin/Xwayland && /opt/androidsteam/session/usr/games/gamescope --version && /opt/androidsteam/session/usr/bin/Xwayland -version"),
+                    listOf("/bin/sh", "-c", "ldd /usr/bin/gamescope && ldd /usr/bin/Xwayland && /usr/bin/gamescope --version && /usr/bin/Xwayland -version"),
                     listOf("${components.root.path}:/opt/androidsteam/session"),
-                    mapOf("LD_LIBRARY_PATH" to "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/pulseaudio")
+                    mapOf("LD_LIBRARY_PATH" to "/opt/androidsteam/session/usr/lib:/usr/lib/pulseaudio")
                 )
                 try {
                     assertTrue("Session dependency check timed out", process.waitFor(20, TimeUnit.SECONDS))
                     val output = process.inputStream.bufferedReader().readText()
                     assertEquals(output, 0, process.exitValue())
                     assertFalse(output, output.contains("not found"))
-                    assertTrue(output, output.contains("gamescope version 3.16.20"))
-                    assertTrue(output, output.contains("Xwayland Version 24.1.10"))
+                    assertTrue(output, output.contains("gamescope version 3.16.31"))
+                    assertTrue(output, output.contains("Xwayland Version 24.1.13"))
                     println(output)
                 } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
             }
@@ -119,8 +116,8 @@ class SessionIntegrationTest {
                 NativeDisplay.startVulkan(socket.path, activity.surface.holder.surface, 60_000,
                     File(graphics.root, "android").path, context.applicationInfo.nativeLibraryDir)
                 process = SessionRuntime(context, sockets).start(
-                listOf("/bin/sh", "-c", "/opt/androidsteam/app/libx11-locale-probe.so && exec /opt/androidsteam/app/libwayland-vulkan-probe.so nested"), 320, 200)
-            val running = process
+                    listOf("/bin/sh", "-c", "/opt/androidsteam/app/libx11-locale-probe.so && exec /opt/androidsteam/app/libwayland-vulkan-probe.so nested"), 320, 200)
+                val running = process
                 reader = Thread {
                     try { log.outputStream().use { output -> running.inputStream.use { it.copyTo(output) } } }
                     catch (failure: IOException) { if (!stopping.get()) readFailure.set(failure) }
@@ -131,6 +128,7 @@ class SessionIntegrationTest {
                 println("Gamescope startup:\n$output")
                 assertNull("Gamescope output read failed", readFailure.get())
                 assertTrue("The Linux client did not render through Gamescope:\n$output", output.contains("linux-vulkan-ok"))
+                while (running.isAlive && NativeDisplay.snapshot()[0] == 0L && SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
                 assertTrue("Gamescope did not present a frame:\n$output", NativeDisplay.snapshot()[0] > 0)
                 DisplayPixels.awaitBlue(activity)
             } finally {

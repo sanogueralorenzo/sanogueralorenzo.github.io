@@ -29,7 +29,7 @@ class SteamIntegrationTest {
             listOf("/opt/androidsteam/app/libsocket-peer-probe.so"),
             listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${components.root.path}:/opt/androidsteam/session",
                 "${components.root.path}/usr/bin/steam-socket-peer:/usr/bin/lsof", "${directory.path}:/run/androidsteam"),
-            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so"))
+            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/libdeck-ports.so"))
         try {
             assertTrue("Socket peer check timed out", process.waitFor(15, TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()
@@ -46,7 +46,7 @@ class SteamIntegrationTest {
         val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
             listOf("/opt/androidsteam/app/librobust-probe.so"),
             listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${components.root.path}:/opt/androidsteam/session"),
-            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so"))
+            mapOf("LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/libdeck-robust.so"))
         try {
             assertTrue("Thread mutex-list check timed out", process.waitFor(15, TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()
@@ -101,7 +101,7 @@ class SteamIntegrationTest {
                 val output = process.inputStream.bufferedReader().readText()
                 assertEquals(output, 0, process.exitValue())
                 assertFalse(output, output.contains("not found") || output.contains("cannot be preloaded"))
-                assertTrue(output, output.contains("libGL.so.1 => /opt/androidsteam/session/"))
+                assertTrue(output, output.contains("libGL.so.1 => /usr/lib/"))
             } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
         } finally { directory.deleteRecursively() }
     }
@@ -115,10 +115,9 @@ class SteamIntegrationTest {
         try {
             SessionRuntime(context, directory).steamCommand()
             val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
-                listOf("/bin/sh", "-c", "set -e; ldd /root/.steam/binarm64/steamwebhelper; ldd /root/.steam/binarm64/steamui.so; ldd /root/.steam/binarm64/steamclient.so; getent ahosts client-update.akamai.steamstatic.com; /opt/androidsteam/session/usr/bin/fc-list"),
-                listOf("${components.root.path}:/opt/androidsteam/session", "${components.root.path}/usr/share/fonts:/usr/share/fonts",
-                    "${components.root.path}/usr/share/fontconfig:/usr/share/fontconfig", "${components.root.path}/etc/fonts:/etc/fonts"),
-                mapOf("LD_LIBRARY_PATH" to "/root/.steam/binarm64:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/pulseaudio"))
+                listOf("/bin/sh", "-c", "set -e; taskset 0x7c /bin/true; ldd /root/.steam/binarm64/steamwebhelper; ldd /root/.steam/binarm64/steamui.so; ldd /root/.steam/binarm64/steamclient.so; getent ahosts client-update.akamai.steamstatic.com; /usr/bin/fc-list"),
+                listOf("${components.root.path}:/opt/androidsteam/session"),
+                mapOf("LD_LIBRARY_PATH" to "/root/.steam/binarm64:/opt/androidsteam/session/usr/lib:/usr/lib/pulseaudio"))
             try {
                 assertTrue("Steam dependency/network check timed out", process.waitFor(20, TimeUnit.SECONDS))
                 val output = process.inputStream.bufferedReader().readText()

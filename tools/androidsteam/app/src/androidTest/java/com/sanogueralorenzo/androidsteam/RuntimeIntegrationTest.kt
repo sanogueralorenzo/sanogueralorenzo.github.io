@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RuntimeIntegrationTest {
     @Test fun downloadsVerifiedRuntimeAndRunsLinuxTwice() {
-        assumeTrue("Opt in to the 98 MB runtime download", InstrumentationRegistry.getArguments().getString("verifyRuntime") == "true")
+        assumeTrue("Opt in to the pinned Arch runtime download", InstrumentationRegistry.getArguments().getString("verifyRuntime") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val controller = (context.applicationContext as SteamApplication).runtime
@@ -40,14 +40,14 @@ class RuntimeIntegrationTest {
         repeat(2) {
             instrumentation.runOnMainSync { controller.check() }
             val result = awaitReady(controller, 20_000)
-            assertTrue(result.output, result.output.contains("GLIBC") && result.output.contains("aarch64"))
+            assertTrue(result.output, result.output.contains("GNU libc") && result.output.contains("aarch64"))
             println(result.output)
         }
         instrumentation.runOnMainSync { controller.check(); controller.stop() }
         assertTrue(controller.state is RuntimeController.State.Failed)
         instrumentation.runOnMainSync { controller.check() }
         assertTrue(awaitReady(controller, 20_000).output.contains("Linux runtime ready"))
-        // The current base stores Coreutils commands as aliases of one executable.
+        // Exercise the real host utilities that Steam’s launch scripts use.
         val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
             listOf("/usr/bin/dash", "-c", "set -e; /usr/bin/ls -d /usr; /usr/bin/cp --version; /usr/bin/basename /tmp/test; /usr/bin/sha256sum /etc/os-release"))
         try {

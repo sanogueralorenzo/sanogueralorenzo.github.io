@@ -75,7 +75,6 @@ class DisplayIntegrationTest {
                     listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app",
                         "${graphics.root.path}:/opt/androidsteam/graphics", "${sockets.path}:/run/androidsteam"),
                     mapOf("XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0",
-                        "LD_LIBRARY_PATH" to "/opt/androidsteam/graphics/usr/lib/aarch64-linux-gnu",
                         "VK_DRIVER_FILES" to "/opt/androidsteam/graphics/linux/freedreno_icd.aarch64.json")
                 )
                 assertTrue("Linux Vulkan client timed out", running!!.waitFor(20, TimeUnit.SECONDS))
@@ -122,7 +121,7 @@ class DisplayIntegrationTest {
                 NativeDisplay.attach(null)
                 NativeDisplay.attach(activity.surface.holder.surface)
                 running = linux.start(
-                    listOf("/opt/androidsteam/app/libwayland-probe.so") + if (hold) listOf("hold") else emptyList(),
+                    listOf("/opt/androidsteam/app/libwayland-probe.so", if (hold) "hold" else "remap"),
                     listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${sockets.path}:/run/androidsteam"),
                     mapOf("XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0")
                 )

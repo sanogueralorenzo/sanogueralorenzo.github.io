@@ -86,6 +86,12 @@ internal object RuntimeArchive {
     fun delete(directory: File) {
         if (!Files.exists(directory.toPath(), NOFOLLOW_LINKS)) return
         Files.walkFileTree(directory.toPath(), object : SimpleFileVisitor<Path>() {
+            override fun preVisitDirectory(dir: Path, attributes: BasicFileAttributes): FileVisitResult {
+                // Linux tools can make app-owned cache directories read-only.
+                // The walk does not follow links outside this installation.
+                require(dir.toFile().setWritable(true, true)) { "Cannot prepare runtime directory for removal" }
+                return FileVisitResult.CONTINUE
+            }
             override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
                 Files.delete(file)
                 return FileVisitResult.CONTINUE
