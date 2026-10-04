@@ -30,8 +30,8 @@ Update this section in place; keep it concise rather than appending a work log.
 
 - **Current milestone:** 1 — app foundation.
 - **Implemented:** project guidance and scope; no app code yet.
-- **Environment:** Android 16 / API 36 ARM64 emulator connected as `emulator-5554`. Previously connected Samsung SM-S921U1 also reported Android 16; it is currently absent from ADB.
+- **Environment:** Java 21, Android SDK 36, multiple NDK versions, and cached Gradle distributions are installed. Android 16 / API 36 ARM64 emulator connected as `emulator-5554`. Previously connected Samsung SM-S921U1 also reported Android 16; it is currently absent from ADB.
 - **Decisions:** minimal Kotlin Views/XML frontend, one Steam mode, one initial real device; execution approach and target SDK need validation.
-- **Next action:** inspect installed SDK/NDK and build tools, then create the smallest buildable Android app and install it on the emulator.
+- **Next action:** select compatible pinned build-tool versions, create the smallest buildable Android app, and install it on the emulator.
 - **Later prerequisites:** reconnect the real Adreno device for graphics/gameplay validation; user-controlled Steam authentication and an available compatible game.
 - **Validation:** documentation checks only; no runtime or gameplay claims yet.
