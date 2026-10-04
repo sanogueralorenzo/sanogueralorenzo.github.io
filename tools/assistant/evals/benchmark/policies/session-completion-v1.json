@@ -1,0 +1,27 @@
+{
+  "id": "session-completion-v1",
+  "hypothesis": "A single general contract to execute authorized work, recover from failures, and finish independent work when blocked improves complete-task reliability without broadening authority.",
+  "qualityGate": {
+    "minPairedFamilyMeanUtilityGain": 0.05,
+    "minPairedFamily95PercentIntervalLow": 0,
+    "requireZeroCandidateConstraintViolations": true,
+    "requireZeroUnresolvedGradingOrInfrastructureFailures": true,
+    "requireAllRequiredOutcomeChecks": true
+  },
+  "guardrails": {
+    "maxMeanTotalWorkflowTokenIncreasePercent": 5,
+    "maxCombinedInstructionInputGrowthPercent": 10,
+    "reviewToolRoundsAndLatency": true
+  },
+  "settings": {
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "repeats": 2,
+    "concurrency": 2,
+    "deadlineMs": 120000
+  },
+  "coverage": "Twelve development families: authorized action, multipart work, partial blockers, missing preferences, preview authority, no-op, verification recovery, unavailable verification, untrusted data, nested project rules, skill artifacts, changed scope.",
+  "confirmation": "Author new families and freeze instructions, data, grading policy, selection and settings before outputs, only if development supports this unchanged candidate. No used cases promoted to confirmation.",
+  "review": "Blinded Luna High, author-labelled calibration, primary-agent full-source/trace audit; no independent human validation.",
+  "stop": "One candidate, one declared development comparison; retain production prompts if gates fail. No outcome-driven prompt revisions or case replacements."
+}

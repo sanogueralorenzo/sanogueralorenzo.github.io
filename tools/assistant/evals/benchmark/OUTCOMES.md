@@ -2,6 +2,8 @@
 
 Retain all six production prompts. Improve answer quality and complete-task reliability with concise, general instructions; prompt size and complete workflow cost are guardrails. Avoid accumulating examples or patches tailored to individual failures. The [current policy](RESULTS_POLICY.json) implements that objective; [aggregate evidence](outcome-evidence.json) preserves unsuccessful comparisons and audit corrections.
 
+The later [session completion evaluation](COMPLETION.md) also retains production prompts: its single general contract missed the quality threshold, exceeded the workflow-cost guardrail, and failed boundary/outcome checks. No supported finalist advanced to fresh confirmation.
+
 ## Decisions
 
 The initial compression diagnostic ran 280 development trials across coordinator, session, reviewer, researcher and suggestion roles. No candidate established a quality gain within the workflow-cost guardrail. Session, reviewer and suggestion edits mostly tied the baseline, and coordinator edits worsened routing. The shared base already receives skill-relative reference instructions from the production resource loader, so duplicating them adds no demonstrated benefit.

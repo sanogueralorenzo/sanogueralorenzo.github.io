@@ -1,0 +1,25 @@
+{
+  "prompts": [
+    {
+      "id": "identical_control",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/completion/session-baseline.md"
+      ]
+    },
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/completion/session-baseline.md"
+      ]
+    },
+    {
+      "id": "completion",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/completion/session.md"
+      ]
+    }
+  ]
+}

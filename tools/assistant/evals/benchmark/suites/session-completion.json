@@ -1,0 +1,40 @@
+{
+  "id": "session-completion",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "execution": "role-integration",
+  "role": "session",
+  "maxTurns": 12,
+  "timeoutMs": 120000,
+  "deadlineMs": 120000,
+  "provenance": "One new general session completion-contract hypothesis. Native tools and production resource/provider assembly in isolated authored workspaces; browser/delegation remain fixtures. Not representative production sampling or independent human review.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": -5,
+    "requireZeroNewConstraintViolations": true,
+    "minPairedFamilyMeanUtilityGain": 0.05,
+    "minPairedFamily95PercentIntervalLow": 0
+  },
+  "datasets": {
+    "development": [
+      "../data/completion/development.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/completion/session-baseline.md"
+      ]
+    },
+    {
+      "id": "completion",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/completion/session.md"
+      ]
+    }
+  ]
+}
