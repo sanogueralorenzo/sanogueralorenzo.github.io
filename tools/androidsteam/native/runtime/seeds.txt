@@ -33,3 +33,4 @@ libibus
 gnutls
 gtk3
 pipewire
+pulseaudio

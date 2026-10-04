@@ -63,8 +63,10 @@ librsvg	2:2.62.4-1	https://gitlab.archlinux.org/archlinux/packaging/packages/lib
 libseccomp	2.6.0-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libseccomp/-/tree/95a18e64bdd767620a8d8f06ad95eb6c55e49340
 libsndfile	1.2.2-4	https://gitlab.archlinux.org/archlinux/packaging/packages/libsndfile/-/tree/db2925a49221e0182847f7be46b33db51ddb1e12
 libsoup3	3.6.6-2	https://gitlab.archlinux.org/archlinux/packaging/packages/libsoup3/-/tree/38514690187045a3f141e0a9396d3e155f4d4ddf
+libsoxr	0.1.3-5	https://gitlab.archlinux.org/archlinux/packaging/packages/libsoxr/-/tree/f761eb0bd893bb2c18c9c1d8be9633b925b2f0b8
 libtasn1	4.21.0-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libtasn1/-/tree/6938a3e5e83ad01b59cdc79177d1534fb2d99b41
 libthai	0.1.30-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libthai/-/tree/9736c82b289d8de3762e4a06961b499ca3f22509
+libtool	2.6.0+r23+gb08cb0a0-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libtool/-/tree/76c495dd2c1edd9ad6f2441ea609425a960fbe1f
 libunistring	1.4.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libunistring/-/tree/42ca409302e9f0b4adeb5a813101fabb87a3950a
 libusb	1.0.30-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libusb/-/tree/51dbbbfd2746111908f9ac8b7440f39353e3d705
 libxcrypt	4.5.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libxcrypt/-/tree/678cc689bd7336d2487965a9018a214426cb27c2
@@ -87,6 +89,7 @@ sed	4.10-2	https://gitlab.archlinux.org/archlinux/packaging/packages/sed/-/tree/
 shared-mime-info	2.5.1-2	https://gitlab.archlinux.org/archlinux/packaging/packages/shared-mime-info/-/tree/7594e0c26bfc745470ec0518d6e1465d40543a38
 systemd	262-1	https://github.com/archlinuxarm/PKGBUILDs/tree/301752c301d8d27080323e8ceea17c1e90a7a726/core/systemd
 tar	1.35-5	https://gitlab.archlinux.org/archlinux/packaging/packages/tar/-/tree/8568de2d02c735a0675ddee110628f039614731a
+tdb	1.4.15-2	https://gitlab.archlinux.org/archlinux/packaging/packages/tdb/-/tree/a8efc285254537af2d7b30e801c01b175624ffce
 tinysparql	3.11.1-1	https://gitlab.archlinux.org/archlinux/packaging/packages/tinysparql/-/tree/958a3a1ba86d3f6d1b5d779b2abb7f63f52f03f4
 util-linux	2.42.4-1	https://gitlab.archlinux.org/archlinux/packaging/packages/util-linux/-/tree/1959b6ecef6b57acd92ca97b783553174b747f6a
 xz	5.8.4-1	https://gitlab.archlinux.org/archlinux/packaging/packages/xz/-/tree/0b7981c3f32e7b899aa1f887d8fd44622f76b1b3

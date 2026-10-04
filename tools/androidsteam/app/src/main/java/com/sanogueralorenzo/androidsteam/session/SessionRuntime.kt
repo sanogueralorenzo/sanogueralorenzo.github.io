@@ -56,6 +56,7 @@ internal class SessionRuntime(private val context: Context, val directory: File)
 
     private val environment = mapOf(
         "XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0", "SDL_VIDEODRIVER" to "wayland",
+        "PULSE_SERVER" to "unix:/run/androidsteam/pulse/native",
         "XLOCALEDIR" to "/usr/share/X11/locale",
         "WLR_XWAYLAND" to "/usr/bin/Xwayland",
         "LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/libdeck-drm.so",

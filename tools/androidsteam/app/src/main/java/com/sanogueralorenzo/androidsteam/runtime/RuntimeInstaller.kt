@@ -72,9 +72,9 @@ internal class RuntimeInstaller(private val context: Context, val root: File = F
     }
 
     companion object {
-        const val VERSION = "arch-arm64-20261004-1"
-        const val URL = "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/download/androidsteam-runtime-20261004-1/runtime.tar.xz"
-        const val SHA256 = "858d380e199e53e2ceff5790a77a7e5c7c4393ab1b8083f4353fbc652a660204"
-        const val ARCHIVE_SIZE = 160638848L
+        const val VERSION = "arch-arm64-20261004-2"
+        const val URL = "https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/download/androidsteam-runtime-20261004-2/runtime.tar.xz"
+        const val SHA256 = "68cb9c890584af3202a8b6cf0903efdc7c69467b77eae29d10d2a264a43132c3"
+        const val ARCHIVE_SIZE = 162610928L
     }
 }

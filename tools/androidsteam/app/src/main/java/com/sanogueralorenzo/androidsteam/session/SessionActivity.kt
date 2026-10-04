@@ -55,7 +55,7 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
             }
         } else session.attach(holder.surface)
     }
-    override fun surfaceDestroyed(holder: SurfaceHolder) { session.attach(null) }
+    override fun surfaceDestroyed(holder: SurfaceHolder) { session.detach(holder.surface) }
 
     private fun render(state: SessionController.State) {
         findViewById<TextView>(R.id.session_status).apply {

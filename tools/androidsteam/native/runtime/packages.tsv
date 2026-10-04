@@ -131,6 +131,7 @@ libseccomp	2.6.0-1	core/libseccomp-2.6.0-1-aarch64.pkg.tar.xz	91404	ebb62cc156a6
 libsm	1.2.6-1	extra/libsm-1.2.6-1-aarch64.pkg.tar.xz	44556	023fe454c714f591cf3f6c1cf0fc07d61779d96b71836bffdd8e8b07536bfb8c
 libsndfile	1.2.2-4	extra/libsndfile-1.2.2-4-aarch64.pkg.tar.xz	297312	5f8995bee55c37fff098d20cc61ca7b1b4a13c4bc2c1181aea493cc267154d61
 libsoup3	3.6.6-2	extra/libsoup3-3.6.6-2-aarch64.pkg.tar.xz	377812	7f54f46c525ed976b98595b260512a8e0320570b7141a0a0e9b25eb22c879d76
+libsoxr	0.1.3-5	extra/libsoxr-0.1.3-5-aarch64.pkg.tar.xz	59252	c61e55285c17399b1fa70a35524b80049bc34bbc21c6f3e96537e01e7635e8e7
 libssh2	1.11.1-7	core/libssh2-1.11.1-7-aarch64.pkg.tar.xz	242204	cea0b5138a28b5b4d8eff76e2cc1665f030f109074d88c3962d19aa09921f3b3
 libstdc++	16.1.1+r12+g301eb08fa2c5-1	core/libstdc++-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz	694148	19832a38b2c4820695d28289f1c4f371955586d39fb893d8cbc0d8dbb09a4383
 libstemmer	3.1.1-1	extra/libstemmer-3.1.1-1-aarch64.pkg.tar.xz	125172	c5ab5687f090d94c15b7a4b7288a58e5bf826921ad9cffa8d85bad1ce31284ba
@@ -139,6 +140,7 @@ libtasn1	4.21.0-1	core/libtasn1-4.21.0-1-aarch64.pkg.tar.xz	132184	96ef708879046
 libthai	0.1.30-1	extra/libthai-0.1.30-1-aarch64.pkg.tar.xz	252064	6bef55010b97524e3e2c7de4ec8834df5971eab8fe8ac4c5f2e88e42fad28524
 libtiff	4.7.2-1	extra/libtiff-4.7.2-1-aarch64.pkg.tar.xz	354480	02a5d2d74019b39befd6cf63d9bde95a2d16f91b4d0d56939498375e0e491ffd
 libtirpc	1.3.8-1	core/libtirpc-1.3.8-1-aarch64.pkg.tar.xz	171572	4b233a7e527e4874aa4622166333f13ba1a5da187f3a1d7a347f3895a8c360a4
+libtool	2.6.0+r23+gb08cb0a0-1	core/libtool-2.6.0+r23+gb08cb0a0-1-aarch64.pkg.tar.xz	431772	064e9d5e1dcd6840943e87964ea233694e9911d281e1747b6c7f885199dcaa86
 libtsan	16.1.1+r12+g301eb08fa2c5-1	core/libtsan-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz	380256	8ac217aab99e465455309957031c4b058f37560be337a1fe1f2dac3ab9e0218d
 libubsan	16.1.1+r12+g301eb08fa2c5-1	core/libubsan-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz	176464	6b0f5501898077d3f9533edf75aded85072890f85c1713fde79ed99230d8e5bb
 libunistring	1.4.2-1	core/libunistring-1.4.2-1-aarch64.pkg.tar.xz	595644	106ac7728ff2cc498ffa49d7623e64cf9002eea15c5026ec54fab8cd6a294134
@@ -196,6 +198,7 @@ nss	3.130-1	core/nss-3.130-1-aarch64.pkg.tar.xz	1555316	2e6b6bbdffe3f0b1e858e86c
 openal	1.25.2-2	extra/openal-1.25.2-2-aarch64.pkg.tar.xz	814460	5346124d1da6b462b9b284a42d5cf018d93cf02737262167a27bd7c0f4ee8664
 openssl	3.6.5-1	core/openssl-3.6.5-1-aarch64.pkg.tar.xz	5895660	f60b3c69329784d1218ba098a46b092bb42ecc68f0424f01ce2873353a667c20
 opus	1.6.1-1	extra/opus-1.6.1-1-aarch64.pkg.tar.xz	3946736	a111defb532e8e7e12815cffa06f59be23e3d5b95539d5588289a467a2a11b1a
+orc	0.4.44-1	extra/orc-0.4.44-1-aarch64.pkg.tar.xz	302292	17d187c9a6381bf1bb991f5d98e1c3b19b636ed7bd05b5f4d6601bf41b19868f
 p11-kit	0.26.5-1	core/p11-kit-0.26.5-1-aarch64.pkg.tar.xz	249124	7e5c2facac3abd9b51709e081e8720dc7ccc0f27d6c9b49bcb3d188fa91e75f1
 pam	1.7.3-1	core/pam-1.7.3-1-aarch64.pkg.tar.xz	593028	5170b81779f108a305025d10f1f694e8bad8e910f613f318a4965fcafcb03c79
 pambase	20260616-1	core/pambase-20260616-1-any.pkg.tar.xz	3360	8824b4ddde15770edd4a760901b4c73add68bb18f639ded8316024bc1ab0210f
@@ -203,6 +206,7 @@ pango	1:1.58.2-1	extra/pango-1:1.58.2-1-aarch64.pkg.tar.xz	414852	89712127cef415
 pcre2	10.49-1	core/pcre2-10.49-1-aarch64.pkg.tar.xz	1260636	8334385fdb4ed51807d6345cbe23c961ada160b589855d362c28127f5065a5a6
 pipewire	1:1.6.9-1	extra/pipewire-1:1.6.9-1-aarch64.pkg.tar.xz	264148	d711f2ba44cf9be3800b168f1d68d7791e2838c2bbefde26deff56a26eaccae2
 pixman	0.46.4-1.1	extra/pixman-0.46.4-1.1-aarch64.pkg.tar.xz	181292	4d20f22998a75c9fe1d38c86cd6f4324120fc2bb02f4a749e4794daac6b87dd2
+pulseaudio	17.0+r98+gb096704c0-1	extra/pulseaudio-17.0+r98+gb096704c0-1-aarch64.pkg.tar.xz	1070308	9146e106522f8e876e7ab15d4396420e03cc42dba750bad415850ebc66f4dc13
 python	3.14.7-1	core/python-3.14.7-1-aarch64.pkg.tar.xz	13514884	17015e87d76198ffda880a95fb5ce46f340a68247bd2b4148a7078d1d3f1f250
 rav1e	0.8.1-3	extra/rav1e-0.8.1-3-aarch64.pkg.tar.xz	1155372	a4cd3de43626582c42c89627a52bdf3856fed2e3f3a2d378c9e101911b6bb396
 readline	8.3.6-1	core/readline-8.3.6-1-aarch64.pkg.tar.xz	400496	6e81d2cf14bf0309761d4c65a0a46f181f61c5a6b83aa64928f1ab12cf6f5797
@@ -212,10 +216,12 @@ seatd	0.9.3-1	extra/seatd-0.9.3-1-aarch64.pkg.tar.xz	37408	0eb64d4af642f43af2309
 sed	4.10-2	core/sed-4.10-2-aarch64.pkg.tar.xz	236260	06d68115408b4ab7ca59b9e6f386dcc1015bdb0033686d115d6621711602ed8e
 shadow	4.20.0.arch1-1	core/shadow-4.20.0.arch1-1-aarch64.pkg.tar.xz	1218964	66b4175a7dbfcde481a4cbed256f2f36ef18f760f599395efb954fe15564ae19
 shared-mime-info	2.5.1-2	extra/shared-mime-info-2.5.1-2-aarch64.pkg.tar.xz	703476	1a13b14aec99ae2c7666e73b7b5f74b6c899f80fc9bf26d089ea51fe2cb4d821
+speexdsp	1.2.1-2	extra/speexdsp-1.2.1-2-aarch64.pkg.tar.xz	456036	619c07961bcc824f5e93baaefab5cdc6b1ecdcdbab825d8b2208d46621bb52d5
 spirv-tools	1:1.4.357.0-1	extra/spirv-tools-1:1.4.357.0-1-aarch64.pkg.tar.xz	1935624	e49c54afc1e11b1a915df17ba380c4c4402477a5d5370417801a87df3388ae59
 sqlite	3.53.4-1	core/sqlite-3.53.4-1-aarch64.pkg.tar.xz	1850368	9512d37af4ac6910e10e2a8e6f85078ab72a2ece17a8e6b51755898f50b900ba
 systemd-libs	262-1	core/systemd-libs-262-1-aarch64.pkg.tar.xz	1303288	8e697c8f2db7c82dfcdcdc63540f7ad265d8e10fc7aab656c60229d858fca901
 tar	1.35-5	core/tar-1.35-5-aarch64.pkg.tar.xz	736708	8a9a195736b5cdac96c0511b6a6ea8417477552cf1ad24d904bf6476539b0ad3
+tdb	1.4.15-2	extra/tdb-1.4.15-2-aarch64.pkg.tar.xz	72628	950900d8b4462bf0faf0e701f0c35a95cd23f49f8221244381aee457a05f0dd3
 tinysparql	3.11.1-1	extra/tinysparql-3.11.1-1-aarch64.pkg.tar.xz	978880	d245e5c2098c20a6eff65759d3967a63ff3e4658f755585296000b9c1890a547
 ttf-dejavu	2.37+18+g9b5d1b2f-8	extra/ttf-dejavu-2.37+18+g9b5d1b2f-8-any.pkg.tar.xz	2476332	4946f46257914f16fc61481766d2dd767963b64f58fdcb09ce6210624bce4830
 tzdata	2026e-1	core/tzdata-2026e-1-aarch64.pkg.tar.xz	293780	d7d3c754efda7194c0b931c457436f5215e1ca51835cbfac228e70c46112f22f

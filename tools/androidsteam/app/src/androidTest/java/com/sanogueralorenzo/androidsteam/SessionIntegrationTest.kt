@@ -31,30 +31,47 @@ class SessionIntegrationTest {
         val context = instrumentation.targetContext
         instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
         val session = (context.applicationContext as SteamApplication).session
-        val activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
         fun await(message: String, condition: () -> Boolean) {
             val deadline = SystemClock.elapsedRealtime() + 90_000
             while (!condition() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
             assertTrue(message, condition())
         }
-        try {
-            await("Steam did not start: ${session.state}") { session.state == SessionController.State.Running || session.state is SessionController.State.Failed }
-            assertEquals(SessionController.State.Running, session.state)
-            instrumentation.uiAutomation.executeShellCommand("input keyevent 3").close()
-            await("Steam's surface stayed attached in the background") { !activity.findViewById<android.view.SurfaceView>(R.id.surface).holder.surface.isValid }
-            Thread.sleep(250)
-            val hiddenFrames = NativeDisplay.snapshot()[0]
-            Thread.sleep(1_000)
-            assertEquals("Background frames continued presenting", hiddenFrames, NativeDisplay.snapshot()[0])
-            assertEquals("Steam stopped while switching apps", SessionController.State.Running, session.state)
-            context.startActivity(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
-            await("Steam did not resume on the same display") { NativeDisplay.snapshot()[0] > hiddenFrames }
-            assertEquals(SessionController.State.Running, session.state)
-        } finally {
-            instrumentation.runOnMainSync { session.stop(); activity.finish() }
-            await("Steam did not finish stopping") { session.state == SessionController.State.Idle }
+        repeat(2) { attempt ->
+            val activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
+            var failedAudio = false
+            try {
+                await("Steam did not start: ${session.state}") { session.state == SessionController.State.Running || session.state is SessionController.State.Failed }
+                assertEquals(SessionController.State.Running, session.state)
+                instrumentation.uiAutomation.executeShellCommand("input keyevent 3").close()
+                await("Steam's surface stayed attached in the background") { !activity.findViewById<android.view.SurfaceView>(R.id.surface).holder.surface.isValid }
+                Thread.sleep(250)
+                val hiddenFrames = NativeDisplay.snapshot()[0]
+                Thread.sleep(1_000)
+                assertEquals("Background frames continued presenting", hiddenFrames, NativeDisplay.snapshot()[0])
+                assertEquals("Steam stopped while switching apps", SessionController.State.Running, session.state)
+                context.startActivity(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+                await("Steam did not resume on the same display") { NativeDisplay.snapshot()[0] > hiddenFrames }
+                assertEquals(SessionController.State.Running, session.state)
+                if (attempt == 0) {
+                    val client = LinuxRuntime(context, RuntimeInstaller(context).root).start(
+                        listOf("/usr/bin/pactl", "exit"),
+                        listOf("${File(context.cacheDir, "session").path}:/run/androidsteam"),
+                        mapOf("PULSE_SERVER" to "unix:/run/androidsteam/pulse/native", "LD_LIBRARY_PATH" to "/usr/lib/pulseaudio"))
+                    try {
+                        assertTrue("Audio failure injection timed out", client.waitFor(10, TimeUnit.SECONDS))
+                        assertEquals(client.inputStream.bufferedReader().readText(), 0, client.exitValue())
+                    } finally { client.destroyForcibly() }
+                    await("Audio failure did not terminate the session") { session.state is SessionController.State.Failed }
+                    assertTrue((session.state as SessionController.State.Failed).message.contains("audio stopped"))
+                    failedAudio = true
+                }
+            } finally {
+                instrumentation.runOnMainSync { session.stop(); activity.finish() }
+                if (!failedAudio) await("Steam did not finish stopping") { session.state == SessionController.State.Idle }
+            }
+            assertArrayEquals(longArrayOf(0, 0, 0), NativeDisplay.snapshot())
+            assertFalse("Session sockets were not released", File(context.cacheDir, "session").exists())
         }
-        assertArrayEquals(longArrayOf(0, 0, 0), NativeDisplay.snapshot())
     }
 
     @Test fun componentsInstallAndExecutablesResolveTheirDependencies() {

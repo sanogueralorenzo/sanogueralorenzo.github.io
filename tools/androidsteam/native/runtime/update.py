@@ -107,7 +107,14 @@ def main():
             continue
         entry = packages[package]
         chosen[package] = entry
-        queue.extend(entry.get("DEPENDS", []))
+        dependencies = entry.get("DEPENDS", [])
+        if package == "pulseaudio":
+            # build.sh keeps only the native UNIX protocol and pipe sink. Their
+            # ELF dependencies include the existing systemd library, but they
+            # need no system daemon, realtime service or optional DSP modules.
+            dependencies = [d for d in dependencies if name(d) not in
+                            {"systemd", "rtkit", "fftw", "webrtc-audio-processing-1"}]
+        queue.extend(dependencies)
     rows = []
     for package, entry in sorted(chosen.items()):
         rows.append("\t".join((package, entry["VERSION"][0],

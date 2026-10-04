@@ -50,6 +50,10 @@ while IFS=$'\t' read -r name version url bytes checksum; do
         ln -s "lib$library-x11-2.0.so.0.2400.33" "$ROOT/usr/lib/lib$library-x11-2.0.so.0"
     done
 done < "$HERE/gtk2.tsv"
+# Android supplies the audio device. Keep PulseAudio's established client
+# protocol and PCM pipe output; other device/DSP modules are not configured.
+find "$ROOT/usr/lib/pulseaudio/modules" -type f \
+    ! -name module-native-protocol-unix.so ! -name libprotocol-native.so ! -name module-pipe-sink.so -delete
 # Development outputs and manuals are unused at runtime. Keep licenses, package
 # provenance, font/GTK/Wayland resources, CA trust policy and English messages.
 rm -rf "$ROOT/usr/include" "$ROOT/usr/lib/pkgconfig" "$ROOT/usr/share/pkgconfig" "$ROOT/usr/lib/cmake" \

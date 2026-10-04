@@ -6,6 +6,7 @@ import android.os.Looper
 import android.view.Surface
 import com.sanogueralorenzo.androidsteam.display.GraphicsInstaller
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
+import com.sanogueralorenzo.androidsteam.audio.SessionAudio
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androidsteam.runtime.checkInstallationCancelled
@@ -33,6 +34,9 @@ internal class SessionController(private val context: Context) {
     private var generation = 0
     private var job: Future<*>? = null
     @Volatile private var process: Process? = null
+    @Volatile private var audio: SessionAudio? = null
+    @Volatile private var visible = true
+    private var attachedSurface: Surface? = null
     @Volatile var state: State = State.Idle
         private set
 
@@ -42,6 +46,8 @@ internal class SessionController(private val context: Context) {
     fun start(surface: Surface, width: Int, height: Int, refresh: Int) {
         if (state is State.Working || state == State.Running || state == State.Stopping) return
         val token = ++generation
+        visible = true
+        attachedSurface = surface
         publish(State.Working("Preparing Steam…"))
         job = worker.submit {
             val directory = File(context.cacheDir, "session")
@@ -62,6 +68,11 @@ internal class SessionController(private val context: Context) {
                 check(directory.mkdirs()) { "Cannot prepare the Steam session." }
                 val session = SessionRuntime(context, directory)
                 val command = session.steamCommand()
+                // Retain ownership before startup so partial failures also release audio.
+                val playback = SessionAudio(context, directory)
+                audio = playback
+                playback.start()
+                playback.setVisible(visible)
                 update(token, State.Working("Starting Steam…"))
                 NativeDisplay.startVulkan(session.socket.path, surface, refresh,
                     File(graphics.root, "android").path, context.applicationInfo.nativeLibraryDir)
@@ -94,6 +105,7 @@ internal class SessionController(private val context: Context) {
                 while (!running.waitFor(100, TimeUnit.MILLISECONDS)) {
                     checkInstallationCancelled()
                     readFailure.get()?.let { throw it }
+                    audio?.failure?.let { throw it }
                     if (!displayed && NativeDisplay.snapshot()[0] > 0) {
                         displayed = true
                         update(token, State.Running)
@@ -116,8 +128,11 @@ internal class SessionController(private val context: Context) {
                     running?.destroyForcibly()
                 } finally {
                     process = null
-                    NativeDisplay.stop()
-                    RuntimeArchive.delete(directory)
+                    try { audio?.close() } finally {
+                        audio = null
+                        NativeDisplay.stop()
+                        RuntimeArchive.delete(directory)
+                    }
                     if (interrupted) Thread.currentThread().interrupt()
                 }
             }
@@ -134,7 +149,26 @@ internal class SessionController(private val context: Context) {
         worker.execute { update(token, State.Idle) }
     }
 
-    fun attach(surface: Surface?) { if (state == State.Running || state is State.Working) NativeDisplay.attach(surface) }
+    fun attach(surface: Surface) {
+        attachedSurface = surface
+        visible = true
+        if (state == State.Running || state is State.Working) {
+            NativeDisplay.attach(surface)
+            audio?.setVisible(true)
+        }
+    }
+
+    fun detach(surface: Surface) {
+        // A departing activity can destroy its surface after a replacement has
+        // already attached. It must not detach or mute the replacement.
+        if (attachedSurface !== surface) return
+        attachedSurface = null
+        visible = false
+        if (state == State.Running || state is State.Working) {
+            NativeDisplay.attach(null)
+            audio?.setVisible(false)
+        }
+    }
 
     private fun update(token: Int, value: State) { main.post {
         if (generation == token && !(state == State.Running && value is State.Working)) publish(value)
