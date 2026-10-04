@@ -112,3 +112,71 @@ test("withdrawing an approval clears its reaction; withdrawing a resumed request
     assert.equal(entry.updates.length, 1);
   } finally { f.close(); }
 });
+
+test("steering consumes the selected queued message once and retains its source, quote and unrelated queued work", async () => {
+  const f = fixture();
+  try {
+    f.app.submitSession("session", "Original request");
+    const running = f.state.data.turns[0];
+    running.status = "running";
+    const prompts: string[] = [];
+    Object.assign(f.app, { active: new Map([["session", { turn: running, stopped: false, session: { steer: async (prompt: string) => { prompts.push(prompt); } } }]]) });
+    const entry = f.state.data.entries[0];
+    f.state.update(entry, "Earlier proposal", "result", "working", running.sourceId, "proposal");
+    f.app.submitSession("session", "Use this proposal", "followUp", { replyToId: "proposal" });
+    const selected = f.state.data.turns[1];
+    f.app.submitSession("session", "Later follow-up");
+    const later = f.state.data.turns[2];
+    const before = f.state.data.messages.map((message) => message.id);
+    const request = f.app.steerQueued("session", selected.id);
+    await assert.rejects(f.app.steerQueued("session", selected.id), /no longer queued/);
+    await request;
+    assert.deepEqual(prompts, ["In reply to this earlier assistant message:\n> Earlier proposal\n\nUse this proposal"]);
+    assert.deepEqual(f.state.data.turns, [running, later]);
+    assert.deepEqual(f.state.data.messages.map((message) => message.id), before);
+    assert.equal(running.sourceId, selected.sourceId);
+    assert.equal(f.state.data.messages.find((message) => message.id === selected.sourceId)?.replyToId, "proposal");
+  } finally { f.close(); }
+});
+
+test("failed steering restores the queue order and original active source without losing the message", async () => {
+  const f = fixture();
+  try {
+    f.app.submitSession("session", "Active request");
+    const running = f.state.data.turns[0];
+    running.status = "running";
+    f.state.data.entries[0].status = "working";
+    f.app.submitSession("session", "Queued request");
+    const queued = f.state.data.turns[1];
+    await assert.rejects(f.app.steerQueued("session", queued.id), /no active work/);
+    let reject!: (reason: Error) => void;
+    const pending = new Promise<void>((_, fail) => { reject = fail; });
+    Object.assign(f.app, { active: new Map([["session", { turn: running, stopped: false, session: { steer: () => pending } }]]) });
+    const before = JSON.stringify(f.state.data);
+    const request = f.app.steerQueued("session", queued.id);
+    assert.equal(f.state.data.turns.some((turn) => turn.id === queued.id), false);
+    reject(new Error("Steering rejected"));
+    await assert.rejects(request, /Steering rejected/);
+    assert.equal(JSON.stringify(f.state.data), before);
+    await assert.rejects(f.app.steerQueued("wrong", queued.id), /no longer queued/);
+    await assert.rejects(f.app.steerQueued("session", running.id), /already started/);
+  } finally { f.close(); }
+});
+
+test("steering a separately routed queued request moves its Home message into the active entry", async () => {
+  const f = fixture();
+  try {
+    f.app.submitSession("session", "Active request");
+    const running = f.state.data.turns[0];
+    running.status = "running";
+    Object.assign(f.app, { active: new Map([["session", { turn: running, stopped: false, session: { steer: async () => {} } }]]) });
+    const message = f.state.message("Separately routed request");
+    const entry = f.state.entry(message, "New request", "session");
+    const queued = { ...running, id: "routed", sourceId: message.id, entryId: entry.id, text: message.text, status: "queued" as const };
+    f.state.data.turns.push(queued);
+    await f.app.steerQueued("session", queued.id);
+    assert.equal(message.entryId, running.entryId);
+    assert.equal(f.state.data.entries.some((item) => item.id === entry.id), false);
+    assert.equal(f.state.data.messages.some((item) => item.id === message.id), true);
+  } finally { f.close(); }
+});

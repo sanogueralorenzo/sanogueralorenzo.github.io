@@ -68,6 +68,7 @@ const server = createServer(async (req, res) => {
       }));
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
       if (url.pathname === "/api/dequeue") return json(res, 200, app.dequeue(input(request.sessionId), input(request.turnId)));
+      if (url.pathname === "/api/steer-queued") return json(res, 200, await app.steerQueued(input(request.sessionId), input(request.turnId)));
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }
       return json(res, 404, { error: "Unknown endpoint" });
     }

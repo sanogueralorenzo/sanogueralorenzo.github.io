@@ -13,7 +13,7 @@ sessionStorage.removeItem("assistant-reload-reply");
 sessionStorage.removeItem("assistant-reload-edit");
 sessionStorage.removeItem("assistant-reload-queued-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
+  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
 const actions = createMessageActions({ state, root, api, render });
 const suggestions = createPromptSuggestions({ state, root, api, render });
@@ -126,10 +126,9 @@ function render(force = false) {
   const cursor = focus ? document.activeElement.selectionStart : null;
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
-  if (record?.status !== "running") state.steer = false;
   const editing = isHome && state.edit;
   const previewHTML = actions.preview();
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span><button type="button" data-action="accept-suggestion" title="Use suggested reply"><kbd>Tab</kbd></button></div></div><div class="composer-controls">${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</form></footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span><button type="button" data-action="accept-suggestion" title="Use suggested reply"><kbd>Tab</kbd></button></div></div><div class="composer-controls">${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
@@ -178,7 +177,6 @@ root.addEventListener("click", async (event) => {
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
     if (button.dataset.action === "dismiss") { state.error = ""; render(); }
-    if (button.dataset.action === "toggle-steer") { state.steer = !state.steer; render(); }
     if (button.dataset.action === "stop") await api("/api/stop", "POST", { sessionId: state.selected });
     if (button.dataset.action === "resume") await api("/api/resume", "POST", { entryId: button.dataset.entry });
   } catch (error) { state.error = error.message; render(); }
@@ -244,7 +242,7 @@ root.addEventListener("submit", async (event) => {
   } else {
     if (!queuedEdit) state.replyToId = null;
     render(!!(replyToId || queuedEdit));
-    try { await api("/api/turns", "POST", { sessionId: selected, text, mode: submittedDraft.steer ? "steer" : "followUp", replyToId }); if (!queuedEdit) state.steer = false; await loadSession(); }
+    try { await api("/api/turns", "POST", { sessionId: selected, text, mode: "followUp", replyToId }); await loadSession(); }
     catch (error) { state.error = error.message; restoreComposerDraft(state, { ...submittedDraft, input: text }); render(); }
   }
 });

@@ -7,7 +7,7 @@ import { suggestionTarget } from "./prompt-suggestions.js";
 function fixture() {
   const message = { id: "queued", text: "Change the padding", replyToId: "proposal" };
   const turn = { id: "turn", sessionId: "session", sourceId: message.id, text: message.text, replyToId: message.replyToId, status: "queued" };
-  const state = { selected: "home", input: "My existing draft", replyToId: "older", edit: null, queuedEdit: null, steer: false, sessionDrafts: {},
+  const state = { selected: "home", input: "My existing draft", replyToId: "older", edit: null, queuedEdit: null, sessionDrafts: {},
     data: { messages: [message], turns: [turn], sessions: [{ id: "session", title: "Layout" }], entries: [] }, transcript: [] };
   const requests = [];
   const pending = Promise.withResolvers();
@@ -93,6 +93,27 @@ test("session queue controls are visible and include only waiting messages in th
   assert.match(html, /queue-action/);
   assert.match(html, /Edit queued message/);
   assert.match(html, /Delete queued message/);
+  assert.match(html, /Steer with this queued message/);
   assert.doesNotMatch(html, /data-turn="(?:running|other)"/);
   assert.match(f.queue.controls(f.turn, true), /reply-action/);
+  f.state.data.turns = [f.turn];
+  assert.doesNotMatch(f.queue.composer(), /Steer with this queued message/);
+});
+
+test("steering a queued row preserves the draft and original message, and failure keeps the row queued", async () => {
+  for (const succeeds of [true, false]) {
+    const f = fixture();
+    const before = composerDraft(f.state);
+    const request = f.queue.handleClick(f.button("steer-queued"));
+    await f.queue.handleClick(f.button("steer-queued"));
+    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests[0].path, "/api/steer-queued");
+    if (succeeds) f.pending.resolve({ turn: f.turn, steered: true });
+    else f.pending.reject(new Error("No active work"));
+    if (succeeds) await request;
+    else await assert.rejects(request, /No active work/);
+    assert.deepEqual(composerDraft(f.state), before);
+    assert.deepEqual(f.state.data.messages, [f.message]);
+    assert.equal(f.state.data.turns.length, succeeds ? 0 : 1);
+  }
 });

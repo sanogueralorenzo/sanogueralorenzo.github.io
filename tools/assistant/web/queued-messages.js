@@ -1,10 +1,10 @@
 import { escapeHTML, icon } from "./view.js";
 
 export function composerDraft(state) {
-  return { input: state.input, replyToId: state.replyToId, edit: state.edit, queuedEdit: state.queuedEdit, steer: state.steer };
+  return { input: state.input, replyToId: state.replyToId, edit: state.edit, queuedEdit: state.queuedEdit };
 }
 export function restoreComposerDraft(state, draft) {
-  Object.assign(state, { input: "", replyToId: null, edit: null, queuedEdit: null, steer: false }, draft);
+  Object.assign(state, { input: "", replyToId: null, edit: null, queuedEdit: null }, draft);
 }
 
 export function createQueuedMessages({ state, root, api, render }) {
@@ -12,7 +12,9 @@ export function createQueuedMessages({ state, root, api, render }) {
   function controls(turn, hover = false) {
     const disabled = pending.has(turn.id) ? "disabled" : "";
     const button = (action, label, symbol) => `<button type="button" class="${hover ? "reply-action" : "queue-action"}" data-action="${action}" data-turn="${escapeHTML(turn.id)}" data-session="${escapeHTML(turn.sessionId)}" aria-label="${label}" title="${label}" ${disabled}>${icon(symbol, 14)}</button>`;
-    return `<div class="${hover ? "message-actions" : "queued-actions"}">${button("edit-queued", "Edit queued message", "edit")}${button("delete-queued", "Delete queued message", "trash")}</div>`;
+    const running = state.data.turns.some((item) => item.sessionId === turn.sessionId && item.status === "running");
+    const steer = !hover && running ? `<button type="button" class="queue-steer" data-action="steer-queued" data-turn="${escapeHTML(turn.id)}" data-session="${escapeHTML(turn.sessionId)}" aria-label="Steer with this queued message" title="Use this message after the current tool finishes" ${disabled}>Steer</button>` : "";
+    return `<div class="${hover ? "message-actions" : "queued-actions"}">${steer}${button("edit-queued", "Edit queued message", "edit")}${button("delete-queued", "Delete queued message", "trash")}</div>`;
   }
   function composer() {
     const turns = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
@@ -28,19 +30,19 @@ export function createQueuedMessages({ state, root, api, render }) {
   async function handleClick(button) {
     const action = button.dataset.action;
     if (action === "dismiss-queued-edit") { cancelEdit(); return true; }
-    if (!["edit-queued", "delete-queued"].includes(action)) return false;
+    if (!["edit-queued", "delete-queued", "steer-queued"].includes(action)) return false;
     const turnId = button.dataset.turn;
     if (pending.has(turnId)) return true;
     const view = state.selected;
     pending.add(turnId);
     render();
     try {
-      const { turn, message, removedMessageId } = await api("/api/dequeue", "POST", { turnId, sessionId: button.dataset.session });
+      const { turn, message, removedMessageId } = await api(action === "steer-queued" ? "/api/steer-queued" : "/api/dequeue", "POST", { turnId, sessionId: button.dataset.session });
       state.data.turns = state.data.turns.filter((item) => item.id !== turnId);
       if (removedMessageId) state.data.messages = state.data.messages.filter((item) => item.id !== removedMessageId);
       if (action === "edit-queued") {
         const previous = view === state.selected ? composerDraft(state) : state.sessionDrafts[view];
-        const draft = { input: message?.text || turn.text, replyToId: turn.replyToId || null, edit: null, steer: false,
+        const draft = { input: message?.text || turn.text, replyToId: turn.replyToId || null, edit: null,
           queuedEdit: { sessionId: turn.sessionId, text: message?.text || turn.text, previous } };
         if (view === state.selected) restoreComposerDraft(state, draft);
         else state.sessionDrafts[view] = draft;

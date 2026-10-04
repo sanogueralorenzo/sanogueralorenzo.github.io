@@ -149,6 +149,44 @@ export class Assistant {
     this.state.save();
     return { turn, message, removedMessageId };
   }
+  async steerQueued(sessionId: string, turnId: string) {
+    const turn = this.state.data.turns.find((item) => item.id === turnId && item.sessionId === sessionId);
+    if (!turn || turn.status !== "queued") throw new Error("This message has already started or is no longer queued.");
+    const active = this.active.get(sessionId);
+    if (!active || active.stopped) throw new Error("There is no active work to steer. The message is still queued.");
+    const source = this.state.data.messages.find((item) => item.id === turn.sourceId);
+    const entry = this.state.data.entries.find((item) => item.id === active.turn.entryId);
+    const previousEntryId = source?.entryId;
+    const previousSourceId = active.turn.sourceId;
+    const previousStatus = entry?.status;
+    const index = this.state.data.turns.indexOf(turn);
+    const reply = turn.replyToId && this.replyTarget(turn.replyToId, sessionId);
+    // Claim the queued item before awaiting Pi, so it cannot also start as a follow-up.
+    this.state.data.turns.splice(index, 1);
+    active.turn.sourceId = turn.sourceId;
+    if (source) source.entryId = active.turn.entryId;
+    if (entry) entry.status = "working";
+    this.state.save();
+    try {
+      await active.session.steer(replyPrompt(turn.text, reply || undefined));
+    } catch (error) {
+      if (source) source.entryId = previousEntryId ?? null;
+      if (active.turn.sourceId === turn.sourceId) active.turn.sourceId = previousSourceId;
+      if (entry && entry.status === "working" && previousStatus) entry.status = previousStatus;
+      this.state.data.turns.splice(Math.min(index, this.state.data.turns.length), 0, turn);
+      this.state.save();
+      this.drain();
+      throw error;
+    }
+    if (previousEntryId && previousEntryId !== active.turn.entryId) {
+      const old = this.state.data.entries.find((item) => item.id === previousEntryId);
+      const remaining = this.state.data.messages.filter((item) => item.entryId === previousEntryId);
+      if (old && !old.updates.length && !remaining.length) this.state.data.entries = this.state.data.entries.filter((item) => item.id !== old.id);
+      else if (old?.sourceId === source?.id && remaining[0]) old.sourceId = remaining[0].id;
+    }
+    this.state.save();
+    return { turn, steered: true };
+  }
   stop(sessionId: string) {
     const active = this.active.get(sessionId);
     if (!active) {

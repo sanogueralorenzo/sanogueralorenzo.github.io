@@ -102,7 +102,9 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .queued-row { display: flex; align-items: center; gap: 12px; padding: 5px 0; font-size: 13px; }
 .queued-row + .queued-row { border-top: 1px solid var(--line); }
 .queued-row > span { flex: 1; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-.queued-actions { display: flex; flex-shrink: 0; gap: 3px; }
+.queued-actions { display: flex; align-items: center; flex-shrink: 0; gap: 3px; }
+.queue-steer { min-height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+.queue-steer:hover, .queue-steer:focus-visible { color: var(--graphite); background: var(--surface); }
 .queue-action { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
 .queue-action:hover, .queue-action:focus-visible { color: var(--graphite); background: var(--surface); }
 .composer-area { position: relative; z-index: 2; flex: 0 0 auto; padding: 0 10px 10px; background: var(--canvas); }
@@ -177,6 +179,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
   .assistant-row { padding-right: 26px; }
   .message-bubble { font-size: 14px; }
   .queue-action { width: 32px; height: 32px; }
+  .queue-steer { min-height: 32px; }
 }
 
 .connection-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
@@ -227,8 +230,6 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .reply-preview-text > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .dismiss-reply { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--muted); background: transparent; cursor: pointer; }
 .dismiss-reply:hover { color: var(--graphite); background: var(--surface); }
-.steer-button { width: auto; flex-basis: auto; padding: 0 8px; border-radius: 12px; font-size: 12px; }
-.steer-selected { color: var(--clay); font-weight: 700; }
 .composer-hint { flex: 0 0 100%; margin: 0; padding: 0 4px; font-size: 12px; color: var(--clay); }
 .composer:has(.composer-hint) { flex-wrap: wrap; }
 .session-composer .composer-hint { flex: 0 0 auto; }
