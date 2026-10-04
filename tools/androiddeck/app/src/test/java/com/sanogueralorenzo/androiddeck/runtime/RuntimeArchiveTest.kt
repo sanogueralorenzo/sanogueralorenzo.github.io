@@ -52,6 +52,12 @@ class RuntimeArchiveTest {
         assertTrue(Files.isSameFile(root.resolve("copy").toPath(), root.resolve("original").toPath()))
     }
 
+    @Test fun supportsDirectoryAliasesToTheParent() = withDirectory { root ->
+        RuntimeArchive.extract(archive(entry("usr/bin/program", byteArrayOf(1)), link("usr/bin/X11", ".")), root)
+        assertEquals(".", Files.readSymbolicLink(root.resolve("usr/bin/X11").toPath()).toString())
+        assertTrue(root.resolve("usr/bin/X11/program").isFile)
+    }
+
     @Test fun cleanupNeverFollowsLinks() = withDirectory { root ->
         val outside = Files.createTempDirectory("androiddeck-preserved").toFile()
         try {

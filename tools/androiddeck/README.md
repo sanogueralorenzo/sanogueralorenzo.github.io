@@ -31,4 +31,6 @@ On the supported Adreno device, after runtime setup, `-Pandroid.testInstrumentat
 
 `-Pandroid.testInstrumentationRunnerArguments.verifySteam=true` downloads the pinned stable ARM64 Steam client directly from Valve (358 MB; 2.5 GB free storage), verifies each component, and checks extraction, client links, retry, and user-data preservation. Installation passes on the S24; the Deck session and sign-in screen are still being integrated. The client is not included in the APK.
 
+`-Pandroid.testInstrumentationRunnerArguments.verifySession=true` enables session-component installation/dependency checks and the Gamescope rendering probe. The current rendering probe stops because presentation-time feedback is still missing; Steam sign-in is not ready. The user will authenticate once the interface is available.
+
 See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins and licenses, and [PLAN.md](PLAN.md) for delivery criteria.

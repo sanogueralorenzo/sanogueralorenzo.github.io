@@ -45,6 +45,7 @@ android {
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("licenseAssets"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("graphicsAssets"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("runtimeAssets"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("sessionAssets"))
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
@@ -95,7 +96,7 @@ val buildLinuxDisplay by tasks.registering(Exec::class) {
 }
 val packageGraphicsLibraries by tasks.registering(Exec::class) {
     dependsOn(buildLinuxDisplay)
-    inputs.files(rootProject.file("native/graphics/packages.sh"), rootProject.file("native/graphics/packages.tsv"))
+    inputs.files(rootProject.file("native/packages.sh"), rootProject.file("native/graphics/packages.sh"), rootProject.file("native/graphics/packages.tsv"))
     inputs.file(layout.buildDirectory.file("linuxDisplay/libwayland-client.so.0"))
     val output = layout.buildDirectory.dir("graphicsAssets")
     outputs.file(output.map { it.file("graphics-libraries.tar.xz") })
@@ -104,12 +105,20 @@ val packageGraphicsLibraries by tasks.registering(Exec::class) {
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageGraphicsLibraries) }
 
 val packageCoreutils by tasks.registering(Exec::class) {
-    inputs.file(rootProject.file("native/runtime/coreutils.sh"))
+    inputs.files(rootProject.file("native/packages.sh"), rootProject.file("native/runtime/coreutils.sh"), rootProject.file("native/runtime/packages.tsv"))
     val output = layout.buildDirectory.dir("runtimeAssets")
     outputs.file(output.map { it.file("coreutils.tar.xz") })
     commandLine("bash", rootProject.file("native/runtime/coreutils.sh"), output.get().asFile)
 }
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageCoreutils) }
+
+val packageSessionComponents by tasks.registering(Exec::class) {
+    inputs.files(rootProject.file("native/packages.sh"), rootProject.file("native/session/packages.sh"), rootProject.file("native/session/packages.tsv"), rootProject.file("native/session/sources.tsv"))
+    val output = layout.buildDirectory.dir("sessionAssets")
+    outputs.file(output.map { it.file("session-components.tar.xz") })
+    commandLine("bash", rootProject.file("native/session/packages.sh"), output.get().asFile)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageSessionComponents) }
 
 dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")

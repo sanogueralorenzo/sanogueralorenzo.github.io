@@ -75,7 +75,8 @@ internal object RuntimeArchive {
             }
             // Android app storage forbids hard links. A contained symbolic alias
             // preserves shared content without copying each multicall executable.
-            Files.createSymbolicLink(path, path.parent.relativize(target))
+            val relative = path.parent.relativize(target)
+            Files.createSymbolicLink(path, if (relative.toString().isEmpty()) Path.of(".") else relative)
         }
         for ((_, target, _) in links) {
             require(target.toFile().canonicalFile.toPath().startsWith(root)) { "Runtime link chain escapes installation: ${root.relativize(target)}" }
