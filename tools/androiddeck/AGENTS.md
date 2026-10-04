@@ -1,7 +1,8 @@
 # Android Deck
 
-Build a minimal Steam Deck experience on Android with understandable code and measured improvements in startup, resource use, and responsiveness. Simplify the product and its architecture together.
+Build a minimal Steam Deck experience on Android with clear responsibilities, minimal dependencies, and efficient startup, resource use, and input handling. Establish simple foundations from the first implementation and validate performance with measurements.
 
+- Investigate [DroidDeck](https://github.com/Droid-Deck/DroidDeck) to understand the runtime, Steam integration, and Android bridges. Compare viable alternatives before adopting an implementation; reuse its code only when no alternative better meets this project's simplicity, reliability, and performance goals. All other guidance still applies.
 - Require Android 16+ (`minSdk = 36`), ARM64, and supported Adreno hardware. Validate one real device first. Assess `targetSdk` separately against runtime execution requirements.
 - Keep one Steam session mode. The initial scope excludes desktop apps, emulators, external game imports, frame generation, and preview/test update channels.
 - Use a small Kotlin Views/XML frontend and a native rendering surface. Steam owns sign-in, the library, downloads, and its interface.
@@ -9,8 +10,8 @@ Build a minimal Steam Deck experience on Android with understandable code and me
 - Give session state and process lifetime one owner. Make startup, failure, shutdown, and recovery explicit; release resources and reap session processes reliably.
 - Prefer a pinned runtime and matched driver pair for the first device. Use explicit configuration and actionable errors instead of nested routing and silent fallbacks.
 - Share code only when existing callers demonstrate the same responsibility. Avoid generic helper collections, speculative interfaces, and configurable frameworks for a single path.
-- Reuse established low-level components where appropriate. Understand required compatibility behavior before removing it; preserve applicable licenses and attribution for reused code.
-- Remove replaced implementations, dependencies, and configuration. Preserve necessary graphics, audio, input, and process handling even when they cost lines.
-- Treat LOC reduction as evidence, not a quota. Do not move complexity into scripts, generated code, or abstractions to make a count smaller.
+- Prefer established low-level components over rebuilding mature engines. Adopt compatibility helpers and workarounds only for demonstrated needs; preserve applicable licenses and attribution for reused code.
+- Implement only the current scope and add dependencies or abstractions only for concrete needs. Keep the complete execution path understandable across Kotlin, native code, and runtime scripts.
+- Remove replaced implementations, dependencies, and configuration. Preserve necessary graphics, audio, input, and process handling.
 - Measure release builds on the same device and workload: startup to usable Steam, memory, idle CPU, frame pacing, and input responsiveness. Report improvements only when supported by measurements.
 - Verify runtime installation, session startup, stop/relaunch, and failure cleanup with focused checks. Use the real device for graphics and gameplay validation; an emulator covers the frontend and generic Android behavior.
