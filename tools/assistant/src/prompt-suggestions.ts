@@ -54,7 +54,7 @@ export class PromptSuggestions {
     if (signal.aborted || answer.stopReason !== "stop") return;
     const text = answer.content.filter((part) => part.type === "text").map((part) => part.text).join("").trim();
     if (text === "NONE") return { text: null };
-    if (!text || /[\r\n\x00-\x1f]/.test(text) || text.length > 180 || text.split(/\s+/).length > 20) return;
+    if (!text || /[\r\n\x00-\x1f]/.test(text) || text.length > 180 || text.split(/\s+/).length > 16) return;
     return { text };
   }
 }

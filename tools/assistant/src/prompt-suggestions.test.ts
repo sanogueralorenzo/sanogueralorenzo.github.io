@@ -58,10 +58,13 @@ test("NONE, malformed output, provider errors and wrong reasoning all fall back 
   } as unknown as ModelRuntime;
   const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   let id = 0;
-  for (const invalid of ["NONE", "", "First line\nSecond line", Array(21).fill("word").join(" "), "x".repeat(181)]) {
+  const longest = "Wait for the active session to finish, then restart the service and run the focused checks.";
+  for (const invalid of ["NONE", "", "First line\nSecond line", `${longest} again`, "x".repeat(181)]) {
     text = invalid;
     assert.equal(await suggestions.get("session", String(id++), []), null);
   }
+  text = longest;
+  assert.equal(await suggestions.get("session", String(id++), []), longest);
   text = "Show the mockup.";
   stopReason = "error";
   assert.equal(await suggestions.get("session", String(id++), []), null);
