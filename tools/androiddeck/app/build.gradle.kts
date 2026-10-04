@@ -16,6 +16,7 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += "arm64-v8a" }
+        externalNativeBuild.cmake.arguments += "-DDECK_DEPS=${layout.buildDirectory.dir("display-deps").get().asFile}"
     }
     buildTypes {
         release {
@@ -25,11 +26,16 @@ android {
         }
     }
     packaging { jniLibs.useLegacyPackaging = true }
+    externalNativeBuild.cmake {
+        path = rootProject.file("native/display/CMakeLists.txt")
+        version = "3.22.1"
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("executionProbe"))
+    sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("waylandProbe"))
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("licenseAssets"))
 }
@@ -61,7 +67,26 @@ val packageLicenses by tasks.registering(Sync::class) {
     from(rootProject.file("licenses")) { into("licenses") }
     into(layout.buildDirectory.dir("licenseAssets"))
 }
-tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, packageLicenses) }
+val prepareDisplayDependencies by tasks.registering(Exec::class) {
+    inputs.files(rootProject.file("native/display/dependencies.sh"), rootProject.file("native/display/source.env"))
+    inputs.property("ndkVersion", android.ndkVersion.orEmpty())
+    val output = layout.buildDirectory.dir("display-deps")
+    outputs.dir(output)
+    environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
+    commandLine("bash", rootProject.file("native/display/dependencies.sh"), output.get().asFile)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, packageLicenses, prepareDisplayDependencies) }
+tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplayDependencies) }
+val compileWaylandProbe by tasks.registering(Exec::class) {
+    dependsOn(prepareDisplayDependencies)
+    inputs.files(rootProject.file("native/display/probe.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/source.env"))
+    inputs.property("ndkVersion", android.ndkVersion.orEmpty())
+    val output = layout.buildDirectory.dir("waylandProbe/arm64-v8a")
+    outputs.file(output.map { it.file("libwayland-probe.so") })
+    environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
+    commandLine("bash", rootProject.file("native/display/probe.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
+}
+tasks.matching { it.name == "preDebugBuild" }.configureEach { dependsOn(compileWaylandProbe) }
 
 dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")

@@ -6,7 +6,7 @@ The initial target is one validated ARM64 Adreno device. The frontend uses Kotli
 
 ## Build and try
 
-Use JDK 17 or 21, Android SDK 36, NDK `28.2.13676358`, and an ARM64 Android 16 device or emulator. Set `ANDROID_HOME` or create `local.properties` with `sdk.dir`. Native builds require Bash, curl, tar, make, and shasum on macOS or Linux x86_64.
+Use JDK 17 or 21, Android SDK 36, NDK `28.2.13676358`, CMake `3.22.1`, and an ARM64 Android 16 device or emulator. Set `ANDROID_HOME` or create `local.properties` with `sdk.dir`. Native builds require Bash, curl, tar, make, shasum, ar, patch, a host C compiler, and Expat development headers on macOS or Linux x86_64 (macOS Command Line Tools; Linux `build-essential libexpat1-dev zstd patch`).
 
 ```sh
 ./gradlew :app:assembleDebug
@@ -22,5 +22,7 @@ Open Android Deck, choose **Install Linux runtime** (78 MB download; 650 MB free
 ```
 
 Opt into the real download/execution test with `-Pandroid.testInstrumentationRunnerArguments.verifyRuntime=true`. It installs the pinned Ubuntu ARM64 base and runs Linux twice. Emulator checks cover setup and execution; Adreno graphics and gameplay require the physical device.
+
+After installing the runtime, `-Pandroid.testInstrumentationRunnerArguments.verifyDisplay=true` enables the Linux Wayland display check: actual surface pixels, failed-start recovery, live-client shutdown, and display restart. This development check uses shared-memory frames; Vulkan integration remains unfinished. Gradle's connected test task removes the app and its runtime afterward.
 
 See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins and licenses, and [PLAN.md](PLAN.md) for delivery criteria.

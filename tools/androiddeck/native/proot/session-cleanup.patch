@@ -1,0 +1,11 @@
+--- a/src/tracee/event.c
++++ b/src/tracee/event.c
+@@ -128 +128 @@
+-	if (signum != SIGQUIT)
++	if (signum != SIGQUIT && signum != SIGTERM)
+@@ -283,0 +284 @@
++		case SIGTERM:
+@@ -436 +437,2 @@
+-				PTRACE_O_TRACEEXIT);
++				PTRACE_O_TRACEEXIT	|
++				PTRACE_O_EXITKILL);

@@ -23,6 +23,9 @@ fetch() {
 }
 fetch proot "https://github.com/termux/proot/archive/$PROOT_COMMIT.tar.gz" "$PROOT_SHA256"
 fetch talloc "https://www.samba.org/ftp/talloc/talloc-$TALLOC_VERSION.tar.gz" "$TALLOC_SHA256"
+# Android Process.destroy sends SIGTERM, which upstream PRoot ignores. Reap its
+# tracees on TERM; EXITKILL also kills them if the tracer dies unexpectedly.
+(cd "$WORK/proot"; patch -p1 -F0 < "$HERE/session-cleanup.patch")
 mkdir -p "$WORK/talloc/config" "$WORK/bin"
 cp "$HERE/talloc-config.h" "$WORK/talloc/config/config.h"
 "$CC" -c -O2 -fPIC -ffile-prefix-map="$WORK"=. -D__STDC_WANT_LIB_EXT1__=1 -DHAVE_CONFIG_H \
