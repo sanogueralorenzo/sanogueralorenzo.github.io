@@ -11,9 +11,9 @@ function fixture() {
   const span = { textContent: "" };
   const attributes = new Map();
   const textarea = { placeholder: "Message", focus() {}, setSelectionRange() {}, setAttribute: (key, value) => attributes.set(key, value), removeAttribute: key => attributes.delete(key) };
-  const button = { setAttribute: (key, value) => attributes.set(key, value) };
-  const overlay = { hidden: true, querySelector: selector => selector === "span" ? span : button };
-  const root = { querySelector: selector => selector === ".prompt-suggestion" ? overlay : textarea };
+  const button = { hidden: true, setAttribute: (key, value) => attributes.set(key, value) };
+  const overlay = { hidden: true, querySelector: () => span };
+  const root = { querySelector: selector => selector === ".prompt-suggestion" ? overlay : selector === '[data-action="accept-suggestion"]' ? button : textarea };
   const requests = [];
   let renders = 0;
   const suggestions = createPromptSuggestions({ state, root, render: () => renders++, api: (_path, _method, body) => {
@@ -21,7 +21,7 @@ function fixture() {
     requests.push(request);
     return request.promise;
   } });
-  return { state, overlay, textarea, span, requests, suggestions, renders: () => renders };
+  return { state, overlay, button, textarea, span, requests, suggestions, renders: () => renders };
 }
 
 test("typing hides pending hints and clearing the draft restores the saved hint", async () => {
@@ -35,9 +35,11 @@ test("typing hides pending hints and clearing the draft restores the saved hint"
   await tick();
   assert.equal(f.state.input, "My own draft");
   assert.equal(f.overlay.hidden, true);
+  assert.equal(f.button.hidden, true);
   f.state.input = "";
   f.suggestions.dismiss("draft");
   assert.equal(f.overlay.hidden, false);
+  assert.equal(f.button.hidden, false);
   assert.equal(f.span.textContent, "Show the mockup.");
   assert.equal(f.requests.length, 1);
 });

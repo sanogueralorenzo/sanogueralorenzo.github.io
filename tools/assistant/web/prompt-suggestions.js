@@ -35,13 +35,15 @@ export function createPromptSuggestions({ state, root, api, render }) {
     const hint = available();
     const overlay = root.querySelector(".prompt-suggestion");
     const textarea = root.querySelector('[data-focus="composer"]');
-    if (!overlay || !textarea) return;
+    const button = root.querySelector('[data-action="accept-suggestion"]');
+    if (!overlay || !textarea || !button) return;
     overlay.hidden = !hint;
+    button.hidden = !hint;
     textarea.placeholder = hint ? "" : "Message";
     if (!hint) { textarea.removeAttribute("aria-description"); return; }
     lastShown.set(state.selected, hint.text);
     overlay.querySelector("span").textContent = hint.text;
-    overlay.querySelector("button").setAttribute("aria-label", `Use suggested reply: ${hint.text}`);
+    button.setAttribute("aria-label", `Use suggested reply: ${hint.text}`);
     textarea.setAttribute("aria-description", `Suggested reply: ${hint.text}. Press Tab to use it.`);
   }
   function sync() {
