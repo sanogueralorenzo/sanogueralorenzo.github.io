@@ -10,7 +10,7 @@ Planned Android app that brings the Steam Deck experience to supported Android d
 - Connect graphics, audio, controllers, touch input, and the keyboard to Android.
 - Handle Android lifecycle events, clean shutdown, and basic diagnostic logs.
 
-Start with one tested ARM64 Adreno device. Game compatibility and performance must be validated on that device. Desktop apps, emulators, external game imports, and frame generation are outside the initial scope.
+Requires Android 16 (API 36) or newer on a supported ARM64 Adreno device. Start with one tested device and validate game compatibility and performance on it. Desktop apps, emulators, external game imports, and frame generation are outside the initial scope.
 
 ## Intended setup
 
