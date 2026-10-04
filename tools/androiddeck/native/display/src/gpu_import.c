@@ -37,7 +37,7 @@ struct deck_gpu_image *deck_gpu_import(struct deck_gpu *gpu, int fd, uint64_t mo
     if (width <= 0 || height <= 0 || width > 8192 || height > 8192 || stride < (uint32_t)width * 4 || !importable(gpu, modifier)) return NULL;
     struct deck_gpu_image *image = calloc(1, sizeof(*image));
     if (!image) { deck_gpu_error(gpu, "Linux frame allocation", VK_ERROR_OUT_OF_HOST_MEMORY); return NULL; }
-    image->gpu = gpu; image->width = width; image->height = height;
+    image->gpu = gpu; image->fd = fd; image->width = width; image->height = height;
     VkSubresourceLayout plane = { .offset = offset, .rowPitch = stride };
     VkImageDrmFormatModifierExplicitCreateInfoEXT drm = { .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT,
         .drmFormatModifier = modifier, .drmFormatModifierPlaneCount = 1, .pPlaneLayouts = &plane };

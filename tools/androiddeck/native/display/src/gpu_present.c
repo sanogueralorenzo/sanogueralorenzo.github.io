@@ -1,4 +1,6 @@
 #include "gpu.h"
+#include <linux/dma-buf.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int acquire_fd) {
@@ -14,8 +16,16 @@ bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int ac
         result = gpu->vk.AcquireNextImageKHR(gpu->device, gpu->swapchain, 1000000000, gpu->acquired, VK_NULL_HANDLE, &index);
     }
     if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) goto failed;
-    const bool explicit_sync = acquire_fd >= 0;
-    if (explicit_sync) {
+    // Clients without explicit synchronization publish their writer fence on
+    // the dma-buf. Import it before reading; image ownership alone does not wait.
+    if (acquire_fd < 0) {
+        struct dma_buf_export_sync_file sync = { .flags = DMA_BUF_SYNC_READ, .fd = -1 };
+        if (ioctl(image->fd, DMA_BUF_IOCTL_EXPORT_SYNC_FILE, &sync) < 0)
+            return deck_gpu_error(gpu, "Linux producer fence export", VK_ERROR_INVALID_EXTERNAL_HANDLE);
+        acquire_fd = sync.fd;
+    }
+    const bool wait_source = acquire_fd >= 0;
+    if (wait_source) {
         VkImportSemaphoreFdInfoKHR import = { .sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
             .semaphore = gpu->source_ready, .flags = VK_SEMAPHORE_IMPORT_TEMPORARY_BIT,
             .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT, .fd = acquire_fd };
@@ -63,7 +73,7 @@ bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int ac
     if (result != VK_SUCCESS) goto failed;
     VkSemaphore waits[2] = { gpu->acquired, gpu->source_ready };
     VkPipelineStageFlags stages[2] = { VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
-    VkSubmitInfo submit = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .waitSemaphoreCount = explicit_sync ? 2 : 1,
+    VkSubmitInfo submit = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO, .waitSemaphoreCount = wait_source ? 2 : 1,
         .pWaitSemaphores = waits, .pWaitDstStageMask = stages, .commandBufferCount = 1, .pCommandBuffers = &gpu->command,
         .signalSemaphoreCount = 1, .pSignalSemaphores = &gpu->ready[index] };
     result = gpu->vk.ResetFences(gpu->device, 1, &gpu->fence);

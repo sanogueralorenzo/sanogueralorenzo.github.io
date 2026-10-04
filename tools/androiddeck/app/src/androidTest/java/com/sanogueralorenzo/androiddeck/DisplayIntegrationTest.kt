@@ -88,9 +88,7 @@ class DisplayIntegrationTest {
                 assertEquals(output, 0, running!!.exitValue())
                 assertTrue(output, output.contains("linux-vulkan-ok: 3 frames, 320x200"))
                 assertArrayEquals(longArrayOf(3, 320, 200), NativeDisplay.snapshot())
-                withPixels(activity) { image ->
-                    for (x in listOf(1, 160, 318)) for (y in listOf(1, 100, 198)) assertEquals(Color.BLUE, image.getPixel(x, y))
-                }
+                awaitVulkanPixels(activity)
                 NativeDisplay.stop()
                 assertFalse(socket.exists())
                 assertFalse(File(sockets, "wayland-0.lock").exists())
@@ -173,6 +171,19 @@ class DisplayIntegrationTest {
             instrumentation.runOnMainSync { activity.finish() }
             sockets.deleteRecursively()
         }
+    }
+
+    private fun awaitVulkanPixels(activity: DisplayTestActivity) {
+        val started = SystemClock.elapsedRealtime()
+        var colors = emptyList<Int>()
+        do {
+            withPixels(activity) { image ->
+                colors = listOf(1, 160, 318).flatMap { x -> listOf(1, 100, 198).map { y -> image.getPixel(x, y) } }
+            }
+            if (colors.all { it == Color.BLUE }) return
+            Thread.sleep(16)
+        } while (SystemClock.elapsedRealtime() - started < 2_000)
+        assertEquals("The final Linux Vulkan frame never reached Android", List(9) { Color.BLUE }, colors)
     }
 
     private fun withPixels(activity: DisplayTestActivity, check: (Bitmap) -> Unit) {

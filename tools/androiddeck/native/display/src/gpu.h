@@ -56,6 +56,7 @@ struct deck_gpu_image {
     struct deck_gpu *gpu;
     VkImage image;
     VkDeviceMemory memory;
+    int fd; // Borrowed from the Wayland buffer for implicit producer fences.
     uint32_t width, height;
 };
 bool deck_gpu_open(struct deck_gpu *gpu, const char *driver, const char *libraries);
