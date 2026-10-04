@@ -39,6 +39,7 @@ bool deck_present(struct deck_display *display, struct wl_shm_buffer *buffer) {
 }
 
 bool deck_attach(struct deck_display *display, ANativeWindow *window) {
+    if (!window) deck_input_enqueue(display, (struct deck_input_event){ .type = DECK_RESET });
     pthread_mutex_lock(&display->window_mutex);
     if (display->gpu) deck_gpu_detach(display->gpu);
     if (display->window) ANativeWindow_release(display->window);

@@ -63,7 +63,7 @@ static const struct xdg_surface_interface xdg_impl = {
 };
 static void get_xdg(struct wl_client *client, struct wl_resource *resource, uint32_t id, struct wl_resource *wl_surface) {
     struct deck_surface *surface = wl_resource_get_user_data(wl_surface);
-    if (surface->xdg) { wl_resource_post_error(resource, XDG_WM_BASE_ERROR_ROLE, "Surface already has a shell role"); return; }
+    if (surface->xdg || surface->cursor) { wl_resource_post_error(resource, XDG_WM_BASE_ERROR_ROLE, "Surface already has a shell role"); return; }
     surface->xdg = wl_resource_create(client, &xdg_surface_interface, 1, id);
     if (surface->xdg) wl_resource_set_implementation(surface->xdg, &xdg_impl, surface, xdg_destroyed);
     else wl_client_post_no_memory(client);

@@ -9,6 +9,7 @@
 #include <wayland-server.h>
 #include "xdg-shell-server.h"
 #include "gpu.h"
+#include "input.h"
 
 struct deck_display {
     struct wl_display *wayland;
@@ -22,6 +23,7 @@ struct deck_display {
     pthread_mutex_t window_mutex;
     ANativeWindow *window;
     struct deck_gpu *gpu;
+    struct deck_input *input;
     uint64_t modifiers[64];
     size_t modifier_count;
     int format_fd;
@@ -37,7 +39,7 @@ struct deck_surface {
     struct wl_listener pending_destroy;
     struct wl_list frames;
     struct wl_list feedback;
-    bool configured;
+    bool configured, cursor;
     uint32_t serial;
     struct wl_resource *sync, *release;
     int acquire_fd;

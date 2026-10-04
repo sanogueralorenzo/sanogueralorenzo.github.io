@@ -55,6 +55,7 @@ struct deck_display *deck_start(const char *socket, ANativeWindow *window, int r
     if (display->stop_fd < 0) goto failed;
     display->stop_source = wl_event_loop_add_fd(wl_display_get_event_loop(display->wayland), display->stop_fd, WL_EVENT_READABLE, stop_event, display);
     if (!display->stop_source) goto failed;
+    if (!deck_input_start(display)) goto failed;
     error = pthread_create(&display->thread, NULL, dispatch, display);
     if (error) { errno = error; goto failed; }
     return display;
@@ -63,6 +64,7 @@ failed:
     if (display->stop_source) wl_event_source_remove(display->stop_source);
     if (display->feedback_source) wl_event_source_remove(display->feedback_source);
     if (display->stop_fd >= 0) close(display->stop_fd);
+    deck_input_stop(display);
     if (display->wayland) wl_display_destroy(display->wayland);
     if (display->format_fd >= 0) close(display->format_fd);
     if (gpu) deck_gpu_detach(gpu);
@@ -79,6 +81,7 @@ void deck_stop(struct deck_display *display) {
     do { count = write(display->stop_fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);
     pthread_join(display->thread, NULL);
     wl_display_destroy_clients(display->wayland);
+    deck_input_stop(display);
     if (display->feedback_source) wl_event_source_remove(display->feedback_source);
     wl_event_source_remove(display->stop_source);
     close(display->stop_fd);

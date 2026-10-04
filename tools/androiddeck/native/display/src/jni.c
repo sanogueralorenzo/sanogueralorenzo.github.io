@@ -73,3 +73,26 @@ JNIEXPORT jlongArray JNICALL Java_com_sanogueralorenzo_androiddeck_display_Nativ
     if (array) (*env)->SetLongArrayRegion(env, array, 0, 3, values);
     return array;
 }
+
+static void enqueue(struct deck_input_event event) {
+    pthread_mutex_lock(&ownership);
+    if (display) deck_input_enqueue(display, event);
+    pthread_mutex_unlock(&ownership);
+}
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_pointer(JNIEnv *env, jobject self,
+        jfloat x, jfloat y, jint button, jboolean pressed) {
+    enqueue((struct deck_input_event){ DECK_POINTER, button, pressed, x, y });
+}
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_scroll(JNIEnv *env, jobject self, jfloat x, jfloat y) {
+    enqueue((struct deck_input_event){ DECK_SCROLL, 0, 0, x, y });
+}
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_key(JNIEnv *env, jobject self, jint code, jboolean pressed) {
+    enqueue((struct deck_input_event){ .type = DECK_KEY, .code = code, .action = pressed });
+}
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_touch(JNIEnv *env, jobject self,
+        jint id, jint action, jfloat x, jfloat y) {
+    enqueue((struct deck_input_event){ DECK_TOUCH, id, action, x, y });
+}
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_releaseInput(JNIEnv *env, jobject self) {
+    enqueue((struct deck_input_event){ .type = DECK_RESET });
+}

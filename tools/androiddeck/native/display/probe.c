@@ -29,11 +29,15 @@ static int check_driver(void) {
     return result ? 4 : 0;
 }
 
+void probe_input_global(struct wl_registry *registry, unsigned id, const char *name, unsigned version);
+void probe_input_run(struct wl_display *display);
+static bool input_mode;
 static struct wl_compositor *compositor;
 static struct wl_shm *shm;
 static struct xdg_wm_base *shell;
 static bool configured, presented, released;
 static void global(void *data, struct wl_registry *registry, uint32_t id, const char *name, uint32_t version) {
+    if (input_mode) probe_input_global(registry, id, name, version);
     if (!strcmp(name, "wl_compositor")) compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
     if (!strcmp(name, "wl_shm")) shm = wl_registry_bind(registry, id, &wl_shm_interface, 1);
     if (!strcmp(name, "xdg_wm_base")) shell = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
@@ -66,6 +70,7 @@ static void dispatch_until(struct wl_display *display, const bool *value) {
 }
 int main(int argc, char **argv) {
     alarm(15);
+    input_mode = argc > 1 && !strcmp(argv[1], "input");
     if (argc > 1 && !strcmp(argv[1], "driver")) return check_driver();
     struct wl_display *display = wl_display_connect(NULL);
     if (!display) { perror("Wayland connect"); return 1; }
@@ -112,6 +117,7 @@ int main(int argc, char **argv) {
         dispatch_until(display, &released);
     }
     printf("linux-wayland-ok: 3 frames, 320x200, pid=%ld\n", (long)getpid()); fflush(stdout);
+    if (input_mode) probe_input_run(display);
     if (argc > 1 && !strcmp(argv[1], "hold")) pause();
     wl_buffer_destroy(buffer); wl_shm_pool_destroy(pool);
     munmap(pixels, bytes); close(fd);

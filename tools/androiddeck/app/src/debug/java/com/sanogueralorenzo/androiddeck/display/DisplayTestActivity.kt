@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import com.sanogueralorenzo.androiddeck.input.SteamSurface
 import java.util.concurrent.CountDownLatch
 
 // A real SurfaceView for the Linux display integration test; absent from release.
@@ -13,7 +14,7 @@ class DisplayTestActivity : Activity(), SurfaceHolder.Callback {
     val ready = CountDownLatch(1)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        surface = SurfaceView(this)
+        surface = SteamSurface(this).apply { requestFocus() }
         surface.holder.setFixedSize(320, 200)
         surface.holder.addCallback(this)
         setContentView(surface)

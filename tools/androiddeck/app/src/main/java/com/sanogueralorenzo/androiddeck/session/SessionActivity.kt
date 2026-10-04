@@ -11,6 +11,8 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.window.OnBackInvokedDispatcher
+import com.sanogueralorenzo.androiddeck.input.SteamSurface
 import android.widget.TextView
 import com.sanogueralorenzo.androiddeck.DeckApplication
 import com.sanogueralorenzo.androiddeck.R
@@ -25,6 +27,9 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_session)
         findViewById<SurfaceView>(R.id.surface).holder.apply { setFixedSize(1280, 720); addCallback(this@SessionActivity) }
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
+            findViewById<SteamSurface>(R.id.surface).backKey()
+        }
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }

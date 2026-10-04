@@ -58,6 +58,12 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
         deck_feedback_commit(surface, 0);
         return;
     }
+    if (surface->pending && (surface->cursor || !surface->toplevel)) {
+        wl_buffer_send_release(surface->pending);
+        wl_list_remove(&surface->pending_destroy.link); wl_list_init(&surface->pending_destroy.link);
+        surface->pending = NULL;
+        deck_feedback_discard(surface); deck_finish_frames(surface); return;
+    }
     if (surface->pending) {
         bool presented = false;
         char failure[256] = "Cannot present this Wayland buffer on the Android surface";
@@ -85,6 +91,7 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
             wl_client_post_implementation_error(client, "%s", failure);
             return;
         }
+        deck_input_focus(surface);
         deck_sync_release(surface);
         wl_buffer_send_release(surface->pending);
         wl_list_remove(&surface->pending_destroy.link);
@@ -102,6 +109,7 @@ static const struct wl_surface_interface surface_impl = {
 };
 static void surface_destroyed(struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
+    deck_input_surface_gone(surface);
     deck_sync_destroy(surface);
     deck_feedback_discard(surface);
     if (surface->pending) wl_list_remove(&surface->pending_destroy.link);

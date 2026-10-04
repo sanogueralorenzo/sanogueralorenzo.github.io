@@ -66,14 +66,22 @@ static int poll_timestamps(void *data) {
             if (!feedback->present_id) continue;
             if (feedback->generation != gpu->generation || result == VK_ERROR_OUT_OF_DATE_KHR) { discard(feedback); continue; }
             uint64_t timestamp = 0;
+            bool returned = false;
             if (result == VK_SUCCESS || result == VK_INCOMPLETE) {
-                for (uint32_t i = 0; i < count; i++) if (timings[i].presentID == feedback->present_id) { timestamp = timings[i].actualPresentTime; break; }
+                for (uint32_t i = 0; i < count; i++) if (timings[i].presentID == feedback->present_id) {
+                    timestamp = timings[i].actualPresentTime; returned = true; break;
+                }
             }
             if (timestamp) { presented(display, feedback, timestamp); continue; }
-            if ((result != VK_SUCCESS && result != VK_INCOMPLETE) || now - feedback->submitted_at > 1000000000u) {
+            if (result != VK_SUCCESS && result != VK_INCOMPLETE) {
                 wl_client_post_implementation_error(wl_resource_get_client(feedback->resource),
-                    "Android display did not provide a presentation timestamp. Stop the session and retry.");
+                    "Android presentation timing query failed (%d). Stop the session and retry.", result);
                 wl_resource_destroy(feedback->resource);
+            } else if (returned || now - feedback->submitted_at > 1000000000u) {
+                // Android can omit a frame's timing or return zero when it was
+                // not displayed. Expire that feedback without killing the
+                // client or substituting a fabricated presentation timestamp.
+                discard(feedback);
             } else waiting = true;
         }
     }

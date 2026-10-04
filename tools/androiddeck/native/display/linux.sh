@@ -46,7 +46,7 @@ mkdir "$WORK/ffi-build"
     make -j"$(getconf _NPROCESSORS_ONLN)" install
 ) > "$OUT/linux-client-build.log" 2>&1
 "$WORK/cc" -O2 -I"$DEPS/wayland/src" -I"$DEPS/generated" -I"$WORK/ffi/include" \
-    "$HERE/probe.c" "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
+    "$HERE/probe.c" "$HERE/../../app/src/debug/native/input_probe.c" "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
     "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
     "$DEPS/generated/wayland-protocol.c" "$DEPS/generated/xdg-shell-protocol.c" \
     "$WORK/ffi/lib/libffi.a" -o "$OUT/probe/arm64-v8a/libwayland-probe.so"
@@ -77,5 +77,5 @@ shared_library libdeck-robust.so "$HERE/../session/robust.c" "$HERE/../session/s
 
 # The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
 "$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \
-    "$HERE/probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" "$DEPS/generated/presentation-time-protocol.c" \
+    "$HERE/probe.c" "$HERE/../../app/src/debug/native/input_probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" "$DEPS/generated/presentation-time-protocol.c" \
     "$OUT/libwayland-client.so.0" -o "$OUT/probe/arm64-v8a/libwayland-vulkan-probe.so"
