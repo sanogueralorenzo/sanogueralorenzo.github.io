@@ -14,7 +14,7 @@
     <string name="test_runtime">Test Linux runtime</string>
     <string name="cancel">Cancel</string>
     <string name="retry">Retry</string>
-    <string name="development_notice">Development build: Steam startup is being validated. Game sessions are not ready.</string>
+    <string name="development_notice">Development build: game compatibility is being validated. Audio and full game controls are unfinished.</string>
     <string name="start_steam">Start Steam</string>
     <string name="stop_steam">Stop Steam</string>
     <string name="starting_steam">Starting Steam…</string>

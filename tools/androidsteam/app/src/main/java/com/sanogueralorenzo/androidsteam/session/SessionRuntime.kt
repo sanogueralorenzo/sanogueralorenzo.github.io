@@ -41,6 +41,14 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         val resolver = File(RuntimeInstaller(context).root, "etc/resolv.conf")
         java.nio.file.Files.deleteIfExists(resolver.toPath())
         resolver.writeText(servers.joinToString("") { "nameserver ${it.hostAddress}\n" } + "options timeout:2 attempts:2\n")
+        // Steam replaces LD_LIBRARY_PATH when launching games. Register the
+        // installed host libraries with glibc so its overlay can still load.
+        val libraries = File(RuntimeInstaller(context).root, "etc/ld.so.conf.d/androidsteam.conf")
+        val paths = "# ${SessionComponents.VERSION} ${GraphicsInstaller.VERSION}\n" +
+            "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu\n" +
+            "/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/pulseaudio\n" +
+            "/opt/androidsteam/graphics/usr/lib/aarch64-linux-gnu\n"
+        if (!libraries.isFile || libraries.readText() != paths) libraries.writeText(paths)
         context.assets.open("steam/launch.sh").use { input ->
             File(directory, "steam-launch.sh").outputStream().use { input.copyTo(it) }
         }
@@ -49,7 +57,8 @@ internal class SessionRuntime(private val context: Context, val directory: File)
             "LD_PRELOAD=/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
             "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
             "/bin/sh", "/run/androidsteam/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-clientbeta", "steamdeck_stable",
-            "-overridepackageurl", "https://client-update.akamai.steamstatic.com")
+            "-overridepackageurl", "https://client-update.akamai.steamstatic.com") +
+            if (SteamInstaller(context).protonInstalled) emptyList() else listOf("steam://install/4427310")
     }
 
     private val environment = mapOf(

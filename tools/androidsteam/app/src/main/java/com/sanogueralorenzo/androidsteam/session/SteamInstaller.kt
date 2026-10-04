@@ -13,9 +13,16 @@ internal class SteamInstaller(private val context: Context) {
     // Steam updates its own files after bootstrap. Keep the installation and all user data.
     val installed get() = marker.isFile && File(root, "steamrtarm64/steam").canExecute() &&
         File(root, "steamrtarm64/steamwebhelper").canExecute() && File(root, "linuxarm64/steamclient.so").isFile
+    val protonInstalled get(): Boolean {
+        val manifest = File(root, "steamapps/appmanifest_4427310.acf")
+        val flags = manifest.takeIf { it.isFile && it.length() <= 64 * 1024 }?.readText()
+            ?.let { Regex("\"StateFlags\"\\s+\"(\\d+)\"").find(it)?.groupValues?.get(1)?.toIntOrNull() }
+        return flags != null && flags and 4 != 0 &&
+            File(root, "steamapps/common/Proton Experimental (ARM64)/files/bin-arm64/wine").canExecute()
+    }
 
     fun install(progress: (String) -> Unit) {
-        if (installed) { linkClientPaths(); return }
+        if (installed) { prepareClient(); return }
         val staging = File(context.filesDir, "steam-staging")
         val archive = File(context.cacheDir, "steam.zip")
         try {
@@ -44,20 +51,26 @@ internal class SteamInstaller(private val context: Context) {
             checkInstallationCancelled()
             require(root.parentFile!!.isDirectory || root.parentFile!!.mkdirs()) { "Cannot create Steam installation directory." }
             require(staging.renameTo(root)) { "Cannot publish the Steam installation." }
-            linkClientPaths()
+            prepareClient()
         } finally {
             archive.delete()
             RuntimeArchive.delete(staging)
         }
     }
 
-    private fun linkClientPaths() {
+    private fun prepareClient() {
         val links = File(context.filesDir, "home/.steam").apply { mkdirs() }.toPath()
         for ((name, target) in listOf("root" to "", "steam" to "", "binarm64" to "steamrtarm64", "bin64" to "steamrtarm64", "sdkarm64" to "linuxarm64", "sdk64" to "linuxarm64")) {
             val path = links.resolve(name)
             val destination = links.relativize(File(root, target).toPath())
             if (!Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) Files.createSymbolicLink(path, destination)
         }
+        val tool = File(root, "compatibilitytools.d/androidsteam-proton")
+        require(tool.isDirectory || tool.mkdirs()) { "Cannot prepare the ARM64 compatibility tool." }
+        for (name in listOf("compatibilitytool.vdf", "toolmanifest.vdf", "launch")) {
+            context.assets.open("steam/proton/$name").use { input -> File(tool, name).outputStream().use { input.copyTo(it) } }
+        }
+        require(File(tool, "launch").setExecutable(true, true)) { "Cannot prepare the ARM64 game launcher." }
     }
 
     companion object {

@@ -1,0 +1,6 @@
+"compatibilitytools" { "compat_tools" { "androidsteam-proton" {
+ "install_path" "."
+ "display_name" "Android Steam Proton (ARM64)"
+ "from_oslist" "windows"
+ "to_oslist" "linux"
+} } }

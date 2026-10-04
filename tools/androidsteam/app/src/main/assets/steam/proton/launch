@@ -1,0 +1,15 @@
+#!/bin/sh
+# Use the Steam-managed native ARM64 depot directly. Android app processes
+# cannot start Steam Linux Runtime's user/mount namespace container.
+set -eu
+proton="$STEAM_COMPAT_CLIENT_INSTALL_PATH/steamapps/common/Proton Experimental (ARM64)"
+if [ ! -x "$proton/files/bin-arm64/wine" ]; then
+    echo 'Install Proton Experimental (ARM64) in Steam, then retry.' >&2
+    exit 1
+fi
+# Keep Steam's private client libraries out of Wine's host library lookup.
+export LD_LIBRARY_PATH=/opt/androidsteam/session/usr/lib/aarch64-linux-gnu:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/pulseaudio:/opt/androidsteam/graphics/usr/lib/aarch64-linux-gnu
+# The native overlay's IPC remains active even with Steam's overlay toggle off.
+# Use only the Android adapters in the namespace-free Wine process tree.
+export LD_PRELOAD=/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libsteam-wine-memory.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:/opt/androidsteam/session/usr/lib/aarch64-linux-gnu/libdeck-drm.so
+exec "$proton/proton" "$@"

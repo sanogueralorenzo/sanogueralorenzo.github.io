@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androidsteam.runtime.LinuxRuntime
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
+import com.sanogueralorenzo.androidsteam.display.GraphicsInstaller
 import com.sanogueralorenzo.androidsteam.session.SteamInstaller
 import com.sanogueralorenzo.androidsteam.session.SessionRuntime
 import com.sanogueralorenzo.androidsteam.session.SessionComponents
@@ -61,13 +62,16 @@ class SteamIntegrationTest {
         val runtime = RuntimeInstaller(context)
         assertTrue(runtime.installed)
         try {
+            SessionRuntime(context, directory).steamCommand()
             context.assets.open("steam/launch.sh").use { input -> File(directory, "launch.sh").outputStream().use { input.copyTo(it) } }
             for ((client, exit, calls) in listOf(Triple("[ \"\$n\" -lt 2 ] && exit 42; exit 0", 0, 2), Triple("exit 42", 42, 3), Triple("exit 7", 7, 1), Triple("kill -TERM \$\$", 143, 1))) {
                 File(directory, "count").writeText("0")
                 File(directory, "client.sh").writeText("n=\$(cat /opt/androidsteam/test/count); n=\$((n + 1)); echo \$n > /opt/androidsteam/test/count; $client\n")
                 val process = LinuxRuntime(context, runtime.root).start(
                     listOf("/bin/sh", "/opt/androidsteam/test/launch.sh", "/bin/sh", "/opt/androidsteam/test/client.sh"),
-                    listOf("${directory.path}:/opt/androidsteam/test", "${directory.path}:/run/androidsteam"))
+                    listOf("${directory.path}:/opt/androidsteam/test", "${directory.path}:/run/androidsteam",
+                        "${SessionComponents(context).root.path}:/opt/androidsteam/session",
+                        "${GraphicsInstaller(context).root.path}:/opt/androidsteam/graphics"))
                 try {
                     assertTrue("Bootstrap restart did not finish", process.waitFor(10, TimeUnit.SECONDS))
                     val output = process.inputStream.bufferedReader().readText()
@@ -76,6 +80,29 @@ class SteamIntegrationTest {
                     assertEquals(calls, File(directory, "count").readText().trim().toInt())
                 } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
             }
+        } finally { directory.deleteRecursively() }
+    }
+
+    @Test fun gameOverlayLoadsWithoutSteamLibraryEnvironment() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.cacheDir, "steam-game-libraries-test").apply { mkdirs() }
+        try {
+            SessionRuntime(context, directory).steamCommand()
+            val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
+                listOf("/bin/sh", "/run/androidsteam/steam-launch.sh", "/bin/sh", "-c",
+                    "set -e; ldd /root/.steam/binarm64/gameoverlayrenderer.so; " +
+                        "LD_PRELOAD=/root/.steam/binarm64/gameoverlayrenderer.so /bin/true"),
+                listOf("${directory.path}:/run/androidsteam",
+                    "${SessionComponents(context).root.path}:/opt/androidsteam/session",
+                    "${GraphicsInstaller(context).root.path}:/opt/androidsteam/graphics"))
+            try {
+                assertTrue("Game overlay loader timed out", process.waitFor(30, TimeUnit.SECONDS))
+                val output = process.inputStream.bufferedReader().readText()
+                assertEquals(output, 0, process.exitValue())
+                assertFalse(output, output.contains("not found") || output.contains("cannot be preloaded"))
+                assertTrue(output, output.contains("libGL.so.1 => /opt/androidsteam/session/"))
+            } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
         } finally { directory.deleteRecursively() }
     }
 
