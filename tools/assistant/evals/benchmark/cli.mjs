@@ -4,6 +4,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { assistantCodexAuth } from "../../src/codex-auth.ts";
 import { loadSuite, schedule, hash, readJSON } from "./suite.mjs";
 import { runTrial } from "./trial.mjs";
+import { runResearcherIntegration } from "./researcher-integration.mjs";
 import { blindCards } from "./grading.mjs";
 import { saveJSON, makeReport } from "./artifacts.mjs";
 
@@ -47,7 +48,7 @@ if (command === "review" || command === "report") {
     if (options.resume && !existsSync(out)) throw new Error("No existing run to resume");
     if (existsSync(out) && !options.resume) throw new Error("Output already exists; choose a new path or --resume");
     const run = options.resume && existsSync(out) ? readJSON(out) : { ...manifest, suite: suite.config.id, mode: suite.config.mode, startedAt: new Date().toISOString(),
-      provenance: suite.config.provenance, selection: suite.config.selection, harness: suite.harness, model: suite.config.model || "gpt-6-luna", cases: suite.cases, variants: suite.variants, results: [] };
+      provenance: suite.config.provenance, execution: suite.config.execution || "fixture", selection: suite.config.selection, harness: suite.harness, model: suite.config.model || "gpt-6-luna", cases: suite.cases, variants: suite.variants, results: [] };
     if (run.fingerprint !== fingerprint) throw new Error("Resume inputs changed");
     saveJSON(out, run);
     const runtime = await ModelRuntime.create({ authPath: assistantCodexAuth(dirname(out)), modelsPath: null, refreshOnCreate: false });
@@ -59,7 +60,7 @@ if (command === "review" || command === "report") {
     await Promise.all(Array.from({ length: concurrency }, async () => {
       while (!stopped && cursor < pending.length) {
         const job = pending[cursor++];
-        const record = await runTrial(runtime, model, suite, job);
+        const record = await (suite.config.execution === "researcher-integration" ? runResearcherIntegration : runTrial)(runtime, model, suite, job);
         run.results.push(record); saveJSON(out, run);
         errors = record.error ? errors + 1 : 0;
         console.log(`${run.results.length}/${jobs.length} ${job.test.id} ${job.variant.id} #${job.repeat}: ${record.error || record.text || "fixture outcome"}`);

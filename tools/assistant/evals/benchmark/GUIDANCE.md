@@ -1,6 +1,6 @@
 # Evidence-backed instruction improvements
 
-Keep the current suggestion prompt. This study does not establish an optimal prompt, but it rejects two tempting compression candidates and provides a reusable evaluation method. The [evidence summary](evidence.json) records 1,794 model trials (30 remain uncertain for usefulness) across 14 comparisons, prompt/resource hashes, settings, family intervals, calibrated model review, and audit corrections. [Coverage](COVERAGE.md) defines the tested population and gaps.
+Keep the current suggestion prompt. The [researcher follow-up](RESEARCHER.md) applies a measured improvement using actual native tools and resource loading. This study does not establish an optimal prompt, but it rejects two tempting compression candidates and provides a reusable evaluation method. The [evidence summary](evidence.json) records 1,794 model trials (30 remain uncertain for usefulness) across 14 comparisons, prompt/resource hashes, settings, family intervals, calibrated model review, and audit corrections. [Coverage](COVERAGE.md) defines the tested population and gaps.
 
 Output-quality counts describe eventual replies; deadline fallbacks are reported separately.
 
@@ -17,7 +17,7 @@ Output-quality counts describe eventual replies; deadline fallbacks are reported
 | Reviewer: shorter role | Correct findings with slightly better attribution; only 0.3% fewer tokens | No material cost saving established |
 | Sample skill: compact instructions | 20 useful, 2 partial, 2 unfinished versus 24 useful; 6.9% **more** tokens | Retain full workflow |
 
-Role results have six confirmation families each; the skill has eight. These are authored pilots, not production distributions. A zero observed violation count and a degenerate bootstrap interval do not prove zero risk. The shared base covers deployed tools and repository context that these fixtures omit, so no global base replacement follows from the researcher/session results. Production prompts and reasoning remain unchanged.
+Role results have six confirmation families each; the skill has eight. These are authored pilots, not production distributions. A zero observed violation count and a degenerate bootstrap interval do not prove zero risk. The shared base covers deployed tools and repository context that these fixtures omit, so no global base replacement follows from the researcher/session results. This initial replay study left production prompts and reasoning unchanged. The later [native-tool researcher study](RESEARCHER.md) deployed a scoped role improvement; the shared base and reasoning still remain unchanged.
 
 The reasoning diagnostic compared none, low, and high on six reused challenge families. One completion case lacked the referenced earlier output; all 30 trials for that family are uncertain and excluded from usefulness comparisons. On the remaining five families there is insufficient evidence to select a new reasoning setting. High's observed median took roughly 4.1–4.3 seconds, versus roughly 1.4–1.5 seconds for none, and crossed the five-second hint deadline in 9–10/30 trials versus 0–1/30. These are model-loop observations; requested priority service was reported as default by the provider.
 

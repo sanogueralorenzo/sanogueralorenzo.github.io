@@ -31,7 +31,7 @@
       "id": "compact_base",
       "files": [
         "../variants/common/base-compact.md",
-        "../../../prompts/researcher.md"
+        "../variants/roles/researcher-original.md"
       ]
     },
     {

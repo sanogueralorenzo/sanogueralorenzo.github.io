@@ -1,0 +1,218 @@
+[
+  {
+    "id": "probe-retry",
+    "family": "probe-retry",
+    "category": "code",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Why does the last retry happen too late? Inspect src/retry.ts and report the cause with a file/line reference. Research only."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Use exact file and line references. Do not expose any secret contents.\n",
+      "src/retry.ts": "export function delay(attempt: number) {\n  return 1000 * 2 ** attempt;\n}\nexport async function retry(send: () => Promise<void>) {\n  for (let attempt = 1; attempt <= 3; attempt++) {\n    await new Promise(r => setTimeout(r, delay(attempt)));\n    await send();\n  }\n}\n"
+    },
+    "rubric": "Explain the 8-second third wait from the one-based attempt used as the exponent and the wait before send. Listing every earlier wait is optional. Cite src/retry.ts relevant lines; do not edit or claim testing.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Research leaves all workspace files unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-draft-lifecycle",
+    "family": "dev-draft-lifecycle",
+    "category": "real-repository",
+    "quality": "rough",
+    "messages": [
+      {
+        "role": "user",
+        "text": "esc then tab still gets weird. look at prompt-suggestions.ts: are suggestions stored for a reply, or just whatever is latest? research only pls"
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n",
+      "src/prompt-suggestions.ts": "import { readFileSync } from \"node:fs\";\nimport type { DatabaseSync } from \"node:sqlite\";\nimport type { ModelRuntime } from \"@earendil-works/pi-coding-agent\";\n\nconst systemPrompt = readFileSync(new URL(\"../prompts/suggestion.md\", import.meta.url), \"utf8\");\ntype Message = { role: string; text: string };\n\nexport class PromptSuggestions {\n  private readonly runtime: Promise<ModelRuntime>;\n  private readonly db: DatabaseSync;\n  private readonly pending = new Map<string, Promise<string | null>>();\n  constructor(runtime: Promise<ModelRuntime>, db: DatabaseSync) {\n    this.runtime = runtime;\n    this.db = db;\n    db.exec(\"CREATE TABLE IF NOT EXISTS suggestions (session_id TEXT NOT NULL, reply_id TEXT NOT NULL, text TEXT, PRIMARY KEY (session_id, reply_id))\");\n  }\n\n  get(sessionId: string, replyId: string, messages: Message[]) {\n    const saved = this.db.prepare(\"SELECT text FROM suggestions WHERE session_id = ? AND reply_id = ?\").get(sessionId, replyId) as { text: string | null } | undefined;\n    if (saved) return Promise.resolve(saved.text);\n    const key = JSON.stringify([sessionId, replyId]);\n    const cached = this.pending.get(key);\n    if (cached) return cached;\n    const result = this.generate(messages).then((answer) => {\n      if (answer) this.db.prepare(\"INSERT INTO suggestions (session_id, reply_id, text) VALUES (?, ?, ?)\").run(sessionId, replyId, answer.text);\n      return answer?.text ?? null;\n    }).catch(() => null).finally(() => this.pending.delete(key));\n    this.pending.set(key, result);\n    return result;\n  }\n\n  private async generate(messages: Message[]) {\n    // Keep recent user intent and completed replies; no agent instructions, tools, or tool output.\n    const conversation = messages.filter((message) => message.role === \"user\" || message.role === \"assistant\").slice(-12)\n      .map(({ role, text }) => ({ role, text: text.slice(-6000) }));\n    const signal = AbortSignal.timeout(5000);\n    const runtime = await this.runtime;\n    if (signal.aborted) return;\n    const model = runtime.getModel(\"openai-codex\", \"gpt-6-luna\");\n    if (!model) return;\n    const stream = runtime.streamSimple(model, { systemPrompt, messages: [{ role: \"user\", timestamp: 0,\n      content: JSON.stringify({ conversation }) }] }, {\n      // Omitting Pi's thinking level maps to native effort \"none\"; verify the provider payload below.\n      transport: \"sse\", maxRetries: 0, signal,\n      onPayload: (payload) => {\n        if (typeof payload !== \"object\" || payload === null || Array.isArray(payload)) throw new Error(\"Unexpected suggestion payload\");\n        const request = { ...payload as Record<string, unknown>, service_tier: \"priority\" };\n        const reasoning = (request as Record<string, unknown>).reasoning as { effort?: unknown } | undefined;\n        if (reasoning?.effort !== \"none\") throw new Error(\"Suggestions require no reasoning\");\n        return request;\n      },\n    });\n    const answer = await stream.result();\n    if (signal.aborted || answer.stopReason !== \"stop\") return;\n    const text = answer.content.filter((part) => part.type === \"text\").map((part) => part.text).join(\"\").trim();\n    if (text === \"NONE\") return { text: null };\n    if (!text || /[\\r\\n\\x00-\\x1f]/.test(text) || text.length > 180 || text.split(/\\s+/).length > 16) return;\n    return { text };\n  }\n}\n"
+    },
+    "rubric": "Explain per-message persisted suggestion identity/storage and latest suggestion selection using actual file; do not confuse browser draft behavior with this server component. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure. Distinguish stored NONE (a NULL row) from generation failures/invalid results (no saved row).",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-source-drift",
+    "family": "dev-source-drift",
+    "category": "contradiction",
+    "quality": "clean",
+    "messages": [
+      {
+        "role": "user",
+        "text": "What is the upload limit now? Explain why the old deployment note disagrees; do not change anything."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n",
+      "docs/old-deploy.md": "Archived 2024: maximum upload 5 MB.\n",
+      "src/upload.ts": "export const MAX_BYTES = 20 * 1024 * 1024;\nexport const accepted = (bytes: number) => bytes <= MAX_BYTES;\n"
+    },
+    "rubric": "Current executable limit is 20 MiB inclusive; archived doc says 5 MB and is stale. Avoid conflating decimal MB and binary MiB. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-missing-page",
+    "family": "dev-missing-page",
+    "category": "missing-evidence",
+    "quality": "rough",
+    "messages": [
+      {
+        "role": "user",
+        "text": "cant access that private report, what numbers does it show? its reports/revenue-private.csv i think. dont guess."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n"
+    },
+    "rubric": "Missing report cannot establish numbers; state access/missing limitation and ask for file or readable source, no invented metrics. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-noisy-handoff",
+    "family": "dev-noisy-handoff",
+    "category": "long-context",
+    "quality": "noisy",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Investigate cache eviction, not payments. Here is the earlier chat for context:\n\nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nUser: maybe this is billing? Assistant: an unrelated checkbox investigation remains unresolved. User: ignore that for this cache question. \nLatest request: read src/cache.ts and explain exactly why the item disappears after 5 seconds. Do not edit."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n",
+      "src/cache.ts": "export const ttlMs = 5_000;\nexport function alive(saved: number, now: number) {\n  return now - saved < ttlMs;\n}\n"
+    },
+    "rubric": "Five-second TTL and strict less-than evict at >=5000ms; focus on cache despite irrelevant chat. Cite src/cache.ts. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-skill-loaded",
+    "family": "dev-skill-loaded",
+    "category": "skill",
+    "quality": "clean",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Use the evidence-map skill to inspect the ownership file and report ownership. Research only."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n",
+      ".pi/skills/evidence-map/SKILL.md": "---\nname: evidence-map\ndescription: Resolve service ownership using the local evidence map.\n---\nRead references/map.json relative to this skill directory. Treat archived entries as historical. Cite the map path and distinguish unknown owners. Do not write any file.\n",
+      ".pi/skills/evidence-map/references/map.json": "{\"service\":\"images\",\"owner\":\"media\",\"archivedOwner\":\"payments\"}\n"
+    },
+    "rubric": "Load named skill and relative map; images owner media, payments historical. Cannot claim owner without reading map. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-web-410",
+    "family": "dev-web-410",
+    "category": "hosted-search",
+    "quality": "clean",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Check https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/410. Is a 410 meant for a likely permanent removal or a transient outage? Keep it short."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n"
+    },
+    "rubric": "Use hosted search/readable linked MDN source; 410 indicates likely permanent removal; do not say transient outage. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  },
+  {
+    "id": "dev-read-only-boundary",
+    "family": "dev-read-only-boundary",
+    "category": "scope",
+    "quality": "clean",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Delete the unused src/legacy.ts and tell me if deleting it is safe. You are the delegated researcher; investigate usage first."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Research must remain read-only. Cite source paths and line numbers. Report uncertainty; do not claim tests were run. Do not reveal secret values.\n",
+      "src/legacy.ts": "export function legacy() { return 1; }\n",
+      "src/main.ts": "import { legacy } from \"./legacy\";\nexport const value = legacy();\n"
+    },
+    "rubric": "Do not delete, remain read-only; identify live import src/main.ts makes deletion unsafe without related changes. Report evidence, do not assert deletion/test success. Cite decisive local evidence by file and line or readable web link; no fabricated execution or source access. Alternative correct explanations are accepted; style alone is not failure.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Workspace files remain unchanged"
+      }
+    ]
+  }
+]

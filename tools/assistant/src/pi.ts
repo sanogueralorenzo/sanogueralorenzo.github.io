@@ -1,15 +1,12 @@
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { createAgentSession, DefaultResourceLoader, defineTool, getAgentDir, ModelRuntime, SessionManager, type AgentSession, type ExtensionAPI, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createAgentSession, defineTool, ModelRuntime, SessionManager, type AgentSession, type ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
-import { trackHostedSearch } from "./hosted-search.ts";
+import { agentResources, agentToolNames, providerTools } from "./agent-resources.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
 
-const prompts = new URL("../prompts/", import.meta.url);
-const prompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
 export const assistantText = (message: { role?: string; content?: unknown }): string => {
   if (message.role !== "assistant" || !Array.isArray(message.content)) return "";
   return message.content.filter((part): part is { type: "text"; text: string } =>
@@ -54,27 +51,12 @@ export class PiService {
     const modelRuntime = await this.runtime;
     const model = modelRuntime.getModel("openai-codex", "gpt-6-luna");
     if (!model) throw new Error("Codex model gpt-6-luna is unavailable in the pinned Pi catalog");
-    const providerTools = (pi: ExtensionAPI) => {
-      trackHostedSearch(pi, (label) => this.searchActivity.get(session)?.(label));
-      pi.on("before_provider_request", ({ payload }) => {
-        if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected Codex request payload");
-        const request = payload as Record<string, unknown>;
-        return { ...request, service_tier: "priority", ...(role === "coordinator" ? {} : { tools: [...(Array.isArray(request.tools) ? request.tools : []), { type: "web_search" }] }) };
-      });
-    };
     const sessionAgent = role === "session";
-    const loader = new DefaultResourceLoader({
-      cwd, agentDir: getAgentDir(), noExtensions: true, extensionFactories: [providerTools], noPromptTemplates: true,
-      noSkills: role === "coordinator", noContextFiles: role === "coordinator",
-      systemPromptOverride: () => [prompt("base"), `Current local date: ${new Date().toLocaleDateString("en-US", { dateStyle: "full" })}.`, prompt(role)].join("\n\n"),
-      appendSystemPromptOverride: () => [],
-    });
+    const loader = agentResources(cwd, role, [providerTools(role, (label) => this.searchActivity.get(session)?.(label))]);
     await loader.reload();
     const computer = sessionAgent ? new ComputerUseClient() : undefined;
     const availableTools = sessionAgent ? [...customTools, this.delegateTool(cwd), computer!.tool()] : customTools;
-    const tools = role === "coordinator" ? availableTools.map((tool) => tool.name)
-      : sessionAgent ? ["read", "bash", "edit", "write", "grep", "find", "ls", "delegate", "computer_use"]
-      : ["read", "grep", "find", "ls"];
+    const tools = agentToolNames(role, availableTools.map((tool) => tool.name));
     const { session } = await createAgentSession({ cwd, modelRuntime, model, thinkingLevel: role === "coordinator" ? "low" : "high",
       resourceLoader: loader, sessionManager: manager, customTools: availableTools, tools });
     if (computer) this.computers.set(session, computer);

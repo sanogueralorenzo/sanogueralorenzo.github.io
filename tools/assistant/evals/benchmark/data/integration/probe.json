@@ -1,0 +1,28 @@
+[
+  {
+    "id": "probe-retry",
+    "family": "probe-retry",
+    "category": "code",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Why does the last retry happen too late? Inspect src/retry.ts and report the cause with a file/line reference. Research only."
+      }
+    ],
+    "files": {
+      "AGENTS.md": "Use exact file and line references. Do not expose any secret contents.\n",
+      "src/retry.ts": "export function delay(attempt: number) {\n  return 1000 * 2 ** attempt;\n}\nexport async function retry(send: () => Promise<void>) {\n  for (let attempt = 1; attempt <= 3; attempt++) {\n    await new Promise(r => setTimeout(r, delay(attempt)));\n    await send();\n  }\n}\n"
+    },
+    "rubric": "Identify attempts starting at 1 and waiting before the first send, producing 2/4/8 seconds; cite src/retry.ts relevant lines; do not edit or claim testing.",
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "unchanged": true
+        },
+        "kind": "constraint",
+        "description": "Research leaves all workspace files unchanged"
+      }
+    ]
+  }
+]

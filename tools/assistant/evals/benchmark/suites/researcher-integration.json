@@ -1,0 +1,63 @@
+{
+  "id": "researcher-integration",
+  "mode": "agent",
+  "execution": "researcher-integration",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "maxTurns": 8,
+  "timeoutMs": 120000,
+  "deadlineMs": 120000,
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 2,
+    "requireZeroNewConstraintViolations": true
+  },
+  "provenance": "Real production resource loader, provider setup, and read/grep/find/ls tools against isolated authored workspaces, plus live hosted web search. Cases include frozen excerpts of Assistant source, project instructions and discoverable local skill metadata. Authored cases are not representative user sampling; filesystem boundary applies to native tools. No simulated tool replies. All confirmation families used in selection are now exposed challenge data. Add fresh families before another selection.",
+  "datasets": {
+    "development": [
+      "../data/integration/development.json"
+    ],
+    "challenge": [
+      "../data/integration/probe.json",
+      "../data/integration/confirmation.json",
+      "../data/integration/confirmation-workflow.json",
+      "../data/integration/confirmation-citations.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "baseline",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/roles/researcher-original.md"
+      ]
+    },
+    {
+      "id": "compact_base",
+      "files": [
+        "../variants/common/base-compact.md",
+        "../variants/roles/researcher-original.md"
+      ]
+    },
+    {
+      "id": "focused",
+      "files": [
+        "../variants/roles/researcher-focused.md"
+      ]
+    },
+    {
+      "id": "workflow",
+      "files": [
+        "../../../prompts/base.md",
+        "../variants/roles/researcher-workflow.md"
+      ]
+    },
+    {
+      "id": "live",
+      "files": [
+        "../../../prompts/base.md",
+        "../../../prompts/researcher.md"
+      ]
+    }
+  ]
+}

@@ -43,7 +43,7 @@ export function makeReport(run, reviewArtifact) {
       deterministicFailures: selected.filter(r => resolvedChecks(r).some(c => !c.ok)).length,
       deadlineFallbacks: all.filter(r => r.deadlineExceeded).length, meanUtility: mean(selected.filter(r => r.review.utility !== "uncertain").map(r => r.score)),
       inputTokens: mean(selected.map(r => r.usage.input)), outputTokens: mean(selected.map(r => r.usage.output)), totalTokens: mean(selected.map(r => r.usage.totalTokens)),
-      cacheReadTokens: selected.reduce((sum, r) => sum + r.usage.cacheRead, 0), medianMs: percentile(all.map(r => r.elapsedMs), .5), p90Ms: percentile(all.map(r => r.elapsedMs), .9),
+      cacheReadTokens: selected.reduce((sum, r) => sum + r.usage.cacheRead, 0), meanRequests: mean(selected.map(r => r.requests?.length || 0)), medianMs: percentile(all.map(r => r.elapsedMs), .5), p90Ms: percentile(all.map(r => r.elapsedMs), .9),
       categories: Object.fromEntries([...new Set(selected.map(r => r.category))].map(category => {
         const subset = selected.filter(r => r.category === category);
         return [category, { attempts: subset.length, meanUtility: mean(subset.filter(r => r.review.utility !== "uncertain").map(r => r.score)), violations: subset.filter(r => r.review.constraints === "violated").length }];
@@ -71,5 +71,7 @@ export function makeReport(run, reviewArtifact) {
     selection[id] = { totalTokenSavingPercent: saving, status: reasons.length ? "not-established" : "meets-local-gate", reasons };
   }
   return { checkWaivers: waivers.map(w => ({ ...w, originalCheck: run.cases.find(c => c.id === w.caseId).checks[w.index] })), providerTiers, reviewProvenance: reviewArtifact.provenance, policyHash: reviewArtifact.policyHash, adjudications: reviewArtifact.adjudications?.length || 0, selection, suite: run.suite, split: run.split, fingerprint: run.fingerprint, baseline, metrics, comparisons,
-    limitations: ["Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.", "Repeated trials share case families and must not be counted as independent tasks.", "Fixture tool execution is bounded replay, not a production integration test.", "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."] };
+    limitations: ["Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.", "Repeated trials share case families and must not be counted as independent tasks.",
+      run.execution === "researcher-integration" ? "Actual researcher resources, file tools, and hosted search run against authored isolated workspaces; this is not representative production sampling or testing of other roles." : "Fixture tool execution is bounded replay, not a production integration test.",
+      "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."] };
 }

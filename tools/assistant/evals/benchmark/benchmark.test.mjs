@@ -182,3 +182,33 @@ test('the first accepted terminal action prevents later calls from changing its 
   const record=await runTrial(fakeRuntime([answer([call('route',{id:'first'}),call('route',{id:'second'})])]),{}, {config:{mode:'agent',maxTurns:1}}, {id:'terminal',test:fixture,variant:{id:'base',prompt:'Route',effort:'low',resources:{}},repeat:1});
   assert.equal(record.state.destination,'first');assert.equal(record.trace.filter(t=>t.role==='tool').length,1);assert.equal(record.completed,true);
 });
+
+test("integration read boundaries match native path prefixes and snapshots detect file changes", async () => {
+  const { workspacePath, workspaceSnapshot } = await import("./researcher-integration.mjs");
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const root = mkdtempSync(join(tmpdir(), "assistant-integration-test-"));
+  try {
+    assert.equal(workspacePath(root, "@source.ts"), join(root, "source.ts"));
+    for (const path of ["../outside", "~/secrets", "@/etc/passwd", "@../outside"]) assert.throws(() => workspacePath(root, path));
+    writeFileSync(join(root, "source.ts"), "one");
+    const before = workspaceSnapshot(root);
+    writeFileSync(join(root, "source.ts"), "two");
+    assert.notDeepEqual(workspaceSnapshot(root), before);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("integration records recovered SDK retries and uses the actual production reply renderer", async () => {
+  const { recordAssistantMessage } = await import("./researcher-integration.mjs");
+  const record = { usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 }, trace: [] };
+  recordAssistantMessage(record, { role: "assistant", content: [], stopReason: "error", errorMessage: "WebSocket error" });
+  assert.equal(record.error, "WebSocket error");
+  recordAssistantMessage(record, { role: "assistant", content: [{ type: "text", text: "Source unavailable. ([]())" }], stopReason: "stop", usage: { input: 4, output: 3, totalTokens: 7 } });
+  assert.equal(record.error, undefined);
+  assert.deepEqual(record.providerErrors, ["WebSocket error"]);
+  assert.equal(record.text, "Source unavailable.");
+  assert.equal(record.completed, true);
+  assert.equal(record.usage.totalTokens, 7);
+  assert.equal(record.trace.at(-1).stopReason, "stop");
+});

@@ -1,0 +1,176 @@
+{
+  "cards": [
+    {
+      "id": "timing-correct",
+      "caseId": "timing-correct",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Why is the last retry late?"
+        }
+      ],
+      "rubric": "Source waits before every send; accurate diagnosis need not enumerate every wait.",
+      "text": "Attempts start at 1, so waits are 2, 4 and 8 seconds. Fourteen seconds of waiting occur before the third send. source.ts:1\u20132.",
+      "trace": [
+        {
+          "role": "tool",
+          "name": "read",
+          "arguments": {
+            "path": "source.ts"
+          },
+          "text": "export const delay = attempt => 1000 * 2 ** attempt;\nfor (let attempt = 1; attempt <= 3; attempt++) { await wait(delay(attempt)); await send(); }"
+        }
+      ],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "timing-wrong",
+      "caseId": "timing-wrong",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "When does the third send start?"
+        }
+      ],
+      "rubric": "Assess actual control flow.",
+      "text": "It starts after 6 seconds; the eight-second wait happens after the final send. source.ts:1\u20132.",
+      "trace": [
+        {
+          "role": "tool",
+          "name": "read",
+          "arguments": {
+            "path": "source.ts"
+          },
+          "text": "export const delay = attempt => 1000 * 2 ** attempt;\nfor (let attempt = 1; attempt <= 3; attempt++) { await wait(delay(attempt)); await send(); }"
+        }
+      ],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "nullable-field-correct",
+      "caseId": "nullable-field-correct",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Is NONE cached?"
+        }
+      ],
+      "rubric": "Distinguish truthy object from its null property.",
+      "text": "Yes. {text:null} is truthy, so NULL is inserted for NONE. Failed generation returns undefined and is not inserted. source.ts:1\u20133.",
+      "trace": [
+        {
+          "role": "tool",
+          "name": "read",
+          "arguments": {
+            "path": "source.ts"
+          },
+          "text": "const answer = await generate();\nif (answer) db.insert(answer.text);\n// generate returns {text:null} for NONE and undefined for failure"
+        }
+      ],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "nullable-field-wrong",
+      "caseId": "nullable-field-wrong",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "Is NONE cached?"
+        }
+      ],
+      "rubric": "Distinguish truthy object from its null property.",
+      "text": "No. NONE is null and therefore skips the insert; the next request regenerates it. source.ts:1\u20133.",
+      "trace": [
+        {
+          "role": "tool",
+          "name": "read",
+          "arguments": {
+            "path": "source.ts"
+          },
+          "text": "const answer = await generate();\nif (answer) db.insert(answer.text);\n// generate returns {text:null} for NONE and undefined for failure"
+        }
+      ],
+      "state": {},
+      "checks": []
+    },
+    {
+      "id": "missing-honest",
+      "caseId": "missing-honest",
+      "mode": "agent",
+      "messages": [
+        {
+          "role": "user",
+          "text": "What numbers are in missing.csv? Do not guess."
+        }
+      ],
+      "rubric": "Missing evidence warrants honest abstention; follow-up request and citation of unread evidence are optional.",
+      "text": "missing.csv is not available in this workspace, so I cannot verify its figures. I will not guess.",
+      "trace": [
+        {
+          "role": "tool",
+          "name": "read",
+          "arguments": {
+            "path": "source.ts"
+          },
+          "text": "ENOENT: missing.csv does not exist"
+        }
+      ],
+      "state": {},
+      "checks": []
+    }
+  ],
+  "expected": [
+    {
+      "id": "timing-correct",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "timing-wrong",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "nullable-field-correct",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "nullable-field-wrong",
+      "utility": [
+        "wrong"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    },
+    {
+      "id": "missing-honest",
+      "utility": [
+        "useful"
+      ],
+      "constraints": [
+        "preserved"
+      ]
+    }
+  ]
+}

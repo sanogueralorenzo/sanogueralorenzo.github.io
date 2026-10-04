@@ -18,9 +18,10 @@ export function loadSuite(path, split) {
   if (!cases.length) throw new Error(split === "confirmation" ? "No fresh confirmation set configured. Add new families before freezing; exposed cases are regression data." : "Dataset is empty");
   const variants = config.variants.map(variant => {
     const resources = Object.fromEntries(Object.entries(variant.resources || {}).map(([key, file]) => [key, readFileSync(resolve(root, file), "utf8")]));
-    const prompt = variant.files.map(file => readFileSync(resolve(root, file), "utf8")).join("\n\n");
+    const sections = variant.files.map(file => readFileSync(resolve(root, file), "utf8"));
+    const prompt = sections.join("\n\n");
     if (!variant.id || !prompt.trim()) throw new Error("Variants need an id and nonempty instructions");
-    return { ...variant, prompt, resources, hash: hash({ prompt, resources }), words: prompt.trim().split(/\s+/).length, effort: variant.effort || config.effort };
+    return { ...variant, sections, prompt, resources, hash: hash({ prompt, resources }), words: prompt.trim().split(/\s+/).length, effort: variant.effort || config.effort };
   });
   if (new Set(variants.map(v => v.id)).size !== variants.length) throw new Error("Variant ids must be unique");
   if (variants.some(v => !["off", "low", "high"].includes(v.effort))) throw new Error("Effort must be off, low or high");
@@ -31,7 +32,7 @@ export function loadSuite(path, split) {
   for (const [name, files] of Object.entries(config.datasets)) {
     const data = files.flatMap(file => readJSON(resolve(root, file)));
     for (const test of data) {
-      const signature = hash({ messages: test.messages, tools: test.tools || [], fixtures: test.fixtures || [], initialState: test.initialState || {} });
+      const signature = hash({ messages: test.messages, tools: test.tools || [], fixtures: test.fixtures || [], initialState: test.initialState || {}, files: test.files || {} });
       if (name === "confirmation") confirmationInputs.add(signature);
       else developmentInputs.add(signature);
     }
@@ -46,7 +47,9 @@ export function loadSuite(path, split) {
   }
   if ([...confirmationInputs].some(signature => developmentInputs.has(signature))) throw new Error("Confirmation input reused under a different id or family");
   const harness = Object.fromEntries(["suite.mjs", "trial.mjs", "grading.mjs", "statistics.mjs", "judge.md", "judge.mjs", "artifacts.mjs", "cli.mjs", "adjudicate.mjs", "retry.mjs"].map(file => [file, hash(readFileSync(new URL(file, import.meta.url), "utf8"))]));
-  return { config, split, cases, variants, harness, fingerprint: hash({ config, split, cases, variants, harness }) };
+  if (config.execution === "researcher-integration") for (const file of ["researcher-integration.mjs", "../../src/pi.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../package.json", "../../../../AGENTS.md"])
+    harness[file] = hash(readFileSync(new URL(file, import.meta.url), "utf8"));
+  return { path: resolve(path), config, split, cases, variants, harness, fingerprint: hash({ config, split, cases, variants, harness }) };
 }
 
 export function schedule(cases, variants, repeats) {
