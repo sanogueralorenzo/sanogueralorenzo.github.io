@@ -34,5 +34,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-4" }
+    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-6" }
 }

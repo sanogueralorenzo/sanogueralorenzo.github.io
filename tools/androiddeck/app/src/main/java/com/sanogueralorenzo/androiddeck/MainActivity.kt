@@ -1,12 +1,14 @@
 package com.sanogueralorenzo.androiddeck
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import android.widget.Button
 import com.sanogueralorenzo.androiddeck.runtime.RuntimeController
+import com.sanogueralorenzo.androiddeck.session.SessionActivity
 
 class MainActivity : Activity() {
     private val runtime get() = (application as DeckApplication).runtime
@@ -21,6 +23,7 @@ class MainActivity : Activity() {
             insets
         }
         findViewById<TextView>(R.id.device).text = getString(R.string.device_description, Build.MODEL, Build.SOC_MODEL)
+        findViewById<Button>(R.id.start_steam).setOnClickListener { startActivity(Intent(this, SessionActivity::class.java)) }
         findViewById<Button>(R.id.action).setOnClickListener {
             when (val state = runtime.state) {
                 RuntimeController.State.Missing -> runtime.install()
@@ -44,5 +47,6 @@ class MainActivity : Activity() {
         findViewById<TextView>(R.id.runtime_heading).setText(heading)
         findViewById<TextView>(R.id.status).text = description
         findViewById<Button>(R.id.action).setText(action)
+        findViewById<Button>(R.id.start_steam).isEnabled = state is RuntimeController.State.Ready
     }
 }

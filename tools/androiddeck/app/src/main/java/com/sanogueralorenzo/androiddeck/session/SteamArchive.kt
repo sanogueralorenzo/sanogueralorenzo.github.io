@@ -19,6 +19,7 @@ internal class SteamArchive(directory: File) {
             while (entries.hasMoreElements()) {
                 checkInstallationCancelled()
                 val entry = entries.nextElement()
+                require(entry.method == 0 || entry.method == 8) { "Unsupported Steam ZIP compression." }
                 require(++count <= 100_000 && zip.canReadEntryData(entry)) { "Unsupported Steam archive entry." }
                 // Valve's archives contain both POSIX and Windows separators.
                 val name = entry.name.replace('\\', '/')

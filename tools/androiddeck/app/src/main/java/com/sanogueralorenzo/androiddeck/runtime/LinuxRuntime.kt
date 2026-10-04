@@ -14,7 +14,7 @@ internal class LinuxRuntime(context: Context, private val root: File) {
 
     fun start(command: List<String>, bindings: List<String> = emptyList(), environment: Map<String, String> = emptyMap()): Process {
         val arguments = mutableListOf(
-            "$native/libproot.so", "--kill-on-exit", "-0", "-r", root.path,
+            "$native/libproot.so", "--kill-on-exit", "--sysvipc", "-0", "-r", root.path,
             "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "${home.path}:/root",
             "-w", "/root"
         )

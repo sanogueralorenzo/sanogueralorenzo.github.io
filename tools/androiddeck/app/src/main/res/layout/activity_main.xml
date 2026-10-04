@@ -20,5 +20,7 @@
             android:layout_marginTop="24dp" android:minHeight="56dp" />
         <TextView android:id="@+id/development_notice" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="24dp" android:text="@string/development_notice" android:textColor="@color/secondary" android:textSize="14sp" />
+        <Button android:id="@+id/start_steam" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:minHeight="56dp" android:text="@string/start_steam" />
     </LinearLayout>
 </ScrollView>

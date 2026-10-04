@@ -10,7 +10,7 @@ import com.sanogueralorenzo.androiddeck.display.NativeDisplay
 import com.sanogueralorenzo.androiddeck.runtime.LinuxRuntime
 import com.sanogueralorenzo.androiddeck.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androiddeck.session.SessionComponents
-import com.sanogueralorenzo.androiddeck.session.GpuDevice
+import com.sanogueralorenzo.androiddeck.session.SessionRuntime
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -73,7 +73,6 @@ class SessionIntegrationTest {
         repeat(2) {
             val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
             val sockets = File(context.cacheDir, "session-test").apply { mkdirs() }
-            val sharedMemory = File(sockets, "shm").apply { mkdirs() }
             val socket = File(sockets, "wayland-0")
             val log = File(context.cacheDir, "session-test.log")
             log.writeText("")
@@ -85,21 +84,9 @@ class SessionIntegrationTest {
                 assertTrue(activity.ready.await(5, TimeUnit.SECONDS))
                 NativeDisplay.startVulkan(socket.path, activity.surface.holder.surface, 60_000,
                     File(graphics.root, "android").path, context.applicationInfo.nativeLibraryDir)
-                process = LinuxRuntime(context, runtime.root).start(
-                    listOf("/opt/androiddeck/session/usr/games/gamescope", "--backend", "sdl", "--expose-wayland", "-W", "320", "-H", "200", "--", "/opt/androiddeck/app/libwayland-vulkan-probe.so", "nested"),
-                    listOf("${components.root.path}:/opt/androiddeck/session", "${graphics.root.path}:/opt/androiddeck/graphics",
-                        "${context.applicationInfo.nativeLibraryDir}:/opt/androiddeck/app", "${sockets.path}:/run/androiddeck",
-                        "${sharedMemory.path}:/dev/shm",
-                        "${components.root.path}/usr/bin/xkbcomp:/usr/bin/xkbcomp",
-                        "${components.root.path}/usr/share/gamescope:/usr/share/gamescope") + GpuDevice.bindings(File(sockets, "gpu")),
-                    mapOf("XDG_RUNTIME_DIR" to "/run/androiddeck", "WAYLAND_DISPLAY" to "wayland-0", "SDL_VIDEODRIVER" to "wayland",
-                        "WLR_XWAYLAND" to "/opt/androiddeck/session/usr/bin/Xwayland",
-                        "LD_PRELOAD" to "/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-drm.so",
-                        "PATH" to "/opt/androiddeck/session/usr/games:/opt/androiddeck/session/usr/bin:/usr/bin:/bin",
-                        "LD_LIBRARY_PATH" to "/opt/androiddeck/session/usr/lib/aarch64-linux-gnu:/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/pulseaudio:/opt/androiddeck/graphics/usr/lib/aarch64-linux-gnu",
-                        "VK_DRIVER_FILES" to "/opt/androiddeck/graphics/linux/freedreno_icd.aarch64.json")
-                )
-                val running = process
+                process = SessionRuntime(context, sockets).start(
+                listOf("/opt/androiddeck/app/libwayland-vulkan-probe.so", "nested"), 320, 200)
+            val running = process
                 reader = Thread {
                     try { log.outputStream().use { output -> running.inputStream.use { it.copyTo(output) } } }
                     catch (failure: IOException) { if (!stopping.get()) readFailure.set(failure) }
