@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">Android Steam</string>
+    <string name="tagline">Your Steam library, running locally.</string>
+    <string name="device_heading">ANDROID 16 · ARM64</string>
+    <string name="device_description">%1$s
+%2$s</string>
+    <string name="runtime_heading">Runtime not installed</string>
+    <string name="runtime_missing">Download the Linux base (98 MB). Installation needs 850 MB of free internal storage. Steam, Proton and games will need additional space.</string>
+    <string name="runtime_working">Setting up Linux</string>
+    <string name="runtime_ready">Linux installed</string>
+    <string name="runtime_failed">Runtime needs attention</string>
+    <string name="runtime_test_hint">Run the startup check to verify Linux on this device.</string>
+    <string name="install_runtime">Install Linux runtime</string>
+    <string name="test_runtime">Test Linux runtime</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+    <string name="development_notice">Development build: Steam startup is being validated. Game sessions are not ready.</string>
+    <string name="start_steam">Start Steam</string>
+    <string name="stop_steam">Stop Steam</string>
+    <string name="starting_steam">Starting Steam…</string>
+    <string name="stopping_steam">Stopping Steam…</string>
+    <string name="session_stopped">Steam stopped. Close this screen to start again.</string>
+    <string name="session_channel">Steam session</string>
+    <string name="session_notification">Tap to return to Steam.</string>
+</resources>
