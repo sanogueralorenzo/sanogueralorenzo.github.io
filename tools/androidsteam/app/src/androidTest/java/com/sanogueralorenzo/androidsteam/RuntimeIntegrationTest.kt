@@ -49,12 +49,12 @@ class RuntimeIntegrationTest {
         assertTrue(awaitReady(controller, 20_000).output.contains("Linux runtime ready"))
         // Exercise the real host utilities that Steam’s launch scripts use.
         val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
-            listOf("/usr/bin/dash", "-c", "set -e; /usr/bin/ls -d /usr; /usr/bin/cp --version; /usr/bin/basename /tmp/test; /usr/bin/sha256sum /etc/os-release"))
+            listOf("/usr/bin/dash", "-c", "set -e; /usr/bin/ls -d /usr; /usr/bin/cp --version; /usr/bin/basename /tmp/test; /usr/bin/sha256sum /usr/lib/os-release"))
         try {
             assertTrue("Linux command aliases timed out", process.waitFor(10, TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()
             assertEquals(output, 0, process.exitValue())
-            assertTrue(output, output.contains("/usr") && output.contains("cp") && output.contains("test") && output.contains("/etc/os-release"))
+            assertTrue(output, output.contains("/usr") && output.contains("cp") && output.contains("test") && output.contains("/usr/lib/os-release"))
             println(output)
         } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
     }
