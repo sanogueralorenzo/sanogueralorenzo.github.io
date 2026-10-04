@@ -1,6 +1,6 @@
 # Android Steam
 
-An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. Steam sign-in, the owned-game interface and Superflight rendering work on the validated Samsung S24 (SM-S921U1, Adreno 750). Game audio reaches Android output; full touch controls and the native launcher are unfinished.
+An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. Steam sign-in, the owned-game interface and Superflight gameplay with digital touch controls work on the validated Samsung S24 (SM-S921U1, Adreno 750). Game audio reaches Android output; the native launcher and broader game compatibility are unfinished.
 
 The frontend uses Kotlin and Views/XML. Steam owns authentication, the library, client updates, and game downloads. The initial scope is one ARM64 Adreno device; desktop apps, emulators, external game imports, and frame generation are excluded.
 
@@ -19,7 +19,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Open Android Steam, choose **Install Linux runtime** (156 MiB download; 1.5 GB free storage), then **Start Steam**. First startup installs the matched drivers/session components and downloads Valve's client and remaining runtime; allow several GB of additional internal storage. **Test Linux runtime** verifies command execution. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs, with user home stored separately from replaceable runtime files.
 
-Sign in using Steam's QR code and Steam Guard. You can switch apps during authentication and return through Android Steam's ongoing notification. **Stop Steam** in the ongoing notification ends the session. Use touch to navigate and type with Steam’s onscreen keyboard, which opens when selecting search. USB/Bluetooth keyboards and mice use the Android input bridge. Linux game audio plays through Android AudioTrack and mutes while the session is hidden. Full touch game controls are still being implemented.
+Sign in using Steam's QR code and Steam Guard. You can switch apps during authentication and return through Android Steam's ongoing notification. **Stop Steam** in the ongoing notification ends the session. Use touch to navigate and type with Steam’s onscreen keyboard, which opens when selecting search. USB/Bluetooth keyboards and mice use the Android input bridge. Linux game audio plays through Android AudioTrack and mutes while the session is hidden.
+
+During a game, tap the small gamepad icon to choose **Direct touch**, **Arrow keys** or **WASD**, saved separately for that game. The keyboard layouts add a movement stick and Escape/Space/Enter buttons. Android controller left-stick/D-pad and A/B/X events map to the same digital keyboard controls; analog Xbox emulation and right-stick aiming are unsupported. Controller events passed Linux integration checks; a physical gamepad has not been tested.
 
 Steam prompts to install **Proton Experimental (ARM64)** when it is missing (about 475 MB download / 1.94 GB installed). For a Windows game, select **Android Steam Proton (ARM64)** under its **Properties → Compatibility**. The small tool runs Valve's Steam-managed ARM64 depot directly and excludes the native overlay from Wine to avoid the reproduced Steam IPC crash on relaunch. For Superflight, set **Launch Options** to `-force-d3d11 -screen-width 1280 -screen-height 720 -screen-fullscreen 1`. Other Proton versions and arbitrary game compatibility are unverified.
 

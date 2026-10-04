@@ -2,6 +2,12 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent">
     <com.sanogueralorenzo.androidsteam.input.SteamSurface android:id="@+id/surface" android:layout_width="match_parent" android:layout_height="match_parent" />
+    <com.sanogueralorenzo.androidsteam.input.TouchControls android:id="@+id/touch_controls"
+        android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+    <ImageButton android:id="@+id/game_controls" android:layout_width="48dp" android:layout_height="48dp"
+        android:layout_gravity="top|center_horizontal" android:layout_marginTop="8dp"
+        android:src="@drawable/ic_controls" android:backgroundTint="#80212C38" android:contentDescription="@string/game_controls"
+        android:focusable="false" android:visibility="gone" />
     <TextView android:id="@+id/session_status" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_gravity="center" android:padding="32dp" android:gravity="center"
         android:background="@color/background" android:textColor="@color/foreground" android:textSize="18sp" />

@@ -5,7 +5,7 @@
     <string name="device_description">%1$s
 %2$s</string>
     <string name="runtime_heading">Runtime not installed</string>
-    <string name="runtime_missing">Download the pinned Arch ARM base (154 MiB). Installation needs 1.5 GB of free internal storage. Steam, Proton and games will need additional space.</string>
+    <string name="runtime_missing">Download the pinned Arch ARM base (156 MiB). Installation needs 1.5 GB of free internal storage. Steam, Proton and games will need additional space.</string>
     <string name="runtime_working">Setting up Linux</string>
     <string name="runtime_ready">Linux installed</string>
     <string name="runtime_failed">Runtime needs attention</string>
@@ -22,4 +22,5 @@
     <string name="session_stopped">Steam stopped. Close this screen to start again.</string>
     <string name="session_channel">Steam session</string>
     <string name="session_notification">Tap to return to Steam.</string>
+    <string name="game_controls">Game controls</string>
 </resources>

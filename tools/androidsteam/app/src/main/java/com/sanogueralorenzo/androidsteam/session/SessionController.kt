@@ -31,6 +31,7 @@ internal class SessionController(private val context: Context) {
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val listeners = mutableSetOf<(State) -> Unit>()
+    private val gameListeners = mutableSetOf<(Int?) -> Unit>()
     private var generation = 0
     private var job: Future<*>? = null
     @Volatile private var process: Process? = null
@@ -39,15 +40,20 @@ internal class SessionController(private val context: Context) {
     private var attachedSurface: Surface? = null
     @Volatile var state: State = State.Idle
         private set
+    var gameAppId: Int? = null
+        private set
 
     fun observe(listener: (State) -> Unit) { listeners += listener; listener(state) }
     fun removeObserver(listener: (State) -> Unit) { listeners -= listener }
+    fun observeGame(listener: (Int?) -> Unit) { gameListeners += listener; listener(gameAppId) }
+    fun removeGameObserver(listener: (Int?) -> Unit) { gameListeners -= listener }
 
     fun start(surface: Surface, width: Int, height: Int, refresh: Int) {
         if (state is State.Working || state == State.Running || state == State.Stopping) return
         val token = ++generation
         visible = true
         attachedSurface = surface
+        publishGame(null)
         publish(State.Working("Preparing Steam…"))
         job = worker.submit {
             val directory = File(context.cacheDir, "session")
@@ -67,6 +73,7 @@ internal class SessionController(private val context: Context) {
                 RuntimeArchive.delete(directory)
                 check(directory.mkdirs()) { "Cannot prepare the Steam session." }
                 val session = SessionRuntime(context, directory)
+                val games = SteamGameLog(File(context.filesDir, "home/.local/share/Steam/logs/gameprocess_log.txt"))
                 val command = session.steamCommand()
                 // Retain ownership before startup so partial failures also release audio.
                 val playback = SessionAudio(context, directory)
@@ -102,10 +109,20 @@ internal class SessionController(private val context: Context) {
                     } catch (failure: IOException) { readFailure.set(failure) }
                 }, "Steam output").apply { start() }
                 var displayed = false
+                var nextGameCheck = 0L
+                var activeGame: Int? = null
                 while (!running.waitFor(100, TimeUnit.MILLISECONDS)) {
                     checkInstallationCancelled()
                     readFailure.get()?.let { throw it }
                     audio?.failure?.let { throw it }
+                    if (System.nanoTime() >= nextGameCheck) {
+                        nextGameCheck = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500)
+                        val appId = games.read()
+                        if (activeGame != appId) {
+                            activeGame = appId
+                            main.post { if (generation == token) publishGame(appId) }
+                        }
+                    }
                     if (!displayed && NativeDisplay.snapshot()[0] > 0) {
                         displayed = true
                         update(token, State.Running)
@@ -137,12 +154,14 @@ internal class SessionController(private val context: Context) {
                 }
             }
             update(token, result)
+            main.post { if (generation == token) publishGame(null) }
         }
     }
 
     fun stop() {
         if (state == State.Idle || state == State.Stopping || state is State.Failed) return
         val token = ++generation
+        publishGame(null)
         publish(State.Stopping)
         process?.destroy()
         job?.cancel(true)
@@ -174,4 +193,9 @@ internal class SessionController(private val context: Context) {
         if (generation == token && !(state == State.Running && value is State.Working)) publish(value)
     } }
     private fun publish(value: State) { state = value; listeners.toList().forEach { it(value) } }
+    private fun publishGame(appId: Int?) {
+        if (gameAppId == appId) return
+        gameAppId = appId
+        gameListeners.toList().forEach { it(appId) }
+    }
 }

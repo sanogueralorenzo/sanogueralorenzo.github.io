@@ -4,11 +4,15 @@ import android.content.Intent
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.InputDevice
+import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androidsteam.display.DisplayTestActivity
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.input.SteamSurface
+import com.sanogueralorenzo.androidsteam.input.TouchControls
+import com.sanogueralorenzo.androidsteam.input.ControlProfile
 import com.sanogueralorenzo.androidsteam.runtime.LinuxRuntime
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androidsteam.session.SessionComponents
@@ -29,7 +33,7 @@ class InputIntegrationTest {
         val components = SessionComponents(context)
         assertTrue(components.installed)
         repeat(2) {
-            val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
+            val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as DisplayTestActivity
             val directory = File(context.cacheDir, "input-test").apply { mkdirs() }
             val lines = Collections.synchronizedList(mutableListOf<String>())
             var process: Process? = null
@@ -41,6 +45,9 @@ class InputIntegrationTest {
             }
             try {
                 assertTrue(activity.ready.await(5, TimeUnit.SECONDS))
+                val focusDeadline = SystemClock.elapsedRealtime() + 5_000
+                while (!activity.hasWindowFocus() && SystemClock.elapsedRealtime() < focusDeadline) Thread.sleep(20)
+                assertTrue("Close system panels before checking Android input", activity.hasWindowFocus())
                 NativeDisplay.start(File(directory, "wayland-0").path, activity.surface.holder.surface, 60_000)
                 process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
                     listOf("/opt/androidsteam/app/libwayland-probe.so", "input"),
@@ -68,6 +75,52 @@ class InputIntegrationTest {
                 instrumentation.sendKeySync(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
                 await("input-key 48 1 98"); await("input-key 19 1 114"); await("input-key 46 1 67"); await("input-key 14 0 8")
                 await("input-touch-down 0 128 40"); await("input-touch-motion 0 192 80"); await("input-touch-up 0")
+                instrumentation.runOnMainSync {
+                    val surface = activity.surface as SteamSurface
+                    surface.releaseInput()
+                    surface.profile = ControlProfile.ARROWS
+                    val controls = TouchControls(context).apply { this.surface = surface }
+                    activity.addContentView(controls, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                    controls.layout(0, 0, surface.width, surface.height)
+                    val density = context.resources.displayMetrics.density
+                    val stickX = 100f * density; val stickY = surface.height - 100f * density
+                    val enterX = surface.width - 58f * density; val enterY = surface.height - 70f * density
+                    fun touch(action: Int, points: List<Pair<Float, Float>>) {
+                        val now = SystemClock.uptimeMillis()
+                        val properties = Array(points.size) { id -> MotionEvent.PointerProperties().apply { this.id = id; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+                        val coordinates = points.map { point -> MotionEvent.PointerCoords().apply { x = point.first; y = point.second; pressure = 1f; size = 1f } }.toTypedArray()
+                        MotionEvent.obtain(now, now, action, points.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
+                            .also { controls.dispatchTouchEvent(it); it.recycle() }
+                    }
+                    touch(MotionEvent.ACTION_DOWN, listOf(stickX + 45f * density to stickY))
+                    touch(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(stickX + 45f * density to stickY, enterX to enterY))
+                    touch(MotionEvent.ACTION_MOVE, listOf(stickX - 45f * density to stickY, enterX to enterY))
+                    touch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(stickX - 45f * density to stickY, enterX to enterY))
+                    // Losing focus releases movement even if the finger never came up.
+                    controls.onWindowFocusChanged(false)
+                    controls.visibility = android.view.View.GONE
+                    surface.requestFocus()
+                    val now = SystemClock.uptimeMillis()
+                    for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP))
+                        surface.dispatchKeyEvent(KeyEvent(now, now, action, KeyEvent.KEYCODE_BUTTON_X, 0, 0, 4, 45, 0, InputDevice.SOURCE_GAMEPAD))
+                    surface.profile = ControlProfile.WASD
+                    for (xValue in listOf(1f, 0f)) {
+                        val properties = arrayOf(MotionEvent.PointerProperties().apply { id = 0 })
+                        val coordinates = arrayOf(MotionEvent.PointerCoords().apply { setAxisValue(MotionEvent.AXIS_X, xValue) })
+                        MotionEvent.obtain(now, now, MotionEvent.ACTION_MOVE, 1, properties, coordinates, 0, 0, 1f, 1f, 4, 0, InputDevice.SOURCE_JOYSTICK, 0)
+                            .also { surface.dispatchGenericMotionEvent(it); it.recycle() }
+                    }
+                    val preferences = context.getSharedPreferences("controls", android.content.Context.MODE_PRIVATE)
+                    val original = preferences.getString("200", null)
+                    ControlProfile.save(context, 200, ControlProfile.WASD)
+                    assertEquals(ControlProfile.WASD, ControlProfile.load(context, 200))
+                    preferences.edit().putString("200", original).apply()
+                    surface.profile = ControlProfile.TOUCH
+                }
+                await("input-key 106 1 0"); await("input-key 105 1 0"); await("input-key 105 0 0")
+                await("input-key 28 1 13"); await("input-key 28 0 13")
+                await("input-key 57 1 32"); await("input-key 57 0 32")
+                await("input-key 32 1 100"); await("input-key 32 0 100")
                 NativeDisplay.key(32, true); NativeDisplay.pointer(.2f, .2f, 273, true); NativeDisplay.touch(2, 0, .2f, .2f)
                 await("input-key 32 1 100"); await("input-button 273 1"); await("input-touch-down 2 64 40")
                 NativeDisplay.attach(null)
