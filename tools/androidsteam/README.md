@@ -4,6 +4,10 @@ An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton 
 
 The frontend uses Kotlin and Views/XML. Steam owns authentication, the library, client updates, and game downloads. The initial scope is one ARM64 Adreno device; desktop apps, emulators, external game imports, and frame generation are excluded.
 
+Proposed mobile interface:
+
+![Android Steam interface concept showing the library, search, and game details](docs/android-steam-concept.png)
+
 ## Build and try
 
 Use JDK 17 or 21, SDK 36, NDK `28.2.13676358`, and CMake `3.22.1`. Set `ANDROID_HOME` or `sdk.dir` in `local.properties`. Native builds need macOS Command Line Tools or Linux `build-essential libexpat1-dev zstd patch`, plus the usual Bash/curl/archive tools.
