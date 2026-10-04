@@ -48,12 +48,13 @@ internal class SessionRuntime(private val context: Context, val directory: File)
             "SDL_VIDEODRIVER=x11",
             "LD_PRELOAD=/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so:/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
             "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
-            "/bin/sh", "/run/androiddeck/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui",
+            "/bin/sh", "/run/androiddeck/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-clientbeta", "steamdeck_stable",
             "-overridepackageurl", "https://client-update.akamai.steamstatic.com")
     }
 
     private val environment = mapOf(
         "XDG_RUNTIME_DIR" to "/run/androiddeck", "WAYLAND_DISPLAY" to "wayland-0", "SDL_VIDEODRIVER" to "wayland",
+        "XLOCALEDIR" to "/opt/androiddeck/session/usr/share/X11/locale",
         "WLR_XWAYLAND" to "/opt/androiddeck/session/usr/bin/Xwayland",
         "LD_PRELOAD" to "/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-drm.so",
         "PATH" to "/opt/androiddeck/session/usr/games:/opt/androiddeck/session/usr/bin:/usr/bin:/bin",

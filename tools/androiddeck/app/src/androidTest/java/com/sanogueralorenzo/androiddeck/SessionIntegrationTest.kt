@@ -119,7 +119,7 @@ class SessionIntegrationTest {
                 NativeDisplay.startVulkan(socket.path, activity.surface.holder.surface, 60_000,
                     File(graphics.root, "android").path, context.applicationInfo.nativeLibraryDir)
                 process = SessionRuntime(context, sockets).start(
-                listOf("/opt/androiddeck/app/libwayland-vulkan-probe.so", "nested"), 320, 200)
+                listOf("/bin/sh", "-c", "/opt/androiddeck/app/libx11-locale-probe.so && exec /opt/androiddeck/app/libwayland-vulkan-probe.so nested"), 320, 200)
             val running = process
                 reader = Thread {
                     try { log.outputStream().use { output -> running.inputStream.use { it.copyTo(output) } } }

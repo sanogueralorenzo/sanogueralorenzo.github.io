@@ -73,6 +73,7 @@ shared_library libdeck-ports.so "$HERE/../session/socket_ports.c"
 shared_library libdeck-robust.so "$HERE/../session/robust.c" "$HERE/../session/syscall.S"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/robust_probe.c" -o "$OUT/probe/arm64-v8a/librobust-probe.so"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/socket_peer_probe.c" -o "$OUT/probe/arm64-v8a/libsocket-peer-probe.so"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/x11_locale_probe.c" -o "$OUT/probe/arm64-v8a/libx11-locale-probe.so"
 
 # The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
 "$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \

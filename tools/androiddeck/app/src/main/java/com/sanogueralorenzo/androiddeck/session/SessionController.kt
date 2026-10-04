@@ -100,7 +100,10 @@ internal class SessionController(private val context: Context) {
                     }
                     check(displayed || System.nanoTime() - startupProgress.get() < TimeUnit.SECONDS.toNanos(90)) { "Steam startup stalled. Stop and retry; startup details are in the app's private log." }
                 }
-                check(running.exitValue() == 0) { "Steam stopped with exit code ${running.exitValue()}. Retry the session." }
+                val status = File(directory, "steam-exit").takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
+                check(status != null) { "Steam ended without reporting its exit status. Restart Steam." }
+                check(status == 0) { "Steam stopped unexpectedly (exit code $status). Restart Steam." }
+                check(running.exitValue() == 0) { "Steam display stopped with exit code ${running.exitValue()}. Restart Steam." }
             } catch (failure: Exception) {
                 result = State.Failed(failure.message ?: "Steam could not start. Retry the session.")
             } finally {
@@ -123,7 +126,7 @@ internal class SessionController(private val context: Context) {
     }
 
     fun stop() {
-        if (state == State.Idle || state == State.Stopping) return
+        if (state == State.Idle || state == State.Stopping || state is State.Failed) return
         val token = ++generation
         publish(State.Stopping)
         process?.destroy()

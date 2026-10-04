@@ -62,16 +62,17 @@ class SteamIntegrationTest {
         assertTrue(runtime.installed)
         try {
             context.assets.open("steam/launch.sh").use { input -> File(directory, "launch.sh").outputStream().use { input.copyTo(it) } }
-            for ((client, exit, calls) in listOf(Triple("[ \"\$n\" -lt 2 ] && exit 42; exit 0", 0, 2), Triple("exit 42", 42, 3), Triple("exit 7", 7, 1))) {
+            for ((client, exit, calls) in listOf(Triple("[ \"\$n\" -lt 2 ] && exit 42; exit 0", 0, 2), Triple("exit 42", 42, 3), Triple("exit 7", 7, 1), Triple("kill -TERM \$\$", 143, 1))) {
                 File(directory, "count").writeText("0")
                 File(directory, "client.sh").writeText("n=\$(cat /opt/androiddeck/test/count); n=\$((n + 1)); echo \$n > /opt/androiddeck/test/count; $client\n")
                 val process = LinuxRuntime(context, runtime.root).start(
                     listOf("/bin/sh", "/opt/androiddeck/test/launch.sh", "/bin/sh", "/opt/androiddeck/test/client.sh"),
-                    listOf("${directory.path}:/opt/androiddeck/test"))
+                    listOf("${directory.path}:/opt/androiddeck/test", "${directory.path}:/run/androiddeck"))
                 try {
                     assertTrue("Bootstrap restart did not finish", process.waitFor(10, TimeUnit.SECONDS))
                     val output = process.inputStream.bufferedReader().readText()
                     assertEquals(output, exit, process.exitValue())
+                    assertEquals(exit, File(directory, "steam-exit").readText().trim().toInt())
                     assertEquals(calls, File(directory, "count").readText().trim().toInt())
                 } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
             }
