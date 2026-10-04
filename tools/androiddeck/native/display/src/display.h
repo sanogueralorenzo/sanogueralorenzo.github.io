@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdatomic.h>
 #include <sys/types.h>
 #include <wayland-server.h>
 #include "xdg-shell-server.h"
@@ -17,6 +18,7 @@ struct deck_display {
     struct wl_list outputs;
     pthread_t thread;
     int stop_fd;
+    atomic_bool stopping;
     pthread_mutex_t window_mutex;
     ANativeWindow *window;
     struct deck_gpu *gpu;
@@ -57,4 +59,5 @@ bool deck_sync_commit(struct deck_surface *surface, bool dmabuf);
 void deck_sync_release(struct deck_surface *surface);
 void deck_sync_destroy(struct deck_surface *surface);
 void deck_configure(struct deck_surface *surface);
+void deck_finish_frames(struct deck_surface *surface);
 #endif

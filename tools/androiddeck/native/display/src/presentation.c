@@ -1,5 +1,6 @@
 #include "display.h"
 #include <errno.h>
+#include <unistd.h>
 
 bool deck_present(struct deck_display *display, struct wl_shm_buffer *buffer) {
     const int width = wl_shm_buffer_get_width(buffer);
@@ -44,5 +45,10 @@ bool deck_attach(struct deck_display *display, ANativeWindow *window) {
     display->window = window; // Ownership of fromSurface's acquired reference transfers here.
     bool ready = !display->gpu || deck_gpu_attach(display->gpu, window);
     pthread_mutex_unlock(&display->window_mutex);
+    if (ready && window) {
+        const uint64_t value = 1;
+        ssize_t count;
+        do { count = write(display->stop_fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);
+    }
     return ready;
 }

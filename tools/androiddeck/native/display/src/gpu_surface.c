@@ -57,11 +57,16 @@ bool deck_gpu_attach(struct deck_gpu *gpu, ANativeWindow *window) {
     if (caps.maxImageCount && images > caps.maxImageCount) images = caps.maxImageCount;
     VkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     if (!(caps.supportedCompositeAlpha & alpha)) alpha = (VkCompositeAlphaFlagBitsKHR)(caps.supportedCompositeAlpha & (0u - caps.supportedCompositeAlpha));
+    // Linux frames are upright. Asking Android for currentTransform would claim
+    // they are already pre-rotated, which turns a landscape phone's UI sideways.
+    if (!(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)) {
+        deck_gpu_error(gpu, "Upright Android presentation", VK_ERROR_FEATURE_NOT_PRESENT); goto failed;
+    }
     VkSwapchainCreateInfoKHR swapchain = { .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = gpu->surface, .minImageCount = images, .imageFormat = gpu->format,
         .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, .imageExtent = gpu->extent,
         .imageArrayLayers = 1, .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE, .preTransform = caps.currentTransform,
+        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE, .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
         .compositeAlpha = alpha, .presentMode = VK_PRESENT_MODE_FIFO_KHR, .clipped = true };
     result = gpu->vk.CreateSwapchainKHR(gpu->device, &swapchain, NULL, &gpu->swapchain);
     if (result != VK_SUCCESS) { deck_gpu_error(gpu, "Android swapchain", result); goto failed; }

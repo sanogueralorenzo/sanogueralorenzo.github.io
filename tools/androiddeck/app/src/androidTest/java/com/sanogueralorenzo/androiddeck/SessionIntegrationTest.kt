@@ -11,6 +11,8 @@ import com.sanogueralorenzo.androiddeck.runtime.LinuxRuntime
 import com.sanogueralorenzo.androiddeck.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androiddeck.session.SessionComponents
 import com.sanogueralorenzo.androiddeck.session.SessionRuntime
+import com.sanogueralorenzo.androiddeck.session.SessionActivity
+import com.sanogueralorenzo.androiddeck.session.SessionController
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -24,6 +26,38 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SessionIntegrationTest {
+    @Test fun steamSurvivesSteamGuardAndStopsCleanly() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        instrumentation.uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        val session = (context.applicationContext as DeckApplication).session
+        val activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
+        fun await(message: String, condition: () -> Boolean) {
+            val deadline = SystemClock.elapsedRealtime() + 90_000
+            while (!condition() && SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
+            assertTrue(message, condition())
+        }
+        try {
+            await("Steam did not start: ${session.state}") { session.state == SessionController.State.Running || session.state is SessionController.State.Failed }
+            assertEquals(SessionController.State.Running, session.state)
+            instrumentation.uiAutomation.executeShellCommand("input keyevent 3").close()
+            await("Steam's surface stayed attached in the background") { !activity.findViewById<android.view.SurfaceView>(R.id.surface).holder.surface.isValid }
+            Thread.sleep(250)
+            val hiddenFrames = NativeDisplay.snapshot()[0]
+            Thread.sleep(1_000)
+            assertEquals("Background frames continued presenting", hiddenFrames, NativeDisplay.snapshot()[0])
+            assertEquals("Steam stopped while switching apps", SessionController.State.Running, session.state)
+            context.startActivity(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            await("Steam did not resume on the same display") { NativeDisplay.snapshot()[0] > hiddenFrames }
+            assertEquals(SessionController.State.Running, session.state)
+        } finally {
+            instrumentation.runOnMainSync { session.stop(); activity.finish() }
+            await("Steam did not finish stopping") { session.state == SessionController.State.Idle }
+        }
+        assertArrayEquals(longArrayOf(0, 0, 0), NativeDisplay.snapshot())
+    }
+
     @Test fun componentsInstallAndExecutablesResolveTheirDependencies() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifySession") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext

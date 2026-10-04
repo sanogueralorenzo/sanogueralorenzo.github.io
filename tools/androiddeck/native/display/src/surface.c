@@ -40,6 +40,14 @@ static void frame(struct wl_client *client, struct wl_resource *resource, uint32
     wl_list_insert(surface->frames.prev, &callback->link);
     wl_resource_set_implementation(callback->resource, NULL, callback, frame_destroyed);
 }
+void deck_finish_frames(struct deck_surface *surface) {
+    struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
+    struct frame_callback *callback, *next;
+    wl_list_for_each_safe(callback, next, &surface->frames, link) {
+        wl_callback_send_done(callback->resource, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
+        wl_resource_destroy(callback->resource);
+    }
+}
 static void commit(struct wl_client *client, struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
     struct deck_gpu_image *image = surface->pending ? deck_dmabuf_image(surface->pending) : NULL;
@@ -60,8 +68,11 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
             uint32_t present_id = 0;
             if (!display->window) { if (fd >= 0) close(fd); presented = true; }
             else if (deck_gpu_present(display->gpu, image, fd, &present_id)) {
-                presented = true; display->frames++;
-                display->frame_width = image->width; display->frame_height = image->height;
+                presented = true;
+                if (present_id) {
+                    display->frames++;
+                    display->frame_width = image->width; display->frame_height = image->height;
+                }
             }
             else snprintf(failure, sizeof(failure), "%s", display->gpu->error);
             if (presented) deck_feedback_commit(surface, present_id);
@@ -80,12 +91,9 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
         wl_list_init(&surface->pending_destroy.link);
         surface->pending = NULL;
     } else deck_feedback_commit(surface, 0);
-    struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
-    struct frame_callback *callback, *next;
-    wl_list_for_each_safe(callback, next, &surface->frames, link) {
-        wl_callback_send_done(callback->resource, (uint32_t)(now.tv_sec * 1000 + now.tv_nsec / 1000000));
-        wl_resource_destroy(callback->resource);
-    }
+    pthread_mutex_lock(&surface->display->window_mutex);
+    if (surface->display->window && (!surface->display->gpu || surface->display->gpu->window)) deck_finish_frames(surface);
+    pthread_mutex_unlock(&surface->display->window_mutex);
 }
 static const struct wl_surface_interface surface_impl = {
     .destroy = destroy_request, .attach = attach, .damage = damage, .frame = frame,

@@ -9,7 +9,18 @@ static int stop_event(int fd, uint32_t mask, void *data) {
     uint64_t value;
     ssize_t count;
     do { count = read(fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);
-    if (count == sizeof(value)) wl_display_terminate(display->wayland);
+    if (count != sizeof(value)) return 0;
+    if (atomic_load(&display->stopping)) wl_display_terminate(display->wayland);
+    else {
+        // Reattachment wakes clients whose frame callbacks were held while hidden.
+        pthread_mutex_lock(&display->window_mutex);
+        if (display->window) {
+            struct deck_surface *surface;
+            wl_list_for_each(surface, &display->surfaces, link) deck_finish_frames(surface);
+        }
+        pthread_mutex_unlock(&display->window_mutex);
+        wl_display_flush_clients(display->wayland);
+    }
     return 0;
 }
 static void *dispatch(void *data) {
@@ -20,6 +31,7 @@ struct deck_display *deck_start(const char *socket, ANativeWindow *window, int r
     struct deck_display *display = calloc(1, sizeof(*display));
     if (!display) { ANativeWindow_release(window); return NULL; }
     display->stop_fd = -1;
+    atomic_init(&display->stopping, false);
     display->format_fd = -1;
     int error = pthread_mutex_init(&display->window_mutex, NULL);
     if (error) { ANativeWindow_release(window); free(display); errno = error; return NULL; }
@@ -61,6 +73,7 @@ failed:
     return NULL;
 }
 void deck_stop(struct deck_display *display) {
+    atomic_store(&display->stopping, true);
     const uint64_t value = 1;
     ssize_t count;
     do { count = write(display->stop_fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);

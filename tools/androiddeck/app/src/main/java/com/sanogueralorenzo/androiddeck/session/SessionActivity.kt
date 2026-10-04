@@ -1,6 +1,9 @@
 package com.sanogueralorenzo.androiddeck.session
 
 import android.app.Activity
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -21,15 +24,21 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         setContentView(R.layout.activity_session)
         findViewById<SurfaceView>(R.id.surface).holder.apply { setFixedSize(1280, 720); addCallback(this@SessionActivity) }
         findViewById<View>(R.id.stop_session).setOnClickListener { session.stop(); finish() }
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }
 
     override fun onStart() { super.onStart(); session.observe(observer) }
-    override fun onStop() { session.stop(); session.removeObserver(observer); super.onStop() }
+    override fun onStop() { session.removeObserver(observer); super.onStop() }
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (!started) {
             started = true
-            session.start(holder.surface, width, height, (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
+            if (session.state == SessionController.State.Running || session.state is SessionController.State.Working) session.attach(holder.surface)
+            else {
+                session.start(holder.surface, width, height, (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
+                startForegroundService(Intent(this, SessionService::class.java))
+            }
         } else session.attach(holder.surface)
     }
     override fun surfaceDestroyed(holder: SurfaceHolder) { session.attach(null) }

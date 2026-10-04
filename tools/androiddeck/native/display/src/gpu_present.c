@@ -100,5 +100,8 @@ bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int ac
     result = presented;
 failed:
     if (acquire_fd >= 0) close(acquire_fd);
+    // Android can retire its surface before surfaceDestroyed reaches the app.
+    // Discard the frame and wait for reattachment instead of killing the guest.
+    if (result == VK_ERROR_SURFACE_LOST_KHR) { deck_gpu_detach(gpu); return true; }
     return deck_gpu_error(gpu, "Linux frame presentation", result);
 }

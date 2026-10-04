@@ -20,4 +20,6 @@
     <string name="starting_steam">Starting Steam…</string>
     <string name="stopping_steam">Stopping Steam…</string>
     <string name="session_stopped">Steam stopped. Close this screen to start again.</string>
+    <string name="session_channel">Steam session</string>
+    <string name="session_notification">Tap to return to Steam.</string>
 </resources>
