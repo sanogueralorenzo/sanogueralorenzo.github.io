@@ -44,6 +44,11 @@ export function makeReport(run, reviewArtifact) {
       deadlineFallbacks: all.filter(r => r.deadlineExceeded).length, meanUtility: mean(selected.filter(r => r.review.utility !== "uncertain").map(r => r.score)),
       inputTokens: mean(selected.map(r => r.usage.input)), outputTokens: mean(selected.map(r => r.usage.output)), totalTokens: mean(selected.map(r => r.usage.totalTokens)),
       cacheReadTokens: selected.reduce((sum, r) => sum + r.usage.cacheRead, 0), meanRequests: mean(selected.map(r => r.requests?.length || 0)), medianMs: percentile(all.map(r => r.elapsedMs), .5), p90Ms: percentile(all.map(r => r.elapsedMs), .9),
+      firstRequestInputTokens: mean(selected.filter(r => r.requests?.[0]?.usage).map(r => {
+        const usage = r.requests[0].usage;
+        return (usage.input || 0) + (usage.cacheRead || 0) + (usage.cacheWrite || 0);
+      })),
+      reasoningTokens: mean(selected.map(r => (r.requests || []).reduce((sum, request) => sum + (request.response?.reasoningTokens || 0), 0))),
       categories: Object.fromEntries([...new Set(selected.map(r => r.category))].map(category => {
         const subset = selected.filter(r => r.category === category);
         return [category, { attempts: subset.length, meanUtility: mean(subset.filter(r => r.review.utility !== "uncertain").map(r => r.score)), violations: subset.filter(r => r.review.constraints === "violated").length }];
@@ -62,6 +67,8 @@ export function makeReport(run, reviewArtifact) {
     if (!policy) reasons.push("No predeclared selection policy");
     else {
       if (!interval.pairedFamilies || interval.low < -policy.maxMeanUtilityLoss) reasons.push("Utility interval does not exclude material harm");
+      if (policy.minPairedFamilyMeanUtilityGain !== undefined && interval.meanDifference < policy.minPairedFamilyMeanUtilityGain) reasons.push("Required quality gain was not demonstrated");
+      if (policy.minPairedFamily95PercentIntervalLow !== undefined && interval.low < policy.minPairedFamily95PercentIntervalLow) reasons.push("Quality interval does not meet the declared lower bound");
       if (saving < policy.minTotalTokenSavingPercent) reasons.push("Insufficient total-token saving");
       if (policy.requireZeroNewConstraintViolations && value.constraintViolations) reasons.push("Constraint violations require rejection or explicit case audit");
     }
@@ -72,6 +79,6 @@ export function makeReport(run, reviewArtifact) {
   }
   return { checkWaivers: waivers.map(w => ({ ...w, originalCheck: run.cases.find(c => c.id === w.caseId).checks[w.index] })), providerTiers, reviewProvenance: reviewArtifact.provenance, policyHash: reviewArtifact.policyHash, adjudications: reviewArtifact.adjudications?.length || 0, selection, suite: run.suite, split: run.split, fingerprint: run.fingerprint, baseline, metrics, comparisons,
     limitations: ["Rubric review provenance is supplied in the review artifact; model-assisted reviews are not human validation.", "Repeated trials share case families and must not be counted as independent tasks.",
-      run.execution === "researcher-integration" ? "Actual researcher resources, file tools, and hosted search run against authored isolated workspaces; this is not representative production sampling or testing of other roles." : "Fixture tool execution is bounded replay, not a production integration test.",
+      run.execution === "researcher-integration" ? "Actual researcher resources, file tools, and hosted search run against authored isolated workspaces; this is not representative production sampling or testing of other roles." : run.execution === "role-integration" ? "Production role resources and native file tools run in isolated workspaces; HomeRouter uses authored state, bash an exact whitelist, and external UI/delegation fixture replies or errors. Services and UI execution remain unvalidated." : "Fixture tool execution is bounded replay, not a production integration test.",
       "A zero observed violation count does not prove zero risk; inspect disagreements and critical outputs."] };
 }

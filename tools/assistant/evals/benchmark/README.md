@@ -1,6 +1,6 @@
 # Instruction benchmarks
 
-Compare focused prompts or skills with fixed inputs and bounded fixture tools, using the existing Codex login. Default replay fixtures never execute shell commands, edit real files, or contact services. See [measured guidance](GUIDANCE.md) and follow [PROTOCOL.md](PROTOCOL.md); see [COVERAGE.md](COVERAGE.md) for the authored task population and deployment limits, and [RESEARCHER.md](RESEARCHER.md) for the deployed researcher improvement.
+Compare focused prompts or skills with fixed inputs and bounded fixture tools, using the existing Codex login. Default replay fixtures never execute shell commands, edit real files, or contact services. Follow [PROTOCOL.md](PROTOCOL.md); [GUIDANCE.md](GUIDANCE.md) and [OUTCOMES.md](OUTCOMES.md) explain measured results and limits.
 
 ```sh
 cd tools/assistant
@@ -20,6 +20,10 @@ Run the grader on `data/calibration/judge.json`, `speaker.json`, `confirmation.j
 
 Reports separate utility, violations, failed outcome checks, provider failures, tokens, and deadlines, with paired family intervals and a local selection gate. A passing gate is evidence about these fixtures; real services, browser actions, and skill artifacts still need deployment checks. Raw runs are local under `.precedent/assistant-benchmarks`; never publish credentials or private conversation data.
 
+Results-first suites set `minPairedFamilyMeanUtilityGain` and `minPairedFamily95PercentIntervalLow` alongside constraint and cost gates. Token savings alone cannot pass a required quality gain. `instruction-tokens.mjs spec.json output.json` measures provider input differences for `spec.prompts: [{id, files}]`, resolving files relative to the spec. Its explicit identical control and two repeats verify accounting; the result is not a standalone tokenizer count.
+
 A demonstrated invalid assertion may be waived for an entire case with `checkWaivers: [{caseId, index, reason}]` in the adjudication decisions. The report retains waiver provenance; never waive a real semantic failure or only one variant.
 
 `researcher-integration.json` uses Assistant’s shared production resource loader, model settings, native read/grep/find/ls tools, and hosted web search. It creates isolated workspaces in the OS temporary directory and checks their contents remain unchanged. It contacts public websites; raw results stay local. Cases combine actual Assistant source excerpts with authored projects, loaded AGENTS.md, and discoverable skills. These improve realism but are not representative user sampling.
+
+`execution: "role-integration"` with `role: "coordinator"|"session"|"reviewer"` uses production resources and native tools in temporary workspaces. Session commands require exact `allowedCommands`; writes stay within the workspace. Browser and delegation results are fixtures. Coordinator uses actual HomeRouter with authored `homeState` and one current user message; it tests routing, not queue execution. These runners have local automated checks and fresh authored cases, but no provider confirmation run in this follow-up.

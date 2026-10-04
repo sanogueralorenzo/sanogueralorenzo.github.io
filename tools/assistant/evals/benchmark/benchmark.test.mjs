@@ -54,6 +54,8 @@ test("fixture loop verifies outcome instead of completion claims and isolates ea
   assert.equal(good.state.report, "new"); assert.equal(claimed.state.report, "old"); assert.equal(fixture.initialState.report, "old");
   assert.ok(checks(good, fixture, "agent").every(c => c.ok)); assert.ok(checks(claimed, fixture, "agent").some(c => !c.ok));
   assert.equal(contexts[1].messages.at(-1).role, "toolResult"); assert.equal(good.usage.totalTokens, 14);
+  assert.equal(good.requests[0].usage.input, 5);
+  assert.equal(good.requests[0].usage.totalTokens, 7);
 });
 
 test("unknown tools cannot mutate fixture state and exhausted agent budgets remain gradeable", async () => {
@@ -100,6 +102,11 @@ test('reports reject mismatched reviews and cannot promote uncertain or developm
   assert.equal(makeReport(run, artifact).selection.short.status, 'not-established');
   run.split = 'confirmation'; artifact.inputHash = hash(run);
   assert.equal(makeReport(run, artifact).selection.short.status, 'meets-local-gate');
+  run.selection.minPairedFamilyMeanUtilityGain = .05;
+  artifact.inputHash = hash(run);
+  assert.equal(makeReport(run, artifact).selection.short.status, 'not-established', 'large token savings cannot replace a required quality gain');
+  delete run.selection.minPairedFamilyMeanUtilityGain;
+  artifact.inputHash = hash(run);
   artifact.reviews[0].confidence = 'low';
   assert.equal(makeReport(run, artifact).selection.short.status, 'not-established');
 });

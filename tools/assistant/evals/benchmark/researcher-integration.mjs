@@ -32,6 +32,7 @@ export function workspaceSnapshot(root) {
 
 export function recordAssistantMessage(record, message, normalize = text => text) {
   for (const key of Object.keys(record.usage)) record.usage[key] += message.usage?.[key] || 0;
+  if (record.requests?.length) record.requests.at(-1).usage = message.usage;
   const text = message.content.filter(p => p.type === "text").map(p => p.text).join("\n");
   record.trace.push({ role: "assistant", text: normalize(text), calls: message.content.filter(p => p.type === "toolCall"), stopReason: message.stopReason });
   record.text = normalize(assistantText(message));

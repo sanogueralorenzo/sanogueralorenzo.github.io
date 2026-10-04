@@ -1,0 +1,57 @@
+{
+  "id": "compression-researcher-development",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "high",
+  "maxTurns": 8,
+  "deadlineMs": 120000,
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 2,
+    "requireZeroNewConstraintViolations": true
+  },
+  "provenance": "Fresh authored prompt-compression comparison; provider/token measurements and model-assisted audits, not representative sampling or independent human annotation. Production resources for researcher, bounded replay for other roles; native role confirmation separately required.",
+  "datasets": {
+    "development": [
+      "../data/integration/development.json"
+    ],
+    "challenge": [
+      "../data/integration/probe.json",
+      "../data/integration/confirmation.json",
+      "../data/integration/confirmation-workflow.json",
+      "../data/integration/confirmation-citations.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/researcher-baseline.md"
+      ]
+    },
+    {
+      "id": "role",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/researcher-compact.md"
+      ]
+    },
+    {
+      "id": "all",
+      "files": [
+        "../variants/compression/base-compact.md",
+        "../variants/compression/researcher-compact.md"
+      ]
+    },
+    {
+      "id": "base",
+      "files": [
+        "../variants/compression/base-compact.md",
+        "../variants/compression/researcher-baseline.md"
+      ]
+    }
+  ],
+  "execution": "researcher-integration",
+  "timeoutMs": 120000
+}

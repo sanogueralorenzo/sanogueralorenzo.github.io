@@ -1,0 +1,52 @@
+{
+  "id": "compression-coordinator-development",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "low",
+  "maxTurns": 6,
+  "deadlineMs": 60000,
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 2,
+    "requireZeroNewConstraintViolations": true
+  },
+  "provenance": "Fresh authored prompt-compression comparison; provider/token measurements and model-assisted audits, not representative sampling or independent human annotation. Production resources for researcher, bounded replay for other roles; native role confirmation separately required.",
+  "datasets": {
+    "development": [
+      "../data/roles/coordinator-development.json"
+    ],
+    "challenge": [
+      "../data/roles/coordinator-confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/coordinator-baseline.md"
+      ]
+    },
+    {
+      "id": "role",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/coordinator-compact.md"
+      ]
+    },
+    {
+      "id": "all",
+      "files": [
+        "../variants/compression/base-compact.md",
+        "../variants/compression/coordinator-compact.md"
+      ]
+    },
+    {
+      "id": "base",
+      "files": [
+        "../variants/compression/base-compact.md",
+        "../variants/compression/coordinator-baseline.md"
+      ]
+    }
+  ]
+}

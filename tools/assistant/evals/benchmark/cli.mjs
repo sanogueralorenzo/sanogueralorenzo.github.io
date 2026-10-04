@@ -5,6 +5,7 @@ import { assistantCodexAuth } from "../../src/codex-auth.ts";
 import { loadSuite, schedule, hash, readJSON } from "./suite.mjs";
 import { runTrial } from "./trial.mjs";
 import { runResearcherIntegration } from "./researcher-integration.mjs";
+import { runRoleIntegration } from "./role-integration.mjs";
 import { blindCards } from "./grading.mjs";
 import { saveJSON, makeReport } from "./artifacts.mjs";
 
@@ -60,7 +61,8 @@ if (command === "review" || command === "report") {
     await Promise.all(Array.from({ length: concurrency }, async () => {
       while (!stopped && cursor < pending.length) {
         const job = pending[cursor++];
-        const record = await (suite.config.execution === "researcher-integration" ? runResearcherIntegration : runTrial)(runtime, model, suite, job);
+        const runner = suite.config.execution === "researcher-integration" ? runResearcherIntegration : suite.config.execution === "role-integration" ? runRoleIntegration : runTrial;
+        const record = await runner(runtime, model, suite, job);
         run.results.push(record); saveJSON(out, run);
         errors = record.error ? errors + 1 : 0;
         console.log(`${run.results.length}/${jobs.length} ${job.test.id} ${job.variant.id} #${job.repeat}: ${record.error || record.text || "fixture outcome"}`);

@@ -1,0 +1,43 @@
+{
+  "id": "coordinator-quality-order",
+  "mode": "agent",
+  "model": "gpt-6-luna",
+  "effort": "low",
+  "maxTurns": 6,
+  "deadlineMs": 60000,
+  "provenance": "Fresh results-first comparison following user goal revision before confirmation. General cwd-selection clarification; no case-specific examples. Replay plus separate actual HomeRouter/native resource integration. Authored families and model-assisted source audits do not establish representative production reliability.",
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": -5,
+    "requireZeroNewConstraintViolations": true,
+    "minPairedFamilyMeanUtilityGain": 0.05,
+    "minPairedFamily95PercentIntervalLow": 0
+  },
+  "datasets": {
+    "development": [
+      "../data/roles/coordinator-development.json"
+    ],
+    "challenge": [
+      "../data/roles/coordinator-confirmation.json"
+    ],
+    "confirmation": [
+      "../data/compression/coordinator-confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/coordinator-baseline.md"
+      ]
+    },
+    {
+      "id": "quality_order",
+      "files": [
+        "../variants/compression/base-baseline.md",
+        "../variants/compression/coordinator-quality-order.md"
+      ]
+    }
+  ]
+}

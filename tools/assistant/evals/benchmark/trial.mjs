@@ -54,7 +54,7 @@ export async function runTrial(runtime, model, suite, job, options = {}) {
       });
       for await (const event of stream) if (event.type === "text_delta" && event.delta && record.firstTextMs === undefined) record.firstTextMs = performance.now() - started;
       const answer = await stream.result();
-      record.requests.push({ request, response });
+      record.requests.push({ request, response, usage: answer.usage });
       for (const key of Object.keys(record.usage)) record.usage[key] += answer.usage?.[key] || 0;
       const text = answer.content.filter(p => p.type === "text").map(p => p.text).join("").trim();
       const calls = answer.content.filter(p => p.type === "toolCall");

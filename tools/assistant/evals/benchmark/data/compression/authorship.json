@@ -1,0 +1,142 @@
+{
+  "author": "Independent confirmation author /root/author_confirmation",
+  "status": "frozen before any candidate outputs",
+  "authored_at_utc": "2026-10-04T12:08:26.305054+00:00",
+  "candidate_designs_seen": false,
+  "candidate_outputs_seen": false,
+  "model_runs_performed": 0,
+  "prior_confirmation_usage": "Exposed schema/regression examples only; fresh interactions, source evidence, and family IDs authored independently.",
+  "replay_family_counts": {
+    "coordinator": 16,
+    "session": 16,
+    "reviewer": 16,
+    "suggestions": 24
+  },
+  "files": {
+    "coordinator-confirmation.json": "677557da104c2eccdd75e8adddc3d155603e210a85cf19c4558ecb2621a0e69c",
+    "session-confirmation.json": "6e4c109bc4c8bfcd8697ffde5dbff7f53814b93c580155f9fb7f6697e18de636",
+    "reviewer-confirmation.json": "692e7b4eb268667748205137cf73d448bb7a5ef621c1b982ca373e570cc80de9",
+    "suggestions-confirmation.json": "685721a75eb85a13695ffc47d69a32a8da653746aebfbc20c814dbfca818dea1",
+    "coverage-note.md": "cfac1fb00cb0cf8b955e795bddeb92e3377adbb17fca7fe6ed57e8ef0b91b87e",
+    "coordinator-native.json": "d04645b1d5a1c058398ddfcf0c047026b6389b4d2b8ff18f93319b004328f143",
+    "session-native.json": "a9573fd4b26f957b51879b31ef18f5d947836706e336379d50aabeb1748bb56d",
+    "reviewer-native.json": "f37b6c943bdc98e8ef601583ce900c0a165979aa00f7784c4b58859172434374",
+    "native-coverage-note.md": "c3ecb1328d6b275e7e4ceefd26e1ae791c1149710a65116b0e7dff05566c8c24"
+  },
+  "source_contracts": {
+    "AGENTS.md": "286be3a60f219830f0913295086d8884fac7c50b203c3e89c9112680bb55630d",
+    "tools/assistant/prompts/reviewer.md": "1b9e59a70a6bef465e9265602452da03aa28203c28067df5902ead9f57a9ee66",
+    "tools/assistant/prompts/base.md": "9ea14786f5cb80fd99a667afa5825ce01d9d8c91881814ec72429c451d6ca0c8",
+    "tools/assistant/prompts/researcher.md": "50e19423300ae4f2b224424de7e99b2fcffc3ad29faff9ef68ab466178e27f71",
+    "tools/assistant/prompts/suggestion.md": "a01512527e3c941951ad58ddd127c61f62271f4449a8454c27401dcf50ba7d10",
+    "tools/assistant/prompts/coordinator.md": "2a67e4b58dffcbab9c73460f21c153d6309b46ff1ff1496acc2c6e369de09390",
+    "tools/assistant/prompts/session.md": "a3d5fbdc6a3a2c56f4886d476d77a7dce5ebd2eab9067140f979002fe3256c85",
+    "tools/assistant/src/agent-resources.ts": "6406e2f5b13350037fa9695ade719482ae9c7cb280e1aea68e78ca4e396b56d6",
+    "tools/assistant/src/pi.ts": "04a17a05be2c2304477a2dfae9e54544fde0960596e444186b30e6bfda272c8e",
+    "tools/assistant/src/home-routing.ts": "0988d37f6bfc347996cf14af5d3513dd1f49bb14b4d6c14829008f6f7511a320",
+    "tools/assistant/src/prompt-suggestions.ts": "2d91951226f6999739920bcb92d69e91e9ce0bcfc674ef015cc1ee0755b96e10",
+    "tools/assistant/evals/benchmark/PROTOCOL.md": "ce7a4206e8c8a9781fc90856e8c31316e56a378c1547efdfb3cadf7de95faa01",
+    "tools/assistant/evals/benchmark/GUIDANCE.md": "159954a18b996daa87893033762715c082e19044d4d5c32dd42e175e27cfca25",
+    "tools/assistant/evals/benchmark/COVERAGE.md": "f5fb364f6bc55ef68fcb529df11ca31c7369127bcad0b1a0b7aa59d2b219c46a",
+    "tools/assistant/evals/benchmark/suite.mjs": "88e8ccc8cbefd3c893bc408369e4f247c68f9bdde5c5f48f573369f98b4955fd",
+    "tools/assistant/evals/benchmark/trial.mjs": "c807458921f413960ace64903875236bcbf5df7efd4b5bcaa11ea17436e1397f",
+    "tools/assistant/evals/benchmark/grading.mjs": "d178dca66b26e990ce19c21229a87ef34dc450a8c1cc0f479ca9ca6334a3fc2a"
+  },
+  "change_policy": "No frozen fixture edits after output exposure except documented genuine fixture bugs invalidating every affected comparison.",
+  "version": 2,
+  "replay_case_counts": {
+    "coordinator": 17,
+    "session": 16,
+    "reviewer": 16,
+    "suggestions": 24
+  },
+  "prior_freezes": [
+    {
+      "version": 1,
+      "authored_at_utc": "2026-10-04T12:03:07.441939+00:00",
+      "files": {
+        "coordinator-confirmation.json": "361a7acd9bcba795794347eab2f7e2f8742b37c6190be62026b6acc0e976d4db",
+        "session-confirmation.json": "6e4c109bc4c8bfcd8697ffde5dbff7f53814b93c580155f9fb7f6697e18de636",
+        "reviewer-confirmation.json": "a31bbf73241410c44920abaa1fd6028383e7ba669fdaa0c885ccc08a83d38d44",
+        "suggestions-confirmation.json": "685721a75eb85a13695ffc47d69a32a8da653746aebfbc20c814dbfca818dea1",
+        "coverage-note.md": "9cbb45e01841faa926a90fd427c0488bdf150d70e8f9743c6add72f28a824ef2"
+      },
+      "source_contracts": {
+        "AGENTS.md": "286be3a60f219830f0913295086d8884fac7c50b203c3e89c9112680bb55630d",
+        "tools/assistant/prompts/reviewer.md": "1b9e59a70a6bef465e9265602452da03aa28203c28067df5902ead9f57a9ee66",
+        "tools/assistant/prompts/base.md": "9ea14786f5cb80fd99a667afa5825ce01d9d8c91881814ec72429c451d6ca0c8",
+        "tools/assistant/prompts/researcher.md": "50e19423300ae4f2b224424de7e99b2fcffc3ad29faff9ef68ab466178e27f71",
+        "tools/assistant/prompts/suggestion.md": "a01512527e3c941951ad58ddd127c61f62271f4449a8454c27401dcf50ba7d10",
+        "tools/assistant/prompts/coordinator.md": "2a67e4b58dffcbab9c73460f21c153d6309b46ff1ff1496acc2c6e369de09390",
+        "tools/assistant/prompts/session.md": "a3d5fbdc6a3a2c56f4886d476d77a7dce5ebd2eab9067140f979002fe3256c85",
+        "tools/assistant/src/agent-resources.ts": "6406e2f5b13350037fa9695ade719482ae9c7cb280e1aea68e78ca4e396b56d6",
+        "tools/assistant/src/pi.ts": "04a17a05be2c2304477a2dfae9e54544fde0960596e444186b30e6bfda272c8e",
+        "tools/assistant/src/home-routing.ts": "0988d37f6bfc347996cf14af5d3513dd1f49bb14b4d6c14829008f6f7511a320",
+        "tools/assistant/src/prompt-suggestions.ts": "2d91951226f6999739920bcb92d69e91e9ce0bcfc674ef015cc1ee0755b96e10",
+        "tools/assistant/evals/benchmark/PROTOCOL.md": "ce7a4206e8c8a9781fc90856e8c31316e56a378c1547efdfb3cadf7de95faa01",
+        "tools/assistant/evals/benchmark/GUIDANCE.md": "159954a18b996daa87893033762715c082e19044d4d5c32dd42e175e27cfca25",
+        "tools/assistant/evals/benchmark/COVERAGE.md": "f5fb364f6bc55ef68fcb529df11ca31c7369127bcad0b1a0b7aa59d2b219c46a",
+        "tools/assistant/evals/benchmark/suite.mjs": "88e8ccc8cbefd3c893bc408369e4f247c68f9bdde5c5f48f573369f98b4955fd",
+        "tools/assistant/evals/benchmark/trial.mjs": "c807458921f413960ace64903875236bcbf5df7efd4b5bcaa11ea17436e1397f",
+        "tools/assistant/evals/benchmark/grading.mjs": "d178dca66b26e990ce19c21229a87ef34dc450a8c1cc0f479ca9ca6334a3fc2a"
+      }
+    }
+  ],
+  "pre_result_corrections": [
+    {
+      "files": [
+        "coordinator-confirmation.json",
+        "coverage-note.md"
+      ],
+      "reason": "Two new-chat Loom exit-code cases are related paraphrases under PROTOCOL, so they now share a family. Added an independent conditional-destination family to preserve 16 families. Existing user requests remain unchanged.",
+      "affected_comparisons": "No runs or provider outputs existed; any comparisons with the previous family grouping would be invalid."
+    },
+    {
+      "files": [
+        "reviewer-confirmation.json"
+      ],
+      "reason": "Cancellation window starts at check-in as well as excluding 48 hours. Explicitly accept the source-supported negative-elapsed lower-bound finding as an additional valid issue.",
+      "affected_comparisons": "No runs or provider outputs existed; every prior comparison of that rubric would be invalid."
+    }
+  ],
+  "source_contracts_at_v2": {
+    "AGENTS.md": "286be3a60f219830f0913295086d8884fac7c50b203c3e89c9112680bb55630d",
+    "tools/assistant/prompts/reviewer.md": "1b9e59a70a6bef465e9265602452da03aa28203c28067df5902ead9f57a9ee66",
+    "tools/assistant/prompts/base.md": "9ea14786f5cb80fd99a667afa5825ce01d9d8c91881814ec72429c451d6ca0c8",
+    "tools/assistant/prompts/researcher.md": "50e19423300ae4f2b224424de7e99b2fcffc3ad29faff9ef68ab466178e27f71",
+    "tools/assistant/prompts/suggestion.md": "a01512527e3c941951ad58ddd127c61f62271f4449a8454c27401dcf50ba7d10",
+    "tools/assistant/prompts/coordinator.md": "2a67e4b58dffcbab9c73460f21c153d6309b46ff1ff1496acc2c6e369de09390",
+    "tools/assistant/prompts/session.md": "a3d5fbdc6a3a2c56f4886d476d77a7dce5ebd2eab9067140f979002fe3256c85",
+    "tools/assistant/src/agent-resources.ts": "6406e2f5b13350037fa9695ade719482ae9c7cb280e1aea68e78ca4e396b56d6",
+    "tools/assistant/src/pi.ts": "04a17a05be2c2304477a2dfae9e54544fde0960596e444186b30e6bfda272c8e",
+    "tools/assistant/src/home-routing.ts": "0988d37f6bfc347996cf14af5d3513dd1f49bb14b4d6c14829008f6f7511a320",
+    "tools/assistant/src/prompt-suggestions.ts": "2d91951226f6999739920bcb92d69e91e9ce0bcfc674ef015cc1ee0755b96e10",
+    "tools/assistant/evals/benchmark/PROTOCOL.md": "ce7a4206e8c8a9781fc90856e8c31316e56a378c1547efdfb3cadf7de95faa01",
+    "tools/assistant/evals/benchmark/GUIDANCE.md": "159954a18b996daa87893033762715c082e19044d4d5c32dd42e175e27cfca25",
+    "tools/assistant/evals/benchmark/COVERAGE.md": "f5fb364f6bc55ef68fcb529df11ca31c7369127bcad0b1a0b7aa59d2b219c46a",
+    "tools/assistant/evals/benchmark/suite.mjs": "437b10c7a6305f0cce20e0efaafdb883d93aa8766391cd8f918905f81dc37627",
+    "tools/assistant/evals/benchmark/trial.mjs": "c807458921f413960ace64903875236bcbf5df7efd4b5bcaa11ea17436e1397f",
+    "tools/assistant/evals/benchmark/grading.mjs": "d178dca66b26e990ce19c21229a87ef34dc450a8c1cc0f479ca9ca6334a3fc2a"
+  },
+  "native_freeze": {
+    "authored_at_utc": "2026-10-04T12:09:49.190382+00:00",
+    "status": "Frozen before any candidate designs or provider outputs",
+    "case_counts": {
+      "coordinator": 6,
+      "session": 6,
+      "reviewer": 6
+    },
+    "family_counts": {
+      "coordinator": 6,
+      "session": 6,
+      "reviewer": 6
+    },
+    "files": {
+      "coordinator-native.json": "d04645b1d5a1c058398ddfcf0c047026b6389b4d2b8ff18f93319b004328f143",
+      "session-native.json": "a9573fd4b26f957b51879b31ef18f5d947836706e336379d50aabeb1748bb56d",
+      "reviewer-native.json": "f37b6c943bdc98e8ef601583ce900c0a165979aa00f7784c4b58859172434374",
+      "native-coverage-note.md": "c3ecb1328d6b275e7e4ceefd26e1ae791c1149710a65116b0e7dff05566c8c24"
+    },
+    "pre_freeze_audit": "Independent source/fixture review by /root/audit_cases found no remaining blocking source or fixture defect. Canonical homeState.transcripts and current message timestamps were corrected before freezing. No models run."
+  }
+}

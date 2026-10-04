@@ -1,0 +1,52 @@
+{
+  "status": "frozen-before-provider-runs",
+  "createdAt": "2026-10-04T12:07:41.342209+00:00",
+  "author": "Independent native case author /root/author_native",
+  "dataset": "researcher-web-confirmation.json",
+  "datasetSha256": "c2cd277818a4d7287b89119af3628d8b04333da5e73cc215230120ccba348191",
+  "authorship": "Two supplemental genuinely fresh families authored after parent explicitly requested shared-base web coverage. No candidate designs/results or provider runs inspected. Original 24 balanced native cases preserved.",
+  "boundary": "Production read-only researcher with native read/grep/find/ls plus hosted web search. OS tmp workspaces; preservation snapshots. computer_use/browser fallback unavailable. No inaccessible response-body/status-code requirements; honest remaining access limits permitted.",
+  "validation": "Author independently opened official JSON docs and searched/read official itertools docs through web tools before freeze; source facts validated from readable documentation. No provider trial or candidate output was used.",
+  "sources": [
+    {
+      "url": "https://docs.python.org/3.12/library/json.html",
+      "sections": [
+        "json.dumps",
+        "allow_nan",
+        "Infinite and NaN Number Values"
+      ],
+      "method": "direct public URL open and section lookup",
+      "validatedFacts": "Default allow_nan permits nonfinite values; False raises ValueError; emitted nonfinite tokens do not conform to strict JSON."
+    },
+    {
+      "url": "https://docs.python.org/3.12/library/itertools.html#itertools.groupby",
+      "method": "official-domain query, followed by direct public URL open",
+      "query": "site:docs.python.org/3.12/library/itertools.html groupby consecutive keys shared underlying iterator",
+      "validatedFacts": "Groups consecutive equal keys; grouping differs from order-independent SQL aggregation. Same-key sorting makes equal-key rows adjacent."
+    }
+  ],
+  "freezePolicy": "No edits after confirmation outputs exist. Any task/rubric/source change requires new confirmation or explicit whole-case invalidation under PROTOCOL.md.",
+  "cases": [
+    {
+      "id": "native-web-fresh-json-nonfinite",
+      "family": "native-web-fresh-json-nonfinite",
+      "taskCharacters": 526,
+      "caseSha256": "a72c1f629da6f158b9e443768998638f1e7b1f2f1e1873a81e082f1e8232bb1e",
+      "filesSha256": {
+        "AGENTS.md": "be72a164afd69075e55ec2b659718ddc26faeea90b6251dde146110395111139",
+        "exports/metrics.py": "41fe6c4a367b388f6bde655f72852b5bbbe877baba3a36ac4ca99ac65fd8c167",
+        "docs/consumer.md": "af92c7e400068c288ebe9c98a7dd1a238d325e8e6d493734cccad95363786f94"
+      }
+    },
+    {
+      "id": "native-web-fresh-consecutive-groups",
+      "family": "native-web-fresh-consecutive-groups",
+      "taskCharacters": 521,
+      "caseSha256": "9cabb891492207f5ea161825c93a8498069715964deb078279570f27390aecf8",
+      "filesSha256": {
+        "AGENTS.md": "be72a164afd69075e55ec2b659718ddc26faeea90b6251dde146110395111139",
+        "reports/grouping.py": "da7c359b39d05ab792545144bf1f3fa5f97b287e05dba7e25b2b54289e7339df"
+      }
+    }
+  ]
+}

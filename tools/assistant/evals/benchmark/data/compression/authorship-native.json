@@ -1,0 +1,331 @@
+{
+  "status": "frozen-before-provider-runs",
+  "createdAt": "2026-10-04T12:02:53.512527+00:00",
+  "author": "Independent native-workspace case author /root/author_native",
+  "dataset": "researcher-confirmation.json",
+  "datasetSha256": "83c94554dd7a7f7e561ef51b659d7ee315ba3634bc97012eb4ce274b091c8da2",
+  "authorship": "24 newly authored task families; no candidate designs, candidate outputs, or provider runs inspected. Read protocol, deployed base/researcher/resource configuration, native runner and existing integration schema/family inventory to define the task boundary and avoid family reuse. Authored isolated cases are not representative production samples.",
+  "freezePolicy": "No edits after confirmation outputs are observed. Any repair affecting tasks, sources, checks, or rubrics requires a fresh set or explicit whole-case invalidation under PROTOCOL.md.",
+  "environment": "researcher-integration native read/grep/find/ls, production resource loader and provider configuration; runner creates read-only-research workspaces in OS tmp and snapshots preservation. No replay fixtures, no hosted-web families, no fetch-status assertions.",
+  "lengthBands": {
+    "terse": 6,
+    "medium": 6,
+    "extended": 6,
+    "long": 6
+  },
+  "copiedActualSourceSha256": {
+    "tools/assistant/src/server.ts": "e9982b92cc55c9846be1db7408ac3a80a038cfccd0e7c45010a9178c2306f126",
+    "tools/assistant/src/codex-auth.ts": "28b28cd0256e1b55ed9066f0388c2c12d38560f692c7fd33891962e2780b146d",
+    "tools/assistant/src/prompt-suggestions.ts": "2d91951226f6999739920bcb92d69e91e9ce0bcfc674ef015cc1ee0755b96e10"
+  },
+  "cases": [
+    {
+      "id": "native-fresh-thermostat-diff",
+      "family": "native-fresh-thermostat-diff",
+      "taskCharacters": 64,
+      "lengthBand": "terse",
+      "caseSha256": "6d2f351d832e5c717825bc478da61f6250a82147f48d6438d5ece852dcdcd963",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "config/weekday.ini": "d14f14e3b96181a38ab89b8db9f974a4c2a74439b9c73e4558f12112c9880a4f",
+        "config/weekend.ini": "0c524967763bf260096be4e74c3f8f13e01e0e1194976637cde90b6e7ce7a230"
+      }
+    },
+    {
+      "id": "native-fresh-override-order",
+      "family": "native-fresh-override-order",
+      "taskCharacters": 63,
+      "lengthBand": "terse",
+      "caseSha256": "2976f93d353fd4fe043e009af321945311be9c1e9a59fa5b667ee870e4660e17",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "export/settings.py": "4c89c547ca8306d4a10f4ac7b19910785cef6da9f2967bec30aeae7592b23455"
+      }
+    },
+    {
+      "id": "native-fresh-booking-boundaries",
+      "family": "native-fresh-booking-boundaries",
+      "taskCharacters": 60,
+      "lengthBand": "terse",
+      "caseSha256": "4ab69da9f9d32f6b789166f7f9afce68046cb621b89b40508328ac9c48ba06a2",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "db/overlap.sql": "a312fea72c39e387a1a68df53c388b50d3ecce16e7f9e05a5b15e2c941a755c7"
+      }
+    },
+    {
+      "id": "native-fresh-checksum-normal",
+      "family": "native-fresh-checksum-normal",
+      "taskCharacters": 41,
+      "lengthBand": "terse",
+      "caseSha256": "ac8243b6b341d085a5c39a70d2b27f92bd0b908f545ac6d7b8c6a845753ed302",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "src/verify.ts": "8ffa84b2e71af8245e40e387dd155283706635c9b0ca02529318fac63a677229"
+      }
+    },
+    {
+      "id": "native-fresh-named-shift-skill",
+      "family": "native-fresh-named-shift-skill",
+      "taskCharacters": 60,
+      "lengthBand": "terse",
+      "caseSha256": "0a48c21102eea13044c42b17194fed070dbce3b5b2b462e972ee25330f1f4817",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        ".pi/skills/shift-load/SKILL.md": "679ce539b9ffd1483dc8343486b85b1f4d941d10b886c52b329e9c9654f0d45a",
+        ".pi/skills/shift-load/references/load-rule.md": "e24109a36baf7de68437f391ed34a5bc3fd550381af1b2c4d1a63f1f18912022",
+        "ops/week.json": "2a98030289ae3be21d36551b44db059174e95f29db1c6b89da99432301c46a91"
+      }
+    },
+    {
+      "id": "native-fresh-absent-gauge",
+      "family": "native-fresh-absent-gauge",
+      "taskCharacters": 55,
+      "lengthBand": "terse",
+      "caseSha256": "be328f1f246fa407e1f7c1743eace57714a160f8e7d987148e71885a35901c6f",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "telemetry/readings.csv": "ce0291ceb9bf5085ba617a49fbf0de76f12abdd27454b8723c62fcadeef4e6ce"
+      }
+    },
+    {
+      "id": "native-fresh-request-limits",
+      "family": "native-fresh-request-limits",
+      "taskCharacters": 259,
+      "lengthBand": "medium",
+      "caseSha256": "07f1f05e358b8785b66c4dbb9a00f24353f246c33f8a6adaca08ab3122eacfdc",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "src/server.ts": "e9982b92cc55c9846be1db7408ac3a80a038cfccd0e7c45010a9178c2306f126",
+        "docs/limits.md": "707c2a45e4f4361a0002b27cc1a1cd6980d1da86bf9c231171da4983682be9a1"
+      }
+    },
+    {
+      "id": "native-fresh-credential-reuse",
+      "family": "native-fresh-credential-reuse",
+      "taskCharacters": 240,
+      "lengthBand": "medium",
+      "caseSha256": "664858a64ef065ad93dc7b4feec2d21be6f92063497e81602719632b0c80ff67",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "src/codex-auth.ts": "28b28cd0256e1b55ed9066f0388c2c12d38560f692c7fd33891962e2780b146d"
+      }
+    },
+    {
+      "id": "native-fresh-skill-root-decoy",
+      "family": "native-fresh-skill-root-decoy",
+      "taskCharacters": 280,
+      "lengthBand": "medium",
+      "caseSha256": "f5bf9bbfaace880ead23211e0a07147e88392fbd9648b549d597e6a2bef1efd5",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        ".pi/skills/bin-capacity/SKILL.md": "7a4380dde4e07b6476e213d788cba0206682ceceadfa43cf02f191a4431b8fab",
+        ".pi/skills/bin-capacity/references/bay-rule.json": "6a0576877a1e7c9e4bf97c0318dcabdbd71577b1d493d2ae3dea12e66ceaf0dd",
+        "references/bay-rule.json": "78b4af2b68a6e737160555a3a1d46287fc7bb14772260ce0b3f0af7481e70a52",
+        "data/bays.json": "410e132715c8ed7d54582a697c12d8cf5d12abef2889b2e4788806474ac6f253"
+      }
+    },
+    {
+      "id": "native-fresh-skill-user-override",
+      "family": "native-fresh-skill-user-override",
+      "taskCharacters": 228,
+      "lengthBand": "medium",
+      "caseSha256": "03584891273013e82ab027c3740512c4328b81d44a9264de1bf957ba0fa40310",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        ".pi/skills/issue-brief/SKILL.md": "1e484cf33bbacb72e2e9a4288ffc9bf1122d557a419921a0afa0b78a3183066d",
+        ".pi/skills/issue-brief/references/states.md": "2e65fcdb2877dd977a675bbc1d3bda0a7819182ce85ad8bd71635d709e0cf6a0",
+        "tickets/list.json": "3e91a354073dbd1fbef39a6a03857a0118ed3c1ba6815d1704ecfa3f050c94d2"
+      }
+    },
+    {
+      "id": "native-fresh-vendor-instruction",
+      "family": "native-fresh-vendor-instruction",
+      "taskCharacters": 203,
+      "lengthBand": "medium",
+      "caseSha256": "65814c4328a70715f92f09593a5263751018e5862f0e67bb85d52f944ef3c185",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "vendor/quote.txt": "29a9a6f0ae8a6b08aa806b9241f946056b2b782945a7d24eaef087251527e995"
+      }
+    },
+    {
+      "id": "native-fresh-json-outcome-counts",
+      "family": "native-fresh-json-outcome-counts",
+      "taskCharacters": 258,
+      "lengthBand": "medium",
+      "caseSha256": "e48e7fbd54cacb3462c0cd1714073b1e43d61131606ab2e18482241b3a2eb820",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "runs/outcomes.ndjson": "e3cfcd4d7fdc11825333dcdf419b5a690aed8cc6626550a05751a9404940a165"
+      }
+    },
+    {
+      "id": "native-fresh-suggestion-null-cache",
+      "family": "native-fresh-suggestion-null-cache",
+      "taskCharacters": 915,
+      "lengthBand": "extended",
+      "caseSha256": "eeaf4f1b2a4a19fa494d384f917bac9b97ebb97de0eaf7bbb67dc1e2a5823bcf",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "src/prompt-suggestions.ts": "2d91951226f6999739920bcb92d69e91e9ce0bcfc674ef015cc1ee0755b96e10"
+      }
+    },
+    {
+      "id": "native-fresh-project-language-paths",
+      "family": "native-fresh-project-language-paths",
+      "taskCharacters": 838,
+      "lengthBand": "extended",
+      "caseSha256": "a1e541a3173879c840e2bcdc3119c26a89553c5bddb91812de840cf26dbc5b13",
+      "filesSha256": {
+        "AGENTS.md": "db3cc27e44275c3849e2fb65213130db29e29fa4f3da51a3440cba7c946f0703",
+        "importers/vendor-b/AGENTS.md": "a162fae86311289e845a2742f59e60d4d8cf640f97974e5494ee5f29a9854212",
+        "importers/vendor-b/read.ts": "7be07097c62d4c040096dd5e880fbf51d553d688558f772cf9dd66ccf7686a47",
+        "importers/vendor-b/sample.txt": "bc95253733497195e849be5af869a302c8272687389f73913edd105862b6fea7"
+      }
+    },
+    {
+      "id": "native-fresh-manifest-conflict",
+      "family": "native-fresh-manifest-conflict",
+      "taskCharacters": 954,
+      "lengthBand": "extended",
+      "caseSha256": "04f9f148b20be247cf8bf8feb80db254d231ed67882e01e675c82f8dfa308174",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "docs/deploy-notes.md": "0d1c6fc79110a8e7fd02fe50fd4c69c63a7c263ae8a6052f824cf69ac1cf073e",
+        "release/current.json": "dca32141bd6ac847a4f889ecff316f6eb714c84def78ba14c676663d26337c6c",
+        "ops/rollout.yml": "ee03aa287dbce16317a9e1878c2d2643885dcb11df87af99fa330ed6577e3a27"
+      }
+    },
+    {
+      "id": "native-fresh-private-billing",
+      "family": "native-fresh-private-billing",
+      "taskCharacters": 904,
+      "lengthBand": "extended",
+      "caseSha256": "3955e1d19dfc83ebc8ba5e5004ca4e181f42680c3ecddceac6c066ffb36f81b4",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "logs/billing.log": "44e11f1f3575b5e12f0d4c11742a69058e2c26633347481733d35e787f262df8",
+        "billing/retry.ts": "9cd250913dfceca7fd6a86b9d69650bc31ffad6191c2b580eeedb8f6fe30c4d6"
+      }
+    },
+    {
+      "id": "native-fresh-ambiguous-endpoint",
+      "family": "native-fresh-ambiguous-endpoint",
+      "taskCharacters": 876,
+      "lengthBand": "extended",
+      "caseSha256": "d4da8f6474304b0f318892d813e3f1efe45d21d0389a397f8170d61f06a2edea",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "exports/routes.ts": "34954a69c61d388949ad5a939060f92ab31668e73c3cdf72935c9ece0a549b66",
+        "exports/format.ts": "c129b40efed2a97ecd0982a2abec6117abf4b735912afc14aa77431f6f68401d"
+      }
+    },
+    {
+      "id": "native-fresh-supplied-first-map",
+      "family": "native-fresh-supplied-first-map",
+      "taskCharacters": 993,
+      "lengthBand": "extended",
+      "caseSha256": "fad65806d5c22775469080987df5f0b22a670c7748d5fb43ec7088579199cd70",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "packaging/sku-map.json": "be7d1e6c300f306f8e2d377c0030d4d324ebfa0b542341031bd73e7a5c9dec55",
+        "packaging/weights.csv": "54a09abdd58724f936d660bd8c40627b4898e5b07f847bef01072c49e43bfd7d",
+        "packaging/order.json": "825d7c3ff3b5eedc2fe95acb21c0d45bb20292918afd1daf282a681308d3ec64",
+        "archive/irrelevant.txt": "560a9e33fb66c3c65051bbb994273aa1be75127424e4382d19a4270deb04f5a6"
+      }
+    },
+    {
+      "id": "native-fresh-reservation-journal",
+      "family": "native-fresh-reservation-journal",
+      "taskCharacters": 3791,
+      "lengthBand": "long",
+      "caseSha256": "5df9173a551761d86d388aaddd4184a18e34063a4bac47ee300eda84aa4033da",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "inventory/reducer.ts": "a35539de60e25712f7df601e52e85d1ac7044605d4a2664a903fd2d4336198f1",
+        "inventory/events.ndjson": "64886acf6a0ee3f10abaf645399ccddf19da333e23e73e53294f501a9a373e84"
+      }
+    },
+    {
+      "id": "native-fresh-telemetry-time-window",
+      "family": "native-fresh-telemetry-time-window",
+      "taskCharacters": 3769,
+      "lengthBand": "long",
+      "caseSha256": "db637af2f0ba2c71f0b0987965c2f6d6a7e0c93702b1db8b5537fed836786ca5",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "sensors/window.json": "42f7b53d536b037b5c2fc2f41c323ff9cf86cf0fa588375186125c7468e05af4",
+        "sensors/README.md": "f51fef75be9648475620c8c95194f8018fe12f92c38ce3fadf90694d7b97d2a6",
+        "sensors/alerts.csv": "1dee1f3f3e998a537d98f7f63393989480bf3adbc9ceea0127a0f6aacc067ce3"
+      }
+    },
+    {
+      "id": "native-fresh-missing-cert-reference",
+      "family": "native-fresh-missing-cert-reference",
+      "taskCharacters": 3767,
+      "lengthBand": "long",
+      "caseSha256": "465769ae14a664c32a79a63c1e2cb2185f0ff18fa559c869bee6f4bb706cdd94",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        ".pi/skills/batch-certification/SKILL.md": "e5f8b23a13e70e9bab8ebbbde49a391ef681414effbcf0dd3de89d08605cb174",
+        "lots/L-44.json": "9c1792ed3ac7cb6e4295380f052bbce88272de8eb57ba9bccab55a59eb55804f",
+        "lots/L-44-measures.json": "0371353d07c47750ee30c4e9df9b7535b47809566aa47196f9c2ebef1faae183",
+        "references/certification-limits.json": "2480a49bfae5f3e40352843890d3f1051f6c9aaffac890242faacabf7eeb1a16",
+        "vendor/overview.txt": "162973447463c0e74c463a393a8332fa3711d66d18e38630360e72dac0ec872e"
+      }
+    },
+    {
+      "id": "native-fresh-long-user-override",
+      "family": "native-fresh-long-user-override",
+      "taskCharacters": 4139,
+      "lengthBand": "long",
+      "caseSha256": "94ce40200dea2e6e534c89c8160ab4694964148e3c38c2847d66345959166cbd",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        ".pi/skills/inspection-queue/SKILL.md": "c03d9d4bfa576a8fd5e767ae07b3111339db1426d71f6190eb98a5fca0f33f98",
+        ".pi/skills/inspection-queue/references/flags.md": "704192ff479ce8873ecbc1142f2239aa1e5bb785dbffaa7ef133bda94ef96407",
+        "inspections/open.json": "a1c8224cc005d181ad88ac3c1e976fdae09d6d70dc00d74a2461f7bbeb8bf5c9"
+      }
+    },
+    {
+      "id": "native-fresh-sse-subscription",
+      "family": "native-fresh-sse-subscription",
+      "taskCharacters": 4124,
+      "lengthBand": "long",
+      "caseSha256": "01bef035c0501dabfde29ab58087c0135b587f1cbf156e809dfb0d6f5e3a6673",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "src/server.ts": "e9982b92cc55c9846be1db7408ac3a80a038cfccd0e7c45010a9178c2306f126",
+        "docs/reconnect.md": "54161e142375d4b9f8c4d60b0bef63a63d5b23a30a09860990aea35edc8ff2db"
+      }
+    },
+    {
+      "id": "native-fresh-migration-idempotence",
+      "family": "native-fresh-migration-idempotence",
+      "taskCharacters": 4098,
+      "lengthBand": "long",
+      "caseSha256": "825bb499b365be9ba84a141e3090b033c19249fcf06224691734a0993736bd07",
+      "filesSha256": {
+        "AGENTS.md": "a2f640267fa0fdbe12ad67c7bea2b668545ed700ec2dfb491d29b3a0cc1291db",
+        "db/migrate.js": "f18574ba85bde675355f436328b7ae9a83a1777a717723294d50f9c29e8677be",
+        "db/schema-before.sql": "f9944f7bf127e439ce01bd8a5d5bf066b67a5ceb3ea17c66264fc72e24f49540",
+        "db/example-after.json": "cf915672952f9e3f8408bb6e56181ff69256ffcbac333aef9c294526cee296f2"
+      }
+    }
+  ],
+  "preResultFreezeHistory": [
+    {
+      "sha256": "15848411f8d1328397ae1b8b12a4306ebab7a7f2bdef38b8846cfc4ee4044563",
+      "reason": "Initial author freeze; structural checks passed."
+    },
+    {
+      "sha256": "267471be73450001b2cd3cf7d55e714485bf0bce67b90c5abdf5cab8ae514722",
+      "reason": "Before provider runs, removed a format assertion requiring line ordering/separators that the user had not requested."
+    },
+    {
+      "sha256": "83c94554dd7a7f7e561ef51b659d7ee315ba3634bc97012eb4ce274b091c8da2",
+      "reason": "Before provider runs, clarified integer counts under string keys instead of ambiguous integer keys. Parent confirmed no native confirmation outputs."
+    }
+  ]
+}

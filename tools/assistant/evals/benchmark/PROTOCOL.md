@@ -1,6 +1,6 @@
 # Prompt and skill evaluation
 
-Evaluate the task contract, not a preferred sentence or tool sequence. Separate useful output, harmless abstention, wrong output, scope violations, infrastructure errors, and deadline fallbacks. Fewer tokens are a secondary objective.
+Improve useful results and complete-task reliability with concise, general instructions. Evaluate the task contract, not a preferred sentence or tool sequence. Separate useful output, harmless abstention, wrong output, scope violations, infrastructure errors, and deadline fallbacks. Prompt size and complete workflow cost are guardrails, not optimization targets. Avoid accumulating examples or rules tailored to individual failing cases.
 
 ## Before running
 
@@ -11,7 +11,7 @@ Evaluate the task contract, not a preferred sentence or tool sequence. Separate 
 
 ## Compare
 
-Run paired trials on identical inputs. Rotate request order, repeat trials, isolate state, and record model identity, prompt and resource hashes, tools, provider effort/tier, cache usage, full trace, outcome, tokens, and deadlines. Include unchanged controls. Test one deletion at a time; verify combinations separately. Layout and word counts do not establish token counts or behavioral equivalence.
+Run paired trials on identical inputs. Rotate request order, repeat trials, isolate state, and record model identity, prompt and resource hashes, tools, provider effort/tier, cache usage, full trace, outcome, tokens, and deadlines. Include unchanged controls. Test a general instruction hypothesis at a time; verify combinations separately. Layout and word counts do not establish token counts or behavioral equivalence.
 
 Use deterministic checks for exact destinations, schemas, bounded fixture outcomes, and prohibited actions. Use blinded rubric review for meaning; expose the conversation and rubric, but hide variant names, prompt length, timing, and cost. Calibrate any model grader before relying on it. Preserve low-confidence reviews for adjudication rather than silently treating them as ground truth. Exclude unresolved utility judgments from utility estimates; report their count. An invalid assertion may be waived only with explicit rationale for the whole case across variants. If a broken tool fixture influenced model behavior, invalidate its comparisons and rerun under a corrected environment. Agent-assisted review is not independent human validation.
 
@@ -19,9 +19,9 @@ Aggregate by case and family; repeated trials are not additional independent tas
 
 ## Select and stop
 
-Select at most two development finalists before confirmation. Prefer a shorter candidate only when confirmation preserves constraints, satisfies the predeclared usefulness margin, and achieves a worthwhile measured reduction. Reject candidates with unresolved critical violations, uncertain grading, or mismatched production settings. Otherwise retain the baseline and report that evidence is insufficient.
+Select at most two development finalists before confirmation. Require a predeclared meaningful quality gain, preserved constraints, and acceptable prompt-size and workflow-cost growth. Token savings alone cannot promote a candidate. Reject candidates with unresolved critical violations, uncertain grading, or mismatched production settings. Otherwise retain the baseline and report that evidence is insufficient. [RESULTS_POLICY.json](RESULTS_POLICY.json) records the current local gates; archived studies retain their original policies.
 
-Stop when every declared variation class and task category has coverage, graders and harness checks pass, frozen finalists complete confirmation, disagreements and critical failures are reviewed, and conclusions have explicit evidence and limits. Exhausting an infinite space of prompts is impossible. Further experiments need a new hypothesis, unresolved failure, or materially different deployment.
+Stop when the declared development comparisons and failure audits are complete. Run fresh frozen confirmation only for supported finalists; when none qualify, retain the baseline without consuming confirmation outcomes. Exhausting an infinite space of prompts is impossible. Further experiments need a new general hypothesis, an unresolved environment defect, or materially different deployment, with explicit evidence and limits.
 
 ## Transfer
 

@@ -8,6 +8,7 @@ export function loadSuite(path, split) {
   const root = dirname(resolve(path));
   const config = readJSON(path);
   if (!config.id || !["suggestion", "agent"].includes(config.mode)) throw new Error("Suite needs an id and suggestion or agent mode");
+  if (config.execution === "role-integration" && (config.mode !== "agent" || !["coordinator", "session", "reviewer"].includes(config.role))) throw new Error("Native role integration needs an agent suite and coordinator, session, or reviewer role");
   if (!["development", "challenge", "confirmation"].includes(split)) throw new Error("Unknown dataset split");
   const cases = (config.datasets[split] || []).flatMap(file => readJSON(resolve(root, file)));
   const seen = new Set();
@@ -32,7 +33,7 @@ export function loadSuite(path, split) {
   for (const [name, files] of Object.entries(config.datasets)) {
     const data = files.flatMap(file => readJSON(resolve(root, file)));
     for (const test of data) {
-      const signature = hash({ messages: test.messages, tools: test.tools || [], fixtures: test.fixtures || [], initialState: test.initialState || {}, files: test.files || {} });
+      const signature = hash({ messages: test.messages, tools: test.tools || [], fixtures: test.fixtures || [], initialState: test.initialState || {}, files: test.files || {}, allowedCommands: test.allowedCommands || [], homeState: test.homeState || {} });
       if (name === "confirmation") confirmationInputs.add(signature);
       else developmentInputs.add(signature);
     }
@@ -48,6 +49,8 @@ export function loadSuite(path, split) {
   if ([...confirmationInputs].some(signature => developmentInputs.has(signature))) throw new Error("Confirmation input reused under a different id or family");
   const harness = Object.fromEntries(["suite.mjs", "trial.mjs", "grading.mjs", "statistics.mjs", "judge.md", "judge.mjs", "artifacts.mjs", "cli.mjs", "adjudicate.mjs", "retry.mjs"].map(file => [file, hash(readFileSync(new URL(file, import.meta.url), "utf8"))]));
   if (config.execution === "researcher-integration") for (const file of ["researcher-integration.mjs", "../../src/pi.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../package.json", "../../../../AGENTS.md"])
+    harness[file] = hash(readFileSync(new URL(file, import.meta.url), "utf8"));
+  if (config.execution === "role-integration") for (const file of ["role-integration.mjs", "researcher-integration.mjs", "../../src/pi.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../src/home-routing.ts", "../../src/computer-use.ts", "../../package.json", "../../../../AGENTS.md"])
     harness[file] = hash(readFileSync(new URL(file, import.meta.url), "utf8"));
   return { path: resolve(path), config, split, cases, variants, harness, fingerprint: hash({ config, split, cases, variants, harness }) };
 }

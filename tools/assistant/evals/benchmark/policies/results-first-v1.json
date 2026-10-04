@@ -1,0 +1,50 @@
+{
+  "id": "results-first-2026-10",
+  "objective": "Improve Assistant outcome quality and complete-task reliability with concise general instructions; prompt length and workflow cost are guardrails, not optimization targets. Avoid case-specific examples and cumulative patches.",
+  "frozenBeforeConfirmation": true,
+  "previousCompressionPolicyRetiredBeforeConfirmation": true,
+  "candidateCount": 1,
+  "candidate": "coordinator-quality",
+  "candidateHash": "3cee658e34202d8ba33e4e946aa6c54c785770d7623f5259409813ff0c166549",
+  "baselineRoleHash": "2a67e4b58dffcbab9c73460f21c153d6309b46ff1ff1496acc2c6e369de09390",
+  "baseHash": "9ea14786f5cb80fd99a667afa5825ce01d9d8c91881814ec72429c451d6ca0c8",
+  "graderPolicyHash": "5e8d36f6f209d8bd7764c9eb74afeedd0a2044d0d4673e5f497797791201d3f4",
+  "qualityGate": {
+    "primarySuite": "coordinator-quality replay",
+    "minPairedFamilyMeanUtilityGain": 0.05,
+    "minPairedFamily95PercentIntervalLow": 0,
+    "requireZeroCandidateConstraintViolations": true,
+    "requireZeroUnresolvedGradingOrInfrastructureFailures": true,
+    "requireAllRequiredOutcomeChecks": true
+  },
+  "integrationGate": {
+    "suite": "coordinator-quality-native",
+    "minPairedFamily95PercentIntervalLow": -0.1,
+    "requireZeroCandidateConstraintViolations": true,
+    "requireAllRequiredOutcomeChecks": true,
+    "requireProductionAssemblyAndSourceAudit": true,
+    "interpretation": "Native HomeRouter/resource integration validates transfer boundaries; it need not demonstrate a separate gain on its six authored families. No real browser/service execution claim."
+  },
+  "guardrails": {
+    "maxMeanTotalWorkflowTokenIncreasePercent": 5,
+    "maxCombinedInstructionInputGrowthPercent": 10,
+    "noAddedCaseSpecificExamples": true,
+    "reviewIncreasedToolRoundsOrLatencyForMaterialRegression": true,
+    "measurement": "Provider input/cache/output/reasoning, requests/tool rounds and elapsed time; paired-family total-token intervals also published. Instruction growth is measured baseline/candidate provider-input difference under an explicit identical control, not an undocumented tokenizer claim."
+  },
+  "settings": {
+    "model": "gpt-6-luna",
+    "effort": "low",
+    "confirmationRepeats": 2,
+    "concurrency": 2,
+    "replayDeadlineMs": 60000,
+    "nativeDeadlineMs": 120000
+  },
+  "stop": "One general cwd clarification, tested on exposed development then genuinely fresh frozen replay/native families. No editing candidates, loosening gates, adding examples or replacing cases after confirmation failures. Retain baseline if quality, authority, verification or guardrails fail. Other prompts remain unchanged absent demonstrated general improvement.",
+  "review": "Blinded Luna High grade, eight frozen author-gold calibration controls, independent whole-family source/grade audits with originals preserved; not independent human validation.",
+  "datasets": {
+    "coordinator-confirmation.json": "677557da104c2eccdd75e8adddc3d155603e210a85cf19c4558ecb2621a0e69c",
+    "coordinator-native.json": "d04645b1d5a1c058398ddfcf0c047026b6389b4d2b8ff18f93319b004328f143",
+    "authorship.json": "d288b0812f162102b2100bada23c6b8692fff4ffe5ed0a25e8acacee40e69717"
+  }
+}

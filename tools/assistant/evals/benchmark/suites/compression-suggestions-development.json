@@ -1,0 +1,37 @@
+{
+  "id": "compression-suggestions-development",
+  "mode": "suggestion",
+  "model": "gpt-6-luna",
+  "effort": "off",
+  "maxTurns": 1,
+  "deadlineMs": 5000,
+  "selection": {
+    "maxMeanUtilityLoss": 0.1,
+    "minTotalTokenSavingPercent": 2,
+    "requireZeroNewConstraintViolations": true
+  },
+  "provenance": "Fresh authored prompt-compression comparison; provider/token measurements and model-assisted audits, not representative sampling or independent human annotation. Production resources for researcher, bounded replay for other roles; native role confirmation separately required.",
+  "datasets": {
+    "development": [
+      "../data/suggestions/development.json"
+    ],
+    "challenge": [
+      "../data/suggestions/challenge.json",
+      "../data/suggestions/confirmation.json"
+    ]
+  },
+  "variants": [
+    {
+      "id": "live",
+      "files": [
+        "../variants/compression/suggestion-baseline.md"
+      ]
+    },
+    {
+      "id": "role",
+      "files": [
+        "../variants/compression/suggestion-compact.md"
+      ]
+    }
+  ]
+}

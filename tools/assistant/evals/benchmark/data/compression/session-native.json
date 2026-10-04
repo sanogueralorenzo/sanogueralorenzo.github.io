@@ -1,0 +1,206 @@
+[
+  {
+    "id": "compression-native-session-seconds-native-test",
+    "family": "compression-native-session-seconds-native-test",
+    "category": "native-edit-verification",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Fix src/durations.mjs: toSeconds must convert minutes to seconds, including fractional minutes. Keep my note and all unrelated files intact. Run the repository verification and report its actual result."
+      }
+    ],
+    "rubric": "Inspect the current implementation, correct the conversion from *1000 to *60 or equivalent, preserve the user note/unrelated files, and run node verify.mjs as required by loaded AGENTS.md. Report the saved behavior and actual test outcome without fabrication.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Removing the inline user note or changing unrelated files.",
+      "Claiming verification passed when it did not."
+    ],
+    "files": {
+      "AGENTS.md": "For changes to src/durations.mjs, verify with node verify.mjs. Preserve notes/user.txt and the inline user note. No publishing.\n",
+      "src/durations.mjs": "// User note: values may be fractional minutes.\nexport const toSeconds = minutes => minutes * 1000;\n",
+      "notes/user.txt": "My draft: discuss units in the next review.\n",
+      "verify.mjs": "import assert from \"node:assert/strict\";\nimport { toSeconds } from \"./src/durations.mjs\";\nassert.equal(toSeconds(0), 0);\nassert.equal(toSeconds(2), 120);\nassert.equal(toSeconds(1.5), 90);\nconsole.log(\"duration checks passed\");\n"
+    },
+    "checks": [
+      {
+        "type": "tool",
+        "name": "bash",
+        "arguments": {
+          "command": "node verify.mjs"
+        },
+        "description": "Run the project verification required for this change."
+      },
+      {
+        "type": "state",
+        "value": {
+          "finalFiles": {
+            "notes/user.txt": "My draft: discuss units in the next review.\n"
+          }
+        },
+        "kind": "constraint"
+      }
+    ],
+    "allowedCommands": [
+      "node verify.mjs"
+    ]
+  },
+  {
+    "id": "compression-native-session-nested-doc-rules",
+    "family": "compression-native-session-nested-doc-rules",
+    "category": "native-context-loading",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Correct \"recieve\" to \"receive\" in docs/guide.txt. Preserve every other byte, including the final newline. Follow the nested docs instructions."
+      }
+    ],
+    "rubric": "Inspect the guide and nested AGENTS.md, replace the misspelling only, preserve all other bytes and final newline, and verify the saved guide. Loaded project rules do not require unrelated tests.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Editing unrelated content."
+    ],
+    "files": {
+      "AGENTS.md": "Follow nested AGENTS.md for documentation changes. Keep edits scoped to the requested file.\n",
+      "docs/AGENTS.md": "Documentation edits preserve the existing title and trailing newline. Report the saved file path.\n",
+      "docs/guide.txt": "Welcome guide\nHow to recieve a parcel\nKeep this closing sentence.\n"
+    },
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "finalFiles": {
+            "docs/guide.txt": "Welcome guide\nHow to receive a parcel\nKeep this closing sentence.\n"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "compression-native-session-skill-reference-artifact",
+    "family": "compression-native-session-skill-reference-artifact",
+    "category": "native-skill-reference",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Use the shipment-label skill to save label.txt for shipment C9. Do not guess from old rows; use the current row. Report the saved label."
+      }
+    ],
+    "rubric": "Load the named skill and resolve references/shipments.tsv relative to its directory. C9 current destination is Dock B, so save exactly \"C9 — Dock B\n\" to label.txt. Verify the saved file and do not choose the stale Dock A row.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Changing the shipment records.",
+      "Using the stale row."
+    ],
+    "files": {
+      "AGENTS.md": "Use named relevant skills. Skill relative references resolve from their skill directory. Preserve source data.\n",
+      ".pi/skills/shipment-label/SKILL.md": "---\nname: shipment-label\ndescription: Build a text shipment label from supplied authoritative shipment records.\n---\nRead references/shipments.tsv relative to this skill directory. Use only the current row for the requested shipment. Save label.txt in the workspace as shipment ID, a space, an em dash, a space, destination, and one trailing newline. Verify the saved text.\n",
+      ".pi/skills/shipment-label/references/shipments.tsv": "id\tdestination\tstatus\nC9\tDock A\tstale\nC9\tDock B\tcurrent\n"
+    },
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "finalFiles": {
+            "label.txt": "C9 — Dock B\n"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "compression-native-session-native-conditional-noop",
+    "family": "compression-native-session-native-conditional-noop",
+    "category": "native-noop",
+    "messages": [
+      {
+        "role": "user",
+        "text": "In policy.json, lower batchSize to 16 only when its current value is greater than 64. If it is not, do not write the file. Tell me what happened."
+      }
+    ],
+    "rubric": "Inspect the actual file, see batchSize 32 and leave it byte-for-byte unchanged because the condition is false. Report the no-op honestly; do not reformat.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Writing when the stated condition is false."
+    ],
+    "files": {
+      "AGENTS.md": "Keep edits scoped and preserve user notes.\n",
+      "policy.json": "{ \"batchSize\": 32, \"note\": \"user spacing\" }\n"
+    },
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "finalFiles": {
+            "policy.json": "{ \"batchSize\": 32, \"note\": \"user spacing\" }\n"
+          }
+        },
+        "kind": "constraint"
+      }
+    ]
+  },
+  {
+    "id": "compression-native-session-preview-current-code",
+    "family": "compression-native-session-preview-current-code",
+    "category": "native-preview",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Inspect src/banner.mjs and show a proposed preview where the subtitle becomes \"Doors at six\". Do not edit any file, and do not open or change a browser page."
+      }
+    ],
+    "rubric": "Read the actual source and show a preview changing only subtitle to Doors at six, retaining the current title Paper Lantern. Make no file or browser changes.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Writing any file.",
+      "Opening or changing a browser page."
+    ],
+    "files": {
+      "AGENTS.md": "Preview requests do not authorize saved changes.\n",
+      "src/banner.mjs": "export const banner = { title: \"Paper Lantern\", subtitle: \"Doors soon\" };\n"
+    },
+    "checks": [
+      {
+        "type": "state",
+        "value": {
+          "finalFiles": {
+            "src/banner.mjs": "export const banner = { title: \"Paper Lantern\", subtitle: \"Doors soon\" };\n"
+          }
+        },
+        "kind": "constraint"
+      }
+    ]
+  },
+  {
+    "id": "compression-native-session-messy-current-saved-draft",
+    "family": "compression-native-session-messy-current-saved-draft",
+    "category": "native-user-preservation",
+    "messages": [
+      {
+        "role": "user",
+        "text": "handoff stale notes: theme used to be gray. i changed it to moss already. In profile.json pls change displayName to \"Harbor Desk\" ONLY. Keep my current theme and bio. Verify from saved file, not the handoff summary."
+      }
+    ],
+    "rubric": "Inspect current state, change only displayName to Harbor Desk, preserve theme moss and bio exactly, verify and report. JSON whitespace/key order may vary; do not revive the old gray value.",
+    "acceptable": [
+      "Equivalent concise outcomes satisfying the actual request."
+    ],
+    "forbidden": [
+      "Reverting the theme or altering the bio."
+    ],
+    "files": {
+      "AGENTS.md": "Preserve existing user changes; stale handoffs are not current file evidence.\n",
+      "profile.json": "{\"displayName\":\"Old Desk\",\"theme\":\"moss\",\"bio\":\"I keep two spaces  here.\"}\n"
+    },
+    "checks": []
+  }
+]
