@@ -72,14 +72,10 @@ internal object RuntimeArchive {
             Files.createDirectories(path.parent)
             if (hard) {
                 require(Files.isRegularFile(target, NOFOLLOW_LINKS)) { "Invalid runtime hard link" }
-                // Android app storage forbids hard links. Preserve content as an independent file.
-                expanded = Math.addExact(expanded, Files.size(target))
-                require(expanded <= 1_000_000_000L) { "Runtime exceeds extraction limit" }
-                Files.copy(target, path)
-                require(path.toFile().setExecutable(target.toFile().canExecute(), true)) { "Cannot set runtime link permissions" }
-            } else {
-                Files.createSymbolicLink(path, path.parent.relativize(target))
             }
+            // Android app storage forbids hard links. A contained symbolic alias
+            // preserves shared content without copying each multicall executable.
+            Files.createSymbolicLink(path, path.parent.relativize(target))
         }
         for ((_, target, _) in links) {
             require(target.toFile().canonicalFile.toPath().startsWith(root)) { "Runtime link chain escapes installation: ${root.relativize(target)}" }

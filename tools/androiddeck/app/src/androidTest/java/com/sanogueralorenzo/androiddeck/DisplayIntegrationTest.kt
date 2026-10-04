@@ -59,7 +59,7 @@ class DisplayIntegrationTest {
     @Test fun linuxVulkanFramesReachTheAdrenoSurfaceAndRestart() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifyVulkan") == "true")
         assertTrue("Connect the supported Adreno device for this test", File("/dev/kgsl-3d0").canRead())
-        val runtime = RuntimeInstaller(context.filesDir, context.cacheDir)
+        val runtime = RuntimeInstaller(context)
         val graphics = GraphicsInstaller(context)
         assertTrue("Install the Linux runtime first", runtime.installed)
         graphics.install { println(it) }
@@ -104,7 +104,7 @@ class DisplayIntegrationTest {
 
     @Test fun linuxFramesReachAndroidAndDisplayRestartsCleanly() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifyDisplay") == "true")
-        val runtime = RuntimeInstaller(context.filesDir, context.cacheDir)
+        val runtime = RuntimeInstaller(context)
         assertTrue("Install the runtime before the display integration test", runtime.installed)
         val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
         val sockets = File(context.cacheDir, "display-test").apply { mkdirs() }

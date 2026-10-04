@@ -3,7 +3,10 @@ package com.sanogueralorenzo.androiddeck
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androiddeck.runtime.RuntimeController
+import com.sanogueralorenzo.androiddeck.runtime.LinuxRuntime
+import com.sanogueralorenzo.androiddeck.runtime.RuntimeInstaller
 import java.io.File
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -12,7 +15,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RuntimeIntegrationTest {
     @Test fun downloadsVerifiedRuntimeAndRunsLinuxTwice() {
-        assumeTrue("Opt in to the 78 MB runtime download", InstrumentationRegistry.getArguments().getString("verifyRuntime") == "true")
+        assumeTrue("Opt in to the 98 MB runtime download", InstrumentationRegistry.getArguments().getString("verifyRuntime") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val controller = (context.applicationContext as DeckApplication).runtime
@@ -44,6 +47,16 @@ class RuntimeIntegrationTest {
         assertTrue(controller.state is RuntimeController.State.Failed)
         instrumentation.runOnMainSync { controller.check() }
         assertTrue(awaitReady(controller, 20_000).output.contains("Linux runtime ready"))
+        // The current base stores Coreutils commands as aliases of one executable.
+        val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
+            listOf("/usr/bin/dash", "-c", "set -e; /usr/bin/ls -d /usr; /usr/bin/cp --version; /usr/bin/basename /tmp/test; /usr/bin/sha256sum /etc/os-release"))
+        try {
+            assertTrue("Linux command aliases timed out", process.waitFor(10, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("/usr") && output.contains("cp") && output.contains("test") && output.contains("/etc/os-release"))
+            println(output)
+        } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
     }
 
     private fun awaitReady(controller: RuntimeController, timeout: Long): RuntimeController.State.Ready {

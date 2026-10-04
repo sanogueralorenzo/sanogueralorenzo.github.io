@@ -44,6 +44,7 @@ android {
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("licenseAssets"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("graphicsAssets"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("runtimeAssets"))
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
@@ -101,6 +102,14 @@ val packageGraphicsLibraries by tasks.registering(Exec::class) {
     commandLine("bash", rootProject.file("native/graphics/packages.sh"), layout.buildDirectory.dir("linuxDisplay").get().asFile, output.get().asFile)
 }
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageGraphicsLibraries) }
+
+val packageCoreutils by tasks.registering(Exec::class) {
+    inputs.file(rootProject.file("native/runtime/coreutils.sh"))
+    val output = layout.buildDirectory.dir("runtimeAssets")
+    outputs.file(output.map { it.file("coreutils.tar.xz") })
+    commandLine("bash", rootProject.file("native/runtime/coreutils.sh"), output.get().asFile)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageCoreutils) }
 
 dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")

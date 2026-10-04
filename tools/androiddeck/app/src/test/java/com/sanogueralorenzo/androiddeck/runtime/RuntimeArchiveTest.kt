@@ -44,11 +44,12 @@ class RuntimeArchiveTest {
         assertThrows(IllegalArgumentException::class.java) { RuntimeArchive.extract(archive(entry("same", byteArrayOf()), entry("same", byteArrayOf())), root) }
     }
 
-    @Test fun expandsHardLinksWithoutAndroidLinkPermission() = withDirectory { root ->
+    @Test fun representsHardLinksWithoutDuplicatingContent() = withDirectory { root ->
         val hard = TarArchiveEntry("copy", TarConstants.LF_LINK).apply { linkName = "original" }
         RuntimeArchive.extract(archive(entry("original", "content".toByteArray()), hard to byteArrayOf()), root)
         assertEquals("content", root.resolve("copy").readText())
-        assertFalse(Files.isSameFile(root.resolve("copy").toPath(), root.resolve("original").toPath()))
+        assertTrue(Files.isSymbolicLink(root.resolve("copy").toPath()))
+        assertTrue(Files.isSameFile(root.resolve("copy").toPath(), root.resolve("original").toPath()))
     }
 
     @Test fun cleanupNeverFollowsLinks() = withDirectory { root ->

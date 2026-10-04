@@ -13,7 +13,7 @@ Use JDK 17 or 21, Android SDK 36, NDK `28.2.13676358`, CMake `3.22.1`, and an AR
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Open Android Deck, choose **Install Linux runtime** (78 MB download; 650 MB free internal storage), then **Test Linux runtime**. Runtime files are replaceable; the user home lives separately. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs.
+Open Android Deck, choose **Install Linux runtime** (98 MB download; 850 MB free internal storage), then **Test Linux runtime**. Runtime files are replaceable; the user home lives separately. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs.
 
 ## Checks
 

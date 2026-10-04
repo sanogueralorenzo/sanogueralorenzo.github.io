@@ -18,7 +18,7 @@ class SteamIntegrationTest {
     @Test fun stableArm64ClientInstallsWithoutLosingUserData() {
         assumeTrue("Opt in to Valve's 358 MB Steam client download", InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val runtime = RuntimeInstaller(context.filesDir, context.cacheDir)
+        val runtime = RuntimeInstaller(context)
         assertTrue("Install the Linux runtime first", runtime.installed)
         val installer = SteamInstaller(context)
         val preserved = File.createTempFile("steam-validation-", ".txt", File(context.filesDir, "home"))

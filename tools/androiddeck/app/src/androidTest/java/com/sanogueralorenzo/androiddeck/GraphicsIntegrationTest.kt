@@ -18,7 +18,7 @@ class GraphicsIntegrationTest {
     @Test fun verifiedPairInstallsAndLinuxDriverResolvesItsDependencies() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifyGraphics") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val runtime = RuntimeInstaller(context.filesDir, context.cacheDir)
+        val runtime = RuntimeInstaller(context)
         assertTrue("Install the Linux runtime first", runtime.installed)
         val graphics = GraphicsInstaller(context)
         val preserved = File.createTempFile("graphics-validation-", ".txt", File(context.filesDir, "home"))

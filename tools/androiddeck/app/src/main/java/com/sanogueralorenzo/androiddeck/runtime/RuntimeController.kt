@@ -17,7 +17,7 @@ internal class RuntimeController(context: Context) {
         data class Failed(val message: String, val installed: Boolean) : State
     }
 
-    private val installer = RuntimeInstaller(context.filesDir, context.cacheDir)
+    private val installer = RuntimeInstaller(context)
     private val linux = LinuxRuntime(context, installer.root)
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()

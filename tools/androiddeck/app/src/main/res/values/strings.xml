@@ -5,7 +5,7 @@
     <string name="device_description">%1$s
 %2$s</string>
     <string name="runtime_heading">Runtime not installed</string>
-    <string name="runtime_missing">Download the Linux base (78 MB). Installation needs 650 MB of free internal storage. Steam, Proton and games will need additional space.</string>
+    <string name="runtime_missing">Download the Linux base (98 MB). Installation needs 850 MB of free internal storage. Steam, Proton and games will need additional space.</string>
     <string name="runtime_working">Setting up Linux</string>
     <string name="runtime_ready">Linux installed</string>
     <string name="runtime_failed">Runtime needs attention</string>
