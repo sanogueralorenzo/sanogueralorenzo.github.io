@@ -1,22 +1,26 @@
 # Android Deck
 
-Planned Android app that brings the Steam Deck experience to supported Android devices through a Linux runtime, Steam's Deck interface, and Proton for Windows games. Games run locally, with no root required.
+An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. The current development build installs a verified Linux base and checks command execution; Steam, graphics, audio, and game sessions are not available yet.
 
-## Minimum scope
+The initial target is one validated ARM64 Adreno device. The frontend uses Kotlin and Views/XML; Steam will own sign-in, the library, and game downloads. Desktop apps, emulators, external game imports, and frame generation are outside the scope.
 
-- A small Android frontend for setup, launching Steam, and stopping a session.
-- Install and update the Linux runtime and select compatible GPU drivers automatically.
-- Run Valve's Steam client; Steam handles sign-in, the library, and game downloads.
-- Connect graphics, audio, controllers, touch input, and the keyboard to Android.
-- Handle Android lifecycle events, clean shutdown, and basic diagnostic logs.
+## Build and try
 
-Requires Android 16 (API 36) or newer on a supported ARM64 Adreno device. Start with one tested device and validate game compatibility and performance on it. Desktop apps, emulators, external game imports, and frame generation are outside the initial scope.
+Use JDK 17 or 21, Android SDK 36, NDK `28.2.13676358`, and an ARM64 Android 16 device or emulator. Set `ANDROID_HOME` or create `local.properties` with `sdk.dir`. Native builds require Bash, curl, tar, make, and shasum on macOS or Linux x86_64.
 
-## Intended setup
+```sh
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-1. Install the APK on a supported device.
-2. Download the Linux runtime and allow space for Steam, Proton, and games.
-3. Disable Android's child-process restriction, with a guided wireless-debugging flow when needed.
-4. Launch Steam, sign in, and install a compatible game.
+Open Android Deck, choose **Install Linux runtime** (78 MB download; 650 MB free internal storage), then **Test Linux runtime**. Runtime files are replaceable; the user home lives separately. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs.
 
-Planning only: no app or build is available yet.
+## Checks
+
+```sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:connectedDebugAndroidTest
+```
+
+Opt into the real download/execution test with `-Pandroid.testInstrumentationRunnerArguments.verifyRuntime=true`. It installs the pinned Ubuntu ARM64 base and runs Linux twice. Emulator checks cover setup and execution; Adreno graphics and gameplay require the physical device.
+
+See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins and licenses, and [PLAN.md](PLAN.md) for delivery criteria.

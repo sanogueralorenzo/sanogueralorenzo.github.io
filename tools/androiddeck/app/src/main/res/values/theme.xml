@@ -1,0 +1,15 @@
+<resources>
+    <color name="background">#111820</color>
+    <color name="foreground">#F1F5F9</color>
+    <color name="secondary">#AFBDC9</color>
+    <color name="accent">#79D4FF</color>
+    <dimen name="screen_padding">24dp</dimen>
+    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>
