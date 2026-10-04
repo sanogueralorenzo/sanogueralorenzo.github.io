@@ -1,6 +1,6 @@
 # Android Steam
 
-An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. Steam sign-in, the owned-game interface and Superflight gameplay with digital touch controls work on the validated Samsung S24 (SM-S921U1, Adreno 750). Game audio reaches Android output; the native launcher and broader game compatibility are unfinished.
+An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. Steam sign-in, the owned-game interface and Superflight, Brotato and SNØ gameplay with digital touch controls work on the validated Samsung S24 (SM-S921U1, Adreno 750). Game audio reaches Android output; the native launcher and broader game compatibility are unfinished.
 
 The frontend uses Kotlin and Views/XML. Steam owns authentication, the library, client updates, and game downloads. The initial scope is one ARM64 Adreno device; desktop apps, emulators, external game imports, and frame generation are excluded.
 
