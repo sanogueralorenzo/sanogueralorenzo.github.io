@@ -21,13 +21,18 @@ internal object GpuDevice {
         val sys = File(directory, "sys/$number")
         val gpu = File(sys, "device")
         val render = File(gpu, "drm/$node")
-        require(dri.mkdirs() && render.mkdirs()) { "Cannot prepare the Linux GPU device identity." }
+        val pci = File(directory, "pci")
+        require(dri.mkdirs() && render.mkdirs() && pci.mkdirs()) { "Cannot prepare the Linux GPU device identity." }
         require(File(dri, node).createNewFile()) { "Cannot prepare the Linux GPU node." }
+        // KGSL is a platform GPU. An empty PCI scan avoids libpci terminating
+        // Chromium when Android hides /proc/bus/pci/devices.
+        File(pci, "devices").writeText("")
         File(render, "dev").writeText("$number\n")
         File(gpu, "uevent").writeText("DRIVER=kgsl-3d0\nMODALIAS=platform:kgsl-3d0\n")
         Files.createSymbolicLink(File(gpu, "subsystem").toPath(), File("/sys/bus/platform").toPath())
         // Bind the parent: the kernel's device-number entry is itself a symlink,
         // which PRoot resolves before a binding on that entry can take effect.
-        return listOf("${dri.path}:/dev/dri", "$device:/dev/dri/$node", "${File(directory, "sys").path}:/sys/dev/char")
+        return listOf("${dri.path}:/dev/dri", "$device:/dev/dri/$node", "${File(directory, "sys").path}:/sys/dev/char",
+            "${pci.path}:/proc/bus/pci")
     }
 }

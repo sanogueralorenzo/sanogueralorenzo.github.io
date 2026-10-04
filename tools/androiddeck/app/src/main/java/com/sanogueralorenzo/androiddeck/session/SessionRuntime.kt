@@ -44,6 +44,7 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         }
         return listOf("/usr/bin/env", "STEAM_RUNTIME=1",
             "SDL_VIDEODRIVER=x11",
+            "LD_PRELOAD=/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
             "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
             "/bin/sh", "/run/androiddeck/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-steamdeck", "-steamos3",
             "-overridepackageurl", "https://client-update.akamai.steamstatic.com")

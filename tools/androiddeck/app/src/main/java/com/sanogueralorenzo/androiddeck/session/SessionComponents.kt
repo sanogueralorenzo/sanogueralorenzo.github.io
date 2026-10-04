@@ -13,7 +13,8 @@ internal class SessionComponents(private val context: Context) {
 
     private fun complete(directory: File) = File(directory, "usr/games/gamescope").canExecute() &&
         File(directory, "usr/bin/Xwayland").canExecute() &&
-        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-drm.so").isFile
+        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-drm.so").isFile &&
+        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-robust.so").isFile
 
     fun install(progress: (String) -> Unit) {
         if (installed) return
@@ -26,7 +27,7 @@ internal class SessionComponents(private val context: Context) {
             context.assets.open("session-components.tar.xz").use { input ->
                 XZInputStream(input, 64 * 1024).use { RuntimeArchive.extract(it, staging, ::checkInstallationCancelled) }
             }
-            require(complete(staging)) { "Session components are missing Gamescope, XWayland, or the GPU adapter." }
+            require(complete(staging)) { "Session components are missing Gamescope, XWayland, or a session adapter." }
             File(staging, ".androiddeck-components").writeText(VERSION)
             checkInstallationCancelled()
             RuntimeArchive.delete(root)
@@ -34,5 +35,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-6" }
+    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-7" }
 }

@@ -87,10 +87,10 @@ tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, p
 tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplayDependencies) }
 val buildLinuxDisplay by tasks.registering(Exec::class) {
     dependsOn(prepareDisplayDependencies)
-    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/probe_vulkan.c"), rootProject.file("native/display/source.env"), rootProject.file("native/session/drm.c"))
+    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/probe_vulkan.c"), rootProject.file("native/display/source.env"), rootProject.file("native/session/drm.c"), rootProject.file("native/session/robust.c"), rootProject.file("native/session/syscall.S"), file("src/debug/native/robust_probe.c"))
     inputs.property("ndkVersion", android.ndkVersion.orEmpty())
     val output = layout.buildDirectory.dir("linuxDisplay")
-    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("probe/arm64-v8a/libwayland-vulkan-probe.so") }, output.map { it.file("libwayland-client.so.0") }, output.map { it.file("libdeck-drm.so") })
+    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("probe/arm64-v8a/libwayland-vulkan-probe.so") }, output.map { it.file("libwayland-client.so.0") }, output.map { it.file("libdeck-drm.so") }, output.map { it.file("libdeck-robust.so") }, output.map { it.file("probe/arm64-v8a/librobust-probe.so") })
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
     commandLine("bash", rootProject.file("native/display/linux.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
 }
@@ -116,7 +116,7 @@ val packageSessionComponents by tasks.registering(Exec::class) {
     dependsOn(buildLinuxDisplay)
     inputs.files(rootProject.file("native/packages.sh"), rootProject.file("native/session/packages.sh"), rootProject.file("native/session/packages.tsv"), rootProject.file("native/session/sources.tsv"))
     val output = layout.buildDirectory.dir("sessionAssets")
-    inputs.file(layout.buildDirectory.file("linuxDisplay/libdeck-drm.so"))
+    inputs.files(layout.buildDirectory.file("linuxDisplay/libdeck-drm.so"), layout.buildDirectory.file("linuxDisplay/libdeck-robust.so"))
     outputs.file(output.map { it.file("session-components.tar.xz") })
     commandLine("bash", rootProject.file("native/session/packages.sh"), output.get().asFile, layout.buildDirectory.dir("linuxDisplay").get().asFile)
 }

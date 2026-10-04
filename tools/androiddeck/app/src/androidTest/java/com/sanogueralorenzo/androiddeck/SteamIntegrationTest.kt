@@ -17,6 +17,23 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SteamIntegrationTest {
+    @Test fun steamMutexListMatchesGlibcInThreadsAndForks() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val components = SessionComponents(context)
+        assertTrue(components.installed)
+        val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
+            listOf("/opt/androiddeck/app/librobust-probe.so"),
+            listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androiddeck/app", "${components.root.path}:/opt/androiddeck/session"),
+            mapOf("LD_PRELOAD" to "/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so"))
+        try {
+            assertTrue("Thread mutex-list check timed out", process.waitFor(15, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("Robust lists verified"))
+        } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS) }
+    }
+
     @Test fun bootstrapRestartIsBoundedAndReturnsClientStatus() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
