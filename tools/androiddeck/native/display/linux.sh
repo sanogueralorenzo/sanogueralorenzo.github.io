@@ -68,8 +68,11 @@ shared_library libwayland-client.so.0 "$DEPS/wayland/src/wayland-client.c" "$DEP
     "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
     "$DEPS/generated/wayland-protocol.c" "$WORK/ffi/lib/libffi.a"
 shared_library libdeck-drm.so "$HERE/../session/drm.c"
+shared_library libdeck-ports.so "$HERE/../session/socket_ports.c"
+"$WORK/cc" -O2 "$HERE/../session/socket_peer.c" -o "$OUT/steam-socket-peer"
 shared_library libdeck-robust.so "$HERE/../session/robust.c" "$HERE/../session/syscall.S"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/robust_probe.c" -o "$OUT/probe/arm64-v8a/librobust-probe.so"
+"$WORK/cc" -O2 "$HERE/../../app/src/debug/native/socket_peer_probe.c" -o "$OUT/probe/arm64-v8a/libsocket-peer-probe.so"
 
 # The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
 "$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \

@@ -17,6 +17,26 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class SteamIntegrationTest {
+    @Test fun browserPeersRequireLiveSocketsAndKeepTheListener() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val components = SessionComponents(context)
+        assertTrue(components.installed)
+        val directory = File(context.cacheDir, "steam-peer-test").apply { deleteRecursively(); mkdirs() }
+        File(directory, "ports").mkdir()
+        val process = LinuxRuntime(context, RuntimeInstaller(context).root).start(
+            listOf("/opt/androiddeck/app/libsocket-peer-probe.so"),
+            listOf("${context.applicationInfo.nativeLibraryDir}:/opt/androiddeck/app", "${components.root.path}:/opt/androiddeck/session",
+                "${components.root.path}/usr/bin/steam-socket-peer:/usr/bin/lsof", "${directory.path}:/run/androiddeck"),
+            mapOf("LD_PRELOAD" to "/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so"))
+        try {
+            assertTrue("Socket peer check timed out", process.waitFor(15, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("Live socket peers verified"))
+        } finally { process.destroyForcibly(); process.waitFor(3, TimeUnit.SECONDS); directory.deleteRecursively() }
+    }
+
     @Test fun steamMutexListMatchesGlibcInThreadsAndForks() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifySteam") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext

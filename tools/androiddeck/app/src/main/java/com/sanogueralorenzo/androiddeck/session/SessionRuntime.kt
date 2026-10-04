@@ -15,10 +15,12 @@ internal class SessionRuntime(private val context: Context, val directory: File)
 
     private fun bindings(): List<String> {
         check(directory.isDirectory || directory.mkdirs()) { "Cannot prepare the Steam session directory." }
+        check(File(directory, "ports").isDirectory || File(directory, "ports").mkdirs()) { "Cannot prepare Steam browser connections." }
         val sharedMemory = File(directory, "shm").apply { mkdirs() }
         return listOf("${components.root.path}:/opt/androiddeck/session", "${graphics.root.path}:/opt/androiddeck/graphics",
             "${context.applicationInfo.nativeLibraryDir}:/opt/androiddeck/app", "${directory.path}:/run/androiddeck",
             "${sharedMemory.path}:/dev/shm", "${components.root.path}/usr/bin/xkbcomp:/usr/bin/xkbcomp",
+            "${components.root.path}/usr/bin/steam-socket-peer:/usr/bin/lsof",
             "${components.root.path}/usr/share/gamescope:/usr/share/gamescope",
             "${components.root.path}/usr/share/fonts:/usr/share/fonts",
             "${components.root.path}/usr/share/fontconfig:/usr/share/fontconfig",
@@ -44,7 +46,7 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         }
         return listOf("/usr/bin/env", "STEAM_RUNTIME=1",
             "SDL_VIDEODRIVER=x11",
-            "LD_PRELOAD=/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
+            "LD_PRELOAD=/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-ports.so:/opt/androiddeck/session/usr/lib/aarch64-linux-gnu/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
             "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
             "/bin/sh", "/run/androiddeck/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-steamdeck", "-steamos3",
             "-overridepackageurl", "https://client-update.akamai.steamstatic.com")

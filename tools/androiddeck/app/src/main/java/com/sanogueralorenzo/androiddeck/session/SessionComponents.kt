@@ -14,7 +14,9 @@ internal class SessionComponents(private val context: Context) {
     private fun complete(directory: File) = File(directory, "usr/games/gamescope").canExecute() &&
         File(directory, "usr/bin/Xwayland").canExecute() &&
         File(directory, "usr/lib/aarch64-linux-gnu/libdeck-drm.so").isFile &&
-        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-robust.so").isFile
+        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-robust.so").isFile &&
+        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-ports.so").isFile &&
+        File(directory, "usr/bin/steam-socket-peer").canExecute()
 
     fun install(progress: (String) -> Unit) {
         if (installed) return
@@ -35,5 +37,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-7" }
+    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-8" }
 }
