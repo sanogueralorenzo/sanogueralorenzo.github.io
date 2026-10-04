@@ -9,6 +9,7 @@ A small collection of things I'm building and experimenting with.
 
 ## Tools
 
+- [Android Deck](./tools/androiddeck/README.md) — a planned Steam Deck experience on Android.
 - [Assistant](./tools/assistant/README.md) — background task delegation and updates in the Pi terminal.
 - [Codex Background](./tools/codex-background/README.md) — native Mac app task dispatch.
 - [Clipboard](./tools/clipboard/README.md) — encrypted clipboard history for macOS.
