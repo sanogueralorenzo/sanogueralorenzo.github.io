@@ -1,6 +1,6 @@
 # Android Deck
 
-An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. The current development build installs a verified Linux base and checks command execution; Steam, graphics, audio, and game sessions are not available yet.
+An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. The current development build installs a verified Linux base and checks command execution; Steam client installation and real-device graphics are covered by opt-in checks; Steam sessions, audio, and games are not available yet.
 
 The initial target is one validated ARM64 Adreno device. The frontend uses Kotlin and Views/XML; Steam will own sign-in, the library, and game downloads. Desktop apps, emulators, external game imports, and frame generation are outside the scope.
 
@@ -28,5 +28,7 @@ After installing the runtime, `-Pandroid.testInstrumentationRunnerArguments.veri
 `-Pandroid.testInstrumentationRunnerArguments.verifyGraphics=true` installs the pinned candidate Android/Linux Turnip pair (6 MB download) and checks Linux driver loading with its verified library bundle. This setup is currently exercised through the integration test.
 
 On the supported Adreno device, after runtime setup, `-Pandroid.testInstrumentationRunnerArguments.verifyVulkan=true` installs graphics if needed and exercises the native dma-buf bridge with a real Linux Vulkan client, Android pixel readback, surface reattachment, and two sessions. This check passes on the Android 16 Samsung S24 (SM-S921U1, Adreno 750), including repeated rendering and restart. It is skipped unless requested. The native bridge is not yet connected to the app's session UI.
+
+`-Pandroid.testInstrumentationRunnerArguments.verifySteam=true` downloads the pinned stable ARM64 Steam client directly from Valve (358 MB; 2.5 GB free storage), verifies each component, and checks extraction, client links, retry, and user-data preservation. Installation passes on the S24; the Deck session and sign-in screen are still being integrated. The client is not included in the APK.
 
 See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins and licenses, and [PLAN.md](PLAN.md) for delivery criteria.
