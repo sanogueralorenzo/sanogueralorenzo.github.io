@@ -1,6 +1,8 @@
 #include "display.h"
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
+#include <stdio.h>
 
 struct frame_callback { struct wl_list link; struct wl_resource *resource; };
 static void destroy_request(struct wl_client *client, struct wl_resource *resource) { wl_resource_destroy(resource); }
@@ -40,17 +42,36 @@ static void frame(struct wl_client *client, struct wl_resource *resource, uint32
 }
 static void commit(struct wl_client *client, struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
+    struct deck_gpu_image *image = surface->pending ? deck_dmabuf_image(surface->pending) : NULL;
+    if (!deck_sync_commit(surface, image != NULL)) return;
     if (surface->xdg && !surface->configured) {
         if (surface->pending) wl_resource_post_error(surface->xdg, XDG_SURFACE_ERROR_UNCONFIGURED_BUFFER, "Acknowledge the initial configure before attaching a buffer");
         else if (!surface->serial) deck_configure(surface);
         return;
     }
     if (surface->pending) {
-        struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->pending);
-        if (!buffer || !deck_present(surface->display, buffer)) {
-            wl_resource_post_error(resource, WL_DISPLAY_ERROR_INVALID_OBJECT, "Cannot present this Wayland buffer on the Android surface");
+        bool presented = false;
+        char failure[256] = "Cannot present this Wayland buffer on the Android surface";
+        if (image) {
+            struct deck_display *display = surface->display;
+            pthread_mutex_lock(&display->window_mutex);
+            int fd = surface->acquire_fd; surface->acquire_fd = -1;
+            if (!display->window) { if (fd >= 0) close(fd); presented = true; }
+            else if (deck_gpu_present(display->gpu, image, fd)) {
+                presented = true; display->frames++;
+                display->frame_width = image->width; display->frame_height = image->height;
+            }
+            else snprintf(failure, sizeof(failure), "%s", display->gpu->error);
+            pthread_mutex_unlock(&display->window_mutex);
+        } else {
+            struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->pending);
+            presented = buffer && deck_present(surface->display, buffer);
+        }
+        if (!presented) {
+            wl_client_post_implementation_error(client, "%s", failure);
             return;
         }
+        deck_sync_release(surface);
         wl_buffer_send_release(surface->pending);
         wl_list_remove(&surface->pending_destroy.link);
         wl_list_init(&surface->pending_destroy.link);
@@ -70,6 +91,7 @@ static const struct wl_surface_interface surface_impl = {
 };
 static void surface_destroyed(struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
+    deck_sync_destroy(surface);
     if (surface->pending) wl_list_remove(&surface->pending_destroy.link);
     if (surface->xdg) wl_resource_set_user_data(surface->xdg, NULL);
     if (surface->toplevel) wl_resource_set_user_data(surface->toplevel, NULL);
@@ -85,6 +107,7 @@ static void create_surface(struct wl_client *client, struct wl_resource *resourc
     surface->resource = wl_resource_create(client, &wl_surface_interface, wl_resource_get_version(resource), id);
     if (!surface->resource) { free(surface); wl_client_post_no_memory(client); return; }
     surface->display = display;
+    surface->acquire_fd = -1;
     surface->pending_destroy.notify = buffer_gone;
     wl_list_init(&surface->pending_destroy.link); wl_list_init(&surface->frames);
     wl_list_insert(&display->surfaces, &surface->link);

@@ -3,6 +3,7 @@
 #include <jni.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 static pthread_mutex_t ownership = PTHREAD_MUTEX_INITIALIZER;
 static struct deck_display *display;
@@ -16,15 +17,42 @@ JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDispl
     if (!window) { fail(env, "Android rendering surface is unavailable"); goto done; }
     const char *path = (*env)->GetStringUTFChars(env, socket, NULL);
     if (!path) { ANativeWindow_release(window); goto done; }
-    display = deck_start(path, window, refresh);
+    display = deck_start(path, window, refresh, NULL);
     (*env)->ReleaseStringUTFChars(env, socket, path);
     if (!display) fail(env, strerror(errno));
 done:
     pthread_mutex_unlock(&ownership);
 }
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_startVulkan(JNIEnv *env, jobject self,
+        jstring socket, jobject surface, jint refresh, jstring driver, jstring libraries) {
+    pthread_mutex_lock(&ownership);
+    if (display) { fail(env, "Display is already running"); goto done; }
+    ANativeWindow *window = surface ? ANativeWindow_fromSurface(env, surface) : NULL;
+    if (!window) { fail(env, "Android rendering surface is unavailable"); goto done; }
+    struct deck_gpu *gpu = calloc(1, sizeof(*gpu));
+    if (!gpu) { ANativeWindow_release(window); fail(env, "Cannot allocate the GPU session"); goto done; }
+    const char *path = (*env)->GetStringUTFChars(env, socket, NULL);
+    const char *driver_path = path ? (*env)->GetStringUTFChars(env, driver, NULL) : NULL;
+    const char *library_path = driver_path ? (*env)->GetStringUTFChars(env, libraries, NULL) : NULL;
+    if (path && driver_path && library_path && deck_gpu_open(gpu, driver_path, library_path)) {
+        display = deck_start(path, window, refresh, gpu);
+        window = NULL; // deck_start always consumes the reference, including failure.
+        if (!display && !gpu->error[0]) fail(env, strerror(errno));
+    }
+    if (path) (*env)->ReleaseStringUTFChars(env, socket, path);
+    if (driver_path) (*env)->ReleaseStringUTFChars(env, driver, driver_path);
+    if (library_path) (*env)->ReleaseStringUTFChars(env, libraries, library_path);
+    if (!display) {
+        if (gpu->error[0] && !(*env)->ExceptionCheck(env)) fail(env, gpu->error);
+        deck_gpu_close(gpu); free(gpu);
+        if (window) ANativeWindow_release(window);
+    }
+done:
+    pthread_mutex_unlock(&ownership);
+}
 JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_attach(JNIEnv *env, jobject self, jobject surface) {
     pthread_mutex_lock(&ownership);
-    if (display) deck_attach(display, surface ? ANativeWindow_fromSurface(env, surface) : NULL);
+    if (display && !deck_attach(display, surface ? ANativeWindow_fromSurface(env, surface) : NULL)) fail(env, display->gpu->error);
     pthread_mutex_unlock(&ownership);
 }
 JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androiddeck_display_NativeDisplay_stop(JNIEnv *env, jobject self) {

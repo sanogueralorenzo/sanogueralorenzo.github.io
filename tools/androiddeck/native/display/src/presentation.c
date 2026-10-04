@@ -9,6 +9,7 @@ bool deck_present(struct deck_display *display, struct wl_shm_buffer *buffer) {
     if (width <= 0 || width > 8192 || height <= 0 || height > 8192 || stride < width * 4 ||
         (format != WL_SHM_FORMAT_ARGB8888 && format != WL_SHM_FORMAT_XRGB8888)) return false;
     pthread_mutex_lock(&display->window_mutex);
+    if (display->gpu) { pthread_mutex_unlock(&display->window_mutex); return false; }
     ANativeWindow *window = display->window;
     ANativeWindow_Buffer destination;
     bool posted = false;
@@ -36,9 +37,12 @@ bool deck_present(struct deck_display *display, struct wl_shm_buffer *buffer) {
     return posted;
 }
 
-void deck_attach(struct deck_display *display, ANativeWindow *window) {
+bool deck_attach(struct deck_display *display, ANativeWindow *window) {
     pthread_mutex_lock(&display->window_mutex);
+    if (display->gpu) deck_gpu_detach(display->gpu);
     if (display->window) ANativeWindow_release(display->window);
     display->window = window; // Ownership of fromSurface's acquired reference transfers here.
+    bool ready = !display->gpu || deck_gpu_attach(display->gpu, window);
     pthread_mutex_unlock(&display->window_mutex);
+    return ready;
 }

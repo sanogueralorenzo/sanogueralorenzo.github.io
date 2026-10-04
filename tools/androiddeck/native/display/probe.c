@@ -44,6 +44,9 @@ static void frame_done(void *data, struct wl_callback *callback, uint32_t time) 
 static const struct wl_callback_listener frame_listener = { frame_done };
 static void release(void *data, struct wl_buffer *buffer) { released = true; }
 static const struct wl_buffer_listener buffer_listener = { release };
+#ifdef DECK_VULKAN_PROBE
+int probe_vulkan(struct wl_display *display, struct wl_surface *surface);
+#endif
 static void dispatch_until(struct wl_display *display, const bool *value) {
     while (!*value) if (wl_display_dispatch(display) < 0) { fputs("Wayland connection failed\n", stderr); exit(2); }
 }
@@ -54,7 +57,10 @@ int main(int argc, char **argv) {
     if (!display) { perror("Wayland connect"); return 1; }
     struct wl_registry *registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
-    if (wl_display_roundtrip(display) < 0 || !compositor || !shm || !shell) return 2;
+    if (wl_display_roundtrip(display) < 0 || !compositor || !shell) return 2;
+#ifndef DECK_VULKAN_PROBE
+    if (!shm) return 2;
+#endif
     xdg_wm_base_add_listener(shell, &shell_listener, NULL);
     struct wl_surface *surface = wl_compositor_create_surface(compositor);
     struct xdg_surface *xdg = xdg_wm_base_get_xdg_surface(shell, surface);
@@ -62,6 +68,9 @@ int main(int argc, char **argv) {
     struct xdg_toplevel *toplevel = xdg_surface_get_toplevel(xdg);
     wl_surface_commit(surface);
     dispatch_until(display, &configured);
+#ifdef DECK_VULKAN_PROBE
+    int status = probe_vulkan(display, surface);
+#else
     const int width = 320, height = 200, bytes = width * height * 4;
     int fd = memfd_create("androiddeck-probe", MFD_CLOEXEC);
     if (fd < 0 || ftruncate(fd, bytes) < 0) return 3;
@@ -86,8 +95,15 @@ int main(int argc, char **argv) {
     if (argc > 1 && !strcmp(argv[1], "hold")) pause();
     wl_buffer_destroy(buffer); wl_shm_pool_destroy(pool);
     munmap(pixels, bytes); close(fd);
+#endif
     xdg_toplevel_destroy(toplevel); xdg_surface_destroy(xdg); wl_surface_destroy(surface);
-    xdg_wm_base_destroy(shell); wl_shm_destroy(shm); wl_compositor_destroy(compositor); wl_registry_destroy(registry);
+    xdg_wm_base_destroy(shell);
+    if (shm) wl_shm_destroy(shm);
+    wl_compositor_destroy(compositor); wl_registry_destroy(registry);
     wl_display_flush(display); wl_display_disconnect(display);
+#ifdef DECK_VULKAN_PROBE
+    return status;
+#else
     return 0;
+#endif
 }

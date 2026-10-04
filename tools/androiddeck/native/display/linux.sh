@@ -63,3 +63,8 @@ mkdir "$WORK/ffi-build"
     "$LIB/libc.so.6" "$LIB/libc_nonshared.a" "$LIB/crtn.o" \
     -Wl,-soname,libwayland-client.so.0 -Wl,-z,max-page-size=16384 \
     -o "$OUT/libwayland-client.so.0"
+
+# The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
+"$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \
+    "$HERE/probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" \
+    "$OUT/libwayland-client.so.0" -o "$OUT/probe/arm64-v8a/libwayland-vulkan-probe.so"

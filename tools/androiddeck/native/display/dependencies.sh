@@ -13,7 +13,7 @@ esac
 TOOLS="$NDK/toolchains/llvm/prebuilt/$HOST/bin"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
-rm -rf "$OUT/wayland" "$OUT/ffi" "$OUT/ffi-build" "$OUT/ffi-install" "$OUT/generated"
+rm -rf "$OUT/wayland" "$OUT/ffi" "$OUT/ffi-build" "$OUT/ffi-install" "$OUT/generated" "$OUT/adrenotools"
 fetch() {
     curl -fsSL --retry 3 "$2" -o "$WORK/archive"
     printf '%s  %s\n' "$3" "$WORK/archive" | shasum -a 256 -c -
@@ -22,9 +22,15 @@ fetch() {
 }
 fetch wayland "https://gitlab.freedesktop.org/wayland/wayland/-/releases/$WAYLAND_VERSION/downloads/wayland-$WAYLAND_VERSION.tar.xz" "$WAYLAND_SHA256"
 fetch ffi "https://github.com/libffi/libffi/releases/download/v$FFI_VERSION/libffi-$FFI_VERSION.tar.gz" "$FFI_SHA256"
+fetch adrenotools "https://github.com/bylaws/libadrenotools/archive/$ADRENOTOOLS_COMMIT.tar.gz" "$ADRENOTOOLS_SHA256"
+fetch adrenotools/lib/linkernsbypass "https://github.com/bylaws/liblinkernsbypass/archive/$LINKER_COMMIT.tar.gz" "$LINKER_SHA256"
 mkdir -p "$OUT/protocols"
 curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-protocols/$PROTOCOLS_VERSION/stable/xdg-shell/xdg-shell.xml" -o "$OUT/protocols/xdg-shell.xml"
 printf '%s  %s\n' "$XDG_SHELL_SHA256" "$OUT/protocols/xdg-shell.xml" | shasum -a 256 -c -
+curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-protocols/$PROTOCOLS_VERSION/stable/linux-dmabuf/linux-dmabuf-v1.xml" -o "$OUT/protocols/linux-dmabuf.xml"
+printf '%s  %s\n' "$DMABUF_SHA256" "$OUT/protocols/linux-dmabuf.xml" | shasum -a 256 -c -
+curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-protocols/$PROTOCOLS_VERSION/unstable/linux-explicit-synchronization/linux-explicit-synchronization-unstable-v1.xml" -o "$OUT/protocols/explicit-sync.xml"
+printf '%s  %s\n' "$EXPLICIT_SYNC_SHA256" "$OUT/protocols/explicit-sync.xml" | shasum -a 256 -c -
 mkdir -p "$OUT/generated" "$OUT/ffi-build"
 (
     cd "$OUT/ffi-build"
@@ -57,7 +63,11 @@ cc -O2 -DHAVE_STRNDUP=1 -I"$OUT/wayland/src" -I"$OUT/generated" \
 for side in server client; do
     "$OUT/scanner" "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol.h"
     "$OUT/scanner" -c "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol-core.h"
-    "$OUT/scanner" "$side-header" "$OUT/protocols/xdg-shell.xml" "$OUT/generated/xdg-shell-$side.h"
+    for protocol in xdg-shell linux-dmabuf explicit-sync; do
+        "$OUT/scanner" "$side-header" "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-$side.h"
+    done
 done
 "$OUT/scanner" public-code "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-protocol.c"
-"$OUT/scanner" private-code "$OUT/protocols/xdg-shell.xml" "$OUT/generated/xdg-shell-protocol.c"
+for protocol in xdg-shell linux-dmabuf explicit-sync; do
+    "$OUT/scanner" private-code "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-protocol.c"
+done

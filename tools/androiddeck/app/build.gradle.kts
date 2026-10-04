@@ -17,6 +17,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += "arm64-v8a" }
         externalNativeBuild.cmake.arguments += "-DDECK_DEPS=${layout.buildDirectory.dir("display-deps").get().asFile}"
+        externalNativeBuild.cmake.targets += listOf("deck-display", "main_hook", "hook_impl")
     }
     buildTypes {
         release {
@@ -25,7 +26,11 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
-    packaging { jniLibs.useLegacyPackaging = true }
+    packaging {
+        jniLibs.useLegacyPackaging = true
+        // The fixed custom-driver path uses neither file redirection nor GPU mapping.
+        jniLibs.excludes += setOf("**/libfile_redirect_hook.so", "**/libgsl_alloc_hook.so")
+    }
     externalNativeBuild.cmake {
         path = rootProject.file("native/display/CMakeLists.txt")
         version = "3.22.1"
@@ -80,10 +85,10 @@ tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, p
 tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplayDependencies) }
 val buildLinuxDisplay by tasks.registering(Exec::class) {
     dependsOn(prepareDisplayDependencies)
-    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/source.env"))
+    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/probe_vulkan.c"), rootProject.file("native/display/source.env"))
     inputs.property("ndkVersion", android.ndkVersion.orEmpty())
     val output = layout.buildDirectory.dir("linuxDisplay")
-    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("libwayland-client.so.0") })
+    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("probe/arm64-v8a/libwayland-vulkan-probe.so") }, output.map { it.file("libwayland-client.so.0") })
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
     commandLine("bash", rootProject.file("native/display/linux.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
 }
