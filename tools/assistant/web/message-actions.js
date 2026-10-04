@@ -44,9 +44,15 @@ export function createMessageActions({ state, root, api, render }) {
   }
   function preview() {
     const editing = state.selected === "home" && state.edit;
-    const target = replyTarget(editing ? state.edit.id : state.replyToId);
+    const queuedEdit = state.queuedEdit;
+    const target = replyTarget(editing ? state.edit.id : state.replyToId) || (queuedEdit && {
+      role: state.data.sessions.find((session) => session.id === queuedEdit.sessionId)?.title || "Conversation",
+      text: queuedEdit.text,
+    });
     if (!target) return "";
-    return `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${editing ? "dismiss-edit" : "dismiss-reply"}" aria-label="${editing ? "Cancel edit" : "Cancel reply"}" title="${editing ? "Cancel edit" : "Cancel reply"}">${icon("close", 16)}</button></div>`;
+    const action = editing ? "dismiss-edit" : queuedEdit ? "dismiss-queued-edit" : "dismiss-reply";
+    const label = editing || queuedEdit ? "Cancel edit" : "Cancel reply";
+    return `<div class="reply-preview">${quote(editing ? { role: "Editing message", text: target.text } : target, "reply-preview-text")}<button type="button" class="dismiss-reply" data-action="${action}" aria-label="${label}" title="${label}">${icon("close", 16)}</button></div>`;
   }
   function refreshComposer() {
     render(true);
@@ -83,6 +89,7 @@ export function createMessageActions({ state, root, api, render }) {
         if (target?.sessionId) {
           state.input = root.querySelector("textarea")?.value || "";
           state.edit = null;
+          state.queuedEdit = null;
           state.replyToId = button.dataset.reply;
           refreshComposer();
         }
@@ -91,7 +98,8 @@ export function createMessageActions({ state, root, api, render }) {
       case "edit": {
         const message = state.data.messages.find((item) => item.id === button.dataset.edit);
         if (message && state.data.turns.some((turn) => turn.sourceId === message.id && turn.status === "running")) {
-          state.edit = { id: message.id, previousInput: root.querySelector("textarea")?.value || "", previousReplyToId: state.replyToId };
+          state.edit = { id: message.id, previousInput: root.querySelector("textarea")?.value || "", previousReplyToId: state.replyToId, previousQueuedEdit: state.queuedEdit };
+          state.queuedEdit = null;
           state.replyToId = null;
           state.input = message.text;
           refreshComposer();
@@ -106,6 +114,7 @@ export function createMessageActions({ state, root, api, render }) {
       case "dismiss-edit":
         state.input = state.edit?.previousInput || "";
         state.replyToId = state.edit?.previousReplyToId || null;
+        state.queuedEdit = state.edit?.previousQueuedEdit || null;
         state.edit = null;
         refreshComposer();
         return true;

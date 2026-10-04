@@ -37,6 +37,7 @@ const assets: Record<string, [string, string]> = {
   "/app.css": ["app.css", "text/css"], "/view.js": ["view.js", "text/javascript"],
   "/message-actions.js": ["message-actions.js", "text/javascript"],
   "/prompt-suggestions.js": ["prompt-suggestions.js", "text/javascript"],
+  "/queued-messages.js": ["queued-messages.js", "text/javascript"],
 };
 
 const server = createServer(async (req, res) => {
@@ -66,6 +67,7 @@ const server = createServer(async (req, res) => {
         reaction: request.reaction === "thumbs-up" ? "thumbs-up" : undefined,
       }));
       if (url.pathname === "/api/stop") return json(res, 200, { stopped: app.stop(String(request.sessionId)) });
+      if (url.pathname === "/api/dequeue") return json(res, 200, app.dequeue(input(request.sessionId), input(request.turnId)));
       if (url.pathname === "/api/resume") { app.resume(String(request.entryId)); return json(res, 202, { resumed: true }); }
       return json(res, 404, { error: "Unknown endpoint" });
     }

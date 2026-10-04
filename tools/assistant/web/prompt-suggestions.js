@@ -1,5 +1,5 @@
 export function suggestionTarget(state) {
-  if (!state.connected || (state.selected === "home" && state.edit)) return null;
+  if (!state.connected || state.queuedEdit || (state.selected === "home" && state.edit)) return null;
   let target;
   if (state.selected === "home") {
     if (state.data.turns.length || state.data.messages.some((message) => message.status === "routing")) return null;
@@ -77,6 +77,13 @@ export function createPromptSuggestions({ state, root, api, render }) {
   }
   function escape() {
     if (state.selected === "home" && state.edit) return false;
+    if (state.queuedEdit) {
+      if (!state.replyToId) return false;
+      state.replyToId = null;
+      render(true);
+      root.querySelector('[data-focus="composer"]')?.focus();
+      return true;
+    }
     const target = suggestionTarget({ ...state, replyToId: null });
     const cached = target && cache.get(target.sessionId);
     const lastText = lastShown.get(state.selected) || (cached?.replyId === target?.replyId ? cached?.text : null);

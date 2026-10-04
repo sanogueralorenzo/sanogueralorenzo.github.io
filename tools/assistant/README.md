@@ -8,6 +8,8 @@ Hover over an assistant reply on Home or inside a session. Reply quotes that spe
 
 Canceling a quote keeps your draft. On Home, unquoted messages are routed automatically; inside a conversation, messages stay there with or without a quote.
 
+Queued messages have Edit and Delete controls: hover over the message on Home, or use the queued list above the session input. Edit withdraws the message and returns it to the composer, keeping its conversation and quote; sending or canceling the edit restores your previous draft. Delete removes the queued message. These controls disappear once work starts.
+
 After each completed reply, a separate Luna 6 request generates a follow-up using only the suggestion prompt and recent conversation text, with no reasoning or tools. Results are saved per reply in `sessions.db`. Press Tab or click the Tab button to fill the draft, then Enter to send. Accepted hints quote their originating reply. Typing hides the hint; clearing both the draft and quote brings it back. Escape clears the quote and an unchanged suggested draft, restoring the visible hint; edited drafts are kept. Escape on an already empty composer hides the hint; Tab can still restore that saved suggestion. If nothing useful arrives within five seconds, the normal Message placeholder stays and Tab keeps its normal behavior.
 
 ## Start

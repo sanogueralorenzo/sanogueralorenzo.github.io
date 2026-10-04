@@ -105,12 +105,13 @@ export class Assistant {
     if (editOfId && (mode !== "steer" || referenced?.role !== "user" || referenced.sessionId !== sessionId || active?.turn.sourceId !== editOfId))
       throw new Error("This message is no longer active. Use Reply for a follow-up.");
     if (editOfId && text === referenced?.text) throw new Error("Change the message before sending a revision");
-    const entry = mode === "steer" && active
+    let entry = mode === "steer" && active
       ? this.state.data.entries.find((item) => item.id === active.turn.entryId)
       : referenced?.entry || [...this.state.data.entries].reverse().find((item) => item.sessionId === sessionId);
     const source = this.state.message(text, id, editOfId ? { editOfId } : { replyToId, ...(reaction && { reaction }) });
     source.status = "routed";
-    if (entry) source.entryId = entry.id;
+    entry ||= this.state.entry(source, record.title, sessionId);
+    source.entryId = entry.id;
     if (mode === "steer" && active) {
       active.turn.sourceId = source.id;
       if (editOfId) active.turn.text = text;
@@ -125,6 +126,28 @@ export class Assistant {
     this.state.save();
     this.drain();
     return { turn };
+  }
+  dequeue(sessionId: string, turnId: string) {
+    const turn = this.state.data.turns.find((item) => item.id === turnId && item.sessionId === sessionId);
+    if (!turn || turn.status !== "queued") throw new Error("This message has already started or is no longer queued.");
+    const message = this.state.data.messages.find((item) => item.id === turn.sourceId);
+    const entry = this.state.data.entries.find((item) => item.id === turn.entryId);
+    // A resumed request already has history; withdrawing its retry keeps that history.
+    const hasHistory = entry?.updates.some((update) => (update.sourceId || entry.sourceId) === message?.id);
+    const removedMessageId = message && !hasHistory ? message.id : undefined;
+    this.state.data.turns = this.state.data.turns.filter((item) => item.id !== turn.id);
+    if (removedMessageId) {
+      this.state.data.messages = this.state.data.messages.filter((item) => item.id !== removedMessageId);
+      for (const item of this.state.data.messages) if (item.replyToId === removedMessageId) item.replyToId = undefined;
+      for (const item of this.state.data.turns) if (item.replyToId === removedMessageId) item.replyToId = undefined;
+      if (entry) {
+        const remaining = this.state.data.messages.filter((item) => item.entryId === entry.id);
+        if (!remaining.length && !entry.updates.length) this.state.data.entries = this.state.data.entries.filter((item) => item.id !== entry.id);
+        else if (entry.sourceId === removedMessageId && remaining[0]) entry.sourceId = remaining[0].id;
+      }
+    }
+    this.state.save();
+    return { turn, message, removedMessageId };
   }
   stop(sessionId: string) {
     const active = this.active.get(sessionId);

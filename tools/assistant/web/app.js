@@ -1,19 +1,23 @@
 import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 import { createMessageActions } from "./message-actions.js";
 import { createPromptSuggestions } from "./prompt-suggestions.js";
+import { composerDraft, restoreComposerDraft, createQueuedMessages } from "./queued-messages.js";
 
 const root = document.querySelector("#app");
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
 const restoredReply = sessionStorage.getItem("assistant-reload-reply");
 const restoredEdit = JSON.parse(sessionStorage.getItem("assistant-reload-edit") || "null");
+const restoredQueuedEdit = JSON.parse(sessionStorage.getItem("assistant-reload-queued-edit") || "null");
 sessionStorage.removeItem("assistant-reload-draft");
 sessionStorage.removeItem("assistant-reload-reply");
 sessionStorage.removeItem("assistant-reload-edit");
+sessionStorage.removeItem("assistant-reload-queued-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
+  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, steer: false, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
 const actions = createMessageActions({ state, root, api, render });
 const suggestions = createPromptSuggestions({ state, root, api, render });
+const queued = createQueuedMessages({ state, root, api, render });
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -46,8 +50,9 @@ function activityPill(message, entry, className = "", showConversation = true) {
     aria-label="${escapeHTML(`${title}${detail ? `, ${detail}` : ""}`)}" title="${escapeHTML(title)}"><span class="pill-symbol" aria-hidden="true">${symbol}</span>${showConversation ? `<strong class="pill-title">${escapeHTML(title)}</strong>` : ""}${detail ? `<span class="pill-detail">${escapeHTML(detail)}</span>` : ""}</button>`;
 }
 function homeRequest(message, entry, showConversation) {
+  const turn = state.data.turns.find((item) => item.sourceId === message.id && item.status === "queued");
   const request = `<button type="button" class="message-bubble user-bubble home-entry" ${entry?.sessionId ? `data-action="open" data-session="${escapeHTML(entry.sessionId)}"` : "disabled"}>${actions.quote(actions.replyTarget(message.replyToId), "message-context user-context")}<span class="entry-copy">${escapeHTML(message.text)}</span></button>`;
-  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry, "", showConversation)}</div></section>`;
+  return `<section class="home-exchange"><div class="message-row user-row home-requests"><div class="replyable replyable-user">${turn ? queued.controls(turn, true) : actions.requestAction(message, entry?.sessionId)}${request}</div>${activityPill(message, entry, "", showConversation)}</div></section>`;
 }
 function homeReply(update, entry, source, showConversation) {
   const reaction = actions.reactionTo(update.id);
@@ -92,8 +97,7 @@ function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
     message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
-  const queue = state.data.turns.filter((turn) => turn.sessionId === state.selected && turn.status === "queued");
-  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}${queue.length ? `<section class="queued-card"><h2>Queued follow-ups</h2>${queue.map((turn) => `<div class="queued-row"><span>${state.data.messages.find((message) => message.id === turn.sourceId)?.reaction ? "👍 Go ahead" : escapeHTML(turn.text)}</span></div>`).join("")}</section>` : ""}`;
+  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}`;
 }
 function render(force = false) {
   const old = root.querySelector(".scroll-area");
@@ -125,7 +129,7 @@ function render(force = false) {
   if (record?.status !== "running") state.steer = false;
   const editing = isHome && state.edit;
   const previewHTML = actions.preview();
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${previewHTML ? "replying" : ""}" id="composer">${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span><button type="button" data-action="accept-suggestion" title="Use suggested reply"><kbd>Tab</kbd></button></div></div>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area">${isHome ? "" : queued.composer()}<form class="composer ${previewHTML ? "replying" : ""}" id="composer">${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span><button type="button" data-action="accept-suggestion" title="Use suggested reply"><kbd>Tab</kbd></button></div></div>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon steer-button ${state.steer ? "steer-selected" : ""}" data-action="toggle-steer" title="${state.steer ? "Steering after the current tool finishes; click to queue instead" : "Steer after the current tool finishes instead of queueing"}" aria-label="${state.steer ? "Steering active work" : "Steer active work"}" aria-pressed="${state.steer}">${state.steer ? "Steering" : "Steer"}</button><button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></form>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : state.steer ? `<div class="composer-hint">Steer: your message takes effect after the current tool call</div>` : ""}</footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
@@ -148,12 +152,10 @@ async function loadSession() {
 function select(id) {
   if (!id || id === state.selected) return;
   const unread = id === "home" ? new Set(state.unseenReplies.keys()) : null;
-  state.sessionDrafts[state.selected] = { input: state.input, replyToId: state.replyToId };
+  state.sessionDrafts[state.selected] = composerDraft(state);
   state.selected = id;
   localStorage.setItem("assistant-view", id);
-  state.input = state.sessionDrafts[id]?.input || "";
-  state.replyToId = state.sessionDrafts[id]?.replyToId || null;
-  state.steer = false;
+  restoreComposerDraft(state, state.sessionDrafts[id]);
   state.error = "";
   state.transcript = [];
   state.streaming = "";
@@ -171,6 +173,7 @@ root.addEventListener("click", async (event) => {
   if (!button || button.disabled) return;
   try {
     if (button.dataset.action === "accept-suggestion") { suggestions.accept(); return; }
+    if (await queued.handleClick(button)) return;
     if (await actions.handleClick(button)) return;
     if (button.dataset.action === "open") select(button.dataset.session);
     if (button.dataset.action === "home") select("home");
@@ -205,10 +208,12 @@ root.addEventListener("submit", async (event) => {
   const text = composer.value.trim();
   if (!text) return;
   const selected = state.selected;
+  const queuedEdit = state.queuedEdit;
+  const submittedDraft = composerDraft(state);
   const edit = selected === "home" ? state.edit : null;
   const editOfId = edit?.id || null;
   const replyToId = !edit ? state.replyToId : null;
-  const target = replyToId || editOfId ? actions.replyTarget(replyToId || editOfId) : null;
+  const target = (replyToId || editOfId ? actions.replyTarget(replyToId || editOfId) : null) || (queuedEdit && { sessionId: queuedEdit.sessionId });
   if ((replyToId || editOfId) && !target?.sessionId) { state.error = "This message is not in a conversation yet"; render(true); return; }
   if (editOfId && text === target.text) { state.error = "Change the message before sending a revision"; render(true); return; }
   if (editOfId && !state.data.turns.some((turn) => turn.sourceId === editOfId && turn.status === "running")) {
@@ -217,32 +222,30 @@ root.addEventListener("submit", async (event) => {
     return;
   }
   suggestions.dismiss("sent");
-  state.input = edit?.previousInput || "";
+  if (queuedEdit) restoreComposerDraft(state, queuedEdit.previous);
+  else state.input = edit?.previousInput || "";
   composer.value = "";
   state.error = "";
   if (selected === "home") {
     const id = crypto.randomUUID();
-    state.replyToId = edit?.previousReplyToId || null;
-    state.edit = null;
-    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, replyToId, editOfId, status: replyToId || editOfId ? "routed" : "routing" });
-    render(!!(replyToId || editOfId));
+    if (!queuedEdit) { state.replyToId = edit?.previousReplyToId || null; state.queuedEdit = edit?.previousQueuedEdit || null; state.edit = null; }
+    state.data.messages.push({ id, text, createdAt: new Date().toISOString(), entryId: null, replyToId, editOfId, status: target ? "routed" : "routing" });
+    render(!!(replyToId || editOfId || queuedEdit));
     try {
       if (editOfId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "steer", editOfId });
-      else if (replyToId) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "followUp", replyToId });
+      else if (target) await api("/api/turns", "POST", { id, sessionId: target.sessionId, text, mode: "followUp", replyToId });
       else await api("/api/home", "POST", { id, text });
     } catch (error) {
       state.error = error.message;
-      state.input = text;
-      state.replyToId = replyToId;
-      state.edit = edit;
+      restoreComposerDraft(state, { ...submittedDraft, input: text });
       state.data.messages = state.data.messages.filter((item) => item.id !== id);
       render(true);
     }
   } else {
-    state.replyToId = null;
-    render(!!replyToId);
-    try { await api("/api/turns", "POST", { sessionId: selected, text, mode: state.steer ? "steer" : "followUp", replyToId }); state.steer = false; await loadSession(); }
-    catch (error) { state.error = error.message; state.input = text; state.replyToId = replyToId; render(); }
+    if (!queuedEdit) state.replyToId = null;
+    render(!!(replyToId || queuedEdit));
+    try { await api("/api/turns", "POST", { sessionId: selected, text, mode: submittedDraft.steer ? "steer" : "followUp", replyToId }); if (!queuedEdit) state.steer = false; await loadSession(); }
+    catch (error) { state.error = error.message; restoreComposerDraft(state, { ...submittedDraft, input: text }); render(); }
   }
 });
 
@@ -254,6 +257,7 @@ function connect() {
       sessionStorage.setItem("assistant-reload-draft", root.querySelector("textarea")?.value || "");
       if (state.replyToId) sessionStorage.setItem("assistant-reload-reply", state.replyToId);
       if (state.edit) sessionStorage.setItem("assistant-reload-edit", JSON.stringify(state.edit));
+      if (state.queuedEdit) sessionStorage.setItem("assistant-reload-queued-edit", JSON.stringify(state.queuedEdit));
       location.reload();
       return;
     }
