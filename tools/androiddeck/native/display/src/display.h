@@ -12,7 +12,9 @@
 struct deck_display {
     struct wl_display *wayland;
     struct wl_event_source *stop_source;
+    struct wl_event_source *feedback_source;
     struct wl_list surfaces;
+    struct wl_list outputs;
     pthread_t thread;
     int stop_fd;
     pthread_mutex_t window_mutex;
@@ -32,6 +34,7 @@ struct deck_surface {
     struct wl_resource *resource, *pending, *xdg, *toplevel;
     struct wl_listener pending_destroy;
     struct wl_list frames;
+    struct wl_list feedback;
     bool configured;
     uint32_t serial;
     struct wl_resource *sync, *release;
@@ -47,6 +50,9 @@ bool deck_register_shell(struct deck_display *display);
 bool deck_register_dmabuf(struct deck_display *display);
 struct deck_gpu_image *deck_dmabuf_image(struct wl_resource *buffer);
 bool deck_register_sync(struct deck_display *display);
+bool deck_register_feedback(struct deck_display *display);
+void deck_feedback_commit(struct deck_surface *surface, uint32_t present_id);
+void deck_feedback_discard(struct deck_surface *surface);
 bool deck_sync_commit(struct deck_surface *surface, bool dmabuf);
 void deck_sync_release(struct deck_surface *surface);
 void deck_sync_destroy(struct deck_surface *surface);

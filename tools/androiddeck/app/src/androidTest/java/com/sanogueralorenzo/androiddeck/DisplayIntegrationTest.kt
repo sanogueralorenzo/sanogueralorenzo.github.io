@@ -1,12 +1,8 @@
 package com.sanogueralorenzo.androiddeck
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Color
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
-import android.view.PixelCopy
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androiddeck.display.DisplayTestActivity
@@ -15,7 +11,6 @@ import com.sanogueralorenzo.androiddeck.display.GraphicsInstaller
 import com.sanogueralorenzo.androiddeck.runtime.LinuxRuntime
 import com.sanogueralorenzo.androiddeck.runtime.RuntimeInstaller
 import java.io.File
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -85,10 +80,12 @@ class DisplayIntegrationTest {
                 )
                 assertTrue("Linux Vulkan client timed out", running!!.waitFor(20, TimeUnit.SECONDS))
                 val output = running!!.inputStream.bufferedReader().readText()
+                println(output)
                 assertEquals(output, 0, running!!.exitValue())
                 assertTrue(output, output.contains("linux-vulkan-ok: 3 frames, 320x200"))
+                assertTrue(output, output.contains("linux-presentation-ok: 3 ordered display timestamps"))
                 assertArrayEquals(longArrayOf(3, 320, 200), NativeDisplay.snapshot())
-                awaitVulkanPixels(activity)
+                DisplayPixels.awaitBlue(activity)
                 NativeDisplay.stop()
                 assertFalse(socket.exists())
                 assertFalse(File(sockets, "wayland-0.lock").exists())
@@ -143,7 +140,7 @@ class DisplayIntegrationTest {
                     assertTrue(output, output.contains("linux-wayland-ok: 3 frames, 320x200"))
                 }
                 assertArrayEquals(longArrayOf(3, 320, 200), NativeDisplay.snapshot())
-                withPixels(activity) { image ->
+                DisplayPixels.withPixels(activity) { image ->
                     assertEquals(Color.RED, image.getPixel(80, 50))
                     assertEquals(Color.GREEN, image.getPixel(240, 50))
                     assertEquals(Color.BLUE, image.getPixel(80, 150))
@@ -173,28 +170,4 @@ class DisplayIntegrationTest {
         }
     }
 
-    private fun awaitVulkanPixels(activity: DisplayTestActivity) {
-        val started = SystemClock.elapsedRealtime()
-        var colors = emptyList<Int>()
-        do {
-            withPixels(activity) { image ->
-                colors = listOf(1, 160, 318).flatMap { x -> listOf(1, 100, 198).map { y -> image.getPixel(x, y) } }
-            }
-            if (colors.all { it == Color.BLUE }) return
-            Thread.sleep(16)
-        } while (SystemClock.elapsedRealtime() - started < 2_000)
-        assertEquals("The final Linux Vulkan frame never reached Android", List(9) { Color.BLUE }, colors)
-    }
-
-    private fun withPixels(activity: DisplayTestActivity, check: (Bitmap) -> Unit) {
-        val image = Bitmap.createBitmap(320, 200, Bitmap.Config.ARGB_8888)
-        val copied = CountDownLatch(1)
-        var result = -1
-        try {
-            PixelCopy.request(activity.surface, image, { result = it; copied.countDown() }, Handler(Looper.getMainLooper()))
-            assertTrue("Pixel copy timed out", copied.await(5, TimeUnit.SECONDS))
-            assertEquals("Android surface has no readable frame", PixelCopy.SUCCESS, result)
-            check(image)
-        } finally { image.recycle() }
-    }
 }

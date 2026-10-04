@@ -24,7 +24,7 @@
     X(ResetCommandBuffer) X(BeginCommandBuffer) X(EndCommandBuffer) \
     X(CmdPipelineBarrier) X(CmdBlitImage) X(CreateFence) X(DestroyFence) \
     X(WaitForFences) X(ResetFences) X(CreateSemaphore) X(DestroySemaphore) \
-    X(ImportSemaphoreFdKHR)
+    X(ImportSemaphoreFdKHR) X(GetPastPresentationTimingGOOGLE)
 struct deck_gpu {
     VkInstance instance;
     VkPhysicalDevice physical;
@@ -37,6 +37,8 @@ struct deck_gpu {
     VkImage *images;
     VkSemaphore *ready;
     uint32_t image_count;
+    uint32_t present_id;
+    uint64_t generation;
     VkExtent2D extent;
     VkFormat format;
     VkSemaphore acquired, source_ready;
@@ -67,5 +69,5 @@ void deck_gpu_detach(struct deck_gpu *gpu);
 size_t deck_gpu_modifiers(struct deck_gpu *gpu, uint64_t *out, size_t capacity);
 struct deck_gpu_image *deck_gpu_import(struct deck_gpu *gpu, int fd, uint64_t modifier, int width, int height, uint32_t stride, uint32_t offset);
 void deck_gpu_image_destroy(struct deck_gpu_image *image);
-bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int acquire_fd);
+bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int acquire_fd, uint32_t *present_id);
 #endif

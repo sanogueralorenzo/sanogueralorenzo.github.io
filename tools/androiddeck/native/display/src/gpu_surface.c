@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 void deck_gpu_detach(struct deck_gpu *gpu) {
+    gpu->generation++;
     if (gpu->swapchain) {
         gpu->vk.DeviceWaitIdle(gpu->device);
         for (uint32_t i = 0; i < gpu->image_count; i++) if (gpu->ready && gpu->ready[i]) gpu->vk.DestroySemaphore(gpu->device, gpu->ready[i], NULL);

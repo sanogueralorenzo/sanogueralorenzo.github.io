@@ -31,6 +31,8 @@ curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-p
 printf '%s  %s\n' "$DMABUF_SHA256" "$OUT/protocols/linux-dmabuf.xml" | shasum -a 256 -c -
 curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-protocols/$PROTOCOLS_VERSION/unstable/linux-explicit-synchronization/linux-explicit-synchronization-unstable-v1.xml" -o "$OUT/protocols/explicit-sync.xml"
 printf '%s  %s\n' "$EXPLICIT_SYNC_SHA256" "$OUT/protocols/explicit-sync.xml" | shasum -a 256 -c -
+curl -fsSL --retry 3 "https://raw.githubusercontent.com/wayland-mirror/wayland-protocols/$PROTOCOLS_VERSION/stable/presentation-time/presentation-time.xml" -o "$OUT/protocols/presentation-time.xml"
+printf '%s  %s\n' "$PRESENTATION_TIME_SHA256" "$OUT/protocols/presentation-time.xml" | shasum -a 256 -c -
 mkdir -p "$OUT/generated" "$OUT/ffi-build"
 (
     cd "$OUT/ffi-build"
@@ -63,11 +65,11 @@ cc -O2 -DHAVE_STRNDUP=1 -I"$OUT/wayland/src" -I"$OUT/generated" \
 for side in server client; do
     "$OUT/scanner" "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol.h"
     "$OUT/scanner" -c "$side-header" "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-$side-protocol-core.h"
-    for protocol in xdg-shell linux-dmabuf explicit-sync; do
+    for protocol in xdg-shell linux-dmabuf explicit-sync presentation-time; do
         "$OUT/scanner" "$side-header" "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-$side.h"
     done
 done
 "$OUT/scanner" public-code "$OUT/wayland/protocol/wayland.xml" "$OUT/generated/wayland-protocol.c"
-for protocol in xdg-shell linux-dmabuf explicit-sync; do
+for protocol in xdg-shell linux-dmabuf explicit-sync presentation-time; do
     "$OUT/scanner" private-code "$OUT/protocols/$protocol.xml" "$OUT/generated/$protocol-protocol.c"
 done

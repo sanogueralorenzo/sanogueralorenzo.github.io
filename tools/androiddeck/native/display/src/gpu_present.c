@@ -3,7 +3,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int acquire_fd) {
+bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int acquire_fd, uint32_t *present_id) {
+    *present_id = 0;
     VkResult result = VK_ERROR_SURFACE_LOST_KHR;
     if (!gpu->swapchain) goto failed;
     result = gpu->vk.WaitForFences(gpu->device, 1, &gpu->fence, true, 1000000000);
@@ -80,7 +81,11 @@ bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int ac
     if (result != VK_SUCCESS) goto failed;
     result = gpu->vk.QueueSubmit(gpu->queue, 1, &submit, gpu->fence);
     if (result != VK_SUCCESS) goto failed;
-    VkPresentInfoKHR present = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .waitSemaphoreCount = 1,
+    if (++gpu->present_id == 0) gpu->present_id++;
+    VkPresentTimeGOOGLE time = { .presentID = gpu->present_id };
+    VkPresentTimesInfoGOOGLE times = { .sType = VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE,
+        .swapchainCount = 1, .pTimes = &time };
+    VkPresentInfoKHR present = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .pNext = &times, .waitSemaphoreCount = 1,
         .pWaitSemaphores = &gpu->ready[index], .swapchainCount = 1, .pSwapchains = &gpu->swapchain, .pImageIndices = &index };
     VkResult presented = gpu->vk.QueuePresentKHR(gpu->queue, &present);
     result = gpu->vk.WaitForFences(gpu->device, 1, &gpu->fence, true, 1000000000);
@@ -91,7 +96,7 @@ bool deck_gpu_present(struct deck_gpu *gpu, struct deck_gpu_image *image, int ac
         ANativeWindow *window = gpu->window;
         return deck_gpu_attach(gpu, window);
     }
-    if (presented == VK_SUCCESS || presented == VK_SUBOPTIMAL_KHR) return true;
+    if (presented == VK_SUCCESS || presented == VK_SUBOPTIMAL_KHR) { *present_id = gpu->present_id; return true; }
     result = presented;
 failed:
     if (acquire_fd >= 0) close(acquire_fd);

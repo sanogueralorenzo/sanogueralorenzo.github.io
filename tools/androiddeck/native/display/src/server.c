@@ -30,12 +30,15 @@ struct deck_display *deck_start(const char *socket, ANativeWindow *window, int r
     display->height = ANativeWindow_getHeight(window);
     display->refresh = refresh;
     wl_list_init(&display->surfaces);
+    wl_list_init(&display->outputs);
     display->wayland = wl_display_create();
     if (!display->wayland) goto failed;
-    if (!gpu && wl_display_init_shm(display->wayland) < 0) goto failed;
+    // SDL allocates cursor images through wl_shm even with a Vulkan window.
+    // GPU display commits still require dma-bufs in deck_present.
+    if (wl_display_init_shm(display->wayland) < 0) goto failed;
     if (wl_display_add_socket(display->wayland, socket) < 0) goto failed;
     if (!deck_register_surfaces(display) || !deck_register_shell(display)) { errno = ENOMEM; goto failed; }
-    if (gpu && (!deck_register_dmabuf(display) || !deck_register_sync(display))) goto failed;
+    if (gpu && (!deck_register_dmabuf(display) || !deck_register_sync(display) || !deck_register_feedback(display))) goto failed;
     display->stop_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (display->stop_fd < 0) goto failed;
     display->stop_source = wl_event_loop_add_fd(wl_display_get_event_loop(display->wayland), display->stop_fd, WL_EVENT_READABLE, stop_event, display);
@@ -46,6 +49,7 @@ struct deck_display *deck_start(const char *socket, ANativeWindow *window, int r
 failed:
     error = errno;
     if (display->stop_source) wl_event_source_remove(display->stop_source);
+    if (display->feedback_source) wl_event_source_remove(display->feedback_source);
     if (display->stop_fd >= 0) close(display->stop_fd);
     if (display->wayland) wl_display_destroy(display->wayland);
     if (display->format_fd >= 0) close(display->format_fd);
@@ -62,6 +66,7 @@ void deck_stop(struct deck_display *display) {
     do { count = write(display->stop_fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);
     pthread_join(display->thread, NULL);
     wl_display_destroy_clients(display->wayland);
+    if (display->feedback_source) wl_event_source_remove(display->feedback_source);
     wl_event_source_remove(display->stop_source);
     close(display->stop_fd);
     wl_display_destroy(display->wayland);

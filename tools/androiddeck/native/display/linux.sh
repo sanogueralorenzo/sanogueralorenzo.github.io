@@ -51,20 +51,25 @@ mkdir "$WORK/ffi-build"
     "$DEPS/generated/wayland-protocol.c" "$DEPS/generated/xdg-shell-protocol.c" \
     "$WORK/ffi/lib/libffi.a" -o "$OUT/probe/arm64-v8a/libwayland-probe.so"
 
-# A GNU/Linux .so, independent of Android's Bionic Wayland engine.
-"$TOOLS/bin/clang" --target=aarch64-linux-gnu --sysroot="$SYSROOT" \
+# GNU/Linux libraries, independent of Android's Bionic engines.
+shared_library() {
+    local library=$1
+    shift
+    "$TOOLS/bin/clang" --target=aarch64-linux-gnu --sysroot="$SYSROOT" \
     -isystem "$SYSROOT/usr/include" -isystem "$SYSROOT/usr/include/aarch64-linux-gnu" \
     -isystem "$TOOLS/sysroot/usr/include/aarch64-linux-android" -isystem "$TOOLS/sysroot/usr/include" \
     -O2 -fPIC -mno-outline-atomics -fuse-ld=lld -nostdlib -shared \
     -I"$DEPS/wayland/src" -I"$DEPS/generated" -I"$WORK/ffi/include" \
-    "$LIB/crti.o" "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
-    "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
-    "$DEPS/generated/wayland-protocol.c" "$WORK/ffi/lib/libffi.a" "$BUILTINS" \
+    "$LIB/crti.o" "$@" "$BUILTINS" \
     "$LIB/libc.so.6" "$LIB/libc_nonshared.a" "$LIB/crtn.o" \
-    -Wl,-soname,libwayland-client.so.0 -Wl,-z,max-page-size=16384 \
-    -o "$OUT/libwayland-client.so.0"
+    -Wl,-soname,"$library" -Wl,-z,max-page-size=16384 -o "$OUT/$library"
+}
+shared_library libwayland-client.so.0 "$DEPS/wayland/src/wayland-client.c" "$DEPS/wayland/src/connection.c" \
+    "$DEPS/wayland/src/wayland-os.c" "$DEPS/wayland/src/wayland-util.c" \
+    "$DEPS/generated/wayland-protocol.c" "$WORK/ffi/lib/libffi.a"
+shared_library libdeck-drm.so "$HERE/../session/drm.c"
 
 # The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
 "$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \
-    "$HERE/probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" \
+    "$HERE/probe.c" "$HERE/probe_vulkan.c" "$DEPS/generated/xdg-shell-protocol.c" "$DEPS/generated/presentation-time-protocol.c" \
     "$OUT/libwayland-client.so.0" -o "$OUT/probe/arm64-v8a/libwayland-vulkan-probe.so"

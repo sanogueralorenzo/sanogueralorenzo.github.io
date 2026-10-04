@@ -9,7 +9,11 @@ import org.tukaani.xz.XZInputStream
 internal class SessionComponents(private val context: Context) {
     val root = File(context.filesDir, "session-components")
     val installed get() = File(root, ".androiddeck-components").takeIf { it.isFile }?.readText() == VERSION &&
-        File(root, "usr/games/gamescope").canExecute() && File(root, "usr/bin/Xwayland").canExecute()
+        complete(root)
+
+    private fun complete(directory: File) = File(directory, "usr/games/gamescope").canExecute() &&
+        File(directory, "usr/bin/Xwayland").canExecute() &&
+        File(directory, "usr/lib/aarch64-linux-gnu/libdeck-drm.so").isFile
 
     fun install(progress: (String) -> Unit) {
         if (installed) return
@@ -22,7 +26,7 @@ internal class SessionComponents(private val context: Context) {
             context.assets.open("session-components.tar.xz").use { input ->
                 XZInputStream(input, 64 * 1024).use { RuntimeArchive.extract(it, staging, ::checkInstallationCancelled) }
             }
-            require(File(staging, "usr/games/gamescope").canExecute() && File(staging, "usr/bin/Xwayland").canExecute()) { "Session components are missing Gamescope or XWayland." }
+            require(complete(staging)) { "Session components are missing Gamescope, XWayland, or the GPU adapter." }
             File(staging, ".androiddeck-components").writeText(VERSION)
             checkInstallationCancelled()
             RuntimeArchive.delete(root)
@@ -30,5 +34,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-3" }
+    companion object { const val VERSION = "resolute-gamescope-3.16.20-components-4" }
 }

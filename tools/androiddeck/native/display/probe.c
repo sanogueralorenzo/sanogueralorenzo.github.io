@@ -8,6 +8,14 @@
 #include <string.h>
 #include <stdbool.h>
 #include <dlfcn.h>
+#include <time.h>
+#ifdef DECK_VULKAN_PROBE
+#include "presentation-time-client.h"
+static struct wp_presentation *presentation;
+static clockid_t presentation_clock = -1;
+static void clock_id(void *data, struct wp_presentation *presentation, uint32_t id) { presentation_clock = id; }
+static const struct wp_presentation_listener presentation_listener = { clock_id };
+#endif
 
 static int check_driver(void) {
     void *driver = dlopen("/opt/androiddeck/graphics/linux/libvulkan_freedreno.so", RTLD_NOW | RTLD_LOCAL);
@@ -29,6 +37,12 @@ static void global(void *data, struct wl_registry *registry, uint32_t id, const 
     if (!strcmp(name, "wl_compositor")) compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
     if (!strcmp(name, "wl_shm")) shm = wl_registry_bind(registry, id, &wl_shm_interface, 1);
     if (!strcmp(name, "xdg_wm_base")) shell = wl_registry_bind(registry, id, &xdg_wm_base_interface, 1);
+#ifdef DECK_VULKAN_PROBE
+    if (!strcmp(name, "wp_presentation")) {
+        presentation = wl_registry_bind(registry, id, &wp_presentation_interface, 1);
+        wp_presentation_add_listener(presentation, &presentation_listener, NULL);
+    }
+#endif
 }
 static void removed(void *data, struct wl_registry *registry, uint32_t id) { }
 static const struct wl_registry_listener registry_listener = { global, removed };
@@ -45,7 +59,7 @@ static const struct wl_callback_listener frame_listener = { frame_done };
 static void release(void *data, struct wl_buffer *buffer) { released = true; }
 static const struct wl_buffer_listener buffer_listener = { release };
 #ifdef DECK_VULKAN_PROBE
-int probe_vulkan(struct wl_display *display, struct wl_surface *surface);
+int probe_vulkan(struct wl_display *display, struct wl_surface *surface, struct wp_presentation *presentation, clockid_t clock);
 #endif
 static void dispatch_until(struct wl_display *display, const bool *value) {
     while (!*value) if (wl_display_dispatch(display) < 0) { fputs("Wayland connection failed\n", stderr); exit(2); }
@@ -69,7 +83,13 @@ int main(int argc, char **argv) {
     wl_surface_commit(surface);
     dispatch_until(display, &configured);
 #ifdef DECK_VULKAN_PROBE
-    int status = probe_vulkan(display, surface);
+    if (!presentation) { fputs("Presentation-time feedback is unavailable\n", stderr); return 4; }
+    // Validate our own completion timestamps directly. Gamescope's nested
+    // client feedback is upstream behavior; this mode verifies visible pixels.
+    bool nested = argc > 1 && !strcmp(argv[1], "nested");
+    int status = probe_vulkan(display, surface, nested ? NULL : presentation, presentation_clock);
+    if (status == 0 && nested) { fflush(stdout); pause(); }
+    wp_presentation_destroy(presentation);
 #else
     const int width = 320, height = 200, bytes = width * height * 4;
     int fd = memfd_create("androiddeck-probe", MFD_CLOEXEC);

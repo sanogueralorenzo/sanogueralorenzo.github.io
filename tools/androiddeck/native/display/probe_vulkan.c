@@ -7,8 +7,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <time.h>
+#include "presentation-time-client.h"
 
-int probe_vulkan(struct wl_display *display, struct wl_surface *window) {
+static clockid_t presentation_clock = -1;
+static bool feedback_done, feedback_valid;
+static uint64_t last_timestamp;
+static void sync_output(void *data, struct wp_presentation_feedback *feedback, struct wl_output *output) { }
+static void feedback_presented(void *data, struct wp_presentation_feedback *feedback,
+        uint32_t sec_hi, uint32_t sec_lo, uint32_t nsec, uint32_t refresh, uint32_t seq_hi, uint32_t seq_lo, uint32_t flags) {
+    struct timespec now;
+    uint64_t timestamp = (((uint64_t)sec_hi << 32) | sec_lo) * 1000000000u + nsec;
+    feedback_valid = clock_gettime(presentation_clock, &now) == 0 && nsec < 1000000000u &&
+        timestamp > last_timestamp && timestamp <= (uint64_t)now.tv_sec * 1000000000u + now.tv_nsec;
+    printf("linux-presentation-time: %llu ns, flags=%u\n", (unsigned long long)timestamp, flags);
+    last_timestamp = timestamp;
+    feedback_done = true;
+    wp_presentation_feedback_destroy(feedback);
+}
+static void feedback_discarded(void *data, struct wp_presentation_feedback *feedback) {
+    fputs("Linux test frame was discarded\n", stderr);
+    feedback_done = true; feedback_valid = false;
+    wp_presentation_feedback_destroy(feedback);
+}
+static const struct wp_presentation_feedback_listener feedback_listener = { sync_output, feedback_presented, feedback_discarded };
+
+int probe_vulkan(struct wl_display *display, struct wl_surface *window, struct wp_presentation *presentation, clockid_t clock) {
+    presentation_clock = clock;
+    if (wl_display_roundtrip(display) < 0 || (presentation && presentation_clock < 0)) return 4;
     void *library = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
     if (!library) { fprintf(stderr, "Linux Vulkan loader: %s\n", dlerror()); return 4; }
     PFN_vkGetInstanceProcAddr get = (PFN_vkGetInstanceProcAddr)dlsym(library, "vkGetInstanceProcAddr");
@@ -55,9 +81,13 @@ int probe_vulkan(struct wl_display *display, struct wl_surface *window) {
     uint32_t physical_count = 1;
     CHECK(EnumeratePhysicalDevices(instance, &physical_count, &physical));
     if (physical_count != 1) goto done;
-    VkPhysicalDeviceDriverProperties driver = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES };
+    VkPhysicalDeviceDrmPropertiesEXT drm = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT };
+    VkPhysicalDeviceDriverProperties driver = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES, .pNext = &drm };
     VkPhysicalDeviceProperties2 properties = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, .pNext = &driver };
     GetPhysicalDeviceProperties2(physical, &properties);
+    printf("linux-gpu-device: render=%lld:%lld (available=%u), primary=%lld:%lld (available=%u)\n",
+        (long long)drm.renderMajor, (long long)drm.renderMinor, drm.hasRender,
+        (long long)drm.primaryMajor, (long long)drm.primaryMinor, drm.hasPrimary);
     if (driver.driverID != VK_DRIVER_ID_MESA_TURNIP) { fputs("Linux did not select the Turnip driver\n", stderr); goto done; }
     uint32_t queues = 0;
     GetPhysicalDeviceQueueFamilyProperties(physical, &queues, NULL);
@@ -152,11 +182,21 @@ int probe_vulkan(struct wl_display *display, struct wl_surface *window) {
         CHECK(QueueSubmit(queue, 1, &submit, fence));
         VkPresentInfoKHR present = { .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, .waitSemaphoreCount = 1,
             .pWaitSemaphores = &ready[index], .swapchainCount = 1, .pSwapchains = &swapchain, .pImageIndices = &index };
+        feedback_done = feedback_valid = false;
+        if (presentation) {
+            struct wp_presentation_feedback *feedback = wp_presentation_feedback(presentation, window);
+            wp_presentation_feedback_add_listener(feedback, &feedback_listener, NULL);
+        }
         CHECK(QueuePresentKHR(queue, &present));
+        if (presentation) {
+            while (!feedback_done) if (wl_display_dispatch(display) < 0) goto done;
+            if (!feedback_valid) { fputs("Invalid actual presentation timestamp\n", stderr); goto done; }
+        }
     }
     CHECK(DeviceWaitIdle(device));
     if (wl_display_roundtrip(display) < 0) goto done;
     printf("linux-vulkan-ok: 3 frames, %ux%u, %s\n", extent.width, extent.height, properties.properties.deviceName);
+    if (presentation) puts("linux-presentation-ok: 3 ordered display timestamps");
     status = 0;
 done:
     if (device && DeviceWaitIdle) DeviceWaitIdle(device);

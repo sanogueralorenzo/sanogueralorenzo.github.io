@@ -79,11 +79,13 @@ static void bind_shell(struct wl_client *client, void *data, uint32_t version, u
     else wl_client_post_no_memory(client);
 }
 static const struct wl_output_interface output_impl = { .release = destroy_request };
+static void output_destroyed(struct wl_resource *resource) { wl_list_remove(wl_resource_get_link(resource)); }
 static void bind_output(struct wl_client *client, void *data, uint32_t version, uint32_t id) {
     struct deck_display *display = data;
     struct wl_resource *resource = wl_resource_create(client, &wl_output_interface, version, id);
     if (!resource) { wl_client_post_no_memory(client); return; }
-    wl_resource_set_implementation(resource, &output_impl, display, NULL);
+    wl_list_insert(display->outputs.prev, wl_resource_get_link(resource));
+    wl_resource_set_implementation(resource, &output_impl, display, output_destroyed);
     wl_output_send_geometry(resource, 0, 0, 0, 0, WL_OUTPUT_SUBPIXEL_UNKNOWN, "Android", "Android Deck", WL_OUTPUT_TRANSFORM_NORMAL);
     wl_output_send_mode(resource, WL_OUTPUT_MODE_CURRENT | WL_OUTPUT_MODE_PREFERRED, display->width, display->height, display->refresh);
     if (version >= 2) { wl_output_send_scale(resource, 1); wl_output_send_done(resource); }

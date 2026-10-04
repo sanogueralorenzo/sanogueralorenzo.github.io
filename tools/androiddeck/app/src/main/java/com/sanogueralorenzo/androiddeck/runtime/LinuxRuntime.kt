@@ -19,6 +19,11 @@ internal class LinuxRuntime(context: Context, private val root: File) {
             "-w", "/root"
         )
         bindings.forEach { arguments += listOf("-b", it) }
+        // Linux library settings must reach the guest, not Android's PRoot linker.
+        if (environment.isNotEmpty()) {
+            arguments += "/usr/bin/env"
+            arguments += environment.map { (key, value) -> "$key=$value" }
+        }
         val builder = ProcessBuilder(arguments + command).redirectErrorStream(true)
         builder.environment().apply {
             clear()
@@ -27,7 +32,6 @@ internal class LinuxRuntime(context: Context, private val root: File) {
             put("HOME", "/root")
             put("PATH", "/usr/bin:/bin")
             put("LANG", "C.UTF-8")
-            putAll(environment)
         }
         return builder.start()
     }

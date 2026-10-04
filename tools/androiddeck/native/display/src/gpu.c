@@ -95,8 +95,10 @@ bool deck_gpu_open(struct deck_gpu *gpu, const char *driver, const char *librari
     if (gpu->queue_family == UINT32_MAX) { deck_gpu_error(gpu, "GPU graphics queue", VK_ERROR_INITIALIZATION_FAILED); goto failed; }
     const char *device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME, VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
-        VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME };
-    if (!extensions(gpu, device_extensions, 6)) goto failed;
+        VK_EXT_QUEUE_FAMILY_FOREIGN_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+        VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME };
+    const uint32_t extension_count = sizeof(device_extensions) / sizeof(device_extensions[0]);
+    if (!extensions(gpu, device_extensions, extension_count)) goto failed;
     VkPhysicalDeviceExternalSemaphoreInfo sync = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO,
         .handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT };
     VkExternalSemaphoreProperties sync_properties = { .sType = VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES };
@@ -108,7 +110,7 @@ bool deck_gpu_open(struct deck_gpu *gpu, const char *driver, const char *librari
     VkDeviceQueueCreateInfo queue = { .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, .queueFamilyIndex = gpu->queue_family,
         .queueCount = 1, .pQueuePriorities = &priority };
     VkDeviceCreateInfo device = { .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .queueCreateInfoCount = 1, .pQueueCreateInfos = &queue,
-        .enabledExtensionCount = 6, .ppEnabledExtensionNames = device_extensions };
+        .enabledExtensionCount = extension_count, .ppEnabledExtensionNames = device_extensions };
     result = gpu->vk.CreateDevice(gpu->physical, &device, NULL, &gpu->device);
     if (result != VK_SUCCESS) { deck_gpu_error(gpu, "Adreno device creation", result); goto failed; }
 #define LOAD(name) gpu->vk.name = (PFN_vk##name)gpu->vk.GetDeviceProcAddr(gpu->device, "vk" #name); \

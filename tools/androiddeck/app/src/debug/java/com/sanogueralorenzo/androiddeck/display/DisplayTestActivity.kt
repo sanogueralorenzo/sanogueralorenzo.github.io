@@ -14,6 +14,7 @@ class DisplayTestActivity : Activity(), SurfaceHolder.Callback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         surface = SurfaceView(this)
+        surface.holder.setFixedSize(320, 200)
         surface.holder.addCallback(this)
         setContentView(surface)
     }

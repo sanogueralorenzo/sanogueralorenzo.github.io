@@ -47,6 +47,7 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
     if (surface->xdg && !surface->configured) {
         if (surface->pending) wl_resource_post_error(surface->xdg, XDG_SURFACE_ERROR_UNCONFIGURED_BUFFER, "Acknowledge the initial configure before attaching a buffer");
         else if (!surface->serial) deck_configure(surface);
+        deck_feedback_commit(surface, 0);
         return;
     }
     if (surface->pending) {
@@ -56,12 +57,14 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
             struct deck_display *display = surface->display;
             pthread_mutex_lock(&display->window_mutex);
             int fd = surface->acquire_fd; surface->acquire_fd = -1;
+            uint32_t present_id = 0;
             if (!display->window) { if (fd >= 0) close(fd); presented = true; }
-            else if (deck_gpu_present(display->gpu, image, fd)) {
+            else if (deck_gpu_present(display->gpu, image, fd, &present_id)) {
                 presented = true; display->frames++;
                 display->frame_width = image->width; display->frame_height = image->height;
             }
             else snprintf(failure, sizeof(failure), "%s", display->gpu->error);
+            if (presented) deck_feedback_commit(surface, present_id);
             pthread_mutex_unlock(&display->window_mutex);
         } else {
             struct wl_shm_buffer *buffer = wl_shm_buffer_get(surface->pending);
@@ -76,7 +79,7 @@ static void commit(struct wl_client *client, struct wl_resource *resource) {
         wl_list_remove(&surface->pending_destroy.link);
         wl_list_init(&surface->pending_destroy.link);
         surface->pending = NULL;
-    }
+    } else deck_feedback_commit(surface, 0);
     struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
     struct frame_callback *callback, *next;
     wl_list_for_each_safe(callback, next, &surface->frames, link) {
@@ -92,6 +95,7 @@ static const struct wl_surface_interface surface_impl = {
 static void surface_destroyed(struct wl_resource *resource) {
     struct deck_surface *surface = wl_resource_get_user_data(resource);
     deck_sync_destroy(surface);
+    deck_feedback_discard(surface);
     if (surface->pending) wl_list_remove(&surface->pending_destroy.link);
     if (surface->xdg) wl_resource_set_user_data(surface->xdg, NULL);
     if (surface->toplevel) wl_resource_set_user_data(surface->toplevel, NULL);
@@ -110,6 +114,7 @@ static void create_surface(struct wl_client *client, struct wl_resource *resourc
     surface->acquire_fd = -1;
     surface->pending_destroy.notify = buffer_gone;
     wl_list_init(&surface->pending_destroy.link); wl_list_init(&surface->frames);
+    wl_list_init(&surface->feedback);
     wl_list_insert(&display->surfaces, &surface->link);
     wl_resource_set_implementation(surface->resource, &surface_impl, surface, surface_destroyed);
 }
