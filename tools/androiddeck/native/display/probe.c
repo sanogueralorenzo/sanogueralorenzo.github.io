@@ -7,6 +7,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <dlfcn.h>
+
+static int check_driver(void) {
+    void *driver = dlopen("/opt/androiddeck/graphics/linux/libvulkan_freedreno.so", RTLD_NOW | RTLD_LOCAL);
+    if (!driver) { fprintf(stderr, "Turnip load failed: %s\n", dlerror()); return 4; }
+    int (*negotiate)(uint32_t *) = dlsym(driver, "vk_icdNegotiateLoaderICDInterfaceVersion");
+    uint32_t version = 7;
+    int result = negotiate ? negotiate(&version) : -1;
+    if (!result) printf("linux-turnip-ready: ICD interface %u\n", version);
+    else fputs("Turnip has no usable Vulkan ICD interface\n", stderr);
+    dlclose(driver);
+    return result ? 4 : 0;
+}
 
 static struct wl_compositor *compositor;
 static struct wl_shm *shm;
@@ -36,6 +49,7 @@ static void dispatch_until(struct wl_display *display, const bool *value) {
 }
 int main(int argc, char **argv) {
     alarm(15);
+    if (argc > 1 && !strcmp(argv[1], "driver")) return check_driver();
     struct wl_display *display = wl_display_connect(NULL);
     if (!display) { perror("Wayland connect"); return 1; }
     struct wl_registry *registry = wl_display_get_registry(display);

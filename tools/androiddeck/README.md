@@ -25,4 +25,6 @@ Opt into the real download/execution test with `-Pandroid.testInstrumentationRun
 
 After installing the runtime, `-Pandroid.testInstrumentationRunnerArguments.verifyDisplay=true` enables the Linux Wayland display check: actual surface pixels, failed-start recovery, live-client shutdown, and display restart. This development check uses shared-memory frames; Vulkan integration remains unfinished. Gradle's connected test task removes the app and its runtime afterward.
 
+`-Pandroid.testInstrumentationRunnerArguments.verifyGraphics=true` installs the pinned candidate Android/Linux Turnip pair (6 MB download) and checks Linux driver loading with its verified library bundle. Rendering on Adreno remains unvalidated; this setup is currently exercised through the integration test.
+
 See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins and licenses, and [PLAN.md](PLAN.md) for delivery criteria.

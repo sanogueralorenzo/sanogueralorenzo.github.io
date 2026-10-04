@@ -35,9 +35,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("executionProbe"))
-    sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("waylandProbe"))
+    sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("linuxDisplay/probe"))
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("licenseAssets"))
+    sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("graphicsAssets"))
 }
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
@@ -77,16 +78,24 @@ val prepareDisplayDependencies by tasks.registering(Exec::class) {
 }
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, packageLicenses, prepareDisplayDependencies) }
 tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplayDependencies) }
-val compileWaylandProbe by tasks.registering(Exec::class) {
+val buildLinuxDisplay by tasks.registering(Exec::class) {
     dependsOn(prepareDisplayDependencies)
-    inputs.files(rootProject.file("native/display/probe.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/source.env"))
+    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/source.env"))
     inputs.property("ndkVersion", android.ndkVersion.orEmpty())
-    val output = layout.buildDirectory.dir("waylandProbe/arm64-v8a")
-    outputs.file(output.map { it.file("libwayland-probe.so") })
+    val output = layout.buildDirectory.dir("linuxDisplay")
+    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("libwayland-client.so.0") })
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
-    commandLine("bash", rootProject.file("native/display/probe.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
+    commandLine("bash", rootProject.file("native/display/linux.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
 }
-tasks.matching { it.name == "preDebugBuild" }.configureEach { dependsOn(compileWaylandProbe) }
+val packageGraphicsLibraries by tasks.registering(Exec::class) {
+    dependsOn(buildLinuxDisplay)
+    inputs.files(rootProject.file("native/graphics/packages.sh"), rootProject.file("native/graphics/packages.tsv"))
+    inputs.file(layout.buildDirectory.file("linuxDisplay/libwayland-client.so.0"))
+    val output = layout.buildDirectory.dir("graphicsAssets")
+    outputs.file(output.map { it.file("graphics-libraries.tar.xz") })
+    commandLine("bash", rootProject.file("native/graphics/packages.sh"), layout.buildDirectory.dir("linuxDisplay").get().asFile, output.get().asFile)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageGraphicsLibraries) }
 
 dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")

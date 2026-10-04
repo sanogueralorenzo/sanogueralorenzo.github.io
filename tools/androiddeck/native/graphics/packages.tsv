@@ -1,0 +1,16 @@
+libdrm-common	2.4.120-2build1	pool/main/libd/libdrm/libdrm-common_2.4.120-2build1_all.deb	8096	84d60f8726a47b57c2ba9bd4105d838ff8554b7309035a61543e2bee4ed7914a
+libdrm2	2.4.120-2build1	pool/main/libd/libdrm/libdrm2_2.4.120-2build1_arm64.deb	42102	ca73373d35a95c7c912d638fe14c543054e937ef63b8459665c3b70c83ee3f22
+libvulkan1	1.3.275.0-1build1	pool/main/v/vulkan-loader/libvulkan1_1.3.275.0-1build1_arm64.deb	149690	9459488a53ead304d00587c874f9b31d56d59c9aeae5c46b6f78801a89d53e63
+libx11-6	2:1.8.7-1build1	pool/main/libx/libx11/libx11-6_1.8.7-1build1_arm64.deb	649412	16d10ae5d27f1a0feb054001ff2b213b51acd29894f86ff088c31eebeba65fe3
+libx11-data	2:1.8.7-1build1	pool/main/libx/libx11/libx11-data_1.8.7-1build1_all.deb	115446	9ae01f7747e7f479394c697c55acf11d3baf139e8e54b7c4adfb55ef9c50de08
+libx11-xcb1	2:1.8.7-1build1	pool/main/libx/libx11/libx11-xcb1_1.8.7-1build1_arm64.deb	7870	3e900fac4bb54a117dd80f2a01ac9a2ab9519b4af1ec3607e1b6258e4b23f9ea
+libxau6	1:1.0.11-1build1	pool/main/libx/libxau/libxau6_1.0.11-1build1_arm64.deb	7988	31b2128ad75d850b52629210b0002fe314b591c05b9ea68dd20a3213d495f1c3
+libxcb-dri3-0	1.17.0-2build1	pool/main/libx/libxcb/libxcb-dri3-0_1.17.0-2build1_arm64.deb	8120	f06ad7f966861f78b2de5cb23a8dc042c742e1662b1fa3ddc7164270154d2efe
+libxcb-present0	1.17.0-2build1	pool/main/libx/libxcb/libxcb-present0_1.17.0-2build1_arm64.deb	6560	d22d4159a0807c03d5600a089d1a2042f33f0e1e86a4091e3704cf209c4ac5a6
+libxcb-randr0	1.17.0-2build1	pool/main/libx/libxcb/libxcb-randr0_1.17.0-2build1_arm64.deb	20230	62b3ca085c29dcd015c6cafb2cb9843ea20abf972919399ef524493a58c06569
+libxcb-shm0	1.17.0-2build1	pool/main/libx/libxcb/libxcb-shm0_1.17.0-2build1_arm64.deb	6234	e8391a17b88799e60d1e318e3208b7b42fe0d1e523687c5fb3e2ffc9ae81e584
+libxcb-sync1	1.17.0-2build1	pool/main/libx/libxcb/libxcb-sync1_1.17.0-2build1_arm64.deb	10438	907e5c8cc6983369aed1a17feb40efd1cd203c2684913d6fa54cde47847ad5f9
+libxcb-xfixes0	1.17.0-2build1	pool/main/libx/libxcb/libxcb-xfixes0_1.17.0-2build1_arm64.deb	11424	f691e519065b79bce4144cebd628b1d3e8863bddf73fceaf0cb06ee47551f9fb
+libxcb1	1.17.0-2build1	pool/main/libx/libxcb/libxcb1_1.17.0-2build1_arm64.deb	53914	ba3a87039792b05af21aff95721bd580d4daf3b6531534c18d0c5ffc96f3dfa7
+libxdmcp6	1:1.1.3-0ubuntu6	pool/main/libx/libxdmcp/libxdmcp6_1.1.3-0ubuntu6_arm64.deb	10364	6b96dbbae4e515ac8f32d6dacfcb6afd1266118400a85ae7cb3f887895017f53
+libxshmfence1	1.3-1build5	pool/main/libx/libxshmfence/libxshmfence1_1.3-1build5_arm64.deb	4938	8764cf3566b060817cd4ad7dd367c45ca29d133d325c4145644cbcbd639830b2
