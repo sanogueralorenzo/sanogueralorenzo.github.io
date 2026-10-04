@@ -13,7 +13,7 @@ export function createQueuedMessages({ state, root, api, render }) {
     const disabled = pending.has(turn.id) ? "disabled" : "";
     const button = (action, label, symbol) => `<button type="button" class="${hover ? "reply-action" : "queue-action"}" data-action="${action}" data-turn="${escapeHTML(turn.id)}" data-session="${escapeHTML(turn.sessionId)}" aria-label="${label}" title="${label}" ${disabled}>${icon(symbol, 14)}</button>`;
     const running = state.data.turns.some((item) => item.sessionId === turn.sessionId && item.status === "running");
-    const steer = !hover && running ? `<button type="button" class="queue-steer" data-action="steer-queued" data-turn="${escapeHTML(turn.id)}" data-session="${escapeHTML(turn.sessionId)}" aria-label="Steer with this queued message" title="Use this message after the current tool finishes" ${disabled}>Steer</button>` : "";
+    const steer = !hover && running ? button("steer-queued", "Steer with this message", "steer") : "";
     return `<div class="${hover ? "message-actions" : "queued-actions"}">${steer}${button("edit-queued", "Edit queued message", "edit")}${button("delete-queued", "Delete queued message", "trash")}</div>`;
   }
   function composer() {

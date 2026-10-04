@@ -93,11 +93,11 @@ test("session queue controls are visible and include only waiting messages in th
   assert.match(html, /queue-action/);
   assert.match(html, /Edit queued message/);
   assert.match(html, /Delete queued message/);
-  assert.match(html, /Steer with this queued message/);
+  assert.match(html, /Steer with this message/);
   assert.doesNotMatch(html, /data-turn="(?:running|other)"/);
   assert.match(f.queue.controls(f.turn, true), /reply-action/);
   f.state.data.turns = [f.turn];
-  assert.doesNotMatch(f.queue.composer(), /Steer with this queued message/);
+  assert.doesNotMatch(f.queue.composer(), /Steer with this message/);
 });
 
 test("steering a queued row preserves the draft and original message, and failure keeps the row queued", async () => {
