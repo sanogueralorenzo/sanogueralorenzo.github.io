@@ -23,4 +23,5 @@
     <string name="session_channel">Steam session</string>
     <string name="session_notification">Tap to return to Steam.</string>
     <string name="game_controls">Game controls</string>
+    <string name="game_settings">Game settings</string>
 </resources>

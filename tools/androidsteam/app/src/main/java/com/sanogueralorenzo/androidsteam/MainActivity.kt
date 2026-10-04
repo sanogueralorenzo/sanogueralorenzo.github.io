@@ -9,6 +9,7 @@ import android.widget.TextView
 import android.widget.Button
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeController
 import com.sanogueralorenzo.androidsteam.session.SessionActivity
+import com.sanogueralorenzo.androidsteam.games.GameSettingsActivity
 
 class MainActivity : Activity() {
     private val runtime get() = (application as SteamApplication).runtime
@@ -24,6 +25,7 @@ class MainActivity : Activity() {
         }
         findViewById<TextView>(R.id.device).text = getString(R.string.device_description, Build.MODEL, Build.SOC_MODEL)
         findViewById<Button>(R.id.start_steam).setOnClickListener { startActivity(Intent(this, SessionActivity::class.java)) }
+        findViewById<Button>(R.id.game_settings).setOnClickListener { startActivity(Intent(this, GameSettingsActivity::class.java)) }
         findViewById<Button>(R.id.action).setOnClickListener {
             when (val state = runtime.state) {
                 RuntimeController.State.Missing -> runtime.install()

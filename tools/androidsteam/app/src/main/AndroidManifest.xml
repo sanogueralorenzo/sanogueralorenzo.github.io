@@ -12,6 +12,7 @@
                 android:value="User-started local Steam gaming session, retaining its Linux processes while switching apps for Steam Guard authentication." />
         </service>
         <activity android:name=".session.SessionActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".games.GameSettingsActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

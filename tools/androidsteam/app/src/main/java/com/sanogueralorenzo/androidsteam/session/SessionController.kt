@@ -1,6 +1,7 @@
 package com.sanogueralorenzo.androidsteam.session
 
 import android.content.Context
+import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import android.os.Handler
 import android.os.Looper
 import android.view.Surface
@@ -69,6 +70,8 @@ internal class SessionController(private val context: Context) {
                 val graphics = GraphicsInstaller(context).apply { install(progress) }
                 SessionComponents(context).install(progress)
                 SteamInstaller(context).install(progress)
+                progress("Applying game settings…")
+                GameProfiles(context).apply()
                 checkInstallationCancelled()
                 RuntimeArchive.delete(directory)
                 check(directory.mkdirs()) { "Cannot prepare the Steam session." }
