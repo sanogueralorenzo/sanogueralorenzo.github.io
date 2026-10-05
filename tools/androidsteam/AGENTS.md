@@ -6,7 +6,7 @@ Build a minimal Steam Deck experience on Android with clear responsibilities, mi
 - For unfamiliar integration work, investigate relevant reference implementations and upstream documentation. Compare realistic alternatives for the current task, then choose the simplest reliable approach that meets the requirements. Reuse, adapt, or implement independently when the evidence supports that choice; all other guidance still applies.
 - Require Android 16+ (`minSdk = 36`), ARM64, and supported Adreno hardware. Validate one real device first. Assess `targetSdk` separately against runtime execution requirements.
 - Keep one Steam session mode. The initial scope excludes desktop apps, emulators, external game imports, frame generation, and preview/test update channels.
-- Use a small Kotlin Views/XML frontend and a native rendering surface. Steam owns sign-in, installation/updates and game execution. The native launcher owns cached library browsing, search, details and profile/setup navigation; keep Steam management and required prompts accessible.
+- Use a small Kotlin Views/XML frontend and a native rendering surface. Steam remains authoritative for authentication, licenses, installation/updates and game execution; the native Android login must prove it establishes the runtime’s authenticated session. The native launcher owns cached library browsing, search, details and profile/setup navigation; keep Steam management and required prompts accessible.
 - Organize by feature as responsibilities emerge. Setup, runtime, session, display, audio, and input are possible boundaries, not required scaffolding. Keep activities and services thin; extract cohesive responsibilities without creating unused folders, wrappers, or interfaces.
 - Give session state and process lifetime one owner. Make startup, failure, shutdown, and recovery explicit; release resources and reap session processes reliably.
 - Prefer a pinned runtime and matched driver pair for the first device. Use explicit configuration and actionable errors instead of nested routing and silent fallbacks.
@@ -28,3 +28,6 @@ These are starting points, not required dependencies or feature scope. Inspect o
 | [WinNative](https://github.com/WinNative-Emu/WinNative) | Embedded Wayland display, audio, input, and runtime integration. |
 | [Winlator](https://github.com/brunodev85/winlator) | Wine/Box64 execution, graphics, input, and runtime installation. |
 | [GameNative](https://github.com/utkarshdalal/GameNative) | Alternative launcher, game installation, controls, and session management. Its store integrations do not replace our Steam-client scope. |
+| [Armada](https://github.com/armada-os/armada) | ARM64 Steam/Proton defaults and image updates; its full-OS/device assumptions do not apply to Android userspace. |
+| [ROCKNIX](https://github.com/ROCKNIX/distribution) | ARM64 installation, launch and component configuration; do not adopt bootloader or OS replacement. |
+| [GameHub](https://gamehub.xiaoji.com/) | Public Android login/library/launch behavior; do not infer unavailable implementation details. |

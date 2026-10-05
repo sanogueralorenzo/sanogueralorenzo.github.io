@@ -1,6 +1,7 @@
 package com.sanogueralorenzo.androidsteam.session
 
 import android.content.Context
+import com.sanogueralorenzo.androidsteam.SteamApplication
 import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import android.os.Handler
 import android.os.Looper
@@ -8,11 +9,9 @@ import android.view.Surface
 import android.system.Os
 import android.system.OsConstants
 import android.system.ErrnoException
-import com.sanogueralorenzo.androidsteam.display.GraphicsInstaller
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.audio.SessionAudio
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive
-import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androidsteam.runtime.checkInstallationCancelled
 import java.io.File
 import java.io.IOException
@@ -104,10 +103,9 @@ internal class SessionController(private val context: Context) {
             try {
                 val progress: (String) -> Unit = { message -> update(token, State.Working(message)) }
                 check(File("/dev/kgsl-3d0").exists()) { "This build requires supported Adreno graphics." }
-                RuntimeInstaller(context).install(progress)
-                val graphics = GraphicsInstaller(context).apply { install(progress) }
-                SessionComponents(context).install(progress)
-                SteamInstaller(context).install(progress)
+                val preparation = (context.applicationContext as SteamApplication).preparation
+                preparation.install(progress)
+                val graphics = preparation.graphics
                 progress("Applying game settings…")
                 val profiles = GameProfiles(context)
                 val revision = profiles.revision

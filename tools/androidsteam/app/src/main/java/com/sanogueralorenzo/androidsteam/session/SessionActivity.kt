@@ -23,12 +23,11 @@ import android.widget.TextView
 import com.sanogueralorenzo.androidsteam.SteamApplication
 import com.sanogueralorenzo.androidsteam.R
 import com.sanogueralorenzo.androidsteam.SetupActivity
-import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 
 class SessionActivity : Activity(), SurfaceHolder.Callback {
     companion object {
         internal fun intent(context: Context) = Intent(context,
-            if (RuntimeInstaller(context).installed) SessionActivity::class.java else SetupActivity::class.java)
+            if ((context.applicationContext as SteamApplication).preparation.installed) SessionActivity::class.java else SetupActivity::class.java)
     }
 
     private val session get() = (application as SteamApplication).session
