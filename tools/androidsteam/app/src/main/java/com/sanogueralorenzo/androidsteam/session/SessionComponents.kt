@@ -15,6 +15,7 @@ internal class SessionComponents(private val context: Context) {
         File(directory, "usr/lib/libdeck-robust.so").isFile &&
         File(directory, "usr/lib/libdeck-ports.so").isFile &&
         File(directory, "usr/lib/libsteam-wine-memory.so").isFile &&
+        File(directory, "usr/lib/libsteam-ui-pipe.so").isFile &&
         File(directory, "usr/bin/steam-socket-peer").canExecute()
 
     fun install(progress: (String) -> Unit) {
@@ -36,5 +37,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "arch-android-adapters-1" }
+    companion object { const val VERSION = "arch-android-adapters-2" }
 }

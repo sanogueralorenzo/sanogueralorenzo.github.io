@@ -2,6 +2,7 @@ package com.sanogueralorenzo.androidsteam.session
 
 import android.content.Context
 import com.sanogueralorenzo.androidsteam.SteamApplication
+import com.sanogueralorenzo.androidsteam.login.SteamClientBridge
 import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import android.os.Handler
 import android.os.Looper
@@ -45,6 +46,8 @@ internal class SessionController(private val context: Context) {
     private var job: Future<*>? = null
     @Volatile private var process: Process? = null
     @Volatile private var audio: SessionAudio? = null
+    @Volatile var clientBridge: SteamClientBridge? = null
+        private set
     @Volatile private var visible = true
     private var attachedSurface: Surface? = null
     @Volatile var state: State = State.Idle
@@ -117,6 +120,7 @@ internal class SessionController(private val context: Context) {
                 val session = SessionRuntime(context, directory)
                 val games = SteamGameLog(File(context.filesDir, "home/.local/share/Steam/logs/gameprocess_log.txt"))
                 val command = session.steamCommand()
+                clientBridge = SteamClientBridge(directory)
                 // Retain ownership before startup so partial failures also release audio.
                 val playback = SessionAudio(context, directory)
                 audio = playback
@@ -129,25 +133,17 @@ internal class SessionController(private val context: Context) {
                 running = session.start(command, width, height)
                 process = running
                 val output = running.inputStream
-                val log = File(context.cacheDir, "steam-session.log")
+                File(context.cacheDir, "steam-session.log").delete()
                 reader = Thread({
                     try {
-                        java.io.RandomAccessFile(log, "rw").use { file ->
-                            file.setLength(0)
-                            output.bufferedReader().useLines { lines -> lines.forEach { line ->
-                                    val bytes = (line.take(8192) + "\n").toByteArray()
-                                    if (file.filePointer + bytes.size > 1_048_576) { file.setLength(0); file.seek(0) }
-                                    file.write(bytes)
-                                    if (line.startsWith("[----]")) startupProgress.set(System.nanoTime())
-                                    val marker = "Set status message: "
-                                    val position = line.indexOf(marker)
-                                    if (position >= 0) {
-                                        startupProgress.set(System.nanoTime())
-                                        update(token, State.Working(line.substring(position + marker.length).trim()))
-                                    }
-                                }
+                        // Drain Steam output without retaining arbitrary subprocess values.
+                        output.bufferedReader().useLines { lines -> lines.forEach { line ->
+                            if (line.startsWith("[----]")) startupProgress.set(System.nanoTime())
+                            if (line.contains("Set status message: ")) {
+                                startupProgress.set(System.nanoTime())
+                                update(token, State.Working("Connecting to Steam…"))
                             }
-                        }
+                        } }
                     } catch (failure: IOException) { readFailure.set(failure) }
                 }, "Steam output").apply { start() }
                 var displayed = false
@@ -170,7 +166,7 @@ internal class SessionController(private val context: Context) {
                         displayed = true
                         update(token, State.Running)
                     }
-                    check(displayed || System.nanoTime() - startupProgress.get() < TimeUnit.SECONDS.toNanos(90)) { "Steam startup stalled. Stop and retry; startup details are in the app's private log." }
+                    check(displayed || System.nanoTime() - startupProgress.get() < TimeUnit.SECONDS.toNanos(90)) { "Steam startup stalled. Stop Steam and retry." }
                 }
                 val status = File(directory, "steam-exit").takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
                 check(status != null) { "Steam ended without reporting its exit status. Restart Steam." }
@@ -190,8 +186,11 @@ internal class SessionController(private val context: Context) {
                     process = null
                     try { audio?.close() } finally {
                         audio = null
-                        NativeDisplay.stop()
-                        RuntimeArchive.delete(directory)
+                        try { clientBridge?.close() } finally {
+                            clientBridge = null
+                            NativeDisplay.stop()
+                            RuntimeArchive.delete(directory)
+                        }
                     }
                     if (interrupted) Thread.currentThread().interrupt()
                 }

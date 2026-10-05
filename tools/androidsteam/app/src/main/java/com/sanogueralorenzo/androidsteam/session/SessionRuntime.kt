@@ -29,6 +29,7 @@ internal class SessionRuntime(private val context: Context, val directory: File)
                 "-W", width.toString(), "-H", height.toString(), "--") + command, bindings(), environment)
 
     fun steamCommand(): List<String> {
+        com.sanogueralorenzo.androidsteam.login.SteamClientBridge.prepare(directory)
         val network = context.getSystemService(ConnectivityManager::class.java)
         val servers = network.activeNetwork?.let { network.getLinkProperties(it)?.dnsServers }.orEmpty()
         check(servers.isNotEmpty()) { "Connect to a network with DNS, then start Steam again." }
@@ -47,7 +48,7 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         }
         return listOf("/usr/bin/env", "STEAM_RUNTIME=1",
             "SDL_VIDEODRIVER=x11",
-            "LD_PRELOAD=/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
+            "LD_PRELOAD=/opt/androidsteam/session/usr/lib/libsteam-ui-pipe.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
             "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
             "/bin/sh", "/run/androidsteam/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-clientbeta", "steamdeck_stable",
             "-overridepackageurl", "https://client-update.akamai.steamstatic.com") +

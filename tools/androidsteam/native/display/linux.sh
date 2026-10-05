@@ -76,8 +76,7 @@ shared_library libsteam-wine-memory.so "$HERE/../session/wine_memory.c"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/robust_probe.c" -o "$OUT/probe/arm64-v8a/librobust-probe.so"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/socket_peer_probe.c" -o "$OUT/probe/arm64-v8a/libsocket-peer-probe.so"
 "$WORK/cc" -O2 "$HERE/../../app/src/debug/native/x11_locale_probe.c" -o "$OUT/probe/arm64-v8a/libx11-locale-probe.so"
-shared_library libsteam-ui-pipe-probe.so "$HERE/../../app/src/debug/native/steam_ui_pipe_probe.c"
-mv "$OUT/libsteam-ui-pipe-probe.so" "$OUT/probe/arm64-v8a/"
+shared_library libsteam-ui-pipe.so "$HERE/../session/steam_ui_pipe.c"
 
 # The GPU client uses the same shared Wayland library as Mesa's Linux WSI.
 "$WORK/cc" -O2 -DDECK_VULKAN_PROBE -I"$DEPS/wayland/src" -I"$DEPS/generated" \

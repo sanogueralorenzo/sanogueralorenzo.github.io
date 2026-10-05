@@ -3,8 +3,6 @@ package com.sanogueralorenzo.androidsteam
 import android.content.Intent
 import android.os.SystemClock
 import android.system.Os
-import android.system.OsConstants
-import android.system.StructPollfd
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androidsteam.audio.SessionAudio
@@ -14,10 +12,9 @@ import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive
 import com.sanogueralorenzo.androidsteam.session.SessionController
 import com.sanogueralorenzo.androidsteam.session.SessionRuntime
-import java.io.ByteArrayOutputStream
+import com.sanogueralorenzo.androidsteam.login.SteamClientBridge
 import java.io.File
 import java.util.concurrent.TimeUnit
-import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -26,74 +23,104 @@ import org.junit.runner.RunWith
 /** Capability proof only: no account credentials, token retrieval or authentication changes. */
 @RunWith(AndroidJUnit4::class)
 class SteamAuthTransportTest {
+    @Test fun remoteAndParserErrorsDoNotExposePrivateValues() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        repeat(2) { variant ->
+            val directory = File(context.cacheDir, "bridge-error-$variant")
+            assertFalse(directory.exists())
+            assertTrue(directory.mkdirs())
+            val bridge = SteamClientBridge(directory)
+            val sensitive = java.util.UUID.randomUUID().toString()
+            val flags = android.system.OsConstants.O_RDWR or android.system.OsConstants.O_NONBLOCK or android.system.OsConstants.O_CLOEXEC
+            val command = Os.open(File(directory, "ui-command").path, flags, 0)
+            val response = Os.open(File(directory, "ui-response").path, flags, 0)
+            val reply = Thread {
+                val poll = android.system.StructPollfd().apply { fd = command; events = android.system.OsConstants.POLLIN.toShort() }
+                if (Os.poll(arrayOf(poll), 5000) > 0) {
+                    val buffer = ByteArray(4096)
+                    Os.read(command, buffer, 0, buffer.size)
+                    val packet = org.json.JSONObject().put("id", 1)
+                    if (variant == 0) packet.put("error", org.json.JSONObject().put("message", sensitive))
+                    else packet.put("result", org.json.JSONObject().put("targetInfos", sensitive))
+                    val bytes = (packet.toString() + '\u0000').toByteArray()
+                    Os.write(response, bytes, 0, bytes.size)
+                }
+            }
+            try {
+                reply.start()
+                try { bridge.hasAuthenticationInterface(); fail("Malformed remote response must fail") }
+                catch (failure: IllegalStateException) {
+                    assertFalse("Remote values must not reach the error message", failure.message.orEmpty().contains(sensitive))
+                    assertTrue("Remote errors must not escape through causes", failure.cause == null)
+                }
+            } finally {
+                reply.join(6000)
+                bridge.close(); Os.close(command); Os.close(response)
+                RuntimeArchive.delete(directory)
+            }
+        }
+    }
+
+    @Test fun normalSessionOwnsAndClosesPrivateBridge() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyAuthTransport") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val app = context.applicationContext as SteamApplication
+        assertEquals(SessionController.State.Idle, app.session.state)
+        app.preparation.install { }
+        val activity = instrumentation.startActivitySync(Intent(context, com.sanogueralorenzo.androidsteam.session.SessionActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as com.sanogueralorenzo.androidsteam.session.SessionActivity
+        try {
+            val deadline = SystemClock.elapsedRealtime() + 90_000
+            while (app.session.clientBridge == null && app.session.state !is SessionController.State.Failed && SystemClock.elapsedRealtime() < deadline)
+                Thread.sleep(50)
+            val bridge = app.session.clientBridge
+            assertNotNull("Session did not create its private bridge", bridge)
+            var available = false
+            while (!available && SystemClock.elapsedRealtime() < deadline) {
+                available = bridge!!.hasAuthenticationInterface()
+                if (!available) Thread.sleep(100)
+            }
+            assertTrue("Normal session must expose the actual Linux client interface", available)
+            instrumentation.runOnMainSync { app.session.stop() }
+            val stopDeadline = SystemClock.elapsedRealtime() + 20_000
+            while (app.session.state != SessionController.State.Idle && SystemClock.elapsedRealtime() < stopDeadline) Thread.sleep(50)
+            assertEquals(SessionController.State.Idle, app.session.state)
+            assertNull(app.session.clientBridge)
+            assertFalse(File(context.cacheDir, "session").exists())
+            try { bridge!!.hasAuthenticationInterface(); fail("Closed session bridge must reject requests") }
+            catch (_: IllegalStateException) { }
+        } finally {
+            instrumentation.runOnMainSync { app.session.stop(); activity.finish() }
+        }
+    }
+
     @Test fun privatePipeExposesRuntimeAuthenticationMethods() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifyAuthTransport") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val app = context.applicationContext as SteamApplication
         assertEquals("Stop Steam before the transport proof", SessionController.State.Idle, app.session.state)
+        app.preparation.install { }
         assertTrue(app.preparation.installed)
         val directory = File(context.cacheDir, "auth-transport-test")
         assertFalse(directory.exists())
         assertTrue(directory.mkdirs())
         val command = File(directory, "ui-command")
         val response = File(directory, "ui-response")
-        Os.mkfifo(command.path, 0x180)
-        Os.mkfifo(response.path, 0x180)
-        val input = Os.open(response.path, OsConstants.O_RDWR or OsConstants.O_NONBLOCK or OsConstants.O_CLOEXEC or OsConstants.O_NOFOLLOW, 0)
-        val output = Os.open(command.path, OsConstants.O_RDWR or OsConstants.O_NONBLOCK or OsConstants.O_CLOEXEC or OsConstants.O_NOFOLLOW, 0)
+        val bridge = SteamClientBridge(directory)
         val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
         val audio = SessionAudio(context, directory)
         var process: Process? = null
         var reader: Thread? = null
         val diagnostics = java.util.concurrent.ConcurrentHashMap<String, Int>()
-        val pending = ByteArrayOutputStream()
-        val packets = ArrayDeque<JSONObject>()
-        var nextId = 0
-        fun request(method: String, parameters: JSONObject = JSONObject(), session: String? = null): JSONObject {
-            val id = ++nextId
-            val message = JSONObject().put("id", id).put("method", method).put("params", parameters)
-            if (session != null) message.put("sessionId", session)
-            val bytes = (message.toString() + '\u0000').toByteArray()
-            assertEquals("Private command write was incomplete", bytes.size, Os.write(output, bytes, 0, bytes.size))
-            val deadline = SystemClock.elapsedRealtime() + 90_000
-            val poll = StructPollfd().apply { fd = input; events = OsConstants.POLLIN.toShort() }
-            val buffer = ByteArray(4096)
-            while (SystemClock.elapsedRealtime() < deadline) {
-                while (packets.isNotEmpty()) {
-                    val packet = packets.removeFirst()
-                    if (packet.optInt("id") == id) {
-                        assertFalse("Private Steam UI request failed", packet.has("error"))
-                        return packet.getJSONObject("result")
-                    }
-                }
-                assertTrue("Steam ended during the pipe proof", process?.isAlive == true)
-                if (Os.poll(arrayOf(poll), 1000) == 0) continue
-                val count = Os.read(input, buffer, 0, buffer.size)
-                for (i in 0 until count) {
-                    if (buffer[i].toInt() == 0) {
-                        packets.addLast(JSONObject(pending.toString(Charsets.UTF_8.name())))
-                        pending.reset()
-                    } else {
-                        pending.write(buffer[i].toInt())
-                        assertTrue("Private UI response exceeded its limit", pending.size() <= 1_048_576)
-                    }
-                }
-            }
-            val phases = File(directory, "ui-probe-status").takeIf { it.isFile }?.readLines().orEmpty()
-                .filter { it in listOf("entered", "pipe-failed", "pipe-attached", "exec-failed") }.takeLast(8)
-            error("Private Steam UI request timed out; phases=$phases; diagnostics=$diagnostics")
-        }
         try {
             assertTrue(activity.ready.await(5, TimeUnit.SECONDS))
             audio.start()
             NativeDisplay.startVulkan(File(directory, "wayland-0").path, activity.surface.holder.surface, 60_000,
                 File(GraphicsInstaller(context).root, "android").path, context.applicationInfo.nativeLibraryDir)
             val runtime = SessionRuntime(context, directory)
-            val launch = runtime.steamCommand().map {
-                if (it.startsWith("LD_PRELOAD=")) it.replace("LD_PRELOAD=", "LD_PRELOAD=/opt/androidsteam/app/libsteam-ui-pipe-probe.so:") else it
-            }
-            process = runtime.start(launch, 1280, 720)
+            process = runtime.start(runtime.steamCommand(), 1280, 720)
             // Drain subprocess output without persisting or displaying it.
             val running = process!!
             reader = Thread { try { running.inputStream.bufferedReader().useLines { lines -> lines.forEach { line ->
@@ -103,17 +130,7 @@ class SteamAuthTransportTest {
             val deadline = SystemClock.elapsedRealtime() + 90_000
             var found = false
             while (!found && SystemClock.elapsedRealtime() < deadline) {
-                val targets = request("Target.getTargets").getJSONArray("targetInfos")
-                for (i in 0 until targets.length()) {
-                    val target = targets.getJSONObject(i)
-                    if (!target.optString("title").contains("SharedJS", ignoreCase = true)) continue
-                    val session = request("Target.attachToTarget", JSONObject().put("targetId", target.getString("targetId")).put("flatten", true)).getString("sessionId")
-                    val result = request("Runtime.evaluate", JSONObject()
-                        .put("expression", "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth.SetLoginToken === 'function' && typeof SteamClient.Auth.StartSignInFromCache === 'function'")
-                        .put("returnByValue", true), session)
-                    found = result.optJSONObject("result")?.optBoolean("value") == true
-                    request("Target.detachFromTarget", JSONObject().put("sessionId", session))
-                }
+                found = bridge.hasAuthenticationInterface()
                 if (!found) Thread.sleep(500)
             }
             assertTrue("Runtime authentication methods were unavailable on the protected pipe", found)
@@ -125,7 +142,7 @@ class SteamAuthTransportTest {
             reader?.join(3_000)
             NativeDisplay.stop()
             audio.close()
-            Os.close(input); Os.close(output)
+            bridge.close()
             instrumentation.runOnMainSync { activity.finish() }
             RuntimeArchive.delete(directory)
         }
