@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.androidsteam.runtime.LinuxRuntime
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
+import com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.CancellationException
@@ -16,24 +17,32 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RuntimeSnapshotIntegrationTest {
     @Test fun freshSnapshotReplacesRuntimeAndRecoversWithoutTouchingHome() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyRuntimeSnapshot") == "true")
+        val arguments = InstrumentationRegistry.getArguments()
+        val candidate = arguments.getString("verifyRuntimeCandidate") == "true"
+        assumeTrue(candidate || arguments.getString("verifyRuntimeSnapshot") == "true")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val archive = File("/data/local/tmp/androidsteam-runtime.tar.xz")
-        assertEquals(RuntimeInstaller.ARCHIVE_SIZE, archive.length())
+        val bytes = if (candidate) requireNotNull(arguments.getString("runtimeBytes")).toLong() else RuntimeInstaller.ARCHIVE_SIZE
+        val checksum = if (candidate) requireNotNull(arguments.getString("runtimeSha256")) else RuntimeInstaller.SHA256
+        assertTrue("Supply a complete SHA-256", checksum.matches(Regex("[a-f0-9]{64}")))
+        assertEquals(bytes, archive.length())
         val digest = MessageDigest.getInstance("SHA-256")
         archive.inputStream().use { input ->
             val buffer = ByteArray(64 * 1024)
             while (true) { val count = input.read(buffer); if (count < 0) break; digest.update(buffer, 0, count) }
         }
-        assertEquals(RuntimeInstaller.SHA256, digest.digest().joinToString("") { "%02x".format(it) })
+        assertEquals(checksum, digest.digest().joinToString("") { "%02x".format(it) })
         val root = File(context.filesDir, "runtime-validation")
         val previous = File(context.filesDir, "runtime-validation-previous")
         val preserved = File.createTempFile("runtime-preservation-", ".txt", File(context.filesDir, "home"))
         try {
             preserved.writeText("keep user data")
+            RuntimeArchive.delete(root)
             val installer = RuntimeInstaller(context, root)
+            val started = android.os.SystemClock.elapsedRealtime()
             installer.prepare(archive) { println(it) }
             assertTrue(installer.installed)
+            println("Runtime preparation: ${android.os.SystemClock.elapsedRealtime() - started} ms; archive $bytes bytes")
             // Exercise an existing runtime replacement, not just fresh extraction.
             assertTrue(File(root, ".androidsteam-runtime").delete())
             installer.prepare(archive) { println(it) }

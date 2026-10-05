@@ -59,6 +59,17 @@ find "$ROOT/usr/lib/pulseaudio/modules" -type f \
 rm -rf "$ROOT/usr/include" "$ROOT/usr/lib/pkgconfig" "$ROOT/usr/share/pkgconfig" "$ROOT/usr/lib/cmake" \
     "$ROOT/usr/share/man" "$ROOT/usr/share/info" "$ROOT/usr/share/gtk-doc" "$ROOT/usr/share/gir-1.0"
 find "$ROOT/usr/lib" -type f -name '*.a' -delete
+# Keep copyright/license/notice files even when packages install them under doc.
+# Runtime users never invoke package manuals or generate locales; C.UTF-8 is
+# supplied by glibc itself. Keep gconv: Steam can load encodings dynamically.
+find "$ROOT/usr/share/doc" -type f \
+    ! -iname 'COPYING*' ! -iname 'COPYRIGHT*' ! -iname 'LICENSE*' ! -iname 'LICENCE*' \
+    ! -iname 'NOTICE*' ! -iname 'AUTHORS*' -delete
+rm -rf "$ROOT/usr/share/i18n"
+rm -f "$ROOT/usr/bin/localedef" "$ROOT/usr/bin/locale-gen" "$ROOT/etc/locale.gen"
+# Mesa's neural inference API is unrelated to this Zink/Turnip graphics path.
+# Retain libgallium and LLVM until a separately validated build replaces them.
+rm -f "$ROOT/usr/lib/libteflon.so"
 for directory in "$ROOT/usr/share/locale"/*; do
     case "$(basename "$directory")" in en|en_*) ;; *) rm -rf "$directory" ;; esac
 done
