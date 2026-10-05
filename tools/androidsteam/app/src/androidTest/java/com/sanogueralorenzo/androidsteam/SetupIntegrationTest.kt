@@ -19,6 +19,7 @@ class SetupIntegrationTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val controller = (context.applicationContext as SteamApplication).setup
+        foreground(instrumentation)
         if (controller.state == SetupController.State.Missing) {
             val preserved = File.createTempFile("validation-", ".txt", File(context.filesDir, "home"))
             try {
@@ -134,6 +135,7 @@ class SetupIntegrationTest {
         assumeTrue("Opt in to isolated complete setup downloads", InstrumentationRegistry.getArguments().getString("verifyFreshSetup") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val original = instrumentation.targetContext
+        foreground(instrumentation)
         val directory = File(original.filesDir, "setup-validation")
         assertFalse("Remove only a previous isolated validation directory before retrying", directory.exists())
         val context = object : android.content.ContextWrapper(original) {
@@ -170,6 +172,11 @@ class SetupIntegrationTest {
             check(controller.state !is SetupController.State.Working) { "Isolated setup is still cleaning up." }
             com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive.delete(directory)
         }
+    }
+
+    private fun foreground(instrumentation: android.app.Instrumentation) {
+        instrumentation.startActivitySync(android.content.Intent(instrumentation.targetContext, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK))
     }
 
     private fun awaitReady(controller: SetupController, timeout: Long): SetupController.State.Ready {
