@@ -1,0 +1,19 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/game_screen" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/library_background">
+<ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:background="@drawable/library_background">
+    <LinearLayout android:id="@+id/game_content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <ImageButton android:id="@+id/game_back" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginStart="12dp" android:src="@drawable/ic_back" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/back" />
+        <ImageView android:id="@+id/game_hero" android:layout_width="match_parent" android:layout_height="@dimen/game_hero_height" android:background="@drawable/card" android:scaleType="centerCrop" android:importantForAccessibility="no" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+            <TextView android:id="@+id/detail_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="28sp" android:textStyle="bold" android:textColor="@color/foreground" />
+            <TextView android:id="@+id/detail_state" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textSize="15sp" android:textColor="@color/secondary" />
+            <Button android:id="@+id/detail_play" style="@style/LibraryAction" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="20dp" android:text="@string/play" android:textAllCaps="false" android:backgroundTint="#009DFF" />
+            <Button android:id="@+id/detail_manage" style="@style/LibraryAction" android:layout_width="match_parent" android:layout_height="56dp" android:text="@string/manage_steam" android:textAllCaps="false" />
+            <TextView android:id="@+id/detail_history" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:padding="16dp" android:background="@drawable/card" android:lineSpacingExtra="8dp" android:textSize="15sp" android:textColor="@color/foreground" />
+            <Button android:id="@+id/detail_settings" style="@style/LibraryAction" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="16dp" android:text="@string/game_settings" android:textAllCaps="false"  />
+            <TextView android:id="@+id/detail_compatibility" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:textSize="14sp" android:textColor="@color/secondary" android:lineSpacingExtra="6dp" />
+            <TextView android:id="@+id/detail_error" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:textSize="14sp" android:textColor="@color/secondary" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
+<include layout="@layout/library_navigation" />
+</LinearLayout>

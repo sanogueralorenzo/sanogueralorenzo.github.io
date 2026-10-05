@@ -1,28 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:fillViewport="true">
-    <LinearLayout android:id="@+id/content" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/screen_padding">
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/app_name" android:textColor="@color/foreground" android:textSize="32sp" android:textStyle="bold" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="@string/tagline" android:textColor="@color/secondary" android:textSize="17sp" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="40dp" android:text="@string/device_heading" android:textColor="@color/accent" android:textSize="14sp" />
-        <TextView android:id="@+id/device" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:textColor="@color/foreground" android:textSize="18sp" />
-        <TextView android:id="@+id/runtime_heading" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="32dp" android:text="@string/runtime_heading" android:textColor="@color/foreground" android:textSize="22sp" android:textStyle="bold" />
-        <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:textColor="@color/secondary" android:textSize="16sp" />
-        <Button android:id="@+id/action" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp" android:minHeight="56dp" />
-        <TextView android:id="@+id/development_notice" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="24dp" android:text="@string/development_notice" android:textColor="@color/secondary" android:textSize="14sp" />
-        <Button android:id="@+id/start_steam" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" android:minHeight="56dp" android:text="@string/start_steam" />
-        <Button android:id="@+id/game_settings" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:minHeight="48dp" android:text="@string/game_settings" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/library_content" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="@drawable/library_background">
+    <LinearLayout android:id="@+id/library_header" android:layout_width="match_parent" android:layout_height="64dp" android:gravity="center_vertical" android:paddingHorizontal="20dp">
+        <TextView android:id="@+id/library_heading" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/library" android:textColor="@color/foreground" android:textSize="28sp" android:textStyle="bold" />
+        <ImageButton android:id="@+id/library_refresh" android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_refresh" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="@string/refresh_library" />
+        <ImageButton android:id="@+id/profile" android:layout_width="48dp" android:layout_height="48dp" android:src="@drawable/ic_profile" android:background="@drawable/pill" android:contentDescription="@string/profile" />
     </LinearLayout>
-</ScrollView>
+    <EditText android:id="@+id/library_search" android:layout_width="match_parent" android:layout_height="52dp" android:layout_marginHorizontal="20dp" android:layout_marginBottom="12dp" android:paddingHorizontal="16dp" android:background="@drawable/card" android:hint="@string/search_games" android:textColor="@color/foreground" android:textColorHint="@color/secondary" android:importantForAutofill="no" android:inputType="text" android:singleLine="true" android:imeOptions="actionSearch|flagNoExtractUi|flagNoFullscreen" android:visibility="gone" />
+    <LinearLayout android:id="@+id/library_filters" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginHorizontal="20dp" android:gravity="center_vertical">
+        <Button android:id="@+id/filter_all" style="@style/LibraryFilter" android:text="@string/all_games" />
+        <Button android:id="@+id/filter_installed" style="@style/LibraryFilter" android:text="@string/installed" />
+        <Button android:id="@+id/filter_recent" style="@style/LibraryFilter" android:text="@string/recent" />
+    </LinearLayout>
+    <TextView android:id="@+id/library_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="20dp" android:paddingVertical="12dp" android:textSize="12sp" android:textColor="@color/secondary" />
+    <LinearLayout android:id="@+id/library_empty" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:padding="24dp" android:visibility="gone">
+        <TextView android:id="@+id/library_message" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textColor="@color/secondary" android:textSize="16sp" />
+        <Button android:id="@+id/open_steam" android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="20dp" android:text="@string/open_steam" />
+    </LinearLayout>
+    <ListView android:id="@+id/library_games" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:paddingHorizontal="20dp" android:clipToPadding="false" android:divider="#293842" android:dividerHeight="1dp" />
+    <include layout="@layout/library_navigation" />
+</LinearLayout>

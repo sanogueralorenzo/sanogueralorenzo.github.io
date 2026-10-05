@@ -13,6 +13,7 @@ import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.input.SteamSurface
 import com.sanogueralorenzo.androidsteam.input.TouchControls
 import com.sanogueralorenzo.androidsteam.input.ControlProfile
+import com.sanogueralorenzo.androidsteam.input.TouchKey
 import com.sanogueralorenzo.androidsteam.runtime.LinuxRuntime
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 import com.sanogueralorenzo.androidsteam.session.SessionComponents
@@ -98,6 +99,15 @@ class InputIntegrationTest {
                     touch(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), listOf(stickX - 45f * density to stickY, enterX to enterY))
                     // Losing focus releases movement even if the finger never came up.
                     controls.onWindowFocusChanged(false)
+                    controls.extraKeys = listOf(TouchKey.P, TouchKey.R, TouchKey.CTRL, TouchKey.SHIFT)
+                    val extraY = surface.height - 142f * density
+                    // Extra keys use the same coalesced input path, including held modifiers.
+                    for (index in 0..3) {
+                        val x = surface.width - (58f + index * 68f) * density
+                        touch(MotionEvent.ACTION_DOWN, listOf(x to extraY))
+                        if (index == 2) controls.onWindowFocusChanged(false)
+                        else touch(MotionEvent.ACTION_UP, listOf(x to extraY))
+                    }
                     controls.visibility = android.view.View.GONE
                     surface.requestFocus()
                     val now = SystemClock.uptimeMillis()
@@ -121,6 +131,8 @@ class InputIntegrationTest {
                 await("input-key 28 1 13"); await("input-key 28 0 13")
                 await("input-key 57 1 32"); await("input-key 57 0 32")
                 await("input-key 32 1 100"); await("input-key 32 0 100")
+                await("input-key 25 1 112"); await("input-key 25 0 112")
+                await("input-key 29 1 0"); await("input-key 29 0 0")
                 NativeDisplay.key(32, true); NativeDisplay.pointer(.2f, .2f, 273, true); NativeDisplay.touch(2, 0, .2f, .2f)
                 await("input-key 32 1 100"); await("input-button 273 1"); await("input-touch-down 2 64 40")
                 NativeDisplay.attach(null)

@@ -4,6 +4,12 @@
     <com.sanogueralorenzo.androidsteam.input.SteamSurface android:id="@+id/surface" android:layout_width="match_parent" android:layout_height="match_parent" />
     <com.sanogueralorenzo.androidsteam.input.TouchControls android:id="@+id/touch_controls"
         android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+    <ImageButton android:id="@+id/return_library" android:layout_width="48dp" android:layout_height="48dp"
+        android:layout_gravity="top|start" android:layout_margin="8dp" android:src="@drawable/ic_library"
+        android:backgroundTint="#80212C38" android:contentDescription="@string/library" android:focusable="false" />
+    <TextView android:id="@+id/action_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal" android:layout_marginTop="64dp" android:padding="8dp"
+        android:background="#C0111820" android:textColor="@color/foreground" android:textSize="14sp" android:visibility="gone" />
     <ImageButton android:id="@+id/game_controls" android:layout_width="48dp" android:layout_height="48dp"
         android:layout_gravity="top|center_horizontal" android:layout_marginTop="8dp"
         android:src="@drawable/ic_controls" android:backgroundTint="#80212C38" android:contentDescription="@string/game_controls"

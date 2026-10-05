@@ -5,6 +5,9 @@ import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import android.os.Handler
 import android.os.Looper
 import android.view.Surface
+import android.system.Os
+import android.system.OsConstants
+import android.system.ErrnoException
 import com.sanogueralorenzo.androidsteam.display.GraphicsInstaller
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.audio.SessionAudio
@@ -34,6 +37,12 @@ internal class SessionController(private val context: Context) {
     private val listeners = mutableSetOf<(State) -> Unit>()
     private val gameListeners = mutableSetOf<(Int?) -> Unit>()
     private var generation = 0
+    private data class Action(val appId: Int, val install: Boolean, val deadline: Long)
+    private val action = AtomicReference<Action?>()
+    @Volatile private var appliedRevision = -1L
+    val needsRestart get() = (state == State.Running || state is State.Working) && appliedRevision != GameProfiles(context).revision
+    var actionMessage: String? = null
+        private set
     private var job: Future<*>? = null
     @Volatile private var process: Process? = null
     @Volatile private var audio: SessionAudio? = null
@@ -51,6 +60,35 @@ internal class SessionController(private val context: Context) {
 
     fun start(surface: Surface, width: Int, height: Int, refresh: Int) {
         if (state is State.Working || state == State.Running || state == State.Stopping) return
+        begin(surface, width, height, refresh)
+    }
+
+    /** Reap the old client before projecting edited settings and starting its replacement. */
+    fun restart(surface: Surface, width: Int, height: Int, refresh: Int) {
+        check(state == State.Running && gameAppId == null) { "Close the running game before restarting Steam." }
+        val token = ++generation
+        attachedSurface = surface
+        publish(State.Stopping)
+        process?.destroy()
+        job?.cancel(true)
+        worker.execute { main.post {
+            if (generation == token) {
+                if (attachedSurface === surface && surface.isValid) begin(surface, width, height, refresh)
+                else publish(State.Idle)
+            }
+        } }
+    }
+
+    fun requestGame(appId: Int, install: Boolean) {
+        require(appId > 0)
+        check(gameAppId == null || gameAppId == appId) { "Another game is running. Close it before starting this game." }
+        if (gameAppId == appId) return
+        action.set(Action(appId, install, System.nanoTime() + TimeUnit.MINUTES.toNanos(5)))
+        actionMessage = "Waiting for Steam. Complete any sign-in or installation prompts."
+        publish(state)
+    }
+
+    private fun begin(surface: Surface, width: Int, height: Int, refresh: Int) {
         val token = ++generation
         visible = true
         attachedSurface = surface
@@ -71,7 +109,10 @@ internal class SessionController(private val context: Context) {
                 SessionComponents(context).install(progress)
                 SteamInstaller(context).install(progress)
                 progress("Applying game settings…")
-                GameProfiles(context).apply()
+                val profiles = GameProfiles(context)
+                val revision = profiles.revision
+                profiles.apply()
+                appliedRevision = revision
                 checkInstallationCancelled()
                 RuntimeArchive.delete(directory)
                 check(directory.mkdirs()) { "Cannot prepare the Steam session." }
@@ -121,6 +162,7 @@ internal class SessionController(private val context: Context) {
                     if (System.nanoTime() >= nextGameCheck) {
                         nextGameCheck = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500)
                         val appId = games.read()
+                        deliverAction(token, games.clientReady)
                         if (activeGame != appId) {
                             activeGame = appId
                             main.post { if (generation == token) publishGame(appId) }
@@ -164,6 +206,8 @@ internal class SessionController(private val context: Context) {
     fun stop() {
         if (state == State.Idle || state == State.Stopping || state is State.Failed) return
         val token = ++generation
+        action.set(null)
+        actionMessage = null
         publishGame(null)
         publish(State.Stopping)
         process?.destroy()
@@ -193,8 +237,35 @@ internal class SessionController(private val context: Context) {
     }
 
     private fun update(token: Int, value: State) { main.post {
-        if (generation == token && !(state == State.Running && value is State.Working)) publish(value)
+        if (generation == token && !(state == State.Running && value is State.Working)) {
+            if (value == State.Idle || value is State.Failed) { action.set(null); actionMessage = null }
+            publish(value)
+        }
     } }
+
+    /** Steam's existing FIFO accepts fixed URIs; opening it never starts a second client. */
+    private fun deliverAction(token: Int, ready: Boolean) {
+        if (state == State.Stopping) return
+        val requested = action.get() ?: return
+        if ((!ready || appliedRevision != GameProfiles(context).revision) && System.nanoTime() <= requested.deadline) return
+        val failure = if (System.nanoTime() > requested.deadline) "Steam did not accept the request. Complete its prompts, then try Play again."
+        else try {
+            val file = Os.open(File(context.filesDir, "home/.steam/steam.pipe").path,
+                OsConstants.O_WRONLY or OsConstants.O_NONBLOCK or OsConstants.O_CLOEXEC, 0)
+            try {
+                check(OsConstants.S_ISFIFO(Os.fstat(file).st_mode)) { "Steam's command channel is unavailable. Restart Steam." }
+                val uri = "steam://${if (requested.install) "install" else "rungameid"}/${requested.appId}\n".toByteArray(Charsets.US_ASCII)
+                check(Os.write(file, uri, 0, uri.size) == uri.size) { "Steam did not accept the game request. Try again." }
+            } finally { Os.close(file) }
+            null
+        } catch (error: ErrnoException) {
+            if (error.errno in listOf(OsConstants.ENOENT, OsConstants.ENXIO, OsConstants.EAGAIN)) return
+            "Steam's command channel failed. Restart Steam, then try again."
+        } catch (error: Exception) { error.message ?: "Steam could not accept the game request." }
+        if (action.compareAndSet(requested, null)) main.post {
+            if (generation == token) { actionMessage = failure; publish(state) }
+        }
+    }
     private fun publish(value: State) { state = value; listeners.toList().forEach { it(value) } }
     private fun publishGame(appId: Int?) {
         if (gameAppId == appId) return

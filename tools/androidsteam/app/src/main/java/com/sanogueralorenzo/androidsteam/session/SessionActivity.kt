@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.Manifest
 import android.content.Intent
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.hardware.input.InputManager
@@ -17,14 +18,26 @@ import android.window.OnBackInvokedDispatcher
 import com.sanogueralorenzo.androidsteam.input.SteamSurface
 import com.sanogueralorenzo.androidsteam.input.ControlProfile
 import com.sanogueralorenzo.androidsteam.input.TouchControls
+import com.sanogueralorenzo.androidsteam.input.TouchKey
 import android.widget.TextView
 import com.sanogueralorenzo.androidsteam.SteamApplication
 import com.sanogueralorenzo.androidsteam.R
+import com.sanogueralorenzo.androidsteam.SetupActivity
+import com.sanogueralorenzo.androidsteam.runtime.RuntimeInstaller
 
 class SessionActivity : Activity(), SurfaceHolder.Callback {
+    companion object {
+        internal fun intent(context: Context) = Intent(context,
+            if (RuntimeInstaller(context).installed) SessionActivity::class.java else SetupActivity::class.java)
+    }
+
     private val session get() = (application as SteamApplication).session
     private val observer: (SessionController.State) -> Unit = ::render
-    private val gameObserver: (Int?) -> Unit = ::renderControls
+    private val gameObserver: (Int?) -> Unit = { appId ->
+        renderControls(appId)
+        if (appId == intent.getIntExtra("appId", 0)) played = true
+        if (played && appId == null) finish()
+    }
     private val surface get() = findViewById<SteamSurface>(R.id.surface)
     private val controls get() = findViewById<TouchControls>(R.id.touch_controls)
     private val devices = object : InputManager.InputDeviceListener {
@@ -33,11 +46,20 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         override fun onInputDeviceRemoved(deviceId: Int) { controls.release(); surface.releaseInput() }
     }
     private var started = false
+    private var played = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_session)
+        played = savedInstanceState?.getBoolean("played") ?: false
+        val appId = intent.getIntExtra("appId", 0)
+        if (appId > 0 && savedInstanceState == null) try {
+            session.requestGame(appId, intent.getBooleanExtra("install", false))
+        } catch (failure: IllegalStateException) {
+            android.widget.Toast.makeText(this, failure.message, android.widget.Toast.LENGTH_LONG).show()
+        }
+        findViewById<View>(R.id.return_library).setOnClickListener { finish() }
         controls.surface = surface
         findViewById<View>(R.id.game_controls).setOnClickListener {
             val appId = session.gameAppId ?: return@setOnClickListener
@@ -81,7 +103,9 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (!started) {
             started = true
-            if (session.state == SessionController.State.Running || session.state is SessionController.State.Working) session.attach(holder.surface)
+            if (intent.getIntExtra("appId", 0) > 0 && session.needsRestart && session.state == SessionController.State.Running && session.gameAppId == null)
+                session.restart(holder.surface, width, height, (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
+            else if (session.state == SessionController.State.Running || session.state is SessionController.State.Working) session.attach(holder.surface)
             else {
                 session.start(holder.surface, width, height, (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
                 startForegroundService(Intent(this, SessionService::class.java))
@@ -89,15 +113,31 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         } else session.attach(holder.surface)
     }
     override fun surfaceDestroyed(holder: SurfaceHolder) { session.detach(holder.surface) }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putBoolean("played", played)
+        super.onSaveInstanceState(outState)
+    }
 
     private fun renderControls(appId: Int?) {
         controls.release()
         surface.profile = appId?.let { ControlProfile.load(this, it) } ?: ControlProfile.TOUCH
+        controls.extraKeys = appId?.let { TouchKey.load(this, it) }.orEmpty()
         controls.visibility = if (appId != null && surface.profile != ControlProfile.TOUCH) View.VISIBLE else View.GONE
         findViewById<View>(R.id.game_controls).visibility = if (appId != null) View.VISIBLE else View.GONE
     }
 
     private fun render(state: SessionController.State) {
+        // Settings can change while the existing client is still starting.
+        if (started && state == SessionController.State.Running && session.needsRestart &&
+            intent.getIntExtra("appId", 0) > 0 && session.gameAppId == null && surface.holder.surface.isValid) {
+            val frame = surface.holder.surfaceFrame
+            session.restart(surface.holder.surface, frame.width(), frame.height(), (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
+            return
+        }
+        findViewById<TextView>(R.id.action_status).apply {
+            text = session.actionMessage
+            visibility = if (session.actionMessage == null) View.GONE else View.VISIBLE
+        }
         findViewById<TextView>(R.id.session_status).apply {
             visibility = if (state == SessionController.State.Running) View.GONE else View.VISIBLE
             text = when (state) {

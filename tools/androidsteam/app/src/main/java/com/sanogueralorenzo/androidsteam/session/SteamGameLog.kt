@@ -8,15 +8,17 @@ import java.io.RandomAccessFile
 internal class SteamGameLog(private val file: File) {
     private var position = file.length()
     private val processes = linkedMapOf<Int, MutableSet<Int>>()
+    var clientReady = false
+        private set
     val activeAppId: Int? get() = processes.keys.lastOrNull()
 
     fun read(): Int? {
         val stream = try { RandomAccessFile(file, "r") } catch (_: FileNotFoundException) {
             // Steam can remove/replace its log between sessions.
-            position = 0; processes.clear(); return null
+            position = 0; processes.clear(); clientReady = false; return null
         }
         stream.use { input ->
-            if (input.length() < position) { position = 0; processes.clear() }
+            if (input.length() < position) { position = 0; processes.clear(); clientReady = false }
             input.seek(position)
             // Consume bounded chunks; a partial line is retried on the next read.
             val end = minOf(input.length(), position + 65_536)
@@ -33,6 +35,7 @@ internal class SteamGameLog(private val file: File) {
     }
 
     internal fun accept(line: String) {
+        if (line.contains("SSGL: UI mode (0->4)")) clientReady = true
         added.find(line)?.let { match ->
             val appId = match.groupValues[1].toIntOrNull() ?: return
             val pid = match.groupValues[2].toIntOrNull() ?: return

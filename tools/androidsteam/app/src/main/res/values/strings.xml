@@ -24,4 +24,23 @@
     <string name="session_notification">Tap to return to Steam.</string>
     <string name="game_controls">Game controls</string>
     <string name="game_settings">Game settings</string>
+    <string name="library">Library</string>
+    <string name="search">Search</string>
+    <string name="downloads">Downloads</string>
+    <string name="profile">Profile</string>
+    <string name="refresh_library">Refresh library</string>
+    <string name="search_games">Search your games</string>
+    <string name="all_games">All games</string>
+    <string name="installed">Installed</string>
+    <string name="recent">Recent</string>
+    <string name="open_steam">Open Steam</string>
+    <string name="setup">Setup</string>
+    <string name="back">Back</string>
+    <string name="play">Play</string>
+    <string name="install_game">Install in Steam</string>
+    <string name="manage_steam">Manage in Steam</string>
+    <plurals name="game_count">
+        <item quantity="one">%d game</item>
+        <item quantity="other">%d games</item>
+    </plurals>
 </resources>

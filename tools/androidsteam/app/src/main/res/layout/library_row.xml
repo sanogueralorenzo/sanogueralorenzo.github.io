@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="88dp" android:paddingVertical="12dp" android:gravity="center_vertical">
+    <ImageView android:id="@+id/game_art" android:layout_width="116dp" android:layout_height="64dp" android:scaleType="centerCrop" android:background="@drawable/card" android:importantForAccessibility="no" />
+    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="12dp">
+        <TextView android:id="@+id/game_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="2" android:ellipsize="end" android:textSize="16sp" android:textStyle="bold" android:textColor="@color/foreground" />
+        <TextView android:id="@+id/game_state" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:textSize="12sp" android:textColor="@color/secondary" />
+    </LinearLayout>
+    <TextView android:layout_width="16dp" android:layout_height="48dp" android:gravity="center" android:text="›" android:textSize="28sp" android:textColor="@color/secondary" android:importantForAccessibility="no" />
+</LinearLayout>

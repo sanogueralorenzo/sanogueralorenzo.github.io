@@ -1,0 +1,5 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/library_navigation" android:layout_width="match_parent" android:layout_height="72dp" android:background="#101922" android:gravity="center">
+        <Button android:id="@+id/tab_library" style="@style/LibraryTab" android:text="@string/library" android:drawableTop="@drawable/ic_library" />
+        <Button android:id="@+id/tab_search" style="@style/LibraryTab" android:text="@string/search" android:drawableTop="@drawable/ic_search" />
+        <Button android:id="@+id/tab_downloads" style="@style/LibraryTab" android:text="@string/downloads" android:drawableTop="@drawable/ic_download" />
+    </LinearLayout>

@@ -16,7 +16,7 @@ class FoundationTest {
     private val context = instrumentation.targetContext
 
     @Test fun launchesWithHonestRuntimeStatus() {
-        val activity = instrumentation.startActivitySync(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val activity = instrumentation.startActivitySync(Intent(context, SetupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         try {
             instrumentation.runOnMainSync {
                 assertEquals(context.getString(R.string.development_notice), activity.findViewById<TextView>(R.id.development_notice).text.toString())

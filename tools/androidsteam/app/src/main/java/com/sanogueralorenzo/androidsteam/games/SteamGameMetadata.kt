@@ -4,7 +4,11 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-internal data class SteamGameMetadata(val appId: Int, val name: String, val platforms: Set<String>)
+internal data class SteamGameMetadata(
+    val appId: Int, val name: String, val platforms: Set<String>,
+    val visibleOnlyWhenInstalled: Boolean = false, val controllerSupport: String? = null,
+    val artworkPath: String? = null,
+)
 
 /** Steam appinfo v41; cached product metadata is not an ownership source. */
 internal object SteamAppInfo {
@@ -34,10 +38,19 @@ internal object SteamAppInfo {
             val record = objectValue(data, strings, 0)
             val info = record["appinfo"] as? Map<*, *> ?: record
             val common = info["common"] as? Map<*, *> ?: emptyMap<Any, Any>()
+            val extended = info["extended"] as? Map<*, *> ?: emptyMap<Any, Any>()
+            val assets = common["library_assets_full"] as? Map<*, *>
+            val header = assets?.get("library_header") as? Map<*, *>
+            val image = header?.get("image") as? Map<*, *>
+            val storeHeader = common["header_image"] as? Map<*, *>
+            val artwork = (image?.get("english") ?: storeHeader?.get("english")) as? String
             if (common["type"]?.toString().equals("game", true)) {
                 val name = common["name"] as? String
                 if (!name.isNullOrBlank()) games[appId] = SteamGameMetadata(appId, name,
-                    (common["oslist"] as? String).orEmpty().split(',').filter(String::isNotBlank).toSet())
+                    (common["oslist"] as? String).orEmpty().lowercase().split(',').filter(String::isNotBlank).toSet(),
+                    extended.entries.any { (key, value) -> key.toString().equals("VisibleOnlyWhenInstalled", true) && value.toString() == "1" },
+                    common["controller_support"] as? String,
+                    artwork?.takeIf { it.matches(Regex("(?:[a-f0-9]{40}/)?[A-Za-z0-9_]+\\.(?:jpg|png|webp)")) })
             }
             data.limit(limit); data.position(end)
         }

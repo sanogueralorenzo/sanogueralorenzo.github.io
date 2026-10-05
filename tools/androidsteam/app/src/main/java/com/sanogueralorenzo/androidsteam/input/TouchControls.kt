@@ -8,15 +8,16 @@ import android.view.MotionEvent
 import android.view.View
 import kotlin.math.hypot
 
-/** One fixed layout with a digital movement stick and three keyboard actions. */
+/** Fixed movement/actions with up to four optional, per-game keyboard buttons. */
 class TouchControls(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     internal var surface: SteamSurface? = null
+    internal var extraKeys: List<TouchKey> = emptyList()
+        set(value) { if (field == value) return; release(); field = value; invalidate() }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val density = resources.displayMetrics.density
     private val radius get() = 58f * density
     private val stickX get() = 100f * density
     private val stickY get() = height - 100f * density
-    private val buttonY get() = height - 70f * density
     private var stickPointer: Int? = null
     private var stickDx = 0f
     private var stickDy = 0f
@@ -26,7 +27,10 @@ class TouchControls(context: Context, attrs: AttributeSet? = null) : View(contex
 
     init { contentDescription = "Game keyboard controls" }
 
-    private fun buttonX(index: Int) = width - (210f - index * 76f) * density
+    private fun buttonX(index: Int) = width - (if (index < 3) 210f - index * 76f else 58f + (index - 3) * 68f) * density
+    private fun buttonY(index: Int) = height - (if (index < 3) 70f else 142f) * density
+    private fun code(index: Int) = if (index < 3) buttonCodes[index] else extraKeys[index - 3].code
+    private fun label(index: Int) = if (index < 3) buttonLabels[index] else extraKeys[index - 3].label
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -36,11 +40,11 @@ class TouchControls(context: Context, attrs: AttributeSet? = null) : View(contex
         canvas.drawCircle(stickX + stickDx * radius, stickY + stickDy * radius, 23f * density, paint)
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = 13f * density
-        repeat(3) { index ->
-            paint.color = if (buttons.containsValue(buttonCodes[index])) 0xC079D4FF.toInt() else 0xA0212C38.toInt()
-            canvas.drawCircle(buttonX(index), buttonY, 29f * density, paint)
+        repeat(3 + extraKeys.size) { index ->
+            paint.color = if (buttons.containsValue(code(index))) 0xC079D4FF.toInt() else 0xA0212C38.toInt()
+            canvas.drawCircle(buttonX(index), buttonY(index), 29f * density, paint)
             paint.color = 0xFFF1F5F9.toInt()
-            canvas.drawText(buttonLabels[index], buttonX(index), buttonY - (paint.ascent() + paint.descent()) / 2, paint)
+            canvas.drawText(label(index), buttonX(index), buttonY(index) - (paint.ascent() + paint.descent()) / 2, paint)
         }
     }
 
@@ -53,10 +57,10 @@ class TouchControls(context: Context, attrs: AttributeSet? = null) : View(contex
                 move(x, y)
                 return true
             }
-            repeat(3) { button ->
-                if (hypot(x - buttonX(button), y - buttonY) <= 32f * density) {
-                    buttons[id] = buttonCodes[button]
-                    surface?.keys?.set("touch:$id", setOf(buttonCodes[button]))
+            repeat(3 + extraKeys.size) { button ->
+                if (hypot(x - buttonX(button), y - buttonY(button)) <= 32f * density) {
+                    buttons[id] = code(button)
+                    surface?.keys?.set("touch:$id", setOf(code(button)))
                     return true
                 }
             }

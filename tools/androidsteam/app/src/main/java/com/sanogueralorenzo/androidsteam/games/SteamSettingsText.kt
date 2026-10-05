@@ -1,5 +1,9 @@
 package com.sanogueralorenzo.androidsteam.games
 
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
+
 /** Edit selected KeyValues fields while preserving every unrelated source byte. */
 internal class SteamSettingsText(private val source: String) {
     private data class Entry(val key: String, val start: Int, val end: Int,
@@ -107,6 +111,12 @@ internal class SteamSettingsText(private val source: String) {
     }
 
     companion object {
+        fun read(file: File): String {
+            require(file.isFile && file.length() <= 4 * 1024 * 1024) { "Open Steam to prepare its settings, then retry." }
+            return Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT).decode(ByteBuffer.wrap(file.readBytes())).toString()
+        }
+
         private fun quote(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"")
             .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") + "\""
     }

@@ -9,5 +9,6 @@
         <EditText android:id="@+id/environment" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:inputType="textMultiLine|textNoSuggestions" android:maxLength="8192" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Controls" />
         <Spinner android:id="@+id/controls" android:layout_width="match_parent" android:layout_height="48dp" />
+        <Button android:id="@+id/extra_keys" android:layout_width="match_parent" android:layout_height="48dp" android:textAllCaps="false" />
     </LinearLayout>
 </ScrollView>

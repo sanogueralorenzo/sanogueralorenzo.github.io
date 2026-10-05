@@ -34,4 +34,18 @@ class SteamGameLogTest {
         file.appendText("AppID 300 adding PID 3 as a tracked process\nRemove 300 from running list\n")
         assertNull(log.read())
     }
+
+    @Test fun onlyTheNewClientsModeEventAllowsColdLaunchDelivery() {
+        val file = temporary.newFile("gameprocess_log.txt")
+        file.writeText("SSGL: UI mode (0->4)\n")
+        val log = SteamGameLog(file)
+        log.read()
+        assertFalse(log.clientReady)
+        file.appendText("SSGL: UI mode (0->4)\n")
+        log.read()
+        assertTrue(log.clientReady)
+        file.writeText("new log\n")
+        log.read()
+        assertFalse(log.clientReady)
+    }
 }
