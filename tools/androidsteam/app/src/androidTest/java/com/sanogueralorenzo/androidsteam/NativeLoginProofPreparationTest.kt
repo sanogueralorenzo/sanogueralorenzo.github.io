@@ -12,6 +12,41 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 class NativeLoginProofPreparationTest {
+    @Test fun privateSessionIsOwnedAndConfirmedSignedOut() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyNativeLoginIsolation") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val original = instrumentation.targetContext
+        val app = original.applicationContext as DebugSteamApplication
+        val originalSession = app.session
+        val isolated = NativeLoginProofActivity.proofContext(original)
+        assertEquals(com.sanogueralorenzo.androidsteam.session.SessionController.State.Idle, originalSession.state)
+        val activity = instrumentation.startActivitySync(android.content.Intent(original, NativeLoginProofActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) as NativeLoginProofActivity
+        try {
+            assertNotSame(originalSession, app.session)
+            val marker = File(isolated.cacheDir, "proof-status")
+            val deadline = android.os.SystemClock.elapsedRealtime() + 600_000
+            var ready = false
+            while (android.os.SystemClock.elapsedRealtime() < deadline) {
+                val stage = marker.takeIf { it.isFile }?.readText()
+                if (stage == "READY") { ready = true; break }
+                assertFalse("Private session preparation failed", stage == "FAILED_PREPARATION")
+                Thread.sleep(250)
+            }
+            assertTrue("Private session did not become ready", ready)
+            assertTrue(File(isolated.cacheDir, "session/ui-command").exists())
+            assertFalse("Original session must stay closed", File(original.cacheDir, "session/ui-command").exists())
+            assertTrue("Signed-out status requires a delivered observer callback", app.session.clientBridge!!.isSignedOut())
+        } finally {
+            instrumentation.runOnMainSync { activity.closeProof() }
+            val deadline = android.os.SystemClock.elapsedRealtime() + 25_000
+            while (app.session !== originalSession && android.os.SystemClock.elapsedRealtime() < deadline) Thread.sleep(50)
+            assertSame(originalSession, app.session)
+            assertEquals(com.sanogueralorenzo.androidsteam.session.SessionController.State.Idle, originalSession.state)
+            assertFalse(File(isolated.cacheDir, "session/ui-command").exists())
+        }
+    }
+
     @Test fun preparesFreshSteamWithoutCopyingAuthentication() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("prepareNativeLoginProof") == "true")
         val original = InstrumentationRegistry.getInstrumentation().targetContext

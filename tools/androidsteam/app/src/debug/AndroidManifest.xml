@@ -1,5 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <application android:name=".DebugSteamApplication" tools:replace="android:name">
         <activity android:name=".login.NativeLoginProofActivity" android:exported="true" android:permission="android.permission.DUMP" android:screenOrientation="portrait" android:configChanges="orientation|screenSize" />
         <activity android:name=".display.DisplayTestActivity" android:exported="false" android:screenOrientation="landscape" />
     </application>

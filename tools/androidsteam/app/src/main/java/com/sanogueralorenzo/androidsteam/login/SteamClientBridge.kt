@@ -30,7 +30,18 @@ internal class SteamClientBridge(directory: File) : Closeable {
     @Synchronized fun hasAuthenticationInterface(): Boolean = evaluate(
         "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth.SetLoginToken === 'function' && typeof SteamClient.Auth.StartSignInFromCache === 'function'")
 
-    @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; !!globalThis.__androidSteamUser?.strSteamID && globalThis.__androidSteamUser.strSteamID !== '0' && globalThis.__androidSteamUser.bIsOfflineMode === false")
+    @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT && globalThis.__androidSteamUser.bIsOfflineMode === false")
+
+    /** A missing initial observer callback is unknown, never proof that Steam is signed out. */
+    @Synchronized fun isSignedOut(): Boolean = evaluate("""
+        (async () => {
+            $OBSERVER;
+            for (let i = 0; i < 40 && !globalThis.__androidSteamUserObserved; i++)
+                await new Promise(resolve => setTimeout(resolve, 250));
+            return globalThis.__androidSteamUserObserved === true &&
+                !($HAS_ACCOUNT);
+        })()
+    """.trimIndent(), awaitPromise = true)
 
     @Synchronized fun isAuthenticated(steamId: String): Boolean = evaluate(
         "$OBSERVER; globalThis.__androidSteamUser?.strSteamID === ${JSONObject.quote(steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false")
@@ -39,7 +50,7 @@ internal class SteamClientBridge(directory: File) : Closeable {
     @Synchronized fun signIn(tokens: SteamTokens): Boolean = evaluate("""
         (async () => {
             $OBSERVER;
-            if (globalThis.__androidSteamUser?.strSteamID && globalThis.__androidSteamUser.strSteamID !== '0')
+            if ($HAS_ACCOUNT)
                 return globalThis.__androidSteamUser.strSteamID === ${JSONObject.quote(tokens.steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false;
             const result = await SteamClient.Auth.SetLoginToken(${JSONObject.quote(tokens.refresh)}, ${JSONObject.quote(tokens.account)});
             if (result?.result !== 1) return false;
@@ -52,12 +63,16 @@ internal class SteamClientBridge(directory: File) : Closeable {
     private fun evaluate(expression: String, awaitPromise: Boolean = false): Boolean {
         try {
             val targets = request("Target.getTargets").getJSONArray("targetInfos")
-            for (i in 0 until targets.length()) {
-                val target = targets.getJSONObject(i)
-                if (!target.optString("title").contains("SharedJS", ignoreCase = true)) continue
+            val candidates = (0 until targets.length()).map { targets.getJSONObject(it) }
+                .sortedByDescending { it.optString("title").contains("SharedJS", ignoreCase = true) }
+            for (target in candidates) {
                 val session = request("Target.attachToTarget", JSONObject().put("targetId", target.getString("targetId"))
                     .put("flatten", true)).getString("sessionId")
                 try {
+                    val capability = request("Runtime.evaluate", JSONObject().put("expression",
+                        "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth?.SetLoginToken === 'function'")
+                        .put("returnByValue", true), session)
+                    if (capability.optJSONObject("result")?.optBoolean("value") != true) continue
                     val response = request("Runtime.evaluate", JSONObject().put("expression", expression)
                         .put("returnByValue", true).put("awaitPromise", awaitPromise), session)
                     check(!response.has("exceptionDetails"))
@@ -116,10 +131,12 @@ internal class SteamClientBridge(directory: File) : Closeable {
     }
 
     companion object {
+        // Signed-out Steam may return the individual-account namespace with account number zero.
+        private const val HAS_ACCOUNT = "!!globalThis.__androidSteamUser?.strSteamID && (BigInt(globalThis.__androidSteamUser.strSteamID) & 0xffffffffn) !== 0n"
         private const val OBSERVER = """
             if (!globalThis.__androidSteamWatchingUser) {
                 globalThis.__androidSteamWatchingUser = true;
-                SteamClient.User.RegisterForCurrentUserChanges(user => { globalThis.__androidSteamUser = user; });
+                SteamClient.User.RegisterForCurrentUserChanges(user => { globalThis.__androidSteamUser = user; globalThis.__androidSteamUserObserved = true; });
             }
         """
 

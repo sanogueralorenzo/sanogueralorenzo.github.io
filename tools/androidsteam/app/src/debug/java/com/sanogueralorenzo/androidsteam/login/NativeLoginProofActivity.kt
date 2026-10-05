@@ -15,7 +15,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.*
-import com.sanogueralorenzo.androidsteam.SteamApplication
+import com.sanogueralorenzo.androidsteam.DebugSteamApplication
 import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import com.sanogueralorenzo.androidsteam.games.GameLaunchProfile
 import com.sanogueralorenzo.androidsteam.library.SteamLibrary
@@ -31,7 +31,7 @@ import java.util.concurrent.Future
 class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
-    private val app get() = application as SteamApplication
+    private val app get() = application as DebugSteamApplication
     private val session get() = app.session
     private lateinit var isolated: Context
     private lateinit var surface: SurfaceView
@@ -47,8 +47,7 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
     private var job: Future<*>? = null
     private var started = false
     private var closed = false
-    private var originalDelegate: Any? = null
-    private val delegate = SteamApplication::class.java.getDeclaredField("session\$delegate").apply { isAccessible = true }
+    @Volatile private var nativeTokens: SteamTokens? = null
     private val gameObserver: (Int?) -> Unit = { if (it == 732430) mark("GAME_LAUNCHED", "Owned Superflight is running.") }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,8 +56,7 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
         isolated = proofContext(this)
         check(File(isolated.filesDir, "proof-prepared").isFile) { "Prepare the isolated proof first." }
         check(session.state == SessionController.State.Idle)
-        originalDelegate = delegate.get(app)
-        delegate.set(app, lazy { SessionController(isolated) })
+        app.openProof(isolated)
         session.observeGame(gameObserver)
         val frame = FrameLayout(this)
         surface = SurfaceView(this).apply { holder.setFixedSize(1280, 720); holder.addCallback(this@NativeLoginProofActivity) }
@@ -111,9 +109,14 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
         job = worker.submit {
             try {
                 val bridge = awaitBridge()
-                check(!bridge.hasOnlineUser())
+                check(bridge.isSignedOut())
                 mark("READY", "Enter your Steam account and password. Your existing login is preserved.")
-                main.post { signIn.isEnabled = true }
+                nativeTokens = TokenVault(isolated).read()
+                main.post {
+                    signIn.text = if (nativeTokens == null) "Sign in" else "Retry Linux sign-in"
+                    signIn.isEnabled = true
+                    if (nativeTokens != null) { account.visibility = View.GONE; password.visibility = View.GONE }
+                }
             } catch (_: Exception) { mark("FAILED_PREPARATION", "Private Steam startup failed. Close the test and retry.") }
         }
     }
@@ -124,6 +127,11 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
     }
 
     private fun authenticate() {
+        nativeTokens?.let { tokens ->
+            signIn.isEnabled = false
+            job = worker.submit { completeHandoff(tokens) }
+            return
+        }
         val name = account.text.toString().trim()
         val secret = CharArray(password.length()) { password.text[it] }
         password.text.clear()
@@ -136,6 +144,7 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
                 val tokens = NativeSteamAuth().authenticate(name, secret, { type, incorrect ->
                     val response = CompletableFuture<String>()
                     main.post {
+                        if (closed || response.isDone) return@post
                         guard = response
                         status.text = if (type == NativeSteamAuth.Guard.APPROVAL) "Approve Android Steam in the Steam app, or enter an authenticator code below."
                             else if (incorrect) "That code was rejected. Enter a new Steam Guard code."
@@ -144,31 +153,58 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
                     }
                     response
                 }, { message -> main.post { status.text = message } })
-                phase = "FAILED_HANDOFF_INTERFACE"
-                mark("NATIVE_AUTHENTICATED", "Native Android authentication succeeded. Signing the Linux client in…")
-                val bridge = awaitBridge()
-                check(!bridge.hasOnlineUser())
-                phase = "FAILED_HANDOFF_REQUEST"
-                check(bridge.signIn(tokens))
-                mark("HANDOFF_ACCEPTED", "Linux accepted the sign-in request. Verifying the online session…")
-                phase = "FAILED_LINUX_ONLINE"
-                awaitAuthenticated(bridge, tokens.steamId)
-                phase = "FAILED_LICENSES"
-                verifyOwnership(tokens)
                 phase = "FAILED_STORAGE"
                 TokenVault(isolated).save(tokens)
-                GameProfiles(isolated).save(732430, GameLaunchProfile("androidsteam-proton",
-                    listOf("-force-d3d11", "-screen-width", "1280", "-screen-height", "720", "-screen-fullscreen", "1"), emptyMap()))
-                mark("LINUX_AUTHENTICATED", "Linux is online and Superflight ownership is verified. Play, then verify restart.")
-                main.post { code.text.clear(); code.visibility = View.GONE; submitCode.visibility = View.GONE; guard = null; play.isEnabled = true; restart.isEnabled = true }
+                nativeTokens = tokens
+                main.post { clearGuard() }
+                completeHandoff(tokens)
             } catch (_: Exception) {
-                mark(phase, when (phase) {
-                    "FAILED_NATIVE" -> "Native Steam sign-in did not complete. Close the test and retry."
-                    "FAILED_LICENSES" -> "Linux appears signed in, but live Superflight ownership was not verified."
-                    "FAILED_STORAGE" -> "The authenticated session could not be saved securely."
-                    else -> "Native authentication succeeded, but Linux session handoff was not established ($phase)."
-                })
-            } finally { secret.fill('\u0000'); main.post { guard?.cancel(true); guard = null; code.text.clear() } }
+                mark(phase, if (phase == "FAILED_STORAGE") "Native authentication succeeded, but its token could not be saved securely."
+                    else "Native Steam sign-in did not complete. Enter your password and retry.")
+            } finally {
+                secret.fill('\u0000')
+                main.post {
+                    clearGuard()
+                    if (nativeTokens == null && !closed) {
+                        account.visibility = View.VISIBLE; password.visibility = View.VISIBLE; signIn.isEnabled = true
+                    }
+                }
+            }
+        }
+    }
+
+    private fun clearGuard() {
+        guard?.cancel(true); guard = null; code.text.clear()
+        code.visibility = View.GONE; submitCode.visibility = View.GONE
+        code.clearFocus()
+        getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+            .hideSoftInputFromWindow(code.windowToken, 0)
+    }
+
+    private fun completeHandoff(tokens: SteamTokens) {
+        var phase = "FAILED_HANDOFF_INTERFACE"
+        try {
+            mark("NATIVE_AUTHENTICATED", "Native Android authentication succeeded. Signing the Linux client in…")
+            val bridge = awaitBridge()
+            // Retry may already have authenticated the expected account. Never accept a different account.
+            if (!bridge.isAuthenticated(tokens.steamId)) {
+                phase = "FAILED_HANDOFF_PRECONDITION"
+                check(bridge.isSignedOut())
+                phase = "FAILED_HANDOFF_REQUEST"
+                check(bridge.signIn(tokens))
+            }
+            mark("HANDOFF_ACCEPTED", "Linux accepted the sign-in request. Verifying the online session…")
+            phase = "FAILED_LINUX_ONLINE"
+            awaitAuthenticated(bridge, tokens.steamId)
+            phase = "FAILED_LICENSES"
+            verifyOwnership(tokens)
+            GameProfiles(isolated).save(732430, GameLaunchProfile("androidsteam-proton",
+                listOf("-force-d3d11", "-screen-width", "1280", "-screen-height", "720", "-screen-fullscreen", "1"), emptyMap()))
+            mark("LINUX_AUTHENTICATED", "Linux is online and Superflight ownership is verified. Play, then verify restart.")
+            main.post { play.isEnabled = true; restart.isEnabled = true }
+        } catch (_: Exception) {
+            mark(phase, "Native authentication succeeded. Linux sign-in is not verified ($phase). Retry Linux sign-in or close the test.")
+            main.post { if (!closed) { signIn.text = "Retry Linux sign-in"; signIn.isEnabled = true } }
         }
     }
 
@@ -228,14 +264,14 @@ class NativeLoginProofActivity : Activity(), SurfaceHolder.Callback {
         File(isolated.cacheDir, "proof-status").writeText(stage)
         main.post { if (!closed) status.text = message }
     }
-    private fun closeProof() {
+    internal fun closeProof() {
         if (closed) return
         closed = true; guard?.cancel(true); job?.cancel(true); password.text.clear(); code.text.clear()
         session.stop()
         worker.execute {
             try { awaitIdle() } finally { main.post {
                 session.removeGameObserver(gameObserver)
-                delegate.set(app, originalDelegate)
+                app.closeProof()
                 finish(); worker.shutdown()
             } }
         }

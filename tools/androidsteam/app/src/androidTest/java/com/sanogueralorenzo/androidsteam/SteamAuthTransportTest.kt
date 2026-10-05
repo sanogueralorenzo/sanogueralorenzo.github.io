@@ -78,13 +78,15 @@ class SteamAuthTransportTest {
             assertNotNull("Session did not create its private bridge", bridge)
             var available = false
             while (!available && SystemClock.elapsedRealtime() < deadline) {
-                available = bridge!!.hasAuthenticationInterface()
+                assertFalse("Steam startup failed", app.session.state is SessionController.State.Failed)
+                available = try { bridge!!.hasAuthenticationInterface() } catch (_: IllegalStateException) { false }
                 if (!available) Thread.sleep(100)
             }
             assertTrue("Normal session must expose the actual Linux client interface", available)
             var online = false
             while (!online && SystemClock.elapsedRealtime() < deadline) {
-                online = bridge!!.hasOnlineUser()
+                assertFalse("Steam ended before authentication could be checked", app.session.state is SessionController.State.Failed || app.session.state == SessionController.State.Idle)
+                online = try { bridge!!.hasOnlineUser() } catch (_: IllegalStateException) { false }
                 if (!online) Thread.sleep(250)
             }
             assertTrue("Private current-user observer must recognize the cached online session", online)
