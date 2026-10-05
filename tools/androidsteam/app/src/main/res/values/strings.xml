@@ -43,10 +43,4 @@
         <item quantity="one">%d game</item>
         <item quantity="other">%d games</item>
     </plurals>
-    <string name="sign_in_steam">Sign in with Steam</string>
-    <string name="steam_sign_in_hint">Approve sign-in in the official Steam app. Your password stays with Steam.</string>
-    <string name="steam_preparing_sign_in">Preparing Steam sign-in…</string>
-    <string name="steam_approve">Approve in Steam, then return here.</string>
-    <string name="steam_app_required">Install or update the official Steam app, then tap Sign in with Steam again.</string>
-    <string name="steam_sign_in_unavailable">Steam sign-in is taking longer than expected. Check your connection or restart Steam.</string>
 </resources>

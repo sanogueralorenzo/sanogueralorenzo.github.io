@@ -34,4 +34,4 @@ Gradle downloads verified sources and builds the execution/display engines with 
 
 Valve's proprietary Steam client is not redistributed in the APK. Initial setup downloads the stable Steam Deck ARM64 client (version `1788652215`) directly from Valve's Akamai CDN. Component sizes and SHA-256 hashes in `app/src/main/assets/steam/packages.tsv` come from Valve's `steam_client_steamdeck_stable_linuxarm64` manifest. Steam owns subsequent client updates, authentication, and game downloads. Valve's [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/) applies.
 
-The sign-in button uses Valve’s Steam emblem from its [public header SVG](https://store.akamai.steamstatic.com/public/shared/images/header/logo_steam.svg). Steam and its logo are Valve trademarks; Android Steam is independent of Valve.
+The app icon uses Valve’s Steam emblem from its [public header SVG](https://store.akamai.steamstatic.com/public/shared/images/header/logo_steam.svg). Steam and its logo are Valve trademarks; Android Steam is independent of Valve.

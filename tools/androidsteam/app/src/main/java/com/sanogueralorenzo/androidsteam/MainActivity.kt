@@ -135,7 +135,7 @@ class MainActivity : Activity() {
             else -> ""
         }
         findViewById<TextView>(R.id.library_message).text = when {
-            state.snapshot == null -> state.error ?: "Open Steam and sign in, then refresh your library."
+            state.snapshot == null -> state.error ?: "Open Steam to sign in and connect your account."
             tab == Tab.DOWNLOADS -> "No pending game downloads. Steam manages downloads and updates."
             search -> "No matching games in your available library."
             else -> "No games in this view."
