@@ -103,6 +103,10 @@ val packageSessionComponents by tasks.registering(Exec::class) {
 tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(packageSessionComponents) }
 
 dependencies {
+    implementation("in.dragonbra:javasteam:1.8.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.83")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("com.google.protobuf:protobuf-java:4.31.1")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.tukaani:xz:1.12")
     testImplementation("junit:junit:4.13.2")

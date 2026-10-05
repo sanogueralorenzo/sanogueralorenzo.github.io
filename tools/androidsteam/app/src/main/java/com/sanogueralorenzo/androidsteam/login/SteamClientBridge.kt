@@ -27,7 +27,29 @@ internal class SteamClientBridge(directory: File) : Closeable {
         }
     }
 
-    @Synchronized fun hasAuthenticationInterface(): Boolean {
+    @Synchronized fun hasAuthenticationInterface(): Boolean = evaluate(
+        "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth.SetLoginToken === 'function' && typeof SteamClient.Auth.StartSignInFromCache === 'function'")
+
+    @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; !!globalThis.__androidSteamUser?.strSteamID && globalThis.__androidSteamUser.strSteamID !== '0' && globalThis.__androidSteamUser.bIsOfflineMode === false")
+
+    @Synchronized fun isAuthenticated(steamId: String): Boolean = evaluate(
+        "$OBSERVER; globalThis.__androidSteamUser?.strSteamID === ${JSONObject.quote(steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false")
+
+    /** Only operation success leaves CEF; tokens never enter argv or returned diagnostics. */
+    @Synchronized fun signIn(tokens: SteamTokens): Boolean = evaluate("""
+        (async () => {
+            $OBSERVER;
+            if (globalThis.__androidSteamUser?.strSteamID && globalThis.__androidSteamUser.strSteamID !== '0')
+                return globalThis.__androidSteamUser.strSteamID === ${JSONObject.quote(tokens.steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false;
+            const result = await SteamClient.Auth.SetLoginToken(${JSONObject.quote(tokens.refresh)}, ${JSONObject.quote(tokens.account)});
+            if (result?.result !== 1) return false;
+            ${tokens.guard?.let { "SteamClient.Auth.SetSteamGuardData(${JSONObject.quote(tokens.account)}, ${JSONObject.quote(it)});" }.orEmpty()}
+            const login = await SteamClient.Auth.StartSignInFromCache(${JSONObject.quote(tokens.account)}, false);
+            return !login || login.result === 1;
+        })()
+    """.trimIndent(), awaitPromise = true)
+
+    private fun evaluate(expression: String, awaitPromise: Boolean = false): Boolean {
         try {
             val targets = request("Target.getTargets").getJSONArray("targetInfos")
             for (i in 0 until targets.length()) {
@@ -36,10 +58,10 @@ internal class SteamClientBridge(directory: File) : Closeable {
                 val session = request("Target.attachToTarget", JSONObject().put("targetId", target.getString("targetId"))
                     .put("flatten", true)).getString("sessionId")
                 try {
-                    val response = request("Runtime.evaluate", JSONObject()
-                        .put("expression", "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth.SetLoginToken === 'function' && typeof SteamClient.Auth.StartSignInFromCache === 'function'")
-                        .put("returnByValue", true), session)
-                    if (response.optJSONObject("result")?.optBoolean("value") == true) return true
+                    val response = request("Runtime.evaluate", JSONObject().put("expression", expression)
+                        .put("returnByValue", true).put("awaitPromise", awaitPromise), session)
+                    check(!response.has("exceptionDetails"))
+                    return response.optJSONObject("result")?.optBoolean("value") == true
                 } finally { request("Target.detachFromTarget", JSONObject().put("sessionId", session)) }
             }
             return false
@@ -94,6 +116,13 @@ internal class SteamClientBridge(directory: File) : Closeable {
     }
 
     companion object {
+        private const val OBSERVER = """
+            if (!globalThis.__androidSteamWatchingUser) {
+                globalThis.__androidSteamWatchingUser = true;
+                SteamClient.User.RegisterForCurrentUserChanges(user => { globalThis.__androidSteamUser = user; });
+            }
+        """
+
         fun prepare(directory: File) {
             for (name in listOf("ui-command", "ui-response")) {
                 val path = File(directory, name).path

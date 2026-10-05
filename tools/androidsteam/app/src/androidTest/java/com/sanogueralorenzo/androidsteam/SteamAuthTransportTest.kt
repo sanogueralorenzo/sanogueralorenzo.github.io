@@ -82,6 +82,12 @@ class SteamAuthTransportTest {
                 if (!available) Thread.sleep(100)
             }
             assertTrue("Normal session must expose the actual Linux client interface", available)
+            var online = false
+            while (!online && SystemClock.elapsedRealtime() < deadline) {
+                online = bridge!!.hasOnlineUser()
+                if (!online) Thread.sleep(250)
+            }
+            assertTrue("Private current-user observer must recognize the cached online session", online)
             instrumentation.runOnMainSync { app.session.stop() }
             val stopDeadline = SystemClock.elapsedRealtime() + 20_000
             while (app.session.state != SessionController.State.Idle && SystemClock.elapsedRealtime() < stopDeadline) Thread.sleep(50)
