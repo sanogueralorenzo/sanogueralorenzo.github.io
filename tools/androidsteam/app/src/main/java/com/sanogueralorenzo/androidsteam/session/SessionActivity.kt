@@ -24,7 +24,7 @@ import com.sanogueralorenzo.androidsteam.SteamApplication
 import com.sanogueralorenzo.androidsteam.R
 import com.sanogueralorenzo.androidsteam.SetupActivity
 
-class SessionActivity : Activity(), SurfaceHolder.Callback {
+open class SessionActivity : Activity(), SurfaceHolder.Callback {
     companion object {
         internal fun intent(context: Context) = Intent(context,
             if ((context.applicationContext as SteamApplication).preparation.installed) SessionActivity::class.java else SetupActivity::class.java)
@@ -44,6 +44,7 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         override fun onInputDeviceChanged(deviceId: Int) = Unit
         override fun onInputDeviceRemoved(deviceId: Int) { controls.release(); surface.releaseInput() }
     }
+    private lateinit var signIn: com.sanogueralorenzo.androidsteam.login.SteamSignIn
     private var started = false
     private var played = false
 
@@ -51,6 +52,7 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_session)
+        signIn = com.sanogueralorenzo.androidsteam.login.SteamSignIn(this, session)
         played = savedInstanceState?.getBoolean("played") ?: false
         val appId = intent.getIntExtra("appId", 0)
         if (appId > 0 && savedInstanceState == null) try {
@@ -91,13 +93,16 @@ class SessionActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onStart() {
         super.onStart(); session.observe(observer); session.observeGame(gameObserver)
+        signIn.start()
         getSystemService(InputManager::class.java).registerInputDeviceListener(devices, null)
     }
     override fun onStop() {
+        signIn.stop()
         getSystemService(InputManager::class.java).unregisterInputDeviceListener(devices)
         controls.release(); surface.releaseInput()
         session.removeGameObserver(gameObserver); session.removeObserver(observer); super.onStop()
     }
+    override fun onDestroy() { signIn.close(); super.onDestroy() }
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         if (!started) {

@@ -27,10 +27,12 @@ internal class SteamClientBridge(directory: File) : Closeable {
         }
     }
 
-    @Synchronized fun hasAuthenticationInterface(): Boolean = evaluate(
-        "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth.SetLoginToken === 'function' && typeof SteamClient.Auth.StartSignInFromCache === 'function'")
+    @Synchronized fun hasClientInterface(): Boolean = evaluate(
+        "typeof SteamClient !== 'undefined' && typeof SteamClient.User?.RegisterForCurrentUserChanges === 'function'") == true
 
-    @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT && globalThis.__androidSteamUser.bIsOfflineMode === false")
+    @Synchronized fun hasCurrentUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT") == true
+
+    @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT && globalThis.__androidSteamUser.bIsOfflineMode === false") == true
 
     /** A missing initial observer callback is unknown, never proof that Steam is signed out. */
     @Synchronized fun isSignedOut(): Boolean = evaluate("""
@@ -41,26 +43,28 @@ internal class SteamClientBridge(directory: File) : Closeable {
             return globalThis.__androidSteamUserObserved === true &&
                 !($HAS_ACCOUNT);
         })()
-    """.trimIndent(), awaitPromise = true)
+    """.trimIndent(), awaitPromise = true) == true
 
-    @Synchronized fun isAuthenticated(steamId: String): Boolean = evaluate(
-        "$OBSERVER; globalThis.__androidSteamUser?.strSteamID === ${JSONObject.quote(steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false")
+    /** Read only the payload of Steam's displayed QR component; never auth stores or input fields. */
+    @Synchronized fun qrChallenge(): String? {
+        val value = evaluate("""
+            (() => {
+                if (typeof document === 'undefined') return null;
+                for (const element of [...document.querySelectorAll('img[src^="blob:"]')].slice(0, 100)) {
+                    const key = Object.keys(element).find(key => key.startsWith('__reactFiber${'$'}'));
+                    let fiber = key && element[key];
+                    for (let depth = 0; fiber && depth < 12; depth++, fiber = fiber.return) {
+                        const value = fiber.memoizedProps?.children;
+                        if (typeof value === 'string' && /^https:\/\/s\.team\/q\/\d+\/\d+$/.test(value)) return value;
+                    }
+                }
+                return null;
+            })()
+        """.trimIndent(), findValue = true) as? String
+        return value?.takeIf(SteamSignInLink::valid)
+    }
 
-    /** Only operation success leaves CEF; tokens never enter argv or returned diagnostics. */
-    @Synchronized fun signIn(tokens: SteamTokens): Boolean = evaluate("""
-        (async () => {
-            $OBSERVER;
-            if ($HAS_ACCOUNT)
-                return globalThis.__androidSteamUser.strSteamID === ${JSONObject.quote(tokens.steamId)} && globalThis.__androidSteamUser.bIsOfflineMode === false;
-            const result = await SteamClient.Auth.SetLoginToken(${JSONObject.quote(tokens.refresh)}, ${JSONObject.quote(tokens.account)});
-            if (result?.result !== 1) return false;
-            ${tokens.guard?.let { "SteamClient.Auth.SetSteamGuardData(${JSONObject.quote(tokens.account)}, ${JSONObject.quote(it)});" }.orEmpty()}
-            const login = await SteamClient.Auth.StartSignInFromCache(${JSONObject.quote(tokens.account)}, false);
-            return !login || login.result === 1;
-        })()
-    """.trimIndent(), awaitPromise = true)
-
-    private fun evaluate(expression: String, awaitPromise: Boolean = false): Boolean {
+    private fun evaluate(expression: String, awaitPromise: Boolean = false, findValue: Boolean = false): Any? {
         try {
             val targets = request("Target.getTargets").getJSONArray("targetInfos")
             val candidates = (0 until targets.length()).map { targets.getJSONObject(it) }
@@ -69,17 +73,21 @@ internal class SteamClientBridge(directory: File) : Closeable {
                 val session = request("Target.attachToTarget", JSONObject().put("targetId", target.getString("targetId"))
                     .put("flatten", true)).getString("sessionId")
                 try {
-                    val capability = request("Runtime.evaluate", JSONObject().put("expression",
-                        "typeof SteamClient !== 'undefined' && typeof SteamClient.Auth?.SetLoginToken === 'function'")
-                        .put("returnByValue", true), session)
-                    if (capability.optJSONObject("result")?.optBoolean("value") != true) continue
+                    if (!findValue) {
+                        val capability = request("Runtime.evaluate", JSONObject().put("expression",
+                            "typeof SteamClient !== 'undefined' && typeof SteamClient.User?.RegisterForCurrentUserChanges === 'function'")
+                            .put("returnByValue", true), session)
+                        if (capability.optJSONObject("result")?.optBoolean("value") != true) continue
+                    }
                     val response = request("Runtime.evaluate", JSONObject().put("expression", expression)
                         .put("returnByValue", true).put("awaitPromise", awaitPromise), session)
                     check(!response.has("exceptionDetails"))
-                    return response.optJSONObject("result")?.optBoolean("value") == true
+                    val value = response.optJSONObject("result")?.opt("value")?.takeUnless { it === JSONObject.NULL }
+                    if (findValue && value == null) continue
+                    return value
                 } finally { request("Target.detachFromTarget", JSONObject().put("sessionId", session)) }
             }
-            return false
+            return null
         } catch (_: Exception) {
             error("Steam's private interface is unavailable. Restart Steam and retry.")
         }

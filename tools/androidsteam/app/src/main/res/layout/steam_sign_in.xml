@@ -1,0 +1,14 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/steam_sign_in" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center" android:padding="24dp"
+    android:background="@color/background" android:visibility="gone">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="@string/sign_in_steam" android:textSize="24sp" android:textStyle="bold" android:textColor="@color/foreground" />
+    <TextView android:id="@+id/sign_in_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:layout_marginBottom="24dp" android:maxWidth="420dp"
+        android:gravity="center" android:text="@string/steam_preparing_sign_in" android:textSize="16sp" android:textColor="@color/secondary" />
+    <Button android:id="@+id/sign_in_steam" android:layout_width="280dp" android:layout_height="56dp"
+        android:backgroundTint="#244B73" android:textColor="#FFFFFF" android:textAllCaps="false"
+        android:drawableStart="@drawable/steam_logo" android:drawablePadding="12dp" android:paddingHorizontal="24dp"
+        android:text="@string/sign_in_steam" android:enabled="false" />
+</LinearLayout>

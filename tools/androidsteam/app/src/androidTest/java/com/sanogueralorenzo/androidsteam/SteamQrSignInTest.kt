@@ -1,7 +1,7 @@
 package com.sanogueralorenzo.androidsteam
 
 import androidx.test.platform.app.InstrumentationRegistry
-import com.sanogueralorenzo.androidsteam.login.NativeLoginProofActivity
+import com.sanogueralorenzo.androidsteam.login.SteamQrProofActivity
 import com.sanogueralorenzo.androidsteam.session.SteamInstaller
 import java.io.File
 import java.nio.file.Files
@@ -11,17 +11,17 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 
-class NativeLoginProofPreparationTest {
+class SteamQrSignInTest {
     @Test fun privateSessionIsOwnedAndConfirmedSignedOut() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyNativeLoginIsolation") == "true")
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyQrLoginIsolation") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val original = instrumentation.targetContext
         val app = original.applicationContext as DebugSteamApplication
         val originalSession = app.session
-        val isolated = NativeLoginProofActivity.proofContext(original)
+        val isolated = SteamQrProofActivity.proofContext(original)
         assertEquals(com.sanogueralorenzo.androidsteam.session.SessionController.State.Idle, originalSession.state)
-        val activity = instrumentation.startActivitySync(android.content.Intent(original, NativeLoginProofActivity::class.java)
-            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) as NativeLoginProofActivity
+        val activity = instrumentation.startActivitySync(android.content.Intent(original, SteamQrProofActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) as SteamQrProofActivity
         try {
             assertNotSame(originalSession, app.session)
             val marker = File(isolated.cacheDir, "proof-status")
@@ -29,16 +29,25 @@ class NativeLoginProofPreparationTest {
             var ready = false
             while (android.os.SystemClock.elapsedRealtime() < deadline) {
                 val stage = marker.takeIf { it.isFile }?.readText()
-                if (stage == "READY") { ready = true; break }
-                assertFalse("Private session preparation failed", stage == "FAILED_PREPARATION")
+                if (stage == "QR_READY") { ready = true; break }
+                assertFalse("Private session preparation failed", app.session.state is com.sanogueralorenzo.androidsteam.session.SessionController.State.Failed)
                 Thread.sleep(250)
             }
             assertTrue("Private session did not become ready", ready)
             assertTrue(File(isolated.cacheDir, "session/ui-command").exists())
             assertFalse("Original session must stay closed", File(original.cacheDir, "session/ui-command").exists())
             assertTrue("Signed-out status requires a delivered observer callback", app.session.clientBridge!!.isSignedOut())
+            assertTrue("Only a valid Steam challenge should enable sign-in", app.session.clientBridge!!.qrChallenge() != null)
+            val challenge = app.session.clientBridge!!.qrChallenge()!!
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(challenge))
+                .setPackage(com.sanogueralorenzo.androidsteam.login.SteamSignInLink.PACKAGE)
+            assertNotNull("Official Steam app must handle the challenge", original.packageManager.resolveActivity(intent, 0))
+            instrumentation.runOnMainSync {
+                assertEquals("Sign in with Steam", activity.findViewById<android.widget.Button>(R.id.sign_in_steam).text.toString())
+                assertTrue(activity.findViewById<android.widget.Button>(R.id.sign_in_steam).compoundDrawablesRelative[0] != null)
+            }
         } finally {
-            instrumentation.runOnMainSync { activity.closeProof() }
+            instrumentation.runOnMainSync { activity.finish() }
             val deadline = android.os.SystemClock.elapsedRealtime() + 25_000
             while (app.session !== originalSession && android.os.SystemClock.elapsedRealtime() < deadline) Thread.sleep(50)
             assertSame(originalSession, app.session)
@@ -48,9 +57,9 @@ class NativeLoginProofPreparationTest {
     }
 
     @Test fun preparesFreshSteamWithoutCopyingAuthentication() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("prepareNativeLoginProof") == "true")
+        assumeTrue(InstrumentationRegistry.getArguments().getString("prepareQrLoginProof") == "true")
         val original = InstrumentationRegistry.getInstrumentation().targetContext
-        val isolated = NativeLoginProofActivity.proofContext(original)
+        val isolated = SteamQrProofActivity.proofContext(original)
         assertTrue((original.applicationContext as SteamApplication).preparation.installed)
         for (name in listOf("runtime", "graphics", "session-components")) {
             val target = File(isolated.filesDir, name).toPath()

@@ -48,7 +48,7 @@ class SteamAuthTransportTest {
             }
             try {
                 reply.start()
-                try { bridge.hasAuthenticationInterface(); fail("Malformed remote response must fail") }
+                try { bridge.hasClientInterface(); fail("Malformed remote response must fail") }
                 catch (failure: IllegalStateException) {
                     assertFalse("Remote values must not reach the error message", failure.message.orEmpty().contains(sensitive))
                     assertTrue("Remote errors must not escape through causes", failure.cause == null)
@@ -79,7 +79,7 @@ class SteamAuthTransportTest {
             var available = false
             while (!available && SystemClock.elapsedRealtime() < deadline) {
                 assertFalse("Steam startup failed", app.session.state is SessionController.State.Failed)
-                available = try { bridge!!.hasAuthenticationInterface() } catch (_: IllegalStateException) { false }
+                available = try { bridge!!.hasClientInterface() } catch (_: IllegalStateException) { false }
                 if (!available) Thread.sleep(100)
             }
             assertTrue("Normal session must expose the actual Linux client interface", available)
@@ -96,14 +96,14 @@ class SteamAuthTransportTest {
             assertEquals(SessionController.State.Idle, app.session.state)
             assertNull(app.session.clientBridge)
             assertFalse(File(context.cacheDir, "session").exists())
-            try { bridge!!.hasAuthenticationInterface(); fail("Closed session bridge must reject requests") }
+            try { bridge!!.hasClientInterface(); fail("Closed session bridge must reject requests") }
             catch (_: IllegalStateException) { }
         } finally {
             instrumentation.runOnMainSync { app.session.stop(); activity.finish() }
         }
     }
 
-    @Test fun privatePipeExposesRuntimeAuthenticationMethods() {
+    @Test fun privatePipeExposesRuntimeClientInterface() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("verifyAuthTransport") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
@@ -138,10 +138,10 @@ class SteamAuthTransportTest {
             val deadline = SystemClock.elapsedRealtime() + 90_000
             var found = false
             while (!found && SystemClock.elapsedRealtime() < deadline) {
-                found = bridge.hasAuthenticationInterface()
+                found = bridge.hasClientInterface()
                 if (!found) Thread.sleep(500)
             }
-            assertTrue("Runtime authentication methods were unavailable on the protected pipe", found)
+            assertTrue("Runtime client methods were unavailable on the protected pipe", found)
             assertEquals(0x180, Os.stat(command.path).st_mode and 0x1ff)
             assertEquals(0x180, Os.stat(response.path).st_mode and 0x1ff)
         } finally {
