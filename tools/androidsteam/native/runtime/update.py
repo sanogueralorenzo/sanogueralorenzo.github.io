@@ -31,6 +31,18 @@ def name(dependency):
     return re.split(r"[<>=]", dependency, maxsplit=1)[0]
 
 
+def runtime_dependencies(package, dependencies, custom_mesa=True):
+    unused = set()
+    if package == "pulseaudio":
+        # Only the native UNIX protocol and PCM pipe sink are configured.
+        unused = {"systemd", "rtkit", "fftw", "webrtc-audio-processing-1"}
+    elif package == "mesa" and custom_mesa:
+        # mesa/build.sh builds only Zink, with LLVM, sensors and SPIR-V
+        # diagnostic tools disabled. Keep the other upstream dependencies.
+        unused = {"llvm-libs", "lm_sensors", "spirv-tools"}
+    return [dependency for dependency in dependencies if name(dependency) not in unused]
+
+
 def source_lock(packages):
     previous = {base: (version, url) for base, version, url in
                 (line.split("\t") for line in (HERE / "sources.tsv").read_text().splitlines())}
@@ -107,14 +119,7 @@ def main():
             continue
         entry = packages[package]
         chosen[package] = entry
-        dependencies = entry.get("DEPENDS", [])
-        if package == "pulseaudio":
-            # build.sh keeps only the native UNIX protocol and pipe sink. Their
-            # ELF dependencies include the existing systemd library, but they
-            # need no system daemon, realtime service or optional DSP modules.
-            dependencies = [d for d in dependencies if name(d) not in
-                            {"systemd", "rtkit", "fftw", "webrtc-audio-processing-1"}]
-        queue.extend(dependencies)
+        queue.extend(runtime_dependencies(package, entry.get("DEPENDS", [])))
     rows = []
     for package, entry in sorted(chosen.items()):
         rows.append("\t".join((package, entry["VERSION"][0],

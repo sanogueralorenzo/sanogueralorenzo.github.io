@@ -179,8 +179,6 @@ libxtst	1.2.5-1	extra/libxtst-1.2.5-1-aarch64.pkg.tar.xz	28736	3ca6270ff04330650
 libxxf86vm	1.1.7-1	extra/libxxf86vm-1.1.7-1-aarch64.pkg.tar.xz	15016	9c07efd6fe6040a7e2d19af307c74d5f2235b6313e74710a29ecedb56f9a6ded
 libyuv	r2921+644251f25-1	extra/libyuv-r2921+644251f25-1-aarch64.pkg.tar.xz	177656	fd92999ccf6f56257ff4bf196dd75d93c2be5801de89af244f4568a0757ce06b
 linux-api-headers	7.2-1	core/linux-api-headers-7.2-1-aarch64.pkg.tar.xz	1509724	e03baabe6bbf49b65b394eb24629978bbb2094cd17b3fecd892a011041f9c24a
-llvm-libs	22.1.8-2	extra/llvm-libs-22.1.8-2-aarch64.pkg.tar.xz	36838688	f3119b25813452a1cddd84ea985d7d76d9da41201b39e82f15cf23c2d3ed348e
-lm_sensors	1:3.6.2-1	extra/lm_sensors-1:3.6.2-1-aarch64.pkg.tar.xz	125904	dc855daccb5fe4a7f89702db47bd3c53b3047dee8de92df2de975fe130985eb5
 lmdb	0.9.35-1	extra/lmdb-0.9.35-1-aarch64.pkg.tar.xz	86632	6aff3bd58fbb98dbca71a83554be4b47d39ff01b3dbe4f724ba140416aa8486e
 lua54	5.4.9-1	extra/lua54-5.4.9-1-aarch64.pkg.tar.xz	295844	a62e066b9be68ff57fcbacaef77a9b01abca19f8524a9896f4e90b2cae1f55ef
 luajit	2.1.1788856981+c6ffc14-1	extra/luajit-2.1.1788856981+c6ffc14-1-aarch64.pkg.tar.xz	297852	b991b411a9a787b3dc7b0aadaf33c263a9b5c8b41a4956ab3fe31446fd4a2944
@@ -217,7 +215,6 @@ sed	4.10-2	core/sed-4.10-2-aarch64.pkg.tar.xz	236260	06d68115408b4ab7ca59b9e6f38
 shadow	4.20.0.arch1-1	core/shadow-4.20.0.arch1-1-aarch64.pkg.tar.xz	1218964	66b4175a7dbfcde481a4cbed256f2f36ef18f760f599395efb954fe15564ae19
 shared-mime-info	2.5.1-2	extra/shared-mime-info-2.5.1-2-aarch64.pkg.tar.xz	703476	1a13b14aec99ae2c7666e73b7b5f74b6c899f80fc9bf26d089ea51fe2cb4d821
 speexdsp	1.2.1-2	extra/speexdsp-1.2.1-2-aarch64.pkg.tar.xz	456036	619c07961bcc824f5e93baaefab5cdc6b1ecdcdbab825d8b2208d46621bb52d5
-spirv-tools	1:1.4.357.0-1	extra/spirv-tools-1:1.4.357.0-1-aarch64.pkg.tar.xz	1935624	e49c54afc1e11b1a915df17ba380c4c4402477a5d5370417801a87df3388ae59
 sqlite	3.53.4-1	core/sqlite-3.53.4-1-aarch64.pkg.tar.xz	1850368	9512d37af4ac6910e10e2a8e6f85078ab72a2ece17a8e6b51755898f50b900ba
 systemd-libs	262-1	core/systemd-libs-262-1-aarch64.pkg.tar.xz	1303288	8e697c8f2db7c82dfcdcdc63540f7ad265d8e10fc7aab656c60229d858fca901
 tar	1.35-5	core/tar-1.35-5-aarch64.pkg.tar.xz	736708	8a9a195736b5cdac96c0511b6a6ea8417477552cf1ad24d904bf6476539b0ad3

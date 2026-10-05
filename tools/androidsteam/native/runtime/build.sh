@@ -3,6 +3,7 @@
 set -euo pipefail
 export COPYFILE_DISABLE=1
 HERE=$(cd "$(dirname "$0")" && pwd)
+: "${NDK:?Set NDK to 28.2.13676358 for the source-built Zink libraries}"
 mkdir -p "$1"
 OUT=$(cd "$1" && pwd)
 CACHE="$OUT/packages"
@@ -31,13 +32,21 @@ fetch() {
 }
 while IFS=$'\t' read -r name version path bytes checksum; do
     fetch "https://ca.us.mirror.archlinuxarm.org/aarch64/$path" "$bytes" "$checksum" "pkg.tar.xz"
-    tar -xf "$ARCHIVE" -C "$ROOT" --exclude=.PKGINFO --exclude=.MTREE --exclude=.INSTALL --exclude=.BUILDINFO
+    if [ "$name" = mesa ]; then
+        # Keep Arch provenance; replace its all-driver payload with the pinned
+        # upstream source build below. The package lock omits its unused LLVM,
+        # sensors and SPIR-V diagnostic dependencies.
+        tar -xf "$ARCHIVE" -C "$ROOT" usr/share/licenses/mesa
+    else
+        tar -xf "$ARCHIVE" -C "$ROOT" --exclude=.PKGINFO --exclude=.MTREE --exclude=.INSTALL --exclude=.BUILDINFO
+    fi
     find "$ROOT" -type d ! -perm -200 -exec chmod u+rwx {} +
     # Preserve build/package provenance beside licenses for this exact snapshot.
     mkdir -p "$ROOT/usr/share/androidsteam/packages/$name"
     tar -xOf "$ARCHIVE" .PKGINFO > "$ROOT/usr/share/androidsteam/packages/$name/PKGINFO"
     tar -xOf "$ARCHIVE" .BUILDINFO > "$ROOT/usr/share/androidsteam/packages/$name/BUILDINFO"
 done < "$HERE/packages.tsv"
+MESA_PYTHON="${MESA_PYTHON:-python3}" bash "$HERE/mesa/build.sh" "$ROOT" "$OUT/mesa"
 # Arch removed GTK 2; the validated Valve client still loads its two libraries.
 # Retain the Debian package's copyright/source notices with this small exception.
 while IFS=$'\t' read -r name version url bytes checksum; do
@@ -67,9 +76,13 @@ find "$ROOT/usr/share/doc" -type f \
     ! -iname 'NOTICE*' ! -iname 'AUTHORS*' -delete
 rm -rf "$ROOT/usr/share/i18n"
 rm -f "$ROOT/usr/bin/localedef" "$ROOT/usr/bin/locale-gen" "$ROOT/etc/locale.gen"
-# Mesa's neural inference API is unrelated to this Zink/Turnip graphics path.
-# Retain libgallium and LLVM until a separately validated build replaces them.
-rm -f "$ROOT/usr/lib/libteflon.so"
+# These packages are present for their libraries. Steam/Proton never invoke
+# their database inspectors, standalone conversion tools or capability viewer.
+# Keep the libraries, loaders and MIME resources they supply.
+while IFS= read -r tool; do
+    case "$tool" in ''|'#'*) continue ;; esac
+    rm -f "$ROOT/usr/bin/$tool"
+done < "$HERE/unused-tools.txt"
 for directory in "$ROOT/usr/share/locale"/*; do
     case "$(basename "$directory")" in en|en_*) ;; *) rm -rf "$directory" ;; esac
 done
@@ -79,11 +92,11 @@ for python in "$ROOT"/usr/lib/python3.*; do
     find "$python" -type d -name __pycache__ -prune -exec rm -rf {} +
 done
 mkdir -p "$ROOT/dev" "$ROOT/proc" "$ROOT/sys" "$ROOT/root" "$ROOT/tmp" "$ROOT/run" "$ROOT/etc/ld.so.conf.d"
-cp "$HERE/packages.tsv" "$HERE/repositories.tsv" "$HERE/seeds.txt" "$HERE/gtk2.tsv" "$ROOT/usr/share/androidsteam/"
+cp "$HERE/packages.tsv" "$HERE/repositories.tsv" "$HERE/seeds.txt" "$HERE/gtk2.tsv" "$HERE/unused-tools.txt" "$ROOT/usr/share/androidsteam/"
 find "$ROOT" -type f ! -perm -400 -exec chmod u+r {} +
 # RuntimeArchive applies private writable permissions and contained links on Android.
-# Stable order, ownership, permissions and timestamps make identical pins
-# produce identical archive bytes on Linux and case-sensitive macOS volumes.
+# Stable order, ownership, permissions and timestamps permit identical archive
+# bytes from independent builds with the pinned sources and build tools.
 python3 - "$ROOT" <<'PY_ARCHIVE' | xz -6 -T 4 > "$OUT/runtime.tar.xz"
 from pathlib import Path
 import sys

@@ -160,7 +160,7 @@ Baseline checks: 27 unit tests, lint, debug/test APKs and minified release build
 
 ## DroidDeck comparison to measure
 
-Current upstream source: [DroidDeck `05608ac4`](https://github.com/Droid-Deck/DroidDeck/tree/05608ac4d4da33cfebcc0d6783064ec04ac75aee). The S24 has DroidDeck 0.3.0 installed as a debug APK; it is not a matched release comparison.
+Current upstream source: [DroidDeck `05608ac4`](https://github.com/Droid-Deck/DroidDeck/tree/05608ac4d4da33cfebcc0d6783064ec04ac75aee). The S24 has DroidDeck 0.3.0 installed as a debug APK; it is not a matched release comparison. Its pulled APK SHA-256 is `8c8f824ed149538b3ae8ecd31464a6a09cd5d85336c4c9fc0c863e9b6144d2f9`. The installed Proton compatibility and pad-default scripts match this source. The session script differs only in its Gamescope fullscreen default: the APK forces it, while source defaults off because conflicting game resolutions can flicker. Both have the CEF flags listed below. App data was not inspected or exported for this comparison.
 
 | Area | DroidDeck current source | Android Steam baseline | Evidence limit |
 | --- | --- | --- | --- |

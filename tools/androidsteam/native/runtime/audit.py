@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import tarfile
+from update import runtime_dependencies
 
 HERE = Path(__file__).resolve().parent
 
@@ -36,7 +37,7 @@ def package_metadata(archive):
     return dict(metadata), paths
 
 
-def dependency_paths(packages, seeds):
+def dependency_paths(packages, seeds, custom_mesa=False):
     providers = collections.defaultdict(list)
     for package, entry in packages.items():
         for provided in entry.get("provides", []):
@@ -56,10 +57,7 @@ def dependency_paths(packages, seeds):
     queue = collections.deque(paths)
     while queue:
         parent = queue.popleft()
-        for dependency in packages[parent].get("depend", []):
-            name = re.split(r"[<>=]", dependency, maxsplit=1)[0]
-            if parent == "pulseaudio" and name in {"systemd", "rtkit", "fftw", "webrtc-audio-processing-1"}:
-                continue  # The build retains only the UNIX protocol and pipe sink.
+        for dependency in runtime_dependencies(parent, packages[parent].get("depend", []), custom_mesa):
             child = resolve(dependency)
             if child not in paths:
                 paths[child] = paths[parent] + [child]
@@ -81,15 +79,18 @@ def main():
              if line and not line.startswith("#")]
     metadata = {}
     reports = []
+    mesa_files = root / "usr/share/androidsteam/mesa/installed-files.txt"
     for name, version, url, download, checksum in rows:
         entry, files = package_metadata(args.cache / f"{checksum}.pkg.tar.xz")
         if entry["pkgname"] != [name] or entry["pkgver"] != [version]:
             raise ValueError(f"Cache metadata does not match lock: {name}")
         metadata[name] = entry
+        if name == "mesa" and mesa_files.is_file():
+            files = mesa_files.read_text().splitlines()
         retained = sum(sizes.get(path, 0) for path in files)
         reports.append({"name": name, "version": version, "download_bytes": int(download),
                         "upstream_installed_bytes": int(entry["size"][0]), "retained_bytes": retained})
-    paths = dependency_paths(metadata, seeds)
+    paths = dependency_paths(metadata, seeds, mesa_files.is_file())
     for package in reports:
         package["dependency_path"] = paths.get(package["name"], [])
     directories = collections.Counter()

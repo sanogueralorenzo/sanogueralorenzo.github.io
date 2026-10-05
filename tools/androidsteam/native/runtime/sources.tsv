@@ -71,7 +71,6 @@ libunistring	1.4.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/l
 libusb	1.0.30-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libusb/-/tree/51dbbbfd2746111908f9ac8b7440f39353e3d705
 libxcrypt	4.5.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/libxcrypt/-/tree/678cc689bd7336d2487965a9018a214426cb27c2
 linux-api-headers	7.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/linux-api-headers/-/tree/72ee61a0fd733444a284eb6ae88c7058b631ad93
-lm_sensors	1:3.6.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/lm_sensors/-/tree/4f2b3ee2caba24c53d140feed0e1b58350223b35
 lz4	1:1.10.0-2	https://gitlab.archlinux.org/archlinux/packaging/packages/lz4/-/tree/e9b3d450141b1c06ccd226650c5048ccf25e2974
 lzo	2.10-5	https://gitlab.archlinux.org/archlinux/packaging/packages/lzo/-/tree/f07af1ee2689e7a2ab38e171c7a809589a720f9f
 mpfr	4.2.2-1	https://gitlab.archlinux.org/archlinux/packaging/packages/mpfr/-/tree/4998a72bea75eb8a7ed5d2c673c0a8f0b8718eb3

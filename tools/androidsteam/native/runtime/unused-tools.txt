@@ -1,0 +1,16 @@
+# SQLite inspection, synchronization and interactive tools; retain libsqlite3.
+dbdump
+dbhash
+index_usage
+showdb
+showjournal
+showstat4
+showwal
+sqldiff
+sqlite3
+sqlite3_expert
+sqlite3_rsync
+# Standalone SVG/video conversion and Linux capability inspection.
+rsvg-convert
+rav1e
+captree
