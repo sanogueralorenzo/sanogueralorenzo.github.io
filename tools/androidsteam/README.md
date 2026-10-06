@@ -1,14 +1,26 @@
 # Android Steam
 
-An Android 16+ app being built to run Linux, Steam's Deck interface, and Proton games locally without root. The existing Steam session, owned-game interface and Superflight, Brotato and SNØ gameplay with digital touch controls were validated on the Samsung S24 (SM-S921U1, Adreno 750). Game audio reaches Android output. The native library, search, details and per-game settings use the phone’s Steam data; broader game compatibility remains unverified.
+Run Steam’s Deck interface and ARM64 Proton games locally on Android 16+, without root or a Linux desktop. The native library, search, game details and settings use Steam’s actual licenses and installed-game data. Tested on Samsung S24 (SM-S921U1, Adreno 750); broader device/game compatibility is unverified.
 
-The frontend uses Kotlin and Views/XML. Steam owns authentication, licenses, client updates, and game downloads. Android Steam presents the native library and launch settings. The initial scope is one ARM64 Adreno device; desktop apps, emulators, external game imports, and frame generation are excluded.
+## Install and use
 
-Mobile interface concept:
+Download the [development-signed release APK](https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/tag/androidsteam-20261005-1) and install it with Android’s package installer. Install updates over the existing app to preserve accounts, games and saves.
 
-![Android Steam interface concept showing the library, search, and game details](docs/android-steam-concept.png)
+Open Android Steam and choose **Profile → Setup → Download**, then **Start Steam**. Download prepares the pinned Arch base (94.4 MiB), matched graphics, audio/session components and Valve’s client; allow several GB of internal storage. Its ongoing notification supports cancellation, and retry keeps completed components. Steam sign-in is still required for account-dependent prerequisites and games. User data is stored separately from replaceable runtime files.
 
-## Build and try
+Choose **Open Steam** and complete Steam’s own QR sign-in on the device. Return with the **Library** icon and tap **Refresh library**. The local client supplies available licenses; files and artwork do not establish ownership. The last license check identifies offline cached results. Native Library/Search/Downloads show actual manifest state and cached play history. Steam manages installs, updates, cloud prompts and achievements.
+
+Touch navigates Steam and opens its onscreen keyboard. USB/Bluetooth keyboard and mouse events pass through Android. You can switch apps and return through the ongoing notification; **Stop Steam** ends the session. Audio uses Android AudioTrack and mutes while hidden.
+
+New games default to **Xbox controller** controls, adapted from DroidDeck’s existing implementation with [source attribution](THIRD_PARTY.md). The floating sticks appear while touching their activation areas and disappear on release; translucent buttons show pressed feedback. Touch outside controls reaches Steam or the game, including while a control is held. Choose **Xbox controller**, **Direct touch**, **Arrow keys** or **WASD** from the gamepad icon or native **Game settings**; existing selections are preserved. Keyboard layouts offer movement/Escape/Space/Enter and up to four optional P/R/Ctrl/Shift/C/X keys. Android gamepad events use the Xbox bridge; physical hardware remains untested.
+
+Steam prompts to install **Proton Experimental (ARM64)** when it is missing (about 475 MB download / 1.94 GB installed). For a Windows game, select **Android Steam Proton (ARM64)** under its **Properties → Compatibility**. The small tool runs Valve's Steam-managed ARM64 depot directly and excludes the native overlay from Wine to avoid the reproduced Steam IPC crash on relaunch. Other Proton versions and arbitrary game compatibility are unverified.
+
+**Game settings** edits Proton, arguments, environment (`NAME=value` per line) and controls. **Play** starts or reuses one Steam session; edited launch settings or another game launch after gameplay restart the idle client to avoid a reproduced ARM-client relaunch crash. This adds Steam startup time; the native screen shows replacement/loading phases. If a session fails, tap **Library → Play** or **Profile → Open Steam** to retry after cleanup. Close the current game before launching another. Exiting a game opened through Play returns to native details. **Manage in Steam** exposes required prompts.
+
+Tested configurations: Superflight uses **Android Steam Proton (ARM64)** and `-force-d3d11 -screen-width 1280 -screen-height 720 -screen-fullscreen 1`; Xbox and Arrow controls work. Brotato uses the same tool and `--video-driver GLES2`, with Direct touch menus/WASD movement. SNØ uses the same tool, WASD, no arguments, optional P/R keys. See [device validation](docs/validation.md) for startup limits and evidence. Native Linux game builds and other Proton versions remain unverified.
+
+## Build
 
 Use JDK 17 or 21, SDK 36, NDK `28.2.13676358`, and CMake `3.22.1`. Set `ANDROID_HOME` or `sdk.dir` in `local.properties`. Native builds need macOS Command Line Tools or Linux `build-essential libexpat1-dev zstd patch`, plus the usual Bash/curl/archive tools.
 
@@ -17,15 +29,7 @@ Use JDK 17 or 21, SDK 36, NDK `28.2.13676358`, and CMake `3.22.1`. Set `ANDROID_
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Open Android Steam and choose **Profile → Setup → Download**, then **Start Steam**. Download prepares the pinned Arch base (94.4 MiB), matched graphics, audio/session components and Valve’s client; allow several GB of internal storage. Its ongoing notification supports cancellation, and retry keeps completed components. Steam sign-in is still required for account-dependent prerequisites and games. **Test Linux runtime** verifies command execution. Both minimum and target SDK are 36; the packaged PRoot loader executes Linux programs, with user home stored separately from replaceable runtime files.
-
-Choose **Open Steam** and complete Steam’s own sign-in screen on the device. Existing Steam sessions are preserved. Steam’s QR sign-in, account observation and live owned-library flow passed on the S24. Return with the **Library** icon and tap **Refresh library**. The local client supplies available licenses; cached metadata/artwork and installed files do not establish ownership. Free/shared licenses can appear, and the last license-check time is shown for offline browsing. **Library**, **Search** and **Downloads** show games, actual manifest state and cached play history. Steam manages installs, updates, cloud status and achievements. You can switch apps during authentication and return through Android Steam's ongoing notification. **Stop Steam** in the ongoing notification ends the session. Use touch to navigate and type with Steam’s onscreen keyboard, which opens when selecting search. USB/Bluetooth keyboards and mice use the Android input bridge. Linux game audio plays through Android AudioTrack and mutes while the session is hidden.
-
-During a game, tap the small gamepad icon to choose **Direct touch**, **Arrow keys** or **WASD**, saved separately for that game. The keyboard layouts add a movement stick and Escape/Space/Enter buttons. **Game settings** can add up to four P/R/Ctrl/Shift/C/X touch keys; modifier buttons can be held with movement. Android controller left-stick/D-pad and A/B/X events map to the same digital keyboard controls; analog Xbox emulation and right-stick aiming are unsupported. Controller events passed Linux integration checks; a physical gamepad has not been tested.
-
-Steam prompts to install **Proton Experimental (ARM64)** when it is missing (about 475 MB download / 1.94 GB installed). For a Windows game, select **Android Steam Proton (ARM64)** under its **Properties → Compatibility**. The small tool runs Valve's Steam-managed ARM64 depot directly and excludes the native overlay from Wine to avoid the reproduced Steam IPC crash on relaunch. Other Proton versions and arbitrary game compatibility are unverified.
-
-**Game settings** on a game’s detail page edits its Proton choice, arguments, environment (`NAME=value` per line) and controls before launch. **Play** starts or reuses one Steam session; changed launch settings restart an idle client before launching. Close an active game before launching another. Exiting a game opened through Play returns to native details. **Manage in Steam** keeps required prompts and Steam’s own controls accessible. For Superflight, choose **Android Steam Proton (ARM64)**, **Arrow keys**, and arguments `-force-d3d11 -screen-width 1280 -screen-height 720 -screen-fullscreen 1`. Brotato uses the same tool, **WASD**, and `--video-driver GLES2`; startup currently takes minutes. SNØ uses the same tool and **WASD**, no extra arguments, and optional **P** for photo/pause and **R** for retry. Switch to **Direct touch** when the movement overlay covers menu buttons. The app preserves unrelated Steam configuration. A listed Linux build does not establish that its native execution path works on Android; Steam default/native paths are marked unverified. Complex custom launch commands remain editable in Steam.
+Both minimum and target SDK are 36. The packaged PRoot loader executes Linux programs; **Test Linux runtime** in Setup checks execution.
 
 ## Runtime updates
 
@@ -42,6 +46,6 @@ adb shell am instrument -w -e verifySteam true -e verifySession true -e verifyVu
   com.sanogueralorenzo.androidsteam.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Device checks require an installed runtime and the supported USB-connected S24. Optional `verifyLibrary` checks live licenses and offline browsing; `verifyProfileRestart` with `profileAppId` checks native Play after an idle-client settings change. `verifyProfiles` with `profileAppId` checks saved configuration projection. Optional `verifySetup`, `verifyDisplay`, and `verifyGraphics` arguments enable complete setup downloads/retry, shared-memory display, and driver installation checks. Downloads are opt-in. `verifyRuntimeSnapshot` tests a checksum-matching `/data/local/tmp/androidsteam-runtime.tar.xz` in a separate validation directory, including replacement, cancellation, failure and recovery. Gradle's connected test task uninstalls the app afterward; use the ADB runner above to retain user data.
+Device checks require an installed runtime and the supported USB-connected S24. Opt-in `verifyControllerGame` checks rendered controls through Windows x64 XInput with installed Superflight. Other checks cover live licenses, launch profiles, setup and snapshot recovery; see the test classes and [validation](docs/validation.md). Use the ADB runner above: Gradle’s connected task uninstalls the app afterward. APK replacement with `install -r` preserves user data.
 
-See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins/licenses, [docs/validation.md](docs/validation.md) for the working game configuration and measurements, and [PLAN.md](PLAN.md) for the current reliability scope.
+See [THIRD_PARTY.md](THIRD_PARTY.md) for source pins/licenses, [docs/validation.md](docs/validation.md) for the working game configuration and measurements, and [release checks](docs/release-checks.md) for the repeatable acceptance procedure.

@@ -11,6 +11,7 @@ internal object NativeDisplay {
     external fun scroll(x: Float, y: Float)
     external fun touch(id: Int, action: Int, x: Float, y: Float)
     external fun key(code: Int, pressed: Boolean)
+    external fun storeFence()
     external fun releaseInput()
     external fun stop()
     external fun snapshot(): LongArray

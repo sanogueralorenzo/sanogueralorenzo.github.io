@@ -8,12 +8,27 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceView
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
+import com.sanogueralorenzo.androidsteam.R
 
 class SteamSurface(context: Context, attrs: AttributeSet? = null) : SurfaceView(context, attrs) {
+    private val fitSteamAspect = context.obtainStyledAttributes(attrs, R.styleable.SteamSurface).let { values ->
+        try { values.getBoolean(R.styleable.SteamSurface_fitSteamAspect, false) } finally { values.recycle() }
+    }
+    internal var pad: PadBridge? = null
+    private val releaseBack = Runnable { keys.set("back", emptySet()) }
     internal val keys = InputKeys(NativeDisplay::key)
     internal var profile: ControlProfile = ControlProfile.TOUCH
         set(value) { if (field != value) releaseInput(); field = value }
     init { isFocusable = true; isFocusableInTouchMode = true }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        if (fitSteamAspect) {
+            // The session's fixed 1280×720 buffer must keep its proportions on wide phones.
+            val contentWidth = minOf(measuredWidth, measuredHeight * 16 / 9)
+            setMeasuredDimension(contentWidth, contentWidth * 9 / 16)
+        }
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (width == 0 || height == 0) return false
@@ -54,45 +69,24 @@ class SteamSurface(context: Context, attrs: AttributeSet? = null) : SurfaceView(
     }
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         if (event.isFromSource(InputDevice.SOURCE_MOUSE)) return pointer(event)
-        if (event.isFromSource(InputDevice.SOURCE_JOYSTICK) && event.actionMasked == MotionEvent.ACTION_MOVE) {
-            fun axis(stick: Int, hat: Int): Float {
-                val dpad = event.getAxisValue(hat)
-                if (kotlin.math.abs(dpad) > .5f) return dpad
-                val value = event.getAxisValue(stick)
-                val flat = event.device?.getMotionRange(stick, event.source)?.flat ?: .1f
-                return if (kotlin.math.abs(value) > flat) value else 0f
-            }
-            keys.set("pad:${event.deviceId}:axes", profile.movement(axis(MotionEvent.AXIS_X, MotionEvent.AXIS_HAT_X), axis(MotionEvent.AXIS_Y, MotionEvent.AXIS_HAT_Y)))
-            return true
-        }
+        if (pad?.motion(event) == true) return true
         return super.onGenericMotionEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || event.isFromSource(InputDevice.SOURCE_DPAD)) {
-            val movement = when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_LEFT -> profile.movement(-1f, 0f)
-                KeyEvent.KEYCODE_DPAD_RIGHT -> profile.movement(1f, 0f)
-                KeyEvent.KEYCODE_DPAD_UP -> profile.movement(0f, -1f)
-                KeyEvent.KEYCODE_DPAD_DOWN -> profile.movement(0f, 1f)
-                else -> null
-            }
-            if (movement != null) {
-                if (event.repeatCount == 0) keys.set("key:${event.deviceId}:$keyCode", movement)
-                return true
-            }
-        }
+        if (pad?.key(event) == true) return true
         val code = SteamKeys.code(event) ?: return super.onKeyDown(keyCode, event)
         if (event.repeatCount == 0) keys.set("key:${event.deviceId}:$keyCode", setOf(code))
         return true
     }
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (pad?.key(event) == true) return true
         val code = SteamKeys.code(event) ?: return super.onKeyUp(keyCode, event)
         keys.set("key:${event.deviceId}:$keyCode", emptySet())
         return true
     }
-    fun backKey(code: Int = 1) { keys.set("back", setOf(code)); keys.set("back", emptySet()) }
-    internal fun releaseInput() { keys.clear(); NativeDisplay.releaseInput() }
+    fun backKey(code: Int = 1) { removeCallbacks(releaseBack); keys.set("back", setOf(code)); postDelayed(releaseBack, 150) }
+    internal fun releaseInput() { removeCallbacks(releaseBack); keys.clear(); pad?.releaseAll(); NativeDisplay.releaseInput() }
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
         if (!hasWindowFocus) releaseInput()

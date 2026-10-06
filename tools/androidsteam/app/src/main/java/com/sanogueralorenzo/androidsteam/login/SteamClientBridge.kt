@@ -30,9 +30,22 @@ internal class SteamClientBridge(directory: File) : Closeable {
     @Synchronized fun hasClientInterface(): Boolean = evaluate(
         "typeof SteamClient !== 'undefined' && typeof SteamClient.User?.RegisterForCurrentUserChanges === 'function'") == true
 
-    @Synchronized fun hasCurrentUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT") == true
+    @Synchronized fun hasCurrentUser(timeoutMillis: Long = 90_000): Boolean =
+        evaluate("$OBSERVER; $HAS_ACCOUNT", timeoutMillis = timeoutMillis) == true
 
     @Synchronized fun hasOnlineUser(): Boolean = evaluate("$OBSERVER; $HAS_ACCOUNT && globalThis.__androidSteamUser.bIsOfflineMode === false") == true
+
+    /** Use the running client's own URI handler; it retains Steam's launch/install prompts. */
+    @Synchronized fun requestGame(appId: Int, install: Boolean): Boolean {
+        require(appId > 0)
+        val uri = if (install) "steam://install/$appId" else "steam://rungameid/$appId"
+        return evaluate("""
+            typeof SteamClient.URL?.ExecuteSteamURL === 'function' && (() => {
+                SteamClient.URL.ExecuteSteamURL("$uri");
+                return true;
+            })()
+        """.trimIndent(), timeoutMillis = 10_000) == true
+    }
 
     /** A missing initial observer callback is unknown, never proof that Steam is signed out. */
     @Synchronized fun isSignedOut(): Boolean = evaluate("""
@@ -45,25 +58,26 @@ internal class SteamClientBridge(directory: File) : Closeable {
         })()
     """.trimIndent(), awaitPromise = true) == true
 
-    private fun evaluate(expression: String, awaitPromise: Boolean = false): Any? {
+    private fun evaluate(expression: String, awaitPromise: Boolean = false, timeoutMillis: Long = 90_000): Any? {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMillis
         try {
-            val targets = request("Target.getTargets").getJSONArray("targetInfos")
+            val targets = request("Target.getTargets", deadline = deadline).getJSONArray("targetInfos")
             val candidates = (0 until targets.length()).map { targets.getJSONObject(it) }
                 .sortedByDescending { it.optString("title").contains("SharedJS", ignoreCase = true) }
             for (target in candidates) {
                 val session = request("Target.attachToTarget", JSONObject().put("targetId", target.getString("targetId"))
-                    .put("flatten", true)).getString("sessionId")
+                    .put("flatten", true), deadline = deadline).getString("sessionId")
                 try {
                     val capability = request("Runtime.evaluate", JSONObject().put("expression",
                         USER_INTERFACE)
-                        .put("returnByValue", true), session)
+                        .put("returnByValue", true), session, deadline)
                     if (capability.optJSONObject("result")?.optBoolean("value") != true) continue
                     val response = request("Runtime.evaluate", JSONObject().put("expression", expression)
-                        .put("returnByValue", true).put("awaitPromise", awaitPromise), session)
+                        .put("returnByValue", true).put("awaitPromise", awaitPromise), session, deadline)
                     check(!response.has("exceptionDetails"))
                     val value = response.optJSONObject("result")?.opt("value")?.takeUnless { it === JSONObject.NULL }
                     return value
-                } finally { request("Target.detachFromTarget", JSONObject().put("sessionId", session)) }
+                } finally { request("Target.detachFromTarget", JSONObject().put("sessionId", session), deadline = deadline) }
             }
             return null
         } catch (_: Exception) {
@@ -71,7 +85,8 @@ internal class SteamClientBridge(directory: File) : Closeable {
         }
     }
 
-    private fun request(method: String, parameters: JSONObject = JSONObject(), session: String? = null): JSONObject {
+    private fun request(method: String, parameters: JSONObject = JSONObject(), session: String? = null,
+        deadline: Long = SystemClock.elapsedRealtime() + 90_000): JSONObject {
         try {
             check(!closed)
             val id = ++nextId
@@ -80,7 +95,6 @@ internal class SteamClientBridge(directory: File) : Closeable {
             val bytes = (message.toString() + '\u0000').toByteArray(Charsets.UTF_8)
             var offset = 0
             while (offset < bytes.size) offset += Os.write(output, bytes, offset, bytes.size - offset)
-            val deadline = SystemClock.elapsedRealtime() + 90_000
             val poll = StructPollfd().apply { fd = input; events = OsConstants.POLLIN.toShort() }
             val buffer = ByteArray(4096)
             while (!closed && !Thread.currentThread().isInterrupted && SystemClock.elapsedRealtime() < deadline) {

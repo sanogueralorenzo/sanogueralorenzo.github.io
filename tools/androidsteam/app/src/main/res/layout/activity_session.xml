@@ -1,20 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent">
-    <com.sanogueralorenzo.androidsteam.input.SteamSurface android:id="@+id/surface" android:layout_width="match_parent" android:layout_height="match_parent" />
-    <com.sanogueralorenzo.androidsteam.input.TouchControls android:id="@+id/touch_controls"
-        android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="#000000">
+    <com.sanogueralorenzo.androidsteam.input.InputOverlay android:id="@+id/touch_controls"
+        android:layout_width="match_parent" android:layout_height="match_parent">
+        <com.sanogueralorenzo.androidsteam.input.SteamSurface android:id="@+id/surface"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:layout_gravity="center" app:fitSteamAspect="true" />
+        <com.sanogueralorenzo.androidsteam.input.TouchControls android:id="@+id/keyboard_controls"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+        <com.sanogueralorenzo.androidsteam.input.OnScreenControls android:id="@+id/xbox_controls"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" />
+    </com.sanogueralorenzo.androidsteam.input.InputOverlay>
     <ImageButton android:id="@+id/return_library" android:layout_width="48dp" android:layout_height="48dp"
         android:layout_gravity="top|start" android:layout_margin="8dp" android:src="@drawable/ic_library"
         android:backgroundTint="#80212C38" android:contentDescription="@string/library" android:focusable="false" />
-    <TextView android:id="@+id/action_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal" android:layout_marginTop="64dp" android:padding="8dp"
-        android:background="#C0111820" android:textColor="@color/foreground" android:textSize="14sp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/action_progress" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal" android:layout_marginTop="64dp" android:layout_marginHorizontal="64dp"
+        android:padding="12dp" android:gravity="center_vertical" android:background="#C0111820" android:visibility="gone">
+        <ProgressBar android:id="@+id/action_spinner" style="?android:attr/progressBarStyleSmall"
+            android:layout_width="24dp" android:layout_height="24dp" android:layout_marginEnd="12dp" />
+        <TextView android:id="@+id/action_status" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="@color/foreground" android:textSize="14sp" />
+    </LinearLayout>
     <ImageButton android:id="@+id/game_controls" android:layout_width="48dp" android:layout_height="48dp"
         android:layout_gravity="top|center_horizontal" android:layout_marginTop="8dp"
         android:src="@drawable/ic_controls" android:backgroundTint="#80212C38" android:contentDescription="@string/game_controls"
         android:focusable="false" android:visibility="gone" />
-    <TextView android:id="@+id/session_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+    <LinearLayout android:id="@+id/session_progress" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:layout_gravity="center" android:padding="32dp" android:gravity="center"
-        android:background="@color/background" android:textColor="@color/foreground" android:textSize="18sp" />
+        android:orientation="vertical" android:background="@color/background">
+        <ProgressBar android:id="@+id/session_spinner" android:layout_width="40dp" android:layout_height="40dp"
+            android:layout_marginBottom="16dp" />
+        <TextView android:id="@+id/session_status" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textColor="@color/foreground" android:textSize="18sp" />
+    </LinearLayout>
 </FrameLayout>

@@ -110,16 +110,33 @@ class InputIntegrationTest {
                     }
                     controls.visibility = android.view.View.GONE
                     surface.requestFocus()
-                    val now = SystemClock.uptimeMillis()
-                    for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP))
-                        surface.dispatchKeyEvent(KeyEvent(now, now, action, KeyEvent.KEYCODE_BUTTON_X, 0, 0, 4, 45, 0, InputDevice.SOURCE_GAMEPAD))
-                    surface.profile = ControlProfile.WASD
-                    for (xValue in listOf(1f, 0f)) {
-                        val properties = arrayOf(MotionEvent.PointerProperties().apply { id = 0 })
-                        val coordinates = arrayOf(MotionEvent.PointerCoords().apply { setAxisValue(MotionEvent.AXIS_X, xValue) })
-                        MotionEvent.obtain(now, now, MotionEvent.ACTION_MOVE, 1, properties, coordinates, 0, 0, 1f, 1f, 4, 0, InputDevice.SOURCE_JOYSTICK, 0)
-                            .also { surface.dispatchGenericMotionEvent(it); it.recycle() }
+                    activity.overlay.configure(ControlProfile.ARROWS, com.sanogueralorenzo.androidsteam.input.PadBridge())
+                    val points = listOf(stickX + 45f * density to stickY, surface.width * .5f to surface.height * .5f)
+                    fun route(action: Int, positions: List<Pair<Float, Float>>) {
+                        val time = SystemClock.uptimeMillis()
+                        val properties = Array(positions.size) { id -> MotionEvent.PointerProperties().apply { this.id = id; toolType = MotionEvent.TOOL_TYPE_FINGER } }
+                        val coordinates = positions.map { point -> MotionEvent.PointerCoords().apply { x = point.first; y = point.second; pressure = 1f; size = 1f } }.toTypedArray()
+                        MotionEvent.obtain(time, time, action, positions.size, properties, coordinates, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0)
+                            .also { activity.overlay.dispatchTouchEvent(it); it.recycle() }
                     }
+                    // Controls first, then direct touch: the outside pointer reaches Linux while movement remains held.
+                    route(MotionEvent.ACTION_DOWN, listOf(points[0]))
+                    route(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points)
+                    route(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points)
+                    route(MotionEvent.ACTION_UP, listOf(points[0]))
+                    // Direct touch first, then controls: the original touch keeps its ownership.
+                    route(MotionEvent.ACTION_DOWN, listOf(points[1]))
+                    route(MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points.reversed())
+                    route(MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT), points.reversed())
+                    route(MotionEvent.ACTION_UP, listOf(points[1]))
+                    activity.overlay.release()
+                    activity.overlay.configure(ControlProfile.TOUCH, com.sanogueralorenzo.androidsteam.input.PadBridge())
+                    val originalBounds = android.graphics.Rect(surface.left, surface.top, surface.right, surface.bottom)
+                    surface.layout(100, 50, originalBounds.right - 100, originalBounds.bottom - 50)
+                    val offsetPoint = (surface.left + surface.width * .3f) to (surface.top + surface.height * .3f)
+                    route(MotionEvent.ACTION_DOWN, listOf(offsetPoint))
+                    route(MotionEvent.ACTION_UP, listOf(offsetPoint))
+                    surface.layout(originalBounds.left, originalBounds.top, originalBounds.right, originalBounds.bottom)
                     val preferences = context.getSharedPreferences("controls", android.content.Context.MODE_PRIVATE)
                     val original = preferences.getString("200", null)
                     ControlProfile.save(context, 200, ControlProfile.WASD)
@@ -129,10 +146,11 @@ class InputIntegrationTest {
                 }
                 await("input-key 106 1 0"); await("input-key 105 1 0"); await("input-key 105 0 0")
                 await("input-key 28 1 13"); await("input-key 28 0 13")
-                await("input-key 57 1 32"); await("input-key 57 0 32")
-                await("input-key 32 1 100"); await("input-key 32 0 100")
                 await("input-key 25 1 112"); await("input-key 25 0 112")
                 await("input-key 29 1 0"); await("input-key 29 0 0")
+                await("input-touch-down 1 160 100"); await("input-touch-up 1")
+                await("input-touch-down 0 160 100"); await("input-touch-up 0")
+                await("input-touch-down 0 96 60")
                 NativeDisplay.key(32, true); NativeDisplay.pointer(.2f, .2f, 273, true); NativeDisplay.touch(2, 0, .2f, .2f)
                 await("input-key 32 1 100"); await("input-button 273 1"); await("input-touch-down 2 64 40")
                 NativeDisplay.attach(null)

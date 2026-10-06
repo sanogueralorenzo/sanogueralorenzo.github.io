@@ -48,6 +48,9 @@ class TouchControls(context: Context, attrs: AttributeSet? = null) : View(contex
         }
     }
 
+    internal fun hitTest(x: Float, y: Float): Boolean = hypot(x - stickX, y - stickY) <= radius ||
+        (0 until 3 + extraKeys.size).any { hypot(x - buttonX(it), y - buttonY(it)) <= 32f * density }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         fun press(index: Int): Boolean {
             val id = event.getPointerId(index)

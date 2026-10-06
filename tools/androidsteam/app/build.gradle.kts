@@ -39,6 +39,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    sourceSets["debug"].assets.srcDir(layout.buildDirectory.dir("xinputProbe"))
     sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("executionProbe"))
     sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("linuxDisplay/probe"))
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
@@ -59,6 +60,16 @@ val compileExecutionProbe by tasks.registering(Exec::class) {
     commandLine(compiler, "-O2", "-Wl,-z,max-page-size=16384", source, "-o", output.get().asFile)
 }
 tasks.matching { it.name == "preDebugBuild" }.configureEach { dependsOn(compileExecutionProbe) }
+
+val compileXinputProbe by tasks.registering(Exec::class) {
+    inputs.files(file("src/debug/native/xinput_probe.c"), file("src/debug/native/build_xinput.sh"))
+    inputs.property("ndkVersion", android.ndkVersion.orEmpty())
+    val output = layout.buildDirectory.dir("xinputProbe")
+    outputs.file(output.map { it.file("xinput-probe-x64.exe") })
+    environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
+    commandLine("bash", file("src/debug/native/build_xinput.sh"), output.get().asFile)
+}
+tasks.matching { it.name == "preDebugBuild" }.configureEach { dependsOn(compileXinputProbe) }
 
 val buildProot by tasks.registering(Exec::class) {
     inputs.files(rootProject.fileTree("native/proot"))
@@ -85,10 +96,10 @@ tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, p
 tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplayDependencies) }
 val buildLinuxDisplay by tasks.registering(Exec::class) {
     dependsOn(prepareDisplayDependencies)
-    inputs.files(rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/probe_vulkan.c"), rootProject.file("native/display/source.env"), rootProject.file("native/session/drm.c"), rootProject.file("native/session/robust.c"), rootProject.file("native/session/syscall.S"), rootProject.file("native/session/socket_ports.c"), rootProject.file("native/session/socket_ports.h"), rootProject.file("native/session/socket_peer.c"), rootProject.file("native/session/wine_memory.c"), file("src/debug/native/robust_probe.c"), file("src/debug/native/wine_memory_probe.c"), file("src/debug/native/socket_peer_probe.c"), file("src/debug/native/x11_locale_probe.c"), rootProject.file("native/session/steam_ui_pipe.c"), file("src/debug/native/input_probe.c"))
+    inputs.files(file("src/debug/native/xbox_udev_probe.c"), file("src/debug/native/xbox_probe.c"), rootProject.file("native/session/xbox_evdev.cpp"), rootProject.file("native/session/xbox_udev.c"), rootProject.file("native/session/xbox_evdev.map"), rootProject.file("native/runtime/mesa/packages.tsv"), rootProject.file("native/display/linux.sh"), rootProject.file("native/display/probe.c"), rootProject.file("native/display/probe_vulkan.c"), rootProject.file("native/display/source.env"), rootProject.file("native/session/drm.c"), rootProject.file("native/session/robust.c"), rootProject.file("native/session/syscall.S"), rootProject.file("native/session/socket_ports.c"), rootProject.file("native/session/socket_ports.h"), rootProject.file("native/session/socket_peer.c"), rootProject.file("native/session/wine_memory.c"), file("src/debug/native/robust_probe.c"), file("src/debug/native/wine_memory_probe.c"), file("src/debug/native/socket_peer_probe.c"), file("src/debug/native/x11_locale_probe.c"), rootProject.file("native/session/steam_ui_pipe.c"), file("src/debug/native/input_probe.c"))
     inputs.property("ndkVersion", android.ndkVersion.orEmpty())
     val output = layout.buildDirectory.dir("linuxDisplay")
-    outputs.files(output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("probe/arm64-v8a/libwayland-vulkan-probe.so") }, output.map { it.file("libwayland-client.so.0") }, output.map { it.file("libdeck-drm.so") }, output.map { it.file("libdeck-robust.so") }, output.map { it.file("libdeck-ports.so") }, output.map { it.file("libsteam-wine-memory.so") }, output.map { it.file("steam-socket-peer") }, output.map { it.file("probe/arm64-v8a/librobust-probe.so") }, output.map { it.file("probe/arm64-v8a/libwine-memory-probe.so") }, output.map { it.file("probe/arm64-v8a/libsocket-peer-probe.so") }, output.map { it.file("probe/arm64-v8a/libx11-locale-probe.so") }, output.map { it.file("libsteam-ui-pipe.so") })
+    outputs.files(output.map { it.file("probe/arm64-v8a/libudev-probe.so") }, output.map { it.file("probe/arm64-v8a/libwinebus.so") }, output.map { it.file("probe/arm64-v8a/libxbox-probe.so") }, output.map { it.file("libxbox-evdev.so") }, output.map { it.file("libxbox-udev.so") }, output.map { it.file("probe/arm64-v8a/libwayland-probe.so") }, output.map { it.file("probe/arm64-v8a/libwayland-vulkan-probe.so") }, output.map { it.file("libwayland-client.so.0") }, output.map { it.file("libdeck-drm.so") }, output.map { it.file("libdeck-robust.so") }, output.map { it.file("libdeck-ports.so") }, output.map { it.file("libsteam-wine-memory.so") }, output.map { it.file("steam-socket-peer") }, output.map { it.file("probe/arm64-v8a/librobust-probe.so") }, output.map { it.file("probe/arm64-v8a/libwine-memory-probe.so") }, output.map { it.file("probe/arm64-v8a/libsocket-peer-probe.so") }, output.map { it.file("probe/arm64-v8a/libx11-locale-probe.so") }, output.map { it.file("libsteam-ui-pipe.so") })
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
     commandLine("bash", rootProject.file("native/display/linux.sh"), layout.buildDirectory.dir("display-deps").get().asFile, output.get().asFile)
 }
@@ -96,7 +107,7 @@ val packageSessionComponents by tasks.registering(Exec::class) {
     dependsOn(buildLinuxDisplay)
     inputs.files(rootProject.file("native/session/packages.sh"))
     val output = layout.buildDirectory.dir("sessionAssets")
-    inputs.files(layout.buildDirectory.file("linuxDisplay/libdeck-drm.so"), layout.buildDirectory.file("linuxDisplay/libdeck-robust.so"), layout.buildDirectory.file("linuxDisplay/libdeck-ports.so"), layout.buildDirectory.file("linuxDisplay/libsteam-wine-memory.so"), layout.buildDirectory.file("linuxDisplay/steam-socket-peer"), layout.buildDirectory.file("linuxDisplay/libsteam-ui-pipe.so"))
+    inputs.files(layout.buildDirectory.file("linuxDisplay/libxbox-udev.so"), layout.buildDirectory.file("linuxDisplay/libxbox-evdev.so"), layout.buildDirectory.file("linuxDisplay/libdeck-drm.so"), layout.buildDirectory.file("linuxDisplay/libdeck-robust.so"), layout.buildDirectory.file("linuxDisplay/libdeck-ports.so"), layout.buildDirectory.file("linuxDisplay/libsteam-wine-memory.so"), layout.buildDirectory.file("linuxDisplay/steam-socket-peer"), layout.buildDirectory.file("linuxDisplay/libsteam-ui-pipe.so"))
     outputs.file(output.map { it.file("session-components.tar.xz") })
     commandLine("bash", rootProject.file("native/session/packages.sh"), output.get().asFile, layout.buildDirectory.dir("linuxDisplay").get().asFile)
 }

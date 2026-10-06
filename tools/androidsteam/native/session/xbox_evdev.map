@@ -1,0 +1,28 @@
+{
+  global:
+    open;
+    openat;
+    stat;
+    fstat;
+    access;
+    faccessat;
+    scandir;
+    inotify_add_watch;
+    ioctl;
+    close;
+    read;
+    write;
+    writev;
+    poll;
+    ppoll;
+    select;
+    open64;
+    openat64;
+    stat64;
+    fstat64;
+    __xstat;
+    __xstat64;
+    __fxstat;
+    __fxstat64;
+  local: *;
+};

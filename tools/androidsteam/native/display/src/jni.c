@@ -96,3 +96,7 @@ JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androidsteam_display_NativeDisp
 JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androidsteam_display_NativeDisplay_releaseInput(JNIEnv *env, jobject self) {
     enqueue((struct deck_input_event){ .type = DECK_RESET });
 }
+
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_androidsteam_display_NativeDisplay_storeFence(JNIEnv *env, jobject self) {
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}

@@ -37,7 +37,7 @@ class SessionIntegrationTest {
             assertTrue(message, condition())
         }
         repeat(2) { attempt ->
-            val activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
+            var activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
             var failedAudio = false
             try {
                 await("Steam did not start: ${session.state}") { session.state == SessionController.State.Running || session.state is SessionController.State.Failed }
@@ -53,6 +53,15 @@ class SessionIntegrationTest {
                 await("Steam did not resume on the same display") { NativeDisplay.snapshot()[0] > hiddenFrames }
                 assertEquals(SessionController.State.Running, session.state)
                 if (attempt == 0) {
+                    val bridge = session.clientBridge
+                    assertNotNull(bridge)
+                    val oldSurface = activity.findViewById<android.view.SurfaceView>(R.id.surface)
+                    instrumentation.runOnMainSync { activity.finish() }
+                    await("Finished session screen kept its surface") { !oldSurface.holder.surface.isValid }
+                    val priorFrames = NativeDisplay.snapshot()[0]
+                    activity = instrumentation.startActivitySync(Intent(context, SessionActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as SessionActivity
+                    await("A new screen did not attach to the retained Steam client") { NativeDisplay.snapshot()[0] > priorFrames }
+                    assertSame("Opening a new screen restarted Steam", bridge, session.clientBridge)
                     val client = LinuxRuntime(context, RuntimeInstaller(context).root).start(
                         listOf("/usr/bin/pactl", "exit"),
                         listOf("${File(context.cacheDir, "session").path}:/run/androidsteam"),
@@ -63,6 +72,13 @@ class SessionIntegrationTest {
                     } finally { client.destroyForcibly() }
                     await("Audio failure did not terminate the session") { session.state is SessionController.State.Failed }
                     assertTrue((session.state as SessionController.State.Failed).message.contains("audio stopped"))
+                    instrumentation.runOnMainSync {
+                        val status = activity.findViewById<android.widget.TextView>(R.id.session_status)
+                        assertTrue("Failure has no library recovery instruction", status.text.contains("Tap Library"))
+                        assertEquals(android.view.View.VISIBLE, activity.findViewById<android.view.View>(R.id.session_progress).visibility)
+                        assertEquals(android.view.View.GONE, activity.findViewById<android.view.View>(R.id.session_spinner).visibility)
+                        assertEquals(android.view.View.VISIBLE, activity.findViewById<android.view.View>(R.id.return_library).visibility)
+                    }
                     failedAudio = true
                 }
             } finally {
@@ -119,7 +135,7 @@ class SessionIntegrationTest {
         assertTrue(components.installed)
         components.install { fail("Installed session components should not extract again") }
         repeat(2) {
-            val activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
+            var activity = instrumentation.startActivitySync(Intent(context, DisplayTestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) as DisplayTestActivity
             val sockets = File(context.cacheDir, "session-test").apply { mkdirs() }
             val socket = File(sockets, "wayland-0")
             val log = File(context.cacheDir, "session-test.log")

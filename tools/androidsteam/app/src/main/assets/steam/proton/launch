@@ -11,5 +11,7 @@ fi
 export LD_LIBRARY_PATH=/opt/androidsteam/session/usr/lib:/usr/lib/pulseaudio
 # The native overlay's IPC remains active even with Steam's overlay toggle off.
 # Use only the Android adapters in the namespace-free Wine process tree.
-export LD_PRELOAD=/opt/androidsteam/session/usr/lib/libsteam-wine-memory.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:/opt/androidsteam/session/usr/lib/libdeck-drm.so
+export LD_PRELOAD=/opt/androidsteam/session/usr/lib/libxbox-udev.so:/opt/androidsteam/session/usr/lib/libxbox-evdev.so:/opt/androidsteam/session/usr/lib/libsteam-wine-memory.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:/opt/androidsteam/session/usr/lib/libdeck-drm.so
+# Present the virtual Xbox pad with Xbox IDs to legacy HID/Unity games.
+export PROTON_SPOOF_STEAMINPUT_VIDPID=${PROTON_SPOOF_STEAMINPUT_VIDPID:-1}
 exec "$proton/proton" "$@"

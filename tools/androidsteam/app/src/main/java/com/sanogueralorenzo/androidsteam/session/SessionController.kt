@@ -7,9 +7,6 @@ import com.sanogueralorenzo.androidsteam.games.GameProfiles
 import android.os.Handler
 import android.os.Looper
 import android.view.Surface
-import android.system.Os
-import android.system.OsConstants
-import android.system.ErrnoException
 import com.sanogueralorenzo.androidsteam.display.NativeDisplay
 import com.sanogueralorenzo.androidsteam.audio.SessionAudio
 import com.sanogueralorenzo.androidsteam.runtime.RuntimeArchive
@@ -32,15 +29,23 @@ internal class SessionController(private val context: Context) {
         data class Failed(val message: String) : State
     }
 
+    val pad = com.sanogueralorenzo.androidsteam.input.PadBridge()
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private val listeners = mutableSetOf<(State) -> Unit>()
     private val gameListeners = mutableSetOf<(Int?) -> Unit>()
     private var generation = 0
-    private data class Action(val appId: Int, val install: Boolean, val deadline: Long)
+    private data class Action(val appId: Int, val install: Boolean, val deadline: Long, val nextAttempt: Long = 0)
     private val action = AtomicReference<Action?>()
     @Volatile private var appliedRevision = -1L
-    val needsRestart get() = (state == State.Running || state is State.Working) && appliedRevision != GameProfiles(context).revision
+    @Volatile private var hasPlayedGame = false
+    // Repeated game launches can crash the ARM client, including the same game.
+    // Replace the idle client through the existing path before another launch.
+    val needsRestart get() = (state == State.Running || state is State.Working) &&
+        (appliedRevision != GameProfiles(context).revision || action.get()?.let {
+            !it.install && hasPlayedGame
+        } == true)
+    val actionPending get() = action.get() != null
     var actionMessage: String? = null
         private set
     private var job: Future<*>? = null
@@ -71,8 +76,7 @@ internal class SessionController(private val context: Context) {
         val token = ++generation
         attachedSurface = surface
         publish(State.Stopping)
-        process?.destroy()
-        job?.cancel(true)
+        if (process == null) job?.cancel(true)
         worker.execute { main.post {
             if (generation == token) {
                 if (attachedSurface === surface && surface.isValid) begin(surface, width, height, refresh)
@@ -86,12 +90,13 @@ internal class SessionController(private val context: Context) {
         check(gameAppId == null || gameAppId == appId) { "Another game is running. Close it before starting this game." }
         if (gameAppId == appId) return
         action.set(Action(appId, install, System.nanoTime() + TimeUnit.MINUTES.toNanos(5)))
-        actionMessage = "Waiting for Steam. Complete any sign-in or installation prompts."
+        actionMessage = "Waiting for Steam sign-in. Complete any prompts shown below."
         publish(state)
     }
 
     private fun begin(surface: Surface, width: Int, height: Int, refresh: Int) {
         val token = ++generation
+        hasPlayedGame = false
         visible = true
         attachedSurface = surface
         publishGame(null)
@@ -101,6 +106,9 @@ internal class SessionController(private val context: Context) {
             var running: Process? = null
             var reader: Thread? = null
             var result: State = State.Idle
+            var phase = "preparing"
+            var steamExit: Int? = null
+            var displayExit: Int? = null
             val readFailure = AtomicReference<IOException?>()
             val startupProgress = AtomicLong(System.nanoTime())
             try {
@@ -109,6 +117,7 @@ internal class SessionController(private val context: Context) {
                 val preparation = (context.applicationContext as SteamApplication).preparation
                 preparation.install(progress)
                 val graphics = preparation.graphics
+                phase = "applying-settings"
                 progress("Applying game settings…")
                 val profiles = GameProfiles(context)
                 val revision = profiles.revision
@@ -117,6 +126,7 @@ internal class SessionController(private val context: Context) {
                 checkInstallationCancelled()
                 RuntimeArchive.delete(directory)
                 check(directory.mkdirs()) { "Cannot prepare the Steam session." }
+                pad.start(directory)
                 val session = SessionRuntime(context, directory)
                 val games = SteamGameLog(File(context.filesDir, "home/.local/share/Steam/logs/gameprocess_log.txt"))
                 val command = session.steamCommand()
@@ -126,6 +136,7 @@ internal class SessionController(private val context: Context) {
                 audio = playback
                 playback.start()
                 playback.setVisible(visible)
+                phase = "starting-client"
                 update(token, State.Working("Starting Steam…"))
                 NativeDisplay.startVulkan(session.socket.path, surface, refresh,
                     File(graphics.root, "android").path, context.applicationInfo.nativeLibraryDir)
@@ -151,12 +162,26 @@ internal class SessionController(private val context: Context) {
                 var activeGame: Int? = null
                 while (!running.waitFor(100, TimeUnit.MILLISECONDS)) {
                     checkInstallationCancelled()
+                    if (state == State.Stopping) {
+                        // Let Steam flush its own state; cleanup still forcibly
+                        // reaps the process tree if shutdown cannot complete.
+                        try { session.requestShutdown() } catch (_: Exception) { }
+                        running.waitFor(10, TimeUnit.SECONDS)
+                        break
+                    }
                     readFailure.get()?.let { throw it }
                     audio?.failure?.let { throw it }
                     if (System.nanoTime() >= nextGameCheck) {
                         nextGameCheck = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(500)
                         val appId = games.read()
-                        deliverAction(token, games.clientReady)
+                        phase = when {
+                            appId != null -> "game-running"
+                            action.get() != null && games.clientReady -> "waiting-game"
+                            games.clientReady -> "client-ready"
+                            displayed -> "display-ready"
+                            else -> "starting-client"
+                        }
+                        deliverAction(token, games.clientReady, appId)
                         if (activeGame != appId) {
                             activeGame = appId
                             main.post { if (generation == token) publishGame(appId) }
@@ -166,14 +191,23 @@ internal class SessionController(private val context: Context) {
                         displayed = true
                         update(token, State.Running)
                     }
-                    check(displayed || System.nanoTime() - startupProgress.get() < TimeUnit.SECONDS.toNanos(90)) { "Steam startup stalled. Stop Steam and retry." }
+                    check(displayed || System.nanoTime() - startupProgress.get() < TimeUnit.SECONDS.toNanos(90)) { "Steam startup stalled. Tap Library, then Play or Profile → Open Steam to retry." }
                 }
-                val status = File(directory, "steam-exit").takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
-                check(status != null) { "Steam ended without reporting its exit status. Restart Steam." }
-                check(status == 0) { "Steam stopped unexpectedly (exit code $status). Restart Steam." }
-                check(running.exitValue() == 0) { "Steam display stopped with exit code ${running.exitValue()}. Restart Steam." }
+                steamExit = File(directory, "steam-exit").takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
+                displayExit = if (running.isAlive) null else running.exitValue()
+                check(steamExit != null) { "Steam ended without an exit status. Tap Library, then Play or Profile → Open Steam to retry." }
+                check(steamExit == 0) { "Steam stopped unexpectedly (exit code $steamExit). Tap Library, then Play or Profile → Open Steam to retry." }
+                check(displayExit == 0) { "Steam display stopped (exit code $displayExit). Tap Library, then Play or Profile → Open Steam to retry." }
             } catch (failure: Exception) {
-                result = State.Failed(failure.message ?: "Steam could not start. Retry the session.")
+                // Only controlled phases, public app IDs and numeric exit codes.
+                // Never log raw Steam output, account data, paths or exception contents.
+                if (generation == token && state != State.Stopping) {
+                    val cause = if (audio?.failure != null) "audio" else if (steamExit != null) "steam-exit" else "startup-or-display"
+                    android.util.Log.e("SteamSession", "failure cause=$cause phase=$phase appId=${action.get()?.appId ?: gameAppId ?: 0} steamExit=$steamExit displayExit=$displayExit")
+                }
+                val message = failure.message ?: "Steam could not start."
+                result = State.Failed(if (message.contains("Tap Library")) message
+                    else "$message\nTap Library, then Play or Profile → Open Steam to retry.")
             } finally {
                 val interrupted = Thread.interrupted()
                 try {
@@ -188,6 +222,7 @@ internal class SessionController(private val context: Context) {
                         audio = null
                         try { clientBridge?.close() } finally {
                             clientBridge = null
+                            pad.close()
                             NativeDisplay.stop()
                             RuntimeArchive.delete(directory)
                         }
@@ -207,8 +242,7 @@ internal class SessionController(private val context: Context) {
         actionMessage = null
         publishGame(null)
         publish(State.Stopping)
-        process?.destroy()
-        job?.cancel(true)
+        if (process == null) job?.cancel(true)
         worker.execute { update(token, State.Idle) }
     }
 
@@ -240,32 +274,51 @@ internal class SessionController(private val context: Context) {
         }
     } }
 
-    /** Steam's existing FIFO accepts fixed URIs; opening it never starts a second client. */
-    private fun deliverAction(token: Int, ready: Boolean) {
+    /** Submit Steam's public URI through its already-connected local client. */
+    private fun deliverAction(token: Int, ready: Boolean, activeAppId: Int?) {
         if (state == State.Stopping) return
         val requested = action.get() ?: return
-        if ((!ready || appliedRevision != GameProfiles(context).revision) && System.nanoTime() <= requested.deadline) return
-        val failure = if (System.nanoTime() > requested.deadline) "Steam did not accept the request. Complete its prompts, then try Play again."
+        if (!requested.install && activeAppId == requested.appId) {
+            if (action.compareAndSet(requested, null)) main.post {
+                if (generation == token) { actionMessage = null; publish(state) }
+            }
+            return
+        }
+        val now = System.nanoTime()
+        if ((!ready || needsRestart || now < requested.nextAttempt) && now <= requested.deadline) return
+        // Client mode appears before Steam finishes loading the signed-in user.
+        // Do not enqueue a launch into that unfinished startup state. Reuse the
+        // existing read-only observer with a short total deadline so Stop stays responsive.
+        if (now <= requested.deadline) {
+            val signedIn = try { clientBridge?.hasCurrentUser(1_500) == true } catch (_: Exception) { false }
+            if (!signedIn) {
+                action.compareAndSet(requested, requested.copy(nextAttempt = System.nanoTime() + TimeUnit.SECONDS.toNanos(1)))
+                return
+            }
+        }
+        val failure = if (System.nanoTime() > requested.deadline) "Steam did not start the game within 5 minutes. Complete any Steam prompts, then tap Library → Play to retry."
         else try {
-            val file = Os.open(File(context.filesDir, "home/.steam/steam.pipe").path,
-                OsConstants.O_WRONLY or OsConstants.O_NONBLOCK or OsConstants.O_CLOEXEC, 0)
-            try {
-                check(OsConstants.S_ISFIFO(Os.fstat(file).st_mode)) { "Steam's command channel is unavailable. Restart Steam." }
-                val uri = "steam://${if (requested.install) "install" else "rungameid"}/${requested.appId}\n".toByteArray(Charsets.US_ASCII)
-                check(Os.write(file, uri, 0, uri.size) == uri.size) { "Steam did not accept the game request. Try again." }
-            } finally { Os.close(file) }
+            check(clientBridge?.requestGame(requested.appId, requested.install) == true) {
+                "Steam's game interface is unavailable. Complete any Steam prompts, then tap Library → Play to retry."
+            }
             null
-        } catch (error: ErrnoException) {
-            if (error.errno in listOf(OsConstants.ENOENT, OsConstants.ENXIO, OsConstants.EAGAIN)) return
-            "Steam's command channel failed. Restart Steam, then try again."
         } catch (error: Exception) { error.message ?: "Steam could not accept the game request." }
-        if (action.compareAndSet(requested, null)) main.post {
-            if (generation == token) { actionMessage = failure; publish(state) }
+        // A submitted URI only proves forwarding, not acceptance.
+        // Steam deduplicates requests for one app; retain Play until its process
+        // event acknowledges it, retrying startup misses within the same deadline.
+        val pending = if (failure == null && !requested.install)
+            requested.copy(nextAttempt = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)) else null
+        if (action.compareAndSet(requested, pending)) main.post {
+            if (generation == token) {
+                actionMessage = if (pending != null) "Starting game… Complete any Steam prompts shown below." else failure
+                publish(state)
+            }
         }
     }
     private fun publish(value: State) { state = value; listeners.toList().forEach { it(value) } }
     private fun publishGame(appId: Int?) {
         if (gameAppId == appId) return
+        if (appId != null) hasPlayedGame = true
         gameAppId = appId
         gameListeners.toList().forEach { it(appId) }
     }

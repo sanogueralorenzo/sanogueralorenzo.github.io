@@ -17,7 +17,7 @@ import android.view.WindowManager
 import android.window.OnBackInvokedDispatcher
 import com.sanogueralorenzo.androidsteam.input.SteamSurface
 import com.sanogueralorenzo.androidsteam.input.ControlProfile
-import com.sanogueralorenzo.androidsteam.input.TouchControls
+import com.sanogueralorenzo.androidsteam.input.InputOverlay
 import com.sanogueralorenzo.androidsteam.input.TouchKey
 import android.widget.TextView
 import com.sanogueralorenzo.androidsteam.SteamApplication
@@ -35,14 +35,14 @@ open class SessionActivity : Activity(), SurfaceHolder.Callback {
     private val gameObserver: (Int?) -> Unit = { appId ->
         renderControls(appId)
         if (appId == intent.getIntExtra("appId", 0)) played = true
-        if (played && appId == null) finish()
+        if (played && appId == null && session.state !is SessionController.State.Failed) finish()
     }
     private val surface get() = findViewById<SteamSurface>(R.id.surface)
-    private val controls get() = findViewById<TouchControls>(R.id.touch_controls)
+    private val controls get() = findViewById<InputOverlay>(R.id.touch_controls)
     private val devices = object : InputManager.InputDeviceListener {
         override fun onInputDeviceAdded(deviceId: Int) = Unit
         override fun onInputDeviceChanged(deviceId: Int) = Unit
-        override fun onInputDeviceRemoved(deviceId: Int) { controls.release(); surface.releaseInput() }
+        override fun onInputDeviceRemoved(deviceId: Int) { session.pad.removeDevice(deviceId); controls.release(); surface.releaseInput() }
     }
     private var started = false
     private var played = false
@@ -58,8 +58,12 @@ open class SessionActivity : Activity(), SurfaceHolder.Callback {
         } catch (failure: IllegalStateException) {
             android.widget.Toast.makeText(this, failure.message, android.widget.Toast.LENGTH_LONG).show()
         }
-        findViewById<View>(R.id.return_library).setOnClickListener { finish() }
-        controls.surface = surface
+        findViewById<View>(R.id.return_library).setOnClickListener {
+            startActivity(Intent(this, com.sanogueralorenzo.androidsteam.MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+            finish()
+        }
+        surface.pad = session.pad
         findViewById<View>(R.id.game_controls).setOnClickListener {
             val appId = session.gameAppId ?: return@setOnClickListener
             controls.release(); surface.releaseInput()
@@ -83,6 +87,7 @@ open class SessionActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) surface.requestFocus()
         if (hasFocus) window.insetsController?.apply {
             systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsets.Type.systemBars())
@@ -121,7 +126,7 @@ open class SessionActivity : Activity(), SurfaceHolder.Callback {
         controls.release()
         surface.profile = appId?.let { ControlProfile.load(this, it) } ?: ControlProfile.TOUCH
         controls.extraKeys = appId?.let { TouchKey.load(this, it) }.orEmpty()
-        controls.visibility = if (appId != null && surface.profile != ControlProfile.TOUCH) View.VISIBLE else View.GONE
+        controls.configure(surface.profile, session.pad)
         findViewById<View>(R.id.game_controls).visibility = if (appId != null) View.VISIBLE else View.GONE
     }
 
@@ -133,17 +138,20 @@ open class SessionActivity : Activity(), SurfaceHolder.Callback {
             session.restart(surface.holder.surface, frame.width(), frame.height(), (display?.refreshRate?.times(1000))?.toInt() ?: 60_000)
             return
         }
-        findViewById<TextView>(R.id.action_status).apply {
-            text = session.actionMessage
-            visibility = if (session.actionMessage == null) View.GONE else View.VISIBLE
-        }
+        val running = state == SessionController.State.Running
+        findViewById<View>(R.id.action_progress).visibility =
+            if (running && session.actionMessage != null) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.action_status).text = session.actionMessage
+        findViewById<View>(R.id.action_spinner).visibility = if (session.actionPending) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.session_progress).visibility = if (running) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.session_spinner).visibility =
+            if (state is SessionController.State.Working || state == SessionController.State.Stopping || !started) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.session_status).apply {
-            visibility = if (state == SessionController.State.Running) View.GONE else View.VISIBLE
             text = when (state) {
                 SessionController.State.Idle -> if (started) getString(R.string.session_stopped) else getString(R.string.starting_steam)
                 is SessionController.State.Working -> state.message
                 SessionController.State.Running -> ""
-                SessionController.State.Stopping -> getString(R.string.stopping_steam)
+                SessionController.State.Stopping -> getString(if (session.actionPending) R.string.restarting_steam else R.string.stopping_steam)
                 is SessionController.State.Failed -> state.message
             }
         }

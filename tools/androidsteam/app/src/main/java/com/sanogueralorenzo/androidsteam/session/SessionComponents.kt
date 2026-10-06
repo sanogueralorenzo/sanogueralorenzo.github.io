@@ -12,6 +12,8 @@ internal class SessionComponents(private val context: Context) {
         complete(root)
 
     private fun complete(directory: File) = File(directory, "usr/lib/libdeck-drm.so").isFile &&
+        File(directory, "usr/lib/libxbox-evdev.so").isFile &&
+        File(directory, "usr/lib/libxbox-udev.so").isFile &&
         File(directory, "usr/lib/libdeck-robust.so").isFile &&
         File(directory, "usr/lib/libdeck-ports.so").isFile &&
         File(directory, "usr/lib/libsteam-wine-memory.so").isFile &&
@@ -37,5 +39,5 @@ internal class SessionComponents(private val context: Context) {
         } finally { RuntimeArchive.delete(staging) }
     }
 
-    companion object { const val VERSION = "arch-android-adapters-2" }
+    companion object { const val VERSION = "arch-android-adapters-10" }
 }

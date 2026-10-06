@@ -13,22 +13,35 @@ internal class SessionRuntime(private val context: Context, val directory: File)
     private val components = SessionComponents(context)
     private val graphics = GraphicsInstaller(context)
 
-    private fun bindings(): List<String> {
+    private val bindings by lazy {
         check(directory.isDirectory || directory.mkdirs()) { "Cannot prepare the Steam session directory." }
         check(File(directory, "ports").isDirectory || File(directory, "ports").mkdirs()) { "Cannot prepare Steam browser connections." }
+        File(directory, "input").apply { mkdirs() }
+        File(directory, "uinput").createNewFile()
         val sharedMemory = File(directory, "shm").apply { mkdirs() }
-        return listOf("${components.root.path}:/opt/androidsteam/session", "${graphics.root.path}:/opt/androidsteam/graphics",
+        listOf("${components.root.path}:/opt/androidsteam/session", "${graphics.root.path}:/opt/androidsteam/graphics",
             "${context.applicationInfo.nativeLibraryDir}:/opt/androidsteam/app", "${directory.path}:/run/androidsteam",
             "${sharedMemory.path}:/dev/shm",
+            "${directory.path}/input:/dev/input", "${directory.path}/uinput:/dev/uinput",
             "${components.root.path}/usr/bin/steam-socket-peer:/usr/bin/lsof") + GpuDevice.bindings(File(directory, "gpu"))
     }
 
     fun start(command: List<String>, width: Int, height: Int): Process =
         LinuxRuntime(context, RuntimeInstaller(context).root).start(
             listOf("/usr/bin/gamescope", "--backend", "sdl", "--expose-wayland",
-                "-W", width.toString(), "-H", height.toString(), "--") + command, bindings(), environment)
+                "-W", width.toString(), "-H", height.toString(), "--") + command, bindings, environment)
+
+    fun requestShutdown() {
+        File(directory, "steam-stop").createNewFile()
+    }
 
     fun steamCommand(): List<String> {
+        // The session owner has reaped the previous client. Only these transient
+        // markers/locks survive a killed session; account and browser data remain.
+        val root = File(context.filesDir, "home/.local/share/Steam")
+        for (path in listOf(".crash", "steam.pid", "config/htmlcache/SingletonLock",
+            "config/htmlcache/SingletonCookie", "config/htmlcache/SingletonSocket"))
+            java.nio.file.Files.deleteIfExists(File(root, path).toPath())
         com.sanogueralorenzo.androidsteam.login.SteamClientBridge.prepare(directory)
         val network = context.getSystemService(ConnectivityManager::class.java)
         val servers = network.activeNetwork?.let { network.getLinkProperties(it)?.dnsServers }.orEmpty()
@@ -46,17 +59,17 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         context.assets.open("steam/launch.sh").use { input ->
             File(directory, "steam-launch.sh").outputStream().use { input.copyTo(it) }
         }
-        return listOf("/usr/bin/env", "STEAM_RUNTIME=1",
-            "SDL_VIDEODRIVER=x11",
-            "LD_PRELOAD=/opt/androidsteam/session/usr/lib/libsteam-ui-pipe.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
-            "LD_LIBRARY_PATH=$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}",
-            "/bin/sh", "/run/androidsteam/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-clientbeta", "steamdeck_stable",
+        return listOf("/usr/bin/env") + steamEnvironment.map { (key, value) -> "$key=$value" } +
+            listOf("/bin/sh", "/run/androidsteam/steam-launch.sh", "$STEAM/steamrtarm64/steam", "-gamepadui", "-clientbeta", "steamdeck_stable",
             "-overridepackageurl", "https://client-update.akamai.steamstatic.com") +
             if (SteamInstaller(context).protonInstalled) emptyList() else listOf("steam://install/4427310")
     }
 
     private val environment = mapOf(
         "XDG_RUNTIME_DIR" to "/run/androidsteam", "WAYLAND_DISPLAY" to "wayland-0", "SDL_VIDEODRIVER" to "wayland",
+        "FAKE_EVDEV_DIR" to "/run/androidsteam/input", "FAKE_EVDEV_MEMFD_PATHS" to "0=/run/androidsteam/input-rings/ring0",
+        "FAKE_EVDEV_UINPUT" to "1",
+        "SDL_JOYSTICK_DISABLE_UDEV" to "1", "SDL_HIDAPI_JOYSTICK_DISABLE_UDEV" to "1", "SDL_JOYSTICK_HIDAPI" to "0",
         "PULSE_SERVER" to "unix:/run/androidsteam/pulse/native",
         "XLOCALEDIR" to "/usr/share/X11/locale",
         "WLR_XWAYLAND" to "/usr/bin/Xwayland",
@@ -68,6 +81,11 @@ internal class SessionRuntime(private val context: Context, val directory: File)
         "MESA_LOADER_DRIVER_OVERRIDE" to "zink", "GALLIUM_DRIVER" to "zink",
         "LD_LIBRARY_PATH" to "/opt/androidsteam/session/usr/lib:/usr/lib/pulseaudio",
         "VK_DRIVER_FILES" to "/opt/androidsteam/graphics/linux/freedreno_icd.aarch64.json")
+
+    private val steamEnvironment = mapOf(
+        "STEAM_RUNTIME" to "1", "SDL_VIDEODRIVER" to "x11",
+        "LD_PRELOAD" to "/opt/androidsteam/session/usr/lib/libxbox-evdev.so:/opt/androidsteam/session/usr/lib/libsteam-ui-pipe.so:/opt/androidsteam/session/usr/lib/libdeck-ports.so:/opt/androidsteam/session/usr/lib/libdeck-robust.so:${environment.getValue("LD_PRELOAD")}",
+        "LD_LIBRARY_PATH" to "$STEAM/steamrtarm64:$STEAM/steamrtarm64/libs:${environment.getValue("LD_LIBRARY_PATH")}")
 
     companion object { private const val STEAM = "/root/.local/share/Steam" }
 }

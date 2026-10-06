@@ -55,6 +55,12 @@ class GameSettingsActivity : Activity() {
             val extraButton = content.findViewById<Button>(R.id.extra_keys)
             fun labelKeys() { extraButton.text = "Extra touch keys: " + extra.joinToString { it.label }.ifEmpty { "None" } }
             labelKeys()
+            controls.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                    extraButton.visibility = if (ControlProfile.entries[position] in listOf(ControlProfile.ARROWS, ControlProfile.WASD)) android.view.View.VISIBLE else android.view.View.GONE
+                }
+            }
             extraButton.setOnClickListener {
                 val selected = extra.toMutableList()
                 AlertDialog.Builder(this).setTitle("Choose up to four extra keys")

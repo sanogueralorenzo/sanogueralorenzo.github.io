@@ -4,6 +4,20 @@
 if [ /etc/ld.so.conf.d/androidsteam.conf -nt /etc/ld.so.cache ]; then
     /usr/bin/ldconfig || exit 1
 fi
+# Shutdown's Valve executable must inherit the running client's PRoot IPC
+# namespace. Adapted from DroidDeck's session watcher at 05608ac4 (GPL-3.0).
+(
+    while :; do
+        if [ -f /run/androidsteam/steam-stop ]; then
+            rm -f /run/androidsteam/steam-stop
+            timeout -k 1s 10s "$1" -shutdown >/dev/null 2>&1
+            break
+        fi
+        sleep 0.5
+    done
+) &
+watcher=$!
+trap 'kill "$watcher" 2>/dev/null; wait "$watcher" 2>/dev/null' EXIT
 # Valve's bootstrapper exits with 42 after an update to request a fresh process.
 restarts=0
 while :; do

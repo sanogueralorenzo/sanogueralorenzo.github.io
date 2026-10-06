@@ -8,17 +8,8 @@ import android.view.InputDevice
 internal object SteamKeys {
     private val letters = intArrayOf(30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44)
     fun code(event: KeyEvent): Int? {
-        // Controller scan codes are button identifiers, not keyboard evdev codes.
-        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD)) return when (event.keyCode) {
-            KeyEvent.KEYCODE_BUTTON_A -> 28
-            KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BACK -> 1
-            KeyEvent.KEYCODE_BUTTON_X -> 57
-            KeyEvent.KEYCODE_DPAD_UP -> 103
-            KeyEvent.KEYCODE_DPAD_DOWN -> 108
-            KeyEvent.KEYCODE_DPAD_LEFT -> 105
-            KeyEvent.KEYCODE_DPAD_RIGHT -> 106
-            else -> null
-        }
+        // Physical controllers belong to PadBridge, never the keyboard mapping.
+        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD)) return null
         if (event.scanCode in 1..255) return event.scanCode
         return when (val code = event.keyCode) {
             in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> letters[code - KeyEvent.KEYCODE_A]
@@ -27,8 +18,8 @@ internal object SteamKeys {
             in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F10 -> code - KeyEvent.KEYCODE_F1 + 59
             KeyEvent.KEYCODE_F11 -> 87
             KeyEvent.KEYCODE_F12 -> 88
-            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BUTTON_B -> 1
-            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_BUTTON_A -> 28
+            KeyEvent.KEYCODE_ESCAPE -> 1
+            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> 28
             KeyEvent.KEYCODE_DEL -> 14
             KeyEvent.KEYCODE_TAB -> 15
             KeyEvent.KEYCODE_SPACE -> 57
