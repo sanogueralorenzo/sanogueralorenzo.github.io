@@ -4,7 +4,7 @@ Run Steam’s Deck interface and ARM64 Proton games locally on Android 16+, with
 
 ## Install and use
 
-Download the [development-signed release APK](https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/tag/androidsteam-20261005-1) and install it with Android’s package installer. Install updates over the existing app to preserve accounts, games and saves.
+Download the [development-signed release APK](https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/tag/androidsteam-20261005-2) and install it with Android’s package installer. Install updates over the existing app to preserve accounts, games and saves.
 
 Open Android Steam and choose **Profile → Setup → Download**, then **Start Steam**. Download prepares the pinned Arch base (94.4 MiB), matched graphics, audio/session components and Valve’s client; allow several GB of internal storage. Its ongoing notification supports cancellation, and retry keeps completed components. Steam sign-in is still required for account-dependent prerequisites and games. User data is stored separately from replaceable runtime files.
 
@@ -12,7 +12,7 @@ Choose **Open Steam** and complete Steam’s own QR sign-in on the device. Retur
 
 Touch navigates Steam and opens its onscreen keyboard. USB/Bluetooth keyboard and mouse events pass through Android. You can switch apps and return through the ongoing notification; **Stop Steam** ends the session. Audio uses Android AudioTrack and mutes while hidden.
 
-New games default to **Xbox controller** controls, adapted from DroidDeck’s existing implementation with [source attribution](THIRD_PARTY.md). The floating sticks appear while touching their activation areas and disappear on release; translucent buttons show pressed feedback. Touch outside controls reaches Steam or the game, including while a control is held. Choose **Xbox controller**, **Direct touch**, **Arrow keys** or **WASD** from the gamepad icon or native **Game settings**; existing selections are preserved. Keyboard layouts offer movement/Escape/Space/Enter and up to four optional P/R/Ctrl/Shift/C/X keys. Android gamepad events use the Xbox bridge; physical hardware remains untested.
+New games default to **Xbox controller** controls. Our compact edge layout uses faint buttons with larger touch targets and brighter pressed feedback. Small floating sticks appear while touching their activation areas and disappear on release. The input bridge retains the adapted DroidDeck implementation with [source attribution](THIRD_PARTY.md). Touch outside controls reaches Steam or the game, including while a control is held. Choose **Xbox controller**, **Direct touch**, **Arrow keys** or **WASD** from the gamepad icon or native **Game settings**; existing selections are preserved. Keyboard layouts offer movement/Escape/Space/Enter and up to four optional P/R/Ctrl/Shift/C/X keys. Android gamepad events use the Xbox bridge; physical hardware remains untested.
 
 Steam prompts to install **Proton Experimental (ARM64)** when it is missing (about 475 MB download / 1.94 GB installed). For a Windows game, select **Android Steam Proton (ARM64)** under its **Properties → Compatibility**. The small tool runs Valve's Steam-managed ARM64 depot directly and excludes the native overlay from Wine to avoid the reproduced Steam IPC crash on relaunch. Other Proton versions and arbitrary game compatibility are unverified.
 
