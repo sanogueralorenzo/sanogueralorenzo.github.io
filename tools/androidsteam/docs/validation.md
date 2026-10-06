@@ -44,7 +44,7 @@ Linux checks validate evdev/uinput identity, capabilities, buttons/axes, neutral
 
 ## Compact Xbox redesign
 
-The follow-up `androidsteam-20261005-2` APK is **1054121 bytes**, SHA-256 **`efb00c7bd977ab932d3a0b2209469a528cf545aebe8fbf4ca479607920fb195a`**. V3 signature, installed hash, absence of DEBUGGABLE/debug probes and build/lint pass. Only the onscreen Xbox layout/drawing/hit areas change; the Arch base, native controller bridge and Steam replacement policy are unchanged.
+The published [follow-up release](https://github.com/sanogueralorenzo/sanogueralorenzo.github.io/releases/tag/androidsteam-20261005-2) targets source/tag `53dd05c39d37be1a553c50a9d7403e96cc7623df` on main. Independent download/checksum/v3 verification match the tested candidate. Its APK is **1054121 bytes**, SHA-256 **`efb00c7bd977ab932d3a0b2209469a528cf545aebe8fbf4ca479607920fb195a`**. V3 signature, installed hash, absence of DEBUGGABLE/debug probes and build/lint pass. Only the onscreen Xbox layout/drawing/hit areas change; the Arch base, native controller bridge and Steam replacement policy are unchanged.
 
 Our edge layout replaces the inherited automatic arrangement. Face buttons are 36 dp across and floating sticks 60 dp across at full scale; button hit targets are at least 48 dp across at full scale. Idle fills/outlines/labels use approximately 3%/12%/21% opacity, with brighter pressed feedback. D-pad arrows have no persistent circles. Both sticks appear on touch and disappear on release. The remaining adapted input handling retains DroidDeck attribution.
 
