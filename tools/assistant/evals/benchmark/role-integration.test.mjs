@@ -14,7 +14,7 @@ const answer = content => ({ role: "assistant", api: model.api, provider: model.
   stopReason: content.some(part => part.type === "toolCall") ? "toolUse" : "stop", timestamp: 0,
   usage: { input: 5, output: 2, cacheRead: 1, cacheWrite: 0, totalTokens: 8, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } });
 
-// Actual SDK sessions and native tools; only provider responses are synthetic.
+// Actual Durable conversations and native tools; only provider responses are synthetic.
 function fakeRuntime(answers, contexts = []) {
   let index = 0;
   const runtime = { hasConfiguredAuth: () => true, checkAuth: async () => "test", isUsingOAuth: () => false,
@@ -103,7 +103,7 @@ test("session final artifacts reflect native writes and edits, not completion cl
   const config = suite("session");
   const saved = await runRoleIntegration(fakeRuntime([
     answer([call("write", { path: "report.json", content: '{"release":"old"}\n' })]),
-    answer([call("edit", { path: "report.json", oldText: "old", newText: "new" })]),
+    answer([call("edit", { path: "report.json", edits: [{ oldText: "old", newText: "new" }] })]),
     answer([call("read", { path: "report.json" })]),
     answer([text("Saved report.json.")]),
   ]), model, config, job(), { workspaceDir: workspace(t) });

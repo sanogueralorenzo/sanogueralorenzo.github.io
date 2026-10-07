@@ -13,7 +13,7 @@ sessionStorage.removeItem("assistant-reload-reply");
 sessionStorage.removeItem("assistant-reload-edit");
 sessionStorage.removeItem("assistant-reload-queued-edit");
 const state = { data: { messages: [], entries: [], sessions: [], turns: [] }, selected: localStorage.getItem("assistant-view") || "home",
-  transcript: [], input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, unseenReplies: new Map(), snapshotLoaded: false };
+  transcript: [], sessionRevision: 0, input: restoredDraft, replyToId: restoredReply, edit: restoredEdit, queuedEdit: restoredQueuedEdit, sessionDrafts: {}, scroll: { home: 0 }, error: "", connected: false, streaming: "", activity: "", liveProgress: {}, unseenReplies: new Map(), snapshotLoaded: false };
 let renderedView = state.selected;
 const actions = createMessageActions({ state, root, api, render });
 const suggestions = createPromptSuggestions({ state, root, api, render });
@@ -97,7 +97,7 @@ function sessionView() {
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const messages = state.transcript.length ? state.transcript.filter((message) => !message.reaction).map((message) => renderMessage(message,
     message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
-  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Interrupted on service restart. Return to Home to continue.</div>` : ""}`;
+  return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
 }
 function render(force = false) {
   const old = root.querySelector(".scroll-area");
@@ -140,11 +140,13 @@ function render(force = false) {
 async function loadSession() {
   if (state.selected === "home") return;
   const selected = state.selected;
+  const revision = state.sessionRevision;
   try {
     const result = await api(`/api/sessions/${encodeURIComponent(selected)}`);
-    if (selected !== state.selected) return;
+    if (selected !== state.selected || revision !== state.sessionRevision) return;
     state.transcript = result.messages;
-    state.streaming = "";
+    state.streaming = result.streaming || "";
+    state.activity = result.activity || "";
     render();
   } catch (error) { state.error = error.message; render(); }
 }
@@ -282,10 +284,14 @@ function connect() {
       }
       state.snapshotLoaded = true;
       render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview"));
-      if (state.selected !== "home") void loadSession();
     }
-    if (event.type === "delta" && event.sessionId === state.selected) { state.streaming += event.delta; render(); }
-    if (event.type === "activity" && event.sessionId === state.selected) { state.activity = event.label; render(); }
+    if (event.type === "conversation" && event.sessionId === state.selected) {
+      state.sessionRevision++;
+      state.transcript = event.messages;
+      state.streaming = event.streaming;
+      state.activity = event.activity;
+      render();
+    }
     if (event.type === "homeActivity") {
       state.liveProgress[event.sourceId] = event.text;
       if (state.selected === "home") {

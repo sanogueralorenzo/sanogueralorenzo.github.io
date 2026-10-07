@@ -121,10 +121,8 @@ test("only the latest idle reply can get a suggestion, and newer work invalidate
   let messages = [{ id: "reply", role: "assistant", text: "I can show the mockup.", completed: true }];
   let calls = 0;
   const app = Object.create(Assistant.prototype) as Assistant;
-  Object.assign(app, { state: { data: { sessions: [record], turns } }, pi: {
-    transcript: () => messages,
-    suggestions: { get: () => { calls++; return promise; } },
-  } });
+  Object.assign(app, { state: { data: { sessions: [record], turns }, transcript: () => messages },
+    suggestions: { get: () => { calls++; return promise; } } });
   assert.deepEqual(await app.suggestion("session", "older"), { text: null });
   record.status = "running";
   assert.deepEqual(await app.suggestion("session", "reply"), { text: null });

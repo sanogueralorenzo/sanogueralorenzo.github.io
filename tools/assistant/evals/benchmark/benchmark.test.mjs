@@ -191,7 +191,7 @@ test('the first accepted terminal action prevents later calls from changing its 
 });
 
 test("integration read boundaries match native path prefixes and snapshots detect file changes", async () => {
-  const { workspacePath, workspaceSnapshot } = await import("./researcher-integration.mjs");
+  const { workspacePath, workspaceSnapshot } = await import("./integration-workspace.mjs");
   const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
@@ -207,7 +207,7 @@ test("integration read boundaries match native path prefixes and snapshots detec
 });
 
 test("integration records recovered SDK retries and uses the actual production reply renderer", async () => {
-  const { recordAssistantMessage } = await import("./researcher-integration.mjs");
+  const { recordAssistantMessage } = await import("./integration-workspace.mjs");
   const record = { usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 }, trace: [] };
   recordAssistantMessage(record, { role: "assistant", content: [], stopReason: "error", errorMessage: "WebSocket error" });
   assert.equal(record.error, "WebSocket error");

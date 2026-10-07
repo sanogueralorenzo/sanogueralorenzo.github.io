@@ -1,12 +1,14 @@
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, lstatSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { createAgentSession, SessionManager, defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { agentResources, agentToolNames, providerTools } from "../../src/agent-resources.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { createRegistry, defineExtension, defineTool, Harness, hook, MemoryStorage, ToolTask } from "@earendil-works/pi-durable";
+import { roleExtension, providerModels } from "../../src/pi.ts";
+import { agentResources } from "../../src/agent-resources.ts";
 import { HomeRouter } from "../../src/home-routing.ts";
 import { ComputerUseClient } from "../../src/computer-use.ts";
-import { workspacePath, workspaceSnapshot, recordAssistantMessage } from "./researcher-integration.mjs";
+import { workspacePath, workspaceSnapshot, recordAssistantMessage } from "./integration-workspace.mjs";
 import { hash } from "./suite.mjs";
 import { matches } from "./trial.mjs";
 
@@ -52,7 +54,7 @@ function sessionFixtureTools(test, variant) {
     parameters: Type.Object({ role: Type.Union([Type.Literal("researcher"), Type.Literal("reviewer")]), task: Type.String({ minLength: 1 }) }) },
   new ComputerUseClient().tool()];
   return definitions.map(definition => defineTool({ ...definition,
-    execute: async (_id, args) => {
+    execute: async (args) => {
       const fixture = (test.fixtures || []).find(item => item.tool === definition.name && matches(args, item.match || {}));
       if (!fixture) throw new Error(`${definition.name} is disabled in native role integration; no external action was executed. Supply an explicit fixture reply to exercise this boundary.`);
       const text = fixture.resource ? variant.resources?.[fixture.resource] : fixture.response;
@@ -65,7 +67,7 @@ function sessionFixtureTools(test, variant) {
 export async function runRoleIntegration(runtime, model, suite, job, options = {}) {
   const { test: authoredTest, variant, repeat, id } = job;
   const role = suite.config.role;
-  if (!["reviewer", "session", "coordinator"].includes(role)) throw new Error("Role integration requires reviewer, session, or coordinator");
+  if (!["researcher", "reviewer", "session", "coordinator"].includes(role)) throw new Error("Role integration requires reviewer, session, or coordinator");
   if (role === "coordinator" && authoredTest.messages?.length !== 1)
     throw new Error("Coordinator integration supports one new Home message per case; seed prior routed exchanges in homeState");
   const parent = resolve(options.workspaceDir || join(tmpdir(), "assistant-role-benchmark"));
@@ -87,61 +89,85 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
     trace: [], state: {}, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 }, requests: [], providerEvents: [], text: "" };
   const sessions = new Set();
   let turns = 0; let limited = false;
-  const timer = setTimeout(() => { limited = true; for (const session of sessions) void session.abort(); }, suite.config.timeoutMs || 180000);
-  const observer = pi => {
-    pi.on("tool_call", event => {
-      const blocked = roleToolBoundary(cwd, test, event);
-      if (blocked) record.trace.push({ role: "boundary", name: event.toolName, arguments: normalized(event.input), text: blocked.reason, error: true });
-      return blocked;
-    });
-    pi.on("before_provider_request", ({ payload }) => {
-      const request = { model: payload.model, effort: payload.reasoning?.effort, tier: payload.service_tier,
-        tools: payload.tools?.map(tool => tool.name || tool.type), instructionCharacters: payload.instructions?.length,
-        instructionsHash: hash(normalize(payload.instructions || "")), sectionsPresent: variant.sections.map(section => payload.instructions?.includes(section) || false) };
-      if (request.effort !== (variant.effort === "off" ? "none" : variant.effort) || request.tier !== "priority" ||
-        (role !== "coordinator" && !request.tools?.includes("web_search")) || (role === "coordinator" && request.tools?.includes("web_search")))
-        throw new Error("Integration provider configuration differs from production");
-      record.requests.push({ request });
-      record.environment.firstCallSettings ||= request;
-    });
-    pi.on("provider_stream_event", ({ data }) => {
-      if (!data || typeof data !== "object") return;
-      record.providerEvents.push(normalized(data));
-      if (data.type === "response.completed") record.requests.at(-1).response = { model: data.response?.model,
-        tier: data.response?.service_tier, usage: data.response?.usage, reasoningTokens: data.response?.usage?.output_tokens_details?.reasoning_tokens };
-      if (data.type === "response.output_item.done" && data.item?.type === "web_search_call")
-        record.trace.push({ role: "tool", name: "web_search", arguments: normalized(data.item.action || {}), text: normalize(JSON.stringify(data.item)) });
-    });
+  const timer = setTimeout(() => { limited = true; for (const session of sessions) void session.conversation.abort(BACKGROUND_CONTEXT); }, suite.config.timeoutMs || 180000);
+  const observePayload = payload => {
+    const request = { model: payload.model, effort: payload.reasoning?.effort, tier: payload.service_tier,
+      tools: payload.tools?.map(tool => tool.name || tool.type), instructionCharacters: payload.instructions?.length,
+      instructionsHash: hash(normalize(payload.instructions || "")), sectionsPresent: variant.sections.map(section => payload.instructions?.includes(section) || false) };
+    if (request.effort !== (variant.effort === "off" ? "none" : variant.effort) || request.tier !== "priority" ||
+      (role !== "coordinator" && !request.tools?.includes("web_search")) || (role === "coordinator" && request.tools?.includes("web_search")))
+      throw new Error("Integration provider configuration differs from production");
+    record.requests.push({ request });
+    record.environment.firstCallSettings ||= request;
+    return payload;
   };
+  const observeProvider = data => {
+    if (!data || typeof data !== "object") return;
+    record.providerEvents.push(normalized(data));
+    if (data.type === "response.completed") record.requests.at(-1).response = { model: data.response?.model,
+      tier: data.response?.service_tier, usage: data.response?.usage, reasoningTokens: data.response?.usage?.output_tokens_details?.reasoning_tokens };
+    if (data.type === "response.output_item.done" && data.item?.type === "web_search_call")
+      record.trace.push({ role: "tool", name: "web_search", arguments: normalized(data.item.action || {}), text: normalize(JSON.stringify(data.item)) });
+  };
+  const observed = new Proxy(runtime, { get(target, key) {
+    if (key === "streamSimple") return (selected, context, options) => target.streamSimple(selected, context, { ...options,
+      onPayload: async (payload, physical) => observePayload(await options.onPayload?.(payload, physical) ?? payload),
+      onProviderStreamEvent: async (data, physical) => { await options.onProviderStreamEvent?.(data, physical); observeProvider(data); },
+    });
+    const value = Reflect.get(target, key);
+    return typeof value === "function" ? value.bind(target) : value;
+  } });
   const nativeSession = async (customTools = [], acceptedResult) => {
-    const loader = agentResources(cwd, role, [providerTools(role, () => {}), observer], variant.sections);
+    const loader = agentResources(cwd, role, variant.sections);
     await loader.reload();
-    const tools = role === "session" ? sessionFixtureTools(test, variant) : customTools;
-    const { session } = await createAgentSession({ cwd, modelRuntime: runtime, model, thinkingLevel: variant.effort,
-      resourceLoader: loader, sessionManager: SessionManager.inMemory(cwd), customTools: tools, tools: agentToolNames(role, tools.map(tool => tool.name)) });
+    const tools = (role === "session" ? sessionFixtureTools(test, variant) : customTools).map(tool => defineTool({
+      name: tool.name, description: tool.description, parameters: tool.parameters,
+      execute: async (args, api, context) => {
+        const result = await tool.execute(args, api, context);
+        return { content: result.content, ...(result.details !== undefined && { details: result.details }),
+          ...(acceptedResult?.() && { control: { handoff: "" } }) };
+      },
+    }));
+    const extension = roleExtension(role, tools, variant.sections);
+    const boundary = defineExtension({ name: "benchmark-boundary", hooks: [hook(ToolTask, {
+      beforeTool: call => {
+        const blocked = roleToolBoundary(cwd, test, { toolName: call.name, input: call.arguments });
+        if (blocked) record.trace.push({ role: "boundary", name: call.name, arguments: normalized(call.arguments), text: blocked.reason, error: true });
+        return blocked ? { block: blocked.reason } : undefined;
+      },
+    })] });
+    const registry = createRegistry(); registry.install(extension); registry.install(boundary);
+    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
+    const conversation = await harness.root(BACKGROUND_CONTEXT, { agent: {
+      model: { provider: model.provider, modelId: model.id }, cwd, thinkingLevel: variant.effort, extensions: [extension, boundary],
+    } });
+    const session = { harness, conversation };
     sessions.add(session);
+    const prompt = await extension.sections[0].render({ agent: { cwd } }, BACKGROUND_CONTEXT);
     const skills = loader.getSkills().skills.map(skill => ({ name: skill.name, description: skill.description, path: normalize(skill.filePath), hash: hash(readFileSync(skill.filePath, "utf8")) }));
     const context = loader.getAgentsFiles().agentsFiles.map(file => ({ path: normalize(file.path), hash: hash(file.content) }));
     const fixtureResources = Object.fromEntries(Object.entries(variant.resources || {}).map(([name, content]) => [name, hash(content)]));
-    record.environment = { ...record.environment, systemPrompt: normalize(session.systemPrompt), systemPromptHash: hash(normalize(session.systemPrompt)),
-      promptSectionHashes: variant.sections.map(hash), sectionsPresent: variant.sections.map(section => session.systemPrompt.includes(section)),
-      resourceHash: hash({ skills, context, fixtureResources }), fixtureResources, tools: session.getActiveToolNames(), skills, context, files: before,
+    record.environment = { ...record.environment, runtime: "pi-durable", systemPrompt: normalize(prompt), systemPromptHash: hash(normalize(prompt)),
+      promptSectionHashes: variant.sections.map(hash), sectionsPresent: variant.sections.map(section => prompt.includes(section)),
+      resourceHash: hash({ skills, context, fixtureResources }), fixtureResources, tools: (await conversation.agent(BACKGROUND_CONTEXT)).tools.map(tool => tool.name), skills, context, files: before,
       limitations: role === "session" ? ["Bash executes only exact authored whitelist commands; delegate and computer_use use fixture replies or explicit errors."] :
-        role === "coordinator" ? ["HomeRouter discovery uses one new message plus authored in-memory state and transcripts; routes are never committed to sessions or services."] : [] };
+        role === "coordinator" ? ["HomeRouter discovery uses one new message plus authored state and transcripts; routes are never committed to services."] : [] };
     for (const file of loader.getAgentsFiles().agentsFiles) record.trace.push({ role: "context", name: "project_instructions", text: normalize(file.content), path: normalize(file.path) });
     const callArguments = new Map();
-    session.subscribe(event => {
-      if (event.type === "tool_execution_start") callArguments.set(event.toolCallId, event.args);
-      if (event.type === "message_end" && event.message.role === "assistant") {
-        recordAssistantMessage(record, event.message, normalize);
-        record.trace.at(-1).calls = normalized(record.trace.at(-1).calls);
-        record.trace.at(-1).thinking = normalized(event.message.content.filter(part => part.type === "thinking"));
-        if (++turns >= (suite.config.maxTurns || 8) && !record.completed && !acceptedResult?.()) { limited = true; void session.abort(); }
-      }
-      if (event.type === "tool_execution_end") {
-        record.trace.push({ role: "tool", name: event.toolName, arguments: normalized(callArguments.get(event.toolCallId) || {}),
-          text: normalize((event.result?.content || []).filter(part => part.type === "text").map(part => part.text).join("\n")), error: event.isError });
-        if (acceptedResult?.()) void session.abort();
+    harness.subscribeCommits(publication => {
+      for (const change of publication.changes) {
+        if (change.type !== "entry") continue;
+        const message = change.value.model?.[0];
+        if (message?.role === "assistant") {
+          for (const call of message.content.filter(part => part.type === "toolCall")) callArguments.set(call.id, call.arguments);
+          recordAssistantMessage(record, message, normalize);
+          record.trace.at(-1).calls = normalized(record.trace.at(-1).calls);
+          record.trace.at(-1).thinking = normalized(message.content.filter(part => part.type === "thinking"));
+          if (++turns >= (suite.config.maxTurns || 8) && !record.completed && !acceptedResult?.()) { limited = true; void conversation.abort(BACKGROUND_CONTEXT); }
+        }
+        if (message?.role === "toolResult") record.trace.push({ role: "tool", name: message.toolName,
+          arguments: normalized(callArguments.get(message.toolCallId) || {}),
+          text: normalize(message.content.filter(part => part.type === "text").map(part => part.text).join("\n")), error: message.isError });
       }
     });
     return session;
@@ -149,24 +175,26 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
   try {
     if (role === "coordinator") {
       const data = structuredClone({ messages: [], entries: [], sessions: [], turns: [], ...test.homeState });
-      const pi = { transcript: file => {
+      const transcript = sessionId => {
+        const file = data.sessions.find(session => session.id === sessionId)?.file;
         const transcript = test.homeState?.transcripts?.[file];
         if (!Array.isArray(transcript)) throw new Error("No authored transcript for the saved conversation");
         return transcript;
-      }, utility: async (_role, input, _cwd, tools, acceptedResult) => {
+      };
+      const pi = { utility: async (_role, input, _cwd, tools, acceptedResult) => {
         record.trace.push({ role: "user", text: normalize(input) });
         const session = await nativeSession(tools, acceptedResult);
         try {
-          try { await session.prompt(input, { expandPromptTemplates: false }); }
+          try { await (await session.conversation.submit({ type: "input", content: input }, BACKGROUND_CONTEXT)).wait(BACKGROUND_CONTEXT); }
           catch (error) { if (!acceptedResult()) throw error; }
           const accepted = acceptedResult();
           if (accepted) { record.completed = true; delete record.error; return accepted; }
           if (record.error) throw new Error(record.error);
           if (!record.text) throw new Error("Coordinator returned no answer");
           return record.text;
-        } finally { sessions.delete(session); session.dispose(); }
+        } finally { sessions.delete(session); await session.harness.close(BACKGROUND_CONTEXT); }
       } };
-      const router = new HomeRouter({ data }, pi, cwd);
+      const router = new HomeRouter({ data, transcript }, pi, cwd);
       const routes = [];
       for (const [index, input] of test.messages.entries()) {
         if (input.role !== "user") throw new Error("Native role integration requires user messages, not fabricated assistant history");
@@ -184,7 +212,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       for (const input of test.messages) {
         if (input.role !== "user") throw new Error("Native role integration requires user messages, not fabricated assistant history");
         record.trace.push({ role: "user", text: normalize(input.text) });
-        await session.prompt(input.text, { expandPromptTemplates: false });
+        await (await session.conversation.submit({ type: "input", content: input.text }, BACKGROUND_CONTEXT)).wait(BACKGROUND_CONTEXT);
         if (limited || record.error) break;
       }
     }
@@ -194,7 +222,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
     else record.error = normalize(error.message);
   } finally {
     clearTimeout(timer);
-    for (const session of sessions) session.dispose();
+    for (const session of sessions) await session.harness.close(BACKGROUND_CONTEXT);
     try {
       const after = workspaceSnapshot(cwd);
       record.environment ||= {};

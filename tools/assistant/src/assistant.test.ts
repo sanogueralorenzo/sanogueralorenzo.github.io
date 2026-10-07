@@ -1,174 +1,117 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { test } from "node:test";
-import { SessionManager, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import { Assistant } from "./assistant.ts";
-import { PiService } from "./pi.ts";
-import { State, now } from "./state.ts";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
+import { roleExtension } from "./pi.ts";
+import { fixture, answered, gate, toolAnswer, waitFor } from "./test-support.ts";
 
-test("thumbs-up reactions queue one approval in the referenced conversation", () => {
-  const dir = mkdtempSync(join(tmpdir(), "assistant-reply-"));
-  const state = new State(dir, () => {});
-  try {
-    for (const id of ["session-1", "session-2"]) {
-      state.data.sessions.push({ id, title: id, cwd: dir, file: id, status: "running", createdAt: now() });
-    }
-    const request = state.message("Review this");
-    const entry = state.entry(request, "Review", "session-1");
-    state.update(entry, "I recommend improving the messages.", "result", "ready", request.id, "home-reply");
-    const app = Object.create(Assistant.prototype) as Assistant;
-    Object.assign(app, {
-      state, active: new Map(), drain: () => {},
-      pi: { transcript: (file: string) => file === "session-1"
-        ? [{ id: "transcript-reply", role: "assistant", replyable: true, text: "I can make that change." }] : [] },
-    });
-
-    for (const replyToId of ["home-reply", "transcript-reply"]) {
-      const options = { replyToId, reaction: "thumbs-up" as const };
-      app.submitSession("session-1", "ignored", "followUp", options);
-      const turn = state.data.turns.at(-1)!;
-      assert.equal(turn.sessionId, "session-1");
-      assert.equal(turn.replyToId, replyToId);
-      assert.equal(turn.text, "Yes, go ahead.");
-      assert.equal(turn.status, "queued");
-      assert.equal(state.data.messages.at(-1)?.replyToId, replyToId);
-      assert.equal(state.data.messages.at(-1)?.reaction, "thumbs-up");
-      app.submitSession("session-1", "ignored", "followUp", options);
-      assert.throws(() => app.submitSession("session-2", "ignored", "followUp", options), /not in this conversation/);
-    }
-    assert.equal(state.data.turns.length, 2);
-    assert.throws(() => app.submitSession("session-1", "Go ahead.", "followUp", { replyToId: "missing" }), /not in this conversation/);
-    assert.throws(() => app.submitSession("session-1", "ignored", "steer", { replyToId: "home-reply", reaction: "thumbs-up" }), /React to an assistant reply/);
-    assert.throws(() => app.submitSession("session-1", "ignored", "followUp", { replyToId: request.id, reaction: "thumbs-up" }), /React to an assistant reply/);
-    app.submitSession("session-1", "Yes, go ahead.", "followUp", { replyToId: "home-reply" });
-    assert.equal(state.data.messages.at(-1)?.reaction, undefined);
-    const reopened = new State(dir, () => {});
-    try {
-      assert.equal(reopened.data.messages.filter((message) => message.reaction === "thumbs-up").length, 2);
-    } finally { reopened.db.close(); }
-  } finally {
-    state.db.close();
-    rmSync(dir, { recursive: true, force: true });
-  }
+test("Home routes through Durable without an extra coordinator model call", async (t) => {
+  const f = await fixture(t);
+  await f.idle();
+  assert.equal(f.faux.state.callCount, 2);
+  const entry = f.app.snapshot().entries[0];
+  assert.equal(entry.status, "ready");
+  assert.equal(entry.title, "Test");
+  assert.equal(entry.updates[0].text, "First proposal.\nIts details.");
+  assert.equal(answered(f.app, f.sessionId)[0].id, entry.updates[0].id);
+  assert.equal(f.app.snapshot().turns.length, 0);
 });
 
-test("session replies retain the selected context when queued or steering active work", () => {
-  const dir = mkdtempSync(join(tmpdir(), "assistant-context-"));
-  const state = new State(dir, () => {});
-  try {
-    state.data.sessions.push({ id: "session", title: "Context", cwd: dir, file: "session", status: "running", createdAt: now() });
-    const prompts: string[] = [];
-    const active = new Map();
-    const app = Object.create(Assistant.prototype) as Assistant;
-    Object.assign(app, {
-      state, active, drain: () => {},
-      pi: { transcript: () => [
-        { id: "earlier", role: "assistant", replyable: true, text: "First proposal.\nIts details." },
-        { id: "latest", role: "assistant", replyable: true, text: "Another proposal." },
-      ] },
-    });
-    app.submitSession("session", "Change this one", "followUp", { replyToId: "earlier" });
-    const turn = state.data.turns.at(-1)!;
-    assert.equal(turn.replyToId, "earlier");
-    assert.equal(turn.text, "Change this one");
-    assert.equal(state.data.messages.at(-1)?.replyToId, "earlier");
-
-    active.set("session", { turn, session: { steer: (prompt: string) => { prompts.push(prompt); return Promise.resolve(); } } });
-    app.submitSession("session", "Focus on this proposal", "steer", { replyToId: "earlier" });
-    assert.equal(prompts[0], "In reply to this earlier assistant message:\n> First proposal.\n> Its details.\n\nFocus on this proposal");
-    app.submitSession("session", "Now this one", "steer", { replyToId: "latest" });
-    assert.equal(prompts[1], "In reply to this earlier assistant message:\n> Another proposal.\n\nNow this one");
-    app.submitSession("session", "Ordinary steering", "steer");
-    assert.equal(prompts[2], "Ordinary steering");
-  } finally {
-    state.db.close();
-    rmSync(dir, { recursive: true, force: true });
-  }
+test("replies quote the selected answer and thumbs-up is admitted once", async (t) => {
+  const f = await fixture(t); await f.idle();
+  const reply = answered(f.app, f.sessionId)[0];
+  f.faux.appendResponses([async (context) => {
+    const input = context.messages.filter((message) => message.role === "user").at(-1)!;
+    assert.equal(input.content, "In reply to this earlier assistant message:\n> First proposal.\n> Its details.\n\nYes, go ahead.");
+    return fauxAssistantMessage("Approved.");
+  }]);
+  const options = { replyToId: reply.id, reaction: "thumbs-up" as const };
+  await f.app.submitSession(f.sessionId, "ignored", "followUp", options);
+  assert.deepEqual(await f.app.submitSession(f.sessionId, "ignored", "followUp", options), { reacted: true });
+  await f.idle();
+  assert.equal(f.app.snapshot().messages.filter((message) => message.reaction).length, 1);
+  assert.equal(f.app.transcript(f.sessionId).messages.filter((message) => message.reaction).length, 1);
+  await assert.rejects(f.app.submitSession(f.sessionId, "x", "followUp", { replyToId: "missing" }), /not in this conversation/);
+  await assert.rejects(f.app.submitSession(f.sessionId, "x", "steer", options), /React to an assistant reply/);
 });
 
-test("queued replies and approvals deliver the selected earlier context to the session", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "assistant-queued-context-"));
-  const state = new State(dir, () => {});
-  try {
-    state.data.sessions.push({ id: "session", title: "Context", cwd: dir, file: "session", status: "idle", createdAt: now() });
-    const prompts: string[] = [];
-    const reactions: unknown[] = [];
-    const suggested: string[] = [];
-    let listener: (event: AgentSessionEvent) => void;
-    let completed: () => void;
-    const session = {
-      subscribe: (callback: typeof listener) => { listener = callback; },
-      sessionManager: {
-        appendCustomEntry: (_type: string, data: unknown) => reactions.push(data),
-        getBranch: () => [{ type: "message", id: "result", message: { role: "assistant" } }],
-      },
-      prompt: async (text: string) => {
-        prompts.push(text);
-        listener({ type: "message_end", message: { role: "user", content: text, timestamp: Date.now() } });
-        listener({ type: "message_end", message: {
-          role: "assistant", content: [{ type: "text", text: "Done." }], stopReason: "stop",
-        } } as AgentSessionEvent);
-      },
-    };
-    const app = Object.create(Assistant.prototype) as Assistant;
-    Object.assign(app, {
-      state, concurrency: 1, active: new Map(), starting: new Set(), pendingStops: new Set(), listeners: new Set(),
-      pi: {
-        suggestions: { get: async (_sessionId: string, replyId: string) => { suggested.push(replyId); return null; } },
-        transcript: () => [
-          { id: "earlier", role: "assistant", replyable: true, text: "First proposal.\nIts details." },
-          { id: "latest", role: "assistant", replyable: true, text: "Another proposal." },
-        ],
-        open: async () => session,
-        onSearchActivity: () => {},
-        dispose: () => completed(),
-      },
-    });
-    const cases: { text: string; reaction?: "thumbs-up" }[] = [
-      { text: "Change this proposal" }, { text: "ignored", reaction: "thumbs-up" },
-    ];
-    for (const { text, reaction } of cases) {
-      const finished = new Promise<void>((resolve) => { completed = resolve; });
-      app.submitSession("session", text, "followUp", { replyToId: "earlier", reaction });
-      await finished;
-      assert.equal(prompts.at(-1), `In reply to this earlier assistant message:\n> First proposal.\n> Its details.\n\n${reaction ? "Yes, go ahead." : text}`);
-      assert.equal(state.data.sessions[0].status, "idle");
-      assert.equal(state.data.turns.length, 0);
-    }
-    assert.deepEqual(reactions, [{ reaction: "thumbs-up", replyToId: "earlier" }]);
-    assert.deepEqual(suggested, ["result", "result"]);
-  } finally {
-    state.db.close();
-    rmSync(dir, { recursive: true, force: true });
-  }
+test("Durable delegation stores a read-only child with no delegation or Computer Use tools", async (t) => {
+  const f = await fixture(t, [toolAnswer("delegate", { role: "researcher", task: "Find evidence" }), async (context) => {
+    assert.deepEqual(context.messages.flatMap((message) => message.role === "system" ? message.toolsAdded?.map((tool) => tool.name) || [] : []), ["read", "grep", "find", "ls"]);
+    return fauxAssistantMessage("Evidence found.");
+  }, async (context) => {
+    const result = context.messages.filter((message) => message.role === "toolResult").at(-1)!;
+    assert.match(JSON.stringify(result.content), /Evidence found/);
+    return fauxAssistantMessage("Final answer.");
+  }]);
+  await f.idle();
+  const children = await f.app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
+  const child = children.items.find((item) => item.owner);
+  assert.ok(child);
+  const conversation = await f.app.pi.harness.conversation(child.id, BACKGROUND_CONTEXT);
+  const history = await conversation!.entries({}, 256, undefined, BACKGROUND_CONTEXT);
+  assert.ok(history.items.some((entry) => entry.kind === "pi.assistant"));
+  assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Final answer.");
 });
 
-test("transcripts preserve reply IDs and distinguish completed replies from tool commentary", () => {
-  const dir = mkdtempSync(join(tmpdir(), "assistant-transcript-"));
-  try {
-    const manager = SessionManager.create(dir, dir);
-    manager.appendMessage({ role: "user", content: "Review this", timestamp: Date.now() });
-    const message = {
-      role: "assistant" as const, content: [{ type: "text" as const, text: "I can improve this." }],
-      api: "openai-responses" as const, provider: "openai", model: "test", timestamp: Date.now(),
-      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-    };
-    const commentaryId = manager.appendMessage({ ...message, stopReason: "toolUse" });
-    const replyId = manager.appendMessage({ ...message, stopReason: "stop" });
-    manager.appendCustomEntry("assistant-reaction", { reaction: "thumbs-up", replyToId: replyId });
-    const reactionId = manager.appendMessage({ role: "user", content: "Yes, go ahead.", timestamp: Date.now() });
-    const manualId = manager.appendMessage({ role: "user", content: "Yes, go ahead.", timestamp: Date.now() });
-    const transcript = PiService.prototype.transcript(manager.getSessionFile()!);
-    assert.equal(transcript.find((item) => item.id === commentaryId)?.replyable, false);
-    assert.equal(transcript.find((item) => item.id === replyId)?.replyable, true);
-    assert.equal(transcript.find((item) => item.role === "user")?.replyable, false);
-    assert.equal(transcript.find((item) => item.id === reactionId)?.reaction, "thumbs-up");
-    assert.equal(transcript.find((item) => item.id === reactionId)?.text, "Yes, go ahead.");
-    assert.equal(transcript.find((item) => item.id === manualId)?.reaction, undefined);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
+test("stopping work keeps queued inputs and resuming runs the interrupted request first", async (t) => {
+  const pause = gate();
+  const f = await fixture(t, [toolAnswer("pause")], [pause.tool]);
+  await pause.started;
+  await f.app.submitSession(f.sessionId, "Later follow-up");
+  await waitFor(f.app, () => f.app.state.home.messages.at(-1)?.submissionId !== undefined);
+  await f.app.stop(f.sessionId);
+  assert.equal(f.app.snapshot().sessions[0].status, "interrupted");
+  assert.equal(f.app.snapshot().turns.filter((turn) => turn.status === "queued").length, 1);
+  const requests: string[] = [];
+  f.faux.appendResponses([async (context) => { requests.push(String(context.messages.filter((message) => message.role === "user").at(-1)!.content)); return fauxAssistantMessage("Resumed."); },
+    async (context) => { requests.push(String(context.messages.filter((message) => message.role === "user").at(-1)!.content)); return fauxAssistantMessage("Follow-up."); }]);
+  await f.app.resume(f.app.snapshot().entries[0].id);
+  await f.idle();
+  assert.match(requests[0], /^Continue the interrupted request/);
+  assert.equal(requests[1], "Later follow-up");
+  assert.equal(f.app.snapshot().sessions[0].status, "idle");
+});
+
+test("a restarted delegation reuses its owned child and committed task request", async (t) => {
+  const pause = gate();
+  const f = await fixture(t, [toolAnswer("delegate", { role: "researcher", task: "Find evidence" }), toolAnswer("pause")], [], {}, [roleExtension("researcher", [pause.tool])]);
+  await pause.started;
+  const before = await f.app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
+  const originalChild = before.items.find((item) => item.owner)!;
+  f.faux.appendResponses([fauxAssistantMessage("Recovered evidence."), fauxAssistantMessage("Recovered parent answer.")]);
+  const app = await f.reopen(); await f.idle();
+  const after = await app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
+  assert.deepEqual(after.items.filter((item) => item.owner).map((item) => item.id), [originalChild.id]);
+  assert.equal(pause.calls(), 1);
+  assert.equal(answered(app, f.sessionId).at(-1)?.text, "Recovered parent answer.");
+});
+
+test("stopping the parent aborts and joins its owned child", async (t) => {
+  const pause = gate();
+  const f = await fixture(t, [toolAnswer("delegate", { role: "reviewer", task: "Review it" }), toolAnswer("pause")], [], {}, [roleExtension("reviewer", [pause.tool])]);
+  await pause.started;
+  await f.app.stop(f.sessionId);
+  const inspection = await f.app.pi.harness.inspect(BACKGROUND_CONTEXT);
+  assert.equal(inspection.tasks.length, 0);
+  assert.equal(f.app.snapshot().sessions[0].status, "interrupted");
+});
+
+test("a lookup batched with an accepted route cannot trigger another coordinator request", async (t) => {
+  const f = await fixture(t); await f.idle();
+  const count = f.faux.state.callCount;
+  f.faux.appendResponses([fauxAssistantMessage([
+    fauxToolCall("find_conversations", { query: "Test" }),
+    fauxToolCall("route_home", { mode: "continue", sessionId: f.sessionId }),
+  ], { stopReason: "toolUse" }), fauxAssistantMessage("Continued.")]);
+  await f.app.submitHome("Continue this work"); await f.idle();
+  assert.equal(f.faux.state.callCount - count, 2);
+  assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Continued.");
+});
+
+test("an empty model answer is reported as a failure rather than an invisible completion", async (t) => {
+  const f = await fixture(t, [fauxAssistantMessage("")]); await f.idle();
+  const entry = f.app.snapshot().entries[0];
+  assert.equal(entry.status, "failed");
+  assert.equal(entry.updates[0].text, "Agent returned no final reply");
 });

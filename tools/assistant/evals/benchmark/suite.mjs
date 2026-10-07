@@ -48,9 +48,7 @@ export function loadSuite(path, split) {
   }
   if ([...confirmationInputs].some(signature => developmentInputs.has(signature))) throw new Error("Confirmation input reused under a different id or family");
   const harness = Object.fromEntries(["suite.mjs", "trial.mjs", "grading.mjs", "statistics.mjs", "judge.md", "judge.mjs", "artifacts.mjs", "cli.mjs", "adjudicate.mjs", "retry.mjs"].map(file => [file, hash(readFileSync(new URL(file, import.meta.url), "utf8"))]));
-  if (config.execution === "researcher-integration") for (const file of ["researcher-integration.mjs", "../../src/pi.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../package.json", "../../../../AGENTS.md"])
-    harness[file] = hash(readFileSync(new URL(file, import.meta.url), "utf8"));
-  if (config.execution === "role-integration") for (const file of ["role-integration.mjs", "researcher-integration.mjs", "../../src/pi.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../src/home-routing.ts", "../../src/computer-use.ts", "../../package.json", "../../../../AGENTS.md"])
+  if (["researcher-integration", "role-integration"].includes(config.execution)) for (const file of ["role-integration.mjs", "integration-workspace.mjs", "../../src/pi.ts", "../../src/state.ts", "../../src/agent-resources.ts", "../../src/hosted-search.ts", "../../src/home-routing.ts", "../../src/computer-use.ts", "../../package.json", "../../package-lock.json", "../../../../AGENTS.md"])
     harness[file] = hash(readFileSync(new URL(file, import.meta.url), "utf8"));
   return { path: resolve(path), config, split, cases, variants, harness, fingerprint: hash({ config, split, cases, variants, harness }) };
 }

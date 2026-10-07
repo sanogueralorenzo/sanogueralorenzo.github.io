@@ -1,4 +1,5 @@
 import { Type } from "typebox";
+import { defineTool } from "@earendil-works/pi-durable";
 import type { PiService } from "./pi.ts";
 import type { HomeEntry, HomeMessage, State } from "./state.ts";
 
@@ -50,11 +51,11 @@ export class HomeRouter {
         updatedAt: related[0]?.updatedAt || session.createdAt,
         recent: related.slice(0, 2).map((entry) => ({ request: (requests(entry).at(-1) || "").slice(0, 200), lastUpdate: entry.updates.at(-1)?.text.slice(0, 200) })) };
     }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    const findConversations = {
-      name: "find_conversations", label: "Find saved conversations",
+    const findConversations = defineTool({
+      name: "find_conversations",
       description: "Find older saved conversations by project, title, or message text when the destination is missing from the recent preview.",
       parameters: Type.Object({ query: Type.String() }),
-      execute: async (_callId: string, params: { query: string }) => {
+      execute: async (params) => {
         const query = params.query.trim().toLowerCase();
         const words = [...new Set(query.match(/[\p{L}\p{N}._/-]+/gu) || [])].filter((word) => word.length > 2 &&
           !["the", "and", "for", "with", "about", "that", "this", "what", "whether", "resume", "continue"].includes(word));
@@ -68,25 +69,25 @@ export class HomeRouter {
           b.session.updatedAt.localeCompare(a.session.updatedAt)).slice(0, 8).map(({ session }) => session) : [];
         return { content: [{ type: "text" as const, text: JSON.stringify(matches) }], details: undefined };
       },
-    };
-    const readConversation = {
-      name: "read_conversation", label: "Read saved conversation",
+    });
+    const readConversation = defineTool({
+      name: "read_conversation",
       description: "Read recent messages of one saved conversation by its listed ID when its preview is ambiguous.",
       parameters: Type.Object({ sessionId: Type.String() }),
-      execute: async (_callId: string, params: { sessionId: string }) => {
+      execute: async (params) => {
         const record = this.state.data.sessions.find((item) => item.id === params.sessionId);
-        return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.pi.transcript(record.file).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
+        return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.state.transcript(record.id).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
       },
-    };
+    });
     let accepted: Route | undefined;
-    const routeHome = {
-      name: "route_home", label: "Choose Home destination",
+    const routeHome = defineTool({
+      name: "route_home",
       description: "Choose one start or continue destination for the entire Home message. Invalid choices return a reason to correct.",
       parameters: Type.Object({
         mode: Type.Union([Type.Literal("start"), Type.Literal("continue")]),
         title: Type.Optional(Type.String()), sessionId: Type.Optional(Type.String()), cwd: Type.Optional(Type.String()),
       }),
-      execute: async (_callId: string, params: unknown) => {
+      execute: async (params) => {
         if (accepted) return { content: [{ type: "text" as const, text: "Destination already accepted." }], details: undefined };
         try {
           accepted = parseRoute(params, this.state);
@@ -96,7 +97,7 @@ export class HomeRouter {
           return { content: [{ type: "text" as const, text: `Invalid destination: ${reason}. Correct it and call route_home again.` }], details: undefined };
         }
       },
-    };
+    });
     await this.pi.utility("coordinator", `Current workspace: ${this.cwd}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home once for the entire message.`,
       this.cwd, [findConversations, readConversation, routeHome], () => accepted ? JSON.stringify(accepted) : undefined);
     if (!accepted) throw new Error("Coordinator did not choose a destination");

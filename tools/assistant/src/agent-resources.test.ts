@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createReadOnlyTools } from "@earendil-works/pi-coding-agent";
-import { agentResources, agentToolNames } from "./agent-resources.ts";
+import { agentResources } from "./agent-resources.ts";
 
 test("researcher configuration discovers project instructions and skills while native search finds evidence", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "assistant-resource-test-"));
@@ -14,7 +14,7 @@ test("researcher configuration discovers project instructions and skills while n
     writeFileSync(join(cwd, "src", "cache.ts"), "export const ttlMs = 90000;\n");
     mkdirSync(join(cwd, ".pi", "skills", "ownership"), { recursive: true });
     writeFileSync(join(cwd, ".pi", "skills", "ownership", "SKILL.md"), "---\nname: ownership\ndescription: Resolve service owners.\n---\nRead the owner evidence.");
-    const researcher = agentResources(cwd, "researcher", []);
+    const researcher = agentResources(cwd, "researcher");
     await researcher.reload();
     assert.ok(researcher.getAgentsFiles().agentsFiles.some(f => f.content.includes("release boundary")));
     assert.ok(researcher.getSkills().skills.some(s => s.name === "ownership"));
@@ -24,10 +24,10 @@ test("researcher configuration discovers project instructions and skills while n
       const result = await tool.execute("test", args);
       assert.ok(result.content.some(p => p.type === "text" && p.text.includes(expected)), `${name} must find the workspace source`);
     }
-    const coordinator = agentResources(cwd, "coordinator", []);
+    const coordinator = agentResources(cwd, "coordinator");
     await coordinator.reload();
     assert.equal(coordinator.getSkills().skills.length, 0);
     assert.equal(coordinator.getAgentsFiles().agentsFiles.length, 0);
-    assert.deepEqual(agentToolNames("researcher", []), ["read", "grep", "find", "ls"]);
+    assert.deepEqual(native.map(tool => tool.name), ["read", "grep", "find", "ls"]);
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });

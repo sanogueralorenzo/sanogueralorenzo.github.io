@@ -1,15 +1,15 @@
 import { readFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
-import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import type { Models } from "@earendil-works/pi-ai";
 
 const systemPrompt = readFileSync(new URL("../prompts/suggestion.md", import.meta.url), "utf8");
 type Message = { role: string; text: string };
 
 export class PromptSuggestions {
-  private readonly runtime: Promise<ModelRuntime>;
+  private readonly runtime: Promise<Models>;
   private readonly db: DatabaseSync;
   private readonly pending = new Map<string, Promise<string | null>>();
-  constructor(runtime: Promise<ModelRuntime>, db: DatabaseSync) {
+  constructor(runtime: Promise<Models>, db: DatabaseSync) {
     this.runtime = runtime;
     this.db = db;
     db.exec("CREATE TABLE IF NOT EXISTS suggestions (session_id TEXT NOT NULL, reply_id TEXT NOT NULL, text TEXT, PRIMARY KEY (session_id, reply_id))");
