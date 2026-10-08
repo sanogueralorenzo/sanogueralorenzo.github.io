@@ -103,6 +103,7 @@ export class PiService {
   readonly model: ModelRef;
   private readonly roles: Record<AgentRole, Extension>;
   private readonly computers: Map<number, ComputerUseClient>;
+  private readonly computerClosures = new Set<Promise<void>>();
   private readonly providerConversations = new Map<string, number>();
   private unsubscribe = () => {};
   onProviderEvent: (conversationId: number, data: unknown) => void = () => {};
@@ -124,12 +125,11 @@ export class PiService {
     const model = options.model || defaultModel;
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
-    const computerTool = defineTool({ name: computer.name, description: computer.description, parameters: computer.parameters, executionMode: "sequential",
+    const computerTool = defineTool({ ...computer,
       execute: async (args, api, context) => {
         let client = computers.get(api.conversationId);
         if (!client) { client = new ComputerUseClient(); computers.set(api.conversationId, client); }
-        const input = args as { code: string; title?: string; timeout_ms?: number };
-        return client.call(input.code, input.title, input.timeout_ms, context.abortSignal);
+        return client.call(args.code, args.title, args.timeout_ms, context.abortSignal);
       } });
     let roles: Record<AgentRole, Extension>;
     const delegate = defineTool({ name: "delegate", description: "Ask a separate read-only researcher to investigate or reviewer to critique. Give it a focused task and context. You own the final answer and all actions.",
@@ -192,11 +192,19 @@ export class PiService {
       return assistantText(entry?.model?.[0] || {});
     } finally { await harness.close(BACKGROUND_CONTEXT); }
   }
-  closeComputer(id: number) { this.computers.get(id)?.close(); this.computers.delete(id); }
+  closeComputer(id: number) {
+    const client = this.computers.get(id);
+    this.computers.delete(id);
+    if (!client) return;
+    const closing = client.close();
+    this.computerClosures.add(closing);
+    // Retain a failed close for shutdown to report; completed turn results must stay completed.
+    void closing.then(() => this.computerClosures.delete(closing), () => {});
+  }
   async close() {
     await this.harness.close(BACKGROUND_CONTEXT);
     this.unsubscribe();
-    for (const client of this.computers.values()) client.close();
-    this.computers.clear();
+    for (const id of this.computers.keys()) this.closeComputer(id);
+    await Promise.all(this.computerClosures);
   }
 }
