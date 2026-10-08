@@ -155,7 +155,7 @@ export class PiService {
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
-      models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "sequential" },
+      models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "sequential", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
     service = new PiService(harness, runtime, models, model, roles, computers);
     await harness.commit(async (tx) => {

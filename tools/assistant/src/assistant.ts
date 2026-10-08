@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { configure, defineTask, GenerationTask, InboxDoc, LiveDoc, UserEntry, type ConversationId, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
+import { configure, defineTask, GenerationTask, InboxDoc, LiveDoc, UserEntry, type ConversationId, type ConversationView, type LiveState, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
 import { PiService, type PiOptions } from "./pi.ts";
 import { HomeRouter, type Route } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
@@ -47,11 +47,11 @@ export class Assistant {
     try {
       const root = await pi.harness.root(BACKGROUND_CONTEXT);
       app = new Assistant(dataDir, cwd, pi, db, dispatch, root.id);
-      await app.state.load((ids) => app.publish(ids));
+      await app.state.load(() => app.publish());
       for (const entry of app.snapshot().entries) for (const update of entry.updates) if (update.kind === "result") app.finished.add(update.id);
-      pi.onProviderEvent = (id, data) => { const label = hostedSearchLabel(data); if (label) { app.search.set(id, label); app.publish(new Set([id])); } };
+      pi.onProviderEvent = (id, data) => { const label = hostedSearchLabel(data); if (label) { app.search.set(id, label); app.publish(); } };
       for (const record of app.state.home.sessions) if (record.paused) {
-        const taskId = app.state.live.get(record.conversationId)?.run?.taskId;
+        const taskId = app.state.live(record.conversationId)?.run?.taskId;
         if (taskId) { await pi.harness.abortTask(taskId, BACKGROUND_CONTEXT); await pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT); }
       }
       pi.harness.resume();
@@ -115,6 +115,7 @@ export class Assistant {
           const message = app.state.home.messages.find((item) => item.id === task.input.sourceId);
           if (!message) { await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context); return; }
           const record = app.state.home.sessions.find((item) => item.id === task.state.checkpoint.sessionId)!;
+          await app.state.observe(record.conversationId);
           const conversation = (await runtime.conversation(record.conversationId as ConversationId, context))!;
           // Admission is deduplicated by the saved request ID if the process closes before the metadata commit.
           if (record.paused) {
@@ -147,7 +148,7 @@ export class Assistant {
   activities() {
     return this.snapshot().turns.filter((turn) => turn.status === "running").map((turn) => {
       const record = this.state.home.sessions.find((item) => item.id === turn.sessionId)!;
-      const live = this.state.live.get(record.conversationId);
+      const live = this.state.live(record.conversationId);
       const message = live?.generation?.message;
       const thinking = message?.content.filter((part) => part.type === "thinking").map((part) => part.thinking).join("\n");
       const tool = live?.tools?.find((item) => item.status !== "done");
@@ -155,11 +156,10 @@ export class Assistant {
       return { type: "homeActivity", sourceId: turn.sourceId, text };
     });
   }
-  private publish(conversationIds: Set<number>) {
+  private publish() {
     const data = this.snapshot();
     this.emit({ type: "snapshot", data });
     for (const activity of this.activities()) this.emit(activity);
-    for (const record of data.sessions) if (conversationIds.has(record.conversationId)) this.emit({ type: "conversation", sessionId: record.id, ...this.transcript(record.id) });
     for (const record of data.sessions) if (record.status !== "running") { this.search.delete(record.conversationId); this.pi.closeComputer(record.conversationId); }
     for (const entry of data.entries) for (const update of entry.updates) if (update.kind === "result" && !this.finished.has(update.id)) {
       this.finished.add(update.id);
@@ -281,7 +281,7 @@ export class Assistant {
   async stop(sessionId: string) {
     const record = this.state.home.sessions.find((item) => item.id === sessionId);
     if (!record) throw new Error("Conversation not found");
-    const taskId = this.state.live.get(record.conversationId)?.run?.taskId;
+    const taskId = this.state.live(record.conversationId)?.run?.taskId;
     if (!taskId) return false;
     await this.state.change((home) => { home.sessions.find((item) => item.id === sessionId)!.paused = true; });
     await this.pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
@@ -306,13 +306,28 @@ export class Assistant {
       delete source.error;
     });
   }
-  transcript(sessionId: string) {
+  transcript(sessionId: string, view?: ConversationView) {
     const session = this.snapshot().sessions.find((session) => session.id === sessionId);
     if (!session) throw new Error("Conversation not found");
-    const live = this.state.live.get(session.conversationId);
+    const live = view ? view.docs["pi.live"] as LiveState | undefined : this.state.live(session.conversationId);
     const activity = this.activities().find((item) => this.snapshot().turns.some((turn) => turn.sourceId === item.sourceId && turn.sessionId === sessionId));
-    return { session, messages: this.state.transcript(sessionId), queue: this.snapshot().turns.filter((turn) => turn.sessionId === sessionId),
+    return { session: { ...session, status: session.paused ? "interrupted" : live?.run ? "running" : "idle" }, messages: this.state.transcript(sessionId, view), queue: this.snapshot().turns.filter((turn) => turn.sessionId === sessionId),
       streaming: assistantText(live?.generation?.message || {}), activity: activity?.text || "" };
+  }
+  async watchConversation(sessionId: string, send: (event: unknown) => Promise<void>) {
+    const record = this.state.home.sessions.find((session) => session.id === sessionId);
+    if (!record) throw new Error("Conversation not found");
+    await this.state.observe(record.conversationId);
+    const conversation = (await this.pi.harness.conversation(record.conversationId as ConversationId, BACKGROUND_CONTEXT))!;
+    const watch = await conversation.watch(BACKGROUND_CONTEXT);
+    const home = (await this.pi.harness.watchDoc(HomeDoc, BACKGROUND_CONTEXT))!;
+    const publish = async (view: ConversationView) => { await send({ type: "conversation", sessionId, ...this.transcript(sessionId, view) }); };
+    try {
+      await publish(watch.value);
+      watch.start(publish);
+      home.start(async () => { await publish(watch.value); });
+      return { stop: async () => { await Promise.all([watch.stop(), home.stop()]); } };
+    } catch (error) { await Promise.all([watch.stop(), home.stop()]); throw error; }
   }
   async suggestion(sessionId: string, replyId: string) {
     const current = () => {
@@ -327,5 +342,5 @@ export class Assistant {
     const text = await this.suggestions.get(sessionId, replyId, messages.filter((message) => message.role === "user" || message.completed));
     return { text: current() ? text : null };
   }
-  shutdown() { return this.closing ||= (async () => { await this.pi.close(); this.state.close(); this.db.close(); })(); }
+  shutdown() { return this.closing ||= (async () => { await this.pi.close(); await this.state.close(); this.db.close(); })(); }
 }

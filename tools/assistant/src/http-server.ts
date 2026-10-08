@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -31,20 +32,38 @@ const assets: Record<string, [string, string]> = {
 
 export function createAssistantServer(app: Assistant) {
   const clients = new Set<ServerResponse>();
-  const unsubscribe = app.subscribe((event) => {
-    const payload = `data: ${JSON.stringify(event)}\n\n`;
-    for (const client of clients) client.write(payload);
-  });
   const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     if (req.method === "GET" && url.pathname === "/api/events") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive", "x-accel-buffering": "no" });
       clients.add(res);
-      res.write(`data: ${JSON.stringify({ type: "snapshot", data: app.snapshot() })}\n\n`);
-      for (const activity of app.activities()) res.write(`data: ${JSON.stringify(activity)}\n\n`);
-      for (const session of app.snapshot().sessions) res.write(`data: ${JSON.stringify({ type: "conversation", sessionId: session.id, ...app.transcript(session.id) })}\n\n`);
-      req.on("close", () => clients.delete(res));
+      const controller = new AbortController();
+      const watches = new Map<string, ReturnType<Assistant["watchConversation"]>>();
+      const send = async (event: unknown) => {
+        controller.signal.throwIfAborted();
+        if (!res.write(`data: ${JSON.stringify(event)}\n\n`)) await once(res, "drain", { signal: controller.signal });
+      };
+      const attach = () => {
+        for (const session of app.snapshot().sessions) if (!watches.has(session.id)) {
+          const pending = app.watchConversation(session.id, send);
+          watches.set(session.id, pending);
+          void pending.then((watch) => { if (controller.signal.aborted) void watch.stop(); }, () => res.destroy());
+        }
+      };
+      const unsubscribe = app.subscribe((event) => {
+        // Home metadata is small; reconnect a stalled client with a fresh snapshot.
+        if (res.writableNeedDrain) { res.destroy(); return; }
+        void send(event).catch(() => res.destroy());
+        attach();
+      });
+      res.on("close", () => {
+        clients.delete(res); controller.abort(); unsubscribe();
+        for (const pending of watches.values()) void pending.then((watch) => watch.stop(), () => {});
+      });
+      await send({ type: "snapshot", data: app.snapshot() });
+      for (const activity of app.activities()) await send(activity);
+      attach();
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, app.snapshot());
@@ -75,9 +94,8 @@ export function createAssistantServer(app: Assistant) {
       return;
     }
     json(res, 404, { error: "Not found" });
-  } catch (error) { json(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
+  } catch (error) { if (res.headersSent) { res.destroy(); return; } json(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
 });
-  server.on("close", unsubscribe);
   return { server, close: async () => {
     for (const client of clients) client.end();
     server.closeAllConnections();

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { once } from "node:events";
-import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
+import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { createAssistantServer } from "./http-server.ts";
 import { fixture, gate, toolAnswer, waitFor } from "./test-support.ts";
 
@@ -58,4 +58,43 @@ test("HTTP queue withdrawal and Stop use the Durable inbox and return saved resu
   const result = await (await fetch(`${http.url}/api/sessions/${f.sessionId}`)).json();
   assert.equal(result.session.status, "interrupted");
   assert.equal(result.queue.length, 0);
+});
+
+
+test("SSE discovers a new conversation and reconnects to its in-flight text", async (t) => {
+  const f = await fixture(t, [fauxAssistantMessage("First reply.")], [], { tokensPerSecond: 1000, tokenSize: { min: 1, max: 1 } });
+  await f.idle();
+  const http = await host(f.app); t.after(http.close);
+  const connect = async () => {
+    const controller = new AbortController(); t.after(() => controller.abort());
+    const response = await fetch(`${http.url}/api/events`, { signal: controller.signal });
+    const reader = response.body!.getReader();
+    const events: Array<{ type: string; sessionId?: string; streaming?: string }> = [];
+    let pending = "";
+    const done = (async () => {
+      try {
+        for (;;) {
+          const { value, done } = await reader.read(); if (done) return;
+          pending += new TextDecoder().decode(value);
+          let end: number;
+          while ((end = pending.indexOf("\n\n")) !== -1) {
+            events.push(JSON.parse(pending.slice(6, end))); pending = pending.slice(end + 2);
+          }
+        }
+      } catch (error) { if (!controller.signal.aborted) throw error; }
+    })();
+    return { controller, events, done };
+  };
+  const first = await connect();
+  f.faux.appendResponses([fauxAssistantMessage(fauxToolCall("route_home", { mode: "start", title: "New conversation", cwd: f.dir }), { stopReason: "toolUse" }), fauxAssistantMessage("Native streamed text. ".repeat(100))]);
+  await f.app.submitHome("Start another conversation");
+  await waitFor(f.app, () => f.app.snapshot().sessions.length === 2);
+  const id = f.app.snapshot().sessions[1].id;
+  await waitFor(f.app, () => first.events.some((event) => event.sessionId === id && event.streaming));
+  first.controller.abort(); await first.done;
+  const second = await connect();
+  await waitFor(f.app, () => second.events.some((event) => event.sessionId === id && event.streaming));
+  assert.match(second.events.find((event) => event.sessionId === id && event.streaming)!.streaming!, /^Native streamed/);
+  await f.app.stop(id);
+  second.controller.abort(); await second.done;
 });

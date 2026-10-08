@@ -294,6 +294,10 @@ function connect() {
     }
     if (event.type === "homeActivity") {
       state.liveProgress[event.sourceId] = event.text;
+      if (state.selected !== "home" && state.data.turns.some((turn) => turn.sessionId === state.selected && turn.sourceId === event.sourceId && turn.status === "running")) {
+        state.activity = event.text;
+        render();
+      }
       if (state.selected === "home") {
         const pill = [...root.querySelectorAll(".activity-pill")].find((item) => item.dataset.source === event.sourceId);
         if (pill?.dataset.status === "working") {
