@@ -1,6 +1,8 @@
 # Amarchy
 
-An Android home for an Android-adapted ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. Emulator checks exercise a real Hyprland terminal through Mesa software rendering without root. Omarchy configuration, applications and the normal one-action desktop launch remain under development.
+An Android home for an Android-adapted ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. One action prepares the bundled environment and opens a real Hyprland desktop with pinned Omarchy defaults, tiling shortcuts and Everforest colors. Mesa supplies software rendering without root or an Adreno requirement.
+
+Choose **Get started** once, then use **Apps** for Terminal, Files, Neovim and Chromium. **Keyboard** opens Android's keyboard; **Keys** provides shortcuts and Android clipboard paste. Touch clicks/drags, two-finger movement scrolls, and a keyboard/mouse can operate the desktop. **Home** keeps it running; **Close desktop** stops it. The separate home preserves projects and settings across app/runtime updates. Mobile layout, audio and release acceptance are still in development.
 
 ## Build
 
@@ -13,6 +15,6 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell am instrument -w com.sanogueralorenzo.amarchy.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-The build downloads checksum-pinned ARM64 packages and bundles the environment in the APK. First use extracts it into private storage; the user home remains separate. No root, separate Linux installer, or runtime download is required.
+The build downloads checksum-pinned ARM64 packages and Omarchy source, then bundles a gzip environment in the APK. First use extracts it into private storage; allow several GB for preparation and updates. No root, separate Linux installer, runtime download or account setup is required.
 
 Maintainers explicitly refresh package inputs with `python3 runtime/lock.py`, review the lock, and rebuild. Builds never refresh the lock automatically. See [third-party notices](THIRD_PARTY.md) for source pins and licenses.

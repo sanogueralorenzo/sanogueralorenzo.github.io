@@ -42,7 +42,7 @@ class WorkspaceIntegrationTest {
         val marker = File(context.filesDir, "home/amarchy-persistence-proof").apply { parentFile!!.mkdirs(); writeText("preserved") }
         try {
             installer.prepare { _, _ -> fail("Installed runtime was prepared twice") }
-            val process = LinuxRuntime(context, installer.root).start(listOf("/bin/bash", "-c", "printf 'linux-ok '; uname -m; cat /root/amarchy-persistence-proof; mkdir -p /tmp/amarchy-cli; chmod 700 /tmp/amarchy-cli; XDG_RUNTIME_DIR=/tmp/amarchy-cli Hyprland --version"))
+            val process = LinuxRuntime(context, installer.root, 0).start(listOf("/bin/bash", "-c", "printf 'linux-ok '; uname -m; cat /root/amarchy-persistence-proof; mkdir -p /tmp/amarchy-cli; chmod 700 /tmp/amarchy-cli; XDG_RUNTIME_DIR=/tmp/amarchy-cli Hyprland --version"))
             try {
                 assertTrue("Linux command timed out", process.waitFor(30, TimeUnit.SECONDS))
                 val output = process.inputStream.bufferedReader().readText()

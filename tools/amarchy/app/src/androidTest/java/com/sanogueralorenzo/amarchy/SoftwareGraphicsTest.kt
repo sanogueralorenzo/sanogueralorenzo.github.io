@@ -27,7 +27,7 @@ class SoftwareGraphicsTest {
     @Test fun mesaRendersIntoAnExportedMemoryBufferWithoutGpuHardware() {
         val installer = EnvironmentInstaller(context)
         installer.prepare { _, _ -> }
-        val process = LinuxRuntime(context, installer.root).start(
+        val process = LinuxRuntime(context, installer.root, 0).start(
             listOf("/opt/amarchy/libamarchy-egl-probe.so"),
             listOf("${context.applicationInfo.nativeLibraryDir}:/opt/amarchy"),
             mapOf("LD_PRELOAD" to "/opt/amarchy/libamarchy-software-drm.so",
@@ -88,7 +88,7 @@ class SoftwareGraphicsTest {
         try {
             assertTrue(activity.ready.await(10, TimeUnit.SECONDS))
             NativeDisplay.start(socket.path, activity.surface.holder.surface, 30_000)
-            process = LinuxRuntime(context, installer.root).start(
+            process = LinuxRuntime(context, installer.root, 0).start(
                 listOf("/bin/bash", "-c", "exec dbus-run-session -- Hyprland --i-am-really-stupid --config /run/amarchy/hyprland.conf > /run/amarchy/session.log 2>&1"),
                 listOf("${directory.path}:/run/amarchy", "${directory.path}/shm:/dev/shm", "${context.applicationInfo.nativeLibraryDir}:/opt/amarchy"),
                 mapOf("XDG_RUNTIME_DIR" to "/run/amarchy", "WAYLAND_DISPLAY" to "wayland-0", "XDG_CURRENT_DESKTOP" to "Hyprland",

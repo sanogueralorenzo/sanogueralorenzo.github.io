@@ -11,6 +11,9 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <stddef.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
 #include <xf86drm.h>
@@ -27,6 +30,34 @@ static uint32_t next_handle = 1;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static const char *render_node = "/dev/dri/renderD128";
 static dev_t device_id(void) { return makedev(226, 128); }
+
+/* PRoot expands Hyprland's instance path past sockaddr_un's 108-byte limit.
+ * Keep that private IPC in the abstract namespace, keyed by its full guest path. */
+static int instance_address(const struct sockaddr *address, socklen_t size, struct sockaddr_un *result, socklen_t *length) {
+    if (!address || address->sa_family != AF_UNIX || size <= offsetof(struct sockaddr_un, sun_path)) return 0;
+    const struct sockaddr_un *original = (const struct sockaddr_un *)address;
+    size_t available = size - offsetof(struct sockaddr_un, sun_path);
+    if (available > sizeof(original->sun_path)) available = sizeof(original->sun_path);
+    if (available < 20 || strncmp(original->sun_path, "/run/user/1000/hypr/", 20)) return 0;
+    uint64_t hash = 14695981039346656037ULL;
+    for (size_t i = 0; i < available && original->sun_path[i]; i++) { hash ^= (unsigned char)original->sun_path[i]; hash *= 1099511628211ULL; }
+    memset(result, 0, sizeof(*result)); result->sun_family = AF_UNIX;
+    int bytes = snprintf(result->sun_path + 1, sizeof(result->sun_path) - 1, "amarchy-%016lx", (unsigned long)hash);
+    *length = offsetof(struct sockaddr_un, sun_path) + 1 + bytes;
+    return 1;
+}
+int bind(int fd, const struct sockaddr *address, socklen_t size) {
+    int (*function)(int, const struct sockaddr *, socklen_t) = dlsym(RTLD_NEXT, "bind");
+    struct sockaddr_un translated;
+    if (instance_address(address, size, &translated, &size)) address = (const struct sockaddr *)&translated;
+    return function(fd, address, size);
+}
+int connect(int fd, const struct sockaddr *address, socklen_t size) {
+    int (*function)(int, const struct sockaddr *, socklen_t) = dlsym(RTLD_NEXT, "connect");
+    struct sockaddr_un translated;
+    if (instance_address(address, size, &translated, &size)) address = (const struct sockaddr *)&translated;
+    return function(fd, address, size);
+}
 
 static int actual_stat(int fd, struct stat *info) {
     int (*function)(int, struct stat *) = dlsym(RTLD_NEXT, "fstat");

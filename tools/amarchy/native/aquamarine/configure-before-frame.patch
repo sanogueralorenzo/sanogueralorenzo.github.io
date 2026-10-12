@@ -1,6 +1,14 @@
 --- a/src/backend/Wayland.cpp
 +++ b/src/backend/Wayland.cpp
-@@ -180,9 +180,11 @@
+@@ -8,6 +8,7 @@
+ #include <cstring>
+ #include <xf86drm.h>
+ #include <gbm.h>
++#include <GLES3/gl3.h>
+ #include <fcntl.h>
+ #include <sys/mman.h>
+ #include <unistd.h>
+@@ -180,9 +181,11 @@
  
      auto o  = outputs.emplace_back(SP<CWaylandOutput>(new CWaylandOutput(name, self)));
      o->self = o;
@@ -14,7 +22,7 @@
      return true;
  }
  
-@@ -235,6 +237,7 @@
+@@ -235,6 +238,7 @@
              backend->log(AQ_LOG_ERROR, std::format("Output {} failed: swapchain creation failed", o->name));
              continue;
          }
@@ -22,7 +30,7 @@
      }
  }
  
-@@ -523,9 +526,15 @@
+@@ -523,9 +527,15 @@
          return;
      }
  
@@ -39,7 +47,7 @@
      });
  
      waylandState.xdgToplevel = makeShared<CCXdgToplevel>(waylandState.xdgSurface->sendGetToplevel());
-@@ -538,19 +547,14 @@
+@@ -538,19 +548,14 @@
      waylandState.xdgToplevel->setWmCapabilities(
          [this](CCXdgToplevel* r, wl_array* arr) { backend->backend->log(AQ_LOG_DEBUG, std::format("Output {}: wm_capabilities received", name)); });
  
@@ -61,7 +69,7 @@
      });
  
      waylandState.xdgToplevel->setClose([this](CCXdgToplevel* r) { destroy(); });
-@@ -615,6 +619,9 @@
+@@ -615,6 +620,9 @@
  }
  
  bool Aquamarine::CWaylandOutput::commit() {
@@ -71,3 +79,14 @@
      const auto  snapshot  = state->snapshot();
      const auto& STATE     = snapshot.state();
      Vector2D    pixelSize = {};
+@@ -666,6 +674,10 @@
+ 
+     if (wlBuffer->pendingRelease)
+         backend->backend->log(AQ_LOG_WARNING, std::format("Output {}: pending state has a non-released buffer??", name));
++
++    // Memory-backed frames have no kernel implicit fence. Complete Mesa's
++    // software rendering before the Android host reads their shared memory.
++    glFinish();
+ 
+     wlBuffer->pendingRelease = true;
+ 

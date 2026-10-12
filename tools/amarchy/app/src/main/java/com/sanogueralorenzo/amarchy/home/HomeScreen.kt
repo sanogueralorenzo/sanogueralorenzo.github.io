@@ -28,7 +28,7 @@ internal class HomeScreen(context: Context, open: () -> Unit, cancel: () -> Unit
     private val muted = Color.rgb(154, 168, 154)
     private val accent = Color.rgb(184, 238, 162)
     private val column = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-    private val scroll = ScrollView(context).apply { isFillViewport = true; clipToPadding = false }
+    private val scroll = ScrollView(context).apply { isFillViewport = true; clipToPadding = true }
     private var previousPhase = Phase.WELCOME
     private val primary = Button(context).apply {
         text = "Get started"; isAllCaps = false; textSize = 16f
@@ -104,15 +104,18 @@ internal class HomeScreen(context: Context, open: () -> Unit, cancel: () -> Unit
     }
 
     fun render(state: WorkspaceState) {
-        val busy = state.phase in setOf(Phase.PREPARING, Phase.STOPPING)
+        val busy = state.phase in setOf(Phase.PREPARING, Phase.STARTING, Phase.STOPPING)
         primary.isEnabled = !busy; primary.alpha = if (busy) 0.65f else 1f
         primary.text = when (state.phase) {
             Phase.PREPARING -> "Preparing your workspace…"
+            Phase.STARTING -> "Opening your desktop…"
+            Phase.RUNNING -> "Return to desktop"
             Phase.STOPPING -> "Closing…"
             Phase.FAILED -> "Try again"
             else -> "Get started"
         }
-        secondary.visibility = if (state.phase == Phase.PREPARING) VISIBLE else GONE
+        secondary.visibility = if (state.phase in setOf(Phase.PREPARING, Phase.STARTING, Phase.RUNNING)) VISIBLE else GONE
+        secondary.text = if (state.phase == Phase.RUNNING) "Close desktop" else "Cancel"
         status.visibility = if (busy || state.phase == Phase.FAILED) VISIBLE else GONE
         statusTitle.text = if (state.phase == Phase.FAILED) "Your workspace needs a moment" else state.detail
         statusDetail.text = if (state.phase == Phase.FAILED) state.detail else "You can leave the app while we prepare everything."

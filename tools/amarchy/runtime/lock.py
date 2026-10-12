@@ -51,7 +51,7 @@ def main():
         for provided in entry.get("PROVIDES", []):
             providers[name(provided)].append(package)
     seeds = [line for line in (HERE / "seeds.txt").read_text().splitlines() if line and not line.startswith("#")]
-    preferred = {"libgl": "libglvnd", "libegl": "libglvnd", "libgles": "libglvnd", "libjack.so": "pipewire-jack"}
+    preferred = {"libgl": "libglvnd", "libegl": "libglvnd", "libgles": "libglvnd", "libjack.so": "pipewire-jack", "jack": "pipewire-jack"}
     chosen, queue = {}, collections.deque(seeds)
     while queue:
         dependency = name(queue.popleft())

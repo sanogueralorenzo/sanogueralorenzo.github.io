@@ -29,6 +29,114 @@
       "base": "acl"
     },
     {
+      "name": "adwaita-cursors",
+      "version": "51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/adwaita-cursors-51.0-1-any.pkg.tar.xz",
+      "bytes": 295516,
+      "sha256": "cd6e1e6e9ae223bedae40ec4135a161b37eaaa6b62ce2ff201c5af8b51939b67",
+      "licenses": [
+        "CC-BY-SA-3.0 OR LGPL-3.0-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+      "base": "adwaita-icon-theme"
+    },
+    {
+      "name": "adwaita-fonts",
+      "version": "51.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/adwaita-fonts-51.0-2-any.pkg.tar.xz",
+      "bytes": 2038816,
+      "sha256": "3a6f361315f4a2361a4f8f5776ba35578bad70b52fbd61331ec51db071bc893b",
+      "licenses": [
+        "OFL-1.1"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/adwaita-fonts",
+      "base": "adwaita-fonts"
+    },
+    {
+      "name": "adwaita-icon-theme",
+      "version": "51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/adwaita-icon-theme-51.0-1-any.pkg.tar.xz",
+      "bytes": 196204,
+      "sha256": "095a796743bfd6b3cbd1a1f6744d73383999739f55b8f5e4532fc8e4a6b78f89",
+      "licenses": [
+        "CC-BY-SA-3.0 OR LGPL-3.0-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+      "base": "adwaita-icon-theme"
+    },
+    {
+      "name": "adwaita-icon-theme-legacy",
+      "version": "46.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/adwaita-icon-theme-legacy-46.2-3-any.pkg.tar.xz",
+      "bytes": 2275500,
+      "sha256": "bee29029e278e70571e3dc30112f18bbe046af8a66feea0af79c4f8978ad979d",
+      "licenses": [
+        "CC-BY-SA-3.0 OR LGPL-3.0-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme-legacy",
+      "base": "adwaita-icon-theme-legacy"
+    },
+    {
+      "name": "alsa-card-profiles",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/alsa-card-profiles-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 28068,
+      "sha256": "12248208eb6bfb7e6aacf9615a2cbf65e8c5348eb69433ed766e5b0bd0b8f5ff",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
+      "name": "alsa-lib",
+      "version": "1.2.16.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/alsa-lib-1.2.16.1-1-aarch64.pkg.tar.xz",
+      "bytes": 471232,
+      "sha256": "fe32910ecf90d24b4662b9d437b3ac8f638786eef3719b558f7f98dc9e299a16",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.alsa-project.org",
+      "base": "alsa-lib"
+    },
+    {
+      "name": "alsa-topology-conf",
+      "version": "1.2.5.1-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/alsa-topology-conf-1.2.5.1-4-any.pkg.tar.xz",
+      "bytes": 13528,
+      "sha256": "fc04bacda1d93b22135985a71f0f73a8df57880d4d7f03c3368e5717a917d4cf",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://alsa-project.org/",
+      "base": "alsa-topology-conf"
+    },
+    {
+      "name": "alsa-ucm-conf",
+      "version": "1.2.16.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/alsa-ucm-conf-1.2.16.1-1-any.pkg.tar.xz",
+      "bytes": 130876,
+      "sha256": "7c8748eb29e8bdd1632071410aab1ed19edc0f48ffbe47375a51b5a4bdef8db8",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://alsa-project.org/",
+      "base": "alsa-ucm-conf"
+    },
+    {
+      "name": "aom",
+      "version": "3.15.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/aom-3.15.2-1-aarch64.pkg.tar.xz",
+      "bytes": 2684544,
+      "sha256": "52b72467e7f72e693322b0ce156ef2bff104b585710ba2cc8c0e5a04855e6833",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://aomedia.org/",
+      "base": "aom"
+    },
+    {
       "name": "aquamarine",
       "version": "0.15.1-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/aquamarine-0.15.1-1-aarch64.pkg.tar.xz",
@@ -39,6 +147,18 @@
       ],
       "upstream": "https://github.com/hyprwm/aquamarine",
       "base": "aquamarine"
+    },
+    {
+      "name": "at-spi2-core",
+      "version": "2.62.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/at-spi2-core-2.62.1-1-aarch64.pkg.tar.xz",
+      "bytes": 547452,
+      "sha256": "71efadc123171229c74281323db4b04c594c5e31ee0d7dfcb680bf5d8d98c74b",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/at-spi2-core",
+      "base": "at-spi2-core"
     },
     {
       "name": "attr",
@@ -66,6 +186,18 @@
       "base": "audit"
     },
     {
+      "name": "avahi",
+      "version": "1:0.9rc5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/avahi-1:0.9rc5-1-aarch64.pkg.tar.xz",
+      "bytes": 413888,
+      "sha256": "cc5397663792b8a6aeeb8879d44020e21f7dc8f3889e4bcab25cb976b0033481",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/avahi/avahi",
+      "base": "avahi"
+    },
+    {
       "name": "bash",
       "version": "5.3.20-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/bash-5.3.20-1-aarch64.pkg.tar.xz",
@@ -88,6 +220,18 @@
       ],
       "upstream": "https://github.com/google/benchmark",
       "base": "benchmark"
+    },
+    {
+      "name": "bluez-libs",
+      "version": "5.87-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/bluez-libs-5.87-2-aarch64.pkg.tar.xz",
+      "bytes": 88556,
+      "sha256": "8c8be9961b8a952aeaf99b56a623d541977b563d0586512e881179eab1b12728",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "http://www.bluez.org/",
+      "base": "bluez"
     },
     {
       "name": "brotli",
@@ -174,6 +318,18 @@
       "base": "cairo"
     },
     {
+      "name": "chromium",
+      "version": "153.0.8010.36-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/chromium-153.0.8010.36-1-aarch64.pkg.tar.xz",
+      "bytes": 125597632,
+      "sha256": "9ce0132a90ab76641e79a8fc07207fde472daab51a1a2702e982f96a35dcf228",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://www.chromium.org/Home",
+      "base": "chromium"
+    },
+    {
       "name": "coreutils",
       "version": "9.12-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/coreutils-9.12-2-aarch64.pkg.tar.xz",
@@ -185,6 +341,18 @@
       ],
       "upstream": "https://www.gnu.org/software/coreutils/",
       "base": "coreutils"
+    },
+    {
+      "name": "cryptsetup",
+      "version": "2.8.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/cryptsetup-2.8.8-1-aarch64.pkg.tar.xz",
+      "bytes": 806768,
+      "sha256": "e335839706dfc90e99bec38d104382f06ae82bc32b6a098b00b67e535ccf0e95",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.com/cryptsetup/cryptsetup/",
+      "base": "cryptsetup"
     },
     {
       "name": "curl",
@@ -211,6 +379,18 @@
       "base": "dav1d"
     },
     {
+      "name": "db5.3",
+      "version": "5.3.28-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/db5.3-5.3.28-7-aarch64.pkg.tar.xz",
+      "bytes": 1044852,
+      "sha256": "0a787f952c0f7dd1493db437ab0dc3ffda6053cb6affa4ebf91caff185e586b4",
+      "licenses": [
+        "Sleepycat"
+      ],
+      "upstream": "https://www.oracle.com/technology/software/products/berkeley-db/index.html",
+      "base": "db5.3"
+    },
+    {
       "name": "dbus",
       "version": "1.16.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dbus-1.16.2-1-aarch64.pkg.tar.xz",
@@ -221,6 +401,54 @@
       ],
       "upstream": "https://www.freedesktop.org/wiki/Software/dbus/",
       "base": "dbus"
+    },
+    {
+      "name": "dbus-broker",
+      "version": "37-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dbus-broker-37-3-aarch64.pkg.tar.xz",
+      "bytes": 137404,
+      "sha256": "d6784e1adefd64ef5b5a92bc3a8d34e8df09e9ba80ef81d1238073914b6589d5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/bus1/dbus-broker/wiki",
+      "base": "dbus-broker"
+    },
+    {
+      "name": "dbus-broker-units",
+      "version": "37-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dbus-broker-units-37-3-aarch64.pkg.tar.xz",
+      "bytes": 2536,
+      "sha256": "0d7592d10d84e9fccfa808e9e46de39d8cff2ebfc12b33e4d2c58223d0f0912d",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/bus1/dbus-broker/wiki",
+      "base": "dbus-broker"
+    },
+    {
+      "name": "dbus-units",
+      "version": "37-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dbus-units-37-3-aarch64.pkg.tar.xz",
+      "bytes": 2276,
+      "sha256": "5d7444e570219667a9789589e9ccbf8535d78d1dae954c22e487af226237b125",
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "upstream": "https://github.com/bus1/dbus-broker/wiki",
+      "base": "dbus-broker"
+    },
+    {
+      "name": "dconf",
+      "version": "51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/dconf-51.0-1-aarch64.pkg.tar.xz",
+      "bytes": 107628,
+      "sha256": "f7da15ede101991696f9f9cd96d442f646c8abdf8c34f217cb7144cd60a8c3cd",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/dconf",
+      "base": "dconf"
     },
     {
       "name": "default-cursors",
@@ -235,6 +463,43 @@
       "base": "default-cursors"
     },
     {
+      "name": "desktop-file-utils",
+      "version": "0.28-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/desktop-file-utils-0.28-1-aarch64.pkg.tar.xz",
+      "bytes": 44376,
+      "sha256": "89d97b1e9e0c265da1bf9120f39fb78122f4eb221dd1e5956b8d64326cf72eca",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/desktop-file-utils",
+      "base": "desktop-file-utils"
+    },
+    {
+      "name": "device-mapper",
+      "version": "2.03.43-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/device-mapper-2.03.43-2-aarch64.pkg.tar.xz",
+      "bytes": 283800,
+      "sha256": "8f61e0fbd02a36f73380e1429fe1f33ef5090645ab2c85d16dfa17f0c084226f",
+      "licenses": [
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "upstream": "http://sourceware.org/dm/",
+      "base": "lvm2"
+    },
+    {
+      "name": "duktape",
+      "version": "2.7.0-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/duktape-2.7.0-7-aarch64.pkg.tar.xz",
+      "bytes": 163804,
+      "sha256": "1e3c597a3290017cfef0aec1300fc9a4212a5af3680857807431bf881f3cf64d",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://duktape.org/",
+      "base": "duktape"
+    },
+    {
       "name": "e2fsprogs",
       "version": "1.47.4-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/e2fsprogs-1.47.4-1-aarch64.pkg.tar.xz",
@@ -247,6 +512,30 @@
       ],
       "upstream": "http://e2fsprogs.sourceforge.net",
       "base": "e2fsprogs"
+    },
+    {
+      "name": "exempi",
+      "version": "2.6.6-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/exempi-2.6.6-3-aarch64.pkg.tar.xz",
+      "bytes": 551836,
+      "sha256": "1295c4cbe90317c62dd94bcda3f2b5c26d48403c15d44938498253da94a55032",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://libopenraw.freedesktop.org/exempi/",
+      "base": "exempi"
+    },
+    {
+      "name": "exiv2",
+      "version": "0.28.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/exiv2-0.28.9-1-aarch64.pkg.tar.xz",
+      "bytes": 2777400,
+      "sha256": "494885f4fb39cd2ddc1cfbf2c6d2a4bb7f3b42ad2209a9838e96d6df86f999bd",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://exiv2.org",
+      "base": "exiv2"
     },
     {
       "name": "expat",
@@ -271,6 +560,30 @@
       ],
       "upstream": "https://codeberg.org/dnkl/fcft",
       "base": "fcft"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "2:9.0.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ffmpeg-2:9.0.2-2-aarch64.pkg.tar.xz",
+      "bytes": 13338768,
+      "sha256": "086828ab8ceb02bcc94fcaf8cecfe3e78c62f3b7c41026e5b712dff57992c832",
+      "licenses": [
+        "GPL-3.0-only"
+      ],
+      "upstream": "https://ffmpeg.org",
+      "base": "ffmpeg"
+    },
+    {
+      "name": "fftw",
+      "version": "3.3.11-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fftw-3.3.11-1-aarch64.pkg.tar.xz",
+      "bytes": 1505896,
+      "sha256": "0d6b54edd0e73ec3f0e1496d2261834cf98eae71b4489c64a0ef6e6509d2e9b9",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "http://www.fftw.org/",
+      "base": "fftw"
     },
     {
       "name": "file",
@@ -307,6 +620,19 @@
       ],
       "upstream": "https://www.gnu.org/software/findutils/",
       "base": "findutils"
+    },
+    {
+      "name": "flac",
+      "version": "1.5.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/flac-1.5.0-1-aarch64.pkg.tar.xz",
+      "bytes": 276816,
+      "sha256": "100b54b7c4efbb41f1f18a560825477f9f403b6996a226dd86ca5227f0a6b83e",
+      "licenses": [
+        "BSD-3-Clause",
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://xiph.org/flac/",
+      "base": "flac"
     },
     {
       "name": "fontconfig",
@@ -357,6 +683,31 @@
       "base": "fribidi"
     },
     {
+      "name": "fuse-common",
+      "version": "3.18.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fuse-common-3.18.3-1-aarch64.pkg.tar.xz",
+      "bytes": 2868,
+      "sha256": "f8a67e6a893e09ece9d9611112b46259df1d947b8d57ac9f118a00eb955780b9",
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "upstream": "https://github.com/libfuse/libfuse",
+      "base": "fuse3"
+    },
+    {
+      "name": "fuse3",
+      "version": "3.18.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fuse3-3.18.3-1-aarch64.pkg.tar.xz",
+      "bytes": 133600,
+      "sha256": "ea1a152ebe20cecf157378c8917e04b976e89287e2471dd20117b3923b3f0ebb",
+      "licenses": [
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://github.com/libfuse/libfuse",
+      "base": "fuse3"
+    },
+    {
       "name": "gcc-libs",
       "version": "16.1.1+r12+g301eb08fa2c5-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gcc-libs-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz",
@@ -368,6 +719,30 @@
       ],
       "upstream": "https://gcc.gnu.org",
       "base": "gcc"
+    },
+    {
+      "name": "gcr-4",
+      "version": "4.4.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gcr-4-4.4.1-1-aarch64.pkg.tar.xz",
+      "bytes": 516828,
+      "sha256": "aebde4f6c4453859198c2cff95ac72aa9a4ee3546a4e47d4d05f0b871d4559cb",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gcr",
+      "base": "gcr-4"
+    },
+    {
+      "name": "gd",
+      "version": "2.3.3-9",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gd-2.3.3-9-aarch64.pkg.tar.xz",
+      "bytes": 141372,
+      "sha256": "ada6619e298f3fbf8c29b397320c72077ac31d26ca8e3ac6aa2519ac75c614e6",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://libgd.github.io/",
+      "base": "gd"
     },
     {
       "name": "gdbm",
@@ -394,6 +769,57 @@
       "base": "gdk-pixbuf2"
     },
     {
+      "name": "gettext",
+      "version": "1.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gettext-1.0-2-aarch64.pkg.tar.xz",
+      "bytes": 3228328,
+      "sha256": "7669379e3f21f475e1d67122b0b2a401de5fa2c5769b1605df3cf3094e4fd28e",
+      "licenses": [
+        "GFDL-1.2-only",
+        "GPL-2.0-only",
+        "GPL-2.0-or-later",
+        "LGPL-2.0-only"
+      ],
+      "upstream": "https://www.gnu.org/software/gettext/",
+      "base": "gettext"
+    },
+    {
+      "name": "gexiv2",
+      "version": "0.16.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gexiv2-0.16.2-2-aarch64.pkg.tar.xz",
+      "bytes": 86768,
+      "sha256": "4bfe88b6bbc5ac7e2d656fc1686b42a8b71e043846c37626ad2adb31a4cda551",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gexiv2",
+      "base": "gexiv2"
+    },
+    {
+      "name": "gexiv2-common",
+      "version": "0.16.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gexiv2-common-0.16.2-2-aarch64.pkg.tar.xz",
+      "bytes": 6744,
+      "sha256": "396ca7df9e51f77ecf3f9d146308679c1acea7554b0ed585e2576e1209037c16",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gexiv2",
+      "base": "gexiv2"
+    },
+    {
+      "name": "ghostscript",
+      "version": "10.08.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ghostscript-10.08.0-1-aarch64.pkg.tar.xz",
+      "bytes": 20363900,
+      "sha256": "6683a30410e8b6e32d1d6fb43013fa17117b4092ec32cae04a2ca0bbfc2a9008",
+      "licenses": [
+        "AGPL-3.0-or-later"
+      ],
+      "upstream": "https://www.ghostscript.com/",
+      "base": "ghostscript"
+    },
+    {
       "name": "giflib",
       "version": "6.1.3-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/giflib-6.1.3-2-aarch64.pkg.tar.xz",
@@ -404,6 +830,30 @@
       ],
       "upstream": "https://giflib.sourceforge.net/",
       "base": "giflib"
+    },
+    {
+      "name": "git",
+      "version": "2.56.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/git-2.56.0-1-aarch64.pkg.tar.xz",
+      "bytes": 8650624,
+      "sha256": "b152a20edb215e98cada4b2dfbd02a9e925bda0b2de6ac1441e9e60b6698d3b5",
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "upstream": "https://git-scm.com/",
+      "base": "git"
+    },
+    {
+      "name": "glib-networking",
+      "version": "1:2.90.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/glib-networking-1:2.90.0-1-aarch64.pkg.tar.xz",
+      "bytes": 141660,
+      "sha256": "601d60c1be70361d70cd7d6e700b996c0593fd0a66b77fbec4afd991a9946dec",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/glib-networking",
+      "base": "glib-networking"
     },
     {
       "name": "glib2",
@@ -455,6 +905,18 @@
       "base": "glycin"
     },
     {
+      "name": "glycin-gtk4",
+      "version": "2.2.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/glycin-gtk4-2.2.2-1-aarch64.pkg.tar.xz",
+      "bytes": 111000,
+      "sha256": "969f5c4dc13fa4694d888eb8f31fd4136594094905c185494f4d3431f075c0ea",
+      "licenses": [
+        "MPL-2.0 OR LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/glycin/",
+      "base": "glycin"
+    },
+    {
       "name": "gmp",
       "version": "6.3.0-3",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gmp-6.3.0-3-aarch64.pkg.tar.xz",
@@ -466,6 +928,77 @@
       ],
       "upstream": "https://gmplib.org/",
       "base": "gmp"
+    },
+    {
+      "name": "gnome-autoar",
+      "version": "0.5.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-autoar-0.5.2-1-aarch64.pkg.tar.xz",
+      "bytes": 42032,
+      "sha256": "89eda1fcb6f72eb749c12c747af893d1a728f1e3b2552321b6ce26f927a843a9",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/gnome-autoar/",
+      "base": "gnome-autoar"
+    },
+    {
+      "name": "gnome-desktop-4",
+      "version": "1:51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-desktop-4-1:51.0-1-aarch64.pkg.tar.xz",
+      "bytes": 101504,
+      "sha256": "9cbc06ec322a27bc89c4709331428683a2263406cbe0e0f28a583dfb8fd2a920",
+      "licenses": [
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gnome-desktop",
+      "base": "gnome-desktop"
+    },
+    {
+      "name": "gnome-desktop-common",
+      "version": "1:51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-desktop-common-1:51.0-1-aarch64.pkg.tar.xz",
+      "bytes": 448276,
+      "sha256": "7fd14530f5fd399bcf76f239d05fbe4fac768c624e256ad74505011635b07e80",
+      "licenses": [
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gnome-desktop",
+      "base": "gnome-desktop"
+    },
+    {
+      "name": "gnulib-l10n",
+      "version": "20241231-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gnulib-l10n-20241231-1-any.pkg.tar.xz",
+      "bytes": 109488,
+      "sha256": "327f76bf5e7c211ee8b16f9ea29458426bfe18fa153d66dcd2557a38f369f608",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/gnulib/",
+      "base": "gnulib-l10n"
+    },
+    {
+      "name": "gnupg",
+      "version": "2.4.9-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gnupg-2.4.9-3-aarch64.pkg.tar.xz",
+      "bytes": 2763600,
+      "sha256": "3f26513fb04d1670ca202551988f5766ef5713533b27846831e834243f52cbfa",
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "BSD-4-Clause",
+        "CC0-1.0",
+        "GPL-2.0-or-later",
+        "GPL-3.0-or-later",
+        "LGPL-2.1-or-later",
+        "LGPL-3.0-or-later OR GPL-2.0-or-later",
+        "MIT",
+        "Unicode-TOU"
+      ],
+      "upstream": "https://www.gnupg.org/",
+      "base": "gnupg"
     },
     {
       "name": "gnutls",
@@ -492,6 +1025,45 @@
       "base": "gperftools"
     },
     {
+      "name": "gpgme",
+      "version": "2.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gpgme-2.2.0-1-aarch64.pkg.tar.xz",
+      "bytes": 313456,
+      "sha256": "7e7f7277f8ddc618499cfeb105f67d3f7be1caa32aec561c744b2a3b5063785f",
+      "licenses": [
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-or-later",
+        "MIT"
+      ],
+      "upstream": "https://www.gnupg.org/related_software/gpgme/",
+      "base": "gpgme"
+    },
+    {
+      "name": "gpgmepp",
+      "version": "2.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gpgmepp-2.2.0-1-aarch64.pkg.tar.xz",
+      "bytes": 151332,
+      "sha256": "e2e058b9eb3fdf64e3be23be25a0959af815bf919b714252017bef600e6bf2cb",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://gnupg.org/software/gpgme/index.html",
+      "base": "gpgmepp"
+    },
+    {
+      "name": "graphene",
+      "version": "1.10.8-2.1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/graphene-1.10.8-2.1-aarch64.pkg.tar.xz",
+      "bytes": 103788,
+      "sha256": "2f928a829385d79626cba58fcc111f8f930d1ae951d83f405813a3886ab9ec7b",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://ebassi.github.io/graphene/",
+      "base": "graphene"
+    },
+    {
       "name": "graphite",
       "version": "1:1.3.15-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/graphite-1:1.3.15-1-aarch64.pkg.tar.xz",
@@ -502,6 +1074,126 @@
       ],
       "upstream": "https://graphite.sil.org/",
       "base": "graphite"
+    },
+    {
+      "name": "graphviz",
+      "version": "16.1.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/graphviz-16.1.0-1-aarch64.pkg.tar.xz",
+      "bytes": 3495852,
+      "sha256": "3bfa790fa6c7200e8bbfa73be7fbdad2847f2e88de5288722cb767433a504337",
+      "licenses": [
+        "EPL"
+      ],
+      "upstream": "https://www.graphviz.org/",
+      "base": "graphviz"
+    },
+    {
+      "name": "grep",
+      "version": "3.12-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/grep-3.12-2-aarch64.pkg.tar.xz",
+      "bytes": 225556,
+      "sha256": "7578277966710eeba59f82665ab6f33984ca11d6c2ab74deccc6f681d61c2027",
+      "licenses": [
+        "GPL3"
+      ],
+      "upstream": "https://www.gnu.org/software/grep/",
+      "base": "grep"
+    },
+    {
+      "name": "gsettings-desktop-schemas",
+      "version": "51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gsettings-desktop-schemas-51.0-1-any.pkg.tar.xz",
+      "bytes": 843564,
+      "sha256": "87e806c8fb932c8d02c6a09cdd47af61a45b7901218f8a85826880a67becce57",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas",
+      "base": "gsettings-desktop-schemas"
+    },
+    {
+      "name": "gsettings-system-schemas",
+      "version": "51.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gsettings-system-schemas-51.0-1-any.pkg.tar.xz",
+      "bytes": 6084,
+      "sha256": "1f09f0a13318507f2bdbe7a57b685dec1c2a7e400038d870511baeac03fce648",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gsettings-desktop-schemas",
+      "base": "gsettings-desktop-schemas"
+    },
+    {
+      "name": "gsfonts",
+      "version": "20200910-6",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gsfonts-20200910-6-any.pkg.tar.xz",
+      "bytes": 1522580,
+      "sha256": "5336af885d78a5c83510387d24e3d75b0abe0d640eb109349b61d896a4475f60",
+      "licenses": [
+        "AGPL-3.0-only WITH PS-or-PDF-font-exception-20170817"
+      ],
+      "upstream": "https://github.com/ArtifexSoftware/urw-base35-fonts",
+      "base": "gsfonts"
+    },
+    {
+      "name": "gsm",
+      "version": "1.0.24-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gsm-1.0.24-1-aarch64.pkg.tar.xz",
+      "bytes": 36536,
+      "sha256": "b7b47c8ebe3d0ef83875af1235fde8b3fa98fbfea930b380e9765c0cf71e3b0e",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://www.quut.com/gsm/",
+      "base": "gsm"
+    },
+    {
+      "name": "gssdp",
+      "version": "1.6.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gssdp-1.6.6-1-aarch64.pkg.tar.xz",
+      "bytes": 55036,
+      "sha256": "6b4eaa0f2c31b5901b14b306bb4607842dbc3e2c9d5658ad719a1001b8bc5216",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://wiki.gnome.org/Projects/GUPnP",
+      "base": "gssdp"
+    },
+    {
+      "name": "gst-plugins-bad-libs",
+      "version": "1.28.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gst-plugins-bad-libs-1.28.8-1-aarch64.pkg.tar.xz",
+      "bytes": 2720860,
+      "sha256": "9db399b8bec60e6a80367e45db11b31294714eca3383c3bf2d6a4420bc099747",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gstreamer.freedesktop.org/",
+      "base": "gstreamer"
+    },
+    {
+      "name": "gst-plugins-base-libs",
+      "version": "1.28.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gst-plugins-base-libs-1.28.8-1-aarch64.pkg.tar.xz",
+      "bytes": 2278616,
+      "sha256": "31a012f8a70288e403ca0a7a6ff2bcab9e4f1d4baaa4b17be76315e2485dd19a",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gstreamer.freedesktop.org/",
+      "base": "gstreamer"
+    },
+    {
+      "name": "gstreamer",
+      "version": "1.28.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gstreamer-1.28.8-1-aarch64.pkg.tar.xz",
+      "bytes": 1980512,
+      "sha256": "33bd6339676ccadab9d8aa3bf91985eee89ea805722d48e070d4190d257a8892",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gstreamer.freedesktop.org/",
+      "base": "gstreamer"
     },
     {
       "name": "gtest",
@@ -516,6 +1208,114 @@
       "base": "gtest"
     },
     {
+      "name": "gtk-update-icon-cache",
+      "version": "1:4.24.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gtk-update-icon-cache-1:4.24.1-1-aarch64.pkg.tar.xz",
+      "bytes": 17076,
+      "sha256": "f7ad140667b8ca4ff352a31f7c7b624ec7d0f30bb7019cde8b091a2a05950452",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.gtk.org/",
+      "base": "gtk4"
+    },
+    {
+      "name": "gtk3",
+      "version": "1:3.24.52-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gtk3-1:3.24.52-2-aarch64.pkg.tar.xz",
+      "bytes": 8772520,
+      "sha256": "0c1ea65dd3683d5e1fdf1020f9157c09ac60638f99e11b13c5235a47ed4737d4",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.gtk.org/",
+      "base": "gtk3"
+    },
+    {
+      "name": "gtk4",
+      "version": "1:4.24.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gtk4-1:4.24.1-1-aarch64.pkg.tar.xz",
+      "bytes": 10656560,
+      "sha256": "a9c34b926a251f4d610ede9bd4f38d61a2097358ba477a743ff72a882f5278d2",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.gtk.org/",
+      "base": "gtk4"
+    },
+    {
+      "name": "gts",
+      "version": "0.7.6.121130-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gts-0.7.6.121130-5-aarch64.pkg.tar.xz",
+      "bytes": 190552,
+      "sha256": "b6e3a754dd855be2efd0edc149de0ab935696a784c13e02a5bfb9b8ed9f5318f",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "upstream": "http://gts.sourceforge.net/",
+      "base": "gts"
+    },
+    {
+      "name": "gupnp",
+      "version": "1:1.6.10-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gupnp-1:1.6.10-1-aarch64.pkg.tar.xz",
+      "bytes": 121972,
+      "sha256": "38e6d7fdc0882f8b08e2d2e15c9e686607bdde6e01d48c54c7bd191a31f60ebf",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://wiki.gnome.org/Projects/GUPnP",
+      "base": "gupnp"
+    },
+    {
+      "name": "gupnp-dlna",
+      "version": "0.12.0-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gupnp-dlna-0.12.0-5-aarch64.pkg.tar.xz",
+      "bytes": 96076,
+      "sha256": "5e36773aa188c5f4e76251a4604ee6fb23ab1653e0df05deafa65d34b905dc0d",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://wiki.gnome.org/Projects/GUPnP",
+      "base": "gupnp-dlna"
+    },
+    {
+      "name": "gupnp-igd",
+      "version": "1.6.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gupnp-igd-1.6.0-2-aarch64.pkg.tar.xz",
+      "bytes": 27772,
+      "sha256": "47ada079f0ae6043f028ed6bf225ab26f085a40e06c6367a78580f058ea6e61b",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://wiki.gnome.org/Projects/GUPnP",
+      "base": "gupnp-igd"
+    },
+    {
+      "name": "gvfs",
+      "version": "1.62.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gvfs-1.62.0-3-aarch64.pkg.tar.xz",
+      "bytes": 854708,
+      "sha256": "e7666623881d99ebe2695440a942e17acb05bca6862f98d522b13d8877159023",
+      "licenses": [
+        "LGPL-2.0-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/gvfs",
+      "base": "gvfs"
+    },
+    {
+      "name": "gzip",
+      "version": "1.15-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/gzip-1.15-1-aarch64.pkg.tar.xz",
+      "bytes": 88052,
+      "sha256": "d92848bfc4994638a500ebb761a9a568017bd0e4104ce80c506a3ee95ad93d0f",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/gzip/",
+      "base": "gzip"
+    },
+    {
       "name": "harfbuzz",
       "version": "14.6.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/harfbuzz-14.6.0-1-aarch64.pkg.tar.xz",
@@ -528,6 +1328,32 @@
       "base": "harfbuzz"
     },
     {
+      "name": "hicolor-icon-theme",
+      "version": "0.18-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hicolor-icon-theme-0.18-1-any.pkg.tar.xz",
+      "bytes": 12320,
+      "sha256": "cdba2a3dba1dc73a10a1e2a4ac0da06deafa92ac243d81e127a1fcdafbe4a588",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.freedesktop.org/xdg/default-icon-theme",
+      "base": "hicolor-icon-theme"
+    },
+    {
+      "name": "hidapi",
+      "version": "0.15.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hidapi-0.15.0-1-aarch64.pkg.tar.xz",
+      "bytes": 42400,
+      "sha256": "3c29d538838d3cedfaee37291cc139ffe07e9a9cd8da1c24ed8e58da5febd670",
+      "licenses": [
+        "GPL3",
+        "BSD",
+        "custom"
+      ],
+      "upstream": "https://github.com/libusb/hidapi",
+      "base": "hidapi"
+    },
+    {
       "name": "highway",
       "version": "1.4.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/highway-1.4.0-1-aarch64.pkg.tar.xz",
@@ -538,6 +1364,18 @@
       ],
       "upstream": "https://github.com/google/highway/",
       "base": "highway"
+    },
+    {
+      "name": "hwdata",
+      "version": "0.412-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/hwdata-0.412-1-any.pkg.tar.xz",
+      "bytes": 1702508,
+      "sha256": "1642583ddbfaa08042f2afbf859494b42f0da8d28b3eb2ff21fe209086c0b2c7",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://github.com/vcrhonek/hwdata",
+      "base": "hwdata"
     },
     {
       "name": "hyprcursor",
@@ -663,6 +1501,18 @@
       "base": "icu"
     },
     {
+      "name": "ijs",
+      "version": "0.35-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ijs-0.35-7-aarch64.pkg.tar.xz",
+      "bytes": 51736,
+      "sha256": "47d59b1255b7dd72ccf3997f669295c9d3b8f89170d0056807c5b1ecb2f235f1",
+      "licenses": [
+        "AGPL-3.0-or-later"
+      ],
+      "upstream": "https://www.openprinting.org/download/ijs/",
+      "base": "ijs"
+    },
+    {
       "name": "iniparser",
       "version": "4.3.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/iniparser-4.3.2-1-aarch64.pkg.tar.xz",
@@ -673,6 +1523,30 @@
       ],
       "upstream": "https://github.com/ndevilla/iniparser",
       "base": "iniparser"
+    },
+    {
+      "name": "iso-codes",
+      "version": "4.20.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/iso-codes-4.20.1-1-any.pkg.tar.xz",
+      "bytes": 3307468,
+      "sha256": "ca93043c3b5fe05f1f3886b3ad7ad5a68964303971edae967a8a82e8b850d010",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://salsa.debian.org/iso-codes-team/iso-codes",
+      "base": "iso-codes"
+    },
+    {
+      "name": "jbig2dec",
+      "version": "0.20-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/jbig2dec-0.20-1-aarch64.pkg.tar.xz",
+      "bytes": 56496,
+      "sha256": "394cb9671936db5e1cf8f6e43294e66c82952b8677a8c4537527877606aef29f",
+      "licenses": [
+        "GPL3"
+      ],
+      "upstream": "https://jbig2dec.com/",
+      "base": "jbig2dec"
     },
     {
       "name": "jbigkit",
@@ -687,6 +1561,18 @@
       "base": "jbigkit"
     },
     {
+      "name": "jq",
+      "version": "1.8.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/jq-1.8.2-1-aarch64.pkg.tar.xz",
+      "bytes": 203848,
+      "sha256": "a785a170c28f88b03c1190bd8898c4b2f2ca97839d5b277396e86f2cb107041a",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://jqlang.github.io/jq/",
+      "base": "jq"
+    },
+    {
       "name": "json-c",
       "version": "0.19-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/json-c-0.19-1-aarch64.pkg.tar.xz",
@@ -697,6 +1583,30 @@
       ],
       "upstream": "https://github.com/json-c/json-c/wiki",
       "base": "json-c"
+    },
+    {
+      "name": "json-glib",
+      "version": "1.10.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/json-glib-1.10.8-1-aarch64.pkg.tar.xz",
+      "bytes": 161472,
+      "sha256": "dc2a5ff08d3d7c8fcadeb820411aa31d5f1522e425045f6408fbf134db817d85",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/json-glib/",
+      "base": "json-glib"
+    },
+    {
+      "name": "kbd",
+      "version": "2.10.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/kbd-2.10.0-1-aarch64.pkg.tar.xz",
+      "bytes": 1312688,
+      "sha256": "05072eacf9417bc06c1369f91de46561682ccdd895767248ed8147abe679fe87",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "http://www.kbd-project.org",
+      "base": "kbd"
     },
     {
       "name": "keyutils",
@@ -712,6 +1622,19 @@
       "base": "keyutils"
     },
     {
+      "name": "kmod",
+      "version": "34.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/kmod-34.2-1-aarch64.pkg.tar.xz",
+      "bytes": 117112,
+      "sha256": "ab893e67b19546aed1d3ad537649b3bdbfbd709f9d00e8e61c6f091ac925a9ed",
+      "licenses": [
+        "LGPL-2.1-or-later",
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git",
+      "base": "kmod"
+    },
+    {
       "name": "krb5",
       "version": "1.22.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/krb5-1.22.2-1-aarch64.pkg.tar.xz",
@@ -722,6 +1645,30 @@
       ],
       "upstream": "https://web.mit.edu/kerberos/",
       "base": "krb5"
+    },
+    {
+      "name": "l-smash",
+      "version": "2.14.5-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/l-smash-2.14.5-4-aarch64.pkg.tar.xz",
+      "bytes": 292012,
+      "sha256": "a531dfd5c54afa31c9cc0f4b6969e7633774345db0b9e39dd8e302327d101165",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://github.com/l-smash/l-smash",
+      "base": "l-smash"
+    },
+    {
+      "name": "lame",
+      "version": "4.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lame-4.0-1-aarch64.pkg.tar.xz",
+      "bytes": 252564,
+      "sha256": "38f9981bc4f9ecb5d42263ea5a2f9c19531364d57b3b34b0bfa6e8d9601fc24f",
+      "licenses": [
+        "LGPL-2.0-only"
+      ],
+      "upstream": "http://lame.sourceforge.net/",
+      "base": "lame"
     },
     {
       "name": "lcms2",
@@ -750,6 +1697,32 @@
       "base": "leancrypto"
     },
     {
+      "name": "libadwaita",
+      "version": "1:1.10.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libadwaita-1:1.10.0-1-aarch64.pkg.tar.xz",
+      "bytes": 745896,
+      "sha256": "da53f6a11f846069cfd68df60902d27b7ab317b8c3aca3418349c19d7564755e",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/libadwaita/",
+      "base": "libadwaita"
+    },
+    {
+      "name": "libarchive",
+      "version": "3.8.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libarchive-3.8.9-1-aarch64.pkg.tar.xz",
+      "bytes": 513496,
+      "sha256": "030848f1d81d2558f3efacbf7d435f53f8809266c22d4744354ed90f8f46fe4d",
+      "licenses": [
+        "BSD-2-Clause",
+        "BSD-4-Clause-UC",
+        "Apache-2.0 OR CC0-1.0 OR OpenSSL"
+      ],
+      "upstream": "https://libarchive.org/",
+      "base": "libarchive"
+    },
+    {
       "name": "libasan",
       "version": "16.1.1+r12+g301eb08fa2c5-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libasan-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz",
@@ -763,6 +1736,56 @@
       "base": "gcc"
     },
     {
+      "name": "libass",
+      "version": "0.17.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libass-0.17.5-1-aarch64.pkg.tar.xz",
+      "bytes": 103204,
+      "sha256": "88cbb23632552210e404ee7ecd35ac62201e707433b7abc2c0a00b4f84a53c95",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://github.com/libass/libass/",
+      "base": "libass"
+    },
+    {
+      "name": "libassuan",
+      "version": "3.0.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libassuan-3.0.0-1-aarch64.pkg.tar.xz",
+      "bytes": 111600,
+      "sha256": "122424f6f1c3c53f04b53af87802eec595290545b31c8fbb8ee22877421b5831",
+      "licenses": [
+        "FSFULLR",
+        "GPL-2.0-or-later",
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.gnupg.org/related_software/libassuan/",
+      "base": "libassuan"
+    },
+    {
+      "name": "libasyncns",
+      "version": "1:0.8+r3+g68cd5af-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libasyncns-1:0.8+r3+g68cd5af-3-aarch64.pkg.tar.xz",
+      "bytes": 16156,
+      "sha256": "6a06c61c24a5e1c032a62fff088644ea78462c34b6efb2536076506142adba4a",
+      "licenses": [
+        "LGPL"
+      ],
+      "upstream": "https://0pointer.net/lennart/projects/libasyncns/",
+      "base": "libasyncns"
+    },
+    {
+      "name": "libatasmart",
+      "version": "0.19-8",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libatasmart-0.19-8-aarch64.pkg.tar.xz",
+      "bytes": 28316,
+      "sha256": "0c66ed04a747d3baf281f00b2b341e1d41624422509203666fe961326ef4039d",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://0pointer.de/blog/projects/being-smart.html",
+      "base": "libatasmart"
+    },
+    {
       "name": "libatomic",
       "version": "16.1.1+r12+g301eb08fa2c5-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libatomic-16.1.1+r12+g301eb08fa2c5-1-aarch64.pkg.tar.xz",
@@ -774,6 +1797,198 @@
       ],
       "upstream": "https://gcc.gnu.org",
       "base": "gcc"
+    },
+    {
+      "name": "libavc1394",
+      "version": "0.5.4-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libavc1394-0.5.4-7-aarch64.pkg.tar.xz",
+      "bytes": 31748,
+      "sha256": "70c4c99b1341c7d1d49076ba1c46aee6705510360fe66bd79414f367b20a628f",
+      "licenses": [
+        "GPL-2.0-or-later AND LGPL-2.1-or-later"
+      ],
+      "upstream": "https://sourceforge.net/projects/libavc1394/",
+      "base": "libavc1394"
+    },
+    {
+      "name": "libavif",
+      "version": "1.4.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libavif-1.4.2-1-aarch64.pkg.tar.xz",
+      "bytes": 273668,
+      "sha256": "266d75081a73bf1ac3ac573a81462adf39469d1533884fc5da7900ad8db37bb8",
+      "licenses": [
+        "LicenseRef-libavif"
+      ],
+      "upstream": "https://github.com/AOMediaCodec/libavif",
+      "base": "libavif"
+    },
+    {
+      "name": "libblockdev",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 257396,
+      "sha256": "199ae6e22c55d1c621ccbdf175d59a7c1933b16b00c77203d854570836d23a59",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-crypto",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-crypto-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 24268,
+      "sha256": "531d6003ed1ada001dbe2ab2b97dacf8cb879bac51ff2ad7e1cb6b470c65ee6a",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-fs",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-fs-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 41520,
+      "sha256": "b9fe4f2aa2f1d13cfd5b4f6e58706cca8ad2811b66223a45c6797a4bfcd6b964",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-loop",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-loop-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 8944,
+      "sha256": "89761362aca9110443d274b9be600d67fc298627892fb895cbbfcbc8c1fc7e35",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-mdraid",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-mdraid-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 16012,
+      "sha256": "110ae16f67194e4ef5d4f4495465c55713a70b4adb5e5ac342cae7853b39ec83",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-nvme",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-nvme-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 26688,
+      "sha256": "75ac46abf9bbeb332faae5f2b0647807b72510bc40035a08db347b467b1d8ae4",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-part",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-part-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 17584,
+      "sha256": "6795401e58344230a74f0982564d2d822362aad65b48fe7486213730c368d0b6",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-smart",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-smart-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 26292,
+      "sha256": "5c2534e5e986054e915b2dd64fa3aab9373d573c5a453e4def7ac71fb37a34a1",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libblockdev-swap",
+      "version": "3.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libblockdev-swap-3.5.0-2-aarch64.pkg.tar.xz",
+      "bytes": 10988,
+      "sha256": "9ff8297c040f57655b1c435af794224ac30cfefec50ef2a01ad2c734933a1c88",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libblockdev",
+      "base": "libblockdev"
+    },
+    {
+      "name": "libbluray",
+      "version": "1.5.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libbluray-1.5.1-1-aarch64.pkg.tar.xz",
+      "bytes": 902920,
+      "sha256": "5efb15983210a0b1d538b55c076a771d7b45262f3832f30956b50a6d35971003",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://www.videolan.org/developers/libbluray.html",
+      "base": "libbluray"
+    },
+    {
+      "name": "libbpf",
+      "version": "1.7.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libbpf-1.7.0-1-aarch64.pkg.tar.xz",
+      "bytes": 251032,
+      "sha256": "192657eccc1b03e0adb5d5a0403a157af8da624d99a27173d32a7b27418712b6",
+      "licenses": [
+        "LGPL-2.1-only OR BSD-2-Clause"
+      ],
+      "upstream": "https://github.com/libbpf/libbpf",
+      "base": "libbpf"
+    },
+    {
+      "name": "libbs2b",
+      "version": "3.1.0-10",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libbs2b-3.1.0-10-aarch64.pkg.tar.xz",
+      "bytes": 16096,
+      "sha256": "ee59c4402dbc9ed69aa99f7524aaa496f6499827fb227113bcd654f9d8964eea",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "http://bs2b.sourceforge.net",
+      "base": "libbs2b"
+    },
+    {
+      "name": "libbsd",
+      "version": "0.12.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libbsd-0.12.2-2-aarch64.pkg.tar.xz",
+      "bytes": 164028,
+      "sha256": "3d47f2e64ab9c2dfbdc5791ad7db237ed3c9708ad80718c26f4b850cf2b69238",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://libbsd.freedesktop.org",
+      "base": "libbsd"
+    },
+    {
+      "name": "libbytesize",
+      "version": "2.12-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libbytesize-2.12-3-aarch64.pkg.tar.xz",
+      "bytes": 23864,
+      "sha256": "33178b35d92c0398c30c51f866c3d5ef585cc9fecc54eb8e2f4a7d85fcb08b67",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/storaged-project/libbytesize",
+      "base": "libbytesize"
     },
     {
       "name": "libcap",
@@ -801,6 +2016,90 @@
       "base": "libcap-ng"
     },
     {
+      "name": "libcdio",
+      "version": "2.4.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcdio-2.4.0-1-aarch64.pkg.tar.xz",
+      "bytes": 255580,
+      "sha256": "b7f6c736639ae940ece6493ac851e21459ebe1cc4d6e82f5513acf9756eefa43",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/libcdio/",
+      "base": "libcdio"
+    },
+    {
+      "name": "libcdio-paranoia",
+      "version": "10.2+2.0.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcdio-paranoia-10.2+2.0.2-3-aarch64.pkg.tar.xz",
+      "bytes": 64788,
+      "sha256": "5eef0d0f3188fa36325679dca6caceb9df0a5cc361f4b4e5d179cade0587317b",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/libcdio/",
+      "base": "libcdio-paranoia"
+    },
+    {
+      "name": "libcloudproviders",
+      "version": "0.4.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcloudproviders-0.4.1-1-aarch64.pkg.tar.xz",
+      "bytes": 44368,
+      "sha256": "83dfe6750ccad57d0e453cd6df7dd4263ec3cd3362ae26db126a820ff829fd3f",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/libcloudproviders",
+      "base": "libcloudproviders"
+    },
+    {
+      "name": "libcolord",
+      "version": "1.4.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcolord-1.4.8-1-aarch64.pkg.tar.xz",
+      "bytes": 169748,
+      "sha256": "79b5775b226ec0974454621e527094f0d59e7e5017b2c31c07871354de8fda0f",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.freedesktop.org/software/colord/",
+      "base": "colord"
+    },
+    {
+      "name": "libcue",
+      "version": "2.3.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcue-2.3.0-1-aarch64.pkg.tar.xz",
+      "bytes": 19432,
+      "sha256": "ef42ee13529eb013f0878cb4bc0d98f2e55dcd59d72d55629a08ec5900604b6b",
+      "licenses": [
+        "GPL2"
+      ],
+      "upstream": "https://github.com/lipnitsk/libcue/",
+      "base": "libcue"
+    },
+    {
+      "name": "libcups",
+      "version": "2:2.4.20-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libcups-2:2.4.20-1-aarch64.pkg.tar.xz",
+      "bytes": 257476,
+      "sha256": "f280995b8d7426dc9f40c70ca8d19dead27aa8a116cfeb94afa0149028709e66",
+      "licenses": [
+        "Apache-2.0 WITH LLVM-exception AND BSD-3-Clause AND Zlib AND BSD-2-Clause"
+      ],
+      "upstream": "https://openprinting.github.io/cups/",
+      "base": "cups"
+    },
+    {
+      "name": "libdaemon",
+      "version": "0.14-6",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdaemon-0.14-6-aarch64.pkg.tar.xz",
+      "bytes": 19340,
+      "sha256": "b96e8eb1604bf7901feb1addd2882cce2f366b504d919c9fc28a53f8c240243b",
+      "licenses": [
+        "LGPL"
+      ],
+      "upstream": "http://0pointer.de/lennart/projects/libdaemon/",
+      "base": "libdaemon"
+    },
+    {
       "name": "libdatrie",
       "version": "0.2.14-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdatrie-0.2.14-1-aarch64.pkg.tar.xz",
@@ -811,6 +2110,18 @@
       ],
       "upstream": "https://linux.thai.net/projects/datrie",
       "base": "libdatrie"
+    },
+    {
+      "name": "libde265",
+      "version": "1.1.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libde265-1.1.3-1-aarch64.pkg.tar.xz",
+      "bytes": 274188,
+      "sha256": "a76c383bb8140cfbf0f5d5ed03a9c64b9e847d4eb5abf055052ad925c9d17025",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "upstream": "https://github.com/strukturag/libde265",
+      "base": "libde265"
     },
     {
       "name": "libdecor",
@@ -849,6 +2160,18 @@
       "base": "libdisplay-info"
     },
     {
+      "name": "libdovi",
+      "version": "3.4.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdovi-3.4.0-1-aarch64.pkg.tar.xz",
+      "bytes": 239568,
+      "sha256": "5394d3887703918d344bb60ee30f747e14136d6d907a17e7d6a742a4fa6867bc",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/quietvoid/dovi_tool/tree/main/dolby_vision",
+      "base": "libdovi"
+    },
+    {
       "name": "libdrm",
       "version": "2.4.134-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdrm-2.4.134-1-aarch64.pkg.tar.xz",
@@ -859,6 +2182,42 @@
       ],
       "upstream": "https://dri.freedesktop.org/",
       "base": "libdrm"
+    },
+    {
+      "name": "libdvdnav",
+      "version": "7.0.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdvdnav-7.0.0-1-aarch64.pkg.tar.xz",
+      "bytes": 57352,
+      "sha256": "b2efacbf84af912d2c758687ed63058361d6bcf073c5ed04a7ae0ddebe42877e",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.videolan.org/developers/libdvdnav.html",
+      "base": "libdvdnav"
+    },
+    {
+      "name": "libdvdread",
+      "version": "7.1.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libdvdread-7.1.1-1-aarch64.pkg.tar.xz",
+      "bytes": 127560,
+      "sha256": "e1d686bc1cc9c1a016026757380d59b899120c21a438a197f74678d018efbaa2",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.videolan.org/developers/libdvdnav.html",
+      "base": "libdvdread"
+    },
+    {
+      "name": "libebur128",
+      "version": "1.2.6-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libebur128-1.2.6-2-aarch64.pkg.tar.xz",
+      "bytes": 16524,
+      "sha256": "a1b54c783cacadcea9f31974f140afeb19c385854d924ef597f159b1ea4343ae",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/jiixyj/libebur128",
+      "base": "libebur128"
     },
     {
       "name": "libedit",
@@ -933,6 +2292,30 @@
       "base": "libevent"
     },
     {
+      "name": "libexif",
+      "version": "0.6.26-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libexif-0.6.26-1-aarch64.pkg.tar.xz",
+      "bytes": 496132,
+      "sha256": "f3126e9de05ee7c82fd9c55b98fe3e8c5a1c9b39b7fab223be65820f5aefedfa",
+      "licenses": [
+        "LGPL"
+      ],
+      "upstream": "https://github.com/libexif/libexif",
+      "base": "libexif"
+    },
+    {
+      "name": "libfdk-aac",
+      "version": "3.0.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libfdk-aac-3.0.0-1-aarch64.pkg.tar.xz",
+      "bytes": 1201016,
+      "sha256": "7dc8dc21e95888bdf8c9ee3b0a45e5adea62c2b9a5dc3a57ea502f46330b00d8",
+      "licenses": [
+        "LicenseRef-Fraunhofer"
+      ],
+      "upstream": "https://sourceforge.net/projects/opencore-amr/",
+      "base": "libfdk-aac"
+    },
+    {
       "name": "libffi",
       "version": "3.8.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libffi-3.8.0-1-aarch64.pkg.tar.xz",
@@ -955,6 +2338,18 @@
       ],
       "upstream": "https://gitlab.freedesktop.org/xorg/lib/libfontenc",
       "base": "libfontenc"
+    },
+    {
+      "name": "libfreeaptx",
+      "version": "0.2.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libfreeaptx-0.2.2-1-aarch64.pkg.tar.xz",
+      "bytes": 18272,
+      "sha256": "abc0efaf4adb7838608ecf0ba15d790faa1048fade46791ee4fd79a2b2e37c1a",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/regularhunter/libfreeaptx",
+      "base": "libfreeaptx"
     },
     {
       "name": "libgcc",
@@ -1042,6 +2437,18 @@
       "base": "libgpg-error"
     },
     {
+      "name": "libgsf",
+      "version": "1.14.60-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libgsf-1.14.60-1-aarch64.pkg.tar.xz",
+      "bytes": 267316,
+      "sha256": "4028f44d83b2956ba2931d32aee8cceecbd6481e2febf86a3b6bfed69ef403d5",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/libgsf",
+      "base": "libgsf"
+    },
+    {
       "name": "libgudev",
       "version": "238-3",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libgudev-238-3-aarch64.pkg.tar.xz",
@@ -1052,6 +2459,55 @@
       ],
       "upstream": "https://gitlab.gnome.org/GNOME/libgudev",
       "base": "libgudev"
+    },
+    {
+      "name": "libgxps",
+      "version": "0.3.2-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libgxps-0.3.2-5-aarch64.pkg.tar.xz",
+      "bytes": 101232,
+      "sha256": "2d2d0f1d18a17398b351e19452af982a8b3bc7b03d4ab3124c15e127f63e7f8f",
+      "licenses": [
+        "GPL2"
+      ],
+      "upstream": "https://wiki.gnome.org/Projects/libgxps",
+      "base": "libgxps"
+    },
+    {
+      "name": "libheif",
+      "version": "1.23.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libheif-1.23.6-1-aarch64.pkg.tar.xz",
+      "bytes": 852436,
+      "sha256": "f9aac323027e8edac1899e9eacd1bbd13fc56c79f3c7fb0b74362cd98e9616a1",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "upstream": "https://github.com/strukturag/libheif",
+      "base": "libheif"
+    },
+    {
+      "name": "libice",
+      "version": "1.1.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libice-1.1.2-1-aarch64.pkg.tar.xz",
+      "bytes": 75552,
+      "sha256": "a4ad016e993915e0aba8037ef0b9602ee55d9198b115c5d76a3397a4dda3c846",
+      "licenses": [
+        "MIT-open-group"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libice"
+    },
+    {
+      "name": "libidn",
+      "version": "1.44-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libidn-1.44-1-aarch64.pkg.tar.xz",
+      "bytes": 296072,
+      "sha256": "f5c4dcea4f294108c173ff4054f498e6d5729d06695a88c6c65be1184a67be9f",
+      "licenses": [
+        "GPL3",
+        "LGPL"
+      ],
+      "upstream": "https://www.gnu.org/software/libidn/",
+      "base": "libidn"
     },
     {
       "name": "libidn2",
@@ -1067,6 +2523,54 @@
       "base": "libidn2"
     },
     {
+      "name": "libiec61883",
+      "version": "1.2.0-9",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libiec61883-1.2.0-9-aarch64.pkg.tar.xz",
+      "bytes": 30756,
+      "sha256": "0ce1403ff5e051eb280b7027cc8f671bc58f335604aaa48a5d204b33bc1daae0",
+      "licenses": [
+        "LGPL"
+      ],
+      "upstream": "https://www.kernel.org/pub/linux/libs/ieee1394/",
+      "base": "libiec61883"
+    },
+    {
+      "name": "libimobiledevice",
+      "version": "1.4.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libimobiledevice-1.4.0-2-aarch64.pkg.tar.xz",
+      "bytes": 630616,
+      "sha256": "d3430b5f125168a47de50519905d9d203195f4fc4beb79268549f1b7447adff2",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libimobiledevice.org/",
+      "base": "libimobiledevice"
+    },
+    {
+      "name": "libimobiledevice-glue",
+      "version": "1.3.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libimobiledevice-glue-1.3.2-1-aarch64.pkg.tar.xz",
+      "bytes": 35000,
+      "sha256": "5f03793e06638133338af1d4358355625e2133bcfe9ef8070d62a8413d3fc054",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libimobiledevice.org/",
+      "base": "libimobiledevice-glue"
+    },
+    {
+      "name": "libinih",
+      "version": "62-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libinih-62-2-aarch64.pkg.tar.xz",
+      "bytes": 19796,
+      "sha256": "c561dff1db53c3b11bcef7e694e6b9dc4b36133ff81038e52777568ba470f1fc",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://github.com/benhoyt/inih",
+      "base": "libinih"
+    },
+    {
       "name": "libinput",
       "version": "1.32.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libinput-1.32.0-1-aarch64.pkg.tar.xz",
@@ -1077,6 +2581,18 @@
       ],
       "upstream": "https://wayland.freedesktop.org/libinput/doc/latest/",
       "base": "libinput"
+    },
+    {
+      "name": "libiptcdata",
+      "version": "1.0.5-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libiptcdata-1.0.5-5-aarch64.pkg.tar.xz",
+      "bytes": 42984,
+      "sha256": "65ce932d2b5f8937cb748a0e338c4ee5ff025bcbb226f7433ba9936353118de6",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://libiptcdata.sourceforge.net/",
+      "base": "libiptcdata"
     },
     {
       "name": "libjpeg-turbo",
@@ -1104,6 +2620,44 @@
       "base": "libjxl"
     },
     {
+      "name": "libksba",
+      "version": "1.8.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libksba-1.8.1-1-aarch64.pkg.tar.xz",
+      "bytes": 134672,
+      "sha256": "e776fa6704fd22b2d5dcaaf402dfc705228bbca455027aaad97220699360611e",
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-3.0-only",
+        "LGPL-3.0-only"
+      ],
+      "upstream": "https://www.gnupg.org/related_software/libksba/",
+      "base": "libksba"
+    },
+    {
+      "name": "liblc3",
+      "version": "1.1.3-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/liblc3-1.1.3-2-aarch64.pkg.tar.xz",
+      "bytes": 106540,
+      "sha256": "63705c3df9a27ee6673585ec2adea6bca6e1cc597c5d8da7f4e39565ad7a8e26",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/google/liblc3",
+      "base": "liblc3"
+    },
+    {
+      "name": "libldac",
+      "version": "2.0.2.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libldac-2.0.2.6-1-aarch64.pkg.tar.xz",
+      "bytes": 32772,
+      "sha256": "fef1b517fed8f60b0dc87a50ad73bdeec3a36329ec59d1beb5106bb9135365ec",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/EHfive/ldacBT",
+      "base": "libldac"
+    },
+    {
       "name": "libldap",
       "version": "2.7.1-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libldap-2.7.1-1-aarch64.pkg.tar.xz",
@@ -1127,6 +2681,90 @@
       ],
       "upstream": "https://gcc.gnu.org",
       "base": "gcc"
+    },
+    {
+      "name": "libluv",
+      "version": "1.52.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libluv-1.52.1-1-aarch64.pkg.tar.xz",
+      "bytes": 54452,
+      "sha256": "d364544068c0551713756fe5c60a8496f4408d5ec4193b12b9d2fd2d2933ac4b",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/luvit/luv",
+      "base": "libluv"
+    },
+    {
+      "name": "libmd",
+      "version": "1.3.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmd-1.3.0-1-aarch64.pkg.tar.xz",
+      "bytes": 54364,
+      "sha256": "e2f1090d6e3401da5655ac553398bd47338c4c6e39ac0ed684a9b4f33707354b",
+      "licenses": [
+        "BSD-3-Clause AND BSD-2-Clause AND ISC AND Beerware AND CC-PDM-1.0"
+      ],
+      "upstream": "https://www.hadrons.org/software/libmd/",
+      "base": "libmd"
+    },
+    {
+      "name": "libmediainfo",
+      "version": "26.10-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmediainfo-26.10-1-aarch64.pkg.tar.xz",
+      "bytes": 3201596,
+      "sha256": "ec191abd0832e63f9959c1a19d920c16c80a27b870c40a6cebe8cd190ed1c401",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://mediaarea.net",
+      "base": "libmediainfo"
+    },
+    {
+      "name": "libmms",
+      "version": "0.6.4-6",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmms-0.6.4-6-aarch64.pkg.tar.xz",
+      "bytes": 28364,
+      "sha256": "fa13751f74e5e23b89adf1c5c2100937e2b5be748ff0ccf8a66f3b884df03307",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://sourceforge.net/projects/libmms/",
+      "base": "libmms"
+    },
+    {
+      "name": "libmodplug",
+      "version": "0.8.9.0-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmodplug-0.8.9.0-7-aarch64.pkg.tar.xz",
+      "bytes": 150424,
+      "sha256": "b981d39eaa65eab18192c174f2dfafe0cc2579a00d6defbc296cceed2e9a8517",
+      "licenses": [
+        "LicenseRef-PublicDomain"
+      ],
+      "upstream": "http://modplug-xmms.sourceforge.net/",
+      "base": "libmodplug"
+    },
+    {
+      "name": "libmysofa",
+      "version": "1.3.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libmysofa-1.3.5-1-aarch64.pkg.tar.xz",
+      "bytes": 1158736,
+      "sha256": "ef2981c71c912bf871c11e0d462c5098ee6fbbdd2f0e7268a2f5d834654493a8",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://github.com/hoene/libmysofa/",
+      "base": "libmysofa"
+    },
+    {
+      "name": "libnautilus-extension",
+      "version": "51.0.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libnautilus-extension-51.0.1-2-aarch64.pkg.tar.xz",
+      "bytes": 31384,
+      "sha256": "fb22193d258fbfd80ec93ddd8e37509ddcce403ea4d35e01eaddf61ff5dc1af3",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://apps.gnome.org/Nautilus/",
+      "base": "nautilus"
     },
     {
       "name": "libnghttp2",
@@ -1165,6 +2803,18 @@
       "base": "libngtcp2"
     },
     {
+      "name": "libnice",
+      "version": "0.1.24-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libnice-0.1.24-1-aarch64.pkg.tar.xz",
+      "bytes": 301848,
+      "sha256": "b6c6565ddb510373b211b62ae6c773c7608d39c4d799416c38a45e6a1549c61d",
+      "licenses": [
+        "MPL-1.1 OR LGPL-2.1-only"
+      ],
+      "upstream": "https://libnice.freedesktop.org/",
+      "base": "libnice"
+    },
+    {
       "name": "libnsl",
       "version": "2.0.1-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libnsl-2.0.1-2-aarch64.pkg.tar.xz",
@@ -1175,6 +2825,18 @@
       ],
       "upstream": "https://github.com/thkukuk/libnsl",
       "base": "libnsl"
+    },
+    {
+      "name": "libnvme",
+      "version": "1.16.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libnvme-1.16.2-2-aarch64.pkg.tar.xz",
+      "bytes": 284860,
+      "sha256": "564e3bec1adb6d370d7f44b86e75db981cb64ebccdf9b708b0fa44f9f2d4f77c",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://github.com/linux-nvme/libnvme",
+      "base": "libnvme"
     },
     {
       "name": "libobjc",
@@ -1190,6 +2852,42 @@
       "base": "gcc"
     },
     {
+      "name": "libogg",
+      "version": "1.3.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libogg-1.3.6-1-aarch64.pkg.tar.xz",
+      "bytes": 199192,
+      "sha256": "91a402c06a669649cf463d17788fcd67c1993489008116193a900b19a7ada75e",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://www.xiph.org/ogg/",
+      "base": "libogg"
+    },
+    {
+      "name": "libopenmpt",
+      "version": "0.8.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libopenmpt-0.8.9-1-aarch64.pkg.tar.xz",
+      "bytes": 1046948,
+      "sha256": "700975b5bc493bb8f55c6557cd8ef5d73cb46196244d1e3654a79a89d725150b",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://lib.openmpt.org/libopenmpt/",
+      "base": "libopenmpt"
+    },
+    {
+      "name": "libosinfo",
+      "version": "1.12.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libosinfo-1.12.0-3-aarch64.pkg.tar.xz",
+      "bytes": 265024,
+      "sha256": "9f433f6b500c1f43af682cae84a1f05256e9761e1a346913b99819063a10c47c",
+      "licenses": [
+        "GPL-2.0-or-later AND LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libosinfo.org/",
+      "base": "libosinfo"
+    },
+    {
       "name": "libp11-kit",
       "version": "0.26.5-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libp11-kit-0.26.5-1-aarch64.pkg.tar.xz",
@@ -1200,6 +2898,23 @@
       ],
       "upstream": "https://p11-glue.freedesktop.org",
       "base": "p11-kit"
+    },
+    {
+      "name": "libpaper",
+      "version": "2.2.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpaper-2.2.8-1-aarch64.pkg.tar.xz",
+      "bytes": 49912,
+      "sha256": "b5ef8ad6e73e2667365a45fe947ef11099553cd8fc456ba55ae85e6cc79d1438",
+      "licenses": [
+        "LGPL-2.1-or-later",
+        "LicenseRef-Public-Domain",
+        "GPL-3.0-or-later",
+        "LGPL-2.0-or-later",
+        "FSFAP",
+        "MIT"
+      ],
+      "upstream": "https://github.com/rrthomas/libpaper",
+      "base": "libpaper"
     },
     {
       "name": "libpciaccess",
@@ -1214,6 +2929,54 @@
       "base": "libpciaccess"
     },
     {
+      "name": "libpgm",
+      "version": "5.3.128-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpgm-5.3.128-4-aarch64.pkg.tar.xz",
+      "bytes": 164780,
+      "sha256": "9bfc588e91f3c68639538c6eec8bd50905095fb7a480392ec69503b4f7b57009",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/steve-o/openpgm",
+      "base": "libpgm"
+    },
+    {
+      "name": "libpipewire",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpipewire-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 1366556,
+      "sha256": "21e81a38ea0217e0b0675b00c1c98bb547098f00d689201a27c34824e442d66e",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
+      "name": "libplacebo",
+      "version": "7.360.1-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libplacebo-7.360.1-7-aarch64.pkg.tar.xz",
+      "bytes": 459504,
+      "sha256": "9230c578b13612b2577b00434a44f8dd93b2cdf40ad097ea7cc9f95127f2443a",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://github.com/haasn/libplacebo",
+      "base": "libplacebo"
+    },
+    {
+      "name": "libplist",
+      "version": "2.7.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libplist-2.7.0-3-aarch64.pkg.tar.xz",
+      "bytes": 146200,
+      "sha256": "d7dad53d8d174bdd6556dc6d8e60f3b49b2ee8749e39aef2642f6400bf1929a9",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libimobiledevice.org/",
+      "base": "libplist"
+    },
+    {
       "name": "libpng",
       "version": "1.6.59-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpng-1.6.59-1-aarch64.pkg.tar.xz",
@@ -1226,6 +2989,42 @@
       "base": "libpng"
     },
     {
+      "name": "libportal",
+      "version": "0.11.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libportal-0.11.0-1-aarch64.pkg.tar.xz",
+      "bytes": 105696,
+      "sha256": "6582109400340020c47371df93dcf30766872d189811af1c7e14472caccfae40",
+      "licenses": [
+        "LGPL-3.0-only"
+      ],
+      "upstream": "https://github.com/flatpak/libportal",
+      "base": "libportal"
+    },
+    {
+      "name": "libportal-gtk4",
+      "version": "0.11.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libportal-gtk4-0.11.0-1-aarch64.pkg.tar.xz",
+      "bytes": 12592,
+      "sha256": "c3d11b53afa23161149249d9fd13cc2add006950ccde58d43ed2846456fb0598",
+      "licenses": [
+        "LGPL-3.0-only"
+      ],
+      "upstream": "https://github.com/flatpak/libportal",
+      "base": "libportal"
+    },
+    {
+      "name": "libproxy",
+      "version": "0.5.12-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libproxy-0.5.12-1-aarch64.pkg.tar.xz",
+      "bytes": 27912,
+      "sha256": "071afd9aaa0dc6f45f5e81e51c9122aacfadf85726962d013fdecb67cbfcec9b",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libproxy.github.io/libproxy/",
+      "base": "libproxy"
+    },
+    {
       "name": "libpsl",
       "version": "0.21.5-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libpsl-0.21.5-2-aarch64.pkg.tar.xz",
@@ -1236,6 +3035,18 @@
       ],
       "upstream": "https://github.com/rockdaboot/libpsl",
       "base": "libpsl"
+    },
+    {
+      "name": "libpulse",
+      "version": "17.0+r98+gb096704c0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libpulse-17.0+r98+gb096704c0-1-aarch64.pkg.tar.xz",
+      "bytes": 346904,
+      "sha256": "f6ba952dd3e9cc914cbb78f06ab5c6daaebaa115438238c06dbe42dfa71160d2",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/PulseAudio/",
+      "base": "pulseaudio"
     },
     {
       "name": "libquadmath",
@@ -1251,6 +3062,18 @@
       "base": "gcc"
     },
     {
+      "name": "libraw1394",
+      "version": "2.1.2-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libraw1394-2.1.2-4-aarch64.pkg.tar.xz",
+      "bytes": 46224,
+      "sha256": "6b212ae0cbac953c6ee36c2730f03f5ab6aa718e1595d8a8100b05c4a986fb23",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://ieee1394.wiki.kernel.org/index.php/Main_Page",
+      "base": "libraw1394"
+    },
+    {
       "name": "librsvg",
       "version": "2:2.63.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/librsvg-2:2.63.2-1-aarch64.pkg.tar.xz",
@@ -1261,6 +3084,18 @@
       ],
       "upstream": "https://gitlab.gnome.org/GNOME/librsvg",
       "base": "librsvg"
+    },
+    {
+      "name": "libsamplerate",
+      "version": "0.2.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsamplerate-0.2.2-3-aarch64.pkg.tar.xz",
+      "bytes": 989352,
+      "sha256": "9292168d3d836579fb1af20ede097470638332bb2691097ea760b7396a1ce6ca",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://libsndfile.github.io/libsamplerate/",
+      "base": "libsamplerate"
     },
     {
       "name": "libsasl",
@@ -1287,6 +3122,92 @@
       "base": "libseccomp"
     },
     {
+      "name": "libsecret",
+      "version": "0.21.8.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libsecret-0.21.8.2-1-aarch64.pkg.tar.xz",
+      "bytes": 176824,
+      "sha256": "90006857bbbaa837cf4482dc16cba37bc20df9d7a8d62768716474f9eb031135",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/libsecret/",
+      "base": "libsecret"
+    },
+    {
+      "name": "libsm",
+      "version": "1.2.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsm-1.2.6-1-aarch64.pkg.tar.xz",
+      "bytes": 44556,
+      "sha256": "023fe454c714f591cf3f6c1cf0fc07d61779d96b71836bffdd8e8b07536bfb8c",
+      "licenses": [
+        "MIT",
+        "MIT-open-group"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libsm"
+    },
+    {
+      "name": "libsndfile",
+      "version": "1.2.2-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsndfile-1.2.2-4-aarch64.pkg.tar.xz",
+      "bytes": 297312,
+      "sha256": "5f8995bee55c37fff098d20cc61ca7b1b4a13c4bc2c1181aea493cc267154d61",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libsndfile.github.io/libsndfile/",
+      "base": "libsndfile"
+    },
+    {
+      "name": "libsodium",
+      "version": "1.0.22-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsodium-1.0.22-1-aarch64.pkg.tar.xz",
+      "bytes": 162092,
+      "sha256": "0df84ee0659a06e2c192c72782484a0a6402535178f4ee867bfcb636cf2ebab2",
+      "licenses": [
+        "custom:ISC"
+      ],
+      "upstream": "https://github.com/jedisct1/libsodium",
+      "base": "libsodium"
+    },
+    {
+      "name": "libsoup3",
+      "version": "3.8.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsoup3-3.8.0-1-aarch64.pkg.tar.xz",
+      "bytes": 392992,
+      "sha256": "64de7da632474a9b45e473731c9098e11379c5dc441e7ca1af91546dc0eabe7b",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://libsoup.gnome.org/",
+      "base": "libsoup3"
+    },
+    {
+      "name": "libsoxr",
+      "version": "0.1.3-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libsoxr-0.1.3-5-aarch64.pkg.tar.xz",
+      "bytes": 59252,
+      "sha256": "c61e55285c17399b1fa70a35524b80049bc34bbc21c6f3e96537e01e7635e8e7",
+      "licenses": [
+        "LGPL-2.1-only",
+        "LicenseRef-soxr"
+      ],
+      "upstream": "https://sourceforge.net/p/soxr/wiki/Home/",
+      "base": "libsoxr"
+    },
+    {
+      "name": "libssh",
+      "version": "0.12.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libssh-0.12.2-1-aarch64.pkg.tar.xz",
+      "bytes": 233504,
+      "sha256": "7ffb12281aa0a78456124c6a7500f48b03ac6a97f86125a6986d76bdbd31b2f3",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.libssh.org/",
+      "base": "libssh"
+    },
+    {
       "name": "libssh2",
       "version": "1.11.1-7",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libssh2-1.11.1-7-aarch64.pkg.tar.xz",
@@ -1310,6 +3231,18 @@
       ],
       "upstream": "https://gcc.gnu.org",
       "base": "gcc"
+    },
+    {
+      "name": "libstemmer",
+      "version": "3.1.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libstemmer-3.1.1-1-aarch64.pkg.tar.xz",
+      "bytes": 125172,
+      "sha256": "c5ab5687f090d94c15b7a4b7288a58e5bf826921ad9cffa8d85bad1ce31284ba",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://snowballstem.org/",
+      "base": "snowball"
     },
     {
       "name": "libsysprof-capture",
@@ -1338,6 +3271,18 @@
       "base": "libtasn1"
     },
     {
+      "name": "libtatsu",
+      "version": "1.0.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libtatsu-1.0.5-1-aarch64.pkg.tar.xz",
+      "bytes": 17988,
+      "sha256": "48ad83e9ccb9df49d50731342b4823a8ef106a009cb2406ea2f653b231465c26",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libimobiledevice.org/",
+      "base": "libtatsu"
+    },
+    {
       "name": "libthai",
       "version": "0.1.30-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libthai-0.1.30-1-aarch64.pkg.tar.xz",
@@ -1348,6 +3293,18 @@
       ],
       "upstream": "https://linux.thai.net/projects/libthai",
       "base": "libthai"
+    },
+    {
+      "name": "libtheora",
+      "version": "1.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libtheora-1.2.0-1-aarch64.pkg.tar.xz",
+      "bytes": 380664,
+      "sha256": "cb43eaac20d6e338502147d328843299f37be6a3bb97afab57dc2afdfbdc102f",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://www.theora.org/",
+      "base": "libtheora"
     },
     {
       "name": "libtiff",
@@ -1373,6 +3330,18 @@
       ],
       "upstream": "http://git.linux-nfs.org/?p=steved/libtirpc.git;a=summary",
       "base": "libtirpc"
+    },
+    {
+      "name": "libtool",
+      "version": "2.6.0+r23+gb08cb0a0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libtool-2.6.0+r23+gb08cb0a0-1-aarch64.pkg.tar.xz",
+      "bytes": 431772,
+      "sha256": "064e9d5e1dcd6840943e87964ea233694e9911d281e1747b6c7f885199dcaa86",
+      "licenses": [
+        "LGPL-2.0-or-later WITH Libtool-exception"
+      ],
+      "upstream": "https://www.gnu.org/software/libtool",
+      "base": "libtool"
     },
     {
       "name": "libtsan",
@@ -1401,6 +3370,18 @@
       "base": "gcc"
     },
     {
+      "name": "libunibreak",
+      "version": "7.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libunibreak-7.0-1-aarch64.pkg.tar.xz",
+      "bytes": 23916,
+      "sha256": "b76b357272df096180a3cb9e22f8586b0575d9d4e52b58459efff8d1a8f8461a",
+      "licenses": [
+        "custom:zlib/libpng"
+      ],
+      "upstream": "https://github.com/adah1972/libunibreak/",
+      "base": "libunibreak"
+    },
+    {
       "name": "libunistring",
       "version": "1.4.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libunistring-1.4.2-1-aarch64.pkg.tar.xz",
@@ -1426,6 +3407,44 @@
       "base": "libunwind"
     },
     {
+      "name": "liburing",
+      "version": "2.15-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/liburing-2.15-1-aarch64.pkg.tar.xz",
+      "bytes": 271192,
+      "sha256": "efb67ef7eed7b30bebebbe9420fbf67bbfd0676c2b731f30e47e544cdb73feaf",
+      "licenses": [
+        "GPL-2.0-only WITH Linux-syscall-note OR MIT",
+        "LGPL-2.0-or-later",
+        "MIT"
+      ],
+      "upstream": "https://github.com/axboe/liburing",
+      "base": "liburing"
+    },
+    {
+      "name": "libusb",
+      "version": "1.0.30-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libusb-1.0.30-1-aarch64.pkg.tar.xz",
+      "bytes": 74064,
+      "sha256": "111d33e208469750439bbb7b472554784a39a6ee3948632b719fd715a1c5836d",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libusb.info/",
+      "base": "libusb"
+    },
+    {
+      "name": "libusbmuxd",
+      "version": "2.1.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libusbmuxd-2.1.1-2-aarch64.pkg.tar.xz",
+      "bytes": 27392,
+      "sha256": "58573294f2f250cd230f383897a9d41cd6cf3b48fda601f9af14455c4eae6d65",
+      "licenses": [
+        "GPL-2.0-or-later AND LGPL-2.1-or-later"
+      ],
+      "upstream": "https://libimobiledevice.org/",
+      "base": "libusbmuxd"
+    },
+    {
       "name": "libutf8proc",
       "version": "2.12.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libutf8proc-2.12.0-1-aarch64.pkg.tar.xz",
@@ -1439,6 +3458,42 @@
       "base": "libutf8proc"
     },
     {
+      "name": "libuv",
+      "version": "1.52.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libuv-1.52.1-2-aarch64.pkg.tar.xz",
+      "bytes": 252776,
+      "sha256": "b7ef4dd7c5dd724a71ad37a28640057cc75988cf8f49b605d3b6b468ef2ee854",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://github.com/libuv/libuv",
+      "base": "libuv"
+    },
+    {
+      "name": "libva",
+      "version": "2.24.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libva-2.24.1-1-aarch64.pkg.tar.xz",
+      "bytes": 193448,
+      "sha256": "208f2b00046c22544855390ae9359ac59a13f375ab1d6d1e3f50ee875ae9db61",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://intel.github.io/libva/",
+      "base": "libva"
+    },
+    {
+      "name": "libvdpau",
+      "version": "1.5-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libvdpau-1.5-4-aarch64.pkg.tar.xz",
+      "bytes": 58712,
+      "sha256": "661b2f9d9be5306c16368806b2df2044a404a8bbf9c58deeb0ecd88d8b309877",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/VDPAU/",
+      "base": "libvdpau"
+    },
+    {
       "name": "libverto",
       "version": "0.3.2-6",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libverto-0.3.2-6-aarch64.pkg.tar.xz",
@@ -1449,6 +3504,42 @@
       ],
       "upstream": "https://github.com/latchset/libverto",
       "base": "libverto"
+    },
+    {
+      "name": "libvorbis",
+      "version": "1.3.7-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libvorbis-1.3.7-4-aarch64.pkg.tar.xz",
+      "bytes": 168412,
+      "sha256": "22d10826e1b2b72b1c5f69ba116e4a4840197d3f808c37bfa738f9dd8b493118",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://www.xiph.org/vorbis/",
+      "base": "libvorbis"
+    },
+    {
+      "name": "libvpx",
+      "version": "1.17.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libvpx-1.17.0-1-aarch64.pkg.tar.xz",
+      "bytes": 1377516,
+      "sha256": "4ed1aac5b0e9c9d73ea6366b701f16034e1b634bfd07c4d935eae7ebf5fcb1a1",
+      "licenses": [
+        "custom:BSD"
+      ],
+      "upstream": "https://www.webmproject.org/",
+      "base": "libvpx"
+    },
+    {
+      "name": "libvterm",
+      "version": "0.3.3-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libvterm-0.3.3-2-aarch64.pkg.tar.xz",
+      "bytes": 47076,
+      "sha256": "6284d9362c4079bc7ecb4f07f656dcf010bdeb2935ea71d4df9f55fb559cb8c2",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://www.leonerd.org.uk/code/libvterm/",
+      "base": "libvterm"
     },
     {
       "name": "libwacom",
@@ -1473,6 +3564,18 @@
       ],
       "upstream": "https://developers.google.com/speed/webp/",
       "base": "libwebp"
+    },
+    {
+      "name": "libwireplumber",
+      "version": "0.5.18-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libwireplumber-0.5.18-1-aarch64.pkg.tar.xz",
+      "bytes": 284324,
+      "sha256": "9fc7aedc4079fadbef1fd7079076b781bee45431d9e534b7c45b82c39ad17d9c",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://pipewire.pages.freedesktop.org/wireplumber/",
+      "base": "wireplumber"
     },
     {
       "name": "libx11",
@@ -1561,6 +3664,18 @@
       "base": "libxcvt"
     },
     {
+      "name": "libxdamage",
+      "version": "1.1.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxdamage-1.1.7-1-aarch64.pkg.tar.xz",
+      "bytes": 7376,
+      "sha256": "c10d529d8e1eb9e518eea2249d4250ea8f7a711f9ec15a644164b94a6b554955",
+      "licenses": [
+        "HPND-sell-variant"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libxdamage"
+    },
+    {
       "name": "libxdmcp",
       "version": "1.1.5-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxdmcp-1.1.5-2-aarch64.pkg.tar.xz",
@@ -1627,11 +3742,51 @@
       "base": "libxft"
     },
     {
+      "name": "libxi",
+      "version": "1.8.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxi-1.8.3-1-aarch64.pkg.tar.xz",
+      "bytes": 151764,
+      "sha256": "379cea947498145d31decca7a1beacec268cb24fb622a59f6dc49c23be793a22",
+      "licenses": [
+        "MIT-open-group",
+        "SMLNJ",
+        "MIT"
+      ],
+      "upstream": "https://xorg.freedesktop.org",
+      "base": "libxi"
+    },
+    {
+      "name": "libxinerama",
+      "version": "1.1.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxinerama-1.1.6-1-aarch64.pkg.tar.xz",
+      "bytes": 9972,
+      "sha256": "3a44bdcbc01e68437ea76c8746051586bfda37a36f2c0c5613844eebf9eafdad",
+      "licenses": [
+        "MIT",
+        "MIT-open-group",
+        "X11"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libxinerama"
+    },
+    {
       "name": "libxkbcommon",
       "version": "1.13.2-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxkbcommon-1.13.2-1-aarch64.pkg.tar.xz",
       "bytes": 263628,
       "sha256": "76b922d87d0af0011072b156464041ec5674f24ff1c78b7e85132fda72c9a7e7",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://xkbcommon.org/",
+      "base": "libxkbcommon"
+    },
+    {
+      "name": "libxkbcommon-x11",
+      "version": "1.13.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxkbcommon-x11-1.13.2-1-aarch64.pkg.tar.xz",
+      "bytes": 38984,
+      "sha256": "6f456540140a0abea3ac01502a6bb0419af81851d08d159879091a05962004fd",
       "licenses": [
         "MIT"
       ],
@@ -1661,6 +3816,19 @@
       ],
       "upstream": "https://gitlab.gnome.org/GNOME/libxml2/-/wikis/home",
       "base": "libxml2"
+    },
+    {
+      "name": "libxpm",
+      "version": "3.5.19-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxpm-3.5.19-1-aarch64.pkg.tar.xz",
+      "bytes": 68800,
+      "sha256": "26d89215558aea4139b379b86f0e8b4fadf8a2031d3d92c3ab5f17c7e2a94162",
+      "licenses": [
+        "MIT",
+        "X11-distribute-modifications-variant"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libxpm"
     },
     {
       "name": "libxrandr",
@@ -1699,6 +3867,75 @@
       "base": "libxshmfence"
     },
     {
+      "name": "libxslt",
+      "version": "1.1.45-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxslt-1.1.45-2-aarch64.pkg.tar.xz",
+      "bytes": 189964,
+      "sha256": "dd508d0060063ed5d833001a125d6b427c8a623d669758c44ac10cc84a92392f",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/libxslt/-/wikis/home",
+      "base": "libxslt"
+    },
+    {
+      "name": "libxss",
+      "version": "1.2.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxss-1.2.5-1-aarch64.pkg.tar.xz",
+      "bytes": 14148,
+      "sha256": "1ebc34a29420166cb25040bfbff5d6ff732eff92de9cf07fcd92835e7d68bb9c",
+      "licenses": [
+        "X11"
+      ],
+      "upstream": "https://gitlab.freedesktop.org/xorg/lib/libxscrnsaver",
+      "base": "libxss"
+    },
+    {
+      "name": "libxt",
+      "version": "1.3.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxt-1.3.1-1-aarch64.pkg.tar.xz",
+      "bytes": 519872,
+      "sha256": "5361b689b6db0dffa3bc7131d45e29e3e291e7da93b00f3b2fe3ec688d84ff38",
+      "licenses": [
+        "MIT",
+        "HPND-sell-variant",
+        "SMLNJ",
+        "MIT-open-group",
+        "X11"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libxt"
+    },
+    {
+      "name": "libxtst",
+      "version": "1.2.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxtst-1.2.5-1-aarch64.pkg.tar.xz",
+      "bytes": 28736,
+      "sha256": "3ca6270ff04330650205339e2726c23616b31468a493642ba3df74af050ae888",
+      "licenses": [
+        "MIT-open-group",
+        "HPND-sell-variant",
+        "X11",
+        "HPND-doc",
+        "HPND-doc-sell"
+      ],
+      "upstream": "https://gitlab.freedesktop.org/xorg/lib/libxtst",
+      "base": "libxtst"
+    },
+    {
+      "name": "libxv",
+      "version": "1.0.13-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxv-1.0.13-1-aarch64.pkg.tar.xz",
+      "bytes": 35444,
+      "sha256": "03abeee4ba4b04cd0f6457ea60005e84701fd929bdd57d1a1be9034101c15243",
+      "licenses": [
+        "SMLNJ",
+        "HPND-sell-variant"
+      ],
+      "upstream": "https://xorg.freedesktop.org/",
+      "base": "libxv"
+    },
+    {
       "name": "libxxf86vm",
       "version": "1.1.7-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libxxf86vm-1.1.7-1-aarch64.pkg.tar.xz",
@@ -1711,6 +3948,30 @@
       "base": "libxxf86vm"
     },
     {
+      "name": "libyuv",
+      "version": "r2921+644251f25-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libyuv-r2921+644251f25-1-aarch64.pkg.tar.xz",
+      "bytes": 177656,
+      "sha256": "fd92999ccf6f56257ff4bf196dd75d93c2be5801de89af244f4568a0757ce06b",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://chromium.googlesource.com/libyuv/libyuv/",
+      "base": "libyuv"
+    },
+    {
+      "name": "libzen",
+      "version": "0.4.41-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libzen-0.4.41-3-aarch64.pkg.tar.xz",
+      "bytes": 122172,
+      "sha256": "de8f70a38e5663e18ae2bbea95e92e38cd9f063f261831900d5d9d093f7d443b",
+      "licenses": [
+        "Zlib"
+      ],
+      "upstream": "https://mediaarea.net",
+      "base": "libzen"
+    },
+    {
       "name": "libzip",
       "version": "1.11.4-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libzip-1.11.4-1-aarch64.pkg.tar.xz",
@@ -1721,6 +3982,19 @@
       ],
       "upstream": "https://libzip.org",
       "base": "libzip"
+    },
+    {
+      "name": "lilv",
+      "version": "0.28.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lilv-0.28.0-1-aarch64.pkg.tar.xz",
+      "bytes": 62260,
+      "sha256": "9e83a52165a501988ce86ce6dbe0dffde94a1b3607b5669a0a83a3d8a9207c68",
+      "licenses": [
+        "0BSD OR ISC",
+        "ISC"
+      ],
+      "upstream": "https://gitlab.com/lv2/lilv",
+      "base": "lilv"
     },
     {
       "name": "linux-api-headers",
@@ -1771,6 +4045,18 @@
       "base": "lmdb"
     },
     {
+      "name": "localsearch",
+      "version": "3.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/localsearch-3.12.0-1-aarch64.pkg.tar.xz",
+      "bytes": 578232,
+      "sha256": "428fe5e942e0847a967a7a8ba4bbe329e4f1cb479b3c5121a78f688d19dc8f62",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gnome.pages.gitlab.gnome.org/localsearch/",
+      "base": "localsearch"
+    },
+    {
       "name": "lua",
       "version": "5.5.1-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lua-5.5.1-1-aarch64.pkg.tar.xz",
@@ -1783,6 +4069,18 @@
       "base": "lua"
     },
     {
+      "name": "lua51-lpeg",
+      "version": "1.1.0-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lua51-lpeg-1.1.0-5-aarch64.pkg.tar.xz",
+      "bytes": 28064,
+      "sha256": "46c1c36d709095c9b13725ab82421056a792de9aa9a8f3e1ef4c12a712541ae4",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://www.inf.puc-rio.br/~roberto/lpeg/",
+      "base": "lpeg"
+    },
+    {
       "name": "lua54",
       "version": "5.4.9-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lua54-5.4.9-1-aarch64.pkg.tar.xz",
@@ -1793,6 +4091,30 @@
       ],
       "upstream": "https://www.lua.org/",
       "base": "lua54"
+    },
+    {
+      "name": "luajit",
+      "version": "2.1.1788856981+c6ffc14-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/luajit-2.1.1788856981+c6ffc14-1-aarch64.pkg.tar.xz",
+      "bytes": 297852,
+      "sha256": "b991b411a9a787b3dc7b0aadaf33c263a9b5c8b41a4956ab3fe31446fd4a2944",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://luajit.org/",
+      "base": "luajit"
+    },
+    {
+      "name": "lv2",
+      "version": "1.18.10-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lv2-1.18.10-2-aarch64.pkg.tar.xz",
+      "bytes": 152852,
+      "sha256": "dc13974193c255df9aabf9a02837d664be6da1f394308c685773f1abeb42435c",
+      "licenses": [
+        "ISC"
+      ],
+      "upstream": "https://lv2plug.in/",
+      "base": "lv2"
     },
     {
       "name": "lz4",
@@ -1819,6 +4141,18 @@
       "base": "lzo"
     },
     {
+      "name": "mdadm",
+      "version": "4.6-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/mdadm-4.6-2-aarch64.pkg.tar.xz",
+      "bytes": 382972,
+      "sha256": "a165c0279e845c03b7b20fcf67d88050d770c2ab15754b0a48728f3631f7f43e",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://git.kernel.org/pub/scm/utils/mdadm",
+      "base": "mdadm"
+    },
+    {
       "name": "mesa",
       "version": "1:26.2.4-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mesa-1:26.2.4-1-aarch64.pkg.tar.xz",
@@ -1831,6 +4165,30 @@
       "base": "mesa"
     },
     {
+      "name": "ministream",
+      "version": "0.99.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ministream-0.99.1-1-aarch64.pkg.tar.xz",
+      "bytes": 16852,
+      "sha256": "6e446e8987dbf335f8e830a1a78c36d79fc139ed7d851a4b2422b14824aab37f",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/ministream",
+      "base": "ministream"
+    },
+    {
+      "name": "minizip",
+      "version": "1:1.3.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/minizip-1:1.3.2-3-aarch64.pkg.tar.xz",
+      "bytes": 29932,
+      "sha256": "78d2dd86f4100b9482e8317ee2a13c355e1f19cca06effde0184f62231bf7d15",
+      "licenses": [
+        "Zlib"
+      ],
+      "upstream": "https://www.zlib.net/",
+      "base": "zlib"
+    },
+    {
       "name": "mpdecimal",
       "version": "4.0.1-3",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/mpdecimal-4.0.1-3-aarch64.pkg.tar.xz",
@@ -1841,6 +4199,43 @@
       ],
       "upstream": "https://www.bytereef.org/mpdecimal/index.html",
       "base": "mpdecimal"
+    },
+    {
+      "name": "mpfr",
+      "version": "4.2.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/mpfr-4.2.2-1-aarch64.pkg.tar.xz",
+      "bytes": 392596,
+      "sha256": "6ae04b170fe6aed89519f0b2cba2f60a34e8a8ea74963e8f3619b12ddefc5117",
+      "licenses": [
+        "GPL-3.0-or-later",
+        "LGPL-3.0-or-later"
+      ],
+      "upstream": "https://www.mpfr.org/",
+      "base": "mpfr"
+    },
+    {
+      "name": "mpg123",
+      "version": "1.33.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mpg123-1.33.7-1-aarch64.pkg.tar.xz",
+      "bytes": 424156,
+      "sha256": "b7474b336fc068ab1fe324577e296bc80ad10a34cb69cd33969de81d37744275",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://mpg123.de/",
+      "base": "mpg123"
+    },
+    {
+      "name": "msgpack-c",
+      "version": "7.0.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/msgpack-c-7.0.1-1-aarch64.pkg.tar.xz",
+      "bytes": 30196,
+      "sha256": "2e2f7f30a9de1a435d774865050c56b9eb7e861f438e2ef7c3557ca264b66262",
+      "licenses": [
+        "BSL-1.0"
+      ],
+      "upstream": "https://msgpack.org/",
+      "base": "msgpack-c"
     },
     {
       "name": "mtdev",
@@ -1867,6 +4262,18 @@
       "base": "muparser"
     },
     {
+      "name": "nautilus",
+      "version": "51.0.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/nautilus-51.0.1-2-aarch64.pkg.tar.xz",
+      "bytes": 2277228,
+      "sha256": "8303f1a895b5c6b01b235557ccdb8bb6f296adf8f180ac2dea883ed63c5e5aa9",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://apps.gnome.org/Nautilus/",
+      "base": "nautilus"
+    },
+    {
       "name": "ncurses",
       "version": "6.6-2",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/ncurses-6.6-2-aarch64.pkg.tar.xz",
@@ -1877,6 +4284,34 @@
       ],
       "upstream": "https://invisible-island.net/ncurses/ncurses.html",
       "base": "ncurses"
+    },
+    {
+      "name": "neovim",
+      "version": "0.12.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/neovim-0.12.6-1-aarch64.pkg.tar.xz",
+      "bytes": 7052968,
+      "sha256": "19d5b20499f038b51d32bd068c34a08238804f7253fa20002103a8d55627260d",
+      "licenses": [
+        "Apache-2.0",
+        "LicenseRef-vim"
+      ],
+      "upstream": "https://neovim.io",
+      "base": "neovim"
+    },
+    {
+      "name": "netpbm",
+      "version": "10.86.51-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/netpbm-10.86.51-1-aarch64.pkg.tar.xz",
+      "bytes": 3663092,
+      "sha256": "b138a948af0195049c4f3b6280653135e38cbd79216a39ca8b24e07ee1c6ec84",
+      "licenses": [
+        "Artistic-1.0",
+        "GPL-2.0-only",
+        "LGPL-2.0-only",
+        "MIT"
+      ],
+      "upstream": "http://netpbm.sourceforge.net/",
+      "base": "netpbm"
     },
     {
       "name": "nettle",
@@ -1891,6 +4326,133 @@
       "base": "nettle"
     },
     {
+      "name": "npth",
+      "version": "1.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/npth-1.8-1-aarch64.pkg.tar.xz",
+      "bytes": 27372,
+      "sha256": "195fb844c1a24b3f38353b4331ce460ddd3fd57ac053ab4ff2567da175f17a98",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://www.gnupg.org/software/npth/index.html",
+      "base": "npth"
+    },
+    {
+      "name": "nspr",
+      "version": "4.40-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/nspr-4.40-1-aarch64.pkg.tar.xz",
+      "bytes": 188124,
+      "sha256": "49a71ff0951c6596b66848381f89273d8c40166731561f716c592c9899b2af30",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "upstream": "https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR",
+      "base": "nspr"
+    },
+    {
+      "name": "nss",
+      "version": "3.131-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/nss-3.131-1-aarch64.pkg.tar.xz",
+      "bytes": 1552796,
+      "sha256": "a9b3a5c71a287b5078b7eb24b24f0e0c17412d241bf6bfeb08dad51d082d56cd",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "upstream": "https://firefox-source-docs.mozilla.org/security/nss/index.html",
+      "base": "nss"
+    },
+    {
+      "name": "numactl",
+      "version": "2.0.19-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/numactl-2.0.19-1-aarch64.pkg.tar.xz",
+      "bytes": 83656,
+      "sha256": "b28ebc082254c63fbbd9aac1e2ec9bae8e78fe7243682e875df537906ecb5971",
+      "licenses": [
+        "GPL-2.0-only",
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://github.com/numactl/numactl",
+      "base": "numactl"
+    },
+    {
+      "name": "ocl-icd",
+      "version": "2.3.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ocl-icd-2.3.5-1-aarch64.pkg.tar.xz",
+      "bytes": 74732,
+      "sha256": "fd826f2eb9888ebddce07e89ef6069f4f10d2120ae2cf2e2d424b4c25ba88b60",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://github.com/OCL-dev/ocl-icd",
+      "base": "ocl-icd"
+    },
+    {
+      "name": "oniguruma",
+      "version": "6.9.10-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/oniguruma-6.9.10-3-aarch64.pkg.tar.xz",
+      "bytes": 195768,
+      "sha256": "ae3a906209ee22849e820e73145bf6070f7282b5983e9d3cf516dd8acce3700f",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://github.com/kkos/oniguruma",
+      "base": "oniguruma"
+    },
+    {
+      "name": "opencore-amr",
+      "version": "0.1.6-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/opencore-amr-0.1.6-2-aarch64.pkg.tar.xz",
+      "bytes": 136700,
+      "sha256": "7a81ea01d12d4a83879204d8be2071d2417d21cced2ed8e076ab309a951ba98e",
+      "licenses": [
+        "Apache"
+      ],
+      "upstream": "https://sourceforge.net/projects/opencore-amr/",
+      "base": "opencore-amr"
+    },
+    {
+      "name": "openh264",
+      "version": "2.6.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/openh264-2.6.0-2-aarch64.pkg.tar.xz",
+      "bytes": 434672,
+      "sha256": "b7b8580d7411df2b7dd209fe269fc6631dee413415570f71aae8248d410f3447",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://www.openh264.org/",
+      "base": "openh264"
+    },
+    {
+      "name": "openjpeg2",
+      "version": "2.5.4-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/openjpeg2-2.5.4-1-aarch64.pkg.tar.xz",
+      "bytes": 942812,
+      "sha256": "aa64049214538bcb2830415891af2d494dfdbb1b930b0f251da4f99acf231f47",
+      "licenses": [
+        "BSD-2-Clause",
+        "MIT"
+      ],
+      "upstream": "https://github.com/uclouvain/openjpeg",
+      "base": "openjpeg2"
+    },
+    {
+      "name": "openssh",
+      "version": "10.6p1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/openssh-10.6p1-1-aarch64.pkg.tar.xz",
+      "bytes": 1228712,
+      "sha256": "28522c0cb098994889b8186315f7629bf1d75931487f16a237dd3e93bbdbaa10",
+      "licenses": [
+        "0BSD",
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "ISC",
+        "LicenseRef-Public-Domain",
+        "MIT"
+      ],
+      "upstream": "https://www.openssh.com/portable.html",
+      "base": "openssh"
+    },
+    {
       "name": "openssl",
       "version": "3.6.5-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/openssl-3.6.5-1-aarch64.pkg.tar.xz",
@@ -1901,6 +4463,42 @@
       ],
       "upstream": "https://www.openssl.org",
       "base": "openssl"
+    },
+    {
+      "name": "opus",
+      "version": "1.6.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/opus-1.6.1-1-aarch64.pkg.tar.xz",
+      "bytes": 3946736,
+      "sha256": "a111defb532e8e7e12815cffa06f59be23e3d5b95539d5588289a467a2a11b1a",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://www.opus-codec.org/",
+      "base": "opus"
+    },
+    {
+      "name": "orc",
+      "version": "0.4.44-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/orc-0.4.44-1-aarch64.pkg.tar.xz",
+      "bytes": 302292,
+      "sha256": "17d187c9a6381bf1bb991f5d98e1c3b19b636ed7bd05b5f4d6601bf41b19868f",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://gstreamer.freedesktop.org/modules/orc.html",
+      "base": "orc"
+    },
+    {
+      "name": "osinfo-db",
+      "version": "20260812-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/osinfo-db-20260812-1-any.pkg.tar.xz",
+      "bytes": 219772,
+      "sha256": "bd57dfdce1e59261487126b309eb7e025d286140d8418e695a8eba2993e23019",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://libosinfo.org/",
+      "base": "osinfo-db"
     },
     {
       "name": "p11-kit",
@@ -1951,6 +4549,30 @@
       "base": "pango"
     },
     {
+      "name": "parted",
+      "version": "3.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/parted-3.8-1-aarch64.pkg.tar.xz",
+      "bytes": 558744,
+      "sha256": "744a72b536094518d5408208b952eb92cf445d5137f95d589a2404d47a53d085",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/parted/parted.html",
+      "base": "parted"
+    },
+    {
+      "name": "pciutils",
+      "version": "3.15.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pciutils-3.15.0-1-aarch64.pkg.tar.xz",
+      "bytes": 138264,
+      "sha256": "57e4440f20a6ab0ea94a8c8725b569c1beac5d2952a793ddf80fdee1067c5a84",
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "upstream": "https://mj.ucw.cz/sw/pciutils/",
+      "base": "pciutils"
+    },
+    {
       "name": "pcre2",
       "version": "10.49-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pcre2-10.49-1-aarch64.pkg.tar.xz",
@@ -1964,6 +4586,120 @@
       "base": "pcre2"
     },
     {
+      "name": "perl",
+      "version": "5.42.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/perl-5.42.3-1-aarch64.pkg.tar.xz",
+      "bytes": 16017184,
+      "sha256": "f0e47c42ec91985898af2ce7355ef4eead50457108706add1f8c1650bca19b8f",
+      "licenses": [
+        "Artistic-1.0-Perl",
+        "GPL-1.0-or-later"
+      ],
+      "upstream": "https://www.perl.org",
+      "base": "perl"
+    },
+    {
+      "name": "perl-error",
+      "version": "0.17030-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/perl-error-0.17030-3-any.pkg.tar.xz",
+      "bytes": 21280,
+      "sha256": "45e48cf1eac8c7ee4f78656e3eec0df2aae9fa75aa924367abc20c2270ec54db",
+      "licenses": [
+        "PerlArtistic",
+        "GPL"
+      ],
+      "upstream": "https://search.cpan.org/dist/Error/",
+      "base": "perl-error"
+    },
+    {
+      "name": "perl-mailtools",
+      "version": "2.22-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/perl-mailtools-2.22-3-any.pkg.tar.xz",
+      "bytes": 59796,
+      "sha256": "71b6383a6dab51efe4be74d14a8ea7bcdb07a34a20da7c2c6f708c4a01257018",
+      "licenses": [
+        "PerlArtistic",
+        "GPL"
+      ],
+      "upstream": "https://metacpan.org/release/MailTools",
+      "base": "perl-mailtools"
+    },
+    {
+      "name": "perl-timedate",
+      "version": "2.35-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/perl-timedate-2.35-1-any.pkg.tar.xz",
+      "bytes": 61796,
+      "sha256": "d97a4a2b169a88fbb2db3dc5425eba2b31b58ab4123a1a998c2fcc718cd8251b",
+      "licenses": [
+        "PerlArtistic"
+      ],
+      "upstream": "https://search.cpan.org/dist/TimeDate/",
+      "base": "perl-timedate"
+    },
+    {
+      "name": "pinentry",
+      "version": "1.3.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/pinentry-1.3.3-1-aarch64.pkg.tar.xz",
+      "bytes": 140248,
+      "sha256": "a4e7aea581effe0bcd2c90ad7062597ac83bab88116cf31cda21940ca626a1c1",
+      "licenses": [
+        "GPL"
+      ],
+      "upstream": "https://gnupg.org/related_software/pinentry/",
+      "base": "pinentry"
+    },
+    {
+      "name": "pipewire",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pipewire-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 264148,
+      "sha256": "d711f2ba44cf9be3800b168f1d68d7791e2838c2bbefde26deff56a26eaccae2",
+      "licenses": [
+        "MIT",
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
+      "name": "pipewire-audio",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pipewire-audio-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 1135688,
+      "sha256": "7c302284562d8f43f2c515a3a3f1f6ae19a353816309b8345991ebc4de526287",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
+      "name": "pipewire-jack",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pipewire-jack-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 146212,
+      "sha256": "118a016d2cc8af0349b1dc73a6b6f64f37df13ae3023689dcc2d97d088bf31ad",
+      "licenses": [
+        "MIT",
+        "GPL-2.0-only",
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
+      "name": "pipewire-session-manager",
+      "version": "1:1.6.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pipewire-session-manager-1:1.6.9-1-aarch64.pkg.tar.xz",
+      "bytes": 3952,
+      "sha256": "14c40410c82670e9acbcc6790aefa831df482dab7e0a2b4302de330d3e0ebf91",
+      "licenses": [
+        "CC0-1.0"
+      ],
+      "upstream": "https://pipewire.org",
+      "base": "pipewire"
+    },
+    {
       "name": "pixman",
       "version": "0.46.4-1.1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pixman-0.46.4-1.1-aarch64.pkg.tar.xz",
@@ -1974,6 +4710,102 @@
       ],
       "upstream": "https://gitlab.freedesktop.org/pixman/pixman",
       "base": "pixman"
+    },
+    {
+      "name": "polkit",
+      "version": "127-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/polkit-127-3-aarch64.pkg.tar.xz",
+      "bytes": 413660,
+      "sha256": "dbfa3447df79d526968deb0117ff73580969b1f02ce678270a0ba2f1b134244a",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://github.com/polkit-org/polkit",
+      "base": "polkit"
+    },
+    {
+      "name": "poppler",
+      "version": "26.08.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/poppler-26.08.0-1-aarch64.pkg.tar.xz",
+      "bytes": 1627128,
+      "sha256": "f8baec793b0d116835d3ccf9557e5104115d3eeecca3fec1ad011914ca01ea12",
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-or-later",
+        "MIT",
+        "HPND-sell-variant"
+      ],
+      "upstream": "https://poppler.freedesktop.org/",
+      "base": "poppler"
+    },
+    {
+      "name": "poppler-data",
+      "version": "0.4.12-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/poppler-data-0.4.12-2-any.pkg.tar.xz",
+      "bytes": 1605592,
+      "sha256": "33133fcac9cc23446a328260baff65e44b75311a3fcd25f06aabdd7ac3d9cfbf",
+      "licenses": [
+        "GPL-2.0-only OR GPL-3.0-only",
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://poppler.freedesktop.org/",
+      "base": "poppler-data"
+    },
+    {
+      "name": "poppler-glib",
+      "version": "26.08.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/poppler-glib-26.08.0-1-aarch64.pkg.tar.xz",
+      "bytes": 351836,
+      "sha256": "5ccde4daf7c633a9c889ce6584387877c833180ceb49310a439cb042967e7915",
+      "licenses": [
+        "GPL-2.0-only",
+        "GPL-3.0-or-later",
+        "LGPL-2.0-or-later",
+        "LGPL-2.1-or-later",
+        "MIT",
+        "HPND-sell-variant"
+      ],
+      "upstream": "https://poppler.freedesktop.org/",
+      "base": "poppler"
+    },
+    {
+      "name": "popt",
+      "version": "1.19-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/popt-1.19-2-aarch64.pkg.tar.xz",
+      "bytes": 69940,
+      "sha256": "92da201e571426ab38ac690107e97e870862c005be9b1ecb3e1ab699ac20a022",
+      "licenses": [
+        "custom"
+      ],
+      "upstream": "https://github.com/rpm-software-management/popt",
+      "base": "popt"
+    },
+    {
+      "name": "portaudio",
+      "version": "1:19.7.0-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/portaudio-1:19.7.0-4-aarch64.pkg.tar.xz",
+      "bytes": 91772,
+      "sha256": "01aeb9996f9d642008274c59c337b1c9f51e847d6106124752722bcae41bf911",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/portaudio/portaudio/",
+      "base": "portaudio"
+    },
+    {
+      "name": "procps-ng",
+      "version": "4.0.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/procps-ng-4.0.7-1-aarch64.pkg.tar.xz",
+      "bytes": 991768,
+      "sha256": "2041c460f7a25e9c33c52b420c4c0b50dc4652b01a6690397ef3b870b7d89cfc",
+      "licenses": [
+        "GPL",
+        "LGPL"
+      ],
+      "upstream": "https://gitlab.com/procps-ng/procps",
+      "base": "procps-ng"
     },
     {
       "name": "pugixml",
@@ -2000,6 +4832,18 @@
       "base": "python"
     },
     {
+      "name": "rav1e",
+      "version": "0.8.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/rav1e-0.8.1-3-aarch64.pkg.tar.xz",
+      "bytes": 1155372,
+      "sha256": "a4cd3de43626582c42c89627a52bdf3856fed2e3f3a2d378c9e101911b6bb396",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://github.com/xiph/rav1e/",
+      "base": "rav1e"
+    },
+    {
       "name": "re2",
       "version": "2:2025.11.05-6",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/re2-2:2025.11.05-6-aarch64.pkg.tar.xz",
@@ -2024,6 +4868,55 @@
       "base": "readline"
     },
     {
+      "name": "rubberband",
+      "version": "4.0.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/rubberband-4.0.0-2-aarch64.pkg.tar.xz",
+      "bytes": 212300,
+      "sha256": "22f46afe465016fef8e9e1738a38e3ee0b966cb19090b05b6d39155b12912b26",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.breakfastquay.com/rubberband/",
+      "base": "rubberband"
+    },
+    {
+      "name": "sbc",
+      "version": "2.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sbc-2.2-1-aarch64.pkg.tar.xz",
+      "bytes": 38504,
+      "sha256": "73d3213904ebd2d8f48b462d83d73cfe1922f3e2ac8aaf33127b2dffa9c51af8",
+      "licenses": [
+        "GPL-2.0-or-later",
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://git.kernel.org/pub/scm/bluetooth/sbc.git",
+      "base": "sbc"
+    },
+    {
+      "name": "sdl2-compat",
+      "version": "2.32.74-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sdl2-compat-2.32.74-1-aarch64.pkg.tar.xz",
+      "bytes": 457812,
+      "sha256": "11fc30912191f981b10710b4327c4ee25ca429745a08310142b0e94bb1083684",
+      "licenses": [
+        "Zlib"
+      ],
+      "upstream": "https://github.com/libsdl-org/sdl2-compat",
+      "base": "sdl2-compat"
+    },
+    {
+      "name": "sdl3",
+      "version": "3.4.18-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sdl3-3.4.18-1-aarch64.pkg.tar.xz",
+      "bytes": 1501052,
+      "sha256": "eab78f77c8c0705db42fc8f04d685020c710cd04b6785c6b31b5a1d94aa93487",
+      "licenses": [
+        "Zlib"
+      ],
+      "upstream": "https://www.libsdl.org",
+      "base": "sdl3"
+    },
+    {
       "name": "seatd",
       "version": "0.9.3-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/seatd-0.9.3-1-aarch64.pkg.tar.xz",
@@ -2034,6 +4927,44 @@
       ],
       "upstream": "https://sr.ht/~kennylevinsen/seatd/",
       "base": "seatd"
+    },
+    {
+      "name": "sed",
+      "version": "4.10-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/sed-4.10-2-aarch64.pkg.tar.xz",
+      "bytes": 236260,
+      "sha256": "06d68115408b4ab7ca59b9e6f386dcc1015bdb0033686d115d6621711602ed8e",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/sed/",
+      "base": "sed"
+    },
+    {
+      "name": "serd",
+      "version": "0.32.10-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/serd-0.32.10-1-aarch64.pkg.tar.xz",
+      "bytes": 59980,
+      "sha256": "63f2c696dfd4a69a26b9241ef730dc335ccd3105c79025d8ce078404825e0418",
+      "licenses": [
+        "0BSD OR ISC",
+        "BSD-3-Clause",
+        "ISC"
+      ],
+      "upstream": "https://drobilla.net/software/serd.html",
+      "base": "serd"
+    },
+    {
+      "name": "shaderc",
+      "version": "2026.4-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/shaderc-2026.4-1-aarch64.pkg.tar.xz",
+      "bytes": 123840,
+      "sha256": "1226fd6b06bb34a1805ce2ff88d439dab1bcaee3e20f3b2054d75336e7757697",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/google/shaderc",
+      "base": "shaderc"
     },
     {
       "name": "shadow",
@@ -2061,6 +4992,78 @@
       "base": "shared-mime-info"
     },
     {
+      "name": "snappy",
+      "version": "1.2.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/snappy-1.2.2-3-aarch64.pkg.tar.xz",
+      "bytes": 32008,
+      "sha256": "19e057413b812c31b2e540261480a7c1088c80c7d2999e3754953f3710cadaf0",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://github.com/google/snappy",
+      "base": "snappy"
+    },
+    {
+      "name": "sndio",
+      "version": "1.10.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sndio-1.10.0-1-aarch64.pkg.tar.xz",
+      "bytes": 121920,
+      "sha256": "89d0daf0976681633039f0354eccc5b379e93ead2c78aae247f9adf59e2b378e",
+      "licenses": [
+        "ISC"
+      ],
+      "upstream": "https://sndio.org",
+      "base": "sndio"
+    },
+    {
+      "name": "sord",
+      "version": "0.16.22-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sord-0.16.22-1-aarch64.pkg.tar.xz",
+      "bytes": 35740,
+      "sha256": "83b754b154e1fa39dd7d686f78aead58d8c7ea3360db56b975d4ee65f5bc9044",
+      "licenses": [
+        "ISC"
+      ],
+      "upstream": "https://drobilla.net/software/sord.html",
+      "base": "sord"
+    },
+    {
+      "name": "spandsp",
+      "version": "0.0.6-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/spandsp-0.0.6-7-aarch64.pkg.tar.xz",
+      "bytes": 393812,
+      "sha256": "c3fef8569a60a66dc9605b476a9032031c91fc566a994741836dc622b8bbb7d9",
+      "licenses": [
+        "LGPL-2.1-only"
+      ],
+      "upstream": "https://www.soft-switch.org/",
+      "base": "spandsp"
+    },
+    {
+      "name": "speex",
+      "version": "1.2.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/speex-1.2.1-2-aarch64.pkg.tar.xz",
+      "bytes": 486108,
+      "sha256": "32c63869dccafc80eb78271349a0f50692bff959efd751b07c9ea4add0c0f6e2",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://www.speex.org/",
+      "base": "speex"
+    },
+    {
+      "name": "speexdsp",
+      "version": "1.2.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/speexdsp-1.2.1-2-aarch64.pkg.tar.xz",
+      "bytes": 456036,
+      "sha256": "619c07961bcc824f5e93baaefab5cdc6b1ecdcdbab825d8b2208d46621bb52d5",
+      "licenses": [
+        "BSD"
+      ],
+      "upstream": "https://www.speex.org/",
+      "base": "speexdsp"
+    },
+    {
       "name": "spirv-tools",
       "version": "1:1.4.363.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/spirv-tools-1:1.4.363.0-1-aarch64.pkg.tar.xz",
@@ -2085,6 +5088,45 @@
       "base": "sqlite"
     },
     {
+      "name": "sratom",
+      "version": "0.6.22-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sratom-0.6.22-1-aarch64.pkg.tar.xz",
+      "bytes": 18028,
+      "sha256": "f03d5ade48ac5e482b56a6f59333869fc2f4093c04972c3e8ab1d44daed9da86",
+      "licenses": [
+        "ISC"
+      ],
+      "upstream": "https://drobilla.net/software/sratom.html",
+      "base": "sratom"
+    },
+    {
+      "name": "srt",
+      "version": "1.5.7-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/srt-1.5.7-2-aarch64.pkg.tar.xz",
+      "bytes": 477532,
+      "sha256": "e8758db0b9ca7f729f2c9a101f71805cfc37c77eed01e74eafcf5c89c4469007",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "upstream": "https://www.srtalliance.org/",
+      "base": "srt"
+    },
+    {
+      "name": "systemd",
+      "version": "262-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/systemd-262-1-aarch64.pkg.tar.xz",
+      "bytes": 9737940,
+      "sha256": "dd26469e35547b68793f5ef3e9ba343179704652425349a36d231f34ec6e0546",
+      "licenses": [
+        "LGPL-2.1-or-later",
+        "CC0-1.0",
+        "GPL-2.0-or-later",
+        "MIT-0"
+      ],
+      "upstream": "https://www.github.com/systemd/systemd",
+      "base": "systemd"
+    },
+    {
       "name": "systemd-libs",
       "version": "262-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/systemd-libs-262-1-aarch64.pkg.tar.xz",
@@ -2099,6 +5141,42 @@
       "base": "systemd"
     },
     {
+      "name": "tar",
+      "version": "1.35-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/tar-1.35-5-aarch64.pkg.tar.xz",
+      "bytes": 736708,
+      "sha256": "8a9a195736b5cdac96c0511b6a6ea8417477552cf1ad24d904bf6476539b0ad3",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://www.gnu.org/software/tar/",
+      "base": "tar"
+    },
+    {
+      "name": "tinysparql",
+      "version": "3.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tinysparql-3.12.0-1-aarch64.pkg.tar.xz",
+      "bytes": 983076,
+      "sha256": "1c8b9c410a1acacade255e52b19de54fd022929dc48bdc36b021a86439fd8fb5",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://tinysparql.org/",
+      "base": "tinysparql"
+    },
+    {
+      "name": "tinyxml2",
+      "version": "11.0.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tinyxml2-11.0.0-2-aarch64.pkg.tar.xz",
+      "bytes": 45844,
+      "sha256": "245176325f0dd10099b7c30365fd1fcccc0db99a54d7a20881045bc740291731",
+      "licenses": [
+        "LicenseRef-zlib"
+      ],
+      "upstream": "https://github.com/leethomason/tinyxml2",
+      "base": "tinyxml2"
+    },
+    {
       "name": "tomlplusplus",
       "version": "3.4.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tomlplusplus-3.4.0-1-aarch64.pkg.tar.xz",
@@ -2109,6 +5187,114 @@
       ],
       "upstream": "https://marzer.github.io/tomlplusplus/",
       "base": "tomlplusplus"
+    },
+    {
+      "name": "totem-pl-parser",
+      "version": "3.26.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/totem-pl-parser-3.26.7-1-aarch64.pkg.tar.xz",
+      "bytes": 119296,
+      "sha256": "a2a4da1044d10c0f3ef25ddfc801f004c7064d8ed16f0f58009a7037a7b1d69d",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/totem-pl-parser",
+      "base": "totem-pl-parser"
+    },
+    {
+      "name": "tpm2-tss",
+      "version": "4.2.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/tpm2-tss-4.2.0-2-aarch64.pkg.tar.xz",
+      "bytes": 877720,
+      "sha256": "90f527d90d490e1436c696a81df7b0c6da5fa18dfdb87fb92813f35ac86c7c1b",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "upstream": "https://github.com/tpm2-software/tpm2-tss",
+      "base": "tpm2-tss"
+    },
+    {
+      "name": "tree-sitter",
+      "version": "0.26.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-0.26.9-1-aarch64.pkg.tar.xz",
+      "bytes": 95004,
+      "sha256": "3a6f5d5375f71268e4071f2a45525a2e20d1cc88bfc57d36cab943e66e2e0b5f",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/tree-sitter/tree-sitter",
+      "base": "tree-sitter"
+    },
+    {
+      "name": "tree-sitter-c",
+      "version": "0.24.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-c-0.24.1-2-aarch64.pkg.tar.xz",
+      "bytes": 52484,
+      "sha256": "4db4a8f04d80931f25183b63ab6ae28125218fdb640b449dd7588c56028a0b4a",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/tree-sitter/tree-sitter-c",
+      "base": "tree-sitter-c"
+    },
+    {
+      "name": "tree-sitter-lua",
+      "version": "0.5.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-lua-0.5.0-3-aarch64.pkg.tar.xz",
+      "bytes": 17236,
+      "sha256": "d6268637743f884c5adb3c7577f0a33dcd87b2ebc1ee8e28f0738340623a6a64",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/tree-sitter-grammars/tree-sitter-lua",
+      "base": "tree-sitter-lua"
+    },
+    {
+      "name": "tree-sitter-markdown",
+      "version": "0.5.3-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-markdown-0.5.3-2-aarch64.pkg.tar.xz",
+      "bytes": 98496,
+      "sha256": "38ecd82de00a24c935161c67c1826f3fe23dba8c8b8a4d1d4e4e2dd9741ef424",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/tree-sitter-grammars/tree-sitter-markdown",
+      "base": "tree-sitter-markdown"
+    },
+    {
+      "name": "tree-sitter-query",
+      "version": "0.8.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-query-0.8.0-2-aarch64.pkg.tar.xz",
+      "bytes": 13076,
+      "sha256": "5b90da1a303a771566e18425df463dd55faf3e27ac99f66ae4a56f0ce199b80e",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/tree-sitter-grammars/tree-sitter-query",
+      "base": "tree-sitter-query"
+    },
+    {
+      "name": "tree-sitter-vim",
+      "version": "0.8.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-vim-0.8.1-3-aarch64.pkg.tar.xz",
+      "bytes": 119840,
+      "sha256": "5f9e56c1a781a5384b2cc3b3575fa4656a763a606dcafc86aa8c767fe001fcda",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/tree-sitter-grammars/tree-sitter-vim",
+      "base": "tree-sitter-vim"
+    },
+    {
+      "name": "tree-sitter-vimdoc",
+      "version": "4.1.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-vimdoc-4.1.0-2-aarch64.pkg.tar.xz",
+      "bytes": 29836,
+      "sha256": "89b2412cdf23bcb4456a074c388f90172531b1e9b4f3130a080ff0b36a248fb1",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://github.com/neovim/tree-sitter-vimdoc",
+      "base": "tree-sitter-vimdoc"
     },
     {
       "name": "ttf-dejavu",
@@ -2123,6 +5309,30 @@
       "base": "ttf-dejavu"
     },
     {
+      "name": "ttf-jetbrains-mono-nerd",
+      "version": "3.5.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ttf-jetbrains-mono-nerd-3.5.1-2-any.pkg.tar.xz",
+      "bytes": 18962612,
+      "sha256": "967fcc3690a1a71a3947de30e46a1be3f01d18250ad63f21dfde5de4d454d033",
+      "licenses": [
+        "OFL-1.1-no-RFN"
+      ],
+      "upstream": "https://github.com/ryanoasis/nerd-fonts",
+      "base": "nerd-fonts"
+    },
+    {
+      "name": "ttf-liberation",
+      "version": "2.1.5-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ttf-liberation-2.1.5-2-any.pkg.tar.xz",
+      "bytes": 1473856,
+      "sha256": "e52cad7ee841491bb8b3d795d85dd56e9d6dafe16fd51be6626cef6d8131f197",
+      "licenses": [
+        "custom:OFL"
+      ],
+      "upstream": "https://github.com/liberationfonts/liberation-fonts",
+      "base": "ttf-liberation"
+    },
+    {
       "name": "tzdata",
       "version": "2026e-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/tzdata-2026e-1-aarch64.pkg.tar.xz",
@@ -2133,6 +5343,55 @@
       ],
       "upstream": "https://www.iana.org/time-zones",
       "base": "tzdata"
+    },
+    {
+      "name": "uchardet",
+      "version": "0.0.8-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/uchardet-0.0.8-4-aarch64.pkg.tar.xz",
+      "bytes": 74640,
+      "sha256": "c9cfa37e4626143ac56e6c1156144ea179e5b44cb34bf96cf0243bac61886057",
+      "licenses": [
+        "MPL-1.1"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/uchardet",
+      "base": "uchardet"
+    },
+    {
+      "name": "udisks2",
+      "version": "2.11.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/udisks2-2.11.2-1-aarch64.pkg.tar.xz",
+      "bytes": 726396,
+      "sha256": "5b8b98acd55ceadbbed31813c90c8aa8c6773b32b2c52142888d09c81df94252",
+      "licenses": [
+        "GPL-2.0-or-later",
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/udisks/",
+      "base": "udisks2"
+    },
+    {
+      "name": "unibilium",
+      "version": "2.1.4-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/unibilium-2.1.4-1-aarch64.pkg.tar.xz",
+      "bytes": 83060,
+      "sha256": "cb42e23f4114a077998b73f12d4ff6f7d23eb2064656ab9bbfb86d85e1cf9992",
+      "licenses": [
+        "LGPL3"
+      ],
+      "upstream": "https://github.com/neovim/unibilium",
+      "base": "unibilium"
+    },
+    {
+      "name": "upower",
+      "version": "1.91.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/upower-1.91.5-1-aarch64.pkg.tar.xz",
+      "bytes": 162344,
+      "sha256": "db4e9d6308519f5f04be2d50fae4653d544c4b1daaefce3131c105e167bd3101",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://upower.freedesktop.org",
+      "base": "upower"
     },
     {
       "name": "util-linux",
@@ -2175,6 +5434,79 @@
       "base": "util-linux"
     },
     {
+      "name": "v4l-utils",
+      "version": "1.32.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/v4l-utils-1.32.0-2-aarch64.pkg.tar.xz",
+      "bytes": 1901776,
+      "sha256": "fa268be75a81fc55a69b03e53376997e82c738d5629d884f7d342e664033d607",
+      "licenses": [
+        "LGPL"
+      ],
+      "upstream": "https://linuxtv.org/",
+      "base": "v4l-utils"
+    },
+    {
+      "name": "vapoursynth",
+      "version": "80-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vapoursynth-80-1-aarch64.pkg.tar.xz",
+      "bytes": 1624620,
+      "sha256": "92bfe702802d00826933e5c3ac711709c6132f76813c168b0b98122499199536",
+      "licenses": [
+        "LGPL-2.1-or-later",
+        "OFL-1.1"
+      ],
+      "upstream": "http://www.vapoursynth.com/",
+      "base": "vapoursynth"
+    },
+    {
+      "name": "vid.stab",
+      "version": "1.1.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vid.stab-1.1.2-1-aarch64.pkg.tar.xz",
+      "bytes": 90116,
+      "sha256": "bd6c00bc0742368ee778c7c8df002f355c352015bb4f428cada649f3e314f416",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "http://public.hronopik.de/vid.stab",
+      "base": "vid.stab"
+    },
+    {
+      "name": "vmaf",
+      "version": "3.2.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vmaf-3.2.1-1-aarch64.pkg.tar.xz",
+      "bytes": 378412,
+      "sha256": "5103e65332731cb568fd163b2d9fa074ebe2e821507c044e61048385a9a27c66",
+      "licenses": [
+        "BSD-2-Clause-Patent"
+      ],
+      "upstream": "https://github.com/Netflix/vmaf/",
+      "base": "vmaf"
+    },
+    {
+      "name": "volume_key",
+      "version": "0.3.12-12",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/volume_key-0.3.12-12-aarch64.pkg.tar.xz",
+      "bytes": 123192,
+      "sha256": "0effd7c5a0b829498e8f8c0e45f238fb01338e29dd7880e52e2ccb423d8cb642",
+      "licenses": [
+        "GPL2"
+      ],
+      "upstream": "https://pagure.io/volume_key",
+      "base": "volume_key"
+    },
+    {
+      "name": "vulkan-icd-loader",
+      "version": "1.4.363.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vulkan-icd-loader-1.4.363.0-1-aarch64.pkg.tar.xz",
+      "bytes": 164352,
+      "sha256": "aac2d10b977d9a0e7f7e45a4dd0799aa0256f6df2a32baf8231cd027b342e993",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "upstream": "https://www.vulkan.org/",
+      "base": "vulkan-icd-loader"
+    },
+    {
       "name": "wayland",
       "version": "1.26.0-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wayland-1.26.0-1-aarch64.pkg.tar.xz",
@@ -2197,6 +5529,78 @@
       ],
       "upstream": "https://wayland.freedesktop.org/",
       "base": "wayland-protocols"
+    },
+    {
+      "name": "webrtc-audio-processing-1",
+      "version": "1.3-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/webrtc-audio-processing-1-1.3-5-aarch64.pkg.tar.xz",
+      "bytes": 464104,
+      "sha256": "3c1427562bbe5aea66f792ffd9acea87cd8c305577310057c8cf0cc1ee438fb8",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "upstream": "https://freedesktop.org/software/pulseaudio/webrtc-audio-processing/",
+      "base": "webrtc-audio-processing-1"
+    },
+    {
+      "name": "wireplumber",
+      "version": "0.5.18-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wireplumber-0.5.18-1-aarch64.pkg.tar.xz",
+      "bytes": 289536,
+      "sha256": "2410813c8b3eba26598b90b260171ac884af59f8dc1441112eee80f1873b628b",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://pipewire.pages.freedesktop.org/wireplumber/",
+      "base": "wireplumber"
+    },
+    {
+      "name": "wl-clipboard",
+      "version": "1:2.3.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wl-clipboard-1:2.3.0-1-aarch64.pkg.tar.xz",
+      "bytes": 33496,
+      "sha256": "723a63b140e00085a533ebb1ec36fa9305b5e6cbd8fb80c0521fbeff77a72982",
+      "licenses": [
+        "GPL-3.0-or-later"
+      ],
+      "upstream": "https://github.com/bugaevc/wl-clipboard",
+      "base": "wl-clipboard"
+    },
+    {
+      "name": "wtype",
+      "version": "0.4-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wtype-0.4-2-aarch64.pkg.tar.xz",
+      "bytes": 10156,
+      "sha256": "ceb69e175f46786e6e86d3b947eb482a150c19f3d68822b8b77b5dc02d470f79",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://github.com/atx/wtype",
+      "base": "wtype"
+    },
+    {
+      "name": "x264",
+      "version": "3:0.165.r3222.b35605a-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/x264-3:0.165.r3222.b35605a-2-aarch64.pkg.tar.xz",
+      "bytes": 569292,
+      "sha256": "ef95679c4ecf842fd08d1e49c61977c39fb38f0c2c67384130e9aba860229f70",
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "upstream": "https://www.videolan.org/developers/x264.html",
+      "base": "x264"
+    },
+    {
+      "name": "x265",
+      "version": "4.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/x265-4.3-1-aarch64.pkg.tar.xz",
+      "bytes": 1254356,
+      "sha256": "dbdde57f05a0c77eaa5fe5e74edba74b19c072cd98350ea1d7ae8a8f50089898",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.x265.org/",
+      "base": "x265"
     },
     {
       "name": "xcb-proto",
@@ -2284,6 +5688,66 @@
       "base": "xcb-util-wm"
     },
     {
+      "name": "xdg-desktop-portal",
+      "version": "1.22.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-desktop-portal-1.22.1-2-aarch64.pkg.tar.xz",
+      "bytes": 464240,
+      "sha256": "e1f5f15d6455a3b9787775e5c6f33c0223154aef94d837b1ed52f4651705c7c6",
+      "licenses": [
+        "LGPL-2.1-or-later"
+      ],
+      "upstream": "https://flatpak.github.io/xdg-desktop-portal/",
+      "base": "xdg-desktop-portal"
+    },
+    {
+      "name": "xdg-desktop-portal-gtk",
+      "version": "1.15.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-desktop-portal-gtk-1.15.3-1-aarch64.pkg.tar.xz",
+      "bytes": 116916,
+      "sha256": "67dc11eed1288b37ff3afdf8ed590f2ac4ec75ad3fb740f4984d93fd3c0628a7",
+      "licenses": [
+        "LGPL-2.0-or-later"
+      ],
+      "upstream": "https://github.com/flatpak/xdg-desktop-portal-gtk",
+      "base": "xdg-desktop-portal-gtk"
+    },
+    {
+      "name": "xdg-user-dirs",
+      "version": "0.20-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-user-dirs-0.20-1-aarch64.pkg.tar.xz",
+      "bytes": 44136,
+      "sha256": "249c5662c50da333e7cf5242d3c32306ef7780c9b8196060e91d46a75f49c9c5",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://www.freedesktop.org/wiki/Software/xdg-user-dirs",
+      "base": "xdg-user-dirs"
+    },
+    {
+      "name": "xdg-user-dirs-gtk",
+      "version": "0.16-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-user-dirs-gtk-0.16-1-aarch64.pkg.tar.xz",
+      "bytes": 47892,
+      "sha256": "2c513964891c61f7eb45b36ea8ce702cd79c217bb378db556bf61af302372aa0",
+      "licenses": [
+        "GPL-2.0-or-later"
+      ],
+      "upstream": "https://gitlab.gnome.org/GNOME/xdg-user-dirs-gtk",
+      "base": "xdg-user-dirs-gtk"
+    },
+    {
+      "name": "xdg-utils",
+      "version": "1.2.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-utils-1.2.1-2-any.pkg.tar.xz",
+      "bytes": 60512,
+      "sha256": "afd760ce97e18f354c5893038327c70b72053c23b41e609c5351c5c22fc84cd8",
+      "licenses": [
+        "MIT"
+      ],
+      "upstream": "https://gitlab.freedesktop.org/xdg/xdg-utils",
+      "base": "xdg-utils"
+    },
+    {
       "name": "xkeyboard-config",
       "version": "2.48-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xkeyboard-config-2.48-1-any.pkg.tar.xz",
@@ -2358,6 +5822,18 @@
       "base": "xorg-xkbcomp"
     },
     {
+      "name": "xorg-xprop",
+      "version": "1.2.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xorg-xprop-1.2.8-1-aarch64.pkg.tar.xz",
+      "bytes": 26412,
+      "sha256": "5ab8f4c95ee0772592be2f9efc5ebe876083202ad6a06515bcc81bd0f0b6a15a",
+      "licenses": [
+        "MIT-open-group"
+      ],
+      "upstream": "https://gitlab.freedesktop.org/xorg/app/xprop",
+      "base": "xorg-xprop"
+    },
+    {
       "name": "xorg-xwayland",
       "version": "24.1.14-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xorg-xwayland-24.1.14-1-aarch64.pkg.tar.xz",
@@ -2405,6 +5881,31 @@
       "base": "xorgproto"
     },
     {
+      "name": "xvidcore",
+      "version": "1.3.7-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xvidcore-1.3.7-4-aarch64.pkg.tar.xz",
+      "bytes": 162680,
+      "sha256": "3a502aa526a48dc0e98744ad6bd91e777fc6d97866412e8558feb4663093045c",
+      "licenses": [
+        "GPL-2.0-only"
+      ],
+      "upstream": "https://www.xvid.com/",
+      "base": "xvidcore"
+    },
+    {
+      "name": "xxhash",
+      "version": "0.8.4-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xxhash-0.8.4-1-aarch64.pkg.tar.xz",
+      "bytes": 91556,
+      "sha256": "28a6488aca21b1ddf92475a08c95c45a80baf5c6ac51fdb7a225cf8ae074a1c6",
+      "licenses": [
+        "GPL2",
+        "BSD"
+      ],
+      "upstream": "https://cyan4973.github.io/xxHash/",
+      "base": "xxhash"
+    },
+    {
       "name": "xz",
       "version": "5.8.4-1",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/xz-5.8.4-1-aarch64.pkg.tar.xz",
@@ -2417,6 +5918,42 @@
       "base": "xz"
     },
     {
+      "name": "zeromq",
+      "version": "4.3.5-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zeromq-4.3.5-3-aarch64.pkg.tar.xz",
+      "bytes": 534876,
+      "sha256": "ae6e65b77c02fcec6b566209f02f0effd527234934b8fbc6042acba7619d9c71",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "upstream": "http://www.zeromq.org",
+      "base": "zeromq"
+    },
+    {
+      "name": "zimg",
+      "version": "3.0.6-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zimg-3.0.6-2-aarch64.pkg.tar.xz",
+      "bytes": 115668,
+      "sha256": "787c6dc29872e3cb900d51f90bfa1e7bfd069d8f91a4ea7e2b57740b71e381f7",
+      "licenses": [
+        "WTFPL"
+      ],
+      "upstream": "https://github.com/sekrit-twc/zimg",
+      "base": "zimg"
+    },
+    {
+      "name": "zix",
+      "version": "0.8.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zix-0.8.2-1-aarch64.pkg.tar.xz",
+      "bytes": 40888,
+      "sha256": "27d0816a1719b6d91cc96b00c7e16cedf661a1a45ed2c431cb3fcca8e8cb5025",
+      "licenses": [
+        "0BSD OR ISC"
+      ],
+      "upstream": "https://gitlab.com/drobilla/zix",
+      "base": "zix"
+    },
+    {
       "name": "zlib",
       "version": "1:1.3.2-3",
       "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/zlib-1:1.3.2-3-aarch64.pkg.tar.xz",
@@ -2427,6 +5964,18 @@
       ],
       "upstream": "https://www.zlib.net/",
       "base": "zlib"
+    },
+    {
+      "name": "zlib-ng",
+      "version": "2.3.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zlib-ng-2.3.3-1-aarch64.pkg.tar.xz",
+      "bytes": 90636,
+      "sha256": "1ee3a19d58b27a1f63d455177be5301ca474ed20d3699ffc7f0a4f987852e930",
+      "licenses": [
+        "Zlib"
+      ],
+      "upstream": "https://github.com/zlib-ng/zlib-ng",
+      "base": "zlib-ng"
     },
     {
       "name": "zstd",

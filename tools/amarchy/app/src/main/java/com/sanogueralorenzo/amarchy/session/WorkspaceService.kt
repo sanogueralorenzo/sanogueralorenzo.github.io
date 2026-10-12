@@ -31,14 +31,18 @@ class WorkspaceService : Service() {
         return START_NOT_STICKY
     }
     override fun onTaskRemoved(rootIntent: Intent?) { if (workspace.state.phase == Phase.PREPARING) workspace.stop() }
-    override fun onDestroy() { workspace.remove(observer); stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy() }
+    override fun onDestroy() {
+        workspace.remove(observer)
+        if (workspace.state.phase !in setOf(Phase.WELCOME, Phase.FAILED)) workspace.stop()
+        stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy()
+    }
     override fun onBind(intent: Intent?): IBinder? = null
     private fun notification(detail: String): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val stop = PendingIntent.getService(this, 1, Intent(this, WorkspaceService::class.java).setAction("stop"), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, "workspace").setSmallIcon(R.drawable.amarchy_icon).setContentTitle("Amarchy")
             .setContentText(detail).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(true)
-            .addAction(Notification.Action.Builder(null, "Cancel", stop).build()).build()
+            .addAction(Notification.Action.Builder(null, if (workspace.state.phase == Phase.RUNNING) "Close desktop" else "Cancel", stop).build()).build()
     }
     companion object { fun open(context: Context) { context.startForegroundService(Intent(context, WorkspaceService::class.java)) } }
 }

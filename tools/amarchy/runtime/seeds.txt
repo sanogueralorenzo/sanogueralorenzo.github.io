@@ -13,3 +13,13 @@ hyprland
 foot
 mesa
 libglvnd
+hyprland-guiutils
+nautilus
+chromium
+neovim
+git
+openssh
+wtype
+jq
+wl-clipboard
+ttf-jetbrains-mono-nerd

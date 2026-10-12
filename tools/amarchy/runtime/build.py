@@ -3,6 +3,7 @@
 import concurrent.futures
 import copy
 import hashlib
+import gzip
 import io
 import json
 from pathlib import Path
@@ -37,6 +38,8 @@ def main():
     packages = lock["packages"]
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
         paths = list(executor.map(lambda package: fetch(package, cache), packages))
+    omarchy = json.loads((HERE / "omarchy.lock.json").read_text())
+    omarchy_path = fetch(omarchy, cache)
     # Record the last owner of each path. Some Arch packages intentionally share directories.
     members, archives = {}, []
     try:
@@ -50,14 +53,32 @@ def main():
                 if member.ischr() or member.isblk() or member.isfifo():
                     continue
                 members[name] = (archive, member)
-        archive_path = output / "environment.tar.xz"
+        source = tarfile.open(omarchy_path)
+        archives.append(source)
+        for original in source:
+            relative = original.name.split("/", 1)[-1].rstrip("/")
+            if not original.isfile() or not relative.startswith(("bin/", "default/", "config/", "applications/", "themes/")):
+                if relative not in ("LICENSE", "version") or not original.isfile():
+                    continue
+            if "/backgrounds/" in relative or relative.endswith((".mp4", ".png", ".jpg", ".webp")):
+                continue
+            member = copy.copy(original)
+            member.name = "usr/share/omarchy/" + relative
+            members[member.name] = (source, member)
+        archive_path = output / "environment.tar.gzip"
         temporary = archive_path.with_suffix(".partial")
-        with tarfile.open(temporary, "w:xz", preset=3) as tar:
+        with temporary.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, compresslevel=6, mtime=0) as compressed, tarfile.open(fileobj=compressed, mode="w") as tar:
             # Keep each compressed input sequential: global path sorting would repeatedly
             # rewind/decompress large package archives. Locked package/member order is stable.
             for archive in archives:
                 for original in archive.getmembers():
                     name = original.name.removeprefix("./").rstrip("/")
+                    if archive is source:
+                        name = "usr/share/omarchy/" + original.name.split("/", 1)[-1].rstrip("/")
+                        owned = members.get(name)
+                        if owned is None:
+                            continue
+                        original = owned[1]
                     if members.get(name) != (archive, original):
                         continue
                     member = copy.copy(original)
@@ -71,7 +92,9 @@ def main():
             member.size, member.mode = len(provenance), 0o644
             tar.addfile(member, io.BytesIO(provenance))
         temporary.replace(archive_path)
-        metadata = {"version": "amarchy-foundation-1", "sha256": hashlib.file_digest(archive_path.open("rb"), "sha256").hexdigest(),
+        (output / "environment.tar.xz").unlink(missing_ok=True)
+        (output / "environment.tar.gz").unlink(missing_ok=True)
+        metadata = {"version": "amarchy-omarchy-2", "sha256": hashlib.file_digest(archive_path.open("rb"), "sha256").hexdigest(),
                     "bytes": archive_path.stat().st_size, "expandedBytes": sum(m.size for _, m in members.values() if m.isfile())}
         (output / "environment.json").write_text(json.dumps(metadata) + "\n")
         print(json.dumps(metadata))

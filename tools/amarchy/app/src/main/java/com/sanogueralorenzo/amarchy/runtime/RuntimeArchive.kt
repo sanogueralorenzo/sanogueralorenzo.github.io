@@ -43,7 +43,7 @@ internal object RuntimeArchive {
                                 output.write(buffer, 0, read)
                             }
                         }
-                        require(path.toFile().setExecutable(entry.mode and 0b001001001 != 0, true)) { "Cannot set runtime file permissions" }
+                        require(path.toFile().setExecutable(entry.mode and 0b001001001 != 0, false)) { "Cannot set runtime file permissions" }
                     }
                     entry.isSymbolicLink || entry.isLink -> {
                         val target = if (entry.isLink || entry.linkName.startsWith('/')) {

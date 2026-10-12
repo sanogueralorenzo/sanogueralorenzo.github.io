@@ -29,7 +29,7 @@ android {
         }
     }
     packaging.jniLibs.useLegacyPackaging = true
-    androidResources.noCompress += "xz"
+    androidResources.noCompress += "gzip"
     externalNativeBuild.cmake { path = rootProject.file("native/CMakeLists.txt"); version = "3.22.1" }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
@@ -55,7 +55,7 @@ val prepareDisplay by tasks.registering(Exec::class) {
 }
 val assembleEnvironment by tasks.registering(Exec::class) {
     inputs.files(rootProject.fileTree("runtime"))
-    outputs.files(layout.buildDirectory.file("environment/environment.tar.xz"), layout.buildDirectory.file("environment/environment.json"))
+    outputs.files(layout.buildDirectory.file("environment/environment.tar.gzip"), layout.buildDirectory.file("environment/environment.json"))
     commandLine("python3", rootProject.file("runtime/build.py"), layout.buildDirectory.dir("environment").get().asFile)
 }
 val packageLicenses by tasks.registering(Sync::class) {
@@ -89,7 +89,6 @@ tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsO
 
 dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")
-    implementation("org.tukaani:xz:1.12")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }
