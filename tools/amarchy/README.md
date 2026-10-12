@@ -1,10 +1,10 @@
 # Amarchy
 
-An Android home for an Android-adapted ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. Desktop integration is under development; the current foundation prepares Linux and reports the remaining graphics prerequisite rather than opening a simulated desktop.
+An Android home for an Android-adapted ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. Emulator checks exercise a real Hyprland terminal through Mesa software rendering without root. Omarchy configuration, applications and the normal one-action desktop launch remain under development.
 
 ## Build
 
-Use JDK 17 or 21, Android SDK 36, NDK `28.2.13676358`, CMake `3.22.1`, Python 3.11+, and macOS Command Line Tools or Linux build tools with Expat. Set `ANDROID_HOME` or `sdk.dir` in `local.properties`.
+Use JDK 17 or 21, Android SDK 36, NDK `29.0.14206865`, CMake `3.22.1`, Python 3.11+, and macOS Command Line Tools or Linux build tools with Expat and a C++23 host compiler. Set `ANDROID_HOME` or `sdk.dir` in `local.properties`.
 
 ```sh
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug

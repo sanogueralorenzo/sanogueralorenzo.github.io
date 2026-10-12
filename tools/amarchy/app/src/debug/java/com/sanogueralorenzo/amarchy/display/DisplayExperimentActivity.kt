@@ -21,4 +21,17 @@ class DisplayExperimentActivity : Activity(), SurfaceHolder.Callback {
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { ready.countDown() }
     override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+
+    fun recreateSurface(): CountDownLatch {
+        val recreated = CountDownLatch(1)
+        surface = SurfaceView(this)
+        surface.holder.setFixedSize(960, 640)
+        surface.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) = Unit
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { recreated.countDown() }
+            override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+        })
+        setContentView(surface)
+        return recreated
+    }
 }

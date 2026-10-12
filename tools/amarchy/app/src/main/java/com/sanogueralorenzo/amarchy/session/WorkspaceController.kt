@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import com.sanogueralorenzo.amarchy.runtime.EnvironmentInstaller
-import java.io.File
 import java.util.concurrent.CancellationException
 
 internal enum class Phase { WELCOME, PREPARING, STOPPING, FAILED }
@@ -31,11 +30,7 @@ internal class WorkspaceController(private val context: Context) {
                 EnvironmentInstaller(context).prepare { detail, progress -> main.post {
                     if (state.phase == Phase.PREPARING) publish(WorkspaceState(Phase.PREPARING, detail, progress))
                 } }
-                // This is a demonstrated runtime prerequisite, not a simulated desktop.
-                check(File("/dev/kgsl-3d0").canRead()) {
-                    "The Linux environment is ready, but desktop graphics aren't supported on this device yet. Your files are safe."
-                }
-                error("The desktop graphics integration is still being built. Your environment is prepared and will be reused.")
+                error("Desktop startup is still in development. Your environment is prepared and will be reused.")
             } catch (_: CancellationException) {
                 result = WorkspaceState(Phase.WELCOME)
             } catch (_: InterruptedException) {

@@ -8,7 +8,7 @@ val steam = rootProject.file("../androidsteam")
 android {
     namespace = "com.sanogueralorenzo.amarchy"
     compileSdk = 36
-    ndkVersion = "28.2.13676358"
+    ndkVersion = "29.0.14206865"
     defaultConfig {
         applicationId = "com.sanogueralorenzo.amarchy"
         minSdk = 36
@@ -34,6 +34,7 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("proot"))
     sourceSets["main"].jniLibs.srcDir(layout.buildDirectory.dir("linux"))
+    sourceSets["debug"].jniLibs.srcDir(layout.buildDirectory.dir("linux-probe"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("environment"))
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("licenses"))
 }
@@ -47,10 +48,10 @@ val buildProot by tasks.registering(Exec::class) {
     commandLine("bash", steam.resolve("native/proot/build.sh"), layout.buildDirectory.dir("proot/arm64-v8a").get().asFile)
 }
 val prepareDisplay by tasks.registering(Exec::class) {
-    inputs.files(steam.resolve("native/display/dependencies.sh"), steam.resolve("native/display/source.env"))
+    inputs.files(rootProject.file("native/dependencies.sh"), rootProject.file("native/source.env"))
     outputs.dir(layout.buildDirectory.dir("display-deps"))
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
-    commandLine("bash", steam.resolve("native/display/dependencies.sh"), layout.buildDirectory.dir("display-deps").get().asFile)
+    commandLine("bash", rootProject.file("native/dependencies.sh"), layout.buildDirectory.dir("display-deps").get().asFile)
 }
 val assembleEnvironment by tasks.registering(Exec::class) {
     inputs.files(rootProject.fileTree("runtime"))
@@ -59,18 +60,31 @@ val assembleEnvironment by tasks.registering(Exec::class) {
 }
 val packageLicenses by tasks.registering(Sync::class) {
     from(rootProject.file("LICENSE"), rootProject.file("THIRD_PARTY.md"))
-    from(steam.resolve("licenses")) { into("licenses") }
+    from(steam.resolve("licenses")) {
+        include("Apache-2.0.txt", "GCC-RUNTIME-LIBRARY-EXCEPTION", "LGPL-3.0.txt", "LIBFFI-LICENSE",
+            "LINUX-DMABUF-COPYING", "PROOT-COPYING", "WAYLAND-COPYING", "XDG-SHELL-COPYING", "XKB-DATA-COPYRIGHT", "XZ-COPYING")
+        into("licenses")
+    }
     into(layout.buildDirectory.dir("licenses"))
 }
 val compileLinuxAdapter by tasks.registering(Exec::class) {
     dependsOn(assembleEnvironment)
-    inputs.files(rootProject.file("native/linux.py"), rootProject.file("native/desktop_memory.c"), rootProject.file("runtime/packages.lock.json"))
+    inputs.files(rootProject.file("native/linux.py"), rootProject.file("native/software_drm.c"), rootProject.file("native/egl_probe.c"), rootProject.file("runtime/packages.lock.json"))
     inputs.property("ndkVersion", android.ndkVersion.orEmpty())
-    outputs.file(layout.buildDirectory.file("linux/arm64-v8a/libamarchy-memory.so"))
+    outputs.file(layout.buildDirectory.file("linux/arm64-v8a/libamarchy-software-drm.so"))
+    outputs.file(layout.buildDirectory.file("linux-probe/arm64-v8a/libamarchy-egl-probe.so"))
     environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
     commandLine("python3", rootProject.file("native/linux.py"), layout.buildDirectory.dir("linux/arm64-v8a").get().asFile)
 }
-tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, prepareDisplay, compileLinuxAdapter, packageLicenses) }
+val buildAquamarine by tasks.registering(Exec::class) {
+    dependsOn(assembleEnvironment)
+    inputs.files(rootProject.fileTree("native/aquamarine"), rootProject.file("runtime/packages.lock.json"))
+    inputs.property("ndkVersion", android.ndkVersion.orEmpty())
+    outputs.file(layout.buildDirectory.file("linux/arm64-v8a/libamarchy-aquamarine.so"))
+    environment("NDK", File(android.sdkDirectory, "ndk/${android.ndkVersion}"))
+    commandLine("python3", rootProject.file("native/aquamarine/build.py"), layout.buildDirectory.file("linux/arm64-v8a/libamarchy-aquamarine.so").get().asFile)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(buildProot, prepareDisplay, compileLinuxAdapter, buildAquamarine, packageLicenses) }
 tasks.matching { it.name.startsWith("configureCMake") }.configureEach { dependsOn(prepareDisplay) }
 
 dependencies {

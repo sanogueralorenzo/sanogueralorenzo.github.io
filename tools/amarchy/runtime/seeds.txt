@@ -1,4 +1,4 @@
-# Linux desktop programs and the first display integration experiment.
+# Linux desktop programs.
 filesystem
 glibc
 bash
@@ -13,4 +13,3 @@ hyprland
 foot
 mesa
 libglvnd
-weston
