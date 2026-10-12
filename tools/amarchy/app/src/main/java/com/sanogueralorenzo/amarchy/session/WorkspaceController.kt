@@ -59,10 +59,10 @@ internal class WorkspaceController(private val context: Context) {
                 val deadline = SystemClock.elapsedRealtime() + 90_000
                 while (desktop.alive && SystemClock.elapsedRealtime() < deadline) {
                     if (Thread.currentThread().isInterrupted) throw InterruptedException()
-                    if (NativeDisplay.snapshot()[0] > 0 && desktop.terminalMapped()) break
+                    if (NativeDisplay.snapshot()[0] > 0 && desktop.ready()) break
                     Thread.sleep(250)
                 }
-                check(desktop.alive && desktop.terminalMapped()) { "Your desktop did not finish opening. Try again." }
+                check(desktop.alive && desktop.ready()) { "Your desktop did not finish opening. Try again." }
                 Log.i("AmarchySession", "desktopReadyMs=${SystemClock.elapsedRealtime() - desktopStarted}")
                 main.post { if (state.phase != Phase.STOPPING) publish(WorkspaceState(Phase.RUNNING, "Your desktop is open")) }
                 val exit = desktop.waitForExit()

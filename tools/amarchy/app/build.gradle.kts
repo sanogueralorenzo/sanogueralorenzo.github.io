@@ -54,7 +54,8 @@ val prepareDisplay by tasks.registering(Exec::class) {
     commandLine("bash", rootProject.file("native/dependencies.sh"), layout.buildDirectory.dir("display-deps").get().asFile)
 }
 val assembleEnvironment by tasks.registering(Exec::class) {
-    inputs.files(rootProject.file("runtime/build.py"), rootProject.file("runtime/packages.lock.json"), rootProject.file("runtime/omarchy.lock.json"))
+    inputs.files(rootProject.file("runtime/build.py"), rootProject.file("runtime/database.py"), rootProject.file("runtime/packages.lock.json"), rootProject.file("runtime/omarchy.lock.json"), rootProject.file("runtime/profile.lock.json"), rootProject.file("runtime/android-profile.json"))
+    inputs.files(rootProject.fileTree("runtime/android-overlay"))
     outputs.files(layout.buildDirectory.file("environment/environment.tar.gzip"), layout.buildDirectory.file("environment/environment.json"))
     commandLine("python3", rootProject.file("runtime/build.py"), layout.buildDirectory.dir("environment").get().asFile)
 }

@@ -39,6 +39,12 @@
     "qt6-multimedia-backend": "qt6-multimedia-ffmpeg",
     "libxtables.so": "iptables"
   },
+  "repositoryOverrides": {
+    "quickshell": "edge"
+  },
+  "repositoryReasons": {
+    "quickshell": "Use Omarchy's Qt 6.11 loader patch, required by its shell's OmarchyLoadPatch pragma."
+  },
   "hostPackages": [
     "filesystem", "glibc", "bash", "coreutils", "util-linux", "ca-certificates",
     "dbus", "mesa", "libglvnd", "openssh", "pipewire", "pipewire-alsa", "pipewire-pulse"

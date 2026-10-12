@@ -24,6 +24,7 @@ internal class DesktopSurface(context: Context, private val workspace: Workspace
         private set
     init {
         isFocusable = true; isFocusableInTouchMode = true
+        setAutoHandwritingEnabled(false)
         contentDescription = "Omarchy desktop"
         holder.setFixedSize(1280, 720)
     }
@@ -84,6 +85,7 @@ internal class DesktopSurface(context: Context, private val workspace: Workspace
     override fun onCreateInputConnection(attributes: EditorInfo): InputConnection {
         attributes.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         attributes.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_ACTION_NONE
+        attributes.setStylusHandwritingEnabled(false)
         return object : BaseInputConnection(this, false) {
             override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean { workspace.type(text?.toString().orEmpty()); return true }
             override fun setComposingText(text: CharSequence?, newCursorPosition: Int) = true

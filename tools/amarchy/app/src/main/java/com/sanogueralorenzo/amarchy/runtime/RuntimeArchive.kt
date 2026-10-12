@@ -5,9 +5,6 @@ import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.FileVisitResult
-import java.nio.file.attribute.BasicFileAttributes
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarConstants
 
@@ -24,7 +21,7 @@ internal object RuntimeArchive {
             while (true) {
                 checkCancelled()
                 val entry = tar.nextEntry ?: break
-                require(++count <= 200_000) { "Runtime contains too many files" }
+                require(++count <= 400_000) { "Runtime contains too many files" }
                 val path = resolve(root, entry.name)
                 require(seen.add(path)) { "Duplicate runtime entry: ${entry.name}" }
                 require(tar.canReadEntryData(entry)) { "Unsupported runtime entry: ${entry.name}" }
@@ -32,7 +29,7 @@ internal object RuntimeArchive {
                     entry.isDirectory -> Files.createDirectories(path)
                     entry.linkFlag == TarConstants.LF_NORMAL || entry.linkFlag == TarConstants.LF_OLDNORM -> {
                         expanded = Math.addExact(expanded, entry.size)
-                        require(entry.size >= 0 && expanded <= 3_000_000_000L) { "Runtime exceeds extraction limit" }
+                        require(entry.size >= 0 && expanded <= 12_000_000_000L) { "Runtime exceeds extraction limit" }
                         Files.createDirectories(path.parent)
                         Files.newOutputStream(path).use { output ->
                             val buffer = ByteArray(64 * 1024)
@@ -85,23 +82,17 @@ internal object RuntimeArchive {
 
     fun delete(directory: File) {
         if (!Files.exists(directory.toPath(), NOFOLLOW_LINKS)) return
-        Files.walkFileTree(directory.toPath(), object : SimpleFileVisitor<Path>() {
-            override fun preVisitDirectory(dir: Path, attributes: BasicFileAttributes): FileVisitResult {
-                // Linux tools can make app-owned cache directories read-only.
-                // The walk does not follow links outside this installation.
-                require(dir.toFile().setWritable(true, true)) { "Cannot prepare runtime directory for removal" }
-                return FileVisitResult.CONTINUE
+        fun remove(path: Path) {
+            if (Files.isDirectory(path, NOFOLLOW_LINKS)) {
+                // PRoot creates unreadable bind placeholders. Repair permissions
+                // before opening the directory; tree visitors run too late.
+                val file = path.toFile()
+                require(file.setReadable(true, true) && file.setWritable(true, true) && file.setExecutable(true, true)) { "Cannot prepare runtime directory for removal" }
+                Files.newDirectoryStream(path).use { children -> children.forEach(::remove) }
             }
-            override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-                Files.delete(file)
-                return FileVisitResult.CONTINUE
-            }
-            override fun postVisitDirectory(dir: Path, error: java.io.IOException?): FileVisitResult {
-                if (error != null) throw error
-                Files.delete(dir)
-                return FileVisitResult.CONTINUE
-            }
-        })
+            Files.delete(path)
+        }
+        remove(directory.toPath())
     }
 
     private fun resolve(root: Path, name: String): Path {

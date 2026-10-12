@@ -62,14 +62,15 @@ internal class EnvironmentInstaller(private val context: Context, val root: File
             for (path in listOf("dev", "proc", "sys", "tmp", "run", "root", "dev/shm")) File(staging, path).mkdirs()
             progress("Checking Linux execution", 1f)
             val process = LinuxRuntime(context, staging, 0).start(listOf("/bin/bash", "-c",
-                "set -e; ldconfig; glib-compile-schemas /usr/share/glib-2.0/schemas; fc-cache -f; " +
+                "set -e; systemd-sysusers; pacman -Dk; ldconfig; update-ca-trust; glib-compile-schemas /usr/share/glib-2.0/schemas; " +
+                    "update-desktop-database /usr/share/applications; fc-cache -f; " +
                     "printf 'amarchy-runtime-ok\\n'; uname -m"))
+            val output = ProcessOutput(process, 16_384)
             try {
-                check(process.waitFor(90, TimeUnit.SECONDS)) { "Your environment took too long to start. Try again." }
-                val result = process.inputStream.bufferedReader().readText()
-                check(process.exitValue() == 0 && result.contains("amarchy-runtime-ok") && result.contains("aarch64")) {
-                    "Linux could not start on this device. Try again after reopening Amarchy."
-                }
+                check(process.waitFor(180, TimeUnit.SECONDS)) { "Your environment took too long to start. Try again." }
+                val result = output.text()
+                if (process.exitValue() != 0 || !result.contains("amarchy-runtime-ok") || !result.contains("aarch64"))
+                    throw IllegalStateException("Linux could not start on this device. Try again after reopening Amarchy.", IllegalStateException(result))
             } finally {
                 if (process.isAlive) { process.destroyForcibly(); process.waitFor(5, TimeUnit.SECONDS) }
             }

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Android owns the session/process tree; there is no systemd user scope.
+[[ ${1:-} != -- ]] || shift
+exec "$@"

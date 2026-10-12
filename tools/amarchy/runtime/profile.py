@@ -6,15 +6,9 @@ import json
 from pathlib import Path
 import tarfile
 
-from lock import fields
+from packages import catalog
 
 HERE = Path(__file__).resolve().parent
-REPOSITORIES = {
-    "core": "https://ca.us.mirror.archlinuxarm.org/aarch64/core",
-    "extra": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra",
-    "stable": "https://pkgs.omarchy.org/stable/aarch64",
-    "edge": "https://pkgs.omarchy.org/edge/aarch64",
-}
 
 
 def inventory(source, databases):
@@ -22,20 +16,7 @@ def inventory(source, databases):
     if hashlib.file_digest(source.open("rb"), "sha256").hexdigest() != pin["sha256"]:
         raise ValueError("Omarchy source does not match the reviewed pin")
     policy = json.loads((HERE / "android-profile.json").read_text())
-    catalog, provenance = {}, {}
-    for repository, base in REPOSITORIES.items():
-        path = databases / (repository + ".db")
-        provenance[base + "/" + ("omarchy" if repository in ("stable", "edge") else repository) + ".db"] = hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
-        with tarfile.open(path) as archive:
-            entries = {}
-            for member in archive:
-                if member.name.endswith(("/desc", "/depends")):
-                    entries.setdefault(member.name.split("/")[0], {}).update(fields(archive.extractfile(member).read()))
-            for entry in entries.values():
-                if "NAME" in entry:
-                    entry["repository"] = repository
-                    entry["baseUrl"] = base
-                    catalog.setdefault(entry["NAME"][0], entry)
+    available, provenance = catalog(databases, policy["repositoryOverrides"])
     with tarfile.open(source) as archive:
         prefix = "omarchy-" + pin["revision"] + "/install/"
         def names(list_name):
@@ -54,7 +35,7 @@ def inventory(source, databases):
             record.update(status="omitted", reason="Omitted by upstream's aarch64 package profile." if requested in x86 else policy["omitted"][requested])
         else:
             selected = policy["providers"].get(requested, requested)
-            entry = catalog.get(selected)
+            entry = available.get(selected)
             if entry is None:
                 missing.append(selected)
                 continue
@@ -64,6 +45,8 @@ def inventory(source, databases):
                 record["adaptation"] = f"ARM64 package provider: {requested} → {selected}."
             elif requested in policy["architectureOverrides"]:
                 record["adaptation"] = policy["architectureOverrides"][requested]
+            if requested in policy["repositoryReasons"]:
+                record["adaptation"] = policy["repositoryReasons"][requested]
         result["defaults"].append(record)
     if missing:
         raise ValueError(f"Resolve these upstream defaults explicitly: {missing}")

@@ -944,9 +944,10 @@
       "upstream": "quickshell",
       "status": "planned",
       "package": "quickshell",
-      "version": "0.3.2-1",
-      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/quickshell-0.3.2-1-aarch64.pkg.tar.xz",
-      "sha256": "c4205ee12a1121470bddf81ea249450e74a94493dc503d4a790403897cd5ed6a"
+      "version": "0.3.2-4",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/quickshell-0.3.2-4-aarch64.pkg.tar.zst",
+      "sha256": "51fe9614ecf8e50891e1f133cbee9cd6797bb2ff600ea295ae82aa24611f75d1",
+      "adaptation": "Use Omarchy's Qt 6.11 loader patch, required by its shell's OmarchyLoadPatch pragma."
     },
     {
       "upstream": "ripgrep",

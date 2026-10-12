@@ -86,6 +86,9 @@ static int open_node(void) {
 }
 int open(const char *path, int flags, ...) {
     if (!strcmp(path, render_node)) return open_node();
+    // Android's app sandbox cannot publish unnamed Qt temporary files. Let Qt
+    // use its named atomic-file path instead of linkat(AT_EMPTY_PATH).
+    if ((flags & O_TMPFILE) == O_TMPFILE) { errno = EOPNOTSUPP; return -1; }
     mode_t mode = 0;
     if (flags & O_CREAT) { va_list arguments; va_start(arguments, flags); mode = va_arg(arguments, int); va_end(arguments); }
     int (*function)(const char *, int, ...) = dlsym(RTLD_NEXT, "open");
@@ -93,6 +96,7 @@ int open(const char *path, int flags, ...) {
 }
 int open64(const char *path, int flags, ...) {
     if (!strcmp(path, render_node)) return open_node();
+    if ((flags & O_TMPFILE) == O_TMPFILE) { errno = EOPNOTSUPP; return -1; }
     mode_t mode = 0;
     if (flags & O_CREAT) { va_list arguments; va_start(arguments, flags); mode = va_arg(arguments, int); va_end(arguments); }
     int (*function)(const char *, int, ...) = dlsym(RTLD_NEXT, "open64");

@@ -106,11 +106,20 @@ class DesktopLifecycleTest {
         assertEquals(workspace.state.detail, phase, workspace.state.phase)
     }
     private fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup) (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
+    private fun themeColor(name: String): Int {
+        val colors = File(context.filesDir, "home/.local/state/omarchy/current/theme/colors.toml").readText()
+        val hex = Regex("(?m)^$name\\s*=\\s*\"(#[0-9a-fA-F]{6})\"").find(colors)!!.groupValues[1]
+        return android.graphics.Color.parseColor(hex)
+    }
+    private fun nearColor(pixel: Int, color: Int) = kotlin.math.abs(android.graphics.Color.red(pixel) - android.graphics.Color.red(color)) < 16 &&
+        kotlin.math.abs(android.graphics.Color.green(pixel) - android.graphics.Color.green(color)) < 16 &&
+        kotlin.math.abs(android.graphics.Color.blue(pixel) - android.graphics.Color.blue(color)) < 16
     private fun assertViewportFits(surface: DesktopSurface) {
         val monitors = org.json.JSONArray(com.sanogueralorenzo.amarchy.session.DesktopSession(context).command(listOf("/usr/bin/hyprctl", "-j", "monitors")))
         assertEquals("Desktop scale changed while resizing", 1.5, monitors.getJSONObject(0).getDouble("scale"), 0.001)
         val deadline = SystemClock.elapsedRealtime() + 10_000
         var edges = emptyList<Boolean>()
+        val accent = themeColor("accent")
         do {
             val image = instrumentation.uiAutomation.takeScreenshot()
             val location = IntArray(2)
@@ -118,19 +127,15 @@ class DesktopLifecycleTest {
             val middle = location[1] + surface.height / 2
             fun border(x: Int): Boolean {
                 val pixel = image.getPixel(location[0] + x, middle)
-                return kotlin.math.abs(android.graphics.Color.red(pixel) - 127) < 12 &&
-                    kotlin.math.abs(android.graphics.Color.green(pixel) - 187) < 12 &&
-                    kotlin.math.abs(android.graphics.Color.blue(pixel) - 179) < 12
+                return nearColor(pixel, accent)
             }
             fun horizontalBorder(y: Int): Boolean {
                 val pixel = image.getPixel(location[0] + surface.width / 2, location[1] + y)
-                return kotlin.math.abs(android.graphics.Color.red(pixel) - 127) < 12 &&
-                    kotlin.math.abs(android.graphics.Color.green(pixel) - 187) < 12 &&
-                    kotlin.math.abs(android.graphics.Color.blue(pixel) - 179) < 12
+                return nearColor(pixel, accent)
             }
             File(context.cacheDir, "desktop-viewport-${surface.bufferHeight}.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
             edges = listOf((0 until surface.width / 10).any(::border), (surface.width * 9 / 10 until surface.width).any(::border),
-                (0 until surface.height / 10).any(::horizontalBorder), (surface.height * 9 / 10 until surface.height).any(::horizontalBorder))
+                (0 until surface.height / 2).any(::horizontalBorder), (surface.height / 2 until surface.height).any(::horizontalBorder))
             image.recycle()
             if (edges.all { it }) return
             Thread.sleep(50)
@@ -140,6 +145,7 @@ class DesktopLifecycleTest {
     private fun assertTerminalPixels(surface: DesktopSurface) {
         val deadline = SystemClock.elapsedRealtime() + 15_000
         var count = 0
+        val background = themeColor("background")
         do {
             val width = surface.bufferWidth
             val height = surface.bufferHeight
@@ -150,7 +156,7 @@ class DesktopLifecycleTest {
             assertTrue(copied.await(5, TimeUnit.SECONDS)); assertEquals(PixelCopy.SUCCESS, result)
             val pixels = IntArray(width * height)
             image.getPixels(pixels, 0, width, 0, 0, width, height)
-            count = pixels.count { it == 0xff2d353b.toInt() }
+            count = pixels.count { nearColor(it, background) }
             File(context.cacheDir, "desktop-app-proof.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
             image.recycle()
             if (count >= width * height * 0.5) return

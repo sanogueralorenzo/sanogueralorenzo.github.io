@@ -40,9 +40,9 @@ class DesktopAppsTest {
             }
             assertEquals(Phase.RUNNING, workspace.state.phase)
             for ((command, expected) in listOf(
-                "nautilus --new-window /root/Projects" to "nautilus",
-                "foot --app-id=amarchy-editor --title=Neovim nvim" to "amarchy-editor",
-                "chromium --ozone-platform=wayland --no-sandbox --disable-gpu --no-first-run --no-default-browser-check" to "chromium")) {
+                "omarchy-launch-nautilus" to "nautilus",
+                "omarchy-launch-editor" to "nvim",
+                "omarchy-launch-browser https://example.com" to "chromium")) {
                 instrumentation.runOnMainSync { workspace.launch("$command > /run/user/1000/app-$expected.log 2>&1") }
                 val opened = SystemClock.elapsedRealtime() + 45_000
                 var windows = ""
@@ -64,7 +64,7 @@ class DesktopAppsTest {
                 Thread.sleep(1000)
                 var surface: DesktopSurface? = null
                 instrumentation.runOnMainSync { surface = descendants(activity.window.decorView).filterIsInstance<DesktopSurface>().single() }
-                val image = Bitmap.createBitmap(1280, 720, Bitmap.Config.ARGB_8888)
+                val image = Bitmap.createBitmap(surface!!.bufferWidth, surface!!.bufferHeight, Bitmap.Config.ARGB_8888)
                 val copied = CountDownLatch(1)
                 var result = -1
                 PixelCopy.request(surface!!, image, { result = it; copied.countDown() }, Handler(Looper.getMainLooper()))

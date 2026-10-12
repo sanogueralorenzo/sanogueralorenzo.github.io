@@ -4,7 +4,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sanogueralorenzo.amarchy.runtime.EnvironmentInstaller
 import com.sanogueralorenzo.amarchy.runtime.LinuxRuntime
+import com.sanogueralorenzo.amarchy.runtime.RuntimeArchive
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.*
@@ -15,6 +17,22 @@ import org.junit.runner.RunWith
 class WorkspaceIntegrationTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
+
+    @Test fun removesUnreadablePlaceholdersWithoutFollowingExternalLinks() {
+        val base = File(context.cacheDir, "runtime-removal-proof").apply { mkdirs() }
+        val root = File(base, "root").apply { mkdirs() }
+        val external = File(base, "external").apply { mkdirs() }
+        val sentinel = File(external, "keep").apply { writeText("preserved") }
+        try {
+            Files.createSymbolicLink(File(root, "bound").toPath(), external.toPath())
+            val placeholder = File(root, "opt/amarchy").apply { mkdirs() }
+            assertTrue(placeholder.setReadable(false, false))
+            assertTrue(placeholder.setExecutable(false, false))
+            RuntimeArchive.delete(root)
+            assertFalse(root.exists())
+            assertEquals("preserved", sentinel.readText())
+        } finally { RuntimeArchive.delete(base) }
+    }
 
     @Test fun cancelledReplacementPreservesThePreviousEnvironment() {
         val directory = File(context.filesDir, "recovery-experiment").apply { mkdirs() }

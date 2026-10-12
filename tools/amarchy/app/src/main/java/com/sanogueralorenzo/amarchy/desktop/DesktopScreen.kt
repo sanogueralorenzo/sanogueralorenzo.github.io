@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.ClipboardManager
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
 import android.view.SurfaceHolder
@@ -44,11 +43,8 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
         frame.addView(loading, FrameLayout.LayoutParams(-1, -1))
         addView(frame, LayoutParams(-1, 0, 1f)); addView(toolbar, LayoutParams(-1, dp(52)))
         toolbar.addView(action("Home") { hideKeyboard(); home() })
-        toolbar.addView(action("Apps") { anchor -> apps(anchor) })
-        toolbar.addView(TextView(context).apply {
-            text = "amarchy"; setTextColor(Color.rgb(184, 238, 162)); textSize = 15f; gravity = Gravity.CENTER
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        }, LayoutParams(0, -1, 1f))
+        toolbar.addView(action("Apps") { workspace.launch("omarchy-menu toggle apps"); surface.requestFocus() })
+        toolbar.addView(action("Omarchy") { workspace.launch("omarchy-menu"); surface.requestFocus() }, LayoutParams(0, -1, 1f))
         toolbar.addView(keyboardButton)
         toolbar.addView(action("Keys") { anchor -> shortcuts(anchor) })
         surface.holder.addCallback(this)
@@ -85,14 +81,6 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
         background = RippleDrawable(ColorStateList.valueOf(Color.rgb(57, 73, 52)), null, null)
         minHeight = dp(48); minimumWidth = dp(56); setPadding(dp(12), 0, dp(12), 0); setOnClickListener { click(this) }
         contentDescription = label
-    }
-    private fun apps(anchor: Button) {
-        val entries = linkedMapOf("Terminal" to "foot", "Files" to "nautilus --new-window /root", "Editor" to "foot --app-id=amarchy-editor --title=Neovim nvim", "Browser" to "chromium --ozone-platform=wayland --no-sandbox --disable-gpu --no-first-run --no-default-browser-check")
-        PopupMenu(context, anchor).apply {
-            entries.keys.forEachIndexed { index, name -> menu.add(0, index, index, name) }
-            setOnMenuItemClickListener { item -> workspace.launch(entries.values.elementAt(item.itemId)); surface.requestFocus(); true }
-            show()
-        }
     }
     private fun shortcuts(anchor: Button) {
         val entries = linkedMapOf("Escape" to intArrayOf(1), "Tab" to intArrayOf(15), "Ctrl+C" to intArrayOf(29, 46),
