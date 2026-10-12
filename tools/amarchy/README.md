@@ -1,8 +1,8 @@
 # Amarchy
 
-An Android home for an Android-adapted ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. One action prepares the bundled environment and opens a real Hyprland desktop with pinned Omarchy defaults, tiling shortcuts and Everforest colors. Mesa supplies software rendering without root or an Adreno requirement.
+An Android host being built for the most complete practical upstream ARM64 Omarchy desktop. Android 16+ and ARM64 are the initial baseline. One action prepares the bundled environment and opens a real Hyprland desktop. Mesa supplies software rendering without root or an Adreno requirement. Upstream shell, menus, themes and the broader application set are being integrated; the current build still uses selected defaults.
 
-Choose **Get started** once, then use **Apps** for Terminal, Files, Neovim and Chromium. **Keyboard** opens Android's keyboard; **Keys** provides shortcuts and Android clipboard paste. Touch clicks/drags, two-finger movement scrolls, and a keyboard/mouse can operate the desktop. **Home** keeps it running; **Close desktop** stops it. The separate home preserves projects and settings across app/runtime updates. Mobile layout, audio and release acceptance are still in development.
+Choose **Get started** once, then use **Apps** for Terminal, Files, Neovim and Chromium. **Keyboard** opens or hides Android's keyboard; the desktop resizes above it. **Keys** provides shortcuts and Android clipboard paste. Touch clicks/drags, two-finger movement scrolls, and a keyboard/mouse can operate the desktop. **Home** keeps it running; **Close desktop** stops it. The separate home preserves projects and settings across app/runtime updates. Audio and release acceptance are still in development.
 
 ## Build
 

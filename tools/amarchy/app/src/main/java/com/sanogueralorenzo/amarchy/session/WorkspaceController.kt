@@ -21,9 +21,14 @@ internal class WorkspaceController(private val context: Context) {
     private var worker: Thread? = null
     private val surfaceGate = Object()
     private var surface: Surface? = null
+    private var viewportWidth = 1280
+    private var viewportHeight = 720
     private var displayStarted = false
     @Volatile private var session: DesktopSession? = null
     private val commands = Executors.newSingleThreadExecutor { job -> Thread(job, "amarchy-desktop-command") }
+    // Hyprland 0.56's nested-output resize updates the monitor before arranging
+    // existing tiled clients. Reload its configuration once the Android IME settles.
+    private val relayout = Runnable { execute(listOf("/usr/bin/hyprctl", "reload")) }
     @Volatile
     var state = WorkspaceState(Phase.WELCOME)
         private set
@@ -46,6 +51,7 @@ internal class WorkspaceController(private val context: Context) {
                 synchronized(surfaceGate) {
                     while (surface?.isValid != true) surfaceGate.wait()
                     NativeDisplay.start(desktop.socket.path, surface!!, 30_000)
+                    NativeDisplay.resize(viewportWidth, viewportHeight)
                     displayStarted = true
                 }
                 desktop.start()
@@ -79,20 +85,31 @@ internal class WorkspaceController(private val context: Context) {
 
     fun stop() {
         checkMain()
+        main.removeCallbacks(relayout)
         if (worker == null) { if (state.phase != Phase.WELCOME) publish(WorkspaceState(Phase.WELCOME)); return }
         publish(WorkspaceState(Phase.STOPPING, "Closing your workspace")); worker?.interrupt()
     }
-    fun attach(value: Surface?) {
+    fun attach(value: Surface?, width: Int = viewportWidth, height: Int = viewportHeight) {
         checkMain()
         synchronized(surfaceGate) {
             surface = value
-            if (displayStarted) NativeDisplay.attach(value)
+            viewportWidth = width; viewportHeight = height
+            if (displayStarted) { NativeDisplay.attach(value); NativeDisplay.resize(width, height) }
             surfaceGate.notifyAll()
         }
     }
     fun launch(command: String) {
         val quoted = command.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
         execute(listOf("/usr/bin/hyprctl", "dispatch", "hl.dsp.exec_cmd('$quoted')"))
+    }
+    fun resize(width: Int, height: Int) {
+        checkMain()
+        synchronized(surfaceGate) {
+            if (viewportWidth == width && viewportHeight == height) return
+            viewportWidth = width; viewportHeight = height
+            if (displayStarted) NativeDisplay.resize(width, height)
+        }
+        if (state.phase == Phase.RUNNING) { main.removeCallbacks(relayout); main.postDelayed(relayout, 200) }
     }
     fun type(text: String) { if (text.isNotEmpty()) execute(listOf("/usr/bin/wtype", "--", text)) }
     fun shortcut(vararg codes: Int) {
@@ -102,6 +119,7 @@ internal class WorkspaceController(private val context: Context) {
     }
     private fun execute(arguments: List<String>) {
         if (state.phase != Phase.RUNNING) return
+        if (state.detail != "Your desktop is open") publish(state.copy(detail = "Your desktop is open"))
         commands.execute {
             try { session?.command(arguments) } catch (_: Exception) {
                 main.post { if (state.phase == Phase.RUNNING) publish(state.copy(detail = "That action could not finish. Try it again.")) }

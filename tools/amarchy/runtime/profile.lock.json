@@ -1,0 +1,1287 @@
+{
+  "source": {
+    "name": "omarchy",
+    "revision": "9480d1b6a98156314dbabe6bfef08f39f8b9cd07",
+    "url": "https://github.com/omacom/omarchy/archive/9480d1b6a98156314dbabe6bfef08f39f8b9cd07.tar.gz",
+    "bytes": 295382064,
+    "sha256": "83f7276a7d3a68b15f91d81eb8f5b1e328d550a3a01201c384f8b972fdfbb70b"
+  },
+  "databases": {
+    "https://ca.us.mirror.archlinuxarm.org/aarch64/core/core.db": "5f184763bad034ac02662ee37d87edad8124244c8609f4a441947da1855b0b08",
+    "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/extra.db": "66cfbeae024c325e19ba7334afcb0ff2ab892ba4f0789216b358648f7647b480",
+    "https://pkgs.omarchy.org/stable/aarch64/omarchy.db": "a7973800a5a4bfad83706c51dfd4740d684e00c000b214a05dfcca7ae2477caf",
+    "https://pkgs.omarchy.org/edge/aarch64/omarchy.db": "38fe843c7a4de8dab1247587e14d4d059e28afbed1cf7a4ab789b1d8bc2092b1"
+  },
+  "defaults": [
+    {
+      "upstream": "aether",
+      "status": "planned",
+      "package": "aether",
+      "version": "4.32.0-2",
+      "url": "https://pkgs.omarchy.org/stable/aarch64/aether-4.32.0-2-aarch64.pkg.tar.zst",
+      "sha256": "7d72a696019af0086fde7d37e8d76ca57f96f625256a9162a84ef1ea9effd245"
+    },
+    {
+      "upstream": "alsa-utils",
+      "status": "planned",
+      "package": "alsa-utils",
+      "version": "1.2.16-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/alsa-utils-1.2.16-1-aarch64.pkg.tar.xz",
+      "sha256": "ba6875257005961276b969f12cea44ccd828841254b009d9f4a3eba4c44df9d6"
+    },
+    {
+      "upstream": "asdcontrol",
+      "status": "omitted",
+      "reason": "Requires direct ALSA speaker devices; Android owns audio hardware."
+    },
+    {
+      "upstream": "avahi",
+      "status": "planned",
+      "package": "avahi",
+      "version": "1:0.9rc5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/avahi-1:0.9rc5-1-aarch64.pkg.tar.xz",
+      "sha256": "cc5397663792b8a6aeeb8879d44020e21f7dc8f3889e4bcab25cb976b0033481"
+    },
+    {
+      "upstream": "base-devel",
+      "status": "planned",
+      "package": "base-devel",
+      "version": "1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/base-devel-1-2-any.pkg.tar.xz",
+      "sha256": "b6c4d21b8fbea0d5c31d4aceefa7e9593f433b702c3e419678065a4856ea0b38"
+    },
+    {
+      "upstream": "bash-completion",
+      "status": "planned",
+      "package": "bash-completion",
+      "version": "2.18.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/bash-completion-2.18.0-1-any.pkg.tar.xz",
+      "sha256": "82716e3508156d038fe80af85bb4693b6eb80e14fb3766e726d8ff689af0d593"
+    },
+    {
+      "upstream": "bat",
+      "status": "planned",
+      "package": "bat",
+      "version": "0.26.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/bat-0.26.1-3-aarch64.pkg.tar.xz",
+      "sha256": "f795fe698a5b48f50994185bc75878838dde831f3a8181db6178dc54557db910"
+    },
+    {
+      "upstream": "bluez",
+      "status": "omitted",
+      "reason": "Requires privileged Bluetooth/HCI device access; Android owns Bluetooth."
+    },
+    {
+      "upstream": "bluez-tools",
+      "status": "omitted",
+      "reason": "Controls BlueZ devices unavailable to this unrooted Android session."
+    },
+    {
+      "upstream": "bluez-utils",
+      "status": "omitted",
+      "reason": "Controls BlueZ devices unavailable to this unrooted Android session."
+    },
+    {
+      "upstream": "bolt",
+      "status": "omitted",
+      "reason": "Requires host Thunderbolt device authorization."
+    },
+    {
+      "upstream": "brightnessctl",
+      "status": "omitted",
+      "reason": "Requires writable host backlight devices; Android owns brightness."
+    },
+    {
+      "upstream": "btop",
+      "status": "planned",
+      "package": "btop",
+      "version": "1.4.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/btop-1.4.7-1-aarch64.pkg.tar.xz",
+      "sha256": "3b936e337ddb726c2606e229bdbe77cbdd0d099f83ac88f28dc90e44edeb8007"
+    },
+    {
+      "upstream": "chromium",
+      "status": "planned",
+      "package": "chromium",
+      "version": "153.0.8010.36-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/chromium-153.0.8010.36-1-aarch64.pkg.tar.xz",
+      "sha256": "9ce0132a90ab76641e79a8fc07207fde472daab51a1a2702e982f96a35dcf228"
+    },
+    {
+      "upstream": "cliamp",
+      "status": "planned",
+      "package": "cliamp",
+      "version": "2.3.0-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/cliamp-2.3.0-2-aarch64.pkg.tar.zst",
+      "sha256": "decbfd2c774c65c864182a59a8ed824a28cbf83d995d0f6444749313326e9321"
+    },
+    {
+      "upstream": "cups",
+      "status": "planned",
+      "package": "cups",
+      "version": "2:2.4.20-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/cups-2:2.4.20-1-aarch64.pkg.tar.xz",
+      "sha256": "81353a84719ffc851659006e2c858d96ce24b20f3e225e22495ac1a7d802969f"
+    },
+    {
+      "upstream": "cups-filters",
+      "status": "planned",
+      "package": "cups-filters",
+      "version": "2.0.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/cups-filters-2.0.1-3-aarch64.pkg.tar.xz",
+      "sha256": "f700e57990c2c8d7be5e4e0d2c3e1015fab980098ee32c565d2ac4ae628a89dc"
+    },
+    {
+      "upstream": "cups-pk-helper",
+      "status": "planned",
+      "package": "cups-pk-helper",
+      "version": "0.2.7-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/cups-pk-helper-0.2.7-2-aarch64.pkg.tar.xz",
+      "sha256": "df8e68590fc2a4e0ab4eaea39b09245e0eb9ab3d4af7187ab2653d4e26acfcfd"
+    },
+    {
+      "upstream": "ddcutil",
+      "status": "omitted",
+      "reason": "Requires direct I2C display-device access."
+    },
+    {
+      "upstream": "disktree-bin",
+      "status": "planned",
+      "package": "disktree-bin",
+      "version": "0.11.0-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/disktree-bin-0.11.0-2-aarch64.pkg.tar.zst",
+      "sha256": "40c09a1ffc2807a114a1e134bf350eafe79203890908076de6e76f70203a82b4"
+    },
+    {
+      "upstream": "docker",
+      "status": "planned",
+      "package": "docker",
+      "version": "1:29.9.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/docker-1:29.9.0-1-aarch64.pkg.tar.xz",
+      "sha256": "d33cc63fd0219528b319ba91d59014486ff773bb37fb2e10dedbffed50c20b0e"
+    },
+    {
+      "upstream": "docker-buildx",
+      "status": "planned",
+      "package": "docker-buildx",
+      "version": "0.38.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/docker-buildx-0.38.0-1-aarch64.pkg.tar.xz",
+      "sha256": "bf52258748b7d162b761f09f5e70265e35734268ccf36d49446d2831de340b03"
+    },
+    {
+      "upstream": "docker-compose",
+      "status": "planned",
+      "package": "docker-compose",
+      "version": "5.6.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/docker-compose-5.6.0-1-aarch64.pkg.tar.xz",
+      "sha256": "fe915128f308326cab724b73555df21d00b8797f75be6f5e360c7faa84594964"
+    },
+    {
+      "upstream": "dosfstools",
+      "status": "planned",
+      "package": "dosfstools",
+      "version": "4.2-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/dosfstools-4.2-5-aarch64.pkg.tar.xz",
+      "sha256": "c41120c6c89469f259d5248ea2ed0a7bea19f8a38d493682f7ff82037a862c21"
+    },
+    {
+      "upstream": "dotnet-runtime",
+      "status": "planned",
+      "package": "dotnet-runtime-bin",
+      "version": "10.0.401-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/dotnet-runtime-bin-10.0.401-2-aarch64.pkg.tar.zst",
+      "sha256": "66e6ba0b48550b805e6854ff8c8d89db9b9b144c01e112cdaa47a39791311826",
+      "adaptation": "ARM64 package provider: dotnet-runtime \u2192 dotnet-runtime-bin."
+    },
+    {
+      "upstream": "evince",
+      "status": "planned",
+      "package": "evince",
+      "version": "1:48.4-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/evince-1:48.4-2-aarch64.pkg.tar.xz",
+      "sha256": "37640e038a92bf1bcce42e08b871f859dc7dc69bef1748a21f999a3c3404a9ff"
+    },
+    {
+      "upstream": "exfatprogs",
+      "status": "planned",
+      "package": "exfatprogs",
+      "version": "1.4.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/exfatprogs-1.4.3-1-aarch64.pkg.tar.xz",
+      "sha256": "6a7d316912d41a351c8be60f28f113c832f1ebabf59cf7ae0d7c3ae889636496"
+    },
+    {
+      "upstream": "expac",
+      "status": "planned",
+      "package": "expac",
+      "version": "10-13",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/expac-10-13-aarch64.pkg.tar.xz",
+      "sha256": "a232c0147ae36876841bf4f2cb71fcf6ab6b7f515ed9ec6afcdf20bb82b70e74"
+    },
+    {
+      "upstream": "eza",
+      "status": "planned",
+      "package": "eza",
+      "version": "0.23.5-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/eza-0.23.5-2-aarch64.pkg.tar.xz",
+      "sha256": "007328c2870c274b6a2124e07a71cfca80ac33006fa4edd36b3abe78b8f1516c"
+    },
+    {
+      "upstream": "fakeroot",
+      "status": "planned",
+      "package": "fakeroot",
+      "version": "1:1.37.2-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/fakeroot-1:1.37.2-3-aarch64.pkg.tar.xz",
+      "sha256": "ae7a1e0df8abd196f5d54f8206db363e3f9ad0b7157fca026729698ccf866ad0"
+    },
+    {
+      "upstream": "fastfetch",
+      "status": "planned",
+      "package": "fastfetch",
+      "version": "2.69.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fastfetch-2.69.0-1-aarch64.pkg.tar.xz",
+      "sha256": "6d09807c600c938bf635965d6f6ecc1b785ee18819c2ebfaee93adba16061e37"
+    },
+    {
+      "upstream": "fcitx5",
+      "status": "planned",
+      "package": "fcitx5",
+      "version": "5.1.23-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-5.1.23-1-aarch64.pkg.tar.xz",
+      "sha256": "193ed425324cc6fa52a8a718aee9f3060b9d45b36312693e42507fd028510bf8"
+    },
+    {
+      "upstream": "fcitx5-chewing",
+      "status": "planned",
+      "package": "fcitx5-chewing",
+      "version": "5.1.13-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-chewing-5.1.13-1-aarch64.pkg.tar.xz",
+      "sha256": "9e99dcc87253420fbe44116f71faee9722f0a6479f38de439051409813ebbc42"
+    },
+    {
+      "upstream": "fcitx5-chinese-addons",
+      "status": "planned",
+      "package": "fcitx5-chinese-addons",
+      "version": "5.1.15-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-chinese-addons-5.1.15-1-aarch64.pkg.tar.xz",
+      "sha256": "2e715dcbec666ce42b69ea0a657052410ead9498c5eb7442e20b58ec29893e4e"
+    },
+    {
+      "upstream": "fcitx5-gtk",
+      "status": "planned",
+      "package": "fcitx5-gtk",
+      "version": "5.1.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-gtk-5.1.7-1-aarch64.pkg.tar.xz",
+      "sha256": "385425465f3d44fb92d46ffc522b00d96ab31bdb342f94b48a25f946fd140dab"
+    },
+    {
+      "upstream": "fcitx5-hangul",
+      "status": "planned",
+      "package": "fcitx5-hangul",
+      "version": "5.1.11-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-hangul-5.1.11-1-aarch64.pkg.tar.xz",
+      "sha256": "27c2f6b871b1af910162cbbba4fc4b67b2cb380d5ffe29ab035aed4e886c8647"
+    },
+    {
+      "upstream": "fcitx5-mozc",
+      "status": "planned",
+      "package": "fcitx5-mozc",
+      "version": "3.34.6345.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-mozc-3.34.6345.2-1-aarch64.pkg.tar.xz",
+      "sha256": "2d3d297e78be18367d84cce648fe6768f51ac53084bb41b0d3f53fa98731f471"
+    },
+    {
+      "upstream": "fcitx5-qt",
+      "status": "planned",
+      "package": "fcitx5-qt",
+      "version": "5.1.16-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fcitx5-qt-5.1.16-2-aarch64.pkg.tar.xz",
+      "sha256": "d4f5e71d02eef007b6c85d82abcedd3269852a4c6ce8cac25e5de935135f2aff"
+    },
+    {
+      "upstream": "fd",
+      "status": "planned",
+      "package": "fd",
+      "version": "10.5.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fd-10.5.0-3-aarch64.pkg.tar.xz",
+      "sha256": "2bfd85ad6f6331f5537c7afbf3ff18440e2dd71442707e2be1ec4a8bd4787d7d"
+    },
+    {
+      "upstream": "ffmpeg",
+      "status": "planned",
+      "package": "ffmpeg",
+      "version": "2:9.0.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ffmpeg-2:9.0.2-2-aarch64.pkg.tar.xz",
+      "sha256": "086828ab8ceb02bcc94fcaf8cecfe3e78c62f3b7c41026e5b712dff57992c832"
+    },
+    {
+      "upstream": "ffmpegthumbnailer",
+      "status": "planned",
+      "package": "ffmpegthumbnailer",
+      "version": "2.3.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ffmpegthumbnailer-2.3.1-1-aarch64.pkg.tar.xz",
+      "sha256": "1a56f501c889a02601e22bcddf726b91d748355a7a11450832e86c2f1de9d22d"
+    },
+    {
+      "upstream": "fontconfig",
+      "status": "planned",
+      "package": "fontconfig",
+      "version": "2:2.18.3-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fontconfig-2:2.18.3-2-aarch64.pkg.tar.xz",
+      "sha256": "8f3bf0609eb73b15526179357e139441bf1a9a502c3b948f0925e9b1b586129a"
+    },
+    {
+      "upstream": "foot",
+      "status": "planned",
+      "package": "foot",
+      "version": "1.28.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/foot-1.28.0-2-aarch64.pkg.tar.xz",
+      "sha256": "f941e7955c4ac814e99c3f2f91179c64c9de0c8fe26e3ab341e911e8cdbd83b6"
+    },
+    {
+      "upstream": "fzf",
+      "status": "planned",
+      "package": "fzf",
+      "version": "0.74.5-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/fzf-0.74.5-1-aarch64.pkg.tar.xz",
+      "sha256": "aff23702325a7160d08b34f4022790322af47ec8c18d04204a1d27ac361eeb09"
+    },
+    {
+      "upstream": "git",
+      "status": "planned",
+      "package": "git",
+      "version": "2.56.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/git-2.56.0-1-aarch64.pkg.tar.xz",
+      "sha256": "b152a20edb215e98cada4b2dfbd02a9e925bda0b2de6ac1441e9e60b6698d3b5"
+    },
+    {
+      "upstream": "gliff",
+      "status": "planned",
+      "package": "gliff",
+      "version": "0.3.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/gliff-0.3.1-1-aarch64.pkg.tar.zst",
+      "sha256": "7d44d4068d5d23191d213b5b8436f6fdb0866cbc861e4da169f61f06826d6295",
+      "adaptation": "The official edge repository now publishes an ARM64 build despite the pinned source's x86-only list; include it for runtime verification."
+    },
+    {
+      "upstream": "gnome-keyring",
+      "status": "planned",
+      "package": "gnome-keyring",
+      "version": "1:51.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-keyring-1:51.1-1-aarch64.pkg.tar.xz",
+      "sha256": "b452dbe568dbdf7661f9239ec3cf54a157c0f18b750a0f5e4393c5b8ee3dfc22"
+    },
+    {
+      "upstream": "gnome-themes-extra",
+      "status": "planned",
+      "package": "gnome-themes-extra",
+      "version": "1:3.28-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-themes-extra-1:3.28-1-any.pkg.tar.xz",
+      "sha256": "e776b2489af4ace17ba4b343b51892cfbc8babde8e03d5a569b68a0b0e65fd01"
+    },
+    {
+      "upstream": "grim",
+      "status": "planned",
+      "package": "grim",
+      "version": "1.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/grim-1.5.0-2-aarch64.pkg.tar.xz",
+      "sha256": "d4acbdb9a4001587f6edb5f8019908cc8ea3290926862509b445b46286d24b77"
+    },
+    {
+      "upstream": "gpu-screen-recorder",
+      "status": "planned",
+      "package": "gpu-screen-recorder",
+      "version": "6.1.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gpu-screen-recorder-6.1.3-1-aarch64.pkg.tar.xz",
+      "sha256": "020e140ac806bf5adb2a27101177b5c152fb5572f3488f7063c307321423a749"
+    },
+    {
+      "upstream": "gum",
+      "status": "planned",
+      "package": "gum",
+      "version": "2.0.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gum-2.0.2-1-aarch64.pkg.tar.xz",
+      "sha256": "fa8784c1bf3b740fcd68df559fae4ba2ff44cf9008b5b27a1777890118f71322"
+    },
+    {
+      "upstream": "gvfs-mtp",
+      "status": "planned",
+      "package": "gvfs-mtp",
+      "version": "1.62.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gvfs-mtp-1.62.0-3-aarch64.pkg.tar.xz",
+      "sha256": "a7064adaa665cfaac073505e52b0ef748725d78ba8aea177ca35a2235620bb02"
+    },
+    {
+      "upstream": "gvfs-nfs",
+      "status": "planned",
+      "package": "gvfs-nfs",
+      "version": "1.62.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gvfs-nfs-1.62.0-3-aarch64.pkg.tar.xz",
+      "sha256": "df0a1c5b77d44f31d434f94c1faec337c4e6e6b49b677b4eccb8f2908717b617"
+    },
+    {
+      "upstream": "gvfs-smb",
+      "status": "planned",
+      "package": "gvfs-smb",
+      "version": "1.62.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gvfs-smb-1.62.0-3-aarch64.pkg.tar.xz",
+      "sha256": "b7fb590eebb0eabe6466d41dea3066f708a2473c413bf4d459e967799e2e7ed3"
+    },
+    {
+      "upstream": "herdr",
+      "status": "planned",
+      "package": "herdr",
+      "version": "0.9.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/herdr-0.9.1-1-aarch64.pkg.tar.zst",
+      "sha256": "a279e01fe26b85a8628b2f25de91661b4ae2e76e686f6ba88f58de5efc971fc7"
+    },
+    {
+      "upstream": "hype",
+      "status": "planned",
+      "package": "hype",
+      "version": "0.4.3-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/hype-0.4.3-1-aarch64.pkg.tar.zst",
+      "sha256": "395aca4cacc29d9dbd221b9b0c6bff9d26beb98c3cc1fba05c2b697bf8f9d1b8"
+    },
+    {
+      "upstream": "hyprland",
+      "status": "planned",
+      "package": "hyprland",
+      "version": "0.56.2-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hyprland-0.56.2-4-aarch64.pkg.tar.xz",
+      "sha256": "4183f5212200625c278eefbbf70c912f1e8803df7ed99a8a2988beb4f4c74e04"
+    },
+    {
+      "upstream": "hyprland-guiutils",
+      "status": "planned",
+      "package": "hyprland-guiutils",
+      "version": "0.2.2-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hyprland-guiutils-0.2.2-4-aarch64.pkg.tar.xz",
+      "sha256": "cd0aae46488b7948d7d4fb10adca67b00987f93279a0fad3131de01e3c550362"
+    },
+    {
+      "upstream": "hyprland-preview-share-picker",
+      "status": "planned",
+      "package": "hyprland-preview-share-picker",
+      "version": "0.2.1-3",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/hyprland-preview-share-picker-0.2.1-3-aarch64.pkg.tar.zst",
+      "sha256": "ab3202f26a387fa1a0901df81eddf890dcae20765d0e6cadc7dc811019c3be76"
+    },
+    {
+      "upstream": "hyprpicker",
+      "status": "planned",
+      "package": "hyprpicker",
+      "version": "0.4.7-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hyprpicker-0.4.7-4-aarch64.pkg.tar.xz",
+      "sha256": "0a5b8792cd28e91b08f3a37a1b26ca4588c722e0e9d5250effe0f435a793bccf"
+    },
+    {
+      "upstream": "hyprsunset",
+      "status": "planned",
+      "package": "hyprsunset",
+      "version": "0.4.0-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/hyprsunset-0.4.0-3-aarch64.pkg.tar.xz",
+      "sha256": "115707a577a76ed8b0b24e47c3dae86d85faa80c605b7708e798d3ca5b6b9067"
+    },
+    {
+      "upstream": "imagemagick",
+      "status": "planned",
+      "package": "imagemagick",
+      "version": "7.1.2.33-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/imagemagick-7.1.2.33-1-aarch64.pkg.tar.xz",
+      "sha256": "21214104a2f3f25c2501abe08e0c420e92274489183fd4ff613b38f6fa7b5ad3"
+    },
+    {
+      "upstream": "imv",
+      "status": "planned",
+      "package": "imv",
+      "version": "5.0.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/imv-5.0.1-2-aarch64.pkg.tar.xz",
+      "sha256": "4fa4de032dd0bc6cdce9f30db2f182fb5f6d7099a3317639153515aa003a53ee"
+    },
+    {
+      "upstream": "inetutils",
+      "status": "planned",
+      "package": "inetutils",
+      "version": "2.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/inetutils-2.8-1-aarch64.pkg.tar.xz",
+      "sha256": "1a9411fd81582e4ae004ea2fb813742ce9cffd0a93565645c52143b9a2777729"
+    },
+    {
+      "upstream": "inotify-tools",
+      "status": "planned",
+      "package": "inotify-tools",
+      "version": "4.26.270-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/inotify-tools-4.26.270-1-aarch64.pkg.tar.xz",
+      "sha256": "9df157eeb79c0bd43951881e82cefb4f12ff62d51250357fe2badf570bb1aef2"
+    },
+    {
+      "upstream": "inxi",
+      "status": "planned",
+      "package": "inxi",
+      "version": "3.3.41.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/inxi-3.3.41.1-1-any.pkg.tar.xz",
+      "sha256": "9e27869ad78593f9b709d45deff7213cbb21ba8e70f2e8e8b5babca588caaaf5"
+    },
+    {
+      "upstream": "networkmanager",
+      "status": "omitted",
+      "reason": "Requires privileged host network-interface control; Android supplies networking."
+    },
+    {
+      "upstream": "jq",
+      "status": "planned",
+      "package": "jq",
+      "version": "1.8.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/jq-1.8.2-1-aarch64.pkg.tar.xz",
+      "sha256": "a785a170c28f88b03c1190bd8898c4b2f2ca97839d5b277396e86f2cb107041a"
+    },
+    {
+      "upstream": "kernel-modules-hook",
+      "status": "omitted",
+      "reason": "Requires a booted guest kernel and module installation."
+    },
+    {
+      "upstream": "lazygit",
+      "status": "planned",
+      "package": "lazygit",
+      "version": "0.66.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lazygit-0.66.1-1-aarch64.pkg.tar.xz",
+      "sha256": "bf4ca0de1442276c5a5f6885a587187a64ccf9a4431b3780180a3fd35d982b78"
+    },
+    {
+      "upstream": "less",
+      "status": "planned",
+      "package": "less",
+      "version": "1:710-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/less-1:710-1-aarch64.pkg.tar.xz",
+      "sha256": "8e1d4cbecf6d2ae734cfc1c5495367c0a9245f92dfd2bc03d4d0ab14f8b26ff2"
+    },
+    {
+      "upstream": "libsecret",
+      "status": "planned",
+      "package": "libsecret",
+      "version": "0.21.8.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/libsecret-0.21.8.2-1-aarch64.pkg.tar.xz",
+      "sha256": "90006857bbbaa837cf4482dc16cba37bc20df9d7a8d62768716474f9eb031135"
+    },
+    {
+      "upstream": "libvips",
+      "status": "planned",
+      "package": "libvips",
+      "version": "8.18.7-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libvips-8.18.7-1-aarch64.pkg.tar.xz",
+      "sha256": "e8e4eebc1e878409f99a62eb9977149bcd0b76f93f26dfa685c7a05c6d818d9d"
+    },
+    {
+      "upstream": "libyaml",
+      "status": "planned",
+      "package": "libyaml",
+      "version": "0.2.5-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libyaml-0.2.5-3-aarch64.pkg.tar.xz",
+      "sha256": "f96d25c8898b27d3364034336630363bcf48eb968c90d5d5c240e4b237ae153b"
+    },
+    {
+      "upstream": "libreoffice-fresh",
+      "status": "planned",
+      "package": "libreoffice-fresh",
+      "version": "26.8.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/libreoffice-fresh-26.8.1-1-aarch64.pkg.tar.xz",
+      "sha256": "1b4476d2bc6eeffac805dcabcf1857e6f52abc802a0c6ee8c347f0d1a491b8ca"
+    },
+    {
+      "upstream": "localsend",
+      "status": "planned",
+      "package": "localsend",
+      "version": "1.18.2-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/localsend-1.18.2-1-aarch64.pkg.tar.zst",
+      "sha256": "8a41fde552b79e2e269afce3f199af58e4d970ee79bf1fb79075c203d890bd65"
+    },
+    {
+      "upstream": "lua51",
+      "status": "planned",
+      "package": "lua51",
+      "version": "5.1.5-13",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/lua51-5.1.5-13-aarch64.pkg.tar.xz",
+      "sha256": "d0159f00c22560df847bed5a63d323031523ee5c1c8878f10ffae822178b63ed"
+    },
+    {
+      "upstream": "luarocks",
+      "status": "planned",
+      "package": "luarocks",
+      "version": "3.13.0-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/luarocks-3.13.0-5-any.pkg.tar.xz",
+      "sha256": "b71b7a0b6573f165edf5ef0bffa1f50c6e5085f152e5127ca341982a34766c97"
+    },
+    {
+      "upstream": "man-db",
+      "status": "planned",
+      "package": "man-db",
+      "version": "2.13.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/core/man-db-2.13.1-2-aarch64.pkg.tar.xz",
+      "sha256": "67515751f848717e1f6d3470f57ad2ea6900ee07618fd2726b6fcaa695687e80"
+    },
+    {
+      "upstream": "mariadb-libs",
+      "status": "planned",
+      "package": "mariadb-libs",
+      "version": "13.0.2-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mariadb-libs-13.0.2-2-aarch64.pkg.tar.xz",
+      "sha256": "d46dbb2c87e81fa527c0ac06848704ceed0d4a67f15f3677bad94600f5fec5b6"
+    },
+    {
+      "upstream": "mise-bin",
+      "status": "planned",
+      "package": "mise-bin",
+      "version": "2026.10.7-1",
+      "url": "https://pkgs.omarchy.org/stable/aarch64/mise-bin-2026.10.7-1-aarch64.pkg.tar.zst",
+      "sha256": "0d52e72e614e44b9bc9a6923daf705c2fec20273f74bde99d615ce76aad2d650"
+    },
+    {
+      "upstream": "monologue",
+      "status": "planned",
+      "package": "monologue",
+      "version": "0.3.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/monologue-0.3.1-1-aarch64.pkg.tar.zst",
+      "sha256": "2f2de091d69b6e19360218004dff40f08961acac695058276d9dc1cd147cea79"
+    },
+    {
+      "upstream": "moonlight-qt",
+      "status": "planned",
+      "package": "moonlight-qt",
+      "version": "6.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/moonlight-qt-6.2.0-1-aarch64.pkg.tar.xz",
+      "sha256": "6f519618c734bf29ebc84a12fbe74c23e0760201c3ec0b31863dcb27c0f58f6c"
+    },
+    {
+      "upstream": "mpv",
+      "status": "planned",
+      "package": "mpv",
+      "version": "1:0.41.0-6",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mpv-1:0.41.0-6-aarch64.pkg.tar.xz",
+      "sha256": "6c89d00736820210a3c7f32af4cf95d155191d463f9df8bd22137c45f30a554a"
+    },
+    {
+      "upstream": "mpv-mpris",
+      "status": "planned",
+      "package": "mpv-mpris",
+      "version": "1.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/mpv-mpris-1.3-1-aarch64.pkg.tar.xz",
+      "sha256": "a40efa3b9c9114df707eac1596fc096ebe94ace093a851716fbb40a45e131014"
+    },
+    {
+      "upstream": "nautilus",
+      "status": "planned",
+      "package": "nautilus",
+      "version": "51.0.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/nautilus-51.0.1-2-aarch64.pkg.tar.xz",
+      "sha256": "8303f1a895b5c6b01b235557ccdb8bb6f296adf8f180ac2dea883ed63c5e5aa9"
+    },
+    {
+      "upstream": "nautilus-python",
+      "status": "planned",
+      "package": "nautilus-python",
+      "version": "4.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/nautilus-python-4.2.0-1-aarch64.pkg.tar.xz",
+      "sha256": "fe167a30b6870b32e033988f066745afd5c69f291fcb6a95abd970010ed53a2f"
+    },
+    {
+      "upstream": "gnome-disk-utility",
+      "status": "planned",
+      "package": "gnome-disk-utility",
+      "version": "46.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/gnome-disk-utility-46.1-3-aarch64.pkg.tar.xz",
+      "sha256": "2b37efb6e090d5272fec8706321cdfe667ac9166c93c302a597bdf2ce4eef18b"
+    },
+    {
+      "upstream": "noto-fonts",
+      "status": "planned",
+      "package": "noto-fonts",
+      "version": "1:2026.10.01-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/noto-fonts-1:2026.10.01-1-any.pkg.tar.xz",
+      "sha256": "bdc5bc01c4c93c32bf7db68dc83643e95c26b2c2fcb36708a80b3bf33c02ac8c"
+    },
+    {
+      "upstream": "noto-fonts-cjk",
+      "status": "planned",
+      "package": "noto-fonts-cjk",
+      "version": "20240730-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/noto-fonts-cjk-20240730-1-any.pkg.tar.xz",
+      "sha256": "e708a9a6cc94a6a5b8f297b47631e839e4217100cce5a097992e533628eb8f2c"
+    },
+    {
+      "upstream": "noto-fonts-emoji",
+      "status": "planned",
+      "package": "noto-fonts-emoji",
+      "version": "1:2.051-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/noto-fonts-emoji-1:2.051-1-any.pkg.tar.xz",
+      "sha256": "082ff807f21b7dd55538a6b202eea32dc3fd0792ac78d908e30631cc7951e552"
+    },
+    {
+      "upstream": "nss-mdns",
+      "status": "planned",
+      "package": "nss-mdns",
+      "version": "0.15.1-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/nss-mdns-0.15.1-3-aarch64.pkg.tar.xz",
+      "sha256": "6b4a6c59f20d016da5101bcaa6a996dd9308670a4bdf16f7f6aef147648b1f0b"
+    },
+    {
+      "upstream": "nvim",
+      "status": "planned",
+      "package": "neovim",
+      "version": "0.12.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/neovim-0.12.6-1-aarch64.pkg.tar.xz",
+      "sha256": "19d5b20499f038b51d32bd068c34a08238804f7253fa20002103a8d55627260d",
+      "adaptation": "ARM64 package provider: nvim \u2192 neovim."
+    },
+    {
+      "upstream": "obsidian",
+      "status": "planned",
+      "package": "obsidian",
+      "version": "1.14.4-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/obsidian-1.14.4-1-aarch64.pkg.tar.zst",
+      "sha256": "e30ac7cf192647bc5d4b475202429f7ef35c455e52f5b19eae6834dfbc22536d"
+    },
+    {
+      "upstream": "omacalc",
+      "status": "planned",
+      "package": "omacalc",
+      "version": "0.2.2-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omacalc-0.2.2-1-aarch64.pkg.tar.zst",
+      "sha256": "3ca5cf74ea0dce65183219b48cb31b87492ee1835463cb1181ab7d2953b9b24b"
+    },
+    {
+      "upstream": "omacut",
+      "status": "planned",
+      "package": "omacut",
+      "version": "0.4.0-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omacut-0.4.0-1-aarch64.pkg.tar.zst",
+      "sha256": "a7461faa5684abe44c45e0b1f3fd01da00a85da3b12b2546875feab39eae1c1c"
+    },
+    {
+      "upstream": "omawrite",
+      "status": "planned",
+      "package": "omawrite",
+      "version": "0.6.0-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omawrite-0.6.0-2-aarch64.pkg.tar.zst",
+      "sha256": "f133fb4f1a1f3a23c6aafd581da3b4cd04366dacf81070aab034ac6d5b4d2b5a"
+    },
+    {
+      "upstream": "omarchy-nvim",
+      "status": "planned",
+      "package": "omarchy-nvim",
+      "version": "2026.9.21-5",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omarchy-nvim-2026.9.21-5-any.pkg.tar.zst",
+      "sha256": "b46d41973cacfcf2d8be371351336a3f689e2eb7b9bacdb7ca81939354cbcbc9"
+    },
+    {
+      "upstream": "omarchy-hyprland-titlebars",
+      "status": "planned",
+      "package": "omarchy-hyprland-titlebars",
+      "version": "0.2.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omarchy-hyprland-titlebars-0.2.1-1-aarch64.pkg.tar.zst",
+      "sha256": "39d9e43d9c3b62a514b1cf752d61bc7fd6e4ada99d496683842e8812ba90c5d0"
+    },
+    {
+      "upstream": "omasnap",
+      "status": "planned",
+      "package": "omasnap",
+      "version": "1.21.0-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/omasnap-1.21.0-2-aarch64.pkg.tar.zst",
+      "sha256": "658877a450a23409b0bd1a33201c6fd1bca4e22fdc9fe1cd12c58ec0861e450e"
+    },
+    {
+      "upstream": "owe",
+      "status": "planned",
+      "package": "owe",
+      "version": "0.2.10-4",
+      "url": "https://pkgs.omarchy.org/stable/aarch64/owe-0.2.10-4-aarch64.pkg.tar.zst",
+      "sha256": "7640105030827fa68cc29c1bd302af363ae61a08558c807c3b6b33351c5452ea"
+    },
+    {
+      "upstream": "owe-lockfeed",
+      "status": "planned",
+      "package": "owe-lockfeed",
+      "version": "0.2.10-2",
+      "url": "https://pkgs.omarchy.org/stable/aarch64/owe-lockfeed-0.2.10-2-aarch64.pkg.tar.zst",
+      "sha256": "46ab68870e3836d8c374bdb8c352ed38d68da7b6f78f9fdea2cce01bad612bda"
+    },
+    {
+      "upstream": "pacman-contrib",
+      "status": "planned",
+      "package": "pacman-contrib",
+      "version": "1.13.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pacman-contrib-1.13.1-1-aarch64.pkg.tar.xz",
+      "sha256": "7f89d02bae727950f543ec969145212b93abea947675de27280c6978cfe9b946"
+    },
+    {
+      "upstream": "pamixer",
+      "status": "planned",
+      "package": "pamixer",
+      "version": "1.6-3",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/pamixer-1.6-3-aarch64.pkg.tar.xz",
+      "sha256": "b5acc44040cf7b55d32ec3be63139da11167201e544b93f570b807a486ae5486"
+    },
+    {
+      "upstream": "pinta",
+      "status": "planned",
+      "package": "pinta",
+      "version": "3.1.2-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/pinta-3.1.2-1-aarch64.pkg.tar.zst",
+      "sha256": "ebdf1b4de706b67e955027fe5817baf0d5848cf65066ed6102dccbbd2b25892d"
+    },
+    {
+      "upstream": "plocate",
+      "status": "planned",
+      "package": "plocate",
+      "version": "1.1.25-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/plocate-1.1.25-1-aarch64.pkg.tar.xz",
+      "sha256": "37e11fae8899905932d784c16607a95dcd6672de5297190dcb7d23956a220ac9"
+    },
+    {
+      "upstream": "plymouth",
+      "status": "omitted",
+      "reason": "Controls Linux boot screens; Android owns boot and app entry."
+    },
+    {
+      "upstream": "postgresql-libs",
+      "status": "planned",
+      "package": "postgresql-libs",
+      "version": "18.6-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/postgresql-libs-18.6-2-aarch64.pkg.tar.xz",
+      "sha256": "0f49343d7770e2fb407876dce2fba374d801531d18b047345828dc310aebab5b"
+    },
+    {
+      "upstream": "power-profiles-daemon",
+      "status": "omitted",
+      "reason": "Requires privileged host CPU/power controls; Android owns power policy."
+    },
+    {
+      "upstream": "python-gobject",
+      "status": "planned",
+      "package": "python-gobject",
+      "version": "3.58.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-gobject-3.58.1-1-aarch64.pkg.tar.xz",
+      "sha256": "49b8991906522d676aafc7588c6a1760dfe5b2316e3c4168ac8a62ea01bf7d1f"
+    },
+    {
+      "upstream": "python-poetry-core",
+      "status": "planned",
+      "package": "python-poetry-core",
+      "version": "2.5.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/python-poetry-core-2.5.0-1-any.pkg.tar.xz",
+      "sha256": "2be1af178c54937fc9d15ee534d3728c9e96b4b0d38529f5c7bf4fc3d6e5e282"
+    },
+    {
+      "upstream": "qt6-base",
+      "status": "planned",
+      "package": "qt6-base",
+      "version": "6.12.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-base-6.12.0-2-aarch64.pkg.tar.xz",
+      "sha256": "70f2bbce49fa82dee86074a7c96dcc1e43f54a1f82407bb8d855708932323abd"
+    },
+    {
+      "upstream": "qt6-declarative",
+      "status": "planned",
+      "package": "qt6-declarative",
+      "version": "6.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-declarative-6.12.0-1-aarch64.pkg.tar.xz",
+      "sha256": "410a29bc88fb004f4c1b5c8d2b08bf6d2d27c5028ebd13447e7ff67134c94940"
+    },
+    {
+      "upstream": "qt6-multimedia",
+      "status": "planned",
+      "package": "qt6-multimedia",
+      "version": "6.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-multimedia-6.12.0-1-aarch64.pkg.tar.xz",
+      "sha256": "e6b090815abc7777b2949ba5dcaa2e6eca5f3ef265fa8bf2fd33ff7e94701338"
+    },
+    {
+      "upstream": "qt6-svg",
+      "status": "planned",
+      "package": "qt6-svg",
+      "version": "6.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-svg-6.12.0-1-aarch64.pkg.tar.xz",
+      "sha256": "cd03acc2075a19cbfae8ae982954fcc92846855cb9e30ed04e90523f7fcc7cb3"
+    },
+    {
+      "upstream": "qt6-wayland",
+      "status": "planned",
+      "package": "qt6-wayland",
+      "version": "6.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-wayland-6.12.0-1-aarch64.pkg.tar.xz",
+      "sha256": "37d8367518085adb00ccd533363e7a58310c6810fc97ca622270ef770dccdf2f"
+    },
+    {
+      "upstream": "ttfx",
+      "status": "planned",
+      "package": "ttfx",
+      "version": "0.5.0-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/ttfx-0.5.0-2-aarch64.pkg.tar.zst",
+      "sha256": "c2757bd5d810849338e88799a24b911417686325b6fc2c86adadabdfea3b4442"
+    },
+    {
+      "upstream": "qemu-user-static-binfmt",
+      "status": "omitted",
+      "reason": "Registers foreign executables through privileged kernel binfmt_misc."
+    },
+    {
+      "upstream": "qrencode",
+      "status": "planned",
+      "package": "qrencode",
+      "version": "4.1.1-4",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qrencode-4.1.1-4-aarch64.pkg.tar.xz",
+      "sha256": "dd4fdce79fc61dd0271714c5e2cac90bc4967121556fa4af132ee835f097713a"
+    },
+    {
+      "upstream": "qt6-imageformats",
+      "status": "planned",
+      "package": "qt6-imageformats",
+      "version": "6.12.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/qt6-imageformats-6.12.0-1-aarch64.pkg.tar.xz",
+      "sha256": "666f6c18c62b9a2787423ecc179cfa1ccaf6e322c9dab3cb8650d38fd1f910cd"
+    },
+    {
+      "upstream": "quickshell",
+      "status": "planned",
+      "package": "quickshell",
+      "version": "0.3.2-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/quickshell-0.3.2-1-aarch64.pkg.tar.xz",
+      "sha256": "c4205ee12a1121470bddf81ea249450e74a94493dc503d4a790403897cd5ed6a"
+    },
+    {
+      "upstream": "ripgrep",
+      "status": "planned",
+      "package": "ripgrep",
+      "version": "15.2.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ripgrep-15.2.0-1-aarch64.pkg.tar.xz",
+      "sha256": "458f1c725cc64502616bfeed1d795cbce4f5479321b06d4b8fd91fa3b125b628"
+    },
+    {
+      "upstream": "ruby",
+      "status": "planned",
+      "package": "ruby",
+      "version": "3.4.10-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/ruby-3.4.10-1-aarch64.pkg.tar.xz",
+      "sha256": "f4dfaecadb625c52d390fcf0ddfb42c3b26c00151bf8016cc711d2973d8b5bbc"
+    },
+    {
+      "upstream": "sddm",
+      "status": "omitted",
+      "reason": "Requires a privileged Linux login/display manager; Android owns app entry."
+    },
+    {
+      "upstream": "signed",
+      "status": "planned",
+      "package": "signed",
+      "version": "0.1.0-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/signed-0.1.0-1-aarch64.pkg.tar.zst",
+      "sha256": "89418a7549675fe322e3862492a80ca863997efe54102d187ee8a951611f970b"
+    },
+    {
+      "upstream": "slurp",
+      "status": "planned",
+      "package": "slurp",
+      "version": "1.5.0-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/slurp-1.5.0-2-aarch64.pkg.tar.xz",
+      "sha256": "5e7e6703e417e21150a66bae292bf66a6b4a76a8b08e4c7ab7622fd9c26cda50"
+    },
+    {
+      "upstream": "socat",
+      "status": "planned",
+      "package": "socat",
+      "version": "1.8.1.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/socat-1.8.1.3-1-aarch64.pkg.tar.xz",
+      "sha256": "04da7ec6343f3497629e3774fe8ede99b06003ec319cae01c32348d17c839747"
+    },
+    {
+      "upstream": "starship",
+      "status": "planned",
+      "package": "starship",
+      "version": "1.26.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/starship-1.26.0-1-aarch64.pkg.tar.xz",
+      "sha256": "66fb3d33fe8517c67f5b8890ed09a10f321b9ff9e1cc8c833335d52422a28584"
+    },
+    {
+      "upstream": "superwhisper-bin",
+      "status": "omitted",
+      "reason": "Omitted by upstream's aarch64 package profile."
+    },
+    {
+      "upstream": "sushi",
+      "status": "planned",
+      "package": "sushi",
+      "version": "50.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/sushi-50.0-1-aarch64.pkg.tar.xz",
+      "sha256": "88d037c11853cee64f5fede01fe3a06dff055c553034715666a5770008f84619"
+    },
+    {
+      "upstream": "system-config-printer",
+      "status": "planned",
+      "package": "system-config-printer",
+      "version": "1.5.18-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/system-config-printer-1.5.18-7-aarch64.pkg.tar.xz",
+      "sha256": "c99c6b8dfbcf2257cb1a362a78b46d6165cbfe8bcf968ecdea0ab0981ef87565"
+    },
+    {
+      "upstream": "tesseract",
+      "status": "planned",
+      "package": "tesseract",
+      "version": "5.5.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tesseract-5.5.3-1-aarch64.pkg.tar.xz",
+      "sha256": "01c5b92363e92a1110123d49f166328ea15ffc2f05aa4d6152aee078986e0770"
+    },
+    {
+      "upstream": "tesseract-data-eng",
+      "status": "planned",
+      "package": "tesseract-data-eng",
+      "version": "2:4.1.0-5",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tesseract-data-eng-2:4.1.0-5-any.pkg.tar.xz",
+      "sha256": "59b243e4d0400d10d1ebca4e065e2d62e8409e7ca9e29fcccf9577d42b5c23f4"
+    },
+    {
+      "upstream": "tldr",
+      "status": "planned",
+      "package": "tldr",
+      "version": "3.4.4-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tldr-3.4.4-1-any.pkg.tar.xz",
+      "sha256": "bc1015b843eaa3e750b585ca76e602796a630604ea2be2c2e38fdcb0b8a66748"
+    },
+    {
+      "upstream": "tree-sitter-cli",
+      "status": "planned",
+      "package": "tree-sitter-cli",
+      "version": "0.26.9-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tree-sitter-cli-0.26.9-1-aarch64.pkg.tar.xz",
+      "sha256": "757d04113b1c7713760ae0cd45ad7c30d5d8e618cda7d961a3cdec15564c5c46"
+    },
+    {
+      "upstream": "tmux",
+      "status": "planned",
+      "package": "tmux",
+      "version": "3.8-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/tmux-3.8-1-aarch64.pkg.tar.xz",
+      "sha256": "165e5e3996851f106ba8748c031b77bf858b6735e2f06530de1e8b08a89d99e7"
+    },
+    {
+      "upstream": "tobi-try",
+      "status": "planned",
+      "package": "tobi-try",
+      "version": "1.10.1-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/tobi-try-1.10.1-2-any.pkg.tar.zst",
+      "sha256": "73f15a5486c8b83f23e227c086ae748c9dae2931b696413d8f459d3ac4ecc81b"
+    },
+    {
+      "upstream": "ttf-ia-writer",
+      "status": "planned",
+      "package": "ttf-ia-writer",
+      "version": "20261002.r63-2",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/ttf-ia-writer-20261002.r63-2-any.pkg.tar.zst",
+      "sha256": "31380fad2d00361c923462bd13042ff2a4671249c3679cca049d7005a9b74a6f"
+    },
+    {
+      "upstream": "ttf-jetbrains-mono-nerd-basic",
+      "status": "planned",
+      "package": "ttf-jetbrains-mono-nerd-basic",
+      "version": "3.5.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/ttf-jetbrains-mono-nerd-basic-3.5.1-1-any.pkg.tar.zst",
+      "sha256": "99070b6ef240303d55f4af175d27b34b36b154480b39dd43b02abd1b710b8553"
+    },
+    {
+      "upstream": "tzupdate",
+      "status": "planned",
+      "package": "tzupdate",
+      "version": "3.1.0-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/tzupdate-3.1.0-1-aarch64.pkg.tar.zst",
+      "sha256": "1831268a649a0633a6853bc2cc9702963dc8df7b341d2ccde3d69c5eeae1e07b"
+    },
+    {
+      "upstream": "udiskie",
+      "status": "omitted",
+      "reason": "Requires host block devices and privileged mount operations."
+    },
+    {
+      "upstream": "ufw",
+      "status": "omitted",
+      "reason": "Requires privileged host netfilter access; Android owns the firewall."
+    },
+    {
+      "upstream": "ufw-docker",
+      "status": "omitted",
+      "reason": "Requires privileged host netfilter access."
+    },
+    {
+      "upstream": "unzip",
+      "status": "planned",
+      "package": "unzip",
+      "version": "6.0-23",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/unzip-6.0-23-aarch64.pkg.tar.xz",
+      "sha256": "edc91c7e4e400f20345439744262d1ceded104c78d940659a6b9876076ef33fc"
+    },
+    {
+      "upstream": "usbguard",
+      "status": "omitted",
+      "reason": "Requires host USB device authorization."
+    },
+    {
+      "upstream": "usage",
+      "status": "planned",
+      "package": "usage",
+      "version": "6.12.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/usage-6.12.1-1-aarch64.pkg.tar.xz",
+      "sha256": "a43e45f4180bb9825a3e940671ebbc487f5ad5bbbf2b0d084d489e03011e7f94"
+    },
+    {
+      "upstream": "uwsm",
+      "status": "omitted",
+      "reason": "Requires a systemd user session; Android directly owns the compositor session."
+    },
+    {
+      "upstream": "vi",
+      "status": "planned",
+      "package": "vim",
+      "version": "9.2.1164-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/vim-9.2.1164-2-aarch64.pkg.tar.xz",
+      "sha256": "d4f857559e5f0af1cd5a9603d31437ddc8fe35957c11bc6b8670b9a58a80ea73",
+      "adaptation": "ARM64 package provider: vi \u2192 vim."
+    },
+    {
+      "upstream": "whois",
+      "status": "planned",
+      "package": "whois",
+      "version": "5.6.6-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/whois-5.6.6-1-aarch64.pkg.tar.xz",
+      "sha256": "6adbfbba76b1f1adebcd31b94ade38db1add859dbc697cbd0a0f1a56af14ce2c"
+    },
+    {
+      "upstream": "wireless-regdb",
+      "status": "omitted",
+      "reason": "Configures the host Wi-Fi kernel; Android owns Wi-Fi."
+    },
+    {
+      "upstream": "wireplumber",
+      "status": "planned",
+      "package": "wireplumber",
+      "version": "0.5.18-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wireplumber-0.5.18-1-aarch64.pkg.tar.xz",
+      "sha256": "2410813c8b3eba26598b90b260171ac884af59f8dc1441112eee80f1873b628b"
+    },
+    {
+      "upstream": "wl-clipboard",
+      "status": "planned",
+      "package": "wl-clipboard",
+      "version": "1:2.3.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wl-clipboard-1:2.3.0-1-aarch64.pkg.tar.xz",
+      "sha256": "723a63b140e00085a533ebb1ec36fa9305b5e6cbd8fb80c0521fbeff77a72982"
+    },
+    {
+      "upstream": "wtype",
+      "status": "planned",
+      "package": "wtype",
+      "version": "0.4-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/wtype-0.4-2-aarch64.pkg.tar.xz",
+      "sha256": "ceb69e175f46786e6e86d3b947eb482a150c19f3d68822b8b77b5dc02d470f79"
+    },
+    {
+      "upstream": "woff2-font-awesome",
+      "status": "planned",
+      "package": "woff2-font-awesome",
+      "version": "7.3.1-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/woff2-font-awesome-7.3.1-1-any.pkg.tar.xz",
+      "sha256": "6f491cad5b344b490315ce5a0e0eb409fc7e8f0a3066f9fbb73cd67968b26e65"
+    },
+    {
+      "upstream": "xdg-desktop-portal-gtk",
+      "status": "planned",
+      "package": "xdg-desktop-portal-gtk",
+      "version": "1.15.3-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-desktop-portal-gtk-1.15.3-1-aarch64.pkg.tar.xz",
+      "sha256": "67dc11eed1288b37ff3afdf8ed590f2ac4ec75ad3fb740f4984d93fd3c0628a7"
+    },
+    {
+      "upstream": "xdg-desktop-portal-hyprland",
+      "status": "planned",
+      "package": "xdg-desktop-portal-hyprland",
+      "version": "1.4.1-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-desktop-portal-hyprland-1.4.1-2-aarch64.pkg.tar.xz",
+      "sha256": "afbe5116a25a58093d72f20640ad81a10140e363f7caedd300d110e9232ab006"
+    },
+    {
+      "upstream": "xdg-terminal-exec",
+      "status": "planned",
+      "package": "xdg-terminal-exec",
+      "version": "0.14.3-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/xdg-terminal-exec-0.14.3-2-any.pkg.tar.xz",
+      "sha256": "338bca705f0d68da8f9718c53872cf2b7c032cccfae1dcbed435c315eb42c4cf"
+    },
+    {
+      "upstream": "yaru-icon-theme",
+      "status": "planned",
+      "package": "yaru-icon-theme",
+      "version": "26.04.5.1ubuntu-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/yaru-icon-theme-26.04.5.1ubuntu-1-any.pkg.tar.zst",
+      "sha256": "679b7ab464e86424ebd3c2b4ef6d09531f18583c0b0ba62252193ff05e19796a"
+    },
+    {
+      "upstream": "yay",
+      "status": "planned",
+      "package": "yay",
+      "version": "13.0.1-1",
+      "url": "https://pkgs.omarchy.org/edge/aarch64/yay-13.0.1-1-aarch64.pkg.tar.zst",
+      "sha256": "4b946395bf2dbf6462acb986c3dded67cb86bbeee6a44dbe9161aaac88b8fa9f"
+    },
+    {
+      "upstream": "yt-dlp",
+      "status": "planned",
+      "package": "yt-dlp",
+      "version": "2025.12.08-2",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/yt-dlp-2025.12.08-2-any.pkg.tar.xz",
+      "sha256": "f966248f6e698a49cb30be5276f3dcb00e66f63e4662f6e127dbafb93ccef1b0"
+    },
+    {
+      "upstream": "zbar",
+      "status": "planned",
+      "package": "zbar",
+      "version": "0.23.93-7",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zbar-0.23.93-7-aarch64.pkg.tar.xz",
+      "sha256": "148431961613de6fe63a5dc744674cab6c829d07080fa4b0986a1f974a71f334"
+    },
+    {
+      "upstream": "zoxide",
+      "status": "planned",
+      "package": "zoxide",
+      "version": "0.10.0-1",
+      "url": "https://ca.us.mirror.archlinuxarm.org/aarch64/extra/zoxide-0.10.0-1-aarch64.pkg.tar.xz",
+      "sha256": "fbc929938564d0973942b0144b2bcbc7bd8f9a4f5ac23bb37f039e2006469ee7"
+    },
+    {
+      "upstream": "zram-generator",
+      "status": "omitted",
+      "reason": "Requires a booted guest kernel, zram devices and privileged swap setup."
+    }
+  ],
+  "hostPackages": [
+    "filesystem",
+    "glibc",
+    "bash",
+    "coreutils",
+    "util-linux",
+    "ca-certificates",
+    "dbus",
+    "mesa",
+    "libglvnd",
+    "openssh",
+    "pipewire",
+    "pipewire-alsa",
+    "pipewire-pulse"
+  ],
+  "dependencyProviders": {
+    "libgl": "libglvnd",
+    "libegl": "libglvnd",
+    "libgles": "libglvnd",
+    "libjack.so": "pipewire-jack",
+    "jack": "pipewire-jack",
+    "dotnet-host": "dotnet-host-bin",
+    "qt6-multimedia-backend": "qt6-multimedia-ffmpeg",
+    "libxtables.so": "iptables"
+  }
+}

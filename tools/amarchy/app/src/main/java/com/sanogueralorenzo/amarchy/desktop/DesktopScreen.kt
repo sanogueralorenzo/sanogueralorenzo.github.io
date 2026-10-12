@@ -2,8 +2,10 @@ package com.sanogueralorenzo.amarchy.desktop
 
 import android.content.Context
 import android.content.ClipboardManager
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
 import android.view.SurfaceHolder
 import android.view.WindowInsets
@@ -14,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import com.sanogueralorenzo.amarchy.session.Phase
 import com.sanogueralorenzo.amarchy.session.WorkspaceController
 import com.sanogueralorenzo.amarchy.session.WorkspaceState
@@ -26,6 +29,14 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
         addView(TextView(context).apply { text = "Opening your desktop…"; textSize = 16f; gravity = Gravity.CENTER; setTextColor(Color.rgb(184, 238, 162)); setPadding(0, dp(18), 0, 0) })
     }
     private val toolbar = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setBackgroundColor(Color.rgb(20, 27, 21)); setPadding(dp(8), 0, dp(8), 0) }
+    private var keyboardVisible = false
+    private var lastDetail = ""
+    private val keyboardButton = action("Keyboard") {
+        if (keyboardVisible) hideKeyboard() else {
+            surface.requestFocus()
+            context.getSystemService(InputMethodManager::class.java).showSoftInput(surface, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
     init {
         orientation = VERTICAL; setBackgroundColor(Color.BLACK)
         val frame = FrameLayout(context)
@@ -38,16 +49,24 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
             text = "amarchy"; setTextColor(Color.rgb(184, 238, 162)); textSize = 15f; gravity = Gravity.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }, LayoutParams(0, -1, 1f))
-        toolbar.addView(action("Keyboard") { surface.requestFocus(); context.getSystemService(InputMethodManager::class.java).showSoftInput(surface, InputMethodManager.SHOW_IMPLICIT) })
+        toolbar.addView(keyboardButton)
         toolbar.addView(action("Keys") { anchor -> shortcuts(anchor) })
         surface.holder.addCallback(this)
         setOnApplyWindowInsetsListener { _, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
             val keyboard = insets.getInsets(WindowInsets.Type.ime())
+            keyboardVisible = insets.isVisible(WindowInsets.Type.ime())
+            keyboardButton.text = if (keyboardVisible) "Hide keyboard" else "Keyboard"
+            keyboardButton.contentDescription = keyboardButton.text
             setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, keyboard.bottom)); insets
         }
     }
     fun render(state: WorkspaceState) {
+        if (state.phase == Phase.RUNNING && state.detail != lastDetail && state.detail != "Your desktop is open") {
+            Toast.makeText(context, state.detail, Toast.LENGTH_SHORT).show()
+            announceForAccessibility(state.detail)
+        }
+        lastDetail = state.detail
         loading.visibility = if (state.phase == Phase.RUNNING) GONE else VISIBLE
         for (index in 0 until toolbar.childCount) {
             val child = toolbar.getChildAt(index)
@@ -57,10 +76,13 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
     }
     fun hideKeyboard() { context.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(surface.windowToken, 0) }
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { workspace.attach(holder.surface) }
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        workspace.attach(holder.surface, surface.bufferWidth, surface.bufferHeight)
+    }
     override fun surfaceDestroyed(holder: SurfaceHolder) { workspace.attach(null) }
     private fun action(label: String, click: (Button) -> Unit) = Button(context).apply {
-        text = label; isAllCaps = false; textSize = 13f; setTextColor(Color.rgb(210, 223, 204)); setBackgroundColor(Color.TRANSPARENT)
+        text = label; isAllCaps = false; textSize = 13f; setTextColor(Color.rgb(210, 223, 204))
+        background = RippleDrawable(ColorStateList.valueOf(Color.rgb(57, 73, 52)), null, null)
         minHeight = dp(48); minimumWidth = dp(56); setPadding(dp(12), 0, dp(12), 0); setOnClickListener { click(this) }
         contentDescription = label
     }
@@ -74,6 +96,8 @@ internal class DesktopScreen(context: Context, private val workspace: WorkspaceC
     }
     private fun shortcuts(anchor: Button) {
         val entries = linkedMapOf("Escape" to intArrayOf(1), "Tab" to intArrayOf(15), "Ctrl+C" to intArrayOf(29, 46),
+            "Enter" to intArrayOf(28), "Arrow up" to intArrayOf(103), "Arrow down" to intArrayOf(108),
+            "Next window" to intArrayOf(56, 15), "Full screen / tiled" to intArrayOf(125, 33),
             "New terminal" to intArrayOf(125, 28), "Close window" to intArrayOf(125, 16),
             "Workspace 1" to intArrayOf(125, 2), "Workspace 2" to intArrayOf(125, 3))
         PopupMenu(context, anchor).apply {

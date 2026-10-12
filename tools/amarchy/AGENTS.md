@@ -2,7 +2,8 @@
 
 Follow the repository's top-level `AGENTS.md`.
 
-- Build a polished Android home for an Android-adapted ARM64 Omarchy desktop. One primary action should prepare the environment and enter it; subsequent opens should reuse the installation and running session.
+- Build a polished Android host for the most complete practical upstream ARM64 Omarchy desktop. Bundle upstream packages, applications, shell, menus, themes and defaults wherever compatible. Derive the package profile from pinned upstream lists, with explicit reasons for every adaptation or omission.
+- Keep custom code focused on Android integration: graphics, touch, keyboard, audio, clipboard and session lifecycle. Prefer small, auditable adaptations; remove custom desktop replacements as upstream functionality becomes usable. One primary action should prepare the environment and enter it; subsequent opens should reuse the installation and running session.
 - Keep Android 16+ and ARM64 as the initial baseline. Use the Android emulator for frontend, Linux execution, installation, recovery, and display experiments. Do not equate an emulator screenshot or Linux process with a working Omarchy desktop.
 - Keep entry points thin and organize cohesive responsibilities by feature. Reuse proven Android Steam infrastructure without importing its Steam, Proton, authentication, or game-control features. Avoid speculative frameworks and compatibility paths.
 - Give installation and desktop processes explicit ownership, cancellation, failure recovery, and reliable cleanup. Preserve the user's home across runtime replacement.

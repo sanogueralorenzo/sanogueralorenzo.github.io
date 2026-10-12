@@ -16,6 +16,7 @@ struct amarchy_display {
     pthread_t thread;
     int stop_fd, format_fd;
     atomic_bool stopping;
+    atomic_uint_fast64_t viewport;
     pthread_mutex_t window_mutex;
     ANativeWindow *window;
     struct amarchy_input *input;
@@ -32,11 +33,13 @@ struct amarchy_surface {
     struct wl_resource *resource, *pending, *xdg, *toplevel;
     struct wl_listener pending_destroy;
     struct wl_list frames;
+    struct wl_array configures;
     bool configured, cursor;
     uint32_t serial;
 };
 struct amarchy_display *amarchy_start(const char *socket, ANativeWindow *window, int refresh);
 void amarchy_stop(struct amarchy_display *display);
+void amarchy_resize(struct amarchy_display *display, int width, int height);
 bool amarchy_attach(struct amarchy_display *display, ANativeWindow *window);
 bool amarchy_present(struct amarchy_display *display, const uint8_t *pixels, int width, int height, int stride, bool opaque);
 bool amarchy_present_buffer(struct amarchy_display *display, struct wl_resource *buffer);

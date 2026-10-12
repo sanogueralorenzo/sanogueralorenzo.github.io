@@ -83,6 +83,7 @@ static void surface_destroyed(struct wl_resource *resource) {
     if (surface->toplevel) wl_resource_set_user_data(surface->toplevel, NULL);
     struct frame_callback *callback, *next;
     wl_list_for_each_safe(callback, next, &surface->frames, link) wl_resource_destroy(callback->resource);
+    wl_array_release(&surface->configures);
     wl_list_remove(&surface->link); free(surface);
 }
 static void create_surface(struct wl_client *client, struct wl_resource *resource, uint32_t id) {
@@ -92,6 +93,7 @@ static void create_surface(struct wl_client *client, struct wl_resource *resourc
     surface->resource = wl_resource_create(client, &wl_surface_interface, wl_resource_get_version(resource), id);
     if (!surface->resource) { free(surface); wl_client_post_no_memory(client); return; }
     surface->display = display; surface->pending_destroy.notify = buffer_gone;
+    wl_array_init(&surface->configures);
     wl_list_init(&surface->pending_destroy.link); wl_list_init(&surface->frames);
     wl_list_insert(&display->surfaces, &surface->link);
     wl_resource_set_implementation(surface->resource, &surface_impl, surface, surface_destroyed);

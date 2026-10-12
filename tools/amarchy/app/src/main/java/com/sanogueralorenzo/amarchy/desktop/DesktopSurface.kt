@@ -18,6 +18,10 @@ internal class DesktopSurface(context: Context, private val workspace: Workspace
     private val held = mutableSetOf<Int>()
     private var scrolling = false
     private var lastY = 0f
+    var bufferWidth = 1284
+        private set
+    var bufferHeight = 720
+        private set
     init {
         isFocusable = true; isFocusableInTouchMode = true
         contentDescription = "Omarchy desktop"
@@ -26,8 +30,17 @@ internal class DesktopSurface(context: Context, private val workspace: Workspace
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val height = MeasureSpec.getSize(heightMeasureSpec)
-        val fittedWidth = minOf(width, height * 16 / 9)
-        setMeasuredDimension(fittedWidth, fittedWidth * 9 / 16)
+        if (width > 0 && height > 0) {
+            // Both dimensions must divide cleanly by the desktop's 1.5 scale.
+            // Otherwise Hyprland silently selects another scale during resize.
+            val nextHeight = ((bufferWidth.toLong() * height / width / 6) * 6).toInt().coerceIn(120, 1596)
+            if (nextHeight != bufferHeight) bufferHeight = nextHeight
+        }
+        setMeasuredDimension(width, height)
+    }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        workspace.resize(bufferWidth, bufferHeight)
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.isFromSource(InputDevice.SOURCE_MOUSE)) return mouse(event)

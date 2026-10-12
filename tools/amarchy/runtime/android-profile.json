@@ -1,0 +1,46 @@
+{
+  "omitted": {
+    "asdcontrol": "Requires direct ALSA speaker devices; Android owns audio hardware.",
+    "bluez": "Requires privileged Bluetooth/HCI device access; Android owns Bluetooth.",
+    "bluez-tools": "Controls BlueZ devices unavailable to this unrooted Android session.",
+    "bluez-utils": "Controls BlueZ devices unavailable to this unrooted Android session.",
+    "bolt": "Requires host Thunderbolt device authorization.",
+    "brightnessctl": "Requires writable host backlight devices; Android owns brightness.",
+    "ddcutil": "Requires direct I2C display-device access.",
+    "kernel-modules-hook": "Requires a booted guest kernel and module installation.",
+    "networkmanager": "Requires privileged host network-interface control; Android supplies networking.",
+    "plymouth": "Controls Linux boot screens; Android owns boot and app entry.",
+    "power-profiles-daemon": "Requires privileged host CPU/power controls; Android owns power policy.",
+    "qemu-user-static-binfmt": "Registers foreign executables through privileged kernel binfmt_misc.",
+    "sddm": "Requires a privileged Linux login/display manager; Android owns app entry.",
+    "udiskie": "Requires host block devices and privileged mount operations.",
+    "ufw": "Requires privileged host netfilter access; Android owns the firewall.",
+    "ufw-docker": "Requires privileged host netfilter access.",
+    "usbguard": "Requires host USB device authorization.",
+    "uwsm": "Requires a systemd user session; Android directly owns the compositor session.",
+    "wireless-regdb": "Configures the host Wi-Fi kernel; Android owns Wi-Fi.",
+    "zram-generator": "Requires a booted guest kernel, zram devices and privileged swap setup."
+  },
+  "providers": {
+    "dotnet-runtime": "dotnet-runtime-bin",
+    "nvim": "neovim",
+    "vi": "vim"
+  },
+  "architectureOverrides": {
+    "gliff": "The official edge repository now publishes an ARM64 build despite the pinned source's x86-only list; include it for runtime verification."
+  },
+  "dependencyProviders": {
+    "libgl": "libglvnd",
+    "libegl": "libglvnd",
+    "libgles": "libglvnd",
+    "libjack.so": "pipewire-jack",
+    "jack": "pipewire-jack",
+    "dotnet-host": "dotnet-host-bin",
+    "qt6-multimedia-backend": "qt6-multimedia-ffmpeg",
+    "libxtables.so": "iptables"
+  },
+  "hostPackages": [
+    "filesystem", "glibc", "bash", "coreutils", "util-linux", "ca-certificates",
+    "dbus", "mesa", "libglvnd", "openssh", "pipewire", "pipewire-alsa", "pipewire-pulse"
+  ]
+}

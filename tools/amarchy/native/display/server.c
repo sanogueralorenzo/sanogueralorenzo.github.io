@@ -12,6 +12,18 @@ static int stop_event(int fd, uint32_t mask, void *data) {
     if (count != sizeof(value)) return 0;
     if (atomic_load(&display->stopping)) wl_display_terminate(display->wayland);
     else {
+        uint64_t viewport = atomic_load(&display->viewport);
+        int width = viewport >> 32, height = viewport & UINT32_MAX;
+        if (width != display->width || height != display->height) {
+            display->width = width; display->height = height;
+            struct wl_resource *output;
+            wl_resource_for_each(output, &display->outputs) {
+                wl_output_send_mode(output, WL_OUTPUT_MODE_CURRENT | WL_OUTPUT_MODE_PREFERRED, width, height, display->refresh);
+                if (wl_resource_get_version(output) >= 2) wl_output_send_done(output);
+            }
+            struct amarchy_surface *surface;
+            wl_list_for_each(surface, &display->surfaces, link) if (surface->configured) amarchy_configure(surface);
+        }
         // Reattachment wakes clients whose frame callbacks were held while hidden.
         pthread_mutex_lock(&display->window_mutex);
         if (display->window) {
@@ -38,6 +50,7 @@ struct amarchy_display *amarchy_start(const char *socket, ANativeWindow *window,
     display->window = window;
     display->width = ANativeWindow_getWidth(window);
     display->height = ANativeWindow_getHeight(window);
+    atomic_init(&display->viewport, ((uint64_t)display->width << 32) | (uint32_t)display->height);
     display->refresh = refresh;
     wl_list_init(&display->surfaces);
     wl_list_init(&display->outputs);
@@ -67,6 +80,13 @@ failed:
     free(display);
     errno = error;
     return NULL;
+}
+void amarchy_resize(struct amarchy_display *display, int width, int height) {
+    if (width < 1 || height < 1 || width > 4096 || height > 4096) return;
+    atomic_store(&display->viewport, ((uint64_t)width << 32) | (uint32_t)height);
+    const uint64_t value = 1;
+    ssize_t count;
+    do { count = write(display->stop_fd, &value, sizeof(value)); } while (count < 0 && errno == EINTR);
 }
 void amarchy_stop(struct amarchy_display *display) {
     atomic_store(&display->stopping, true);

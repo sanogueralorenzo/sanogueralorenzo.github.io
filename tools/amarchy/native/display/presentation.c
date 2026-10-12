@@ -10,11 +10,15 @@ static bool post_frame(struct amarchy_display *display) {
     int width = display->last_width, height = display->last_height;
     ANativeWindow_Buffer destination;
     bool posted = false;
-    if (ANativeWindow_setBuffersGeometry(window, width, height, WINDOW_FORMAT_RGBA_8888) == 0 &&
+    // Keep SurfaceView's fixed canvas geometry. Changing it from the producer
+    // desynchronizes Android's layer crop during IME/layout transitions.
+    if (ANativeWindow_setBuffersGeometry(window, 0, 0, WINDOW_FORMAT_RGBA_8888) == 0 &&
         ANativeWindow_lock(window, &destination, NULL) == 0) {
-        for (int y = 0; y < height; y++) {
+        for (int y = 0; y < destination.height; y++) {
             uint32_t *out = (uint32_t *)destination.bits + (size_t)y * destination.stride;
-            memcpy(out, display->last_frame + (size_t)y * width, width * sizeof(uint32_t));
+            const uint32_t *source = display->last_frame + (size_t)((int64_t)y * height / destination.height) * width;
+            if (width == destination.width) memcpy(out, source, width * sizeof(uint32_t));
+            else for (int x = 0; x < destination.width; x++) out[x] = source[(int64_t)x * width / destination.width];
         }
         posted = ANativeWindow_unlockAndPost(window) == 0;
     }

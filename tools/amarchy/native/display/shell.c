@@ -1,4 +1,5 @@
 #include "display.h"
+#include <string.h>
 
 static void destroy_request(struct wl_client *client, struct wl_resource *resource) { wl_resource_destroy(resource); }
 static void label(struct wl_client *client, struct wl_resource *resource, const char *text) { }
@@ -16,6 +17,9 @@ void amarchy_configure(struct amarchy_surface *surface) {
     if (active) *active = XDG_TOPLEVEL_STATE_ACTIVATED;
     xdg_toplevel_send_configure(surface->toplevel, surface->display->width, surface->display->height, &states);
     surface->serial = wl_display_next_serial(surface->display->wayland);
+    uint32_t *serial = wl_array_add(&surface->configures, sizeof(*serial));
+    if (!serial) { wl_client_post_no_memory(wl_resource_get_client(surface->xdg)); wl_array_release(&states); return; }
+    *serial = surface->serial;
     xdg_surface_send_configure(surface->xdg, surface->serial);
     wl_array_release(&states);
 }
@@ -61,13 +65,22 @@ static void geometry(struct wl_client *c, struct wl_resource *r, int32_t x, int3
 }
 static void acknowledge(struct wl_client *client, struct wl_resource *resource, uint32_t serial) {
     struct amarchy_surface *surface = wl_resource_get_user_data(resource);
-    if (!surface || serial != surface->serial) { wl_resource_post_error(resource, XDG_SURFACE_ERROR_INVALID_SERIAL, "Unknown configure serial"); return; }
-    surface->configured = true;
+    if (surface) {
+        uint32_t *pending;
+        wl_array_for_each(pending, &surface->configures) if (*pending == serial) {
+            size_t consumed = (char *)(pending + 1) - (char *)surface->configures.data;
+            surface->configures.size -= consumed;
+            memmove(surface->configures.data, pending + 1, surface->configures.size);
+            surface->configured = true;
+            return;
+        }
+    }
+    wl_resource_post_error(resource, XDG_SURFACE_ERROR_INVALID_SERIAL, "Unknown configure serial");
 }
 static void xdg_destroyed(struct wl_resource *resource) {
     struct amarchy_surface *surface = wl_resource_get_user_data(resource);
     // A new shell role on this wl_surface needs its own initial configure.
-    if (surface) { surface->xdg = NULL; surface->configured = false; surface->serial = 0; }
+    if (surface) { surface->xdg = NULL; surface->configured = false; surface->serial = 0; surface->configures.size = 0; }
 }
 static const struct xdg_surface_interface xdg_impl = {
     .destroy = destroy_request, .get_toplevel = get_toplevel, .get_popup = popup,

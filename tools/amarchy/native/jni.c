@@ -33,6 +33,11 @@ JNIEXPORT void JNICALL Java_com_sanogueralorenzo_amarchy_display_NativeDisplay_s
     if (display) { amarchy_stop(display); display = NULL; }
     pthread_mutex_unlock(&ownership);
 }
+JNIEXPORT void JNICALL Java_com_sanogueralorenzo_amarchy_display_NativeDisplay_resize(JNIEnv *env, jobject self, jint width, jint height) {
+    pthread_mutex_lock(&ownership);
+    if (display) amarchy_resize(display, width, height);
+    pthread_mutex_unlock(&ownership);
+}
 JNIEXPORT jlongArray JNICALL Java_com_sanogueralorenzo_amarchy_display_NativeDisplay_snapshot(JNIEnv *env, jobject self) {
     jlong values[3] = {0};
     pthread_mutex_lock(&ownership);
