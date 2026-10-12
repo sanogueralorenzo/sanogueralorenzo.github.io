@@ -1,0 +1,17 @@
+# Linux desktop programs and the first display integration experiment.
+filesystem
+glibc
+bash
+coreutils
+util-linux
+ca-certificates
+python
+fontconfig
+ttf-dejavu
+dbus
+hyprland
+foot
+mesa
+libglvnd
+weston
+

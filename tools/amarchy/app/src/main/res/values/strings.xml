@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Amarchy</string>
+    <string name="notification_channel">Your workspace</string>
+</resources>
