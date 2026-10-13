@@ -26,9 +26,10 @@ internal class WorkspaceController(private val context: Context) {
     private var displayStarted = false
     @Volatile private var session: DesktopSession? = null
     private val commands = Executors.newSingleThreadExecutor { job -> Thread(job, "amarchy-desktop-command") }
-    // Hyprland 0.56's nested-output resize updates the monitor before arranging
-    // existing tiled clients. Reload its configuration once the Android IME settles.
-    private val relayout = Runnable { execute(listOf("/usr/bin/hyprctl", "reload")) }
+    // Refresh tiled geometry after the nested output resizes, preserving all
+    // settings and avoiding a full reload and its shell command burst.
+    private val relayout = Runnable { execute(listOf("/usr/bin/hyprctl", "eval",
+        "hl.config({general={gaps_in=hl.get_config('general.gaps_in')}})")) }
     @Volatile
     var state = WorkspaceState(Phase.WELCOME)
         private set
