@@ -131,7 +131,7 @@ test("native session blocks outside writes and non-whitelisted bash; allowed bas
 
 test("session external tools return explicit errors or authored fixture replies without external actions", async t => {
   const result = await runRoleIntegration(fakeRuntime([
-    answer([call("computer_use", { code: "await cua.getState();" }), call("delegate", { task: "Read the cache", permissions: [] })]),
+    answer([call("computer_use", { code: "await cua.getState();" }), call("delegate", { task: "Read the cache" })]),
     context => {
       const result = context.messages.findLast(message => message.role === "toolResult" && message.toolName === "delegate");
       const { delegationId } = JSON.parse(result.content[0].text);

@@ -163,7 +163,7 @@ export class Assistant {
     const data = this.snapshot();
     this.emit({ type: "snapshot", data });
     for (const activity of this.activities()) this.emit(activity);
-    for (const record of data.sessions) if (record.status !== "running") { this.search.delete(record.conversationId); this.pi.closeComputer(record.conversationId); }
+    for (const record of data.sessions) if (record.status !== "running") this.search.delete(record.conversationId);
     for (const entry of data.entries) for (const update of entry.updates) if (update.kind === "result" && !this.finished.has(update.id)) {
       this.finished.add(update.id);
       const record = data.sessions.find((item) => item.id === entry.sessionId);

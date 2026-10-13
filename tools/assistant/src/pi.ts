@@ -12,13 +12,12 @@ import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
-import { requireWorkerTool, WorkerPermissionsDoc } from "./worker-permissions.ts";
 
 export const defaultModel = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
-  const tools = role === "coordinator" ? [] : [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")];
+  const tools = role === "session" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")] : [];
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
     executionMode: ["read", "grep", "find", "ls"].includes(tool.name) ? "parallel" : "sequential",
@@ -40,11 +39,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
     } })), ...extraTools];
-  return defineExtension({ name: `assistant-${role}`, tools: role === "worker" ? tools.map((tool): ToolRegistration => ({ ...tool,
-    execute: async (args, api, context) => {
-      requireWorkerTool(tool.name, (await api.snapshot(WorkerPermissionsDoc, api.conversationId, context))?.tools || []);
-      return tool.execute(args, api, context);
-    } })) : tools, sections: [section("assistant", async ({ agent }) => {
+  return defineExtension({ name: `assistant-${role}`, tools, sections: [section("assistant", async ({ agent }) => {
       const cwd = agent.cwd || process.cwd();
       let loader = resources.get(cwd);
       if (!loader) { loader = agentResources(cwd, role, instructions); await loader.reload(); resources.set(cwd, loader); }
@@ -117,8 +112,11 @@ export class PiService {
   private constructor(harness: Harness, models: Models, agentModels: Models, model: ModelRef, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
     this.harness = harness; this.models = models; this.agentModels = agentModels; this.model = model; this.roles = roles; this.computers = computers;
     this.unsubscribe = harness.subscribeCommits((publication) => {
-      for (const change of publication.changes) if (change.type === "document" && change.record.kind === "pi.provider" && change.value && change.conversationId !== undefined)
-        this.providerConversations.set(String(change.value.sessionId), change.conversationId);
+      for (const change of publication.changes) {
+        if (change.type !== "document" || !change.value || change.conversationId === undefined) continue;
+        if (change.record.kind === "pi.provider") this.providerConversations.set(String(change.value.sessionId), change.conversationId);
+        if (change.record.kind === "pi.live" && !change.value.run) this.closeComputer(change.conversationId);
+      }
     });
   }
   static async open(dataDir: string, options: PiOptions = {}) {
