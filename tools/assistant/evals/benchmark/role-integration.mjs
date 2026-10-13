@@ -153,13 +153,13 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       },
     })] });
     const registry = createRegistry(); registry.install(extension); registry.install(boundary);
-    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed, async () => role !== "coordinator"), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
+    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
     const conversation = await harness.root(BACKGROUND_CONTEXT, { agent: {
       model: { provider: model.provider, modelId: model.id }, cwd, thinkingLevel: variant.effort, extensions: [extension, boundary],
-      ...(role === "worker" && { tools: workerTools(extension.tools, ["files.read", "web.search"]) }),
+      ...(role === "worker" && { tools: workerTools(extension.tools, ["read", "grep", "find", "ls"]) }),
     } });
     if (role === "worker") await conversation.commit(async tx => {
-      (await tx.doc(WorkerPermissionsDoc, conversation.id)).permissions = ["files.read", "web.search"];
+      Object.assign(await tx.doc(WorkerPermissionsDoc, conversation.id), { permissions: [], tools: ["read", "grep", "find", "ls"] });
     }, BACKGROUND_CONTEXT);
     const session = { harness, conversation };
     sessions.add(session);
