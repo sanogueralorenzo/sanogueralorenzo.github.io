@@ -10,6 +10,7 @@ import { HomeRouter, type Route } from "./home-routing.ts";
 import { HomeDoc, State, now, assistantText, type HomeMessage, type Turn } from "./state.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
 import { hostedSearchLabel } from "./hosted-search.ts";
+import { cancelDelegations } from "./delegation.ts";
 
 type DispatchState = { phase: "route" } | { phase: "create"; route: Route } | { phase: "admit"; sessionId: string };
 const clean = (text: string) => text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
@@ -17,7 +18,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : S
 const replyPrompt = (text: string, reply?: { role: string; text: string }) => reply
   ? `In reply to this earlier ${reply.role} message:\n> ${reply.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${text}` : text;
 const toolLabels: Record<string, string> = { read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
-  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer", delegate: "Researching or reviewing" };
+  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer", delegate: "Starting research or review", delegate_result: "Collecting research or review" };
 
 export class Assistant {
   readonly dataDir: string;
@@ -52,7 +53,9 @@ export class Assistant {
       pi.onProviderEvent = (id, data) => { const label = hostedSearchLabel(data); if (label) { app.search.set(id, label); app.publish(); } };
       for (const record of app.state.home.sessions) if (record.paused) {
         const taskId = app.state.live(record.conversationId)?.run?.taskId;
-        if (taskId) { await pi.harness.abortTask(taskId, BACKGROUND_CONTEXT); await pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT); }
+        if (taskId) await pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
+        await cancelDelegations(pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
+        if (taskId) await pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT);
       }
       pi.harness.resume();
       return app;
@@ -282,9 +285,10 @@ export class Assistant {
     const record = this.state.home.sessions.find((item) => item.id === sessionId);
     if (!record) throw new Error("Conversation not found");
     const taskId = this.state.live(record.conversationId)?.run?.taskId;
-    if (!taskId) return false;
+    if (!taskId) return cancelDelegations(this.pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
     await this.state.change((home) => { home.sessions.find((item) => item.id === sessionId)!.paused = true; });
     await this.pi.harness.abortTask(taskId, BACKGROUND_CONTEXT);
+    await cancelDelegations(this.pi.harness, record.conversationId as ConversationId, BACKGROUND_CONTEXT);
     await this.pi.harness.waitForTask(taskId, BACKGROUND_CONTEXT);
     return true;
   }

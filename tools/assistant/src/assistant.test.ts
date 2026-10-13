@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { roleExtension } from "./pi.ts";
 import { fixture, answered, gate, toolAnswer, waitFor } from "./test-support.ts";
@@ -51,25 +50,6 @@ test("replies quote the selected answer and thumbs-up is admitted once", async (
   await assert.rejects(f.app.submitSession(f.sessionId, "x", "steer", options), /React to an assistant reply/);
 });
 
-test("Durable delegation stores a read-only child with no delegation or Computer Use tools", async (t) => {
-  const f = await fixture(t, [toolAnswer("delegate", { role: "researcher", task: "Find evidence" }), async (context) => {
-    assert.deepEqual(context.messages.flatMap((message) => message.role === "system" ? message.toolsAdded?.map((tool) => tool.name) || [] : []), ["read", "grep", "find", "ls"]);
-    return fauxAssistantMessage("Evidence found.");
-  }, async (context) => {
-    const result = context.messages.filter((message) => message.role === "toolResult").at(-1)!;
-    assert.match(JSON.stringify(result.content), /Evidence found/);
-    return fauxAssistantMessage("Final answer.");
-  }]);
-  await f.idle();
-  const children = await f.app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
-  const child = children.items.find((item) => item.owner);
-  assert.ok(child);
-  const conversation = await f.app.pi.harness.conversation(child.id, BACKGROUND_CONTEXT);
-  const history = await conversation!.entries({}, 256, undefined, BACKGROUND_CONTEXT);
-  assert.ok(history.items.some((entry) => entry.kind === "pi.assistant"));
-  assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Final answer.");
-});
-
 test("stopping work keeps queued inputs and resuming runs the interrupted request first", async (t) => {
   const pause = gate();
   const f = await fixture(t, [toolAnswer("pause")], [pause.tool]);
@@ -89,29 +69,6 @@ test("stopping work keeps queued inputs and resuming runs the interrupted reques
   assert.equal(f.app.snapshot().sessions[0].status, "idle");
 });
 
-test("a restarted delegation reuses its owned child and committed task request", async (t) => {
-  const pause = gate();
-  const f = await fixture(t, [toolAnswer("delegate", { role: "researcher", task: "Find evidence" }), toolAnswer("pause")], [], {}, [roleExtension("researcher", [pause.tool])]);
-  await pause.started;
-  const before = await f.app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
-  const originalChild = before.items.find((item) => item.owner)!;
-  f.faux.appendResponses([fauxAssistantMessage("Recovered evidence."), fauxAssistantMessage("Recovered parent answer.")]);
-  const app = await f.reopen(); await f.idle();
-  const after = await app.pi.harness.commit((tx) => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
-  assert.deepEqual(after.items.filter((item) => item.owner).map((item) => item.id), [originalChild.id]);
-  assert.equal(pause.calls(), 1);
-  assert.equal(answered(app, f.sessionId).at(-1)?.text, "Recovered parent answer.");
-});
-
-test("stopping the parent aborts and joins its owned child", async (t) => {
-  const pause = gate();
-  const f = await fixture(t, [toolAnswer("delegate", { role: "reviewer", task: "Review it" }), toolAnswer("pause")], [], {}, [roleExtension("reviewer", [pause.tool])]);
-  await pause.started;
-  await f.app.stop(f.sessionId);
-  const inspection = await f.app.pi.harness.inspect(BACKGROUND_CONTEXT);
-  assert.equal(inspection.tasks.length, 0);
-  assert.equal(f.app.snapshot().sessions[0].status, "interrupted");
-});
 
 test("a lookup batched with an accepted route cannot trigger another coordinator request", async (t) => {
   const f = await fixture(t); await f.idle();

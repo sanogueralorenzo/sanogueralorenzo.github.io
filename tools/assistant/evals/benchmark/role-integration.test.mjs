@@ -25,7 +25,8 @@ function fakeRuntime(answers, contexts = []) {
         return { result: async () => aborted, async *[Symbol.asyncIterator]() { yield { type: "error", reason: "aborted", error: aborted }; } };
       }
       contexts.push(structuredClone(context));
-      const result = answers[index++];
+      const step = answers[index++];
+      const result = typeof step === "function" ? step(context) : step;
       assert.ok(result, "No unexpected provider continuation after a terminal result");
       const strings = value => typeof value === "string" ? [value] : value && typeof value === "object" ? Object.values(value).flatMap(strings) : [];
       const system = context.messages.filter(message => message.role === "system");
@@ -131,11 +132,17 @@ test("native session blocks outside writes and non-whitelisted bash; allowed bas
 test("session external tools return explicit errors or authored fixture replies without external actions", async t => {
   const result = await runRoleIntegration(fakeRuntime([
     answer([call("computer_use", { code: "await cua.getState();" }), call("delegate", { role: "researcher", task: "Read the cache" })]),
+    context => {
+      const result = context.messages.findLast(message => message.role === "toolResult" && message.toolName === "delegate");
+      const { delegationId } = JSON.parse(result.content[0].text);
+      return answer([call("delegate_result", { delegationId })]);
+    },
     answer([text("Research complete; computer access unavailable.")]),
   ]), model, suite("session"), job({ fixtures: [{ tool: "delegate", match: { role: "researcher" }, response: "Authored cache evidence." }] }), { workspaceDir: workspace(t) });
   assert.equal(result.error, undefined);
   assert.ok(result.trace.some(entry => entry.name === "computer_use" && entry.error && entry.text.includes("disabled")));
-  assert.ok(result.trace.some(entry => entry.name === "delegate" && !entry.error && entry.text === "Authored cache evidence."));
+  assert.ok(result.trace.some(entry => entry.name === "delegate" && !entry.error && JSON.parse(entry.text).status === "started"));
+  assert.ok(result.trace.some(entry => entry.name === "delegate_result" && !entry.error && JSON.parse(entry.text).text === "Authored cache evidence."));
   assert.equal(result.state.unchanged, true);
 });
 

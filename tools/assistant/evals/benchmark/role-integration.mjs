@@ -1,13 +1,13 @@
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, lstatSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { Type } from "typebox";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createRegistry, defineExtension, defineTool, Harness, hook, MemoryStorage, ToolTask } from "@earendil-works/pi-durable";
 import { roleExtension, providerModels } from "../../src/pi.ts";
 import { agentResources } from "../../src/agent-resources.ts";
 import { HomeRouter } from "../../src/home-routing.ts";
 import { ComputerUseClient } from "../../src/computer-use.ts";
+import { createDelegation } from "../../src/delegation.ts";
 import { workspacePath, workspaceSnapshot, recordAssistantMessage } from "./integration-workspace.mjs";
 import { hash } from "./suite.mjs";
 import { matches } from "./trial.mjs";
@@ -49,15 +49,25 @@ export function roleToolBoundary(cwd, test, event) {
 }
 
 function sessionFixtureTools(test, variant) {
-  const definitions = [{ name: "delegate", label: "Delegate read-only work",
-    description: "Ask a separate read-only researcher to investigate or reviewer to critique. Give it a focused task and any context it needs. You own the final answer and all actions.",
-    parameters: Type.Object({ role: Type.Union([Type.Literal("researcher"), Type.Literal("reviewer")]), task: Type.String({ minLength: 1 }) }) },
-  new ComputerUseClient().tool()];
+  const unavailable = () => { throw new Error("External delegation is disabled in native role integration"); };
+  const definitions = [...createDelegation(unavailable, unavailable), new ComputerUseClient().tool()];
+  const delegates = new Map();
   return definitions.map(definition => defineTool({ ...definition,
-    execute: async (args) => {
+    execute: async (args, api) => {
+      if (definition.name === "delegate_result") {
+        const fixture = delegates.get(args.delegationId);
+        if (!fixture) throw new Error("Delegation not found in this conversation");
+        return { content: [{ type: "text", text: JSON.stringify(fixture) }], isError: fixture.status === "failed", details: { fixture: true } };
+      }
       const fixture = (test.fixtures || []).find(item => item.tool === definition.name && matches(args, item.match || {}));
       if (!fixture) throw new Error(`${definition.name} is disabled in native role integration; no external action was executed. Supply an explicit fixture reply to exercise this boundary.`);
       const text = fixture.resource ? variant.resources?.[fixture.resource] : fixture.response;
+      if (definition.name === "delegate") {
+        if (typeof text !== "string") throw new Error("delegate fixture needs a text response");
+        const delegationId = String(api.taskId);
+        delegates.set(delegationId, { delegationId, role: args.role, status: fixture.error ? "failed" : "done", ...(fixture.error ? { error: text } : { text }) });
+        return { content: [{ type: "text", text: JSON.stringify({ delegationId, role: args.role, status: "started" }) }], details: { fixture: true } };
+      }
       if (fixture.error) throw new Error(text || `${definition.name} fixture failed`);
       if (typeof text !== "string") throw new Error(`${definition.name} fixture needs a text response`);
       return { content: [{ type: "text", text }], details: { fixture: true } };

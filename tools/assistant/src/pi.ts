@@ -4,14 +4,14 @@ import type { JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt, ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { AssistantEntry, configure, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, ProviderDoc, section,
+import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, ProviderDoc, section,
   type AnyTask, type Cursor, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { Type } from "typebox";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
+import { createDelegation } from "./delegation.ts";
 
 export const defaultModel = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -133,26 +133,10 @@ export class PiService {
         return client.call(args.code, args.title, args.timeout_ms, context.abortSignal);
       } });
     let roles: Record<AgentRole, Extension>;
-    const delegate = defineTool({ name: "delegate", description: "Ask a separate read-only researcher to investigate or reviewer to critique. Give it a focused task and context. You own the final answer and all actions.",
-      parameters: Type.Object({ role: Type.Union([Type.Literal("researcher"), Type.Literal("reviewer")]), task: Type.String({ minLength: 1 }) }), replay: "safe",
-      execute: async (args, api, context) => {
-        const child = await api.commit(async (tx) => {
-          const existing = (await tx.scanConversations({ ownerTaskId: api.taskId }, 1)).items[0];
-          if (existing) return existing.id;
-          const created = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
-          await configure(tx, created.id, { extensions: [roles[args.role]], tools: null, instructions: null });
-          return created.id;
-        }, context);
-        await api.details({ conversationId: child, role: args.role }, context);
-        const handle = (await api.conversation(child, context))!;
-        const result = await (await handle.submit({ type: "input", content: args.task, requestId: `delegate:${api.taskId}` }, context)).wait(context);
-        if (result.status !== "done" || result.type !== "input") throw new Error(`Worker failed: ${result.status === "unanswered" ? result.reason : result.status}`);
-        const answer = await api.commit((tx) => tx.entry(AssistantEntry, result.answer), context);
-        const text = assistantText(answer?.model?.[0] || {});
-        if (!text) throw new Error("Worker returned no answer");
-        return { content: [{ type: "text", text }], details: { conversationId: child, role: args.role } };
-      } });
-    roles = { coordinator: roleExtension("coordinator"), session: roleExtension("session", [delegate, computerTool]), researcher: roleExtension("researcher"), reviewer: roleExtension("reviewer") };
+    const delegation = createDelegation((role) => roles[role], () => service!.harness);
+    roles = { coordinator: roleExtension("coordinator"),
+      session: roleExtension("session", [...delegation, computerTool]),
+      researcher: roleExtension("researcher"), reviewer: roleExtension("reviewer") };
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
