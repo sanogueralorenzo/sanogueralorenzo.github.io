@@ -5,9 +5,17 @@ import { test, type TestContext } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { fauxAssistantMessage, fauxToolCall, type FauxResponseFactory } from "@earendil-works/pi-ai/providers/faux";
 import { roleExtension } from "./pi.ts";
+import { WorkerPermissionsDoc } from "./worker-permissions.ts";
 import { DelegationsDoc } from "./delegation.ts";
-import type { ConversationId } from "@earendil-works/pi-durable";
+import type { ConversationId, ToolRegistration } from "@earendil-works/pi-durable";
 import { answered, fixture, gate, toolAnswer, waitFor } from "./test-support.ts";
+
+function gatedWorker(pause: ReturnType<typeof gate>) {
+  const worker = roleExtension("worker");
+  return { ...worker, tools: worker.tools!.map((tool): ToolRegistration => tool.name === "read" ? { ...tool, replay: pause.tool.replay,
+    execute: async (args, api, context) => (args as { path: string }).path === "wait" ? pause.tool.execute({}, api, context) : tool.execute(args, api, context),
+  } : tool) };
+}
 
 async function delegated(t: TestContext, options: { empty?: boolean; automatic?: boolean } = {}) {
   const pause = gate();
@@ -18,14 +26,14 @@ async function delegated(t: TestContext, options: { empty?: boolean; automatic?:
     if (user.content === "Later follow-up") return fauxAssistantMessage("Follow-up handled.");
     if (user.content === "Find evidence") {
       assert.deepEqual(context.messages.flatMap(message => message.role === "system" ? message.toolsAdded?.map(tool => tool.name) || [] : []),
-        ["read", "grep", "find", "ls", "pause"]);
-      if (!results.length) return toolAnswer("pause");
-      if (results.at(-1)!.toolName === "pause") return toolAnswer("read", { path: "parent.txt" });
+        ["read", "grep", "find", "ls"]);
+      if (!results.length) return toolAnswer("read", { path: "wait" });
+      if (results.length === 1) return toolAnswer("read", { path: "parent.txt" });
       assert.match(JSON.stringify(results.at(-1)!.content), /parent/, "Child must inherit its parent's working directory");
       return fauxAssistantMessage(options.empty ? "" : "Evidence found.");
     }
     const last = results.at(-1);
-    if (!last) return toolAnswer("delegate", { task: "Find evidence" });
+    if (!last) return toolAnswer("delegate", { task: "Find evidence", permissions: ["files.read"] });
     if (last.toolName === "delegate") {
       delegationId = JSON.parse((last.content[0] as { text: string }).text).delegationId;
       assert.ok(delegationId);
@@ -37,7 +45,7 @@ async function delegated(t: TestContext, options: { empty?: boolean; automatic?:
     assert.match(findings.text || findings.error, options.empty ? /no answer/ : /Evidence found/);
     return fauxAssistantMessage(options.empty ? "Worker failure reported." : "Final answer with evidence.");
   };
-  const f = await fixture(t, Array(12).fill(respond), [], {}, [roleExtension("worker", [pause.tool])]);
+  const f = await fixture(t, Array(12).fill(respond), [], {}, [gatedWorker(pause)]);
   await pause.started;
   await waitFor(f.app, () => !!f.app.state.live(Number(f.sessionId))?.tools?.some(tool => tool.name === "delegate_result"));
   assert.equal(readFileSync(join(f.dir, "parent.txt"), "utf8"), "parent", "Parent must do independent work while its child is blocked");
@@ -61,6 +69,7 @@ test("a restarted automatic collection reuses the existing child and submission"
   const after = await app.pi.harness.commit(tx => tx.scanConversations({}, 256), BACKGROUND_CONTEXT);
   assert.deepEqual(after.items.filter(child => child.owner).map(child => child.id), [originalChild.id]);
   assert.equal(f.pause.calls(), 1);
+  assert.deepEqual((await app.pi.harness.snapshot(WorkerPermissionsDoc, originalChild.id, BACKGROUND_CONTEXT))?.permissions, ["files.read"]);
   const requests = await app.pi.harness.inspect(BACKGROUND_CONTEXT);
   assert.equal(requests.submissions.length, 0);
   assert.equal(answered(app, f.sessionId).at(-1)?.text, "Final answer with evidence.");
@@ -83,10 +92,10 @@ test("parallel delegations have distinct children and collect each result", { ti
     const user = context.messages.filter(message => message.role === "user").at(-1)!;
     const results = context.messages.filter(message => message.role === "toolResult");
     if (user.content === "Find callers" || user.content === "Review callers")
-      return results.length ? fauxAssistantMessage(String(user.content)) : toolAnswer("pause");
+      return results.length ? fauxAssistantMessage(String(user.content)) : toolAnswer("read", { path: "wait" });
     if (!results.length) return fauxAssistantMessage([
-      fauxToolCall("delegate", { task: "Find callers" }),
-      fauxToolCall("delegate", { task: "Review callers" }),
+      fauxToolCall("delegate", { task: "Find callers", permissions: ["files.read"] }),
+      fauxToolCall("delegate", { task: "Review callers", permissions: ["files.read"] }),
     ], { stopReason: "toolUse" });
     if (results.at(-1)!.toolName === "delegate") {
       const children = results.map(result => JSON.parse((result.content[0] as { text: string }).text));
@@ -97,7 +106,7 @@ test("parallel delegations have distinct children and collect each result", { ti
     assert.deepEqual(findings.map(result => result.text).sort(), ["Find callers", "Review callers"]);
     return fauxAssistantMessage("Both results collected.");
   };
-  const f = await fixture(t, Array(12).fill(respond), [], {}, [roleExtension("worker", [pause.tool])]);
+  const f = await fixture(t, Array(12).fill(respond), [], {}, [gatedWorker(pause)]);
   await waitFor(f.app, () => pause.calls() === 2 && !!f.app.state.live(Number(f.sessionId))?.tools?.some(tool => tool.name === "delegate_result"));
   pause.release(); await f.idle();
   assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Both results collected.");
@@ -130,9 +139,9 @@ test("unneeded work can be explicitly cancelled without blocking the final answe
   let delegationId = "";
   const respond: FauxResponseFactory = async context => {
     const user = context.messages.filter(message => message.role === "user").at(-1)!;
-    if (user.content === "Find evidence") return toolAnswer("pause");
+    if (user.content === "Find evidence") return toolAnswer("read", { path: "wait" });
     const result = context.messages.filter(message => message.role === "toolResult").at(-1);
-    if (!result) return toolAnswer("delegate", { task: "Find evidence" });
+    if (!result) return toolAnswer("delegate", { task: "Find evidence", permissions: ["files.read"] });
     if (result.toolName === "delegate") {
       delegationId = JSON.parse((result.content[0] as { text: string }).text).delegationId;
       await pause.started;
@@ -141,7 +150,7 @@ test("unneeded work can be explicitly cancelled without blocking the final answe
     assert.equal(JSON.parse((result.content[0] as { text: string }).text).status, "cancelled");
     return fauxAssistantMessage("Unneeded work cancelled.");
   };
-  const f = await fixture(t, Array(8).fill(respond), [], {}, [roleExtension("worker", [pause.tool])]);
+  const f = await fixture(t, Array(8).fill(respond), [], {}, [gatedWorker(pause)]);
   await f.idle();
   assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Unneeded work cancelled.");
   assert.equal((await f.app.pi.harness.inspect(BACKGROUND_CONTEXT)).tasks.length, 0);

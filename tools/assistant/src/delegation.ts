@@ -3,6 +3,7 @@ import { AssistantEntry, configure, defineDoc, defineTool, GenerationTask, hook,
   type ConversationId, type Extension, type Harness, type SubmissionId, type TaskId } from "@earendil-works/pi-durable";
 import { Type } from "typebox";
 import { assistantText } from "./state.ts";
+import { WorkerPermissionsDoc, workerPermissionsSchema, workerTools, validateWorkerPermissions } from "./worker-permissions.ts";
 
 type Status = "outstanding" | "collected" | "failed" | "cancelled";
 type Delegation = { conversationId: number; ownerTaskId: number; requestId: number; status: Status; submissionId?: number; reason?: string };
@@ -26,10 +27,13 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
   }
 
   const delegate = defineTool({ name: "delegate",
-    description: "Start a read-only worker for a focused task and immediately return its delegationId. Describe its assignment and supply enough context. Continue independent work, then collect findings with delegate_result or explicitly cancel unneeded work with delegate_cancel.",
-    parameters: Type.Object({ task: Type.String({ minLength: 1 }) }, { additionalProperties: false }), replay: "safe",
+    description: "Start a worker for a focused task and immediately return its delegationId. Choose the required permissions explicitly: files.read (read/grep/find/ls), files.write (edit/write, requires files.read), commands.run (bash, requires files.read and files.write), web.search (hosted search), or [] for reasoning from supplied context. Shell access can also access files and the network. Supply enough context, continue independent work, then collect with delegate_result or cancel unneeded work with delegate_cancel.",
+    parameters: Type.Object({ task: Type.String({ minLength: 1 }), permissions: workerPermissionsSchema }, { additionalProperties: false }), replay: "safe",
     execute: async (args, api, context) => {
       const delegationId = String(api.taskId);
+      const parent = await api.agent(context);
+      const parentPermissions = (await api.snapshot(WorkerPermissionsDoc, api.conversationId, context))?.permissions || [];
+      validateWorkerPermissions(args.permissions, parent, parentPermissions);
       const child = await api.commit(async (tx) => {
         const saved = await tx.doc(DelegationsDoc, api.conversationId);
         if (saved.calls[delegationId]) return { ...saved.calls[delegationId] };
@@ -37,7 +41,10 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
         if (!run) throw new Error("Delegation requires an active parent request");
         // The generation owns the child so this tool can finish while the child keeps working.
         const created = await tx.createConversation({ ownership: { kind: "task", taskId: run.taskId } });
-        await configure(tx, created.id, { extensions: [getWorker()], tools: null, instructions: null });
+        const worker = getWorker();
+        (await tx.doc(WorkerPermissionsDoc, created.id)).permissions = [...args.permissions];
+        await configure(tx, created.id, { extensions: [worker], tools: workerTools(worker.tools || [], args.permissions),
+          instructions: `Granted permissions: ${JSON.stringify(args.permissions)}. Complete the assignment using these grants. Report missing access to the parent.` });
         const record: Delegation = { conversationId: created.id, ownerTaskId: run.taskId, requestId: run.inputs[0], status: "outstanding" };
         saved.calls[delegationId] = record;
         return record;
@@ -45,7 +52,8 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
       const handle = (await api.conversation(child.conversationId as ConversationId, context))!;
       const submission = await handle.submit({ type: "input", content: args.task, requestId: `delegate:${delegationId}` }, context);
       await api.commit(async (tx) => { (await tx.doc(DelegationsDoc, api.conversationId)).calls[delegationId].submissionId = submission.id; }, context);
-      const details = { delegationId, conversationId: child.conversationId, status: "outstanding" };
+      const permissions = (await api.snapshot(WorkerPermissionsDoc, child.conversationId as ConversationId, context))!.permissions;
+      const details = { delegationId, conversationId: child.conversationId, status: "outstanding", permissions };
       return { content: [{ type: "text", text: JSON.stringify(details) }], details };
     } });
 

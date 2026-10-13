@@ -5,21 +5,20 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
 import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt, ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, ProviderDoc, section,
-  type AnyTask, type Cursor, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
+  type AnyTask, type ConversationId, type Cursor, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
+import { canSearch, requireWorkerTool, WorkerPermissionsDoc } from "./worker-permissions.ts";
 
 export const defaultModel = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
-  const tools = role === "coordinator" ? [] : role === "session"
-    ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
-    : createReadOnlyTools(cwd);
+  const tools = role === "coordinator" ? [] : [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")];
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
     executionMode: ["read", "grep", "find", "ls"].includes(tool.name) ? "parallel" : "sequential",
@@ -38,6 +37,7 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
   const resources = new Map<string, ReturnType<typeof agentResources>>();
   return defineExtension({ name: `assistant-${role}`, tools: [...nativeTools(role, process.cwd()).map((tool): ToolRegistration => ({ ...tool,
     execute: async (args, api, context) => {
+      if (role === "worker") requireWorkerTool(tool.name, (await api.snapshot(WorkerPermissionsDoc, api.conversationId, context))?.permissions || []);
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
     } })), ...extraTools], sections: [section("assistant", async ({ agent }) => {
@@ -49,7 +49,8 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     }, { tag: false })] });
 }
 
-export function providerModels(runtime: Models, report: (sessionId: string, data: unknown) => void = () => {}): Models {
+export function providerModels(runtime: Models, webSearchAllowed: (sessionId: string | undefined) => Promise<boolean>,
+  report: (sessionId: string, data: unknown) => void = () => {}): Models {
   const active = new Set<Promise<void>>();
   return new Proxy(runtime, { get(target, key) {
     if (key !== "streamSimple") {
@@ -81,7 +82,9 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
               if (model.provider === "openai-codex") {
                 if (!request || typeof request !== "object" || Array.isArray(request)) throw new Error("Unexpected Codex request payload");
                 const value = request as Record<string, unknown>;
-                request = { ...value, service_tier: "priority", ...(coordinator ? {} : { tools: [...(Array.isArray(value.tools) ? value.tools : []), { type: "web_search" }] }) };
+                const search = !coordinator && await webSearchAllowed(options.sessionId);
+                const tools = (Array.isArray(value.tools) ? value.tools : []).filter(tool => tool?.type !== "web_search");
+                request = { ...value, service_tier: "priority", tools: [...tools, ...(search ? [{ type: "web_search" }] : [])] };
               }
               return request;
             },
@@ -119,7 +122,13 @@ export class PiService {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     const runtime = options.models || await ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
     let service: PiService | undefined;
-    const models = providerModels(runtime, (id, data) => {
+    const models = providerModels(runtime, async id => {
+      const conversationId = id ? service?.providerConversations.get(id) : undefined;
+      if (conversationId === undefined) return false;
+      const conversation = (await service!.harness.conversation(conversationId as ConversationId, BACKGROUND_CONTEXT))!;
+      const permissions = (await service!.harness.snapshot(WorkerPermissionsDoc, conversation.id, BACKGROUND_CONTEXT))?.permissions || [];
+      return canSearch(await conversation.agent(BACKGROUND_CONTEXT), permissions);
+    }, (id, data) => {
       const conversationId = service?.providerConversations.get(id);
       if (conversationId !== undefined) service!.onProviderEvent(conversationId, data);
     });

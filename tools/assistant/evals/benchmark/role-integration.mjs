@@ -8,6 +8,7 @@ import { agentResources } from "../../src/agent-resources.ts";
 import { HomeRouter } from "../../src/home-routing.ts";
 import { ComputerUseClient } from "../../src/computer-use.ts";
 import { createDelegation } from "../../src/delegation.ts";
+import { WorkerPermissionsDoc, workerTools } from "../../src/worker-permissions.ts";
 import { workspacePath, workspaceSnapshot, recordAssistantMessage } from "./integration-workspace.mjs";
 import { hash } from "./suite.mjs";
 import { matches } from "./trial.mjs";
@@ -71,7 +72,7 @@ function sessionFixtureTools(test, variant) {
         if (typeof text !== "string") throw new Error("delegate fixture needs a text response");
         const delegationId = String(api.taskId);
         delegates.set(delegationId, { delegationId, status: fixture.error ? "failed" : "done", ...(fixture.error ? { error: text } : { text }) });
-        return { content: [{ type: "text", text: JSON.stringify({ delegationId, status: "outstanding" }) }], details: { fixture: true } };
+        return { content: [{ type: "text", text: JSON.stringify({ delegationId, status: "outstanding", permissions: args.permissions }) }], details: { fixture: true } };
       }
       if (fixture.error) throw new Error(text || `${definition.name} fixture failed`);
       if (typeof text !== "string") throw new Error(`${definition.name} fixture needs a text response`);
@@ -152,10 +153,14 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       },
     })] });
     const registry = createRegistry(); registry.install(extension); registry.install(boundary);
-    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
+    const harness = await Harness.open(new MemoryStorage(), { models: providerModels(observed, async () => role !== "coordinator"), registry, settings: { toolExecution: "sequential", retry: { enabled: false } } }, BACKGROUND_CONTEXT);
     const conversation = await harness.root(BACKGROUND_CONTEXT, { agent: {
       model: { provider: model.provider, modelId: model.id }, cwd, thinkingLevel: variant.effort, extensions: [extension, boundary],
+      ...(role === "worker" && { tools: workerTools(extension.tools, ["files.read", "web.search"]) }),
     } });
+    if (role === "worker") await conversation.commit(async tx => {
+      (await tx.doc(WorkerPermissionsDoc, conversation.id)).permissions = ["files.read", "web.search"];
+    }, BACKGROUND_CONTEXT);
     const session = { harness, conversation };
     sessions.add(session);
     const prompt = await extension.sections[0].render({ agent: { cwd } }, BACKGROUND_CONTEXT);
