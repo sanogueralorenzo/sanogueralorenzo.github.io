@@ -11,7 +11,7 @@ import { assistantCodexAuth } from "./codex-auth.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
-import { createDelegation } from "./delegation.ts";
+import { createDelegation, delegationHooks } from "./delegation.ts";
 
 export const defaultModel = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -133,10 +133,10 @@ export class PiService {
         return client.call(args.code, args.title, args.timeout_ms, context.abortSignal);
       } });
     let roles: Record<AgentRole, Extension>;
-    const delegation = createDelegation((role) => roles[role], () => service!.harness);
+    const delegation = createDelegation(() => roles.worker, () => service!.harness);
     roles = { coordinator: roleExtension("coordinator"),
-      session: roleExtension("session", [...delegation, computerTool]),
-      researcher: roleExtension("researcher"), reviewer: roleExtension("reviewer") };
+      session: defineExtension({ ...roleExtension("session", [...delegation, computerTool]), hooks: delegationHooks }),
+      worker: roleExtension("worker") };
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {

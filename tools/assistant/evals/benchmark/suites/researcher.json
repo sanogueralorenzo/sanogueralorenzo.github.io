@@ -24,7 +24,7 @@
       "id": "live",
       "files": [
         "../../../prompts/base.md",
-        "../../../prompts/researcher.md"
+        "../../../prompts/worker.md"
       ]
     },
     {

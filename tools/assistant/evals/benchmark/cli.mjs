@@ -61,7 +61,7 @@ if (command === "review" || command === "report") {
       while (!stopped && cursor < pending.length) {
         const job = pending[cursor++];
         const native = ["researcher-integration", "role-integration"].includes(suite.config.execution);
-        const executionSuite = suite.config.execution === "researcher-integration" ? { ...suite, config: { ...suite.config, role: "researcher" } } : suite;
+        const executionSuite = suite.config.execution === "researcher-integration" ? { ...suite, config: { ...suite.config, role: "worker" } } : suite;
         const record = await (native ? runRoleIntegration : runTrial)(runtime, model, executionSuite, job);
         run.results.push(record); saveJSON(out, run);
         errors = record.error ? errors + 1 : 0;

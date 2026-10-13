@@ -2,7 +2,7 @@
 
 ![Assistant Home with Reply and Go-ahead controls](docs/assistant.jpg)
 
-A local assistant built on Pi Durable. Home routes requests to persistent conversations; session agents can delegate read-only research and review while continuing their own work. Conversations, child agents, queues, and streamed progress survive service restarts. The browser follows Pi’s committed conversation views; streamed text and tool output use a 16 ms commit interval. Interrupted unsafe tools are reported to the model instead of replayed.
+A local assistant built on Pi Durable. Home routes requests to persistent conversations; session agents can assign focused tasks to read-only workers while continuing their own work. Outstanding work is collected before finishing or explicitly cancelled. Conversations, child agents, queues, and streamed progress survive service restarts. The browser follows Pi’s committed conversation views; streamed text and tool output use a 16 ms commit interval. Interrupted unsafe tools are reported to the model instead of replayed.
 
 Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends “Yes, go ahead.” Queued messages support Edit, Delete, and Steer. Stop preserves waiting work; Continue resumes the stopped request before follow-ups. Tab accepts a saved, tool-free reply suggestion; Escape dismisses it or clears its quote.
 

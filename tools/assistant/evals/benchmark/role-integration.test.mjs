@@ -77,7 +77,7 @@ test("reviewer uses actual read/search tools and loaded resources with both cand
   const result = await runRoleIntegration(fakeRuntime([
     answer([call("read", { path: "src/cache.js" }), call("grep", { pattern: "ttl", path: "src" }), call("find", { pattern: "*.js", path: "src" }), call("ls", { path: "src" })]),
     answer([text("src/cache.js sets ttl to 5.")]),
-  ], contexts), model, suite("reviewer"), job({ files: {
+  ], contexts), model, suite("worker"), job({ files: {
     "AGENTS.md": "Use LOCAL_RESOURCE_MARKER.", "src/cache.js": "export const ttl = 5;\n",
     ".pi/skills/cache/SKILL.md": "---\nname: cache\ndescription: Explain caching\n---\nRead src/cache.js.\n",
   } }), { workspaceDir: workspace(t) });
@@ -131,17 +131,17 @@ test("native session blocks outside writes and non-whitelisted bash; allowed bas
 
 test("session external tools return explicit errors or authored fixture replies without external actions", async t => {
   const result = await runRoleIntegration(fakeRuntime([
-    answer([call("computer_use", { code: "await cua.getState();" }), call("delegate", { role: "researcher", task: "Read the cache" })]),
+    answer([call("computer_use", { code: "await cua.getState();" }), call("delegate", { task: "Read the cache" })]),
     context => {
       const result = context.messages.findLast(message => message.role === "toolResult" && message.toolName === "delegate");
       const { delegationId } = JSON.parse(result.content[0].text);
       return answer([call("delegate_result", { delegationId })]);
     },
     answer([text("Research complete; computer access unavailable.")]),
-  ]), model, suite("session"), job({ fixtures: [{ tool: "delegate", match: { role: "researcher" }, response: "Authored cache evidence." }] }), { workspaceDir: workspace(t) });
+  ]), model, suite("session"), job({ fixtures: [{ tool: "delegate", match: { task: "Read the cache" }, response: "Authored cache evidence." }] }), { workspaceDir: workspace(t) });
   assert.equal(result.error, undefined);
   assert.ok(result.trace.some(entry => entry.name === "computer_use" && entry.error && entry.text.includes("disabled")));
-  assert.ok(result.trace.some(entry => entry.name === "delegate" && !entry.error && JSON.parse(entry.text).status === "started"));
+  assert.ok(result.trace.some(entry => entry.name === "delegate" && !entry.error && JSON.parse(entry.text).status === "outstanding"));
   assert.ok(result.trace.some(entry => entry.name === "delegate_result" && !entry.error && JSON.parse(entry.text).text === "Authored cache evidence."));
   assert.equal(result.state.unchanged, true);
 });

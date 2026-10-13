@@ -18,7 +18,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : S
 const replyPrompt = (text: string, reply?: { role: string; text: string }) => reply
   ? `In reply to this earlier ${reply.role} message:\n> ${reply.text.slice(0, 2000).replaceAll("\n", "\n> ")}\n\n${text}` : text;
 const toolLabels: Record<string, string> = { read: "Looking through files", grep: "Looking through files", find: "Looking through files", ls: "Looking through files",
-  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer", delegate: "Starting research or review", delegate_result: "Collecting research or review" };
+  edit: "Editing files", write: "Editing files", bash: "Running a command", computer_use: "Using your computer", delegate: "Starting delegated work", delegate_result: "Collecting delegated work", delegate_cancel: "Cancelling delegated work" };
 
 export class Assistant {
   readonly dataDir: string;

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { DefaultResourceLoader, getAgentDir } from "@earendil-works/pi-coding-agent";
 
-export type AgentRole = "coordinator" | "session" | "researcher" | "reviewer";
+export type AgentRole = "coordinator" | "session" | "worker";
 const prompts = new URL("../prompts/", import.meta.url);
 export const readPrompt = (name: string) => readFileSync(new URL(`${name}.md`, prompts), "utf8");
 

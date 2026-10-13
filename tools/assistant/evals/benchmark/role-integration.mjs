@@ -54,9 +54,14 @@ function sessionFixtureTools(test, variant) {
   const delegates = new Map();
   return definitions.map(definition => defineTool({ ...definition,
     execute: async (args, api) => {
-      if (definition.name === "delegate_result") {
+      if (definition.name === "delegate_result" || definition.name === "delegate_cancel") {
         const fixture = delegates.get(args.delegationId);
         if (!fixture) throw new Error("Delegation not found in this conversation");
+        if (definition.name === "delegate_cancel") {
+          const cancelled = { delegationId: args.delegationId, status: "cancelled", reason: args.reason };
+          delegates.set(args.delegationId, cancelled);
+          return { content: [{ type: "text", text: JSON.stringify(cancelled) }], details: { fixture: true } };
+        }
         return { content: [{ type: "text", text: JSON.stringify(fixture) }], isError: fixture.status === "failed", details: { fixture: true } };
       }
       const fixture = (test.fixtures || []).find(item => item.tool === definition.name && matches(args, item.match || {}));
@@ -65,8 +70,8 @@ function sessionFixtureTools(test, variant) {
       if (definition.name === "delegate") {
         if (typeof text !== "string") throw new Error("delegate fixture needs a text response");
         const delegationId = String(api.taskId);
-        delegates.set(delegationId, { delegationId, role: args.role, status: fixture.error ? "failed" : "done", ...(fixture.error ? { error: text } : { text }) });
-        return { content: [{ type: "text", text: JSON.stringify({ delegationId, role: args.role, status: "started" }) }], details: { fixture: true } };
+        delegates.set(delegationId, { delegationId, status: fixture.error ? "failed" : "done", ...(fixture.error ? { error: text } : { text }) });
+        return { content: [{ type: "text", text: JSON.stringify({ delegationId, status: "outstanding" }) }], details: { fixture: true } };
       }
       if (fixture.error) throw new Error(text || `${definition.name} fixture failed`);
       if (typeof text !== "string") throw new Error(`${definition.name} fixture needs a text response`);
@@ -77,7 +82,7 @@ function sessionFixtureTools(test, variant) {
 export async function runRoleIntegration(runtime, model, suite, job, options = {}) {
   const { test: authoredTest, variant, repeat, id } = job;
   const role = suite.config.role;
-  if (!["researcher", "reviewer", "session", "coordinator"].includes(role)) throw new Error("Role integration requires reviewer, session, or coordinator");
+  if (!["worker", "session", "coordinator"].includes(role)) throw new Error("Role integration requires worker, session, or coordinator");
   if (role === "coordinator" && authoredTest.messages?.length !== 1)
     throw new Error("Coordinator integration supports one new Home message per case; seed prior routed exchanges in homeState");
   const parent = resolve(options.workspaceDir || join(tmpdir(), "assistant-role-benchmark"));
@@ -239,7 +244,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       record.environment.filesAfter = after;
       record.state.unchanged = hash(before) === hash(after);
       if (role === "session") record.state.finalFiles = Object.fromEntries(Object.keys(after).map(path => [path, normalize(readFileSync(workspacePath(cwd, path), "utf8"))]));
-      if (role === "reviewer" && !record.state.unchanged) record.agentFailure = "Read-only reviewer changed workspace files";
+      if (role === "worker" && !record.state.unchanged) record.agentFailure = "Read-only worker changed workspace files";
     } catch (error) { record.agentFailure = normalize(error.message); }
   }
   record.elapsedMs = performance.now() - started;

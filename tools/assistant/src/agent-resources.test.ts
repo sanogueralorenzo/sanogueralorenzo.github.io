@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { createReadOnlyTools } from "@earendil-works/pi-coding-agent";
 import { agentResources } from "./agent-resources.ts";
 
-test("researcher configuration discovers project instructions and skills while native search finds evidence", async () => {
+test("worker configuration discovers project instructions and skills while native search finds evidence", async () => {
   const cwd = mkdtempSync(join(tmpdir(), "assistant-resource-test-"));
   try {
     writeFileSync(join(cwd, "AGENTS.md"), "Respect the project's release boundary.");
@@ -14,10 +14,10 @@ test("researcher configuration discovers project instructions and skills while n
     writeFileSync(join(cwd, "src", "cache.ts"), "export const ttlMs = 90000;\n");
     mkdirSync(join(cwd, ".pi", "skills", "ownership"), { recursive: true });
     writeFileSync(join(cwd, ".pi", "skills", "ownership", "SKILL.md"), "---\nname: ownership\ndescription: Resolve service owners.\n---\nRead the owner evidence.");
-    const researcher = agentResources(cwd, "researcher");
-    await researcher.reload();
-    assert.ok(researcher.getAgentsFiles().agentsFiles.some(f => f.content.includes("release boundary")));
-    assert.ok(researcher.getSkills().skills.some(s => s.name === "ownership"));
+    const worker = agentResources(cwd, "worker");
+    await worker.reload();
+    assert.ok(worker.getAgentsFiles().agentsFiles.some(f => f.content.includes("release boundary")));
+    assert.ok(worker.getSkills().skills.some(s => s.name === "ownership"));
     const native = createReadOnlyTools(cwd);
     for (const [name, args, expected] of [["find", { pattern: "**/*.ts", path: "." }, "cache.ts"], ["grep", { pattern: "ttlMs", path: "." }, "90000"]] as const) {
       const tool = native.find(t => t.name === name)!;
