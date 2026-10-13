@@ -22,6 +22,7 @@ function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
     : createReadOnlyTools(cwd);
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
+    executionMode: ["read", "grep", "find", "ls"].includes(tool.name) ? "parallel" : "sequential",
     execute: async (args, api, context) => {
       let output = "";
       const result = await tool.execute(api.callId, args, context.abortSignal, (update) => {
@@ -155,7 +156,7 @@ export class PiService {
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
-      models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "sequential", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
+      models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
     service = new PiService(harness, runtime, models, model, roles, computers);
     await harness.commit(async (tx) => {

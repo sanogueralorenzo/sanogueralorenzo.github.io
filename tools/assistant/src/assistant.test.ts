@@ -17,6 +17,22 @@ test("Home routes through Durable without an extra coordinator model call", asyn
   assert.equal(f.app.snapshot().turns.length, 0);
 });
 
+test("independent native tools start before either completes", { timeout: 10000 }, async (t) => {
+  const read = gate("safe"), grep = gate("safe");
+  const extension = roleExtension("session");
+  const tools = extension.tools!.map(tool => tool.name === "read" ? { ...tool, execute: read.tool.execute }
+    : tool.name === "grep" ? { ...tool, execute: grep.tool.execute } : tool);
+  const f = await fixture(t, [fauxAssistantMessage([
+    fauxToolCall("read", { path: "first.ts" }),
+    fauxToolCall("grep", { pattern: "evidence" }),
+  ], { stopReason: "toolUse" }), fauxAssistantMessage("Both finished.")], [], {}, [{ ...extension, tools }]);
+  await Promise.all([read.started, grep.started]);
+  read.release(); grep.release();
+  await f.idle();
+  assert.equal(read.calls(), 1); assert.equal(grep.calls(), 1);
+  assert.equal(answered(f.app, f.sessionId).at(-1)?.text, "Both finished.");
+});
+
 test("replies quote the selected answer and thumbs-up is admitted once", async (t) => {
   const f = await fixture(t); await f.idle();
   const reply = answered(f.app, f.sessionId)[0];
