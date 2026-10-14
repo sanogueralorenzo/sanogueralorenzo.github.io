@@ -153,26 +153,39 @@ def prompt_for(event, messages, state, team):
     )
 
 
+def reaction(method, channel, ts, name):
+    try:
+        method(channel=channel, timestamp=ts, name=name)
+    except Exception as error:
+        print(f"Slack Reply could not update {name} reaction on {channel}/{ts}: {error}",
+              file=sys.stderr, flush=True)
+
+
 def handle(event, team, user_id, client, state, workspace, state_dir):
     if not eligible(event, user_id):
         return
     channel, ts = event["channel"], event["ts"]
     if state.seen("posted", team, channel, ts) or state.seen("handled", team, channel, ts):
         return
-    thread_ts = event.get("thread_ts") or ts
-    is_reply = thread_ts != ts
-    saved = state.session(team, channel, thread_ts) if is_reply else None
-    provider_name, session_id = saved if saved else (state.provider(), None)
-    messages = thread_messages(client, event) if is_reply else None
-    prompt = prompt_for(event, messages, state, team)
-    provider = provider_for(provider_name, workspace, state_dir)
-    new_session_id, answer = provider.run(prompt, session_id)
-    state.save_session(team, channel, thread_ts, provider_name, new_session_id)
-    post = {"channel": channel, "thread_ts": thread_ts, "text": answer,
-            "unfurl_links": False, "unfurl_media": False}
-    response = client.chat_postMessage(**post)
-    state.mark("posted", team, channel, response["ts"])
-    state.mark("handled", team, channel, ts)
+    reaction(client.reactions_add, channel, ts, "thinking_face")
+    try:
+        thread_ts = event.get("thread_ts") or ts
+        is_reply = thread_ts != ts
+        saved = state.session(team, channel, thread_ts) if is_reply else None
+        provider_name, session_id = saved if saved else (state.provider(), None)
+        messages = thread_messages(client, event) if is_reply else None
+        prompt = prompt_for(event, messages, state, team)
+        provider = provider_for(provider_name, workspace, state_dir)
+        new_session_id, answer = provider.run(prompt, session_id)
+        state.save_session(team, channel, thread_ts, provider_name, new_session_id)
+        post = {"channel": channel, "thread_ts": thread_ts, "text": answer,
+                "unfurl_links": False, "unfurl_media": False}
+        response = client.chat_postMessage(**post)
+        state.mark("posted", team, channel, response["ts"])
+        state.mark("handled", team, channel, ts)
+    finally:
+        reaction(client.reactions_remove, channel, ts, "thinking_face")
+    reaction(client.reactions_add, channel, ts, "thumbsup")
 
 
 def main(argv=None):
