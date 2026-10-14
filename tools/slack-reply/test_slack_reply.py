@@ -26,20 +26,12 @@ class FakeClient:
         self.pages = []
         self.calls = []
         self.posts = []
-        self.actions = []
-
-    def reactions_add(self, **kwargs):
-        self.actions.append(("add", kwargs))
-
-    def reactions_remove(self, **kwargs):
-        self.actions.append(("remove", kwargs))
 
     def conversations_replies(self, **kwargs):
         self.calls.append(kwargs)
         return self.pages.pop(0)
 
     def chat_postMessage(self, **kwargs):
-        self.actions.append(("post", kwargs))
         self.posts.append(kwargs)
         return {"ts": f"1700000003.{len(self.posts):06d}"}
 
@@ -112,61 +104,6 @@ class SlackReplyTests(unittest.TestCase):
         self.assertEqual(self.state.session("T123", "C123", FIRST), ("codex", "fresh"))
         self.assertIsNone(self.runner.run.call_args.args[1])
         self.assertNotIn("Thread through", self.runner.run.call_args.args[0])
-
-    def test_reactions_track_processing_on_the_triggering_message(self):
-        trigger = event(thread_ts=ROOT)
-        self.client.pages = [{"messages": [trigger]}]
-        thinking = {"channel": "C123", "timestamp": FIRST, "name": "thinking_face"}
-
-        def run(prompt, session_id):
-            self.assertEqual(self.client.actions, [("add", thinking)])
-            return "session-1", "answer"
-
-        self.runner.run.side_effect = run
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            self.handle(event(user="UOTHER"))
-            self.handle(trigger)
-            self.handle(trigger)
-            self.handle(event(ts="1700000003.000001"))
-        self.assertEqual(self.client.actions, [
-            ("add", thinking),
-            ("post", self.client.posts[0]),
-            ("remove", thinking),
-            ("add", {"channel": "C123", "timestamp": FIRST, "name": "thumbsup"}),
-        ])
-
-    def test_failed_processing_removes_thinking_without_thumbs_up(self):
-        for failure in ("history", "provider", "post"):
-            with self.subTest(failure=failure):
-                self.client.actions.clear()
-                self.runner.run.side_effect = None
-                self.runner.run.return_value = ("session-1", "answer")
-                failing_method = {
-                    "history": (self.client, "conversations_replies"),
-                    "provider": (self.runner, "run"),
-                    "post": (self.client, "chat_postMessage"),
-                }[failure]
-                with patch.object(reply, "provider_for", return_value=self.runner), \
-                        patch.object(*failing_method, side_effect=RuntimeError("failed")):
-                    with self.assertRaisesRegex(RuntimeError, "failed"):
-                        self.handle(event(thread_ts=ROOT) if failure == "history" else event())
-                thinking = {"channel": "C123", "timestamp": FIRST,
-                            "name": "thinking_face"}
-                self.assertEqual(self.client.actions, [("add", thinking),
-                                                       ("remove", thinking)])
-                self.assertFalse(self.state.seen("handled", "T123", "C123", FIRST))
-
-    def test_reaction_errors_do_not_block_or_duplicate_replies(self):
-        self.runner.run.return_value = ("session-1", "answer")
-        with patch.object(reply, "provider_for", return_value=self.runner), \
-                patch.object(self.client, "reactions_add", side_effect=RuntimeError("missing_scope")), \
-                patch.object(self.client, "reactions_remove", side_effect=RuntimeError("missing_scope")), \
-                contextlib.redirect_stderr(io.StringIO()) as errors:
-            self.handle(event())
-            self.handle(event())
-        self.assertEqual(len(self.client.posts), 1)
-        self.assertTrue(self.state.seen("handled", "T123", "C123", FIRST))
-        self.assertEqual(errors.getvalue().count("missing_scope"), 3)
 
     def test_followup_in_new_thread_resumes_top_level_session(self):
         root = event(ts=ROOT)
