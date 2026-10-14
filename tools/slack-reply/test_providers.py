@@ -1,9 +1,10 @@
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import providers
 
@@ -46,21 +47,23 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(run.call_args.kwargs["input"], "prompt")
 
     def test_codex_new_session_reads_final_answer_and_session_id(self):
-        def fake_execute(command, prompt, workspace):
+        def fake_execute(command, prompt, workspace, on_line):
             Path(command[command.index("-o") + 1]).write_text("final answer")
             self.assertIn("-C", command)
-            return completed('{"type":"thread.started","thread_id":"new-session"}\n')
+            on_line('{"type":"thread.started","thread_id":"new-session"}\n')
+            return completed("")
 
         with patch.object(providers, "execute", side_effect=fake_execute):
             session, answer = providers.CodexProvider(self.path, self.path).run("prompt", None)
         self.assertEqual((session, answer), ("new-session", "final answer"))
 
     def test_codex_resumes_exact_session(self):
-        def fake_execute(command, prompt, workspace):
+        def fake_execute(command, prompt, workspace, on_line):
             Path(command[command.index("-o") + 1]).write_text("answer")
             self.assertEqual(command[:3], ["codex", "exec", "resume"])
             self.assertEqual(command[-2:], ["session-1", "-"])
-            return completed('{"type":"thread.started","thread_id":"session-1"}\n')
+            on_line('{"type":"thread.started","thread_id":"session-1"}\n')
+            return completed("")
 
         with patch.object(providers, "execute", side_effect=fake_execute):
             session, answer = providers.CodexProvider(self.path, self.path).run(
@@ -69,13 +72,83 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual((session, answer), ("session-1", "answer"))
 
     def test_codex_rejects_different_resumed_session(self):
-        def fake_execute(command, prompt, workspace):
+        def fake_execute(command, prompt, workspace, on_line):
             Path(command[command.index("-o") + 1]).write_text("answer")
-            return completed('{"type":"thread.started","thread_id":"other"}\n')
+            on_line('{"type":"thread.started","thread_id":"other"}\n')
+            return completed("")
 
         with patch.object(providers, "execute", side_effect=fake_execute):
             with self.assertRaisesRegex(RuntimeError, "different session"):
                 providers.CodexProvider(self.path, self.path).run("prompt", "session-1")
+
+    def test_streaming_execute_delivers_output_before_process_finishes(self):
+        acknowledgment = self.path / "received"
+        script = r"""
+import os, sys, time
+from pathlib import Path
+prompt = sys.stdin.read()
+sys.stderr.write('diagnostic\n' * 20000)
+print(prompt + '|' + os.environ.get('SLACK_USER_TOKEN', 'absent'), flush=True)
+received = Path(sys.argv[1])
+deadline = time.monotonic() + 5
+while not received.exists():
+    if time.monotonic() >= deadline:
+        sys.exit(7)
+    time.sleep(0.01)
+print('final', flush=True)
+"""
+        lines = []
+
+        def receive(line):
+            lines.append(line.strip())
+            acknowledgment.touch()
+
+        with patch.dict(os.environ, {"SLACK_USER_TOKEN": "secret"}):
+            result = providers.execute([sys.executable, "-u", "-c", script,
+                                        str(acknowledgment)], "prompt", self.path, receive)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(lines, ["prompt|absent", "final"])
+        self.assertEqual(result.stderr, "diagnostic\n" * 20000)
+
+    def test_codex_only_forwards_first_completed_public_message(self):
+        intro = "I'll check the thread\u2028and investigate."
+        on_intro = Mock()
+
+        def fake_execute(command, prompt, workspace, on_line):
+            self.assertIn("commentary sentence", prompt)
+            events = [
+                {"type": "thread.started", "thread_id": "session-1"},
+                {"type": "item.completed", "item": {"type": "reasoning", "text": "private"}},
+                {"type": "item.started", "item": {"type": "agent_message", "text": "partial"}},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": " "}},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": intro}},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": "update"}},
+                {"type": "item.completed", "item": {"type": "agent_message", "text": "answer"}},
+            ]
+            for event in events:
+                on_line(json.dumps(event, ensure_ascii=False) + "\n")
+            on_intro.assert_called_once_with(intro)
+            Path(command[command.index("-o") + 1]).write_text("answer")
+            return completed("")
+
+        with patch.object(providers, "execute", side_effect=fake_execute):
+            self.assertEqual(providers.CodexProvider(self.path, self.path).run(
+                "prompt", None, on_intro), ("session-1", "answer"))
+        self.assertEqual(list(self.path.glob("answer-*")), [])
+
+    def test_codex_reports_failure_after_intro_and_removes_answer_file(self):
+        on_intro = Mock()
+
+        def fake_execute(command, prompt, workspace, on_line):
+            on_line(json.dumps({"type": "item.completed", "item": {
+                "type": "agent_message", "text": "I'll investigate."}}) + "\n")
+            return completed("", 1, "CLI failed")
+
+        with patch.object(providers, "execute", side_effect=fake_execute):
+            with self.assertRaisesRegex(RuntimeError, "CLI failed"):
+                providers.CodexProvider(self.path, self.path).run("prompt", None, on_intro)
+        on_intro.assert_called_once_with("I'll investigate.")
+        self.assertEqual(list(self.path.glob("answer-*")), [])
 
     def test_claude_json_result_and_resume_use_same_contract(self):
         payload = json.dumps({"type": "result", "is_error": False,
