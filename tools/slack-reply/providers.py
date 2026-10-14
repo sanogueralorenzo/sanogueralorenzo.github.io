@@ -43,26 +43,18 @@ class CodexProvider:
     def __init__(self, workspace, state_dir):
         self.workspace = workspace
         self.state_dir = state_dir
-        self.model = os.environ.get("CODEX_MODEL", "gpt-6-luna").strip()
-        self.effort = os.environ.get("CODEX_REASONING_EFFORT", "high").strip()
-        if self.effort not in {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}:
-            raise ValueError("CODEX_REASONING_EFFORT is not a recognized effort value")
 
     def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
             answer_path = Path(output.name)
         try:
             common = [
-                "--json", "-m", self.model, "-c", f'model_reasoning_effort="{self.effort}"',
-                "-c", 'approval_policy="never"', "-o", str(answer_path),
-                "--skip-git-repo-check",
+                "--json", "-o", str(answer_path), "--skip-git-repo-check",
             ]
             if session_id:
-                command = ["codex", "exec", "resume", *common,
-                           "-c", 'sandbox_mode="workspace-write"', session_id, "-"]
+                command = ["codex", "exec", "resume", *common, session_id, "-"]
             else:
-                command = ["codex", "exec", *common, "--sandbox", "workspace-write",
-                           "-C", str(self.workspace), "-"]
+                command = ["codex", "exec", *common, "-C", str(self.workspace), "-"]
             result = execute(command, prompt, self.workspace)
             if result.returncode:
                 raise RuntimeError(f"codex exec failed (exit {result.returncode}): {result.stderr[-1500:]}")

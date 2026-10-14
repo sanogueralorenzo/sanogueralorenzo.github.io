@@ -48,7 +48,9 @@ class ProviderTests(unittest.TestCase):
     def test_codex_new_session_reads_final_answer_and_session_id(self):
         def fake_execute(command, prompt, workspace):
             Path(command[command.index("-o") + 1]).write_text("final answer")
-            self.assertIn("-C", command)
+            self.assertEqual(command, ["codex", "exec", "--json", "-o",
+                                      command[command.index("-o") + 1],
+                                      "--skip-git-repo-check", "-C", str(self.path), "-"])
             return completed('{"type":"thread.started","thread_id":"new-session"}\n')
 
         with patch.object(providers, "execute", side_effect=fake_execute):
@@ -58,8 +60,9 @@ class ProviderTests(unittest.TestCase):
     def test_codex_resumes_exact_session(self):
         def fake_execute(command, prompt, workspace):
             Path(command[command.index("-o") + 1]).write_text("answer")
-            self.assertEqual(command[:3], ["codex", "exec", "resume"])
-            self.assertEqual(command[-2:], ["session-1", "-"])
+            self.assertEqual(command, ["codex", "exec", "resume", "--json", "-o",
+                                      command[command.index("-o") + 1],
+                                      "--skip-git-repo-check", "session-1", "-"])
             return completed('{"type":"thread.started","thread_id":"session-1"}\n')
 
         with patch.object(providers, "execute", side_effect=fake_execute):

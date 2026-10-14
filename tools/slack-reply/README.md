@@ -22,12 +22,12 @@ pip install -r requirements.txt
 umask 077
 cp .env.example .env
 chmod 600 .env
-# Edit .env with your tokens, Slack user ID, absolute workspace path, model, and effort.
+# Edit .env with your tokens, Slack user ID, and absolute workspace path.
 ./run.sh provider          # Show the selected provider (Codex by default).
 ./run.sh provider pi       # Or use "codex" or "claude"; fails if that CLI is absent.
 ./run.sh
 ```
 
-`.env` is ignored by Git and `run.sh` requires mode `600`. Set `SLACK_REPLY_WORKSPACE` to the directory all CLIs should use, and grant the app only the Slack scopes you need. The selected provider, session map, and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from every CLI subprocess environment. `CODEX_MODEL` and `CODEX_REASONING_EFFORT` configure Codex; optional `CLAUDE_MODEL`, `CLAUDE_REASONING_EFFORT`, `PI_MODEL`, and `PI_THINKING` override local CLI defaults. Codex uses a workspace-write sandbox and never-ask approval policy. Claude runs with `acceptEdits` permission mode; Pi uses its own tool settings. Authenticate each CLI separately. Pi uses [JSON events and saved sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md).
+`.env` is ignored by Git and `run.sh` requires mode `600`. Set `SLACK_REPLY_WORKSPACE` to the directory all CLIs should use, and grant the app only the Slack scopes you need. The selected provider, session map, and answer tracking live in `~/.local/state/slack-reply` by default, with private directory and file permissions; set `SLACK_REPLY_STATE_DIR` to change that path. Slack tokens are removed from every CLI subprocess environment. Codex inherits its model, reasoning effort, sandbox, and approval settings from its normal configuration (`~/.codex/config.toml`). Optional `CLAUDE_MODEL`, `CLAUDE_REASONING_EFFORT`, `PI_MODEL`, and `PI_THINKING` override local CLI defaults. Claude runs with `acceptEdits` permission mode; Pi uses its own tool settings. Authenticate each CLI separately. Pi uses [JSON events and saved sessions](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md).
 
 To trigger it, send a message from the configured user that explicitly mentions that same user. A reply to an existing Slack thread includes that thread through the triggering message and resumes its saved session on later self-mentions. A top-level message sends only itself, starts a thread with the answer, and saves the session for later self-mentions in that thread. Changing the provider affects new threads; existing threads stay with their original provider so their sessions remain resumable. Slack Reply ignores other users, bot messages, its own posted answers, and duplicate event deliveries. Stop it with Ctrl-C.
