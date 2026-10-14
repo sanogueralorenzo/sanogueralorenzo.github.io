@@ -6,14 +6,13 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Protocol
 
 
 class Provider(Protocol):
     name: str
 
-    def run(self, prompt: str, session_id: str | None,
-            on_intro: Callable[[str], None] | None = None) -> tuple[str, str]: ...
+    def run(self, prompt: str, session_id: str | None) -> tuple[str, str]: ...
 
 
 def require_available(name):
@@ -23,29 +22,12 @@ def require_available(name):
         raise RuntimeError(f"{name} CLI is not installed or is not on PATH")
 
 
-def execute(command, prompt, workspace, on_line=None):
-    env = {key: value for key, value in os.environ.items() if not key.startswith("SLACK_")}
-    if on_line is None:
-        return subprocess.run(
-            command, input=prompt, text=True, capture_output=True, cwd=workspace,
-            check=False, env=env,
-        )
-    with tempfile.TemporaryFile() as stderr:
-        with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                              stderr=stderr, text=True, cwd=workspace, env=env) as process:
-            try:
-                process.stdin.write(prompt)
-                process.stdin.close()
-                for line in process.stdout:
-                    on_line(line)
-                process.wait()
-            except BaseException:
-                process.kill()
-                process.wait()
-                raise
-        stderr.seek(0)
-        return subprocess.CompletedProcess(command, process.returncode, "",
-                                           stderr.read().decode(errors="replace"))
+def execute(command, prompt, workspace):
+    return subprocess.run(
+        command, input=prompt, text=True, capture_output=True, cwd=workspace,
+        check=False,
+        env={key: value for key, value in os.environ.items() if not key.startswith("SLACK_")},
+    )
 
 
 def check_session(name, returned, expected):
@@ -66,7 +48,7 @@ class CodexProvider:
         if self.effort not in {"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"}:
             raise ValueError("CODEX_REASONING_EFFORT is not a recognized effort value")
 
-    def run(self, prompt, session_id, on_intro=None):
+    def run(self, prompt, session_id):
         with tempfile.NamedTemporaryFile(dir=self.state_dir, prefix="answer-", delete=False) as output:
             answer_path = Path(output.name)
         try:
@@ -81,33 +63,15 @@ class CodexProvider:
             else:
                 command = ["codex", "exec", *common, "--sandbox", "workspace-write",
                            "-C", str(self.workspace), "-"]
-            started = []
-            intro_sent = False
-
-            def receive(line):
-                nonlocal intro_sent
-                if line.startswith("{"):
-                    event = json.loads(line)
-                    if event.get("type") == "thread.started":
-                        started.append(event.get("thread_id"))
-                    item = event.get("item") or {}
-                    if (event.get("type") == "item.completed"
-                            and item.get("type") == "agent_message" and not intro_sent):
-                        text = item.get("text", "").strip()
-                        if text:
-                            if on_intro:
-                                on_intro(text)
-                            intro_sent = True
-
-            prompt = (
-                "Before doing any work, send one brief user-facing commentary sentence "
-                "acknowledging the request and explaining what you will check or do. "
-                "Then complete the request and put only the answer in your final message.\n\n"
-                + prompt
-            )
-            result = execute(command, prompt, self.workspace, on_line=receive)
+            result = execute(command, prompt, self.workspace)
             if result.returncode:
                 raise RuntimeError(f"codex exec failed (exit {result.returncode}): {result.stderr[-1500:]}")
+            started = []
+            for line in result.stdout.splitlines():
+                if line.startswith("{"):
+                    item = json.loads(line)
+                    if item.get("type") == "thread.started":
+                        started.append(item.get("thread_id"))
             new_session_id = next((value for value in started if value), None)
             check_session(self.name, new_session_id, session_id)
             answer = answer_path.read_text().strip()
@@ -128,7 +92,7 @@ class ClaudeProvider:
         if self.effort and self.effort not in {"low", "medium", "high", "xhigh", "max"}:
             raise ValueError("CLAUDE_REASONING_EFFORT must be low, medium, high, xhigh, or max")
 
-    def run(self, prompt, session_id, on_intro=None):
+    def run(self, prompt, session_id):
         command = ["claude", "-p", "--output-format", "json",
                    "--permission-mode", "acceptEdits"]
         if self.model:
@@ -165,7 +129,7 @@ class PiProvider:
         }:
             raise ValueError("PI_THINKING must be off, minimal, low, medium, high, xhigh, or max")
 
-    def run(self, prompt, session_id, on_intro=None):
+    def run(self, prompt, session_id):
         command = ["pi", "--mode", "json", "-p"]
         if self.model:
             command.extend(["--model", self.model])

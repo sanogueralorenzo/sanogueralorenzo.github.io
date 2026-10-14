@@ -26,11 +26,6 @@ class FakeClient:
         self.pages = []
         self.calls = []
         self.posts = []
-        self.updates = []
-
-    def chat_update(self, **kwargs):
-        self.updates.append(kwargs)
-        return {"ts": kwargs["ts"]}
 
     def conversations_replies(self, **kwargs):
         self.calls.append(kwargs)
@@ -109,60 +104,6 @@ class SlackReplyTests(unittest.TestCase):
         self.assertEqual(self.state.session("T123", "C123", FIRST), ("codex", "fresh"))
         self.assertIsNone(self.runner.run.call_args.args[1])
         self.assertNotIn("Thread through", self.runner.run.call_args.args[0])
-
-    def test_intro_is_posted_during_run_and_edited_into_final_answer(self):
-        trigger = event(thread_ts=ROOT)
-        self.client.pages = [{"messages": [trigger]}]
-
-        def run(prompt, session_id, on_intro):
-            on_intro(f"I'll investigate <@{USER}>.")
-            self.assertEqual(self.client.posts[0]["text"], f"I'll investigate <@{USER}>.")
-            self.assertEqual(self.client.posts[0]["thread_ts"], ROOT)
-            self.assertEqual(self.client.updates, [])
-            self.assertTrue(self.state.seen("posted", "T123", "C123", "1700000003.000001"))
-            self.assertFalse(self.state.seen("handled", "T123", "C123", FIRST))
-            on_intro("Another update")
-            return "session-1", "final answer"
-
-        self.runner.run.side_effect = run
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            self.handle(trigger)
-            self.handle(trigger)
-            self.handle(event(ts="1700000003.000001", thread_ts=ROOT))
-            self.handle(event(ts="1700000003.000001", subtype="message_changed"))
-        self.assertEqual(len(self.client.posts), 1)
-        self.assertEqual(self.client.updates, [{"channel": "C123", "ts": "1700000003.000001",
-                                              "text": "final answer"}])
-        self.assertTrue(self.state.seen("handled", "T123", "C123", FIRST))
-        self.assertEqual(self.state.session("T123", "C123", ROOT), ("codex", "session-1"))
-
-    def test_failure_after_intro_updates_same_reply_and_propagates_original_error(self):
-        def run(prompt, session_id, on_intro):
-            on_intro("I'll investigate.")
-            raise RuntimeError("provider failed")
-
-        self.runner.run.side_effect = run
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            with self.assertRaisesRegex(RuntimeError, "provider failed"):
-                self.handle(event())
-        self.assertEqual(len(self.client.posts), 1)
-        self.assertEqual(self.client.updates, [{"channel": "C123", "ts": "1700000003.000001",
-                                              "text": "I couldn't complete this reply. Please try again."}])
-        self.assertFalse(self.state.seen("handled", "T123", "C123", FIRST))
-        with patch.object(reply, "provider_for", return_value=self.runner), \
-                patch.object(self.client, "chat_update", side_effect=RuntimeError("Slack failed")), \
-                contextlib.redirect_stderr(io.StringIO()) as errors:
-            with self.assertRaisesRegex(RuntimeError, "provider failed"):
-                self.handle(event())
-        self.assertIn("Slack failed", errors.getvalue())
-
-    def test_failure_before_intro_does_not_post_a_reply(self):
-        self.runner.run.side_effect = RuntimeError("provider failed")
-        with patch.object(reply, "provider_for", return_value=self.runner):
-            with self.assertRaisesRegex(RuntimeError, "provider failed"):
-                self.handle(event())
-        self.assertEqual(self.client.posts, [])
-        self.assertEqual(self.client.updates, [])
 
     def test_followup_in_new_thread_resumes_top_level_session(self):
         root = event(ts=ROOT)
