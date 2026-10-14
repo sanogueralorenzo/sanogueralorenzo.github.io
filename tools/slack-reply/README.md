@@ -1,6 +1,6 @@
 # Slack Reply
 
-Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. A message runs the selected provider only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one provider session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token.
+Local Slack Socket Mode bridge to the Codex, Claude, or Pi CLI. A message runs the selected provider only when its author is `SLACK_USER_ID` and its text contains `<@SLACK_USER_ID>`. Every answer is posted in the triggering message's thread, with one provider session per thread. A top-level trigger starts a fresh session using only that message, without channel history. Answers are posted with the authorized user's Slack token using Slack's native Markdown rendering (up to 12,000 characters).
 
 ## Slack setup
 
