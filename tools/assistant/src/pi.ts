@@ -12,6 +12,7 @@ import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
+import { workingNotes, workingNotesSection } from "./working-notes.ts";
 
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -37,14 +38,14 @@ export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = 
     execute: async (args, api, context) => {
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
-    } })), ...extraTools];
+    } })), ...extraTools, ...(role !== "coordinator" ? [workingNotes] : [])];
   return defineExtension({ name: `assistant-${role}`, tools, sections: [section("assistant", async ({ agent }) => {
       const cwd = agent.cwd || process.cwd();
       let loader = resources.get(cwd);
       if (!loader) { loader = agentResources(cwd, role, instructions); await loader.reload(); resources.set(cwd, loader); }
       const files = loader.getAgentsFiles().agentsFiles.map((file) => `Project instructions (${file.path}):\n${file.content}`);
       return [loader.getSystemPrompt(), ...files, formatSkillsForPrompt(loader.getSkills().skills)].filter(Boolean).join("\n\n");
-    }, { tag: false })] });
+    }, { tag: false }), ...(role !== "coordinator" ? [workingNotesSection] : [])] });
 }
 
 export function providerModels(runtime: Models, report: (sessionId: string, data: unknown) => void = () => {}): Models {
@@ -55,7 +56,10 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
       return typeof value === "function" ? value.bind(target) : value;
     }
     return (model: Model<Api>, transcript: Context, options: ModelsSimpleStreamOptions = {}) => lazyStream(model, async () => {
-      while (active.size >= 4) {
+      const tools = transcript.tools || transcript.messages.flatMap((message) => message.role === "system" ? message.toolsAdded || [] : []);
+      const routing = tools.some((tool) => tool.name === "route_home");
+      // Keep one of the four inference slots available for Home while work is running.
+      while (active.size >= (routing ? 4 : 3)) {
         options.signal?.throwIfAborted();
         await new Promise<void>((resolve, reject) => {
           const abort = () => { cleanup(); reject(options.signal!.reason); };
@@ -69,8 +73,6 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
       let release!: () => void;
       const occupied = new Promise<void>((resolve) => { release = resolve; });
       active.add(occupied);
-      const tools = transcript.tools || transcript.messages.flatMap((message) => message.role === "system" ? message.toolsAdded || [] : []);
-      const coordinator = tools.some((tool) => tool.name === "route_home");
       return (async function* () {
         try {
           yield* target.streamSimple(model, transcript, { ...options,
@@ -79,7 +81,7 @@ export function providerModels(runtime: Models, report: (sessionId: string, data
               if (model.provider === "openai-codex") {
                 if (!request || typeof request !== "object" || Array.isArray(request)) throw new Error("Unexpected Codex request payload");
                 const value = request as Record<string, unknown>;
-                const search = !coordinator;
+                const search = !routing;
                 const tools = (Array.isArray(value.tools) ? value.tools : []).filter(tool => tool?.type !== "web_search");
                 request = { ...value, service_tier: "priority", tools: [...tools, ...(search ? [{ type: "web_search" }] : [])] };
               }
