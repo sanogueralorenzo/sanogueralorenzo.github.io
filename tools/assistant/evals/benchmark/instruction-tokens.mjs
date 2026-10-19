@@ -1,7 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { assistantCodexAuth } from "../../src/codex-auth.ts";
+import { assistantModels } from "../../src/providers.ts";
 import { hash, readJSON } from "./suite.mjs";
 import { saveJSON } from "./artifacts.mjs";
 
@@ -15,7 +14,7 @@ const prompts = [{ id: "control", text: "You are a helpful assistant." }, ...spe
   id: item.id, text: item.files.map(file => readFileSync(resolve(dirname(specPath), file), "utf8")).join("\n\n"),
 }))];
 if (new Set(prompts.map(p => p.id)).size !== prompts.length) throw new Error("Instruction IDs must be unique");
-const runtime = await ModelRuntime.create({ authPath: assistantCodexAuth(dirname(output)), modelsPath: null, refreshOnCreate: false });
+const runtime = await assistantModels();
 const model = runtime.getModel("openai-codex", "gpt-6-luna");
 if (!model) throw new Error("Instruction probe model unavailable");
 const artifact = { model: model.id, method: "Provider-reported first-request input, including cached input, relative to the explicit control 'You are a helpful assistant.'. Constant user message, effort none, two order-rotated repeats. Baseline-minus-candidate input is the measured instruction reduction; relative counts are not standalone tokenizer counts.",

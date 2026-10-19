@@ -37,7 +37,12 @@ export class Assistant {
   private constructor(dataDir: string, cwd: string, pi: PiService, db: DatabaseSync, dispatch: ReturnType<typeof Assistant.dispatchTask>, rootId: ConversationId) {
     this.dataDir = dataDir; this.cwd = cwd; this.pi = pi; this.db = db; this.dispatch = dispatch; this.rootId = rootId;
     this.state = new State(pi.harness); this.router = new HomeRouter(this.state, pi, cwd);
-    this.suggestions = new PromptSuggestions(Promise.resolve(pi.models), db);
+    this.suggestions = new PromptSuggestions(Promise.resolve(pi.models), db, async (sessionId) => {
+      const record = this.state.home.sessions.find(session => session.id === sessionId);
+      if (!record) return pi.model;
+      const conversation = await pi.harness.conversation(record.conversationId as ConversationId, BACKGROUND_CONTEXT);
+      return (await conversation!.agent(BACKGROUND_CONTEXT)).model || pi.model;
+    });
   }
   static async open(dataDir: string, cwd: string, options: PiOptions = {}) {
     let app!: Assistant;

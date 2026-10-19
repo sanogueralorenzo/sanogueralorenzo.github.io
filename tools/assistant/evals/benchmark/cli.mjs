@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { assistantCodexAuth } from "../../src/codex-auth.ts";
+import { resolve } from "node:path";
+import { assistantModels } from "../../src/providers.ts";
 import { loadSuite, schedule, hash, readJSON } from "./suite.mjs";
 import { runTrial } from "./trial.mjs";
 import { runRoleIntegration } from "./role-integration.mjs";
@@ -51,7 +50,7 @@ if (command === "review" || command === "report") {
       provenance: suite.config.provenance, execution: suite.config.execution || "fixture", selection: suite.config.selection, harness: suite.harness, model: suite.config.model || "gpt-6-luna", cases: suite.cases, variants: suite.variants, results: [] };
     if (run.fingerprint !== fingerprint) throw new Error("Resume inputs changed");
     saveJSON(out, run);
-    const runtime = await ModelRuntime.create({ authPath: assistantCodexAuth(dirname(out)), modelsPath: null, refreshOnCreate: false });
+    const runtime = await assistantModels();
     const model = runtime.getModel("openai-codex", run.model);
     if (!model) throw new Error("Configured model unavailable");
     const complete = new Set(run.results.map(r => r.id));

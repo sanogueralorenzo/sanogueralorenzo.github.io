@@ -8,7 +8,7 @@ Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends â
 
 ## Start
 
-Requires Node 26+ and a signed-in Codex CLI account in `~/.codex/auth.json`.
+Requires Node 26+. Click the connection dot to sign in to Codex or Claude using Pi's login flow and select a model. The selection applies to new tasks; existing conversations keep their model.
 
 ```bash
 cd tools/assistant
@@ -18,6 +18,6 @@ npm start
 
 Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts its approval requests. `service/install.sh` starts Assistant after login on macOS; `service/uninstall.sh` removes the service.
 
-State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`.
+State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json`.
 
-Run `npm run check` and `npm test`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the existing Codex login.
+Run `npm run check` and `npm test`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.

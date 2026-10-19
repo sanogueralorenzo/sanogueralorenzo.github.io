@@ -3,17 +3,16 @@ import { join } from "node:path";
 import type { JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { lazyStream, type Models, type Model, type Api, type Context, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
-import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt, ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { createCodingTools, createReadOnlyTools, formatSkillsForPrompt } from "@earendil-works/pi-coding-agent";
 import { AssistantEntry, createRegistry, defineExtension, defineTool, Harness, MemoryStorage, ProviderDoc, section,
   type AnyTask, type Cursor, type Extension, type ModelRef, type Storage, type ToolRegistration } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { assistantCodexAuth } from "./codex-auth.ts";
+import { assistantModels, Providers } from "./providers.ts";
 import { ComputerUseClient } from "./computer-use.ts";
 import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
 
-export const defaultModel = { provider: "openai-codex", modelId: "gpt-6-luna" };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
@@ -102,15 +101,16 @@ export class PiService {
   readonly harness: Harness;
   readonly models: Models;
   private readonly agentModels: Models;
-  readonly model: ModelRef;
+  readonly providers: Providers;
+  private readonly fixedModel?: ModelRef;
   private readonly roles: Record<AgentRole, Extension>;
   private readonly computers: Map<number, ComputerUseClient>;
   private readonly computerClosures = new Set<Promise<void>>();
   private readonly providerConversations = new Map<string, number>();
   private unsubscribe = () => {};
   onProviderEvent: (conversationId: number, data: unknown) => void = () => {};
-  private constructor(harness: Harness, models: Models, agentModels: Models, model: ModelRef, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
-    this.harness = harness; this.models = models; this.agentModels = agentModels; this.model = model; this.roles = roles; this.computers = computers;
+  private constructor(harness: Harness, models: Models, agentModels: Models, providers: Providers, fixedModel: ModelRef | undefined, roles: Record<AgentRole, Extension>, computers: Map<number, ComputerUseClient>) {
+    this.harness = harness; this.models = models; this.agentModels = agentModels; this.providers = providers; this.fixedModel = fixedModel; this.roles = roles; this.computers = computers;
     this.unsubscribe = harness.subscribeCommits((publication) => {
       for (const change of publication.changes) {
         if (change.type !== "document" || !change.value || change.conversationId === undefined) continue;
@@ -121,13 +121,13 @@ export class PiService {
   }
   static async open(dataDir: string, options: PiOptions = {}) {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-    const runtime = options.models || await ModelRuntime.create({ authPath: assistantCodexAuth(dataDir) });
+    const runtime = options.models || await assistantModels(dataDir);
+    const providers = new Providers(dataDir, runtime);
     let service: PiService | undefined;
     const models = providerModels(runtime, (id, data) => {
       const conversationId = service?.providerConversations.get(id);
       if (conversationId !== undefined) service!.onProviderEvent(conversationId, data);
     });
-    const model = options.model || defaultModel;
     const computers = new Map<number, ComputerUseClient>();
     const computer = new ComputerUseClient().tool();
     const computerTool = defineTool({ ...computer,
@@ -146,7 +146,7 @@ export class PiService {
     const harness = await Harness.open(options.storage || await openNodeSqliteStorage(join(dataDir, "durable.sqlite")), {
       models, registry, settings: { extensions: [], steeringMode: "one-at-a-time", followUpMode: "one-at-a-time", toolExecution: "parallel", progress: { partialIntervalMs: 16, outputIntervalMs: 16 } },
     }, BACKGROUND_CONTEXT);
-    service = new PiService(harness, runtime, models, model, roles, computers);
+    service = new PiService(harness, runtime, models, providers, options.model, roles, computers);
     await harness.commit(async (tx) => {
       let cursor: Cursor | undefined;
       do {
@@ -160,6 +160,7 @@ export class PiService {
     }, BACKGROUND_CONTEXT);
     return service;
   }
+  get model(): ModelRef { return this.fixedModel || this.providers.model; }
   agent(role: AgentRole, cwd: string) { return { model: this.model, thinkingLevel: role === "coordinator" ? "low" as const : "high" as const, cwd, extensions: [this.roles[role]] }; }
   async utility(role: "coordinator", input: string, cwd: string, customTools: ToolRegistration[] = [], acceptedResult?: () => string | undefined) {
     const tools = customTools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
@@ -191,6 +192,7 @@ export class PiService {
     void closing.then(() => this.computerClosures.delete(closing), () => {});
   }
   async close() {
+    await this.providers.close();
     await this.harness.close(BACKGROUND_CONTEXT);
     this.unsubscribe();
     for (const id of this.computers.keys()) this.closeComputer(id);

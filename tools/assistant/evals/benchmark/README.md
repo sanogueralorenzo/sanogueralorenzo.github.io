@@ -1,6 +1,6 @@
 # Instruction benchmarks
 
-Compare focused prompts or skills with fixed inputs and bounded fixture tools, using the existing Codex login. Default replay fixtures never execute shell commands, edit real files, or contact services. Follow [PROTOCOL.md](PROTOCOL.md); [GUIDANCE.md](GUIDANCE.md) and [OUTCOMES.md](OUTCOMES.md) explain measured results and limits.
+Compare focused prompts or skills with fixed inputs and bounded fixture tools, using the Codex login saved through Assistant's provider menu. Default replay fixtures never execute shell commands, edit real files, or contact services. Follow [PROTOCOL.md](PROTOCOL.md); [GUIDANCE.md](GUIDANCE.md) and [OUTCOMES.md](OUTCOMES.md) explain measured results and limits.
 
 ```sh
 cd tools/assistant

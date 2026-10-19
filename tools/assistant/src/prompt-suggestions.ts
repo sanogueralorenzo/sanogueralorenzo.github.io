@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
 import type { Models } from "@earendil-works/pi-ai";
+import type { ModelRef } from "@earendil-works/pi-durable";
+import { defaultModel } from "./providers.ts";
 
 const systemPrompt = readFileSync(new URL("../prompts/suggestion.md", import.meta.url), "utf8");
 type Message = { role: string; text: string };
@@ -8,10 +10,12 @@ type Message = { role: string; text: string };
 export class PromptSuggestions {
   private readonly runtime: Promise<Models>;
   private readonly db: DatabaseSync;
+  private readonly model: (sessionId: string) => ModelRef | Promise<ModelRef>;
   private readonly pending = new Map<string, Promise<string | null>>();
-  constructor(runtime: Promise<Models>, db: DatabaseSync) {
+  constructor(runtime: Promise<Models>, db: DatabaseSync, model: (sessionId: string) => ModelRef | Promise<ModelRef> = () => defaultModel) {
     this.runtime = runtime;
     this.db = db;
+    this.model = model;
     db.exec("CREATE TABLE IF NOT EXISTS suggestions (session_id TEXT NOT NULL, reply_id TEXT NOT NULL, text TEXT, PRIMARY KEY (session_id, reply_id))");
   }
 
@@ -21,7 +25,7 @@ export class PromptSuggestions {
     const key = JSON.stringify([sessionId, replyId]);
     const cached = this.pending.get(key);
     if (cached) return cached;
-    const result = this.generate(messages).then((answer) => {
+    const result = this.generate(sessionId, messages).then((answer) => {
       if (answer) this.db.prepare("INSERT INTO suggestions (session_id, reply_id, text) VALUES (?, ?, ?)").run(sessionId, replyId, answer.text);
       return answer?.text ?? null;
     }).catch(() => null).finally(() => this.pending.delete(key));
@@ -29,20 +33,23 @@ export class PromptSuggestions {
     return result;
   }
 
-  private async generate(messages: Message[]) {
+  private async generate(sessionId: string, messages: Message[]) {
     // Keep recent user intent and completed replies; no agent instructions, tools, or tool output.
     const conversation = messages.filter((message) => message.role === "user" || message.role === "assistant").slice(-12)
       .map(({ role, text }) => ({ role, text: text.slice(-6000) }));
     const signal = AbortSignal.timeout(5000);
     const runtime = await this.runtime;
     if (signal.aborted) return;
-    const model = runtime.getModel("openai-codex", "gpt-6-luna");
+    const selected = await this.model(sessionId);
+    if (!["openai-codex", "anthropic"].includes(selected.provider)) return;
+    const model = runtime.getModel(selected.provider, selected.modelId);
     if (!model) return;
     const stream = runtime.streamSimple(model, { systemPrompt, messages: [{ role: "user", timestamp: 0,
       content: JSON.stringify({ conversation }) }] }, {
       // Omitting Pi's thinking level maps to native effort "none"; verify the provider payload below.
       transport: "sse", maxRetries: 0, signal,
       onPayload: (payload) => {
+        if (selected.provider !== "openai-codex") return payload;
         if (typeof payload !== "object" || payload === null || Array.isArray(payload)) throw new Error("Unexpected suggestion payload");
         const request = { ...payload as Record<string, unknown>, service_tier: "priority" };
         const reasoning = (request as Record<string, unknown>).reasoning as { effort?: unknown } | undefined;

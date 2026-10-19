@@ -1,7 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
-import { dirname } from "node:path";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
-import { assistantCodexAuth } from "../../src/codex-auth.ts";
+import { assistantModels } from "../../src/providers.ts";
 import { readJSON, hash } from "./suite.mjs";
 import { blindCards, validateReviews } from "./grading.mjs";
 import { saveJSON } from "./artifacts.mjs";
@@ -13,7 +11,7 @@ if (existsSync(output) && !resume) throw new Error("Review output already exists
 const data = readJSON(input);
 const cards = data.cards || blindCards(data);
 const policy = readFileSync(new URL("./judge.md", import.meta.url), "utf8");
-const runtime = await ModelRuntime.create({ authPath: assistantCodexAuth(dirname(output)), modelsPath: null, refreshOnCreate: false });
+const runtime = await assistantModels();
 const model = runtime.getModel("openai-codex", "gpt-6-luna");
 if (!model) throw new Error("Judge model unavailable");
 const artifact = existsSync(output) ? readJSON(output) : { provenance: "Blinded model-assisted review; not independent human validation", inputHash: data.inputHash || hash(data), sourceHash: hash(data), policyHash: hash(policy), model: model.id, effort, reviews: [], usage: [], errors: [] };

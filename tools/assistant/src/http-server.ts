@@ -28,6 +28,7 @@ const assets: Record<string, [string, string]> = {
   "/message-actions.js": ["message-actions.js", "text/javascript"],
   "/prompt-suggestions.js": ["prompt-suggestions.js", "text/javascript"],
   "/queued-messages.js": ["queued-messages.js", "text/javascript"],
+  "/providers.js": ["providers.js", "text/javascript"],
 };
 
 export function createAssistantServer(app: Assistant) {
@@ -57,22 +58,46 @@ export function createAssistantServer(app: Assistant) {
         void send(event).catch(() => res.destroy());
         attach();
       });
+      const sendProviders = () => app.pi.providers.snapshot().then(data => send({ type: "providers", data }));
+      const unsubscribeProviders = app.pi.providers.subscribe(() => { void sendProviders().catch(() => res.destroy()); });
       res.on("close", () => {
-        clients.delete(res); controller.abort(); unsubscribe();
+        clients.delete(res); controller.abort(); unsubscribe(); unsubscribeProviders();
         for (const pending of watches.values()) void pending.then((watch) => watch.stop(), () => {});
       });
       await send({ type: "snapshot", data: app.snapshot() });
+      await sendProviders();
       for (const activity of app.activities()) await send(activity);
       attach();
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/state") return json(res, 200, app.snapshot());
+    if (req.method === "GET" && url.pathname === "/api/providers") return json(res, 200, await app.pi.providers.snapshot());
     const sessionMatch = url.pathname.match(/^\/api\/sessions\/([a-f0-9-]+)$/);
     if (req.method === "GET" && sessionMatch) return json(res, 200, app.transcript(sessionMatch[1]));
     if (req.method === "POST") {
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: "Cross-origin request denied" });
       const request = await body(req);
+      if (url.pathname === "/api/providers/select") {
+        await app.pi.providers.select(input(request.provider), request.modelId === undefined ? undefined : input(request.modelId));
+        return json(res, 200, await app.pi.providers.snapshot());
+      }
+      if (url.pathname === "/api/providers/login") {
+        const loginId = app.pi.providers.startLogin(input(request.provider));
+        return json(res, 202, { loginId });
+      }
+      if (url.pathname === "/api/providers/respond") {
+        app.pi.providers.respond(input(request.loginId), input(request.promptId), input(request.value));
+        return json(res, 202, { accepted: true });
+      }
+      if (url.pathname === "/api/providers/cancel") {
+        await app.pi.providers.cancelLogin(input(request.loginId));
+        return json(res, 200, await app.pi.providers.snapshot());
+      }
+      if (url.pathname === "/api/providers/logout") {
+        await app.pi.providers.logout(input(request.provider));
+        return json(res, 200, await app.pi.providers.snapshot());
+      }
       if (url.pathname === "/api/suggestions") return json(res, 200, await app.suggestion(input(request.sessionId), input(request.replyId)));
       if (url.pathname === "/api/home") return json(res, 202, { message: await app.submitHome(input(request.text), typeof request.id === "string" ? request.id : undefined) });
       if (url.pathname === "/api/turns") return json(res, 202, await app.submitSession(String(request.sessionId), input(request.text), request.mode === "steer" ? "steer" : "followUp", {

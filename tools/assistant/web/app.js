@@ -2,6 +2,7 @@ import { escapeHTML, icon, renderMarkdown, renderMessage } from "./view.js";
 import { createMessageActions } from "./message-actions.js";
 import { createPromptSuggestions } from "./prompt-suggestions.js";
 import { composerDraft, restoreComposerDraft, createQueuedMessages } from "./queued-messages.js";
+import { createProviders } from "./providers.js";
 
 const root = document.querySelector("#app");
 const restoredDraft = sessionStorage.getItem("assistant-reload-draft") || "";
@@ -18,6 +19,7 @@ let renderedView = state.selected;
 const actions = createMessageActions({ state, root, api, render });
 const suggestions = createPromptSuggestions({ state, root, api, render });
 const queued = createQueuedMessages({ state, root, api, render });
+const providers = createProviders({ state, root, api });
 
 async function api(path, method = "GET", body) {
   const response = await fetch(path, { method, headers: body ? { "content-type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -124,11 +126,12 @@ function render(force = false) {
   if (old) state.scroll[renderedView] = old.scrollTop;
   const focus = document.activeElement?.dataset?.focus;
   const cursor = focus ? document.activeElement.selectionStart : null;
+  const providerFocus = providers.captureFocus();
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const editing = isHome && state.edit;
   const previewHTML = actions.preview();
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end"><span class="connection-dot ${state.connected ? "online" : ""}" title="${state.connected ? "Connected" : "Reconnecting"}"></span></div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span></div></div><div class="composer-controls"><button type="button" class="composer-icon suggestion-action" data-action="accept-suggestion" title="Use suggested reply" aria-label="Use suggested reply" hidden><kbd>Tab</kbd></button><button type="button" class="composer-icon mic-button" title="Microphone — coming soon" aria-label="Microphone (coming soon)" disabled>${icon("mic", 18)}</button>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
+  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end">${providers.html()}</div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span></div></div><div class="composer-controls"><button type="button" class="composer-icon suggestion-action" data-action="accept-suggestion" title="Use suggested reply" aria-label="Use suggested reply" hidden><kbd>Tab</kbd></button><button type="button" class="composer-icon mic-button" title="Microphone — coming soon" aria-label="Microphone (coming soon)" disabled>${icon("mic", 18)}</button>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
@@ -136,6 +139,7 @@ function render(force = false) {
   if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
   resizeComposer();
   suggestions.sync();
+  providers.restoreFocus(providerFocus);
 }
 async function loadSession() {
   if (state.selected === "home") return;
@@ -174,6 +178,7 @@ root.addEventListener("click", async (event) => {
   if (!button || button.disabled) return;
   try {
     if (button.dataset.action === "accept-suggestion") { suggestions.accept(); return; }
+    if (await providers.handleClick(button)) return;
     if (await queued.handleClick(button)) return;
     if (await actions.handleClick(button)) return;
     if (button.dataset.action === "open") select(button.dataset.session);
@@ -285,6 +290,7 @@ function connect() {
       state.snapshotLoaded = true;
       render(!!(state.replyToId || state.edit) && !root.querySelector(".reply-preview"));
     }
+    if (event.type === "providers") providers.update(event.data);
     if (event.type === "conversation" && event.sessionId === state.selected) {
       state.sessionRevision++;
       state.transcript = event.messages;
@@ -310,10 +316,7 @@ function connect() {
   };
 }
 function updateConnection() {
-  const dot = root.querySelector(".connection-dot");
-  if (!dot) return;
-  dot.classList.toggle("online", state.connected);
-  dot.title = state.connected ? "Connected" : "Reconnecting";
+  providers.sync();
   suggestions.sync();
 }
 render();

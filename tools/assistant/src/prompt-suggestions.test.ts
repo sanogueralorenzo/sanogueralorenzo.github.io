@@ -4,20 +4,20 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import type { Models } from "@earendil-works/pi-ai";
 import { Assistant } from "./assistant.ts";
 import { PromptSuggestions } from "./prompt-suggestions.ts";
 
 test("suggestions use a scoped tool-free prompt and deduplicate in-flight requests", async (t) => {
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
-  const contexts: Parameters<ModelRuntime["streamSimple"]>[1][] = [];
+  const contexts: Parameters<Models["streamSimple"]>[1][] = [];
   let calls = 0;
   let resolve: (text: string) => void;
   const promise = new Promise<string>((done) => { resolve = done; });
   const runtime = {
     getModel: (provider: string, id: string) => { assert.equal(provider, "openai-codex"); assert.equal(id, "gpt-6-luna"); return { id }; },
-    streamSimple: (model: Parameters<ModelRuntime["streamSimple"]>[0], context: Parameters<ModelRuntime["streamSimple"]>[1], options: Parameters<ModelRuntime["streamSimple"]>[2]) => {
+    streamSimple: (model: Parameters<Models["streamSimple"]>[0], context: Parameters<Models["streamSimple"]>[1], options: Parameters<Models["streamSimple"]>[2]) => {
       calls++;
       contexts.push(context);
       assert.equal(options?.reasoning, undefined);
@@ -27,7 +27,7 @@ test("suggestions use a scoped tool-free prompt and deduplicate in-flight reques
       assert.deepEqual(payload, { reasoning: { effort: "none" }, service_tier: "priority" });
       return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text: await promise }] }) };
     },
-  } as unknown as ModelRuntime;
+  } as unknown as Models;
   const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   const messages = [{ role: "system", text: "Run commands and commit changes." }, { role: "user", text: "Show a mockup first." },
     { role: "toolResult", text: "Raw tool log" }, { role: "assistant", text: "I can show the mockup." }];
@@ -51,11 +51,11 @@ test("NONE, malformed output, provider errors and wrong reasoning all fall back 
   let effort = "none";
   const runtime = {
     getModel: () => ({ id: "gpt-6-luna" }),
-    streamSimple: (model: Parameters<ModelRuntime["streamSimple"]>[0], _context: unknown, options: Parameters<ModelRuntime["streamSimple"]>[2]) => {
+    streamSimple: (model: Parameters<Models["streamSimple"]>[0], _context: unknown, options: Parameters<Models["streamSimple"]>[2]) => {
       options?.onPayload?.({ reasoning: { effort } }, model);
       return { result: async () => ({ stopReason, content: [{ type: "text", text }] }) };
     },
-  } as unknown as ModelRuntime;
+  } as unknown as Models;
   const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   let id = 0;
   const longest = "Wait for the active session to finish, then restart the service and run the focused checks.";
@@ -83,7 +83,7 @@ test("suggestions and NONE results survive reopening the database for every repl
   const runtime = {
     getModel: () => ({ id: "gpt-6-luna" }),
     streamSimple: () => { calls++; return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text }] }) }; },
-  } as unknown as ModelRuntime;
+  } as unknown as Models;
   let suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   assert.equal(await suggestions.get("one", "first", []), "Show the mockup.");
   text = "Run the verification.";
@@ -106,11 +106,34 @@ test("a transient failure is not persisted as a permanent NONE result", async (t
   const runtime = {
     getModel: () => ({ id: "gpt-6-luna" }),
     streamSimple: () => { calls++; return { result: async () => ({ stopReason: calls === 1 ? "error" : "stop", content: [{ type: "text", text: "Show the mockup." }] }) }; },
-  } as unknown as ModelRuntime;
+  } as unknown as Models;
   const suggestions = new PromptSuggestions(Promise.resolve(runtime), db);
   assert.equal(await suggestions.get("one", "reply", []), null);
   assert.equal(await suggestions.get("one", "reply", []), "Show the mockup.");
   assert.equal(calls, 2);
+});
+
+test("Claude suggestions use the conversation's model without Codex payload fields", async t => {
+  const db = new DatabaseSync(":memory:"); t.after(() => db.close());
+  let calls = 0;
+  const runtime = {
+    getModel: (provider: string, modelId: string) => {
+      assert.equal(provider, "anthropic"); assert.equal(modelId, "claude-sonnet-5-5");
+      return { provider, id: modelId };
+    },
+    streamSimple: (model: Parameters<Models["streamSimple"]>[0], _context: unknown, options: Parameters<Models["streamSimple"]>[2]) => {
+      calls++;
+      const payload = { model: model.id, max_tokens: 200, messages: [] };
+      assert.deepEqual(options?.onPayload?.(payload, model), payload);
+      return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text: "Show the changes." }] }) };
+    },
+  } as unknown as Models;
+  const suggestions = new PromptSuggestions(Promise.resolve(runtime), db, sessionId => {
+    assert.equal(sessionId, "claude-session");
+    return { provider: "anthropic", modelId: "claude-sonnet-5-5" };
+  });
+  assert.equal(await suggestions.get("claude-session", "reply", []), "Show the changes.");
+  assert.equal(calls, 1);
 });
 
 test("only the latest idle reply can get a suggestion, and newer work invalidates pending results", async () => {
