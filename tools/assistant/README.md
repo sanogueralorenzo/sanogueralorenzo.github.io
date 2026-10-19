@@ -8,7 +8,7 @@ Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends â
 
 ## Start
 
-Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Manual code or redirect entry is available as a fallback. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
+Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Browser logins finish through Pi's callback listener. Code entry appears when required by the provider's login method. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
 
 ```bash
 cd tools/assistant
@@ -24,12 +24,23 @@ Run `npm run check`. The [instruction benchmark](evals/benchmark/README.md) uses
 
 ## Headless
 
-On a headless Linux host with Node 26+, run the start commands above. From your laptop, forward the web UI and OpenAI's callback port:
+On a headless Linux host with Node 26+, install dependencies as above and log in from the terminal before starting Assistant:
+
+```bash
+npm run login -- openai
+npm start
+```
+
+`npm run login` lists provider IDs and methods. Login prefers OAuth when available; append `api_key` for key setup, for example `npm run login -- openai api_key`. The CLI uses Pi's authentication and the same credentials, installation ID, and selected provider as the UI. Restart Assistant if it was already running when CLI login finished.
+
+Open the CLI's sign-in link in your laptop's browser. Pi's device-code, copy-code, and manual redirect prompts remain available in the terminal where supported. OpenAI browser login needs port 1455 forwarded over SSH, or the final redirect URL pasted into the CLI.
+
+To use the UI from your laptop, forward the web UI and OpenAI's callback port:
 
 ```bash
 ssh -N -L 4181:127.0.0.1:4180 -L 1455:127.0.0.1:1455 user@pi-host
 ```
 
-Open `http://127.0.0.1:4181` on your laptop and sign in there. Port 1455 must be free on your laptop; forwarding it lets OpenAI return to Assistant on the host automatically. Without that forward, finish browser sign-in and paste the final redirect URL into Assistant's manual fallback. API keys need no browser callback.
+Open `http://127.0.0.1:4181` on your laptop and sign in there. Port 1455 must be free on your laptop; forwarding it lets OpenAI return to Assistant on the host automatically. API keys need no browser callback.
 
 The service installer is macOS-only. Codex Computer Use requires the desktop plugin; it is unavailable on a headless Raspberry Pi. Coding and shell tools run on the host.

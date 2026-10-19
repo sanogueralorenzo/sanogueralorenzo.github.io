@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AuthEvent, AuthPrompt, AuthType, Models } from "@earendil-works/pi-ai";
+import type { AuthEvent, AuthInteraction, AuthPrompt, AuthType, Models } from "@earendil-works/pi-ai";
 import { ModelRuntime, SettingsManager } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
@@ -86,10 +86,22 @@ export class Providers {
     this.selected = selected;
     this.changed();
   }
-  startLogin(provider: string, method: string) {
+  private validateLogin(provider: string, method: string) {
     const definition = this.definition(provider);
     if (!definition.methods.length) throw new Error("Configure this provider's credentials in the service environment");
     if (!definition.methods.some(item => item.id === method)) throw new Error("Choose a supported login method");
+  }
+  async connect(provider: string, method: string, interaction: AuthInteraction) {
+    this.validateLogin(provider, method);
+    await this.models.login(provider, method as AuthType, interaction, {
+      agentName: "Assistant", getDeviceId: () => this.settings.getOrCreateDeviceId(),
+    });
+    await this.models.refresh({ providers: [provider], allowNetwork: true, signal: interaction.signal });
+    interaction.signal?.throwIfAborted();
+    await this.select(provider);
+  }
+  startLogin(provider: string, method: string) {
+    this.validateLogin(provider, method);
     if (this.login?.status === "pending") throw new Error("Finish or cancel the current sign-in first");
     const controller = new AbortController();
     this.controller = controller;
@@ -99,14 +111,11 @@ export class Providers {
     this.changed();
     this.running = (async () => {
       try {
-        await this.models.login(provider, method as AuthType, {
+        await this.connect(provider, method, {
           signal,
           notify: event => this.notify(login, event),
           prompt: prompt => this.ask(login, prompt, signal),
-        }, { agentName: "Assistant", getDeviceId: () => this.settings.getOrCreateDeviceId() });
-        await this.models.refresh({ providers: [provider], allowNetwork: true, signal });
-        signal.throwIfAborted();
-        await this.select(provider);
+        });
         login.status = "done";
         login.message = "Connected";
       } catch {

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
+    "login": "node --experimental-strip-types src/login.ts",
     "check": "tsc --noEmit",
     "eval:suggestions": "node --experimental-strip-types evals/benchmark/cli.mjs run evals/benchmark/suites/suggestions.json --variants live",
     "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs"

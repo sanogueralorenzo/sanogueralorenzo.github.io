@@ -22,7 +22,6 @@ export function createProviders({ state, root, api }) {
   let promptId;
   let query = "";
   let filter = "oauth";
-  let manualEntry = false;
   let signInTab;
   const name = id => data?.providers.find(provider => provider.id === id)?.name || "Provider";
   const safeURL = value => {
@@ -48,14 +47,20 @@ export function createProviders({ state, root, api }) {
     if (!login) return "";
     if (login.status === "done" || login.status === "cancelled") return "";
     if (login.status === "failed") return `<p class="provider-error" role="alert">${escapeHTML(login.message)}</p>`;
-    const prompt = login.prompt;
+    const sourcePrompt = login.prompt;
+    let redirect = false;
+    // Pi's optional browser recovery prompts use the loopback callback URL as their placeholder.
+    if (sourcePrompt?.type === "manual_code") {
+      try { redirect = ["localhost", "127.0.0.1", "[::1]"].includes(new URL(sourcePrompt.placeholder).hostname); }
+      catch {}
+    }
+    const prompt = redirect ? undefined : sourcePrompt;
     const url = safeURL(login.url);
-    const manual = prompt?.type === "manual_code" && url;
     const control = prompt?.type === "select"
       ? `<select id="provider-response" data-provider-response>${prompt.options.map(option => `<option value="${escapeHTML(option.id)}" ${response === option.id ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}</select>`
       : prompt ? `<input id="provider-response" data-provider-response type="${prompt.type === "secret" ? "password" : "text"}" value="${escapeHTML(response)}" placeholder="${escapeHTML(prompt.placeholder || "")}" autocomplete="off" autocapitalize="none" spellcheck="false" ${prompt.type === "text" ? "" : "required"} maxlength="16000">` : "";
     const form = prompt ? `<form id="provider-login-form"><label for="provider-response">${escapeHTML(prompt.message)}</label>${control}<button class="provider-primary" type="submit" ${busy ? "disabled" : ""}>Continue</button></form>` : '<p class="provider-waiting">Waiting for connection…</p>';
-    return `<div class="provider-login"><strong>Connect ${escapeHTML(name(login.provider))}</strong>${manual ? '<p>Finish signing in in your browser.</p>' : login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${url ? `<a class="provider-login-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${manual && !manualEntry ? '<button class="provider-text-button" type="button" data-action="providers-manual">Enter code or redirect URL manually</button>' : form}<button class="provider-text-button" type="button" data-action="providers-cancel" ${busy ? "disabled" : ""}>Cancel setup</button></div>`;
+    return `<div class="provider-login"><strong>Connect ${escapeHTML(name(login.provider))}</strong>${redirect ? '<p>Finish signing in in your browser.</p>' : login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${url ? `<a class="provider-login-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${form}<button class="provider-text-button" type="button" data-action="providers-cancel" ${busy ? "disabled" : ""}>Cancel setup</button></div>`;
   }
   function listHTML(disabled) {
     const providers = visibleProviders(data.providers, query, filter);
@@ -120,7 +125,6 @@ export function createProviders({ state, root, api }) {
     }
     if (next.login?.prompt?.id !== promptId) {
       promptId = next.login?.prompt?.id;
-      manualEntry = false;
       response = next.login?.prompt?.type === "select" ? next.login.prompt.options[0]?.id || "" : "";
     }
     sync();
@@ -142,7 +146,6 @@ export function createProviders({ state, root, api }) {
       return true;
     }
     if (action === "providers-filter") { filter = button.dataset.filter; sync(); return true; }
-    if (action === "providers-manual") { manualEntry = true; sync(); root.querySelector("[data-provider-response]")?.focus(); return true; }
     if (action === "providers-login" && button.dataset.method === "oauth" && !busy) prepareSignIn(button.dataset.provider);
     await run(async () => {
       const provider = button.dataset.provider;
