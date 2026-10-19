@@ -184,10 +184,8 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-trigger { width: 34px; height: 32px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
 .provider-trigger:hover, .provider-trigger[aria-expanded="true"] { background: var(--surface); }
 .provider-menu { position: absolute; top: 39px; right: 0; width: min(340px, calc(100vw - 28px)); max-height: calc(100dvh - 116px); overflow: auto; padding: 17px; border: 1px solid var(--line); border-radius: 17px; background: var(--input); box-shadow: var(--shadow); text-align: left; font-size: 13px; }
-.provider-heading { display: flex; flex-direction: column; gap: 4px; margin-bottom: 13px; }
-.provider-heading > strong { font-size: 15px; font-weight: 600; }
-.provider-heading > span, .provider-choice small, .provider-footnote, .provider-waiting { color: var(--muted); font-size: 12px; }
-.provider-list { margin: 0 -7px 16px; }
+.provider-choice small, .provider-footnote, .provider-waiting { color: var(--muted); font-size: 12px; }
+.provider-list { margin: 0 -7px; }
 .provider-row { display: flex; align-items: center; border-radius: 10px; }
 .provider-row:hover { background: var(--surface); }
 .provider-choice { flex: 1; min-width: 0; padding: 10px 7px; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--graphite); text-align: left; cursor: pointer; }
@@ -197,6 +195,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-text-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 7px; font-size: 12px; }
 .provider-text-button:hover { color: var(--graphite); }
 .provider-model-label, .provider-login label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+.provider-model-label { margin-top: 16px; }
 .provider-menu select, .provider-menu input { display: block; width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--graphite); font: inherit; }
 .provider-login { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 15px; }
 .provider-login p { line-height: 1.5; overflow-wrap: anywhere; }
