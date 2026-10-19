@@ -28,6 +28,7 @@ export class Providers {
   readonly models: Models;
   private selected: ModelRef;
   private readonly path: string;
+  private readonly devicePath: string;
   private login?: Login;
   private controller?: AbortController;
   private pending?: { id: string; resolve: (value: string) => void };
@@ -37,6 +38,7 @@ export class Providers {
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
     this.models = models;
     this.path = join(dataDir, "provider.json");
+    this.devicePath = join(dataDir, "device-id");
     this.selected = existsSync(this.path) ? JSON.parse(readFileSync(this.path, "utf8")) as ModelRef : { ...defaultModel };
     if (existsSync(this.path)) this.validate(this.selected.provider, this.selected.modelId);
   }
@@ -101,7 +103,7 @@ export class Providers {
           signal,
           notify: event => this.notify(login, event),
           prompt: prompt => this.ask(login, prompt, signal),
-        }, { agentName: "assistant" });
+        }, { agentName: "assistant", getDeviceId: () => this.getDeviceId() });
         await this.models.refresh({ providers: [provider], allowNetwork: true, signal });
         signal.throwIfAborted();
         await this.select(provider);
@@ -119,6 +121,10 @@ export class Providers {
       }
     })();
     return login.id;
+  }
+  private getDeviceId(): string {
+    if (!existsSync(this.devicePath)) writeFileSync(this.devicePath, randomUUID(), { mode: 0o600 });
+    return readFileSync(this.devicePath, "utf8").trim();
   }
   private notify(login: Login, event: AuthEvent) {
     if (event.type === "auth_url") {
