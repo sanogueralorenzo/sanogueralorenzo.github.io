@@ -18,6 +18,8 @@ export async function fixture(t: TestContext, responses: FauxResponseStep[] = [f
   const models = createModels(); models.setProvider(faux.provider);
   const options = { models, model: { provider: "faux", modelId: "faux-1" }, extensions: [...(tools.length ? [roleExtension("session", tools)] : []), ...extensions] };
   let app = await Assistant.open(dir, dir, options);
+  // Scripted task responses must not be consumed by background reply suggestions.
+  app.suggestions.get = async () => null;
   faux.setResponses([fauxAssistantMessage(fauxToolCall("route_home", { mode: "start", title: "Test", cwd: dir }), { stopReason: "toolUse" }), ...responses]);
   t.after(async () => { await app.shutdown(); rmSync(dir, { recursive: true, force: true }); });
   const source = await app.submitHome("Original request");
@@ -25,7 +27,7 @@ export async function fixture(t: TestContext, responses: FauxResponseStep[] = [f
   const sessionId = app.snapshot().sessions[0].id;
   return { app, dir, faux, models, options, sourceId: source.id, sessionId,
     idle: () => app.pi.harness.waitForIdle(BACKGROUND_CONTEXT),
-    reopen: async () => { await app.shutdown(); app = await Assistant.open(dir, dir, options); return app; } };
+    reopen: async () => { await app.shutdown(); app = await Assistant.open(dir, dir, options); app.suggestions.get = async () => null; return app; } };
 }
 export function waitFor(app: Assistant, condition: () => boolean): Promise<void> {
   return new Promise((resolve, reject) => {

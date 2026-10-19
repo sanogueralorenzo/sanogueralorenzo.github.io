@@ -8,6 +8,7 @@ import { once } from "node:events";
 import { createModels, InMemoryCredentialStore, type OAuthAuth, type OAuthCredential } from "@earendil-works/pi-ai";
 import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
+import { amazonBedrockProvider } from "@earendil-works/pi-ai/providers/amazon-bedrock";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ConversationId } from "@earendil-works/pi-durable";
@@ -20,6 +21,12 @@ function directory(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), "assistant-providers-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
+}
+async function offlineModels(dir: string) {
+  const models = await assistantModels(dir);
+  const refresh = models.refresh.bind(models);
+  models.refresh = options => refresh({ ...options, allowNetwork: false });
+  return models;
 }
 function fixture(t: TestContext, login?: OAuthAuth["login"]) {
   const dir = directory(t);
@@ -41,16 +48,23 @@ async function waitFor(providers: Providers, condition: (state: ProviderSnapshot
   }
 }
 
-test("both Pi login catalogs load without a Codex CLI account or existing credentials", async t => {
+test("Pi chat providers and their supported login methods are discovered alphabetically", async t => {
   const dir = directory(t);
-  const models = await assistantModels(dir);
+  const models = await offlineModels(dir);
   const providers = new Providers(dir, models);
   t.after(() => providers.close());
   const state = await providers.snapshot();
-  assert.deepEqual(state.providers.map(item => item.name), ["Codex", "Claude"]);
+  const names = state.providers.map(item => item.name);
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
+  assert.ok(state.providers.length > 2);
+  assert.ok(names.includes("Claude")); assert.ok(names.includes("Codex"));
+  assert.equal(state.providers.some(provider => provider.id === "typesafe"), false);
+  assert.deepEqual(state.providers.find(provider => provider.id === "google")?.methods.map(method => method.id), ["api_key"]);
+  assert.deepEqual(state.providers.find(provider => provider.id === "anthropic")?.methods.map(method => method.id), ["oauth", "api_key"]);
+  assert.ok(state.providers.find(provider => provider.id === "amazon-bedrock")?.cloud);
   for (const provider of state.providers) {
     assert.ok(provider.models.some(model => model.id === provider.defaultModel));
-    assert.ok(models.getProvider(provider.id)?.auth.oauth?.login);
+    assert.ok(provider.methods.length);
   }
   assert.equal((statSync(join(dir, "auth.json")).mode & 0o777), 0o600);
   assert.equal(readFileSync(join(dir, "auth.json"), "utf8"), "{}");
@@ -86,12 +100,12 @@ test("OAuth prompts, notifications, credential storage, and selected model survi
 
 test("Pi persists and reloads both provider credentials in Assistant's private auth file", async t => {
   const dir = directory(t);
-  const models = await assistantModels(dir);
+  const models = await offlineModels(dir);
   const providers = new Providers(dir, models);
   t.after(() => providers.close());
   for (const provider of ["openai-codex", "anthropic"]) {
     models.getProvider(provider)!.auth.oauth!.login = async () => credential();
-    providers.startLogin(provider);
+    providers.startLogin(provider, "oauth");
     await waitFor(providers, state => state.login?.status === "done");
   }
   const stored = JSON.parse(readFileSync(join(dir, "auth.json"), "utf8"));
@@ -100,7 +114,7 @@ test("Pi persists and reloads both provider credentials in Assistant's private a
   const reopened = new Providers(dir, await assistantModels(dir));
   t.after(() => reopened.close());
   const state = await reopened.snapshot();
-  assert.ok(state.providers.every(provider => provider.connected));
+  assert.ok(state.providers.filter(provider => ["openai-codex", "anthropic"].includes(provider.id)).every(provider => provider.connected));
   assert.equal(state.selected.provider, "anthropic");
   assert.doesNotMatch(JSON.stringify(state), /private-access|private-refresh/);
 });
@@ -120,6 +134,68 @@ test("callback completion cancels the manual prompt and rejects a late pasted co
   callback();
   await waitFor(f.providers, state => state.login?.status === "done");
   assert.throws(() => f.providers.respond(id, pending.login!.prompt!.id, "late"), /ended/);
+});
+
+test("Pi API-key login supports a provider outside the original pair and persists its selection", async t => {
+  const dir = directory(t);
+  const models = await offlineModels(dir);
+  const providers = new Providers(dir, models); t.after(() => providers.close());
+  assert.throws(() => providers.startLogin("google", "oauth"), /supported login/);
+  const loginId = providers.startLogin("google");
+  const state = await waitFor(providers, state => state.login?.prompt?.type === "secret");
+  assert.throws(() => providers.respond(loginId, state.login!.prompt!.id, ""), /valid/);
+  providers.respond(loginId, state.login!.prompt!.id, "private-google-key");
+  const connected = await waitFor(providers, state => state.login?.status === "done");
+  assert.equal(connected.selected.provider, "google");
+  assert.ok(connected.providers.find(provider => provider.id === "google")?.canLogout);
+  const stored = JSON.parse(readFileSync(join(dir, "auth.json"), "utf8"));
+  assert.equal(stored.google.type, "api_key");
+  assert.equal(stored.google.key, "private-google-key");
+  assert.doesNotMatch(JSON.stringify(connected), /private-google-key/);
+  const reopened = new Providers(dir, await assistantModels(dir)); t.after(() => reopened.close());
+  assert.equal(reopened.model.provider, "google");
+  assert.ok((await reopened.snapshot()).providers.find(provider => provider.id === "google")?.connected);
+});
+
+test("providers with both login methods ask which to use before Pi's credential prompt", async t => {
+  const dir = directory(t);
+  const models = await offlineModels(dir);
+  const providers = new Providers(dir, models); t.after(() => providers.close());
+  const loginId = providers.startLogin("anthropic");
+  let state = await waitFor(providers, state => state.login?.prompt?.type === "select");
+  assert.deepEqual(state.login!.prompt!.options!.map(option => option.id), ["oauth", "api_key"]);
+  providers.respond(loginId, state.login!.prompt!.id, "api_key");
+  state = await waitFor(providers, state => state.login?.prompt?.type === "secret");
+  providers.respond(loginId, state.login!.prompt!.id, "private-anthropic-key");
+  state = await waitFor(providers, state => state.login?.status === "done");
+  assert.equal(state.selected.provider, "anthropic");
+  assert.equal(JSON.parse(readFileSync(join(dir, "auth.json"), "utf8")).anthropic.type, "api_key");
+  assert.doesNotMatch(JSON.stringify(state), /private-anthropic-key/);
+});
+
+test("HTTP cloud setup accepts Pi's empty confirmation and keeps ambient credentials out of the browser", async t => {
+  const dir = directory(t);
+  const env: Record<string, string> = { AWS_ACCESS_KEY_ID: "private-aws-id", AWS_SECRET_ACCESS_KEY: "private-aws-secret" };
+  const models = createModels({ authContext: { env: async name => env[name], fileExists: async () => false } });
+  models.setProvider(amazonBedrockProvider());
+  const app = await Assistant.open(dir, dir, { models }); t.after(() => app.shutdown());
+  const http = createAssistantServer(app);
+  http.server.listen(0, "127.0.0.1"); await once(http.server, "listening"); t.after(http.close);
+  const address = http.server.address(); assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}/api/providers`;
+  const post = (path: string, body: unknown) => fetch(`${base}/${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const started = await post("login", { provider: "amazon-bedrock" }); assert.equal(started.status, 202);
+  const { loginId } = await started.json();
+  let state = await waitFor(app.pi.providers, state => state.login?.prompt?.type === "select");
+  assert.equal((await post("respond", { loginId, promptId: state.login!.prompt!.id, value: "credential-chain" })).status, 202);
+  state = await waitFor(app.pi.providers, state => state.login?.prompt?.type === "text");
+  assert.equal((await post("respond", { loginId, promptId: state.login!.prompt!.id, value: "" })).status, 202);
+  state = await waitFor(app.pi.providers, state => state.login?.status === "done");
+  assert.equal(state.selected.provider, "amazon-bedrock");
+  const provider = state.providers.find(provider => provider.id === "amazon-bedrock")!;
+  assert.ok(provider.connected); assert.ok(provider.cloud);
+  assert.equal(provider.canLogout, false);
+  assert.doesNotMatch(JSON.stringify(state), /private-aws-id|private-aws-secret/);
 });
 
 test("cancel and shutdown release login prompts; failures never publish token exchange details", async t => {
@@ -142,8 +218,8 @@ test("cancel and shutdown release login prompts; failures never publish token ex
 
 test("selection rejects disconnected providers and unknown models; sign-out affects only its provider", async t => {
   const f = fixture(t);
-  await assert.rejects(f.providers.select("anthropic"), /Sign in/);
-  assert.throws(() => f.providers.startLogin("other"), /Codex or Claude/);
+  await assert.rejects(f.providers.select("anthropic"), /Connect/);
+  assert.throws(() => f.providers.startLogin("other"), /provider.*list/);
   for (const provider of ["openai-codex", "anthropic"]) {
     f.providers.startLogin(provider);
     await waitFor(f.providers, state => state.login?.status === "done");

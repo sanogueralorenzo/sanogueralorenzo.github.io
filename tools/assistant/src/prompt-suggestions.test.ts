@@ -113,28 +113,30 @@ test("a transient failure is not persisted as a permanent NONE result", async (t
   assert.equal(calls, 2);
 });
 
-test("Claude suggestions use the conversation's model without Codex payload fields", async t => {
-  const db = new DatabaseSync(":memory:"); t.after(() => db.close());
-  let calls = 0;
-  const runtime = {
-    getModel: (provider: string, modelId: string) => {
-      assert.equal(provider, "anthropic"); assert.equal(modelId, "claude-sonnet-5-5");
-      return { provider, id: modelId };
-    },
-    streamSimple: (model: Parameters<Models["streamSimple"]>[0], _context: unknown, options: Parameters<Models["streamSimple"]>[2]) => {
-      calls++;
-      const payload = { model: model.id, max_tokens: 200, messages: [] };
-      assert.deepEqual(options?.onPayload?.(payload, model), payload);
-      return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text: "Show the changes." }] }) };
-    },
-  } as unknown as Models;
-  const suggestions = new PromptSuggestions(Promise.resolve(runtime), db, sessionId => {
-    assert.equal(sessionId, "claude-session");
-    return { provider: "anthropic", modelId: "claude-sonnet-5-5" };
+for (const [provider, modelId] of [["anthropic", "claude-sonnet-5-5"], ["google", "gemini-3.1-pro-preview"]]) {
+  test(`${provider} suggestions use the conversation's model without Codex payload fields`, async t => {
+    const db = new DatabaseSync(":memory:"); t.after(() => db.close());
+    let calls = 0;
+    const runtime = {
+      getModel: (actualProvider: string, actualModelId: string) => {
+        assert.equal(actualProvider, provider); assert.equal(actualModelId, modelId);
+        return { provider, id: modelId };
+      },
+      streamSimple: (model: Parameters<Models["streamSimple"]>[0], _context: unknown, options: Parameters<Models["streamSimple"]>[2]) => {
+        calls++;
+        const payload = { model: model.id, messages: [] };
+        assert.deepEqual(options?.onPayload?.(payload, model), payload);
+        return { result: async () => ({ stopReason: "stop", content: [{ type: "text", text: "Show the changes." }] }) };
+      },
+    } as unknown as Models;
+    const suggestions = new PromptSuggestions(Promise.resolve(runtime), db, sessionId => {
+      assert.equal(sessionId, `${provider}-session`);
+      return { provider, modelId };
+    });
+    assert.equal(await suggestions.get(`${provider}-session`, "reply", []), "Show the changes.");
+    assert.equal(calls, 1);
   });
-  assert.equal(await suggestions.get("claude-session", "reply", []), "Show the changes.");
-  assert.equal(calls, 1);
-});
+}
 
 test("only the latest idle reply can get a suggestion, and newer work invalidates pending results", async () => {
   let resolve: (text: string) => void;

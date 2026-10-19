@@ -2,15 +2,15 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AuthEvent, AuthPrompt, Models } from "@earendil-works/pi-ai";
+import type { AuthEvent, AuthPrompt, AuthType, Models } from "@earendil-works/pi-ai";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
-const definitions = [
-  { id: "openai-codex", name: "Codex", defaultModel: "gpt-6-luna" },
-  { id: "anthropic", name: "Claude", defaultModel: "claude-sonnet-5-5" },
-] as const;
 export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
+const names: Record<string, string> = { "openai-codex": "Codex", anthropic: "Claude", google: "Google Gemini" };
+const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
+// These providers include cloud account, endpoint, or credential-chain setup.
+const cloudProviders = new Set(["amazon-bedrock", "azure", "google-vertex", "cloudflare-ai-gateway", "cloudflare-workers-ai"]);
 
 export async function assistantModels(dataDir = join(homedir(), ".assistant")): Promise<Models> {
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
@@ -21,8 +21,9 @@ type LoginPrompt = { id: string; type: AuthPrompt["type"]; message: string; plac
   options?: readonly { id: string; label: string; description?: string }[] };
 type Login = { id: string; provider: string; status: "pending" | "done" | "failed" | "cancelled";
   message?: string; url?: string; userCode?: string; prompt?: LoginPrompt };
-export type ProviderSnapshot = { selected: ModelRef; providers: { id: string; name: string; connected: boolean;
-  defaultModel: string; models: { id: string; name: string }[] }[]; login?: Login };
+type ProviderInfo = { id: string; name: string; cloud: boolean; defaultModel: string;
+  methods: { id: AuthType; label: string }[]; models: { id: string; name: string }[] };
+export type ProviderSnapshot = { selected: ModelRef; providers: (ProviderInfo & { connected: boolean; canLogout: boolean })[]; login?: Login };
 
 export class Providers {
   readonly models: Models;
@@ -43,9 +44,22 @@ export class Providers {
   get model(): ModelRef { return { ...this.selected }; }
   subscribe(listener: () => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   private changed() { for (const listener of this.listeners) listener(); }
+  private catalog(): ProviderInfo[] {
+    return this.models.getProviders().flatMap(provider => {
+      const catalog = this.models.getModels(provider.id);
+      if (!catalog.length) return [];
+      const cloud = cloudProviders.has(provider.id);
+      const methods: ProviderInfo["methods"] = [];
+      if (provider.auth.oauth?.login) methods.push({ id: "oauth", label: "Sign in" });
+      if (provider.auth.apiKey?.login) methods.push({ id: "api_key", label: cloud ? "Cloud setup" : "API key" });
+      return [{ id: provider.id, name: names[provider.id] || provider.name, cloud, methods,
+        defaultModel: catalog.find(model => model.id === preferredModels[provider.id])?.id || catalog[0].id,
+        models: catalog.map(model => ({ id: model.id, name: model.name })).sort((a, b) => a.name.localeCompare(b.name)) }];
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }
   private definition(provider: string) {
-    const definition = definitions.find(item => item.id === provider);
-    if (!definition) throw new Error("Choose Codex or Claude");
+    const definition = this.catalog().find(item => item.id === provider);
+    if (!definition) throw new Error("Choose a provider with chat models from the list");
     return definition;
   }
   private validate(provider: string, modelId: string) {
@@ -53,17 +67,17 @@ export class Providers {
     if (!this.models.getModel(provider, modelId)) throw new Error("Choose a model from this provider's list");
   }
   async snapshot(): Promise<ProviderSnapshot> {
-    const providers = await Promise.all(definitions.map(async definition => {
-      const connected = !!await this.models.checkAuth(definition.id).catch(() => undefined);
-      return { ...definition, connected, models: this.models.getModels(definition.id).map(model => ({ id: model.id, name: model.name })) };
+    const providers = await Promise.all(this.catalog().map(async definition => {
+      const auth = await this.models.checkAuth(definition.id).catch(() => undefined);
+      return { ...definition, connected: !!auth, canLogout: auth?.type === "oauth" || auth?.source === "stored credential" };
     }));
     return { selected: this.model, providers, ...(this.login && { login: structuredClone(this.login) }) };
   }
   async select(provider: string, modelId?: string) {
     const definition = this.definition(provider);
-    const id = modelId || definition.defaultModel;
+    const id = modelId || (this.selected.provider === provider ? this.selected.modelId : definition.defaultModel);
     this.validate(provider, id);
-    if (!await this.models.checkAuth(provider)) throw new Error(`Sign in to ${definition.name} first`);
+    if (!await this.models.checkAuth(provider)) throw new Error(`Connect ${definition.name} first`);
     const selected = { provider, modelId: id };
     const temporary = `${this.path}.${randomUUID()}.tmp`;
     writeFileSync(temporary, JSON.stringify(selected), { mode: 0o600 });
@@ -71,29 +85,35 @@ export class Providers {
     this.selected = selected;
     this.changed();
   }
-  startLogin(provider: string) {
-    this.definition(provider);
+  startLogin(provider: string, method?: string) {
+    const definition = this.definition(provider);
+    if (!definition.methods.length) throw new Error("Configure this provider's credentials in the service environment");
+    if (method !== undefined && !definition.methods.some(item => item.id === method)) throw new Error("Choose a supported login method");
     if (this.login?.status === "pending") throw new Error("Finish or cancel the current sign-in first");
     const controller = new AbortController();
     this.controller = controller;
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(10 * 60_000)]);
-    const login: Login = { id: randomUUID(), provider, status: "pending", message: "Starting sign-in…" };
+    const login: Login = { id: randomUUID(), provider, status: "pending", message: "Connecting…" };
     this.login = login;
     this.changed();
     this.running = (async () => {
       try {
-        await this.models.login(provider, "oauth", {
+        const type = method || (definition.methods.length === 1 ? definition.methods[0].id : await this.ask(login, {
+          type: "select", message: `How would you like to connect ${definition.name}?`, options: definition.methods,
+        }, signal));
+        await this.models.login(provider, type as AuthType, {
           signal,
           notify: event => this.notify(login, event),
           prompt: prompt => this.ask(login, prompt, signal),
         }, { agentName: "assistant" });
+        await this.models.refresh({ providers: [provider], allowNetwork: true, signal });
         signal.throwIfAborted();
         await this.select(provider);
         login.status = "done";
-        login.message = "Signed in";
+        login.message = "Connected";
       } catch {
         login.status = controller.signal.aborted ? "cancelled" : "failed";
-        login.message = login.status === "cancelled" ? "Sign-in cancelled" : "Sign-in failed or timed out. Please try again.";
+        login.message = login.status === "cancelled" ? "Connection cancelled" : "Connection failed or timed out. Please try again.";
       } finally {
         delete login.prompt;
         delete login.url;
@@ -139,7 +159,7 @@ export class Providers {
     const prompt = this.login?.prompt;
     if (this.login?.id !== loginId || this.login.status !== "pending" || !prompt ||
       prompt.id !== promptId || this.pending?.id !== promptId) throw new Error("This sign-in step has ended. Refresh and try again.");
-    if (!value.trim() || value.length > 16_000) throw new Error("Enter a valid sign-in response");
+    if ((prompt.type !== "text" && !value.trim()) || value.length > 16_000) throw new Error("Enter a valid sign-in response");
     if (prompt.type === "select" && !prompt.options?.some(option => option.id === value)) throw new Error("Choose one of the listed sign-in methods");
     this.pending.resolve(value.trim());
     this.changed();

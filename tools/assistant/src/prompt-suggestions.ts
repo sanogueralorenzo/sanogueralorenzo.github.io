@@ -41,7 +41,6 @@ export class PromptSuggestions {
     const runtime = await this.runtime;
     if (signal.aborted) return;
     const selected = await this.model(sessionId);
-    if (!["openai-codex", "anthropic"].includes(selected.provider)) return;
     const model = runtime.getModel(selected.provider, selected.modelId);
     if (!model) return;
     const stream = runtime.streamSimple(model, { systemPrompt, messages: [{ role: "user", timestamp: 0,

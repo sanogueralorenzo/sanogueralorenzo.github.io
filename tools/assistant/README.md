@@ -8,7 +8,7 @@ Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends â
 
 ## Start
 
-Requires Node 26+. Click the connection dot to sign in to Codex or Claude using Pi's login flow and select a model. The selection applies to new tasks; existing conversations keep their model.
+Requires Node 26+. Click the dot to search Pi's chat providers, filter by sign-in, API key, or cloud setup, and connect using a supported method. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
 
 ```bash
 cd tools/assistant

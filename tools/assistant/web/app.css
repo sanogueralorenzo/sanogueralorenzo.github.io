@@ -185,12 +185,17 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-trigger:hover, .provider-trigger[aria-expanded="true"] { background: var(--surface); }
 .provider-menu { position: absolute; top: 39px; right: 0; width: min(340px, calc(100vw - 28px)); max-height: calc(100dvh - 116px); overflow: auto; padding: 17px; border: 1px solid var(--line); border-radius: 17px; background: var(--input); box-shadow: var(--shadow); text-align: left; font-size: 13px; }
 .provider-choice small, .provider-footnote, .provider-waiting { color: var(--muted); font-size: 12px; }
-.provider-list { margin: 0 -7px; }
+.provider-filters { display: flex; gap: 6px; margin: 12px 0; }
+.provider-filter { border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+.provider-filter:hover { color: var(--graphite); background: var(--surface); }
+.provider-filter[aria-pressed="true"] { color: var(--canvas); background: var(--graphite); border-color: var(--graphite); }
+.provider-list { margin: 0 -7px; max-height: min(360px, 40dvh); overflow: auto; overscroll-behavior: contain; }
+.provider-empty { padding: 10px 7px; }
 .provider-row { display: flex; align-items: center; border-radius: 10px; }
 .provider-row:hover { background: var(--surface); }
 .provider-choice { flex: 1; min-width: 0; padding: 10px 7px; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--graphite); text-align: left; cursor: pointer; }
-.provider-choice > span:last-child { display: flex; flex-direction: column; gap: 3px; }
-.provider-choice strong { font-weight: 550; }
+.provider-choice > span:last-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.provider-choice strong { font-weight: 550; overflow-wrap: anywhere; }
 .provider-check { width: 16px; color: #4aa96b; }
 .provider-text-button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 7px; font-size: 12px; }
 .provider-text-button:hover { color: var(--graphite); }
@@ -198,6 +203,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .provider-model-label { margin-top: 16px; }
 .provider-menu select, .provider-menu input { display: block; width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); color: var(--graphite); font: inherit; }
 .provider-login { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 15px; }
+.provider-login:first-child { border: 0; margin: 0; padding: 0; }
 .provider-login p { line-height: 1.5; overflow-wrap: anywhere; }
 .provider-login form { margin-top: 14px; }
 .provider-login-link { color: var(--user); display: inline-block; margin: 3px 0; }
