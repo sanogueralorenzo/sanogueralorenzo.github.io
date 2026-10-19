@@ -8,7 +8,7 @@ Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends â
 
 ## Start
 
-Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
+Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Manual code or redirect entry is available as a fallback. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
 
 ```bash
 cd tools/assistant
@@ -21,3 +21,15 @@ Install Codex Computer Use in the desktop app for native app control. Assistant 
 State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json`. Pi manages the installation ID in `~/.assistant/settings.json`.
 
 Run `npm run check`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.
+
+## Headless
+
+On a headless Linux host with Node 26+, run the start commands above. From your laptop, forward the web UI and OpenAI's callback port:
+
+```bash
+ssh -N -L 4181:127.0.0.1:4180 -L 1455:127.0.0.1:1455 user@pi-host
+```
+
+Open `http://127.0.0.1:4181` on your laptop and sign in there. Port 1455 must be free on your laptop; forwarding it lets OpenAI return to Assistant on the host automatically. Without that forward, finish browser sign-in and paste the final redirect URL into Assistant's manual fallback. API keys need no browser callback.
+
+The service installer is macOS-only. Codex Computer Use requires the desktop plugin; it is unavailable on a headless Raspberry Pi. Coding and shell tools run on the host.

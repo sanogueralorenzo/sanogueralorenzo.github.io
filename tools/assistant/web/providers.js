@@ -22,21 +22,40 @@ export function createProviders({ state, root, api }) {
   let promptId;
   let query = "";
   let filter = "oauth";
+  let manualEntry = false;
+  let signInTab;
   const name = id => data?.providers.find(provider => provider.id === id)?.name || "Provider";
   const safeURL = value => {
-    try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? escapeHTML(url.href) : ""; }
+    try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? url.href : ""; }
     catch { return ""; }
   };
+  function prepareSignIn(provider) {
+    if (signInTab && !signInTab.opened) signInTab.tab?.close();
+    const tab = window.open("about:blank", "_blank");
+    signInTab = { provider, tab, opened: false };
+    if (tab) {
+      tab.opener = null;
+      tab.document.title = "Assistant sign-in";
+      tab.document.body.textContent = "Preparing sign-in…";
+    }
+  }
+  function releaseSignIn() {
+    if (signInTab && !signInTab.opened) signInTab.tab?.close();
+    signInTab = undefined;
+  }
   function loginHTML() {
     const login = data?.login;
     if (!login) return "";
     if (login.status === "done" || login.status === "cancelled") return "";
     if (login.status === "failed") return `<p class="provider-error" role="alert">${escapeHTML(login.message)}</p>`;
     const prompt = login.prompt;
+    const url = safeURL(login.url);
+    const manual = prompt?.type === "manual_code" && url;
     const control = prompt?.type === "select"
       ? `<select id="provider-response" data-provider-response>${prompt.options.map(option => `<option value="${escapeHTML(option.id)}" ${response === option.id ? "selected" : ""}>${escapeHTML(option.label)}</option>`).join("")}</select>`
       : prompt ? `<input id="provider-response" data-provider-response type="${prompt.type === "secret" ? "password" : "text"}" value="${escapeHTML(response)}" placeholder="${escapeHTML(prompt.placeholder || "")}" autocomplete="off" autocapitalize="none" spellcheck="false" ${prompt.type === "text" ? "" : "required"} maxlength="16000">` : "";
-    return `<div class="provider-login"><strong>Connect ${escapeHTML(name(login.provider))}</strong>${login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${safeURL(login.url) ? `<a class="provider-login-link" href="${safeURL(login.url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${prompt ? `<form id="provider-login-form"><label for="provider-response">${escapeHTML(prompt.message)}</label>${control}<button class="provider-primary" type="submit" ${busy ? "disabled" : ""}>Continue</button></form>` : '<p class="provider-waiting">Waiting for connection…</p>'}<button class="provider-text-button" type="button" data-action="providers-cancel" ${busy ? "disabled" : ""}>Cancel setup</button></div>`;
+    const form = prompt ? `<form id="provider-login-form"><label for="provider-response">${escapeHTML(prompt.message)}</label>${control}<button class="provider-primary" type="submit" ${busy ? "disabled" : ""}>Continue</button></form>` : '<p class="provider-waiting">Waiting for connection…</p>';
+    return `<div class="provider-login"><strong>Connect ${escapeHTML(name(login.provider))}</strong>${manual ? '<p>Finish signing in in your browser.</p>' : login.message ? `<p>${escapeHTML(login.message)}</p>` : ""}${url ? `<a class="provider-login-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">Open ${escapeHTML(name(login.provider))} sign-in ↗</a>` : ""}${login.userCode ? `<p class="provider-device-code">${escapeHTML(login.userCode)}</p>` : ""}${manual && !manualEntry ? '<button class="provider-text-button" type="button" data-action="providers-manual">Enter code or redirect URL manually</button>' : form}<button class="provider-text-button" type="button" data-action="providers-cancel" ${busy ? "disabled" : ""}>Cancel setup</button></div>`;
   }
   function listHTML(disabled) {
     const providers = visibleProviders(data.providers, query, filter);
@@ -90,8 +109,18 @@ export function createProviders({ state, root, api }) {
   }
   function update(next) {
     data = next;
+    const login = next.login;
+    if (signInTab && signInTab.provider === login?.provider) {
+      const url = safeURL(login.url);
+      if (login.status !== "pending") releaseSignIn();
+      else if (!signInTab.opened && signInTab.tab && !signInTab.tab.closed) {
+        if (url) { signInTab.tab.location.replace(url); signInTab.opened = true; }
+        else if (login.prompt) { signInTab.tab.close(); signInTab.tab = null; }
+      }
+    }
     if (next.login?.prompt?.id !== promptId) {
       promptId = next.login?.prompt?.id;
+      manualEntry = false;
       response = next.login?.prompt?.type === "select" ? next.login.prompt.options[0]?.id || "" : "";
     }
     sync();
@@ -101,7 +130,7 @@ export function createProviders({ state, root, api }) {
     if (busy) return;
     busy = true; error = ""; sync();
     try { await action(); await refresh(); }
-    catch (failure) { error = failure.message; }
+    catch (failure) { error = failure.message; releaseSignIn(); }
     finally { busy = false; sync(); }
   }
   async function handleClick(button) {
@@ -113,6 +142,8 @@ export function createProviders({ state, root, api }) {
       return true;
     }
     if (action === "providers-filter") { filter = button.dataset.filter; sync(); return true; }
+    if (action === "providers-manual") { manualEntry = true; sync(); root.querySelector("[data-provider-response]")?.focus(); return true; }
+    if (action === "providers-login" && button.dataset.method === "oauth" && !busy) prepareSignIn(button.dataset.provider);
     await run(async () => {
       const provider = button.dataset.provider;
       if (action === "providers-select") await api("/api/providers/select", "POST", { provider, ...(data.selected.provider === provider && { modelId: data.selected.modelId }) });
@@ -139,6 +170,7 @@ export function createProviders({ state, root, api }) {
     const loginId = data.login.id;
     const id = promptId;
     const value = response;
+    if (signInTab?.provider === data.login.provider && !signInTab.opened) prepareSignIn(data.login.provider);
     void run(() => api("/api/providers/respond", "POST", { loginId, promptId: id, value }));
   });
   document.addEventListener("click", event => {
