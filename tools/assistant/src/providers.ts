@@ -103,7 +103,7 @@ export class Providers {
           signal,
           notify: event => this.notify(login, event),
           prompt: prompt => this.ask(login, prompt, signal),
-        }, { agentName: "assistant", getDeviceId: () => this.settings.getOrCreateDeviceId() });
+        }, { agentName: "Assistant", getDeviceId: () => this.settings.getOrCreateDeviceId() });
         await this.models.refresh({ providers: [provider], allowNetwork: true, signal });
         signal.throwIfAborted();
         await this.select(provider);
