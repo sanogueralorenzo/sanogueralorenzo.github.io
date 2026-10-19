@@ -94,6 +94,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .empty-session .brand-mark svg { display: none; }
 .empty-session p { margin: 0; font-size: 20px; font-weight: 500; }
 .activity-line, .connection-error { width: min(820px, 100%); min-height: 32px; margin: 0 auto; padding: 3px 20px 9px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.activity-line > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .connection-error { justify-content: space-between; }
 .connection-error > span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .connection-error button { border: 0; background: none; padding: 4px 6px; color: var(--graphite); cursor: pointer; font-size: 12px; }
@@ -240,6 +241,7 @@ button:disabled { opacity: .45; cursor: not-allowed !important; }
 .entry-copy small { font-size: 15px; font-weight: 600; }
 .activity-pill { align-self: flex-end; display: flex; align-items: center; gap: 6px; width: max-content; max-width: min(480px, calc(100% - 38px)); min-height: 28px; margin-top: 5px; padding: 4px 10px; border: 0; border-radius: 14px; background: var(--assistant); color: white; text-align: left; font-size: 12px; line-height: 1.35; cursor: pointer; }
 .activity-pill:hover:not(:disabled) { filter: brightness(1.14); }
+.activity-pill:is([data-status="routing"], [data-status="queued"], [data-status="working"]) { width: min(480px, calc(100% - 38px)); }
 .activity-pill:disabled { opacity: 1; cursor: default; }
 .reply-source-pill { align-self: flex-start; margin-top: 0; }
 .pill-symbol { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 14px; height: 14px; }

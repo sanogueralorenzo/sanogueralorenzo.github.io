@@ -101,6 +101,40 @@ function sessionView() {
     message.role === "assistant" && message.replyable ? actions.replyActions(message.id, state.selected) : "")).join("") : `<div class="empty-session"><span class="brand-mark">✳</span><p>How can I help?</p></div>`;
   return `<main class="session-scroll scroll-area"><div class="transcript">${messages}${state.streaming ? renderMessage({ role: "assistant", text: state.streaming }) : ""}</div></main>${record?.status === "running" ? `<div class="activity-line"><i class="spinner"></i><span>${escapeHTML(state.activity || "Working")}</span></div>` : ""}${record?.status === "interrupted" ? `<div class="activity-line">⏸️ Stopped. Return to Home to continue.</div>` : ""}`;
 }
+function updateShell(html) {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const shell = root.querySelector(".app-shell");
+  const fresh = template.content.firstElementChild;
+  const footer = shell.querySelector(".composer-area");
+  const children = [...fresh.children].filter((child) => !child.matches(".composer-area"));
+  for (const child of [...shell.children]) {
+    if (child !== footer && !children.some((next) => next.classList[0] === child.classList[0])) child.remove();
+  }
+  for (const child of children) {
+    const current = [...shell.children].find((item) => item.classList[0] === child.classList[0]);
+    if (!current) shell.insertBefore(child, footer);
+    else if (!current.isEqualNode(child)) current.replaceWith(child);
+  }
+  const composer = footer.querySelector("#composer");
+  const next = fresh.querySelector("#composer");
+  // Live updates must leave the textarea connected so typing and composition continue.
+  const input = composer.querySelector(".composer-input");
+  const nextInput = next.querySelector(".composer-input");
+  composer.className = next.className;
+  for (const child of [...composer.children]) {
+    if (child !== input && ![...next.children].some((item) => item.classList[0] === child.classList[0])) child.remove();
+  }
+  for (const child of [...next.children]) {
+    if (child === nextInput) continue;
+    const current = [...composer.children].find((item) => item.classList[0] === child.classList[0]);
+    if (current) { if (!current.isEqualNode(child)) current.replaceWith(child); }
+    else if (child.compareDocumentPosition(nextInput) & Node.DOCUMENT_POSITION_FOLLOWING) composer.insertBefore(child, input);
+    else composer.append(child);
+  }
+  const textarea = input.querySelector("textarea");
+  if (textarea.value !== state.input) textarea.value = state.input;
+}
 function render(force = false) {
   const old = root.querySelector(".scroll-area");
   if (!force && state.selected === "home" && renderedView === "home" && old?.classList.contains("home-scroll") &&
@@ -115,6 +149,14 @@ function render(force = false) {
     for (let i = 0; i < children.length; i++) {
       const existing = current.children[i];
       const updated = children[i];
+      const pill = existing?.querySelector(".activity-pill");
+      const nextPill = updated.querySelector(".activity-pill");
+      if (pill?.dataset.source && pill.dataset.source === nextPill?.dataset.source && pill.dataset.status === nextPill.dataset.status) {
+        const detail = pill.querySelector(".pill-detail");
+        const nextDetail = nextPill.querySelector(".pill-detail");
+        if (detail && nextDetail) detail.textContent = nextDetail.textContent;
+        pill.setAttribute("aria-label", nextPill.getAttribute("aria-label"));
+      }
       if (!existing) current.append(updated);
       else if (!existing.isEqualNode(updated)) existing.replaceWith(updated);
     }
@@ -126,17 +168,24 @@ function render(force = false) {
   if (old) state.scroll[renderedView] = old.scrollTop;
   const focus = document.activeElement?.dataset?.focus;
   const cursor = focus ? document.activeElement.selectionStart : null;
+  const selectionEnd = focus ? document.activeElement.selectionEnd : null;
+  const selectionDirection = focus ? document.activeElement.selectionDirection : null;
   const providerFocus = providers.captureFocus();
   const isHome = state.selected === "home";
   const record = state.data.sessions.find((item) => item.id === state.selected);
   const editing = isHome && state.edit;
   const previewHTML = actions.preview();
-  root.innerHTML = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end">${providers.html()}</div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span></div></div><div class="composer-controls"><button type="button" class="composer-icon suggestion-action" data-action="accept-suggestion" title="Use suggested reply" aria-label="Use suggested reply" hidden><kbd>Tab</kbd></button><button type="button" class="composer-icon mic-button" title="Microphone — coming soon" aria-label="Microphone (coming soon)" disabled>${icon("mic", 18)}</button>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
+  const html = `<div class="app-shell"><header class="topbar${isHome ? " home-topbar" : ""}"><div class="topbar-side">${isHome ? "" : homeBackButton()}</div><div class="brand"><strong>${isHome ? "Assistant" : escapeHTML(record?.title || "Conversation")}</strong></div><div class="topbar-side topbar-end">${providers.html()}</div></header>${isHome ? home() : sessionView()}${state.error ? `<div class="connection-error"><span>${escapeHTML(state.error)}</span><button data-action="dismiss">Dismiss</button></div>` : ""}<footer class="composer-area"><form class="composer ${isHome ? "" : "session-composer"} ${previewHTML ? "replying" : ""}" id="composer">${isHome ? "" : queued.composer()}${previewHTML}<div class="composer-input"><textarea data-focus="composer" rows="1" placeholder="Message" aria-label="Message">${escapeHTML(state.input)}</textarea><div class="prompt-suggestion" hidden><span></span></div></div><div class="composer-controls"><button type="button" class="composer-icon suggestion-action" data-action="accept-suggestion" title="Use suggested reply" aria-label="Use suggested reply" hidden><kbd>Tab</kbd></button><button type="button" class="composer-icon mic-button" title="Microphone — coming soon" aria-label="Microphone (coming soon)" disabled>${icon("mic", 18)}</button>${!isHome && record?.status === "running" ? `<button type="button" class="composer-icon" data-action="stop" title="Stop current run" aria-label="Stop current run">${icon("stop", 17)}</button>` : ""}<button type="submit" class="send-button" aria-label="Send">${icon("send", 18)}</button></div>${editing ? `<div class="composer-hint edit-hint">Sending this will steer the conversation</div>` : ""}</form></footer></div>`;
+  if (!force && state.selected === renderedView && old) updateShell(html);
+  else root.innerHTML = html;
   renderedView = state.selected;
   const scroll = root.querySelector(".scroll-area");
   if (scroll) scroll.scrollTop = state.scroll[state.selected] ?? scroll.scrollHeight;
   const input = focus ? root.querySelector('[data-focus="composer"]') : null;
-  if (input) { input.focus({ preventScroll: true }); if (cursor !== null) input.setSelectionRange(cursor, cursor); }
+  if (input && input !== document.activeElement) {
+    input.focus({ preventScroll: true });
+    if (cursor !== null) input.setSelectionRange(cursor, selectionEnd, selectionDirection);
+  }
   resizeComposer();
   suggestions.sync();
   providers.restoreFocus(providerFocus);
