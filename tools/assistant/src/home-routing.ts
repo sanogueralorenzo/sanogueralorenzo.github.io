@@ -67,7 +67,7 @@ export class HomeRouter {
           return { session, score };
         }).filter(({ score }) => score >= Math.min(2, words.length)).sort((a, b) => b.score - a.score ||
           b.session.updatedAt.localeCompare(a.session.updatedAt)).slice(0, 8).map(({ session }) => session) : [];
-        return { content: [{ type: "text" as const, text: JSON.stringify(matches) }], details: undefined };
+        return { output: [{ type: "text" as const, text: JSON.stringify(matches) }], details: undefined };
       },
     });
     const readConversation = defineTool({
@@ -76,7 +76,7 @@ export class HomeRouter {
       parameters: Type.Object({ sessionId: Type.String() }),
       execute: async (params) => {
         const record = this.state.data.sessions.find((item) => item.id === params.sessionId);
-        return { content: [{ type: "text" as const, text: record ? JSON.stringify(this.state.transcript(record.id).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
+        return { output: [{ type: "text" as const, text: record ? JSON.stringify(this.state.transcript(record.id).slice(-12)).slice(0, 12000) : "Conversation not found" }], details: undefined };
       },
     });
     let accepted: Route | undefined;
@@ -88,13 +88,13 @@ export class HomeRouter {
         title: Type.Optional(Type.String()), sessionId: Type.Optional(Type.String()), cwd: Type.Optional(Type.String()),
       }),
       execute: async (params) => {
-        if (accepted) return { content: [{ type: "text" as const, text: "Destination already accepted." }], details: undefined };
+        if (accepted) return { output: [{ type: "text" as const, text: "Destination already accepted." }], details: undefined };
         try {
           accepted = parseRoute(params, this.state);
-          return { content: [{ type: "text" as const, text: "Destination accepted." }], details: undefined };
+          return { output: [{ type: "text" as const, text: "Destination accepted." }], details: undefined };
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
-          return { content: [{ type: "text" as const, text: `Invalid destination: ${reason}. Correct it and call route_home again.` }], details: undefined };
+          return { output: [{ type: "text" as const, text: `Invalid destination: ${reason}. Correct it and call route_home again.` }], details: undefined };
         }
       },
     });

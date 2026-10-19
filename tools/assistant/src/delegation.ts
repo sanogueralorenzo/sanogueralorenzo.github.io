@@ -49,7 +49,7 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
       const submission = await handle.submit({ type: "input", content: args.task, requestId: `delegate:${delegationId}` }, context);
       await api.commit(async (tx) => { (await tx.doc(DelegationsDoc, api.conversationId)).calls[delegationId].submissionId = submission.id; }, context);
       const details = { delegationId, conversationId: child.conversationId, status: "outstanding" };
-      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
+      return { output: [{ type: "text", text: JSON.stringify(details) }], details };
     } });
 
   const result = defineTool({ name: "delegate_result",
@@ -58,13 +58,13 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
     execute: async (args, api, context) => {
       const child = (await api.snapshot(DelegationsDoc, api.conversationId, context))?.calls[args.delegationId];
       if (!child) throw new Error("Delegation not found in this conversation");
-      if (child.status === "cancelled") return { content: [{ type: "text", text: JSON.stringify({ delegationId: args.delegationId, status: "cancelled", reason: child.reason }) }] };
+      if (child.status === "cancelled") return { output: [{ type: "text", text: JSON.stringify({ delegationId: args.delegationId, status: "cancelled", reason: child.reason }) }] };
       const findings = await collect(args.delegationId, child, context);
       await api.commit(async tx => {
         const saved = (await tx.doc(DelegationsDoc, api.conversationId)).calls[args.delegationId];
         if (saved.status !== "cancelled") saved.status = findings.status === "done" ? "collected" : "failed";
       }, context);
-      return { content: [{ type: "text", text: JSON.stringify(findings) }], isError: findings.status === "failed",
+      return { output: [{ type: "text", text: JSON.stringify(findings) }], isError: findings.status === "failed",
         details: { delegationId: args.delegationId, conversationId: child.conversationId, status: findings.status } };
     } });
 
@@ -83,7 +83,7 @@ export function createDelegation(getWorker: () => Extension, getHarness: () => H
       }
       const saved = (await api.snapshot(DelegationsDoc, api.conversationId, context))!.calls[args.delegationId];
       const details = { delegationId: args.delegationId, conversationId: child.conversationId, status: saved.status, ...(saved.reason && { reason: saved.reason }) };
-      return { content: [{ type: "text", text: JSON.stringify(details) }], details };
+      return { output: [{ type: "text", text: JSON.stringify(details) }], details };
     } });
 
   return [delegate, result, cancel];

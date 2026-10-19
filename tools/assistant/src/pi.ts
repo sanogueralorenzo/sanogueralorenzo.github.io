@@ -28,7 +28,7 @@ function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
         if (text.startsWith(output)) api.output(text.slice(output.length));
         output = text;
       });
-      return json({ content: result.content, ...(result.details !== undefined && { details: result.details as JsonValue }) });
+      return json({ output: result.content, ...(result.details !== undefined && { details: result.details as JsonValue }) });
     } }));
 }
 
@@ -166,7 +166,7 @@ export class PiService {
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
         // A reset ends this temporary coordinator even when its round also contains lookup tools.
-        return json({ content: result.content, ...(result.details !== undefined && { details: result.details as JsonValue }), ...(acceptedResult?.() && { control: { handoff: "" } }) });
+        return json({ ...result, ...(acceptedResult?.() && { control: { handoff: "" } }) });
       } }));
     const registry = createRegistry();
     const extension = roleExtension(role, tools);

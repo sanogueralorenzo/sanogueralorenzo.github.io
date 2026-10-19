@@ -51,7 +51,7 @@ export function gate(replay: "safe" | "unsafe" = "unsafe") {
         void pending.then(() => { cleanup(); resolve(); });
         if (context.abortSignal?.aborted) abort();
       });
-      return { content: [{ type: "text", text: "Released" }] };
+      return { output: [{ type: "text", text: "Released" }] };
     } });
   return { tool, started, release, calls: () => calls };
 }

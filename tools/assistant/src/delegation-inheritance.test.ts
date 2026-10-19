@@ -43,9 +43,9 @@ const results = (context: Parameters<FauxResponseFactory>[0]) => context.message
 test("task-only delegation inherits native, custom, and computer tools with the parent's wrappers", async t => {
   let customCalls = 0; let computerCalls = 0;
   const extra = defineExtension({ name: "test-tools", tools: [defineTool({ name: "custom_tool", description: "Return project evidence", parameters: Type.Object({}),
-    execute: async () => { customCalls++; return { content: [{ type: "text", text: "Custom evidence" }] }; } })],
+    execute: async () => { customCalls++; return { output: [{ type: "text", text: "Custom evidence" }] }; } })],
     wraps: [{ tool: "computer_use", wrap: (tool: ToolRegistration): ToolRegistration => ({ ...tool, execute: async () => {
-      computerCalls++; return { content: [{ type: "text", text: "Wrapped computer result" }] };
+      computerCalls++; return { output: [{ type: "text", text: "Wrapped computer result" }] };
     } }) }] });
   const f = await fixture(t, context => {
     const answers = results(context);

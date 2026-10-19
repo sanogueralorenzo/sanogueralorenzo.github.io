@@ -14,11 +14,11 @@
     "eval:benchmark": "node --experimental-strip-types evals/benchmark/cli.mjs"
   },
   "dependencies": {
-    "@earendil-works/chord": "1.0.4",
-    "@earendil-works/pi-ai": "1.0.4",
-    "@earendil-works/pi-coding-agent": "1.0.4",
-    "@earendil-works/pi-durable": "1.0.4",
-    "@earendil-works/pi-mcp": "1.0.4",
+    "@earendil-works/chord": "1.3.0",
+    "@earendil-works/pi-ai": "1.3.0",
+    "@earendil-works/pi-coding-agent": "1.3.0",
+    "@earendil-works/pi-durable": "1.3.0",
+    "@earendil-works/pi-mcp": "1.3.0",
     "typebox": "1.3.27"
   },
   "devDependencies": {

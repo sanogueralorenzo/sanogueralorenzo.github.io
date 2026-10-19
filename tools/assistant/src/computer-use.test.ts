@@ -22,7 +22,7 @@ async function until(condition: () => boolean) {
   while (!condition()) { if (Date.now() > deadline) throw new Error("Timed out waiting for MCP process"); await delay(5); }
 }
 function alive(pid: number) { try { process.kill(pid, 0); return true; } catch { return false; } }
-const text = (result: Awaited<ReturnType<ComputerUseClient["call"]>>) => result.content.filter(part => part.type === "text").map(part => part.text).join("\n");
+const text = (result: Awaited<ReturnType<ComputerUseClient["call"]>>) => result.output.filter(part => part.type === "text").map(part => part.text).join("\n");
 
 test("one initialized MCP process preserves state and correlates out-of-order replies", async t => {
   const f = fixture(t);
@@ -45,7 +45,7 @@ test("the adapter preserves JS arguments and automatically accepts approval requ
 test("Pi MCP converts text, images, embedded resources, and structured results", async t => {
   const f = fixture(t);
   const result = await f.client.call("media", undefined, undefined);
-  assert.deepEqual(result.content, [
+  assert.deepEqual(result.output, [
     { type: "text", text: "Image follows" }, { type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
     { type: "text", text: "Embedded text" }, { type: "image", mimeType: "image/png", data: "ZW1iZWRkZWQ=" },
   ]);

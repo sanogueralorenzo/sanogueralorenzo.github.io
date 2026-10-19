@@ -60,9 +60,9 @@ function sessionFixtureTools(test, variant) {
         if (definition.name === "delegate_cancel") {
           const cancelled = { delegationId: args.delegationId, status: "cancelled", reason: args.reason };
           delegates.set(args.delegationId, cancelled);
-          return { content: [{ type: "text", text: JSON.stringify(cancelled) }], details: { fixture: true } };
+          return { output: [{ type: "text", text: JSON.stringify(cancelled) }], details: { fixture: true } };
         }
-        return { content: [{ type: "text", text: JSON.stringify(fixture) }], isError: fixture.status === "failed", details: { fixture: true } };
+        return { output: [{ type: "text", text: JSON.stringify(fixture) }], isError: fixture.status === "failed", details: { fixture: true } };
       }
       const fixture = (test.fixtures || []).find(item => item.tool === definition.name && matches(args, item.match || {}));
       if (!fixture) throw new Error(`${definition.name} is disabled in native role integration; no external action was executed. Supply an explicit fixture reply to exercise this boundary.`);
@@ -71,11 +71,11 @@ function sessionFixtureTools(test, variant) {
         if (typeof text !== "string") throw new Error("delegate fixture needs a text response");
         const delegationId = String(api.taskId);
         delegates.set(delegationId, { delegationId, status: fixture.error ? "failed" : "done", ...(fixture.error ? { error: text } : { text }) });
-        return { content: [{ type: "text", text: JSON.stringify({ delegationId, status: "outstanding" }) }], details: { fixture: true } };
+        return { output: [{ type: "text", text: JSON.stringify({ delegationId, status: "outstanding" }) }], details: { fixture: true } };
       }
       if (fixture.error) throw new Error(text || `${definition.name} fixture failed`);
       if (typeof text !== "string") throw new Error(`${definition.name} fixture needs a text response`);
-      return { content: [{ type: "text", text }], details: { fixture: true } };
+      return { output: [{ type: "text", text }], details: { fixture: true } };
     } }));
 }
 
@@ -139,7 +139,7 @@ export async function runRoleIntegration(runtime, model, suite, job, options = {
       name: tool.name, description: tool.description, parameters: tool.parameters,
       execute: async (args, api, context) => {
         const result = await tool.execute(args, api, context);
-        return { content: result.content, ...(result.details !== undefined && { details: result.details }),
+        return { ...result,
           ...(acceptedResult?.() && { control: { handoff: "" } }) };
       },
     }));

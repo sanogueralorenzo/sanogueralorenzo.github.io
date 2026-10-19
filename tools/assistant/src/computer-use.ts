@@ -47,7 +47,7 @@ export class ComputerUseClient {
       });
       const content = toLlmContent(result);
       if (result.isError) throw new Error(content.filter((item) => item.type === "text").map((item) => item.text).join("\n") || "Computer Use failed");
-      return { content: content.length ? content : [{ type: "text" as const, text: "Done." }] };
+      return { output: content.length ? content : [{ type: "text" as const, text: "Done." }] };
     } catch (error) {
       if (signal?.aborted || error instanceof McpTimeoutError) await this.close();
       if (signal?.aborted) throw new Error("Computer Use stopped");
