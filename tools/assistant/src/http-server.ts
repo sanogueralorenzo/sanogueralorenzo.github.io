@@ -83,7 +83,7 @@ export function createAssistantServer(app: Assistant) {
         return json(res, 200, await app.pi.providers.snapshot());
       }
       if (url.pathname === "/api/providers/login") {
-        const loginId = app.pi.providers.startLogin(input(request.provider), request.method === undefined ? undefined : input(request.method));
+        const loginId = app.pi.providers.startLogin(input(request.provider), input(request.method));
         return json(res, 202, { loginId });
       }
       if (url.pathname === "/api/providers/respond") {

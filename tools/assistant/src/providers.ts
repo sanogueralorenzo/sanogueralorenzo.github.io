@@ -85,10 +85,10 @@ export class Providers {
     this.selected = selected;
     this.changed();
   }
-  startLogin(provider: string, method?: string) {
+  startLogin(provider: string, method: string) {
     const definition = this.definition(provider);
     if (!definition.methods.length) throw new Error("Configure this provider's credentials in the service environment");
-    if (method !== undefined && !definition.methods.some(item => item.id === method)) throw new Error("Choose a supported login method");
+    if (!definition.methods.some(item => item.id === method)) throw new Error("Choose a supported login method");
     if (this.login?.status === "pending") throw new Error("Finish or cancel the current sign-in first");
     const controller = new AbortController();
     this.controller = controller;
@@ -98,10 +98,7 @@ export class Providers {
     this.changed();
     this.running = (async () => {
       try {
-        const type = method || (definition.methods.length === 1 ? definition.methods[0].id : await this.ask(login, {
-          type: "select", message: `How would you like to connect ${definition.name}?`, options: definition.methods,
-        }, signal));
-        await this.models.login(provider, type as AuthType, {
+        await this.models.login(provider, method as AuthType, {
           signal,
           notify: event => this.notify(login, event),
           prompt: prompt => this.ask(login, prompt, signal),

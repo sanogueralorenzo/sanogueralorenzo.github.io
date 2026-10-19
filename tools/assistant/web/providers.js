@@ -3,8 +3,8 @@ import { escapeHTML } from "./view.js";
 export function visibleProviders(providers, query, filter) {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return providers.filter(provider => {
-    const matchesFilter = filter === "all" || (filter === "cloud" ? provider.cloud
-      : (filter !== "api_key" || !provider.cloud) && provider.methods.some(method => method.id === filter));
+    const matchesFilter = filter === "cloud" ? provider.cloud
+      : (filter !== "api_key" || !provider.cloud) && provider.methods.some(method => method.id === filter);
     const text = `${provider.name} ${provider.id}`.toLowerCase();
     return matchesFilter && words.every(word => text.includes(word));
   });
@@ -18,7 +18,7 @@ export function createProviders({ state, root, api }) {
   let response = "";
   let promptId;
   let query = "";
-  let filter = "all";
+  let filter = "oauth";
   const name = id => data?.providers.find(provider => provider.id === id)?.name || "Provider";
   const safeURL = value => {
     try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) ? escapeHTML(url.href) : ""; }
@@ -37,13 +37,12 @@ export function createProviders({ state, root, api }) {
   }
   function listHTML(disabled) {
     const providers = visibleProviders(data.providers, query, filter);
-    const filters = [["all", "All"], ["oauth", "Sign in"], ["api_key", "API key"], ["cloud", "Cloud"]];
+    const filters = [["oauth", "Sign in"], ["api_key", "API key"], ["cloud", "Cloud"]];
     return `<input type="search" class="provider-search" data-provider-search aria-label="Search providers" placeholder="Search providers…" autocomplete="off" value="${escapeHTML(query)}"><div class="provider-filters" aria-label="Authentication filters">${filters.map(([id, label]) => `<button type="button" class="provider-filter" data-action="providers-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join("")}</div><div class="provider-list">${providers.map(provider => {
       const active = data.selected.provider === provider.id && provider.connected;
-      const methods = provider.methods.filter(method => filter === "all" || method.id === (filter === "cloud" ? "api_key" : filter));
-      const method = methods.length === 1 ? methods[0].id : "";
-      const detail = `${provider.connected ? `${active ? "Selected" : "Connected"} · ` : ""}${methods.map(method => method.label).join(" · ") || "Environment"}`;
-      return `<div class="provider-row"><button type="button" class="provider-choice" data-action="${provider.connected ? "providers-select" : "providers-login"}" data-provider="${escapeHTML(provider.id)}" data-method="${escapeHTML(method)}" ${disabled || (!provider.connected && !methods.length) ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(provider.name)}</strong><small>${escapeHTML(detail)}</small></span></button>${provider.canLogout ? `<button type="button" class="provider-text-button" data-action="providers-logout" data-provider="${escapeHTML(provider.id)}" ${disabled ? "disabled" : ""}>Disconnect</button>` : ""}</div>`;
+      const method = provider.methods.find(method => method.id === (filter === "cloud" ? "api_key" : filter));
+      const detail = `${provider.connected ? `${active ? "Selected" : "Connected"} · ` : ""}${method?.label || "Environment"}`;
+      return `<div class="provider-row"><button type="button" class="provider-choice" data-action="${provider.connected ? "providers-select" : "providers-login"}" data-provider="${escapeHTML(provider.id)}" data-method="${escapeHTML(method?.id || "")}" ${disabled || (!provider.connected && !method) ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(provider.name)}</strong><small>${escapeHTML(detail)}</small></span></button>${provider.canLogout ? `<button type="button" class="provider-text-button" data-action="providers-logout" data-provider="${escapeHTML(provider.id)}" ${disabled ? "disabled" : ""}>Disconnect</button>` : ""}</div>`;
     }).join("") || '<p class="provider-waiting provider-empty">No matching providers</p>'}</div>`;
   }
   function html() {
@@ -115,7 +114,7 @@ export function createProviders({ state, root, api }) {
     await run(async () => {
       const provider = button.dataset.provider;
       if (action === "providers-select") await api("/api/providers/select", "POST", { provider, ...(data.selected.provider === provider && { modelId: data.selected.modelId }) });
-      if (action === "providers-login") await api("/api/providers/login", "POST", { provider, ...(button.dataset.method && { method: button.dataset.method }) });
+      if (action === "providers-login") await api("/api/providers/login", "POST", { provider, method: button.dataset.method });
       if (action === "providers-logout") await api("/api/providers/logout", "POST", { provider });
       if (action === "providers-cancel") await api("/api/providers/cancel", "POST", { loginId: data.login.id });
     });
