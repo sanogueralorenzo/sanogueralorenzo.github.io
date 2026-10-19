@@ -1,7 +1,9 @@
 import { Type } from "typebox";
+import { homedir } from "node:os";
 import { defineTool } from "@earendil-works/pi-durable";
 import type { PiService } from "./pi.ts";
 import type { HomeEntry, HomeMessage, State } from "./state.ts";
+import { resolveWorkingDirectory } from "./working-directory.ts";
 
 export type Route = { mode: "start"; title: string; cwd?: string } | { mode: "continue"; sessionId: string };
 
@@ -90,7 +92,9 @@ export class HomeRouter {
       execute: async (params) => {
         if (accepted) return { output: [{ type: "text" as const, text: "Destination already accepted." }], details: undefined };
         try {
-          accepted = parseRoute(params, this.state);
+          const route = parseRoute(params, this.state);
+          if (route.mode === "start" && route.cwd !== undefined) route.cwd = resolveWorkingDirectory(route.cwd, this.cwd);
+          accepted = route;
           return { output: [{ type: "text" as const, text: "Destination accepted." }], details: undefined };
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
@@ -98,7 +102,7 @@ export class HomeRouter {
         }
       },
     });
-    await this.pi.utility("coordinator", `Current workspace: ${this.cwd}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home once for the entire message.`,
+    await this.pi.utility("coordinator", `Current workspace: ${this.cwd}\nHome directory: ${homedir()}\nRecent saved conversations: ${JSON.stringify(sessions.slice(0, 12))}\nRecent Home exchanges (oldest first): ${JSON.stringify(recentExchanges.slice(0, -1))}\nMost recent Home exchange: ${JSON.stringify(recentExchanges.at(-1) || null)}\n\nOriginal user message (verbatim):\n${message.text}\n\nCall route_home once for the entire message.`,
       this.cwd, [findConversations, readConversation, routeHome], () => accepted ? JSON.stringify(accepted) : undefined);
     if (!accepted) throw new Error("Coordinator did not choose a destination");
     return accepted;

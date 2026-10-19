@@ -13,11 +13,13 @@ import { agentResources, type AgentRole } from "./agent-resources.ts";
 import { assistantText } from "./state.ts";
 import { createDelegation, delegationHooks } from "./delegation.ts";
 import { workingNotes, workingNotesSection } from "./working-notes.ts";
+import { workingDirectory, workingDirectoryHook } from "./working-directory.ts";
 
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
 function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
-  const tools = role === "session" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")] : [];
+  const tools = role === "session" ? [...createCodingTools(cwd), ...createReadOnlyTools(cwd).filter((tool) => tool.name !== "read")]
+    : role === "coordinator" ? createReadOnlyTools(cwd) : [];
   return tools.map((tool) => defineTool({ name: tool.name, description: tool.description, parameters: tool.parameters,
     replay: tool.name === "read" || ["grep", "find", "ls"].includes(tool.name) ? "safe" : "unsafe",
     executionMode: ["read", "grep", "find", "ls"].includes(tool.name) ? "parallel" : "sequential",
@@ -33,18 +35,22 @@ function nativeTools(role: AgentRole, cwd: string): ToolRegistration[] {
 }
 
 export function roleExtension(role: AgentRole, extraTools: ToolRegistration[] = [], instructions?: string[]) {
-  const resources = new Map<string, ReturnType<typeof agentResources>>();
+  const resources = new Map<number, { cwd: string; loader: ReturnType<typeof agentResources> }>();
   const tools = [...nativeTools(role, process.cwd()).map((tool): ToolRegistration => ({ ...tool,
     execute: async (args, api, context) => {
       const cwd = (await api.agent(context)).cwd || process.cwd();
       return nativeTools(role, cwd).find((native) => native.name === tool.name)!.execute(args, api, context);
-    } })), ...extraTools, ...(role !== "coordinator" ? [workingNotes] : [])];
-  return defineExtension({ name: `assistant-${role}`, tools, sections: [section("assistant", async ({ agent }) => {
+    } })), ...extraTools, ...(role !== "coordinator" ? [workingNotes, workingDirectory] : [])];
+  return defineExtension({ name: `assistant-${role}`, tools, hooks: role !== "coordinator" ? [workingDirectoryHook] : [], sections: [section("assistant", async ({ agent, conversationId }) => {
       const cwd = agent.cwd || process.cwd();
-      let loader = resources.get(cwd);
-      if (!loader) { loader = agentResources(cwd, role, instructions); await loader.reload(); resources.set(cwd, loader); }
+      let resource = resources.get(conversationId);
+      if (!resource || resource.cwd !== cwd) {
+        const loader = agentResources(cwd, role, instructions);
+        await loader.reload(); resource = { cwd, loader }; resources.set(conversationId, resource);
+      }
+      const { loader } = resource;
       const files = loader.getAgentsFiles().agentsFiles.map((file) => `Project instructions (${file.path}):\n${file.content}`);
-      return [loader.getSystemPrompt(), ...files, formatSkillsForPrompt(loader.getSkills().skills)].filter(Boolean).join("\n\n");
+      return [loader.getSystemPrompt(), `Working directory: ${cwd}`, ...files, formatSkillsForPrompt(loader.getSkills().skills)].filter(Boolean).join("\n\n");
     }, { tag: false }), ...(role !== "coordinator" ? [workingNotesSection] : [])] });
 }
 
@@ -140,8 +146,9 @@ export class PiService {
       } });
     let roles: Record<AgentRole, Extension>;
     const delegation = createDelegation(() => roles.worker, () => service!.harness);
+    const session = roleExtension("session", [...delegation, computerTool]);
     roles = { coordinator: roleExtension("coordinator"),
-      session: defineExtension({ ...roleExtension("session", [...delegation, computerTool]), hooks: delegationHooks }),
+      session: defineExtension({ ...session, hooks: [...(session.hooks || []), ...delegationHooks] }),
       worker: roleExtension("worker") };
     const registry = createRegistry();
     for (const extension of [...Object.values(roles), ...(options.extensions || []), defineExtension({ name: "assistant-tasks", tasks: options.tasks })]) registry.install(extension);
