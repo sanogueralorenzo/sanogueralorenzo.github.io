@@ -7,7 +7,6 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type { ModelRef } from "@earendil-works/pi-durable";
 
 export const defaultModel: ModelRef = { provider: "openai-codex", modelId: "gpt-6-luna" };
-const names: Record<string, string> = { "openai-codex": "Codex", anthropic: "Claude", google: "Google Gemini" };
 const preferredModels: Record<string, string> = { "openai-codex": defaultModel.modelId, anthropic: "claude-sonnet-5-5" };
 // These providers include cloud account, endpoint, or credential-chain setup.
 const cloudProviders = new Set(["amazon-bedrock", "azure", "google-vertex", "cloudflare-ai-gateway", "cloudflare-workers-ai"]);
@@ -52,7 +51,7 @@ export class Providers {
       const methods: ProviderInfo["methods"] = [];
       if (provider.auth.oauth?.login) methods.push({ id: "oauth", label: "Sign in" });
       if (provider.auth.apiKey?.login) methods.push({ id: "api_key", label: cloud ? "Cloud setup" : "API key" });
-      return [{ id: provider.id, name: names[provider.id] || provider.name, cloud, methods,
+      return [{ id: provider.id, name: provider.name, cloud, methods,
         defaultModel: catalog.find(model => model.id === preferredModels[provider.id])?.id || catalog[0].id,
         models: catalog.map(model => ({ id: model.id, name: model.name })).sort((a, b) => a.name.localeCompare(b.name)) }];
     }).sort((a, b) => a.name.localeCompare(b.name));
