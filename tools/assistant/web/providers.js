@@ -1,8 +1,11 @@
 import { escapeHTML } from "./view.js";
 
+const excludedProviders = new Set(["openai-codex"]);
+
 export function visibleProviders(providers, query, filter) {
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   return providers.filter(provider => {
+    if (excludedProviders.has(provider.id)) return false;
     const matchesFilter = filter === "cloud" ? provider.cloud
       : (filter !== "api_key" || !provider.cloud) && provider.methods.some(method => method.id === filter);
     const text = `${provider.name} ${provider.id}`.toLowerCase();
