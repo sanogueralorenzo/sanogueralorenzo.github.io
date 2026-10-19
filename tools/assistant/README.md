@@ -8,7 +8,7 @@ Open `http://127.0.0.1:4180`. Reply quotes a selected message; thumbs-up sends â
 
 ## Start
 
-Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Browser logins finish through Pi's callback listener. Code entry appears when required by the provider's login method. Select a model after connecting. The selection applies to new tasks; existing conversations keep their model.
+Requires Node 26+. Click the dot, choose Sign in, API key, or Cloud, then search for a provider to connect. Sign-in opens in a browser tab; the link remains available if pop-ups are blocked. Browser logins finish through Pi's callback listener. Code entry appears when required by the provider's login method. Click a connected provider to select a model or disconnect. The selection applies to new tasks; existing conversations keep their model.
 
 ```bash
 cd tools/assistant

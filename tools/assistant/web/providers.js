@@ -22,6 +22,7 @@ export function createProviders({ state, root, api }) {
   let promptId;
   let query = "";
   let filter = "oauth";
+  let modelProvider;
   let signInTab;
   const name = id => data?.providers.find(provider => provider.id === id)?.name || "Provider";
   const safeURL = value => {
@@ -68,8 +69,14 @@ export function createProviders({ state, root, api }) {
     return `<input type="search" class="provider-search" data-provider-search aria-label="Search providers" placeholder="Search providers…" autocomplete="off" value="${escapeHTML(query)}"><div class="provider-filters" aria-label="Authentication filters">${filters.map(([id, label]) => `<button type="button" class="provider-filter" data-action="providers-filter" data-filter="${id}" aria-pressed="${filter === id}">${label}</button>`).join("")}</div><div class="provider-list">${providers.map(provider => {
       const active = data.selected.provider === provider.id && provider.connected;
       const method = provider.methods.find(method => method.id === (filter === "cloud" ? "api_key" : filter));
-      return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="${provider.connected ? "providers-select" : "providers-login"}" data-provider="${escapeHTML(provider.id)}" data-method="${escapeHTML(method?.id || "")}" ${disabled || (!provider.connected && !method) ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(provider.name)}</strong></span></button>${provider.canLogout ? `<button type="button" class="provider-text-button" data-action="providers-logout" data-provider="${escapeHTML(provider.id)}" ${disabled ? "disabled" : ""}>Disconnect</button>` : ""}</div>`;
+      return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="${provider.connected ? "providers-models" : "providers-login"}" data-provider="${escapeHTML(provider.id)}" data-method="${escapeHTML(method?.id || "")}" ${disabled || (!provider.connected && !method) ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(provider.name)}</strong></span></button></div>`;
     }).join("") || '<p class="provider-waiting provider-empty">No matching providers</p>'}</div>`;
+  }
+  function modelsHTML(provider, disabled) {
+    return `<button type="button" class="provider-text-button provider-back" data-action="providers-back" aria-label="Back to providers"><span aria-hidden="true">←</span><strong>${escapeHTML(provider.name)}</strong></button><div class="provider-list" aria-label="${escapeHTML(provider.name)} models">${provider.models.map(model => {
+      const active = data.selected.provider === provider.id && data.selected.modelId === model.id;
+      return `<div class="provider-row"><button type="button" class="provider-choice" aria-current="${active}" data-action="providers-select" data-provider="${escapeHTML(provider.id)}" data-model="${escapeHTML(model.id)}" ${disabled ? "disabled" : ""}><span class="provider-check" aria-hidden="true">${active ? "✓" : ""}</span><span><strong>${escapeHTML(model.name)}</strong></span></button></div>`;
+    }).join("")}</div>${provider.canLogout ? `<div class="provider-footer"><button type="button" class="provider-text-button" data-action="providers-logout" data-provider="${escapeHTML(provider.id)}" ${disabled ? "disabled" : ""}>Disconnect</button></div>` : ""}`;
   }
   function html() {
     const selected = data?.providers.find(provider => provider.id === data.selected.provider);
@@ -78,8 +85,8 @@ export function createProviders({ state, root, api }) {
     const label = ready ? `Accounts: ${selected.name} · ${model?.name || data.selected.modelId}` : "Accounts";
     const pending = data?.login?.status === "pending";
     const disabled = busy || pending || !state.connected;
-    const modelPicker = selected?.connected ? `<label class="provider-model-label" for="provider-model">${escapeHTML(selected.name)} model</label><select id="provider-model" data-provider-model ${disabled ? "disabled" : ""}>${selected.models.map(model => `<option value="${escapeHTML(model.id)}" ${model.id === data.selected.modelId ? "selected" : ""}>${escapeHTML(model.name)}</option>`).join("")}</select><p class="provider-footnote">Used for new tasks. Existing conversations keep their model.</p>` : "";
-    const content = !data ? '<p class="provider-waiting">Loading providers…</p>' : pending ? loginHTML() : `${listHTML(disabled)}${modelPicker}${loginHTML()}`;
+    const browsing = data?.providers.find(provider => provider.id === modelProvider && provider.connected);
+    const content = !data ? '<p class="provider-waiting">Loading providers…</p>' : pending ? loginHTML() : browsing ? modelsHTML(browsing, disabled) : `${listHTML(disabled)}${loginHTML()}`;
     return `<div class="provider-controls"><button type="button" class="provider-trigger" data-action="providers-toggle" aria-label="${escapeHTML(label)}" aria-haspopup="dialog" aria-expanded="${open}" aria-controls="provider-menu"><span class="connection-dot ${ready ? "online" : ""}" aria-hidden="true"></span></button>${open ? `<section class="provider-menu" id="provider-menu" role="dialog" aria-label="Accounts">${content}${error ? `<p class="provider-error" role="alert">${escapeHTML(error)}</p>` : ""}</section>` : ""}</div>`;
   }
   function captureFocus() {
@@ -88,7 +95,7 @@ export function createProviders({ state, root, api }) {
     const selector = focused?.matches("[data-provider-search]") ? "[data-provider-search]"
       : focused?.matches("[data-action='providers-filter']") ? `[data-filter="${focused.dataset.filter}"]`
       : focused?.matches("[data-provider-response]") ? "[data-provider-response]"
-      : focused?.matches("[data-provider-model]") ? "[data-provider-model]"
+      : focused?.matches("[data-model]") ? `[data-model="${CSS.escape(focused.dataset.model)}"]`
       : focused?.matches(".provider-trigger") ? ".provider-trigger" : null;
     return selector ? { selector, cursor: focused?.selectionStart } : null;
   }
@@ -114,6 +121,7 @@ export function createProviders({ state, root, api }) {
   }
   function update(next) {
     data = next;
+    if (modelProvider && !next.providers.some(provider => provider.id === modelProvider && provider.connected)) modelProvider = undefined;
     const login = next.login;
     if (signInTab && signInTab.provider === login?.provider) {
       const url = safeURL(login.url);
@@ -141,15 +149,22 @@ export function createProviders({ state, root, api }) {
     const action = button.dataset.action;
     if (!action?.startsWith("providers-")) return false;
     if (action === "providers-toggle") {
-      open = !open; sync();
+      open = !open;
+      if (open) modelProvider = undefined;
+      sync();
       if (open) await run();
       return true;
     }
     if (action === "providers-filter") { filter = button.dataset.filter; sync(); return true; }
+    if (action === "providers-models" || action === "providers-back") {
+      modelProvider = action === "providers-models" ? button.dataset.provider : undefined;
+      sync(); root.querySelector(".provider-list")?.scrollTo(0, 0);
+      return true;
+    }
     if (action === "providers-login" && button.dataset.method === "oauth" && !busy) prepareSignIn(button.dataset.provider);
     await run(async () => {
       const provider = button.dataset.provider;
-      if (action === "providers-select") await api("/api/providers/select", "POST", { provider, ...(data.selected.provider === provider && { modelId: data.selected.modelId }) });
+      if (action === "providers-select") await api("/api/providers/select", "POST", { provider, modelId: button.dataset.model });
       if (action === "providers-login") await api("/api/providers/login", "POST", { provider, method: button.dataset.method });
       if (action === "providers-logout") await api("/api/providers/logout", "POST", { provider });
       if (action === "providers-cancel") await api("/api/providers/cancel", "POST", { loginId: data.login.id });
@@ -162,10 +177,6 @@ export function createProviders({ state, root, api }) {
   });
   root.addEventListener("change", event => {
     if (event.target.matches("[data-provider-response]")) response = event.target.value;
-    if (event.target.matches("[data-provider-model]")) {
-      const modelId = event.target.value;
-      void run(() => api("/api/providers/select", "POST", { provider: data.selected.provider, modelId }));
-    }
   });
   root.addEventListener("submit", event => {
     if (event.target.id !== "provider-login-form") return;
