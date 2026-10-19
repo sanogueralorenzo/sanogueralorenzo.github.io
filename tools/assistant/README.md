@@ -18,6 +18,6 @@ npm start
 
 Install Codex Computer Use in the desktop app for native app control. Assistant automatically accepts its approval requests. `service/install.sh` starts Assistant after login on macOS; `service/uninstall.sh` removes the service.
 
-State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json`.
+State and transcripts live in `~/.assistant/durable.sqlite`; suggestions live in `~/.assistant/suggestions.db`. Provider credentials stay in `~/.assistant/auth.json`, with the selected provider and model in `~/.assistant/provider.json`. Pi manages the installation ID in `~/.assistant/settings.json`.
 
 Run `npm run check`. The [instruction benchmark](evals/benchmark/README.md) uses Durable for native agent integration. `npm run eval:suggestions` runs the tool-free suggestion trials with the saved Codex login.
